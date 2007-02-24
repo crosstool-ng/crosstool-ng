@@ -1,0 +1,55 @@
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/unix/sysv/linux/sh/sysdep.h.diff?r1=1.9&r2=1.10&cvsroot=glibc
+
+Ankur Sheth said:
+
+"This is actually a workaround for a bug in the sh4.  The actual bug is
+documented here :
+http://documentation.renesas.com/eng/products/mpumcu/tu/tnsh7456ae.pdf
+Basically the cache & TLB should not be accessed for 4 (or was it 5?) cycles
+after isssuing a TRAPA instruction.  I didn't run into any specific problem
+because of this bug, but it seems useful to have and the patch itself seems
+pretty harmless."
+
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/unix/sysv/linux/sh/sysdep.h,v
+retrieving revision 1.9
+retrieving revision 1.10
+diff -u -r1.9 -r1.10
+--- libc/sysdeps/unix/sysv/linux/sh/sysdep.h	2003/09/01 04:05:21	1.9
++++ libc/sysdeps/unix/sysv/linux/sh/sysdep.h	2003/10/15 04:36:32	1.10
+@@ -183,6 +183,13 @@
+ # endif	/* _LIBC_REENTRANT */
+ #endif	/* PIC */
+ 
++# ifdef NEED_SYSCALL_INST_PAD
++#  define SYSCALL_INST_PAD \
++	or r0,r0; or r0,r0; or r0,r0; or r0,r0; or r0,r0
++# else
++#  define SYSCALL_INST_PAD
++# endif
++
+ #define SYSCALL_INST0	trapa #0x10
+ #define SYSCALL_INST1	trapa #0x11
+ #define SYSCALL_INST2	trapa #0x12
+@@ -195,19 +202,13 @@
+ #define DO_CALL(syscall_name, args)	\
+     mov.l 1f,r3;			\
+     SYSCALL_INST##args;			\
++    SYSCALL_INST_PAD;			\
+     bra 2f;				\
+      nop;				\
+     .align 2;				\
+  1: .long SYS_ify (syscall_name);	\
+  2:
+ 
+-# ifdef NEED_SYSCALL_INST_PAD
+-#  define SYSCALL_INST_PAD \
+-	or r0,r0; or r0,r0; or r0,r0; or r0,r0; or r0,r0
+-# else
+-#  define SYSCALL_INST_PAD
+-# endif
+-
+ #else /* not __ASSEMBLER__ */
+ 
+ #define SYSCALL_INST_STR0	"trapa #0x10\n\t"

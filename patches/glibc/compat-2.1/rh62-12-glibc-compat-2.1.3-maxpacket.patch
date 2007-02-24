@@ -1,0 +1,512 @@
+#--- libc/resolv/nss_dns/dns-host.c.jj	Tue Sep 14 03:05:08 1999
+#+++ libc/resolv/nss_dns/dns-host.c	Thu Oct 10 13:07:33 2002
+#@@ -129,9 +129,10 @@ _nss_dns_gethostbyname2_r (const char *n
+# 			   char *buffer, size_t buflen, int *errnop,
+# 			   int *h_errnop)
+# {
+#-  querybuf host_buffer;
+#+  querybuf *host_buffer;
+#   int size, type, n;
+#   const char *cp;
+#+  enum nss_status status;
+# 
+#   switch (af) {
+#   case AF_INET:
+#@@ -159,16 +160,25 @@ _nss_dns_gethostbyname2_r (const char *n
+#   if (strchr (name, '.') == NULL && (cp = __hostalias (name)) != NULL)
+#     name = cp;
+# 
+#-  n = res_search (name, C_IN, type, host_buffer.buf, sizeof (host_buffer.buf));
+#+  host_buffer = (querybuf *) malloc (sizeof (*host_buffer));
+#+  if (host_buffer == NULL) {
+#+    *errnop = ENOMEM;
+#+    return NSS_STATUS_UNAVAIL;
+#+  }
+#+
+#+  n = res_search (name, C_IN, type, host_buffer->buf, sizeof (host_buffer->buf));
+#   if (n < 0)
+#     {
+#       *h_errnop = h_errno;
+#       *errnop = *h_errnop == TRY_AGAIN ? EAGAIN : ENOENT;
+#+      free (host_buffer);
+#       return errno == ECONNREFUSED ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
+#     }
+# 
+#-  return getanswer_r (&host_buffer, n, name, type, result, buffer, buflen,
+#-		      errnop, h_errnop);
+#+  status = getanswer_r (host_buffer, n, name, type, result, buffer, buflen,
+#+			errnop, h_errnop);
+#+  free (host_buffer);
+#+  return status; 
+# }
+# 
+# 
+#@@ -205,7 +215,7 @@ _nss_dns_gethostbyaddr_r (const char *ad
+#     char *h_addr_ptrs[MAX_NR_ADDRS + 1];
+#     char linebuffer[0];
+#   } *host_data = (struct host_data *) buffer;
+#-  querybuf host_buffer;
+#+  querybuf *host_buffer;
+#   char qbuf[MAXDNAME+1], *qp;
+#   size_t size;
+#   int n, status;
+#@@ -257,17 +267,25 @@ _nss_dns_gethostbyaddr_r (const char *ad
+#       /* Cannot happen.  */
+#     }
+# 
+#-  n = res_query (qbuf, C_IN, T_PTR, (u_char *)host_buffer.buf,
+#-		 sizeof host_buffer);
+#+  host_buffer = (querybuf *) malloc (sizeof (*host_buffer));
+#+  if (host_buffer == NULL) {
+#+    *errnop = ENOMEM;
+#+    return NSS_STATUS_UNAVAIL;
+#+  }
+#+
+#+  n = res_query (qbuf, C_IN, T_PTR, host_buffer->buf,
+#+		 sizeof (host_buffer->buf));
+#   if (n < 0)
+#     {
+#       *h_errnop = h_errno;
+#       *errnop = errno;
+#+      free (host_buffer);
+#       return errno == ECONNREFUSED ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
+#     }
+# 
+#-  status = getanswer_r (&host_buffer, n, qbuf, T_PTR, result, buffer, buflen,
+#+  status = getanswer_r (host_buffer, n, qbuf, T_PTR, result, buffer, buflen,
+# 			errnop, h_errnop);
+#+  free (host_buffer);
+#   if (status != NSS_STATUS_SUCCESS)
+#     {
+#       *h_errnop = h_errno;
+#--- libc/resolv/nss_dns/dns-network.c.jj	Wed Jun 30 12:01:14 1999
+#+++ libc/resolv/nss_dns/dns-network.c	Thu Oct 10 13:09:49 2002
+#@@ -113,24 +113,36 @@ _nss_dns_getnetbyname_r (const char *nam
+# 			 char *buffer, size_t buflen, int *errnop)
+# {
+#   /* Return entry for network with NAME.  */
+#-  querybuf net_buffer;
+#+  querybuf *net_buffer;
+#   int anslen;
+#   char *qbuf;
+#+  enum nss_status status;
+# 
+#   qbuf = strdupa (name);
+#-  anslen = res_search (qbuf, C_IN, T_PTR, (u_char *) &net_buffer,
+#-		       sizeof (querybuf));
+#+
+#+  net_buffer = (querybuf *) malloc (sizeof (*net_buffer));
+#+  if (net_buffer == NULL)
+#+    {
+#+      *errnop = ENOMEM;
+#+      return NSS_STATUS_UNAVAIL;
+#+    }
+#+
+#+  anslen = res_search (qbuf, C_IN, T_PTR, net_buffer->buf,
+#+		       sizeof (net_buffer->buf));
+#   if (anslen < 0)
+#     {
+#       /* Nothing found.  */
+#       *errnop = errno;
+#+      free (net_buffer);
+#       return (errno == ECONNREFUSED
+# 	      || errno == EPFNOSUPPORT
+# 	      || errno == EAFNOSUPPORT)
+# 	? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
+#     }
+# 
+#-  return getanswer_r (&net_buffer, anslen, result, buffer, buflen, BYNAME);
+#+  status = getanswer_r (net_buffer, anslen, result, buffer, buflen, BYNAME);
+#+  free (net_buffer);
+#+  return status;
+# }
+# 
+# 
+#@@ -140,7 +152,7 @@ _nss_dns_getnetbyaddr_r (long net, int t
+# {
+#   /* Return entry for network with NAME.  */
+#   enum nss_status status;
+#-  querybuf net_buffer;
+#+  querybuf *net_buffer;
+#   unsigned int net_bytes[4];
+#   char qbuf[MAXDNAME];
+#   int cnt, anslen;
+#@@ -176,19 +188,28 @@ _nss_dns_getnetbyaddr_r (long net, int t
+#       break;
+#     }
+# 
+#-  anslen = res_query (qbuf, C_IN, T_PTR, (u_char *) &net_buffer,
+#-		      sizeof (querybuf));
+#+  net_buffer = (querybuf *) malloc (sizeof (*net_buffer));
+#+  if (net_buffer == NULL)
+#+    {
+#+      *errnop = ENOMEM;
+#+      return NSS_STATUS_UNAVAIL;
+#+    }
+#+
+#+  anslen = res_query (qbuf, C_IN, T_PTR, net_buffer->buf,
+#+		      sizeof (net_buffer->buf));
+#   if (anslen < 0)
+#     {
+#       /* Nothing found.  */
+#       *errnop = errno;
+#+      free (net_buffer);
+#       return (errno == ECONNREFUSED
+# 	      || errno == EPFNOSUPPORT
+# 	      || errno == EAFNOSUPPORT)
+# 	? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
+#     }
+# 
+#-  status = getanswer_r (&net_buffer, anslen, result, buffer, buflen, BYADDR);
+#+  status = getanswer_r (net_buffer, anslen, result, buffer, buflen, BYADDR);
+#+  free (net_buffer);
+#   if (status == NSS_STATUS_SUCCESS)
+#     {
+#       /* Strip trailing zeros.  */
+#--- libc/resolv/res_query.c.jj	Wed Jun 30 12:01:06 1999
+#+++ libc/resolv/res_query.c	Thu Oct 10 13:01:12 2002
+#@@ -106,7 +106,7 @@ res_query(name, class, type, answer, ans
+# 	u_char *answer;		/* buffer to put answer */
+# 	int anslen;		/* size of answer buffer */
+# {
+#-	u_char buf[MAXPACKET];
+#+	u_char *buf;
+# 	register HEADER *hp = (HEADER *) answer;
+# 	int n;
+# 
+#@@ -121,17 +121,25 @@ res_query(name, class, type, answer, ans
+# 		printf(";; res_query(%s, %d, %d)\n", name, class, type);
+# #endif
+# 
+#+	buf = malloc (MAXPACKET);
+#+	if (buf == NULL) {
+#+		__set_h_errno (NETDB_INTERNAL);
+#+		return -1;
+#+	}
+#+
+# 	n = res_mkquery(QUERY, name, class, type, NULL, 0, NULL,
+#-			buf, sizeof(buf));
+#+			buf, MAXPACKET);
+# 	if (n <= 0) {
+# #ifdef DEBUG
+# 		if (_res.options & RES_DEBUG)
+# 			printf(";; res_query: mkquery failed\n");
+# #endif
+# 		__set_h_errno (NO_RECOVERY);
+#+		free (buf);
+# 		return (n);
+# 	}
+# 	n = res_send(buf, n, answer, anslen);
+#+	free (buf);
+# 	if (n < 0) {
+# #ifdef DEBUG
+# 		if (_res.options & RES_DEBUG)
+#--- libc/resolv/gethnamaddr.c.jj	Tue Dec  7 11:50:36 1999
+#+++ libc/resolv/gethnamaddr.c	Thu Oct 10 15:05:50 2002
+#@@ -512,10 +512,11 @@ gethostbyname2(name, af)
+# 	const char *name;
+# 	int af;
+# {
+#-	querybuf buf;
+#+	querybuf *buf;
+# 	register const char *cp;
+# 	char *bp;
+# 	int n, size, type, len;
+#+	struct hostent *ret;
+# 	extern struct hostent *_gethtbyname2();
+# 
+# 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+#@@ -617,13 +618,22 @@ gethostbyname2(name, af)
+# 				break;
+# 		}
+# 
+#-	if ((n = res_search(name, C_IN, type, buf.buf, sizeof(buf.buf))) < 0) {
+#+	buf = (querybuf *) malloc (sizeof (*buf));
+#+	if (buf == NULL) {
+#+		__set_h_errno (NETDB_INTERNAL);
+#+		return NULL;
+#+	}
+#+
+#+	if ((n = res_search(name, C_IN, type, buf->buf, sizeof(buf->buf))) < 0) {
+#+		free (buf);
+# 		dprintf("res_search failed (%d)\n", n);
+# 		if (errno == ECONNREFUSED)
+# 			return (_gethtbyname2(name, af));
+# 		return (NULL);
+# 	}
+#-	return (getanswer(&buf, n, name, type));
+#+	ret = getanswer(buf, n, name, type);
+#+	free (buf);
+#+	return ret;
+# }
+# 
+# struct hostent *
+#@@ -636,7 +646,7 @@ gethostbyaddr(addr, len, af)
+# 	static const u_char mapped[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0xff,0xff };
+# 	static const u_char tunnelled[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 };
+# 	int n, size;
+#-	querybuf buf;
+#+	querybuf *buf;
+# 	register struct hostent *hp;
+# 	char qbuf[MAXDNAME+1], *qp;
+# #ifdef SUNSECURITY
+#@@ -697,14 +707,24 @@ gethostbyaddr(addr, len, af)
+# 	default:
+# 		abort();
+# 	}
+#-	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf.buf, sizeof buf.buf);
+#+
+#+	buf = (querybuf *) malloc (sizeof (*buf));
+#+	if (buf == NULL) {
+#+		__set_h_errno (NETDB_INTERNAL);
+#+		return NULL;
+#+	}
+#+
+#+	n = res_query(qbuf, C_IN, T_PTR, buf->buf, sizeof buf->buf);
+# 	if (n < 0) {
+#+		free (buf);
+# 		dprintf("res_query failed (%d)\n", n);
+# 		if (errno == ECONNREFUSED)
+# 			return (_gethtbyaddr(addr, len, af));
+# 		return (NULL);
+# 	}
+#-	if (!(hp = getanswer(&buf, n, qbuf, T_PTR)))
+#+	hp = getanswer(buf, n, qbuf, T_PTR);
+#+	free (buf);
+#+	if (!hp)
+# 		return (NULL);	/* h_errno was set by getanswer() */
+# #ifdef SUNSECURITY
+# 	if (af == AF_INET) {
+#--- libc/resolv/getnetnamadr.c.jj	Wed Jun 30 12:00:50 1999
+#+++ libc/resolv/getnetnamadr.c	Thu Oct 10 13:14:01 2002
+#@@ -210,7 +210,7 @@ getnetbyaddr(net, net_type)
+# {
+# 	unsigned int netbr[4];
+# 	int nn, anslen;
+#-	querybuf buf;
+#+	querybuf *buf;
+# 	char qbuf[MAXDNAME];
+# 	u_int32_t net2;		/* Changed from unsigned long --roland */
+# 	struct netent *net_entry;
+#@@ -236,8 +236,15 @@ getnetbyaddr(net, net_type)
+# 		    netbr[1], netbr[0]);
+# 		break;
+# 	}
+#-	anslen = res_query(qbuf, C_IN, T_PTR, (u_char *)&buf, sizeof(buf));
+#+
+#+	buf = (querybuf *) malloc (sizeof (*buf));
+#+	if (buf == NULL) {
+#+		return NULL;
+#+	}
+#+
+#+	anslen = res_query(qbuf, C_IN, T_PTR, buf->buf, sizeof(buf->buf));
+# 	if (anslen < 0) {
+#+		free (buf);
+# #ifdef DEBUG
+# 		if (_res.options & RES_DEBUG)
+# 			printf("res_query failed\n");
+#@@ -246,7 +253,8 @@ getnetbyaddr(net, net_type)
+# 			return (_getnetbyaddr(net, net_type));
+# 		return (NULL);
+# 	}
+#-	net_entry = getnetanswer(&buf, anslen, BYADDR);
+#+	net_entry = getnetanswer(buf, anslen, BYADDR);
+#+	free (buf);
+# 	if (net_entry) {
+# 		unsigned u_net = net;	/* maybe net should be unsigned ? */
+# 
+#@@ -264,7 +272,7 @@ getnetbyname(net)
+# 	register const char *net;
+# {
+# 	int anslen;
+#-	querybuf buf;
+#+	querybuf *buf;
+# 	char qbuf[MAXDNAME];
+# 	struct netent *net_entry;
+# 
+#@@ -273,8 +281,13 @@ getnetbyname(net)
+# 		return (NULL);
+# 	}
+# 	strcpy(&qbuf[0], net);
+#-	anslen = res_search(qbuf, C_IN, T_PTR, (u_char *)&buf, sizeof(buf));
+#+	buf = (querybuf *) malloc (sizeof (*buf));
+#+	if (buf == NULL) {
+#+		return NULL;
+#+	}
+#+	anslen = res_search(qbuf, C_IN, T_PTR, buf->buf, sizeof(buf->buf));
+# 	if (anslen < 0) {
+#+		free (buf);
+# #ifdef DEBUG
+# 		if (_res.options & RES_DEBUG)
+# 			printf("res_query failed\n");
+#@@ -283,7 +296,8 @@ getnetbyname(net)
+# 			return (_getnetbyname(net));
+# 		return (_getnetbyname(net));
+# 	}
+#-	net_entry = getnetanswer(&buf, anslen, BYNAME);
+#+	net_entry = getnetanswer(buf, anslen, BYNAME);
+#+	free (buf);
+# 	if (net_entry)
+# 		return (net_entry);
+# 	return (_getnetbyname(net));
+--- libc/glibc-compat/nss_dns/dns-host.c.jj	Mon Jan  3 20:07:08 2000
++++ libc/glibc-compat/nss_dns/dns-host.c	Thu Oct 10 12:46:24 2002
+@@ -126,9 +126,10 @@ enum nss_status
+ _nss_dns_gethostbyname2_r (const char *name, int af, struct hostent *result,
+ 			   char *buffer, size_t buflen, int *h_errnop)
+ {
+-  querybuf host_buffer;
++  querybuf *host_buffer;
+   int size, type, n;
+   const char *cp;
++  enum nss_status status;
+ 
+   switch (af) {
+   case AF_INET:
+@@ -156,15 +157,22 @@ _nss_dns_gethostbyname2_r (const char *n
+   if (strchr (name, '.') == NULL && (cp = __hostalias (name)) != NULL)
+     name = cp;
+ 
+-  n = res_search (name, C_IN, type, host_buffer.buf, sizeof (host_buffer.buf));
++  host_buffer = (querybuf *) malloc (sizeof (querybuf));
++  if (host_buffer == NULL)
++    return NSS_STATUS_UNAVAIL;
++
++  n = res_search (name, C_IN, type, host_buffer->buf, sizeof (host_buffer->buf));
+   if (n < 0)
+     {
+       *h_errnop = h_errno;
++      free (host_buffer);
+       return errno == ECONNREFUSED ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
+     }
+ 
+-  return getanswer_r (&host_buffer, n, name, type, result, buffer, buflen,
+-		      h_errnop);
++  status = getanswer_r (host_buffer, n, name, type, result, buffer, buflen,
++			h_errnop);
++  free (host_buffer);
++  return status;
+ }
+ 
+ 
+@@ -200,7 +208,7 @@ _nss_dns_gethostbyaddr_r (const char *ad
+     char *h_addr_ptrs[MAX_NR_ADDRS + 1];
+     char linebuffer[0];
+   } *host_data = (struct host_data *) buffer;
+-  querybuf host_buffer;
++  querybuf *host_buffer;
+   char qbuf[MAXDNAME+1], *qp;
+   int size, n, status;
+ 
+@@ -251,16 +259,22 @@ _nss_dns_gethostbyaddr_r (const char *ad
+       /* Cannot happen.  */
+     }
+ 
+-  n = res_query (qbuf, C_IN, T_PTR, (u_char *)host_buffer.buf,
+-		 sizeof host_buffer);
++  host_buffer = (querybuf *) malloc (sizeof (querybuf));
++  if (host_buffer == NULL)
++    return NSS_STATUS_UNAVAIL;
++
++  n = res_query (qbuf, C_IN, T_PTR, host_buffer->buf,
++		 sizeof (host_buffer->buf));
+   if (n < 0)
+     {
+       *h_errnop = h_errno;
++      free (host_buffer);
+       return errno == ECONNREFUSED ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
+     }
+ 
+-  status = getanswer_r (&host_buffer, n, qbuf, T_PTR, result, buffer, buflen,
++  status = getanswer_r (host_buffer, n, qbuf, T_PTR, result, buffer, buflen,
+ 			h_errnop);
++  free (host_buffer);
+   if (status != NSS_STATUS_SUCCESS)
+     {
+       *h_errnop = h_errno;
+--- libc/glibc-compat/nss_dns/dns-network.c.jj	Mon Jan  3 20:07:08 2000
++++ libc/glibc-compat/nss_dns/dns-network.c	Thu Oct 10 12:46:24 2002
+@@ -107,21 +107,32 @@ _nss_dns_getnetbyname_r (const char *nam
+ 			 char *buffer, size_t buflen)
+ {
+   /* Return entry for network with NAME.  */
+-  querybuf net_buffer;
++  querybuf *net_buffer;
+   int anslen;
+   char *qbuf;
++  enum nss_status status;
+ 
+   qbuf = strdupa (name);
+-  anslen = res_search (qbuf, C_IN, T_PTR, (u_char *) &net_buffer,
+-		       sizeof (querybuf));
++
++  net_buffer = (querybuf *) malloc (sizeof (querybuf));
++  if (net_buffer == NULL)
++    return NSS_STATUS_UNAVAIL;
++
++  anslen = res_search (qbuf, C_IN, T_PTR, net_buffer->buf,
++		       sizeof (net_buffer->buf));
+   if (anslen < 0)
+-    /* Nothing found.  */
+-    return (errno == ECONNREFUSED
+-	    || errno == EPFNOSUPPORT
+-	    || errno == EAFNOSUPPORT)
+-      ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
++    {
++      free (net_buffer);
++      /* Nothing found.  */
++      return (errno == ECONNREFUSED
++	      || errno == EPFNOSUPPORT
++	      || errno == EAFNOSUPPORT)
++	      ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
++    }
+ 
+-  return getanswer_r (&net_buffer, anslen, result, buffer, buflen, BYNAME);
++  status = getanswer_r (net_buffer, anslen, result, buffer, buflen, BYNAME);
++  free (net_buffer);
++  return status;
+ }
+ 
+ 
+@@ -131,7 +142,7 @@ _nss_dns_getnetbyaddr_r (long net, int t
+ {
+   /* Return entry for network with NAME.  */
+   enum nss_status status;
+-  querybuf net_buffer;
++  querybuf *net_buffer;
+   unsigned int net_bytes[4];
+   char qbuf[MAXDNAME];
+   int cnt, anslen;
+@@ -167,16 +178,24 @@ _nss_dns_getnetbyaddr_r (long net, int t
+       break;
+     }
+ 
+-  anslen = res_query (qbuf, C_IN, T_PTR, (u_char *) &net_buffer,
+-		      sizeof (querybuf));
++  net_buffer = (querybuf *) malloc (sizeof (querybuf));
++  if (net_buffer == NULL)
++    return NSS_STATUS_UNAVAIL;
++
++  anslen = res_query (qbuf, C_IN, T_PTR, net_buffer->buf,
++		      sizeof (net_buffer->buf));
+   if (anslen < 0)
+-    /* Nothing found.  */
+-    return (errno == ECONNREFUSED
+-	    || errno == EPFNOSUPPORT
+-	    || errno == EAFNOSUPPORT)
+-      ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
++    {
++      free (net_buffer);
++      /* Nothing found.  */
++      return (errno == ECONNREFUSED
++	      || errno == EPFNOSUPPORT
++	      || errno == EAFNOSUPPORT)
++	      ? NSS_STATUS_UNAVAIL : NSS_STATUS_NOTFOUND;
++    }
+ 
+-  status = getanswer_r (&net_buffer, anslen, result, buffer, buflen, BYADDR);
++  status = getanswer_r (net_buffer, anslen, result, buffer, buflen, BYADDR);
++  free (net_buffer);
+   if (status == NSS_STATUS_SUCCESS)
+     {
+       /* Strip trailing zeros.  */

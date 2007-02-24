@@ -1,0 +1,206 @@
+Retrieved with
+ wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/m68k/dl-machine.h.diff?r1=1.53&r2=1.55&cvsroot=glibc'
+
+Fixes error
+
+In file included from dynamic-link.h:21,
+                 from dl-load.c:32:
+../sysdeps/m68k/dl-machine.h:108: error: parse error before '.' token
+../sysdeps/m68k/dl-machine.h:109: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:120: error: syntax error at '#' token
+../sysdeps/m68k/dl-machine.h:123: error: stray '\' in program
+../sysdeps/m68k/dl-machine.h:123: error: missing terminating " character
+../sysdeps/m68k/dl-machine.h:148: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:152: error: syntax error at '#' token
+../sysdeps/m68k/dl-machine.h:156: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:161: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:163: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:166: error: stray '@' in program
+In file included from dynamic-link.h:21,
+                 from dl-load.c:32:
+../sysdeps/m68k/dl-machine.h:175:4: invalid preprocessing directive #Call
+../sysdeps/m68k/dl-machine.h:179: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:180: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:181: error: syntax error at '#' token
+../sysdeps/m68k/dl-machine.h:182: error: syntax error at '#' token
+../sysdeps/m68k/dl-machine.h:184: error: stray '@' in program
+../sysdeps/m68k/dl-machine.h:187: error: missing terminating ' character
+../sysdeps/m68k/dl-machine.h:190: error: missing terminating " character
+dl-load.c: In function `_dl_map_object_from_fd':
+dl-load.c:1089: warning: use of cast expressions as lvalues is deprecated
+dl-load.c:1089: warning: use of cast expressions as lvalues is deprecated
+dl-load.c:1109: warning: use of cast expressions as lvalues is deprecated
+dl-load.c:1109: warning: use of cast expressions as lvalues is deprecated
+make[2]: *** [/home/dank/wk/crosstool-0.28-rc24/build/m68k-unknown-linux-gnu/gcc-3.4.0-glibc-2.2.5/build-glibc/elf/dl-load.o] Error 1
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/m68k/dl-machine.h,v
+retrieving revision 1.53
+retrieving revision 1.55
+diff -u -r1.53 -r1.55
+--- libc/sysdeps/m68k/dl-machine.h	2001/08/26 22:26:36	1.53
++++ libc/sysdeps/m68k/dl-machine.h	2002/02/01 10:28:20	1.55
+@@ -1,5 +1,5 @@
+ /* Machine-dependent ELF dynamic relocation inline functions.  m68k version.
+-   Copyright (C) 1996,1997,1998,1999,2000,2001 Free Software Foundation, Inc.
++   Copyright (C) 1996-2001, 2002 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -85,11 +85,11 @@
+ 	{
+ 	  got[2] = (Elf32_Addr) &_dl_runtime_profile;
+ 
+-	  if (_dl_name_match_p (_dl_profile, l))
++	  if (_dl_name_match_p (GL(dl_profile), l))
+ 	    {
+ 	      /* This is the object we are looking for.  Say that we really
+ 		 want profiling and the timers are started.  */
+-	      _dl_profile_map = l;
++	      GL(dl_profile_map) = l;
+ 	    }
+ 	}
+       else
+@@ -104,22 +104,22 @@
+ /* This code is used in dl-runtime.c to call the `fixup' function
+    and then redirect to the address it returns.  */
+ #define TRAMPOLINE_TEMPLATE(tramp_name, fixup_name) \
+-"| Trampoline for " #fixup_name "
+-	.globl " #tramp_name "
+-	.type " #tramp_name ", @function
+-" #tramp_name ":
+-	| Save %a0 (struct return address) and %a1.
+-	move.l %a0, -(%sp)
+-	move.l %a1, -(%sp)
+-	| Call the real address resolver.
+-	jbsr " #fixup_name "
+-	| Restore register %a0 and %a1.
+-	move.l (%sp)+, %a1
+-	move.l (%sp)+, %a0
+-	| Pop parameters
+-	addq.l #8, %sp
+-	| Call real function.
+-	jmp (%d0)
++"| Trampoline for " #fixup_name "\n\
++	.globl " #tramp_name "\n\
++	.type " #tramp_name ", @function\n\
++" #tramp_name ":\n\
++	| Save %a0 (struct return address) and %a1.\n\
++	move.l %a0, -(%sp)\n\
++	move.l %a1, -(%sp)\n\
++	| Call the real address resolver.\n\
++	jbsr " #fixup_name "\n\
++	| Restore register %a0 and %a1.\n\
++	move.l (%sp)+, %a1\n\
++	move.l (%sp)+, %a0\n\
++	| Pop parameters\n\
++	addq.l #8, %sp\n\
++	| Call real function.\n\
++	jmp (%d0)\n\
+ 	.size " #tramp_name ", . - " #tramp_name "\n"
+ #ifndef PROF
+ #define ELF_MACHINE_RUNTIME_TRAMPOLINE \
+@@ -143,50 +143,50 @@
+    its return value is the user program's entry point.  */
+ 
+ #define RTLD_START asm ("\
+-	.text
+-	.globl _start
+-	.type _start,@function
+-_start:
+-	move.l %sp, -(%sp)
+-	jbsr _dl_start
+-	addq.l #4, %sp
+-	/* FALLTHRU */
+-
+-	.globl _dl_start_user
+-	.type _dl_start_user,@function
+-_dl_start_user:
+-	| Save the user entry point address in %a4.
+-	move.l %d0, %a4
+-	| Point %a5 at the GOT.
+-	lea _GLOBAL_OFFSET_TABLE_@GOTPC(%pc), %a5
+-	| Remember the highest stack address.
+-	move.l %sp, ([__libc_stack_end@GOT.w, %a5])
+-	| See if we were run as a command with the executable file
+-	| name as an extra leading argument.
+-	move.l ([_dl_skip_args@GOT.w, %a5]), %d0
+-	| Pop the original argument count
+-	move.l (%sp)+, %d1
+-	| Subtract _dl_skip_args from it.
+-	sub.l %d0, %d1
+-	| Adjust the stack pointer to skip _dl_skip_args words.
+-	lea (%sp, %d0*4), %sp
+-	| Push back the modified argument count.
+-	move.l %d1, -(%sp)
+-	# Call _dl_init (struct link_map *main_map, int argc, char **argv, char **env)
+-	pea 8(%sp, %d1*4)
+-	pea 8(%sp)
+-	move.l %d1, -(%sp)
+-	move.l ([_dl_loaded@GOT.w, %a5]), -(%sp)
+-	jbsr _dl_init@PLTPC
+-	addq.l #8, %sp
+-	addq.l #8, %sp
+-	| Pass our finalizer function to the user in %a1.
+-	move.l _dl_fini@GOT.w(%a5), %a1
+-	| Initialize %fp with the stack pointer.
+-	move.l %sp, %fp
+-	| Jump to the user's entry point.
+-	jmp (%a4)
+-	.size _dl_start_user, . - _dl_start_user
++	.text\n\
++	.globl _start\n\
++	.type _start,@function\n\
++_start:\n\
++	move.l %sp, -(%sp)\n\
++	jbsr _dl_start\n\
++	addq.l #4, %sp\n\
++	/* FALLTHRU */\n\
++\n\
++	.globl _dl_start_user\n\
++	.type _dl_start_user,@function\n\
++_dl_start_user:\n\
++	| Save the user entry point address in %a4.\n\
++	move.l %d0, %a4\n\
++	| Point %a5 at the GOT.\n\
++	lea _GLOBAL_OFFSET_TABLE_@GOTPC(%pc), %a5\n\
++	| Remember the highest stack address.\n\
++	move.l %sp, ([__libc_stack_end@GOT.w, %a5])\n\
++	| See if we were run as a command with the executable file\n\
++	| name as an extra leading argument.\n\
++	move.l ([_dl_skip_args@GOT.w, %a5]), %d0\n\
++	| Pop the original argument count\n\
++	move.l (%sp)+, %d1\n\
++	| Subtract _dl_skip_args from it.\n\
++	sub.l %d0, %d1\n\
++	| Adjust the stack pointer to skip _dl_skip_args words.\n\
++	lea (%sp, %d0*4), %sp\n\
++	| Push back the modified argument count.\n\
++	move.l %d1, -(%sp)\n\
++	# Call _dl_init (struct link_map *main_map, int argc, char **argv, char **env)\n\
++	pea 8(%sp, %d1*4)\n\
++	pea 8(%sp)\n\
++	move.l %d1, -(%sp)\n\
++	move.l ([_rtld_global@GOT.w, %a5]), -(%sp)\n\
++	jbsr _dl_init@PLTPC\n\
++	addq.l #8, %sp\n\
++	addq.l #8, %sp\n\
++	| Pass our finalizer function to the user in %a1.\n\
++	move.l _dl_fini@GOT.w(%a5), %a1\n\
++	| Initialize %fp with the stack pointer.\n\
++	move.l %sp, %fp\n\
++	| Jump to the user's entry point.\n\
++	jmp (%a4)\n\
++	.size _dl_start_user, . - _dl_start_user\n\
+ 	.previous");
+ 
+ /* ELF_RTYPE_CLASS_PLT iff TYPE describes relocation of a PLT entry, so
+@@ -251,7 +251,7 @@
+ 	       found.  */
+ 	    break;
+ 	  if (sym->st_size > refsym->st_size
+-	      || (sym->st_size < refsym->st_size && _dl_verbose))
++	      || (sym->st_size < refsym->st_size && GL(dl_verbose)))
+ 	    {
+ 	      extern char **_dl_argv;
+ 	      const char *strtab;

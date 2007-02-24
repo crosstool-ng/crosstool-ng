@@ -1,0 +1,102 @@
+# Linux kernel options
+
+choice
+    bool
+    prompt "Get kernel headers from:"
+
+config KERNEL_LINUX_HEADERS_INSTALL
+    bool
+    prompt "kernel's 'headers_install'"
+    help
+      This will make use of the new headers_install rule in recent kernels.
+      This is most probably what you want to use.
+
+config KERNEL_LINUX_HEADERS_SANITISED
+    bool
+    prompt "Mazur's sanitized headers (OBSOLETE)"
+    help
+      M. Mazur used to maintain a tree of sanitised headers, but it is now
+      obsoleted by the headers_install rule (above), and has not seen eny
+      update since 2.6.12
+
+config KERNEL_LINUX_HEADERS_COPY
+    bool
+    prompt "pure kernel headers (NOT RECOMMENDED)"
+    help
+      This will simply copy the kernel headers to the toolchain.
+
+      You do NOT want this. It's badly broken because it leaks kernel internals
+      to userspace.
+
+endchoice
+
+config KERNEL
+    string
+    default "linux" if KERNEL_LINUX_HEADERS_INSTALL || KERNEL_LINUX_HEADERS_COPY
+    default "linux-libc-headers" if KERNEL_LINUX_HEADERS_SANITISED
+
+config KERNEL_VERSION_SEE_EXTRAVERSION
+    bool
+    prompt "See extra versions"
+    default n
+    depends on ! KERNEL_LINUX_HEADERS_SANITISED
+    help
+      See extra versions (kernel with 4 numbers, eg 2.6.19.1).
+
+      If you say 'no', you'll only see sub-level, 3-digit versions.
+      If you say 'yes', you'll see far more versions!
+
+      It is recommended that you say 'no', unless you _*know*_
+      that an extra version fixes a headers bug.
+
+if KERNEL_LINUX_HEADERS_INSTALL
+source config/kernel_linux_headers_install.in
+endif
+
+if KERNEL_LINUX_HEADERS_COPY
+source config/kernel_linux_headers_copy.in
+endif
+
+if KERNEL_LINUX_HEADERS_SANITISED
+source config/kernel_linux_headers_sanitised.in
+endif
+
+choice
+    bool
+    prompt "Kernel verbosity:"
+    default KERNEL_LINUX_VERBOSITY_0
+
+config KERNEL_LINUX_VERBOSITY_0
+    bool
+    prompt "Simplified"
+    help
+      Print simplified command lines.
+
+config KERNEL_LINUX_VERBOSITY_1
+    bool
+    prompt "Full commands"
+    help
+      Print full command lines.
+
+config KERNEL_LINUX_VERBOSITY_2
+    bool
+    prompt "Exec reasons"
+    help
+      Print the reasons why a make target is rebuild.
+
+endchoice
+
+config KERNEL_LINUX_VERBOSE_LEVEL
+    int
+    default 0 if KERNEL_LINUX_VERBOSITY_0
+    default 1 if KERNEL_LINUX_VERBOSITY_1
+    default 2 if KERNEL_LINUX_VERBOSITY_2
+
+config KERNEL_LINUX_CONFIG_FILE
+    string
+    prompt "Configuration file"
+    default ""
+    help
+      Path to the kernel configuration file.
+      
+      You _must_ provide one (for now).

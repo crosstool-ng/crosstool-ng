@@ -1,0 +1,185 @@
+# Compiler options
+
+menu "C compiler"
+
+comment "Core C Compiler (used to build the C library)"
+
+config CC_USE_CORE
+    bool
+    prompt "Use a different core C compiler"
+    default n
+    help
+      Use a different compiler to build the C library than the one
+      in the final toolchain.
+      
+      You can change the compiler used, or only the version used.
+
+      You most probably don't need that.
+
+config CC_CORE_GCC
+    bool
+    default y if ! CC_USE_CORE && CC_GCC
+    default n if CC_USE_CORE || ! CC_GCC
+
+config CC_CORE_TCC
+    bool
+    default y if ! CC_USE_CORE && CC_TCC
+    default n if CC_USE_CORE || ! CC_TCC
+
+choice
+    bool
+    prompt "Core C compiler:"
+    depends on CC_USE_CORE
+
+config CC_CORE_GCC
+    bool
+    prompt "gcc"
+
+#config CC_CORE_TCC
+#    bool
+#    prompt "tcc (EXPERIMENTAL)"
+
+endchoice
+
+config CC_CORE_VERSION
+    string
+
+config CC_CORE
+    string
+    default "gcc" if CC_CORE_GCC
+    default "tcc" if CC_CORE_TCC
+
+if CC_CORE_GCC && CC_USE_CORE
+source config/cc_core_gcc.in
+endif
+
+if CC_CORE_TCC && CC_USE_CORE
+source config/cc_core_tcc.in
+endif
+
+comment "Final C compiler"
+
+choice
+    bool
+    prompt "Final C compiler"
+    default CC_GCC
+
+config CC_GCC
+    bool
+    prompt "gcc"
+    select CC_SUPPORT_CXX
+    select CC_SUPPORT_FORTRAN
+    select CC_SUPPORT_JAVA
+    select CC_SUPPORT_ADA
+    select CC_SUPPORT_OBJC
+    select CC_SUPPORT_OBJCXX
+
+#config CC_TCC
+#    bool
+#    prompt "tcc (EXPERIMENTAL)"
+#    select CC_LANG_C
+
+endchoice
+
+config CC_VERSION
+    string
+
+config CC
+    string
+    default "gcc" if CC_GCC
+    default "tcc" if CC_TCC
+
+if CC_GCC
+source config/cc_gcc.in
+endif
+
+if CC_GCC
+source config/cc_tcc.in
+endif
+
+config CC_SUPPORT_CXX
+    bool
+
+config CC_SUPPORT_FORTRAN
+    bool
+
+config CC_SUPPORT_JAVA
+    bool
+
+config CC_SUPPORT_ADA
+    bool
+
+config CC_SUPPORT_OBJC
+    bool
+
+config CC_SUPPORT_OBJCXX
+    bool
+
+comment "Additionnal supported languages:"
+
+config CC_LANG_CXX
+    bool
+    prompt "C++"
+    default n
+    depends on CC_SUPPORT_CXX
+    help
+      Only select this if you know that your specific combination of
+      compiler and its version does support this language.
+
+config CC_LANG_FORTRAN
+    bool
+    prompt "Fortran"
+    default n
+    depends on CC_SUPPORT_FORTRAN
+    help
+      Only select this if you know that your specific combination of
+      compiler and its version does support this language.
+
+config CC_LANG_JAVA
+    bool
+    prompt "Java"
+    default n
+    depends on CC_SUPPORT_JAVA
+    help
+      Only select this if you know that your specific combination of
+      compiler and its version does support this language.
+
+config CC_LANG_ADA
+    bool
+    prompt "ADA"
+    default n
+    depends on CC_SUPPORT_ADA
+    help
+      Only select this if you know that your specific combination of
+      compiler and its version does support this language.
+
+config CC_LANG_OBJC
+    bool
+    prompt "Objective-C"
+    default n
+    depends on CC_SUPPORT_OBJC
+    help
+      Only select this if you know that your specific combination of
+      compiler and its version does support this language.
+
+config CC_LANG_OBJCXX
+    bool
+    prompt "Objective-C++"
+    default n
+    depends on CC_SUPPORT_OBJCXX
+    help
+      Only select this if you know that your specific combination of
+      compiler and its version does support this language.
+
+config CC_LANG_OTHERS
+    string
+    prompt "Other languages"
+    default ""
+    help
+      Enter here a comma-separated list of languages that you know your compiler
+      supports, besides those listed above.
+
+      Eg. gcc-4.1+ has a toy programming language, treelang. As it is not usefull
+      in real life, it is not available in the selection above.
+
+endmenu

@@ -1,0 +1,118 @@
+See http://sources.redhat.com/ml/libc-alpha/2004-05/msg00110.html
+
+Both his patches pulled into this file
+
+Should fix
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S: Assembler messages:
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_startproc'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_def_cfa_offset'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: missing ')'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: syntax error
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_remember_state'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_restore'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_def_cfa_offset'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_restore_state'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_restore'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:28: Error: unknown opcode `cfi_def_cfa_offset'
+../sysdeps/unix/sysv/linux/alpha/sigsuspend.S:30: Error: unknown opcode `cfi_endproc'
+make[2]: *** [/usr/src/crosstool/crosstool-0.28-rc14/build/alpha-linux/gcc-3.4.0-glibc-2.3.2/build-glibc/signal/sigsuspend.o] Error 1
+
+when building with binutils-2.15.90.0.3 and gcc-3.4.0
+
+--- glibc-2.3.2/linuxthreads/sysdeps/unix/sysv/linux/alpha/sysdep-cancel.h.orig	2004-05-13 00:33:54.000000000 -0400
++++ glibc-2.3.2/linuxthreads/sysdeps/unix/sysv/linux/alpha/sysdep-cancel.h	2004-05-13 00:34:19.000000000 -0400
+@@ -42,7 +42,7 @@
+ 	.align 4;						\
+ 	.type name, @function;					\
+ 	.usepv name, std;					\
+-	cfi_startproc;						\
++	.cfi_startproc;						\
+ __LABEL(name)							\
+ 	ldgp	gp, 0(pv);					\
+ 	PSEUDO_PROF;						\
+@@ -56,9 +56,9 @@
+ 	.subsection 2;						\
+ __LABEL($pseudo_cancel)						\
+ 	subq	sp, 64, sp;					\
+-	cfi_def_cfa_offset(64);					\
++	.cfi_def_cfa_offset(64);					\
+ 	stq	ra, 0(sp);					\
+-	cfi_offset(ra, -64);					\
++	.cfi_offset ra, -64;					\
+ 	SAVE_ARGS_##args;					\
+ 	CENABLE;						\
+ 	LOAD_ARGS_##args;					\
+@@ -70,18 +70,18 @@
+ 	ldq	ra, 0(sp);					\
+ 	ldq	v0, 8(sp);					\
+ 	addq	sp, 64, sp;					\
+-	cfi_remember_state;					\
+-	cfi_restore(ra);					\
+-	cfi_def_cfa_offset(0);					\
++	.cfi_remember_state;					\
++	.cfi_restore(ra);					\
++	.cfi_def_cfa_offset(0);					\
+ 	ret;							\
+-	cfi_restore_state;					\
++	.cfi_restore_state;					\
+ __LABEL($multi_error)						\
+ 	CDISABLE;						\
+ 	ldq	ra, 0(sp);					\
+ 	ldq	v0, 8(sp);					\
+ 	addq	sp, 64, sp;					\
+-	cfi_restore(ra);					\
+-	cfi_def_cfa_offset(0);					\
++	.cfi_restore(ra);					\
++	.cfi_def_cfa_offset(0);					\
+ __LABEL($syscall_error)						\
+ 	SYSCALL_ERROR_HANDLER;					\
+ 	.previous
+@@ -89,7 +89,7 @@
+ # undef PSEUDO_END
+ # define PSEUDO_END(sym)					\
+ 	.subsection 2;						\
+-	cfi_endproc;						\
++	.cfi_endproc;						\
+ 	.size sym, .-sym
+ 
+ # define SAVE_ARGS_0	/* Nothing.  */
+
+--- glibc-2.3.2/linuxthreads/sysdeps/unix/sysv/linux/alpha/vfork.S.orig	2004-05-13 01:47:46.000000000 -0400
++++ glibc-2.3.2/linuxthreads/sysdeps/unix/sysv/linux/alpha/vfork.S	2004-05-13 01:48:17.000000000 -0400
+@@ -23,7 +23,7 @@
+ 	.globl	__vfork
+ 	.type	__vfork, @function
+ 	.usepv	__vfork, std
+-	cfi_startproc
++	.cfi_startproc
+ __vfork:
+ 	ldgp	gp, 0(pv)
+ 	PSEUDO_PROF
+@@ -47,22 +47,22 @@
+ 	   fork and vfork object files.  */
+ $do_fork:
+ 	subq	sp, 16, sp
+-	cfi_adjust_cfa_offset(16)
++	.cfi_adjust_cfa_offset(16)
+ 	stq	ra, 0(sp)
+-	cfi_offset(ra, -16)
++	.cfi_offset ra, -16
+ 	jsr	ra, HIDDEN_JUMPTARGET (__fork)
+ 	ldgp	gp, 0(ra)
+ 	ldq	ra, 0(sp)
+ 	addq	sp, 16, sp
+-	cfi_restore(ra)
+-	cfi_adjust_cfa_offset(-16)
++	.cfi_restore(ra)
++	.cfi_adjust_cfa_offset(-16)
+ 	ret
+ 
+ $syscall_error:
+ 	SYSCALL_ERROR_HANDLER
+ #endif
+ 
+-	cfi_endproc
++	.cfi_endproc
+ 	.size __vfork, .-__vfork
+ 
+ libc_hidden_def (__vfork)

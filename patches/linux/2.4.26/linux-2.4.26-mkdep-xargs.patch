@@ -1,0 +1,28 @@
+About ten times, various people have noticed that 'make dep' uses
+really, really long commandlines.  This breaks sh even on linux sometimes.
+
+For 2.4, see e.g.
+http://marc.theaimsgroup.com/?l=linux-kernel&m=96589814004919&w=2
+http://marc.theaimsgroup.com/?l=linux-kernel&m=96589814004919&q=p3
+http://www.xraylith.wisc.edu/~khan/software/gnu-win32/cygwin-to-linux-cross-howto.txt
+http://www.uclinux.org/pub/uClinux/archive/1728.html
+
+Fixes error when building linux kernel for some default arm configurations:
+
+scripts/mkdep -- `find /home/dank/wk/crosstool-0.28-rc36/build/arm-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.2/linux-2.4.26/include/asm /home/dank/wk/crosstool-0.28-rc36/build/arm-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.2/linux-2.4.26/include/linux /home/dank/wk/crosstool-0.28-rc36/build/arm-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.2/linux-2.4.26/include/scsi /home/dank/wk/crosstool-0.28-rc36/build/arm-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.2/linux-2.4.26/include/net /home/dank/wk/crosstool-0.28-rc36/build/arm-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.2/linux-2.4.26/include/math-emu \( -name SCCS -o -name .svn \) -prune -o -follow -name \*.h ! -name modversions.h -print` > .hdepend
+/bin/sh: line 1: scripts/mkdep: Argument list too long
+make: *** [dep-files] Error 126
+
+[ For linux-2.4.26 ]
+
+--- linux-2.4.26/Makefile.old	2004-04-14 06:05:41.000000000 -0700
++++ linux-2.4.26/Makefile	2004-09-13 21:27:39.000000000 -0700
+@@ -500,7 +500,7 @@
+ ifdef CONFIG_MODVERSIONS
+ 	$(MAKE) update-modverfile
+ endif
+-	scripts/mkdep -- `find $(FINDHPATH) \( -name SCCS -o -name .svn \) -prune -o -follow -name \*.h ! -name modversions.h -print` > .hdepend
++	find $(FINDHPATH) \( -name SCCS -o -name .svn \) -prune -o -follow -name \*.h ! -name modversions.h -print | xargs scripts/mkdep | cat > .hdepend
+ 	scripts/mkdep -- init/*.c > .depend
+ 
+ ifdef CONFIG_MODVERSIONS

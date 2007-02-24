@@ -1,0 +1,96 @@
+Fixes
+elf/librtld.os: In function `process_envvars': : undefined reference to `__access'
+...
+when building glibc-2.3.3 on cygwin
+
+Idea from
+http://sources.redhat.com/ml/bug-glibc/2002-01/msg00071/glibc-2.2-cygin-shared.patch
+Basically, make glibc use .oST as suffix for 'object static'
+instead of .oS, since cygwin has trouble distinguishing .os from .oS
+(Original patch had .on, but .oST is more mnemonic for 'object static')
+
+glibc-linuxthreads-2.3.3 also requires a patch, see 
+../glibc-linuxthreads-2.3.3/glibc-linuxthreads-2.3.3-cygwin.patch
+
+[ Rediffed against glibc-2.3.3 ]
+
+
+diff -urN glibc-2.3.4-orig/Makeconfig glibc-2.3.4/Makeconfig
+--- glibc-2.3.4-orig/Makeconfig	2004-12-15 19:51:47.000000000 +0100
++++ glibc-2.3.4/Makeconfig	2005-03-13 18:54:58.000000000 +0100
+@@ -449,7 +449,7 @@
+ # run the linked programs.
+ link-libc = -Wl,-rpath-link=$(rpath-link) \
+ 	    $(common-objpfx)libc.so$(libc.so-version) \
+-	    $(common-objpfx)$(patsubst %,$(libtype.oS),c) $(gnulib)
++            $(common-objpfx)$(patsubst %,$(libtype.oST),c) $(gnulib)
+ # This is how to find at build-time things that will be installed there.
+ rpath-dirs = math elf dlfcn nss nis rt resolv crypt
+ endif
+@@ -667,7 +667,7 @@
+ # The compilation rules use $(CPPFLAGS-${SUFFIX}) and $(CFLAGS-${SUFFIX})
+ # to pass different flags for each flavor.
+ libtypes = $(foreach o,$(object-suffixes-for-libc),$(libtype$o))
+-all-object-suffixes := .o .os .op .og .ob .oS
++all-object-suffixes := .o .os .op .og .ob .oST
+ object-suffixes :=
+ CPPFLAGS-.o = $(pic-default)
+ CFLAGS-.o = $(filter %frame-pointer,$(+cflags))
+@@ -723,14 +723,14 @@
+ 
+ ifeq (yes,$(build-shared))
+ # Build special library that contains the static-only routines for libc.
+-object-suffixes-for-libc += .oS
++object-suffixes-for-libc += .oST
+ 
+ # Must build the routines as PIC, though, because they can end up in (users')
+ # shared objects.  We don't want to use CFLAGS-os because users may, for
+ # example, make that processor-specific.
+-CFLAGS-.oS = $(CFLAGS-.o) $(PIC-ccflag)
+-CPPFLAGS-.oS = $(CPPFLAGS-.o) -DPIC -DLIBC_NONSHARED=1
+-libtype.oS = lib%_nonshared.a
++CFLAGS-.oST = $(CFLAGS-.o) $(pic-ccflag)
++CPPFLAGS-.oST = $(CPPFLAGS-.o) -DPIC -DLIBC_NONSHARED=1
++libtype.oST = lib%_nonshared.a
+ endif
+ 
+ # The assembler can generate debug information too.
+diff -urN glibc-2.3.4-orig/Makerules glibc-2.3.4/Makerules
+--- glibc-2.3.4-orig/Makerules	2004-12-15 19:52:39.000000000 +0100
++++ glibc-2.3.4/Makerules	2005-03-13 18:50:09.000000000 +0100
+@@ -416,7 +416,7 @@
+ # Bounded pointer thunks are only built for *.ob
+ elide-bp-thunks = $(addprefix $(bppfx),$(bp-thunks))
+ 
+-elide-routines.oS += $(filter-out $(static-only-routines),\
++elide-routines.oST += $(filter-out $(static-only-routines),\
+ 				  $(routines) $(aux) $(sysdep_routines)) \
+ 		     $(elide-bp-thunks)
+ elide-routines.os += $(static-only-routines) $(elide-bp-thunks)
+@@ -961,7 +961,7 @@
+ install: $(inst_libdir)/libc.so
+ $(inst_libdir)/libc.so: $(common-objpfx)format.lds \
+ 			$(common-objpfx)libc.so$(libc.so-version) \
+-			$(inst_libdir)/$(patsubst %,$(libtype.oS),\
++			$(inst_libdir)/$(patsubst %,$(libtype.oST),\
+ 						  $(libprefix)$(libc-name)) \
+ 			$(+force)
+ 	(echo '/* GNU ld script';\
+@@ -969,7 +969,7 @@
+ 	 echo '   the static library, so try that secondarily.  */';\
+ 	 cat $<; \
+ 	 echo 'GROUP ( $(slibdir)/libc.so$(libc.so-version)' \
+-	      '$(libdir)/$(patsubst %,$(libtype.oS),$(libprefix)$(libc-name))'\
++	      '$(libdir)/$(patsubst %,$(libtype.oST),$(libprefix)$(libc-name))'\
+ 	      ')' \
+ 	) > $@.new
+ 	mv -f $@.new $@
+diff -urN glibc-2.3.4-orig/sysdeps/sparc/sparc32/sparcv9/Makefile glibc-2.3.4/sysdeps/sparc/sparc32/sparcv9/Makefile
+--- glibc-2.3.4-orig/sysdeps/sparc/sparc32/sparcv9/Makefile	2004-08-16 08:46:14.000000000 +0200
++++ glibc-2.3.4/sysdeps/sparc/sparc32/sparcv9/Makefile	2005-03-13 18:50:09.000000000 +0100
+@@ -10,4 +10,4 @@
+ ASFLAGS-.op += -Wa,-Av9a
+ ASFLAGS-.og += -Wa,-Av9a
+ ASFLAGS-.ob += -Wa,-Av9a
+-ASFLAGS-.oS += -Wa,-Av9a
++ASFLAGS-.oST += -Wa,-Av9a

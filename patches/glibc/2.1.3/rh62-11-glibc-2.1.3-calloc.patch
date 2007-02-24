@@ -1,0 +1,35 @@
+diff -ur glibc-2.1.3.orig/malloc/malloc.c glibc-2.1.3/malloc/malloc.c
+--- glibc-2.1.3.orig/malloc/malloc.c	Wed Feb 23 10:02:55 2000
++++ glibc-2.1.3/malloc/malloc.c	Thu Aug  1 09:24:10 2002
+@@ -3656,12 +3656,20 @@
+ {
+   arena *ar_ptr;
+   mchunkptr p, oldtop;
+-  INTERNAL_SIZE_T sz, csz, oldtopsize;
++  INTERNAL_SIZE_T bytes, sz, csz, oldtopsize;
+   Void_t* mem;
+ 
++  /* size_t is unsigned so the behavior on overflow is defined;
++   * request2size() uses similar post-checks anyway. */
++  bytes = n * elem_size;
++  if ((n | elem_size) >= 65536 && elem_size && bytes / elem_size != n) {
++    __set_errno (ENOMEM);
++    return 0;
++  }
++
+ #if defined _LIBC || defined MALLOC_HOOKS
+   if (__malloc_hook != NULL) {
+-    sz = n * elem_size;
++    sz = bytes;
+ #if defined __GNUC__ && __GNUC__ >= 2
+     mem = (*__malloc_hook)(sz, __builtin_return_address (0));
+ #else
+@@ -3678,7 +3686,7 @@
+   }
+ #endif
+ 
+-  if(request2size(n * elem_size, sz))
++  if(request2size(bytes, sz))
+     return 0;
+   arena_get(ar_ptr, sz);
+   if(!ar_ptr)

@@ -1,0 +1,52 @@
+See http://gcc.gnu.org/PR11902
+
+Part of fix for abort on line
+  assert (info[DT_RPATH] == NULL);
+in glibc-2.3.2's ld.so, which makes all dynamically-linked
+programs crash.
+
+Message-Id: <200308020452.h724q0n01509@r-rr.iij4u.or.jp>
+To: dank@kegel.com
+Cc: kkojima@rr.iij4u.or.jp
+Subject: Re: Writing PIC version of __udivsi3_i4?
+In-Reply-To: Your message of "Fri, 01 Aug 2003 21:15:27 -0700"
+	<3F2B3ADF.6030206@kegel.com>
+References: <3F2B3ADF.6030206@kegel.com>
+Date: Sat, 02 Aug 2003 13:58:05 +0900
+From: kaz Kojima <kkojima@rr.iij4u.or.jp>
+
+Dan Kegel <dank@kegel.com> wrote:
+> It seems it might be from gcc's spec file:
+> 
+> *subtarget_link_spec:
+> %{shared:-shared}    %{!static:      %{rdynamic:-export-dynamic}      %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}      %{!rpath:-rpath /lib}}    %{static:-static}
+> 
+> as the only place -rpath showed up was in the output of gcc -v as it
+> was linking libc.so.
+> 
+> Well, that's a clue, anyway!  Guess I'll dig through the spec files
+> tomorrow to see if I can figure it out some more.
+
+I've grepped gcc/config/*/*.h and found only SH and old libc1 stuffs
+of i386/alpha include %{!rpath:-rpath ... in 3.3 release and the
+current CVS. And my sh-gcc's specs doesn't have this :-(
+It would be the Right Thing to remove this stuff simply. How about
+the gcc patch below?
+
+Regards,
+	kaz
+--
+--- gcc-3.3/gcc/config/sh/linux.h.orig	Sat Aug  2 13:20:57 2003
++++ gcc-3.3/gcc/config/sh/linux.h	Sat Aug  2 13:22:42 2003
+@@ -48,8 +48,7 @@ do { \
+   "%{shared:-shared} \
+    %{!static: \
+      %{rdynamic:-export-dynamic} \
+-     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2} \
+-     %{!rpath:-rpath /lib}} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
+    %{static:-static}"
+ 
+ /* The GNU C++ standard library requires that these macros be defined.  */
+
+

@@ -1,0 +1,145 @@
+[lightly edited to fit my patch directory - dank]
+
+From: kaz Kojima <kkojima@rr.iij4u.or.jp>
+Date: Sat, 09 Aug 2003 09:46:21 +0900
+To: dank@kegel.com
+
+Hi Dan,
+
+I've come back from the vacation and looked glibc string test
+failures on sh4. This looks a gcc problem. gcc-3.3/3.4 doesn't
+compile these tests correctly. The attached testcase aborts on
+gcc-3.3/3.4 -O2 but exits normally gcc-3.2 and gcc-3.0.
+The option -O2 is not essential but it makes the testcase small.
+The failed string tests include the same pattern of the code with
+f=random to generate ramdom strings but they get strings with
+embedded NULL characters :-(
+
+...
+I've got a workaround below for this bug, though it might merely
+paper over the real bug. Anyway, I'd like to send a PR for this.
+
+Regards,
+	kaz
+--
+int val = 0xff00;
+
+int f (void) { return val; }
+
+unsigned char a[1];
+
+void
+foo (void)
+{
+  a[0] = f () & 255;
+
+  if (!a[0])
+    a[0] = f () & 255;
+
+  if (!a[0])
+    a[0] = 1 + (f () & 127);
+}
+
+int
+main (int argc, char **argv)
+{
+  foo ();
+  if (!a[0])
+    abort ();
+
+  return 0;
+}
+
+--
+
+diff -u3prN ORIG/gcc/gcc/config/sh/sh.c LOCAL/gcc/gcc/config/sh/sh.c
+--- gcc/gcc/config/sh/sh.c.old	Fri Aug  8 18:39:02 2003
++++ gcc/gcc/config/sh/sh.c	Fri Aug  8 22:31:02 2003
+@@ -6657,6 +6657,19 @@ arith_reg_dest (op, mode)
+   return arith_reg_operand (op, mode);
+ }
+ 
++/* Like above, but for SImode compare destinations: forbid paradoxical
++   subregs, because it would get the combiner confused.  */
++int
++arith_reg_cmp_dest (op, mode)
++     rtx op;
++     enum machine_mode mode;
++{
++  if (mode == SImode && GET_CODE (op) == SUBREG
++      && GET_MODE_SIZE (GET_MODE (SUBREG_REG (op))) < 4)
++    return 0;
++  return arith_reg_operand (op, mode);
++}
++
+ int
+ int_gpr_dest (op, mode)
+      rtx op;
+diff -u3prN ORIG/gcc/gcc/config/sh/sh.h LOCAL/gcc/gcc/config/sh/sh.h
+--- gcc/gcc/config/sh/sh.h.old	Fri Aug  8 18:39:02 2003
++++ gcc/gcc/config/sh/sh.h	Fri Aug  8 22:31:02 2003
+@@ -3365,6 +3365,7 @@ extern int rtx_equal_function_value_matt
+   {"and_operand", {SUBREG, REG, CONST_INT}},				\
+   {"any_register_operand", {SUBREG, REG}},				\
+   {"arith_operand", {SUBREG, REG, CONST_INT}},				\
++  {"arith_reg_cmp_dest", {SUBREG, REG}},				\
+   {"arith_reg_dest", {SUBREG, REG}},					\
+   {"arith_reg_operand", {SUBREG, REG}},					\
+   {"arith_reg_or_0_operand", {SUBREG, REG, CONST_INT, CONST_VECTOR}},	\
+
+--- gcc-3.3/gcc/config/sh/sh.md.orig	Tue Apr 15 10:06:10 2003
++++ gcc-3.3/gcc/config/sh/sh.md	Sat Aug  9 22:31:13 2003
+@@ -616,7 +616,7 @@
+ 
+ (define_insn ""
+   [(set (reg:SI T_REG)
+-	(eq:SI (and:SI (match_operand:SI 0 "arith_reg_operand" "z,r")
++	(eq:SI (and:SI (match_operand:SI 0 "arith_reg_cmp_dest" "z,r")
+ 		       (match_operand:SI 1 "arith_operand" "L,r"))
+ 	       (const_int 0)))]
+   "TARGET_SH1"
+@@ -631,7 +631,7 @@
+ 
+ (define_insn "cmpeqsi_t"
+   [(set (reg:SI T_REG)
+-	(eq:SI (match_operand:SI 0 "arith_reg_operand" "r,z,r")
++	(eq:SI (match_operand:SI 0 "arith_reg_cmp_dest" "r,z,r")
+ 	       (match_operand:SI 1 "arith_operand" "N,rI,r")))]
+   "TARGET_SH1"
+   "@
+@@ -642,7 +642,7 @@
+ 
+ (define_insn "cmpgtsi_t"
+   [(set (reg:SI T_REG)
+-	(gt:SI (match_operand:SI 0 "arith_reg_operand" "r,r")
++	(gt:SI (match_operand:SI 0 "arith_reg_cmp_dest" "r,r")
+ 	       (match_operand:SI 1 "arith_reg_or_0_operand" "r,N")))]
+   "TARGET_SH1"
+   "@
+@@ -652,7 +652,7 @@
+ 
+ (define_insn "cmpgesi_t"
+   [(set (reg:SI T_REG)
+-	(ge:SI (match_operand:SI 0 "arith_reg_operand" "r,r")
++	(ge:SI (match_operand:SI 0 "arith_reg_cmp_dest" "r,r")
+ 	       (match_operand:SI 1 "arith_reg_or_0_operand" "r,N")))]
+   "TARGET_SH1"
+   "@
+@@ -666,7 +666,7 @@
+ 
+ (define_insn "cmpgeusi_t"
+   [(set (reg:SI T_REG)
+-	(geu:SI (match_operand:SI 0 "arith_reg_operand" "r")
++	(geu:SI (match_operand:SI 0 "arith_reg_cmp_dest" "r")
+ 		(match_operand:SI 1 "arith_reg_operand" "r")))]
+   "TARGET_SH1"
+   "cmp/hs	%1,%0"
+@@ -674,7 +674,7 @@
+ 
+ (define_insn "cmpgtusi_t"
+   [(set (reg:SI T_REG)
+-	(gtu:SI (match_operand:SI 0 "arith_reg_operand" "r")
++	(gtu:SI (match_operand:SI 0 "arith_reg_cmp_dest" "r")
+ 		(match_operand:SI 1 "arith_reg_operand" "r")))]
+   "TARGET_SH1"
+   "cmp/hi	%1,%0"

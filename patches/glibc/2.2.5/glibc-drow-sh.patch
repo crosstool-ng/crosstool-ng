@@ -1,0 +1,77 @@
+[pread changes deleted, since those seem to be specific to glibc-2.3.2]
+
+Date: Thu, 19 Jun 2003 20:02:07 -0400
+From: Daniel Jacobowitz <drow@false.org>
+Subject: [linux-sh:02808] Patch needed for CVS glibc on SH
+To: linux-sh@m17n.org, libc-alpha@sources.redhat.com
+Message-Id: <20030620000207.GA19907@nevyn.them.org>
+X-ML-Name: linux-sh
+X-Mail-Count: 02808
+X-MLServer: fml [fml 4.0.1]; post only (only members can post)
+X-ML-Info: If you have a question, send e-mail with the body
+	"help" (without quotes) to the address linux-sh-ctl@m17n.org;
+	help=<mailto:linux-sh-ctl@m17n.org?body=help>
+Mail-Followup-To: linux-sh@m17n.org, libc-alpha@sources.redhat.com
+Content-Disposition: inline
+User-Agent: Mutt/1.5.1i
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Precedence: bulk
+Lines: 74
+List-Software: fml [fml 4.0.1]
+List-Post: <mailto:linux-sh@m17n.org>
+List-Owner: <mailto:linux-sh-admin@m17n.org>
+List-Help: <mailto:linux-sh-ctl@m17n.org?body=help>
+List-Unsubscribe: <mailto:linux-sh-ctl@m17n.org?body=unsubscribe>
+List-Id: linux-sh.m17n.org
+
+I believe this flushes my current patches to make glibc work on SH.  Issues:
+ - MIPS pread functions have some wackiness in them for the MIPS calling
+   conventions, which align long longs to even register pairs; it appears
+   that SH does not do this.  This fixes pread64/pwrite64.
+ - st_ino is _NOT_ 64-bit in the latest SH kernel trees, or at least it
+   wasn't when I checked in April.  --enable-kernel=2.4.x breaks terribly
+   without this patch; the errors are along the lines of "version GLIBC_2.3
+   not found", because that's the first consequence of a messed up inode
+   field - ld.so compares by inodes at some point.
+
+-- 
+Daniel Jacobowitz
+MontaVista Software                         Debian GNU/Linux Developer
+
+2003-06-19  Daniel Jacobowitz  <drow@mvista.com>
+
+	* sysdeps/unix/sysv/linux/kernel-features.h: Update kernel features
+	for the SH architecture.
+	* sysdeps/unix/sysv/linux/sh/pread.c: Use generic Linux version
+	instead of the MIPS version.
+	* sysdeps/unix/sysv/linux/sh/pread64.c: Likewise.
+	* sysdeps/unix/sysv/linux/sh/pwrite.c: Likewise.
+	* sysdeps/unix/sysv/linux/sh/pwrite64.c: Likewise.
+
+--- glibc-2.3.2/sysdeps/unix/sysv/linux/kernel-features.h.org	2003-04-21 10:57:55.000000000 -0400
++++ glibc-2.3.2/sysdeps/unix/sysv/linux/kernel-features.h	2003-04-21 11:16:47.000000000 -0400
+@@ -151,11 +151,20 @@
+ 
+ /* The changed st_ino field appeared in 2.4.0-test6.  But we cannot
+    distinguish this version from other 2.4.0 releases.  Therefore play
+-   save and assume it available is for 2.4.1 and up.  */
+-#if __LINUX_KERNEL_VERSION >= 132097
++   save and assume it available is for 2.4.1 and up.  However, SH is lame,
++   and still does not have a 64-bit inode field.  */
++#if __LINUX_KERNEL_VERSION >= 132097 \
++    && !defined __sh__
+ # define __ASSUME_ST_INO_64_BIT		1
+ #endif
+ 
++/* SH kernels got stat64, mmap2, and truncate64 during 2.4.0-test.  */
++#if __LINUX_KERNEL_VERSION >= 132096 && defined __sh__
++# define __ASSUME_TRUNCATE64_SYSCALL	1
++# define __ASSUME_MMAP2_SYSCALL		1
++# define __ASSUME_STAT64_SYSCALL	1
++#endif
++
+ /* To support locking of large files a new fcntl() syscall was introduced
+    in 2.4.0-test7.  We test for 2.4.1 for the earliest version we know
+    the syscall is available.  */
+

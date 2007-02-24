@@ -1,0 +1,134 @@
+Date: Sun, 20 Mar 2005 20:26:02 -0800
+From: Richard Henderson <rth@twiddle.net>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Dan Kegel <dank@kegel.com>, jbglaw@lug-owl.de,
+        linux-kernel@vger.kernel.org, torvalds@osdl.org
+Subject: Re: 2.6.11.3 build problem in arch/alpha/kernel/srcons.c with gcc-4.0
+Message-ID: <20050321042602.GA3795@twiddle.net>
+Mail-Followup-To: Andrew Morton <akpm@osdl.org>, Dan Kegel <dank@kegel.com>,
+	jbglaw@lug-owl.de, linux-kernel@vger.kernel.org, torvalds@osdl.org
+References: <423E238F.3030805@kegel.com> <20050320190352.65cc1396.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050320190352.65cc1396.akpm@osdl.org>
+User-Agent: Mutt/1.4.1i
+
+On Sun, Mar 20, 2005 at 07:03:52PM -0800, Andrew Morton wrote:
+> Dan Kegel <dank@kegel.com> wrote:
+> >
+> > Anyone with an alpha care to suggest a fix for this?
+> > 
+> > arch/alpha/kernel/srmcons.c: In function 'srmcons_open':
+> > arch/alpha/kernel/srmcons.c:196: warning: 'srmconsp' may be used uninitialized in this function
+> > make[1]: *** [arch/alpha/kernel/srmcons.o] Error 1
+> > make: *** [arch/alpha/kernel] Error 2
+> > 
+> > I get this when building the 2.6.11.3 kernel with a recent gcc-4.0 snapshot.
+> > 
+> 
+> It's beyond gcc's ability to figure out that the code is OK.  Options would
+> be to disable -Werror, or to artificially initialise that variable.
+
+Fixed thus.
+
+Note that even with a _raw_read_trylock implementation, smp still
+doesn't work.  Everything that init spawns dies immediately.  I
+havn't had a chance to find out why yet...
+
+[ Note: deleted changes to smp.c, since they didn't apply cleanly
+  to 2.6.11.3 (the function had moved, I guess), and they seemed unrelated.]
+
+r~
+
+
+
+You can import this changeset into BK by piping this whole message to:
+'| bk receive [path to repository]' or apply the patch as usual.
+
+===================================================================
+
+
+ChangeSet@1.2289, 2005-03-20 12:29:41-08:00, rth@kanga.twiddle.home
+  [ALPHA] Elimitate two warnings from gcc4.
+
+
+ smp.c     |   43 -------------------------------------------
+ srmcons.c |   27 ++++++++++-----------------
+ 2 files changed, 10 insertions(+), 60 deletions(-)
+
+
+diff -Nru a/arch/alpha/kernel/srmcons.c b/arch/alpha/kernel/srmcons.c
+--- a/arch/alpha/kernel/srmcons.c	2005-03-20 20:23:28 -08:00
++++ b/arch/alpha/kernel/srmcons.c	2005-03-20 20:23:28 -08:00
+@@ -164,29 +164,22 @@
+ 	unsigned long flags;
+ 	int retval = 0;
+ 
+-	spin_lock_irqsave(&srmconsp_lock, flags);
+-
+-	do {
+-		if (srmconsp != NULL) {
+-			*ps = srmconsp;
+-			break;
+-		}
++	if (srmconsp == NULL) {
++		spin_lock_irqsave(&srmconsp_lock, flags);
+ 
+ 		srmconsp = kmalloc(sizeof(*srmconsp), GFP_KERNEL);
+-		if (srmconsp == NULL) {
++		if (srmconsp == NULL)
+ 			retval = -ENOMEM;
+-			break;
++		else {
++			srmconsp->tty = NULL;
++			spin_lock_init(&srmconsp->lock);
++			init_timer(&srmconsp->timer);
+ 		}
+ 
+-		srmconsp->tty = NULL;
+-		spin_lock_init(&srmconsp->lock);
+-		init_timer(&srmconsp->timer);
+-
+-		*ps = srmconsp;
+-	} while(0);
+-
+-	spin_unlock_irqrestore(&srmconsp_lock, flags);
++		spin_unlock_irqrestore(&srmconsp_lock, flags);
++	}
+ 
++	*ps = srmconsp;
+ 	return retval;
+ }
+ 
+
+===================================================================
+
+
+This BitKeeper patch contains the following changesets:
+1.2289
+## Wrapped with gzip_uu ##
+
+
+M'XL( $!,/D(  [56[V_;-A#]+/X5!Q38FFV628KZY<!!TJ98BP9;D"&?BL)@
+M),H6+%$:2=DQIOWO)>4XSH8D1KK%-F#@>'J\]^[>V6_@6@LU\919H#?PL=%F
+MXG$E?+,N\[P2OA3&QJ^:QL;'BZ868YLY?O=YS&_;$?4C9$\ON<D6L!)*3SSB
+M!_<1LVG%Q+OZ\.OUQ=D50M,IO%]P.1=_" /3*3*-6O$JUZ?<+*I&^D9QJ6MA
+MN)\U=7^?VE.,J7V') YP&/4DPBSN,Y(3PAD1.:8LB=@>3:P:O]%YY3=J_D^4
+M$ <DH4&0!LRBL"A YT!\2I,4<#C&P9AB('1"TPDC(YQ,, 9+]G1I(?B]($X#
+M^)G""*-W\/]2>(\R^')V<?GQ["M\J,JZ--P(,.L&UES)4LXU%*JI89YES$>?
+M@82,8'2Y5Q6-7OA""'.,3AZA:?O><Y4MQKQJ%WR\%$J*:JQ5G352^YEC%&!"
+ML664!%%/+:^PCW-:I 7)XUSDE*;Q$_(= K9]<FK1E(0]HPPS6^'S2C\"6+=;
+ML#O=&::T#^*8QGU*;D@>)3BWJA?I3?Z"*G>@#RND49R&PW0_0\O-^RN)C,R\
+MNCVM2MD9U<CRUL_%EYU:7P]+32@A$644]RQ,*!TL0>B_#4'" X8@&$8D?A5+
+M7(FU*JT1[@J?S869M:I<67/,M%%=9D!W;MTLN(&?6@VE!EZM^4:#>] (Z<RR
+M':3?8:36P\<._^5S'?L.+YV3*(88?;*4@"*O+.#M'5QK^P^_75]<',%?R/-T
+M6\I9U63+6:G^U'PEWOZP2QS"OT!1\;D^.K:0<03$0;HO[W%,EY5LLQ)@-DM4
+M6@P7>;O<T8DQ&]CF'P\'^Q)D:?;WCTY<\&C(<2<S4]9"/3P? D-I"8'$7IHD
+MCNT6L9,[6DIH.PI/,_/^=H^FCI7KV737WO;X*2\Y\QW^W?A/JP#==')YJDVG
+M+=HA'SU8!H1AS!@-^X"F=LJ<AT+R8@]9"['@52QT+BKA'%2W,]-):YML(?+.
+M[HSY,90&\D9H^:,!GIF.5]4&6J&*1M7 Y08Z+8JNLB!%)S-3-M)%:]M:YZKM
+I\COL*J?5=SG*3;1=2J%3<?]?PY:?+7573PFE(L5)@+X!A'U=W,@(    
+ 
+
+

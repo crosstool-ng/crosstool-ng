@@ -1,0 +1,53 @@
+Message-ID: <434576E1.6020305@sscd.de>
+Date: Thu, 06 Oct 2005 21:11:29 +0200
+From: Alexander Sieb <sieb@sscd.de>
+To: crossgcc@sourceware.org
+Subject: Crosstool sh4-linux-gcc-4.0.2-glibc-2.3.5 patches
+
+Hi,
+
+attached you find the files I needed to add to crosstool-0.38
+in order to build a sh4-linux gcc-4.0.2-glibc-2.3.5 tool chain.
+
+Files attached:
+
+sh4-gcc4.dat:
+        * gcc4 needs --with-multilib-list=m4,m4-nofpu otherwise a linux
+        kernel won't build as it uses the -m4-nofpu option.
+
+gcc-pr21623.patch:
+        * Kaz Kojima provided a patch [really, a workaround -dank] for http://gcc.gnu.org/PR21623
+
+glibc-2.3.5-sh-memset.patch:
+        * A patch for glibc-2.3.5 which corrects memset. From SUGIOKA Toshinobu.
+        See content for rationale.
+
+-- snip --
+
+-- Here's patch 1 of 2, plus URLs showing where it is in CVS --
+
+[http://gcc.gnu.org/ml/gcc-cvs/2005-10/msg00081.html]
+
+2005-09-30  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	* config/sh/sh.c (sh_register_move_cost): Add case for moving
+	from T_REGS to FP register class.
+
+[http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/config/sh/sh.c.diff?cvsroot=gcc&r1=1.347&r2=1.348]
+
+RCS file: /cvs/gcc/gcc/gcc/config/sh/sh.c,v
+retrieving revision 1.347
+retrieving revision 1.348
+diff -u -r1.347 -r1.348
+--- gcc/gcc/config/sh/sh.c	2005/09/05 12:45:22	1.347
++++ gcc/gcc/config/sh/sh.c	2005/10/03 22:07:08	1.348
+@@ -9491,6 +9491,9 @@ sh_register_move_cost (enum machine_mode
+       && REGCLASS_HAS_FP_REG (dstclass))
+     return 4;
+ 
++  if (REGCLASS_HAS_FP_REG (dstclass) && srcclass == T_REGS)
++    return ((TARGET_HARD_SH4 && !optimize_size) ? 10 : 7);
++
+   if ((REGCLASS_HAS_FP_REG (dstclass) && srcclass == MAC_REGS)
+       || (dstclass == MAC_REGS && REGCLASS_HAS_FP_REG (srcclass)))
+     return 9;

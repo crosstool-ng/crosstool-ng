@@ -1,0 +1,199 @@
+# glibc options
+
+choice
+    bool
+    prompt "glibc version"
+
+config LIBC_V_1_09_1
+    bool
+    prompt "1.09.1"
+
+config LIBC_V_2_0_1
+    bool
+    prompt "2.0.1"
+
+config LIBC_V_2_0_6
+    bool
+    prompt "2.0.6"
+
+config LIBC_V_2_1_1
+    bool
+    prompt "2.1.1"
+
+config LIBC_V_2_1_2
+    bool
+    prompt "2.1.2"
+
+config LIBC_V_2_1_3
+    bool
+    prompt "2.1.3"
+
+config LIBC_V_2_2
+    bool
+    prompt "2.2"
+
+config LIBC_V_2_2_1
+    bool
+    prompt "2.2.1"
+
+config LIBC_V_2_2_2
+    bool
+    prompt "2.2.2"
+
+config LIBC_V_2_2_3
+    bool
+    prompt "2.2.3"
+
+config LIBC_V_2_2_4
+    bool
+    prompt "2.2.4"
+
+config LIBC_V_2_2_5
+    bool
+    prompt "2.2.5"
+
+config LIBC_V_2_3
+    bool
+    prompt "2.3"
+
+config LIBC_V_2_3_1
+    bool
+    prompt "2.3.1"
+
+config LIBC_V_2_3_2
+    bool
+    prompt "2.3.2"
+
+config LIBC_V_2_3_3
+    bool
+    prompt "2.3.3"
+
+config LIBC_V_2_3_4
+    bool
+    prompt "2.3.4"
+
+config LIBC_V_2_3_5
+    bool
+    prompt "2.3.5"
+
+config LIBC_V_2_3_6
+    bool
+    prompt "2.3.6"
+
+config LIBC_V_2_4
+    bool
+    prompt "2.4"
+
+config LIBC_V_2_5
+    bool
+    prompt "2.5"
+
+# CT_INSERT_VERSION_ABOVE
+# Don't remove qbove line!
+endchoice
+
+config LIBC_VERSION
+    string
+    default "1.09.1" if LIBC_V_1_09_1
+    default "2.0.1" if LIBC_V_2_0_1
+    default "2.0.6" if LIBC_V_2_0_6
+    default "2.1.1" if LIBC_V_2_1_1
+    default "2.1.2" if LIBC_V_2_1_2
+    default "2.1.3" if LIBC_V_2_1_3
+    default "2.2" if LIBC_V_2_2
+    default "2.2.1" if LIBC_V_2_2_1
+    default "2.2.2" if LIBC_V_2_2_2
+    default "2.2.3" if LIBC_V_2_2_3
+    default "2.2.4" if LIBC_V_2_2_4
+    default "2.2.5" if LIBC_V_2_2_5
+    default "2.3" if LIBC_V_2_3
+    default "2.3.1" if LIBC_V_2_3_1
+    default "2.3.2" if LIBC_V_2_3_2
+    default "2.3.3" if LIBC_V_2_3_3
+    default "2.3.4" if LIBC_V_2_3_4
+    default "2.3.5" if LIBC_V_2_3_5
+    default "2.3.6" if LIBC_V_2_3_6
+    default "2.4" if LIBC_V_2_4
+    default "2.5" if LIBC_V_2_5
+# CT_INSERT_VERSION_STRING_ABOVE
+# Don't remove above line!
+
+choice
+    bool
+    prompt "Threading implentation to use:"
+    default LIBC_GLIBC_THREADS_LINUXTHREADS
+
+config LIBC_GLIBC_THREADS_NPTL
+    bool
+    prompt "nptl (not implemented)"
+
+config LIBC_GLIBC_THREADS_LINUXTHREADS
+    bool
+    prompt "linuxthreads"
+
+config LIBC_GLIBC_THREADS_NONE
+    bool
+    prompt "none"
+
+endchoice
+
+config LIBC_GLIBC_EXTRA_CONFIG
+    string
+    prompt "glibc extra config"
+    default ""
+    help
+      Extra flags to pass onto ./configure when configuring glibc.
+
+      Eg.: --enable-static-nss
+
+config LIBC_GLIBC_EXTRA_CFLAGS
+    string
+    prompt "glibc extra target CFLAGS"
+    default ""
+    help
+      Extra target CFLAGS to use when building glibc.
+
+config LIBC_EXTRA_CC_ARGS
+    string
+    prompt "gcc extra flags"
+    default ""
+    help
+      Extra flags to pass gcc when building glibc.
+
+      Seldom used, except for sparc64 which seems to need the flag -64
+      to be passed onto gcc.
+
+# Please note: This is not used for now (no sh support).
+config LIBC_GLIBC_CONFIGPARMS
+    string
+    prompt "Extra config params (READ HELP)"
+    default "" if ARCH != "sh3" && ARCH != "sh4"
+    default "no-z-defs=yes" if ARCH = "sh3" || ARCH = "sh4"
+    help
+      Some architectures need to set options in the file configparms.
+      This is the case for sh3/4, which really need to set configparms as of
+      gcc-3.4/glibc-2.3.2.
+
+      Unless you are building a toolchain for sh3/4, you should leave that empty.
+
+      Note: this is awkward, doesn't work well if you need more than one
+            line in configparms
+
+config LIBC_ADDONS
+    bool
+    prompt "Pass extra addons list"
+    default n
+    help
+      If you say Y here, you'll be able to give the list of addons you want to
+      include in your C library.
+
+config LIBC_ADDONS_LIST
+    string
+    prompt "Extra addons"
+    default ""
+    help
+      Extra addons to include in glibc.
+      
+      Eg.: crypt        (for very old glibces)
+           ports        (for the ports addon, with other architectures)
+           linuxthreads (for the linuxthreads implementation of threads)

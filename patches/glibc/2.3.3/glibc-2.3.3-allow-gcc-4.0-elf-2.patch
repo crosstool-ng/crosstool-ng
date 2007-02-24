@@ -1,0 +1,53 @@
+Fixes
+
+In file included from dynamic-link.h:310,
+                 from dl-reloc.c:265:
+do-rel.h:56: error: invalid storage class for function 'elf_dynamic_do_rela'
+In file included from dl-reloc.c:265:
+dynamic-link.h: In function '_dl_relocate_object':
+dynamic-link.h:33: error: invalid storage class for function 'elf_get_dynamic_info'
+
+when building glibc-2.3.3 with gcc-4.0
+2nd hunk is like http://sourceware.org/cgi-bin/cvsweb.cgi/libc/elf/dynamic-link.h.diff?r1=1.50&r2=1.51&cvsroot=glibc
+but works with older compilers, too
+
+--- glibc-2.3.3/elf/do-rel.h.old	2005-03-16 13:09:37.000000000 -0800
++++ glibc-2.3.3/elf/do-rel.h	2005-03-16 13:10:50.000000000 -0800
+@@ -49,7 +49,14 @@
+    relocations; they should be set up to call _dl_runtime_resolve, rather
+    than fully resolved now.  */
+ 
+-static inline void __attribute__ ((always_inline))
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_dynamic_do_rel (struct link_map *map,
+ 		    ElfW(Addr) reladdr, ElfW(Addr) relsize,
+ 		    int lazy)
+--- glibc-2.3.3/elf/dynamic-link.h.old	2005-03-16 13:22:35.000000000 -0800
++++ glibc-2.3.3/elf/dynamic-link.h	2005-03-16 13:26:23.000000000 -0800
+@@ -27,8 +27,17 @@
+ 
+ 
+ /* Read the dynamic section at DYN and fill in INFO with indices DT_*.  */
+-
+-static inline void __attribute__ ((unused, always_inline))
++#if !defined(RESOLVE) || __GNUC__ < 4
++static
++#else
++auto
++#endif
++inline void 
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute__ ((unused, always_inline))
++#else
++  __attribute__ ((unused))
++#endif
+ elf_get_dynamic_info (struct link_map *l, ElfW(Dyn) *temp)
+ {
+   ElfW(Dyn) *dyn = l->l_ld;

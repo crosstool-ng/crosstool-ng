@@ -1,0 +1,32 @@
+Copied from similar patch for other architectures.
+
+Should fix this error:
+../sysdeps/unix/sysv/linux/pread.c: In function `__libc_pread':
+../sysdeps/unix/sysv/linux/pread.c:53: `__NR_pread' undeclared (first use in this function)
+../sysdeps/unix/sysv/linux/pread.c:53: (Each undeclared identifier is reported only once
+../sysdeps/unix/sysv/linux/pread.c:53: for each function it appears in.)
+make[2]: *** [/home/dank/wk/crosstool-0.28-rc37/build/m68k-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.5/build-glibc/posix/pread.o] Error 1
+make[2]: Leaving directory `/home/dank/wk/crosstool-0.28-rc37/build/m68k-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.5/glibc-2.2.5/posix'
+make[1]: *** [posix/subdir_lib] Error 2
+make[1]: Leaving directory `/home/dank/wk/crosstool-0.28-rc37/build/m68k-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.5/glibc-2.2.5'
+make: *** [all] Error 2
+
+--- glibc-2.2.5/sysdeps/unix/sysv/linux/m68k/sysdep.h.old	2004-10-05 08:37:37.000000000 -0700
++++ glibc-2.2.5/sysdeps/unix/sysv/linux/m68k/sysdep.h	2004-10-05 08:38:22.000000000 -0700
+@@ -32,6 +32,16 @@
+ # define SYS_ify(syscall_name)	__NR_/**/syscall_name
+ #endif
+ 
++/* This is a kludge to make syscalls.list find these under the names
++   pread and pwrite, since some kernel headers define those names
++   and some define the *64 names for the same system calls.  */
++#if !defined __NR_pread && defined __NR_pread64
++# define __NR_pread __NR_pread64
++#endif
++#if !defined __NR_pwrite && defined __NR_pwrite64
++# define __NR_pwrite __NR_pwrite64
++#endif
++
+ #ifdef __ASSEMBLER__
+ 
+ /* Linux uses a negative return value to indicate syscall errors, unlike

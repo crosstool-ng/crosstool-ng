@@ -1,0 +1,86 @@
+From http://www.ltc.com/~brad/mips/glibc-2.2.5-mips-build-gmon.diff
+See http://www.ltc.com/~brad/mips/mips-cross-toolchain.html
+
+--- glibc-2.2.5/sysdeps/mips/machine-gmon.h	2001-08-13 04:42:44.000000000 -0400
++++ glibc-2.2.5/sysdeps/mips/machine-gmon.h	2002-09-25 17:10:59.000000000 -0400
+@@ -17,42 +17,52 @@
+    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307 USA.  */
+ 
+-#define _MCOUNT_DECL static void __mcount
++#define _MCOUNT_DECL(frompc,selfpc) \
++static void __attribute_used__ __mcount (u_long frompc, u_long selfpc)
+ 
+ /* Call __mcount with our the return PC for our caller,
+    and the return PC our caller will return to.  */
+ #ifdef __PIC__
+ #define CPLOAD ".cpload $25;"
++#define CPRESTORE ".cprestore 44\n\t"
+ #else
+ #define CPLOAD
++#define CPRESTORE
+ #endif
+ 
+ #define MCOUNT asm(\
+-	".globl _mcount;" \
+-	".align 2;" \
+-	".type _mcount,@function;" \
+-        "_mcount:;" \
+-        ".set noreorder;" \
+-        ".set noat;" \
++	".globl _mcount;\n\t" \
++	".align 2;\n\t" \
++	".type _mcount,@function;\n\t" \
++	".ent _mcount\n\t" \
++        "_mcount:\n\t" \
++        ".frame $sp,44,$31\n\t" \
++        ".set noreorder;\n\t" \
++        ".set noat;\n\t" \
+         CPLOAD \
+-        "sw $4,8($29);" \
+-        "sw $5,12($29);" \
+-        "sw $6,16($29);" \
+-        "sw $7,20($29);" \
+-        "sw $1,0($29);" \
+-        "sw $31,4($29);" \
+-        "move $5,$31;" \
+-        "move $4,$1;" \
+-        "jal __mcount;" \
+-	"nop;" \
+-        "lw $4,8($29);" \
+-        "lw $5,12($29);" \
+-        "lw $6,16($29);" \
+-        "lw $7,20($29);" \
+-        "lw $31,4($29);" \
+-        "lw $1,0($29);" \
+-        "addu $29,$29,8;" \
+-        "j $31;" \
+-        "move $31,$1;" \
+-        ".set reorder;" \
+-        ".set at");
++	"subu $29,$29,48;\n\t" \
++	CPRESTORE \
++        "sw $4,24($29);\n\t" \
++        "sw $5,28($29);\n\t" \
++        "sw $6,32($29);\n\t" \
++        "sw $7,36($29);\n\t" \
++        "sw $2,40($29);\n\t" \
++        "sw $1,16($29);\n\t" \
++        "sw $31,20($29);\n\t" \
++        "move $5,$31;\n\t" \
++        "move $4,$1;\n\t" \
++        "jal __mcount;\n\t" \
++        "nop;\n\t" \
++        "lw $4,24($29);\n\t" \
++        "lw $5,28($29);\n\t" \
++        "lw $6,32($29);\n\t" \
++        "lw $7,36($29);\n\t" \
++        "lw $2,40($29);\n\t" \
++        "lw $31,20($29);\n\t" \
++        "lw $1,16($29);\n\t" \
++        "addu $29,$29,56;\n\t" \
++        "j $31;\n\t" \
++        "move $31,$1;\n\t" \
++        ".set reorder;\n\t" \
++        ".set at\n\t" \
++        ".end _mcount");

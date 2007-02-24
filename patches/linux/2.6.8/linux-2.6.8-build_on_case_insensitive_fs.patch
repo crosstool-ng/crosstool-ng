@@ -1,0 +1,725 @@
+Submitted By: Martin Schaffner <schaffner@gmx.li>
+Date: 2004-06-19
+Initial Package Version: 2.6.7
+Upstream Status: Not submitted
+Origin: Martin Schaffner
+Description: Enables build on case-insensitive file systems
+URL: xxxhttp://mirror.vtx.ch/lfs/patches/downloads/linux/linux-2.6.7-build_on_case_insensitive_fs-1.patch
+--- Rediffed against 2.6.8 by dank@kegel.com
+--- plus a few missing hunks added to fix sparc32 build
+
+--- linux-2.6.8/Makefile.orig	2004-08-13 22:37:25.000000000 -0700
++++ linux-2.6.8/Makefile	2004-09-01 21:39:39.000000000 -0700
+@@ -540,7 +540,7 @@
+ 
+ do_system_map = $(NM) $(1) | grep -v '\(compiled\)\|\(\.o$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | sort > $(2)
+ 
+-LDFLAGS_vmlinux += -T arch/$(ARCH)/kernel/vmlinux.lds.s
++LDFLAGS_vmlinux += -T arch/$(ARCH)/kernel/vmlinux.lds.asm
+ 
+ #	Generate section listing all symbols and add it into vmlinux
+ #	It's a three stage process:
+@@ -584,13 +584,13 @@
+ .tmp_kallsyms%.S: .tmp_vmlinux%
+ 	$(call cmd,kallsyms)
+ 
+-.tmp_vmlinux1: $(vmlinux-objs) arch/$(ARCH)/kernel/vmlinux.lds.s FORCE
++.tmp_vmlinux1: $(vmlinux-objs) arch/$(ARCH)/kernel/vmlinux.lds.asm FORCE
+ 	$(call if_changed_rule,vmlinux__)
+ 
+-.tmp_vmlinux2: $(vmlinux-objs) .tmp_kallsyms1.o arch/$(ARCH)/kernel/vmlinux.lds.s FORCE
++.tmp_vmlinux2: $(vmlinux-objs) .tmp_kallsyms1.o arch/$(ARCH)/kernel/vmlinux.lds.asm FORCE
+ 	$(call if_changed_rule,vmlinux__)
+ 
+-.tmp_vmlinux3: $(vmlinux-objs) .tmp_kallsyms2.o arch/$(ARCH)/kernel/vmlinux.lds.s FORCE
++.tmp_vmlinux3: $(vmlinux-objs) .tmp_kallsyms2.o arch/$(ARCH)/kernel/vmlinux.lds.asm FORCE
+ 	$(call if_changed_rule,vmlinux__)
+ 
+ endif
+@@ -603,13 +603,13 @@
+ 	$(rule_verify_kallsyms)
+ endef
+ 
+-vmlinux: $(vmlinux-objs) $(kallsyms.o) arch/$(ARCH)/kernel/vmlinux.lds.s FORCE
++vmlinux: $(vmlinux-objs) $(kallsyms.o) arch/$(ARCH)/kernel/vmlinux.lds.asm FORCE
+ 	$(call if_changed_rule,vmlinux)
+ 
+ #	The actual objects are generated when descending, 
+ #	make sure no implicit rule kicks in
+ 
+-$(sort $(vmlinux-objs)) arch/$(ARCH)/kernel/vmlinux.lds.s: $(vmlinux-dirs) ;
++$(sort $(vmlinux-objs)) arch/$(ARCH)/kernel/vmlinux.lds.asm: $(vmlinux-dirs) ;
+ 
+ # Handle descending into subdirectories listed in $(vmlinux-dirs)
+ # Preset locale variables to speed up the build process. Limit locale
+@@ -672,7 +672,7 @@
+ # Single targets
+ # ---------------------------------------------------------------------------
+ 
+-%.s: %.c scripts FORCE
++%.asm: %.c scripts FORCE
+ 	$(Q)$(MAKE) $(build)=$(@D) $@
+ %.i: %.c scripts FORCE
+ 	$(Q)$(MAKE) $(build)=$(@D) $@
+@@ -682,7 +682,7 @@
+ 	$(Q)$(MAKE) KBUILD_MODULES=$(if $(CONFIG_MODULES),1) $(build)=$(@D)
+ %.lst: %.c scripts FORCE
+ 	$(Q)$(MAKE) $(build)=$(@D) $@
+-%.s: %.S scripts FORCE
++%.asm: %.S scripts FORCE
+ 	$(Q)$(MAKE) $(build)=$(@D) $@
+ %.o: %.S scripts FORCE
+ 	$(Q)$(MAKE) $(build)=$(@D) $@
+diff -ur linux-2.6.7/arch/alpha/Makefile linux-2.6.7-mod/arch/alpha/Makefile
+--- linux-2.6.7/arch/alpha/Makefile	Fri Jun 18 22:51:03 2004
++++ linux-2.6.7-mod/arch/alpha/Makefile	Sat Jun 19 12:46:32 2004
+@@ -114,10 +114,10 @@
+ 
+ prepare: include/asm-$(ARCH)/asm_offsets.h
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ archclean:
+diff -ur linux-2.6.7/arch/alpha/kernel/Makefile linux-2.6.7-mod/arch/alpha/kernel/Makefile
+--- linux-2.6.7/arch/alpha/kernel/Makefile	Mon May 10 04:32:29 2004
++++ linux-2.6.7-mod/arch/alpha/kernel/Makefile	Sat Jun 19 12:46:48 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the linux kernel.
+ #
+ 
+-extra-y		:= head.o vmlinux.lds.s
++extra-y		:= head.o vmlinux.lds.asm
+ EXTRA_AFLAGS	:= $(CFLAGS)
+ EXTRA_CFLAGS	:= -Werror -Wno-sign-compare
+ 
+--- linux-2.6.8/arch/arm/Makefile.orig	2004-08-13 22:36:56.000000000 -0700
++++ linux-2.6.8/arch/arm/Makefile	2004-09-01 21:40:21.000000000 -0700
+@@ -176,10 +176,10 @@
+ bp:;	$(Q)$(MAKE) $(build)=$(boot) $(boot)/bootpImage
+ i zi:;	$(Q)$(MAKE) $(build)=$(boot) $@
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/asm-arm/.arch
+ 
+-include/asm-$(ARCH)/constants.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/constants.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ define archhelp
+diff -ur linux-2.6.7/arch/arm/kernel/Makefile linux-2.6.7-mod/arch/arm/kernel/Makefile
+--- linux-2.6.7/arch/arm/kernel/Makefile	Mon May 10 04:33:19 2004
++++ linux-2.6.7-mod/arch/arm/kernel/Makefile	Sat Jun 19 12:47:25 2004
+@@ -27,7 +27,7 @@
+ head-y			:= head.o
+ obj-$(CONFIG_DEBUG_LL)	+= debug.o
+ 
+-extra-y := $(head-y) init_task.o vmlinux.lds.s
++extra-y := $(head-y) init_task.o vmlinux.lds.asm
+ 
+ # Spell out some dependencies that aren't automatically figured out
+ $(obj)/entry-armv.o: 	$(obj)/entry-header.S include/asm-arm/constants.h
+diff -ur linux-2.6.7/arch/arm26/Makefile linux-2.6.7-mod/arch/arm26/Makefile
+--- linux-2.6.7/arch/arm26/Makefile	Mon May 10 04:32:28 2004
++++ linux-2.6.7-mod/arch/arm26/Makefile	Sat Jun 19 12:48:24 2004
+@@ -101,10 +101,10 @@
+ 	fi; \
+ 	)
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ define archhelp
+diff -ur linux-2.6.7/arch/arm26/kernel/Makefile linux-2.6.7-mod/arch/arm26/kernel/Makefile
+--- linux-2.6.7/arch/arm26/kernel/Makefile	Mon May 10 04:32:29 2004
++++ linux-2.6.7-mod/arch/arm26/kernel/Makefile	Sat Jun 19 12:48:30 2004
+@@ -14,5 +14,5 @@
+ obj-$(CONFIG_FIQ)		+= fiq.o
+ obj-$(CONFIG_MODULES)		+= armksyms.o
+ 
+-extra-y := init_task.o vmlinux.lds.s
++extra-y := init_task.o vmlinux.lds.asm
+ 
+diff -ur linux-2.6.7/arch/cris/Makefile linux-2.6.7-mod/arch/cris/Makefile
+--- linux-2.6.7/arch/cris/Makefile	Fri Jun 18 22:51:07 2004
++++ linux-2.6.7-mod/arch/cris/Makefile	Sat Jun 19 12:48:47 2004
+@@ -107,8 +107,8 @@
+ 	@ln -sf $(SARCH) include/asm-$(ARCH)/arch
+ 	@touch $@
+ 
+-arch/$(ARCH)/$(SARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/$(SARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 					include/config/MARKER
+ 
+-include/asm-$(ARCH)/$(SARCH)/offset.h: arch/$(ARCH)/$(SARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/$(SARCH)/offset.h: arch/$(ARCH)/$(SARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+diff -ur linux-2.6.7/arch/cris/kernel/Makefile linux-2.6.7-mod/arch/cris/kernel/Makefile
+--- linux-2.6.7/arch/cris/kernel/Makefile	Fri Jun 18 22:51:09 2004
++++ linux-2.6.7-mod/arch/cris/kernel/Makefile	Sat Jun 19 12:48:53 2004
+@@ -3,7 +3,7 @@
+ # Makefile for the linux kernel.
+ #
+ 
+-extra-y	:= vmlinux.lds.s
++extra-y	:= vmlinux.lds.asm
+ 
+ obj-y   := process.o traps.o irq.o ptrace.o setup.o \
+ 	   time.o sys_cris.o semaphore.o
+diff -ur linux-2.6.7/arch/h8300/Makefile linux-2.6.7-mod/arch/h8300/Makefile
+--- linux-2.6.7/arch/h8300/Makefile	Fri Jun 18 22:51:09 2004
++++ linux-2.6.7-mod/arch/h8300/Makefile	Sat Jun 19 12:49:12 2004
+@@ -64,7 +64,7 @@
+ 
+ prepare: include/asm-$(ARCH)/asm-offsets.h
+ 
+-include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
++include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm \
+ 				   include/asm include/linux/version.h
+ 	$(call filechk,gen-asm-offsets)
+ 
+diff -ur linux-2.6.7/arch/h8300/kernel/Makefile linux-2.6.7-mod/arch/h8300/kernel/Makefile
+--- linux-2.6.7/arch/h8300/kernel/Makefile	Fri Jun 18 22:51:09 2004
++++ linux-2.6.7-mod/arch/h8300/kernel/Makefile	Sat Jun 19 12:49:32 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the linux kernel.
+ #
+ 
+-extra-y := vmlinux.lds.s
++extra-y := vmlinux.lds.asm
+ 
+ obj-y := process.o traps.o ptrace.o ints.o \
+ 	 sys_h8300.o time.o semaphore.o signal.o \
+diff -ur linux-2.6.7/arch/i386/Makefile linux-2.6.7-mod/arch/i386/Makefile
+--- linux-2.6.7/arch/i386/Makefile	Fri Jun 18 22:51:10 2004
++++ linux-2.6.7-mod/arch/i386/Makefile	Sat Jun 19 12:49:43 2004
+@@ -141,10 +141,10 @@
+ prepare: include/asm-$(ARCH)/asm_offsets.h
+ CLEAN_FILES += include/asm-$(ARCH)/asm_offsets.h
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ archclean:
+diff -ur linux-2.6.7/arch/i386/kernel/Makefile linux-2.6.7-mod/arch/i386/kernel/Makefile
+--- linux-2.6.7/arch/i386/kernel/Makefile	Mon May 10 04:32:02 2004
++++ linux-2.6.7-mod/arch/i386/kernel/Makefile	Sat Jun 19 12:49:54 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the linux kernel.
+ #
+ 
+-extra-y := head.o init_task.o vmlinux.lds.s
++extra-y := head.o init_task.o vmlinux.lds.asm
+ 
+ obj-y	:= process.o semaphore.o signal.o entry.o traps.o irq.o vm86.o \
+ 		ptrace.o i8259.o ioport.o ldt.o setup.o time.o sys_i386.o \
+diff -ur linux-2.6.7/arch/ia64/Makefile linux-2.6.7-mod/arch/ia64/Makefile
+--- linux-2.6.7/arch/ia64/Makefile	Mon May 10 04:31:59 2004
++++ linux-2.6.7-mod/arch/ia64/Makefile	Sat Jun 19 12:50:12 2004
+@@ -88,12 +88,12 @@
+ 
+ prepare: include/asm-ia64/offsets.h
+ 
+-arch/ia64/kernel/asm-offsets.s: include/asm include/linux/version.h include/config/MARKER
++arch/ia64/kernel/asm-offsets.asm: include/asm include/linux/version.h include/config/MARKER
+ 
+-include/asm-ia64/offsets.h: arch/ia64/kernel/asm-offsets.s
++include/asm-ia64/offsets.h: arch/ia64/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+-arch/ia64/kernel/asm-offsets.s: include/asm-ia64/.offsets.h.stamp
++arch/ia64/kernel/asm-offsets.asm: include/asm-ia64/.offsets.h.stamp
+ 
+ include/asm-ia64/.offsets.h.stamp:
+ 	mkdir -p include/asm-ia64
+diff -ur linux-2.6.7/arch/ia64/kernel/Makefile linux-2.6.7-mod/arch/ia64/kernel/Makefile
+--- linux-2.6.7/arch/ia64/kernel/Makefile	Fri Jun 18 22:51:13 2004
++++ linux-2.6.7-mod/arch/ia64/kernel/Makefile	Sat Jun 19 12:52:14 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the linux kernel.
+ #
+ 
+-extra-y	:= head.o init_task.o vmlinux.lds.s
++extra-y	:= head.o init_task.o vmlinux.lds.asm
+ 
+ obj-y := acpi.o entry.o efi.o efi_stub.o gate-data.o fsys.o ia64_ksyms.o irq.o irq_ia64.o	\
+ 	 irq_lsapic.o ivt.o machvec.o pal.o patch.o process.o perfmon.o ptrace.o sal.o		\
+@@ -21,7 +21,7 @@
+ # The gate DSO image is built using a special linker script.
+ targets += gate.so gate-syms.o
+ 
+-extra-y += gate.so gate-syms.o gate.lds.s gate.o
++extra-y += gate.so gate-syms.o gate.lds.asm gate.o
+ 
+ # fp_emulate() expects f2-f5,f16-f31 to contain the user-level state.
+ CFLAGS_traps.o  += -mfixed-range=f2-f5,f16-f31
+@@ -32,14 +32,14 @@
+       cmd_gate = $(CC) -nostdlib $(GATECFLAGS_$(@F)) -Wl,-T,$(filter-out FORCE,$^) -o $@
+ 
+ GATECFLAGS_gate.so = -shared -s -Wl,-soname=linux-gate.so.1
+-$(obj)/gate.so: $(obj)/gate.lds.s $(obj)/gate.o FORCE
++$(obj)/gate.so: $(obj)/gate.lds.asm $(obj)/gate.o FORCE
+ 	$(call if_changed,gate)
+ 
+ $(obj)/built-in.o: $(obj)/gate-syms.o
+ $(obj)/built-in.o: ld_flags += -R $(obj)/gate-syms.o
+ 
+ GATECFLAGS_gate-syms.o = -r
+-$(obj)/gate-syms.o: $(src)/gate.lds.s $(obj)/gate.o FORCE
++$(obj)/gate-syms.o: $(src)/gate.lds.asm $(obj)/gate.o FORCE
+ 	$(call if_changed,gate)
+ 
+ # gate-data.o contains the gate DSO image as data in section .data.gate.
+diff -ur linux-2.6.7/arch/m68k/Makefile linux-2.6.7-mod/arch/m68k/Makefile
+--- linux-2.6.7/arch/m68k/Makefile	Fri Jun 18 22:51:14 2004
++++ linux-2.6.7-mod/arch/m68k/Makefile	Sat Jun 19 12:52:30 2004
+@@ -114,10 +114,10 @@
+ prepare: include/asm-$(ARCH)/offsets.h
+ CLEAN_FILES += include/asm-$(ARCH)/offsets.h
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ archclean:
+diff -ur linux-2.6.7/arch/m68k/kernel/Makefile linux-2.6.7-mod/arch/m68k/kernel/Makefile
+--- linux-2.6.7/arch/m68k/kernel/Makefile	Mon May 10 04:33:10 2004
++++ linux-2.6.7-mod/arch/m68k/kernel/Makefile	Sat Jun 19 12:52:35 2004
+@@ -7,7 +7,7 @@
+ else
+   extra-y := sun3-head.o
+ endif
+-extra-y	+= vmlinux.lds.s
++extra-y	+= vmlinux.lds.asm
+ 
+ obj-y		:= entry.o process.o traps.o ints.o signal.o ptrace.o \
+ 			sys_m68k.o time.o semaphore.o setup.o m68k_ksyms.o
+diff -ur linux-2.6.7/arch/m68knommu/Makefile linux-2.6.7-mod/arch/m68knommu/Makefile
+--- linux-2.6.7/arch/m68knommu/Makefile	Mon May 10 04:32:54 2004
++++ linux-2.6.7-mod/arch/m68knommu/Makefile	Sat Jun 19 12:52:57 2004
+@@ -89,7 +89,7 @@
+ head-y := arch/m68knommu/platform/$(platform-y)/$(board-y)/crt0_$(model-y).o
+ 
+ CLEAN_FILES := include/asm-$(ARCH)/asm-offsets.h \
+-	       arch/$(ARCH)/kernel/asm-offsets.s
++	       arch/$(ARCH)/kernel/asm-offsets.asm
+ 
+ core-y	+= arch/m68knommu/kernel/ \
+ 	   arch/m68knommu/mm/ \
+@@ -102,7 +102,7 @@
+ archclean:
+ 	$(call descend arch/$(ARCH)/boot, subdirclean)
+ 
+-include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
++include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm \
+ 				   include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 	$(call filechk,gen-asm-offsets)
+diff -ur linux-2.6.7/arch/m68knommu/kernel/Makefile linux-2.6.7-mod/arch/m68knommu/kernel/Makefile
+--- linux-2.6.7/arch/m68knommu/kernel/Makefile	Mon May 10 04:32:26 2004
++++ linux-2.6.7-mod/arch/m68knommu/kernel/Makefile	Sat Jun 19 12:53:20 2004
+@@ -2,7 +2,7 @@
+ # Makefile for arch/m68knommu/kernel.
+ #
+ 
+-extra-y := vmlinux.lds.s
++extra-y := vmlinux.lds.asm
+ 
+ obj-y += dma.o entry.o init_task.o m68k_ksyms.o process.o ptrace.o semaphore.o \
+ 	 setup.o signal.o syscalltable.o sys_m68k.o time.o traps.o
+diff -ur linux-2.6.7/arch/mips/Makefile linux-2.6.7-mod/arch/mips/Makefile
+--- linux-2.6.7/arch/mips/Makefile	Fri Jun 18 22:51:19 2004
++++ linux-2.6.7-mod/arch/mips/Makefile	Sat Jun 19 12:53:35 2004
+@@ -752,12 +752,12 @@
+ prepare: include/asm-$(ARCH)/offset.h \
+ 	 include/asm-$(ARCH)/reg.h
+ 
+-arch/$(ARCH)/kernel/offset.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/offset.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/offset.h: arch/$(ARCH)/kernel/offset.s
++include/asm-$(ARCH)/offset.h: arch/$(ARCH)/kernel/offset.asm
+ 	$(call filechk,gen-asm-offset.h)
+-include/asm-$(ARCH)/reg.h: arch/$(ARCH)/kernel/reg.s
++include/asm-$(ARCH)/reg.h: arch/$(ARCH)/kernel/reg.asm
+ 	$(call filechk,gen-asm-reg.h)
+ 
+ CLEAN_FILES += include/asm-$(ARCH)/offset.h.tmp \
+diff -ur linux-2.6.7/arch/mips/kernel/Makefile linux-2.6.7-mod/arch/mips/kernel/Makefile
+--- linux-2.6.7/arch/mips/kernel/Makefile	Mon May 10 04:32:28 2004
++++ linux-2.6.7-mod/arch/mips/kernel/Makefile	Sat Jun 19 12:53:41 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the Linux/MIPS kernel.
+ #
+ 
+-extra-y		:= head.o init_task.o vmlinux.lds.s
++extra-y		:= head.o init_task.o vmlinux.lds.asm
+ 
+ obj-y		+= cpu-probe.o branch.o entry.o genex.o irq.o process.o \
+ 		   ptrace.o reset.o semaphore.o setup.o signal.o syscall.o \
+diff -ur linux-2.6.7/arch/parisc/Makefile linux-2.6.7-mod/arch/parisc/Makefile
+--- linux-2.6.7/arch/parisc/Makefile	Fri Jun 18 22:51:21 2004
++++ linux-2.6.7-mod/arch/parisc/Makefile	Sat Jun 19 12:53:47 2004
+@@ -88,10 +88,10 @@
+ 
+ prepare: include/asm-parisc/offsets.h
+ 
+-arch/parisc/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/parisc/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-parisc/offsets.h: arch/parisc/kernel/asm-offsets.s
++include/asm-parisc/offsets.h: arch/parisc/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ CLEAN_FILES	+= lifimage include/asm-parisc/offsets.h
+diff -ur linux-2.6.7/arch/parisc/kernel/Makefile linux-2.6.7-mod/arch/parisc/kernel/Makefile
+--- linux-2.6.7/arch/parisc/kernel/Makefile	Fri Jun 18 22:51:21 2004
++++ linux-2.6.7-mod/arch/parisc/kernel/Makefile	Sat Jun 19 12:53:53 2004
+@@ -4,7 +4,7 @@
+ 
+ head-y			:= head.o
+ head-$(CONFIG_PARISC64)	:= head64.o
+-extra-y			:= init_task.o $(head-y) vmlinux.lds.s
++extra-y			:= init_task.o $(head-y) vmlinux.lds.asm
+ 
+ AFLAGS_entry.o	:= -traditional
+ AFLAGS_pacache.o := -traditional
+diff -ur linux-2.6.7/arch/ppc/Makefile linux-2.6.7-mod/arch/ppc/Makefile
+--- linux-2.6.7/arch/ppc/Makefile	Fri Jun 18 22:51:22 2004
++++ linux-2.6.7-mod/arch/ppc/Makefile	Sat Jun 19 12:54:09 2004
+@@ -78,10 +78,10 @@
+ 
+ prepare: include/asm-$(ARCH)/offsets.h checkbin
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ ifdef CONFIG_6xx
+@@ -104,4 +104,4 @@
+ endif
+ 
+ CLEAN_FILES +=	include/asm-$(ARCH)/offsets.h \
+-		arch/$(ARCH)/kernel/asm-offsets.s
++		arch/$(ARCH)/kernel/asm-offsets.asm
+diff -ur linux-2.6.7/arch/ppc/kernel/Makefile linux-2.6.7-mod/arch/ppc/kernel/Makefile
+--- linux-2.6.7/arch/ppc/kernel/Makefile	Fri Jun 18 22:51:24 2004
++++ linux-2.6.7-mod/arch/ppc/kernel/Makefile	Sat Jun 19 12:43:10 2004
+@@ -15,7 +15,7 @@
+ extra-$(CONFIG_8xx)		:= head_8xx.o
+ extra-$(CONFIG_6xx)		+= idle_6xx.o
+ extra-$(CONFIG_POWER4)		+= idle_power4.o
+-extra-y				+= vmlinux.lds.s
++extra-y				+= vmlinux.lds.asm
+ 
+ obj-y				:= entry.o traps.o irq.o idle.o time.o misc.o \
+ 					process.o signal.o ptrace.o align.o \
+diff -ur linux-2.6.7/arch/ppc64/Makefile linux-2.6.7-mod/arch/ppc64/Makefile
+--- linux-2.6.7/arch/ppc64/Makefile	Fri Jun 18 22:51:26 2004
++++ linux-2.6.7-mod/arch/ppc64/Makefile	Sat Jun 19 12:54:32 2004
+@@ -67,10 +67,10 @@
+ 
+ prepare: include/asm-ppc64/offsets.h
+ 
+-arch/ppc64/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/ppc64/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-ppc64/offsets.h: arch/ppc64/kernel/asm-offsets.s
++include/asm-ppc64/offsets.h: arch/ppc64/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ define archhelp
+diff -ur linux-2.6.7/arch/ppc64/kernel/Makefile linux-2.6.7-mod/arch/ppc64/kernel/Makefile
+--- linux-2.6.7/arch/ppc64/kernel/Makefile	Mon May 10 04:33:20 2004
++++ linux-2.6.7-mod/arch/ppc64/kernel/Makefile	Sat Jun 19 12:54:39 2004
+@@ -3,7 +3,7 @@
+ #
+ 
+ EXTRA_CFLAGS	+= -mno-minimal-toc
+-extra-y		:= head.o vmlinux.lds.s
++extra-y		:= head.o vmlinux.lds.asm
+ 
+ obj-y               :=	setup.o entry.o traps.o irq.o idle.o dma.o \
+ 			time.o process.o signal.o syscalls.o misc.o ptrace.o \
+diff -ur linux-2.6.7/arch/s390/Makefile linux-2.6.7-mod/arch/s390/Makefile
+--- linux-2.6.7/arch/s390/Makefile	Mon May 10 04:32:02 2004
++++ linux-2.6.7-mod/arch/s390/Makefile	Sat Jun 19 12:54:46 2004
+@@ -68,10 +68,10 @@
+ 
+ prepare: include/asm-$(ARCH)/offsets.h
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ CLEAN_FILES += include/asm-$(ARCH)/offsets.h
+diff -ur linux-2.6.7/arch/s390/kernel/Makefile linux-2.6.7-mod/arch/s390/kernel/Makefile
+--- linux-2.6.7/arch/s390/kernel/Makefile	Mon May 10 04:33:20 2004
++++ linux-2.6.7-mod/arch/s390/kernel/Makefile	Sat Jun 19 12:54:52 2004
+@@ -10,7 +10,7 @@
+ 
+ extra-$(CONFIG_ARCH_S390_31)	+= head.o 
+ extra-$(CONFIG_ARCH_S390X)	+= head64.o 
+-extra-y				+= init_task.o vmlinux.lds.s
++extra-y				+= init_task.o vmlinux.lds.asm
+ 
+ obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
+ obj-$(CONFIG_SMP)		+= smp.o
+diff -ur linux-2.6.7/arch/sh/kernel/Makefile linux-2.6.7-mod/arch/sh/kernel/Makefile
+--- linux-2.6.7/arch/sh/kernel/Makefile	Mon May 10 04:32:39 2004
++++ linux-2.6.7-mod/arch/sh/kernel/Makefile	Sat Jun 19 12:55:33 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the Linux/SuperH kernel.
+ #
+ 
+-extra-y	:= head.o init_task.o vmlinux.lds.s
++extra-y	:= head.o init_task.o vmlinux.lds.asm
+ 
+ obj-y	:= process.o signal.o entry.o traps.o irq.o \
+ 	ptrace.o setup.o time.o sys_sh.o semaphore.o \
+diff -ur linux-2.6.7/arch/sparc/Makefile linux-2.6.7-mod/arch/sparc/Makefile
+--- linux-2.6.7/arch/sparc/Makefile	Fri Jun 18 22:51:29 2004
++++ linux-2.6.7-mod/arch/sparc/Makefile	Sat Jun 19 12:55:48 2004
+@@ -61,14 +61,14 @@
+ 
+ prepare: include/asm-$(ARCH)/asm_offsets.h
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ CLEAN_FILES +=	include/asm-$(ARCH)/asm_offsets.h	\
+-		arch/$(ARCH)/kernel/asm-offsets.s	\
++		arch/$(ARCH)/kernel/asm-offsets.asm	\
+ 		arch/$(ARCH)/boot/System.map
+ 
+ # Don't use tabs in echo arguments.
+diff -ur linux-2.6.7/arch/sparc/kernel/Makefile linux-2.6.7-mod/arch/sparc/kernel/Makefile
+--- linux-2.6.7/arch/sparc/kernel/Makefile	Mon May 10 04:33:13 2004
++++ linux-2.6.7-mod/arch/sparc/kernel/Makefile	Sat Jun 19 12:55:52 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the linux kernel.
+ #
+ 
+-extra-y		:= head.o init_task.o vmlinux.lds.s
++extra-y		:= head.o init_task.o vmlinux.lds.asm
+ 
+ EXTRA_AFLAGS	:= -ansi
+ 
+diff -ur linux-2.6.7/arch/sparc64/kernel/Makefile linux-2.6.7-mod/arch/sparc64/kernel/Makefile
+--- linux-2.6.7/arch/sparc64/kernel/Makefile	Mon May 10 04:32:02 2004
++++ linux-2.6.7-mod/arch/sparc64/kernel/Makefile	Sat Jun 19 12:56:24 2004
+@@ -5,7 +5,7 @@
+ EXTRA_AFLAGS := -ansi
+ EXTRA_CFLAGS := -Werror
+ 
+-extra-y		:= head.o init_task.o vmlinux.lds.s
++extra-y		:= head.o init_task.o vmlinux.lds.asm
+ 
+ obj-y		:= process.o setup.o cpu.o idprom.o \
+ 		   traps.o devices.o auxio.o \
+diff -ur linux-2.6.7/arch/um/Makefile linux-2.6.7-mod/arch/um/Makefile
+--- linux-2.6.7/arch/um/Makefile	Mon May 10 04:32:52 2004
++++ linux-2.6.7-mod/arch/um/Makefile	Sat Jun 19 12:57:07 2004
+@@ -77,7 +77,7 @@
+ # CONFIG_MODE_SKAS + CONFIG_STATIC_LINK case.
+ 
+ LINK_TT = -static
+-LD_SCRIPT_TT := uml.lds.s
++LD_SCRIPT_TT := uml.lds.asm
+ 
+ ifeq ($(CONFIG_STATIC_LINK),y)
+   LINK-y += $(LINK_TT)
+@@ -103,11 +103,11 @@
+ 	-DELF_FORMAT=\"$(ELF_FORMAT)\" $(CPP_MODE_TT) \
+ 	-DKERNEL_STACK_SIZE=$(STACK_SIZE)
+ 
+-AFLAGS_$(LD_SCRIPT-y:.s=).o = $(AFLAGS_vmlinux.lds.o) -P -C -Uum
++AFLAGS_$(LD_SCRIPT-y:.asm=).o = $(AFLAGS_vmlinux.lds.o) -P -C -Uum
+ 
+ LD_SCRIPT-y := $(ARCH_DIR)/$(LD_SCRIPT-y)
+ 
+-$(LD_SCRIPT-y) : $(LD_SCRIPT-y:.s=.S) scripts FORCE
++$(LD_SCRIPT-y) : $(LD_SCRIPT-y:.asm=.S) scripts FORCE
+ 	$(call if_changed_dep,as_s_S)
+ 
+ linux: vmlinux $(LD_SCRIPT-y)
+@@ -122,8 +122,8 @@
+ # To get a definition of F_SETSIG
+ USER_CFLAGS += -D_GNU_SOURCE
+ 
+-CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/uml.lds.s \
+-	$(ARCH_DIR)/dyn_link.ld.s $(GEN_HEADERS)
++CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/uml.lds.asm \
++	$(ARCH_DIR)/dyn_link.ld.asm $(GEN_HEADERS)
+ 
+ $(ARCH_DIR)/main.o: $(ARCH_DIR)/main.c
+ 	$(CC) $(USER_CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<
+diff -ur linux-2.6.7/arch/um/kernel/Makefile linux-2.6.7-mod/arch/um/kernel/Makefile
+--- linux-2.6.7/arch/um/kernel/Makefile	Mon May 10 04:32:53 2004
++++ linux-2.6.7-mod/arch/um/kernel/Makefile	Sat Jun 19 12:57:15 2004
+@@ -3,7 +3,7 @@
+ # Licensed under the GPL
+ #
+ 
+-extra-y := vmlinux.lds.s
++extra-y := vmlinux.lds.asm
+ 
+ obj-y = checksum.o config.o exec_kern.o exitcode.o frame_kern.o frame.o \
+ 	helper.o init_task.o irq.o irq_user.o ksyms.o mem.o mem_user.o \
+diff -ur linux-2.6.7/arch/v850/Makefile linux-2.6.7-mod/arch/v850/Makefile
+--- linux-2.6.7/arch/v850/Makefile	Mon May 10 04:33:21 2004
++++ linux-2.6.7-mod/arch/v850/Makefile	Sat Jun 19 12:57:59 2004
+@@ -52,12 +52,12 @@
+ prepare: include/asm-$(ARCH)/asm-consts.h
+ 
+ # Generate constants from C code for use by asm files
+-arch/$(ARCH)/kernel/asm-consts.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-consts.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/asm-consts.h: arch/$(ARCH)/kernel/asm-consts.s
++include/asm-$(ARCH)/asm-consts.h: arch/$(ARCH)/kernel/asm-consts.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ CLEAN_FILES += include/asm-$(ARCH)/asm-consts.h \
+-	       arch/$(ARCH)/kernel/asm-consts.s \
++	       arch/$(ARCH)/kernel/asm-consts.asm \
+ 	       root_fs_image.o
+diff -ur linux-2.6.7/arch/v850/kernel/Makefile linux-2.6.7-mod/arch/v850/kernel/Makefile
+--- linux-2.6.7/arch/v850/kernel/Makefile	Mon May 10 04:33:21 2004
++++ linux-2.6.7-mod/arch/v850/kernel/Makefile	Sat Jun 19 12:58:04 2004
+@@ -9,7 +9,7 @@
+ # for more details.
+ #
+ 
+-extra-y := head.o init_task.o vmlinux.lds.s
++extra-y := head.o init_task.o vmlinux.lds.asm
+ 
+ obj-y += intv.o entry.o process.o syscalls.o time.o semaphore.o setup.o \
+ 	 signal.o irq.o mach.o ptrace.o bug.o
+diff -ur linux-2.6.7/arch/x86_64/Makefile linux-2.6.7-mod/arch/x86_64/Makefile
+--- linux-2.6.7/arch/x86_64/Makefile	Mon May 10 04:33:19 2004
++++ linux-2.6.7-mod/arch/x86_64/Makefile	Sat Jun 19 12:58:10 2004
+@@ -93,10 +93,10 @@
+ 
+ prepare: include/asm-$(ARCH)/offset.h
+ 
+-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
++arch/$(ARCH)/kernel/asm-offsets.asm: include/asm include/linux/version.h \
+ 				   include/config/MARKER
+ 
+-include/asm-$(ARCH)/offset.h: arch/$(ARCH)/kernel/asm-offsets.s
++include/asm-$(ARCH)/offset.h: arch/$(ARCH)/kernel/asm-offsets.asm
+ 	$(call filechk,gen-asm-offsets)
+ 
+ CLEAN_FILES += include/asm-$(ARCH)/offset.h
+diff -ur linux-2.6.7/arch/x86_64/kernel/Makefile linux-2.6.7-mod/arch/x86_64/kernel/Makefile
+--- linux-2.6.7/arch/x86_64/kernel/Makefile	Fri Jun 18 22:51:32 2004
++++ linux-2.6.7-mod/arch/x86_64/kernel/Makefile	Sat Jun 19 12:58:17 2004
+@@ -2,7 +2,7 @@
+ # Makefile for the linux kernel.
+ #
+ 
+-extra-y 	:= head.o head64.o init_task.o vmlinux.lds.s
++extra-y 	:= head.o head64.o init_task.o vmlinux.lds.asm
+ EXTRA_AFLAGS	:= -traditional
+ obj-y	:= process.o semaphore.o signal.o entry.o traps.o irq.o \
+ 		ptrace.o i8259.o ioport.o ldt.o setup.o time.o sys_x86_64.o \
+diff -ur linux-2.6.7/scripts/Makefile.build linux-2.6.7-mod/scripts/Makefile.build
+--- linux-2.6.7/scripts/Makefile.build	Mon May 10 04:33:13 2004
++++ linux-2.6.7-mod/scripts/Makefile.build	Sat Jun 19 12:43:10 2004
+@@ -110,7 +110,7 @@
+ quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
+ cmd_cc_s_c       = $(CC) $(c_flags) -S -o $@ $< 
+ 
+-%.s: %.c FORCE
++%.asm: %.c FORCE
+ 	$(call if_changed_dep,cc_s_c)
+ 
+ quiet_cmd_cc_i_c = CPP $(quiet_modtag) $@
+@@ -197,7 +197,7 @@
+ quiet_cmd_as_s_S = CPP $(quiet_modtag) $@
+ cmd_as_s_S       = $(CPP) $(a_flags)   -o $@ $< 
+ 
+-%.s: %.S FORCE
++%.asm: %.S FORCE
+ 	$(call if_changed_dep,as_s_S)
+ 
+ quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
+--- linux-2.6.8/arch/sparc/boot/Makefile.old	2004-09-21 21:46:18.000000000 -0700
++++ linux-2.6.8/arch/sparc/boot/Makefile	2004-09-21 21:52:35.000000000 -0700
+@@ -19,7 +19,7 @@
+ 
+ BTOBJS := $(HEAD_Y) $(INIT_Y)
+ BTLIBS := $(CORE_Y) $(LIBS_Y) $(DRIVERS_Y) $(NET_Y)
+-LDFLAGS_image := -T arch/sparc/kernel/vmlinux.lds.s $(BTOBJS) --start-group $(BTLIBS) --end-group $(kallsyms.o)
++LDFLAGS_image := -T arch/sparc/kernel/vmlinux.lds.asm $(BTOBJS) --start-group $(BTLIBS) --end-group $(kallsyms.o)
+ 
+ # Actual linking
+ $(obj)/image: $(obj)/btfix.o FORCE
+--- linux-2.6.8/arch/sh64/Makefile.old	2004-09-21 21:46:18.000000000 -0700
++++ linux-2.6.8/arch/sh64/Makefile	2004-09-21 21:54:31.000000000 -0700
+@@ -71,7 +71,7 @@
+ 
+ prepare: include/asm-$(ARCH)/asm-offsets.h arch/$(ARCH)/lib/syscalltab.h
+ 
+-include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
++include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.asm \
+ 				   include/asm include/linux/version.h
+ 	$(call filechk,gen-asm-offsets)
+ 
+--- linux-2.6.8/arch/sh64/boot/compressed/Makefile.old	2004-09-21 21:46:18.000000000 -0700
++++ linux-2.6.8/arch/sh64/boot/compressed/Makefile	2004-09-21 21:54:41.000000000 -0700
+@@ -25,7 +25,7 @@
+ ZIMAGE_OFFSET = $(shell printf "0x%8x" $$[$(CONFIG_MEMORY_START)+0x400000+0x10000])
+ 
+ LDFLAGS_vmlinux := -Ttext $(ZIMAGE_OFFSET) -e startup \
+-		    -T $(obj)/../../kernel/vmlinux.lds.s \
++		    -T $(obj)/../../kernel/vmlinux.lds.asm \
+ 		    --no-warn-mismatch
+ 
+ $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o FORCE
+@@ -41,6 +41,6 @@
+ LDFLAGS_piggy.o := -r --format binary --oformat elf32-sh64-linux -T
+ OBJCOPYFLAGS += -R .empty_zero_page
+ 
+-$(obj)/piggy.o: $(obj)/vmlinux.lds.s $(obj)/vmlinux.bin.gz FORCE
++$(obj)/piggy.o: $(obj)/vmlinux.lds.asm $(obj)/vmlinux.bin.gz FORCE
+ 	$(call if_changed,ld)
+ 

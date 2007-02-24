@@ -1,0 +1,424 @@
+From http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/alpha/dl-machine.h.diff?r1=1.56&r2=1.57&cvsroot=glibc
+(minus first hunk)
+Lets glibc-2.2.5 compile with gcc-3.3
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/alpha/dl-machine.h,v
+retrieving revision 1.56
+retrieving revision 1.57
+diff -u -r1.56 -r1.57
+--- libc/sysdeps/alpha/dl-machine.h	2001/12/12 00:10:27	1.56
++++ libc/sysdeps/alpha/dl-machine.h	2001/12/31 17:33:59	1.57
+@@ -156,125 +157,126 @@
+ #define TRAMPOLINE_TEMPLATE(tramp_name, fixup_name, IMB)	\
+   extern void tramp_name (void);				\
+   asm ( "\
+-	.globl " #tramp_name "
+-	.ent " #tramp_name "
+-" #tramp_name ":
+-	lda	$sp, -44*8($sp)
+-	.frame	$sp, 44*8, $26
+-	/* Preserve all integer registers that C normally doesn't.  */
+-	stq	$26, 0*8($sp)
+-	stq	$0, 1*8($sp)
+-	stq	$1, 2*8($sp)
+-	stq	$2, 3*8($sp)
+-	stq	$3, 4*8($sp)
+-	stq	$4, 5*8($sp)
+-	stq	$5, 6*8($sp)
+-	stq	$6, 7*8($sp)
+-	stq	$7, 8*8($sp)
+-	stq	$8, 9*8($sp)
+-	stq	$16, 10*8($sp)
+-	stq	$17, 11*8($sp)
+-	stq	$18, 12*8($sp)
+-	stq	$19, 13*8($sp)
+-	stq	$20, 14*8($sp)
+-	stq	$21, 15*8($sp)
+-	stq	$22, 16*8($sp)
+-	stq	$23, 17*8($sp)
+-	stq	$24, 18*8($sp)
+-	stq	$25, 19*8($sp)
+-	stq	$29, 20*8($sp)
+-	stt	$f0, 21*8($sp)
+-	stt	$f1, 22*8($sp)
+-	stt	$f10, 23*8($sp)
+-	stt	$f11, 24*8($sp)
+-	stt	$f12, 25*8($sp)
+-	stt	$f13, 26*8($sp)
+-	stt	$f14, 27*8($sp)
+-	stt	$f15, 28*8($sp)
+-	stt	$f16, 29*8($sp)
+-	stt	$f17, 30*8($sp)
+-	stt	$f18, 31*8($sp)
+-	stt	$f19, 32*8($sp)
+-	stt	$f20, 33*8($sp)
+-	stt	$f21, 34*8($sp)
+-	stt	$f22, 35*8($sp)
+-	stt	$f23, 36*8($sp)
+-	stt	$f24, 37*8($sp)
+-	stt	$f25, 38*8($sp)
+-	stt	$f26, 39*8($sp)
+-	stt	$f27, 40*8($sp)
+-	stt	$f28, 41*8($sp)
+-	stt	$f29, 42*8($sp)
+-	stt	$f30, 43*8($sp)
+-	.mask	0x27ff01ff, -44*8
+-	.fmask	0xfffffc03, -(44-21)*8
+-	/* Set up our $gp */
+-	br	$gp, .+4
+-	ldgp	$gp, 0($gp)
+-	.prologue 0
+-	/* Set up the arguments for fixup: */
+-	/* $16 = link_map out of plt0 */
+-	/* $17 = offset of reloc entry = ($28 - $27 - 20) /12 * 24 */
+-	/* $18 = return address */
+-	subq	$28, $27, $17
+-	ldq	$16, 8($27)
+-	subq	$17, 20, $17
+-	mov	$26, $18
+-	addq	$17, $17, $17
+-	/* Do the fixup */
+-	bsr	$26, " ASM_ALPHA_NG_SYMBOL_PREFIX #fixup_name "..ng
+-	/* Move the destination address into position.  */
+-	mov	$0, $27
+-	/* Restore program registers.  */
+-	ldq	$26, 0*8($sp)
+-	ldq	$0, 1*8($sp)
+-	ldq	$1, 2*8($sp)
+-	ldq	$2, 3*8($sp)
+-	ldq	$3, 4*8($sp)
+-	ldq	$4, 5*8($sp)
+-	ldq	$5, 6*8($sp)
+-	ldq	$6, 7*8($sp)
+-	ldq	$7, 8*8($sp)
+-	ldq	$8, 9*8($sp)
+-	ldq	$16, 10*8($sp)
+-	ldq	$17, 11*8($sp)
+-	ldq	$18, 12*8($sp)
+-	ldq	$19, 13*8($sp)
+-	ldq	$20, 14*8($sp)
+-	ldq	$21, 15*8($sp)
+-	ldq	$22, 16*8($sp)
+-	ldq	$23, 17*8($sp)
+-	ldq	$24, 18*8($sp)
+-	ldq	$25, 19*8($sp)
+-	ldq	$29, 20*8($sp)
+-	ldt	$f0, 21*8($sp)
+-	ldt	$f1, 22*8($sp)
+-	ldt	$f10, 23*8($sp)
+-	ldt	$f11, 24*8($sp)
+-	ldt	$f12, 25*8($sp)
+-	ldt	$f13, 26*8($sp)
+-	ldt	$f14, 27*8($sp)
+-	ldt	$f15, 28*8($sp)
+-	ldt	$f16, 29*8($sp)
+-	ldt	$f17, 30*8($sp)
+-	ldt	$f18, 31*8($sp)
+-	ldt	$f19, 32*8($sp)
+-	ldt	$f20, 33*8($sp)
+-	ldt	$f21, 34*8($sp)
+-	ldt	$f22, 35*8($sp)
+-	ldt	$f23, 36*8($sp)
+-	ldt	$f24, 37*8($sp)
+-	ldt	$f25, 38*8($sp)
+-	ldt	$f26, 39*8($sp)
+-	ldt	$f27, 40*8($sp)
+-	ldt	$f28, 41*8($sp)
+-	ldt	$f29, 42*8($sp)
+-	ldt	$f30, 43*8($sp)
+-	/* Flush the Icache after having modified the .plt code.  */
+-	" #IMB "
+-	/* Clean up and turn control to the destination */
+-	lda	$sp, 44*8($sp)
+-	jmp	$31, ($27)
++	.globl " #tramp_name "					\n\
++	.ent " #tramp_name "					\n\
++" #tramp_name ":						\n\
++	lda	$sp, -44*8($sp)					\n\
++	.frame	$sp, 44*8, $26					\n\
++	/* Preserve all integer registers that C normally	\n\
++	   doesn't.  */						\n\
++	stq	$26, 0*8($sp)					\n\
++	stq	$0, 1*8($sp)					\n\
++	stq	$1, 2*8($sp)					\n\
++	stq	$2, 3*8($sp)					\n\
++	stq	$3, 4*8($sp)					\n\
++	stq	$4, 5*8($sp)					\n\
++	stq	$5, 6*8($sp)					\n\
++	stq	$6, 7*8($sp)					\n\
++	stq	$7, 8*8($sp)					\n\
++	stq	$8, 9*8($sp)					\n\
++	stq	$16, 10*8($sp)					\n\
++	stq	$17, 11*8($sp)					\n\
++	stq	$18, 12*8($sp)					\n\
++	stq	$19, 13*8($sp)					\n\
++	stq	$20, 14*8($sp)					\n\
++	stq	$21, 15*8($sp)					\n\
++	stq	$22, 16*8($sp)					\n\
++	stq	$23, 17*8($sp)					\n\
++	stq	$24, 18*8($sp)					\n\
++	stq	$25, 19*8($sp)					\n\
++	stq	$29, 20*8($sp)					\n\
++	stt	$f0, 21*8($sp)					\n\
++	stt	$f1, 22*8($sp)					\n\
++	stt	$f10, 23*8($sp)					\n\
++	stt	$f11, 24*8($sp)					\n\
++	stt	$f12, 25*8($sp)					\n\
++	stt	$f13, 26*8($sp)					\n\
++	stt	$f14, 27*8($sp)					\n\
++	stt	$f15, 28*8($sp)					\n\
++	stt	$f16, 29*8($sp)					\n\
++	stt	$f17, 30*8($sp)					\n\
++	stt	$f18, 31*8($sp)					\n\
++	stt	$f19, 32*8($sp)					\n\
++	stt	$f20, 33*8($sp)					\n\
++	stt	$f21, 34*8($sp)					\n\
++	stt	$f22, 35*8($sp)					\n\
++	stt	$f23, 36*8($sp)					\n\
++	stt	$f24, 37*8($sp)					\n\
++	stt	$f25, 38*8($sp)					\n\
++	stt	$f26, 39*8($sp)					\n\
++	stt	$f27, 40*8($sp)					\n\
++	stt	$f28, 41*8($sp)					\n\
++	stt	$f29, 42*8($sp)					\n\
++	stt	$f30, 43*8($sp)					\n\
++	.mask	0x27ff01ff, -44*8				\n\
++	.fmask	0xfffffc03, -(44-21)*8				\n\
++	/* Set up our $gp */					\n\
++	br	$gp, .+4					\n\
++	ldgp	$gp, 0($gp)					\n\
++	.prologue 0						\n\
++	/* Set up the arguments for fixup: */			\n\
++	/* $16 = link_map out of plt0 */			\n\
++	/* $17 = offset of reloc entry = ($28 - $27 - 20) /12 * 24 */\n\
++	/* $18 = return address */				\n\
++	subq	$28, $27, $17					\n\
++	ldq	$16, 8($27)					\n\
++	subq	$17, 20, $17					\n\
++	mov	$26, $18					\n\
++	addq	$17, $17, $17					\n\
++	/* Do the fixup */					\n\
++	bsr	$26, " ASM_ALPHA_NG_SYMBOL_PREFIX #fixup_name "..ng\n\
++	/* Move the destination address into position.  */	\n\
++	mov	$0, $27						\n\
++	/* Restore program registers.  */			\n\
++	ldq	$26, 0*8($sp)					\n\
++	ldq	$0, 1*8($sp)					\n\
++	ldq	$1, 2*8($sp)					\n\
++	ldq	$2, 3*8($sp)					\n\
++	ldq	$3, 4*8($sp)					\n\
++	ldq	$4, 5*8($sp)					\n\
++	ldq	$5, 6*8($sp)					\n\
++	ldq	$6, 7*8($sp)					\n\
++	ldq	$7, 8*8($sp)					\n\
++	ldq	$8, 9*8($sp)					\n\
++	ldq	$16, 10*8($sp)					\n\
++	ldq	$17, 11*8($sp)					\n\
++	ldq	$18, 12*8($sp)					\n\
++	ldq	$19, 13*8($sp)					\n\
++	ldq	$20, 14*8($sp)					\n\
++	ldq	$21, 15*8($sp)					\n\
++	ldq	$22, 16*8($sp)					\n\
++	ldq	$23, 17*8($sp)					\n\
++	ldq	$24, 18*8($sp)					\n\
++	ldq	$25, 19*8($sp)					\n\
++	ldq	$29, 20*8($sp)					\n\
++	ldt	$f0, 21*8($sp)					\n\
++	ldt	$f1, 22*8($sp)					\n\
++	ldt	$f10, 23*8($sp)					\n\
++	ldt	$f11, 24*8($sp)					\n\
++	ldt	$f12, 25*8($sp)					\n\
++	ldt	$f13, 26*8($sp)					\n\
++	ldt	$f14, 27*8($sp)					\n\
++	ldt	$f15, 28*8($sp)					\n\
++	ldt	$f16, 29*8($sp)					\n\
++	ldt	$f17, 30*8($sp)					\n\
++	ldt	$f18, 31*8($sp)					\n\
++	ldt	$f19, 32*8($sp)					\n\
++	ldt	$f20, 33*8($sp)					\n\
++	ldt	$f21, 34*8($sp)					\n\
++	ldt	$f22, 35*8($sp)					\n\
++	ldt	$f23, 36*8($sp)					\n\
++	ldt	$f24, 37*8($sp)					\n\
++	ldt	$f25, 38*8($sp)					\n\
++	ldt	$f26, 39*8($sp)					\n\
++	ldt	$f27, 40*8($sp)					\n\
++	ldt	$f28, 41*8($sp)					\n\
++	ldt	$f29, 42*8($sp)					\n\
++	ldt	$f30, 43*8($sp)					\n\
++	/* Flush the Icache after having modified the .plt code.  */\n\
++	" #IMB "						\n\
++	/* Clean up and turn control to the destination */	\n\
++	lda	$sp, 44*8($sp)					\n\
++	jmp	$31, ($27)					\n\
+ 	.end " #tramp_name)
+ 
+ #ifndef PROF
+@@ -292,85 +294,87 @@
+    its return value is the user program's entry point.  */
+ 
+ #define RTLD_START asm ("\
+-.text
+-	.set at
+-	.globl _start
+-	.ent _start
+-_start:
+-	br	$gp, 0f
+-0:	ldgp	$gp, 0($gp)
+-	.prologue 0
+-	/* Pass pointer to argument block to _dl_start.  */
+-	mov	$sp, $16
+-	bsr	$26, "ASM_ALPHA_NG_SYMBOL_PREFIX"_dl_start..ng
+-	.end _start
+-	/* FALLTHRU */
+-	.globl _dl_start_user
+-	.ent _dl_start_user
+-_dl_start_user:
+-	.frame $30,0,$31,0
+-	.prologue 0
+-	/* Save the user entry point address in s0.  */
+-	mov	$0, $9
+-	/* Store the highest stack address.  */
+-	stq	$30, __libc_stack_end
+-	/* See if we were run as a command with the executable file
+-	   name as an extra leading argument.  */
+-	ldl	$1, _dl_skip_args
+-	bne	$1, $fixup_stack
+-$fixup_stack_ret:
+-	/* The special initializer gets called with the stack just
+-	   as the application's entry point will see it; it can
+-	   switch stacks if it moves these contents over.  */
+-" RTLD_START_SPECIAL_INIT "
+-	/* Call _dl_init(_dl_loaded, argc, argv, envp) to run initializers.  */
+-	ldq	$16, _dl_loaded
+-	ldq	$17, 0($sp)
+-	lda	$18, 8($sp)
+-	s8addq	$17, 8, $19
+-	addq	$19, $18, $19
+-	jsr	$26, _dl_init
+-	/* Pass our finalizer function to the user in $0. */
+-	lda	$0, _dl_fini
+-	/* Jump to the user's entry point.  */
+-	mov	$9, $27
+-	jmp	($9)
+-$fixup_stack:
+-	/* Adjust the stack pointer to skip _dl_skip_args words.  This
+-	   involves copying everything down, since the stack pointer must
+-	   always be 16-byte aligned.  */
+-	ldq	$2, 0($sp)
+-	ldq	$5, _dl_argv
+-	subq	$31, $1, $6
+-	subq	$2, $1, $2
+-	s8addq	$6, $5, $5
+-	mov	$sp, $4
+-	s8addq	$1, $sp, $3
+-	stq	$2, 0($sp)
+-	stq	$5, _dl_argv
+-	/* Copy down argv.  */
+-0:	ldq	$5, 8($3)
+-	addq	$4, 8, $4
+-	addq	$3, 8, $3
+-	stq	$5, 0($4)
+-	bne	$5, 0b
+-	/* Copy down envp.  */
+-1:	ldq	$5, 8($3)
+-	addq	$4, 8, $4
+-	addq	$3, 8, $3
+-	stq	$5, 0($4)
+-	bne	$5, 1b
+-	/* Copy down auxiliary table.  */
+-2:	ldq	$5, 8($3)
+-	ldq	$6, 16($3)
+-	addq	$4, 16, $4
+-	addq	$3, 16, $3
+-	stq	$5, -8($4)
+-	stq	$6, 0($4)
+-	bne	$5, 2b
+-	br	$fixup_stack_ret
+-	.end _dl_start_user
+-	.set noat
++.text								\n\
++	.set at							\n\
++	.globl _start						\n\
++	.ent _start						\n\
++_start:								\n\
++	br	$gp, 0f						\n\
++0:	ldgp	$gp, 0($gp)					\n\
++	.prologue 0						\n\
++	/* Pass pointer to argument block to _dl_start.  */	\n\
++	mov	$sp, $16					\n\
++	bsr	$26, "ASM_ALPHA_NG_SYMBOL_PREFIX"_dl_start..ng	\n\
++	.end _start						\n\
++	/* FALLTHRU */						\n\
++	.globl _dl_start_user					\n\
++	.ent _dl_start_user					\n\
++_dl_start_user:							\n\
++	.frame $30,0,$31,0					\n\
++	.prologue 0						\n\
++	/* Save the user entry point address in s0.  */		\n\
++	mov	$0, $9						\n\
++	/* Store the highest stack address.  */			\n\
++	stq	$30, __libc_stack_end				\n\
++	/* See if we were run as a command with the executable	\n\
++	   file name as an extra leading argument.  */		\n\
++	ldl	$1, _dl_skip_args				\n\
++	bne	$1, $fixup_stack				\n\
++$fixup_stack_ret:						\n\
++	/* The special initializer gets called with the stack	\n\
++	   just as the application's entry point will see it;	\n\
++	   it can switch stacks if it moves these contents	\n\
++	   over.  */						\n\
++" RTLD_START_SPECIAL_INIT "					\n\
++	/* Call _dl_init(_dl_loaded, argc, argv, envp) to run	\n\
++	   initializers.  */					\n\
++	ldq	$16, _dl_loaded					\n\
++	ldq	$17, 0($sp)					\n\
++	lda	$18, 8($sp)					\n\
++	s8addq	$17, 8, $19					\n\
++	addq	$19, $18, $19					\n\
++	jsr	$26, _dl_init					\n\
++	/* Pass our finalizer function to the user in $0. */	\n\
++	lda	$0, _dl_fini					\n\
++	/* Jump to the user's entry point.  */			\n\
++	mov	$9, $27						\n\
++	jmp	($9)						\n\
++$fixup_stack:							\n\
++	/* Adjust the stack pointer to skip _dl_skip_args words.\n\
++	   This involves copying everything down, since the	\n\
++	   stack pointer must always be 16-byte aligned.  */	\n\
++	ldq	$2, 0($sp)					\n\
++	ldq	$5, _dl_argv					\n\
++	subq	$31, $1, $6					\n\
++	subq	$2, $1, $2					\n\
++	s8addq	$6, $5, $5					\n\
++	mov	$sp, $4						\n\
++	s8addq	$1, $sp, $3					\n\
++	stq	$2, 0($sp)					\n\
++	stq	$5, _dl_argv					\n\
++	/* Copy down argv.  */					\n\
++0:	ldq	$5, 8($3)					\n\
++	addq	$4, 8, $4					\n\
++	addq	$3, 8, $3					\n\
++	stq	$5, 0($4)					\n\
++	bne	$5, 0b						\n\
++	/* Copy down envp.  */					\n\
++1:	ldq	$5, 8($3)					\n\
++	addq	$4, 8, $4					\n\
++	addq	$3, 8, $3					\n\
++	stq	$5, 0($4)					\n\
++	bne	$5, 1b						\n\
++	/* Copy down auxiliary table.  */			\n\
++2:	ldq	$5, 8($3)					\n\
++	ldq	$6, 16($3)					\n\
++	addq	$4, 16, $4					\n\
++	addq	$3, 16, $3					\n\
++	stq	$5, -8($4)					\n\
++	stq	$6, 0($4)					\n\
++	bne	$5, 2b						\n\
++	br	$fixup_stack_ret				\n\
++	.end _dl_start_user					\n\
++	.set noat						\n\
+ .previous");
+ 
+ #ifndef RTLD_START_SPECIAL_INIT

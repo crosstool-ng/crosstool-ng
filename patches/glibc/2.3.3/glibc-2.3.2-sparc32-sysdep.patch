@@ -1,0 +1,46 @@
+Fixes the error
+
+<stdin>: Assembler messages:
+<stdin>:2: Error: junk at end of line, first unrecognized character is `1' ...
+<stdin>:2: Error: Illegal operands: PC-relative operand can't be a constant
+make[4]: *** [/home/dank/wk/crosstool-0.28-rc13/build/sparc-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/io/rtld-open.os] Error 1
+make[4]: Leaving directory `/home/dank/wk/crosstool-0.28-rc13/build/sparc-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/glibc-2.3.2/io'
+make[3]: *** [/home/dank/wk/crosstool-0.28-rc13/build/sparc-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/io/rtld-xstat64.os] Error 2
+make[3]: Leaving directory `/home/dank/wk/crosstool-0.28-rc13/build/sparc-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/glibc-2.3.2/elf'
+make[2]: *** [/home/dank/wk/crosstool-0.28-rc13/build/sparc-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/elf/rtld-libc.a] Error 2
+make[2]: Leaving directory `/home/dank/wk/crosstool-0.28-rc13/build/sparc-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/glibc-2.3.2/elf'
+make[1]: *** [elf/subdir_lib] Error 2
+
+when building glibc-2.3.2 with gcc-3.4.0 for sparc32.
+
+The .s file left behind by -save-temps contains the big long line
+
+.text; .global __libc_open; .align 4; __libc_open:; .type __libc_open,@function;; mov 5, %g1; ta 0x10; bcs __syscall_error_handler; nop; .section .gnu.linkonce.t. 1 .get_pic.l7,"ax",@progbits; .globl 1 .get_pic.l7; .hidden 1 .get_pic.l7; .type 1 .get_pic.l7,@function; 1 .get_pic.l7: retl; add %o7, %l7, %l7; .previous; .subsection 3; __syscall_error_handler: save %sp,-96,%sp; sethi %hi(_GLOBAL_OFFSET_TABLE_-4), %l7; call 1 .get_pic.l7; add %l7, %lo(_GLOBAL_OFFSET_TABLE_+4), %l7; ld [%l7 + errno], %l0; st %i0, [%l0]; jmpl %i7+8, %g0; restore %g0, -1, %o0; .previous;
+ retl; nop 
+ 
+The error messages appear to refer to the '1 .get_pic.17', e.g.
+        .globl 1 .get_pic.l7; .hidden 1 .get_pic.l7;
+which seems to come from
+glibc-2.3.2/sysdeps/unix/sysv/linux/sparc/sparc32/sysdep.h
+where it appears originally as
+        .globl __sparc.get_pic.l7;                                      \
+        .hidden __sparc.get_pic.l7;                                     \
+
+Note that __sparc is a predefined symbol on Solaris and some other environments;
+it's not surprising to see it predefined on Linux, too.
+
+
+--- glibc-2.3.2/sysdeps/unix/sysv/linux/sparc/sparc32/sysdep.h.old	2004-05-15 10:23:11.000000000 -0700
++++ glibc-2.3.2/sysdeps/unix/sysv/linux/sparc/sparc32/sysdep.h	2004-05-15 10:24:12.000000000 -0700
+@@ -39,6 +39,11 @@
+ #undef END
+ #undef LOC
+ 
++/* gcc-3.4.0 seems to expand __sparc as a predefined preprocessor symbol, which we don't want here */
++#ifdef __sparc
++#undef __sparc
++#endif
++
+ #define ENTRY(name) \
+ 	.global C_SYMBOL_NAME(name); \
+ 	.align 4;\

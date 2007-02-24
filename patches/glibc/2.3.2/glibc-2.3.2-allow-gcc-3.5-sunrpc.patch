@@ -1,0 +1,233 @@
+http://sources.redhat.com/ml/libc-hacker/2004-02/msg00005.html
+[Also in CVS, but the original patch is easier to get.]
+
+Fixes errors like
+
+clnt_perr.c: In function `_buf':
+clnt_perr.c:67: error: invalid lvalue in assignment
+
+when building with gcc-3.5.
+
+To: libc-hacker at sources dot redhat dot com
+Subject: Fix cast as lvalue in sunrpc
+From: Andreas Schwab <schwab at suse dot de>
+X-Yow: SHHHH!!  I hear SIX TATTOOED TRUCK-DRIVERS tossing ENGINE BLOCKS
+ into empty OIL DRUMS dot  dot 
+Date: Sun, 08 Feb 2004 17:38:31 +0100
+Message-ID: <je4qu1frw8.fsf@sykes.suse.de>
+
+This fixes the uses of casts as lvalue in the sunrpc code.
+
+Andreas.
+
+2004-02-08  Andreas Schwab  <schwab@suse.de>
+
+	* include/rpc/rpc.h: Declare thread variables with their correct
+	type.
+	* sunrpc/clnt_perr.c: Don't cast thread variables.
+	* sunrpc/clnt_raw.c: Likewise.
+	* sunrpc/clnt_simp.c: Likewise.
+	* sunrpc/key_call.c: Likewise.
+	* sunrpc/svcauth_des.c: Likewise.
+	* sunrpc/svc.c: Likewise.
+	* sunrpc/svc_raw.c: Likewise.
+	* sunrpc/svc_simple.c: Likewise.
+
+Index: include/rpc/rpc.h
+===================================================================
+RCS file: /cvs/glibc/libc/include/rpc/rpc.h,v
+retrieving revision 1.8
+diff -u -p -a -r1.8 rpc.h
+--- glibc/include/rpc/rpc.h	5 Aug 2002 22:10:59 -0000	1.8
++++ glibc/include/rpc/rpc.h	8 Feb 2004 14:19:14 -0000
+@@ -17,24 +17,24 @@ struct rpc_thread_variables {
+ 	struct pollfd	*svc_pollfd_s;		/* Global, rpc_common.c */
+ 	int		svc_max_pollfd_s;	/* Global, rpc_common.c */
+ 
+-	void		*clnt_perr_buf_s;	/* clnt_perr.c */
++	char		*clnt_perr_buf_s;	/* clnt_perr.c */
+ 
+-	void		*clntraw_private_s;	/* clnt_raw.c */
++	struct clntraw_private_s *clntraw_private_s;	/* clnt_raw.c */
+ 
+-	void		*callrpc_private_s;	/* clnt_simp.c */
++	struct callrpc_private_s *callrpc_private_s;	/* clnt_simp.c */
+ 
+-	void		*key_call_private_s;	/* key_call.c */
++	struct key_call_private *key_call_private_s;	/* key_call.c */
+ 
+-	void		*authdes_cache_s;	/* svcauth_des.c */
+-	void		*authdes_lru_s;		/* svcauth_des.c */
++	struct cache_entry *authdes_cache_s;	/* svcauth_des.c */
++	int		*authdes_lru_s;		/* svcauth_des.c */
+ 
+-	void		*svc_xports_s;		/* svc.c */
+-	void		*svc_head_s;		/* svc.c */
++	SVCXPRT		**svc_xports_s;		/* svc.c */
++	struct svc_callout *svc_head_s;		/* svc.c */
+ 
+-	void		*svcraw_private_s;	/* svc_raw.c */
++	struct svcraw_private_s *svcraw_private_s;	/* svc_raw.c */
+ 
+-	void		*svcsimple_proglst_s;	/* svc_simple.c */
+-	void		*svcsimple_transp_s;	/* svc_simple.c */
++	struct proglst_ *svcsimple_proglst_s;	/* svc_simple.c */
++	SVCXPRT		*svcsimple_transp_s;	/* svc_simple.c */
+ };
+ 
+ extern struct rpc_thread_variables *__rpc_thread_variables(void)
+Index: sunrpc/clnt_perr.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/clnt_perr.c,v
+retrieving revision 1.19
+diff -u -p -a -r1.19 clnt_perr.c
+--- glibc/sunrpc/clnt_perr.c	1 Nov 2002 20:43:54 -0000	1.19
++++ glibc/sunrpc/clnt_perr.c	8 Feb 2004 14:19:14 -0000
+@@ -55,7 +55,7 @@ static char *auth_errmsg (enum auth_stat
+  * buf variable in a few functions.  Overriding a global variable
+  * with a local variable of the same name is a bad idea, anyway.
+  */
+-#define buf ((char *)RPC_THREAD_VARIABLE(clnt_perr_buf_s))
++#define buf RPC_THREAD_VARIABLE(clnt_perr_buf_s)
+ #else
+ static char *buf;
+ #endif
+Index: sunrpc/clnt_raw.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/clnt_raw.c,v
+retrieving revision 1.10
+diff -u -p -a -r1.10 clnt_raw.c
+--- glibc/sunrpc/clnt_raw.c	15 May 2002 00:21:00 -0000	1.10
++++ glibc/sunrpc/clnt_raw.c	8 Feb 2004 14:19:14 -0000
+@@ -61,7 +61,7 @@ struct clntraw_private_s
+     u_int mcnt;
+   };
+ #ifdef _RPC_THREAD_SAFE_
+-#define clntraw_private ((struct clntraw_private_s *)RPC_THREAD_VARIABLE(clntraw_private_s))
++#define clntraw_private RPC_THREAD_VARIABLE(clntraw_private_s)
+ #else
+ static struct clntraw_private_s *clntraw_private;
+ #endif
+Index: sunrpc/clnt_simp.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/clnt_simp.c,v
+retrieving revision 1.14
+diff -u -p -a -r1.14 clnt_simp.c
+--- glibc/sunrpc/clnt_simp.c	15 May 2002 00:21:00 -0000	1.14
++++ glibc/sunrpc/clnt_simp.c	8 Feb 2004 14:19:14 -0000
+@@ -55,7 +55,7 @@ struct callrpc_private_s
+     char *oldhost;
+   };
+ #ifdef _RPC_THREAD_SAFE_
+-#define callrpc_private ((struct callrpc_private_s *)RPC_THREAD_VARIABLE(callrpc_private_s))
++#define callrpc_private RPC_THREAD_VARIABLE(callrpc_private_s)
+ #else
+ static struct callrpc_private_s *callrpc_private;
+ #endif
+Index: sunrpc/key_call.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/key_call.c,v
+retrieving revision 1.16
+diff -u -p -a -r1.16 key_call.c
+--- glibc/sunrpc/key_call.c	6 Aug 2002 06:08:50 -0000	1.16
++++ glibc/sunrpc/key_call.c	8 Feb 2004 14:19:14 -0000
+@@ -370,7 +370,7 @@ struct  key_call_private {
+   uid_t   uid;            /* user-id at last authorization */
+ };
+ #ifdef _RPC_THREAD_SAFE_
+-#define key_call_private_main ((struct  key_call_private *)RPC_THREAD_VARIABLE(key_call_private_s))
++#define key_call_private_main RPC_THREAD_VARIABLE(key_call_private_s)
+ #else
+ static struct key_call_private *key_call_private_main;
+ #endif
+Index: sunrpc/svc.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/svc.c,v
+retrieving revision 1.17
+diff -u -p -a -r1.17 svc.c
+--- glibc/sunrpc/svc.c	29 Aug 2003 07:45:18 -0000	1.17
++++ glibc/sunrpc/svc.c	8 Feb 2004 14:19:14 -0000
+@@ -44,7 +44,7 @@
+ #include <sys/poll.h>
+ 
+ #ifdef _RPC_THREAD_SAFE_
+-#define xports ((SVCXPRT **)RPC_THREAD_VARIABLE(svc_xports_s))
++#define xports RPC_THREAD_VARIABLE(svc_xports_s)
+ #else
+ static SVCXPRT **xports;
+ #endif
+@@ -63,7 +63,7 @@ struct svc_callout {
+   void (*sc_dispatch) (struct svc_req *, SVCXPRT *);
+ };
+ #ifdef _RPC_THREAD_SAFE_
+-#define svc_head ((struct svc_callout *)RPC_THREAD_VARIABLE(svc_head_s))
++#define svc_head RPC_THREAD_VARIABLE(svc_head_s)
+ #else
+ static struct svc_callout *svc_head;
+ #endif
+Index: sunrpc/svc_raw.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/svc_raw.c,v
+retrieving revision 1.5
+diff -u -p -a -r1.5 svc_raw.c
+--- glibc/sunrpc/svc_raw.c	26 Feb 2002 01:43:56 -0000	1.5
++++ glibc/sunrpc/svc_raw.c	8 Feb 2004 14:19:14 -0000
+@@ -54,7 +54,7 @@ struct svcraw_private_s
+     char verf_body[MAX_AUTH_BYTES];
+   };
+ #ifdef _RPC_THREAD_SAFE_
+-#define svcraw_private ((struct svcraw_private_s *)RPC_THREAD_VARIABLE(svcraw_private_s))
++#define svcraw_private RPC_THREAD_VARIABLE(svcraw_private_s)
+ #else
+ static struct svcraw_private_s *svcraw_private;
+ #endif
+Index: sunrpc/svc_simple.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/svc_simple.c,v
+retrieving revision 1.16
+diff -u -p -a -r1.16 svc_simple.c
+--- glibc/sunrpc/svc_simple.c	6 Aug 2002 05:10:30 -0000	1.16
++++ glibc/sunrpc/svc_simple.c	8 Feb 2004 14:19:14 -0000
+@@ -61,7 +61,7 @@ struct proglst_
+     struct proglst_ *p_nxt;
+   };
+ #ifdef _RPC_THREAD_SAFE_
+-#define proglst ((struct proglst_ *)RPC_THREAD_VARIABLE(svcsimple_proglst_s))
++#define proglst RPC_THREAD_VARIABLE(svcsimple_proglst_s)
+ #else
+ static struct proglst_ *proglst;
+ #endif
+@@ -69,7 +69,7 @@ static struct proglst_ *proglst;
+ 
+ static void universal (struct svc_req *rqstp, SVCXPRT *transp_s);
+ #ifdef _RPC_THREAD_SAFE_
+-#define transp ((SVCXPRT *)RPC_THREAD_VARIABLE(svcsimple_transp_s))
++#define transp RPC_THREAD_VARIABLE(svcsimple_transp_s)
+ #else
+ static SVCXPRT *transp;
+ #endif
+Index: sunrpc/svcauth_des.c
+===================================================================
+RCS file: /cvs/glibc/libc/sunrpc/svcauth_des.c,v
+retrieving revision 1.8
+diff -u -p -a -r1.8 svcauth_des.c
+--- glibc/sunrpc/svcauth_des.c	20 Aug 2001 06:37:09 -0000	1.8
++++ glibc/sunrpc/svcauth_des.c	8 Feb 2004 14:19:14 -0000
+@@ -72,8 +72,8 @@ struct cache_entry
+     char *localcred;		/* generic local credential */
+   };
+ #ifdef _RPC_THREAD_SAFE_
+-#define authdes_cache ((struct cache_entry *)RPC_THREAD_VARIABLE(authdes_cache_s))
+-#define authdes_lru ((int *)RPC_THREAD_VARIABLE(authdes_lru_s))
++#define authdes_cache RPC_THREAD_VARIABLE(authdes_cache_s)
++#define authdes_lru RPC_THREAD_VARIABLE(authdes_lru_s)
+ #else
+ static struct cache_entry *authdes_cache;
+ static int *authdes_lru;
+
+-- 
+Andreas Schwab, SuSE Labs, schwab@suse.de
+SuSE Linux AG, Maxfeldstraße 5, 90409 Nürnberg, Germany
+Key fingerprint = 58CA 54C7 6D53 942B 1756  01D3 44D5 214B 8276 4ED5
+"And now for something completely different."
+

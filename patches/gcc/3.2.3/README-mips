@@ -1,0 +1,1648 @@
+See also http://www.spinics.net/lists/mips/msg12236.html
+
+ftp://ftp.linux-mips.org/pub/linux/mips/redhat/7.3/test/SRPMS/gcc-3.2-7.1.src.rpm
+contains the following patches and spec file.
+You may wish to investigate some of these patches; I haven't.
+I think this is mostly the Red Hat 8.0 srpm for a prerelease gcc-3.2, plus a couple
+mips specific fixes, but you'd have to ask H.J.Lu or compare with the regular
+Red Hat 8.0 srpm to find out.
+In any case, the spec file is interesting reading.
+- Dan K. 
+
+total 1164
+   4 boehm-gc-LINUX.patch
+   4 boehm-gc-mips.patch
+   4 contrib-touch.patch
+   8 gcc-arch.patch
+   4 gcc-c++-template.patch
+   4 gcc-copy.patch
+   4 gcc-cross-bfd.patch
+   4 gcc-cross.patch
+   4 gcc-gcj-cross.patch
+   4 gcc-libffi-mips.patch
+   4 gcc-libgcc.patch
+ 480 gcc-libstdc++-glibc-2.2.patch
+   4 gcc-libstdc++-mips.patch
+   4 gcc-linux-atexit.patch
+   8 gcc-linux-crt.patch
+   4 gcc-mips-coff.patch
+   4 gcc-mips-file.patch
+   4 gcc-mips-ieee.patch
+   4 gcc-mips-return.patch
+   4 gcc-ppc-linux.patch
+   8 gcc-sizeof.patch
+   4 gcc-test-atexit.patch
+   4 gcc-testsuite-c++.patch
+   4 gcc-var.patch
+   8 gcc32-2.96-RH-compat.patch
+   4 gcc32-ada-addr2line.patch
+   8 gcc32-ada-link.patch
+  12 gcc32-attr-visibility.patch
+   4 gcc32-attr-visibility2.patch
+   4 gcc32-attr-visibility3.patch
+   4 gcc32-attr-visibility4.patch
+   4 gcc32-attr-visibility5.patch
+   8 gcc32-boehm-gc-libs.patch
+   4 gcc32-bogus-inline.patch
+   4 gcc32-c++-nrv-test.patch
+   4 gcc32-c++-pretty_function.patch
+  16 gcc32-c++-tail-pad-backout.patch
+   4 gcc32-c++-tsubst-asm.patch
+   4 gcc32-cfg-eh.patch
+   4 gcc32-debug-pr7241.patch
+   4 gcc32-doc-gcov.patch
+   4 gcc32-duplicate-decl.patch
+   4 gcc32-dwarf2-pr6381.patch
+   4 gcc32-dwarf2-pr6436-test.patch
+   4 gcc32-fde-merge-compat.patch
+   4 gcc32-fold-const-associate.patch
+   4 gcc32-fold-const2.patch
+  24 gcc32-hard-reg-sharing.patch
+   4 gcc32-hard-reg-sharing2.patch
+   4 gcc32-i386-default-momit-leaf-frame-pointer.patch
+   4 gcc32-i386-memtest-test.patch
+   4 gcc32-i386-no-default-momit-leaf-frame-pointer.patch
+   4 gcc32-i386-pic-label-thunk.patch
+   4 gcc32-i386-pr7242.patch
+   4 gcc32-i386-profile-olfp.patch
+   4 gcc32-inline-label.patch
+   4 gcc32-interface_only.patch
+   4 gcc32-java-no-rpath.patch
+  20 gcc32-libstdc++-glibc23-1.patch
+   4 gcc32-libstdc++-glibc23-2.patch
+   4 gcc32-libstdc++-glibc23-3.patch
+   4 gcc32-libstdc++-glibc23-4.patch
+   4 gcc32-loop-prefetch.patch
+   4 gcc32-pr6842.patch
+   8 gcc32-rh69989.patch
+  40 gcc32-s390-java.patch
+   4 gcc32-sparc-sll1.patch
+   4 gcc32-test-rh65771.patch
+   8 gcc32-test-rotate.patch
+  12 gcc32-tls-dwarf2.patch
+ 140 gcc32-tls.patch
+   4 gcc32-tls2.patch
+   4 gcc32-tls3.patch
+   4 gcc32-tls4.patch
+   4 gcc32-tls5.patch
+  24 gcc32-tree-code.patch
+   4 gcc32-trunc_int_for_mode.patch
+   4 gcc32-typeof-asm.patch
+   4 gcc32-x86_64-libiberty-pic.patch
+   4 gcc32-x86_64-pr7559.patch
+   4 gcc32-x86_64-q_regs_operand.patch
+   4 gcc32-x86_64-rip-lowercase.patch
+   4 libjava-cross.patch
+   4 libtool-libs.patch
+   4 libtool-mips.patch
+
+---------- gcc32.spec ---------
+
+%if %{_arch} != %{_build_arch}
+%define cross_compile 1
+%else
+%define cross_compile 0
+%endif
+%{?_with_crosscompile: %{expand: %%define cross_compile 1}}
+
+%if %{cross_compile}
+%define make_check 0
+%else
+%define make_check 1
+%endif
+%{?_without_check: %{expand: %%define make_check 0}}
+%{?_with_check: %{expand: %%define make_check 1}}
+
+%define default 0
+%{?_with_default: %{expand: %%define default 1}}
+
+%define gcconly 0
+%{?_with_gcconly: %{expand: %%define gcconly 1}}
+
+%define DATE 20020903
+%define gcc_version 3.2
+%define gcc_release 7.1
+%ifarch %{ix86} alpha ia64 ppc
+%define build_ada 1
+%else
+%define build_ada 0
+%endif
+%{?_without_ada: %{expand: %%define build_ada 0}}
+%if %{cross_compile}
+%define build_ada 0
+%endif
+Summary: Various compilers (C, C++, Objective-C, Java, ...)
+%if !%{gcconly}
+Name: gcc
+Version: 3.2
+Release: %{gcc_release}
+%else
+Name: gcc-%{gcc_version}
+Version: %{gcc_release}
+Release: 1
+%endif
+Copyright: GPL
+Group: Development/Languages
+Source0: gcc-%{version}-%{DATE}.tar.bz2
+URL: http://gcc.gnu.org
+BuildRoot: %{_tmppath}/%{name}-%{version}-root
+BuildRequires: binutils >= 2.12.90.0.9-1
+BuildRequires: zlib-devel, gettext, dejagnu
+# Make sure pthread.h doesn't contain __thread tokens
+BuildRequires: glibc-devel >= 2.2.5-36.2
+%if %{build_ada}
+# Ada requires Ada to build
+BuildRequires: gcc-gnat >= 3.1, libgnat >= 3.1
+%endif
+Requires: cpp = %{version}-%{release}
+# Need .eh_frame ld optimizations
+# Need proper visibility support
+Requires: binutils >= 2.12.90.0.7-1
+# Make sure gdb will understand DW_FORM_strp
+Conflicts: gdb < 5.1-2
+Requires: glibc-devel >= 2.2.5-36.2
+Requires: libgcc >= %{version}-%{release}
+%if !%{gcconly}
+Obsoletes: gcc3
+%endif
+Prereq: /sbin/install-info
+
+Patch1: gcc32-2.96-RH-compat.patch
+Patch2: gcc32-boehm-gc-libs.patch
+Patch3: gcc32-bogus-inline.patch
+Patch6: gcc32-fde-merge-compat.patch
+Patch7: gcc32-attr-visibility.patch
+Patch8: gcc32-attr-visibility2.patch
+Patch9: gcc32-duplicate-decl.patch
+Patch10: gcc32-trunc_int_for_mode.patch
+Patch11: gcc32-sparc-sll1.patch
+Patch12: gcc32-x86_64-q_regs_operand.patch
+Patch13: gcc32-dwarf2-pr6381.patch
+Patch14: gcc32-dwarf2-pr6436-test.patch
+Patch15: gcc32-c++-pretty_function.patch
+Patch16: gcc32-c++-tsubst-asm.patch
+Patch18: gcc32-i386-memtest-test.patch
+Patch19: gcc32-fold-const2.patch
+Patch21: gcc32-ada-addr2line.patch
+Patch22: gcc32-ada-link.patch
+Patch23: gcc32-java-no-rpath.patch
+Patch25: gcc32-s390-java.patch
+Patch26: gcc32-test-rotate.patch
+Patch27: gcc32-x86_64-libiberty-pic.patch
+Patch29: gcc32-test-rh65771.patch
+Patch30: gcc32-i386-default-momit-leaf-frame-pointer.patch
+Patch31: gcc32-i386-pic-label-thunk.patch
+Patch34: gcc32-pr6842.patch
+Patch35: gcc32-tls.patch
+Patch36: gcc32-i386-profile-olfp.patch
+Patch37: gcc32-tree-code.patch
+Patch38: gcc32-hard-reg-sharing.patch
+Patch39: gcc32-hard-reg-sharing2.patch
+Patch40: gcc32-c++-nrv-test.patch
+Patch41: gcc32-debug-pr7241.patch
+Patch42: gcc32-i386-pr7242.patch
+Patch43: gcc32-cfg-eh.patch
+Patch44: gcc32-attr-visibility3.patch
+Patch45: gcc32-tls2.patch
+Patch46: gcc32-fold-const-associate.patch
+Patch47: gcc32-inline-label.patch
+Patch48: gcc32-typeof-asm.patch
+Patch50: gcc32-rh69989.patch
+Patch51: gcc32-tls3.patch
+Patch52: gcc32-tls4.patch
+Patch54: gcc32-tls5.patch
+Patch55: gcc32-tls-dwarf2.patch
+Patch56: gcc32-x86_64-pr7559.patch
+Patch57: gcc32-loop-prefetch.patch
+Patch58: gcc32-doc-gcov.patch
+Patch59: gcc32-attr-visibility4.patch
+Patch60: gcc32-c++-tail-pad-backout.patch
+Patch61: gcc32-attr-visibility5.patch
+Patch62: gcc32-i386-no-default-momit-leaf-frame-pointer.patch
+Patch64: gcc32-x86_64-rip-lowercase.patch
+Patch65: gcc32-libstdc++-glibc23-1.patch
+Patch66: gcc32-libstdc++-glibc23-2.patch
+Patch67: gcc32-libstdc++-glibc23-3.patch
+Patch68: gcc32-libstdc++-glibc23-4.patch
+Patch69: gcc32-interface_only.patch
+
+%define _gnu %{nil}
+
+Patch10000: boehm-gc-mips.patch
+Patch10001: boehm-gc-LINUX.patch
+Patch10002: gcc-libffi-mips.patch
+
+Patch11000: gcc-mips-coff.patch
+Patch11001: gcc-mips-file.patch
+Patch11002: gcc-mips-ieee.patch
+Patch11003: gcc-mips-return.patch
+Patch11004: gcc-libstdc++-mips.patch
+Patch11005: libtool-mips.patch
+
+Patch12000: gcc-libgcc.patch
+
+Patch13000: gcc-ppc-linux.patch
+Patch13001: gcc-linux-crt.patch
+
+Patch14000: gcc-linux-atexit.patch
+Patch14001: gcc-test-atexit.patch
+
+Patch15000: gcc-var.patch
+Patch15001: gcc-copy.patch
+
+Patch16000: gcc-c++-template.patch
+Patch16001: gcc-testsuite-c++.patch
+
+Patch17000: gcc-cross.patch
+Patch17001: gcc-cross-bfd.patch
+Patch17002: gcc-sizeof.patch
+Patch17003: gcc-arch.patch
+
+Patch18000: libjava-cross.patch
+Patch18001: gcc-gcj-cross.patch
+
+Patch19000: contrib-touch.patch
+
+Patch20000: libtool-libs.patch
+
+Patch21000: gcc-libstdc++-glibc-2.2.patch
+
+%description
+The gcc package contains the GNU Compiler Collection version 3.2.
+You'll need this package in order to compile C code.
+
+%package -n libgcc
+Summary: GCC version 3.2 shared support library
+Group: System Environment/Libraries
+
+%description -n libgcc
+This package contains GCC shared support library which is needed
+e.g. for exception handling support.
+
+%package c++
+Summary: C++ support for GCC
+Group: Development/Languages
+Requires: gcc = %{version}-%{release}
+Requires: libstdc++ = %{version}
+Requires: libstdc++-devel = %{version}
+Obsoletes: gcc3-c++
+
+%description c++
+This package adds C++ support to the GNU Compiler Collection.
+It includes support for most of the current C++ specification,
+including templates and exception handling.
+
+%package -n libstdc++
+Summary: GNU Standard C++ Library
+Group: System Environment/Libraries
+Obsoletes: libstdc++3
+
+%description -n libstdc++
+The libstdc++ package contains a rewritten standard compliant GCC Standard
+C++ Library.
+
+%package -n libstdc++-devel
+Summary: Header files and libraries for C++ development
+Group: Development/Libraries
+Requires: libstdc++ = %{version}-%{release}
+Obsoletes: libstdc++3-devel
+
+%description -n libstdc++-devel
+This is the GNU implementation of the standard C++ libraries.  This
+package includes the header files and libraries needed for C++
+development. This includes rewritten implementation of STL.
+
+%package objc
+Summary: Objective-C support for GCC
+Group: Development/Languages
+Requires: gcc = %{version}-%{release}
+Requires: libobjc = %{version}-%{release}
+Obsoletes: gcc3-objc
+
+%description objc
+gcc-objc provides Objective-C support for the GCC.
+Mainly used on systems running NeXTSTEP, Objective-C is an
+object-oriented derivative of the C language.
+
+%package -n libobjc
+Summary: Objective-C runtime
+Group: System Environment/Libraries
+
+%description -n libobjc
+This package contains Objective-C shared library which is needed to run
+Objective-C dynamically linked programs.
+
+%package g77
+Summary: Fortran 77 support
+Group: Development/Languages
+Requires: gcc = %{version}-%{release}
+Requires: libf2c = %{version}-%{release}
+Prereq: /sbin/install-info
+Obsoletes: gcc3-g77
+
+%description g77
+The gcc-g77 package provides support for compiling Fortran 77
+programs with the GNU Compiler Collection.
+
+%package -n libf2c
+Summary: Fortran 77 runtime
+Group: System Environment/Libraries
+
+%description -n libf2c
+This package contains Fortran 77 shared library which is needed to run
+Fortran 77 dynamically linked programs.
+
+%package java
+Summary: Java support for GCC
+Group: Development/Languages
+Requires: gcc = %{version}-%{release}
+Requires: libgcj >= %{version}, libgcj-devel >= %{version}
+Obsoletes: gcc3-java
+Prereq: /sbin/install-info
+
+%description java
+This package adds support for compiling Java(tm) programs and
+bytecode into native code.
+
+%package -n libgcj
+Summary: Java runtime library for gcc
+Group: System Environment/Libraries
+Requires: zip >= 2.1
+Obsoletes: gcc-libgcj
+Obsoletes: libgcj3
+# Kaffe includes jar too
+Conflicts: kaffe
+
+%description -n libgcj
+The Java(tm) runtime library. You will need this package to run your Java
+programs compiled using the Java compiler from GNU Compiler Collection (gcj).
+
+%package -n libgcj-devel
+Summary: Libraries for Java development using GCC
+Group: Development/Languages
+Requires: zip >= 2.1, libgcj = %{version}
+Obsoletes: libgcj3-devel
+
+%description -n libgcj-devel
+The Java(tm) static libraries and C header files. You will need this
+package to compile your Java programs using the GCC Java compiler (gcj).
+
+%package -n cpp
+Summary: The C Preprocessor.
+Group: Development/Languages
+Prereq: /sbin/install-info
+%ifarch ia64
+Obsoletes: gnupro
+%endif
+
+%description -n cpp
+Cpp is the GNU C-Compatible Compiler Preprocessor.
+Cpp is a macro processor which is used automatically
+by the C compiler to transform your program before actual
+compilation. It is called a macro processor because it allows
+you to define macros, abbreviations for longer
+constructs.
+
+The C preprocessor provides four separate functionalities: the
+inclusion of header files (files of declarations that can be
+substituted into your program); macro expansion (you can define macros,
+and the C preprocessor will replace the macros with their definitions
+throughout the program); conditional compilation (using special
+preprocessing directives, you can include or exclude parts of the
+program according to various conditions); and line control (if you use
+a program to combine or rearrange source files into an intermediate
+file which is then compiled, you can use line control to inform the
+compiler about where each source line originated).
+
+You should install this package if you are a C programmer and you use
+macros.
+
+%package gnat
+Summary: Ada 95 support for GCC
+Group: Development/Languages
+Requires: gcc = %{version}-%{release}, libgnat = %{version}-%{release}
+Obsoletes: gnat-devel, gcc3-gnat
+Prereq: /sbin/install-info
+
+%description gnat
+GNAT is a GNU Ada 95 front-end to GCC. This package includes development tools,
+the documents and Ada 95 compiler.
+
+%package -n libgnat
+Summary: GNU Ada 95 runtime shared libraries
+Group: System Environment/Libraries
+Obsoletes: gnat libgnat3
+
+%description -n libgnat
+GNAT is a GNU Ada 95 front-end to GCC. This package includes shared libraries,
+which are required to run programs compiled with the GNAT.
+
+%prep
+%setup -q -n gcc-%{version}-%{DATE}
+%patch1 -p0 -b .2.96-RH-compat~
+%patch2 -p0 -b .boehm-gc-libs~
+%patch3 -p0 -b .bogus-inline~
+%patch6 -p0 -b .fde-merge-compat~
+%patch7 -p0 -b .attr-visibility~
+%patch8 -p0 -b .attr-visibility2~
+%patch9 -p0 -b .duplicate-decl~
+%patch10 -p0 -b .trunc_int_for_mode~
+%patch11 -p0 -b .sparc-sll1~
+%patch12 -p0 -b .x86_64-q_regs_operand~
+%patch13 -p0 -b .dwarf2-pr6381~
+%patch14 -p0 -b .dwarf2-pr6436-test~
+%patch15 -p0 -b .c++-pretty_function~
+%patch16 -p0 -b .c++-tsubst-asm~
+%patch18 -p0 -b .i386-memtest-test~
+%patch19 -p0 -b .fold-const2~
+%patch21 -p0 -b .ada-addr2line~
+%patch22 -p0 -b .ada-link~
+%patch23 -p0 -b .java-no-rpath~
+%patch25 -p0 -b .s390-java~
+%patch26 -p0 -b .test-rotate~
+%patch27 -p0 -b .x86_64-libiberty-pic~
+%patch29 -p0 -b .test-rh65771~
+%patch30 -p0 -b .i386-default-momit-leaf-frame-pointer~
+%patch31 -p0 -b .i386-pic-label-thunk~
+%patch34 -p0 -b .pr6842~
+%patch35 -p0 -b .tls~
+%patch36 -p0 -b .i386-profile-olfp~
+%patch37 -p0 -b .tree-code~
+%patch38 -p0 -b .hard-reg-sharing~
+%patch39 -p0 -b .hard-reg-sharing2~
+%patch40 -p0 -b .c++-nrv-test~
+%patch41 -p0 -b .debug-pr7241~
+%patch42 -p0 -b .i386-pr7242~
+%patch43 -p0 -b .cfg-eh~
+%patch44 -p0 -b .attr-visibility3~
+%patch45 -p0 -b .tls2~
+%patch46 -p0 -b .fold-const-associate~
+%patch47 -p0 -b .inline-label~
+%patch48 -p0 -b .typeof-asm~
+%patch50 -p0 -b .rh69989~
+%patch51 -p0 -b .tls3~
+%patch52 -p0 -b .tls4~
+%patch54 -p0 -b .tls5~
+%patch55 -p0 -b .tls-dwarf2~
+%patch56 -p0 -b .x86_64-pr7559~
+%patch57 -p0 -b .loop-prefetch~
+%patch58 -p0 -b .doc-gcov~
+%patch59 -p0 -b .attr-visibility4~
+%patch60 -p0 -b .c++-tail-pad-backout~
+%patch61 -p0 -b .attr-visibility5~
+%patch62 -p0 -b .i386-no-default-momit-leaf-frame-pointer~
+%patch64 -p0 -b .x86_64-rip-lowercase~
+%patch65 -p0 -b .libstdc++-glibc23-1~
+%patch66 -p0 -b .libstdc++-glibc23-2~
+%patch67 -p0 -b .libstdc++-glibc23-3~
+%patch68 -p0 -b .libstdc++-glibc23-4~
+%patch69 -p0 -b .interface_only
+
+%patch10000 -p0 -b .mips
+%patch10001 -p0 -b .LINUX
+%patch10002 -p0 -b .mips
+pushd boehm-gc
+autoconf
+popd
+pushd libffi
+autoconf
+# Ignore the error from automake
+automake --cygnus Makefile || :
+popd
+
+%patch11000 -p0 -b .coff
+%patch11001 -p0 -b .file
+%patch11002 -p0 -b .ieee
+%patch11003 -p0 -b .return
+%patch11004 -p0 -b .mips
+%patch11005 -p1 -b .mips
+
+%patch12000 -p0 -b .libgcc
+
+%patch13000 -p0 -b .ppc
+%patch13001 -p0 -b .crt
+
+%patch14000 -p0 -b .order
+%patch14001 -p0 -b .order
+
+%patch15000 -p0 -b .var
+%patch15001 -p0 -b .copy
+
+%patch16000 -p0 -b .template
+%patch16001 -p0 -b .template
+
+%patch17000 -p1 -b .cross
+%patch17001 -p0 -b .cross-bfd
+%patch17002 -p1 -b .sizeof
+%patch17003 -p0 -b .arch
+pushd gcc
+autoheader
+autoconf
+popd
+pushd fastjar
+aclocal
+autoconf
+popd
+pushd libffi
+aclocal
+autoconf
+popd
+
+%patch18000 -p0 -b .cross
+%patch18001 -p0 -b .build
+pushd libjava
+autoconf
+automake --foreign Makefile
+popd
+
+%patch19000 -p0 -b .touch
+
+%patch20000 -p0 -b .libs
+
+%patch21000 -p0 -b .glibc-2.2
+pushd libstdc++-v3
+autoconf
+popd
+
+perl -pi -e 's/3\.2\.1/3.2/' gcc/version.c gcc/f/version.c gcc/ada/gnatvsn.ads
+perl -pi -e 's/"%{gcc_version}"/"%{gcc_version} \(release\)"/' gcc/version.c
+perl -pi -e 's/\((prerelease|experimental|release)\)/\(Red Hat Linux 8.0 %{version}-%{gcc_release}\)/' gcc/version.c gcc/f/version.c
+perl -pi -e 's/\((prerelease|experimental|release)\)/\(%{version}-%{gcc_release}\)/' gcc/ada/gnatvsn.ads
+perl -pi -e 's/#define GCCBUGURL.*$/#define GCCBUGURL "<URL:http:\/\/bugzilla.redhat.com\/bugzilla\/>"/' gcc/system.h
+# The version string is now longer than 32 bytes and the line containing it
+# doesn't fit into 80 columns
+#perl -pi -e 's/:= 32/:= 64/;s/(Gnat_Version_String.*:=)/\1\n    /' gcc/ada/gnatvsn.ads
+
+./contrib/gcc_update --touch
+
+%build
+rm -fr obj-%{_target_platform}
+mkdir obj-%{_target_platform}
+cd obj-%{_target_platform}
+
+%if %{_arch} != %{_build_arch}
+%ifos linux
+export ac_cv_func_mmap_anywhere=yes
+export ac_cv_func_mmap_file=yes
+export ac_cv_func_mmap_fixed_mapped=yes
+export ac_cv_func_strncmp_works=yes
+export gcc_cv_func_printf_ptr=yes
+%endif
+%endif
+
+DEFAULT_FLAGS=
+%if %{default}
+%ifarch %{ix86}
+TARGET_CPU="%{_target_cpu}"
+DEFAULT_FLAGS="--with-arch=$TARGET_CPU --with-cpu=$TARGET_CPU"
+%endif
+%endif
+
+CC=%{__cc}
+OPT_FLAGS=`echo $RPM_OPT_FLAGS|sed -e 's/-fno-rtti//g' -e 's/-fno-exceptions//g'`
+CC="$CC" CFLAGS="$OPT_FLAGS" CXXFLAGS="$OPT_FLAGS" XCFLAGS="$OPT_FLAGS" TCFLAGS="$OPT_FLAGS" \
+	../configure --prefix=%{_prefix} --mandir=%{_mandir} --infodir=%{_infodir} \
+	--enable-shared --enable-threads=posix --disable-checking --host=%{_target_platform} \
+	$DEFAULT_FLAGS \
+%if %{cross_compile}
+	--target=%{_target_platform} --build=%{_build_alias} \
+%endif
+	--with-system-zlib --enable-__cxa_atexit
+
+# We have to make sure all gcc configure files are up to date for
+# parallel build. We have to do it twice due to the stupid Makefile.
+make -C gcc cstamp-h
+make -C gcc cstamp-h
+
+# if RPM_BUILD_NCPUS unset, set it
+if [ -z "$RPM_BUILD_NCPUS" ] ; then
+  if [ -x /usr/bin/getconf ] ; then
+    RPM_BUILD_NCPUS=$(/usr/bin/getconf _NPROCESSORS_ONLN)
+    if [ $RPM_BUILD_NCPUS -eq 0 ]; then
+      RPM_BUILD_NCPUS=1
+    fi
+  else
+    RPM_BUILD_NCPUS=1
+  fi
+fi
+
+RPM_BUILD_NCPUS=`expr $RPM_BUILD_NCPUS + $RPM_BUILD_NCPUS`
+
+cat <<EOF > makefile
+MAKE=make -j $RPM_BUILD_NCPUS
+include Makefile
+CFLAGS:=\$(CFLAGS) -pipe
+CXXFLAGS:=\$(CXXFLAGS) -pipe
+EOF
+
+# FIXME: It is a kludge.
+export GCJFLAGS="$OPT_FLAGS"
+
+%if %{cross_compile}
+make -j$RPM_BUILD_NCPUS \
+	CC=%{__cc} \
+	CXX=%{__cxx} \
+	AR=%{__ar} \
+	AS=%{__as} \
+	LD=%{__ld} \
+	NM=%{__nm} \
+	RANLIB=%{__ranlib} \
+	CC_FOR_TARGET=%{__cc} \
+	GCC_FOR_TARGET=%{__cc} \
+	CXX_FOR_TARGET=%{__cxx} \
+	AR_FOR_TARGET=%{__ar} \
+	AS_FOR_TARGET=%{__as} \
+	LD_FOR_TARGET=%{__ld} \
+	NM_FOR_TARGET=%{__nm} \
+	RANLIB_FOR_TARGET=%{__ranlib} \
+	HOST_CC=cc \
+	CFLAGS_FOR_TARGET="$RPM_OPT_FLAGS -pipe" \
+	CFLAGS_FOR_BUILD="-O -pipe" \
+	CFLAGS="$RPM_OPT_FLAGS -pipe" \
+	CXXFLAGS="$RPM_OPT_FLAGS -pipe"
+%else
+make -j$RPM_BUILD_NCPUS bootstrap-lean
+#make -j$RPM_BUILD_NCPUS bootstrap
+%endif
+
+%if %{build_ada}
+# This doesn't work with -j$RPM_BUILD_NCPUS
+make -C gcc gnatlib-shared
+make -C gcc gnattools
+make -C gcc/ada doc
+%endif
+
+%if %{make_check}
+# run the tests.
+make -j$RPM_BUILD_NCPUS -k check || :
+%ifarch %{ix86}
+ln -sf i686-pc-linux-gnu ../libstdc++-v3/config/abi/%{_target_platform}
+ln -sf i686-pc-linux-gnu ../libstdc++-v3/config/abi/%{_target_platform}-gnu
+%endif
+echo ====================TESTING=========================
+( ../contrib/test_summary || : ) 2>&1 | sed -n '/^cat.*EOF/,/^EOF/{/^cat.*EOF/d;/^EOF/d;/^LAST_UPDATED:/d;p;}'
+%ifarch %{ix86}
+make -C %{_target_platform}/libstdc++-v3 check-abi
+%endif
+echo ====================TESTING END=====================
+#cd %{_target_platform}/libstdc++-v3
+#./mkcheck 0
+#cd ../..
+%endif
+
+%if !%{cross_compile}
+# Make protoize
+make -C gcc CC="./xgcc -B ./ -O2" proto
+%endif
+
+# Make generated man pages even if Pod::Man is not new enough
+perl -pi -e 's/head3/head2/' ../contrib/texi2pod.pl
+for i in ../gcc/doc/*.texi; do
+  cp -a $i $i.orig; sed 's/ftable/table/' $i.orig > $i
+done
+make -C gcc generated-manpages
+for i in ../gcc/doc/*.texi; do mv -f $i.orig $i; done
+
+# Copy various doc files here and there
+cd ..
+mkdir -p rpm.doc/g77 rpm.doc/objc
+mkdir -p rpm.doc/boehm-gc rpm.doc/fastjar rpm.doc/libffi rpm.doc/libjava
+
+(cd gcc/f; for i in ChangeLog*; do
+	cp -p $i ../../rpm.doc/g77/$i.f
+done)
+(cd libf2c; for i in ChangeLog*; do
+	cp -p $i ../rpm.doc/g77/$i.libf2c
+done)
+(cd gcc/objc; for i in README*; do
+	cp -p $i ../../rpm.doc/objc/$i.objc
+done)
+(cd libobjc; for i in README*; do
+	cp -p $i ../rpm.doc/objc/$i.libobjc
+done)
+(cd boehm-gc; for i in ChangeLog*; do
+	cp -p $i ../rpm.doc/boehm-gc/$i.gc
+done)
+(cd fastjar; for i in ChangeLog* README*; do
+	cp -p $i ../rpm.doc/fastjar/$i.fastjar
+done)
+(cd libffi; for i in ChangeLog* README* LICENSE; do
+	cp -p $i ../rpm.doc/libffi/$i.libffi
+done)
+(cd libjava; for i in ChangeLog* README*; do
+	cp -p $i ../rpm.doc/libjava/$i.libjava
+done)
+
+%install
+rm -fr $RPM_BUILD_ROOT
+
+perl -pi -e \
+  's~href="l(ibstdc|atest)~href="http://gcc.gnu.org/onlinedocs/libstdc++/l\1~' \
+  libstdc++-v3/docs/html/documentation.html
+ln -sf documentation.html libstdc++-v3/docs/html/index.html
+find libstdc++-v3/docs/html -name CVS | xargs rm -rf
+
+cd obj-%{_target_platform}
+TARGET_PLATFORM=%{_target_platform}
+
+# There are some MP bugs in libstdc++ and libjava Makefiles
+make -C %{_target_platform}/libstdc++-v3
+make -C %{_target_platform}/libjava
+
+make prefix=$RPM_BUILD_ROOT%{_prefix} mandir=$RPM_BUILD_ROOT%{_mandir} \
+%if %{cross_compile}
+	CC=%{__cc} \
+	CXX=%{__cxx} \
+	AR=%{__ar} \
+	AS=%{__as} \
+	LD=%{__ld} \
+	NM=%{__nm} \
+	RANLIB=%{__ranlib} \
+	CC_FOR_TARGET=%{__cc} \
+	GCC_FOR_TARGET=%{__cc} \
+	CXX_FOR_TARGET=%{__cxx} \
+	AR_FOR_TARGET=%{__ar} \
+	AS_FOR_TARGET=%{__as} \
+	LD_FOR_TARGET=%{__ld} \
+	NM_FOR_TARGET=%{__nm} \
+	RANLIB_FOR_TARGET=%{__ranlib} \
+	HOST_CC=cc \
+	CFLAGS_FOR_TARGET="$RPM_OPT_FLAGS -pipe" \
+	CFLAGS_FOR_BUILD="-O -pipe" \
+	CFLAGS="$RPM_OPT_FLAGS -pipe" \
+	CXXFLAGS="$RPM_OPT_FLAGS -pipe" \
+%endif
+  infodir=$RPM_BUILD_ROOT%{_infodir} install
+%if %{build_ada}
+pushd gcc/ada
+cp -a gnat-style.info* gnat_rm.info* $RPM_BUILD_ROOT%{_infodir}/
+for i in gnat_ug_unx.info*; do
+  sed 's/gnat_ug_unx/gnat_ug/g' $i > $RPM_BUILD_ROOT%{_infodir}/`echo $i | sed 's/gnat_ug_unx/gnat_ug/'`
+done
+chmod 644 $RPM_BUILD_ROOT%{_infodir}/gnat*
+popd
+%endif
+
+FULLPATH=$(dirname $RPM_BUILD_ROOT%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/cc1)
+
+file $RPM_BUILD_ROOT/%{_prefix}/bin/* | grep ELF | cut -d':' -f1 | xargs %{__strip} || :
+%{__strip} $FULLPATH/{cc1,cc1obj,cc1plus,cpp0,tradcpp0,f771,jc1,jvgenmain}
+
+# fix some things
+ln -sf gcc $RPM_BUILD_ROOT%{_prefix}/bin/cc
+mkdir -p $RPM_BUILD_ROOT/lib
+ln -sf ..%{_prefix}/bin/cpp $RPM_BUILD_ROOT/lib/cpp
+ln -sf g77 $RPM_BUILD_ROOT%{_prefix}/bin/f77
+rm -f $RPM_BUILD_ROOT%{_infodir}/dir
+gzip -9 $RPM_BUILD_ROOT%{_infodir}/*.info*
+ln -sf gcc $RPM_BUILD_ROOT%{_prefix}/bin/gnatgcc
+
+mv $RPM_BUILD_ROOT%{_prefix}/lib/libgcj.*a $FULLPATH/
+sed 's/-lgcjgc//g;s/-lzgcj//g;s/-lpthread//g' $RPM_BUILD_ROOT%{_prefix}/lib/libgcj.spec > $FULLPATH/libgcj.spec
+mv $RPM_BUILD_ROOT%{_prefix}/include/gc*.h $FULLPATH/include/
+mv $RPM_BUILD_ROOT%{_prefix}/include/j*.h $FULLPATH/include/
+mv -f $RPM_BUILD_ROOT%{_prefix}/include/{java,javax,gnu,org} $FULLPATH/include/
+mkdir -p $FULLPATH/include/gcj
+mv -f $RPM_BUILD_ROOT%{_prefix}/include/gcj/* $FULLPATH/include/gcj/
+rmdir $RPM_BUILD_ROOT%{_prefix}/include/gcj
+
+mkdir -p $RPM_BUILD_ROOT/%{_lib}
+mv -f `find $RPM_BUILD_ROOT%{_prefix}/lib -name libgcc_s.so.1` $RPM_BUILD_ROOT/%{_lib}/libgcc_s-%{gcc_version}-%{DATE}.so.1
+chmod 755 $RPM_BUILD_ROOT/%{_lib}/libgcc_s-%{gcc_version}-%{DATE}.so.1
+ln -sf libgcc_s-%{gcc_version}-%{DATE}.so.1 $RPM_BUILD_ROOT/%{_lib}/libgcc_s.so.1
+ln -sf ../../%{_lib}/libgcc_s.so.1 $RPM_BUILD_ROOT%{_prefix}/%{_lib}/libgcc_s.so
+#ln -sf `echo "%{_prefix}" | sed 's~/[^/]*~\.\./~g'`../%{_lib}/libgcc_s.so.1 \
+#  $RPM_BUILD_ROOT%{_prefix}/%{_lib}/libgcc_s.so
+#mv -f $FULLPATH/libobjc.so.1* $RPM_BUILD_ROOT%{_prefix}/%{_lib}/
+%if %{build_ada}
+mv -f $FULLPATH/adalib/libgnarl-*.so.* $RPM_BUILD_ROOT%{_prefix}/%{_lib}/
+mv -f $FULLPATH/adalib/libgnat-*.so.* $RPM_BUILD_ROOT%{_prefix}/%{_lib}/
+rm -f $FULLPATH/adalib/libgnarl.so* $FULLPATH/adalib/libgnat.so*
+%endif
+pushd $FULLPATH
+if [ "%{_lib}" = "lib" ]; then
+ln -sf ../../../libobjc.so.1 libobjc.so
+ln -sf ../../../libstdc++.so.5.* libstdc++.so
+ln -sf ../../../libgcj.so.3.* libgcj.so
+ln -sf ../../../libg2c.so.0.* libg2c.so
+%if %{build_ada}
+cd adalib
+ln -sf ../../../../libgnarl-*.so.* libgnarl.so
+ln -sf ../../../../libgnat-*.so.* libgnat.so
+cd ..
+%endif
+else
+ln -sf ../../../../%{_lib}/libobjc.so.1 libobjc.so
+ln -sf ../../../../%{_lib}/libstdc++.so.5.* libstdc++.so
+ln -sf ../../../../%{_lib}/libgcj.so.3.* libgcj.so
+ln -sf ../../../../%{_lib}/libg2c.so.0.* libg2c.so
+%if %{build_ada}
+cd adalib
+ln -sf ../../../../../%{_lib}/libgnarl-*.so.* libgnarl.so
+ln -sf ../../../../../%{_lib}/libgnat-*.so.* libgnat.so
+cd ..
+%endif
+fi
+mv -f $RPM_BUILD_ROOT%{_prefix}/lib/libstdc++.*a .
+mv -f $RPM_BUILD_ROOT%{_prefix}/lib/libsupc++.*a .
+mv -f $RPM_BUILD_ROOT%{_prefix}/lib/libg2c.*a .
+mv -f $RPM_BUILD_ROOT%{_prefix}/lib/libfrtbegin.*a .
+mv -f $RPM_BUILD_ROOT%{_prefix}/lib/libobjc.*a .
+# Strip debug info from Fortran/ObjC/Java static libraries
+%{__strip} -g libg2c.a libobjc.a libgcj.a
+# Fix up .la files
+for i in *.la; do
+  sed -e '/^libdir/s_%{_prefix}/lib_%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}_' \
+      -e '/^dependency_libs/s_%{_prefix}/lib_%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}_' \
+      -e '/^dependency_libs/s~'\''$~ '\''~' \
+      -e '/^dependency_libs/s~[ 	][ 	]*~ ~g' \
+      -e '/^dependency_libs/s~-L[^ ]* ~~g' \
+      -e '/^dependency_libs/s~-lgcc_s -lgcc -lc -lgcc_s -lgcc ~~g' \
+      -e '/^dependency_libs/s~-lgcc -lc -lgcc ~~g' \
+      -e '/^dependency_libs/s~-lc ~~g' \
+      -e '/^dependency_libs/s~-lm \(-lm \)*~-lm ~g' \
+      $i > $i.tmp
+  mv -f $i.tmp $i
+done
+popd
+chmod 755 $RPM_BUILD_ROOT%{_prefix}/lib/libg2c.so.0.*
+chmod 755 $RPM_BUILD_ROOT%{_prefix}/lib/libobjc.so.1.*
+%if %{build_ada}
+chmod 755 $RPM_BUILD_ROOT%{_prefix}/lib/libgnarl*so*
+chmod 755 $RPM_BUILD_ROOT%{_prefix}/lib/libgnat*so*
+%endif
+
+cat > $RPM_BUILD_ROOT%{_prefix}/bin/c89 <<"EOF"
+#!/bin/sh
+fl="-std=c89"
+for opt; do
+  case "$opt" in
+    -ansi|-std=c89|-std=iso9899:1990) fl="";;
+    -std=*) echo "`basename $0` called with non ANSI/ISO C option $opt" >&2
+	    exit 1;;
+  esac
+done
+exec %{_prefix}/bin/gcc $fl ${1+"$@"}
+EOF
+cat > $RPM_BUILD_ROOT%{_prefix}/bin/c99 <<"EOF"
+#!/bin/sh
+fl="-std=c99"
+for opt; do
+  case "$opt" in
+    -std=c99|-std=iso9899:1999) fl="";;
+    -std=*) echo "`basename $0` called with non ISO C99 option $opt" >&2
+	    exit 1;;
+  esac
+done
+exec %{_prefix}/bin/gcc $fl ${1+"$@"}
+EOF
+chmod 755 $RPM_BUILD_ROOT%{_prefix}/bin/c?9
+
+cd ..
+%find_lang %{name}
+
+%if %{cross_compile}
+# Install syslimits.h for canadian cross compile.
+pushd $RPM_BUILD_DIR/gcc-%{gcc_version}-%{DATE}/obj-%{_target_platform}
+cp -af ../gcc/gsyslimits.h $FULLPATH/include/syslimits.h
+# Fix the specs file.
+cat gcc/specs |
+awk '
+BEGIN {
+  cross=0;
+}
+/cross_compile/ { print; cross = 1; next; }
+/^1$/ {
+  if (cross == 0) {
+    print;
+  }
+  else {
+    cross = 0;
+    print "0";
+  }
+  next;
+}
+{ print; }
+' > $FULLPATH/specs
+popd
+%endif
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post
+/sbin/install-info \
+  --info-dir=%{_infodir} %{_infodir}/gcc.info.gz
+
+%preun
+if [ $1 = 0 ]; then
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/gcc.info.gz
+fi
+
+%post -n cpp
+/sbin/install-info \
+  --info-dir=%{_infodir} %{_infodir}/cpp.info.gz
+
+%preun -n cpp
+if [ $1 = 0 ]; then
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/cpp.info.gz
+fi
+
+%post g77
+/sbin/install-info \
+  --info-dir=%{_infodir} %{_infodir}/g77.info.gz
+
+%preun g77
+if [ $1 = 0 ]; then
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/g77.info.gz
+fi
+
+%post java
+/sbin/install-info \
+  --info-dir=%{_infodir} %{_infodir}/gcj.info.gz
+
+%preun java
+if [ $1 = 0 ]; then
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/gcj.info.gz
+fi
+
+%post gnat
+/sbin/install-info \
+  --info-dir=%{_infodir} %{_infodir}/gnat_rm.info.gz
+/sbin/install-info \
+  --info-dir=%{_infodir} %{_infodir}/gnat_ug.info.gz
+
+%preun gnat
+if [ $1 = 0 ]; then
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/gnat_rm.info.gz
+  /sbin/install-info --delete \
+    --info-dir=%{_infodir} %{_infodir}/gnat_ug.info.gz
+fi
+
+%post -n libgcc -p /sbin/ldconfig
+
+%postun -n libgcc -p /sbin/ldconfig
+
+%post -n libstdc++ -p /sbin/ldconfig
+
+%postun -n libstdc++ -p /sbin/ldconfig
+
+%post -n libobjc -p /sbin/ldconfig
+
+%postun -n libobjc -p /sbin/ldconfig
+
+%post -n libgcj -p /sbin/ldconfig
+
+%postun -n libgcj -p /sbin/ldconfig
+
+%post -n libf2c -p /sbin/ldconfig
+
+%postun -n libf2c -p /sbin/ldconfig
+
+%post -n libgnat -p /sbin/ldconfig
+
+%postun -n libgnat -p /sbin/ldconfig
+
+%files -f %{name}.lang
+%defattr(-,root,root)
+%{_prefix}/bin/cc
+%{_prefix}/bin/c89
+%{_prefix}/bin/c99
+%{_prefix}/bin/gcc
+%{_prefix}/bin/gcov
+%if !%{cross_compile}
+%{_prefix}/bin/protoize
+%{_prefix}/bin/unprotoize
+%endif
+%{_prefix}/bin/%{_target_platform}-gcc
+%{_mandir}/man1/gcc.1*
+%{_mandir}/man1/gcov.1*
+%{_infodir}/gcc*
+%dir %{_prefix}/lib/gcc-lib
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/stddef.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/stdarg.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/varargs.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/float.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/limits.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/stdbool.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/iso646.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/syslimits.h
+%ifarch %{ix86} x86_64
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/mmintrin.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/xmmintrin.h
+%endif
+%ifarch ia64
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/ia64intrin.h
+%endif
+%ifarch ppc
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/ppc-asm.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/altivec.h
+%endif
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/README
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/cc1
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/collect2
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/crt*.o
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libgcc.a
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libgcc_eh.a
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/specs
+%{_prefix}/%{_lib}/libgcc_s.so
+%doc gcc/README* gcc/*ChangeLog*
+
+%if !%{gcconly}
+%files -n cpp
+%defattr(-,root,root)
+/lib/cpp
+%endif
+%{_prefix}/bin/cpp
+%{_mandir}/man1/cpp.1*
+%{_infodir}/cpp*
+%dir %{_prefix}/lib/gcc-lib
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/cpp0
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/tradcpp0
+
+%files -n libgcc
+%defattr(-,root,root)
+/%{_lib}/libgcc_s-%{gcc_version}-%{DATE}.so.1
+/%{_lib}/libgcc_s.so.1
+
+%if !%{gcconly}
+%files c++
+%defattr(-,root,root)
+%{_prefix}/bin/%{_target_platform}-*++
+%{_prefix}/bin/g++
+%{_prefix}/bin/c++
+%{_prefix}/bin/c++filt
+%{_mandir}/man1/g++.1*
+%dir %{_prefix}/lib/gcc-lib
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/cc1plus
+%doc gcc/cp/ChangeLog*
+
+%files -n libstdc++
+%defattr(-,root,root)
+%{_prefix}/%{_lib}/libstdc++.so.5*
+
+%files -n libstdc++-devel
+%defattr(-,root,root)
+%{_prefix}/include/c++
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libstdc++.so
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libstdc++.a
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libsupc++.a
+%doc libstdc++-v3/ChangeLog* libstdc++-v3/README* libstdc++-v3/docs/html/
+
+%files objc
+%defattr(-,root,root)
+%dir %{_prefix}/lib/gcc-lib
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/objc
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/cc1obj
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libobjc.a
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libobjc.so
+%doc rpm.doc/objc/*
+%doc libobjc/THREADS* libobjc/ChangeLog
+
+%files -n libobjc
+%defattr(-,root,root)
+%{_prefix}/%{_lib}/libobjc.so.1*
+
+%files g77
+%defattr(-,root,root)
+%{_prefix}/bin/g77
+%{_prefix}/bin/f77
+%{_mandir}/man1/g77.1*
+%{_infodir}/g77*
+%dir %{_prefix}/lib/gcc-lib
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/f771
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libfrtbegin.a
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libg2c.a
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libg2c.so
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/g2c.h
+%doc gcc/f/README rpm.doc/g77/*
+
+%files -n libf2c
+%defattr(-,root,root)
+%{_prefix}/%{_lib}/libg2c.so.0*
+
+%files java
+%defattr(-,root,root)
+%{_prefix}/bin/gcj
+%{_prefix}/bin/gcjh
+%{_prefix}/bin/jcf-dump
+%{_prefix}/bin/jv-scan
+%{_mandir}/man1/gcj.1*
+%{_mandir}/man1/gcjh.1*
+%{_mandir}/man1/jcf-dump.1*
+%{_mandir}/man1/jv-scan.1*
+%{_infodir}/gcj*
+%dir %{_prefix}/lib/gcc-lib
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/jc1
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/jvgenmain
+%doc gcc/java/ChangeLog*
+
+%files -n libgcj
+%defattr(-,root,root)
+%{_prefix}/bin/jv-convert
+%{_prefix}/bin/gij
+%{_prefix}/bin/jar
+%{_prefix}/bin/grepjar
+%{_prefix}/bin/rmic
+%{_prefix}/bin/rmiregistry
+%{_mandir}/man1/jv-convert.1*
+%{_mandir}/man1/gij.1*
+%{_mandir}/man1/rmic.1*
+%{_mandir}/man1/rmiregistry.1*
+%{_prefix}/%{_lib}/libgcj.so.*
+%{_prefix}/share/java
+%{_prefix}/lib/security
+
+%files -n libgcj-devel
+%defattr(-,root,root)
+%{_prefix}/bin/addr2name.awk
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libgcj.a
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libgcj.so
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/libgcj.spec
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/gc*.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/j*.h
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/java
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/javax
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/gnu
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/gcj
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/include/org
+%doc rpm.doc/boehm-gc/* rpm.doc/fastjar/* rpm.doc/libffi/*
+%doc rpm.doc/libjava/*
+
+%if %{build_ada}
+%files gnat
+%defattr(-,root,root)
+%{_prefix}/bin/gnat*
+%{_infodir}/gnat*
+%dir %{_prefix}/lib/gcc-lib
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}
+%dir %{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/adainclude
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/adalib
+%{_prefix}/lib/gcc-lib/%{_target_platform}/%{gcc_version}/gnat1
+%doc gcc/ada/ChangeLog
+
+%files -n libgnat
+%defattr(-,root,root)
+%{_prefix}/%{_lib}/libgnat-*.so.*
+%{_prefix}/%{_lib}/libgnarl-*.so.*
+%endif
+%endif
+
+%changelog
+* Tue Sep  3 2002 Bill Nottingham <notting@redhat.com> 3.2-7
+- fix calling of C++ destructors in certain cases
+
+* Tue Sep  3 2002 Jakub Jelinek <jakub@redhat.com> 3.2-6
+- update from CVS (but revert C++ tail padding patches
+  for now)
+- further fixes to make libstdc++-v3 build on glibc 2.3
+- run libstdc++-v3 make check-abi on IA-32 during testing
+
+* Fri Aug 30 2002 Jakub Jelinek <jakub@redhat.com> 3.2-5
+- disable tail copy patches, they seem to still have problems
+- make libstdc++-v3 build on glibc 2.3 (and use thread-local
+  locale model)
+- fix c89 and c99 scripts (#73104)
+
+* Wed Aug 26 2002 Jakub Jelinek <jakub@redhat.com> 3.2-4
+- reorder alpha_encode_section_info checks slightly to fix an ICE
+  when building glibc and to take better advantage of visibility
+  attribute on Alpha
+- as gdb is not there yet, disable -momit-leaf-frame-pointer
+  by default for now on IA-32
+- fix IA-64 bootstrap with tail padding patch (Jason Merrill, Daniel Berlin)
+- fix x86-64 %RIP to %rip, only output (%rip) if no other relocation
+  is used (Richard Henderson)
+
+* Fri Aug 23 2002 Jakub Jelinek <jakub@redhat.com> 3.2-3
+- take advantage of __attribute__((visibility())) on Alpha
+- avoid copying tail padding (Jason Merrill)
+
+* Thu Aug 22 2002 Jakub Jelinek <jakub@redhat.com> 3.2-2
+- fixed Dwarf2 DW_OP_GNU_push_tls_address patch from Richard Henderson
+- don't mention removed -a and -ax options in the documentation
+  (Nathan Sidwell, #72233)
+- fixed __typeof() followed by __asm() redirection from Alexandre Oliva
+
+* Wed Aug 14 2002 Jakub Jelinek <jakub@redhat.com> 3.2-1
+- update to 3.2 release
+- fix x86-64 PR target/7559 (Jan Hubicka)
+- fix -fprefetch-loop-arrays (Janis Johnson)
+- fix x86-64 prefetch (Jan Hubicka)
+
+* Fri Aug  9 2002 Jakub Jelinek <jakub@redhat.com> 3.2-0.3
+- istream fix (Benjamin Kosnik)
+- emit Dwarf2 DW_OP_GNU_push_tls_address extension for TLS (Richard Henderson)
+- temporarily disable __typeof() + __asm() fix
+
+* Thu Aug  8 2002 Jakub Jelinek <jakub@redhat.com> 3.2-0.2
+- update from 3.2 branch
+  - ABI incompatible changes in libstdc++.so.5, long long bitfield
+    layout on IA-32 (both C and C++), oversized bitfields layout
+    on IA-32 and bitfields with base type with __attribute__((aligned ()))
+  - fix strstream segfaults (#68292, Benjamin Kosnik)
+- fix __attribute__((visibility())) together with __asm__()
+  function redirection
+- fix __typeof() followed by __asm() redirection (Alexandre Oliva)
+- fix TLS ICE on glibc (#70061)
+- fix K6 ICE on linux kernel (#69989, Richard Sandiford, Jan Hubicka)
+- fix inlining bug with labels (#70941)
+- fix fold-const bug (#70541)
+- fix PR preprocessor/7358 (Neil Booth)
+- error when mixing __thread and non-__thread declarations
+  (#70059, Aldy Hernandez)
+- fix TLS bug on g++.dg/tls/diag-1.C (Jason Merrill)
+- add -mcmodel= x86-64 documentation (Andreas Jaeger)
+- avoid TLS emitting movl %gs:0, MEMORY on IA-32 (#71033)
+
+* Mon Jul 22 2002 Jakub Jelinek <jakub@redhat.com> 3.2-0.1
+- first attempt for gcc 3.2
+- remove .la files
+
+* Sat Jul 20 2002 Jakub Jelinek <jakub@redhat.com> 3.1-10
+- update from 3.1 branch
+  - add throw() to set_new_handler (Andreas Schwab)
+  - fixed PR optimization/7147, optimization/7153
+- make sure pic register is set up even when the only @PLT calls
+  are done in EH basic blocks (Richard Henderson)
+
+* Sun Jul 14 2002 Jakub Jelinek <jakub@redhat.com> 3.1-9
+- define %%_gnu to nothing for compatibility
+
+* Sat Jul 13 2002 Jakub Jelinek <jakub@redhat.com> 3.1-8
+- update from 3.1 branch
+  - fix OpenOffice miscompilation (PR c++/7279, Jason Merrill)
+  - PRs c++/7224, c++/6255, optimization/7145, c++/6706, preprocessor/7070,
+    middle-end/6963, target/6841, target/6770, target/6719,
+    other/6836, libstdc++/7057, libstdc++/7097, libstdc++/3946,
+    libstdc++/7173
+  - fix a GC bug with named labels in C++ (Jim Wilson)
+  - fix ICE on Mesa (Bernd Schmidt, #65771)
+- added some NRV tests
+- fix typo in i386 specs (PR c/7242)
+- fix IA-32 ICE with shifts by negative values followed by compare
+  (PR middle-end/7245, #68395)
+- fixed DWARF-2 output for const char * (PR debug/7241)
+- actually enable __cxa_atexit for standard compliance at configury time
+- added PPC as Ada enabled architecture
+
+* Wed Jun 19 2002 Jakub Jelinek <jakub@redhat.com> 3.1-7
+- update from 3.1 branch
+  - PRs target/6922, opt/6722, c/7030, c/6677, objc/6834, c++/6892,
+    c++/6723, opt/6793
+- use __cxa_atexit for standard compliance:
+  if your C++ project knows it won't call atexit from within its
+  static constructors, use -fno-use-cxa-atexit to optimize it
+- share hard register rtxs where possible to speed the compiler up (Jeff Law)
+- optimize tree_code_* arrays (Kaveh Ghazi)
+- don't link prefix.o into libgnat, link libgnat against libgcc_s and
+  libgnarl against libgnat
+- fix typo in GNAT %%post (#66847, #66941, #66639)
+- add TLS support
+
+* Fri Jun  7 2002 Jakub Jelinek <jakub@redhat.com> 3.1-6
+- add GNAT
+- remove DT_RPATH from Java binaries (#66103)
+- obsolete kaffe, install jar as %{_prefix}/bin/jar
+- add include/org directory in java
+- add rmic and rmiregistry programs to libgcj
+- add info documentation for gcj and various man pages
+- add message catalogues for da, el, es, fr, ja, nl, sv, tr
+- don't put IA-64 vtables with relocations into read-only sections
+  with -fpic
+
+* Tue Jun  4 2002 Jakub Jelinek <jakub@redhat.com> 3.1-5
+- update from 3.1 branch
+  - PRs optimization/6822, preprocessor/6844, target/6838, target/6788,
+	libstdc++/6886, libstdc++/6795, libstdc++/6811
+- m$ compatibility for unnamed fields as typedef of struct/union
+  (PR c/6660)
+- fix -fverbose-asm with unnamed fields (PR c/6809)
+- fix -mmmx ICE (PR optimization/6842)
+- default to -momit-leaf-frame-pointer on i386 (Richard Henderson)
+- use linkonce section/hidden symbol for i686 pic getpc thunks
+  (Richard Henderson)
+
+* Tue May 28 2002 Jakub Jelinek <jakub@redhat.com> 3.1-4
+- rebuilt
+
+* Sat May 25 2002 Jakub Jelinek <jakub@redhat.com> 3.1-3
+- update from 3.1 branch
+  - PRs other/6782, preprocessor/6780, preprocessor/6517,
+	libstdc++/6282, libstdc++/6701, libstdc++/6701
+  - fix out << "" bug (Ben Kosnik, #65409, PR libstdc++/6750)
+- 3 new patches
+  - fix C++ __PRETTY_FUNCTION__ (PR c++/6794)
+  - fix ICE on jikes (#65379)
+  - add test for fixed mozilla miscompilation
+- include intrinsic headers on IA-32/x86-64, include altivec.h on PPC
+
+* Wed May 22 2002 Jakub Jelinek <jakub@redhat.com> 3.1-2
+- update from 3.1 branch
+- 8 new patches
+  - fix as version test for 2.12.1 and newer binutils non-CVS releases
+  - fix ICE in do_subst (#65049)
+  - fix SSE conditional move (PR target/6753)
+  - fix SPARC CSE ICE (PR optimization/6759)
+  - fix x86_64 dbx64_register_map typo (Jan Hubicka)
+  - fix DWARF-2 with flag_asynchronous_unwind_tables set for leaf
+    functions (Jan Hubicka)
+  - fix DWARF-2 x86_64 __builtin_dwarf_reg_sizes (Jan Hubicka)
+  - fix x86_64 movabsdi (Michael Matz)
+
+* Wed May 15 2002 Jakub Jelinek <jakub@redhat.com> 3.1-1
+- update to 3.1 final
+- 15 new patches
+  - fix PR c/6643
+  - fix fold-const.c typo
+  - fix unitialized pointer-to-member values (Alexandre Oliva)
+  - fix templates with asm inputs (Jason Merrill)
+  - fix -fdata-section (Andreas Schwab)
+  - readd warning about i386 -malign-double into documentation (Jan Hubicka)
+  - fix PR libstdc++/6594 (Ben Kosnik)
+  - fix PR PR libstdc++/6648 (Paolo Carlini)
+  - fix libstdc++ testsuite rlimits (Rainer Orth)
+  - s390 java support (Gerhard Tonn)
+  - rotate testcases (Tom Rix)
+  - build libiberty with -fpic on x86_64 (Andreas Schwab)
+  - fix x86_64 multilib build (Bo Thorsen)
+  - fix x86_64 ASM_OUTPUT_MI_THUNK (Jan Hubicka)
+  - fix loop-2[cd].c tests on i386 (Eric Botcazou)
+- fix typo in g77 info files tweaking
+- fix libgcj.so symlink
+
+* Thu May  9 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.28
+- update to CVS 3.1 branch
+  - PR c++/6212, target/6429, opt/6534, c/6543, target/6561, c/6569
+- fix x86_64 q_regs_operand (Jan Hubicka)
+- better PR c++/6381 fix (Jason Merrill)
+
+* Fri May  3 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.27
+- update to CVS 3.1 branch
+  - PR target/5628, libstdc++/5820, c++/6396, preprocessor/6489,
+    libstdc++/6501, libstdc++/6511, target/6512, libstdc++/6513,
+    bootstrap/6514, opt/6516, bootstrap/6525, c++/6527, libstdc++/6533,
+    target/6540
+- fix PR target/6542, target/6522, libstdc++/6549
+
+* Mon Apr 29 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.26
+- update to CVS 3.1 branch
+  - PR c/3581, libstdc++/4150, libstdc++/4164, c/5154, c/5430, c++/5504,
+    c++/5658, c++/5719, f/6138, libgcj/6158, middle-end/6205, c++/6256,
+    c/6300, c++/6331, c/6343, c/6344, c++/6352, c/6358, libstdc++/6360,
+    c++/6395, target/6413, libstdc++/6414, target/6422, bootstrap/6445,
+    optimization/6475, target/6476, c++/6477, c++/6479, c++/6486, c++/6492,
+    target/6494, target/6496, c/6497, target/6500
+- fix PR c++/6396
+- run make check as part of build process
+
+* Thu Apr 18 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.25
+- update to CVS 3.1 branch
+  - PR opt/420, c++/525, target/817, target/1538, opt/3967, target/3997,
+    opt/4120, bootstrap/4191, opt/4311, optimization/4328, c++/4884, c++/4934,
+    c/5078, c++/5104, opt/5120, c++/5189, c++/5373, target/5446, c/5484,
+    c++/5507, c++/5571, c++/5636, target/5672, target/5715, target/5886,
+    c++/5933, c++/5964, c++/5998, opt/6007, target/6032, target/6041,
+    target/6054, c++/6073, target/6082, optimization/6086, target/6087,
+    middle-end/6096, middle-end/6098, middle-end/6099, middle-end/6100,
+    middle-end/6102, fortran/6106, c++/6119, opt/6165, optimization/6177,
+    c++/6179, optimization/6189, c/6202, c/6223, optimization/6233,
+    middle-end/6279, c/6290, optimization/6305, target/6305, bootstrap/6315,
+    c++/6320...
+- fix PR c++/6316
+
+* Wed Mar 27 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.24
+- update to CVS 3.1 branch
+  - PRs c/5656, c/5972, bootstrap/4192, target/4792, bootstrap/4195,
+    optimization/5854, target/6043, c++/6037, bootstrap/4128, target/5740,
+    c/5597, optimization/5863, optimization/5742, target/3177, c/5354,
+    optimization/5999, target/5977, middle-end/5731, target/5312...
+
+* Fri Mar 15 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.23.1
+- fix info and man page generation
+
+* Thu Mar 14 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.23
+- update to CVS 3.1 branch
+  - fix IA-64 packet selection (PR optimization/5892)
+  - make highest_pow2_factor work for all constants (PR middle-end/5877)
+  - fix -Wunused (#61047)
+  - fix loop on mixed mode class assignments (#60923)
+  - fix wide character literals
+  - support SPARC v9 long distance branches (PR target/5626)
+  - fix SPARC leaf functions
+  - fix a rtl sharing problem (Richard Henderson, #60760,
+    PR optimization/5844)
+  - fix va_arg with variable size types (PR c/3711)
+  - PRs optimization/5901, optimization/5878, 5693, preprocessor/5899
+- fix C++ ?: at the end of stmt expr (PR c++/5373)
+- fix loop unrolling with sibcalls (PR optimization/5891)
+
+* Thu Mar  7 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.22
+- update to CVS 3.1 branch
+  - fix ICE with volatile long long (#60650)
+  - fix tempbuf.h (Philipp Thomas, #60212)
+  - fix -fssa-ccp (Jeff Law, #60651)
+  - versioned libstdc++
+  - backport __attribute__((visibility("..."))) patches from trunk
+- include libstdc++ html documentation
+
+* Tue Feb  5 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.21
+- update to CVS HEAD
+  - fix demangler (H.J. Lu, #59300, #59310)
+  - fix typo in IA-32 specs file (#59081)
+  - support moving SFmode values in MMX regs if -mmmx (#59083)
+  - fix recog_for_combine (#59084)
+  - don't ICE when inserting insns on edge from bb0 to bb0 (Bernd Schmidt,
+    #59087)
+  - make sure configure has not time in the future (#59203)
+  - fix division/modulo by certain constants (#58065, PR c/5304)
+  - fix -Wswitch (PR c/4475)
+
+* Thu Jan 31 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.20
+- update to CVS HEAD
+  - fix jar (Tom Tromey)
+  - fix loop unrolling (Richard Henderson)
+
+* Wed Jan 30 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.19
+- update to CVS HEAD
+  - fix a reload bug on ia32 (#58579, #58648)
+  - issue error about unknown -W* options (#58909)
+  - fix ia64 libbfd miscompilation (#58694)
+  - register all pending unparsed_text structures with GC (#58647)
+  - fix __builtin_apply with ia32 -msse (#58447)
+  - prevent ia64 prologue insns saving regs required for eh from being
+    deleted (#58387)
+
+* Tue Jan 15 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.18
+- update to CVS HEAD
+  - handle static x[] = { [X...Y] = (foo) { Z } } (#58338)
+  - fix getdents.os miscompilation (Richard Henderson, #58308)
+  - fix ICE in try_forward_edges (#58125)
+  - fix ICE with -fexceptions -foptimize-sibling-calls
+
+* Tue Jan  8 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.17
+- avoid division by 0 when computing prediction probabilities (#57992)
+- fix ICE due to store_expr not adjusting value back for mode
+- increase -ftemplate-depth default value to 500
+
+* Mon Jan  7 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.16
+- if using PT_GNU_EH_FRAME registry, work around assembler bug resp. feature
+  and don't provide weak prototypes of functions which won't be used
+- on Alpha, fix a typo so that crtbeginT.o is built and installed
+- fix glibc inl-tester miscompilation on ia32
+
+* Sun Jan  6 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.15
+- update to CVS HEAD (fix glibc bootstrap failure)
+
+* Thu Jan  3 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.14
+- update to CVS HEAD (#57907)
+  - fix alpha bootstrap (Richard Henderson)
+- fix simplification of (div:SI (???:DI ???) (const_int 1))
+  (#57916)
+- add contrib/gcc_update --touch
+
+* Tue Jan  1 2002 Jakub Jelinek <jakub@redhat.com> 3.1-0.13
+- update to CVS HEAD (fix glibc miscompilation on alpha)
+- fix objc to not emit __objc_class_name_* without type and size
+
+* Mon Dec 31 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.12
+- update to CVS HEAD
+- fix sed commands for .la files
+- make Alpha use PT_GNU_EH_FRAME
+
+* Thu Dec 27 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.11
+- update to CVS HEAD (#57165, #57212, #57467, #57488, #57502,
+  #57505, #57574)
+- readd .la files after fixing them up by sed
+- add %%defattr(-,root,root) to libobjc subpackage
+
+* Mon Dec  3 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.10
+- one more gcc.spec fix for passing --gdwarf-2 resp. --gstabs to as
+- fix conditional register dead computation on IA-64
+- fix extern array of incomplete structures handling
+- fix gcc -xc -
+- fix Fortran ICEs with SAVE_EXPRs (Richard Kenner)
+
+* Tue Nov 27 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.9
+- update to CVS HEAD
+- make DWARF 2 preferred debugging format on Linux
+
+* Mon Nov 12 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.8
+- don't ship .la files (#56072)
+- include libfrtbegin.a (#56098)
+
+* Mon Nov 12 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.7
+- update to CVS HEAD
+- back out Nov 7th loop.c change for now
+
+* Fri Nov  9 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.6
+- update to CVS HEAD
+- frame unwind compatibility with 7.[12] binutils
+
+* Tue Nov  6 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.5
+- update to CVS HEAD
+- merge DW_EH_PE_indirect constants and their relocs
+
+* Thu Oct 25 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.4
+- don't loop forever or ICE on bogus array initializers (#53704)
+- fix store motion with pure calls
+- disable store motion for now
+
+* Tue Oct 23 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.3
+- fix inlining of C nested functions with auto prototypes
+
+* Mon Oct 22 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.2
+- update to CVS HEAD
+- tree inlining fix from Alexandre Oliva
+- fix anonymous union ICE on alpha
+
+* Mon Oct 15 2001 Jakub Jelinek <jakub@redhat.com> 3.1-0.1
+- switch package to main compiler from alternate compiler
+- update to CVS HEAD
+- early gcc-2.96-RH compatibility in __frame_state_for
+- change weak function tests for functions always present in GLIBC 2.2
+  into simple non-weak calls in crt*.o to avoid unnecessary symbol
+  lookups and prelink conflicts
+- don't link against libgcc_s C shared libraries
+
+* Tue Oct  2 2001 Jakub Jelinek <jakub@redhat.com> 3.0.1-4
+- update from CVS 3.0 branch
+  - ia64 function descriptors in vtables
+- handle large files in Fortran (#53328)
+- allow Java programs to be statically linked (#53605)
+- remove #include_next patch, Benjamin commited it
+
+* Thu Sep  6 2001 Jakub Jelinek <jakub@redhat.com> 3.0.1-3
+- don't use #include_next in <bits/std_c*> headers (Benjamin Kosnik, #53262)
+
+* Wed Sep  5 2001 Jakub Jelinek <jakub@redhat.com> 3.0.1-2
+- update from CVS 3.0 branch
+- check all gcc-2.96-RH patches whether they have made it into 3.0.1,
+  and if not, whether they are appropriate for 3.0.1
+- 8 new patches
+  - add 36 testcases from gcc-2.96-RH
+  - fix ICE on very questionable C++ code from JDK (#39858, #52960)
+  - fix -frepo (Nathan Sidwell, #52877)
+  - avoid generating bogus .stabs (#49214)
+  - issue a clear error message about invalid ia32 floating point
+    asm constraints (#27137)
+  - fix some comment typos
+  - fix ADDRESSOF recognition (#29686)
+
+* Mon Aug 27 2001 Jakub Jelinek <jakub@redhat.com> 3.0.1-1
+- update from CVS (3.0.1 final)
+- properly handle throw() exception specifiers in template decls (#51824)
+- fix IA-64 varargs handling in presence of additional anonymous arguments
+  (#50757)
+- fix boehm-gc for prelink
+- fix a typo in gcc3-c++ description (#52323)
+- remove Chill from package summary (#51764)
+
+* Tue Aug  7 2001 Jakub Jelinek <jakub@redhat.com> 3.0-6
+- update from CVS
+  - fix glibc vfprintf miscompilation
+- don't warn about if (&foo) if foo is weak (H.J.Lu, #50855)
+
+* Wed Jul 25 2001 Jakub Jelinek <jakub@redhat.com> 3.0-5
+- include libgcjgc.a in libgcj3-devel
+- include libgcjgc.so.* in libgcj3 on ia64
+- remove dependency on libgcj on ia64
+- add ldconfig to libgcj3 post/postun
+
+* Tue Jul 24 2001 Jakub Jelinek <jakub@redhat.com> 3.0-4
+- update from CVS
+- make gcc3-java/libgcj3* packages, so that they can coexist
+  with 2.96-RH Java
+- make sure shared Java libraries are built with proper dependencies
+
+* Wed Jul 11 2001 Jakub Jelinek <jakub@redhat.com> 3.0-3
+- fix libgcc_s.so and libstdc++.so symlinks
+- don't ship jar
+
+* Tue Jul 10 2001 Jakub Jelinek <jakub@redhat.com> 3.0-2
+- move libstdc++.so into gcc-lib
+- add libobjc.so symlink
+
+* Tue Jul 10 2001 Jakub Jelinek <jakub@redhat.com> 3.0-1
+- new rpm

@@ -1,0 +1,82 @@
+By Lennert Buytenhek <buytenh@wantstofly.org>
+Adds support for arm*b-linux* big-endian ARM targets
+
+Fixes build error
+
+/opt/crosstool/armeb-unknown-linux-gnu/gcc-3.4.2-glibc-2.3.3/armeb-unknown-linux-gnu/bin/ld: unrecognised emulation mode: armelf_linux
+Supported emulations: armelfb_linux armelfb
+collect2: ld returned 1 exit status
+make[2]: *** [/home/dank/wk/crosstool-0.28-rc36/build/armeb-unknown-linux-gnu/gcc-3.4.2-glibc-2.3.3/build-glibc/csu/crt1.o] Error 1
+make[2]: Leaving directory `/home/dank/wk/crosstool-0.28-rc36/build/armeb-unknown-linux-gnu/gcc-3.4.2-glibc-2.3.3/glibc-2.3.3/csu'
+make[1]: *** [csu/subdir_lib] Error 2
+make[1]: Leaving directory `/home/dank/wk/crosstool-0.28-rc36/build/armeb-unknown-linux-gnu/gcc-3.4.2-glibc-2.3.3/glibc-2.3.3'
+make: *** [all] Error 2
+
+
+See http://gcc.gnu.org/PR16350
+
+diff -urN gcc-3.4.0.orig/gcc/config/arm/linux-elf.h gcc-3.4.0/gcc/config/arm/linux-elf.h
+--- gcc-3.4.0.orig/gcc/config/arm/linux-elf.h	2004-01-31 07:18:11.000000000 +0100
++++ gcc-3.4.0/gcc/config/arm/linux-elf.h	2004-07-02 14:46:29.225443757 +0200
+@@ -30,17 +30,34 @@
+ /* Do not assume anything about header files.  */
+ #define NO_IMPLICIT_EXTERN_C
+ 
++/*
++ * 'config.gcc' defines TARGET_BIG_ENDIAN_DEFAULT as 1 for arm*b-*
++ * (big endian) configurations.
++ */
++#if TARGET_BIG_ENDIAN_DEFAULT
++#define TARGET_ENDIAN_DEFAULT ARM_FLAG_BIG_END
++#define TARGET_ENDIAN_OPTION "mbig-endian"
++#define TARGET_LINKER_EMULATION "armelfb_linux"
++#else
++#define TARGET_ENDIAN_DEFAULT 0
++#define TARGET_ENDIAN_OPTION "mlittle-endian"
++#define TARGET_LINKER_EMULATION "armelf_linux"
++#endif
++
+ /* Default is to use APCS-32 mode.  */
+ #undef  TARGET_DEFAULT
+-#define TARGET_DEFAULT (ARM_FLAG_APCS_32 | ARM_FLAG_MMU_TRAPS)
++#define TARGET_DEFAULT \
++		( ARM_FLAG_APCS_32 | \
++		  ARM_FLAG_MMU_TRAPS | \
++		  TARGET_ENDIAN_DEFAULT )
+ 
+ #define SUBTARGET_CPU_DEFAULT TARGET_CPU_arm6
+ 
+-#define SUBTARGET_EXTRA_LINK_SPEC " -m armelf_linux -p"
++#define SUBTARGET_EXTRA_LINK_SPEC " -m " TARGET_LINKER_EMULATION " -p"
+ 
+ #undef  MULTILIB_DEFAULTS
+ #define MULTILIB_DEFAULTS \
+-	{ "marm", "mlittle-endian", "mhard-float", "mapcs-32", "mno-thumb-interwork" }
++	{ "marm", TARGET_ENDIAN_OPTION, "mhard-float", "mapcs-32", "mno-thumb-interwork" }
+ 
+ #define CPP_APCS_PC_DEFAULT_SPEC "-D__APCS_32__"
+ 
+@@ -89,7 +106,7 @@
+    %{rdynamic:-export-dynamic} \
+    %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2} \
+    -X \
+-   %{mbig-endian:-EB}" \
++   %{mbig-endian:-EB} %{mlittle-endian:-EL}" \
+    SUBTARGET_EXTRA_LINK_SPEC
+ 
+ #define TARGET_OS_CPP_BUILTINS() LINUX_TARGET_OS_CPP_BUILTINS()
+diff -urN gcc-3.4.0.orig/gcc/config.gcc gcc-3.4.0/gcc/config.gcc
+--- gcc-3.4.0.orig/gcc/config.gcc	2004-04-17 04:28:24.000000000 +0200
++++ gcc-3.4.0/gcc/config.gcc	2004-07-02 14:44:40.045822542 +0200
+@@ -666,6 +666,11 @@
+ 	;;
+ arm*-*-linux*)			# ARM GNU/Linux with ELF
+ 	tm_file="dbxelf.h elfos.h linux.h arm/elf.h  arm/linux-gas.h arm/linux-elf.h arm/aout.h arm/arm.h"
++	case $target in
++	arm*b-*)
++		tm_defines="TARGET_BIG_ENDIAN_DEFAULT=1 $tm_defines"
++		;;
++	esac
+ 	tmake_file="t-slibgcc-elf-ver t-linux arm/t-linux"
+ 	extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
+ 	gnu_ld=yes

@@ -1,0 +1,89 @@
+See http://sources.redhat.com/ml/libc-hacker/2005-03/msg00008.html
+
+From libc-hacker-return-8343-listarch-libc-hacker=sources dot redhat dot com at sources dot redhat dot com Sat Mar 05 09:21:18 2005
+Return-Path: <libc-hacker-return-8343-listarch-libc-hacker=sources dot redhat dot com at sources dot redhat dot com>
+Delivered-To: listarch-libc-hacker at sources dot redhat dot com
+Received: (qmail 23370 invoked by alias); 5 Mar 2005 09:21:15 -0000
+Mailing-List: contact libc-hacker-help at sources dot redhat dot com; run by ezmlm
+Precedence: bulk
+List-Subscribe: <mailto:libc-hacker-subscribe at sources dot redhat dot com>
+List-Archive: <http://sources.redhat.com/ml/libc-hacker/>
+List-Post: <mailto:libc-hacker at sources dot redhat dot com>
+List-Help: <mailto:libc-hacker-help at sources dot redhat dot com>, <http://sources dot redhat dot com/ml/#faqs>
+Sender: libc-hacker-owner at sources dot redhat dot com
+Delivered-To: mailing list libc-hacker at sources dot redhat dot com
+Received: (qmail 22971 invoked from network); 5 Mar 2005 09:20:51 -0000
+Received: from unknown (HELO sunsite.mff.cuni.cz) (195.113.15.26)
+  by sourceware dot org with SMTP; 5 Mar 2005 09:20:51 -0000
+Received: from sunsite.mff.cuni.cz (sunsite.mff.cuni.cz [127.0.0.1])
+	by sunsite dot mff dot cuni dot cz (8 dot 13 dot 1/8 dot 13 dot 1) with ESMTP id j259KoB5020894;
+	Sat, 5 Mar 2005 10:20:50 +0100
+Received: (from jj@localhost)
+	by sunsite dot mff dot cuni dot cz (8 dot 13 dot 1/8 dot 13 dot 1/Submit) id j259KnO1020889;
+	Sat, 5 Mar 2005 10:20:49 +0100
+Date: Sat, 5 Mar 2005 10:20:49 +0100
+From: Jakub Jelinek <jakub at redhat dot com>
+To: Ulrich Drepper <drepper at redhat dot com>, Roland McGrath <roland at redhat dot com>
+Cc: Glibc hackers <libc-hacker at sources dot redhat dot com>
+Subject: [PATCH] Fix build with GCC 4
+Message-ID: <20050305092049.GJ4777@sunsite.mff.cuni.cz>
+Reply-To: Jakub Jelinek <jakub at redhat dot com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.4.1i
+
+Hi!
+
+The thread_offsetof change just mirrors what Alan Modra did to NPTL
+tcb-offsets.sym.  Apparently for GCC 4 an offsetof like expression,
+but not really offsetof, is no longer constant folded and therefore
+not suitable for "i" constraint.
+
+The ELF_MACHINE_NO_RELA change is needed to avoid
+rtld.c: In function '_dl_start':
+dynamic-link.h:50: error: nested function 'elf_machine_rela_relative' declared but never defined
+dynamic-link.h:47: error: nested function 'elf_machine_rela' declared but never defined
+This is what happens.
+rtld.c first includes dl-machine.h without RESOLVE_MAP
+and without RTLD_BOOTSTRAP defined.  This means that ELF_MACHINE_NO_RELA
+is not defined on i386/arm.  Later on it defines RESOLVE_MAP
+and RTLD_BOOTSTRAP and includes dynamic-link.h which has:
+# if ! ELF_MACHINE_NO_RELA
+auto void __attribute__((always_inline))
+elf_machine_rela (struct link_map *map, const ElfW(Rela) *reloc,
+                  const ElfW(Sym) *sym, const struct r_found_version *version,
+                  void *const reloc_addr);
+auto void __attribute__((always_inline))
+elf_machine_rela_relative (ElfW(Addr) l_addr, const ElfW(Rela) *reloc,
+                           void *const reloc_addr);
+# endif
+and later on includes dl-machine.h which sees RTLD_BOOTSTRAP is
+defined and defines ELF_MACHINE_NO_RELA and doesn't define
+elf_machine_rela* nested functions.
+But the prototypes were already defined and GCC 4 doesn't like this.
+ELF_MACHINE_NO_RELA is only ever used in preprocessing conditionals
+and never in defined ELF_MACHINE_NO_RELA, so the trick below
+already defines ELF_MACHINE_NO_RELA to 1/0 depending on whether
+RTLD_BOOTSTRAP is defined and thus the prototypes in dynamic-link.h
+that are not desirable are gone.
+
+2005-03-05  Jakub Jelinek  <jakub@redhat.com>
+
+	* sysdeps/i386/dl-machine.h (ELF_MACHINE_NO_RELA): Define
+	unconditionally to (defined RTLD_BOOTSTRAP).
+	* sysdeps/arm/dl-machine.h (ELF_MACHINE_NO_RELA): Likewise.
+linuxthreads/
+	* sysdeps/powerpc/tcb-offsets.sym (thread_offsetof): Rework for GCC 4.
+
+--- libc/linuxthreads/sysdeps/powerpc/tcb-offsets.sym.jj	2005-03-04 14:21:29.000000000 -0500
++++ libc/linuxthreads/sysdeps/powerpc/tcb-offsets.sym	2005-03-04 14:26:29.000000000 -0500
+@@ -8,7 +8,7 @@
+ -- Abuse tls.h macros to derive offsets relative to the thread register.
+ #  undef __thread_register
+ #  define __thread_register	((void *) 0)
+-#  define thread_offsetof(mem)	((void *) &THREAD_SELF->p_##mem - (void *) 0)
++#  define thread_offsetof(mem)	((ptrdiff_t) THREAD_SELF + offsetof (struct _pthread_descr_struct, p_##mem))
+ 
+ # else
+ 

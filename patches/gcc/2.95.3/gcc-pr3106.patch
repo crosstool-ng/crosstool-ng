@@ -1,0 +1,28 @@
+See http://gcc.gnu.org/PR3106
+Backported from gcc-3.0.x
+
+Fixes error
+  .../binutils-2.11.2/libiberty/strerror.c:468: error: conflicting types for `sys_nerr'
+  /usr/include/stdio.h:258: error: previous declaration of `sys_nerr'
+  make[1]: *** [strerror.o] Error 1
+  make: *** [all-libiberty] Error 2
+on Mac OS X.
+
+--- gcc-2.95.3/libiberty/strerror.c.old	2004-03-24 16:23:19.000000000 -0800
++++ gcc-2.95.3/libiberty/strerror.c	2004-03-24 16:23:48.000000000 -0800
+@@ -13,6 +13,7 @@
+    incompatible with our later declaration, perhaps by using const
+    attributes.  So we hide the declaration in errno.h (if any) using a
+    macro. */
++#define sys_nerr sys_nerr__
+ #define sys_errlist sys_errlist__
+ #endif
+ 
+@@ -20,6 +21,7 @@
+ #include <errno.h>
+ 
+ #ifdef HAVE_SYS_ERRLIST
++#undef sys_nerr
+ #undef sys_errlist
+ #endif
+ 

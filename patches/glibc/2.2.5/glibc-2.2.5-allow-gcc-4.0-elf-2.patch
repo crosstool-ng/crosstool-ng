@@ -1,0 +1,43 @@
+Fixes
+dynamic-link.h:38: error: invalid storage class for function 'elf_get_dynamic_info'
+kinda like http://sourceware.org/cgi-bin/cvsweb.cgi/libc/elf/dynamic-link.h.diff?r1=1.50&r2=1.51&cvsroot=glibc does
+and fixes
+In file included from dynamic-link.h:218,
+                 from dl-reloc.c:153:
+do-rel.h:46: error: invalid storage class for function 'elf_dynamic_do_rel'
+
+--- /home/dank/downloads/glibc-2.2.5/elf/dynamic-link.h	2001-07-05 21:54:46.000000000 -0700
++++ glibc-2.2.5/elf/dynamic-link.h	2005-03-11 14:18:34.542858064 -0800
+@@ -33,7 +33,16 @@
+ 
+ /* Read the dynamic section at DYN and fill in INFO with indices DT_*.  */
+ 
++#if __GNUC__ >= 4
++#ifndef RESOLVE_MAP
++static
++#else
++auto
++#endif
++inline void __attribute__ ((unused, always_inline))
++#else
+ static inline void __attribute__ ((unused))
++#endif
+ elf_get_dynamic_info (struct link_map *l)
+ {
+   ElfW(Dyn) *dyn = l->l_ld;
+
+--- /home/dank/downloads/glibc-2.2.5/elf/do-rel.h	2001-08-24 11:45:23.000000000 -0700
++++ glibc-2.2.5/elf/do-rel.h	2005-03-11 14:26:43.538519424 -0800
+@@ -39,7 +39,12 @@
+    relocations; they should be set up to call _dl_runtime_resolve, rather
+    than fully resolved now.  */
+ 
++#if __GNUC__ >= 4
++auto inline void
++__attribute ((always_inline))
++#else
+ static inline void
++#endif
+ elf_dynamic_do_rel (struct link_map *map,
+ 		    ElfW(Addr) reladdr, ElfW(Addr) relsize,
+ 		    int lazy)

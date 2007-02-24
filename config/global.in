@@ -1,0 +1,256 @@
+# Overall toolchain configuration: paths, jobs, etc...
+
+menu "Paths and misc options"
+
+config PARALLEL_JOBS
+    int
+    prompt "Number of parallel jobs"
+    default 1
+    help
+      Number of jobs make will be allowed to run concurently.
+      Set this higher than the number of processors you have, but not too high.
+      A good rule of thumb is twice the number of processors you have.
+      
+      Enter 1 (or 0) to have only one job at a time.
+
+config LOAD
+    int
+    prompt "Maximum allowed load"
+    default 0
+    help
+      Specifies that no new jobs should be started if there are others jobs
+      running and the load average is at least this value.
+      
+      Makes sense on SMP machines only.
+      
+      Enter 0 to have no limit on the load average.
+      
+      Note: only the integer part of the load is allowed here (you can't enter
+            0.75 for example).
+
+config NICE
+    int
+    prompt "Nice level"
+    default 0
+    range 0 19
+    help
+      Renices the build process up.
+
+config USE_PIPES
+    bool
+    prompt "Use -pipe"
+    default y
+    help
+      Use gcc's option -pipe to use pipes rather than temp files when building
+      the toolchain.
+
+comment "Paths"
+
+config TARBALLS_DIR
+    string
+    prompt "Tarballs directory"
+    default "`pwd`/tarballs"
+    help
+      This is the directory into which tarballs are going to be stored once
+      they are downloaded (or otherwise retrieved).
+
+config SRC_DIR
+    string
+    prompt "Extract directory"
+    default "`pwd`/${CT_TARGET}/src"
+    help
+      This is the directory into which tarballs will be extracted.
+      
+      If you will build multiple toolchains, you should arrange to have one
+      SRC_DIR for each toolchain, as different targets may require different
+      patches to be applied.
+
+config BUILD_DIR
+    string
+    prompt "Build directory"
+    default "`pwd`/${CT_TARGET}/gcc-${CT_CC_VERSION}-${CT_LIBC}-${CT_LIBC_VERSION}"
+    help
+      This is the directory into which builds will occur.
+      
+      Once again, arrange for one build directory for each toolchain you build,
+      to avoid collision.
+
+config PREFIX_DIR
+    string
+    prompt "Prefix directory"
+    default "${HOME}/${CT_TARGET}"
+    help
+      This is the path the toolchain will run from.
+
+config INSTALL_DIR
+    string
+#    prompt "Install directory"
+    default "${CT_PREFIX_DIR}"
+#    help
+#      This is the path the target will be installed into.
+#      
+#      Normally, you would set this to ${CT_PREFIX_DIR}, but if for some reasons
+#      you can't write there, you can install somewhere else and have a third
+#      person do the install for you.
+#      The reason you might also want to install elsewhere is if you are going
+#      to package your shinny new toolchain for distribution.
+
+config CUSTOM_PATCH
+    bool
+    prompt "Use custom patch directory"
+    default n
+    help
+      If you have custom patches that you want to be applied, say 'Y' here and
+      enter the path directory below.
+      
+      Note that you must ensure that the patch directory is arranged the same
+      way the official directory is.
+
+config CUSTOM_PATCH_ONLY
+    bool
+    prompt "Only use custom patches"
+    default n
+    depends on CUSTOM_PATCH
+    help
+      Don't apply patches coming with CT-NG, only those patches available in
+      the directory below.
+      
+      If you say 'N' here, then the patches provided with CT-NG will be applied
+      first, and then your patches.
+
+config CUSTOM_PATCH_DIR
+    string
+    prompt "Custom patch directory"
+    default ""
+    depends on CUSTOM_PATCH
+    help
+      Enter the custom patch directory here.
+
+comment "Downloading and extracting"
+
+config NO_DOWNLOAD
+    bool
+    prompt "Avoid downloads"
+    default n
+    help
+      Avoid downloading anything. Bail out if a tarball is missing.
+
+config ONLY_DOWNLOAD
+    bool
+    prompt "Only download tarballs"
+    default n
+    depends on ! NO_DOWNLOAD
+    help
+      Only download the tarballs. Exit once it done.
+      
+      Usefull to pre-retrieve the tarballs before going off-line.
+
+config FORCE_DOWNLOAD
+    bool
+    prompt "Force downloads"
+    default n
+    depends on ! NO_DOWNLOAD
+    help
+      Force downloading tarballs, even if one already exists.
+      Usefull if you suspect a tarball to be damaged.
+
+config FORCE_EXTRACT
+    bool
+    prompt "Force extractions"
+    depends on ! ONLY_DOWNLOAD
+    default n
+    help
+      Force extraction of already exctracted tarballs.
+      
+      Usefull if you suspect a previous extract did not complete (eg. broken
+      tarball), or you added a new set of patches for this component.
+
+comment "Logging"
+
+choice
+    bool
+    prompt "Maximum log level to see:"
+    default LOG_INFO
+
+config LOG_ERROR
+    bool
+    prompt "ERROR"
+    help
+      The build will be silent.
+      Only if there is an error will you see a mesage.
+
+config LOG_WARN
+    bool
+    prompt "WARN"
+    help
+      The same as above, plus warnings.
+
+config LOG_INFO
+    bool
+    prompt "INFO"
+    help
+      The same as above, plus informational messages (main steps).
+
+config LOG_EXTRA
+    bool
+    prompt "EXTRA"
+    help
+      The same as above, plus extra messages (sub-steps).
+
+config LOG_DEBUG
+    bool
+    prompt "DEBUG"
+    help
+      The same as above, plus lots of debug information, of which each
+      component's build messages (very noisy!).
+
+endchoice
+
+config LOG_LEVEL_MAX
+    string
+    default "ERROR"   if LOG_ERROR
+    default "WARN"    if LOG_WARN
+    default "INFO"    if LOG_INFO
+    default "EXTRA"   if LOG_EXTRA
+    default "DEBUG"   if LOG_DEBUG
+
+config LOG_PROGRESS_BAR
+    bool
+    prompt "Progress bar"
+    default n
+    depends on ! LOG_DEBUG
+    help
+      This option will print a "rotating bar" (/-\|) below the last log line
+      to show work is not stalled.
+      
+      Available when not in DEBUG log level.
+
+config LOG_USE_COLORS
+    bool
+    prompt "Use colors for logging to console"
+    default n
+    help
+      Use colors to highlight important messages.
+      ERROR: bright red
+      WARN : bright yellow
+      INFO : bright green
+      EXTRA: dim green
+      DEBUG: dim white
+
+config LOG_TO_FILE
+    bool
+    prompt "Log to a file"
+    default y
+    help
+      Save *full* logs to a file. Even log levels you didn't specify above
+      will be available in this file.
+
+config LOG_FILE
+    string
+    prompt "Log file"
+    default "${CT_PREFIX_DIR}/${CT_TARGET}.log"
+    depends on LOG_TO_FILE
+    help
+      File name into which to put logs.
+
+endmenu

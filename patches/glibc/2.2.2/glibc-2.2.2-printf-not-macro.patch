@@ -1,0 +1,36 @@
+I'm testing toolchains with glibc-2.2.2 now.  It looks ok except
+that glibc-2.2.2 headers contain the gosh-awful line
+  #  define printf(fmt, args...) fprintf (stdout, fmt, ##args)
+which causes builds of programs with methods named 'printf' to fail with
+  error: `stdout' is not a type
+Feh.
+
+Revision 1.8, Thu Aug 2 16:09:51 2001 UTC (3 years, 9 months ago) by aj
+Branch: MAIN
+CVS Tags: glibc-2_3_2, glibc-2_2_4, glibc-2-3-1, glibc-2-3, glibc-2-2-branch, glibc-2-2-5
+
+(printf): Remove printf optimization since GCC 3.0 can optimize printf.
+
+http://sourceware.org/cgi-bin/cvsweb.cgi/libc/libio/bits/stdio.h.diff?r1=1.7&r2=1.8&cvsroot=glibc
+
+===================================================================
+RCS file: /cvs/glibc/libc/libio/bits/stdio.h,v
+retrieving revision 1.7
+retrieving revision 1.8
+diff -u -r1.7 -r1.8
+--- libc/libio/bits/stdio.h	2001/07/06 04:55:32	1.7
++++ libc/libio/bits/stdio.h	2001/08/02 16:09:51	1.8
+@@ -29,13 +29,6 @@
+ 
+ 
+ #ifdef __USE_EXTERN_INLINES
+-/* Since version 2.97 GCC knows about `fprintf' and can optimize certain
+-   cases.  Help gcc to optimize more code by mapping `printf' to the known
+-   `fprintf' function.  Unfortunately we have to use a macro.  */
+-# if __GNUC_PREREQ (2,97)
+-#  define printf(fmt, args...) fprintf (stdout, fmt, ##args)
+-# endif
+-
+ /* Write formatted output to stdout from argument list ARG.  */
+ __STDIO_INLINE int
+ vprintf (__const char *__restrict __fmt, _G_va_list __arg) __THROW

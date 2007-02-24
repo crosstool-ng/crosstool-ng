@@ -1,0 +1,647 @@
+--------- snip -------
+Downloaded from ftp://ftp.linux.org.uk/pub/armlinux/toolchain/src-2.95.3/gcc-2.95.3.diff.bz2
+Not sure what it fixes, but this appears to be The Patch used with gcc-2.95.3 on arm.
+--------- snip -------
+
+diff -urN gcc-2.95.3-orig/gcc/config/arm/arm.c gcc-2.95.3/gcc/config/arm/arm.c
+--- gcc-2.95.3-orig/gcc/config/arm/arm.c	Thu Jan 25 15:03:24 2001
++++ gcc-2.95.3/gcc/config/arm/arm.c	Fri Jul 20 19:39:11 2001
+@@ -1529,27 +1529,34 @@
+       return gen_rtx_PLUS (Pmode, base, offset);
+     }
+   else if (GET_CODE (orig) == LABEL_REF)
+-    current_function_uses_pic_offset_table = 1;
+-
+-  return orig;
+-}
++    {
++      current_function_uses_pic_offset_table = 1;
+ 
+-static rtx pic_rtx;
++      if (NEED_PLT_GOT)
++	{
++	  rtx pic_ref, address = gen_reg_rtx (Pmode);
++	  
++	  emit_insn (gen_pic_load_addr (address, orig));
++	  pic_ref = gen_rtx_PLUS (Pmode, pic_offset_table_rtx,
++				  address);
++	  emit_move_insn (address, pic_ref);
++	  return address;
++	}
++    }
+ 
+-int
+-is_pic(x)
+-     rtx x;
+-{
+-  if (x == pic_rtx)
+-    return 1;
+-  return 0;
++  return orig;
+ }
+ 
++/* Generate code to load the PIC register.  PROLOGUE is true if
++   called from arm_expand_prologue (in which case we want the 
++   generated insns at the start of the function);  false if called
++   by an exception receiver that needs the PIC register reloaded
++   (in which case the insns are just dumped at the current location).  */
+ void
+-arm_finalize_pic ()
++arm_finalize_pic (int prologue)
+ {
+ #ifndef AOF_ASSEMBLER
+-  rtx l1, pic_tmp, pic_tmp2, seq;
++  rtx l1, pic_tmp, pic_tmp2, seq, pic_rtx;
+   rtx global_offset_table;
+ 
+   if (current_function_uses_pic_offset_table == 0)
+@@ -1578,7 +1585,10 @@
+ 
+   seq = gen_sequence ();
+   end_sequence ();
+-  emit_insn_after (seq, get_insns ());
++  if (prologue)
++    emit_insn_after (seq, get_insns ());
++  else
++    emit_insn (seq);
+ 
+   /* Need to emit this whether or not we obey regdecls,
+      since setjmp/longjmp can cause life info to screw up.  */
+@@ -5327,7 +5337,13 @@
+   if (frame_pointer_needed)
+     live_regs += 4;
+ 
+-  if (live_regs)
++  if (live_regs == 1 && regs_ever_live[LR_REGNUM]
++      && ! lr_save_eliminated && ! really_return)
++    {
++      output_asm_insn (reverse ? "ldr%?%D0\t%|lr, [%|sp}, #4"
++      		       : "ldr%?%d0\t%|lr, [%|sp], #4", &operand);
++    }
++  else if (live_regs)
+     {
+       if (lr_save_eliminated || ! regs_ever_live[14])
+         live_regs++;
+@@ -5446,7 +5462,7 @@
+   rtx           x;
+ 
+   length = strlen (name);
+-  alignlength = (length + 1) + 3 & ~3;
++  alignlength = ((length + 1) + 3) & ~3;
+   
+   ASM_OUTPUT_ASCII (stream, name, length + 1);
+   ASM_OUTPUT_ALIGN (stream, 2);
+@@ -5838,6 +5854,9 @@
+   int store_arg_regs = 0;
+   int volatile_func = (optimize > 0
+ 		       && TREE_THIS_VOLATILE (current_function_decl));
++  rtx ip_rtx;
++  int fp_offset = 0;
++  rtx insn;
+ 
+   /* Naked functions don't have prologues.  */
+   if (arm_naked_function_p (current_function_decl))
+@@ -5859,11 +5878,59 @@
+ 	live_regs_mask |= 0x4000;
+     }
+ 
++  ip_rtx = gen_rtx_REG (SImode, IP_REGNUM);
++
+   if (frame_pointer_needed)
+     {
++      if (current_function_needs_context)
++	{
++	  /* The Static chain register is the same as the IP register
++	     used as a scratch register during stack frame creation.
++	     To get around this need to find somewhere to store IP
++	     whilst the frame is being created.  We try the following
++	     places in order:
++	     
++	       1. An unused argument register.
++	       2. A slot on the stack above the frame.  (This only
++	          works if the function is not a varargs function).
++		  
++	     If neither of these places is available, we abort (for now).  */
++	  if (regs_ever_live[3] == 0)
++	    {
++	      insn = gen_rtx_REG (SImode, 3);
++	      insn = gen_rtx_SET (SImode, insn, ip_rtx);
++	      insn = emit_insn (insn);
++	      RTX_FRAME_RELATED_P (insn) = 1;	  
++	    }
++	  else if (current_function_pretend_args_size == 0)
++	    {
++	      insn = gen_rtx_PRE_DEC (SImode, stack_pointer_rtx);
++	      insn = gen_rtx_MEM (SImode, insn);
++	      insn = gen_rtx_SET (VOIDmode, insn, ip_rtx);
++	      insn = emit_insn (insn);
++	      RTX_FRAME_RELATED_P (insn) = 1;
++	      fp_offset = 4;
++	    }
++	  else
++	    /* FIXME - the way to handle this situation is to allow
++	       the pretend args to be dumped onto the stack, then
++	       reuse r3 to save IP.  This would involve moving the
++	       copying os SP into IP until after the pretend args
++	       have been dumped, but this is not too hard.  */
++	    error ("Unable to find a temporary location for static chanin register");
++	}
++
+       live_regs_mask |= 0xD800;
+-      emit_insn (gen_movsi (gen_rtx_REG (SImode, 12),
+-			    stack_pointer_rtx));
++      if (fp_offset)
++	{
++	  insn = gen_rtx_PLUS (SImode, stack_pointer_rtx, GEN_INT (fp_offset));
++	  insn = gen_rtx_SET  (SImode, ip_rtx, insn);
++	}
++      else
++	insn = gen_movsi (ip_rtx, stack_pointer_rtx);
++      
++       insn = emit_insn (insn);
++       RTX_FRAME_RELATED_P (insn) = 1;
+     }
+ 
+   if (current_function_pretend_args_size)
+@@ -5927,9 +5994,31 @@
+     }
+ 
+   if (frame_pointer_needed)
+-    emit_insn (gen_addsi3 (hard_frame_pointer_rtx, gen_rtx_REG (SImode, 12),
+-			   (GEN_INT
+-			    (-(4 + current_function_pretend_args_size)))));
++    {
++      insn = GEN_INT (-(4 + current_function_pretend_args_size + fp_offset));
++      insn = emit_insn (gen_addsi3 (hard_frame_pointer_rtx, ip_rtx, insn));
++      RTX_FRAME_RELATED_P (insn) = 1;
++      
++      if (current_function_needs_context)
++	{
++	  /* Recover the static chain register.  */
++	  if (regs_ever_live [3] == 0)
++	    {
++	      insn = gen_rtx_REG (SImode, 3);
++	      insn = gen_rtx_SET (SImode, ip_rtx, insn);
++	      insn = emit_insn (insn);
++	      RTX_FRAME_RELATED_P (insn) = 1;	  
++	    }
++	  else /* if (current_function_pretend_args_size == 0) */
++	    {
++	      insn = gen_rtx_PLUS (SImode, hard_frame_pointer_rtx, GEN_INT (4));
++	      insn = gen_rtx_MEM (SImode, insn);
++	      insn = gen_rtx_SET (SImode, ip_rtx, insn);
++	      insn = emit_insn (insn);
++	      RTX_FRAME_RELATED_P (insn) = 1;	  
++	    }
++	}
++    }
+ 
+   if (amount != const0_rtx)
+     {
+diff -urN gcc-2.95.3-orig/gcc/config/arm/arm.h gcc-2.95.3/gcc/config/arm/arm.h
+--- gcc-2.95.3-orig/gcc/config/arm/arm.h	Thu Jan 25 15:03:26 2001
++++ gcc-2.95.3/gcc/config/arm/arm.h	Fri Jul 20 19:39:11 2001
+@@ -601,14 +601,20 @@
+   (TREE_CODE (EXP) == STRING_CST        \
+    && (ALIGN) < BITS_PER_WORD ? BITS_PER_WORD : (ALIGN))
+ 
++#ifndef STRUCTURE_SIZE_BOUNDARY
+ /* Every structures size must be a multiple of 32 bits.  */
+ /* This is for compatibility with ARMCC.  ARM SDT Reference Manual
+    (ARM DUI 0020D) page 2-20 says "Structures are aligned on word
+    boundaries".  */
+-#ifndef STRUCTURE_SIZE_BOUNDARY
+-#define STRUCTURE_SIZE_BOUNDARY 32
++/* Setting this to 32 produces more efficient code, but the value set in previous
++   versions of this toolchain was 8, which produces more compact structures. The
++   command line option -mstructure_size_boundary=<n> can be used to change this
++   value.  */
++#define STRUCTURE_SIZE_BOUNDARY arm_structure_size_boundary
+ #endif
+ 
++extern int arm_structure_size_boundary;
++
+ /* Used when parsing command line option -mstructure_size_boundary.  */
+ extern const char * structure_size_string;
+ 
+@@ -768,6 +774,9 @@
+ /* Specify the registers used for certain standard purposes.
+    The values of these macros are register numbers.  */
+ 
++/* Register which holds return address from a subroutine call.  */
++#define LR_REGNUM		14
++
+ /* Define this if the program counter is overloaded on a register.  */
+ #define PC_REGNUM		15
+ 
+@@ -777,6 +786,9 @@
+ /* Base register for access to local variables of the function.  */
+ #define FRAME_POINTER_REGNUM	25
+ 
++/* Scratch register - used in all kinds of places, eg trampolines.  */
++#define IP_REGNUM		12
++
+ /* Define this to be where the real frame pointer is if it is not possible to
+    work out the offset between the frame pointer and the automatic variables
+    until after register allocation has taken place.  FRAME_POINTER_REGNUM
+@@ -798,7 +810,7 @@
+ /* The native (Norcroft) Pascal compiler for the ARM passes the static chain
+    as an invisible last argument (possible since varargs don't exist in
+    Pascal), so the following is not true.  */
+-#define STATIC_CHAIN_REGNUM	8
++#define STATIC_CHAIN_REGNUM	12
+ 
+ /* Register in which address to store a structure value
+    is passed to a function.  */
+@@ -1248,7 +1260,12 @@
+ {									\
+   int volatile_func = arm_volatile_func ();				\
+   if ((FROM) == ARG_POINTER_REGNUM && (TO) == HARD_FRAME_POINTER_REGNUM)\
+-    (OFFSET) = 0;							\
++    {                                                                   \
++      if (! current_function_needs_context || ! frame_pointer_needed)   \
++        (OFFSET) = 0;                                                   \
++      else                                                              \
++        (OFFSET) = 4;                                                   \
++    }                                                                   \
+   else if ((FROM) == FRAME_POINTER_REGNUM				\
+ 	   && (TO) == STACK_POINTER_REGNUM)				\
+     (OFFSET) = (current_function_outgoing_args_size			\
+@@ -1379,8 +1396,10 @@
+ 
+    On the ARM, allow any integer (invalid ones are removed later by insn
+    patterns), nice doubles and symbol_refs which refer to the function's
+-   constant pool XXX.  */
+-#define LEGITIMATE_CONSTANT_P(X)	(! label_mentioned_p (X))
++   constant pool XXX.
++
++   When generating PIC code, allow anything.  */
++#define LEGITIMATE_CONSTANT_P(X)	(flag_pic || ! label_mentioned_p (X))
+ 
+ /* Symbols in the text segment can be accessed without indirecting via the
+    constant pool; it may take an extra binary operation, but this is still
+@@ -1496,9 +1515,8 @@
+ 	      && INTVAL (op) <= 31)					\
+ 	    goto LABEL;							\
+         }								\
+-      /* NASTY: Since this limits the addressing of unsigned byte loads */      \
+       range = ((MODE) == HImode || (MODE) == QImode)                    \
+-              ? (arm_arch4 ? 256 : 4095) : 4096;                        \
++              ? (((MODE) == HImode && arm_arch4) ? 256 : 4095) : 4096;  \
+       if (code == CONST_INT && INTVAL (INDEX) < range			\
+ 	  && INTVAL (INDEX) > -range)  	      				\
+         goto LABEL;							\
+@@ -1812,14 +1830,15 @@
+    data addresses in memory.  */
+ #define PIC_OFFSET_TABLE_REGNUM arm_pic_register
+ 
+-#define FINALIZE_PIC arm_finalize_pic ()
++#define FINALIZE_PIC arm_finalize_pic (1)
+ 
+-/* We can't directly access anything that contains a symbol,
++/* We can't directly access anything that contains a symbol or label,
+    nor can we indirect via the constant pool.  */
+ #define LEGITIMATE_PIC_OPERAND_P(X)				\
+-	(! symbol_mentioned_p (X)				\
++	(! symbol_mentioned_p (X) && ! label_mentioned_p (X)	\
+ 	 && (! CONSTANT_POOL_ADDRESS_P (X)			\
+-	     || ! symbol_mentioned_p (get_pool_constant (X))))
++	     || (! symbol_mentioned_p (get_pool_constant (X)))  \
++		&& (! label_mentioned_p (get_pool_constant (X)))))
+  
+ /* We need to know when we are making a constant pool; this determines
+    whether data needs to be in the GOT or can be referenced via a GOT
+@@ -2046,17 +2065,9 @@
+   else output_addr_const(STREAM, X);					\
+ }
+ 
+-/* Handles PIC addr specially */
+ #define OUTPUT_INT_ADDR_CONST(STREAM,X) \
+   {									\
+-    if (flag_pic && GET_CODE(X) == CONST && is_pic(X))			\
+-      {									\
+-	output_addr_const(STREAM, XEXP (XEXP (XEXP (X, 0), 0), 0));	\
+-	fputs(" - (", STREAM);						\
+-	output_addr_const(STREAM, XEXP (XEXP (XEXP (X, 0), 1), 0));	\
+-	fputs(")", STREAM);						\
+-      }									\
+-    else output_addr_const(STREAM, X);					\
++    output_addr_const(STREAM, X);					\
+ 									\
+     /* Mark symbols as position independent.  We only do this in the	\
+       .text segment, not in the .data segment. */			\
+@@ -2170,8 +2181,7 @@
+ int    arm_return_in_memory PROTO ((Tree));
+ int    legitimate_pic_operand_p PROTO ((Rtx));
+ Rtx    legitimize_pic_address PROTO ((Rtx, Mmode, Rtx));
+-int    is_pic PROTO ((Rtx));
+-void   arm_finalize_pic PROTO ((void));
++void   arm_finalize_pic PROTO ((int));
+ int    arm_rtx_costs RTX_CODE_PROTO ((Rtx, Rcode));
+ int    arm_adjust_cost PROTO ((Rtx, Rtx, Rtx, int));
+ int    const_double_rtx_ok_for_fpu PROTO ((Rtx));
+diff -urN gcc-2.95.3-orig/gcc/config/arm/arm.md gcc-2.95.3/gcc/config/arm/arm.md
+--- gcc-2.95.3-orig/gcc/config/arm/arm.md	Thu Jan 25 15:03:27 2001
++++ gcc-2.95.3/gcc/config/arm/arm.md	Fri Jul 20 19:39:11 2001
+@@ -2629,7 +2629,8 @@
+ 			   : preserve_subexpressions_p ()));
+       DONE;
+     }
+-  if (CONSTANT_P (operands[1]) && flag_pic)
++  if ((CONSTANT_P (operands[1]) || symbol_mentioned_p (operands[1])
++        || label_mentioned_p (operands[1])) && flag_pic)
+     operands[1] = legitimize_pic_address (operands[1], SImode,
+ 					  ((reload_in_progress
+ 					    || reload_completed)
+@@ -2721,6 +2722,15 @@
+   return \"add%?\\t%0, %|pc, %0\";
+ ")
+ 
++(define_expand "builtin_setjmp_receiver"
++  [(label_ref (match_operand 0 "" ""))]
++  "flag_pic"
++  "
++{
++  arm_finalize_pic (0);
++  DONE;
++}")
++
+ ;; If copying one reg to another we can set the condition codes according to
+ ;; its value.  Such a move is common after a return from subroutine and the
+ ;; result is being tested against zero.
+@@ -6184,15 +6194,20 @@
+ 	abort ();
+       return \"\";
+     }
+-  strcpy (pattern, \"stmfd\\t%m0!, {%1\");
+-  for (i = 1; i < XVECLEN (operands[2], 0); i++)
++  if (XVECLEN (operands[2], 0) > 1)
+     {
+-      strcat (pattern, \", %|\");
+-      strcat (pattern, reg_names[REGNO (XEXP (XVECEXP (operands[2], 0, i),
++      strcpy (pattern, \"stmfd\\t%m0!, {%1\");
++      for (i = 1; i < XVECLEN (operands[2], 0); i++)
++        {
++           strcat (pattern, \", %|\");
++           strcat (pattern, reg_names[REGNO (XEXP (XVECEXP (operands[2], 0, i),
+ 					      0))]);
++        }
++      strcat (pattern, \"}\");
++      output_asm_insn (pattern, operands);
+     }
+-  strcat (pattern, \"}\");
+-  output_asm_insn (pattern, operands);
++  else
++    output_asm_insn (\"str\\t%1, [%m0, #-4]!\", operands);
+   return \"\";
+ }"
+ [(set_attr "type" "store4")])
+diff -urN gcc-2.95.3-orig/gcc/config/arm/elf.h gcc-2.95.3/gcc/config/arm/elf.h
+--- gcc-2.95.3-orig/gcc/config/arm/elf.h	Mon May 31 10:21:53 1999
++++ gcc-2.95.3/gcc/config/arm/elf.h	Fri Jul 20 19:39:11 2001
+@@ -167,15 +167,6 @@
+ #define MULTILIB_DEFAULTS { "mlittle-endian", "msoft-float", "mapcs-32", "mno-thumb-interwork" }
+ #endif
+ 
+-/* Setting this to 32 produces more efficient code, but the value set in previous
+-   versions of this toolchain was 8, which produces more compact structures. The
+-   command line option -mstructure_size_boundary=<n> can be used to change this
+-   value.  */
+-#undef  STRUCTURE_SIZE_BOUNDARY
+-#define STRUCTURE_SIZE_BOUNDARY arm_structure_size_boundary
+-
+-extern int arm_structure_size_boundary;
+-
+ /* A C expression whose value is nonzero if IDENTIFIER with arguments ARGS
+    is a valid machine specific attribute for DECL.
+    The attributes in ATTRIBUTES have previously been assigned to DECL.  */
+diff -urN gcc-2.95.3-orig/gcc/config/arm/linux-gas.h gcc-2.95.3/gcc/config/arm/linux-gas.h
+--- gcc-2.95.3-orig/gcc/config/arm/linux-gas.h	Mon Feb 22 17:47:57 1999
++++ gcc-2.95.3/gcc/config/arm/linux-gas.h	Fri Jul 20 19:39:11 2001
+@@ -1,6 +1,6 @@
+ /* Definitions of target machine for GNU compiler.
+    ARM Linux-based GNU systems version.
+-   Copyright (C) 1997, 1998, 1999 Free Software Foundation, Inc.
++   Copyright (C) 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+    Contributed by Russell King  <rmk92@ecs.soton.ac.uk>.
+ 
+ This file is part of GNU CC.
+@@ -79,5 +79,7 @@
+   register unsigned long _beg __asm ("a1") = (unsigned long) (BEG);	\
+   register unsigned long _end __asm ("a2") = (unsigned long) (END);	\
+   register unsigned long _flg __asm ("a3") = 0;				\
+-  __asm __volatile ("swi 0x9f0002");					\
++  __asm __volatile ("swi 0x9f0002		@ sys_cacheflush"	\
++		    : "=r" (_beg)					\
++		    : "0" (_beg), "r" (_end), "r" (_flg));		\
+ }
+diff -urN gcc-2.95.3-orig/gcc/config/arm/t-linux gcc-2.95.3/gcc/config/arm/t-linux
+--- gcc-2.95.3-orig/gcc/config/arm/t-linux	Fri Mar 26 16:30:20 1999
++++ gcc-2.95.3/gcc/config/arm/t-linux	Fri Jul 20 20:46:19 2001
+@@ -1,6 +1,6 @@
+ # Just for these, we omit the frame pointer since it makes such a big
+ # difference.  It is then pointless adding debugging.
+-TARGET_LIBGCC2_CFLAGS = -fomit-frame-pointer -fPIC
++TARGET_LIBGCC2_CFLAGS = -fomit-frame-pointer -fPIC 
+ LIBGCC2_DEBUG_CFLAGS = -g0
+ 
+ # Don't build enquire
+diff -urN gcc-2.95.3-orig/gcc/final.c gcc-2.95.3/gcc/final.c
+--- gcc-2.95.3-orig/gcc/final.c	Mon Mar 12 13:07:59 2001
++++ gcc-2.95.3/gcc/final.c	Fri Jul 20 19:39:11 2001
+@@ -3652,8 +3652,9 @@
+ 
+       output_addr_const (file, XEXP (x, 0));
+       fprintf (file, "-");
+-      if (GET_CODE (XEXP (x, 1)) == CONST_INT
+-	  && INTVAL (XEXP (x, 1)) < 0)
++      if ((GET_CODE (XEXP (x, 1)) == CONST_INT
++	   && INTVAL (XEXP (x, 1)) < 0)
++	  || GET_CODE (XEXP (x, 1)) != CONST_INT)
+ 	{
+ 	  fprintf (file, ASM_OPEN_PAREN);
+ 	  output_addr_const (file, XEXP (x, 1));
+diff -urN gcc-2.95.3-orig/gcc/function.c gcc-2.95.3/gcc/function.c
+--- gcc-2.95.3-orig/gcc/function.c	Thu Jan 25 15:03:15 2001
++++ gcc-2.95.3/gcc/function.c	Fri Jul 20 19:39:10 2001
+@@ -3053,6 +3053,105 @@
+    extracted by usage MEM with narrower mode. */
+ static rtx purge_addressof_replacements;
+ 
++/* Return 1 if X and Y are identical-looking rtx's.
++   This is the Lisp function EQUAL for rtx arguments.  */
++
++int
++rtx_equal_for_addressof_p (x, y)
++     rtx x, y;
++{
++  register int i;
++  register int j;
++  register enum rtx_code code;
++  register char *fmt;
++
++  if (x == y)
++    return 1;
++  if (x == 0 || y == 0)
++    return 0;
++
++  code = GET_CODE (x);
++  /* Rtx's of different codes cannot be equal.  */
++  if (code != GET_CODE (y))
++    return 0;
++
++  /* (MULT:SI x y) and (MULT:HI x y) are NOT equivalent.
++     (REG:SI x) and (REG:HI x) are NOT equivalent. 
++     But (MEM:SI x) and (MEM:HI x) are equivalent for our purposes.  */
++
++  if (code != MEM && (GET_MODE (x) != GET_MODE (y)))
++    return 0;
++
++  /* REG, LABEL_REF, and SYMBOL_REF can be compared nonrecursively.  */
++
++  if (code == REG)
++    return REGNO (x) == REGNO (y);
++  else if (code == LABEL_REF)
++    return XEXP (x, 0) == XEXP (y, 0);
++  else if (code == SYMBOL_REF)
++    return XSTR (x, 0) == XSTR (y, 0);
++  else if (code == SCRATCH || code == CONST_DOUBLE)
++    return 0;
++
++  /* Compare the elements.  If any pair of corresponding elements
++     fail to match, return 0 for the whole things.  */
++
++  fmt = GET_RTX_FORMAT (code);
++  for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
++    {
++      switch (fmt[i])
++	{
++	case 'w':
++	  if (XWINT (x, i) != XWINT (y, i))
++	    return 0;
++	  break;
++
++	case 'n':
++	case 'i':
++	  if (XINT (x, i) != XINT (y, i))
++	    return 0;
++	  break;
++
++	case 'V':
++	case 'E':
++	  /* Two vectors must have the same length.  */
++	  if (XVECLEN (x, i) != XVECLEN (y, i))
++	    return 0;
++
++	  /* And the corresponding elements must match.  */
++	  for (j = 0; j < XVECLEN (x, i); j++)
++	    if (rtx_equal_p (XVECEXP (x, i, j), XVECEXP (y, i, j)) == 0)
++	      return 0;
++	  break;
++
++	case 'e':
++	  if (rtx_equal_p (XEXP (x, i), XEXP (y, i)) == 0)
++	    return 0;
++	  break;
++
++	case 'S':
++	case 's':
++	  if (strcmp (XSTR (x, i), XSTR (y, i)))
++	    return 0;
++	  break;
++
++	case 'u':
++	  /* These are just backpointers, so they don't matter.  */
++	  break;
++
++	case '0':
++	  break;
++
++	  /* It is believed that rtx's at this level will never
++	     contain anything but integers and other rtx's,
++	     except for within LABEL_REFs and SYMBOL_REFs.  */
++	default:
++	  abort ();
++	}
++    }
++  return 1;
++}
++
+ /* Helper function for purge_addressof.  See if the rtx expression at *LOC
+    in INSN needs to be changed.  If FORCE, always put any ADDRESSOFs into
+    the stack.  */
+@@ -3133,7 +3232,7 @@
+ 	      for (tem = purge_bitfield_addressof_replacements;
+ 		   tem != NULL_RTX;
+ 		   tem = XEXP (XEXP (tem, 1), 1))
+-		if (rtx_equal_p (x, XEXP (tem, 0)))
++		if (rtx_equal_for_addressof_p (x, XEXP (tem, 0)))
+ 		  {
+ 		    *loc = XEXP (XEXP (tem, 1), 0);
+ 		    return;
+@@ -3143,7 +3242,7 @@
+ 	      for (tem = purge_addressof_replacements;
+ 		   tem != NULL_RTX;
+ 		   tem = XEXP (XEXP (tem, 1), 1))
+-		if (rtx_equal_p (XEXP (x, 0), XEXP (tem, 0)))
++		if (rtx_equal_for_addressof_p (XEXP (x, 0), XEXP (tem, 0)))
+ 		  {
+ 		    rtx z = XEXP (XEXP (tem, 1), 0);
+ 
+diff -urN gcc-2.95.3-orig/gcc/jump.c gcc-2.95.3/gcc/jump.c
+--- gcc-2.95.3-orig/gcc/jump.c	Thu Oct 21 08:24:03 1999
++++ gcc-2.95.3/gcc/jump.c	Fri Jul 20 19:39:10 2001
+@@ -115,7 +115,7 @@
+ static rtx delete_unreferenced_labels	PROTO((rtx));
+ static void delete_noop_moves		PROTO((rtx));
+ static int calculate_can_reach_end	PROTO((rtx, int, int));
+-static int duplicate_loop_exit_test	PROTO((rtx));
++static int duplicate_loop_exit_test	PROTO((rtx, int));
+ static void find_cross_jump		PROTO((rtx, rtx, int, rtx *, rtx *));
+ static void do_cross_jump		PROTO((rtx, rtx, rtx));
+ static int jump_back_p			PROTO((rtx, rtx));
+@@ -338,7 +338,7 @@
+ 	      && simplejump_p (temp1))
+ 	    {
+ 	      temp = PREV_INSN (insn);
+-	      if (duplicate_loop_exit_test (insn))
++	      if (duplicate_loop_exit_test (insn, after_regscan))
+ 		{
+ 		  changed = 1;
+ 		  next = NEXT_INSN (temp);
+@@ -2548,8 +2548,9 @@
+    values of regno_first_uid and regno_last_uid.  */
+ 
+ static int
+-duplicate_loop_exit_test (loop_start)
++duplicate_loop_exit_test (loop_start, after_regscan)
+      rtx loop_start;
++     int after_regscan;
+ {
+   rtx insn, set, reg, p, link;
+   rtx copy = 0, first_copy = 0;
+@@ -2662,6 +2663,9 @@
+ 	    reg_map[REGNO (reg)] = gen_reg_rtx (GET_MODE (reg));
+ 	  }
+       }
++
++  if (after_regscan)
++    reg_scan_update (exitcode, lastexit, max_reg);
+ 
+   /* Now copy each insn.  */
+   for (insn = exitcode; insn != lastexit; insn = NEXT_INSN (insn))
+diff -urN gcc-2.95.3-orig/gcc/varasm.c gcc-2.95.3/gcc/varasm.c
+--- gcc-2.95.3-orig/gcc/varasm.c	Mon Feb 19 15:02:02 2001
++++ gcc-2.95.3/gcc/varasm.c	Fri Jul 20 19:39:11 2001
+@@ -3286,7 +3286,10 @@
+ 	  value->un.addr.offset = - INTVAL (XEXP (x, 1));
+ 	}
+       else
+-	abort ();
++	{
++	  value->un.addr.base = x;
++	  value->un.addr.offset = 0;
++	}
+       break;
+ 
+     default:

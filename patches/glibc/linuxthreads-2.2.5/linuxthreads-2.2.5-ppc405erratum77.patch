@@ -1,0 +1,34 @@
+# see http://bugs.gnu.org/cgi-bin/gnatsweb.pl?cmd=view%20audit-trail&pr=4155
+# and http://www.kegel.com/xgcc3/ppc405erratum77.html
+# See also matching patch for glibc
+
+diff -aur glibc-2.2.5.orig/linuxthreads/sysdeps/powerpc/pt-machine.h glibc-2.2.5/linuxthreads/sysdeps/powerpc/pt-machine.h
+--- glibc-2.2.5.orig/linuxthreads/sysdeps/powerpc/pt-machine.h	Thu May 17 12:47:46 2001
++++ glibc-2.2.5/linuxthreads/sysdeps/powerpc/pt-machine.h	Tue Jul 23 05:38:24 2002
+@@ -41,6 +41,17 @@
+ #define HAS_COMPARE_AND_SWAP_WITH_RELEASE_SEMANTICS
+ #define IMPLEMENT_TAS_WITH_CAS
+ 
++#ifdef __PPC405__
++/* workaround for PPC405 erratum #77 - Mark Hatle, dank.  References:
++   http://www-3.ibm.com/chips/techlib/techlib.nsf/techdocs/89DED00DEBFF54BF87256A8000491BA2/$file/405CR_C_errata_1_2.pdf
++   http://ppc.bkbits.net:8080/linuxppc_2_4_devel/cset@1.489
++   http://www.kegel.com/xgcc3/ppc405erratum77.html
++   FIXME: using dbct instead of sync would be faster  */
++#define __LINUXTHREADS_PPC405_ERR77_SYNC   "sync \n\t"
++#else
++#define __LINUXTHREADS_PPC405_ERR77_SYNC
++#endif
++
+ PT_EI int
+ __compare_and_swap (long int *p, long int oldval, long int newval)
+ {
+@@ -50,6 +61,7 @@
+ 	   "0:    lwarx %0,0,%1 ;"
+ 	   "      xor. %0,%3,%0;"
+ 	   "      bne 1f;"
++	   __LINUXTHREADS_PPC405_ERR77_SYNC
+ 	   "      stwcx. %2,0,%1;"
+ 	   "      bne- 0b;"
+ 	   "1:    "
+

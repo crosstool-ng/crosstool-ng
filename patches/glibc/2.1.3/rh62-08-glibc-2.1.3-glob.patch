@@ -1,0 +1,57 @@
+2001-11-29  Jakub Jelinek  <jakub@redhat.com>
+
+	* sysdeps/generic/glob.c (next_brace_sub): Return NULL if braces
+	don't match, fix {{a,b},c} globbing, clean up.
+	Patch by Flavio Veloso <flaviovs@magnux.com>.
+
+--- libc/sysdeps/generic/glob.c.jj	Thu Aug 23 18:49:29 2001
++++ libc/sysdeps/generic/glob.c	Thu Nov 29 13:17:21 2001
+@@ -355,42 +355,14 @@ static
+ inline
+ #endif
+ const char *
+-next_brace_sub (begin)
+-     const char *begin;
++next_brace_sub (cp)
++     const char *cp;
+ {
+   unsigned int depth = 0;
+-  const char *cp = begin;
+-
+-  while (1)
+-    {
+-      if (depth == 0)
+-	{
+-	  if (*cp != ',' && *cp != '}' && *cp != '\0')
+-	    {
+-	      if (*cp == '{')
+-		++depth;
+-	      ++cp;
+-	      continue;
+-	    }
+-	}
+-      else
+-	{
+-	  while (*cp != '\0' && (*cp != '}' || depth > 0))
+-	    {
+-	      if (*cp == '}')
+-		--depth;
+-	      ++cp;
+-	    }
+-	  if (*cp == '\0')
+-	    /* An incorrectly terminated brace expression.  */
+-	    return NULL;
+-
+-	  continue;
+-	}
+-      break;
+-    }
+-
+-  return cp;
++  while (*cp != '\0' && (*cp != '}' || depth--) && (*cp != ',' || depth))
++    if (*cp++ == '{')
++      depth++;
++  return *cp != '\0' ? cp : NULL;
+ }
+ 
+ #endif /* !GLOB_ONLY_P */

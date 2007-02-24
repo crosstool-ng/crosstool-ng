@@ -1,0 +1,39 @@
+There are at least three weird glitches in the Makefile:
+ - the test operator is a dual-equal sign (==) when it should be a single one (=);
+ - the exclude options are not accepted as is by GNU tar;
+ - how on earth could KERNEL_SOURCE possibly be equal to DEVEL_PREFIX ???
+
+We (Cedric DUVAL and I, Yann E. MORIN) are not quite sure why it is that way.
+We're not quite sure either on how to solve this.
+
+What we need is to built a toolchain; in no way we need to install the linux headers.
+  ==> systematically exclude them from the [s]tar command.
+
+This patch is inspired by the svn repository of uClibc as of 20060209.
+diff -dur /home/ymorin/dev/uClibc-0.9.28/Makefile uClibc-0.9.28/Makefile
+--- /home/ymorin/dev/uClibc-0.9.28/Makefile	2005-08-18 00:49:49.000000000 +0200
++++ uClibc-0.9.28/Makefile	2006-02-09 17:06:58.000000000 +0100
+@@ -158,12 +158,17 @@
+ 	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)lib
+ 	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)include
+ 	-$(INSTALL) -m 644 lib/*.[ao] $(PREFIX)$(DEVEL_PREFIX)lib/
+-	if [ "$(KERNEL_SOURCE)" == "$(DEVEL_PREFIX)" ] ; then \
+-		extra_exclude="--exclude include/linux --exclude include/asm'*'" ; \
+-	else \
+-		extra_exclude="" ; \
+-	fi ; \
+-	tar -chf - include --exclude .svn --exclude CVS $$extra_exclude \
++#	if [ "$(KERNEL_SOURCE)" == "$(DEVEL_PREFIX)" ] ; then \
++#		extra_exclude="--exclude include/linux --exclude include/asm'*'" ; \
++#	else \
++#		extra_exclude="" ; \
++#	fi ; \
++#	tar -chf - include --exclude .svn --exclude CVS $$extra_exclude \
++#		| tar -xf - -C $(PREFIX)$(DEVEL_PREFIX)
++	printf ".svn\n.cvsignore\nCVS\n" > tar_exclude ; \
++	ls -1d include/linux include/asm* >> tar_exclude ; \
++	tar -chf - -X tar_exclude include \
+ 		| tar -xf - -C $(PREFIX)$(DEVEL_PREFIX)
++	rm -f tar_exclude
+ ifneq ($(strip $(UCLIBC_HAS_FLOATS)),y)
+ 	# Remove floating point related headers since float support is disabled.

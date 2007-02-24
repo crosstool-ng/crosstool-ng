@@ -1,0 +1,49 @@
+Fixes
+
+In file included from strcoll.c:101:
+../locale/weight.h: In function 'strcoll':
+../locale/weight.h:23: error: invalid storage class for function 'findidx'
+make[2]: *** [/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/build-glibc/string/strcoll.o] Error 1
+make[2]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/glibc-2.2.5/string'
+make[1]: *** [string/subdir_lib] Error 2
+make[1]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/glibc-2.2.5'
+make: *** [all] Error 2
+
+Discussed here
+http://sources.redhat.com/ml/libc-hacker/2004-09/msg00015.html
+the fix checked in to cvs seems to be
+http://sources.redhat.com/ml/glibc-cvs/2004-q3/msg01071.html
+but that fix doesn't support older gcc's, so I can't use it directly.
+
+Here's a fix the does work with older versions of gcc:
+
+--- glibc-2.2.5/locale/weight.h.old	2001-07-05 21:55:33.000000000 -0700
++++ glibc-2.2.5/locale/weight.h	2005-03-10 16:07:46.669579888 -0800
+@@ -18,7 +18,12 @@
+    02111-1307 USA.  */
+ 
+ /* Find index of weight.  */
++#if __GNUC__ >= 4
++auto inline int32_t
++__attribute ((always_inline))
++#else
+ static inline int32_t
++#endif
+ findidx (const unsigned char **cpp)
+ {
+   int_fast32_t i = table[*(*cpp)++];
+--- glibc-2.2.5/locale/weightwc.h.old	2001-08-06 21:26:15.000000000 -0700
++++ glibc-2.2.5/locale/weightwc.h	2005-03-10 16:13:08.651631176 -0800
+@@ -18,7 +18,12 @@
+    02111-1307 USA.  */
+ 
+ /* Find index of weight.  */
++#if __GNUC__ >= 4
++auto inline int32_t
++__attribute ((always_inline))
++#else
+ static inline int32_t
++#endif
+ findidx (const wint_t **cpp)
+ {
+   int32_t i;

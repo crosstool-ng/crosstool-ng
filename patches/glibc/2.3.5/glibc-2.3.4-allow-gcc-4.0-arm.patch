@@ -1,0 +1,117 @@
+Fixes
+In file included from dynamic-link.h:22,
+                 from dl-reloc.c:265:
+../sysdeps/arm/dl-machine.h: In function '_dl_relocate_object':
+../sysdeps/arm/dl-machine.h:371: error: invalid storage class for function 'fix_bad_pc24'
+../sysdeps/arm/dl-machine.h:406: error: invalid storage class for function 'elf_machine_rel'
+../sysdeps/arm/dl-machine.h:532: error: invalid storage class for function 'elf_machine_rela'
+../sysdeps/arm/dl-machine.h:612: error: invalid storage class for function 'elf_machine_rel_relative'
+../sysdeps/arm/dl-machine.h:621: error: invalid storage class for function 'elf_machine_rela_relative'
+../sysdeps/arm/dl-machine.h:630: error: invalid storage class for function 'elf_machine_lazy_rel'
+make[2]: Leaving directory `/home/dank/queue/jobdir.k8/crosstool-dev/build/arm-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.3.3/glibc-2.3.3/elf'
+
+when building glibc-2.3.[34] with gcc-4.0
+
+Like
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/arm/dl-machine.h.diff?r1=1.51&r2=1.52&cvsroot=glibc
+but works with older compilers, and fixes fix_bad_pc24.
+
+
+--- glibc-2.3.4/sysdeps/arm/dl-machine.h.old	Sun Mar 20 17:54:37 2005
++++ glibc-2.3.4/sysdeps/arm/dl-machine.h	Sun Mar 20 17:57:32 2005
+@@ -359,7 +359,14 @@
+ # endif
+ 
+ /* Deal with an out-of-range PC24 reloc.  */
+-static Elf32_Addr
++#if __GNUC__ >= 4
++  auto inline Elf32_Addr
++#else
++  static inline Elf32_Addr
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ fix_bad_pc24 (Elf32_Addr *const reloc_addr, Elf32_Addr value)
+ {
+   static void *fix_page;
+@@ -392,7 +399,14 @@
+ /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
+    MAP is the object containing the reloc.  */
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rel (struct link_map *map, const Elf32_Rel *reloc,
+ 		 const Elf32_Sym *sym, const struct r_found_version *version,
+ 		 void *const reloc_addr_arg)
+@@ -517,7 +531,14 @@
+ }
+ 
+ # ifndef RTLD_BOOTSTRAP
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rela (struct link_map *map, const Elf32_Rela *reloc,
+ 		  const Elf32_Sym *sym, const struct r_found_version *version,
+ 		  void *const reloc_addr_arg)
+@@ -597,7 +618,14 @@
+ }
+ # endif
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rel_relative (Elf32_Addr l_addr, const Elf32_Rel *reloc,
+ 			  void *const reloc_addr_arg)
+ {
+@@ -606,7 +634,14 @@
+ }
+ 
+ # ifndef RTLD_BOOTSTRAP
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rela_relative (Elf32_Addr l_addr, const Elf32_Rela *reloc,
+ 			   void *const reloc_addr_arg)
+ {
+@@ -615,7 +650,14 @@
+ }
+ # endif
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_lazy_rel (struct link_map *map,
+ 		      Elf32_Addr l_addr, const Elf32_Rel *reloc)
+ {

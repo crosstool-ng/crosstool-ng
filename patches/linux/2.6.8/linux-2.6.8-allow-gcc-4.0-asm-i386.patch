@@ -1,0 +1,138 @@
+Fixes
+
+In file included from include/asm/thread_info.h:16,
+                 from include/linux/thread_info.h:21,
+                 from include/linux/spinlock.h:12,
+                 from include/linux/capability.h:45,
+                 from include/linux/sched.h:7,
+                 from arch/i386/kernel/asm-offsets.c:7:
+include/asm/processor.h:87: error: array type has incomplete element type
+make[1]: *** [arch/i386/kernel/asm-offsets.asm] Error 1
+
+--- linux-2.6.8/include/asm-i386/processor.h.old	Tue Mar 15 00:14:42 2005
++++ linux-2.6.8/include/asm-i386/processor.h	Tue Mar 15 00:18:45 2005
+@@ -79,6 +79,58 @@
+ #define X86_VENDOR_UNKNOWN 0xff
+ 
+ /*
++ * Size of io_bitmap.
++ */
++#define IO_BITMAP_BITS  65536
++#define IO_BITMAP_BYTES (IO_BITMAP_BITS/8)
++#define IO_BITMAP_LONGS (IO_BITMAP_BYTES/sizeof(long))
++#define IO_BITMAP_OFFSET offsetof(struct tss_struct,io_bitmap)
++#define INVALID_IO_BITMAP_OFFSET 0x8000
++
++struct tss_struct {
++	unsigned short	back_link,__blh;
++	unsigned long	esp0;
++	unsigned short	ss0,__ss0h;
++	unsigned long	esp1;
++	unsigned short	ss1,__ss1h;	/* ss1 is used to cache MSR_IA32_SYSENTER_CS */
++	unsigned long	esp2;
++	unsigned short	ss2,__ss2h;
++	unsigned long	__cr3;
++	unsigned long	eip;
++	unsigned long	eflags;
++	unsigned long	eax,ecx,edx,ebx;
++	unsigned long	esp;
++	unsigned long	ebp;
++	unsigned long	esi;
++	unsigned long	edi;
++	unsigned short	es, __esh;
++	unsigned short	cs, __csh;
++	unsigned short	ss, __ssh;
++	unsigned short	ds, __dsh;
++	unsigned short	fs, __fsh;
++	unsigned short	gs, __gsh;
++	unsigned short	ldt, __ldth;
++	unsigned short	trace, io_bitmap_base;
++	/*
++	 * The extra 1 is there because the CPU will access an
++	 * additional byte beyond the end of the IO permission
++	 * bitmap. The extra byte must be all 1 bits, and must
++	 * be within the limit.
++	 */
++	unsigned long	io_bitmap[IO_BITMAP_LONGS + 1];
++	/*
++	 * pads the TSS to be cacheline-aligned (size is 0x100)
++	 */
++	unsigned long __cacheline_filler[37];
++	/*
++	 * .. and then another 0x100 bytes for emergency kernel stack
++	 */
++	unsigned long stack[64];
++} __attribute__((packed));
++
++#define ARCH_MIN_TASKALIGN	16
++
++/*
+  * capabilities of CPUs
+  */
+ 
+@@ -296,15 +348,6 @@
+  */
+ #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
+ 
+-/*
+- * Size of io_bitmap.
+- */
+-#define IO_BITMAP_BITS  65536
+-#define IO_BITMAP_BYTES (IO_BITMAP_BITS/8)
+-#define IO_BITMAP_LONGS (IO_BITMAP_BYTES/sizeof(long))
+-#define IO_BITMAP_OFFSET offsetof(struct tss_struct,io_bitmap)
+-#define INVALID_IO_BITMAP_OFFSET 0x8000
+-
+ struct i387_fsave_struct {
+ 	long	cwd;
+ 	long	swd;
+@@ -356,49 +399,6 @@
+ typedef struct {
+ 	unsigned long seg;
+ } mm_segment_t;
+-
+-struct tss_struct {
+-	unsigned short	back_link,__blh;
+-	unsigned long	esp0;
+-	unsigned short	ss0,__ss0h;
+-	unsigned long	esp1;
+-	unsigned short	ss1,__ss1h;	/* ss1 is used to cache MSR_IA32_SYSENTER_CS */
+-	unsigned long	esp2;
+-	unsigned short	ss2,__ss2h;
+-	unsigned long	__cr3;
+-	unsigned long	eip;
+-	unsigned long	eflags;
+-	unsigned long	eax,ecx,edx,ebx;
+-	unsigned long	esp;
+-	unsigned long	ebp;
+-	unsigned long	esi;
+-	unsigned long	edi;
+-	unsigned short	es, __esh;
+-	unsigned short	cs, __csh;
+-	unsigned short	ss, __ssh;
+-	unsigned short	ds, __dsh;
+-	unsigned short	fs, __fsh;
+-	unsigned short	gs, __gsh;
+-	unsigned short	ldt, __ldth;
+-	unsigned short	trace, io_bitmap_base;
+-	/*
+-	 * The extra 1 is there because the CPU will access an
+-	 * additional byte beyond the end of the IO permission
+-	 * bitmap. The extra byte must be all 1 bits, and must
+-	 * be within the limit.
+-	 */
+-	unsigned long	io_bitmap[IO_BITMAP_LONGS + 1];
+-	/*
+-	 * pads the TSS to be cacheline-aligned (size is 0x100)
+-	 */
+-	unsigned long __cacheline_filler[37];
+-	/*
+-	 * .. and then another 0x100 bytes for emergency kernel stack
+-	 */
+-	unsigned long stack[64];
+-} __attribute__((packed));
+-
+-#define ARCH_MIN_TASKALIGN	16
+ 
+ struct thread_struct {
+ /* cached TLS descriptors. */

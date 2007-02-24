@@ -1,0 +1,61 @@
+Message-Id: 20030822160024.GA305@ftbfs.org
+From: Matt Kraai kraai at alumni dot cmu dot edu
+To: gcc-patches at gcc dot gnu dot org
+Date: Fri, 22 Aug 2003 09:00:24 -0700
+Subject: PR 11949
+
+Howdy,
+
+I've backported the following patch from the mainline to the 3.3
+branch to fix PR 11949.
+
+Bootstrapped and regression tested on powerpc-unknown-linux-gnu.
+
+OK to commit?
+
+	PR c/11949
+	Backport from mainline:
+
+	2003-05-05  Aldy Hernandez  aldyh@redhat.com
+
+	* testsuite/gcc.c-torture/compile/simd-6.c: New.
+
+	* c-typeck.c (digest_init): Handle arrays of vector constants.
+
+Index: gcc/c-typeck.c
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/c-typeck.c,v
+retrieving revision 1.213.2.8
+diff -3 -c -p -r1.213.2.8 c-typeck.c
+*** gcc/gcc/c-typeck.c	19 Aug 2003 01:42:35 -0000	1.213.2.8
+--- gcc/gcc/c-typeck.c	22 Aug 2003 09:24:03 -0000
+*************** digest_init (type, init, require_constan
+*** 4765,4772 ****
+    if (code == VECTOR_TYPE
+        && comptypes (TREE_TYPE (inside_init), type)
+        && TREE_CONSTANT (inside_init))
+!     return build_vector (type, TREE_OPERAND (inside_init, 1));
+! 
+  
+    /* Any type can be initialized
+       from an expression of the same type, optionally with braces.  */
+--- 4765,4778 ----
+    if (code == VECTOR_TYPE
+        && comptypes (TREE_TYPE (inside_init), type)
+        && TREE_CONSTANT (inside_init))
+!     {
+!       if (TREE_CODE (inside_init) == VECTOR_CST
+! 	  && comptypes (TYPE_MAIN_VARIANT (TREE_TYPE (inside_init)),
+! 			TYPE_MAIN_VARIANT (type)))
+! 	return inside_init;
+!       else
+! 	return build_vector (type, CONSTRUCTOR_ELTS (inside_init));
+!     }
+  
+    /* Any type can be initialized
+       from an expression of the same type, optionally with braces.  */
+
+typedef int __attribute__((mode(V2SI))) vec;
+
+vec a[] = {(vec) {1, 2}, {3, 4}};
+

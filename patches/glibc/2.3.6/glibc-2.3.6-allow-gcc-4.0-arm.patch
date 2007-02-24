@@ -1,0 +1,35 @@
+Fixes
+In file included from dynamic-link.h:22,
+                 from dl-reloc.c:265:
+../sysdeps/arm/dl-machine.h: In function '_dl_relocate_object':
+../sysdeps/arm/dl-machine.h:371: error: invalid storage class for function 'fix_bad_pc24'
+make[2]: Leaving directory `/home/dank/queue/jobdir.k8/crosstool-dev/build/arm-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.3.6/glibc-2.3.6/elf'
+
+when building glibc-2.3.6 with gcc-4.0
+
+Like
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/arm/dl-machine.h.diff?r1=1.51&r2=1.52&cvsroot=glibc
+but fixes fix_bad_pc24.
+
+
+--- glibc-2.3.6-orig/sysdeps/arm/dl-machine.h	Sun Mar 20 17:54:37 2005
++++ glibc-2.3.6/sysdeps/arm/dl-machine.h	Sun Mar 20 17:57:32 2005
+@@ -357,7 +357,14 @@
+ #ifdef RESOLVE
+ 
+ /* Deal with an out-of-range PC24 reloc.  */
+-static Elf32_Addr
++#if __GNUC__ >= 4
++  auto inline Elf32_Addr
++#else
++  static inline Elf32_Addr
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ fix_bad_pc24 (Elf32_Addr *const reloc_addr, Elf32_Addr value)
+ {
+   static void *fix_page;
+
+Signed-off-by: Robert P. J. Day <rpjday@mindspring.com>
+with a little editing by dank@kegel.com

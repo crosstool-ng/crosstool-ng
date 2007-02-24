@@ -1,0 +1,47 @@
+This is a workaround for
+
+mipsel-unknown-linux-gnu-gcc ../sysdeps/unix/sysv/linux/mips/clone.S -c  -I../include -I. -I/home3/dank/crosstool-0.7/build/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/misc -I.. -I../libio  -I/home3/dank/crosstool-0.7/build/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc -I../sysdeps/mips/elf -I../linuxthreads/sysdeps/unix/sysv/linux -I../linuxthreads/sysdeps/pthread -I../sysdeps/pthread -I../linuxthreads/sysdeps/unix/sysv -I../linuxthreads/sysdeps/unix -I../linuxthreads/sysdeps/mips -I../sysdeps/unix/sysv/linux/mips -I../sysdeps/unix/sysv/linux -I../sysdeps/gnu -I../sysdeps/unix/common -I../sysdeps/unix/mman -I../sysdeps/unix/inet -I../sysdeps/unix/sysv -I../sysdeps/unix/mips -I../sysdeps/unix -I../sysdeps/posix -I../sysdeps/mips/mipsel -I../sysdeps/mips/fpu -I../sysdeps/mips -I../sysdeps/wordsize-32 -I../sysdeps/ieee754/flt-32 -I../sysdeps/ieee754/dbl-64 -I../sysdeps/ieee754 -I../sysdeps/generic/elf -I../sysdeps/generic  -nostdinc -isystem /home3/dank/crosstool-0.7/result/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/lib/gcc-lib/mipsel-unknown-linux-gnu/3.2.3/include -isystem /home3/dank/crosstool-0.7/result/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/mipsel-unknown-linux-gnu/include -D_LIBC_REENTRANT -include ../include/libc-symbols.h  -DPIC   -DASSEMBLER   -o /home3/dank/crosstool-0.7/build/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/misc/clone.o
+../sysdeps/unix/sysv/linux/mips/clone.S: Assembler messages:
+../sysdeps/unix/sysv/linux/mips/clone.S:66: Error: Can not represent BFD_RELOC_16_PCREL_S2 relocation in this object file format
+make[2]: *** [/home3/dank/crosstool-0.7/build/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/misc/clone.o] Error 1
+
+which was using h.j.lu's binutils-2.13.90.0.18.
+
+
+But see http://lists.debian.org/debian-mips/2003/debian-mips-200305/msg00011.html
+which says
+"A newer version of binutils (CVS post 2003-03-12) fixes it without
+the need of changing perfectly legal code."
+So presumably this can be ditched sooner or later.
+
+From http://honk.physik.uni-konstanz.de/~agx/linux-mips/glibc/patches/applied/clone-local-label.diff
+
+2003-03-13  Guido Guenther  <agx@sigxcpu.org>
+
+	* sysdeps/unix/sysv/linux/mips/clone.S: introduce and use local label
+	  .Lthread_start since current binutils don't allow branches to globally
+	  visible symbols.
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/unix/sysv/linux/mips/clone.S,v
+retrieving revision 1.10
+diff -u -r1.10 clone.S
+--- glibc-2.2.5/sysdeps/unix/sysv/linux/mips/clone.S	12 Mar 2003 01:04:51 -0000	1.10
++++ glibc-2.2.5/sysdeps/unix/sysv/linux/mips/clone.S	12 Mar 2003 19:04:39 -0000
+@@ -63,7 +63,7 @@
+ 	syscall
+ 
+ 	bnez		a3,error
+-	beqz		v0,__thread_start
++	beqz		v0,.Lthread_start
+ 
+ 	/* Successful return from the parent */
+ 	addiu		sp,32
+@@ -85,6 +85,7 @@
+    debug info.  */
+ 
+ ENTRY(__thread_start)
++.Lthread_start:
+ 	/* cp is already loaded.  */
+ 	.cprestore	16
+ 	/* The stackframe has been created on entry of clone().  */

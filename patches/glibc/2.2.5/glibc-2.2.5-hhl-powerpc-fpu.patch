@@ -1,0 +1,1134 @@
+# See http://sources.redhat.com/ml/crossgcc/2002-05/msg00132.html
+# This patch is taken directly from the Montavista Hard Hat Linux 2.0 source RPMs,
+# but has been rediffed against glibc-2.2.5
+
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/Dist glibc-2.2.5/sysdeps/powerpc/Dist
+--- glibc-2.2.5.old/sysdeps/powerpc/Dist	Fri Jun 30 23:30:21 2000
++++ glibc-2.2.5/sysdeps/powerpc/Dist	Thu Jul 10 11:43:17 2003
+@@ -1,9 +1,6 @@
+ dl-machine.c
+ dl-start.S
+ ppc-mcount.S
+-fe_nomask.c
+-fprrest.S
+-fprsave.S
+ gprsave1.S
+ gprsave0.S
+ gprrest1.S
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/Makefile glibc-2.2.5/sysdeps/powerpc/Makefile
+--- glibc-2.2.5.old/sysdeps/powerpc/Makefile	Mon Nov 27 15:32:47 2000
++++ glibc-2.2.5/sysdeps/powerpc/Makefile	Thu Jul 10 11:43:17 2003
+@@ -3,16 +3,12 @@
+ +cflags += -mnew-mnemonics -Wa,-mppc -mpowerpc
+ asm-CPPFLAGS += -Wa,-mppc
+ 
+-ifeq ($(subdir),math)
+-libm-support += fenv_const fe_nomask
+-endif
+-
+ ifeq ($(subdir),gmon)
+ sysdep_routines += ppc-mcount
+ endif
+ 
+ ifeq ($(subdir),misc)
+-sysdep_routines += gprsave0 gprrest0 gprsave1 gprrest1 fprsave fprrest
++sysdep_routines += gprsave0 gprrest0 gprsave1 gprrest1
+ endif
+ 
+ # On PPC, -fpic works until the GOT contains 2^15 bytes, and possibly
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/Versions glibc-2.2.5/sysdeps/powerpc/Versions
+--- glibc-2.2.5.old/sysdeps/powerpc/Versions	Mon Feb 28 13:27:57 2000
++++ glibc-2.2.5/sysdeps/powerpc/Versions	Thu Jul 10 11:43:17 2003
+@@ -1,8 +1,4 @@
+ libm {
+-  GLIBC_2.1 {
+-    # symbols used in macros from sysdeps/powerpc/bits/fenv.h
+-    __fe_dfl_env; __fe_enabled_env; __fe_nonieee_env; __fe_nomask_env;
+-  }
+   GLIBC_2.2 {
+     # Special functions to save and restore registers used by the
+     # runtime libraries.
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/__longjmp.S glibc-2.2.5/sysdeps/powerpc/__longjmp.S
+--- glibc-2.2.5.old/sysdeps/powerpc/__longjmp.S	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/__longjmp.S	Thu Jul 10 11:43:17 2003
+@@ -24,6 +24,8 @@
+ #include <bp-sym.h>
+ #include <bp-asm.h>
+ 
++/* The FPU loads have been removed from this file - see fpu/__longjmp.S */
++
+ ENTRY (BP_SYM (__longjmp))
+ 	CHECK_BOUNDS_BOTH_WIDE_LIT (r3, r8, r9, JB_SIZE)
+ 
+@@ -31,44 +33,26 @@
+ 	lwz r2,(JB_GPR2*4)(r3)
+ 	lwz r0,(JB_LR*4)(r3)
+ 	lwz r14,((JB_GPRS+0)*4)(r3)
+-	lfd fp14,((JB_FPRS+0*2)*4)(r3)
+ 	lwz r15,((JB_GPRS+1)*4)(r3)
+-	lfd fp15,((JB_FPRS+1*2)*4)(r3)
+ 	lwz r16,((JB_GPRS+2)*4)(r3)
+-	lfd fp16,((JB_FPRS+2*2)*4)(r3)
+ 	lwz r17,((JB_GPRS+3)*4)(r3)
+-	lfd fp17,((JB_FPRS+3*2)*4)(r3)
+ 	lwz r18,((JB_GPRS+4)*4)(r3)
+-	lfd fp18,((JB_FPRS+4*2)*4)(r3)
+ 	lwz r19,((JB_GPRS+5)*4)(r3)
+-	lfd fp19,((JB_FPRS+5*2)*4)(r3)
+ 	lwz r20,((JB_GPRS+6)*4)(r3)
+-	lfd fp20,((JB_FPRS+6*2)*4)(r3)
+ 	mtlr r0
+ 	lwz r21,((JB_GPRS+7)*4)(r3)
+-	lfd fp21,((JB_FPRS+7*2)*4)(r3)
+ 	lwz r22,((JB_GPRS+8)*4)(r3)
+-	lfd fp22,((JB_FPRS+8*2)*4)(r3)
+ 	lwz r0,(JB_CR*4)(r3)
+ 	lwz r23,((JB_GPRS+9)*4)(r3)
+-	lfd fp23,((JB_FPRS+9*2)*4)(r3)
+ 	lwz r24,((JB_GPRS+10)*4)(r3)
+-	lfd fp24,((JB_FPRS+10*2)*4)(r3)
+ 	lwz r25,((JB_GPRS+11)*4)(r3)
+-	lfd fp25,((JB_FPRS+11*2)*4)(r3)
+ 	mtcrf 0xFF,r0
+ 	lwz r26,((JB_GPRS+12)*4)(r3)
+-	lfd fp26,((JB_FPRS+12*2)*4)(r3)
+ 	lwz r27,((JB_GPRS+13)*4)(r3)
+-	lfd fp27,((JB_FPRS+13*2)*4)(r3)
+ 	lwz r28,((JB_GPRS+14)*4)(r3)
+-	lfd fp28,((JB_FPRS+14*2)*4)(r3)
+ 	lwz r29,((JB_GPRS+15)*4)(r3)
+-	lfd fp29,((JB_FPRS+15*2)*4)(r3)
+ 	lwz r30,((JB_GPRS+16)*4)(r3)
+-	lfd fp30,((JB_FPRS+16*2)*4)(r3)
+ 	lwz r31,((JB_GPRS+17)*4)(r3)
+-	lfd fp31,((JB_FPRS+17*2)*4)(r3)
+ 	mr r3,r4
+ 	blr
+ END (BP_SYM (__longjmp))
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/bits/setjmp.h glibc-2.2.5/sysdeps/powerpc/bits/setjmp.h
+--- glibc-2.2.5.old/sysdeps/powerpc/bits/setjmp.h	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/bits/setjmp.h	Thu Jul 10 11:43:17 2003
+@@ -17,6 +17,7 @@
+    02111-1307 USA.  */
+ 
+ /* Define the machine-dependent type `jmp_buf'.  PowerPC version.  */
++/* For processors without floating point. */
+ 
+ #ifndef _SETJMP_H
+ # error "Never include <bits/setjmp.h> directly; use <setjmp.h> instead."
+@@ -33,12 +34,11 @@
+ # define JB_LR     2  /* The address we will return to */
+ # define JB_GPRS   3  /* GPRs 14 through 31 are saved, 18 in total */
+ # define JB_CR     21 /* Condition code registers. */
+-# define JB_FPRS   22 /* FPRs 14 through 31 are saved, 18*2 words total */
+-# define JB_SIZE   (58*4)
++# define JB_SIZE   (22*4)
+ #endif
+ 
+ #ifndef	_ASM
+-typedef long int __jmp_buf[58];
++typedef long int __jmp_buf[22];
+ #endif
+ 
+ /* Test if longjmp to JMPBUF would unwind the frame
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fclrexcpt.c glibc-2.2.5/sysdeps/powerpc/fclrexcpt.c
+--- glibc-2.2.5.old/sysdeps/powerpc/fclrexcpt.c	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/fclrexcpt.c	Wed Dec 31 16:00:00 1969
+@@ -1,48 +0,0 @@
+-/* Clear given exceptions in current floating-point environment.
+-   Copyright (C) 1997,99,2000,01 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, write to the Free
+-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+-   02111-1307 USA.  */
+-
+-#include <fenv_libc.h>
+-
+-#undef feclearexcept
+-int
+-__feclearexcept (int excepts)
+-{
+-  fenv_union_t u;
+-
+-  /* Get the current state.  */
+-  u.fenv = fegetenv_register ();
+-
+-  /* Clear the relevant bits.  */
+-  u.l[1] = u.l[1] & ~((-(excepts >> (31 - FPSCR_VX) & 1) & FE_ALL_INVALID)
+-		      | (excepts & FPSCR_STICKY_BITS));
+-
+-  /* Put the new state in effect.  */
+-  fesetenv_register (u.fenv);
+-
+-  /* Success.  */
+-  return 0;
+-}
+-
+-#include <shlib-compat.h>
+-#if SHLIB_COMPAT (libm, GLIBC_2_1, GLIBC_2_2)
+-strong_alias (__feclearexcept, __old_feclearexcept)
+-compat_symbol (libm, __old_feclearexcept, feclearexcept, GLIBC_2_1);
+-#endif
+-
+-versioned_symbol (libm, __feclearexcept, feclearexcept, GLIBC_2_2);
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fe_nomask.c glibc-2.2.5/sysdeps/powerpc/fe_nomask.c
+--- glibc-2.2.5.old/sysdeps/powerpc/fe_nomask.c	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/fe_nomask.c	Wed Dec 31 16:00:00 1969
+@@ -1,32 +0,0 @@
+-/* Procedure definition for FE_NOMASK_ENV.
+-   Copyright (C) 1997 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, write to the Free
+-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+-   02111-1307 USA.  */
+-
+-#include <fenv.h>
+-#include <errno.h>
+-
+-/* This is presently a stub, until it's decided how the kernels should
+-   support this.  */
+-
+-const fenv_t *
+-__fe_nomask_env(void)
+-{
+-  __set_errno (ENOSYS);
+-  return FE_ENABLED_ENV;
+-}
+-stub_warning (__fe_nomask_env)
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fprrest.S glibc-2.2.5/sysdeps/powerpc/fprrest.S
+--- glibc-2.2.5.old/sysdeps/powerpc/fprrest.S	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/fprrest.S	Wed Dec 31 16:00:00 1969
+@@ -1,94 +0,0 @@
+-/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, write to the Free
+-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+-   02111-1307 USA.  */
+-
+-/*
+-    Floating Point Registers (FPRs) restore routine
+-*/
+-
+-#include <sysdep.h>
+-
+-ENTRY(_restfpr_all)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf14)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_14)
+-C_TEXT(_restf14):
+-C_TEXT(_restfpr_14):	lfd	fp14,-144(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf15)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_15)
+-C_TEXT(_restf15):
+-C_TEXT(_restfpr_15):	lfd	fp15,-136(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf16)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_16)
+-C_TEXT(_restf16):
+-C_TEXT(_restfpr_16):	lfd	fp16,-128(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf17)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_17)
+-C_TEXT(_restf17):
+-C_TEXT(_restfpr_17):	lfd	fp17,-120(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf18)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_18)
+-C_TEXT(_restf18):
+-C_TEXT(_restfpr_18):	lfd	fp18,-112(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf19)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_19)
+-C_TEXT(_restf19):
+-C_TEXT(_restfpr_19):	lfd	fp19,-104(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf20)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_20)
+-C_TEXT(_restf20):
+-C_TEXT(_restfpr_20):	lfd	fp20,-96(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf21)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_21)
+-C_TEXT(_restf21):
+-C_TEXT(_restfpr_21):	lfd	fp21,-88(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf22)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_22)
+-C_TEXT(_restf22):
+-C_TEXT(_restfpr_22):	lfd	fp22,-80(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf23)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_23)
+-C_TEXT(_restf23):
+-C_TEXT(_restfpr_23):	lfd	fp23,-72(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf24)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_24)
+-C_TEXT(_restf24):
+-C_TEXT(_restfpr_24):	lfd	fp24,-64(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf25)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_25)
+-C_TEXT(_restf25):
+-C_TEXT(_restfpr_25):	lfd	fp25,-56(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf26)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_26)
+-C_TEXT(_restf26):
+-C_TEXT(_restfpr_26):	lfd	fp26,-48(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf27)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_27)
+-C_TEXT(_restf27):
+-C_TEXT(_restfpr_27):	lfd	fp27,-40(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf28)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_28)
+-C_TEXT(_restf28):
+-C_TEXT(_restfpr_28):	lfd	fp28,-32(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf29)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_29)
+-C_TEXT(_restf29):
+-C_TEXT(_restfpr_29):	lwz	r0,8(r1)	#get return address from frame
+-			lfd	fp29,-24(r1)    #restore f29
+-			mtlr	r0		#move return address to LR
+-			lfd	fp30,-16(r1)	#restore f30
+-			lfd	fp31,-8(r1)	#restore f31
+-			blr			#return
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fprsave.S glibc-2.2.5/sysdeps/powerpc/fprsave.S
+--- glibc-2.2.5.old/sysdeps/powerpc/fprsave.S	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/fprsave.S	Wed Dec 31 16:00:00 1969
+@@ -1,93 +0,0 @@
+-/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, write to the Free
+-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+-   02111-1307 USA.  */
+-
+-/*
+-    Floating Point Registers (FPRs) save routine
+-*/
+-
+-#include <sysdep.h>
+-
+-ENTRY(_savefpr_all)
+-                ASM_GLOBAL_DIRECTIVE C_TEXT(_savef14)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_14)
+-C_TEXT(_savef14):
+-C_TEXT(_savefpr_14):	stfd	fp14,-144(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef15)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_15)
+-C_TEXT(_savef15):
+-C_TEXT(_savefpr_15):	stfd	fp15,-136(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef16)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_16)
+-C_TEXT(_savef16):
+-C_TEXT(_savefpr_16):	stfd	fp16,-128(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef17)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_17)
+-C_TEXT(_savef17):
+-C_TEXT(_savefpr_17):	stfd	fp17,-120(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef18)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_18)
+-C_TEXT(_savef18):
+-C_TEXT(_savefpr_18):	stfd	fp18,-112(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef19)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_19)
+-C_TEXT(_savef19):
+-C_TEXT(_savefpr_19):	stfd	fp19,-104(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef20)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_20)
+-C_TEXT(_savef20):
+-C_TEXT(_savefpr_20):	stfd	fp20,-96(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef21)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_21)
+-C_TEXT(_savef21):
+-C_TEXT(_savefpr_21):	stfd	fp21,-88(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef22)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_22)
+-C_TEXT(_savef22):
+-C_TEXT(_savefpr_22):	stfd	fp22,-80(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef23)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_23)
+-C_TEXT(_savef23):
+-C_TEXT(_savefpr_23):	stfd	fp23,-72(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef24)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_24)
+-C_TEXT(_savef24):
+-C_TEXT(_savefpr_24):	stfd	fp24,-64(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef25)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_25)
+-C_TEXT(_savef25):
+-C_TEXT(_savefpr_25):	stfd	fp25,-56(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef26)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_26)
+-C_TEXT(_savef26):
+-C_TEXT(_savefpr_26):	stfd	fp26,-48(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef27)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_27)
+-C_TEXT(_savef27):
+-C_TEXT(_savefpr_27):	stfd	fp27,-40(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef28)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_28)
+-C_TEXT(_savef28):
+-C_TEXT(_savefpr_28):	stfd	fp28,-32(r1)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef29)
+-		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_29)
+-C_TEXT(_savef29):
+-C_TEXT(_savefpr_29):	stfd	fp29,-24(r1)	#save f29
+-			stfd	fp30,-16(r1)	#save f30
+-			stfd	fp31,-8(r1)	#save f31
+-			stw	r0,8(r1)	#save LR in callers frame
+-			blr			#return
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/Dist glibc-2.2.5/sysdeps/powerpc/fpu/Dist
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/Dist	Wed Jan 26 17:48:02 2000
++++ glibc-2.2.5/sysdeps/powerpc/fpu/Dist	Thu Jul 10 11:43:17 2003
+@@ -1,3 +1,6 @@
++fe_nomask.c
++fprrest.S
++fprsave.S
+ fenv_const.c
+ fenv_libc.h
+ t_sqrt.c
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/Makefile glibc-2.2.5/sysdeps/powerpc/fpu/Makefile
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/Makefile	Mon Oct 11 15:29:00 1999
++++ glibc-2.2.5/sysdeps/powerpc/fpu/Makefile	Thu Jul 10 11:43:17 2003
+@@ -1,3 +1,7 @@
+ ifeq ($(subdir),math)
+ libm-support += fenv_const fe_nomask t_sqrt
+ endif
++
++ifeq ($(subdir),misc)
++sysdep_routines += fprsave fprrest
++endif
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/Versions glibc-2.2.5/sysdeps/powerpc/fpu/Versions
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/Versions	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/Versions	Thu Jul 10 11:43:17 2003
+@@ -0,0 +1,6 @@
++libm {
++  GLIBC_2.1 {
++    # symbols used in macros from sysdeps/powerpc/bits/fenv.h
++    __fe_dfl_env; __fe_enabled_env; __fe_nonieee_env; __fe_nomask_env;
++  }
++}
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/__longjmp.S glibc-2.2.5/sysdeps/powerpc/fpu/__longjmp.S
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/__longjmp.S	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/__longjmp.S	Thu Jul 10 11:43:17 2003
+@@ -0,0 +1,74 @@
++/* longjmp for PowerPC.
++   Copyright (C) 1995, 1996, 1997, 1999, 2000 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Library General Public License as
++   published by the Free Software Foundation; either version 2 of the
++   License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Library General Public License for more details.
++
++   You should have received a copy of the GNU Library General Public
++   License along with the GNU C Library; see the file COPYING.LIB.  If not,
++   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++   Boston, MA 02111-1307, USA.  */
++
++#include <sysdep.h>
++#define _ASM
++#define _SETJMP_H
++#include <bits/setjmp.h>
++#include <bp-sym.h>
++#include <bp-asm.h>
++
++ENTRY (BP_SYM (__longjmp))
++	CHECK_BOUNDS_BOTH_WIDE_LIT (r3, r8, r9, JB_SIZE)
++
++	lwz r1,(JB_GPR1*4)(r3)
++	lwz r2,(JB_GPR2*4)(r3)
++	lwz r0,(JB_LR*4)(r3)
++	lwz r14,((JB_GPRS+0)*4)(r3)
++	lfd fp14,((JB_FPRS+0*2)*4)(r3)
++	lwz r15,((JB_GPRS+1)*4)(r3)
++	lfd fp15,((JB_FPRS+1*2)*4)(r3)
++	lwz r16,((JB_GPRS+2)*4)(r3)
++	lfd fp16,((JB_FPRS+2*2)*4)(r3)
++	lwz r17,((JB_GPRS+3)*4)(r3)
++	lfd fp17,((JB_FPRS+3*2)*4)(r3)
++	lwz r18,((JB_GPRS+4)*4)(r3)
++	lfd fp18,((JB_FPRS+4*2)*4)(r3)
++	lwz r19,((JB_GPRS+5)*4)(r3)
++	lfd fp19,((JB_FPRS+5*2)*4)(r3)
++	lwz r20,((JB_GPRS+6)*4)(r3)
++	lfd fp20,((JB_FPRS+6*2)*4)(r3)
++	mtlr r0
++	lwz r21,((JB_GPRS+7)*4)(r3)
++	lfd fp21,((JB_FPRS+7*2)*4)(r3)
++	lwz r22,((JB_GPRS+8)*4)(r3)
++	lfd fp22,((JB_FPRS+8*2)*4)(r3)
++	lwz r0,(JB_CR*4)(r3)
++	lwz r23,((JB_GPRS+9)*4)(r3)
++	lfd fp23,((JB_FPRS+9*2)*4)(r3)
++	lwz r24,((JB_GPRS+10)*4)(r3)
++	lfd fp24,((JB_FPRS+10*2)*4)(r3)
++	lwz r25,((JB_GPRS+11)*4)(r3)
++	lfd fp25,((JB_FPRS+11*2)*4)(r3)
++	mtcrf 0xFF,r0
++	lwz r26,((JB_GPRS+12)*4)(r3)
++	lfd fp26,((JB_FPRS+12*2)*4)(r3)
++	lwz r27,((JB_GPRS+13)*4)(r3)
++	lfd fp27,((JB_FPRS+13*2)*4)(r3)
++	lwz r28,((JB_GPRS+14)*4)(r3)
++	lfd fp28,((JB_FPRS+14*2)*4)(r3)
++	lwz r29,((JB_GPRS+15)*4)(r3)
++	lfd fp29,((JB_FPRS+15*2)*4)(r3)
++	lwz r30,((JB_GPRS+16)*4)(r3)
++	lfd fp30,((JB_FPRS+16*2)*4)(r3)
++	lwz r31,((JB_GPRS+17)*4)(r3)
++	lfd fp31,((JB_FPRS+17*2)*4)(r3)
++	mr r3,r4
++	blr
++END (BP_SYM (__longjmp))
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/bits/setjmp.h glibc-2.2.5/sysdeps/powerpc/fpu/bits/setjmp.h
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/bits/setjmp.h	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/bits/setjmp.h	Thu Jul 10 11:43:17 2003
+@@ -0,0 +1,47 @@
++/* Copyright (C) 1997, 1998, 2000 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Library General Public License as
++   published by the Free Software Foundation; either version 2 of the
++   License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Library General Public License for more details.
++
++   You should have received a copy of the GNU Library General Public
++   License along with the GNU C Library; see the file COPYING.LIB.  If not,
++   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++   Boston, MA 02111-1307, USA.  */
++
++/* Define the machine-dependent type `jmp_buf'.  PowerPC version.  */
++
++#ifndef _SETJMP_H
++# error "Never include <bits/setjmp.h> directly; use <setjmp.h> instead."
++#endif
++
++/* The previous bits/setjmp.h had __jmp_buf defined as a structure.
++   We use an array of 'long int' instead, to make writing the
++   assembler easier. Naturally, user code should not depend on
++   either representation. */
++
++#if defined __USE_MISC || defined _ASM
++# define JB_GPR1   0  /* Also known as the stack pointer */
++# define JB_GPR2   1
++# define JB_LR     2  /* The address we will return to */
++# define JB_GPRS   3  /* GPRs 14 through 31 are saved, 18 in total */
++# define JB_CR     21 /* Condition code registers. */
++# define JB_FPRS   22 /* FPRs 14 through 31 are saved, 18*2 words total */
++# define JB_SIZE   (58*4)
++#endif
++
++#ifndef	_ASM
++typedef long int __jmp_buf[58];
++#endif
++
++/* Test if longjmp to JMPBUF would unwind the frame
++   containing a local variable at ADDRESS.  */
++#define _JMPBUF_UNWINDS(jmpbuf, address) \
++  ((void *) (address) < (void *) (jmpbuf)[JB_GPR1])
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/fclrexcpt.c glibc-2.2.5/sysdeps/powerpc/fpu/fclrexcpt.c
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/fclrexcpt.c	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/fclrexcpt.c	Thu Jul  5 21:56:01 2001
+@@ -0,0 +1,48 @@
++/* Clear given exceptions in current floating-point environment.
++   Copyright (C) 1997,99,2000,01 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++#include <fenv_libc.h>
++
++#undef feclearexcept
++int
++__feclearexcept (int excepts)
++{
++  fenv_union_t u;
++
++  /* Get the current state.  */
++  u.fenv = fegetenv_register ();
++
++  /* Clear the relevant bits.  */
++  u.l[1] = u.l[1] & ~((-(excepts >> (31 - FPSCR_VX) & 1) & FE_ALL_INVALID)
++		      | (excepts & FPSCR_STICKY_BITS));
++
++  /* Put the new state in effect.  */
++  fesetenv_register (u.fenv);
++
++  /* Success.  */
++  return 0;
++}
++
++#include <shlib-compat.h>
++#if SHLIB_COMPAT (libm, GLIBC_2_1, GLIBC_2_2)
++strong_alias (__feclearexcept, __old_feclearexcept)
++compat_symbol (libm, __old_feclearexcept, feclearexcept, GLIBC_2_1);
++#endif
++
++versioned_symbol (libm, __feclearexcept, feclearexcept, GLIBC_2_2);
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/fe_nomask.c glibc-2.2.5/sysdeps/powerpc/fpu/fe_nomask.c
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/fe_nomask.c	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/fe_nomask.c	Thu Jul  5 21:56:01 2001
+@@ -0,0 +1,32 @@
++/* Procedure definition for FE_NOMASK_ENV.
++   Copyright (C) 1997 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++#include <fenv.h>
++#include <errno.h>
++
++/* This is presently a stub, until it's decided how the kernels should
++   support this.  */
++
++const fenv_t *
++__fe_nomask_env(void)
++{
++  __set_errno (ENOSYS);
++  return FE_ENABLED_ENV;
++}
++stub_warning (__fe_nomask_env)
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/fprrest.S glibc-2.2.5/sysdeps/powerpc/fpu/fprrest.S
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/fprrest.S	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/fprrest.S	Thu Jul  5 21:56:01 2001
+@@ -0,0 +1,94 @@
++/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++/*
++    Floating Point Registers (FPRs) restore routine
++*/
++
++#include <sysdep.h>
++
++ENTRY(_restfpr_all)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf14)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_14)
++C_TEXT(_restf14):
++C_TEXT(_restfpr_14):	lfd	fp14,-144(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf15)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_15)
++C_TEXT(_restf15):
++C_TEXT(_restfpr_15):	lfd	fp15,-136(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf16)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_16)
++C_TEXT(_restf16):
++C_TEXT(_restfpr_16):	lfd	fp16,-128(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf17)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_17)
++C_TEXT(_restf17):
++C_TEXT(_restfpr_17):	lfd	fp17,-120(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf18)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_18)
++C_TEXT(_restf18):
++C_TEXT(_restfpr_18):	lfd	fp18,-112(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf19)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_19)
++C_TEXT(_restf19):
++C_TEXT(_restfpr_19):	lfd	fp19,-104(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf20)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_20)
++C_TEXT(_restf20):
++C_TEXT(_restfpr_20):	lfd	fp20,-96(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf21)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_21)
++C_TEXT(_restf21):
++C_TEXT(_restfpr_21):	lfd	fp21,-88(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf22)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_22)
++C_TEXT(_restf22):
++C_TEXT(_restfpr_22):	lfd	fp22,-80(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf23)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_23)
++C_TEXT(_restf23):
++C_TEXT(_restfpr_23):	lfd	fp23,-72(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf24)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_24)
++C_TEXT(_restf24):
++C_TEXT(_restfpr_24):	lfd	fp24,-64(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf25)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_25)
++C_TEXT(_restf25):
++C_TEXT(_restfpr_25):	lfd	fp25,-56(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf26)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_26)
++C_TEXT(_restf26):
++C_TEXT(_restfpr_26):	lfd	fp26,-48(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf27)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_27)
++C_TEXT(_restf27):
++C_TEXT(_restfpr_27):	lfd	fp27,-40(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf28)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_28)
++C_TEXT(_restf28):
++C_TEXT(_restfpr_28):	lfd	fp28,-32(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restf29)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_restfpr_29)
++C_TEXT(_restf29):
++C_TEXT(_restfpr_29):	lwz	r0,8(r1)	#get return address from frame
++			lfd	fp29,-24(r1)    #restore f29
++			mtlr	r0		#move return address to LR
++			lfd	fp30,-16(r1)	#restore f30
++			lfd	fp31,-8(r1)	#restore f31
++			blr			#return
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/fprsave.S glibc-2.2.5/sysdeps/powerpc/fpu/fprsave.S
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/fprsave.S	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/fprsave.S	Thu Jul  5 21:56:01 2001
+@@ -0,0 +1,93 @@
++/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++/*
++    Floating Point Registers (FPRs) save routine
++*/
++
++#include <sysdep.h>
++
++ENTRY(_savefpr_all)
++                ASM_GLOBAL_DIRECTIVE C_TEXT(_savef14)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_14)
++C_TEXT(_savef14):
++C_TEXT(_savefpr_14):	stfd	fp14,-144(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef15)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_15)
++C_TEXT(_savef15):
++C_TEXT(_savefpr_15):	stfd	fp15,-136(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef16)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_16)
++C_TEXT(_savef16):
++C_TEXT(_savefpr_16):	stfd	fp16,-128(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef17)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_17)
++C_TEXT(_savef17):
++C_TEXT(_savefpr_17):	stfd	fp17,-120(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef18)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_18)
++C_TEXT(_savef18):
++C_TEXT(_savefpr_18):	stfd	fp18,-112(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef19)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_19)
++C_TEXT(_savef19):
++C_TEXT(_savefpr_19):	stfd	fp19,-104(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef20)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_20)
++C_TEXT(_savef20):
++C_TEXT(_savefpr_20):	stfd	fp20,-96(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef21)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_21)
++C_TEXT(_savef21):
++C_TEXT(_savefpr_21):	stfd	fp21,-88(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef22)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_22)
++C_TEXT(_savef22):
++C_TEXT(_savefpr_22):	stfd	fp22,-80(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef23)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_23)
++C_TEXT(_savef23):
++C_TEXT(_savefpr_23):	stfd	fp23,-72(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef24)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_24)
++C_TEXT(_savef24):
++C_TEXT(_savefpr_24):	stfd	fp24,-64(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef25)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_25)
++C_TEXT(_savef25):
++C_TEXT(_savefpr_25):	stfd	fp25,-56(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef26)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_26)
++C_TEXT(_savef26):
++C_TEXT(_savefpr_26):	stfd	fp26,-48(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef27)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_27)
++C_TEXT(_savef27):
++C_TEXT(_savefpr_27):	stfd	fp27,-40(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef28)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_28)
++C_TEXT(_savef28):
++C_TEXT(_savefpr_28):	stfd	fp28,-32(r1)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savef29)
++		ASM_GLOBAL_DIRECTIVE C_TEXT(_savefpr_29)
++C_TEXT(_savef29):
++C_TEXT(_savefpr_29):	stfd	fp29,-24(r1)	#save f29
++			stfd	fp30,-16(r1)	#save f30
++			stfd	fp31,-8(r1)	#save f31
++			stw	r0,8(r1)	#save LR in callers frame
++			blr			#return
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/fpu_control.h glibc-2.2.5/sysdeps/powerpc/fpu/fpu_control.h
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/fpu_control.h	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/fpu_control.h	Thu Jul  5 21:56:01 2001
+@@ -0,0 +1,67 @@
++/* FPU control word definitions.  PowerPC version.
++   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++#ifndef _FPU_CONTROL_H
++#define _FPU_CONTROL_H
++
++/* rounding control */
++#define _FPU_RC_NEAREST 0x00   /* RECOMMENDED */
++#define _FPU_RC_DOWN    0x03
++#define _FPU_RC_UP      0x02
++#define _FPU_RC_ZERO    0x01
++
++#define _FPU_MASK_NI  0x04 /* non-ieee mode */
++
++/* masking of interrupts */
++#define _FPU_MASK_ZM  0x10 /* zero divide */
++#define _FPU_MASK_OM  0x40 /* overflow */
++#define _FPU_MASK_UM  0x20 /* underflow */
++#define _FPU_MASK_XM  0x08 /* inexact */
++#define _FPU_MASK_IM  0x80 /* invalid operation */
++
++#define _FPU_RESERVED 0xffffff00 /* These bits are reserved are not changed. */
++
++/* The fdlibm code requires no interrupts for exceptions.  */
++#define _FPU_DEFAULT  0x00000000 /* Default value.  */
++
++/* IEEE:  same as above, but (some) exceptions;
++   we leave the 'inexact' exception off.
++ */
++#define _FPU_IEEE     0x000000f0
++
++/* Type of the control word.  */
++typedef unsigned int fpu_control_t __attribute__ ((__mode__ (__SI__)));
++
++/* Macros for accessing the hardware control word.  */
++#define _FPU_GETCW(cw) ( { \
++  union { double d; fpu_control_t cw[2]; } tmp __attribute__ ((__aligned__(8))); \
++  __asm__ ("mffs 0; stfd%U0 0,%0" : "=m" (tmp.d) : : "fr0"); \
++  (cw)=tmp.cw[1]; \
++  tmp.cw[1]; } )
++#define _FPU_SETCW(cw) { \
++  union { double d; fpu_control_t cw[2]; } tmp __attribute__ ((__aligned__(8))); \
++  tmp.cw[0] = 0xFFF80000; /* More-or-less arbitrary; this is a QNaN. */ \
++  tmp.cw[1] = cw; \
++  __asm__ ("lfd%U0 0,%0; mtfsf 255,0" : : "m" (tmp.d) : "fr0"); \
++}
++
++/* Default control word set at startup.  */
++extern fpu_control_t __fpu_control;
++
++#endif /* _FPU_CONTROL_H */
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu/setjmp.S glibc-2.2.5/sysdeps/powerpc/fpu/setjmp.S
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu/setjmp.S	Wed Dec 31 16:00:00 1969
++++ glibc-2.2.5/sysdeps/powerpc/fpu/setjmp.S	Thu Jul 10 11:43:44 2003
+@@ -0,0 +1,73 @@
++/* setjmp for PowerPC.
++   Copyright (C) 1995, 1996, 1997, 1999, 2000 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Library General Public License as
++   published by the Free Software Foundation; either version 2 of the
++   License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Library General Public License for more details.
++
++   You should have received a copy of the GNU Library General Public
++   License along with the GNU C Library; see the file COPYING.LIB.  If not,
++   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
++   Boston, MA 02111-1307, USA.  */
++
++#include <sysdep.h>
++#define _ASM
++#define _SETJMP_H
++#include <bits/setjmp.h>
++#include <bp-sym.h>
++#include <bp-asm.h>
++
++ENTRY (BP_SYM (__sigsetjmp))
++	CHECK_BOUNDS_BOTH_WIDE_LIT (r3, r8, r9, JB_SIZE)
++
++	stw  r1,(JB_GPR1*4)(3)
++	mflr r0
++	stw  r2,(JB_GPR2*4)(3)
++	stw  r14,((JB_GPRS+0)*4)(3)
++	stfd fp14,((JB_FPRS+0*2)*4)(3)
++	stw  r0,(JB_LR*4)(3)
++	stw  r15,((JB_GPRS+1)*4)(3)
++	stfd fp15,((JB_FPRS+1*2)*4)(3)
++	mfcr r0
++	stw  r16,((JB_GPRS+2)*4)(3)
++	stfd fp16,((JB_FPRS+2*2)*4)(3)
++	stw  r0,(JB_CR*4)(3)
++	stw  r17,((JB_GPRS+3)*4)(3)
++	stfd fp17,((JB_FPRS+3*2)*4)(3)
++	stw  r18,((JB_GPRS+4)*4)(3)
++	stfd fp18,((JB_FPRS+4*2)*4)(3)
++	stw  r19,((JB_GPRS+5)*4)(3)
++	stfd fp19,((JB_FPRS+5*2)*4)(3)
++	stw  r20,((JB_GPRS+6)*4)(3)
++	stfd fp20,((JB_FPRS+6*2)*4)(3)
++	stw  r21,((JB_GPRS+7)*4)(3)
++	stfd fp21,((JB_FPRS+7*2)*4)(3)
++	stw  r22,((JB_GPRS+8)*4)(3)
++	stfd fp22,((JB_FPRS+8*2)*4)(3)
++	stw  r23,((JB_GPRS+9)*4)(3)
++	stfd fp23,((JB_FPRS+9*2)*4)(3)
++	stw  r24,((JB_GPRS+10)*4)(3)
++	stfd fp24,((JB_FPRS+10*2)*4)(3)
++	stw  r25,((JB_GPRS+11)*4)(3)
++	stfd fp25,((JB_FPRS+11*2)*4)(3)
++	stw  r26,((JB_GPRS+12)*4)(3)
++	stfd fp26,((JB_FPRS+12*2)*4)(3)
++	stw  r27,((JB_GPRS+13)*4)(3)
++	stfd fp27,((JB_FPRS+13*2)*4)(3)
++	stw  r28,((JB_GPRS+14)*4)(3)
++	stfd fp28,((JB_FPRS+14*2)*4)(3)
++	stw  r29,((JB_GPRS+15)*4)(3)
++	stfd fp29,((JB_FPRS+15*2)*4)(3)
++	stw  r30,((JB_GPRS+16)*4)(3)
++	stfd fp30,((JB_FPRS+16*2)*4)(3)
++	stw  r31,((JB_GPRS+17)*4)(3)
++	stfd fp31,((JB_FPRS+17*2)*4)(3)
++	b JUMPTARGET (BP_SYM (__sigjmp_save))
++END (BP_SYM (__sigsetjmp))
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/fpu_control.h glibc-2.2.5/sysdeps/powerpc/fpu_control.h
+--- glibc-2.2.5.old/sysdeps/powerpc/fpu_control.h	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/fpu_control.h	Wed Dec 31 16:00:00 1969
+@@ -1,67 +0,0 @@
+-/* FPU control word definitions.  PowerPC version.
+-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, write to the Free
+-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+-   02111-1307 USA.  */
+-
+-#ifndef _FPU_CONTROL_H
+-#define _FPU_CONTROL_H
+-
+-/* rounding control */
+-#define _FPU_RC_NEAREST 0x00   /* RECOMMENDED */
+-#define _FPU_RC_DOWN    0x03
+-#define _FPU_RC_UP      0x02
+-#define _FPU_RC_ZERO    0x01
+-
+-#define _FPU_MASK_NI  0x04 /* non-ieee mode */
+-
+-/* masking of interrupts */
+-#define _FPU_MASK_ZM  0x10 /* zero divide */
+-#define _FPU_MASK_OM  0x40 /* overflow */
+-#define _FPU_MASK_UM  0x20 /* underflow */
+-#define _FPU_MASK_XM  0x08 /* inexact */
+-#define _FPU_MASK_IM  0x80 /* invalid operation */
+-
+-#define _FPU_RESERVED 0xffffff00 /* These bits are reserved are not changed. */
+-
+-/* The fdlibm code requires no interrupts for exceptions.  */
+-#define _FPU_DEFAULT  0x00000000 /* Default value.  */
+-
+-/* IEEE:  same as above, but (some) exceptions;
+-   we leave the 'inexact' exception off.
+- */
+-#define _FPU_IEEE     0x000000f0
+-
+-/* Type of the control word.  */
+-typedef unsigned int fpu_control_t __attribute__ ((__mode__ (__SI__)));
+-
+-/* Macros for accessing the hardware control word.  */
+-#define _FPU_GETCW(cw) ( { \
+-  union { double d; fpu_control_t cw[2]; } tmp __attribute__ ((__aligned__(8))); \
+-  __asm__ ("mffs 0; stfd%U0 0,%0" : "=m" (tmp.d) : : "fr0"); \
+-  (cw)=tmp.cw[1]; \
+-  tmp.cw[1]; } )
+-#define _FPU_SETCW(cw) { \
+-  union { double d; fpu_control_t cw[2]; } tmp __attribute__ ((__aligned__(8))); \
+-  tmp.cw[0] = 0xFFF80000; /* More-or-less arbitrary; this is a QNaN. */ \
+-  tmp.cw[1] = cw; \
+-  __asm__ ("lfd%U0 0,%0; mtfsf 255,0" : : "m" (tmp.d) : "fr0"); \
+-}
+-
+-/* Default control word set at startup.  */
+-extern fpu_control_t __fpu_control;
+-
+-#endif /* _FPU_CONTROL_H */
+diff -Naur glibc-2.2.5.old/sysdeps/powerpc/setjmp.S glibc-2.2.5/sysdeps/powerpc/setjmp.S
+--- glibc-2.2.5.old/sysdeps/powerpc/setjmp.S	Thu Jul  5 21:56:01 2001
++++ glibc-2.2.5/sysdeps/powerpc/setjmp.S	Thu Jul 10 11:43:44 2003
+@@ -24,6 +24,8 @@
+ #include <bp-sym.h>
+ #include <bp-asm.h>
+ 
++/* The FPU stores have been removed from this file - see fpu/setjmp.S */
++
+ ENTRY (BP_SYM (__sigsetjmp))
+ 	CHECK_BOUNDS_BOTH_WIDE_LIT (r3, r8, r9, JB_SIZE)
+ 
+@@ -31,43 +33,25 @@
+ 	mflr r0
+ 	stw  r2,(JB_GPR2*4)(3)
+ 	stw  r14,((JB_GPRS+0)*4)(3)
+-	stfd fp14,((JB_FPRS+0*2)*4)(3)
+ 	stw  r0,(JB_LR*4)(3)
+ 	stw  r15,((JB_GPRS+1)*4)(3)
+-	stfd fp15,((JB_FPRS+1*2)*4)(3)
+ 	mfcr r0
+ 	stw  r16,((JB_GPRS+2)*4)(3)
+-	stfd fp16,((JB_FPRS+2*2)*4)(3)
+ 	stw  r0,(JB_CR*4)(3)
+ 	stw  r17,((JB_GPRS+3)*4)(3)
+-	stfd fp17,((JB_FPRS+3*2)*4)(3)
+ 	stw  r18,((JB_GPRS+4)*4)(3)
+-	stfd fp18,((JB_FPRS+4*2)*4)(3)
+ 	stw  r19,((JB_GPRS+5)*4)(3)
+-	stfd fp19,((JB_FPRS+5*2)*4)(3)
+ 	stw  r20,((JB_GPRS+6)*4)(3)
+-	stfd fp20,((JB_FPRS+6*2)*4)(3)
+ 	stw  r21,((JB_GPRS+7)*4)(3)
+-	stfd fp21,((JB_FPRS+7*2)*4)(3)
+ 	stw  r22,((JB_GPRS+8)*4)(3)
+-	stfd fp22,((JB_FPRS+8*2)*4)(3)
+ 	stw  r23,((JB_GPRS+9)*4)(3)
+-	stfd fp23,((JB_FPRS+9*2)*4)(3)
+ 	stw  r24,((JB_GPRS+10)*4)(3)
+-	stfd fp24,((JB_FPRS+10*2)*4)(3)
+ 	stw  r25,((JB_GPRS+11)*4)(3)
+-	stfd fp25,((JB_FPRS+11*2)*4)(3)
+ 	stw  r26,((JB_GPRS+12)*4)(3)
+-	stfd fp26,((JB_FPRS+12*2)*4)(3)
+ 	stw  r27,((JB_GPRS+13)*4)(3)
+-	stfd fp27,((JB_FPRS+13*2)*4)(3)
+ 	stw  r28,((JB_GPRS+14)*4)(3)
+-	stfd fp28,((JB_FPRS+14*2)*4)(3)
+ 	stw  r29,((JB_GPRS+15)*4)(3)
+-	stfd fp29,((JB_FPRS+15*2)*4)(3)
+ 	stw  r30,((JB_GPRS+16)*4)(3)
+-	stfd fp30,((JB_FPRS+16*2)*4)(3)
+ 	stw  r31,((JB_GPRS+17)*4)(3)
+-	stfd fp31,((JB_FPRS+17*2)*4)(3)
+ 	b JUMPTARGET (BP_SYM (__sigjmp_save))
+ END (BP_SYM (__sigsetjmp))

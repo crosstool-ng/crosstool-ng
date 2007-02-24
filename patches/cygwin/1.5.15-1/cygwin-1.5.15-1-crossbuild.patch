@@ -1,0 +1,40 @@
+Message-ID: <4269173F.7020705@zee2.com>
+Date: Fri, 22 Apr 2005 16:24:47 +0100
+From: Steve Papacharalambous <stevep@zee2.com>
+To: "Robert P. J. Day" <rpjday@mindspring.com>
+CC: crossgcc list <crossgcc@sources.redhat.com>
+Subject: Re: cygwin source directory has moved
+In-Reply-To: <Pine.LNX.4.61.0504181746050.11794@localhost.localdomain>
+
+Hi Robert,
+
+I've attached two patches:
+
+1/  For crosstool-0.31 which changes the CYGWIN_URL to one which has the
+cygwin source archives.  The version of cygwin that is used to build the
+cross toolchain has been changed to cygwin-1.5.15-1-src.tar.bz2 since
+most of the mirror sites don't seem to have the original archive used.
+[created gcc-3.3.2-cygwin-1.5.15-1.dat - dank]
+
+
+2/ The later cygwin source archive fails to cross build with the error:
+/opt/crosstool/i686-pc-cygwin/gcc-3.3.2-cygwin-1.5.15-1/lib/gcc-lib/i686-pc-cygwin/bin/ld:
+cannot find -luser32
+
+unless the second patch is applied,
+
+
+diff -uNr cygwin-1.5.15-1.orig/winsup/mingw/Makefile.in cygwin-1.5.15-1/winsup/mingw/Makefile.in
+--- cygwin-1.5.15-1.orig/winsup/mingw/Makefile.in	2005-02-28 22:51:02.000000000 +0000
++++ cygwin-1.5.15-1/winsup/mingw/Makefile.in	2005-04-22 15:29:18.000000000 +0100
+@@ -71,7 +71,7 @@
+ mkinstalldirs = $(SHELL) @MKINSTALLDIRS@
+ 
+ CC := @CC@
+-override CC := ${filter-out -L% -B%,${shell echo $(CC) | sed -e 's%\(-isystem\|-iwithprefixbefore\)  *[^ ]*\( \|$$\)% %g'}}
++override CC := ${filter-out -B%,${shell echo $(CC) | sed -e 's%\(-isystem\|-iwithprefixbefore\)  *[^ ]*\( \|$$\)% %g'}}
+ # FIXME: Which is it, CC or CC_FOR_TARGET?
+ CC_FOR_TARGET = $(CC)
+ AS_FOR_TARGET = $(AS)
+
+

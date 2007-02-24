@@ -1,0 +1,114 @@
+Fixes
+
+In file included from jis0208.c:23:
+jis0208.h:32: error: array type has incomplete element type
+when building with gcc-4.0
+
+In file included from cp1258.c:869:
+../iconv/skeleton.c: In function 'gconv':
+../iconv/skeleton.c:323: error: invalid lvalue in increment
+
+In file included from cp1255.c:550:
+../iconv/skeleton.c: In function 'gconv':
+../iconv/skeleton.c:323: error: invalid lvalue in increment
+
+In file included from gb18030.c:22114:
+../iconv/loop.c: In function 'from_gb18030':
+../iconv/loop.c:282: error: invalid lvalue in increment
+../iconv/loop.c: In function 'from_gb18030_single':
+../iconv/loop.c:384: error: invalid lvalue in increment
+
+--- /home/dank/downloads/glibc-2.2.5/iconvdata/iso8859-1.c	2001-08-03 15:06:50.000000000 -0700
++++ glibc-2.2.5/iconvdata/iso8859-1.c	2005-03-11 15:09:15.233602808 -0800
+@@ -35,7 +35,8 @@
+ #define MIN_NEEDED_OUTPUT	MIN_NEEDED_TO
+ #define LOOPFCT			FROM_LOOP
+ #define BODY \
+-  *((uint32_t *) outptr)++ = *inptr++;
++  *((uint32_t *) outptr) = *inptr++;					      \
++  outptr += sizeof (uint32_t);
+ #include <iconv/loop.c>
+ 
+ 
+--- /home/dank/downloads/glibc-2.2.5/iconvdata/jis0208.h	2001-07-05 21:54:52.000000000 -0700
++++ glibc-2.2.5/iconvdata/jis0208.h	2005-03-11 15:27:23.295192304 -0800
+@@ -24,15 +24,6 @@
+ #include <gconv.h>
+ #include <stdint.h>
+ 
+-/* Conversion table.  */
+-extern const uint16_t __jis0208_to_ucs[];
+-
+-extern const char __jisx0208_from_ucs4_lat1[256][2];
+-extern const char __jisx0208_from_ucs4_greek[0xc1][2];
+-extern const struct jisx0208_ucs_idx __jisx0208_from_ucs_idx[];
+-extern const char __jisx0208_from_ucs_tab[][2];
+-
+-
+ /* Struct for table with indeces in UCS mapping table.  */
+ struct jisx0208_ucs_idx
+ {
+@@ -42,6 +33,15 @@
+ };
+ 
+ 
++/* Conversion table.  */
++extern const uint16_t __jis0208_to_ucs[];
++
++extern const char __jisx0208_from_ucs4_lat1[256][2];
++extern const char __jisx0208_from_ucs4_greek[0xc1][2];
++extern const struct jisx0208_ucs_idx __jisx0208_from_ucs_idx[];
++extern const char __jisx0208_from_ucs_tab[][2];
++
++
+ static inline uint32_t
+ jisx0208_to_ucs4 (const unsigned char **s, size_t avail, unsigned char offset)
+ {
+--- /home/dank/downloads/glibc-2.2.5/iconvdata/cp1258.c	2001-07-05 21:54:49.000000000 -0700
++++ glibc-2.2.5/iconvdata/cp1258.c	2005-03-11 15:41:44.953200376 -0800
+@@ -66,7 +66,8 @@
+ 	  if (__builtin_expect (outbuf + 4 <= outend, 1))		      \
+ 	    {								      \
+ 	      /* Write out the last character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 3;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 3;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      data->__statep->__count = 0;				      \
+ 	    }								      \
+ 	  else								      \
+--- /home/dank/downloads/glibc-2.2.5/iconvdata/cp1255.c	2001-07-05 21:54:49.000000000 -0700
++++ glibc-2.2.5/iconvdata/cp1255.c	2005-03-11 15:47:40.689120296 -0800
+@@ -65,7 +65,8 @@
+ 	  if (__builtin_expect (outbuf + 4 <= outend, 1))		      \
+ 	    {								      \
+ 	      /* Write out the last character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 3;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 3;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      data->__statep->__count = 0;				      \
+ 	    }								      \
+ 	  else								      \
+--- /home/dank/downloads/glibc-2.2.5/iconvdata/gb18030.c	2001-08-03 15:06:47.000000000 -0700
++++ glibc-2.2.5/iconvdata/gb18030.c	2005-03-11 15:54:59.060477720 -0800
+@@ -22108,7 +22108,8 @@
+ 	    }							      	      \
+ 	}								      \
+ 									      \
+-    *((uint32_t *) outptr)++ = ch;					      \
++    *((uint32_t *) outptr) = ch;					      \
++    outptr += sizeof (uint32_t);					      \
+   }
+ #define LOOP_NEED_FLAGS
+ #include <iconv/loop.c>
+--- /home/dank/downloads/glibc-2.2.5/iconvdata/iso-2022-cn-ext.c	2001-07-05 21:54:51.000000000 -0700
++++ glibc-2.2.5/iconvdata/iso-2022-cn-ext.c	2005-03-11 15:55:42.002949472 -0800
+@@ -411,7 +411,8 @@
+ 	  }								      \
+       }									      \
+ 									      \
+-    *((uint32_t *) outptr)++ = ch;					      \
++    *((uint32_t *) outptr) = ch;					      \
++    outptr += sizeof (uint32_t);					      \
+   }
+ #define EXTRA_LOOP_DECLS	, int *setp
+ #define INIT_PARAMS		int set = (*setp >> 3) & CURRENT_MASK; \

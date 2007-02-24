@@ -1,0 +1,24 @@
+Fixes
+iconvconfig.c: In function 'write_output':
+iconvconfig.c:1014: error: invalid storage class for function 'name_insert'
+make[2]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-dev/build/x86_64-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.3.3/glibc-2.3.3/iconv'
+
+Like http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/iconv/iconvconfig.c.diff?r1=1.19&r2=1.20&cvsroot=glibc
+but works with older compilers
+
+--- glibc-2.3.3/iconv/iconvconfig.c.old	Thu Mar 17 01:23:04 2005
++++ glibc-2.3.3/iconv/iconvconfig.c	Thu Mar 17 01:24:56 2005
+@@ -1010,7 +1010,12 @@
+   char finalname[prefix_len + sizeof (GCONV_MODULES_CACHE)];
+ 
+   /* Function to insert the names.  */
+-  static void name_insert (const void *nodep, VISIT value, int level)
++#if __GNUC__ >= 4
++  auto void 
++#else
++  static void 
++#endif
++  name_insert (const void *nodep, VISIT value, int level)
+     {
+       struct name *name;
+       unsigned int idx;

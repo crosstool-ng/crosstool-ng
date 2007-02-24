@@ -1,0 +1,96 @@
+2002-04-20  Jakub Jelinek  <jakub@redhat.com>
+
+	* elf32-sparc.c (elf32_sparc_relocate_section): Find real output
+	section with SEC_MERGE.
+	* elf64-sparc.c (sparc64_elf_relocate_section): Likewise.
+
+--- binutils/bfd/elf32-sparc.c.jj	Sat Apr 20 22:11:57 2002
++++ binutils/bfd/elf32-sparc.c	Sat Apr 20 23:06:33 2002
+@@ -1144,7 +1144,7 @@ elf32_sparc_relocate_section (output_bfd
+       struct elf_link_hash_entry *h;
+       Elf_Internal_Sym *sym;
+       asection *sec;
+-      bfd_vma relocation, off;
++      bfd_vma relocation, off, orig_addend = 0;
+       bfd_reloc_status_type r;
+       boolean is_plt = false;
+       boolean unresolved_reloc;
+@@ -1192,6 +1192,7 @@ elf32_sparc_relocate_section (output_bfd
+ 	{
+ 	  sym = local_syms + r_symndx;
+ 	  sec = local_sections[r_symndx];
++	  orig_addend = rel->r_addend;
+ 	  relocation = _bfd_elf_rela_local_sym (output_bfd, sym, sec, rel);
+ 	}
+       else
+@@ -1527,6 +1528,25 @@ elf32_sparc_relocate_section (output_bfd
+ 			  asection *osec;
+ 
+ 			  osec = sec->output_section;
++			  /* FIXME: As soon as making sections zero size
++			     is possible, this if can go away.  */
++			  if (bfd_is_abs_section (osec)
++			      && h == NULL
++			      && (sec->flags & SEC_MERGE)
++			      && ELF_ST_TYPE (sym->st_info) == STT_SECTION
++			      && (elf_section_data (sec)->sec_info_type
++				  == ELF_INFO_TYPE_MERGE))
++			    {
++			      asection *msec;
++
++			      msec = sec;
++			      _bfd_merged_section_offset (output_bfd, &msec,
++					elf_section_data (sec)->sec_info,
++					sym->st_value + orig_addend,
++					(bfd_vma) 0);
++			      osec = msec->output_section;
++			     }
++
+ 			  indx = elf_section_data (osec)->dynindx;
+ 
+ 			  /* FIXME: we really should be able to link non-pic
+--- binutils/bfd/elf64-sparc.c.jj	Sat Apr 20 22:11:57 2002
++++ binutils/bfd/elf64-sparc.c	Sat Apr 20 23:12:18 2002
+@@ -1939,7 +1939,7 @@ sparc64_elf_relocate_section (output_bfd
+       struct elf_link_hash_entry *h;
+       Elf_Internal_Sym *sym;
+       asection *sec;
+-      bfd_vma relocation, off;
++      bfd_vma relocation, off, orig_addend = 0;
+       bfd_reloc_status_type r;
+       boolean is_plt = false;
+       boolean unresolved_reloc;
+@@ -1982,6 +1982,7 @@ sparc64_elf_relocate_section (output_bfd
+ 	{
+ 	  sym = local_syms + r_symndx;
+ 	  sec = local_sections[r_symndx];
++	  orig_addend = rel->r_addend;
+ 	  relocation = _bfd_elf_rela_local_sym (output_bfd, sym, sec, rel);
+ 	}
+       else
+@@ -2211,6 +2212,25 @@ sparc64_elf_relocate_section (output_bfd
+ 			    asection *osec;
+ 
+ 			    osec = sec->output_section;
++			    /* FIXME: As soon as making sections zero size
++			       is possible, this if can go away.  */
++			    if (bfd_is_abs_section (osec)
++				&& h == NULL
++				&& (sec->flags & SEC_MERGE)
++				&& ELF_ST_TYPE (sym->st_info) == STT_SECTION
++				&& (elf_section_data (sec)->sec_info_type
++				    == ELF_INFO_TYPE_MERGE))
++			      {
++				asection *msec;
++
++				msec = sec;
++				_bfd_merged_section_offset (output_bfd, &msec,
++					elf_section_data (sec)->sec_info,
++					sym->st_value + orig_addend,
++					(bfd_vma) 0);
++				osec = msec->output_section;
++			      }
++
+ 			    indx = elf_section_data (osec)->dynindx;
+ 
+ 			    /* FIXME: we really should be able to link non-pic

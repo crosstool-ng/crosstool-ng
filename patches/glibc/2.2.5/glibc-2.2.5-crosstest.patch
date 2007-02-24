@@ -1,0 +1,27 @@
+Fixes errors like
+  /build-glibc/dlfcn/glrefmain: cannot load `glreflib1.so'
+in glibc regression test
+
+--- glibc-2.2.5/dlfcn/Makefile.old	Thu Jul 24 16:30:20 2003
++++ glibc-2.2.5/dlfcn/Makefile	Thu Jul 24 17:25:01 2003
+@@ -60,6 +60,8 @@
+ test-modules = $(addprefix $(objpfx),$(addsuffix .so,$(modules-names)))
+ $(test-modules): $(objpfx)%.so: $(objpfx)%.os
+ 	$(build-module)
++# without following rule, test-modules don't get built when cross-compiling
++tests: $(test-modules)
+ 
+ $(objpfx)glrefmain: $(libdl)
+ $(objpfx)glrefmain.out: $(objpfx)glrefmain \
+--- glibc-2.2.5/elf/Makefile.old	Thu Jul 24 18:17:12 2003
++++ glibc-2.2.5/elf/Makefile	Thu Jul 24 18:18:58 2003
+@@ -263,6 +263,9 @@
+ test-modules = $(addprefix $(objpfx),$(addsuffix .so,$(strip $(modules-names))))
+ generated += $(addsuffix .so,$(strip $(modules-names)))
+ 
++# without following rule, test-modules don't get built when cross-compiling
++tests: $(test-modules)
++
+ ifeq (yes,$(build-shared))
+ ifeq ($(cross-compiling),no)
+ tests: $(objpfx)tst-pathopt.out

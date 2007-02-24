@@ -1,0 +1,39 @@
+Fixes
+
+dl-load.c: In function '_dl_map_object_from_fd':
+dl-load.c:1089: error: invalid lvalue in assignment
+dl-load.c:1109: error: invalid lvalue in assignment
+make[2]: *** [/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/build-glibc/elf/dl-load.o] Error 1
+
+http://sourceware.org/cgi-bin/cvsweb.cgi/libc/elf/dl-load.c.diff?r1=1.235&r2=1.236&cvsroot=glibc
+rediffed against glibc-2.2.5
+
+Revision 1.236, Sat Feb 21 18:25:41 2004 UTC by aj
+Branch: MAIN
+Changes since 1.235: +2 -2 lines
+Diff to previous 1.235 (colored)
+
+(_dl_map_object_from_fd): Fix casts used as lvalue.
+
+
+diff -ur glibc-2.2.5/elf/dl-load.c glibc-2.2.5-patched/elf/dl-load.c
+--- glibc-2.2.5/elf/dl-load.c	2001-11-10 14:43:10.000000000 -0800
++++ glibc-2.2.5-patched/elf/dl-load.c	2005-03-11 13:48:18.211982328 -0800
+@@ -1086,7 +1086,7 @@
+       }
+     else
+       /* Adjust the PT_PHDR value by the runtime load address.  */
+-      (ElfW(Addr)) l->l_phdr += l->l_addr;
++      l->l_phdr = (ElfW(Phdr) *) ((ElfW(Addr)) l->l_phdr + l->l_addr);
+   }
+ 
+   /* We are done mapping in the file.  We no longer need the descriptor.  */
+@@ -1106,7 +1106,7 @@
+ 	}
+     }
+   else
+-    (ElfW(Addr)) l->l_ld += l->l_addr;
++    l->l_ld = (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+ 
+   l->l_entry += l->l_addr;
+ 

@@ -1,0 +1,100 @@
+See http://gcc.gnu.org/PR12010
+
+g++ testsuite fixes for cross-compilers, Dan Kegel, Ixia Communications, 12 July 2003
+
+The first hunk fixes the error
+
+/testsuite_flags: /testsuite_flags: No such file or directory
+    while executing
+"exec sh ${odir_v3}/testsuite_flags --build-includes"
+    (procedure "g++_include_flags" line 21)
+    invoked from within
+"g++_include_flags [get_multilibs] "
+    (procedure "g++_init" line 63)
+    invoked from within
+"${tool}_init $test_file_name"
+    (procedure "runtest" line 19)
+    invoked from within
+"runtest $test_name"
+    ("foreach" body line 42)
+    invoked from within
+...
+make[1]: [check-g++] Error 1 (ignored)
+
+The fix isn't especially pretty, but it worked for me, and can't hurt the
+more common native compiler case.  Maybe someone who knows the code better 
+can come up with a better fix.
+
+The second hunk fixes the error
+
+sh: error while loading shared libraries: /opt/cegl-2.0/powerpc-405-linux-gnu/gcc-3.2.3-glibc-2.2.5/powerpc-405-linux-gnu/./lib/libdl.so.2: ELF file data encoding not little-endian
+
+when trying to compile g++ testcases (!); setting up
+the shared library environment when running crosstests of g++ 
+should either be done by a special board file, or by
+setting up a remote chroot environment (see http://kegel.com/crosstool),
+not by blithely setting LD_LIBRARY_PATH on the local system.
+
+--- gcc-3.2.3/gcc/testsuite/lib/g++.exp.old	Fri Jul 11 15:42:47 2003
++++ gcc-3.2.3/gcc/testsuite/lib/g++.exp	Sat Jul 12 12:57:07 2003
+@@ -72,6 +72,8 @@
+ #
+ proc g++_include_flags { paths } {
+     global srcdir
++    global objdir
++    global target_triplet
+     global HAVE_LIBSTDCXX_V3
+     global TESTING_IN_BUILD_TREE
+ 
+@@ -90,6 +92,20 @@
+ 
+     if { ${HAVE_LIBSTDCXX_V3} } {
+       set odir_v3 [lookfor_file ${gccpath} libstdc++-v3]
++      if { $odir_v3 == "" } {
++          verbose "g++_include_flags: couldn't find libstdc++-v3 on first try, now looking in build directory $objdir"
++	  # first assume no multilibs
++          set odir_v3 [lookfor_file ${objdir} "$target_triplet/libstdc++-v3"]
++      }
++      if { $odir_v3 == "" } {
++          verbose "g++_include_flags: couldn't find libstdc++-v3 on second try, trying multilib"
++	  # assume multilib only one level deep
++          set multisub [file tail $gccpath]
++          set odir_v3 [lookfor_file ${objdir} "$target_triplet/$multisub/libstdc++-v3"]
++      }
++      if { $odir_v3 == "" } {
++           error "Can't find libstdc++-v3"
++      }
+       append flags [exec sh ${odir_v3}/testsuite_flags --build-includes]
+     } else {
+       set odir_v2 [lookfor_file ${gccpath} libstdc++]
+@@ -192,16 +192,20 @@
+       }
+     }
+ 
+-    # On IRIX 6, we have to set variables akin to LD_LIBRARY_PATH, but
+-    # called LD_LIBRARYN32_PATH (for the N32 ABI) and LD_LIBRARY64_PATH
+-    # (for the 64-bit ABI).  The right way to do this would be to modify
+-    # unix.exp -- but that's not an option since it's part of DejaGNU
+-    # proper, so we do it here.  We really only need to do 
+-    # this on IRIX, but it shouldn't hurt to do it anywhere else.
+-    setenv  LD_LIBRARY_PATH     $ld_library_path
+-    setenv  SHLIB_PATH          $ld_library_path
+-    setenv  LD_LIBRARYN32_PATH  $ld_library_path
+-    setenv  LD_LIBRARY64_PATH   $ld_library_path
++    if {![is_remote target]} {
++      # On IRIX 6, we have to set variables akin to LD_LIBRARY_PATH, but
++      # called LD_LIBRARYN32_PATH (for the N32 ABI) and LD_LIBRARY64_PATH
++      # (for the 64-bit ABI).  The right way to do this would be to modify
++      # unix.exp -- but that's not an option since it's part of DejaGNU
++      # proper, so we do it here.  We really only need to do 
++      # this on IRIX, but it shouldn't hurt to do it anywhere else.
++
++      # Doing this causes us to be unable to run cross-compilers.
++      setenv  LD_LIBRARY_PATH     $ld_library_path
++      setenv  SHLIB_PATH          $ld_library_path
++      setenv  LD_LIBRARYN32_PATH  $ld_library_path
++      setenv  LD_LIBRARY64_PATH   $ld_library_path
++    }
+ 
+     return "$flags"
+ }

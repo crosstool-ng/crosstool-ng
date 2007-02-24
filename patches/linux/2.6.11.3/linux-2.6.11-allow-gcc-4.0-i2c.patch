@@ -1,0 +1,58 @@
+Fixes
+
+In file included from fs/compat_ioctl.c:69,
+                 from arch/ppc64/kernel/ioctl32.c:24:
+include/linux/i2c.h:58: error: array type has incomplete element type
+include/linux/i2c.h:197: error: array type has incomplete element type
+
+when compiling with gcc-4.0.
+
+--- linux-2.6.11.3/include/linux/i2c.h.old	2005-03-19 10:59:09.000000000 -0800
++++ linux-2.6.11.3/include/linux/i2c.h	2005-03-19 11:01:37.000000000 -0800
+@@ -36,7 +36,22 @@
+ 
+ /* --- General options ------------------------------------------------	*/
+ 
+-struct i2c_msg;
++/*
++ * I2C Message - used for pure i2c transaction, also from /dev interface
++ */
++struct i2c_msg {
++	__u16 addr;	/* slave address			*/
++ 	__u16 flags;		
++#define I2C_M_TEN	0x10	/* we have a ten bit chip address	*/
++#define I2C_M_RD	0x01
++#define I2C_M_NOSTART	0x4000
++#define I2C_M_REV_DIR_ADDR	0x2000
++#define I2C_M_IGNORE_NAK	0x1000
++#define I2C_M_NO_RD_ACK		0x0800
++ 	__u16 len;		/* msg length				*/
++ 	__u8 *buf;		/* pointer to msg data			*/
++};
++
+ struct i2c_algorithm;
+ struct i2c_adapter;
+ struct i2c_client;
+@@ -379,22 +394,6 @@
+ /* Return 1 if adapter supports everything we need, 0 if not. */
+ extern int i2c_check_functionality (struct i2c_adapter *adap, u32 func);
+ 
+-/*
+- * I2C Message - used for pure i2c transaction, also from /dev interface
+- */
+-struct i2c_msg {
+-	__u16 addr;	/* slave address			*/
+- 	__u16 flags;		
+-#define I2C_M_TEN	0x10	/* we have a ten bit chip address	*/
+-#define I2C_M_RD	0x01
+-#define I2C_M_NOSTART	0x4000
+-#define I2C_M_REV_DIR_ADDR	0x2000
+-#define I2C_M_IGNORE_NAK	0x1000
+-#define I2C_M_NO_RD_ACK		0x0800
+- 	__u16 len;		/* msg length				*/
+- 	__u8 *buf;		/* pointer to msg data			*/
+-};
+-
+ /* To determine what functionality is present */
+ 
+ #define I2C_FUNC_I2C			0x00000001

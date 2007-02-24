@@ -1,0 +1,54 @@
+Based on gcc-3.4.0/gcc-3.3.3h-ppc-asm-spec.patch
+
+Fixes the following errors when building gcc for ppc7450:
+
+/tmp/ccYph3gd.s: Assembler messages:
+/tmp/ccYph3gd.s:3823: Error: Unrecognized opcode: `mfvrsave'
+/tmp/ccYph3gd.s:3857: Error: Unrecognized opcode: `stvx'
+/tmp/ccYph3gd.s:4026: Error: Unrecognized opcode: `lvx'
+/tmp/ccYph3gd.s:4027: Error: Unrecognized opcode: `mtvrsave'
+make[2]: *** [libgcc/./unwind-dw2.o] Error 1
+make[2]: Leaving directory `/opt/crosstool-0.28-rc35/build/powerpc-7450-linux-gnu/gcc-3.2.3-glibc-2.3.2/build-gcc-core/gcc'
+make[1]: *** [stmp-multilib] Error 2
+make[1]: Leaving directory `/opt/crosstool-0.28-rc35/build/powerpc-7450-linux-gnu/gcc-3.2.3-glibc-2.3.2/build-gcc-core/gcc'
+make: *** [all-gcc] Error 2
+
+Note that the "-mcpu=7450" option must appear on the "gcc" command line in
+order for "-maltivec" to be passed to the assembler.  Or, "-maltivec" itself
+may be passed to the "gcc" command.
+
+Contributed by Tom Warzeka <waz@quahog.npt.nuwc.navy.mil>
+
+===================================================================
+--- gcc-3.2.3/gcc/config/rs6000/rs6000.h~	2003-03-29 07:39:20.000000000 -0500
++++ gcc-3.2.3/gcc/config/rs6000/rs6000.h	2004-08-23 16:33:21.000000000 -0400
+@@ -77,8 +77,8 @@
+ %{mcpu=604e: -D_ARCH_PPC} \
+ %{mcpu=620: -D_ARCH_PPC} \
+ %{mcpu=740: -D_ARCH_PPC} \
+-%{mcpu=7400: -D_ARCH_PPC} \
+-%{mcpu=7450: -D_ARCH_PPC} \
++%{mcpu=7400: -D_ARCH_PPC -D__ALTIVEC__} \
++%{mcpu=7450: -D_ARCH_PPC -D__ALTIVEC__} \
+ %{mcpu=750: -D_ARCH_PPC} \
+ %{mcpu=801: -D_ARCH_PPC} \
+ %{mcpu=821: -D_ARCH_PPC} \
+@@ -117,14 +117,15 @@
+ %{mcpu=604e: -mppc} \
+ %{mcpu=620: -mppc} \
+ %{mcpu=740: -mppc} \
+-%{mcpu=7400: -mppc} \
+-%{mcpu=7450: -mppc} \
++%{mcpu=7400: -mppc -maltivec} \
++%{mcpu=7450: -mppc -maltivec} \
+ %{mcpu=750: -mppc} \
+ %{mcpu=801: -mppc} \
+ %{mcpu=821: -mppc} \
+ %{mcpu=823: -mppc} \
+ %{mcpu=860: -mppc} \
+-%{maltivec: -maltivec}"
++%{maltivec: -maltivec} \
++-many"
+ 
+ #define CPP_DEFAULT_SPEC ""
+ 

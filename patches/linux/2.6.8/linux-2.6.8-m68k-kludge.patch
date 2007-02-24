@@ -1,0 +1,285 @@
+[ This patch not accepted into kernel for now - it touches the core too much -
+  but it's ok for crosstool since we just want to check whether toolchain is ok,
+  I think.    I had to rediff the sched.h changes with -U5 to get them to
+  apply properly -- patch got confused with just three lines of context?!  -dank ]
+
+Date: Sun, 5 Sep 2004 12:41:08 +0200 (CEST)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Sender: geert@linux-m68k.org
+To: Dan Kegel <dank@kegel.com>
+cc: Roman Zippel <zippel@linux-m68k.org>,
+  Matthias Urlichs <smurf@smurf.noris.de>,
+  Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+  Linux/m68k <linux-m68k@lists.linux-m68k.org>
+Subject: Re: Getting kernel.org kernel to build for m68k?
+In-Reply-To: <Pine.GSO.4.58.0409011029390.15681@waterleaf.sonytel.be>
+Message-ID: <Pine.LNX.4.58.0409051224020.30282@anakin>
+
+On Wed, 1 Sep 2004, Geert Uytterhoeven wrote:
+> On Tue, 31 Aug 2004, Dan Kegel wrote:
+> > I noticed today that Linus's m68k kernel can't be built (at least with gcc-3.4.1).
+> >
+> > The first problem I ran into,
+> >    CC      arch/m68k/kernel/asm-offsets.s
+> >    In file included from include/linux/spinlock.h:12,
+> >                   from include/linux/capability.h:45,
+> >                   from include/linux/sched.h:7,
+> >                   from arch/m68k/kernel/asm-offsets.c:12:
+> >    include/linux/thread_info.h:30: error: parse error before '{' token
+> > is solved already in the m68k tree.
+> > (In particular,
+> > the #ifndef __HAVE_THREAD_FUNCTIONS ... #endif in
+> > http://linux-m68k-cvs.apia.dhs.org/c/cvsweb/linux/include/linux/thread_info.h?rev=1.5;content-type=text%2Fplain
+> > probably solves it.)
+> > There are other problems after that.
+>
+> Roman Zippel changed the threading stuff on m68k. Since it would affect other
+> architectures, I never submitted it on my own.
+>
+> In short, we never really compile this code, since the m68k tree doesn't use it
+> anymore. And yes, it even fails with older compiler versions, like 2.95.2.
+
+The second part doesn't seem to be true: the code is used. And it does compile
+after applying the fixes below, even with gcc 3.4.1.
+
+> > Any chance you could spend a bit of time sending Linus enough
+> > patches for his kernel to build for m68k, if not run?
+>
+> I'll make sure a plain kernel.org kernel can build an m68k kernel.
+
+The patch below makes the plain kernel.org 2.6.8.1 compile for m68k,
+using gcc 2.95.2 or 3.3.3 (3.4.1 needs a few more changes in random
+places). The resulting kernel (I booted the gcc 2.95.2 case) works fine on my
+Amiga.
+
+It's more or less the patch created by Matthias Urlichs last year, so
+the credits are his:
+
+| This change implements a reasonable compromise between the task_info->flags
+| variable in other ports, which is too much work in the syscall path on m68k,
+| and moving the whole structure to thread_struct, which is way too intrusive
+| on other ports.
+
+The patch does affect generic code a bit, but the collateral damage is
+kept to a minimum.
+
+We can still keep Roman's thread info abstractions[*] in Linux/m68k CVS, but
+I'd really like the plain kernel.org kernel to be in a working state as well.
+That way more people may do cross-compile tests for m68k.
+
+Hence if no one objects, I'll submit the patch to Andrew and Linus.
+
+All comments are welcome!
+
+--- linux-2.6.8.1/arch/m68k/kernel/asm-offsets.c	2004-04-28 15:48:59.000000000 +0200
++++ linux-m68k-2.6.8.1/arch/m68k/kernel/asm-offsets.c	2004-09-05 12:04:00.000000000 +0200
+@@ -31,6 +31,7 @@ int main(void)
+ 	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, thread.work.sigpending));
+ 	DEFINE(TASK_NOTIFY_RESUME, offsetof(struct task_struct, thread.work.notify_resume));
+ 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
++	DEFINE(TASK_TINFO, offsetof(struct task_struct, thread_info));
+ 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
+ 	DEFINE(TASK_ACTIVE_MM, offsetof(struct task_struct, active_mm));
+
+@@ -45,6 +46,9 @@ int main(void)
+ 	DEFINE(THREAD_FPCNTL, offsetof(struct thread_struct, fpcntl));
+ 	DEFINE(THREAD_FPSTATE, offsetof(struct thread_struct, fpstate));
+
++	/* offsets into the thread_info struct */
++	DEFINE(TINFO_PREEMPT, offsetof(struct thread_info, preempt_count));
++
+ 	/* offsets into the pt_regs */
+ 	DEFINE(PT_D0, offsetof(struct pt_regs, d0));
+ 	DEFINE(PT_ORIG_D0, offsetof(struct pt_regs, orig_d0));
+--- linux-2.6.8.1/arch/m68k/kernel/entry.S	2004-05-24 11:13:22.000000000 +0200
++++ linux-m68k-2.6.8.1/arch/m68k/kernel/entry.S	2004-09-02 20:13:12.000000000 +0200
+@@ -134,13 +134,13 @@ ENTRY(system_call)
+
+ syscall_exit_work:
+ 	btst	#5,%sp@(PT_SR)		| check if returning to kernel
+-	bnes	1b			| if so, skip resched, signals
++	bnes	1b			| if so, skip everything
+ 	tstw	%d0
+-	jeq	do_signal_return
++	jeq	do_signal_return | jump if only sig_pending or notify_resume
+ 	tstb	%d0
+-	jne	do_delayed_trace
++	jne	do_delayed_trace | jump if delayed_trace
+
+-	pea	resume_userspace
++	pea	resume_userspace | need_resched is set
+ 	jmp	schedule
+
+ ret_from_exception:
+@@ -223,10 +223,14 @@ ENTRY(nmi_handler)
+ */
+ inthandler:
+ 	SAVE_ALL_INT
+-	GET_CURRENT(%d0)
+-	addqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+2)
+-					|  put exception # in d0
+-	bfextu %sp@(PT_VECTOR){#4,#10},%d0
++	/* GET_CURRENT(%d0) */
++	movel	%sp,%d0
++	andw	#-THREAD_SIZE,%d0
++	movel	%d0,%a1
++	addqb	#1,%a1@(TINFO_PREEMPT+2)
++	movel	%a1@,%curptr
++
++	bfextu	%sp@(PT_VECTOR){#4,#10},%d0 |  put exception # in d0
+
+ 	movel	%sp,%sp@-
+ 	movel	%d0,%sp@-		|  put vector # on stack
+@@ -243,7 +247,8 @@ inthandler:
+ 3:	addql	#8,%sp			|  pop parameters off stack
+
+ ret_from_interrupt:
+-	subqb	#1,%curptr@(TASK_INFO+TINFO_PREEMPT+2)
++	movel	%curptr@(TASK_TINFO),%a1
++	subqb	#1,%a1@(TINFO_PREEMPT+2)
+ 	jeq	1f
+ 2:
+ 	RESTORE_ALL
+--- linux-2.6.8.1/include/asm-m68k/processor.h	2004-04-28 15:49:03.000000000 +0200
++++ linux-m68k-2.6.8.1/include/asm-m68k/processor.h	2004-09-02 20:29:32.000000000 +0200
+@@ -84,7 +84,6 @@ struct thread_struct {
+ 	ksp:	sizeof(init_stack) + (unsigned long) init_stack,	\
+ 	sr:	PS_S,							\
+ 	fs:	__KERNEL_DS,						\
+-	info:	INIT_THREAD_INFO(init_task)				\
+ }
+
+ /*
+--- linux-2.6.8.1/include/asm-m68k/thread_info.h	2004-05-24 11:13:53.000000000 +0200
++++ linux-m68k-2.6.8.1/include/asm-m68k/thread_info.h	2004-09-05 12:19:47.000000000 +0200
+@@ -6,7 +6,7 @@
+ #include <asm/page.h>
+
+ struct thread_info {
+-	struct task_struct	*task;		/* main task structure */
++	struct task_struct	*task;		/* main task structure, must be first! */
+ 	struct exec_domain	*exec_domain;	/* execution domain */
+ 	__s32			preempt_count; /* 0 => preemptable, <0 => BUG */
+ 	__u32 cpu; /* should always be 0 on m68k */
+@@ -21,7 +21,8 @@ struct thread_info {
+ {						\
+ 	.task		= &tsk,			\
+ 	.exec_domain	= &default_exec_domain,	\
+-	.restart_block = {			\
++	.preempt_count	= 1,			\
++	.restart_block	= {			\
+ 		.fn = do_no_restart_syscall,	\
+ 	},					\
+ }
+@@ -35,10 +36,11 @@ struct thread_info {
+ #define free_thread_info(ti)  free_pages((unsigned long)(ti),1)
+ #endif /* PAGE_SHIFT == 13 */
+
+-//#define init_thread_info	(init_task.thread.info)
++#define init_thread_info	(init_thread_union.thread_info)
+ #define init_stack		(init_thread_union.stack)
+
+-#define current_thread_info()	(current->thread_info)
++register __u32 current_thread_info_reg asm("sp");
++#define current_thread_info()	((struct thread_info *)(current_thread_info_reg & ~0x1fff))
+
+
+ #define __HAVE_THREAD_FUNCTIONS
+@@ -91,8 +93,12 @@ extern int thread_flag_fixme(void);
+ })
+
+ #define __get_set_tsk_thread_flag(tsk, flag, val) ({	\
+-	int __res = __get_tsk_thread_flag(tsk, flag);	\
++	int __res;					\
++	unsigned long __flags; \
++	local_irq_save(__flags);  \
++	__res = __get_tsk_thread_flag(tsk, flag);	\
+ 	__set_tsk_thread_flag(tsk, flag, val);		\
++	local_irq_restore(__flags);  \
+ 	__res;						\
+ })
+
+@@ -105,7 +111,4 @@ extern int thread_flag_fixme(void);
+ #define clear_thread_flag(flag) clear_tsk_thread_flag(current, flag)
+ #define test_thread_flag(flag) test_tsk_thread_flag(current, flag)
+
+-#define set_need_resched() set_thread_flag(TIF_NEED_RESCHED)
+-#define clear_need_resched() clear_thread_flag(TIF_NEED_RESCHED)
+-
+ #endif	/* _ASM_M68K_THREAD_INFO_H */
+--- linux-2.6.8/include/linux/sched.h.old	2004-09-13 21:48:58.000000000 -0700
++++ linux-2.6.8/include/linux/sched.h	2004-09-13 21:50:26.000000000 -0700
+@@ -975,10 +975,11 @@
+ 	task_unlock(task);
+ 
+ 	return mm;
+ }
+  
++#ifndef __HAVE_THREAD_FUNCTIONS
+  
+ /* set thread flags in other task's structures
+  * - see asm/thread_info.h for TIF_xxxx flags available
+  */
+ static inline void set_tsk_thread_flag(struct task_struct *tsk, int flag)
+@@ -1004,10 +1005,12 @@
+ static inline int test_tsk_thread_flag(struct task_struct *tsk, int flag)
+ {
+ 	return test_ti_thread_flag(tsk->thread_info,flag);
+ }
+ 
++#endif	/* __HAVE_THREAD_FUNCTIONS */
++
+ static inline void set_tsk_need_resched(struct task_struct *tsk)
+ {
+ 	set_tsk_thread_flag(tsk,TIF_NEED_RESCHED);
+ }
+ 
+--- linux-2.6.8.1/include/linux/thread_info.h	2004-04-27 20:42:22.000000000 +0200
++++ linux-m68k-2.6.8.1/include/linux/thread_info.h	2004-09-04 21:24:36.000000000 +0200
+@@ -21,6 +21,7 @@ extern long do_no_restart_syscall(struct
+ #include <asm/thread_info.h>
+
+ #ifdef __KERNEL__
++#ifndef __HAVE_THREAD_FUNCTIONS
+
+ /*
+  * flag set/clear/test wrappers
+@@ -77,16 +78,11 @@ static inline int test_ti_thread_flag(st
+ 	return test_bit(flag,&ti->flags);
+ }
+
+-static inline void set_need_resched(void)
+-{
+-	set_thread_flag(TIF_NEED_RESCHED);
+-}
++#endif	/* __HAVE_THREAD_FUNCTIONS */
+
+-static inline void clear_need_resched(void)
+-{
+-	clear_thread_flag(TIF_NEED_RESCHED);
+-}
++#define set_need_resched() set_thread_flag(TIF_NEED_RESCHED)
++#define clear_need_resched(void) clear_thread_flag(TIF_NEED_RESCHED)
+
+-#endif
++#endif	/* __KERNEL__ */
+
+ #endif /* _LINUX_THREAD_INFO_H */
+
+Gr{oetje,eeting}s,
+
+						Geert
+
+[*] For reference:
+
+    http://linux-m68k-cvs.ubb.ca/~geert/linux-m68k-2.6.x-merging/POSTPONED/156-thread_info.diff
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+							    -- Linus Torvalds
+
+
+

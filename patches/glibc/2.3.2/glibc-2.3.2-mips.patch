@@ -1,0 +1,60 @@
+From Bill Gatliff, who said:
+"Attached is a glibc-2.3.2 patchfile I use for MIPS.  Versions prior to and including glibc-2.3.2 won't build without it."
+
+diff -bBurN glibc-2.3.2.orig/elf/dl-conflict.c glibc-2.3.2/elf/dl-conflict.c
+--- glibc-2.3.2.orig/elf/dl-conflict.c	2003-06-12 21:07:54.000000000 -0500
++++ glibc-2.3.2/elf/dl-conflict.c	2003-06-12 21:09:12.000000000 -0500
+@@ -33,6 +33,7 @@
+ _dl_resolve_conflicts (struct link_map *l, ElfW(Rela) *conflict,
+ 		       ElfW(Rela) *conflictend)
+ {
++#ifndef _DL_HAVE_NO_ELF_MACHINE_RELA
+   if (__builtin_expect (GL(dl_debug_mask) & DL_DEBUG_RELOC, 0))
+     _dl_printf ("\nconflict processing: %s\n",
+ 		l->l_name[0] ? l->l_name : rtld_progname);
+@@ -64,4 +65,5 @@
+     for (; conflict < conflictend; ++conflict)
+       elf_machine_rela (l, conflict, NULL, NULL, (void *) conflict->r_offset);
+   }
++#endif
+ }
+diff -bBurN glibc-2.3.2.orig/sysdeps/mips/dl-machine.h glibc-2.3.2/sysdeps/mips/dl-machine.h
+--- glibc-2.3.2.orig/sysdeps/mips/dl-machine.h	2003-06-12 21:07:49.000000000 -0500
++++ glibc-2.3.2/sysdeps/mips/dl-machine.h	2003-06-12 21:11:10.000000000 -0500
+@@ -56,6 +56,10 @@
+ #define ELF_MACHINE_JMP_SLOT			R_MIPS_REL32
+ #define elf_machine_type_class(type)		ELF_RTYPE_CLASS_PLT
+ 
++/* MIPS doesn't support RELA; see:
++   http://lists.debian.org/debian-mips/2002/debian-mips-200209/msg00020.html */
++#define _DL_HAVE_NO_ELF_MACHINE_RELA
++
+ /* Translate a processor specific dynamic tag to the index
+    in l_info array.  */
+ #define DT_MIPS(x) (DT_MIPS_##x - DT_LOPROC + DT_NUM)
+diff -bBurN glibc-2.3.2.orig/sysdeps/mips/Makefile glibc-2.3.2/sysdeps/mips/Makefile
+--- glibc-2.3.2.orig/sysdeps/mips/Makefile	2003-06-12 21:07:48.000000000 -0500
++++ glibc-2.3.2/sysdeps/mips/Makefile	2003-06-12 21:10:14.000000000 -0500
+@@ -6,3 +6,11 @@
+ ifeq ($(subdir),setjmp)
+ sysdep_routines += setjmp_aux
+ endif
++
++ifeq ($(subdir),csu)
++ifeq (yes,$(build-shared))
++# Compatibility
++sysdep_routines += divdi3
++shared-only-routines += divdi3
++endif
++endif
+diff -bBurN glibc-2.3.2.orig/sysdeps/unix/sysv/linux/mips/syscalls.list glibc-2.3.2/sysdeps/unix/sysv/linux/mips/syscalls.list
+--- glibc-2.3.2.orig/sysdeps/unix/sysv/linux/mips/syscalls.list	2003-06-12 21:07:53.000000000 -0500
++++ glibc-2.3.2/sysdeps/unix/sysv/linux/mips/syscalls.list	2003-06-12 21:12:30.000000000 -0500
+@@ -41,6 +41,7 @@
+ sys_mknod	xmknod	mknod		i:sii	__syscall_mknod
+ 
+ # System calls with wrappers.
++s_readahead     EXTRA   readahead       i:iipi  __syscall_readahead
+ rt_sigaction	-	rt_sigaction	i:ippi	__syscall_rt_sigaction
+ rt_sigpending	-	rt_sigpending	i:pi	__syscall_rt_sigpending
+ rt_sigprocmask	-	rt_sigprocmask	i:ippi	__syscall_rt_sigprocmask

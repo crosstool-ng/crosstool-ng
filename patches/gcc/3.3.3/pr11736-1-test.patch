@@ -1,0 +1,48 @@
+--- /dev/null	Sat Dec 14 13:56:51 2002
++++ gcc-3.3.1/gcc/testsuite/gcc.dg/pr11736-1.c	Sun Sep 14 14:26:33 2003
+@@ -0,0 +1,45 @@
++/* PR optimization/11736
++ * Reporter: marcus@mc.pp.se
++ * Summary:  Stackpointer messed up on SuperH
++ * Keywords: wrong-code
++ * Description:
++ * When a function with 5 arguments is called in both branches of a
++ * conditional, and only the last argument differs, the code to push that
++ * last argument on the stack gets confused. 
++ * Space for the fifth argument is reserved on the stack by the
++ * instruction I have marked as "A".  However, if the else-branch is
++ * taken the stackpointer is decremented _again_ at "B".  This
++ * decrementation is never restored, and it is only due to the
++ * restoration of r15 from r14 that the function works at all.  With
++ * -fomit-frame-pointer it will crash.
++ *
++ * Testcase tweaked by dank@kegel.com
++ * Not marked as xfail since it's a regression from hardhat 2.0 gcc-2.97 
++ * and dodes gcc-3.0.2
++ */
++
++/* { dg-do run } */
++/* { dg-options "-O1 -fomit-frame-pointer" } */
++
++int expected_e;
++
++void bar(int a, int b, int c, int d, int e)
++{
++	if (e != expected_e)
++		abort();
++}
++
++void foo(int a)
++{
++	if (a)
++		bar(0, 0, 0, 0, 1);
++	else
++		bar(0, 0, 0, 0, 0);	/* stack pointer decremented extra time here, causing segfault */
++}
++
++int main(int argc, char **argv)
++{
++	for (expected_e = 0; expected_e < 2; expected_e++)
++		foo(expected_e);
++	return 0;
++}

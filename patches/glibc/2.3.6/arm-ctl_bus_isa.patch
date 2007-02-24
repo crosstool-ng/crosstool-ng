@@ -1,0 +1,53 @@
+Applies to both glibc-2.2.5 and glibc-2.3.2, and probably glibc cvs as of Aug 2004.
+Needed to build glibc with linux kernels 2.4.23 or higher on ARM, 
+Fixes following error:
+
+../sysdeps/unix/sysv/linux/arm/ioperm.c: In function `init_iosys':
+../sysdeps/unix/sysv/linux/arm/ioperm.c:103: error: `BUS_ISA' undeclared (first use in this function)
+../sysdeps/unix/sysv/linux/arm/ioperm.c:103: error: (Each undeclared identifier is reported only once
+../sysdeps/unix/sysv/linux/arm/ioperm.c:103: error: for each function it appears in.)
+../sysdeps/unix/sysv/linux/arm/ioperm.c:103: error: initializer element is not constant
+../sysdeps/unix/sysv/linux/arm/ioperm.c:103: error: (near initialization for `iobase_name[1]')
+../sysdeps/unix/sysv/linux/arm/ioperm.c:104: error: initializer element is not constant
+../sysdeps/unix/sysv/linux/arm/ioperm.c:104: error: (near initialization for `ioshift_name[1]')
+make[2]: *** [/home/dank/crosstool-0.28/build/arm-softfloat-linux-gnu/gcc-3.3.4-glibc-2.2.5/build-glibc/misc/ioperm.o] Error 1
+
+cf. "[SYSCTL] BUS_ISA -> CTL_BUS_ISA",  http://www.ussg.iu.edu/hypermail/linux/kernel/0311.0/0529.html
+
+--- glibc-2.3.2/sysdeps/unix/sysv/linux/arm/ioperm.c.old	2003-02-20 14:22:24.000000000 -0800
++++ glibc-2.3.2/sysdeps/unix/sysv/linux/arm/ioperm.c	2004-01-31 16:01:50.000000000 -0800
+@@ -47,6 +47,12 @@
+ #include <asm/page.h>
+ #include <sys/sysctl.h>
+ 
++/* see http://www.ussg.iu.edu/hypermail/linux/kernel/0311.0/0529.html */
++#include <linux/version.h>
++#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,23))
++#define CTL_BUS_ISA BUS_ISA	/* and hope it's not the one from linux/input.h */
++#endif
++
+ #define PATH_ARM_SYSTYPE	"/etc/arm_systype"
+ #define PATH_CPUINFO		"/proc/cpuinfo"
+ 
+@@ -80,7 +86,7 @@
+  * Initialize I/O system.  There are several ways to get the information
+  * we need.  Each is tried in turn until one succeeds.
+  *
+- * 1. Sysctl (CTL_BUS, BUS_ISA, ISA_*).  This is the preferred method
++ * 1. Sysctl (CTL_BUS, CTL_BUS_ISA, ISA_*).  This is the preferred method
+  *    but not all kernels support it.
+  *
+  * 2. Read the value (not the contents) of symlink PATH_ARM_SYSTYPE.
+@@ -100,8 +106,8 @@
+ {
+   char systype[256];
+   int i, n;
+-  static int iobase_name[] = { CTL_BUS, BUS_ISA, BUS_ISA_PORT_BASE };
+-  static int ioshift_name[] = { CTL_BUS, BUS_ISA, BUS_ISA_PORT_SHIFT };
++  static int iobase_name[] = { CTL_BUS, CTL_BUS_ISA, BUS_ISA_PORT_BASE };
++  static int ioshift_name[] = { CTL_BUS, CTL_BUS_ISA, BUS_ISA_PORT_SHIFT };
+   size_t len = sizeof(io.base);
+ 
+   if (! sysctl (iobase_name, 3, &io.io_base, &len, NULL, 0)
+
+Signed-off-by: Robert P. J. Day <rpjday@mindspring.com>

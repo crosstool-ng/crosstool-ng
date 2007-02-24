@@ -1,0 +1,60 @@
+Backport a bugfix from glibc-2.2.5 to glibc-2.2.2 for the following problem:
+  When syslog-ng is restarted (or HUPed), vixie-cron (and probably other
+  programs) stop logging to syslog.
+
+
+2001-08-27 Ulrich Drepper <Drepper@redhat.com> * misc/syslog.c (vsyslog):
+  Try a bit harder to use syslogd.  If the connection went down after we
+  first used it try to connect again and resend the message before printing
+  to the console.
+
+http://sourceware.org/cgi-bin/cvsweb.cgi/libc/misc/Attic/syslog.c.diff?r1=1.32&r2=1.30&cvsroot=glibc
+[ paths adjusted ]
+
+===================================================================
+RCS file: /cvs/glibc/libc/misc/Attic/syslog.c,v
+retrieving revision 1.30
+retrieving revision 1.32
+diff -u -r1.30 -r1.32
+--- glibc-2.2.2/misc/syslog.c	2001/08/24 03:21:14	1.30
++++ glibc-2.2.5/misc/syslog.c	2001/08/30 23:13:49	1.32
+@@ -239,17 +239,29 @@
+ 
+ 	if (!connected || __send(LogFile, buf, bufsize, 0) < 0)
+ 	  {
+-	    closelog_internal ();	/* attempt re-open next time */
+-	    /*
+-	     * Output the message to the console; don't worry about blocking,
+-	     * if console blocks everything will.  Make sure the error reported
+-	     * is the one from the syslogd failure.
+-	     */
+-	    if (LogStat & LOG_CONS &&
+-		(fd = __open(_PATH_CONSOLE, O_WRONLY|O_NOCTTY, 0)) >= 0)
++	    if (connected)
+ 	      {
+-		dprintf (fd, "%s\r\n", buf + msgoff);
+-		(void)__close(fd);
++		/* Try to reopen the syslog connection.  Maybe it went
++		   down.  */
++		closelog_internal ();
++		openlog_internal(LogTag, LogStat | LOG_NDELAY, 0);
++	      }
++
++	    if (!connected || __send(LogFile, buf, bufsize, 0) < 0)
++	      {
++		closelog_internal ();	/* attempt re-open next time */
++		/*
++		 * Output the message to the console; don't worry
++		 * about blocking, if console blocks everything will.
++		 * Make sure the error reported is the one from the
++		 * syslogd failure.
++		 */
++		if (LogStat & LOG_CONS &&
++		    (fd = __open(_PATH_CONSOLE, O_WRONLY|O_NOCTTY, 0)) >= 0)
++		  {
++		    dprintf (fd, "%s\r\n", buf + msgoff);
++		    (void)__close(fd);
++		  }
+ 	      }
+ 	  }
+ 

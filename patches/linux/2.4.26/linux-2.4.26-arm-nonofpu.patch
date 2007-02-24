@@ -1,0 +1,40 @@
+Backport of linux-2.6.8-arm-nonofpu.patch.
+Fixes error when building linux-2.4.26 kernel with gcc-3.4 on arm.
+
+/opt/crosstool/arm-unknown-linux-gnu/gcc-3.4.2-glibc-2.2.5/bin/arm-unknown-linux-gnu-gcc -D__KERNEL__ -I/home/dank/wk/crosstool-0.28-rc37/build/arm-unknown-linux-gnu/gcc-3.4.2-glibc-2.2.5/linux-2.4.26/include -Wall -Wstrict-prototypes -Wno-trigraphs -Os -fno-strict-aliasing -fno-common -Uarm -fno-common -pipe -mapcs-32 -D__LINUX_ARM_ARCH__=4 -march=armv4 -mtune=strongarm110 -mshort-load-bytes -msoft-float -Uarm -S -o constants.h.tmp.1 getconstants.c
+cc1: error: invalid option `short-load-bytes'
+make[2]: *** [constants.h] Error 1
+make[2]: Leaving directory `/home/dank/wk/crosstool-0.28-rc37/build/arm-unknown-linux-gnu/gcc-3.4.2-glibc-2.2.5/linux-2.4.26/arch/arm/tools'
+make[1]: *** [dep] Error 2
+make[1]: Leaving directory `/home/dank/wk/crosstool-0.28-rc37/build/arm-unknown-linux-gnu/gcc-3.4.2-glibc-2.2.5/linux-2.4.26/arch/arm/tools'
+make: *** [archdep] Error 2
+
+
+--- linux-2.4.26/Makefile.old	Thu Sep 30 23:21:14 2004
++++ linux-2.4.26/Makefile	Thu Sep 30 23:24:12 2004
+@@ -21,6 +21,10 @@
+ 
+ CROSS_COMPILE 	=
+ 
++# From linux-2.6
++check_gcc = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
++export check_gcc
++
+ #
+ # Include the make variables (CC, etc...)
+ #
+--- linux-2.4.26/arch/arm/Makefile.old	Thu Sep 30 23:16:49 2004
++++ linux-2.4.26/arch/arm/Makefile	Thu Sep 30 23:25:27 2004
+@@ -50,9 +50,9 @@
+ tune-$(CONFIG_CPU_SA110)	:=-mtune=strongarm110
+ tune-$(CONFIG_CPU_SA1100)	:=-mtune=strongarm1100
+ 
+-CFLAGS_BOOT	:=$(apcs-y) $(arch-y) $(tune-y) -mshort-load-bytes -msoft-float -Uarm
+-CFLAGS		+=$(apcs-y) $(arch-y) $(tune-y) -mshort-load-bytes -msoft-float -Uarm
+-AFLAGS		+=$(apcs-y) $(arch-y) -mno-fpu -msoft-float
++CFLAGS_BOOT	:=$(apcs-y) $(arch-y) $(tune-y) $(call check_gcc,-malignment-traps,-mshort-load-bytes) -msoft-float -Uarm
++CFLAGS		+=$(apcs-y) $(arch-y) $(tune-y) $(call check_gcc,-malignment-traps,-mshort-load-bytes) -msoft-float -Uarm
++AFLAGS		+=$(apcs-y) $(arch-y) -msoft-float
+ 
+ ifeq ($(CONFIG_CPU_26),y)
+ PROCESSOR	:= armo

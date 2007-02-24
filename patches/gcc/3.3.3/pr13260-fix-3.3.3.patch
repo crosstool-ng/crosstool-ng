@@ -1,0 +1,246 @@
+Date: Fri, 06 Feb 2004 12:35:58 +0900
+From: SUGIOKA Toshinobu <sugioka@itonet.co.jp>
+Subject: [linux-sh:03150] Re: gcc 3.3 optimisation problem
+To: linux-sh@m17n.org
+Message-Id: <4.2.0.58.J.20040206122503.04fe3058@router.itonet.co.jp>
+List-Help: <mailto:linux-sh-ctl@m17n.org?body=help>
+List-Id: linux-sh.m17n.org
+
+At 19:40 03/12/01 +0000, Stuart Menefy <stuart.menefy@st.com> wrote:
+>On Sat, 29 Nov 2003 20:19:08 +0900 kkojima@rr.iij4u.or.jp wrote:
+>
+>> Dan Kegel <dank@kegel.com> wrote:
+>> > Stuart Menefy wrote:
+>> >> I've just been trying to put together a gcc 3.3.2 based toolchain, and
+>> >> appear to be hitting a gcc optimisation bug. I was just wondering if
+>> >> anyone else had seen anything similar.
+>> >> 
+>> >> The problem is seen when building the kernel, in the function
+>> >> root_nfs_parse_addr(). I've extracted this into a small stand alone
+>> >> program which demonstrates the problem.
+>> > 
+>> > Excellent work.  I haven't seen anything like this (doesn't mean much)
+>> > and the sh-specific optimization bugs in the gcc bug database don't look
+>> > similar.  I think you should submit this as a bug report at
+>> > http://gcc.gnu.org/bugzilla/
+>> > It would be good if you could make your test case call abort() if
+>> > the problem is present, so the test case can be automated.
+>> 
+>> Indeed.  It'd be very nice to create a gcc PR for this issue.
+>
+>OK, I've done that. PR 13260.
+
+PR 13260 was fixed by amylaar@gcc.gnu.org at 2003-12-04 20:10:29 on mainline(gcc-3.4).
+I have back-ported that patch to gcc-3.3.3 and seems fine for me.
+
+	* sh-protos.h (sh_expand_t_scc): Declare.
+	* sh.h (PREDICATE_CODES): Add cmpsi_operand.
+	* sh.c (cmpsi_operand, sh_expand_t_scc): New functions.
+	* sh.md (cmpsi): Use cmpsi_operand.  If T_REG is compared to
+	something that is not a CONST_INT, copy it into a pseudo register.
+	(subc): Fix description of new T value.
+	(slt, sgt, sge, sgtu): Don't clobber T after rtl generation is over.
+	(sltu, sleu, sgeu): Likewise.
+	(seq, sne): Likewise. Use sh_expand_t_scc.
+
+diff -ru gcc-3.3-20040126-1/gcc/config/sh/sh-protos.h gcc-3.3-20040126/gcc/config/sh/sh-protos.h
+--- gcc-3.3-20040126-1/gcc/config/sh/sh-protos.h	Tue Jan 13 02:03:24 2004
++++ gcc-3.3-20040126/gcc/config/sh/sh-protos.h	Fri Jan 30 17:54:04 2004
+@@ -102,6 +102,7 @@
+ extern int sh_can_redirect_branch PARAMS ((rtx, rtx));
+ extern void sh_expand_unop_v2sf PARAMS ((enum rtx_code, rtx, rtx));
+ extern void sh_expand_binop_v2sf PARAMS ((enum rtx_code, rtx, rtx, rtx));
++extern int sh_expand_t_scc (enum rtx_code code, rtx target);
+ #ifdef TREE_CODE
+ extern void sh_va_start PARAMS ((tree, rtx));
+ extern rtx sh_va_arg PARAMS ((tree, tree));
+diff -ru gcc-3.3-20040126-1/gcc/config/sh/sh.c gcc-3.3-20040126/gcc/config/sh/sh.c
+--- gcc-3.3-20040126-1/gcc/config/sh/sh.c	Thu Jan 15 03:11:36 2004
++++ gcc-3.3-20040126/gcc/config/sh/sh.c	Fri Jan 30 17:53:58 2004
+@@ -7870,6 +7870,15 @@
+   return register_operand (op, mode);
+ }
+ 
++int
++cmpsi_operand (rtx op, enum machine_mode mode)
++{
++  if (GET_CODE (op) == REG && REGNO (op) == T_REG
++      && GET_MODE (op) == SImode)
++    return 1;
++  return arith_operand (op, mode);
++}
++
+ /* INSN is an sfunc; return the rtx that describes the address used.  */
+ static rtx
+ extract_sfunc_addr (rtx insn)
+@@ -7917,4 +7926,33 @@
+   abort ();
+ }
+ 
++int
++sh_expand_t_scc (enum rtx_code code, rtx target)
++{
++  rtx result = target;
++  HOST_WIDE_INT val;
++
++  if (GET_CODE (sh_compare_op0) != REG || REGNO (sh_compare_op0) != T_REG
++      || GET_CODE (sh_compare_op1) != CONST_INT)
++    return 0;
++  if (GET_CODE (result) != REG)
++    result = gen_reg_rtx (SImode);
++  val = INTVAL (sh_compare_op1);
++  if ((code == EQ && val == 1) || (code == NE && val == 0))
++    emit_insn (gen_movt (result));
++  else if ((code == EQ && val == 0) || (code == NE && val == 1))
++    {
++      emit_insn (gen_rtx_CLOBBER (VOIDmode, result));
++      emit_insn (gen_subc (result, result, result));
++      emit_insn (gen_addsi3 (result, result, GEN_INT (1)));
++    }
++  else if (code == EQ || code == NE)
++    emit_insn (gen_move_insn (result, GEN_INT (code == NE)));
++  else
++    return 0;
++  if (result != target)
++    emit_move_insn (target, result);
++  return 1;
++}
++
+ #include "gt-sh.h"
+diff -ru gcc-3.3-20040126-1/gcc/config/sh/sh.h gcc-3.3-20040126/gcc/config/sh/sh.h
+--- gcc-3.3-20040126-1/gcc/config/sh/sh.h	Wed Apr 16 02:06:09 2003
++++ gcc-3.3-20040126/gcc/config/sh/sh.h	Fri Jan 30 17:53:51 2004
+@@ -3231,6 +3231,7 @@
+   {"arith_reg_or_0_operand", {SUBREG, REG, CONST_INT, CONST_VECTOR}},	\
+   {"binary_float_operator", {PLUS, MINUS, MULT, DIV}},			\
+   {"binary_logical_operator", {AND, IOR, XOR}},				\
++  {"cmpsi_operand", {SUBREG, REG, CONST_INT}},				\
+   {"commutative_float_operator", {PLUS, MULT}},				\
+   {"equality_comparison_operator", {EQ,NE}},				\
+   {"extend_reg_operand", {SUBREG, REG, TRUNCATE}},			\
+diff -ru gcc-3.3-20040126-1/gcc/config/sh/sh.md gcc-3.3-20040126/gcc/config/sh/sh.md
+--- gcc-3.3-20040126-1/gcc/config/sh/sh.md	Tue Jan 13 02:03:25 2004
++++ gcc-3.3-20040126/gcc/config/sh/sh.md	Fri Jan 30 17:54:20 2004
+@@ -685,11 +685,14 @@
+ 
+ (define_expand "cmpsi"
+   [(set (reg:SI T_REG)
+-	(compare (match_operand:SI 0 "arith_operand" "")
++	(compare (match_operand:SI 0 "cmpsi_operand" "")
+ 		 (match_operand:SI 1 "arith_operand" "")))]
+   "TARGET_SH1"
+   "
+ {
++  if (GET_CODE (operands[0]) == REG && REGNO (operands[0]) == T_REG
++      && GET_CODE (operands[1]) != CONST_INT)
++    operands[0] = copy_to_mode_reg (SImode, operands[0]);
+   sh_compare_op0 = operands[0];
+   sh_compare_op1 = operands[1];
+   DONE;
+@@ -1147,7 +1150,9 @@
+ 			    (match_operand:SI 2 "arith_reg_operand" "r"))
+ 		  (reg:SI T_REG)))
+    (set (reg:SI T_REG)
+-	(gtu:SI (minus:SI (match_dup 1) (match_dup 2)) (match_dup 1)))]
++	(gtu:SI (minus:SI (minus:SI (match_dup 1) (match_dup 2))
++			  (reg:SI T_REG))
++		(match_dup 1)))]
+   "TARGET_SH1"
+   "subc	%2,%0"
+   [(set_attr "type" "arith")])
+@@ -7223,6 +7228,10 @@
+ 	}
+       DONE;
+     }
++  if (sh_expand_t_scc (EQ, operands[0]))
++    DONE;
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   operands[1] = prepare_scc_operands (EQ);
+ }")
+ 
+@@ -7269,6 +7278,8 @@
+ 	}
+       DONE;
+     }
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   operands[1] = prepare_scc_operands (LT);
+ }")
+ 
+@@ -7371,6 +7382,8 @@
+ 	}
+       DONE;
+     }
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   operands[1] = prepare_scc_operands (GT);
+ }")
+ 
+@@ -7423,6 +7436,8 @@
+       DONE;
+     }
+ 
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   if (GET_MODE_CLASS (GET_MODE (sh_compare_op0)) == MODE_FLOAT)
+     {
+       if (TARGET_IEEE)
+@@ -7462,6 +7477,8 @@
+ 				     sh_compare_op0, sh_compare_op1));
+       DONE;
+     }
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   operands[1] = prepare_scc_operands (GTU);
+ }")
+ 
+@@ -7486,6 +7503,8 @@
+ 				     sh_compare_op1, sh_compare_op0));
+       DONE;
+     }
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   operands[1] = prepare_scc_operands (LTU);
+ }")
+ 
+@@ -7515,6 +7534,8 @@
+ 
+       DONE;
+     }
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   operands[1] = prepare_scc_operands (LEU);
+ }")
+ 
+@@ -7545,6 +7566,8 @@
+       DONE;
+     }
+ 
++  if (! rtx_equal_function_value_matters)
++    FAIL;
+   operands[1] = prepare_scc_operands (GEU);
+ }")
+ 
+@@ -7592,8 +7615,12 @@
+       DONE;
+     }
+ 
+-   operands[1] = prepare_scc_operands (EQ);
+-   operands[2] = gen_reg_rtx (SImode);
++  if (sh_expand_t_scc (NE, operands[0]))
++    DONE;
++  if (! rtx_equal_function_value_matters)
++    FAIL;
++  operands[1] = prepare_scc_operands (EQ);
++  operands[2] = gen_reg_rtx (SImode);
+ }")
+ 
+ (define_expand "sunordered"
+
+----
+SUGIOKA Toshinobu
+
+
+
+

@@ -1,0 +1,41 @@
+Fix for this error:
+
+crosstool-0.32/build/alpha-unknown-linux-gnu/gcc-3.3.5-glibc-2.3.3/build-glibc/libc_pic.os(.text+0xc8bd0): In function `__posix_fallocate64_l64':
+: undefined reference to `__GI___pwrite64'
+collect2: ld returned 1 exit status
+make[1]: *** [crosstool-0.32/build/alpha-unknown-linux-gnu/gcc-3.3.5-glibc-2.3.3/build-glibc/libc.so] Error 1
+make[1]: Leaving directory `crosstool-0.32/build/alpha-unknown-linux-gnu/gcc-3.3.5-glibc-2.3.3/glibc-2.3.3'
+make: *** [all] Error 2
+
+extracted from GLIBC CVS by Dan Kegel
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/unix/sysv/linux/alpha/sysdep.h.diff?r1=1.16&r2=1.17&cvsroot=glibc'
+
+cf. 
+http://sources.redhat.com/ml/libc-alpha/2003-10/msg00038.html
+
+
+--- glibc-2.3.3/sysdeps/unix/sysv/linux/alpha/sysdep.h.old	2003-06-20 09:24:36.000000000 -0700
++++ glibc-2.3.3/sysdeps/unix/sysv/linux/alpha/sysdep.h	2005-04-27 11:23:46.000000000 -0700
+@@ -1,4 +1,4 @@
+-/* Copyright (C) 1992, 1993, 1995, 1996, 1997, 2002, 2003
++/* Copyright (C) 1992, 1993, 1995, 1996, 1997, 2002, 2003, 2004
+    Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper, <drepper@gnu.ai.mit.edu>, August 1995.
+@@ -65,6 +65,16 @@
+ # define __NR_semtimedop	423
+ #endif
+ 
++/* This is a kludge to make syscalls.list find these under the names
++   pread and pwrite, since some kernel headers define those names
++   and some define the *64 names for the same system calls.  */
++#if !defined __NR_pread && defined __NR_pread64
++# define __NR_pread __NR_pread64
++#endif
++#if !defined __NR_pwrite && defined __NR_pwrite64
++# define __NR_pwrite __NR_pwrite64
++#endif
++
+ /*
+  * In order to get the hidden arguments for rt_sigaction set up
+  * properly, we need to call the assembly version.  This shouldn't

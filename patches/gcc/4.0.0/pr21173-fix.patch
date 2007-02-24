@@ -1,0 +1,66 @@
+See http://gcc.gnu.org/PR21173
+This is a fix for a last minute brown-bag bug with gcc-4.0.0
+
+ ------- Additional Comment #24 From CVS Commits 2005-04-25 14:03 [reply] ------- 
+Subject: Bug 21173
+
+CVSROOT:        /cvs/gcc
+Module name:    gcc
+Branch:         gcc-4_0-branch
+Changes by:     dberlin@gcc.gnu.org     2005-04-25 14:02:38
+
+Modified files:
+        gcc            : ChangeLog tree-ssa-pre.c 
+
+Log message:
+        2005-04-25  Daniel Berlin  <dberlin@dberlin.org>
+        
+        Fix PR tree-optimization/21173
+        
+        * tree-ssa-pre.c (create_expression_by_pieces): Call unshare_expr
+        on things we pass to force_gimple_operand.  Don't try to special
+        case min_invariants.
+
+Patches:
+http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/ChangeLog.diff?cvsroot=gcc&only_with_tag=gcc-4_0-branch&r1=2.7592.2.192&r2=2.7592.2.193
+http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/tree-ssa-pre.c.diff?cvsroot=gcc&only_with_tag=gcc-4_0-branch&r1=2.65.4.2&r2=2.65.4.3
+
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/tree-ssa-pre.c,v
+retrieving revision 2.65.4.2
+retrieving revision 2.65.4.3
+diff -u -r2.65.4.2 -r2.65.4.3
+--- gcc/gcc/tree-ssa-pre.c	2005/04/17 23:40:31	2.65.4.2
++++ gcc/gcc/tree-ssa-pre.c	2005/04/25 14:02:31	2.65.4.3
+@@ -1330,7 +1330,8 @@
+ 	
+ 	folded = fold (build (TREE_CODE (expr), TREE_TYPE (expr), 
+ 			      genop1, genop2));
+-	newexpr = force_gimple_operand (folded, &forced_stmts, false, NULL);
++	newexpr = force_gimple_operand (unshare_expr (folded), 
++					&forced_stmts, false, NULL);
+ 	if (forced_stmts)
+ 	  {
+ 	    tsi = tsi_start (forced_stmts);
+@@ -1372,14 +1373,8 @@
+ 	add_referenced_tmp_var (temp);
+ 	folded = fold (build (TREE_CODE (expr), TREE_TYPE (expr), 
+ 			      genop1));
+-	/* If the generated operand  is already GIMPLE min_invariant
+-	   just use it instead of calling force_gimple_operand on it,
+-	   since that may make it not invariant by copying it into an
+-	   assignment.  */
+-	if (!is_gimple_min_invariant (genop1))
+-	  newexpr = force_gimple_operand (folded, &forced_stmts, false, NULL);
+-	else
+-	  newexpr = genop1;
++	newexpr = force_gimple_operand (unshare_expr (folded), 
++					&forced_stmts, false, NULL);
+ 	if (forced_stmts)
+ 	  {
+ 	    tsi = tsi_start (forced_stmts);
+
+    0K .                                                         1.24 MB/s
+
+13:16:54 (1.24 MB/s) - `-' saved [1303]
+

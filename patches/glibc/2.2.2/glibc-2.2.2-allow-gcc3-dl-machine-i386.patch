@@ -1,0 +1,232 @@
+Fixes errors:
+In file included from dynamic-link.h:21,
+                 from dl-load.c:32:
+../sysdeps/i386/dl-machine.h:121: error: parse error before '.' token
+../sysdeps/i386/dl-machine.h:122: error: stray '@' in program
+../sysdeps/i386/dl-machine.h:125: error: syntax error at '#' token
+../sysdeps/i386/dl-machine.h:128: error: syntax error at '#' token
+../sysdeps/i386/dl-machine.h:129: error: syntax error at '#' token
+../sysdeps/i386/dl-machine.h:129: error: stray '`' in program
+../sysdeps/i386/dl-machine.h:129: error: missing terminating ' character
+...
+../sysdeps/i386/dl-machine.h:227:22: warning: character constant too long for its type
+../sysdeps/i386/dl-machine.h:209: error: stray '\' in program
+../sysdeps/i386/dl-machine.h:209: error: stray '\' in program
+../sysdeps/i386/dl-machine.h:209: error: stray '\' in program
+../sysdeps/i386/dl-machine.h:209: error: missing terminating " character
+../sysdeps/i386/dl-machine.h: In function `dl_platform_init':
+../sysdeps/i386/dl-machine.h:273: error: `_dl_platform' undeclared (first use in this function)
+../sysdeps/i386/dl-machine.h:273: error: (Each undeclared identifier is reported only once
+../sysdeps/i386/dl-machine.h:273: error: for each function it appears in.)
+dl-load.c: In function `_dl_map_object_from_fd':
+dl-load.c:1043: warning: use of cast expressions as lvalues is deprecated
+dl-load.c:1043: warning: use of cast expressions as lvalues is deprecated
+dl-load.c:1058: warning: use of cast expressions as lvalues is deprecated
+dl-load.c:1058: warning: use of cast expressions as lvalues is deprecated
+
+dl-runtime.c:53: error: conflicting types for 'fixup'
+../sysdeps/i386/dl-machine.h:67: error: previous declaration of 'fixup' was here
+dl-runtime.c:53: error: conflicting types for 'fixup'
+../sysdeps/i386/dl-machine.h:67: error: previous declaration of 'fixup' was here
+dl-runtime.c:135: error: conflicting types for 'profile_fixup'
+../sysdeps/i386/dl-machine.h:70: error: previous declaration of 'profile_fixup' was here
+dl-runtime.c:135: error: conflicting types for 'profile_fixup'
+../sysdeps/i386/dl-machine.h:70: error: previous declaration of 'profile_fixup' was here
+../sysdeps/i386/dl-machine.h:67: warning: 'fixup' declared `static' but never defined
+../sysdeps/i386/dl-machine.h:70: warning: 'profile_fixup' declared `static' but never defined
+
+Updated to repair breakage caused by unconditionally requiring ARCH_FIXUP_ATTRIBUTE
+to be defined.  (No wonder glibc-2.2.2 didn't build for anything but x86...)
+
+===================================================================
+--- glibc-2.2.2/sysdeps/i386/dl-machine.h.old	2005-04-11 17:45:13.000000000 -0700
++++ glibc-2.2.2/sysdeps/i386/dl-machine.h	2005-04-12 10:01:47.000000000 -0700
+@@ -63,11 +63,14 @@
+    destroys the passed register information.  */
+ /* GKM FIXME: Fix trampoline to pass bounds so we can do
+    without the `__unbounded' qualifier.  */
++
++#define ARCH_FIXUP_ATTRIBUTE __attribute__ ((regparm (3), unused))
++
+ static ElfW(Addr) fixup (struct link_map *__unbounded l, ElfW(Word) reloc_offset)
+-     __attribute__ ((regparm (2), unused));
++     ARCH_FIXUP_ATTRIBUTE;
+ static ElfW(Addr) profile_fixup (struct link_map *l, ElfW(Word) reloc_offset,
+ 				 ElfW(Addr) retaddr)
+-     __attribute__ ((regparm (3), unused));
++     ARCH_FIXUP_ATTRIBUTE;
+ #endif
+ 
+ /* Set up the loaded object described by L so its unrelocated PLT
+@@ -117,68 +120,68 @@
+    and then redirect to the address it returns.  */
+ #if !defined PROF && !__BOUNDED_POINTERS__
+ # define ELF_MACHINE_RUNTIME_TRAMPOLINE asm ("\
+-	.text
+-	.globl _dl_runtime_resolve
+-	.type _dl_runtime_resolve, @function
+-	.align 16
+-_dl_runtime_resolve:
+-	pushl %eax		# Preserve registers otherwise clobbered.
+-	pushl %ecx
+-	pushl %edx
+-	movl 16(%esp), %edx	# Copy args pushed by PLT in register.  Note
+-	movl 12(%esp), %eax	# that `fixup' takes its parameters in regs.
+-	call fixup		# Call resolver.
+-	popl %edx		# Get register content back.
+-	popl %ecx
+-	xchgl %eax, (%esp)	# Get %eax contents end store function address.
+-	ret $8			# Jump to function address.
+-	.size _dl_runtime_resolve, .-_dl_runtime_resolve
+-
+-	.globl _dl_runtime_profile
+-	.type _dl_runtime_profile, @function
+-	.align 16
+-_dl_runtime_profile:
+-	pushl %eax		# Preserve registers otherwise clobbered.
+-	pushl %ecx
+-	pushl %edx
+-	movl 20(%esp), %ecx	# Load return address
+-	movl 16(%esp), %edx	# Copy args pushed by PLT in register.  Note
+-	movl 12(%esp), %eax	# that `fixup' takes its parameters in regs.
+-	call profile_fixup	# Call resolver.
+-	popl %edx		# Get register content back.
+-	popl %ecx
+-	xchgl %eax, (%esp)	# Get %eax contents end store function address.
+-	ret $8			# Jump to function address.
+-	.size _dl_runtime_profile, .-_dl_runtime_profile
+-	.previous
++	.text\n\
++	.globl _dl_runtime_resolve\n\
++	.type _dl_runtime_resolve, @function\n\
++	.align 16\n\
++_dl_runtime_resolve:\n\
++	pushl %eax		# Preserve registers otherwise clobbered.\n\
++	pushl %ecx\n\
++	pushl %edx\n\
++	movl 16(%esp), %edx	# Copy args pushed by PLT in register.  Note\n\
++	movl 12(%esp), %eax	# that `fixup' takes its parameters in regs.\n\
++	call fixup		# Call resolver.\n\
++	popl %edx		# Get register content back.\n\
++	popl %ecx\n\
++	xchgl %eax, (%esp)	# Get %eax contents end store function address.\n\
++	ret $8			# Jump to function address.\n\
++	.size _dl_runtime_resolve, .-_dl_runtime_resolve\n\
++\n\
++	.globl _dl_runtime_profile\n\
++	.type _dl_runtime_profile, @function\n\
++	.align 16\n\
++_dl_runtime_profile:\n\
++	pushl %eax		# Preserve registers otherwise clobbered.\n\
++	pushl %ecx\n\
++	pushl %edx\n\
++	movl 20(%esp), %ecx	# Load return address\n\
++	movl 16(%esp), %edx	# Copy args pushed by PLT in register.  Note\n\
++	movl 12(%esp), %eax	# that `fixup' takes its parameters in regs.\n\
++	call profile_fixup	# Call resolver.\n\
++	popl %edx		# Get register content back.\n\
++	popl %ecx\n\
++	xchgl %eax, (%esp)	# Get %eax contents end store function address.\n\
++	ret $8			# Jump to function address.\n\
++	.size _dl_runtime_profile, .-_dl_runtime_profile\n\
++	.previous\n\
+ ");
+ #else
+-# define ELF_MACHINE_RUNTIME_TRAMPOLINE asm ("\
+-	.text
+-	.globl _dl_runtime_resolve
+-	.globl _dl_runtime_profile
+-	.type _dl_runtime_resolve, @function
+-	.type _dl_runtime_profile, @function
+-	.align 16
+-_dl_runtime_resolve:
+-_dl_runtime_profile:
+-	pushl %eax		# Preserve registers otherwise clobbered.
+-	pushl %ecx
+-	pushl %edx
+-	movl 16(%esp), %edx	# Push the arguments for `fixup'
+-	movl 12(%esp), %eax
+-	pushl %edx
+-	pushl %eax
+-	call fixup		# Call resolver.
+-	popl %edx		# Pop the parameters
+-	popl %ecx
+-	popl %edx		# Get register content back.
+-	popl %ecx
+-	xchgl %eax, (%esp)	# Get %eax contents end store function address.
+-	ret $8			# Jump to function address.
+-	.size _dl_runtime_resolve, .-_dl_runtime_resolve
+-	.size _dl_runtime_profile, .-_dl_runtime_profile
+-	.previous
++# define ELF_MACHINE_RUNTIME_TRAMPOLINE asm ("\n\
++	.text\n\
++	.globl _dl_runtime_resolve\n\
++	.globl _dl_runtime_profile\n\
++	.type _dl_runtime_resolve, @function\n\
++	.type _dl_runtime_profile, @function\n\
++	.align 16\n\
++_dl_runtime_resolve:\n\
++_dl_runtime_profile:\n\
++	pushl %eax		# Preserve registers otherwise clobbered.\n\
++	pushl %ecx\n\
++	pushl %edx\n\
++	movl 16(%esp), %edx	# Push the arguments for `fixup'\n\
++	movl 12(%esp), %eax\n\
++	pushl %edx\n\
++	pushl %eax\n\
++	call fixup		# Call resolver.\n\
++	popl %edx		# Pop the parameters\n\
++	popl %ecx\n\
++	popl %edx		# Get register content back.\n\
++	popl %ecx\n\
++	xchgl %eax, (%esp)	# Get %eax contents end store function address.\n\
++	ret $8			# Jump to function address.\n\
++	.size _dl_runtime_resolve, .-_dl_runtime_resolve\n\
++	.size _dl_runtime_profile, .-_dl_runtime_profile\n\
++	.previous\n\
+ ");
+ #endif
+ 
+@@ -205,7 +208,7 @@
+ _dl_start_user:\n\
+ 	# Save the user entry point address in %edi.\n\
+ 	movl %eax, %edi\n\
+-	# Point %ebx at the GOT.
++	# Point %ebx at the GOT.\n\
+ 	call 0b\n\
+ 	addl $_GLOBAL_OFFSET_TABLE_, %ebx\n\
+ 	# Store the highest stack address\n\
+
+===================================================================
+--- glibc-2.2.2/elf/dl-runtime.c.old	2005-07-07 15:40:26.000000000 -0700
++++ glibc-2.2.2/elf/dl-runtime.c	2005-07-07 15:41:57.000000000 -0700
+@@ -33,6 +33,11 @@
+ # define VERSYMIDX(sym)	(DT_NUM + DT_THISPROCNUM + DT_VERSIONTAGIDX (sym))
+ #endif
+ 
++/* The fixup functions might have need special attributes.  If none
++   are provided define the macro as empty.  */
++#ifndef ARCH_FIXUP_ATTRIBUTE
++# define ARCH_FIXUP_ATTRIBUTE
++#endif
+ 
+ /* This function is called through a special trampoline from the PLT the
+    first time each PLT entry is called.  We must perform the relocation
+@@ -42,7 +47,7 @@
+    function.  */
+ 
+ #ifndef ELF_MACHINE_NO_PLT
+-static ElfW(Addr) __attribute__ ((unused))
++static ElfW(Addr) __attribute__ ((unused)) ARCH_FIXUP_ATTRIBUTE
+ fixup (
+ # ifdef ELF_MACHINE_RUNTIME_FIXUP_ARGS
+         ELF_MACHINE_RUNTIME_FIXUP_ARGS,
+@@ -126,7 +131,7 @@
+ 
+ #if !defined PROF && !defined ELF_MACHINE_NO_PLT && !__BOUNDED_POINTERS__
+ 
+-static ElfW(Addr) __attribute__ ((unused))
++static ElfW(Addr) __attribute__ ((unused)) ARCH_FIXUP_ATTRIBUTE
+ profile_fixup (
+ #ifdef ELF_MACHINE_RUNTIME_FIXUP_ARGS
+        ELF_MACHINE_RUNTIME_FIXUP_ARGS,

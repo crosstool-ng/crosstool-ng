@@ -1,0 +1,75 @@
+From libc-alpha-return-8354-listarch-libc-alpha=sourceware dot cygnus dot com at sources dot redhat dot com Mon Jul 01 11:18:29 2002
+Return-Path: <libc-alpha-return-8354-listarch-libc-alpha=sourceware dot cygnus dot com at sources dot redhat dot com>
+Delivered-To: listarch-libc-alpha at sourceware dot cygnus dot com
+Received: (qmail 10698 invoked by alias); 1 Jul 2002 11:18:28 -0000
+Mailing-List: contact libc-alpha-help at sources dot redhat dot com; run by ezmlm
+Precedence: bulk
+List-Subscribe: <mailto:libc-alpha-subscribe at sources dot redhat dot com>
+List-Archive: <http://sources.redhat.com/ml/libc-alpha/>
+List-Post: <mailto:libc-alpha at sources dot redhat dot com>
+List-Help: <mailto:libc-alpha-help at sources dot redhat dot com>, <http://sources dot redhat dot com/ml/#faqs>
+Sender: libc-alpha-owner at sources dot redhat dot com
+Delivered-To: mailing list libc-alpha at sources dot redhat dot com
+Received: (qmail 10659 invoked from network); 1 Jul 2002 11:18:27 -0000
+Received: from unknown (HELO sceaux.ilog.fr) (193.55.64.10)
+  by sources dot redhat dot com with SMTP; 1 Jul 2002 11:18:27 -0000
+Received: from ftp.ilog.fr (ftp.ilog.fr [193.55.64.11])
+	by sceaux dot ilog dot fr (8 dot 11 dot 6/8 dot 11 dot 6) with SMTP id g61BFDi08003
+	for <libc-alpha at sources dot redhat dot com>; Mon, 1 Jul 2002 13:15:18 +0200 (MET DST)
+Received: from laposte.ilog.fr ([193.55.64.67])
+ by ftp dot ilog dot fr (NAVGW 2 dot 5 dot 1 dot 16) with SMTP id M2002070113180506608
+ for <libc-alpha at sources dot redhat dot com>; Mon, 01 Jul 2002 13:18:05 +0200
+Received: from honolulu.ilog.fr ([172.17.4.43])
+	by laposte dot ilog dot fr (8 dot 11 dot 6/8 dot 11 dot 5) with ESMTP id g61BI2w29996;
+	Mon, 1 Jul 2002 13:18:02 +0200 (MET DST)
+Received: (from haible@localhost)
+	by honolulu dot ilog dot fr (8 dot 9 dot 3/8 dot 9 dot 3/SuSE Linux 8 dot 9 dot 3-0 dot 1) id NAA01763;
+	Mon, 1 Jul 2002 13:12:40 +0200
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: base64
+Message-ID: <15648.14632.526690.249866@honolulu.ilog.fr>
+Date: Mon, 1 Jul 2002 13:12:40 +0200 (CEST)
+From: Bruno Haible <bruno at clisp dot org>
+To: libc-alpha at sources dot redhat dot com
+Subject: sparc32/sysdep.h and gcc-3.1
+
+Hi,
+
+When building glibc-2.2.5 for sparc with gcc-3.1 I get a build error
+
+sparc-linux-gcc ../sysdeps/sparc/sparc32/__longjmp.S -c  -I../include -I. -I/backup/cross-build/build-glibc-sparc/setjmp -I.. -I../libio  -I/backup/cross-build/build-glibc-sparc -I../sysdeps/sparc/sparc32/elf -I../linuxthreads/sysdeps/unix/sysv/linux/sparc -I../linuxthreads/sysdeps/unix/sysv/linux -I../linuxthreads/sysdeps/pthread -I../sysdeps/pthread -I../linuxthreads/sysdeps/unix/sysv -I../linuxthreads/sysdeps/unix -I../linuxthreads/sysdeps/sparc/sparc32 -I../linuxthreads/sysdeps/sparc -I../sysdeps/unix/sysv/linux/sparc/sparc32 -I../sysdeps/unix/sysv/linux/sparc -I../sysdeps/unix/sysv/linux -I../sysdeps/gnu -I../sysdeps/unix/common -I../sysdeps/unix/mman -I../sysdeps/unix/inet -I../sysdeps/unix/sysv -I../sysdeps/unix/sparc -I../sysdeps/unix -I../sysdeps/posix -I../sysdeps/sparc/sparc32/fpu -I../sysdeps/sparc/sparc32 -I../sysdeps/wordsize-32 -I../sysdeps/ieee754/flt-32 -I../sysdeps/ieee754/dbl-64 -I../sysdeps/sparc/sparc32/soft-fp -I../sysdeps/sparc/fpu -I../sysdeps/sparc -I../sysdeps/ieee754 -I../sysdeps/generic/elf -I../sysdeps/generic  -nostdinc -isystem /cross/sparc-linux-tools/lib/gcc-lib/sparc-linux/3.1/include -isystem /cross/sparc-linux/include -D_LIBC_REENTRANT -include ../include/libc-symbols.h     -DASSEMBLER -D__ASSEMBLY__  -o /backup/cross-build/build-glibc-sparc/setjmp/__longjmp.o
+../sysdeps/sparc/sparc32/__longjmp.S: Assembler messages:
+../sysdeps/sparc/sparc32/__longjmp.S:41: Error: Illegal operands
+../sysdeps/sparc/sparc32/__longjmp.S:43: Error: Illegal operands
+../sysdeps/sparc/sparc32/__longjmp.S:48: Error: unknown pseudo-op: `.'
+../sysdeps/sparc/sparc32/__longjmp.S:50: Error: Illegal operands
+../sysdeps/sparc/sparc32/__longjmp.S:52: Error: Illegal operands
+../sysdeps/sparc/sparc32/__longjmp.S:55: Error: unknown pseudo-op: `.'
+../sysdeps/sparc/sparc32/__longjmp.S:72: Error: unknown pseudo-op: `.'
+../sysdeps/sparc/sparc32/__longjmp.S:76: Error: unknown pseudo-op: `.'
+make[2]: *** [/backup/cross-build/build-glibc-sparc/setjmp/__longjmp.o] Fehler 1
+make[2]: Leaving directory `/packages2/glibc-2.2.5/setjmp'
+
+Apparently "cpp0 -lang-asm" now leaves spaces around ## in place, if the token
+on the left or right of it is a lone dot (not a valid C identifier). Hard to
+say that it's a bug in the gcc-3.1 cpp, because -lang-asm is a gcc extension.
+The fix is just to remove the spaces.
+
+
+2002-06-05  Bruno Haible  <bruno@clisp.org>
+
+	* sysdeps/unix/sysv/linux/sparc/sparc32/sysdep.h (LOC): Remove spaces.
+
+--- glibc-2.2.5/sysdeps/unix/sysv/linux/sparc/sparc32/sysdep.h.bak	2001-07-06 06:56:21.000000000 +0200
++++ glibc-2.2.5/sysdeps/unix/sysv/linux/sparc/sparc32/sysdep.h	2002-06-05 23:14:40.000000000 +0200
+@@ -48,7 +48,7 @@
+ #define END(name) \
+ 	.size name, . - name
+ 
+-#define LOC(name)  . ## L ## name
++#define LOC(name)  .##L##name
+ 
+ #ifdef PIC
+ #define SYSCALL_ERROR_HANDLER					\
+

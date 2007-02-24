@@ -1,0 +1,29 @@
+Fixes glibc 'make tests' failure running isomac
+
+make[2]: *** [/home3/dank/wk/ixos/dap_interim/linux/3rdParty/crosstool/crosstool-0.15/build/sh4-unknown-linux-gnu/gcc-ss-3_3-20030714-glibc-2.2.5/build-glibc/stdlib/isomac.out] Error 2
+
+isomac.out contains:
+...
+setjmp.h
+#define JB_SIZE (4 * 15)
+
+See http://sources.redhat.com/ml/libc-hacker/2002-11/msg00009.html
+and http://www.schweikhardt.net/isomac.c.html
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/sh/bits/setjmp.h,v
+retrieving revision 1.4
+retrieving revision 1.5
+diff -u -r1.4 -r1.5
+--- libc/sysdeps/sh/bits/setjmp.h	2001/07/06 04:56:03	1.4
++++ libc/sysdeps/sh/bits/setjmp.h	2002/11/06 00:08:30	1.5
+@@ -42,7 +42,9 @@
+   } __jmp_buf[1];
+ #endif
+ 
++#if defined __USE_MISC || defined _ASM
+ #define JB_SIZE		(4 * 15)
++#endif
+ 
+ /* Test if longjmp to JMPBUF would unwind the frame
+    containing a local variable at ADDRESS.  */

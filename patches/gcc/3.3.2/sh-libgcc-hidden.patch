@@ -1,0 +1,122 @@
+[adjusted very slightly to apply to gcc-3.3.2 - dank]
+
+From: kaz Kojima <kkojima@rr.iij4u.or.jp>
+
+I've noticed one more problem about this issue.  In the testcase given
+by ZhouChang, libdemo.so exports __movstr_i4_even which is a function
+in libgcc.a. This itself is not a problem but it means that some functions
+in libgcc.a which should not be exported from shared objects might be
+exported from shared libs
+
+Date: Wed, 19 Nov 2003 09:04:12 +0900 (JST)
+From: kaz Kojima <kkojima@rr.iij4u.or.jp>
+Subject: [linux-sh:03096] Re: [linux]  Re: About tool chain in
+ http://kegel.com/crosstool/
+To: dank@kegel.com
+Cc: zjuzhou@yahoo.com.cn, linux-sh@m17n.org, zhan_sh@yahoo.com.cn,
+	crossgcc@sources.redhat.com
+Message-Id: <20031119.090412.85413542.kkojima@rr.iij4u.or.jp>
+
+Hi,
+
+Dan Kegel <dank@kegel.com> wrote:
+> I'll try that, thanks.  I notice that the '.hidden' isn't in cvs yet.
+> I also notice you've been trying to get that into CVS for two years
+> now (http://gcc.gnu.org/ml/gcc-patches/2001-10/msg00053.html).
+> Time for another try?  It'd be nice if gcc-3.4 (and maybe even gcc-3.3.3)
+> didn't need a patch for this.
+
+The situation is a bit complicated. sh-linux target doesn't make
+shared libgcc in gcc-3.3.x.
+OTOH, I withdrew that .hidden patch because gcc-3.3 has a general
+mechanism to make all libgcc functions .hidden. But I missed that
+that mechanism was conditionalized later so that it's done only
+when the target creates the shared libgcc.
+In 3.4, sh-linux target becomes to use the shared libgcc like as
+all other linux targets, so there is no problem.
+
+I inclined to backport 3.4 shared libgcc stuff to 3.3.3 rather
+than the old .hidden patch. How do you think about it?
+I'm happy if you or ZhouChang create a PR on gcc bugzilla about
+this issue.
+
+Regards,
+	kaz
+--
+	This is a backport of 3.4 shared libgcc stuff to 3.3 branch.
+	* config.gcc (sh*-*-linux*): Add t-slibgcc-elf-ver and t-linux.
+        to tmake_file.	* config/sh/libgcc-glibc.ver: New file.
+	* config/sh/t-linux (SHLIB_LINK): Override to use a linker script
+	libgcc_s.so.
+	(SHLIB_INSTALL): Likewise.
+
+diff -u3prN ORIG/gcc-3.3/gcc/config/sh/libgcc-glibc.ver gcc-3.3/gcc/config/sh/libgcc-glibc.ver
+--- ORIG/gcc-3.3/gcc/config/sh/libgcc-glibc.ver	Thu Jan  1 09:00:00 1970
++++ gcc-3.3/gcc/config/sh/libgcc-glibc.ver	Wed Nov 19 08:15:16 2003
+@@ -0,0 +1,21 @@
++# In order to work around the very problems that force us to now generally
++# create a libgcc.so, glibc reexported a number of routines from libgcc.a.
++# By now choosing the same version tags for these specific routines, we
++# maintain enough binary compatibility to allow future versions of glibc
++# to defer implementation of these routines to libgcc.so via DT_AUXILIARY.
++
++# Note that we cannot use the default libgcc-glibc.ver file on sh,
++# because GLIBC_2.0 does not exist on this architecture, as the first 
++# ever glibc release on the platform was GLIBC_2.2.
++
++%inherit GCC_3.0 GLIBC_2.2
++GLIBC_2.2 {
++  __register_frame
++  __register_frame_table
++  __deregister_frame
++  __register_frame_info
++  __deregister_frame_info
++  __frame_state_for
++  __register_frame_info_table
++}
++
+diff -u3prN ORIG/gcc-3.3/gcc/config/sh/t-linux gcc-3.3/gcc/config/sh/t-linux
+--- ORIG/gcc-3.3/gcc/config/sh/t-linux	Fri Jun  6 11:07:14 2003
++++ gcc-3.3/gcc/config/sh/t-linux	Wed Nov 19 08:09:26 2003
+@@ -12,3 +12,27 @@ MULTILIB_MATCHES = 
+ MULTILIB_EXCEPTIONS=
+ 
+ EXTRA_MULTILIB_PARTS= crtbegin.o crtend.o crtbeginS.o crtendS.o
++
++# Override t-slibgcc-elf-ver to export some libgcc symbols with
++# the symbol versions that glibc used.
++SHLIB_MAPFILES =  $(srcdir)/libgcc-std.ver $(srcdir)/config/sh/libgcc-glibc.ver
++
++# Override SHLIB_LINK and SHLIB_INSTALL to use linker script
++# libgcc_s.so.
++SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) -shared -nodefaultlibs \
++	-Wl,--soname=$(SHLIB_SONAME) \
++	-Wl,--version-script=$(SHLIB_MAP) \
++	-o $(SHLIB_NAME) @multilib_flags@ $(SHLIB_OBJS) $(SHLIB_LC) && \
++	rm -f $(SHLIB_SOLINK) && \
++	(echo "/* GNU ld script"; \
++	 echo "   Use the shared library, but some functions are only in"; \
++	 echo "   the static library.  */"; \
++	 echo "GROUP ( $(SHLIB_SONAME) libgcc.a )" \
++	) > $(SHLIB_SOLINK)
++SHLIB_INSTALL = \
++	$$(SHELL) $$(srcdir)/mkinstalldirs $$(slibdir)$(SHLIB_SLIBDIR_QUAL); \
++	$(INSTALL_DATA) $(SHLIB_NAME) \
++	  $$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_SONAME); \
++	rm -f $$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_SOLINK); \
++	$(INSTALL_DATA) $(SHLIB_SOLINK) \
++	  $$(slibdir)$(SHLIB_SLIBDIR_QUAL)/$(SHLIB_SOLINK)
+diff -u3prN ORIG/gcc-3.3/gcc/config.gcc gcc-3.3/gcc/config.gcc
+--- ORIG/gcc-3.3/gcc/config.gcc	Sat Aug  9 07:19:07 2003
++++ gcc-3.3/gcc/config.gcc	Wed Nov 19 08:07:53 2003
+@@ -2308,7 +2308,7 @@ sh-*-rtems*)
+ 	fi
+ 	;;
+ sh-*-linux* | sh[2346lbe]*-*-linux*)
+-	tmake_file="sh/t-sh sh/t-elf"
++	tmake_file="sh/t-sh sh/t-elf t-slibgcc-elf-ver t-linux"
+ 	case $machine in
+ 	sh*be-*-* | sh*eb-*-*) ;;
+ 	*)
+
+

@@ -1,0 +1,44 @@
+See http://gcc.gnu.org/PR11903
+
+Patch to fix following test case failure:
+
+		=== libstdc++-v3 tests ===
+FAIL: thread/pthread1.cc (test for excess errors)
+Excess errors:
+/opt/cegl-2.0/sh4-unknown-linux-gnu/gcc-ss-3_3-20030714-glibc-2.2.5/sh4-unknown-linux-gnu/bin/ld: cannot find -lthread
+collect2: ld returned 1 exit status
+
+Note that *any* program compiled with -pthread fails:
+
+/opt/cegl-2.0/sh4-unknown-linux-gnu/gcc-ss-3_3-20030714-glibc-2.2.5/bin/sh4-unknown-linux-gnu-gcc hello.c  -pthread
+/opt/cegl-2.0/sh4-unknown-linux-gnu/gcc-ss-3_3-20030714-glibc-2.2.5/lib/gcc-lib/sh4-unknown-linux-gnu/3.3.1/../../../../sh4-unknown-linux-gnu/bin/ld: cannot find -lthread
+collect2: ld returned 1 exit status
+
+Compiling with -lpthread on the other hand works fine:
+/opt/cegl-2.0/sh4-unknown-linux-gnu/gcc-ss-3_3-20030714-glibc-2.2.5/bin/sh4-unknown-linux-gnu-gcc hello.c  -lpthread
+
+So -pthread is broken in some trivial way; it should invoke -lpthread, not -lthread,
+at least when targeting Linux. 
+
+http://www.sh-linux.org/rpm-2003/SRPMS/gcc-3.2.3-3.src.rpm contains a jumbo patch,
+gcc-20030210-sh-linux-1.patch, that includes a fix for this.  Here's the
+appropriate hunk (brings in a fix for the documented -mieee option).
+No idea if this fix is completely right, but it works for me...
+- dank@kegel.com  20 Jul 2003
+
+Index: linux.h
+===================================================================
+RCS file: /cvsroot/gcc/gcc/gcc/config/sh/linux.h,v
+retrieving revision 1.9.20.1
+diff -u -d -u -r1.9.20.1 linux.h
+--- gcc-ss-3_3-20030714/gcc/config/sh/linux.h.old	6 Jun 2003 02:30:59 -0000	1.9.20.1
++++ gcc-ss-3_3-20030714/gcc/config/sh/linux.h	20 Jul 2003 23:36:50 -0000
+@@ -59,7 +59,7 @@
+ #undef LIB_SPEC
+ #define LIB_SPEC \
+   "%{shared: -lc} \
+-   %{!shared: %{pthread:-lthread} \
++   %{!shared: %{mieee:-lieee} %{pthread:-lpthread} \
+      %{profile:-lc_p} %{!profile: -lc}}"
+ 
+ #undef STARTFILE_SPEC

@@ -1,0 +1,27 @@
+# Origin: from a patch by Dimitry Andric <dimitry@andric.com>, 2004-05-01
+# See http://gcc.gnu.org/PR14352 and http://gcc.gnu.org/PR16314
+# See also http://gcc.gnu.org/ml/gcc-patches/2004-08/msg02568.html et seq for why this isn't in mainline
+# Fixes errors like the following when building glibc (or any other executable
+# or shared library) when using gcc 3.4.0 for ARM with softfloat:
+#
+# .../libc_pic.os(.text+0x15834): In function `__modf': undefined reference to `__subdf3'
+# .../libc_pic.os(.text+0x158b8): In function `__modf': undefined reference to `__subdf3'
+# .../libc_pic.os(.text+0x1590c): In function `scalbn': undefined reference to `__muldf3'
+# .../libc_pic.os(.text+0x15e94): In function `__ldexpf': undefined reference to `__eqsf2'
+# .../libc_pic.os(.text+0xcee4c): In function `monstartup': undefined reference to `__fixsfsi'
+
+diff -urNd gcc-3.4.0-orig/gcc/config/arm/t-linux gcc-3.4.0/gcc/config/arm/t-linux
+--- gcc-3.4.0-orig/gcc/config/arm/t-linux	2003-09-20 23:09:07.000000000 +0200
++++ gcc-3.4.0/gcc/config/arm/t-linux	2004-05-01 20:31:59.102846400 +0200
+@@ -4,7 +4,10 @@
+ LIBGCC2_DEBUG_CFLAGS = -g0
+ 
+ LIB1ASMSRC = arm/lib1funcs.asm
+-LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_lnx
++LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_lnx \
++	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
++	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
++	_fixsfsi _fixunssfsi
+ 
+ # MULTILIB_OPTIONS = mhard-float/msoft-float
+ # MULTILIB_DIRNAMES = hard-float soft-float

@@ -1,0 +1,48 @@
+Suggested by Jake Page <jake at cs dot stanford dot edu>
+in http://sources.redhat.com/ml/crossgcc/2004-07/msg00169.html
+but the libc-symbols.h fragment has been reworked to fix typos
+and to still work on gcc-2.95.3, which lacks _Pragma.
+
+His comment was:
+ Fixes gcc-3.4 optimizing out comparisons to weak external symbols in code
+ like:
+  if (__pthread_mutex_init != NULL)
+    __pthread_mutex_init(...);
+ that causes segfaults during libc init when not linked to libpthread
+
+diff -uNr glibc-2.2.5-orig/resolv/res_libc.c glibc-2.2.5/resolv/res_libc.c
+--- glibc-2.2.5-orig/resolv/res_libc.c	2001-02-12 12:23:34.000000000 -0800
++++ glibc-2.2.5/resolv/res_libc.c	2004-07-27 22:56:32.000000000 -0700
+@@ -84,7 +84,8 @@
+ 
+ #if SHLIB_COMPAT(libc, GLIBC_2_0, GLIBC_2_2)
+ # undef res_init
+-strong_alias (__res_init, __res_init_weak);
++extern int __res_init_weak (void);
+ weak_extern (__res_init_weak);
++strong_alias (__res_init, __res_init_weak);
+ compat_symbol (libc, __res_init_weak, res_init, GLIBC_2_0);
+ #endif
+--- glibc-2.2.5/include/libc-symbols.h.old	Fri Aug 13 04:20:55 2004
++++ glibc-2.2.5/include/libc-symbols.h	Fri Aug 13 04:37:06 2004
+@@ -108,10 +108,16 @@
+ 
+ /* Declare SYMBOL as weak undefined symbol (resolved to 0 if not defined).  */
+ #  define weak_extern(symbol) _weak_extern (symbol)
+-#  ifdef HAVE_ASM_WEAKEXT_DIRECTIVE
+-#   define _weak_extern(symbol) asm (".weakext " __SYMBOL_PREFIX #symbol);
+-#  else
+-#   define _weak_extern(symbol)    asm (".weak " __SYMBOL_PREFIX #symbol);
++#  if __GNUC__ >= 3
++    /* see http://sources.redhat.com/ml/libc-alpha/2003-01/msg00043.html */
++#   define __weak_extern_1(expr) _Pragma(#expr)
++#   define _weak_extern(symbol) __weak_extern_1(weak symbol)
++#  else /* __GNUC__ == 2 */
++#   ifdef HAVE_ASM_WEAKEXT_DIRECTIVE
++#    define _weak_extern(symbol) asm (".weakext " __SYMBOL_PREFIX #symbol);
++#   else
++#    define _weak_extern(symbol)    asm (".weak " __SYMBOL_PREFIX #symbol);
++#   endif
+ #  endif
+ 
+ # else

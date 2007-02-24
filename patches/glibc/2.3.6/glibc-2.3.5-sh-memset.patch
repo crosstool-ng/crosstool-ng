@@ -1,0 +1,30 @@
+From:
+	http://sources.redhat.com/ml/libc-alpha/2005-07/msg00051.html
+	http://sources.redhat.com/ml/crossgcc/2005-10/msg00035.html
+
+Message-ID: <434576E1.6020305@sscd.de>
+Date: Thu, 06 Oct 2005 21:11:29 +0200
+From: Alexander Sieb <sieb at sscd dot de>
+To: crossgcc at sourceware dot org
+Subject: Crosstool sh4-linux-gcc-4.0.2-glibc-2.3.5 patches
+
+On sh[34]-linux, memset function does not work if 2nd argument is negative
+and 3rd argument is greater than 12.
+for example, memset(ptr, "\xda", 20) sets 0xff instead of 0xda.
+ 
+Attached patch fixes this problem.
+ 
+	* sysdeps/sh/memset.S (memset): Correct 2nd argument handling.
+ 
+--- glibc-2.3.5.old/sysdeps/sh/memset.S	29 Apr 2003 22:47:18 -0000	1.4
++++ glibc-2.3.5/sysdeps/sh/memset.S	23 Jul 2005 08:37:21 -0000
+@@ -28,6 +28,7 @@ ENTRY(memset)
+ 	bt.s	L_byte_loop_init
+ 	mov	r4,r7
+ 
++	extu.b	r5,r5
+ 	swap.b	r5,r1
+ 	or	r1,r5
+	swap.w	r5,r1
+
+Signed-off-by: Robert P. J. Day <rpjday@mindspring.com>

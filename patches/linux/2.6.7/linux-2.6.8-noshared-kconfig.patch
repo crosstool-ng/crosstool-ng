@@ -1,0 +1,28 @@
+Lets you run 'make oldconfig' and 'make menuconfig' on systems
+where shared libraries aren't easy.  (There's no harm in using the
+static version of libkconfig.)
+Idea mentioned by Bertrand Marquis, but this patch is a bit simpler than his.
+
+
+--- linux-2.6.8.1/scripts/kconfig/Makefile.old	2004-09-09 20:30:25.000000000 -0700
++++ linux-2.6.8.1/scripts/kconfig/Makefile	2004-09-09 20:47:51.000000000 -0700
+@@ -68,8 +68,8 @@
+ libkconfig-objs := zconf.tab.o
+ 
+ host-progs	:= conf mconf qconf gconf
+-conf-objs	:= conf.o  libkconfig.so
+-mconf-objs	:= mconf.o libkconfig.so
++conf-objs	:= conf.o  $(libkconfig-objs)
++mconf-objs	:= mconf.o $(libkconfig-objs)
+ 
+ ifeq ($(MAKECMDGOALS),xconfig)
+ 	qconf-target := 1
+@@ -88,7 +88,7 @@
+ gconf-objs	:= gconf.o kconfig_load.o
+ endif
+ 
+-clean-files	:= libkconfig.so lkc_defs.h qconf.moc .tmp_qtcheck \
++clean-files	:= $(libkconfig-objs) lkc_defs.h qconf.moc .tmp_qtcheck \
+ 		   .tmp_gtkcheck zconf.tab.c zconf.tab.h lex.zconf.c
+ 
+ # generated files seem to need this to find local include files

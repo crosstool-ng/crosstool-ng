@@ -1,0 +1,48 @@
+This patch comes from the Debian archive:
+  ftp://ftp.de.debian.org/debian/pool/main/libf/libfloat/libfloat_990616-3.diff.gz
+
+It was stripped of all Debian-related hunks.
+Kept is the library versioning.
+
+--- libfloat-990616.orig/Makefile
++++ libfloat-990616/Makefile
+@@ -4,15 +4,15 @@
+ #CC=gcc -g -O2 -freg-struct-return -D__LIBFLOAT__
+ AR=ar
+ 
+-all: libfloat.a libfloat.so
++all: libfloat.a libfloat.so.1
+ 
+ libfloat.a: softfloat.o fplib_glue.o
+ 	rm -f libfloat.a
+ 	$(AR) cq libfloat.a softfloat.o fplib_glue.o
+ 
+-libfloat.so: softfloat.os fplib_glue.os
+-	rm -f libfloat.so
+-	gcc -shared softfloat.os fplib_glue.os -o libfloat.so
++libfloat.so.1: softfloat.os fplib_glue.os
++	rm -f libfloat.so.1
++	gcc -shared -Wl,-soname,libfloat.so.1 softfloat.os fplib_glue.os -o libfloat.so.1
+ 
+ softfloat.o: softfloat/bits64/softfloat.c
+ 	$(CC) -c -o softfloat.o -Isoftfloat/bits64/ARM-gcc softfloat/bits64/softfloat.c
+@@ -26,14 +26,14 @@
+ fplib_glue.os: fplib_glue.S
+ 	$(CC) -fpic -c -o fplib_glue.os fplib_glue.S
+ 
+-install: libfloat.a libfloat.so
+-	cp -a libfloat.a /usr/lib
+-	cp -a libfloat.so /usr/lib
+-	ldconfig
++install: libfloat.a libfloat.so.1
++	cp -a libfloat.a $(DESTDIR)/usr/lib
++	cp -a libfloat.so.1 $(DESTDIR)/usr/lib
++	cd $(DESTDIR)/usr/lib; ln -s libfloat.so.1 libfloat.so
+ 
+ clean: 
+ 	rm -f *.o
+ 	rm -f *.os
+ 	rm -f libfloat.a
+-	rm -f libfloat.so
++	rm -f libfloat.so.1
+ 	rm -f *~

@@ -1,0 +1,77 @@
+Fixes errors
+
+regcomp.c: In function 'parse_bracket_exp':
+regcomp.c:2724: error: invalid storage class for function 'seek_collating_symbol_entry'
+regcomp.c:2757: error: invalid storage class for function 'lookup_collation_sequence_value'
+regcomp.c:2826: error: invalid storage class for function 'build_range_exp'
+regcomp.c:2913: error: invalid storage class for function 'build_collating_symbol'
+...
+make[2]: *** [/home/dank/queue/jobdir.fast/crosstool-dev/build/x86_64-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.3.3/build-glibc/posix/regex.o] Error 1
+
+See also http://sources.redhat.com/ml/glibc-cvs/2004-q3/msg01071.html
+That fix requires gcc-4.0, but the fix proposed here works with older compilers, too
+
+--- glibc-2.3.3/posix/regcomp.c.old	2005-03-16 11:40:55.000000000 -0800
++++ glibc-2.3.3/posix/regcomp.c	2005-03-16 11:50:31.000000000 -0800
+@@ -2718,8 +2718,14 @@
+      Seek the collating symbol entry correspondings to NAME.
+      Return the index of the symbol in the SYMB_TABLE.  */
+ 
++#if __GNUC__ >= 4
++  auto inline int32_t
++#else
+   static inline int32_t
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
+   __attribute ((always_inline))
++#endif
+   seek_collating_symbol_entry (name, name_len)
+ 	 const unsigned char *name;
+ 	 size_t name_len;
+@@ -2751,8 +2757,14 @@
+      Look up the collation sequence value of BR_ELEM.
+      Return the value if succeeded, UINT_MAX otherwise.  */
+ 
++#if __GNUC__ >= 4
++  auto inline unsigned int
++#else
+   static inline unsigned int
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
+   __attribute ((always_inline))
++#endif
+   lookup_collation_sequence_value (br_elem)
+ 	 bracket_elem_t *br_elem;
+     {
+@@ -2819,8 +2831,14 @@
+      mbcset->range_ends, is a pointer argument sinse we may
+      update it.  */
+ 
+-  static inline reg_errcode_t
++#if __GNUC__ >= 4
++  auto inline reg_errcode_t
++#else
++  static inline reg_errcode_t
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
+   __attribute ((always_inline))
++#endif
+ # ifdef RE_ENABLE_I18N
+   build_range_exp (sbcset, mbcset, range_alloc, start_elem, end_elem)
+ 	 re_charset_t *mbcset;
+@@ -2906,8 +2924,14 @@
+      COLL_SYM_ALLOC is the allocated size of mbcset->coll_sym, is a
+      pointer argument sinse we may update it.  */
+ 
+-  static inline reg_errcode_t
++#if __GNUC__ >= 4
++  auto inline reg_errcode_t
++#else
++  static inline reg_errcode_t
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
+   __attribute ((always_inline))
++#endif
+ # ifdef RE_ENABLE_I18N
+   build_collating_symbol (sbcset, mbcset, coll_sym_alloc, name)
+ 	 re_charset_t *mbcset;

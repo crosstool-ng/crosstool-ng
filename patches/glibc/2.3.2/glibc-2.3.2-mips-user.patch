@@ -1,0 +1,588 @@
+Retrieved from
+http://sources.redhat.com/cgi-bin/get-raw-msg?listname=libc-alpha&date=2003-04&msgid=orfzoof4j0.fsf%40free.redhat.lsd.ic.unicamp.br
+paths adjusted, and rediffed against glibc-2.3.2
+(i.e. to compensate for fact that
+http://sources.redhat.com/ml/glibc-cvs/2003-q1/msg01155.html
+is not present)
+
+Should fix
+
+In file included from ../sysdeps/unix/sysv/linux/mips/sys/procfs.h:29,
+                 from ../linuxthreads_db/proc_service.h:20,
+                 from ../linuxthreads_db/thread_dbP.h:7,
+                 from ../linuxthreads/descr.h:43,
+                 from ../linuxthreads/internals.h:29,
+                 from ../linuxthreads/sysdeps/pthread/bits/libc-lock.h:27,
+                 from ../sysdeps/generic/ldsodefs.h:38,
+                 from ../sysdeps/unix/sysv/linux/ldsodefs.h:25,
+                 from ../sysdeps/mips/elf/ldsodefs.h:25,
+                 from ../sysdeps/unix/sysv/linux/init-first.c:30:
+../sysdeps/unix/sysv/linux/mips/sys/user.h:26:21: asm/reg.h: No such file or directory
+In file included from ../sysdeps/unix/sysv/linux/mips/sys/procfs.h:29,
+                 from ../linuxthreads_db/proc_service.h:20,
+                 from ../linuxthreads_db/thread_dbP.h:7,
+                 from ../linuxthreads/descr.h:43,
+                 from ../linuxthreads/internals.h:29,
+                 from ../linuxthreads/sysdeps/pthread/bits/libc-lock.h:27,
+                 from ../sysdeps/generic/ldsodefs.h:38,
+                 from ../sysdeps/unix/sysv/linux/ldsodefs.h:25,
+                 from ../sysdeps/mips/elf/ldsodefs.h:25,
+                 from ../sysdeps/unix/sysv/linux/init-first.c:30:
+../sysdeps/unix/sysv/linux/mips/sys/user.h:30: error: `EF_SIZE' undeclared here (not in a function)
+make[2]: *** [mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/csu/init-first.o] Error 1
+make[2]: Leaving directory `mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/glibc-2.3.2/csu'
+make[1]: *** [csu/subdir_lib] Error 2
+make[1]: Leaving directory `mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/glibc-2.3.2'
+make: *** [all] Error 2
+
+From libc-alpha-return-12105-listarch-libc-alpha=sources dot redhat dot com at sources dot redhat dot com Sat Apr 12 09:28:56 2003
+Return-Path: <libc-alpha-return-12105-listarch-libc-alpha=sources dot redhat dot com at sources dot redhat dot com>
+Delivered-To: listarch-libc-alpha at sources dot redhat dot com
+Received: (qmail 2802 invoked by alias); 12 Apr 2003 09:28:56 -0000
+Mailing-List: contact libc-alpha-help at sources dot redhat dot com; run by ezmlm
+Precedence: bulk
+List-Subscribe: <mailto:libc-alpha-subscribe at sources dot redhat dot com>
+List-Archive: <http://sources.redhat.com/ml/libc-alpha/>
+List-Post: <mailto:libc-alpha at sources dot redhat dot com>
+List-Help: <mailto:libc-alpha-help at sources dot redhat dot com>, <http://sources dot redhat dot com/ml/#faqs>
+Sender: libc-alpha-owner at sources dot redhat dot com
+Delivered-To: mailing list libc-alpha at sources dot redhat dot com
+Received: (qmail 2795 invoked from network); 12 Apr 2003 09:28:55 -0000
+Received: from unknown (HELO lacrosse.corp.redhat.com) (66.187.233.200)
+  by sources dot redhat dot com with SMTP; 12 Apr 2003 09:28:55 -0000
+Received: from free.redhat.lsd.ic.unicamp.br (aoliva.cipe.redhat.com [10.0.1.10])
+	by lacrosse dot corp dot redhat dot com (8 dot 11 dot 6/8 dot 9 dot 3) with ESMTP id h3C9SqV01131
+	for <libc-alpha at sources dot redhat dot com>; Sat, 12 Apr 2003 05:28:52 -0400
+Received: from free.redhat.lsd.ic.unicamp.br (free.redhat.lsd.ic.unicamp.br [127.0.0.1])
+	by free dot redhat dot lsd dot ic dot unicamp dot br (8 dot 12 dot 8/8 dot 12 dot 8) with ESMTP id h3C9SpVT028734
+	for <libc-alpha at sources dot redhat dot com>; Sat, 12 Apr 2003 06:28:51 -0300
+Received: (from aoliva@localhost)
+	by free dot redhat dot lsd dot ic dot unicamp dot br (8 dot 12 dot 8/8 dot 12 dot 8/Submit) id h3C9SpFb028730;
+	Sat, 12 Apr 2003 06:28:51 -0300
+To: libc-alpha at sources dot redhat dot com
+Subject: signal-handling tweaks for mips/mips64
+From: Alexandre Oliva <aoliva at redhat dot com>
+Organization: GCC Team, Red Hat
+Date: 12 Apr 2003 06:28:51 -0300
+Message-ID: <orfzoof4j0.fsf@free.redhat.lsd.ic.unicamp.br>
+Lines: 49
+User-Agent: Gnus/5.09 (Gnus v5.9.0) Emacs/21.2
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="=-=-="
+
+--=-=-=
+
+It was reported to me that ucontext is utterly broken, even in o32
+with a stable 32-bit mips kernel.  Indeed, it doesn't match the
+ucontext structure defined by the kernel at all.  This means that
+programs taking real-time signals in o32 won't be able to extract
+correct information from the mcontext_t, since the kernel puts data in
+there that's in an entirely different format.
+
+I've looked for any ways in which the current data structures could
+possibly be useful, and didn't find any.  gdb and rda thought they
+were using the register arrays, but it turned out they were using the
+arrays in procps instead.  makecontext(), [sg]etcontext() et al aren't
+implemented on mips, so any uses thereof will just return ENOSYS,
+without messing with the given data structure.  So, I believe it is
+not too late for us to fix it such that it matches the kernel data
+structures.
+
+While at that, I fixed a number of incompatibilities introduced by
+either differences between kernel headers that we used to include,
+whose contents are different depending on whether asm points to
+asm-mips or asm-mips64.
+
+With this patch, after some pending kernel patches are checked in, one
+will be able to obtain the correct information from signal handlers in
+all mips ABIs.  With n64, this is already true.  With o32, it works
+with the 32-bit mips kernel, but the mips64 kernel needs a patch to
+implement the proper sigcontext ABI.  n32 still a patch to be
+developed for it to be possible for ucontext to be POSIX-compliant.
+Currently, the kernel uses the same ucontext for n32 and n64, but this
+doesn't work in n32 because uc_link must be a pointer and stack_t must
+contain a pointer and a size_t, whose sizes differ between n32 and
+n64.  I believe Ralf is working on a patch for the kernel to generate
+n32-compliant ucontext when invoking signal handlers in n32 processes.
+The only uncertainty is whether uc_flags will be a 32- or 64-bit value
+in n32; I left it as the latter, just because I already had that in
+place; if it changes, a (simplifying) follow-up patch will be posted.
+However, I wanted to circulate the idea of fixing ucontext_t for o32
+as soon as possible, so I didn't wait for a decision on the exact n32
+ABI.
+
+Ok to install?
+
+
+--=-=-=
+Content-Type: text/x-patch
+Content-Disposition: inline; filename=mips-sigstuff.patch
+
+Index: ChangeLog
+from  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sysdeps/unix/sysv/linux/mips/profil-counter: New.
+	* sysdeps/unix/sysv/linux/mips/sigcontextinfo.h: Port to n32/n64.
+	* sysdeps/unix/sysv/linux/mips/bits/sigcontext.h: New.
+	* sysdeps/unix/sysv/linux/mips/sys/ucontext.h: Port to n32/n64.
+	(mcontext_t): Make it match the 32-bit mips kernel in o32.
+	* sysdeps/unix/sysv/linux/mips/sys/user.h: Bring in constants from
+	the mips and mips64 headers.
+	(struct user): Port to n32/n64.
+
+Index: sysdeps/unix/sysv/linux/mips/profil-counter.h
+===================================================================
+RCS file: sysdeps/unix/sysv/linux/mips/profil-counter.h
+diff -N sysdeps/unix/sysv/linux/mips/profil-counter.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ libc/sysdeps/unix/sysv/linux/mips/profil-counter.h 12 Apr 2003 09:13:13 -0000
+@@ -0,0 +1,2 @@
++/* We can use the ix86 version.  */
++#include <sysdeps/unix/sysv/linux/i386/profil-counter.h>
+Index: sysdeps/unix/sysv/linux/mips/sigcontextinfo.h
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/unix/sysv/linux/mips/sigcontextinfo.h,v
+retrieving revision 1.6
+diff -u -p -r1.6 sigcontextinfo.h
+--- libc/sysdeps/unix/sysv/linux/mips/sigcontextinfo.h 6 Jul 2001 04:56:18 -0000 1.6
++++ libc/sysdeps/unix/sysv/linux/mips/sigcontextinfo.h 12 Apr 2003 09:13:13 -0000
+@@ -1,4 +1,4 @@
+-/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
++/* Copyright (C) 2000, 2001, 2003 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Andreas Jaeger <aj@suse.de>, 2000.
+ 
+@@ -18,6 +18,8 @@
+    02111-1307 USA.  */
+ 
+ 
++#if _MIPS_SIM == _MIPS_SIM_ABI32
++
+ #define SIGCONTEXT unsigned long _code, struct sigcontext *
+ #define SIGCONTEXT_EXTRA_ARGS _code,
+ #define GET_PC(ctx)	((void *) ctx->sc_pc)
+@@ -25,3 +27,15 @@
+ #define GET_STACK(ctx)	((void *) ctx->sc_regs[29])
+ #define CALL_SIGHANDLER(handler, signo, ctx) \
+   (handler)((signo), SIGCONTEXT_EXTRA_ARGS (ctx))
++
++#else
++
++#define SIGCONTEXT unsigned long _code, ucontext_t *
++#define SIGCONTEXT_EXTRA_ARGS _code,
++#define GET_PC(ctx)	((void *) ctx->uc_mcontext.pc)
++#define GET_FRAME(ctx)	((void *) ctx->uc_mcontext.gregs[30])
++#define GET_STACK(ctx)	((void *) ctx->uc_mcontext.gregs[29])
++#define CALL_SIGHANDLER(handler, signo, ctx) \
++  (handler)((signo), SIGCONTEXT_EXTRA_ARGS (ctx))
++
++#endif
+Index: sysdeps/unix/sysv/linux/mips/bits/sigcontext.h
+===================================================================
+RCS file: sysdeps/unix/sysv/linux/mips/bits/sigcontext.h
+diff -N sysdeps/unix/sysv/linux/mips/bits/sigcontext.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ libc/sysdeps/unix/sysv/linux/mips/bits/sigcontext.h 12 Apr 2003 09:13:13 -0000
+@@ -0,0 +1,103 @@
++/* Copyright (C) 1996, 1997, 1998, 2003 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++#if !defined _SIGNAL_H && !defined _SYS_UCONTEXT_H
++# error "Never use <bits/sigcontext.h> directly; include <signal.h> instead."
++#endif
++
++#ifndef sigcontext_struct
++/* Kernel headers before 2.1.1 define a struct sigcontext_struct, but
++   we need sigcontext.  */
++# define sigcontext_struct sigcontext
++
++/* # include <asm/sigcontext.h> */
++/* Instead of including the kernel header, that will vary depending on
++   whether the 32- or the 64-bit kernel is installed, we paste the
++   contents here.  In case you're wondering about the different
++   licenses, the fact that the file is pasted, instead of included,
++   doesn't really make any difference for the program that includes
++   this header.  */
++#if _MIPS_SIM == _MIPS_SIM_ABI32
++/*
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ *
++ * Copyright (C) 1996, 1997, 2000 by Ralf Baechle
++ */
++#ifndef _ASM_SIGCONTEXT_H
++#define _ASM_SIGCONTEXT_H
++
++/*
++ * Keep this struct definition in sync with the sigcontext fragment
++ * in arch/mips/tools/offset.c
++ */
++struct sigcontext {
++	unsigned int       sc_regmask;		/* Unused */
++	unsigned int       sc_status;
++	unsigned long long sc_pc;
++	unsigned long long sc_regs[32];
++	unsigned long long sc_fpregs[32];
++	unsigned int       sc_ownedfp;		/* Unused */
++	unsigned int       sc_fpc_csr;
++	unsigned int       sc_fpc_eir;		/* Unused */
++	unsigned int       sc_used_math;
++	unsigned int       sc_ssflags;		/* Unused */
++	unsigned long long sc_mdhi;
++	unsigned long long sc_mdlo;
++
++	unsigned int       sc_cause;		/* Unused */
++	unsigned int       sc_badvaddr;		/* Unused */
++
++	unsigned long      sc_sigset[4];	/* kernel's sigset_t */
++};
++
++#endif /* _ASM_SIGCONTEXT_H */
++#else /* _MIPS_SIM != _MIPS_SIM_ABI32 */
++/*
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ *
++ * Copyright (C) 1996, 1997, 1999 by Ralf Baechle
++ * Copyright (C) 1999 Silicon Graphics, Inc.
++ */
++#ifndef _ASM_SIGCONTEXT_H
++#define _ASM_SIGCONTEXT_H
++
++/*
++ * Keep this struct definition in sync with the sigcontext fragment
++ * in arch/mips/tools/offset.c
++ */
++struct sigcontext {
++	unsigned long long sc_regs[32];
++	unsigned long long sc_fpregs[32];
++	unsigned long long sc_mdhi;
++	unsigned long long sc_mdlo;
++	unsigned long long sc_pc;
++	unsigned int       sc_status;
++	unsigned int       sc_fpc_csr;
++	unsigned int       sc_fpc_eir;
++	unsigned int       sc_used_math;
++	unsigned int       sc_cause;
++	unsigned int       sc_badvaddr;
++};
++
++#endif /* _ASM_SIGCONTEXT_H */
++#endif /* _MIPS_SIM != _MIPS_SIM_ABI32 */
++#endif
+[hunk deleted, see below]
+Index: sysdeps/unix/sysv/linux/mips/sys/user.h
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/unix/sysv/linux/mips/sys/user.h,v
+retrieving revision 1.1
+diff -u -p -r1.1 user.h
+--- libc/sysdeps/unix/sysv/linux/mips/sys/user.h 8 Feb 2002 16:21:00 -0000 1.1
++++ libc/sysdeps/unix/sysv/linux/mips/sys/user.h 12 Apr 2003 09:13:13 -0000
+@@ -1,4 +1,4 @@
+-/* Copyright (C) 2002 Free Software Foundation, Inc.
++/* Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -23,7 +23,154 @@
+    too much into it.  Don't use it for anything other than GDB unless
+    you know what you are doing.  */
+ 
+-#include <asm/reg.h>
++/* #include <asm/reg.h> */
++/* Instead of including the kernel header, that will vary depending on
++   whether the 32- or the 64-bit kernel is installed, we paste its
++   contents here.  Note that the fact that the file is inline here,
++   instead of included separately, doesn't change in any way the
++   licensing status of a program that includes user.h.  Since this is
++   for gdb alone, and gdb is GPLed, no surprises here.  */
++#if _MIPS_SIM == _MIPS_SIM_ABI32
++/*
++ * Various register offset definitions for debuggers, core file
++ * examiners and whatnot.
++ *
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ *
++ * Copyright (C) 1995, 1999 by Ralf Baechle
++ */
++#ifndef __ASM_MIPS_REG_H
++#define __ASM_MIPS_REG_H
++
++/*
++ * This defines/structures correspond to the register layout on stack -
++ * if the order here is changed, it needs to be updated in
++ * include/asm-mips/stackframe.h
++ */
++#define EF_REG0			6
++#define EF_REG1			7
++#define EF_REG2			8
++#define EF_REG3			9
++#define EF_REG4			10
++#define EF_REG5			11
++#define EF_REG6			12
++#define EF_REG7			13
++#define EF_REG8			14
++#define EF_REG9			15
++#define EF_REG10		16
++#define EF_REG11		17
++#define EF_REG12		18
++#define EF_REG13		19
++#define EF_REG14		20
++#define EF_REG15		21
++#define EF_REG16		22
++#define EF_REG17		23
++#define EF_REG18		24
++#define EF_REG19		25
++#define EF_REG20		26
++#define EF_REG21		27
++#define EF_REG22		28
++#define EF_REG23		29
++#define EF_REG24		30
++#define EF_REG25		31
++/*
++ * k0/k1 unsaved
++ */
++#define EF_REG28		34
++#define EF_REG29		35
++#define EF_REG30		36
++#define EF_REG31		37
++
++/*
++ * Saved special registers
++ */
++#define EF_LO			38
++#define EF_HI			39
++
++#define EF_CP0_EPC		40
++#define EF_CP0_BADVADDR		41
++#define EF_CP0_STATUS		42
++#define EF_CP0_CAUSE		43
++
++#define EF_SIZE			180	/* size in bytes */
++
++#endif /* __ASM_MIPS_REG_H */
++
++#else /* _MIPS_SIM != _MIPS_SIM_ABI32 */
++
++/*
++ * Various register offset definitions for debuggers, core file
++ * examiners and whatnot.
++ *
++ * This file is subject to the terms and conditions of the GNU General Public
++ * License.  See the file "COPYING" in the main directory of this archive
++ * for more details.
++ *
++ * Copyright (C) 1995, 1999 Ralf Baechle
++ * Copyright (C) 1995, 1999 Silicon Graphics
++ */
++#ifndef _ASM_REG_H
++#define _ASM_REG_H
++
++/*
++ * This defines/structures correspond to the register layout on stack -
++ * if the order here is changed, it needs to be updated in
++ * include/asm-mips/stackframe.h
++ */
++#define EF_REG0			 0
++#define EF_REG1			 1
++#define EF_REG2			 2
++#define EF_REG3			 3
++#define EF_REG4			 4
++#define EF_REG5			 5
++#define EF_REG6			 6
++#define EF_REG7			 7
++#define EF_REG8			 8
++#define EF_REG9			 9
++#define EF_REG10		10
++#define EF_REG11		11
++#define EF_REG12		12
++#define EF_REG13		13
++#define EF_REG14		14
++#define EF_REG15		15
++#define EF_REG16		16
++#define EF_REG17		17
++#define EF_REG18		18
++#define EF_REG19		19
++#define EF_REG20		20
++#define EF_REG21		21
++#define EF_REG22		22
++#define EF_REG23		23
++#define EF_REG24		24
++#define EF_REG25		25
++/*
++ * k0/k1 unsaved
++ */
++#define EF_REG28		28
++#define EF_REG29		29
++#define EF_REG30		30
++#define EF_REG31		31
++
++/*
++ * Saved special registers
++ */
++#define EF_LO			32
++#define EF_HI			33
++
++#define EF_CP0_EPC		34
++#define EF_CP0_BADVADDR		35
++#define EF_CP0_STATUS		36
++#define EF_CP0_CAUSE		37
++
++#define EF_SIZE			304	/* size in bytes */
++
++#endif /* _ASM_REG_H */
++
++#endif /* _MIPS_SIM != _MIPS_SIM_ABI32 */
++
++#if _MIPS_SIM == _MIPS_SIM_ABI32
+ 
+ struct user
+ {
+@@ -39,6 +186,24 @@ struct user
+   unsigned long	magic;			/* identifies a core file */
+   char		u_comm[32];		/* user command name */
+ };
++
++#else
++
++struct user {
++  __extension__ unsigned long	regs[EF_SIZE/8+64]; /* integer and fp regs */
++  __extension__ unsigned long	u_tsize;	/* text size (pages) */
++  __extension__ unsigned long	u_dsize;	/* data size (pages) */
++  __extension__ unsigned long	u_ssize;	/* stack size (pages) */
++  __extension__ unsigned long long start_code;	/* text starting address */
++  __extension__ unsigned long long start_data;	/* data starting address */
++  __extension__ unsigned long long start_stack;	/* stack starting address */
++  __extension__ long long	signal;		/* signal causing core dump */
++  __extension__ unsigned long long u_ar0;	/* help gdb find registers */
++  __extension__ unsigned long long magic;	/* identifies a core file */
++  char		u_comm[32];		/* user command name */
++};
++
++#endif
+ 
+ #define PAGE_SHIFT		12
+ #define PAGE_SIZE		(1UL << PAGE_SHIFT)
+
+--=-=-=
+
+
+-- 
+Alexandre Oliva   Enjoy Guarana', see http://www.ic.unicamp.br/~oliva/
+Red Hat GCC Developer                 aoliva@{redhat.com, gcc.gnu.org}
+CS PhD student at IC-Unicamp        oliva@{lsd.ic.unicamp.br, gnu.org}
+Free Software Evangelist                Professional serial bug killer
+
+--=-=-=--
+
+And the rediffed hunk:
+
+--- glibc-2.3.2/sysdeps/unix/sysv/linux/mips/sys/ucontext.h.old	2004-05-30 07:23:32.000000000 -0700
++++ glibc-2.3.2/sysdeps/unix/sysv/linux/mips/sys/ucontext.h	2004-05-30 07:22:56.000000000 -0700
+@@ -29,43 +29,72 @@
+ #include <bits/sigcontext.h>
+ 
+ 
+-/* Type for general register.  */
+-typedef unsigned long int greg_t;
++/* Type for general register.  Even in o32 we assume 64-bit registers,
++   like the kernel.  */
++__extension__ typedef unsigned long long int greg_t;
+ 
+ /* Number of general registers.  */
+-#define NGREG	37
+-#define NFPREG	33
++#define NGREG	32
++#define NFPREG	32
+ 
+ /* Container for all general registers.  */
+-/* gregset_t must be an array.  The below declared array corresponds to:
+-typedef struct gregset {
+-	greg_t	g_regs[32];
+-	greg_t	g_hi;
+-	greg_t	g_lo;
+-	greg_t	g_pad[3];
+-} gregset_t;  */
+ typedef greg_t gregset_t[NGREG];
+ 
+ /* Container for all FPU registers.  */
+ typedef struct fpregset {
+ 	union {
+-		double	fp_dregs[32];
++		double	fp_dregs[NFPREG];
+ 		struct {
+ 			float		_fp_fregs;
+ 			unsigned int	_fp_pad;
+-		} fp_fregs[32];
++		} fp_fregs[NFPREG];
+ 	} fp_r;
+-	unsigned int	fp_csr;
+-	unsigned int	fp_pad;
+ } fpregset_t;
+ 
+ 
+ /* Context to describe whole processor state.  */
++#if _MIPS_SIM == _MIPS_SIM_ABI32
++/* Earlier versions of glibc for mips had an entirely different
++   definition of mcontext_t, that didn't even resemble the
++   corresponding kernel data structure.  Since all legitimate uses of
++   ucontext_t in glibc mustn't have accessed anything beyond
++   uc_mcontext and, even then, taking a pointer to it, casting it to
++   sigcontext_t, and accessing it as such, which is what it has always
++   been, this can still be rectified.  Fortunately, makecontext,
++   [gs]etcontext et all have never been implemented.  */
+ typedef struct
+   {
++    unsigned int regmask;
++    unsigned int status;
++    greg_t pc;
+     gregset_t gregs;
+     fpregset_t fpregs;
++    unsigned int fp_owned;
++    unsigned int fpc_csr;
++    unsigned int fpc_eir;
++    unsigned int used_math;
++    unsigned int ssflags;
++    greg_t mdhi;
++    greg_t mdlo;
++    unsigned int cause;
++    unsigned int badvaddr;
+   } mcontext_t;
++#else
++typedef struct
++  {
++    gregset_t gregs;
++    fpregset_t fpregs;
++    greg_t mdhi;
++    greg_t mdlo;
++    greg_t pc;
++    unsigned int status;
++    unsigned int fpc_csr;
++    unsigned int fpc_eir;
++    unsigned int used_math;
++    unsigned int cause;
++    unsigned int badvaddr;
++  } mcontext_t;
++#endif
+ 
+ /* Userlevel context.  */
+ typedef struct ucontext

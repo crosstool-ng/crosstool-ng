@@ -1,0 +1,53 @@
+Message-ID: <20040926095115.9204.qmail@webmail-2-5.mesa1.secureserver.net>
+Date: Sun, 26 Sep 2004 02:51:15 -0700
+From: ml@bitbash.net
+Subject: RE: crosstool-0.28-rc36: ld.so.1 undefined reference
+To: Dan Kegel <dank@kegel.com>
+cc: crossgcc@sources.redhat.com
+
+gcc-3.4.0-glibc-2.2.5 barfs with a few undefined refereces and multiple
+definitions. The follwing patch seems to take care of the undefined
+reference of __dl_runtime_resolve symbol. 
+
+Filename: patches/glibc-2.2.5/glibc-2.2.5-mips-dl-machine-1.60.patch 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Retrieved with
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/mips/dl-machine.h.diff?r1=1.59&r2=1.60&cvsroot=glibc'
+See http://sources.redhat.com/ml/libc-alpha/2002-02/msg00091.html
+See also glibc-2.2.5-mips-build-gmon.patch, which takes care of the other part of this for mips.
+
+ChangeLog:
+        sysdeps/mips/dl-machine.h (elf_machine_matches_host): Use
+        __attribute_used__.
+        (__dl_runtime_resolve): Likewise.
+
+Fixes error
+
+/home/cross/crosstool-0.28-rc36/build/mips-unknown-linux-gnu/gcc-3.4.0-glibc-2.2.5/build-glibc/elf/ld.so.1:
+undefined reference to `__dl_runtime_resolve'
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/mips/dl-machine.h,v
+retrieving revision 1.59
+retrieving revision 1.60
+diff -u -r1.59 -r1.60
+--- libc/sysdeps/mips/dl-machine.h	2002/02/03 00:29:15	1.59
++++ libc/sysdeps/mips/dl-machine.h	2002/02/08 18:56:57	1.60
+@@ -69,7 +69,7 @@
+    } while (0)
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+-static inline int __attribute__ ((unused))
++static inline int __attribute_used__
+ elf_machine_matches_host (const ElfW(Ehdr) *ehdr)
+ {
+   switch (ehdr->e_machine)
+@@ -262,7 +262,7 @@
+ /* This is called from assembly stubs below which the compiler can't see.  */ \
+ static ElfW(Addr)							      \
+ __dl_runtime_resolve (ElfW(Word), ElfW(Word), ElfW(Addr), ElfW(Addr))	      \
+-		  __attribute__ ((unused));				      \
++		  __attribute_used__;					      \
+ 									      \
+ static ElfW(Addr)							      \
+ __dl_runtime_resolve (ElfW(Word) sym_index,				      \

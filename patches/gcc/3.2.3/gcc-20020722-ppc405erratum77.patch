@@ -1,0 +1,105 @@
+# See http://gcc.gnu.org/PR7383, http://www.kegel.com/xgcc3/ppc405erratum77.html
+# Fixed in gcc-3.3
+
+diff -aur gcc-20020722.orig/gcc/config/rs6000/rs6000.h gcc-20020722/gcc/config/rs6000/rs6000.h
+--- gcc-20020722.orig/gcc/config/rs6000/rs6000.h	Thu Jul 25 09:32:21 2002
++++ gcc-20020722/gcc/config/rs6000/rs6000.h	Thu Jul 25 09:34:45 2002
+@@ -66,7 +66,7 @@
+ %{mcpu=rsc1: -D_ARCH_PWR} \
+ %{mcpu=401: -D_ARCH_PPC} \
+ %{mcpu=403: -D_ARCH_PPC} \
+-%{mcpu=405: -D_ARCH_PPC} \
++%{mcpu=405: -D_ARCH_PPC -D__PPC405__} \
+ %{mcpu=505: -D_ARCH_PPC} \
+ %{mcpu=601: -D_ARCH_PPC -D_ARCH_PWR} \
+ %{mcpu=602: -D_ARCH_PPC} \
+diff -aur gcc-20020722.orig/libjava/sysdep/powerpc/locks.h gcc-20020722/libjava/sysdep/powerpc/locks.h
+--- gcc-20020722.orig/libjava/sysdep/powerpc/locks.h	Thu Jul 25 09:32:30 2002
++++ gcc-20020722/libjava/sysdep/powerpc/locks.h	Thu Jul 25 11:39:13 2002
+@@ -11,6 +11,17 @@
+ #ifndef __SYSDEP_LOCKS_H__
+ #define __SYSDEP_LOCKS_H__
+ 
++#ifdef __PPC405__
++// workaround for PPC405 erratum #77 - 07/18/02 JRO, dank, NN.  References:
++// http://www-3.ibm.com/chips/techlib/techlib.nsf/techdocs/89DED00DEBFF54BF87256A8000491BA2/$file/405CR_C_errata_1_2.pdf
++// http://ppc.bkbits.net:8080/linuxppc_2_4_devel/cset@1.489
++// http://www.kegel.com/xgcc3/ppc405erratum77.html
++// FIXME: using dbct instead of sync would be faster
++#define __LIBGCJ_PPC405_ERR77_SYNC   "sync \n\t"
++#else
++#define __LIBGCJ_PPC405_ERR77_SYNC
++#endif
++
+ typedef size_t obj_addr_t;	/* Integer type big enough for object	*/
+ 				/* address.				*/
+ 
+@@ -25,6 +36,7 @@
+ 	   "0:    lwarx %0,0,%1 ;"
+ 	   "      xor. %0,%3,%0;"
+ 	   "      bne 1f;"
++  	  __LIBGCJ_PPC405_ERR77_SYNC
+ 	   "      stwcx. %2,0,%1;"
+ 	   "      bne- 0b;"
+ 	   "1:    "
+@@ -58,6 +70,7 @@
+ 	   "0:    lwarx %0,0,%1 ;"
+ 	   "      xor. %0,%3,%0;"
+ 	   "      bne 1f;"
++	   __LIBGCJ_PPC405_ERR77_SYNC	 
+ 	   "      stwcx. %2,0,%1;"
+ 	   "      bne- 0b;"
+ 	   "1:    "
+diff -aur gcc-20020722.orig/libstdc++-v3/config/cpu/powerpc/bits/atomicity.h gcc-20020722/libstdc++-v3/config/cpu/powerpc/bits/atomicity.h
+--- gcc-20020722.orig/libstdc++-v3/config/cpu/powerpc/bits/atomicity.h	Thu Jul 25 09:32:31 2002
++++ gcc-20020722/libstdc++-v3/config/cpu/powerpc/bits/atomicity.h	Thu Jul 25 09:34:45 2002
+@@ -32,6 +32,17 @@
+ 
+ typedef int _Atomic_word;
+ 
++#ifdef __PPC405__
++// workaround for PPC405 erratum #77 - 07/18/02 JRO & dank.  References:
++// http://www-3.ibm.com/chips/techlib/techlib.nsf/techdocs/89DED00DEBFF54BF87256A8000491BA2/$file/405CR_C_errata_1_2.pdf
++// http://ppc.bkbits.net:8080/linuxppc_2_4_devel/cset@1.489
++// http://www.kegel.com/xgcc3/ppc405erratum77.html
++// FIXME: using dbct instead of sync would be faster
++#define	__LIBSTDCPP_PPC405_ERR77_SYNC	"sync \n\t"
++#else
++#define __LIBSTDCPP_PPC405_ERR77_SYNC
++#endif
++
+ static inline _Atomic_word
+ __attribute__ ((__unused__))
+ __exchange_and_add (volatile _Atomic_word* __mem, int __val)
+@@ -42,6 +53,7 @@
+ 	"0:\t"
+ 	"lwarx    %0,0,%2 \n\t"
+ 	"add%I3   %1,%0,%3 \n\t"
++	__LIBSTDCPP_PPC405_ERR77_SYNC
+ 	"stwcx.   %1,0,%2 \n\t"
+ 	"bne-     0b \n\t"
+ 	"/* End exchange & add */"
+@@ -61,6 +73,7 @@
+ 	"0:\t"
+ 	"lwarx    %0,0,%1 \n\t"
+ 	"add%I2   %0,%0,%2 \n\t"
++	__LIBSTDCPP_PPC405_ERR77_SYNC
+ 	"stwcx.   %0,0,%1 \n\t"
+ 	"bne-     0b \n\t"
+ 	"/* End atomic add */"
+@@ -78,6 +91,7 @@
+ 	"/* Inline always swap */\n"
+ 	"0:\t"
+ 	"lwarx    %0,0,%1 \n\t"
++	__LIBSTDCPP_PPC405_ERR77_SYNC
+ 	"stwcx.   %2,0,%1 \n\t"
+ 	"bne-     0b \n\t"
+ 	"/* End always swap */"
+@@ -98,6 +112,7 @@
+ 	"lwarx    %0,0,%1 \n\t"
+ 	"cmpwi    %0,0 \n\t"
+ 	"bne-     1f \n\t"
++	__LIBSTDCPP_PPC405_ERR77_SYNC
+ 	"stwcx.   %2,0,%1 \n\t"
+ 	"bne-     0b \n"
+ 	"1:\n\t"

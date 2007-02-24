@@ -1,0 +1,86 @@
+2001-01-08  Ulrich Drepper  <drepper@redhat.com>
+
+	* elf/rtld.c (process_envvars): Place output files for profiling
+	in SUID binaries in /var/profile.
+
+	* elf/dl-load.c (_dl_map_object): Don't look in cache for
+	preloading in SUID binaries.
+
+	* elf/dl-profile.c (_dl_start_profile): Open the output file with
+	O_NOFOLLOW if possible.
+
+	* sysdeps/generic/segfault.c (install_handler): Check output file
+	name with access().
+
+--- libc/elf/rtld.c	2000/03/15 05:42:01	1.148.2.7
++++ libc/elf/rtld.c	2001/01/10 07:45:19
+@@ -1273,7 +1273,7 @@
+   char *debug_output = NULL;
+ 
+   /* This is the default place for profiling data file.  */
+-  _dl_profile_output = "/var/tmp";
++  _dl_profile_output = __libc_enable_secure ? "/var/profile" : "/var/tmp";
+ 
+   while ((envline = _dl_next_ld_env_entry (&runp)) != NULL)
+     {
+--- libc/elf/dl-load.c	1999/11/20 02:26:38	1.103.2.5
++++ libc/elf/dl-load.c	2001/01/10 07:45:20
+@@ -1338,7 +1338,7 @@
+       if (fd == -1 && env_path_list != NULL)
+ 	fd = open_path (name, namelen, preloaded, env_path_list, &realname);
+ 
+-      if (fd == -1)
++      if (fd == -1 && (! preloaded || ! __libc_enable_secure))
+ 	{
+ 	  /* Check the list of libraries in the file /etc/ld.so.cache,
+ 	     for compatibility with Linux's ldconfig program.  */
+--- libc/elf/dl-profile.c	1998/06/07 13:35:48	1.14
++++ libc/elf/dl-profile.c	2001/01/10 07:45:21
+@@ -263,7 +263,12 @@
+   *cp++ = '/';
+   __stpcpy (__stpcpy (cp, _dl_profile), ".profile");
+ 
+-  fd = __open (filename, O_RDWR | O_CREAT, 0666);
++#ifdef O_NOFOLLOW
++# define EXTRA_FLAGS | O_NOFOLLOW
++#else
++# define EXTRA_FLAGS
++#endif
++  fd = __open (filename, O_RDWR | O_CREAT EXTRA_FLAGS, 0666);
+   if (fd == -1)
+     {
+       /* We cannot write the profiling data so don't do anything.  */
+--- libc/sysdeps/generic/segfault.c	2000/03/21 04:53:40	1.10.2.2
++++ libc/sysdeps/generic/segfault.c	2001/01/10 07:45:22
+@@ -236,6 +236,7 @@
+ 
+   /* Preserve the output file name if there is any given.  */
+   name = getenv ("SEGFAULT_OUTPUT_NAME");
+-  if (name != NULL && name[0] != '\0')
++  if (name != NULL && name[0] != '\0'
++      && (!__libc_enable_secure || access (name, R_OK | W_OK) == 0))
+     fname = __strdup (name);
+ }
+
+--- libc/sysdeps/unix/sysv/linux/i386/dl-librecon.h.jj	Wed Feb 24 23:01:58 1999
++++ libc/sysdeps/unix/sysv/linux/i386/dl-librecon.h	Mon Jan 15 04:30:57 2001
+@@ -49,13 +49,17 @@
+ /* Recognizing extra environment variables.  */
+ #define EXTRA_LD_ENVVARS \
+   case 15:								      \
+-    if (memcmp (&envline[3], "LIBRARY_VERSION", 15) == 0)		      \
++    if (!__libc_enable_secure						      \
++	&& memcmp (&envline[3], "LIBRARY_VERSION", 15) == 0)		      \
+       {									      \
+ 	_dl_correct_cache_id = envline[19] == '5' ? 2 : 3;		      \
+ 	break;								      \
+       }
+ 
+ /* Extra unsecure variables.  */
+-#define EXTRA_UNSECURE_ENVVARS "LD_AOUT_LIBRARY_PATH", "LD_AOUT_PRELOAD"
++#define EXTRA_UNSECURE_ENVVARS	\
++  "LD_AOUT_LIBRARY_PATH",	\
++  "LD_AOUT_PRELOAD",		\
++  "LD_LIBRARY_VERSION"
+ 
+ #endif /* dl-librecon.h */

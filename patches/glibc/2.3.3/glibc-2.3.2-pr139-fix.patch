@@ -1,0 +1,104 @@
+2004-04-29  Jakub Jelinek  <jakub@redhat.com>
+
+	* sysdeps/sparc/sparc64/soft-fp/qp_qtoi.c (_Qp_qtoi): Use %f31
+	for single precision register, add it to __asm clobbers [BZ #139].
+	* sysdeps/sparc/sparc64/soft-fp/qp_qtoui.c (_Qp_qtoui): Use %f31
+	for single precision register, add it to __asm clobbers.
+	* sysdeps/sparc/sparc64/soft-fp/qp_qtoux.c (_Qp_qtoux): Use fqtox
+	instead of fqtoi in QP_HANDLE_EXCEPTIONS.
+	* sysdeps/sparc/sparc64/soft-fp/qp_qtox.c (_Qp_qtox): Likewise.
+	Reported by M. H. VanLeeuwen <vanl@megsinet.net>.
+
+See http://sources.redhat.com/bugzilla/show_bug.cgi?id=139
+Fixes error
+qp_qtoi.s:261: Error: Illegal operands: There are only 32 single precision f registers; [0-31]
+plus a couple other things vanl noticed.
+
+diff -ur orig/qp_qtoi.c new/qp_qtoi.c
+--- orig/qp_qtoi.c	Sat May  1 00:40:06 2004
++++ libc/sysdeps/sparc/sparc64/soft-fp/qp_qtoi.c	Sat May  1 00:39:40 2004
+@@ -1,6 +1,6 @@
+ /* Software floating-point emulation.
+    Return (int)(*a)
+-   Copyright (C) 1997,1999 Free Software Foundation, Inc.
++   Copyright (C) 1997, 1999, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Richard Henderson (rth@cygnus.com) and
+ 		  Jakub Jelinek (jj@ultra.linux.cz).
+@@ -38,9 +38,9 @@
+   	__asm (
+ "	ldd [%1], %%f52\n"
+ "	ldd [%1+8], %%f54\n"
+-"	fqtoi %%f52, %%f60\n"
+-"	st %%f60, [%0]\n"
+-"	" : : "r" (&rx), "r" (a) : QP_CLOBBER);
++"	fqtoi %%f52, %%f31\n"
++"	st %%f31, [%0]\n"
++"	" : : "r" (&rx), "r" (a) : QP_CLOBBER, "f31");
+ 	r = rx);
+ 
+   return r;
+diff -ur orig/qp_qtoui.c new/qp_qtoui.c
+--- orig/qp_qtoui.c	Sat May  1 00:40:06 2004
++++ libc/sysdeps/sparc/sparc64/soft-fp/qp_qtoui.c	Sat May  1 00:39:40 2004
+@@ -1,6 +1,6 @@
+ /* Software floating-point emulation.
+    Return (unsigned int)(*a)
+-   Copyright (C) 1997,1999 Free Software Foundation, Inc.
++   Copyright (C) 1997, 1999, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Richard Henderson (rth@cygnus.com) and
+ 		  Jakub Jelinek (jj@ultra.linux.cz).
+@@ -38,9 +38,9 @@
+   	__asm (
+ "	ldd [%1], %%f52\n"
+ "	ldd [%1+8], %%f54\n"
+-"	fqtoi %%f52, %%f60\n"
+-"	st %%f60, [%0]\n"
+-"	" : : "r" (&rx), "r" (a) : QP_CLOBBER);
++"	fqtoi %%f52, %%f31\n"
++"	st %%f31, [%0]\n"
++"	" : : "r" (&rx), "r" (a) : QP_CLOBBER, "f31");
+ 	r = rx);
+ 
+   return r;
+diff -ur orig/qp_qtoux.c new/qp_qtoux.c
+--- orig/qp_qtoux.c	Sat May  1 00:40:06 2004
++++ libc/sysdeps/sparc/sparc64/soft-fp/qp_qtoux.c	Sat May  1 00:39:40 2004
+@@ -1,6 +1,6 @@
+ /* Software floating-point emulation.
+    Return (unsigned long)(*a)
+-   Copyright (C) 1997,1999 Free Software Foundation, Inc.
++   Copyright (C) 1997, 1999, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Richard Henderson (rth@cygnus.com) and
+ 		  Jakub Jelinek (jj@ultra.linux.cz).
+@@ -38,7 +38,7 @@
+   	__asm (
+ "	ldd [%1], %%f52\n"
+ "	ldd [%1+8], %%f54\n"
+-"	fqtoi %%f52, %%f60\n"
++"	fqtox %%f52, %%f60\n"
+ "	std %%f60, [%0]\n"
+ "	" : : "r" (&rx), "r" (a) : QP_CLOBBER);
+ 	r = rx);
+diff -ur orig/qp_qtox.c new/qp_qtox.c
+--- orig/qp_qtox.c	Sat May  1 00:40:06 2004
++++ libc/sysdeps/sparc/sparc64/soft-fp/qp_qtox.c	Sat May  1 00:39:40 2004
+@@ -1,6 +1,6 @@
+ /* Software floating-point emulation.
+    Return (long)(*a)
+-   Copyright (C) 1997,1999 Free Software Foundation, Inc.
++   Copyright (C) 1997, 1999, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Richard Henderson (rth@cygnus.com) and
+ 		  Jakub Jelinek (jj@ultra.linux.cz).
+@@ -38,7 +38,7 @@
+   	__asm (
+ "	ldd [%1], %%f52\n"
+ "	ldd [%1+8], %%f54\n"
+-"	fqtoi %%f52, %%f60\n"
++"	fqtox %%f52, %%f60\n"
+ "	std %%f60, [%0]\n"
+ "	" : : "r" (&rx), "r" (a) : QP_CLOBBER);
+ 	r = rx);

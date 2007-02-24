@@ -1,0 +1,47 @@
+Fixes
+
+msort.c: In function 'msort_with_tmp':
+msort.c:59: error: invalid lvalue in increment
+msort.c:59: error: invalid lvalue in increment
+msort.c:64: error: invalid lvalue in increment
+msort.c:64: error: invalid lvalue in increment
+make[2]: *** [/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/build-glibc/stdlib/msort.o] Error 1
+make[2]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/glibc-2.2.5/stdlib'
+make[1]: *** [stdlib/subdir_lib] Error 2
+make[1]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/glibc-2.2.5'
+make: *** [all] Error 2 
+
+when building glibc-2.2.5 with gcc-3.4.
+
+Taken from ../glibc-2.3.2/glibc-2.3.2-allow-gcc-3.5-msort.patch
+and rediffed.
+
+--- glibc-2.2.5/stdlib/msort.c.old	2001-07-05 21:55:41.000000000 -0700
++++ glibc-2.2.5/stdlib/msort.c	2005-03-10 08:24:24.152204976 -0800
+@@ -1,6 +1,6 @@
+ /* An alternative to qsort, with an identical interface.
+    This file is part of the GNU C Library.
+-   Copyright (C) 1992, 1995-1997, 1999, 2000, 2001 Free Software Foundation, Inc.
++   Copyright (C) 1992, 1995-1997, 1999, 2000, 2001, 2004 Free Software Foundation, Inc.
+    Written by Mike Haertel, September 1988.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -56,12 +56,16 @@
+ 	if ((*cmp) (b1, b2) <= 0)
+ 	  {
+ 	    --n1;
+-	    *((op_t *) tmp)++ = *((op_t *) b1)++;
++	    *((op_t *) tmp) = *((op_t *) b1);
++	    tmp += sizeof (op_t);
++	    b1 += sizeof (op_t);
+ 	  }
+ 	else
+ 	  {
+ 	    --n2;
+-	    *((op_t *) tmp)++ = *((op_t *) b2)++;
++	    *((op_t *) tmp) = *((op_t *) b2);
++	    tmp += sizeof (op_t);
++	    b2 += sizeof (op_t);
+ 	  }
+       }
+   else

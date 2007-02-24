@@ -1,0 +1,42 @@
+Message-ID: <000801c48f60$cec16630$9103a8c0@ULOC5012>
+From: "Michael Geiger" <mcgege@gmx.de>
+To: <dank@kegel.com>
+Subject: Patch for cross compiling s/390 kernel on linux host
+Date: Tue, 31 Aug 2004 15:45:41 +0200
+
+Dear Dan,
+
+I had big problems compiling a kernel for s/390 on my linux host - I tried
+different chains from crosstool-0.28-rc34 and finally succeded with
+gcc-3.3.4-glibc-2.3.2 after applying another patch to binutils-2.15
+(attached).
+All compilations of the different kernel versions I tried stopped with
+"Invalid .insn format" somewhere. I checked the recent cvs version of
+binutils and applied the latest diff to gas/config/tc-s390.c and that solved
+it.
+
+Greetings
+
+Michael Geiger
+
+
+diff -u -r1.39 -r1.40
+--- src/gas/config/tc-s390.c	2004/05/06 11:01:48	1.39
++++ src/gas/config/tc-s390.c	2004/06/15 12:38:08	1.40
+@@ -1596,13 +1596,13 @@
+   if (exp.X_op == O_constant)
+     {
+       if (   (   opformat->oplen == 6
+-	      && exp.X_add_number >= 0
++	      && (addressT) exp.X_add_number >= 0
+ 	      && (addressT) exp.X_add_number < (1ULL << 48))
+ 	  || (   opformat->oplen == 4
+-	      && exp.X_add_number >= 0
++	      && (addressT) exp.X_add_number >= 0
+ 	      && (addressT) exp.X_add_number < (1ULL << 32))
+ 	  || (   opformat->oplen == 2
+-	      && exp.X_add_number >= 0
++	      && (addressT) exp.X_add_number >= 0
+ 	      && (addressT) exp.X_add_number < (1ULL << 16)))
+ 	md_number_to_chars (insn, exp.X_add_number, opformat->oplen);
+       else

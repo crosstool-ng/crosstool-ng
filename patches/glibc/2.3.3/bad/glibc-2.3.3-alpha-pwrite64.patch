@@ -1,0 +1,51 @@
+Attempted fix for this error:
+
+
+crosstool-0.30/build/alpha-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.3/build-glibc/libc_pic.os(.text+0xc8bd0): In function `__posix_fallocate64_l64':
+: undefined reference to `__GI___pwrite64'
+collect2: ld returned 1 exit status
+make[1]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-0.30/build/alpha-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.3/glibc-2.3.3'
+make[1]: *** [/home/dank/queue/jobdir.fast2/crosstool-0.30/build/alpha-unknown-linux-gnu/gcc-3.3.4-glibc-2.3.3/build-glibc/libc.so] Error 1
+make: *** [all] Error 2
+
+extracted from GLIBC CVS by Dan Kegel
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/unix/sysv/linux/alpha/sysdep.h.diff?r1=1.14&r2=1.15&cvsroot=glibc'
+(to match context of...)
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/unix/sysv/linux/alpha/sysdep.h.diff?r1=1.16&r2=1.17&cvsroot=glibc'
+and rediffed.
+
+cf. 
+http://sources.redhat.com/ml/libc-alpha/2003-10/msg00038.html
+
+Originally thought we needed this hunk, too:
+http://sources.redhat.com/ml/libc-alpha/2003-10/msg00037.html
+but it seems the sysdep.h change is sufficient, and works better 
+when compiling against linux-2.4.
+
+And then rediffed again against glibc-2.3.3
+
+--- glibc-2.3.3.orig/sysdeps/unix/sysv/linux/alpha/sysdep.h	Fri Jun 20 09:24:36 2003
++++ glibc-2.3.3/sysdeps/unix/sysv/linux/alpha/sysdep.h	Wed Mar 23 23:59:58 2005
+@@ -1,4 +1,4 @@
+-/* Copyright (C) 1992, 1993, 1995, 1996, 1997, 2002, 2003
++/* Copyright (C) 1992, 1993, 1995, 1996, 1997, 2002, 2003, 2004
+    Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper, <drepper@gnu.ai.mit.edu>, August 1995.
+@@ -63,6 +63,16 @@
+ /* Help old kernel headers where particular syscalls are not available.  */
+ #ifndef __NR_semtimedop
+ # define __NR_semtimedop	423
++#endif
++
++/* This is a kludge to make syscalls.list find these under the names
++   pread and pwrite, since some kernel headers define those names
++   and some define the *64 names for the same system calls.  */
++#if !defined __NR_pread && defined __NR_pread64
++# define __NR_pread __NR_pread64
++#endif
++#if !defined __NR_pwrite && defined __NR_pwrite64
++# define __NR_pwrite __NR_pwrite64
+ #endif
+ 
+ /*

@@ -1,0 +1,31 @@
+pr11608
+
+------------
+I'm building and testing an x86->sh4 crosscompiler with http://kegel.com/crosstool
+With either gcc-3.3 or gcc-ss-3_3-20030714 I get:
+
+Testing debug/20020327-1.c, -gstabs1
+...
+FAIL: gcc.dg/debug/20020327-1.c (test for excess errors)
+Excess errors:
+/tmp/cc8dFF7Y.s: Assembler messages:
+/tmp/cc8dFF7Y.s:66: Error: symbol `Letext' is already defined
+
+------------
+
+Index: elf.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/sh/elf.h,v
+retrieving revision 1.32
+diff -u -p -r1.32 elf.h
+--- gcc-orig/gcc/config/sh/elf.h	27 Sep 2003 04:48:28 -0000	1.32
++++ gcc-new/gcc/config/sh/elf.h	2 Jan 2004 07:23:23 -0000
+@@ -95,7 +95,7 @@ while (0)
+ #define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
+ do {									\
+   text_section ();							\
+-  fprintf ((FILE), "\t.stabs \"\",%d,0,0,Letext\nLetext:\n", N_SO);	\
++  asm_fprintf ((FILE), "\t.stabs \"\",%d,0,0,%LLetext\n%LLetext:\n", N_SO); \
+ } while (0)
+ 
+ #undef STARTFILE_SPEC

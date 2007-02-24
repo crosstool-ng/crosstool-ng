@@ -1,0 +1,48 @@
+The error
+
+make[2]: *** [.../gcc-3.3.3-glibc-2.1.3/i686-unknown-linux-gnu/share/zoneinfo/Africa/Algiers] Segmentation fault
+make[2]: Leaving directory `.../gcc-3.3.3-glibc-2.1.3/glibc-2.1.3/timezone'
+make[1]: *** [timezone/subdir_install] Error 2
+
+is caused by glibc trying to run something it just compiled.
+A crude workaround for this was posted at
+http://lists.scratchbox.org/pipermail/scratchbox-users/2004-February/000018.html
+but the following patch lets you optionally override these programs at
+make time by setting environment variables 
+  localedef_FOR_BUILD rpcgen_FOR_BUILD zic_FOR_BUILD
+and maybe a few others to point to versions of those programs
+that can run on the build machine.
+Thanks to http://groups.google.com/groups?selm=9012160052.AA23106%40kaos.ksr.com
+for pointing out the idiom for inline $(ifdef ...) in GNU Make.
+
+Dan Kegel 2004-05-17
+
+--- glibc-2.1.3/Makeconfig.old	1999-11-29 11:19:20.000000000 -0800
++++ glibc-2.1.3/Makeconfig	2004-05-17 15:57:53.000000000 -0700
+@@ -470,20 +470,24 @@
+ # The program binary is assumed to be $(word 2,$^).
+ built-program-file = $(dir $(word 2,$^))$(notdir $(word 2,$^))
+ ifneq (yes,$(build-shared))
+-built-program-cmd = $(built-program-file)
++built-program-real = $(built-program-file)
+ else
+ comma = ,
+ sysdep-library-path = \
+ $(subst $(empty) ,:,$(strip $(patsubst -Wl$(comma)-rpath-link=%, %,\
+ 				       $(filter -Wl$(comma)-rpath-link=%,\
+ 						$(sysdep-LDFLAGS)))))
+-define built-program-cmd
++define built-program-real
+ $(elf-objpfx)$(rtld-installed-name) \
+ 	--library-path $(rpath-link)$(patsubst %,:%,$(sysdep-library-path)) \
+ 	$(built-program-file)
+ endef
+ endif
+ 
++# If user set foo_FOR_BUILD, use that instead of actually running the program we just linked.
++built-program-override-name = $(notdir $(word 2,$^))_FOR_BUILD
++built-program-cmd = $(if $(findstring undefined,$(origin $(built-program-override-name))),$(built-program-real),$($(built-program-override-name)))
++
+ ifndef LD
+ LD := ld -X
+ endif

@@ -1,0 +1,30 @@
+Should fix
+
+../sysdeps/unix/sysv/linux/pread.c: In function `__libc_pread':
+../sysdeps/unix/sysv/linux/pread.c:52: error: `__NR_pread' undeclared (first use in this function)
+../sysdeps/unix/sysv/linux/pread.c:52: error: (Each undeclared identifier is reported only once
+../sysdeps/unix/sysv/linux/pread.c:52: error: for each function it appears in.)
+make[2]: *** [/home/dank/crosstool-0.28/build/arm-9tdmi-linux-gnu/gcc-3.4.1-glibc-2.2.5/build-glibc/posix/pread.o] Error 1
+make[2]: Leaving directory `/home/dank/crosstool-0.28/build/arm-9tdmi-linux-gnu/gcc-3.4.1-glibc-2.2.5/glibc-2.2.5/posix'
+make[1]: *** [posix/subdir_lib] Error 2
+
+Copied from similar patch for alpha.
+
+--- glibc-2.2.5-orig/sysdeps/unix/sysv/linux/arm/sysdep.h	2001-07-05 21:56:13.000000000 -0700
++++ glibc-2.2.5/sysdeps/unix/sysv/linux/arm/sysdep.h	2004-08-07 10:45:26.000000000 -0700
+@@ -32,6 +32,15 @@
+ #define SWI_BASE  (0x900000)
+ #define SYS_ify(syscall_name)	(__NR_##syscall_name)
+ 
++/* This is a kludge to make syscalls.list find these under the names
++   pread and pwrite, since some kernel headers define those names
++   and some define the *64 names for the same system calls.  */
++#if !defined __NR_pread && defined __NR_pread64
++# define __NR_pread __NR_pread64
++#endif
++#if !defined __NR_pwrite && defined __NR_pwrite64
++# define __NR_pwrite __NR_pwrite64
++#endif
+ 
+ #ifdef __ASSEMBLER__
+ 

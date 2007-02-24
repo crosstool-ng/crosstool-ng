@@ -1,0 +1,97 @@
+From http://sources.redhat.com/ml/libc-alpha/2002-06/msg00006.html
+
+Message-ID: <15612.44195.299251.921969@honolulu.ilog.fr>
+Date: Tue, 4 Jun 2002 14:03:47 +0200 (CEST)
+From: Bruno Haible <bruno at clisp dot org>
+To: libc-alpha at sources dot redhat dot com
+Subject: link_warning fix
+
+
+Hi,
+
+While cross-compiling glibc-2.2.5 for target=cris-linux using gcc-3.1 and
+binutils-2.12.90.0.7, I get an error
+
+cris-linux-gcc ../sysdeps/unix/sysv/linux/sigstack.c -c -O2 -Wall -Winline -Wstrict-prototypes -Wwrite-strings -g      -I../include -I. -I/backup/cross-build/build-glibc-cris/signal -I.. -I../libio  -I/backup/cross-build/build-glibc-cris -I../sysdeps/cris/elf -I../linuxthreads/sysdeps/unix/sysv/linux -I../linuxthreads/sysdeps/pthread -I../sysdeps/pthread -I../linuxthreads/sysdeps/unix/sysv -I../linuxthreads/sysdeps/unix -I../linuxthreads/sysdeps/cris -I../sysdeps/unix/sysv/linux/cris -I../sysdeps/unix/sysv/linux -I../sysdeps/gnu -I../sysdeps/unix/common -I../sysdeps/unix/mman -I../sysdeps/unix/inet -I../sysdeps/unix/sysv -I../sysdeps/unix -I../sysdeps/posix -I../sysdeps/cris -I../sysdeps/wordsize-32 -I../sysdeps/ieee754/flt-32 -I../sysdeps/ieee754/dbl-64 -I../sysdeps/ieee754 -I../sysdeps/generic/elf -I../sysdeps/generic  -nostdinc -isystem /cross/cris-linux-tools/lib/gcc-lib/cris-linux/3.1/include -isystem /cross/cris-linux/include -D_LIBC_REENTRANT -include ../include/libc-symbols.h     -o /backup/cross-build/build-glibc-cris/signal/sigstack.o
+/tmp/cca7qZyI.s: Assembler messages:
+/tmp/cca7qZyI.s:87: Warning: rest of line ignored; first ignored character is `,'
+/tmp/cca7qZyI.s:87: Error: Unknown opcode: `progbits'
+make[2]: *** [/backup/cross-build/build-glibc-cris/signal/sigstack.o] Fehler 1
+
+
+The reason is that the .s file contains the following.
+
+...
+	.size	sigstack,.Lfe1-sigstack
+#APP
+	.section .gnu.warning.sigstack
+	.previous
+#NO_APP
+	.section	.gnu.warning.sigstack
+	#,"a",@progbits
+	.align 2
+	.type	__evoke_link_warning_sigstack,@object
+...
+
+and comments (introduced by '#') are recognized by the assembler only after
+#APP, not after #NO_APP. The workaround is to add '#APP' to the fake section
+name. The following patch works for me.
+
+2002-06-02  Bruno Haible  <bruno@clisp.org>
+
+	* include/libc-symbols.h (__as_app_line): New macro.
+	(link_warning): Emit #APP line to turn comment recognition on.
+
+*** glibc-2.2.5/include/libc-symbols.h.bak	2001-08-04 01:02:52.000000000 +0200
+--- glibc-2.2.5/include/libc-symbols.h	2002-06-02 16:22:15.000000000 +0200
+***************
+*** 207,224 ****
+  #   define __make_section_unallocated(section_string)
+  #  endif
+  
+! /* Tacking on "\n\t#" to the section name makes gcc put it's bogus
+!    section attributes on what looks like a comment to the assembler.  */
+  #  ifdef HAVE_SECTION_QUOTES
+  #   define link_warning(symbol, msg) \
+    __make_section_unallocated (".gnu.warning." #symbol) \
+!   static const char __evoke_link_warning_##symbol[]	\
+!     __attribute__ ((section (".gnu.warning." #symbol "\"\n\t#\""))) = msg;
+  #  else
+  #   define link_warning(symbol, msg) \
+    __make_section_unallocated (".gnu.warning." #symbol) \
+!   static const char __evoke_link_warning_##symbol[]	\
+!     __attribute__ ((section (".gnu.warning." #symbol "\n\t#"))) = msg;
+  #  endif
+  # else /* Not ELF: a.out */
+  #  ifdef HAVE_XCOFF
+--- 207,235 ----
+  #   define __make_section_unallocated(section_string)
+  #  endif
+  
+! /* Tacking on "\n\t#" to the section name makes gcc put its bogus
+!    section attributes on what looks like a comment to the assembler.
+!    Furthermore, with gas, we need to add a "#APP" line so the comment
+!    is recognized as such.  */
+! #  ifdef HAVE_GNU_AS
+! #   define __as_app_line "#APP\n"
+! #  else
+! #   define __as_app_line ""
+! #  endif
+  #  ifdef HAVE_SECTION_QUOTES
+  #   define link_warning(symbol, msg) \
+    __make_section_unallocated (".gnu.warning." #symbol) \
+!   static const char __evoke_link_warning_##symbol[]			 \
+!     __attribute__							 \
+!       ((section (".gnu.warning." #symbol "\"\n" __as_app_line "\t#\""))) \
+!     = msg;
+  #  else
+  #   define link_warning(symbol, msg) \
+    __make_section_unallocated (".gnu.warning." #symbol) \
+!   static const char __evoke_link_warning_##symbol[]			\
+!     __attribute__							\
+!       ((section (".gnu.warning." #symbol "\n" __as_app_line "\t#")))	\
+!     = msg;
+  #  endif
+  # else /* Not ELF: a.out */
+  #  ifdef HAVE_XCOFF
+

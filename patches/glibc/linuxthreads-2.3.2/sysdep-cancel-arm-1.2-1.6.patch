@@ -1,0 +1,53 @@
+I haven't built glibc-2.3.2 for arm myself, but
+http://sources.redhat.com/ml/bug-glibc/2003-05/msg00076.html and
+http://www.linux.org.uk/pipermail/linux-arm/2003-November/006560.html
+give me the distinct impression that you need the latest sysdep-cancel.h from
+cvs.
+
+Retrieved with
+
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/linuxthreads/sysdeps/unix/sysv/linux/arm/sysdep-cancel.h.diff?cvsroot=glibc&r1=text&tr1=1.2&r2=text&tr2=1.6&f=u
+
+===================================================================
+RCS file: /cvs/glibc/libc/linuxthreads/sysdeps/unix/sysv/linux/arm/sysdep-cancel.h,v
+retrieving revision 1.2
+retrieving revision 1.6
+diff -u -r1.2 -r1.6
+--- libc/linuxthreads/sysdeps/unix/sysv/linux/arm/sysdep-cancel.h	2003/01/12 09:14:25	1.2
++++ libc/linuxthreads/sysdeps/unix/sysv/linux/arm/sysdep-cancel.h	2003/06/06 17:31:40	1.6
+@@ -24,6 +24,17 @@
+ 
+ #if !defined NOT_IN_libc || defined IS_IN_libpthread
+ 
++/* We push lr onto the stack, so we have to use ldmib instead of ldmia
++   to find the saved arguments.  */
++# ifdef PIC
++#  undef DOARGS_5
++#  undef DOARGS_6
++#  undef DOARGS_7
++#  define DOARGS_5 str r4, [sp, $-4]!; ldr r4, [sp, $8];
++#  define DOARGS_6 mov ip, sp; stmfd sp!, {r4, r5}; ldmib ip, {r4, r5};
++#  define DOARGS_7 mov ip, sp; stmfd sp!, {r4, r5, r6}; ldmib ip, {r4, r5, r6};
++# endif
++
+ # undef PSEUDO_RET
+ # define PSEUDO_RET						        \
+     ldrcc pc, [sp], $4;						        \
+@@ -34,7 +45,7 @@
+ # define PSEUDO(name, syscall_name, args)				\
+   .section ".text";							\
+     PSEUDO_PROLOGUE;							\
+-  ENTRY (name)								\
++  ENTRY (name);								\
+     SINGLE_THREAD_P_INT;						\
+     bne .Lpseudo_cancel;						\
+     DO_CALL (syscall_name, args);					\
+@@ -110,7 +121,7 @@
+   ldr reg, 2b;								\
+ 3:									\
+   add ip, pc, ip;							\
+-  ldr ip, [ip, lr];							\
++  ldr ip, [ip, reg];							\
+   teq ip, #0;
+ #   define SINGLE_THREAD_P_INT						\
+   str lr, [sp, $-4]!;							\

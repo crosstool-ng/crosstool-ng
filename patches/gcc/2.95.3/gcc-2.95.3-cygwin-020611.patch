@@ -1,0 +1,33 @@
+[ Building gcc-2.95.3 on cygwin yields a compiler that sticks a .exe
+  on the end of every executable, even if they're linux executable.
+  This is highly annoying, and causes glibc build failures that look like this:
+    mv: `.../bin/makedb.new' and `.../bin/makedb' are the same file
+    make[2]: *** [.../bin/makedb] Error 1
+    make[2]: Leaving directory `.../gcc-2.95.3-glibc-2.1.3/glibc-2.1.3/db2'
+
+  The mainline solves this with http://gcc.gnu.org/ml/gcc-cvs/2001-04/msg00440.html,
+  but that doesn't apply cleanly to gcc-2.95.3.
+
+  So, I'm using
+  http://www.uclinux.org/pub/uClinux/uclinux-elf-tools/tools-20030314/gcc-2.95.3-cygwin-020611.patch
+  This is the only patch in crosstool that *isn't* suitable for the mainline.
+  I can live with this patch simply because crosstool does not build
+  compilers that target cygwin or VAX/VMS. 
+  If that ever changes, I might need to try applying the real patch.
+]
+
+
+
+#
+# This patch can be found at http://www.uclinux.org/pub/uClinux/m68k-elf-tools/
+#
+--- gcc-2.95.3/gcc/config/i386/xm-cygwin.h	1999-04-22 16:40:56.000000000 +0200
++++ gcc-2.95.3-cygwin/gcc/config/i386/xm-cygwin.h	2002-06-11 08:23:18.000000000 +0200
+@@ -19,7 +19,6 @@
+ the Free Software Foundation, 59 Temple Place - Suite 330,
+ Boston, MA 02111-1307, USA. */
+ 
+-#define EXECUTABLE_SUFFIX ".exe"
+ #define NO_SYS_SIGLIST 1
+ 
+ /* We support both "/" and "\" since everybody tests both but we

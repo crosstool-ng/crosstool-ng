@@ -1,0 +1,372 @@
+2002-08-03  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/tc-i386.c (output_insn): Save frag_now and frag_now_fix ()
+	at start of insn, pass it to output_disp and output_imm.
+	(output_disp): Added arguments.  If _GLOBAL_OFFSET_TABLE_ is seen
+	in displacement for R_386_32 reloc, use R_386_GOTPC and compute
+	properly addend.
+	(output_imm): Added arguments.  Compute properly addend for
+	R_386_GOTPC.
+	(md_apply_fix3): Remove R_386_GOTPC handling.
+	* testsuite/gas/i386/gotpc.s: New.
+	* testsuite/gas/i386/gotpc.d: New.
+	* testsuite/gas/i386/i386.exp: Add gotpc test.
+
+--- binutils/gas/config/tc-i386.c.jj	2002-07-18 11:35:39.000000000 +0200
++++ binutils/gas/config/tc-i386.c	2002-08-02 21:13:18.000000000 +0200
+@@ -104,8 +104,10 @@ static void output_insn PARAMS ((void));
+ static void output_branch PARAMS ((void));
+ static void output_jump PARAMS ((void));
+ static void output_interseg_jump PARAMS ((void));
+-static void output_imm PARAMS ((void));
+-static void output_disp PARAMS ((void));
++static void output_imm PARAMS ((fragS *insn_start_frag,
++				offsetT insn_start_off));
++static void output_disp PARAMS ((fragS *insn_start_frag,
++				 offsetT insn_start_off));
+ #ifndef I386COFF
+ static void s_bss PARAMS ((int));
+ #endif
+@@ -3101,14 +3103,21 @@ output_interseg_jump ()
+   md_number_to_chars (p + size, (valueT) i.op[0].imms->X_add_number, 2);
+ }
+ 
++
+ static void
+ output_insn ()
+ {
++  fragS *insn_start_frag;
++  offsetT insn_start_off;
++
+   /* Tie dwarf2 debug info to the address at the start of the insn.
+      We can't do this after the insn has been output as the current
+      frag may have been closed off.  eg. by frag_var.  */
+   dwarf2_emit_insn (0);
+ 
++  insn_start_frag = frag_now;
++  insn_start_off = frag_now_fix ();
++
+   /* Output jumps.  */
+   if (i.tm.opcode_modifier & Jump)
+     output_branch ();
+@@ -3179,10 +3188,10 @@ output_insn ()
+ 	}
+ 
+       if (i.disp_operands)
+-	output_disp ();
++	output_disp (insn_start_frag, insn_start_off);
+ 
+       if (i.imm_operands)
+-	output_imm ();
++	output_imm (insn_start_frag, insn_start_off);
+     }
+ 
+ #ifdef DEBUG386
+@@ -3194,7 +3203,9 @@ output_insn ()
+ }
+ 
+ static void
+-output_disp ()
++output_disp (insn_start_frag, insn_start_off)
++    fragS *insn_start_frag;
++    offsetT insn_start_off;
+ {
+   char *p;
+   unsigned int n;
+@@ -3224,6 +3235,7 @@ output_disp ()
+ 	    }
+ 	  else
+ 	    {
++	      RELOC_ENUM reloc_type;
+ 	      int size = 4;
+ 	      int sign = 0;
+ 	      int pcrel = (i.flags[n] & Operand_PCrel) != 0;
+@@ -3266,16 +3278,50 @@ output_disp ()
+ 		}
+ 
+ 	      p = frag_more (size);
++	      reloc_type = reloc (size, pcrel, sign, i.reloc[n]);
++#ifdef BFD_ASSEMBLER
++	      if (reloc_type == BFD_RELOC_32
++		  && GOT_symbol
++		  && GOT_symbol == i.op[n].disps->X_add_symbol
++		  && (i.op[n].disps->X_op == O_symbol
++		      || (i.op[n].disps->X_op == O_add
++			  && ((symbol_get_value_expression
++			       (i.op[n].disps->X_op_symbol)->X_op)
++			      == O_subtract))))
++		{
++		  offsetT add;
++
++		  if (insn_start_frag == frag_now)
++		    add = (p - frag_now->fr_literal) - insn_start_off;
++		  else
++		    {
++		      fragS *fr;
++
++		      add = insn_start_frag->fr_fix - insn_start_off;
++		      for (fr = insn_start_frag->fr_next;
++			   fr && fr != frag_now; fr = fr->fr_next)
++			add += fr->fr_fix;
++		      add += p - frag_now->fr_literal;
++		    }
++
++		  /* We don't support dynamic linking on x86-64 yet.  */
++		  if (flag_code == CODE_64BIT)
++		    abort ();
++		  reloc_type = BFD_RELOC_386_GOTPC;
++		  i.op[n].disps->X_add_number += add;
++		}
++#endif
+ 	      fix_new_exp (frag_now, p - frag_now->fr_literal, size,
+-			   i.op[n].disps, pcrel,
+-			   reloc (size, pcrel, sign, i.reloc[n]));
++			   i.op[n].disps, pcrel, reloc_type);
+ 	    }
+ 	}
+     }
+ }
+ 
+ static void
+-output_imm ()
++output_imm (insn_start_frag, insn_start_off)
++    fragS *insn_start_frag;
++    offsetT insn_start_off;
+ {
+   char *p;
+   unsigned int n;
+@@ -3328,6 +3374,48 @@ output_imm ()
+ 	      p = frag_more (size);
+ 	      reloc_type = reloc (size, 0, sign, i.reloc[n]);
+ #ifdef BFD_ASSEMBLER
++	      /*   This is tough to explain.  We end up with this one if we
++	       * have operands that look like
++	       * "_GLOBAL_OFFSET_TABLE_+[.-.L284]".  The goal here is to
++	       * obtain the absolute address of the GOT, and it is strongly
++	       * preferable from a performance point of view to avoid using
++	       * a runtime relocation for this.  The actual sequence of
++	       * instructions often look something like:
++	       *
++	       *	call	.L66
++	       * .L66:
++	       *	popl	%ebx
++	       *	addl	$_GLOBAL_OFFSET_TABLE_+[.-.L66],%ebx
++	       *
++	       *   The call and pop essentially return the absolute address
++	       * of the label .L66 and store it in %ebx.  The linker itself
++	       * will ultimately change the first operand of the addl so
++	       * that %ebx points to the GOT, but to keep things simple, the
++	       * .o file must have this operand set so that it generates not
++	       * the absolute address of .L66, but the absolute address of
++	       * itself.  This allows the linker itself simply treat a GOTPC
++	       * relocation as asking for a pcrel offset to the GOT to be
++	       * added in, and the addend of the relocation is stored in the
++	       * operand field for the instruction itself.
++	       *
++	       *   Our job here is to fix the operand so that it would add
++	       * the correct offset so that %ebx would point to itself.  The
++	       * thing that is tricky is that .-.L66 will point to the
++	       * beginning of the instruction, so we need to further modify
++	       * the operand so that it will point to itself.  There are
++	       * other cases where you have something like:
++	       *
++	       *	.long	$_GLOBAL_OFFSET_TABLE_+[.-.L66]
++	       *
++	       * and here no correction would be required.  Internally in
++	       * the assembler we treat operands of this form as not being
++	       * pcrel since the '.' is explicitly mentioned, and I wonder
++	       * whether it would simplify matters to do it this way.  Who
++	       * knows.  In earlier versions of the PIC patches, the
++	       * pcrel_adjust field was used to store the correction, but
++	       * since the expression is not pcrel, I felt it would be
++	       * confusing to do it this way.  */
++
+ 	      if (reloc_type == BFD_RELOC_32
+ 		  && GOT_symbol
+ 		  && GOT_symbol == i.op[n].imms->X_add_symbol
+@@ -3337,11 +3425,26 @@ output_imm ()
+ 			       (i.op[n].imms->X_op_symbol)->X_op)
+ 			      == O_subtract))))
+ 		{
++		  offsetT add;
++
++		  if (insn_start_frag == frag_now)
++		    add = (p - frag_now->fr_literal) - insn_start_off;
++		  else
++		    {
++		      fragS *fr;
++
++		      add = insn_start_frag->fr_fix - insn_start_off;
++		      for (fr = insn_start_frag->fr_next;
++			   fr && fr != frag_now; fr = fr->fr_next)
++			add += fr->fr_fix;
++		      add += p - frag_now->fr_literal;
++		    }
++
+ 		  /* We don't support dynamic linking on x86-64 yet.  */
+ 		  if (flag_code == CODE_64BIT)
+ 		    abort ();
+ 		  reloc_type = BFD_RELOC_386_GOTPC;
+-		  i.op[n].imms->X_add_number += 3;
++		  i.op[n].imms->X_add_number += add;
+ 		}
+ #endif
+ 	      fix_new_exp (frag_now, p - frag_now->fr_literal, size,
+@@ -4542,48 +4645,6 @@ md_apply_fix3 (fixP, valP, seg)
+ 	   runtime we merely add the offset to the actual PLT entry.  */
+ 	value = -4;
+ 	break;
+-      case BFD_RELOC_386_GOTPC:
+-
+-/*   This is tough to explain.  We end up with this one if we have
+- * operands that look like "_GLOBAL_OFFSET_TABLE_+[.-.L284]".  The goal
+- * here is to obtain the absolute address of the GOT, and it is strongly
+- * preferable from a performance point of view to avoid using a runtime
+- * relocation for this.  The actual sequence of instructions often look
+- * something like:
+- *
+- *	call	.L66
+- * .L66:
+- *	popl	%ebx
+- *	addl	$_GLOBAL_OFFSET_TABLE_+[.-.L66],%ebx
+- *
+- *   The call and pop essentially return the absolute address of
+- * the label .L66 and store it in %ebx.  The linker itself will
+- * ultimately change the first operand of the addl so that %ebx points to
+- * the GOT, but to keep things simple, the .o file must have this operand
+- * set so that it generates not the absolute address of .L66, but the
+- * absolute address of itself.  This allows the linker itself simply
+- * treat a GOTPC relocation as asking for a pcrel offset to the GOT to be
+- * added in, and the addend of the relocation is stored in the operand
+- * field for the instruction itself.
+- *
+- *   Our job here is to fix the operand so that it would add the correct
+- * offset so that %ebx would point to itself.  The thing that is tricky is
+- * that .-.L66 will point to the beginning of the instruction, so we need
+- * to further modify the operand so that it will point to itself.
+- * There are other cases where you have something like:
+- *
+- *	.long	$_GLOBAL_OFFSET_TABLE_+[.-.L66]
+- *
+- * and here no correction would be required.  Internally in the assembler
+- * we treat operands of this form as not being pcrel since the '.' is
+- * explicitly mentioned, and I wonder whether it would simplify matters
+- * to do it this way.  Who knows.  In earlier versions of the PIC patches,
+- * the pcrel_adjust field was used to store the correction, but since the
+- * expression is not pcrel, I felt it would be confusing to do it this
+- * way.  */
+-
+-	value -= 1;
+-	break;
+       case BFD_RELOC_386_GOT32:
+       case BFD_RELOC_386_TLS_GD:
+       case BFD_RELOC_386_TLS_LDM:
+--- binutils/gas/testsuite/gas/i386/gotpc.s.jj	2002-08-02 21:17:57.000000000 +0200
++++ binutils/gas/testsuite/gas/i386/gotpc.s	2002-08-03 22:55:47.000000000 +0200
+@@ -0,0 +1,40 @@
++	.text
++test:
++	addl $_GLOBAL_OFFSET_TABLE_+[.-test], %eax
++	addl $_GLOBAL_OFFSET_TABLE_+[.-test], %ebx
++	addl $_GLOBAL_OFFSET_TABLE_, %eax
++	addl $_GLOBAL_OFFSET_TABLE_, %ebx
++	leal _GLOBAL_OFFSET_TABLE+[.-test](%eax), %ebx
++	leal _GLOBAL_OFFSET_TABLE+[.-test](%ebx), %eax
++	leal _GLOBAL_OFFSET_TABLE+[.-test](%eax), %eax
++	leal _GLOBAL_OFFSET_TABLE+[.-test](%ebx), %ebx
++	subl $_GLOBAL_OFFSET_TABLE_+[.-test], %eax
++	subl $_GLOBAL_OFFSET_TABLE_+[.-test], %ebx
++	subl $_GLOBAL_OFFSET_TABLE_, %eax
++	subl $_GLOBAL_OFFSET_TABLE_, %ebx
++	orl $_GLOBAL_OFFSET_TABLE_+[.-test], %eax
++	orl $_GLOBAL_OFFSET_TABLE_+[.-test], %ebx
++	orl $_GLOBAL_OFFSET_TABLE_, %eax
++	orl $_GLOBAL_OFFSET_TABLE_, %ebx
++	movl $_GLOBAL_OFFSET_TABLE_+[.-test], %eax
++	movl $_GLOBAL_OFFSET_TABLE_+[.-test], %ebx
++	movl $_GLOBAL_OFFSET_TABLE_, %eax
++	movl $_GLOBAL_OFFSET_TABLE_, %ebx
++	movl $_GLOBAL_OFFSET_TABLE_+[.-test], foo
++	movl $_GLOBAL_OFFSET_TABLE_+[.-test], %gs:foo
++	gs; movl $_GLOBAL_OFFSET_TABLE_+[.-test], foo
++	movl $_GLOBAL_OFFSET_TABLE_+[.-test], _GLOBAL_OFFSET_TABLE_
++	movl _GLOBAL_OFFSET_TABLE_+[.-test], %eax
++	movl _GLOBAL_OFFSET_TABLE_+[.-test], %ebx
++	movl %eax, _GLOBAL_OFFSET_TABLE_+[.-test]
++	movl %ebx, _GLOBAL_OFFSET_TABLE_+[.-test]
++	movl %eax, %gs:_GLOBAL_OFFSET_TABLE_+[.-test]
++	movl %ebx, %gs:_GLOBAL_OFFSET_TABLE_+[.-test]
++	gs; movl %eax, _GLOBAL_OFFSET_TABLE_+[.-test]
++	gs; movl %ebx, _GLOBAL_OFFSET_TABLE_+[.-test]
++	leal _GLOBAL_OFFSET_TABLE_@GOTOFF(%ebx), %eax
++	leal _GLOBAL_OFFSET_TABLE_@GOTOFF(%ebx), %ebx
++	movl _GLOBAL_OFFSET_TABLE_@GOTOFF(%ebx), %eax
++	movl _GLOBAL_OFFSET_TABLE_@GOTOFF(%ebx), %ebx
++	.long _GLOBAL_OFFSET_TABLE_+[.-test]
++	.long _GLOBAL_OFFSET_TABLE_@GOTOFF
+--- binutils/gas/testsuite/gas/i386/gotpc.d.jj	2002-08-02 21:18:43.000000000 +0200
++++ binutils/gas/testsuite/gas/i386/gotpc.d	2002-08-03 23:05:43.000000000 +0200
+@@ -0,0 +1,52 @@
++#objdump: -drw
++#name: i386 gotpc
++
++.*: +file format .*
++
++Disassembly of section .text:
++
++0+000 <test>:
++   0:	05 01 00 00 00 [ 	]*add    \$0x1,%eax	1: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++   5:	81 c3 07 00 00 00 [ 	]*add    \$0x7,%ebx	7: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++   b:	05 01 00 00 00 [ 	]*add    \$0x1,%eax	c: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  10:	81 c3 02 00 00 00 [ 	]*add    \$0x2,%ebx	12: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  16:	8d 98 16 00 00 00 [ 	]*lea    0x16\(%eax\),%ebx	18: (R_386_)?(dir)?32	_GLOBAL_OFFSET_TABLE
++  1c:	8d 83 1c 00 00 00 [ 	]*lea    0x1c\(%ebx\),%eax	1e: (R_386_)?(dir)?32	_GLOBAL_OFFSET_TABLE
++  22:	8d 80 22 00 00 00 [ 	]*lea    0x22\(%eax\),%eax	24: (R_386_)?(dir)?32	_GLOBAL_OFFSET_TABLE
++  28:	8d 9b 28 00 00 00 [ 	]*lea    0x28\(%ebx\),%ebx	2a: (R_386_)?(dir)?32	_GLOBAL_OFFSET_TABLE
++  2e:	2d 2f 00 00 00 [ 	]*sub    \$0x2f,%eax	2f: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  33:	81 eb 35 00 00 00 [ 	]*sub    \$0x35,%ebx	35: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  39:	2d 01 00 00 00 [ 	]*sub    \$0x1,%eax	3a: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  3e:	81 eb 02 00 00 00 [ 	]*sub    \$0x2,%ebx	40: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  44:	0d 45 00 00 00 [ 	]*or     \$0x45,%eax	45: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  49:	81 cb 4b 00 00 00 [ 	]*or     \$0x4b,%ebx	4b: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  4f:	0d 01 00 00 00 [ 	]*or     \$0x1,%eax	50: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  54:	81 cb 02 00 00 00 [ 	]*or     \$0x2,%ebx	56: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  5a:	b8 5b 00 00 00 [ 	]*mov    \$0x5b,%eax	5b: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  5f:	bb 60 00 00 00 [ 	]*mov    \$0x60,%ebx	60: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  64:	b8 01 00 00 00 [ 	]*mov    \$0x1,%eax	65: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  69:	bb 01 00 00 00 [ 	]*mov    \$0x1,%ebx	6a: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  6e:	c7 05 00 00 00 00 74 00 00 00 [ 	]*movl   \$0x74,0x0	70: (R_386_)?(dir)?32	foo
++[ 	]*74: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  78:	65 c7 05 00 00 00 00 7f 00 00 00 [ 	]*movl   \$0x7f,%gs:0x0	7b: (R_386_)?(dir)?32	foo
++[ 	]*7f: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  83:	65 c7 05 00 00 00 00 8a 00 00 00 [ 	]*movl   \$0x8a,%gs:0x0	86: (R_386_)?(dir)?32	foo
++[ 	]*8a: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  8e:	c7 05 02 00 00 00 94 00 00 00 [ 	]*movl   \$0x94,0x2	90: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++[ 	]*94: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  98:	a1 99 00 00 00 [ 	]*mov    0x99,%eax	99: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  9d:	8b 1d 9f 00 00 00 [ 	]*mov    0x9f,%ebx	9f: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  a3:	a3 a4 00 00 00 [ 	]*mov    %eax,0xa4	a4: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  a8:	89 1d aa 00 00 00 [ 	]*mov    %ebx,0xaa	aa: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  ae:	65 a3 b0 00 00 00 [ 	]*mov    %eax,%gs:0xb0	b0: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  b4:	65 89 1d b7 00 00 00 [ 	]*mov    %ebx,%gs:0xb7	b7: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  bb:	65 a3 bd 00 00 00 [ 	]*mov    %eax,%gs:0xbd	bd: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  c1:	65 89 1d c4 00 00 00 [ 	]*mov    %ebx,%gs:0xc4	c4: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  c8:	8d 83 00 00 00 00 [ 	]*lea    0x0\(%ebx\),%eax	ca: (R_386_)?GOTOFF	_GLOBAL_OFFSET_TABLE_
++  ce:	8d 9b 00 00 00 00 [ 	]*lea    0x0\(%ebx\),%ebx	d0: (R_386_)?GOTOFF	_GLOBAL_OFFSET_TABLE_
++  d4:	8b 83 00 00 00 00 [ 	]*mov    0x0\(%ebx\),%eax	d6: (R_386_)?GOTOFF	_GLOBAL_OFFSET_TABLE_
++  da:	8b 9b 00 00 00 00 [ 	]*mov    0x0\(%ebx\),%ebx	dc: (R_386_)?GOTOFF	_GLOBAL_OFFSET_TABLE_
++  e0:	e0 00 [ 	]*loopne e2 <test\+0xe2>	e0: (R_386_)?GOTPC	_GLOBAL_OFFSET_TABLE_
++  e2:	00 00 [ 	]*add    %al,\(%eax\)
++  e4:	00 00 [ 	]*add    %al,\(%eax\)	e4: (R_386_)?GOTOFF	_GLOBAL_OFFSET_TABLE_
++	...
+--- binutils/gas/testsuite/gas/i386/i386.exp.jj	2002-07-18 11:35:39.000000000 +0200
++++ binutils/gas/testsuite/gas/i386/i386.exp	2002-08-02 21:57:46.000000000 +0200
+@@ -53,6 +53,7 @@ if [expr ([istarget "i*86-*-*"] ||  [ist
+     run_dump_test "jump"
+     run_dump_test "ssemmx2"
+     run_dump_test "sse2"
++    run_dump_test "gotpc"
+ 
+     # PIC is only supported on ELF targets.
+     if { ([istarget "*-*-elf*"] || [istarget "*-*-linux*"] )
+

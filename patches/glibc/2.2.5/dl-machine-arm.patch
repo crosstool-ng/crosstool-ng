@@ -1,0 +1,389 @@
+Fixes error:
+In file included from dynamic-link.h:21,
+                 from dl-load.c:32:
+../sysdeps/arm/dl-machine.h:124:25: missing terminating " character
+...
+make[2]: *** [/crosstool-0.22/build/arm-unknown-linux-gnu/gcc-3.3-glibc-2.2.5/build-glibc/elf/dl-load.o] Error 1
+
+The first two hunks of 
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/arm/dl-machine.h.diff?r1=1.39&r2=1.40&cvsroot=glibc
+applied cleanly, but the third hunk didn't, so I just added the \n\'s by hand for that section.
+
+--- glibc-2.2.5/sysdeps/arm/dl-machine.h.orig	Sat Sep  8 14:31:40 2001
++++ glibc-2.2.5/sysdeps/arm/dl-machine.h	Wed Aug 27 10:55:26 2003
+@@ -121,14 +121,15 @@
+    and then redirect to the address it returns.  */
+    // macro for handling PIC situation....
+ #ifdef PIC
+-#define CALL_ROUTINE(x) " ldr sl,0f
+-	add 	sl, pc, sl
+-1:	ldr	r2, 2f
+-	mov	lr, pc
+-	add	pc, sl, r2
+-	b	3f
+-0:	.word	_GLOBAL_OFFSET_TABLE_ - 1b - 4
+-2:	.word " #x "(GOTOFF)
++#define CALL_ROUTINE(x) "\
++	ldr sl,0f\n\
++	add 	sl, pc, sl\n\
++1:	ldr	r2, 2f\n\
++	mov	lr, pc\n\
++	add	pc, sl, r2\n\
++	b	3f\n\
++0:	.word	_GLOBAL_OFFSET_TABLE_ - 1b - 4\n\
++2:	.word " #x "(GOTOFF)\n\
+ 3:	"
+ #else
+ #define CALL_ROUTINE(x) " bl " #x
+@@ -136,114 +137,114 @@
+ 
+ #ifndef PROF
+ # define ELF_MACHINE_RUNTIME_TRAMPOLINE asm ("\
+-	.text
+-	.globl _dl_runtime_resolve
+-	.type _dl_runtime_resolve, #function
+-	.align 2
+-_dl_runtime_resolve:
+-	@ we get called with
+-	@ 	stack[0] contains the return address from this call
+-	@	ip contains &GOT[n+3] (pointer to function)
+-	@	lr points to &GOT[2]
+-
+-	@ save almost everything; lr is already on the stack
+-	stmdb	sp!,{r0-r3,sl,fp}
+-
+-	@ prepare to call fixup()
+-	@ change &GOT[n+3] into 8*n        NOTE: reloc are 8 bytes each
+-	sub	r1, ip, lr
+-	sub	r1, r1, #4
+-	add	r1, r1, r1
+-
+-	@ get pointer to linker struct
+-	ldr	r0, [lr, #-4]
+-
+-	@ call fixup routine
+-	" CALL_ROUTINE(fixup) "
+-
+-	@ save the return
+-	mov	ip, r0
+-
+-	@ restore the stack
+-	ldmia	sp!,{r0-r3,sl,fp,lr}
+-
+-	@ jump to the newly found address
+-	mov	pc, ip
+-
+-	.size _dl_runtime_resolve, .-_dl_runtime_resolve
+-
+-	.globl _dl_runtime_profile
+-	.type _dl_runtime_profile, #function
+-	.align 2
+-_dl_runtime_profile:
+-	@ save almost everything; lr is already on the stack
+-	stmdb	sp!,{r0-r3,sl,fp}
+-
+-	@ prepare to call fixup()
+-	@ change &GOT[n+3] into 8*n        NOTE: reloc are 8 bytes each
+-	sub	r1, ip, lr
+-	sub	r1, r1, #4
+-	add	r1, r1, r1
+-
+-	@ get pointer to linker struct
+-	ldr	r0, [lr, #-4]
+-
+-	@ call profiling fixup routine
+-	" CALL_ROUTINE(profile_fixup) "
+-
+-	@ save the return
+-	mov	ip, r0
+-
+-	@ restore the stack
+-	ldmia	sp!,{r0-r3,sl,fp,lr}
+-
+-	@ jump to the newly found address
+-	mov	pc, ip
+-
+-	.size _dl_runtime_resolve, .-_dl_runtime_resolve
+-	.previous
++	.text\n\
++	.globl _dl_runtime_resolve\n\
++	.type _dl_runtime_resolve, #function\n\
++	.align 2\n\
++_dl_runtime_resolve:\n\
++	@ we get called with\n\
++	@ 	stack[0] contains the return address from this call\n\
++	@	ip contains &GOT[n+3] (pointer to function)\n\
++	@	lr points to &GOT[2]\n\
++\n\
++	@ save almost everything; lr is already on the stack\n\
++	stmdb	sp!,{r0-r3,sl,fp}\n\
++\n\
++	@ prepare to call fixup()\n\
++	@ change &GOT[n+3] into 8*n        NOTE: reloc are 8 bytes each\n\
++	sub	r1, ip, lr\n\
++	sub	r1, r1, #4\n\
++	add	r1, r1, r1\n\
++\n\
++	@ get pointer to linker struct\n\
++	ldr	r0, [lr, #-4]\n\
++\n\
++	@ call fixup routine\n\
++	" CALL_ROUTINE(fixup) "\n\
++\n\
++	@ save the return\n\
++	mov	ip, r0\n\
++\n\
++	@ restore the stack\n\
++	ldmia	sp!,{r0-r3,sl,fp,lr}\n\
++\n\
++	@ jump to the newly found address\n\
++	mov	pc, ip\n\
++\n\
++	.size _dl_runtime_resolve, .-_dl_runtime_resolve\n\
++\n\
++	.globl _dl_runtime_profile\n\
++	.type _dl_runtime_profile, #function\n\
++	.align 2\n\
++_dl_runtime_profile:\n\
++	@ save almost everything; lr is already on the stack\n\
++	stmdb	sp!,{r0-r3,sl,fp}\n\
++\n\
++	@ prepare to call fixup()\n\
++	@ change &GOT[n+3] into 8*n        NOTE: reloc are 8 bytes each\n\
++	sub	r1, ip, lr\n\
++	sub	r1, r1, #4\n\
++	add	r1, r1, r1\n\
++\n\
++	@ get pointer to linker struct\n\
++	ldr	r0, [lr, #-4]\n\
++\n\
++	@ call profiling fixup routine\n\
++	" CALL_ROUTINE(profile_fixup) "\n\
++\n\
++	@ save the return\n\
++	mov	ip, r0\n\
++\n\
++	@ restore the stack\n\
++	ldmia	sp!,{r0-r3,sl,fp,lr}\n\
++\n\
++	@ jump to the newly found address\n\
++	mov	pc, ip\n\
++\n\
++	.size _dl_runtime_resolve, .-_dl_runtime_resolve\n\
++	.previous\n\
+ ");
+ #else // PROF
+ # define ELF_MACHINE_RUNTIME_TRAMPOLINE asm ("\
+-	.text
+-	.globl _dl_runtime_resolve
+-	.globl _dl_runtime_profile
+-	.type _dl_runtime_resolve, #function
+-	.type _dl_runtime_profile, #function
+-	.align 2
+-_dl_runtime_resolve:
+-_dl_runtime_profile:
+-	@ we get called with
+-	@ 	stack[0] contains the return address from this call
+-	@	ip contains &GOT[n+3] (pointer to function)
+-	@	lr points to &GOT[2]
+-
+-	@ save almost everything; return add is already on the stack
+-	stmdb	sp!,{r0-r3,sl,fp}
+-
+-	@ prepare to call fixup()
+-	@ change &GOT[n+3] into 8*n        NOTE: reloc are 8 bytes each
+-	sub	r1, ip, lr
+-	sub	r1, r1, #4
+-	add	r1, r1, r1
+-
+-	@ get pointer to linker struct
+-	ldr	r0, [lr, #-4]
+-
+-	@ call profiling fixup routine
+-	" CALL_ROUTINE(fixup) "
+-
+-	@ save the return
+-	mov	ip, r0
+-
+-	@ restore the stack
+-	ldmia	sp!,{r0-r3,sl,fp,lr}
+-
+-	@ jump to the newly found address
+-	mov	pc, ip
+-
+-	.size _dl_runtime_profile, .-_dl_runtime_profile
+-	.previous
++	.text\n\
++	.globl _dl_runtime_resolve\n\
++	.globl _dl_runtime_profile\n\
++	.type _dl_runtime_resolve, #function\n\
++	.type _dl_runtime_profile, #function\n\
++	.align 2\n\
++_dl_runtime_resolve:\n\
++_dl_runtime_profile:\n\
++	@ we get called with\n\
++	@ 	stack[0] contains the return address from this call\n\
++	@	ip contains &GOT[n+3] (pointer to function)\n\
++	@	lr points to &GOT[2]\n\
++\n\
++	@ save almost everything; return add is already on the stack\n\
++	stmdb	sp!,{r0-r3,sl,fp}\n\
++\n\
++	@ prepare to call fixup()\n\
++	@ change &GOT[n+3] into 8*n        NOTE: reloc are 8 bytes each\n\
++	sub	r1, ip, lr\n\
++	sub	r1, r1, #4\n\
++	add	r1, r1, r1\n\
++\n\
++	@ get pointer to linker struct\n\
++	ldr	r0, [lr, #-4]\n\
++\n\
++	@ call profiling fixup routine\n\
++	" CALL_ROUTINE(fixup) "\n\
++\n\
++	@ save the return\n\
++	mov	ip, r0\n\
++\n\
++	@ restore the stack\n\
++	ldmia	sp!,{r0-r3,sl,fp,lr}\n\
++\n\
++	@ jump to the newly found address\n\
++	mov	pc, ip\n\
++\n\
++	.size _dl_runtime_profile, .-_dl_runtime_profile\n\
++	.previous\n\
+ ");
+ #endif //PROF
+ 
+@@ -256,70 +257,70 @@
+    its return value is the user program's entry point.  */
+ 
+ #define RTLD_START asm ("\
+-.text
+-.globl _start
+-.globl _dl_start_user
+-_start:
+-	@ at start time, all the args are on the stack
+-	mov	r0, sp
+-	bl	_dl_start
+-	@ returns user entry point in r0
+-_dl_start_user:
+-	mov	r6, r0
+-	@ we are PIC code, so get global offset table
+-	ldr	sl, .L_GET_GOT
+-	add	sl, pc, sl
+-.L_GOT_GOT:
+-	@ Store the highest stack address
+-	ldr	r1, .L_STACK_END
+-	ldr	r1, [sl, r1]
+-	str	sp, [r1]
+-	@ See if we were run as a command with the executable file
+-	@ name as an extra leading argument.
+-	ldr	r4, .L_SKIP_ARGS
+-	ldr	r4, [sl, r4]
+-	@ get the original arg count
+-	ldr	r1, [sp]
+-	@ subtract _dl_skip_args from it
+-	sub	r1, r1, r4
+-	@ adjust the stack pointer to skip them
+-	add	sp, sp, r4, lsl #2
+-	@ get the argv address
+-	add	r2, sp, #4
+-	@ store the new argc in the new stack location
+-	str	r1, [sp]
+-	@ compute envp
+-	add	r3, r2, r1, lsl #2
+-	add	r3, r3, #4
+-
+-	@ now we call _dl_init
+-	ldr	r0, .L_LOADED
+-	ldr	r0, [sl, r0]
+-	ldr	r0, [r0]
+-	@ call _dl_init
+-	bl	_dl_init(PLT)
+-	@ clear the startup flag
+-	ldr	r2, .L_STARTUP_FLAG
+-	ldr	r1, [sl, r2]
+-	mov	r0, #0
+-	str	r0, [r1]
+-	@ load the finalizer function
+-	ldr	r0, .L_FINI_PROC
+-	ldr	r0, [sl, r0]
+-	@ jump to the user_s entry point
+-	mov	pc, r6
+-.L_GET_GOT:
++.text\n\
++.globl _start\n\
++.globl _dl_start_user\n\
++_start:\n\
++	@ at start time, all the args are on the stack\n\
++	mov	r0, sp\n\
++	bl	_dl_start\n\
++	@ returns user entry point in r0\n\
++_dl_start_user:\n\
++	mov	r6, r0\n\
++	@ we are PIC code, so get global offset table\n\
++	ldr	sl, .L_GET_GOT\n\
++	add	sl, pc, sl\n\
++.L_GOT_GOT:\n\
++	@ Store the highest stack address\n\
++	ldr	r1, .L_STACK_END\n\
++	ldr	r1, [sl, r1]\n\
++	str	sp, [r1]\n\
++	@ See if we were run as a command with the executable file\n\
++	@ name as an extra leading argument.\n\
++	ldr	r4, .L_SKIP_ARGS\n\
++	ldr	r4, [sl, r4]\n\
++	@ get the original arg count\n\
++	ldr	r1, [sp]\n\
++	@ subtract _dl_skip_args from it\n\
++	sub	r1, r1, r4\n\
++	@ adjust the stack pointer to skip them\n\
++	add	sp, sp, r4, lsl #2\n\
++	@ get the argv address\n\
++	add	r2, sp, #4\n\
++	@ store the new argc in the new stack location\n\
++	str	r1, [sp]\n\
++	@ compute envp\n\
++	add	r3, r2, r1, lsl #2\n\
++	add	r3, r3, #4\n\
++\n\
++	@ now we call _dl_init\n\
++	ldr	r0, .L_LOADED\n\
++	ldr	r0, [sl, r0]\n\
++	ldr	r0, [r0]\n\
++	@ call _dl_init\n\
++	bl	_dl_init(PLT)\n\
++	@ clear the startup flag\n\
++	ldr	r2, .L_STARTUP_FLAG\n\
++	ldr	r1, [sl, r2]\n\
++	mov	r0, #0\n\
++	str	r0, [r1]\n\
++	@ load the finalizer function\n\
++	ldr	r0, .L_FINI_PROC\n\
++	ldr	r0, [sl, r0]\n\
++	@ jump to the user_s entry point\n\
++	mov	pc, r6\n\
++.L_GET_GOT:\n\
+ 	.word	_GLOBAL_OFFSET_TABLE_ - .L_GOT_GOT - 4	\n\
+ .L_SKIP_ARGS:					\n\
+ 	.word	_dl_skip_args(GOTOFF)		\n\
+-.L_STARTUP_FLAG:
+-	.word	_dl_starting_up(GOT)
+-.L_FINI_PROC:
+-	.word	_dl_fini(GOT)
+-.L_STACK_END:
+-	.word	__libc_stack_end(GOT)
+-.L_LOADED:
+-	.word	_dl_loaded(GOT)
++.L_STARTUP_FLAG:\n\
++	.word	_dl_starting_up(GOT)\n\
++.L_FINI_PROC:\n\
++	.word	_dl_fini(GOT)\n\
++.L_STACK_END:\n\
++	.word	__libc_stack_end(GOT)\n\
++.L_LOADED:\n\
++	.word	_dl_loaded(GOT)\n\
+ .previous\n\
+ ");
+ 

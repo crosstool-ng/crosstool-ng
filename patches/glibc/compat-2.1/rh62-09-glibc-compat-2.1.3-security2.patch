@@ -1,0 +1,66 @@
+2002-07-05  Tomohiro Kato <tomop@teamgedoh.net>
+
+	* glibc-compat/nss_dns/dns-network.c (getanswer_r): Reduce
+	linebuflen in parallel to bumping up the buffer pointer.
+	* glibc-compat/nss_dns/dns-host.c (getanswer_r): Likewise.
+	Compare n with linebuflen instead of buflen.
+
+2002-07-02  Andreas Schwab  <schwab@suse.de>
+
+	* resolv/nss_dns/dns-network.c (getanswer_r): Reduce linebuflen
+	in parallel to bumping up the buffer pointer.
+
+--- libc/glibc-compat/nss_dns/dns-network.c.jj	Wed Jan 10 11:58:20 2001
++++ libc/glibc-compat/nss_dns/dns-network.c	Tue Jul  9 10:31:15 2002
+@@ -283,7 +283,9 @@ getanswer_r (const querybuf *answer, int
+ 	    }
+ 	  cp += n;
+ 	  *alias_pointer++ = bp;
+-	  bp += strlen (bp) + 1;
++	  n = strlen (bp) + 1;
++	  bp += n;
++	  linebuflen -= n;
+ 	  result->n_addrtype = class == C_IN ? AF_INET : AF_UNSPEC;
+ 	  ++have_answer;
+ 	}
+--- libc/glibc-compat/nss_dns/dns-host.c.jj	Wed Jan 10 11:58:20 2001
++++ libc/glibc-compat/nss_dns/dns-host.c	Tue Jul  9 10:36:41 2002
+@@ -424,7 +424,7 @@ getanswer_r (const querybuf *answer, int
+ 	  linebuflen -= n;
+ 	  /* Get canonical name.  */
+ 	  n = strlen (tbuf) + 1;	/* For the \0.  */
+-	  if ((size_t) n > buflen || n >= MAXHOSTNAMELEN)
++	  if ((size_t) n > linebuflen || n >= MAXHOSTNAMELEN)
+ 	    {
+ 	      ++had_error;
+ 	      continue;
+@@ -447,7 +447,7 @@ getanswer_r (const querybuf *answer, int
+ 	  cp += n;
+ 	  /* Get canonical name. */
+ 	  n = strlen (tbuf) + 1;   /* For the \0.  */
+-	  if ((size_t) n > buflen || n >= MAXHOSTNAMELEN)
++	  if ((size_t) n > linebuflen || n >= MAXHOSTNAMELEN)
+ 	    {
+ 	      ++had_error;
+ 	      continue;
+@@ -542,6 +542,7 @@ getanswer_r (const querybuf *answer, int
+ 	      linebuflen -= nn;
+ 	    }
+ 
++	  linebuflen -= sizeof (align) - ((u_long) bp % sizeof (align));
+ 	  bp += sizeof (align) - ((u_long) bp % sizeof (align));
+ 
+ 	  if (n >= linebuflen)
+#--- libc/resolv/nss_dns/dns-network.c.jj	Mon Jul  9 14:59:24 2001
+#+++ libc/resolv/nss_dns/dns-network.c	Tue Jul  9 10:30:31 2002
+#@@ -328,7 +328,9 @@ getanswer_r (const querybuf *answer, int
+# 	    }
+# 	  cp += n;
+# 	  *alias_pointer++ = bp;
+#-	  bp += strlen (bp) + 1;
+#+	  n = strlen (bp) + 1;
+#+	  bp += n;
+#+	  linebuflen -= n;
+# 	  result->n_addrtype = class == C_IN ? AF_INET : AF_UNSPEC;
+# 	  ++have_answer;
+# 	}

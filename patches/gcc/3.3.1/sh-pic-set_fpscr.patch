@@ -1,0 +1,61 @@
+See http://gcc.gnu.org/PR11901
+Should fix
+make[2]: *** [/gcc-3.3-glibc-2.3.2/build-glibc/elf/check-textrel.out] Error 1 
+in glibc's "make tests".
+
+-------------
+
+Message-Id: <200307300255.h6U2tB906928@r-rr.iij4u.or.jp>
+To: dank@kegel.com
+Cc: linux-sh@m17n.org
+Subject: Re: Writing PIC version of __udivsi3_i4? (was: Re: "make tests" fails
+ with "libc.so: text relocations used" in glibc-2.3.2 for sh4)
+In-Reply-To: Your message of "Wed, 30 Jul 2003 11:20:49 +0900"
+	<200307300212.h6U2CH901209@r-rr.iij4u.or.jp>
+References: <200307300212.h6U2CH901209@r-rr.iij4u.or.jp>
+Date: Wed, 30 Jul 2003 12:03:01 +0900
+From: kaz Kojima <kkojima@rr.iij4u.or.jp>
+
+> I'll try to write the PIC version of it,
+
+Dan, does the attached patch work for you?
+
+[dank: original patch deleted; here's same thing rediffed against gcc-3.3 instead of HEAD]
+
+--- gcc-3.3/gcc/config/sh/lib1funcs.asm.old	Tue Jul 29 21:37:29 2003
++++ gcc-3.3/gcc/config/sh/lib1funcs.asm	Tue Jul 29 21:40:58 2003
+@@ -1792,7 +1792,17 @@
+ 	.global GLOBAL(set_fpscr)
+ GLOBAL(set_fpscr):
+ 	lds r4,fpscr
++#ifdef __PIC__
++	mov.l	r12,@-r15
++	mova	LOCAL(set_fpscr_L0),r0
++	mov.l	LOCAL(set_fpscr_L0),r12
++	add	r0,r12
++	mov.l	LOCAL(set_fpscr_L1),r0
++	mov.l	@(r0,r12),r1
++	mov.l	@r15+,r12
++#else
+ 	mov.l LOCAL(set_fpscr_L1),r1
++#endif
+ 	swap.w r4,r0
+ 	or #24,r0
+ #ifndef FMOVD_WORKS
+@@ -1820,8 +1830,16 @@
+ 	mov.l r3,@(4,r1)
+ #endif
+ 	.align 2
++#ifdef __PIC__
++LOCAL(set_fpscr_L0):
++	.long _GLOBAL_OFFSET_TABLE_
++LOCAL(set_fpscr_L1):
++	.long GLOBAL(fpscr_values@GOT)
++#else
+ LOCAL(set_fpscr_L1):
+ 	.long GLOBAL(fpscr_values)
++#endif
++
+ #ifdef __ELF__
+         .comm   GLOBAL(fpscr_values),8,4
+ #else

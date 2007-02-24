@@ -1,0 +1,38 @@
+Fixes
+elf/librtld.os: In function `process_envvars': : undefined reference to `__access'
+...
+when building glibc-2.3.3 on cygwin
+
+Idea from
+http://sources.redhat.com/ml/bug-glibc/2002-01/msg00071/glibc-2.2-cygin-shared.patch
+Basically, make glibc use .oST as suffix for 'object static'
+instead of .oS, since cygwin has trouble distinguishing .os from .oS
+(Original patch had .on, but .oST is more mnemonic for 'object static')
+
+glibc-linuxthreads-2.3.3 also requires a patch, see 
+../glibc-linuxthreads-2.3.3/glibc-linuxthreads-2.3.3-cygwin.patch
+
+[ rediffed against glibc-2.3.3 ]
+
+
+diff -aur glibc-linuxthreads-2.3.3/linuxthreads/Makefile glibc-linuxthreads-2.3.3-cygwin/linuxthreads/Makefile
+--- glibc-linuxthreads-2.3.3/linuxthreads/Makefile	2004-08-27 20:38:40.000000000 -0700
++++ glibc-linuxthreads-2.3.3-cygwin/linuxthreads/Makefile	2003-10-02 11:48:48.000000000 -0700
+@@ -156,7 +156,7 @@
+ install: $(inst_libdir)/libpthread.so
+ $(inst_libdir)/libpthread.so: $(common-objpfx)format.lds \
+ 			      $(objpfx)libpthread.so$(libpthread.so-version) \
+-			      $(inst_libdir)/$(patsubst %,$(libtype.oS),\
++			      $(inst_libdir)/$(patsubst %,$(libtype.oST),\
+ 							$(libprefix)pthread) \
+ 			      $(+force)
+ 	(echo '/* GNU ld script';\
+@@ -164,7 +164,7 @@
+ 	 echo '   the static library, so try that secondarily.  */';\
+ 	 cat $<; \
+ 	 echo 'GROUP ( $(slibdir)/libpthread.so$(libpthread.so-version)' \
+-	      '$(libdir)/$(patsubst %,$(libtype.oS),$(libprefix)pthread)'\
++	      '$(libdir)/$(patsubst %,$(libtype.oST),$(libprefix)pthread)'\
+ 	      ')' \
+ 	) > $@.new
+ 	mv -f $@.new $@

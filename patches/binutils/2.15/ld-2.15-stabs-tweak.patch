@@ -1,0 +1,33 @@
+Signed-off-by: dank@kegel.com
+
+See http://sourceware.org/ml/binutils/2005-12/msg00270.html
+http://sourceware.org/ml/binutils-cvs/2005-12/msg00139.html
+
+STABS hash table size change, backported from the binutils CVS tree.  Here's
+the CVS log comment for the original change:
+
+revision 1.25
+date: 2005/12/29 10:29:23;  author: nickc;  state: Exp;  lines: +2 -3
+(_bfd_link_section_stabs): Use bfd_hash_table_init rather than
+bfd_hash_table_init_n(...,251) so that the size of the hash table can be
+controlled by the user.
+
+Note that tunable hash table size changes were added after 2.15.  The effect
+of this change is to make bfd use its default hash table size for the stabs
+hash as well.
+
+
+--- binutils-2.15/bfd/stabs.c.old	2004-05-17 15:36:04.000000000 -0400
++++ binutils-2.15/bfd/stabs.c	2006-02-09 15:21:56.567014000 -0500
+@@ -241,9 +241,8 @@
+ 	goto error_return;
+       /* Make sure the first byte is zero.  */
+       (void) _bfd_stringtab_add (sinfo->strings, "", TRUE, TRUE);
+-      if (! bfd_hash_table_init_n (&sinfo->includes.root,
+-				   stab_link_includes_newfunc,
+-				   251))
++      if (! bfd_hash_table_init (&sinfo->includes.root,
++				   stab_link_includes_newfunc))
+ 	goto error_return;
+       sinfo->stabstr = bfd_make_section_anyway (abfd, ".stabstr");
+       sinfo->stabstr->flags |= SEC_HAS_CONTENTS | SEC_READONLY | SEC_DEBUGGING;

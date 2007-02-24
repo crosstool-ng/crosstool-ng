@@ -1,0 +1,79 @@
+Fixes
+In file included from ldconfig.c:136:
+../sysdeps/i386/dl-procinfo.c:53: error: static declaration of '_dl_x86_cap_flags' follows non-static declaration
+../sysdeps/i386/dl-procinfo.c:61: error: previous declaration of '_dl_x86_cap_flags' was here
+../sysdeps/i386/dl-procinfo.c:72: error: static declaration of '_dl_x86_platforms' follows non-static declaration
+../sysdeps/i386/dl-procinfo.c:77: error: previous declaration of '_dl_x86_platforms' was here
+make[2]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-dev/build/i686-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.3.3/glibc-2.3.3/elf'
+when building with gcc-4.0.
+
+2004-07-10  Ulrich Drepper  <drepper@redhat.com>
+
+        * elf/ldconfig.c: Define PROCINFO_CLASS as static before including
+        ldsodefs.h.
+        * sysdeps/generic/ldsodefs.h: Only define PROCINFO_CLASS if it is not
+        already defined.
+        * sysdeps/i386/dl-procinfo.c: Define PROCINFO_CALLS only if not
+        already defined.
+
+See 
+http://sources.redhat.com/ml/glibc-cvs/2004-q3/msg00093.html
+http://sources.redhat.com/ml/glibc-cvs/2004-q3/msg00097.html
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/i386/dl-procinfo.c.diff?cvsroot=glibc&r1=1.1&r2=1.2
+
+rediffed against glibc-2.3.3
+
+diff -ur glibc-2.3.3.orig/elf/ldconfig.c glibc-2.3.3/elf/ldconfig.c
+--- glibc-2.3.3.orig/elf/ldconfig.c	Tue Aug 26 01:07:19 2003
++++ glibc-2.3.3/elf/ldconfig.c	Sat Mar 19 12:02:08 2005
+@@ -17,6 +17,7 @@
+    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307 USA.  */
+ 
++#define PROCINFO_CLASS static
+ #include <alloca.h>
+ #include <argp.h>
+ #include <dirent.h>
+diff -ur glibc-2.3.3.orig/sysdeps/generic/ldsodefs.h glibc-2.3.3/sysdeps/generic/ldsodefs.h
+--- glibc-2.3.3.orig/sysdeps/generic/ldsodefs.h	Mon Nov 24 14:56:07 2003
++++ glibc-2.3.3/sysdeps/generic/ldsodefs.h	Sat Mar 19 12:02:08 2005
+@@ -348,7 +348,9 @@
+ 
+   /* Get architecture specific definitions.  */
+ #define PROCINFO_DECL
+-#define PROCINFO_CLASS EXTERN
++#ifndef PROCINFO_CLASS
++# define PROCINFO_CLASS EXTERN
++#endif
+ #include <dl-procinfo.c>
+ 
+   /* Structure describing the dynamic linker itself.  */
+Only in glibc-2.3.3/sysdeps/generic: ldsodefs.h~
+diff -ur glibc-2.3.3.orig/sysdeps/i386/dl-procinfo.c glibc-2.3.3/sysdeps/i386/dl-procinfo.c
+--- glibc-2.3.3.orig/sysdeps/i386/dl-procinfo.c	Wed Sep 24 20:54:54 2003
++++ glibc-2.3.3/sysdeps/i386/dl-procinfo.c	Sat Mar 19 12:02:08 2005
+@@ -1,5 +1,5 @@
+ /* Data for i386 version of processor capability information.
+-   Copyright (C) 2001,2002,2003 Free Software Foundation, Inc.
++   Copyright (C) 2001,2002,2003, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper <drepper@redhat.com>, 2001.
+ 
+@@ -24,7 +24,7 @@
+    If anything should be added here check whether the size of each string
+    is still ok with the given array size.
+ 
+-   All the #ifdefs in the definitions ar equite irritating but
++   All the #ifdefs in the definitions are quite irritating but
+    necessary if we want to avoid duplicating the information.  There
+    are three different modes:
+ 
+@@ -41,7 +41,7 @@
+   */
+ 
+ #ifndef PROCINFO_CLASS
+-#define PROCINFO_CLASS
++# define PROCINFO_CLASS
+ #endif
+ 
+ #if !defined PROCINFO_DECL && defined SHARED

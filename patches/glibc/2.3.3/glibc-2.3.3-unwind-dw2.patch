@@ -1,0 +1,66 @@
+See http://sources.redhat.com/ml/libc-alpha/2004-02/msg00138.html
+aka http://sources.redhat.com/cgi-bin/get-raw-msg?listname=libc-alpha&date=2004-02&msgid=20040220044155.GE22135%40baldric.uwo.ca
+
+In CVS as
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/generic/unwind-dw2.c.diff?r1=1.7&r2=1.8&cvsroot=glibc'
+
+Revision 1.8, Sat Feb 21 09:07:29 2004 UTC (5 months, 3 weeks ago) by drepper
+
+	Allow sjlj enabled compilers to build the code by removing
+	__USING_SJLJ_EXCEPTIONS__ wrapper.
+
+plus
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/generic/framestate.c.diff?r1=1.3&r2=1.4&cvsroot=glibc'
+
+Revision 1.4, Sat Feb 21 09:07:05 2004 UTC (5 months, 3 weeks ago) by drepper
+
+	[__USING_SJLJ_EXCEPTIONS__] (__frame_state_for): Set frame_State_for
+	to abort if the compiler is using sjlj.
+
+Fixes compile error
+
+../sysdeps/generic/framestate.c: In function `__frame_state_for':
+../sysdeps/generic/framestate.c:44: error: `fallback_frame_state_for' undeclared (first use in this function)
+../sysdeps/generic/framestate.c:44: error: (Each undeclared identifier is reported only once
+../sysdeps/generic/framestate.c:44: error: for each function it appears in.)
+make[2]: *** [crosstool-0.28-rc34/build/arm-unknown-linux-gnu/gcc-3.4.1-glibc-2.3.3/build-glibc/elf/framestate.os] Error 1
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/generic/unwind-dw2.c,v
+retrieving revision 1.7
+retrieving revision 1.8
+diff -u -r1.7 -r1.8
+--- libc/sysdeps/generic/unwind-dw2.c	2003/07/22 23:55:55	1.7
++++ libc/sysdeps/generic/unwind-dw2.c	2004/02/21 09:07:29	1.8
+@@ -39,7 +39,6 @@
+ #endif
+ 
+ 
+-#ifndef __USING_SJLJ_EXCEPTIONS__
+ 
+ #ifndef STACK_GROWS_DOWNWARD
+ #define STACK_GROWS_DOWNWARD 0
+@@ -1287,4 +1286,3 @@
+ #include "unwind.inc"
+ 
+ #endif /* _LIBC */
+-#endif /* !USING_SJLJ_EXCEPTIONS */
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/generic/framestate.c,v
+retrieving revision 1.3
+retrieving revision 1.4
+diff -u -r1.3 -r1.4
+--- libc/sysdeps/generic/framestate.c	2003/01/08 06:46:06	1.3
++++ libc/sysdeps/generic/framestate.c	2004/02/21 09:07:05	1.4
+@@ -41,7 +41,11 @@
+       if (handle == NULL
+ 	  || (frame_state_for
+ 	      = (framesf) __libc_dlsym (handle, "__frame_state_for")) == NULL)
++#ifndef __USING_SJLJ_EXCEPTIONS__
+ 	frame_state_for = fallback_frame_state_for;
++#else
++      	frame_state_for = abort;
++#endif
+     }
+ 
+   return frame_state_for (pc, frame_state);

@@ -1,0 +1,76 @@
+2000-08-27  Ulrich Drepper  <drepper@redhat.com>
+
+	* intl/dcgettext.c (DCGETTEXT): Remove _nl_find_language in code
+	to determine invalid locale name.
+	* locale/findlocale.c (_nl_find_locale): Likewise.
+
+2000-08-21  Ulrich Drepper  <drepper@redhat.com>
+
+	* catgets/catgets.c (catopen): Filter out env_var values with / if
+	necessary.
+
+	* locale/findlocale.c (_nl_find_locale): Move test for unusable
+	locale name after all getenvs.
+
+--- glibc-2.1.3/catgets/catgets.c	2000/01/29 11:56:33	1.15
++++ glibc-2.1.3/catgets/catgets.c	2000/08/21 20:55:30	1.16
+@@ -50,7 +50,8 @@
+ 	/* Use the LANG environment variable.  */
+ 	env_var = getenv ("LANG");
+ 
+-      if (env_var == NULL)
++      if (env_var == NULL || *env_var == '\0'
++	  || (__libc_enable_secure && strchr (env_var, '/') != NULL))
+ 	env_var = "C";
+ 
+       env_var_len = strlen (env_var) + 1;
+--- glibc-2.1.3/locale/findlocale.c	1999/11/08 23:45:13	1.10.2.1
++++ glibc-2.1.3/locale/findlocale.c	2000/08/21 21:02:42	1.10.2.2
+@@ -1,4 +1,4 @@
+-/* Copyright (C) 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
++/* Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper <drepper@gnu.org>, 1996.
+ 
+@@ -54,11 +54,7 @@
+   const char *revision;
+   struct loaded_l10nfile *locale_file;
+ 
+-  if ((*name)[0] == '\0'
+-      /* In SUID binaries we must not allow people to access files
+-	 outside the dedicated locale directories.  */
+-      || (__libc_enable_secure
+-	  && memchr (*name, '/', _nl_find_language (*name) - *name) != NULL))
++  if ((*name)[0] == '\0')
+     {
+       /* The user decides which locale to use by setting environment
+ 	 variables.  */
+@@ -67,9 +63,12 @@
+ 	*name = getenv (_nl_category_names[category]);
+       if (*name == NULL || (*name)[0] == '\0')
+ 	*name = getenv ("LANG");
+-      if (*name == NULL || (*name)[0] == '\0')
+-	*name = (char *) _nl_C_name;
+     }
++
++  if (*name == NULL || (*name)[0] == '\0'
++      || (__builtin_expect (__libc_enable_secure, 0)
++	  && strchr (*name, '/') != NULL))
++    *name = (char *) _nl_C_name;
+ 
+   if (strcmp (*name, _nl_C_name) == 0 || strcmp (*name, _nl_POSIX_name) == 0)
+     {
+--- glibc-2.1.3/intl/dcgettext.c	Sun Aug 27 23:15:33 2000
++++ glibc-2.1.3/intl/dcgettext.c	Sun Aug 27 23:16:34 2000
+@@ -371,10 +371,7 @@
+ 
+ 	  /* When this is a SUID binary we must not allow accessing files
+ 	     outside the dedicated directories.  */
+-	  if (ENABLE_SECURE
+-	      && (memchr (single_locale, '/',
+-			  _nl_find_language (single_locale) - single_locale)
+-		  != NULL))
++	  if (ENABLE_SECURE && strchr (single_locale, '/') != NULL)
+ 	    /* Ingore this entry.  */
+ 	    continue;
+ 	}

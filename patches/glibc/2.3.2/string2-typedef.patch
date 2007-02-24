@@ -1,0 +1,35 @@
+See http://gcc.gnu.org/ml/gcc/2003-08/msg00959.html
+
+Compiling glibc-2.3.2 with a gcc-3.4 snapshot, I'm seeing
+a whole bunch of warnings like this:
+
+../string/bits/string2.h:80: warning: `packed' attribute ignored
+../string/bits/string2.h:81: warning: `packed' attribute ignored
+...
+
+Looks like it was bad code that was silently ignored by previous compilers.
+Ulrich fixed it as follows:
+
+===================================================================
+RCS file: /cvs/glibc/libc/string/bits/string2.h,v
+retrieving revision 1.68
+retrieving revision 1.69
+diff -u -r1.68 -r1.69
+--- libc/string/bits/string2.h	2002/05/25 06:10:18	1.68
++++ libc/string/bits/string2.h	2003/08/20 00:07:37	1.69
+@@ -1,5 +1,5 @@
+ /* Machine-independant string function optimizations.
+-   Copyright (C) 1997,1998,1999,2000,2001,2002 Free Software Foundation, Inc.
++   Copyright (C) 1997-2002, 2003 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper <drepper@cygnus.com>, 1997.
+ 
+@@ -76,7 +76,7 @@
+    use unaligned memory accesses.  */
+ # define __STRING2_COPY_TYPE(N) \
+   typedef struct { unsigned char __arr[N]; }				      \
+-    __STRING2_COPY_ARR##N __attribute__ ((packed))
++    __attribute__ ((__packed__)) __STRING2_COPY_ARR##N
+ __STRING2_COPY_TYPE (2);
+ __STRING2_COPY_TYPE (3);
+ __STRING2_COPY_TYPE (4);

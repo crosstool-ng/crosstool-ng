@@ -1,0 +1,51 @@
+From http://sources.redhat.com/cgi-bin/cvsweb.cgi/src/gas/config/tc-arm.c.diff?r1=1.168&r2=1.169&cvsroot=src
+See also http://lists.arm.linux.org.uk/pipermail/linux-arm-kernel/2004-July/023128.html,
+"[CRITICAL PATCH] 2.6: fix silent build error]"
+
+Revision 1.169, Fri Jul 2 11:12:29 2004 UTC (19 hours, 4 minutes ago) by nickc
+Branch: MAIN
+CVS Tags: binutils_latest_snapshot, HEAD
+Changes since 1.168: +14 -1 lines
+
+(md_apply_fix3:BFD_RELOC_ARM_IMMEDIATE): Do not allow values which have come
+from undefined symbols.
+Always consider this fixup to have been processed as a reloc cannot be
+generated for it.
+
+
+===================================================================
+RCS file: /cvs/src/src/gas/config/tc-arm.c,v
+retrieving revision 1.168
+retrieving revision 1.169
+diff -u -r1.168 -r1.169
+--- src/gas/config/tc-arm.c	2004/04/30 10:51:12	1.168
++++ src/gas/config/tc-arm.c	2004/07/02 11:12:29	1.169
+@@ -12186,6 +12186,20 @@
+   switch (fixP->fx_r_type)
+     {
+     case BFD_RELOC_ARM_IMMEDIATE:
++      /* We claim that this fixup has been processed here,
++	 even if in fact we generate an error because we do
++	 not have a reloc for it, so tc_gen_reloc will reject it.  */
++      fixP->fx_done = 1;
++
++      if (fixP->fx_addsy
++	  && ! S_IS_DEFINED (fixP->fx_addsy))
++	{
++	  as_bad_where (fixP->fx_file, fixP->fx_line,
++			_("undefined symbol %s used as an immediate value"),
++			S_GET_NAME (fixP->fx_addsy));
++	  break;
++	}
++
+       newimm = validate_immediate (value);
+       temp = md_chars_to_number (buf, INSN_SIZE);
+ 
+@@ -12202,7 +12216,6 @@
+ 
+       newimm |= (temp & 0xfffff000);
+       md_number_to_chars (buf, (valueT) newimm, INSN_SIZE);
+-      fixP->fx_done = 1;
+       break;
+ 
+     case BFD_RELOC_ARM_ADRL_IMMEDIATE:

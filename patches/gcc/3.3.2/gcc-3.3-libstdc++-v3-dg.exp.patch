@@ -1,0 +1,54 @@
+Without this patch, the command
+
+RUNTESTFLAGS=--target=powerpc-750-linux-gnu -v -v -v -v make check-target-libstdc++-v3
+
+fails in two ways:
+1. the -L option meant to locate the testsuite directory is incorrect, and
+2. the wrong compiler is invoked, causing all sorts of havoc, not least of which
+is the native compiler is invoked when we really wanted to invoke the cross-compiler
+we just built.
+
+Here's an example log of the problem in action.  Every testcase fails, this shows just one:
+-------------
+Invoking the compiler as g++ -ggdb3 -DDEBUG_ASSERT -I/home3/dank/wk/ixos/dap_interim/linux/3rdParty/crosstool/crosstool-0.12/build/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/gcc-3.3/libstdc++-v3/testsuite /home3/dank/wk/ixos/dap_interim/linux/3rdParty/crosstool/crosstool-0.12/build/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/gcc-3.3/libstdc++-v3/testsuite/20_util/binders.cc   -g -O2 -DDEBUG_ASSERT  -L/testsuite -lv3test -lm  -o ./binders.exe
+compiler exited with status 1
+output is:
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_function.h: In method `void binder2nd<mem_fun1_ref_t<void,Elem,int> >::operator ()(const Elem &) const':^M
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_algo.h:83:   instantiated from `for_each<Elem *, binder2nd<mem_fun1_ref_t<void,Elem,int> > >(Elem *, Elem *, binder2nd<mem_fun1_ref_t<void,Elem,int> >)'^M
+/home3/dank/wk/ixos/dap_interim/linux/3rdParty/crosstool/crosstool-0.12/build/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/gcc-3.3/libstdc++-v3/testsuite/20_util/binders.cc:43:   instantiated from here^M
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_function.h:224: conversion from `const Elem' to `Elem &' discards qualifiers^M
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_function.h:622: in passing argument 1 of `mem_fun1_ref_t<void,Elem,int>::operator ()(Elem &, int) const'^M
+...
+FAIL: 20_util/binders.cc (test for excess errors)
+WARNING: 20_util/binders.cc compilation failed to produce executable
+-------------
+
+And here's the patch.  I'm not happy with it, and it probably gets some cases wrong,
+but it seems to work for the common native case and for my cross-compiler case.
+
+--- gcc-3.3/libstdc++-v3/testsuite/lib/libstdc++-v3-dg.exp.old	Sun Jul 13 10:42:01 2003
++++ gcc-3.3/libstdc++-v3/testsuite/lib/libstdc++-v3-dg.exp	Sun Jul 13 11:39:54 2003
+@@ -46,8 +46,23 @@
+     global gluefile wrap_flags
+     global ld_library_path
+     global tool_root_dir
++    global target_triplet
+ 
+     set blddir [lookfor_file [get_multilibs] libstdc++-v3]
++    if { $blddir == "" } {
++        set multilibs [get_multilibs]
++        # FIXME: assume multilib only one level deep
++        set multisub [file tail $multilibs]
++        verbose "libstdc++-v3-init: couldn't find libstdc++-v3 in $multilibs, trying $objdir"
++        set blddir [lookfor_file ${objdir} "$target_triplet/$multisub/libstdc++-v3"]
++    }
++    if { $blddir == "" } {
++        verbose "libstdc++-v3-init: couldn't find libstdc++-v3, trying $objdir without multilibs"
++        set blddir [lookfor_file ${objdir} "$target_triplet/libstdc++-v3"]
++    }
++    if { $blddir == "" } {
++         error "Can't find libstdc++-v3"
++    }
+ 
+     # By default, we assume we want to run program images.
+     global dg-do-what-default

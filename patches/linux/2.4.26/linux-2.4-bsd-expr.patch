@@ -1,0 +1,25 @@
+# http://in3www.epfl.ch/~schaffne/linux-2.4-bsd-expr.patch
+The following makes it possible to compile linux 2.4.19 to 2.4.25 on Mac OS X,
+where "expr" doesn't understand the "length" construct
+(which it doesn't have to, according to SuSv3
+(see http://www.opengroup.org/onlinepubs/007904975/utilities/expr.html)
+See also http://sources.redhat.com/ml/crossgcc/2004-02/msg00131.html
+
+Fixes error
+  expr: syntax error
+  KERNELRELEASE "2.4.21" exceeds 64 characters
+  make: *** [include/linux/version.h] Error 1
+
+
+diff -ur linux-2.4.23-old/Makefile linux-2.4.23/Makefile
+--- linux-2.4.23-old/Makefile	2003-12-09 14:27:56.000000000 +0100
++++ linux-2.4.23/Makefile	2003-12-09 14:28:37.000000000 +0100
+@@ -353,7 +353,7 @@
+ 	@rm -f .ver1
+ 
+ include/linux/version.h: ./Makefile
+-	@expr length "$(KERNELRELEASE)" \<= $(uts_len) > /dev/null || \
++	@expr "$(KERNELRELEASE)" : '.*' \<= $(uts_len) > /dev/null || \
+ 	  (echo KERNELRELEASE \"$(KERNELRELEASE)\" exceeds $(uts_len) characters >&2; false)
+ 	@echo \#define UTS_RELEASE \"$(KERNELRELEASE)\" > .ver
+ 	@echo \#define LINUX_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver

@@ -1,0 +1,276 @@
+From http://www.ltc.com/~brad/mips/glibc-2.2.3-mips-base-addr-got.diff
+
+Hopefully fixes the error:
+
+/opt/crosstool/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.3/lib/gcc-lib/mipsel-unknown-linux-gnu/3.2.3/../../../../mipsel-unknown-linux-gnu/bin/ld: target elf32-littlemips not found
+collect2: ld returned 1 exit status
+make[2]: *** [/home/dank/downloads/crosstool-0.24/build/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.3/build-glibc/elf/ld.so] Error 1
+
+
+diff -urNbB glibc-2.2.3/sysdeps/mips/dl-machine.h glibc-2.2.3-mips/sysdeps/mips/dl-machine.h
+--- glibc-2.2.3/sysdeps/mips/dl-machine.h	Mon Mar 26 23:53:28 2001
++++ glibc-2.2.3-mips/sysdeps/mips/dl-machine.h	Sun Aug 12 11:08:17 2001
+@@ -61,23 +61,6 @@
+    in l_info array.  */
+ #define DT_MIPS(x) (DT_MIPS_##x - DT_LOPROC + DT_NUM)
+ 
+-/*
+- * MIPS libraries are usually linked to a non-zero base address.  We
+- * subtract the base address from the address where we map the object
+- * to.  This results in more efficient address space usage.
+- *
+- * FIXME: By the time when MAP_BASE_ADDR is called we don't have the
+- * DYNAMIC section read.  Until this is fixed make the assumption that
+- * libraries have their base address at 0x5ffe0000.  This needs to be
+- * fixed before we can safely get rid of this MIPSism.
+- */
+-#if 0
+-#define MAP_BASE_ADDR(l) ((l)->l_info[DT_MIPS(BASE_ADDRESS)] ? \
+-			  (l)->l_info[DT_MIPS(BASE_ADDRESS)]->d_un.d_ptr : 0)
+-#else
+-#define MAP_BASE_ADDR(l) 0x5ffe0000
+-#endif
+-
+ /* If there is a DT_MIPS_RLD_MAP entry in the dynamic section, fill it in
+    with the run-time address of the r_debug structure  */
+ #define ELF_MACHINE_DEBUG_SETUP(l,r) \
+@@ -557,51 +540,30 @@
+   /* Do nothing.  */
+ }
+ 
++#ifndef RTLD_BOOTSTRAP
+ /* Relocate GOT. */
+ static inline void
+ elf_machine_got_rel (struct link_map *map, int lazy)
+ {
+   ElfW(Addr) *got;
+   ElfW(Sym) *sym;
++  const ElfW(Half) *vernum;
+   int i, n, symidx;
+-  /*  This function is loaded in dl-reloc as a nested function and can
+-      therefore access the variables scope and strtab from
+-      _dl_relocate_object.  */
+-#ifdef RTLD_BOOTSTRAP
+-# define RESOLVE_GOTSYM(sym,sym_index) 0
+-#else
+-# define RESOLVE_GOTSYM(sym,sym_index)					  \
++
++#define RESOLVE_GOTSYM(sym,vernum,sym_index)				  \
+     ({									  \
+       const ElfW(Sym) *ref = sym;					  \
++      const struct r_found_version *version				  \
++        = vernum ? &map->l_versions [vernum [sym_index]] : NULL;	  \
+       ElfW(Addr) value;							  \
+-									  \
+-      switch (map->l_info[VERSYMIDX (DT_VERSYM)] != NULL)		  \
+-	{								  \
+-	default:							  \
+-	  {								  \
+-	    const ElfW(Half) *vernum =					  \
+-	      (const void *) D_PTR (map, l_info[VERSYMIDX (DT_VERSYM)]);  \
+-	    ElfW(Half) ndx = vernum[sym_index];				  \
+-	    const struct r_found_version *version = &l->l_versions[ndx];  \
+-									  \
+-	    if (version->hash != 0)					  \
+-	      {								  \
+-		value = _dl_lookup_versioned_symbol(strtab + sym->st_name,\
+-						    map,		  \
+-						    &ref, scope, version, \
+-						    R_MIPS_REL32, 0);	  \
+-		break;							  \
+-	      }								  \
+-	    /* Fall through.  */					  \
+-	  }								  \
+-	case 0:								  \
+-	  value = _dl_lookup_symbol (strtab + sym->st_name, map, &ref,	  \
+-				     scope, R_MIPS_REL32, 0);		  \
+-	}								  \
+-									  \
++      value = RESOLVE (&ref, version, R_MIPS_REL32);			  \
+       (ref)? value + ref->st_value: 0;					  \
+     })
+-#endif /* RTLD_BOOTSTRAP */
++
++  if (map->l_info[VERSYMIDX (DT_VERSYM)] != NULL)
++    vernum = (const void *) D_PTR (map, l_info[VERSYMIDX (DT_VERSYM)]);
++  else
++    vernum = NULL;
+ 
+   got = (ElfW(Addr) *) D_PTR (map, l_info[DT_PLTGOT]);
+ 
+@@ -639,10 +601,10 @@
+ 	      && sym->st_value && lazy)
+ 	    *got = sym->st_value + map->l_addr;
+ 	  else
+-	    *got = RESOLVE_GOTSYM (sym, symidx);
++	    *got = RESOLVE_GOTSYM (sym, vernum, symidx);
+ 	}
+       else if (sym->st_shndx == SHN_COMMON)
+-	*got = RESOLVE_GOTSYM (sym, symidx);
++	*got = RESOLVE_GOTSYM (sym, vernum, symidx);
+       else if (ELFW(ST_TYPE) (sym->st_info) == STT_FUNC
+ 	       && *got != sym->st_value
+ 	       && lazy)
+@@ -653,7 +615,7 @@
+ 	    *got += map->l_addr;
+ 	}
+       else
+-	*got = RESOLVE_GOTSYM (sym, symidx);
++	*got = RESOLVE_GOTSYM (sym, vernum, symidx);
+ 
+       ++got;
+       ++sym;
+@@ -661,9 +623,8 @@
+     }
+ 
+ #undef RESOLVE_GOTSYM
+-
+-  return;
+ }
++#endif
+ 
+ /* Set up the loaded object described by L so its stub function
+    will jump to the on-demand fixup code __dl_runtime_resolve.  */
+diff -urNbB glibc-2.2.3/sysdeps/mips/mips64/rtld-parms glibc-2.2.3-mips/sysdeps/mips/mips64/rtld-parms
+--- glibc-2.2.3/sysdeps/mips/mips64/rtld-parms	Sat Jul 12 18:26:11 1997
++++ glibc-2.2.3-mips/sysdeps/mips/mips64/rtld-parms	Wed Dec 31 19:00:00 1969
+@@ -1,3 +0,0 @@
+-ifndef rtld-wordsize
+-rtld-wordsize = 64
+-endif
+diff -urNbB glibc-2.2.3/sysdeps/mips/mipsel/rtld-parms glibc-2.2.3-mips/sysdeps/mips/mipsel/rtld-parms
+--- glibc-2.2.3/sysdeps/mips/mipsel/rtld-parms	Sat Jul 12 18:26:15 1997
++++ glibc-2.2.3-mips/sysdeps/mips/mipsel/rtld-parms	Wed Dec 31 19:00:00 1969
+@@ -1,3 +0,0 @@
+-ifndef rtld-oformat
+-rtld-oformat = elf32-littlemips
+-endif
+diff -urNbB glibc-2.2.3/sysdeps/mips/rtld-ldscript.in glibc-2.2.3-mips/sysdeps/mips/rtld-ldscript.in
+--- glibc-2.2.3/sysdeps/mips/rtld-ldscript.in	Sat Jul 12 18:23:14 1997
++++ glibc-2.2.3-mips/sysdeps/mips/rtld-ldscript.in	Wed Dec 31 19:00:00 1969
+@@ -1,106 +0,0 @@
+-OUTPUT_FORMAT("@@rtld-oformat@@")
+-OUTPUT_ARCH(@@rtld-arch@@)
+-ENTRY(@@rtld-entry@@)
+-SECTIONS
+-{
+-  /* Read-only sections, merged into text segment: */
+-  . = @@rtld-base@@;
+-  .reginfo       : { *(.reginfo) }
+-  .dynamic       : { *(.dynamic) }
+-  .dynstr        : { *(.dynstr)		}
+-  .dynsym        : { *(.dynsym)		}
+-  .hash          : { *(.hash)		}
+-  .rel.text      : { *(.rel.text)		}
+-  .rela.text     : { *(.rela.text) 	}
+-  .rel.data      : { *(.rel.data)		}
+-  .rela.data     : { *(.rela.data) 	}
+-  .rel.rodata    : { *(.rel.rodata) 	}
+-  .rela.rodata   : { *(.rela.rodata) 	}
+-  .rel.got       : { *(.rel.got)		}
+-  .rela.got      : { *(.rela.got)		}
+-  .rel.ctors     : { *(.rel.ctors)	}
+-  .rela.ctors    : { *(.rela.ctors)	}
+-  .rel.dtors     : { *(.rel.dtors)	}
+-  .rela.dtors    : { *(.rela.dtors)	}
+-  .rel.init      : { *(.rel.init)	}
+-  .rela.init     : { *(.rela.init)	}
+-  .rel.fini      : { *(.rel.fini)	}
+-  .rela.fini     : { *(.rela.fini)	}
+-  .rel.bss       : { *(.rel.bss)		}
+-  .rela.bss      : { *(.rela.bss)		}
+-  .rel.plt       : { *(.rel.plt)		}
+-  .rela.plt      : { *(.rela.plt)		}
+-  .rodata    : { *(.rodata)  }
+-  .rodata1   : { *(.rodata1) }
+-  .init          : { *(.init)	} =0
+-  .text      :
+-  {
+-    *(.text)
+-    *(.stub)
+-    /* .gnu.warning sections are handled specially by elf32.em.  */
+-    *(.gnu.warning)
+-  } =0
+-  .fini      : { *(.fini)    } =0
+-  /* Adjust the address for the data segment.  We want to adjust up to
+-     the same address within the page on the next page up.  It would
+-     be more correct to do this:
+-       . = 0x10000000;
+-     The current expression does not correctly handle the case of a
+-     text segment ending precisely at the end of a page; it causes the
+-     data segment to skip a page.  The above expression does not have
+-     this problem, but it will currently (2/95) cause BFD to allocate
+-     a single segment, combining both text and data, for this case.
+-     This will prevent the text segment from being shared among
+-     multiple executions of the program; I think that is more
+-     important than losing a page of the virtual address space (note
+-     that no actual memory is lost; the page which is skipped can not
+-     be referenced).  */
+-  . += 0x10000;
+-  .data    :
+-  {
+-    *(.data)
+-    CONSTRUCTORS
+-  }
+-  .data1   : { *(.data1) }
+-  .ctors         : { *(.ctors)   }
+-  .dtors         : { *(.dtors)   }
+-  _gp = ALIGN(16) + 0x7ff0;
+-  .got           :
+-  {
+-    *(.got.plt) *(.got)
+-   }
+-  /* We want the small data sections together, so single-instruction offsets
+-     can access them all, and initialized data all before uninitialized, so
+-     we can shorten the on-disk segment size.  */
+-  .sdata     : { *(.sdata) }
+-  .lit8 : { *(.lit8) }
+-  .lit4 : { *(.lit4) }
+-  .sbss      : { *(.sbss) *(.scommon) }
+-  .bss       :
+-  {
+-   *(.dynbss)
+-   *(.bss)
+-   *(COMMON)
+-  }
+-  /* The normal linker scripts created by the binutils doesn't have the
+-     symbols end and _end which breaks ld.so's dl-minimal.c.  */
+-  _end = . ;
+-  PROVIDE (end = .);
+-  /* These are needed for ELF backends which have not yet been
+-     converted to the new style linker.  */
+-  .stab 0 : { *(.stab) }
+-  .stabstr 0 : { *(.stabstr) }
+-  /* DWARF debug sections.
+-     Symbols in the .debug DWARF section are relative to the beginning of the
+-     section so we begin .debug at 0.  It's not clear yet what needs to happen
+-     for the others.   */
+-  .debug          0 : { *(.debug) }
+-  .debug_srcinfo  0 : { *(.debug_srcinfo) }
+-  .debug_aranges  0 : { *(.debug_aranges) }
+-  .debug_pubnames 0 : { *(.debug_pubnames) }
+-  .debug_sfnames  0 : { *(.debug_sfnames) }
+-  .line           0 : { *(.line) }
+-  /* These must appear regardless of  .  */
+-  .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
+-  .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }
+-}
+diff -urNbB glibc-2.2.3/sysdeps/mips/rtld-parms glibc-2.2.3-mips/sysdeps/mips/rtld-parms
+--- glibc-2.2.3/sysdeps/mips/rtld-parms	Mon Jul 21 19:04:07 1997
++++ glibc-2.2.3-mips/sysdeps/mips/rtld-parms	Wed Dec 31 19:00:00 1969
+@@ -1,15 +0,0 @@
+-ifndef rtld-wordsize
+-rtld-wordsize = 32
+-endif
+-ifndef rtld-oformat
+-rtld-oformat = elf$(rtld-wordsize)-bigmips
+-endif
+-ifndef rtld-arch
+-rtld-arch = mips
+-endif
+-ifndef rtld-entry
+-rtld-entry = __start
+-endif
+-ifndef rtld-base
+-rtld-base = 0x0fb60000 + SIZEOF_HEADERS
+-endif

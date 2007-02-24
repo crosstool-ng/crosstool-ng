@@ -1,0 +1,54 @@
+(See similar patch for glibc-2.3.3)
+
+This fix discussed here:
+http://gcc.gnu.org/ml/gcc/2005-01/msg00509.html
+
+Fixes
+
+In file included from ../linuxthreads_db/proc_service.h:20,
+                 from ../linuxthreads_db/thread_dbP.h:6,
+                 from internals.h:36,
+                 from attr.c:23:
+../sysdeps/unix/sysv/linux/powerpc/sys/procfs.h:53: error: syntax error before 'elf_vrreg_t'
+../sysdeps/unix/sysv/linux/powerpc/sys/procfs.h:53: warning: type defaults to 'int' in declaration of 'elf_vrreg_t'
+../sysdeps/unix/sysv/linux/powerpc/sys/procfs.h:53: warning: data definition has no type or storage class
+../sysdeps/unix/sysv/linux/powerpc/sys/procfs.h:54: error: syntax error before 'elf_vrregset_t'
+../sysdeps/unix/sysv/linux/powerpc/sys/procfs.h:54: warning: type defaults to 'int' in declaration of 'elf_vrregset_t'
+../sysdeps/unix/sysv/linux/powerpc/sys/procfs.h:54: warning: data definition has no type or storage class
+make[2]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-0.30/build/powerpc-405-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/glibc-2.2.5/linuxthreads'
+make[2]: *** [/home/dank/queue/jobdir.fast2/crosstool-0.30/build/powerpc-405-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/build-glibc/linuxthreads/attr.o] Error 1
+
+From: Martin Egholm Nielsen martin at egholm-nielsen dot dk
+To: crossgcc at sources dot redhat dot com
+Date: Thu, 24 Mar 2005 18:40:27 +0100
+Subject: [Patch] CT 0.29 - glibc-2.2.5-allow-gcc-4.0-powerpc-procfs
+
+Hi Dan,
+
+I had to add the following patch in order to make CT 0.29 and glibc 
+2.2.5 compile with gcc 4.0 (20050305) and Kernel 2.4.20...
+
+// Martin
+
+--- glibc-2.2.5/sysdeps/unix/sysv/linux/powerpc/sys/procfs.h.old	2005-03-24 13:11:39.746062400 +0100
++++ glibc-2.2.5/sysdeps/unix/sysv/linux/powerpc/sys/procfs.h	2005-03-24 13:15:11.810996800 +0100
+@@ -42,15 +42,10 @@
+ typedef double elf_fpreg_t;
+ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
+ 
+-/* gcc 3.1 and newer support __uint128_t.  */
+-#if !__GNUC_PREREQ(3,1)
+-typedef struct {
+-  unsigned long u[4];
+-} __attribute((aligned(16))) __uint128_t;
+-#endif
+-
+ /* Altivec registers */
+-typedef __uint128_t elf_vrreg_t;
++typedef struct {
++  unsigned int u[4];
++} __attribute__ ((aligned (16))) elf_vrreg_t;
+ typedef elf_vrreg_t elf_vrregset_t[ELF_NVRREG];
+ 
+ struct elf_siginfo
+

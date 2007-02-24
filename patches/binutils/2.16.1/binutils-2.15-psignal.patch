@@ -1,0 +1,40 @@
+Make psignal prototype in libiberty match that in glibc.
+
+Fixes:
+
+gcc-2.95.3-glibc-2.1.3/binutils-2.15/libiberty/strsignal.c: In function `psignal':
+gcc-2.95.3-glibc-2.1.3/binutils-2.15/libiberty/strsignal.c:563: argument `signo' doesn't match prototype
+/usr/include/signal.h:131: prototype declaration
+gcc-2.95.3-glibc-2.1.3/binutils-2.15/libiberty/strsignal.c:563: argument `message' doesn't match prototype
+/usr/include/signal.h:131: prototype declaration
+gcc-2.95.3-glibc-2.1.3/binutils-2.15/libiberty/strsignal.c:568: warning: comparison between signed and unsigned
+mprotect... make[1]: *** [strsignal.o] Error 1
+make[1]: Leaving directory `/export/hda3/dkegel/queue/jobdir.produser_cpsm17/crosstool-0.32/build/i686-unknown-linux-gnu/gcc-2.95.3-glibc-2.1.3/build-binutils/libiberty'
+make: *** [all-libiberty] Error 2
+
+when building on red hat 7.1
+though it's a bit of a mystery why libiberty's psignal is being compiled at
+all, since red hat 7.1's glibc supports psignal (hence the error message)
+
+--- binutils-2.15/libiberty/strsignal.c.old	2005-04-18 13:57:40.000000000 -0700
++++ binutils-2.15/libiberty/strsignal.c	2005-04-18 13:59:09.000000000 -0700
+@@ -544,7 +544,7 @@
+ 
+ /*
+ 
+-@deftypefn Supplemental void psignal (unsigned @var{signo}, char *@var{message})
++@deftypefn Supplemental void psignal (int @var{signo}, const char *@var{message})
+ 
+ Print @var{message} to the standard error, followed by a colon,
+ followed by the description of the signal specified by @var{signo},
+@@ -557,9 +557,7 @@
+ #ifndef HAVE_PSIGNAL
+ 
+ void
+-psignal (signo, message)
+-  unsigned signo;
+-  char *message;
++psignal (int signo, const char *message)
+ {
+   if (signal_names == NULL)
+     {

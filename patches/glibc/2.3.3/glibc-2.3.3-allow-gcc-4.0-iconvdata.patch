@@ -1,0 +1,142 @@
+Fixes
+
+In file included from jis0208.c:23:
+jis0208.h:32: error: array type has incomplete element type
+when building with gcc-4.0
+
+In file included from cp1258.c:869:
+../iconv/skeleton.c: In function 'gconv':
+../iconv/skeleton.c:323: error: invalid lvalue in increment
+
+In file included from cp1255.c:550:
+../iconv/skeleton.c: In function 'gconv':
+../iconv/skeleton.c:323: error: invalid lvalue in increment
+
+In file included from gb18030.c:22114:
+../iconv/loop.c: In function 'from_gb18030':
+../iconv/loop.c:282: error: invalid lvalue in increment
+../iconv/loop.c: In function 'from_gb18030_single':
+../iconv/loop.c:384: error: invalid lvalue in increment
+
+In file included from iso8859-1.c:43:
+../iconv/loop.c: In function 'from_iso8859_1':
+../iconv/loop.c:311: error: invalid lvalue in increment
+
+Rediffed, updated for glibc-2.3.3, added:
+
+In file included from armscii-8.c:85:
+../iconv/loop.c: In function 'from_armscii_8':
+../iconv/loop.c:311: error: invalid lvalue in increment
+../iconv/loop.c:311: error: invalid lvalue in increment
+
+--- glibc-2.3.3.orig/iconvdata/armscii-8.c	Mon Dec  2 14:07:52 2002
++++ glibc-2.3.3/iconvdata/armscii-8.c	Thu Mar 17 16:01:23 2005
+@@ -57,11 +57,17 @@
+     uint_fast8_t ch = *inptr;						      \
+ 									      \
+     if (ch <= 0xa0)							      \
+-      /* Upto and including 0xa0 the ARMSCII-8 corresponds to Unicode.  */    \
+-      *((uint32_t *) outptr)++ = ch;					      \
++      {									      \
++        /* Upto and including 0xa0 the ARMSCII-8 corresponds to Unicode.  */  \
++        *((uint32_t *) outptr) = ch;					      \
++        outptr += sizeof (uint32_t);					      \
++      }									      \
+     else if (ch >= 0xa2 && ch <= 0xfe)					      \
+-      /* Use the table.  */						      \
+-      *((uint32_t *) outptr)++ = map_from_armscii_8[ch - 0xa2];		      \
++      {									      \
++        /* Use the table.  */						      \
++        *((uint32_t *) outptr) = map_from_armscii_8[ch - 0xa2];		      \
++        outptr += sizeof (uint32_t);					      \
++      }									      \
+     else								      \
+       {									      \
+ 	/* This is an illegal character.  */				      \
+diff -ur glibc-2.3.3.orig/iconvdata/cp1255.c glibc-2.3.3/iconvdata/cp1255.c
+--- glibc-2.3.3.orig/iconvdata/cp1255.c	Mon Dec  2 14:07:52 2002
++++ glibc-2.3.3/iconvdata/cp1255.c	Thu Mar 17 08:20:13 2005
+@@ -69,7 +69,8 @@
+ 	  if (__builtin_expect (outbuf + 4 <= outend, 1))		      \
+ 	    {								      \
+ 	      /* Write out the last character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 3;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 3;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      data->__statep->__count = 0;				      \
+ 	    }								      \
+ 	  else								      \
+diff -ur glibc-2.3.3.orig/iconvdata/cp1258.c glibc-2.3.3/iconvdata/cp1258.c
+--- glibc-2.3.3.orig/iconvdata/cp1258.c	Mon Dec  2 14:07:52 2002
++++ glibc-2.3.3/iconvdata/cp1258.c	Thu Mar 17 08:20:13 2005
+@@ -70,7 +70,8 @@
+ 	  if (__builtin_expect (outbuf + 4 <= outend, 1))		      \
+ 	    {								      \
+ 	      /* Write out the last character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 3;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 3;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      data->__statep->__count = 0;				      \
+ 	    }								      \
+ 	  else								      \
+diff -ur glibc-2.3.3.orig/iconvdata/gb18030.c glibc-2.3.3/iconvdata/gb18030.c
+--- glibc-2.3.3.orig/iconvdata/gb18030.c	Mon Dec  2 14:07:54 2002
++++ glibc-2.3.3/iconvdata/gb18030.c	Thu Mar 17 08:20:13 2005
+@@ -25769,7 +25769,8 @@
+ 	    }							      	      \
+ 	}								      \
+ 									      \
+-    *((uint32_t *) outptr)++ = ch;					      \
++    *((uint32_t *) outptr) = ch;					      \
++    outptr += sizeof (uint32_t);					      \
+   }
+ #define LOOP_NEED_FLAGS
+ #define ONEBYTE_BODY \
+diff -ur glibc-2.3.3.orig/iconvdata/iso8859-1.c glibc-2.3.3/iconvdata/iso8859-1.c
+--- glibc-2.3.3.orig/iconvdata/iso8859-1.c	Mon Dec  2 14:07:56 2002
++++ glibc-2.3.3/iconvdata/iso8859-1.c	Thu Mar 17 08:20:47 2005
+@@ -35,7 +35,8 @@
+ #define MIN_NEEDED_OUTPUT	MIN_NEEDED_TO
+ #define LOOPFCT			FROM_LOOP
+ #define BODY \
+-  *((uint32_t *) outptr)++ = *inptr++;
++  *((uint32_t *) outptr) = *inptr++;					      \
++  outptr += sizeof (uint32_t);
+ #define ONEBYTE_BODY \
+   {									      \
+     return c;								      \
+diff -ur glibc-2.3.3.orig/iconvdata/jis0208.h glibc-2.3.3/iconvdata/jis0208.h
+--- glibc-2.3.3.orig/iconvdata/jis0208.h	Wed Jun 11 14:40:42 2003
++++ glibc-2.3.3/iconvdata/jis0208.h	Thu Mar 17 08:20:13 2005
+@@ -24,15 +24,6 @@
+ #include <gconv.h>
+ #include <stdint.h>
+ 
+-/* Conversion table.  */
+-extern const uint16_t __jis0208_to_ucs[];
+-
+-extern const char __jisx0208_from_ucs4_lat1[256][2];
+-extern const char __jisx0208_from_ucs4_greek[0xc1][2];
+-extern const struct jisx0208_ucs_idx __jisx0208_from_ucs_idx[];
+-extern const char __jisx0208_from_ucs_tab[][2];
+-
+-
+ /* Struct for table with indeces in UCS mapping table.  */
+ struct jisx0208_ucs_idx
+ {
+@@ -40,6 +31,15 @@
+   uint16_t end;
+   uint16_t idx;
+ };
++
++
++/* Conversion table.  */
++extern const uint16_t __jis0208_to_ucs[];
++
++extern const char __jisx0208_from_ucs4_lat1[256][2];
++extern const char __jisx0208_from_ucs4_greek[0xc1][2];
++extern const struct jisx0208_ucs_idx __jisx0208_from_ucs_idx[];
++extern const char __jisx0208_from_ucs_tab[][2];
+ 
+ 
+ static inline uint32_t

@@ -1,0 +1,29 @@
+See http://gcc.gnu.org/PR15345
+
+Quick kludge by H.J.Lu
+Works around gcc-3.4.0 error which shows up when building glibc-2.3.2 for sparc64:
+
+.../sparc64-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/libc.a(dl-reloc.o)(.text+0x4b4): In function `elf_machine_load_address.3':
+: undefined reference to `_DYNAMIC'
+collect2: ld returned 1 exit status
+make[2]: *** [/home/dank/wk/crosstool-0.28-rc10/build/sparc64-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/elf/sln] Error 1
+
+
+--- glibc-2.3.2/sysdeps/sparc/sparc64/dl-machine.h.orig	Sat May  8 20:54:26 2004
++++ glibc-2.3.2/sysdeps/sparc/sparc64/dl-machine.h	Sat May  8 17:18:04 2004
+@@ -65,6 +65,7 @@
+ }
+ 
+ /* Return the run-time load address of the shared object.  */
++#ifdef IS_IN_rtld
+ static inline Elf64_Addr
+ elf_machine_load_address (void)
+ {
+@@ -84,6 +85,7 @@
+      pc[3]*4 is l_addr + _GLOBAL_OFFSET_TABLE_ - (long)pc - 12  */
+   return (Elf64_Addr) got - *got + (Elf32_Sword) ((pc[2] - pc[3]) * 4) - 4;
+ }
++#endif
+ 
+ /* We have 4 cases to handle.  And we code different code sequences
+    for each one.  I love V9 code models...  */

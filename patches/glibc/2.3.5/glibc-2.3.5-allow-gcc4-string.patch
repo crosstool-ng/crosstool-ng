@@ -1,0 +1,83 @@
+
+Fixes? the following error when building with gcc-4.0.0:
+
+../string/strcoll.c:39: error: '__EI_strcoll' aliased to undefined symbol '__GI_strcoll'
+make[2]: *** [/home/dank/crosstool-0.32/build/i686-unknown-linux-gnu/gcc-4.0.0-20050410-glibc-2.3.4/build-glibc/wcsmbs/wcscoll.os] Error 1
+make[2]: Leaving directory `/home/dank/crosstool-0.32/build/i686-unknown-linux-gnu/gcc-4.0.0-20050410-glibc-2.3.4/glibc-2.3.4/wcsmbs'
+
+
+Thu Mar 17 21:06:24 2005 UTC (3 weeks, 5 days ago) by roland
+Branch: MAIN
+CVS Tags: fedora-glibc-20050405T2114, fedora-glibc-20050401T1444, fedora-glibc-20050324T0715, fedora-glibc-20050319T1907, HEAD
+
+2005-03-16  Richard Henderson  <rth@redhat.com>
+
+	* include/wchar.h (__wcscoll): Remove.
+	* wcsmbs/wcscoll.c: Define wcscoll directly instead of via __wcscoll.
+	* string/strcoll.c: Don't issue libc_hidden_def STRCOLL redefined.
+
+http://sourceware.org/cgi-bin/cvsweb.cgi/libc/string/strcoll.c.diff?r1=1.33&r2=1.34&cvsroot=glibc
+http://sourceware.org/cgi-bin/cvsweb.cgi/libc/include/wchar.h.diff?r1=1.26&r2=1.27&cvsroot=glibc
+http://sourceware.org/cgi-bin/cvsweb.cgi/libc/wcsmbs/wcscoll.c.diff?r1=1.13&r2=1.14&cvsroot=glibc
+
+===================================================================
+RCS file: /cvs/glibc/libc/string/strcoll.c,v
+retrieving revision 1.33
+retrieving revision 1.34
+diff -u -r1.33 -r1.34
+--- libc/string/strcoll.c	2004/03/14 20:51:30	1.33
++++ libc/string/strcoll.c	2005/03/17 21:06:24	1.34
+@@ -23,6 +23,7 @@
+ # define STRING_TYPE char
+ # define STRCOLL strcoll
+ # define STRCOLL_L __strcoll_l
++# define USE_HIDDEN_DEF
+ #endif
+ 
+ #include "../locale/localeinfo.h"
+@@ -35,6 +36,7 @@
+ {
+   return STRCOLL_L (s1, s2, _NL_CURRENT_LOCALE);
+ }
+-#if !defined WIDE_CHAR_VERSION
+-libc_hidden_def (strcoll)
++
++#ifdef USE_HIDDEN_DEF
++libc_hidden_def (STRCOLL)
+ #endif
+===================================================================
+RCS file: /cvs/glibc/libc/include/wchar.h,v
+retrieving revision 1.26
+retrieving revision 1.27
+diff -u -r1.26 -r1.27
+--- libc/include/wchar.h	2004/03/14 20:45:10	1.26
++++ libc/include/wchar.h	2005/03/17 21:06:24	1.27
+@@ -56,7 +56,6 @@
+ extern int __wcsncasecmp (__const wchar_t *__s1, __const wchar_t *__s2,
+ 			  size_t __n)
+      __attribute_pure__;
+-extern int __wcscoll (__const wchar_t *__s1, __const wchar_t *__s2);
+ extern size_t __wcslen (__const wchar_t *__s) __attribute_pure__;
+ extern size_t __wcsnlen (__const wchar_t *__s, size_t __maxlen)
+      __attribute_pure__;
+===================================================================
+RCS file: /cvs/glibc/libc/wcsmbs/wcscoll.c,v
+retrieving revision 1.13
+retrieving revision 1.14
+diff -u -r1.13 -r1.14
+--- libc/wcsmbs/wcscoll.c	2004/03/14 21:05:48	1.13
++++ libc/wcsmbs/wcscoll.c	2005/03/17 21:06:24	1.14
+@@ -22,12 +22,11 @@
+ 
+ #define STRING_TYPE wchar_t
+ #define USTRING_TYPE wint_t
+-#define STRCOLL __wcscoll
++#define STRCOLL wcscoll
+ #define STRCOLL_L __wcscoll_l
+ 
+ #include "../string/strcoll.c"
+ 
+ #ifndef USE_IN_EXTENDED_LOCALE_MODEL
+-weak_alias (__wcscoll, wcscoll)
+ libc_hidden_weak (wcscoll)
+ #endif

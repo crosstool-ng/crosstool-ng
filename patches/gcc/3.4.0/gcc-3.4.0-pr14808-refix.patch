@@ -1,0 +1,46 @@
+See http://gcc.gnu.org/ml/gcc/2004-06/msg00394.html
+This might fix the error
+
+strstream.s: Assembler messages:
+strstream.s:8390: Error: junk `(%ecx)' after expression
+strstream.s:8402: Error: junk `(%ecx)' after expression
+strstream.s:8551: Error: junk `(%ecx)' after expression
+strstream.s:8563: Error: junk `(%ecx)' after expression
+make[3]: *** [strstream.lo] Error 1
+make[3]: Leaving directory `i686-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-gcc/i686-unknown-linux-gnu/libstdc++-v3/src'
+
+when building a cygwin->linux cross-compiler with gcc-3.4.0,
+probably caused by patch to fix http://gcc.gnu.org/PR14808
+
+
+--- gcc-3.4.0/gcc/cp/method.c.old	Sun Jun  6 22:46:04 2004
++++ gcc-3.4.0/gcc/cp/method.c	Sun Jun  6 22:48:13 2004
+@@ -286,7 +286,7 @@
+   tree alias;
+   char buf[256];
+ 
+-#if defined (__CYGWIN__) || defined (__MINGW32__)
++#if defined (TARGET_IS_PE_COFF)
+   if (DECL_ONE_ONLY (function))
+     return function;
+ #endif
+@@ -404,7 +404,7 @@
+   push_to_top_level ();
+ 
+ #if defined (ASM_OUTPUT_DEF) \
+-  && !(defined (__CYGWIN__) || defined (__MINGW32__))
++  && !defined (TARGET_IS_PE_COFF)
+   if (targetm.have_named_sections)
+     {
+       resolve_unique_section (function, 0, flag_function_sections);
+--- gcc-3.4.0/gcc/config/i386/cygming.h.old	Sun Jun  6 22:50:46 2004
++++ gcc-3.4.0/gcc/config/i386/cygming.h	Sun Jun  6 22:52:10 2004
+@@ -27,6 +27,8 @@
+ 
+ #define TARGET_EXECUTABLE_SUFFIX ".exe"
+ 
++#define TARGET_IS_PE_COFF 1
++
+ #include <stdio.h>
+ 
+ /* Masks for subtarget switches used by other files.  */

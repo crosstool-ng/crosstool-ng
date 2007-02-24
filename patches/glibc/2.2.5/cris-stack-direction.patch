@@ -1,0 +1,61 @@
+From http://sources.redhat.com/ml/libc-alpha/2002-06/msg00007.html
+
+Message-ID: <15612.44228.774370.154718@honolulu.ilog.fr>
+Date: Tue, 4 Jun 2002 14:04:20 +0200 (CEST)
+From: Bruno Haible <bruno at clisp dot org>
+To: libc-alpha at sources dot redhat dot com
+Subject: cris stack direction
+
+
+Hi,
+
+While cross-compiling glibc-2.2.5 for target=cris-linux using gcc-3.1 and
+binutils-2.12.90.0.7, I get an error
+
+cris-linux-gcc cancel.c -c -O2 -Wall -Winline -Wstrict-prototypes -Wwrite-strings -g   -D__NO_WEAK_PTHREAD_ALIASES -D_RPC_THREAD_SAFE_   -I../include -I. -I/backup/cross-build/build-glibc-cris/linuxthreads -I.. -I../libio  -I/backup/cross-build/build-glibc-cris -I../sysdeps/cris/elf -I../linuxthreads/sysdeps/unix/sysv/linux -I../linuxthreads/sysdeps/pthread -I../sysdeps/pthread -I../linuxthreads/sysdeps/unix/sysv -I../linuxthreads/sysdeps/unix -I../linuxthreads/sysdeps/cris -I../sysdeps/unix/sysv/linux/cris -I../sysdeps/unix/sysv/linux -I../sysdeps/gnu -I../sysdeps/unix/common -I../sysdeps/unix/mman -I../sysdeps/unix/inet -I../sysdeps/unix/sysv -I../sysdeps/unix -I../sysdeps/posix -I../sysdeps/cris -I../sysdeps/wordsize-32 -I../sysdeps/ieee754/flt-32 -I../sysdeps/ieee754/dbl-64 -I../sysdeps/ieee754 -I../sysdeps/generic/elf -I../sysdeps/generic  -nostdinc -isystem /cross/cris-linux-tools/lib/gcc-lib/cris-linux/3.1/include -isystem /cross/cris-linux/include -D_LIBC_REENTRANT -include ../include/libc-symbols.h     -o /backup/cross-build/build-glibc-cris/linuxthreads/cancel.o
+cancel.c:29:3: #error "Define either _STACK_GROWS_DOWN or _STACK_GROWS_UP"
+cancel.c: In function `_pthread_cleanup_push':
+cancel.c:134: warning: implicit declaration of function `FRAME_LEFT'
+make[2]: *** [/backup/cross-build/build-glibc-cris/linuxthreads/cancel.o] Fehler 1
+
+The fix is to add a file sysdeps/cris/stackinfo.h.
+
+
+2002-06-02  Bruno Haible  <bruno@clisp.org>
+
+	* sysdeps/cris/stackinfo.h: New file.
+
+*** glibc-2.2.5/sysdeps/cris/stackinfo.h.bak	2002-06-02 17:52:05.000000000 +0200
+--- glibc-2.2.5/sysdeps/cris/stackinfo.h	2002-06-02 17:52:24.000000000 +0200
+***************
+*** 0 ****
+--- 1,28 ----
++ /* Copyright (C) 2002 Free Software Foundation, Inc.
++    This file is part of the GNU C Library.
++ 
++    The GNU C Library is free software; you can redistribute it and/or
++    modify it under the terms of the GNU Lesser General Public
++    License as published by the Free Software Foundation; either
++    version 2.1 of the License, or (at your option) any later version.
++ 
++    The GNU C Library is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++    Lesser General Public License for more details.
++ 
++    You should have received a copy of the GNU Lesser General Public
++    License along with the GNU C Library; if not, write to the Free
++    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++    02111-1307 USA.  */
++ 
++ /* This file contains a bit of information about the stack allocation
++    of the processor.  */
++ 
++ #ifndef _STACKINFO_H
++ #define _STACKINFO_H	1
++ 
++ /* On cris the stack grows down.  */
++ #define _STACK_GROWS_DOWN	1
++ 
++ #endif	/* stackinfo.h */
+

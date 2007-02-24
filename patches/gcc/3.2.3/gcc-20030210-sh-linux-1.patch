@@ -1,0 +1,1761 @@
+diff -ruN gcc-20030210.orig/boehm-gc/configure gcc-20030210/boehm-gc/configure
+--- gcc-20030210.orig/boehm-gc/configure	Fri Jan 31 19:17:00 2003
++++ gcc-20030210/boehm-gc/configure	Sat Feb 22 01:40:14 2003
+@@ -1922,7 +1922,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case $host_cpu in
+-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* | sh* )
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM
+diff -ruN gcc-20030210.orig/config-ml.in gcc-20030210/config-ml.in
+--- gcc-20030210.orig/config-ml.in	Fri Jan 31 19:16:59 2003
++++ gcc-20030210/config-ml.in	Sat Feb 22 01:40:14 2003
+@@ -545,6 +545,7 @@
+ 	      if [ -d ../$${dir}/$${lib} ]; then \
+ 		flags=`echo $$i | sed -e 's/^[^;]*;//' -e 's/@/ -/g'`; \
+ 		if (cd ../$${dir}/$${lib}; $(MAKE) $(FLAGS_TO_PASS) \
++				DESTDIR="$(DESTDIR)" \
+ 				CFLAGS="$(CFLAGS) $${flags}" \
+ 				prefix="$(prefix)" \
+ 				exec_prefix="$(exec_prefix)" \
+diff -ruN gcc-20030210.orig/debian/edit-specs.in gcc-20030210/debian/edit-specs.in
+--- gcc-20030210.orig/debian/edit-specs.in	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/debian/edit-specs.in	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,45 @@
++/^*asm:$/ {
++n
++c\
++@AS_ENDIAN_FLAG@ %{mrelax:-relax}
++}
++/^*cpp:$/ {
++n
++c\
++%(cpp_default_cpu_spec)    %(subtarget_cpp_spec)    %(subtarget_cpp_ptr_spec)    %(subtarget_cpp_endian_spec)
++}
++/^*cc1:$/ {
++n
++c\
++-musermode @CC1_CPU_ENDIAN_FLAGS@  %{profile:-p}
++}
++/^*link:$/ {
++n
++c\
++%{!static:--eh-frame-hdr} @LINKER_CPU_ENDIAN_FLAGS@  @LINKER_RPATH_LINK_FLAG@ %{mrelax:-relax}  %{shared:-shared}  %{!static: %{rdynamic:-export-dynamic} %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} %{static:-static}
++}
++/^*multilib:$/ {
++n
++c\
++. ;
++}
++/^*multilib_matches:$/ {
++n
++c\
++
++}
++/^*multilib_options:$/ {
++n
++c\
++
++}
++/^*subtarget_cpp_endian_spec:$/ {
++n
++c\
++@CPP_ENDIAN_DEF@
++}
++/^*cpp_default_cpu_spec:$/ {
++n
++c\
++@CPP_CPU_DEFS@
++}
+diff -ruN gcc-20030210.orig/debian/install-CPU-linux gcc-20030210/debian/install-CPU-linux
+--- gcc-20030210.orig/debian/install-CPU-linux	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/debian/install-CPU-linux	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,111 @@
++#! /bin/sh
++
++VERSION=$1; shift
++CPU=$1
++
++# literally (binary-ly) same
++PROGS_C="cpp gcc"
++PROGS_ADDITIONAL="c++ g++ g77 gcj"
++
++DRIVERS_C="cc1 cpp0 tradcpp0"
++DRIVERS_ADDITIONAL="cc1obj cc1plus collect2 f771 jc1 jvgenmain"
++if [ -z "$STEP1_COMPILER_BUILD" ]; then
++  PROGS="$PROGS_C $PROGS_ADDITIONAL"
++  DRIVERS="$DRIVERS_C $DRIVERSADDITIONAL"
++  INITIAL=""
++else
++  PROGS=$PROGS_C
++  DRIVERS=$DRIVERS_C
++  INITIAL="-initial"
++fi
++
++OBJS="crtbegin.o crtbeginS.o crtend.o crtendS.o"
++LIBS_C="libgcc.a"
++LIBS_1="libgcc_s.so libgcc_s.so.1 libstdc++.so libstdc++.so.3 libstdc++.so.3.0.2"
++LIBS_2="libobjc.a libstdc++.a libsupc++.a"
++INCLUDE="include"
++
++cd debian/gcc-sh-linux-others${INITIAL} || exit 1
++
++# Make directories.
++mkdir -p usr/bin usr/share usr/share/man usr/share/man/man1 usr/lib \
++	 usr/lib/gcc-lib usr/lib/gcc-lib/${CPU}-linux \
++	 usr/lib/gcc-lib/${CPU}-linux/${VERSION} \
++	 usr/${CPU}-linux usr/${CPU}-linux/lib
++
++# Make symbolic links for include dir.
++(cd usr/${CPU}-linux; ln -s ../sh-linux/include .)
++
++# Make symbolic links for executables.
++(cd usr/bin;
++  for p in ${PROGS}; do
++    ln -s shCPU-linux-GCC ${CPU}-linux-$p
++  done)
++
++case "${CPU}" in
++    sh3)
++	MULTILIBDIR=
++	AS_ENDIAN_FLAG="-little"
++	CPP_ENDIAN_DEF="-D__LITTLE_ENDIAN__"
++	CPP_CPU_DEFS="-D__SH3__ -D__sh3__"
++	CC1_CPU_ENDIAN_FLAGS="-ml -m3"
++	LINKER_CPU_ENDIAN_FLAGS="-m shlelf_linux -EL --architecture sh3"
++	LINKER_RPATH_LINK_FLAG="-rpath-link /usr/sh3-linux/lib"
++    ;;
++    sh3eb)
++	MULTILIBDIR=/mb
++	AS_ENDIAN_FLAG="-big"
++	CPP_ENDIAN_DEF="-D__BIG_ENDIAN__"
++	CPP_CPU_DEFS="-D__SH3__ -D__sh3__"
++	CC1_CPU_ENDIAN_FLAGS="-mb -m3"
++	LINKER_CPU_ENDIAN_FLAGS="-m shelf_linux -EB --architecture sh3"
++	LINKER_RPATH_LINK_FLAG="-rpath-link /usr/sh3eb-linux/lib"
++    ;;
++    sh4)
++	MULTILIBDIR=/m4
++	AS_ENDIAN_FLAG="-little"
++	CPP_ENDIAN_DEF="-D__LITTLE_ENDIAN__"
++	CPP_CPU_DEFS="-D__SH4__"
++	CC1_CPU_ENDIAN_FLAGS="-ml -m4"
++	LINKER_CPU_ENDIAN_FLAGS="-m shlelf_linux -EL --architecture sh4"
++	LINKER_RPATH_LINK_FLAG="-rpath-link /usr/sh4-linux/lib"
++    ;;
++    sh4eb)
++	MULTILIBDIR=/mb/m4
++	AS_ENDIAN_FLAG="-big"
++	CPP_ENDIAN_DEF="-D__BIG_ENDIAN__"
++	CPP_CPU_DEFS="-D__SH4__"
++	CC1_CPU_ENDIAN_FLAGS="-mb -m4"
++	LINKER_CPU_ENDIAN_FLAGS="-m shelf_linux -EB --architecture sh4"
++	LINKER_RPATH_LINK_FLAG="-rpath-link /usr/sh4eb-linux/lib"
++    ;;
++esac
++
++# Make symbolic links for GCC drivers, objects, libraries, and include dir.
++(cd usr/lib/gcc-lib/${CPU}-linux/${VERSION};
++ for f in ${DRIVERS} ${INCLUDE}; do
++    ln -s ../../sh-linux/${VERSION}/$f $f;
++ done
++ for f in ${OBJS} ${LIBS_C}; do
++    ln -s ../../sh-linux/${VERSION}${MULTILIBDIR}/$f $f;
++ done)
++
++if [ -z "$STEP1_COMPILER_BUILD" ]; then
++  for f in ${LIBS_1} ${LIBS_2}; do
++    mv ../gcc-sh-linux/usr/sh-linux/lib${MULTILIBDIR}/$f usr/${CPU}-linux/lib/;
++  done
++fi
++
++sed -e "s+@AS_ENDIAN_FLAG@+${AS_ENDIAN_FLAG}+" \
++    -e "s+@CPP_ENDIAN_DEF@+${CPP_ENDIAN_DEF}+" \
++    -e "s+@CPP_CPU_DEFS@+${CPP_CPU_DEFS}+" \
++    -e "s+@CC1_CPU_ENDIAN_FLAGS@+${CC1_CPU_ENDIAN_FLAGS}+" \
++    -e "s+@LINKER_CPU_ENDIAN_FLAGS@+${LINKER_CPU_ENDIAN_FLAGS}+" \
++    -e "s+@LINKER_RPATH_LINK_FLAG@+${LINKER_RPATH_LINK_FLAG}+" \
++    ../edit-specs.in >../edit-specs-${CPU}.sed
++
++sed -f ../edit-specs-${CPU}.sed \
++    ../gcc-sh-linux${INITIAL}/usr/lib/gcc-lib/sh-linux/${VERSION}/specs \
++    > usr/lib/gcc-lib/${CPU}-linux/${VERSION}/specs
++
++exit 0
+diff -ruN gcc-20030210.orig/debian/multilib-symlink gcc-20030210/debian/multilib-symlink
+--- gcc-20030210.orig/debian/multilib-symlink	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/debian/multilib-symlink	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,10 @@
++#! /bin/sh
++
++cd /usr/sh-linux/lib
++ln -s ../../sh3-linux/lib/{*.a,*.so*,*.o} .
++cd m4
++ln -s ../../../sh4-linux/lib/{*.a,*.so*,*.o} .
++cd ../mb
++ln -s ../../../sh3eb-linux/lib/{*.a,*.so*,*.o} .
++cd m4
++ln -s ../../../../sh4eb-linux/lib/{*.a,*.so*,*.o} .
+diff -ruN gcc-20030210.orig/debian/shCPU-linux-GCC gcc-20030210/debian/shCPU-linux-GCC
+--- gcc-20030210.orig/debian/shCPU-linux-GCC	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/debian/shCPU-linux-GCC	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,59 @@
++#! /bin/bash
++
++BASENAME=${0##*/}
++PROG=${BASENAME##*-}
++CPU=${BASENAME%%-*}
++
++if [ "$PROG" = gcc ]; then
++    if [ "$1" = "-b" -a "$2" = "i386-linux" ]; then
++	shift 2
++	exec /usr/bin/gcc "$@"
++    elif [ "$1" = "-print-multi-lib" -o "$1" = "--print-multi-lib" ]; then
++	echo ".;"
++	exit 0
++    elif [ "$1" = "-print-multi-os-directory" -o "$1" = "--print-multi-os-directory" ]; then
++	echo "."
++	exit 0
++    elif [ "$1" = "-dumpspecs" ]; then
++	cat /usr/lib/gcc-lib/${CPU}-linux/@@VERSION@@/specs
++	exit 0
++    fi
++fi
++
++case "${CPU}" in
++    sh3)
++	ARCH=m3
++	DEFINES="-D__sh3__ -D__SH3__ -D__LITTLE_ENDIAN__"
++	ENDIAN=ml
++    ;;
++    sh3eb)
++	ARCH=m3
++	DEFINES="-D__sh3__ -D__SH3__ -D__BIG_ENDIAN__"
++	ENDIAN=mb
++    ;;
++    sh4)
++	ARCH=m4
++	DEFINES="-D__SH4__ -D__LITTLE_ENDIAN__"
++	ENDIAN=ml
++    ;;
++    sh4eb)
++	ARCH=m4
++	DEFINES="-D__SH4__ -D__BIG_ENDIAN__"
++	ENDIAN=mb
++    ;;
++esac
++
++# Prepend the appropriate options
++# If user specifies some options, it will be overridden
++
++case "${PROG}" in
++    cpp)
++	exec sh-linux-${PROG} $DEFINES "$@"
++    ;;
++    c++|g++|g77|gcc|gcj)
++	exec sh-linux-${PROG} -$ARCH -$ENDIAN "$@"
++    ;;
++esac
++
++echo "Something wrong..."
++exit 1
+diff -ruN gcc-20030210.orig/gcc/config/sh/elf.h gcc-20030210/gcc/config/sh/elf.h
+--- gcc-20030210.orig/gcc/config/sh/elf.h	Fri Feb 22 01:42:28 2002
++++ gcc-20030210/gcc/config/sh/elf.h	Sat Feb 22 01:40:14 2003
+@@ -170,3 +170,7 @@
+ #undef ENDFILE_SPEC
+ #define ENDFILE_SPEC \
+   "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
++
++/* ASM_OUTPUT_CASE_LABEL is defined in elfos.h.  With it, 
++   redundant .align will be generated.  */
++#undef  ASM_OUTPUT_CASE_LABEL
+diff -ruN gcc-20030210.orig/gcc/config/sh/lib1funcs.asm gcc-20030210/gcc/config/sh/lib1funcs.asm
+--- gcc-20030210.orig/gcc/config/sh/lib1funcs.asm	Fri Feb 22 01:42:28 2002
++++ gcc-20030210/gcc/config/sh/lib1funcs.asm	Sat Feb 22 01:40:14 2003
+@@ -39,8 +39,13 @@
+ 
+ #ifdef __ELF__
+ #define LOCAL(X) .L_##X
++#define FUNC(X) .type X,@function; .hidden X
++#define _ENDFUNC(X) .Lfe_##X: .size X,.Lfe_##X-X
++#define ENDFUNC(X) _ENDFUNC(X)
+ #else
+ #define LOCAL(X) L_##X
++#define FUNC(X)
++#define ENDFUNC(X)
+ #endif
+ 
+ #ifdef __linux__
+@@ -91,6 +96,40 @@
+ 	.global	GLOBAL(ashiftrt_r4_31)
+ 	.global	GLOBAL(ashiftrt_r4_32)
+ 
++	FUNC(GLOBAL(ashiftrt_r4_0))
++	FUNC(GLOBAL(ashiftrt_r4_1))
++	FUNC(GLOBAL(ashiftrt_r4_2))
++	FUNC(GLOBAL(ashiftrt_r4_3))
++	FUNC(GLOBAL(ashiftrt_r4_4))
++	FUNC(GLOBAL(ashiftrt_r4_5))
++	FUNC(GLOBAL(ashiftrt_r4_6))
++	FUNC(GLOBAL(ashiftrt_r4_7))
++	FUNC(GLOBAL(ashiftrt_r4_8))
++	FUNC(GLOBAL(ashiftrt_r4_9))
++	FUNC(GLOBAL(ashiftrt_r4_10))
++	FUNC(GLOBAL(ashiftrt_r4_11))
++	FUNC(GLOBAL(ashiftrt_r4_12))
++	FUNC(GLOBAL(ashiftrt_r4_13))
++	FUNC(GLOBAL(ashiftrt_r4_14))
++	FUNC(GLOBAL(ashiftrt_r4_15))
++	FUNC(GLOBAL(ashiftrt_r4_16))
++	FUNC(GLOBAL(ashiftrt_r4_17))
++	FUNC(GLOBAL(ashiftrt_r4_18))
++	FUNC(GLOBAL(ashiftrt_r4_19))
++	FUNC(GLOBAL(ashiftrt_r4_20))
++	FUNC(GLOBAL(ashiftrt_r4_21))
++	FUNC(GLOBAL(ashiftrt_r4_22))
++	FUNC(GLOBAL(ashiftrt_r4_23))
++	FUNC(GLOBAL(ashiftrt_r4_24))
++	FUNC(GLOBAL(ashiftrt_r4_25))
++	FUNC(GLOBAL(ashiftrt_r4_26))
++	FUNC(GLOBAL(ashiftrt_r4_27))
++	FUNC(GLOBAL(ashiftrt_r4_28))
++	FUNC(GLOBAL(ashiftrt_r4_29))
++	FUNC(GLOBAL(ashiftrt_r4_30))
++	FUNC(GLOBAL(ashiftrt_r4_31))
++	FUNC(GLOBAL(ashiftrt_r4_32))
++
+ 	.align	1
+ GLOBAL(ashiftrt_r4_32):
+ GLOBAL(ashiftrt_r4_31):
+@@ -170,6 +209,41 @@
+ GLOBAL(ashiftrt_r4_0):
+ 	rts
+ 	nop
++
++	ENDFUNC(GLOBAL(ashiftrt_r4_0))
++	ENDFUNC(GLOBAL(ashiftrt_r4_1))
++	ENDFUNC(GLOBAL(ashiftrt_r4_2))
++	ENDFUNC(GLOBAL(ashiftrt_r4_3))
++	ENDFUNC(GLOBAL(ashiftrt_r4_4))
++	ENDFUNC(GLOBAL(ashiftrt_r4_5))
++	ENDFUNC(GLOBAL(ashiftrt_r4_6))
++	ENDFUNC(GLOBAL(ashiftrt_r4_7))
++	ENDFUNC(GLOBAL(ashiftrt_r4_8))
++	ENDFUNC(GLOBAL(ashiftrt_r4_9))
++	ENDFUNC(GLOBAL(ashiftrt_r4_10))
++	ENDFUNC(GLOBAL(ashiftrt_r4_11))
++	ENDFUNC(GLOBAL(ashiftrt_r4_12))
++	ENDFUNC(GLOBAL(ashiftrt_r4_13))
++	ENDFUNC(GLOBAL(ashiftrt_r4_14))
++	ENDFUNC(GLOBAL(ashiftrt_r4_15))
++	ENDFUNC(GLOBAL(ashiftrt_r4_16))
++	ENDFUNC(GLOBAL(ashiftrt_r4_17))
++	ENDFUNC(GLOBAL(ashiftrt_r4_18))
++	ENDFUNC(GLOBAL(ashiftrt_r4_19))
++	ENDFUNC(GLOBAL(ashiftrt_r4_20))
++	ENDFUNC(GLOBAL(ashiftrt_r4_21))
++	ENDFUNC(GLOBAL(ashiftrt_r4_22))
++	ENDFUNC(GLOBAL(ashiftrt_r4_23))
++	ENDFUNC(GLOBAL(ashiftrt_r4_24))
++	ENDFUNC(GLOBAL(ashiftrt_r4_25))
++	ENDFUNC(GLOBAL(ashiftrt_r4_26))
++	ENDFUNC(GLOBAL(ashiftrt_r4_27))
++	ENDFUNC(GLOBAL(ashiftrt_r4_28))
++	ENDFUNC(GLOBAL(ashiftrt_r4_29))
++	ENDFUNC(GLOBAL(ashiftrt_r4_30))
++	ENDFUNC(GLOBAL(ashiftrt_r4_31))
++	ENDFUNC(GLOBAL(ashiftrt_r4_32))
++
+ #endif
+ 
+ #ifdef L_ashiftrt_n
+@@ -192,6 +266,7 @@
+ !
+ 
+ 	.global	GLOBAL(ashrsi3)
++	FUNC(GLOBAL(ashrsi3))
+ 	.align	2
+ GLOBAL(ashrsi3):
+ 	mov	#31,r0
+@@ -319,6 +394,8 @@
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(ashrsi3))
++
+ #endif
+ 
+ #ifdef L_ashiftlt
+@@ -340,6 +417,7 @@
+ ! (none)
+ !
+ 	.global	GLOBAL(ashlsi3)
++	FUNC(GLOBAL(ashlsi3))
+ 	.align	2
+ GLOBAL(ashlsi3):
+ 	mov	#31,r0
+@@ -476,6 +554,8 @@
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(ashlsi3))
++
+ #endif
+ 
+ #ifdef L_lshiftrt
+@@ -497,6 +577,7 @@
+ ! (none)
+ !
+ 	.global	GLOBAL(lshrsi3)
++	FUNC(GLOBAL(lshrsi3))
+ 	.align	2
+ GLOBAL(lshrsi3):
+ 	mov	#31,r0
+@@ -633,6 +714,8 @@
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(lshrsi3))
++
+ #endif
+ 
+ #ifdef L_movstr
+@@ -649,76 +732,113 @@
+ 	add	#64,r4
+ 	.align	4
+ 	.global	GLOBAL(movstrSI64)
++	FUNC(GLOBAL(movstrSI64))
+ GLOBAL(movstrSI64):
+ 	mov.l	@(60,r5),r0
+ 	mov.l	r0,@(60,r4)
+ 	.global	GLOBAL(movstrSI60)
++	FUNC(GLOBAL(movstrSI60))
+ GLOBAL(movstrSI60):
+ 	mov.l	@(56,r5),r0
+ 	mov.l	r0,@(56,r4)
+ 	.global	GLOBAL(movstrSI56)
++	FUNC(GLOBAL(movstrSI56))
+ GLOBAL(movstrSI56):
+ 	mov.l	@(52,r5),r0
+ 	mov.l	r0,@(52,r4)
+ 	.global	GLOBAL(movstrSI52)
++	FUNC(GLOBAL(movstrSI52))
+ GLOBAL(movstrSI52):
+ 	mov.l	@(48,r5),r0
+ 	mov.l	r0,@(48,r4)
+ 	.global	GLOBAL(movstrSI48)
++	FUNC(GLOBAL(movstrSI48))
+ GLOBAL(movstrSI48):
+ 	mov.l	@(44,r5),r0
+ 	mov.l	r0,@(44,r4)
+ 	.global	GLOBAL(movstrSI44)
++	FUNC(GLOBAL(movstrSI44))
+ GLOBAL(movstrSI44):
+ 	mov.l	@(40,r5),r0
+ 	mov.l	r0,@(40,r4)
+ 	.global	GLOBAL(movstrSI40)
++	FUNC(GLOBAL(movstrSI40))
+ GLOBAL(movstrSI40):
+ 	mov.l	@(36,r5),r0
+ 	mov.l	r0,@(36,r4)
+ 	.global	GLOBAL(movstrSI36)
++	FUNC(GLOBAL(movstrSI36))
+ GLOBAL(movstrSI36):
+ 	mov.l	@(32,r5),r0
+ 	mov.l	r0,@(32,r4)
+ 	.global	GLOBAL(movstrSI32)
++	FUNC(GLOBAL(movstrSI32))
+ GLOBAL(movstrSI32):
+ 	mov.l	@(28,r5),r0
+ 	mov.l	r0,@(28,r4)
+ 	.global	GLOBAL(movstrSI28)
++	FUNC(GLOBAL(movstrSI28))
+ GLOBAL(movstrSI28):
+ 	mov.l	@(24,r5),r0
+ 	mov.l	r0,@(24,r4)
+ 	.global	GLOBAL(movstrSI24)
++	FUNC(GLOBAL(movstrSI24))
+ GLOBAL(movstrSI24):
+ 	mov.l	@(20,r5),r0
+ 	mov.l	r0,@(20,r4)
+ 	.global	GLOBAL(movstrSI20)
++	FUNC(GLOBAL(movstrSI20))
+ GLOBAL(movstrSI20):
+ 	mov.l	@(16,r5),r0
+ 	mov.l	r0,@(16,r4)
+ 	.global	GLOBAL(movstrSI16)
++	FUNC(GLOBAL(movstrSI16))
+ GLOBAL(movstrSI16):
+ 	mov.l	@(12,r5),r0
+ 	mov.l	r0,@(12,r4)
+ 	.global	GLOBAL(movstrSI12)
++	FUNC(GLOBAL(movstrSI12))
+ GLOBAL(movstrSI12):
+ 	mov.l	@(8,r5),r0
+ 	mov.l	r0,@(8,r4)
+ 	.global	GLOBAL(movstrSI8)
++	FUNC(GLOBAL(movstrSI8))
+ GLOBAL(movstrSI8):
+ 	mov.l	@(4,r5),r0
+ 	mov.l	r0,@(4,r4)
+ 	.global	GLOBAL(movstrSI4)
++	FUNC(GLOBAL(movstrSI4))
+ GLOBAL(movstrSI4):
+ 	mov.l	@(0,r5),r0
+ 	mov.l	r0,@(0,r4)
++	.global	GLOBAL(movstrSI0)
++	FUNC(GLOBAL(movstrSI0))
+ GLOBAL(movstrSI0):
+ 	rts
+ 	nop
+ 
++	ENDFUNC(GLOBAL(movstrSI64))
++	ENDFUNC(GLOBAL(movstrSI60))
++	ENDFUNC(GLOBAL(movstrSI56))
++	ENDFUNC(GLOBAL(movstrSI52))
++	ENDFUNC(GLOBAL(movstrSI48))
++	ENDFUNC(GLOBAL(movstrSI44))
++	ENDFUNC(GLOBAL(movstrSI40))
++	ENDFUNC(GLOBAL(movstrSI36))
++	ENDFUNC(GLOBAL(movstrSI32))
++	ENDFUNC(GLOBAL(movstrSI28))
++	ENDFUNC(GLOBAL(movstrSI24))
++	ENDFUNC(GLOBAL(movstrSI20))
++	ENDFUNC(GLOBAL(movstrSI16))
++	ENDFUNC(GLOBAL(movstrSI12))
++	ENDFUNC(GLOBAL(movstrSI8))
++	ENDFUNC(GLOBAL(movstrSI4))
++	ENDFUNC(GLOBAL(movstrSI0))
++
+ 	.align	4
+ 
+ 	.global	GLOBAL(movstr)
++	FUNC(GLOBAL(movstr))
+ GLOBAL(movstr):
+ 	mov.l	@(60,r5),r0
+ 	mov.l	r0,@(60,r4)
+@@ -775,6 +895,8 @@
+ 	add	#64,r5
+ 	bra	GLOBAL(movstr)
+ 	add	#64,r4
++
++	FUNC(GLOBAL(movstr))
+ #endif
+ 
+ #ifdef L_movstr_i4
+@@ -783,6 +905,10 @@
+ 	.global	GLOBAL(movstr_i4_odd)
+ 	.global	GLOBAL(movstrSI12_i4)
+ 
++	FUNC(GLOBAL(movstr_i4_even))
++	FUNC(GLOBAL(movstr_i4_odd))
++	FUNC(GLOBAL(movstrSI12_i4))
++
+ 	.p2align	5
+ L_movstr_2mod4_end:
+ 	mov.l	r0,@(16,r4)
+@@ -791,6 +917,11 @@
+ 
+ 	.p2align	2
+ 
++GLOBAL(movstr_i4_even):
++	mov.l	@r5+,r0
++	bra	L_movstr_start_even
++	mov.l	@r5+,r1
++
+ GLOBAL(movstr_i4_odd):
+ 	mov.l	@r5+,r1
+ 	add	#-4,r4
+@@ -817,10 +948,8 @@
+ 	rts
+ 	mov.l	r3,@(12,r4)
+ 
+-GLOBAL(movstr_i4_even):
+-	mov.l	@r5+,r0
+-	bra	L_movstr_start_even
+-	mov.l	@r5+,r1
++	ENDFUNC(GLOBAL(movstr_i4_even))
++	ENDFUNC(GLOBAL(movstr_i4_odd))
+ 
+ 	.p2align	4
+ GLOBAL(movstrSI12_i4):
+@@ -831,12 +960,16 @@
+ 	mov.l	r1,@(4,r4)
+ 	rts
+ 	mov.l	r2,@(8,r4)
++
++	ENDFUNC(GLOBAL(movstrSI12_i4))
++
+ #endif
+ 
+ #ifdef L_mulsi3
+ 
+ 
+ 	.global	GLOBAL(mulsi3)
++	FUNC(GLOBAL(mulsi3))
+ 
+ ! r4 =       aabb
+ ! r5 =       ccdd
+@@ -869,7 +1002,7 @@
+ 	rts
+ 	add	r2,r0
+ 
+-
++	FUNC(GLOBAL(mulsi3))
+ #endif
+ #endif /* ! __SH5__ */
+ #ifdef L_sdivsi3_i4
+@@ -879,6 +1012,7 @@
+ !! args in r4 and r5, result in fpul, clobber dr0, dr2
+ 
+ 	.global	GLOBAL(sdivsi3_i4)
++	FUNC(GLOBAL(sdivsi3_i4))
+ GLOBAL(sdivsi3_i4):
+ 	lds r4,fpul
+ 	float fpul,dr0
+@@ -888,6 +1022,8 @@
+ 	rts
+ 	ftrc dr0,fpul
+ 
++	ENDFUNC(GLOBAL(sdivsi3_i4))
++
+ #elif defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__) || (defined (__SH5__) && ! defined __SH4_NOFPU__)
+ !! args in r4 and r5, result in fpul, clobber r2, dr0, dr2
+ 
+@@ -896,6 +1032,7 @@
+ 	.mode	SHcompact
+ #endif
+ 	.global	GLOBAL(sdivsi3_i4)
++	FUNC(GLOBAL(sdivsi3_i4))
+ GLOBAL(sdivsi3_i4):
+ 	sts.l fpscr,@-r15
+ 	mov #8,r2
+@@ -910,6 +1047,8 @@
+ 	rts
+ 	lds.l @r15+,fpscr
+ 
++	ENDFUNC(GLOBAL(sdivsi3_i4))
++
+ #endif /* ! __SH5__ || __SH5__ == 32 */
+ #endif /* ! __SH4__ */
+ #endif
+@@ -924,9 +1063,10 @@
+ !!
+ !!
+ 
+-!! args in r4 and r5, result in r0 clobber r1,r2,r3
++!! args in r4 and r5, result in r0 clobber r1, r2, r3, and t bit
+ 
+ 	.global	GLOBAL(sdivsi3)
++	FUNC(GLOBAL(sdivsi3))
+ #if __SHMEDIA__
+ #if __SH5__ == 32
+ 	.section	.text..SHmedia32,"ax"
+@@ -1076,6 +1216,7 @@
+ div0:	rts
+ 	mov	#0,r0
+ 
++	ENDFUNC(GLOBAL(sdivsi3))
+ #endif /* ! __SHMEDIA__ */
+ #endif /* ! __SH4__ */
+ #endif
+@@ -1084,9 +1225,11 @@
+ 	.title "SH DIVIDE"
+ !! 4 byte integer Divide code for the Hitachi SH
+ #ifdef __SH4__
+-!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4
++!! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4,
++!! and t bit
+ 
+ 	.global	GLOBAL(udivsi3_i4)
++	FUNC(GLOBAL(udivsi3_i4))
+ GLOBAL(udivsi3_i4):
+ 	mov #1,r1
+ 	cmp/hi r1,r5
+@@ -1127,6 +1270,8 @@
+ L1:
+ 	.double 2147483648
+ 
++	ENDFUNC(GLOBAL(udivsi3_i4))
++
+ #elif defined(__SH4_SINGLE__) || defined(__SH4_SINGLE_ONLY__) || (defined (__SH5__) && ! defined __SH4_NOFPU__)
+ !! args in r4 and r5, result in fpul, clobber r0, r1, r4, r5, dr0, dr2, dr4
+ 
+@@ -1135,6 +1280,7 @@
+ 	.mode	SHcompact
+ #endif
+ 	.global	GLOBAL(udivsi3_i4)
++	FUNC(GLOBAL(udivsi3_i4))
+ GLOBAL(udivsi3_i4):
+ 	mov #1,r1
+ 	cmp/hi r1,r5
+@@ -1183,6 +1329,8 @@
+ #endif
+ 	.double 2147483648
+ 
++	ENDFUNC(GLOBAL(udivsi3_i4))
++
+ #endif /* ! __SH5__ || __SH5__ == 32 */
+ #endif /* ! __SH4__ */
+ #endif
+@@ -1199,6 +1347,7 @@
+ 
+ !! args in r4 and r5, result in r0, clobbers r4, pr, and t bit
+ 	.global	GLOBAL(udivsi3)
++	FUNC(GLOBAL(udivsi3))
+ 
+ #if __SHMEDIA__
+ #if __SH5__ == 32
+@@ -1299,6 +1448,8 @@
+ ret:	rts
+ 	mov	r4,r0
+ 
++	ENDFUNC(GLOBAL(udivsi3))
++
+ #endif /* ! __SHMEDIA__ */
+ #endif /* __SH4__ */
+ #endif
+@@ -1308,6 +1459,7 @@
+ 	.mode	SHcompact
+ #endif
+ 	.global GLOBAL(set_fpscr)
++	FUNC(GLOBAL(set_fpscr))
+ GLOBAL(set_fpscr):
+ 	lds r4,fpscr
+ 	mov.l LOCAL(set_fpscr_L1),r1
+@@ -1340,11 +1492,16 @@
+ 	.align 2
+ LOCAL(set_fpscr_L1):
+ 	.long GLOBAL(fpscr_values)
++
++	ENDFUNC(GLOBAL(set_fpscr))
++
++#ifndef NO_FPSCR_VALUES
+ #ifdef __ELF__
+         .comm   GLOBAL(fpscr_values),8,4
+ #else
+         .comm   GLOBAL(fpscr_values),8
+ #endif /* ELF */
++#endif /* NO_FPSCR_VALUES */
+ #endif /* SH3E / SH4 */
+ #endif /* L_set_fpscr */
+ #ifdef L_ic_invalidate
+@@ -1360,6 +1517,7 @@
+ 	blink	tr0, r63
+ #elif defined(__SH4_SINGLE__) || defined(__SH4__) || defined(__SH4_SINGLE_ONLY__)
+ 	.global GLOBAL(ic_invalidate)
++	FUNC(GLOBAL(ic_invalidate))
+ GLOBAL(ic_invalidate):
+ 	ocbwb	@r4
+ 	mova	0f,r0
+@@ -1382,6 +1540,9 @@
+ 	nop
+ 	.endr
+ 	.endr
++
++	ENDFUNC(GLOBAL(ic_invalidate))
++
+ #endif /* SH4 */
+ #endif /* L_ic_invalidate */
+ 
+diff -ruN gcc-20030210.orig/gcc/config/sh/libgcc-glibc.ver gcc-20030210/gcc/config/sh/libgcc-glibc.ver
+--- gcc-20030210.orig/gcc/config/sh/libgcc-glibc.ver	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/gcc/config/sh/libgcc-glibc.ver	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,21 @@
++# In order to work around the very problems that force us to now generally
++# create a libgcc.so, glibc reexported a number of routines from libgcc.a.
++# By now choosing the same version tags for these specific routines, we
++# maintain enough binary compatibility to allow future versions of glibc
++# to defer implementation of these routines to libgcc.so via DT_AUXILIARY.
++
++# Note that we cannot use the default libgcc-glibc.ver file on sh,
++# because GLIBC_2.0 does not exist on this architecture, as the first 
++# ever glibc release on the platform was GLIBC_2.2.
++
++%inherit GCC_3.0 GLIBC_2.2
++GLIBC_2.2 {
++  __register_frame
++  __register_frame_table
++  __deregister_frame
++  __register_frame_info
++  __deregister_frame_info
++  __frame_state_for
++  __register_frame_info_table
++}
++
+diff -ruN gcc-20030210.orig/gcc/config/sh/linux.h gcc-20030210/gcc/config/sh/linux.h
+--- gcc-20030210.orig/gcc/config/sh/linux.h	Tue Apr 16 05:27:42 2002
++++ gcc-20030210/gcc/config/sh/linux.h	Sat Feb 22 01:40:14 2003
+@@ -19,6 +19,10 @@
+ the Free Software Foundation, 59 Temple Place - Suite 330,
+ Boston, MA 02111-1307, USA.  */
+ 
++/* We're not SYSVR4, not having /usr/ccs */
++#undef MD_EXEC_PREFIX
++#undef MD_STARTFILE_PREFIX
++
+ /* Run-time Target Specification.  */
+ #undef TARGET_VERSION
+ #define TARGET_VERSION  fputs (" (SH GNU/Linux with ELF)", stderr);
+@@ -39,6 +43,28 @@
+ #undef WCHAR_TYPE_SIZE
+ #define WCHAR_TYPE_SIZE BITS_PER_WORD
+ 
++/* This was defined in linux.h.  Define it here also. */
++#undef  DEFAULT_VTABLE_THUNKS
++#define DEFAULT_VTABLE_THUNKS   1
++
++/* Likewise.  */
++#define HANDLE_PRAGMA_PACK_PUSH_POP
++
++/* Pick up the return address upon entry to a procedure. Used for
++   dwarf2 unwind information.  This also enables the table driven
++   mechanism.  */
++
++#define INCOMING_RETURN_ADDR_RTX	gen_rtx_REG (Pmode, PR_REG)
++#define DWARF_FRAME_RETURN_COLUMN	DWARF_FRAME_REGNUM (PR_REG)
++
++#undef CPP_SPEC
++#define CPP_SPEC "\
++   %{m4:-D__SH4__} \
++   %{!m4:%(cpp_default_cpu_spec)} \
++   %(subtarget_cpp_spec) \
++   %(subtarget_cpp_ptr_spec) \
++   %(subtarget_cpp_endian_spec) "
++
+ #undef SUBTARGET_CPP_SPEC
+ #define SUBTARGET_CPP_SPEC "\
+    %{fPIC:-D__PIC__ -D__pic__} \
+@@ -55,36 +81,45 @@
+ #undef CPP_DEFAULT_CPU_SPEC
+ #define CPP_DEFAULT_CPU_SPEC "-D__SH3__ -D__sh3__"
+ 
+-
+ #undef CPP_PREDEFINES
+ #define CPP_PREDEFINES "-D__ELF__ -Dunix -D__sh__ -D__gnu_linux__ -Dlinux -Asystem=posix"
+ 
++/* The GNU C++ standard library requires that these macros be defined.  */
++#undef CPLUSPLUS_CPP_SPEC
++#define CPLUSPLUS_CPP_SPEC "-D_GNU_SOURCE %(cpp)"
++
+ #undef ASM_SPEC
+-#define ASM_SPEC  "%{!mb:-little} %{mrelax:-relax}"
++#define ASM_SPEC  "%{mb:-big} %{!mb:-little} %{mrelax:-relax}"
+ 
+ #undef CC1_SPEC
+ #define CC1_SPEC \
+-  "-musermode %{!mb:-ml} %{!m3e:%{!m4:-m3}}"
+-
+-#undef CC1PLUS_SPEC
+-#define CC1PLUS_SPEC \
+-  "-musermode %{!mb:-ml} %{!m3e:%{!m4:-m3}}"
++  "-musermode %{!mb:-ml} %{!m4:-m3} %{profile:-p}"
+ 
++/* XXX: It's wrong if prefix != /usr */
+ #undef LINK_SPEC
+ #define LINK_SPEC \
+-  "%{!mb:-m shlelf_linux} %{mrelax:-relax} \
++  "%{!mb:-m shlelf_linux -EL} %{mb:-m shelf_linux -EB} %{mrelax:-relax} \
+    %{shared:-shared} \
+    %{!static: \
+      %{rdynamic:-export-dynamic} \
+      %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2} \
+-     %{!rpath:-rpath /lib}} \
++     %{!mb:%{!m4:-rpath-link /usr/sh-linux/lib }} \
++     %{!mb:%{m4:-rpath-link /usr/sh-linux/lib/m4 }} \
++     %{mb:%{!m4:-rpath-link /usr/sh-linux/lib/mb }} \
++     %{mb:%{m4:-rpath-link /usr/sh-linux/lib/mb/m4 }}} \
+    %{static:-static}"
+ 
+ #undef LIB_SPEC
++#undef LIB_SPEC
+ #define LIB_SPEC \
+   "%{shared: -lc} \
+-   %{!shared: %{pthread:-lthread} \
+-     %{profile:-lc_p} %{!profile: -lc}}"
++   %{!shared: %{mieee:-lieee} %{pthread:-lpthread} \
++	%{profile:-lc_p} %{!profile: -lc}}"
++
++#if defined(HAVE_LD_EH_FRAME_HDR)
++#undef LINK_EH_SPEC
++#define LINK_EH_SPEC "%{!static:--eh-frame-hdr} "
++#endif
+ 
+ #undef STARTFILE_SPEC
+ #define STARTFILE_SPEC \
+@@ -92,4 +127,40 @@
+      %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} \
+ 		       %{!p:%{profile:gcrt1.o%s} \
+ 			 %{!profile:crt1.o%s}}}} \
+-   crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
++   crti.o%s %{static:crtbeginT.o%s}\
++   %{!static:%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
++
++#undef FUNCTION_PROFILER
++#define FUNCTION_PROFILER(STREAM,LABELNO)				\
++do									\
++{									\
++  if (flag_pic)								\
++    {									\
++      fprintf (STREAM, "	mov.l	3f,r1\n");			\
++      fprintf (STREAM, "	mova	3f,r0\n");			\
++      fprintf (STREAM, "	add	r1,r0\n");			\
++      fprintf (STREAM, "	mov.l	1f,r1\n");			\
++      fprintf (STREAM, "	mov.l	@(r0,r1),r1\n");		\
++    }									\
++  else									\
++    {									\
++      fprintf (STREAM, "	mov.l	1f,r1\n");			\
++    }									\
++  fprintf (STREAM, "	sts.l	pr,@-r15\n");				\
++  fprintf (STREAM, "	mova	2f,r0\n");				\
++  fprintf (STREAM, "	jmp	@r1\n");				\
++  fprintf (STREAM, "	lds	r0,pr\n");				\
++  fprintf (STREAM, "	.align	2\n");					\
++  if (flag_pic)								\
++    {									\
++      fprintf (STREAM, "1:	.long	mcount@GOT\n");			\
++      fprintf (STREAM, "3:	.long	_GLOBAL_OFFSET_TABLE_\n");	\
++    }									\
++  else									\
++    {									\
++      fprintf (STREAM, "1:	.long	mcount\n");			\
++    }									\
++  fprintf (STREAM, "2:	lds.l	@r15+,pr\n");				\
++} while (0)
++
++#define NO_SHARED_LIBGCC_MULTILIB
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh-protos.h gcc-20030210/gcc/config/sh/sh-protos.h
+--- gcc-20030210.orig/gcc/config/sh/sh-protos.h	Fri Feb 22 01:42:28 2002
++++ gcc-20030210/gcc/config/sh/sh-protos.h	Sat Feb 22 01:40:14 2003
+@@ -74,6 +74,7 @@
+ extern int shl_sext_length PARAMS ((rtx));
+ extern int gen_shl_sext PARAMS ((rtx, rtx, rtx, rtx));
+ extern rtx gen_datalabel_ref PARAMS ((rtx));
++extern int shl_casesi_worker_length PARAMS ((rtx));
+ extern int regs_used PARAMS ((rtx, int));
+ extern void fixup_addr_diff_vecs PARAMS ((rtx));
+ extern int get_dest_uid PARAMS ((rtx, int));
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh.c gcc-20030210/gcc/config/sh/sh.c
+--- gcc-20030210.orig/gcc/config/sh/sh.c	Fri Feb 22 01:42:28 2002
++++ gcc-20030210/gcc/config/sh/sh.c	Sat Feb 22 01:40:14 2003
+@@ -2143,6 +2143,48 @@
+   return sym;
+ }
+ 
++
++/* Function to be used in the length attribute of the casesi_worker
++   instruction.  Returns number of instructions, which is half of the
++   length of bytes. */
++
++int
++shl_casesi_worker_length (insn)
++     rtx insn;
++{
++  rtx set_src, label;
++  rtx diff_vec;
++
++  set_src = SET_SRC (XVECEXP (PATTERN (insn), 0, 0));
++  if (!(GET_CODE (set_src) == UNSPEC
++	&& XINT (set_src, 1) == UNSPEC_CASESI))
++    abort ();
++
++  label = XVECEXP (set_src, 0, 2);
++  if (GET_CODE (label) != LABEL_REF)
++    abort ();
++
++  diff_vec = PATTERN (next_real_insn (XEXP (label, 0)));
++
++  if (GET_CODE (diff_vec) != ADDR_DIFF_VEC)
++    abort ();
++
++  switch (GET_MODE (diff_vec))
++    {
++    case SImode:
++      return 2;
++    case HImode:
++      if (ADDR_DIFF_VEC_FLAGS (diff_vec).offset_unsigned)
++	return 3;
++      return 2;
++    case QImode:
++      if (ADDR_DIFF_VEC_FLAGS (diff_vec).offset_unsigned)
++	return 2;
++      return 1;
++    default:
++      abort ();
++    }
++}
+ 
+ /* The SH cannot load a large constant into a register, constants have to
+    come from a pc relative load.  The reference of a pc relative load
+@@ -3190,7 +3232,7 @@
+       vec_lab = XEXP (XEXP (pat, 0), 0);
+ 
+       /* Search the matching casesi_jump_2.  */
+-      for (prev = vec_lab; ; prev = PREV_INSN (prev))
++      for (prev = vec_lab; prev; prev = PREV_INSN (prev))
+ 	{
+ 	  if (GET_CODE (prev) != JUMP_INSN)
+ 	    continue;
+@@ -3205,6 +3247,13 @@
+ 	    break;
+ 	}
+ 
++      if (prev == NULL)
++	{			/* Switch statement has been optimized out.  */
++	  delete_insn (PREV_INSN (insn));
++	  delete_insn (insn);
++	  continue;
++	}
++
+       /* Emit the reference label of the braf where it belongs, right after
+ 	 the casesi_jump_2 (i.e. braf).  */
+       braf_label = XEXP (XEXP (SET_SRC (XVECEXP (prevpat, 0, 0)), 1), 0);
+@@ -3223,7 +3272,7 @@
+      rtx barrier_or_label;
+ {
+   rtx next = next_real_insn (barrier_or_label), pat, prev;
+-  int slot, credit, jump_to_next;
++  int slot, credit, jump_to_next = 0;
+  
+   if (! next)
+     return 0;
+@@ -4507,7 +4556,8 @@
+   if (current_function_varargs || current_function_stdarg)
+     {
+       /* This is not used by the SH3E calling convention  */
+-      if (TARGET_SH1 && ! TARGET_SH3E && ! TARGET_SH5 && ! TARGET_HITACHI)
++      if (TARGET_SH1 && ! TARGET_SH3E && ! TARGET_SH5 && ! TARGET_HITACHI
++	  || TARGET_NO_IMPLICIT_FP)
+ 	{
+ 	  /* Push arg regs as if they'd been provided by caller in stack.  */
+ 	  for (i = 0; i < NPARM_REGS(SImode); i++)
+@@ -5149,7 +5199,8 @@
+   tree f_next_o, f_next_o_limit, f_next_fp, f_next_fp_limit, f_next_stack;
+   tree record;
+ 
+-  if (TARGET_SH5 || (! TARGET_SH3E && ! TARGET_SH4) || TARGET_HITACHI)
++  if (TARGET_SH5 || (! TARGET_SH3E && ! TARGET_SH4) || TARGET_HITACHI
++      || TARGET_NO_IMPLICIT_FP)
+     return ptr_type_node;
+ 
+   record = make_node (RECORD_TYPE);
+@@ -5211,7 +5262,8 @@
+       return;
+     }
+ 
+-  if ((! TARGET_SH3E && ! TARGET_SH4) || TARGET_HITACHI)
++  if ((! TARGET_SH3E && ! TARGET_SH4)
++      || TARGET_HITACHI || TARGET_NO_IMPLICIT_FP)
+     {
+       std_expand_builtin_va_start (stdarg_p, valist, nextarg);
+       return;
+@@ -5289,7 +5341,8 @@
+   rsize = (size + UNITS_PER_WORD - 1) & -UNITS_PER_WORD;
+   pptr_type_node = build_pointer_type (ptr_type_node);
+ 
+-  if (! TARGET_SH5 && (TARGET_SH3E || TARGET_SH4) && ! TARGET_HITACHI)
++  if (! TARGET_SH5 && (TARGET_SH3E || TARGET_SH4)
++      && ! TARGET_HITACHI && ! TARGET_NO_IMPLICIT_FP)
+     {
+       tree f_next_o, f_next_o_limit, f_next_fp, f_next_fp_limit, f_next_stack;
+       tree next_o, next_o_limit, next_fp, next_fp_limit, next_stack;
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh.h gcc-20030210/gcc/config/sh/sh.h
+--- gcc-20030210.orig/gcc/config/sh/sh.h	Fri Feb 22 01:42:28 2002
++++ gcc-20030210/gcc/config/sh/sh.h	Sat Feb 22 01:40:14 2003
+@@ -147,10 +147,10 @@
+ #define HARD_SH4_BIT	(1<<5)
+ #define FPU_SINGLE_BIT	(1<<7)
+ #define SH4_BIT	       	(1<<12)
++#define NO_IMPLICIT_FP_BIT	(1<<3)
+ #define FMOVD_BIT	(1<<4)
+ #define SH5_BIT		(1<<0)
+ #define SPACE_BIT 	(1<<13)
+-#define BIGTABLE_BIT  	(1<<14)
+ #define RELAX_BIT	(1<<15)
+ #define USERMODE_BIT	(1<<16)
+ #define HITACHI_BIT     (1<<22)
+@@ -205,6 +205,9 @@
+ /* Nonzero if we should generate code for a SH5 CPU (either ISA).  */
+ #define TARGET_SH5 (target_flags & SH5_BIT)
+ 
++/* Nonzero if we should not use FPU implicitly.  */
++#define TARGET_NO_IMPLICIT_FP (target_flags & NO_IMPLICIT_FP_BIT)
++
+ /* Nonzero if we should generate code using the SHcompact instruction
+    set and 32-bit ABI.  */
+ #define TARGET_SHCOMPACT (TARGET_SH5 && TARGET_SH1)
+@@ -225,6 +228,7 @@
+ 
+ /* Nonzero if we should generate code using SHmedia FPU instructions.  */
+ #define TARGET_SHMEDIA_FPU (TARGET_SHMEDIA && TARGET_FPU_DOUBLE)
++
+ /* Nonzero if we should generate fmovd.  */
+ #define TARGET_FMOVD (target_flags & FMOVD_BIT)
+ 
+@@ -234,9 +238,6 @@
+ /* Nonzero if we should generate smaller code rather than faster code.  */
+ #define TARGET_SMALLCODE   (target_flags & SPACE_BIT)
+ 
+-/* Nonzero to use long jump tables.  */
+-#define TARGET_BIGTABLE     (target_flags & BIGTABLE_BIT)
+-
+ /* Nonzero to generate pseudo-ops needed by the assembler and linker
+    to do function call relaxing.  */
+ #define TARGET_RELAX (target_flags & RELAX_BIT)
+@@ -297,7 +298,6 @@
+   {"5-compact-nofpu", TARGET_NONE, "" },	\
+   {"5-compact-nofpu", SH5_BIT|SH3_BIT|SH2_BIT|SH1_BIT, "Generate FPU-less SHcompact code" }, \
+   {"b",		-LITTLE_ENDIAN_BIT, "" },  	\
+-  {"bigtable", 	BIGTABLE_BIT, "" },		\
+   {"dalign",  	DALIGN_BIT, "" },		\
+   {"fmovd",  	FMOVD_BIT, "" },		\
+   {"hitachi",	HITACHI_BIT, "" },		\
+@@ -306,6 +306,7 @@
+   {"isize", 	ISIZE_BIT, "" },		\
+   {"l",		LITTLE_ENDIAN_BIT, "" },  	\
+   {"no-ieee",  	-IEEE_BIT, "" },		\
++  {"no-implicit-fp", NO_IMPLICIT_FP_BIT, "" },	\
+   {"padstruct", PADSTRUCT_BIT, "" },    	\
+   {"prefergot",	PREFERGOT_BIT, "" },		\
+   {"relax",	RELAX_BIT, "" },		\
+@@ -2493,16 +2494,22 @@
+     goto LABEL;								\
+ }
+ 
++extern int optimize; /* needed for gen_casesi.  */
++extern int optimize_size;
++
+ /* Specify the machine mode that this machine uses
+    for the index in the tablejump instruction.  */
+-#define CASE_VECTOR_MODE (TARGET_BIGTABLE ? SImode : HImode)
++#define CASE_VECTOR_MODE SImode
+ 
+ #define CASE_VECTOR_SHORTEN_MODE(MIN_OFFSET, MAX_OFFSET, BODY) \
+ ((MIN_OFFSET) >= 0 && (MAX_OFFSET) <= 127 \
+  ? (ADDR_DIFF_VEC_FLAGS (BODY).offset_unsigned = 0, QImode) \
+  : (MIN_OFFSET) >= 0 && (MAX_OFFSET) <= 255 \
+  ? (ADDR_DIFF_VEC_FLAGS (BODY).offset_unsigned = 1, QImode) \
+- : (MIN_OFFSET) >= -32768 && (MAX_OFFSET) <= 32767 ? HImode \
++ : (MIN_OFFSET) >= -32768 && (MAX_OFFSET) <= 32767 \
++ ? (ADDR_DIFF_VEC_FLAGS (BODY).offset_unsigned = 0, HImode) \
++ : optimize_size && (MIN_OFFSET) >= 0 && (MAX_OFFSET) <= 65535 \
++ ? (ADDR_DIFF_VEC_FLAGS (BODY).offset_unsigned = 1, HImode) \
+  : SImode)
+ 
+ /* Define as C expression which evaluates to nonzero if the tablejump
+@@ -3038,10 +3045,7 @@
+ /* Output an absolute table element.  */
+ 
+ #define ASM_OUTPUT_ADDR_VEC_ELT(STREAM,VALUE)  				\
+-  if (TARGET_BIGTABLE) 							\
+-    asm_fprintf ((STREAM), "\t.long\t%LL%d\n", (VALUE)); 			\
+-  else									\
+-    asm_fprintf ((STREAM), "\t.word\t%LL%d\n", (VALUE)); 			\
++    asm_fprintf ((STREAM), "\t.long\t%LL%d\n", (VALUE))
+ 
+ /* Output various types of constants.  */
+ 
+@@ -3167,8 +3171,6 @@
+ #define sh_cpu_attr ((enum attr_cpu)sh_cpu)
+ extern enum processor_type sh_cpu;
+ 
+-extern int optimize; /* needed for gen_casesi.  */
+-
+ enum mdep_reorg_phase_e
+ {
+   SH_BEFORE_MDEP_REORG,
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh.md gcc-20030210/gcc/config/sh/sh.md
+--- gcc-20030210.orig/gcc/config/sh/sh.md	Sat Nov 23 04:58:06 2002
++++ gcc-20030210/gcc/config/sh/sh.md	Sat Feb 22 01:40:14 2003
+@@ -1242,7 +1242,7 @@
+    (clobber (reg:SI PR_REG))
+    (clobber (reg:SI R4_REG))
+    (use (match_operand:SI 1 "arith_reg_operand" "r"))]
+-  "TARGET_SH1 && ! TARGET_SH4"
++  "TARGET_SH1 && ! TARGET_SH4 || TARGET_NO_IMPLICIT_FP"
+   "jsr	@%1%#"
+   [(set_attr "type" "sfunc")
+    (set_attr "needs_delay_slot" "yes")])
+@@ -1336,7 +1336,7 @@
+ 
+   operands[3] = gen_reg_rtx (Pmode);
+   /* Emit the move of the address to a pseudo outside of the libcall.  */
+-  if (TARGET_HARD_SH4 && TARGET_SH3E)
++  if (TARGET_HARD_SH4 && TARGET_SH3E && !TARGET_NO_IMPLICIT_FP)
+     {
+       emit_move_insn (operands[3],
+ 		      gen_rtx_SYMBOL_REF (SImode, \"__udivsi3_i4\"));
+@@ -1391,7 +1391,7 @@
+    (clobber (reg:SI R2_REG))
+    (clobber (reg:SI R3_REG))
+    (use (match_operand:SI 1 "arith_reg_operand" "r"))]
+-  "TARGET_SH1 && ! TARGET_SH4"
++  "TARGET_SH1 && ! TARGET_SH4 || TARGET_NO_IMPLICIT_FP"
+   "jsr	@%1%#"
+   [(set_attr "type" "sfunc")
+    (set_attr "needs_delay_slot" "yes")])
+@@ -1476,7 +1476,7 @@
+ 
+   operands[3] = gen_reg_rtx (Pmode);
+   /* Emit the move of the address to a pseudo outside of the libcall.  */
+-  if (TARGET_HARD_SH4 && TARGET_SH3E)
++  if (TARGET_HARD_SH4 && TARGET_SH3E && !TARGET_NO_IMPLICIT_FP)
+     {
+       emit_move_insn (operands[3],
+ 		      gen_rtx_SYMBOL_REF (SImode, \"__sdivsi3_i4\"));
+@@ -6446,6 +6446,8 @@
+     case SImode:
+       return \"shll2	%1\;mov.l	@(r0,%1),%0\";
+     case HImode:
++      if (ADDR_DIFF_VEC_FLAGS (diff_vec).offset_unsigned)
++	return \"add	%1,%1\;mov.w	@(r0,%1),%0\;extu.w	%0,%0\";
+       return \"add	%1,%1\;mov.w	@(r0,%1),%0\";
+     case QImode:
+       if (ADDR_DIFF_VEC_FLAGS (diff_vec).offset_unsigned)
+@@ -6455,7 +6457,15 @@
+       abort ();
+     }
+ }"
+-  [(set_attr "length" "4")])
++  [(set (attr "length")
++	(cond [(eq (symbol_ref "shl_casesi_worker_length (insn)") (const_int 1))
++	       (const_string "2")
++	       (eq (symbol_ref "shl_casesi_worker_length (insn)") (const_int 2))
++	       (const_string "4")
++	       ;; Put "match_dup" here so that insn_variable_length_p return 1.
++	       (ne (match_dup 2) (match_dup 2))
++	       (const_string "4")]
++	      (const_string "6")))])
+ 
+ (define_insn "casesi_shift_media"
+   [(set (match_operand 0 "arith_reg_operand" "=r")
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh3-linux.h gcc-20030210/gcc/config/sh/sh3-linux.h
+--- gcc-20030210.orig/gcc/config/sh/sh3-linux.h	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/gcc/config/sh/sh3-linux.h	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,29 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH3 GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__LITTLE_ENDIAN__ \
++   -D__SH3__ -D__sh3__ \
++   -D__SIZE_TYPE__=unsigned\\ int \
++   -D__PTRDIFF_TYPE__=int \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -ml -m3 %{profile:-p}"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh3eb-linux.h gcc-20030210/gcc/config/sh/sh3eb-linux.h
+--- gcc-20030210.orig/gcc/config/sh/sh3eb-linux.h	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/gcc/config/sh/sh3eb-linux.h	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,29 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH3EB GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__BIG_ENDIAN__ \
++   -D__SH3__ -D__sh3__ \
++   -D__SIZE_TYPE__=unsigned\\ int \
++   -D__PTRDIFF_TYPE__=int \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -mb -m3 %{profile:-p}"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh4-linux.h gcc-20030210/gcc/config/sh/sh4-linux.h
+--- gcc-20030210.orig/gcc/config/sh/sh4-linux.h	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/gcc/config/sh/sh4-linux.h	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,29 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH4 GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__LITTLE_ENDIAN__ \
++   -D__SH4__ \
++   -D__SIZE_TYPE__=unsigned\\ int \
++   -D__PTRDIFF_TYPE__=int \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -ml -m4 %{profile:-p}"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -ruN gcc-20030210.orig/gcc/config/sh/sh4eb-linux.h gcc-20030210/gcc/config/sh/sh4eb-linux.h
+--- gcc-20030210.orig/gcc/config/sh/sh4eb-linux.h	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/gcc/config/sh/sh4eb-linux.h	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,29 @@
++#undef TARGET_VERSION
++#define TARGET_VERSION  fputs (" (SH4EB GNU/Linux with ELF)", stderr);
++
++#undef CPP_SPEC
++#define CPP_SPEC \
++  "-D__BIG_ENDIAN__ \
++   -D__SH4__ \
++   -D__SIZE_TYPE__=unsigned\\ int \
++   -D__PTRDIFF_TYPE__=int \
++   %{fPIC:-D__PIC__ -D__pic__} \
++   %{fpic:-D__PIC__ -D__pic__} \
++   %{posix:-D_POSIX_SOURCE} \
++   %{pthread:-D_REENTRANT -D_PTHREADS}"
++
++#undef ASM_SPEC
++#define ASM_SPEC  "%{mrelax:-relax}"
++
++#undef CC1_SPEC
++#define CC1_SPEC \
++  "-musermode -mb -m4 %{profile:-p}"
++
++#undef LINK_SPEC
++#define LINK_SPEC \
++  "%{mrelax:-relax} \
++   %{shared:-shared} \
++   %{!static: \
++     %{rdynamic:-export-dynamic} \
++     %{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
++    %{static:-static}"
+diff -ruN gcc-20030210.orig/gcc/config/sh/t-linux gcc-20030210/gcc/config/sh/t-linux
+--- gcc-20030210.orig/gcc/config/sh/t-linux	Thu May 17 12:16:12 2001
++++ gcc-20030210/gcc/config/sh/t-linux	Sat Feb 22 01:40:14 2003
+@@ -1,10 +1,20 @@
+-TARGET_LIBGCC2_CFLAGS = -fpic
++TARGET_LIBGCC2_CFLAGS = -fpic -DNO_FPSCR_VALUES
++LIBGCC1 = libgcc1-asm.a
++CROSS_LIBGCC1 = libgcc1-asm.a
++LIBGCC1_TEST = libgcc1-test
+ LIB1ASMFUNCS = _ashiftrt _ashiftrt_n _ashiftlt _lshiftrt _movstr \
+   _movstr_i4 _mulsi3 _sdivsi3 _sdivsi3_i4 _udivsi3 _udivsi3_i4 _set_fpscr \
+   _ic_invalidate
++LIB2ADDEH = $(srcdir)/unwind-sjlj.c
++LIB2ADDEHDEP = unwind.inc unwind-sjlj.c
+ 
+-MULTILIB_OPTIONS= mb m3e/m4
++MULTILIB_OPTIONS= mb m4
+ MULTILIB_DIRNAMES= 
+ MULTILIB_MATCHES = 
+ 
+-EXTRA_MULTILIB_PARTS= crtbegin.o crtend.o crtbeginS.o crtendS.o
++EXTRA_MULTILIB_PARTS= crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o
++
++# Override t-slibgcc-elf-ver to export some libgcc symbols with
++# the symbol versions that glibc used and SH specific.
++SHLIB_MAPFILES =  $(srcdir)/libgcc-std.ver \
++		  $(srcdir)/config/sh/libgcc-glibc.ver
+diff -ruN gcc-20030210.orig/gcc/config/sh/t-linux-nomulti gcc-20030210/gcc/config/sh/t-linux-nomulti
+--- gcc-20030210.orig/gcc/config/sh/t-linux-nomulti	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/gcc/config/sh/t-linux-nomulti	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,9 @@
++LIBGCC = libgcc.a
++EXTRA_PARTS = crtbegin.o crtbeginS.o crtend.o crtendS.o crtbeginT.o
++
++INSTALL_LIBGCC = install-libgcc
++
++MULTILIB_OPTIONS=
++MULTILIB_DIRNAMES= 
++MULTILIB_MATCHES = 
++EXTRA_MULTILIB_PARTS=
+diff -ruN gcc-20030210.orig/gcc/config.gcc gcc-20030210/gcc/config.gcc
+--- gcc-20030210.orig/gcc/config.gcc	Fri Jan 31 19:17:13 2003
++++ gcc-20030210/gcc/config.gcc	Sat Feb 22 01:40:14 2003
+@@ -337,9 +337,9 @@
+ sparc*-*-*)
+ 	cpu_type=sparc
+ 	;;
+-sh64-*-*)
+-	cpu_type=sh
+-	;;
++sh*-*-*)
++ 	cpu_type=sh
++ 	;;
+ esac
+ 
+ tm_file=${cpu_type}/${cpu_type}.h
+@@ -3018,9 +3018,31 @@
+ 	  thread_file='rtems'
+ 	fi
+ 	;;
+-sh-*-linux*)
++sh*-*-linux*)
+ 	tm_file="${tm_file} sh/elf.h sh/linux.h"
+-	tmake_file="sh/t-sh sh/t-elf sh/t-linux"
++	tmake_file="sh/t-sh sh/t-elf t-slibgcc-elf-ver t-linux sh/t-linux"
++	extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o"
++	case $machine in
++		sh3eb-*)
++			tm_file="${tm_file} sh/sh3eb-linux.h"
++			tmake_file="${tmake_file} sh/t-linux-nomulti"
++			;;
++		sh4eb-*)
++			tm_file="${tm_file} sh/sh4eb-linux.h"
++			tmake_file="${tmake_file} sh/t-linux-nomulti"
++			;;
++		sh3-*)
++			tm_file="${tm_file} sh/sh3-linux.h"
++			tmake_file="${tmake_file} sh/t-linux-nomulti"
++			;;
++		sh4-*)
++			tm_file="${tm_file} sh/sh4-linux.h"
++			tmake_file="${tmake_file} sh/t-linux-nomulti"
++			;;
++		*)
++			;;
++	esac
++	xmake_file=x-linux
+ 	gas=yes gnu_ld=yes
+ 	float_format=sh
+ 	;;
+diff -ruN gcc-20030210.orig/gcc/dwarf2out.c gcc-20030210/gcc/dwarf2out.c
+--- gcc-20030210.orig/gcc/dwarf2out.c	Mon Feb 10 19:36:25 2003
++++ gcc-20030210/gcc/dwarf2out.c	Sat Feb 22 01:40:14 2003
+@@ -10224,7 +10224,9 @@
+ 	  /* We can have a normal definition following an inline one in the
+ 	     case of redefinition of GNU C extern inlines.
+ 	     It seems reasonable to use AT_specification in this case.  */
+-	  && !get_AT_unsigned (old_die, DW_AT_inline))
++	  && !get_AT_unsigned (old_die, DW_AT_inline)
++	  /* Skip the nested function.  */
++	  && !decl_function_context (decl))
+ 	{
+ 	  /* ??? This can happen if there is a bug in the program, for
+ 	     instance, if it has duplicate function definitions.  Ideally,
+diff -ruN gcc-20030210.orig/gcc/final.c gcc-20030210/gcc/final.c
+--- gcc-20030210.orig/gcc/final.c	Fri Jan 31 19:17:20 2003
++++ gcc-20030210/gcc/final.c	Sat Feb 22 01:40:14 2003
+@@ -1128,7 +1128,7 @@
+ 	    }
+ 	}
+ 
+-      INSN_ADDRESSES (uid) = insn_current_address;
++      INSN_ADDRESSES (uid) = insn_current_address + insn_lengths[uid];
+ 
+       if (GET_CODE (insn) == NOTE || GET_CODE (insn) == BARRIER
+ 	  || GET_CODE (insn) == CODE_LABEL)
+diff -ruN gcc-20030210.orig/gcc/mkmap-symver.awk gcc-20030210/gcc/mkmap-symver.awk
+--- gcc-20030210.orig/gcc/mkmap-symver.awk	Fri Jan 31 19:17:26 2003
++++ gcc-20030210/gcc/mkmap-symver.awk	Sat Feb 22 01:40:14 2003
+@@ -89,7 +89,11 @@
+     output(inherit[lib]);
+ 
+   printf("%s {\n", lib);
+-  printf("  global:\n");
++  for (sym in ver)
++    if ((ver[sym] == lib) && (sym in def))
++      count++;
++  if (count > 0)
++    printf("  global:\n");
+   for (sym in ver)
+     if ((ver[sym] == lib) && (sym in def))
+       {
+diff -ruN gcc-20030210.orig/gcc/reload1.c gcc-20030210/gcc/reload1.c
+--- gcc-20030210.orig/gcc/reload1.c	Fri Jan 31 19:17:29 2003
++++ gcc-20030210/gcc/reload1.c	Sat Feb 22 01:40:14 2003
+@@ -6103,6 +6103,7 @@
+ 	    for (j = 0; j < n_reloads; j++)
+ 	      if (rld[j].in != 0
+ 		  && rld[j].when_needed != RELOAD_OTHER
++		  && rld[j].when_needed != RELOAD_FOR_OUTPUT_ADDRESS
+ 		  && reg_overlap_mentioned_for_reload_p (rld[j].in,
+ 							 rld[i].in))
+ 		rld[j].when_needed
+diff -ruN gcc-20030210.orig/gcc/reorg.c gcc-20030210/gcc/reorg.c
+--- gcc-20030210.orig/gcc/reorg.c	Fri Jan 31 19:17:30 2003
++++ gcc-20030210/gcc/reorg.c	Sat Feb 22 01:40:14 2003
+@@ -3265,6 +3265,14 @@
+ 		|| condjump_in_parallel_p (XVECEXP (PATTERN (insn), 0, 0))))
+ 	continue;
+ 
++#ifdef MD_CAN_REDIRECT_BRANCH
++      /* On some targets, branches with delay slots can have a limited
++	 displacement.  Give the back end a chance to tell us we can't do
++	 this.  */
++      if (! MD_CAN_REDIRECT_BRANCH (insn, delay_insn))
++	continue;
++#endif
++
+       target_label = JUMP_LABEL (delay_insn);
+ 
+       if (target_label)
+diff -ruN gcc-20030210.orig/gcc/tree-inline.c gcc-20030210/gcc/tree-inline.c
+--- gcc-20030210.orig/gcc/tree-inline.c	Fri Jan 31 19:17:33 2003
++++ gcc-20030210/gcc/tree-inline.c	Sat Feb 22 01:40:14 2003
+@@ -836,11 +836,17 @@
+ 
+   /* Don't try to inline functions that are not well-suited to
+      inlining.  */
+-  if (!inlinable_function_p (fn, id))
+-    return NULL_TREE;
++  if (! inlinable_function_p (fn, id)
++      || ! (*lang_hooks.tree_inlining.start_inlining) (fn))
++    {
++      if (DECL_INLINE (fn) && warn_inline && ! flag_really_no_inline)
++	{
++	  warning_with_decl (fn, "inlining failed in call to `%s'");
++	  warning ("called from here");
++	}
+ 
+-  if (! (*lang_hooks.tree_inlining.start_inlining) (fn))
+-    return NULL_TREE;
++      return NULL_TREE;
++    }
+ 
+   /* Set the current filename and line number to the function we are
+      inlining so that when we create new _STMT nodes here they get
+diff -ruN gcc-20030210.orig/libjava/Makefile.in gcc-20030210/libjava/Makefile.in
+--- gcc-20030210.orig/libjava/Makefile.in	Tue Jan 28 10:44:37 2003
++++ gcc-20030210/libjava/Makefile.in	Sat Feb 22 01:40:14 2003
+@@ -1637,6 +1637,7 @@
+ 	"AS=$(AS)" \
+ 	"CC=$(CC)" \
+ 	"CXX=$(CXX)" \
++	"GCJ=$(GCJ)" \
+ 	"LD=$(LD)" \
+ 	"LIBCFLAGS=$(LIBCFLAGS)" \
+ 	"NM=$(NM)" \
+diff -ruN gcc-20030210.orig/libjava/configure gcc-20030210/libjava/configure
+--- gcc-20030210.orig/libjava/configure	Tue Jan 28 10:44:37 2003
++++ gcc-20030210/libjava/configure	Sat Feb 22 01:42:11 2003
+@@ -2031,7 +2031,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case $host_cpu in
+-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* | sh* )
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM
+diff -ruN gcc-20030210.orig/libjava/java/net/natInetAddress.cc gcc-20030210/libjava/java/net/natInetAddress.cc
+--- gcc-20030210.orig/libjava/java/net/natInetAddress.cc	Tue Mar  5 05:02:19 2002
++++ gcc-20030210/libjava/java/net/natInetAddress.cc	Sat Feb 22 01:40:14 2003
+@@ -56,7 +56,7 @@
+ #endif
+ 
+ #ifndef HAVE_GETHOSTNAME_DECL
+-extern "C" int gethostname (char *name, int namelen);
++extern "C" int gethostname (char *name, unsigned int namelen);
+ #endif
+ 
+ #ifdef DISABLE_JAVA_NET
+diff -ruN gcc-20030210.orig/libjava/libltdl/aclocal.m4 gcc-20030210/libjava/libltdl/aclocal.m4
+--- gcc-20030210.orig/libjava/libltdl/aclocal.m4	Sun Sep 10 17:04:40 2000
++++ gcc-20030210/libjava/libltdl/aclocal.m4	Sat Feb 22 01:40:14 2003
+@@ -573,7 +573,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case "$host_cpu" in
+-  alpha* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | i*86 | powerpc* | sparc* | ia64* | sh*)
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM
+diff -ruN gcc-20030210.orig/libjava/sysdep/sh/locks.h gcc-20030210/libjava/sysdep/sh/locks.h
+--- gcc-20030210.orig/libjava/sysdep/sh/locks.h	Thu Jan  1 09:00:00 1970
++++ gcc-20030210/libjava/sysdep/sh/locks.h	Sat Feb 22 01:40:14 2003
+@@ -0,0 +1,72 @@
++// locks.h - Thread synchronization primitives. SuperH implementation.
++
++/* Copyright (C) 2002  Free Software Foundation
++
++   This file is part of libgcj.
++
++This software is copyrighted work licensed under the terms of the
++Libgcj License.  Please consult the file "LIBGCJ_LICENSE" for
++details.  */
++
++#ifndef __SYSDEP_LOCKS_H__
++#define __SYSDEP_LOCKS_H__
++
++typedef size_t obj_addr_t;	/* Integer type big enough for object	*/
++				/* address.				*/
++
++static unsigned char __cas_lock = 0;
++
++inline static void
++__cas_start_atomic (void)
++{
++  unsigned int val;
++
++  do
++    __asm__ __volatile__ ("tas.b @%1; movt %0"
++			  : "=r" (val)
++			  : "r" (&__cas_lock)
++			  : "memory");
++  while (val == 0);
++}
++
++inline static void
++__cas_end_atomic (void)
++{
++  __asm__ __volatile__ (" " : : : "memory");
++  __cas_lock = 0;
++}
++
++inline static bool
++compare_and_swap (volatile obj_addr_t *addr, obj_addr_t old,
++		  obj_addr_t new_val)
++{
++  bool ret;
++
++  __cas_start_atomic ();
++  if (*addr != old)
++    ret = false;
++  else
++    {
++      *addr = new_val;
++      ret = true;
++    }
++  __cas_end_atomic ();
++
++  return ret;
++}
++
++inline static void
++release_set (volatile obj_addr_t *addr, obj_addr_t new_val)
++{
++  __asm__ __volatile__ (" " : : : "memory");
++  *(addr) = new_val;
++}
++
++inline static bool
++compare_and_swap_release (volatile obj_addr_t *addr, obj_addr_t old,
++			  obj_addr_t new_val)
++{
++  return compare_and_swap (addr, old, new_val);
++}
++
++#endif /* ! __SYSDEP_LOCKS_H__ */
+diff -ruN gcc-20030210.orig/libstdc++-v3/acinclude.m4 gcc-20030210/libstdc++-v3/acinclude.m4
+--- gcc-20030210.orig/libstdc++-v3/acinclude.m4	Tue Jan 28 02:30:41 2003
++++ gcc-20030210/libstdc++-v3/acinclude.m4	Sat Feb 22 01:40:14 2003
+@@ -1828,9 +1828,10 @@
+   GLIBCPP_INCLUDES="-I${glibcpp_builddir}/include/${target_alias} -I${glibcpp_builddir}/include"
+ 
+   # Passed down for canadian crosses.
+-  if test x"$CANADIAN" = xyes; then
+-    TOPLEVEL_INCLUDES='-I$(includedir)'
+-  fi
++  #if test x"$CANADIAN" = xyes; then
++  #  TOPLEVEL_INCLUDES='-I$(includedir)'
++  #fi
++  TOPLEVEL_INCLUDES=''
+ 
+   LIBMATH_INCLUDES='-I$(top_srcdir)/libmath'
+ 
+diff -ruN gcc-20030210.orig/libstdc++-v3/aclocal.m4 gcc-20030210/libstdc++-v3/aclocal.m4
+--- gcc-20030210.orig/libstdc++-v3/aclocal.m4	Mon Feb 10 19:36:47 2003
++++ gcc-20030210/libstdc++-v3/aclocal.m4	Sat Feb 22 01:40:14 2003
+@@ -1840,9 +1840,10 @@
+   GLIBCPP_INCLUDES="-I${glibcpp_builddir}/include/${target_alias} -I${glibcpp_builddir}/include"
+ 
+   # Passed down for canadian crosses.
+-  if test x"$CANADIAN" = xyes; then
+-    TOPLEVEL_INCLUDES='-I$(includedir)'
+-  fi
++  #if test x"$CANADIAN" = xyes; then
++  #  TOPLEVEL_INCLUDES='-I$(includedir)'
++  #fi
++  TOPLEVEL_INCLUDES=''
+ 
+   LIBMATH_INCLUDES='-I$(top_srcdir)/libmath'
+ 
+diff -ruN gcc-20030210.orig/libstdc++-v3/configure gcc-20030210/libstdc++-v3/configure
+--- gcc-20030210.orig/libstdc++-v3/configure	Mon Feb 10 19:37:17 2003
++++ gcc-20030210/libstdc++-v3/configure	Sat Feb 22 01:40:14 2003
+@@ -1982,7 +1982,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case $host_cpu in
+-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* | sh*)
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM
+@@ -22340,9 +22340,10 @@
+   GLIBCPP_INCLUDES="-I${glibcpp_builddir}/include/${target_alias} -I${glibcpp_builddir}/include"
+ 
+   # Passed down for canadian crosses.
+-  if test x"$CANADIAN" = xyes; then
+-    TOPLEVEL_INCLUDES='-I$(includedir)'
+-  fi
++  #if test x"$CANADIAN" = xyes; then
++  #  TOPLEVEL_INCLUDES='-I$(includedir)'
++  #fi
++  TOPLEVEL_INCLUDES=''
+ 
+   LIBMATH_INCLUDES='-I$(top_srcdir)/libmath'
+ 
+diff -ruN gcc-20030210.orig/libtool.m4 gcc-20030210/libtool.m4
+--- gcc-20030210.orig/libtool.m4	Fri Jan 31 19:16:59 2003
++++ gcc-20030210/libtool.m4	Sat Feb 22 01:40:14 2003
+@@ -597,7 +597,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case $host_cpu in
+-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* | sh* )
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM
+diff -ruN gcc-20030210.orig/zlib/configure gcc-20030210/zlib/configure
+--- gcc-20030210.orig/zlib/configure	Tue Jan 28 10:44:15 2003
++++ gcc-20030210/zlib/configure	Sat Feb 22 01:40:14 2003
+@@ -1571,7 +1571,7 @@
+ # This must be Linux ELF.
+ linux-gnu*)
+   case $host_cpu in
+-  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* )
++  alpha* | hppa* | i*86 | powerpc* | sparc* | ia64* | sh* )
+     lt_cv_deplibs_check_method=pass_all ;;
+   *)
+     # glibc up to 2.1.1 does not perform some relocations on ARM

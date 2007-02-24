@@ -1,0 +1,54 @@
+See also
+http://lists.gnu.org/archive/html/bug-glibc/2002-12/msg00056.html
+http://lists.arm.linux.org.uk/pipermail/linux-arm-toolchain/2004-June/000016.html
+
+2002-12-12  Andreas Schwab  <schwab@suse.de>
+        * sysdeps/arm/strlen.S: Fix last word check for big endian.
+
+To: libc-alpha at sources dot redhat dot com
+Subject: [PATCH] REPOST: ARM big-endian strlen() fix
+References: <m3brjy27mo.fsf@defiant.pm.waw.pl>
+From: Krzysztof Halasa <khc at pm dot waw dot pl>
+Date: Thu, 10 Jun 2004 13:41:44 +0200
+Message-ID: <m3r7sn8wsn.fsf@defiant.pm.waw.pl>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="=-=-="
+
+--=-=-=
+
+The attached patch fixes strlen() on big-endian ARM. Please apply.
+Thanks.
+-- 
+Krzysztof Halasa, B*FH
+
+--=-=-=
+Content-Type: text/x-patch
+Content-Disposition: inline; filename=glibc-strlen.patch
+
+--- glibc-2.3.3.old/sysdeps/arm/strlen.S	2003-04-30 00:47:20.000000000 +0200
++++ glibc-2.3.3/sysdeps/arm/strlen.S	2004-06-06 03:21:48.351931240 +0200
+@@ -53,12 +53,21 @@
+ 	ldrne   r2, [r1], $4            @ and we continue to the next word
+ 	bne     Laligned                @
+ Llastword:				@ drop through to here once we find a
++#ifdef __ARMEB__
++	tst     r2, $0xff000000         @ word that has a zero byte in it
++	addne   r0, r0, $1              @
++	tstne   r2, $0x00ff0000         @ and add up to 3 bytes on to it
++	addne   r0, r0, $1              @
++	tstne   r2, $0x0000ff00         @ (if first three all non-zero, 4th
++	addne   r0, r0, $1              @  must be zero)
++#else
+ 	tst     r2, $0x000000ff         @ word that has a zero byte in it
+ 	addne   r0, r0, $1              @
+ 	tstne   r2, $0x0000ff00         @ and add up to 3 bytes on to it
+ 	addne   r0, r0, $1              @
+ 	tstne   r2, $0x00ff0000         @ (if first three all non-zero, 4th
+ 	addne   r0, r0, $1              @  must be zero)
++#endif
+ 	RETINSTR(mov,pc,lr)
+ END(strlen)
+ libc_hidden_builtin_def (strlen)
+
+--=-=-=--
+

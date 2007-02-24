@@ -1,0 +1,70 @@
+Fixes
+dl-runtime.c:56: error: conflicting types for 'fixup'
+../sysdeps/i386/dl-machine.h:158: error: previous declaration of 'fixup' was here
+when building with gcc-3.4.0
+
+First hunk:
+Define ARCH_FIXUP_ATTRIBUTE and use it in the fixup function declarations.
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/i386/dl-machine.h.diff?r1=1.124&r2=1.125&cvsroot=glibc
+[rediffed against glibc-2.1.3]
+
+Second hunk:
+If ARCH_FIXUP_ATTRIBUTE is not defined, provide dummy definition.
+Use macro in fixup function definitions.
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/elf/dl-runtime.c.diff?r1=1.64&r2=1.65&cvsroot=glibc
+[rediffed against glibc-2.3.2]
+
+===================================================================
+--- glibc-2.1.3/sysdeps/i386/dl-machine.h.old	Sun Apr 11 18:58:45 2004
++++ glibc-2.1.3/sysdeps/i386/dl-machine.h	Sun Apr 11 18:59:51 2004
+@@ -70,11 +70,14 @@
+ 
+    We cannot use this scheme for profiling because the _mcount call
+    destroys the passed register information.  */
++
++#define ARCH_FIXUP_ATTRIBUTE __attribute__ ((regparm (3), unused))
++
+ static ElfW(Addr) fixup (struct link_map *l, ElfW(Word) reloc_offset)
+-     __attribute__ ((regparm (2), unused));
++     ARCH_FIXUP_ATTRIBUTE;
+ static ElfW(Addr) profile_fixup (struct link_map *l, ElfW(Word) reloc_offset,
+ 				 ElfW(Addr) retaddr)
+-     __attribute__ ((regparm (3), unused));
++     ARCH_FIXUP_ATTRIBUTE;
+ #endif
+ 
+ /* Set up the loaded object described by L so its unrelocated PLT
+===================================================================
+--- glibc-2.1.3/elf/dl-runtime.c~	Thu Jul 15 11:32:41 1999
++++ glibc-2.1.3/elf/dl-runtime.c	Sun Apr 11 19:02:01 2004
+@@ -31,6 +31,12 @@
+ # define VERSYMIDX(sym)	(DT_NUM + DT_PROCNUM + DT_VERSIONTAGIDX (sym))
+ #endif
+ 
++/* The fixup functions might have need special attributes.  If none
++   are provided define the macro as empty.  */
++#ifndef ARCH_FIXUP_ATTRIBUTE
++# define ARCH_FIXUP_ATTRIBUTE
++#endif
++
+ 
+ /* This function is called through a special trampoline from the PLT the
+    first time each PLT entry is called.  We must perform the relocation
+@@ -40,7 +46,7 @@
+    function.  */
+ 
+ #ifndef ELF_MACHINE_NO_PLT
+-static ElfW(Addr) __attribute__ ((unused))
++static ElfW(Addr) __attribute__ ((unused)) ARCH_FIXUP_ATTRIBUTE
+ fixup (
+ # ifdef ELF_MACHINE_RUNTIME_FIXUP_ARGS
+         ELF_MACHINE_RUNTIME_FIXUP_ARGS,
+@@ -105,7 +111,7 @@
+ 
+ #if !defined PROF && !defined ELF_MACHINE_NO_PLT
+ 
+-static ElfW(Addr) __attribute__ ((unused))
++static ElfW(Addr) __attribute__ ((unused)) ARCH_FIXUP_ATTRIBUTE
+ profile_fixup (
+ #ifdef ELF_MACHINE_RUNTIME_FIXUP_ARGS
+        ELF_MACHINE_RUNTIME_FIXUP_ARGS,

@@ -1,0 +1,52 @@
+Date: Sat, 1 May 2004 21:08:10 +0200
+From: Jakub Jelinek <jakub@redhat.com>
+To: Dan Kegel <dank@kegel.com>, mark@codesourcery.com
+Cc: gcc-patches@gcc.gnu.org
+Subject: [PATCH] sparc64-linux --with-cpu=ultrasparc fix
+Message-ID: <20040501190810.GD5191@sunsite.ms.mff.cuni.cz>
+Reply-To: Jakub Jelinek <jakub@redhat.com>
+References: <40940B11.9080907@kegel.com>
+In-Reply-To: <40940B11.9080907@kegel.com>
+
+On Sat, May 01, 2004 at 01:39:45PM -0700, Dan Kegel wrote:
+> I'm having a bit of trouble configuring gcc-3.4.0  for sparc64-linux.
+> The resulting compiler defaults to sparc32, which is a problem
+> because it means having to figure out how to add
+> -mcpu=ultrasparc3 -Wa,-Av9a -m64 to CFLAGS for everything I build.
+> The worst part is that this even affects libgcc.a, which makes it
+> pretty hard to link any sparc64 executables.  I could figure out
+> how mklibgcc and multilibbing work, and maybe thereby get a good 64 bit 
+> libgcc.a,
+> but I'd kind of like to avoid that for the moment, and just really get
+> gcc to default to 64 bit output.
+> 
+> What's the right way to get gcc to default to building 64 bit executables
+> when targeting sparc64-linux?
+
+There was TARGET_CPU_ultrasparc3 missing in linux64.h.
+I've commited the following fix to the trunk, but as it is not a regression,
+I'm not sure if Mark is ok with this for gcc-3_4-branch.
+
+2004-05-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/sparc/linux64.h (TARGET_DEFAULT): Make 64-bit by default
+	also for TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc3.
+
+--- gcc-3.4.0/gcc/config/sparc/linux64.h.jj	2004-05-01 22:59:52.000000000 +0200
++++ gcc-3.4.0/gcc/config/sparc/linux64.h	2004-05-01 23:00:41.126176529 +0200
+@@ -39,7 +39,9 @@ Boston, MA 02111-1307, USA.  */
+ #undef MD_EXEC_PREFIX
+ #undef MD_STARTFILE_PREFIX
+ 
+-#if TARGET_CPU_DEFAULT == TARGET_CPU_v9 || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc
++#if TARGET_CPU_DEFAULT == TARGET_CPU_v9 \
++    || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc \
++    || TARGET_CPU_DEFAULT == TARGET_CPU_ultrasparc3
+ /* A 64 bit v9 compiler with stack-bias,
+    in a Medium/Low code model environment.  */
+ 
+
+	Jakub
+
+
+

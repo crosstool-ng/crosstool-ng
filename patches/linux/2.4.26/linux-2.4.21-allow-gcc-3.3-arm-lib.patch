@@ -1,0 +1,203 @@
+Reconstructed from http://lists.arm.linux.org.uk/pipermail/linux-arm-kernel/2003-December/018647.html
+See also http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=1540
+
+Message-ID: <DDA001.8070502@de.bosch.com>
+Subject: Help cross compiling the kernel for arm.
+From: dirk.behme at de.bosch.com
+
+Aitor Garcia wrote:
+> Hello everybody,
+> 
+> I am having problems cross compiling the kernel for arm.
+> 
+> This is the error message I get:
+> 
+> blkpg.c: In function `blk_ioctl':
+> blkpg.c:252: error: asm-specifier for variable `__r1' conflicts with asm clobber list
+> blkpg.c:252: confused by earlier errors, bailing out make[3]: *** [blkpg.o] Error 1
+> make[3]: Leaving directory `/root/toolchain/kernel-arm/linux-2.4.21/drivers/block'
+> make[2]: *** [first_rule] Error 2
+> make[2]: Leaving directory `/root/toolchain/kernel-arm/linux-2.4.21/drivers/block'
+> make[1]: *** [_subdir_block] Error 2
+> make[1]: Leaving directory `/root/toolchain/kernel-arm/linux-2.4.21/drivers'
+> make: *** [_dir_drivers] Error 2
+> 
+> These are the toolchain versions I am using:
+>  host=i686-pc-linux-gnu
+>  binutils_version=2.14           
+>  gcc_version=3.3.2                
+>  glibc_version=2.3.2             
+>  kernel_version=2.4.21  
+> and applied the kernel patch for arm. 2.4.21-rmk1.
+> ... 
+> I have also seen references to this bug in ARM linux
+> Developer. Patch Number = 1540. But this patch is
+> classified as discarded.
+
+You need something like 1540 to compile 2.4.21 with gcc 3.3.2. 1540 was 
+discarded because of AFLAGS change.
+
+Try the attachment.
+
+Dirk
+-------------- next part --------------
+--- linux/arch/arm/lib/getuser.S.orig	Mon Nov 17 07:41:51 2003
++++ linux/arch/arm/lib/getuser.S	Mon Nov 17 07:43:16 2003
+@@ -17,7 +17,7 @@
+  *
+  * Inputs:	r0 contains the address
+  * Outputs:	r0 is the error code
+- *		r1, r2 contains the zero-extended value
++ *		r1, ip contains the zero-extended value
+  *		lr corrupted
+  *
+  * No other registers must be altered.  (see include/asm-arm/uaccess.h
+@@ -42,14 +42,14 @@ __get_user_1:
+ 
+ 	.global	__get_user_2
+ __get_user_2:
+-	bic	r2, sp, #0x1f00
+-	bic	r2, r2, #0x00ff
+-	ldr	r2, [r2, #TSK_ADDR_LIMIT]
+-	sub	r2, r2, #2
+-	cmp	r0, r2
++	bic	ip, sp, #0x1f00
++	bic	ip, ip, #0x00ff
++	ldr	ip, [ip, #TSK_ADDR_LIMIT]
++	sub	ip, ip, #2
++	cmp	r0, ip
+ 2:	ldrlsbt	r1, [r0], #1
+-3:	ldrlsbt	r2, [r0]
+-	orrls	r1, r1, r2, lsl #8
++3:	ldrlsbt	ip, [r0]
++	orrls	r1, r1, ip, lsl #8
+ 	movls	r0, #0
+ 	movls	pc, lr
+ 	b	__get_user_bad
+@@ -68,20 +68,20 @@ __get_user_4:
+ 
+ 	.global	__get_user_8
+ __get_user_8:
+-	bic	r2, sp, #0x1f00
+-	bic	r2, r2, #0x00ff
+-	ldr	r2, [r2, #TSK_ADDR_LIMIT]
+-	sub	r2, r2, #8
+-	cmp	r0, r2
++	bic	ip, sp, #0x1f00
++	bic	ip, ip, #0x00ff
++	ldr	ip, [ip, #TSK_ADDR_LIMIT]
++	sub	ip, ip, #8
++	cmp	r0, ip
+ 5:	ldrlst	r1, [r0], #4
+-6:	ldrlst	r2, [r0]
++6:	ldrlst	ip, [r0]
+ 	movls	r0, #0
+ 	movls	pc, lr
+ 
+ 	/* fall through */
+ 
+ __get_user_bad_8:
+-	mov	r2, #0
++	mov	ip, #0
+ __get_user_bad:
+ 	mov	r1, #0
+ 	mov	r0, #-14
+--- linux/arch/arm/lib/putuser.S.orig	Mon Nov 17 07:41:57 2003
++++ linux/arch/arm/lib/putuser.S	Mon Nov 17 07:42:26 2003
+@@ -16,7 +16,7 @@
+  * __put_user_X
+  *
+  * Inputs:	r0 contains the address
+- *		r1, r2 contains the value
++ *		r1, ip contains the value
+  * Outputs:	r0 is the error code
+  *		lr corrupted
+  *
+@@ -30,11 +30,11 @@
+ 
+ 	.global	__put_user_1
+ __put_user_1:
+-	bic	r2, sp, #0x1f00
+-	bic	r2, r2, #0x00ff
+-	ldr	r2, [r2, #TSK_ADDR_LIMIT]
+-	sub	r2, r2, #1
+-	cmp	r0, r2
++	bic	ip, sp, #0x1f00
++	bic	ip, ip, #0x00ff
++	ldr	ip, [ip, #TSK_ADDR_LIMIT]
++	sub	ip, ip, #1
++	cmp	r0, ip
+ 1:	strlsbt	r1, [r0]
+ 	movls	r0, #0
+ 	movls	pc, lr
+@@ -42,11 +42,11 @@ __put_user_1:
+ 
+ 	.global	__put_user_2
+ __put_user_2:
+-	bic	r2, sp, #0x1f00
+-	bic	r2, r2, #0x00ff
+-	ldr	r2, [r2, #TSK_ADDR_LIMIT]
+-	sub	r2, r2, #2
+-	cmp	r0, r2
++	bic	ip, sp, #0x1f00
++	bic	ip, ip, #0x00ff
++	ldr	ip, [ip, #TSK_ADDR_LIMIT]
++	sub	ip, ip, #2
++	cmp	r0, ip
+ 2:	strlsbt	r1, [r0], #1
+ 	movls	r1, r1, lsr #8
+ 3:	strlsbt	r1, [r0]
+@@ -56,11 +56,11 @@ __put_user_2:
+ 
+ 	.global	__put_user_4
+ __put_user_4:
+-	bic	r2, sp, #0x1f00
+-	bic	r2, r2, #0x00ff
+-	ldr	r2, [r2, #TSK_ADDR_LIMIT]
+-	sub	r2, r2, #4
+-	cmp	r0, r2
++	bic	ip, sp, #0x1f00
++	bic	ip, ip, #0x00ff
++	ldr	ip, [ip, #TSK_ADDR_LIMIT]
++	sub	ip, ip, #4
++	cmp	r0, ip
+ 4:	strlst	r1, [r0]
+ 	movls	r0, #0
+ 	movls	pc, lr
+@@ -74,7 +74,7 @@ __put_user_8:
+ 	sub	ip, ip, #8
+ 	cmp	r0, ip
+ 5:	strlst	r1, [r0], #4
+-6:	strlst	r2, [r0]
++6:	strlst	ip, [r0]
+ 	movls	r0, #0
+ 	movls	pc, lr
+ 
+--- linux/include/asm-arm/uaccess.h.orig	Mon Nov 17 07:41:04 2003
++++ linux/include/asm-arm/uaccess.h	Mon Nov 17 07:41:37 2003
+@@ -86,7 +86,7 @@ extern int __get_user_bad(void);
+ 			__get_user_x(__r1, __p, __e, 1, "lr");		\
+ 	       		break;						\
+ 		case 2:							\
+-			__get_user_x(__r1, __p, __e, 2, "r2", "lr");	\
++			__get_user_x(__r1, __p, __e, 2, "ip", "lr");	\
+ 			break;						\
+ 		case 4:							\
+ 	       		__get_user_x(__r1, __p, __e, 4, "lr");		\
+@@ -122,13 +122,13 @@ extern int __put_user_bad(void);
+ 		register int __e asm("r0");				\
+ 		switch (sizeof(*(p))) {					\
+ 		case 1:							\
+-			__put_user_x(__r1, __p, __e, 1, "r2", "lr");	\
++			__put_user_x(__r1, __p, __e, 1, "ip", "lr");	\
+ 			break;						\
+ 		case 2:							\
+-			__put_user_x(__r1, __p, __e, 2, "r2", "lr");	\
++			__put_user_x(__r1, __p, __e, 2, "ip", "lr");	\
+ 			break;						\
+ 		case 4:							\
+-			__put_user_x(__r1, __p, __e, 4, "r2", "lr");	\
++			__put_user_x(__r1, __p, __e, 4, "ip", "lr");	\
+ 			break;						\
+ 		case 8:							\
+ 			__put_user_x(__r1, __p, __e, 8, "ip", "lr");	\

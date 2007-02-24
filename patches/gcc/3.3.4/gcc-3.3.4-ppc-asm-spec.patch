@@ -1,0 +1,86 @@
+Based on gcc-3.4.0/gcc-3.3.3h-ppc-asm-spec.patch
+
+Fixes the following errors when building gcc for ppc7450:
+
+/tmp/ccj38uQs.s: Assembler messages:
+/tmp/ccj38uQs.s:4370: Error: Unrecognized opcode: `mfvrsave'
+/tmp/ccj38uQs.s:4404: Error: Unrecognized opcode: `stvx'
+/tmp/ccj38uQs.s:4571: Error: Unrecognized opcode: `lvx'
+/tmp/ccj38uQs.s:4572: Error: Unrecognized opcode: `mtvrsave'
+make[2]: *** [libgcc/./unwind-dw2.o] Error 1
+make[2]: Leaving directory `/opt/crosstool-0.28-rc35/build/powerpc-7450-linux-gnu/gcc-3.3.4-glibc-2.3.2/build-gcc-core/gcc'
+make[1]: *** [stmp-multilib] Error 2
+make[1]: Leaving directory `/opt/crosstool-0.28-rc35/build/powerpc-7450-linux-gnu/gcc-3.3.4-glibc-2.3.2/build-gcc-core/gcc'
+make: *** [all-gcc] Error 2
+
+Note that the "-mcpu=7450" option must appear on the "gcc" command line in
+order for "-maltivec" to be passed to the assembler.  Or, "-maltivec" itself
+may be passed to the "gcc" command.
+
+Contributed by Tom Warzeka <waz@quahog.npt.nuwc.navy.mil>
+
+===================================================================
+--- gcc-3.3.4/gcc/config/rs6000/rs6000.h~	2004-02-01 23:40:49.000000000 -0500
++++ gcc-3.3.4/gcc/config/rs6000/rs6000.h	2004-08-18 14:15:57.000000000 -0400
+@@ -52,23 +52,29 @@
+ "%{!mcpu*: \
+   %{mpower: %{!mpower2: -mpwr}} \
+   %{mpower2: -mpwrx} \
+-  %{mpowerpc*: -mppc} \
++  %{mpowerpc64*: -mppc64} \
++  %{!mpowerpc64*: %{mpowerpc*: -mppc}} \
+   %{mno-power: %{!mpowerpc*: -mcom}} \
+-  %{!mno-power: %{!mpower2: %(asm_default)}}} \
++  %{!mno-power: %{!mpower*: %(asm_default)}}} \
+ %{mcpu=common: -mcom} \
+ %{mcpu=power: -mpwr} \
+ %{mcpu=power2: -mpwrx} \
+-%{mcpu=power3: -m604} \
++%{mcpu=power3: -mppc64} \
+ %{mcpu=power4: -mpower4} \
++%{mcpu=power5: -mpower4} \
+ %{mcpu=powerpc: -mppc} \
+ %{mcpu=rios: -mpwr} \
+ %{mcpu=rios1: -mpwr} \
+ %{mcpu=rios2: -mpwrx} \
+ %{mcpu=rsc: -mpwr} \
+ %{mcpu=rsc1: -mpwr} \
++%{mcpu=rs64a: -mppc64} \
+ %{mcpu=401: -mppc} \
+ %{mcpu=403: -m403} \
+ %{mcpu=405: -m405} \
++%{mcpu=405fp: -m405} \
++%{mcpu=440: -m440} \
++%{mcpu=440fp: -m440} \
+ %{mcpu=505: -mppc} \
+ %{mcpu=601: -m601} \
+ %{mcpu=602: -mppc} \
+@@ -77,18 +83,23 @@
+ %{mcpu=ec603e: -mppc} \
+ %{mcpu=604: -mppc} \
+ %{mcpu=604e: -mppc} \
+-%{mcpu=620: -mppc} \
+-%{mcpu=630: -m604} \
++%{mcpu=620: -mppc64} \
++%{mcpu=630: -mppc64} \
+ %{mcpu=740: -mppc} \
+-%{mcpu=7400: -mppc} \
+-%{mcpu=7450: -mppc} \
+ %{mcpu=750: -mppc} \
++%{mcpu=G3: -mppc} \
++%{mcpu=7400: -mppc -maltivec} \
++%{mcpu=7450: -mppc -maltivec} \
++%{mcpu=G4: -mppc -maltivec} \
+ %{mcpu=801: -mppc} \
+ %{mcpu=821: -mppc} \
+ %{mcpu=823: -mppc} \
+ %{mcpu=860: -mppc} \
++%{mcpu=970: -mpower4 -maltivec} \
++%{mcpu=G5: -mpower4 -maltivec} \
+ %{mcpu=8540: -me500} \
+-%{maltivec: -maltivec}"
++%{maltivec: -maltivec} \
++-many"
+ 
+ #define CPP_DEFAULT_SPEC ""
+ 

@@ -1,0 +1,124 @@
+To: Glibc hackers <libc-hacker at sources dot redhat dot com>
+Subject: iconvdata: Get rid of lvalue casts
+From: Andreas Jaeger <aj at suse dot de>
+Date: Sun, 07 Mar 2004 08:29:47 +0100
+Message-ID: <m3fzclt8r8.fsf@gromit.moeb>
+
+Here's one more patch to get rid of lvalues to make GCC 3.5 happy.  It
+generates the same code as before on my machine and passes the
+testsuite.
+
+Ok to commit?
+
+Andreas
+
+2004-03-07  Andreas Jaeger  <aj@suse.de>
+
+	* iconvdata/iso-2022-cn-ext.c (BODY): Remove cast used as lvalue.
+	* iconvdata/tcvn5712-1.c (EMIT_SHIFT_TO_INIT): Likewise.
+	* iconvdata/euc-jisx0213.c (EMIT_SHIFT_TO_INIT): Likewise.
+	* iconvdata/shift_jisx0213.c (EMIT_SHIFT_TO_INIT): Likewise.
+	* iconvdata/tscii.c (EMIT_SHIFT_TO_INIT): Likewise.
+
+[rediffed to make crosstool happy]
+
+diff -ur glibc-2.3.3.orig/iconvdata/euc-jisx0213.c glibc-2.3.3.new/iconvdata/euc-jisx0213.c
+--- glibc-2.3.3.orig/iconvdata/euc-jisx0213.c	Mon Dec  2 14:07:54 2002
++++ glibc-2.3.3.new/iconvdata/euc-jisx0213.c	Fri Mar 18 09:29:22 2005
+@@ -1,5 +1,5 @@
+ /* Conversion from and to EUC-JISX0213.
+-   Copyright (C) 2002 Free Software Foundation, Inc.
++   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Bruno Haible <bruno@clisp.org>, 2002.
+ 
+@@ -83,7 +83,8 @@
+ 	  if (__builtin_expect (outbuf + 4 <= outend, 1))		      \
+ 	    {								      \
+ 	      /* Write out the last character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 3;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 3;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      data->__statep->__count = 0;				      \
+ 	    }								      \
+ 	  else								      \
+diff -ur glibc-2.3.3.orig/iconvdata/iso-2022-cn-ext.c glibc-2.3.3.new/iconvdata/iso-2022-cn-ext.c
+--- glibc-2.3.3.orig/iconvdata/iso-2022-cn-ext.c	Fri Jun 28 14:13:14 2002
++++ glibc-2.3.3.new/iconvdata/iso-2022-cn-ext.c	Fri Mar 18 09:29:22 2005
+@@ -1,5 +1,5 @@
+ /* Conversion module for ISO-2022-CN-EXT.
+-   Copyright (C) 2000-2002 Free Software Foundation, Inc.
++   Copyright (C) 2000-2002, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper <drepper@cygnus.com>, 2000.
+ 
+@@ -377,7 +377,8 @@
+ 	  }								      \
+       }									      \
+ 									      \
+-    *((uint32_t *) outptr)++ = ch;					      \
++    *((uint32_t *) outptr) = ch;					      \
++    outptr += sizeof (uint32_t);					      \
+   }
+ #define EXTRA_LOOP_DECLS	, int *setp
+ #define INIT_PARAMS		int set = (*setp >> 3) & CURRENT_MASK; \
+diff -ur glibc-2.3.3.orig/iconvdata/shift_jisx0213.c glibc-2.3.3.new/iconvdata/shift_jisx0213.c
+--- glibc-2.3.3.orig/iconvdata/shift_jisx0213.c	Mon Dec  2 14:07:56 2002
++++ glibc-2.3.3.new/iconvdata/shift_jisx0213.c	Fri Mar 18 09:29:22 2005
+@@ -1,5 +1,5 @@
+ /* Conversion from and to Shift_JISX0213.
+-   Copyright (C) 2002 Free Software Foundation, Inc.
++   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Bruno Haible <bruno@clisp.org>, 2002.
+ 
+@@ -83,7 +83,8 @@
+ 	  if (__builtin_expect (outbuf + 4 <= outend, 1))		      \
+ 	    {								      \
+ 	      /* Write out the last character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 3;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 3;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      data->__statep->__count = 0;				      \
+ 	    }								      \
+ 	  else								      \
+diff -ur glibc-2.3.3.orig/iconvdata/tcvn5712-1.c glibc-2.3.3.new/iconvdata/tcvn5712-1.c
+--- glibc-2.3.3.orig/iconvdata/tcvn5712-1.c	Mon Dec  2 14:07:52 2002
++++ glibc-2.3.3.new/iconvdata/tcvn5712-1.c	Fri Mar 18 09:29:22 2005
+@@ -1,5 +1,5 @@
+ /* Conversion to and from TCVN5712-1.
+-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
++   Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper <drepper@redhat.com>, 2001.
+ 
+@@ -68,7 +68,8 @@
+ 	  if (__builtin_expect (outbuf + 4 <= outend, 1))		      \
+ 	    {								      \
+ 	      /* Write out the last character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 3;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 3;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      data->__statep->__count = 0;				      \
+ 	    }								      \
+ 	  else								      \
+diff -ur glibc-2.3.3.orig/iconvdata/tscii.c glibc-2.3.3.new/iconvdata/tscii.c
+--- glibc-2.3.3.orig/iconvdata/tscii.c	Mon Sep 23 20:39:45 2002
++++ glibc-2.3.3.new/iconvdata/tscii.c	Fri Mar 18 09:29:22 2005
+@@ -1,5 +1,5 @@
+ /* Conversion from and to TSCII.
+-   Copyright (C) 2002 Free Software Foundation, Inc.
++   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Bruno Haible <bruno@clisp.org>, 2002.
+ 
+@@ -98,7 +98,8 @@
+ 		  break;						      \
+ 		}							      \
+ 	      /* Write out the pending character.  */			      \
+-	      *((uint32_t *) outbuf)++ = data->__statep->__count >> 8;	      \
++	      *((uint32_t *) outbuf) = data->__statep->__count >> 8;	      \
++	      outbuf += sizeof (uint32_t);				      \
+ 	      /* Retrieve the successor state.  */			      \
+ 	      data->__statep->__count =					      \
+ 		tscii_next_state[(data->__statep->__count >> 4) & 0x0f];      \

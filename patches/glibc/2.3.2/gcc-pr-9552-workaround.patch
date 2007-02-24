@@ -1,0 +1,20 @@
+See http://gcc.gnu.org/PR9552
+
+Works around gcc error
+  "soinit.c:25: internal compiler error: in named_section_flags, at varasm.c:412"
+by fixing slightly incorrect code in glibc (the .eh_frame section used to
+be read-write, but it's now readonly according to discussion in
+http://sources.redhat.com/ml/binutils/2002-11/msg00592.html,
+so it's arguably incorrect to continue to put variables in there that aren't const).
+
+--- glibc-2.3.2/elf/soinit.c 2001-11-16 00:09:20.000000000 +0100
++++ glibc-2.3.2/elf/soinit.c   2003-08-12 09:13:34.000000000 +0200
+@@ -25,7 +25,7 @@
+ }
+
+ #ifdef HAVE_DWARF2_UNWIND_INFO
+-static char __EH_FRAME_BEGIN__[]
++const static char __EH_FRAME_BEGIN__[]
+      __attribute__ ((section (".eh_frame")))
+      = { };
+ # ifdef HAVE_DWARF2_UNWIND_INFO_STATIC

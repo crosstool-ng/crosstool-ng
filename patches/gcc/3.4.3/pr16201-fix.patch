@@ -1,0 +1,149 @@
+See http://gcc.gnu.org/PR16201
+
+Should fix "bad immediate value for offset" errors for several flavors of arm, e.g.
+
+/tmp/ccmdoQyg.s: Assembler messages:
+/tmp/ccmdoQyg.s:6235: Error: bad immediate value for offset (4096)
+make[2]: *** [crosstool-0.32/build/arm-xscale-linux-gnu/gcc-3.4.3-glibc-2.3.3/build-glibc/locale/ld-collate.o] Error 1
+
+/tmp/cc0c7qop.s: Assembler messages:
+/tmp/cc0c7qop.s:6234: Error: bad immediate value for offset (4104)
+make[2]: *** [crosstool-0.32/build/armv5b-softfloat-linux/gcc-3.4.3-glibc-2.3.3/build-glibc/locale/ld-collate.o] Error 1
+
+
+CVSROOT:        /cvs/gcc
+Module name:    gcc
+Branch:         gcc-3_4-branch
+Changes by:     rearnsha@gcc.gnu.org    2005-02-01 15:07:05
+
+Modified files:
+        gcc            : ChangeLog 
+        gcc/config/arm : arm-protos.h arm.c 
+
+Log message:
+        PR target/16201
+        * arm.c (arm_eliminable_register): New function.
+        (adjacent_mem_locations): Don't allow eliminable registers.  Use
+        HOST_WIDE_INT for address offsets.
+        * arm-protos.h (arm_eliminable_register): Add prototype.
+
+Patches:
+http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/ChangeLog.diff?cvsroot=gcc&only_with_tag=gcc-3_4-branch&r1=2.2326.2.790&r2=2.2326.2.791
+http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/config/arm/arm-protos.h.diff?cvsroot=gcc&only_with_tag=gcc-3_4-branch&r1=1.61&r2=1.61.4.1
+http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/config/arm/arm.c.diff?cvsroot=gcc&only_with_tag=gcc-3_4-branch&r1=1.317.4.8&r2=1.317.4.9
+
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/arm/arm-protos.h,v
+retrieving revision 1.61
+retrieving revision 1.61.4.1
+diff -u -r1.61 -r1.61.4.1
+--- gcc/gcc/config/arm/arm-protos.h	2003/11/20 11:44:18	1.61
++++ gcc/gcc/config/arm/arm-protos.h	2005/02/01 15:07:02	1.61.4.1
+@@ -1,5 +1,6 @@
+ /* Prototypes for exported functions defined in arm.c and pe.c
+-   Copyright (C) 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
++   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2005
++   Free Software Foundation, Inc.
+    Contributed by Richard Earnshaw (rearnsha@arm.com)
+    Minor hacks by Nick Clifton (nickc@cygnus.com)
+ 
+@@ -138,6 +139,7 @@
+ extern int arm_is_longcall_p (rtx, int, int);
+ extern int    arm_emit_vector_const (FILE *, rtx);
+ extern const char * arm_output_load_gr (rtx *);
++extern int arm_eliminable_register (rtx);
+ 
+ #if defined TREE_CODE
+ extern rtx arm_function_arg (CUMULATIVE_ARGS *, enum machine_mode, tree, int);
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/arm/arm.c,v
+retrieving revision 1.317.4.8
+retrieving revision 1.317.4.9
+diff -u -r1.317.4.8 -r1.317.4.9
+--- gcc/gcc/config/arm/arm.c	2004/04/29 19:52:41	1.317.4.8
++++ gcc/gcc/config/arm/arm.c	2005/02/01 15:07:02	1.317.4.9
+@@ -1,6 +1,6 @@
+ /* Output routines for GCC for ARM.
+    Copyright (C) 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
+-   2002, 2003, 2004  Free Software Foundation, Inc.
++   2002, 2003, 2004, 2005  Free Software Foundation, Inc.
+    Contributed by Pieter `Tiggr' Schoenmakers (rcpieter@win.tue.nl)
+    and Martin Simmons (@harleqn.co.uk).
+    More major hacks by Richard Earnshaw (rearnsha@arm.com).
+@@ -4056,6 +4056,16 @@
+ 	  && INTVAL (op) < 64);
+ }
+ 
++/* Return true if X is a register that will be eliminated later on.  */
++int
++arm_eliminable_register (rtx x)
++{
++  return REG_P (x) && (REGNO (x) == FRAME_POINTER_REGNUM
++		       || REGNO (x) == ARG_POINTER_REGNUM
++		       || (REGNO (x) >= FIRST_VIRTUAL_REGISTER
++			   && REGNO (x) <= LAST_VIRTUAL_REGISTER));
++}
++
+ /* Returns TRUE if INSN is an "LDR REG, ADDR" instruction.
+    Use by the Cirrus Maverick code which has to workaround
+    a hardware bug triggered by such instructions.  */
+@@ -4569,33 +4579,42 @@
+ 	  || (GET_CODE (XEXP (b, 0)) == PLUS
+ 	      && GET_CODE (XEXP (XEXP (b, 0), 1)) == CONST_INT)))
+     {
+-      int val0 = 0, val1 = 0;
+-      int reg0, reg1;
+-  
++      HOST_WIDE_INT val0 = 0, val1 = 0;
++      rtx reg0, reg1;
++      int val_diff;
++
+       if (GET_CODE (XEXP (a, 0)) == PLUS)
+         {
+-	  reg0 = REGNO  (XEXP (XEXP (a, 0), 0));
++	  reg0 = XEXP (XEXP (a, 0), 0);
+ 	  val0 = INTVAL (XEXP (XEXP (a, 0), 1));
+         }
+       else
+-	reg0 = REGNO (XEXP (a, 0));
++	reg0 = XEXP (a, 0);
+ 
+       if (GET_CODE (XEXP (b, 0)) == PLUS)
+         {
+-	  reg1 = REGNO  (XEXP (XEXP (b, 0), 0));
++	  reg1 = XEXP (XEXP (b, 0), 0);
+ 	  val1 = INTVAL (XEXP (XEXP (b, 0), 1));
+         }
+       else
+-	reg1 = REGNO (XEXP (b, 0));
++	reg1 = XEXP (b, 0);
+ 
+       /* Don't accept any offset that will require multiple
+ 	 instructions to handle, since this would cause the
+ 	 arith_adjacentmem pattern to output an overlong sequence.  */
+       if (!const_ok_for_op (PLUS, val0) || !const_ok_for_op (PLUS, val1))
+ 	return 0;
+-      
+-      return (reg0 == reg1) && ((val1 - val0) == 4 || (val0 - val1) == 4);
++
++      /* Don't allow an eliminable register: register elimination can make
++	 the offset too large.  */
++      if (arm_eliminable_register (reg0))
++	return 0;
++
++      val_diff = val1 - val0;
++      return ((REGNO (reg0) == REGNO (reg1))
++	      && (val_diff == 4 || val_diff == -4));
+     }
++
+   return 0;
+ }
+ 
+@@ -7301,7 +7320,6 @@
+   return "";
+ }
+ 
+-
+ /* Output a move from arm registers to an fpa registers.
+    OPERANDS[0] is an fpa register.
+    OPERANDS[1] is the first registers of an arm register pair.  */

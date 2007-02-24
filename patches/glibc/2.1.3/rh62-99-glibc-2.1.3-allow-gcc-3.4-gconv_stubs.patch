@@ -1,0 +1,44 @@
+"Fixes" gcc-3.4.0 errors:
+gconv_stubs.c:49: error: conflicting types for '__gconv_close_transform'
+../iconv/gconv_int.h:131: error: previous declaration of '__gconv_close_transform' was here
+gconv_stubs.c:49: error: conflicting types for '__gconv_close_transform'
+../iconv/gconv_int.h:131: error: previous declaration of '__gconv_close_transform' was here
+gconv_stubs.c:52: error: conflicting types for '__gconv'
+../iconv/gconv_int.h:112: error: previous declaration of '__gconv' was here
+gconv_stubs.c:52: error: conflicting types for '__gconv'
+../iconv/gconv_int.h:112: error: previous declaration of '__gconv' was here
+gconv_stubs.c:54: error: conflicting types for '__gconv_find_transform'
+../iconv/gconv_int.h:119: error: previous declaration of '__gconv_find_transform' was here
+gconv_stubs.c:54: error: conflicting types for '__gconv_find_transform'
+../iconv/gconv_int.h:119: error: previous declaration of '__gconv_find_transform' was here
+gconv_stubs.c:56: error: conflicting types for '__gconv_open'
+../iconv/gconv_int.h:99: error: previous declaration of '__gconv_open' was here
+gconv_stubs.c:56: error: conflicting types for '__gconv_open'
+../iconv/gconv_int.h:99: error: previous declaration of '__gconv_open' was here
+make[2]: *** [/home/dank/wk/crosstool-0.28-rc4h/build/i686-unknown-linux-gnu/gcc-3.4.0-20040406-glibc-2.1.3/build-glibc/c_stubs/gconv_stubs.o] Error 1
+make[2]: Leaving directory `/home/dank/wk/crosstool-0.28-rc4h/build/i686-unknown-linux-gnu/gcc-3.4.0-20040406-glibc-2.1.3/glibc-2.1.3/c_stubs'
+
+although the right thing would probably be to declare the 
+stubs to have the right attributes.
+
+--- glibc-2.1.3/c_stubs/gconv_stubs.c.old	Sun Apr 11 20:25:09 2004
++++ glibc-2.1.3/c_stubs/gconv_stubs.c	Sun Apr 11 20:29:35 2004
+@@ -18,7 +18,18 @@
+    Boston, MA 02111-1307, USA.  */
+ 
+ #include <features.h>
++
++/* strange hack workaround for gcc-3.4.0.  Might be a better way. */
++#define __gconv_close_transform foo__gconv_close_transform
++#define __gconv foo__gconv
++#define __gconv_find_transform foo__gconv_find_transform
++#define __gconv_open foo__gconv_open
++
+ #include <gconv_int.h>
++#undef __gconv_close_transform
++#undef __gconv
++#undef __gconv_find_transform
++#undef __gconv_open
+ 
+ /* hack for self identification */
+ int __c_stubs_is_compiled_in;

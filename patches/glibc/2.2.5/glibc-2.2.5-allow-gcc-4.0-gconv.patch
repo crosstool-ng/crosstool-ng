@@ -1,0 +1,226 @@
+Fixes
+gconv_open.c: In function `__gconv_open':
+gconv_open.c:186: error: invalid lvalue in assignment
+when building glibc-2.2.5 with gcc-4.0.
+Same as ../glibc-2.3.2/glibc-2.3.2-allow-gcc-3.5-gconv.patch
+but rediffed against glibc-2.2.5.
+
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/iconv/gconv_simple.c.diff?r1=1.59&r2=1.63&cvsroot=glibc'
+        * (internal_ucs4_loop): Fix typo in last change.
+
+        * (internal_ucs4le_loop): Remove cast used as lvalue.
+
+        * Fix last commit.
+
+	* iconv/gconv_simple.c (ucs4le_internal_loop): Remove cast used as lvalue.
+	(internal_ucs4le_loop_single): Likewise.
+	(ucs4_internal_loop): Likewise.
+	(BODY): Likewise.
+	(internal_ucs4_loop_single): Likewise.
+
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/iconv/gconv_open.c.diff?r1=1.32&r2=1.33&cvsroot=glibc'
+	* iconv/gconv_simple.c (ucs4le_internal_loop): Remove cast used as lvalue.
+	(internal_ucs4le_loop_single): Likewise.
+	(ucs4_internal_loop): Likewise.
+	(BODY): Likewise.
+	(internal_ucs4_loop_single): Likewise.
+
+
+===================================================================
+RCS file: /cvs/glibc/libc/iconv/gconv_open.c,v
+retrieving revision 1.32
+retrieving revision 1.33
+diff -u -r1.32 -r1.33
+--- libc/iconv/gconv_open.c	2001/11/29 04:51:58	1.32
++++ libc/iconv/gconv_open.c	2004/02/07 15:56:32	1.33
+@@ -1,5 +1,5 @@
+ /* Find matching transformation algorithms and initialize steps.
+-   Copyright (C) 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
++   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper <drepper@cygnus.com>, 1997.
+ 
+@@ -182,8 +182,13 @@
+ 	      || __builtin_expect (__gconv_translit_find (runp), 0) == 0)
+ 	    lastp = runp;
+ 	  else
+-	    /* This means we haven't found the module.  Remove it.  */
+-	    (lastp == NULL ? trans : lastp->next) = runp->next;
++	    {
++	      /* This means we haven't found the module.  Remove it.  */
++	      if (lastp == NULL)
++		trans  = runp->next;
++	      else
++		lastp->next  = runp->next;
++	    }
+ 	}
+ 
+       /* Allocate room for handle.  */
+===================================================================
+--- glibc-2.2.5/iconv/gconv_simple.c.old	2001-08-03 15:06:46.000000000 -0700
++++ glibc-2.2.5/iconv/gconv_simple.c	2005-03-10 00:49:45.558181608 -0800
+@@ -1,5 +1,5 @@
+ /* Simple transformations functions.
+-   Copyright (C) 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
++   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2004 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+    Contributed by Ulrich Drepper <drepper@cygnus.com>, 1997.
+ 
+@@ -73,12 +73,13 @@
+ #if __BYTE_ORDER == __LITTLE_ENDIAN
+   /* Sigh, we have to do some real work.  */
+   size_t cnt;
++  uint32_t *outptr32 = (uint32_t *) outptr;
+ 
+   for (cnt = 0; cnt < n_convert; ++cnt, inptr += 4)
+-    *((uint32_t *) outptr)++ = bswap_32 (*(const uint32_t *) inptr);
++    *outptr32++ = bswap_32 (*(const uint32_t *) inptr);
+ 
+   *inptrp = inptr;
+-  *outptrp = outptr;
++  *outptrp = (unsigned char *) outptr32;
+ #elif __BYTE_ORDER == __BIG_ENDIAN
+   /* Simply copy the data.  */
+   *inptrp = inptr + n_convert * 4;
+@@ -176,13 +177,16 @@
+   (*outptrp)[2] = state->__value.__wchb[1];
+   (*outptrp)[3] = state->__value.__wchb[0];
+ 
+-  *outptrp += 4;
+ #elif __BYTE_ORDER == __BIG_ENDIAN
+   /* XXX unaligned */
+-  *(*((uint32_t **) outptrp)++) = state->__value.__wch;
++  (*outptrp)[0] = state->__value.__wchb[0];
++  (*outptrp)[1] = state->__value.__wchb[1];
++  (*outptrp)[2] = state->__value.__wchb[2];
++  (*outptrp)[3] = state->__value.__wchb[3];
+ #else
+ # error "This endianess is not supported."
+ #endif
++  *outptrp += 4;
+ 
+   /* Clear the state buffer.  */
+   state->__count &= ~7;
+@@ -251,7 +255,8 @@
+ 	  return __GCONV_ILLEGAL_INPUT;
+ 	}
+ 
+-      *((uint32_t *) outptr)++ = inval;
++      *((uint32_t *) outptr) = inval;
++      outptr += sizeof (uint32_t);
+     }
+ 
+   *inptrp = inptr;
+@@ -427,9 +432,11 @@
+ #if __BYTE_ORDER == __BIG_ENDIAN
+   /* Sigh, we have to do some real work.  */
+   size_t cnt;
++  uint32_t *outptr32 = (uint32_t *) outptr;
+ 
+   for (cnt = 0; cnt < n_convert; ++cnt, inptr += 4)
+-    *((uint32_t *) outptr)++ = bswap_32 (*(const uint32_t *) inptr);
++    *outptr32++ = bswap_32 (*(const uint32_t *) inptr);
++  outptr = (unsigned char *) outptr32;
+ 
+   *inptrp = inptr;
+   *outptrp = outptr;
+@@ -530,12 +537,17 @@
+   (*outptrp)[2] = state->__value.__wchb[1];
+   (*outptrp)[3] = state->__value.__wchb[0];
+ 
+-  *outptrp += 4;
+ #else
+   /* XXX unaligned */
+-  *(*((uint32_t **) outptrp)++) = state->__value.__wch;
++  (*outptrp)[0] = state->__value.__wchb[0];
++  (*outptrp)[1] = state->__value.__wchb[1];
++  (*outptrp)[2] = state->__value.__wchb[2];
++  (*outptrp)[3] = state->__value.__wchb[3];
++
+ #endif
+ 
++  *outptrp += 4;
++
+   /* Clear the state buffer.  */
+   state->__count &= ~7;
+ 
+@@ -600,7 +612,8 @@
+ 	  return __GCONV_ILLEGAL_INPUT;
+ 	}
+ 
+-      *((uint32_t *) outptr)++ = inval;
++      *((uint32_t *) outptr) = inval;
++      outptr += sizeof (uint32_t);
+     }
+ 
+   *inptrp = inptr;
+@@ -782,7 +795,8 @@
+       }									      \
+     else								      \
+       /* It's an one byte sequence.  */					      \
+-      *((uint32_t *) outptr)++ = *inptr++;				      \
++      *((uint32_t *) outptr) = *inptr++;				      \
++      outptr += sizeof (uint32_t);					      \
+   }
+ #define LOOP_NEED_FLAGS
+ #include <iconv/loop.c>
+@@ -812,7 +826,8 @@
+       }									      \
+     else								      \
+       /* It's an one byte sequence.  */					      \
+-      *outptr++ = *((const uint32_t *) inptr)++;			      \
++      *outptr++ = *((const uint32_t *) inptr);				      \
++      inptr += sizeof (uint32_t);					      \
+   }
+ #define LOOP_NEED_FLAGS
+ #include <iconv/loop.c>
+@@ -1031,7 +1046,8 @@
+       }									      \
+ 									      \
+     /* Now adjust the pointers and store the result.  */		      \
+-    *((uint32_t *) outptr)++ = ch;					      \
++    *((uint32_t *) outptr) = ch;					      \
++    outptr += sizeof (uint32_t);					      \
+   }
+ #define LOOP_NEED_FLAGS
+ 
+@@ -1174,7 +1190,8 @@
+ 	continue;							      \
+       }									      \
+ 									      \
+-    *((uint32_t *) outptr)++ = u1;					      \
++    *((uint32_t *) outptr) = u1;					      \
++    outptr += sizeof (uint32_t);					      \
+     inptr += 2;								      \
+   }
+ #define LOOP_NEED_FLAGS
+@@ -1224,7 +1241,8 @@
+       }									      \
+     else 								      \
+       {									      \
+-	*((uint16_t *) outptr)++ = val;					      \
++	*((uint16_t *) outptr) = val;					      \
++        outptr += sizeof (uint16_t);					      \
+ 	inptr += 4;							      \
+       }									      \
+   }
+@@ -1265,7 +1283,8 @@
+ 	continue;							      \
+       }									      \
+ 									      \
+-    *((uint32_t *) outptr)++ = u1;					      \
++    *((uint32_t *) outptr) = u1;					      \
++    outptr += sizeof (uint32_t);					      \
+     inptr += 2;								      \
+   }
+ #define LOOP_NEED_FLAGS
+@@ -1314,7 +1333,8 @@
+       }									      \
+     else 								      \
+       {									      \
+-	*((uint16_t *) outptr)++ = bswap_16 (val);			      \
++	*((uint16_t *) outptr) = bswap_16 (val);			      \
++	outptr += sizeof (uint16_t);					      \
+ 	inptr += 4;							      \
+       }									      \
+   }

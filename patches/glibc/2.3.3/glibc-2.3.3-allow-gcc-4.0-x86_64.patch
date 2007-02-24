@@ -1,0 +1,60 @@
+Fixes
+
+In file included from dynamic-link.h:22,
+                 from dl-reloc.c:265:
+../sysdeps/x86_64/dl-machine.h: In function '_dl_relocate_object':
+../sysdeps/x86_64/dl-machine.h:361: error: invalid storage class for function 'elf_machine_rela'
+../sysdeps/x86_64/dl-machine.h:525: error: invalid storage class for function 'elf_machine_rela_relative'
+../sysdeps/x86_64/dl-machine.h:534: error: invalid storage class for function 'elf_machine_lazy_rel'
+make[2]: *** [/home/dank/queue/jobdir.fast/crosstool-dev/build/x86_64-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.3.3/build-glibc/elf/dl-reloc.o] Error 1
+
+--- glibc-2.3.3/sysdeps/x86_64/dl-machine.h.old	Wed Mar 16 16:19:15 2005
++++ glibc-2.3.3/sysdeps/x86_64/dl-machine.h	Wed Mar 16 16:22:09 2005
+@@ -354,7 +354,14 @@
+ /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
+    MAP is the object containing the reloc.  */
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rela (struct link_map *map, const Elf64_Rela *reloc,
+ 		  const Elf64_Sym *sym, const struct r_found_version *version,
+ 		  void *const reloc_addr_arg)
+@@ -519,7 +526,14 @@
+     }
+ }
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rela_relative (Elf64_Addr l_addr, const Elf64_Rela *reloc,
+ 			   void *const reloc_addr_arg)
+ {
+@@ -528,7 +542,14 @@
+   *reloc_addr = l_addr + reloc->r_addend;
+ }
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_lazy_rel (struct link_map *map,
+ 		      Elf64_Addr l_addr, const Elf64_Rela *reloc)
+ {

@@ -1,0 +1,60 @@
+Fixes:
+
+In file included from dynamic-link.h:22,
+                 from dl-reloc.c:269:
+../sysdeps/powerpc/powerpc64/dl-machine.h: In function '_dl_relocate_object':
+../sysdeps/powerpc/powerpc64/dl-machine.h:573: error: invalid storage class for function 'elf_machine_rela_relative'
+../sysdeps/powerpc/powerpc64/dl-machine.h:607: error: invalid storage class for function 'elf_machine_rela'
+../sysdeps/powerpc/powerpc64/dl-machine.h:889: error: invalid storage class for function 'elf_machine_lazy_rel'
+make[2]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-dev/build/powerpc64-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.3-20050307/glibc-2.3-20050307/elf'
+
+--- glibc-2.3-20050307/sysdeps/powerpc/powerpc64/dl-machine.h.old	Thu Mar 17 13:35:23 2005
++++ glibc-2.3-20050307/sysdeps/powerpc/powerpc64/dl-machine.h	Thu Mar 17 13:37:12 2005
+@@ -567,7 +567,14 @@
+                                 const Elf64_Sym *refsym)
+                                 attribute_hidden;
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rela_relative (Elf64_Addr l_addr, const Elf64_Rela *reloc,
+ 			   void *const reloc_addr_arg)
+ {
+@@ -598,7 +605,14 @@
+ 
+ /* Perform the relocation specified by RELOC and SYM (which is fully
+    resolved).  MAP is the object containing the reloc.  */
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rela (struct link_map *map,
+ 		  const Elf64_Rela *reloc,
+ 		  const Elf64_Sym *sym,
+@@ -883,7 +897,14 @@
+   MODIFIED_CODE_NOQUEUE (reloc_addr);
+ }
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_lazy_rel (struct link_map *map,
+ 		      Elf64_Addr l_addr, const Elf64_Rela *reloc)
+ {

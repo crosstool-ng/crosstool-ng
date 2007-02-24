@@ -1,0 +1,88 @@
+Retrieved from http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/config/rs6000/rs6000.h.diff?r1=1.234.2.28&r2=1.234.2.29
+
+Should fix following error building gcc for ppc7450:
+
+/tmp/ccmfQBT9.s:5197: Error: Unrecognized opcode: `lvx'
+make[2]: *** [libgcc/./unwind-dw2.o] Error 1
+make[2]: Leaving directory `build-gcc-core/gcc'
+make[1]: *** [stmp-multilib] Error 2
+make[1]: Leaving directory `build-gcc-core/gcc'
+make: *** [all-gcc] Error 2
+
+(I'm not so sure about the unconditional -many it sends to binutils;
+that seems redundant?)
+
+Revision 1.234.2.29, Tue May 25 06:08:57 2004 UTC (6 days, 11 hours ago) by amodra
+Branch: hammer-3_3-branch
+Changes since 1.234.2.28: +15 -11 lines
+
+	* config/rs6000/rs6000.h (ASM_CPU_SPEC): Handle -mpowerpc64 and -mcpu
+	for power5 and rs64a.  Correct condition for default.  Correct power3,
+	620, 630, 7400, 7450, G4, 970 and G5 -mcpu entries.  Add -many.
+
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/rs6000/rs6000.h,v
+retrieving revision 1.234.2.28
+retrieving revision 1.234.2.29
+diff -u -r1.234.2.28 -r1.234.2.29
+--- gcc/gcc/config/rs6000/rs6000.h	2004/05/18 14:26:57	1.234.2.28
++++ gcc/gcc/config/rs6000/rs6000.h	2004/05/25 06:08:57	1.234.2.29
+@@ -51,20 +51,23 @@
+ "%{!mcpu*: \
+   %{mpower: %{!mpower2: -mpwr}} \
+   %{mpower2: -mpwrx} \
+-  %{mpowerpc*: -mppc} \
++  %{mpowerpc64*: -mppc64} \
++  %{!mpowerpc64*: %{mpowerpc*: -mppc}} \
+   %{mno-power: %{!mpowerpc*: -mcom}} \
+-  %{!mno-power: %{!mpower2: %(asm_default)}}} \
++  %{!mno-power: %{!mpower*: %(asm_default)}}} \
+ %{mcpu=common: -mcom} \
+ %{mcpu=power: -mpwr} \
+ %{mcpu=power2: -mpwrx} \
+-%{mcpu=power3: -m604} \
++%{mcpu=power3: -mppc64} \
+ %{mcpu=power4: -mpower4} \
++%{mcpu=power5: -mpower4} \
+ %{mcpu=powerpc: -mppc} \
+ %{mcpu=rios: -mpwr} \
+ %{mcpu=rios1: -mpwr} \
+ %{mcpu=rios2: -mpwrx} \
+ %{mcpu=rsc: -mpwr} \
+ %{mcpu=rsc1: -mpwr} \
++%{mcpu=rs64a: -mppc64} \
+ %{mcpu=401: -mppc} \
+ %{mcpu=403: -m403} \
+ %{mcpu=405: -m405} \
+@@ -79,22 +82,23 @@
+ %{mcpu=ec603e: -mppc} \
+ %{mcpu=604: -mppc} \
+ %{mcpu=604e: -mppc} \
+-%{mcpu=620: -mppc} \
+-%{mcpu=630: -m604} \
++%{mcpu=620: -mppc64} \
++%{mcpu=630: -mppc64} \
+ %{mcpu=740: -mppc} \
+-%{mcpu=7400: -mppc} \
+-%{mcpu=7450: -mppc} \
+-%{mcpu=G4: -mppc} \
+ %{mcpu=750: -mppc} \
+ %{mcpu=G3: -mppc} \
++%{mcpu=7400: -mppc -maltivec} \
++%{mcpu=7450: -mppc -maltivec} \
++%{mcpu=G4: -mppc -maltivec} \
+ %{mcpu=801: -mppc} \
+ %{mcpu=821: -mppc} \
+ %{mcpu=823: -mppc} \
+ %{mcpu=860: -mppc} \
+-%{mcpu=970: -mpower4} \
+-%{mcpu=G5: -mpower4} \
++%{mcpu=970: -mpower4 -maltivec} \
++%{mcpu=G5: -mpower4 -maltivec} \
+ %{mcpu=8540: -me500} \
+-%{maltivec: -maltivec}"
++%{maltivec: -maltivec} \
++-many"
+ 
+ #define CPP_DEFAULT_SPEC ""
+ 

@@ -1,0 +1,36 @@
+Fix for this error:
+
+/cross/crosstool-0.27/build/sparc64-unknown-linux-gnu/gcc-3.3.3-glibc-2.3.2/build-glibc/libc_pic.os(.text+0xc4d28): In function `posix_fallocate64':
+: undefined reference to `__GI___pwrite64'
+collect2: ld returned 1 exit status
+make[1]: *** [/cross/crosstool-0.27/build/sparc64-unknown-linux-gnu/gcc-3.3.3-glibc-2.3.2/build-glibc/libc.so] Error 1
+
+extracted from GLIBC CVS by M.H.VanLeeuwen
+
+cf. 
+http://sources.redhat.com/ml/libc-alpha/2003-10/msg00038.html
+
+Originally thought we needed this hunk, too:
+http://sources.redhat.com/ml/libc-alpha/2003-10/msg00037.html
+but it seems the sysdep.h change is sufficient, and works better 
+when compiling against linux-2.4.
+
+--- glibc-2.3.2/sysdeps/unix/sysv/linux/sparc/sparc64/sysdep.h.orig	Sat Mar 13 02:01:51 2004
++++ glibc-2.3.2/sysdeps/unix/sysv/linux/sparc/sparc64/sysdep.h	Sat Mar 13 02:02:20 2004
+@@ -29,6 +29,16 @@
+ #undef SYS_ify
+ #define SYS_ify(syscall_name) __NR_##syscall_name
+ 
++/* This is a kludge to make syscalls.list find these under the names
++   pread and pwrite, since some kernel headers define those names
++   and some define the *64 names for the same system calls.  */
++#if !defined __NR_pread && defined __NR_pread64
++# define __NR_pread __NR_pread64
++#endif
++#if !defined __NR_pwrite && defined __NR_pwrite64
++# define __NR_pwrite __NR_pwrite64
++#endif
++
+ #ifdef __ASSEMBLER__
+ 
+ #define LOADSYSCALL(x) mov __NR_##x, %g1

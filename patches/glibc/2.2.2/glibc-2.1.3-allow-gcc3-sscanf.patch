@@ -1,0 +1,73 @@
+http://sources.redhat.com/ml/bug-glibc/2003-08/msg00087.html
+
+From: Gernot Hillier <gernot dot hillier at siemens dot com>
+Organization: Siemens AG
+To: Jeffrey Bedard <jefbed at e-list dot net>, bug-glibc at gnu dot org
+Date: Mon, 18 Aug 2003 08:50:03 +0200
+References: <3F3D0899.6020004@e-list.net>
+Message-Id: <200308180850.03431.gernot.hillier@siemens.com>
+Subject: Re: Build Fails with gcc 3.3.1
+X-BeenThere: bug-glibc@gnu.org
+
+Hi!
+
+Am Freitag, 15. August 2003 18:21 schrieb Jeffrey Bedard:
+> gcc sscanf.c -c -std=gnu99 -O2 -Wall -Winline -Wstrict-prototypes
+[...]
+> sscanf.c:31: warning: conflicting types for built-in function `sscanf'
+> sscanf.c: In function `sscanf':
+> sscanf.c:37: error: `va_start' used in function with fixed args
+> .../stdio-common/_itoa.h: At top level:
+> .../stdio-common/_itoa.h:40: warning: inlining failed in call to
+> `_itoa_word' .../stdio-common/_itoa.h:76: warning: called from here
+> make[2]: ***
+> [/home/jefbed/src/packages/glibc-build/stdio-common/sscanf.o] Error 1
+
+You can find the fitting patch in the glibc CVS. You have to replace some 
+function headers. 
+
+I created a patch for glibc-2.2.5 for the same reason. I don't know if it 
+applies cleanly, but if not it should at least show you what to do...
+
+-- 
+Bye,
+
+Gernot Hillier
+Siemens AG
+
+
+
+
+Content-Disposition: attachment; filename="glibc-2.2.5-gcc-3.3.diff"
+
+diff -ur glibc-2.2.5.orig/stdio-common/sprintf.c glibc-2.2.5/stdio-common/sprintf.c
+--- glibc-2.2.5.orig/stdio-common/sprintf.c	2001-07-06 06:55:41.000000000 +0200
++++ glibc-2.2.5/stdio-common/sprintf.c	2003-08-11 13:25:48.000000000 +0200
+@@ -27,9 +27,7 @@
+ /* Write formatted output into S, according to the format string FORMAT.  */
+ /* VARARGS2 */
+ int
+-sprintf (s, format)
+-     char *s;
+-     const char *format;
++sprintf (char *s, const char *format,...)
+ {
+   va_list arg;
+   int done;
+Only in glibc-2.2.5/stdio-common: sprintf.c.orig
+Only in glibc-2.2.5/stdio-common: sprintf.c.rej
+diff -ur glibc-2.2.5.orig/stdio-common/sscanf.c glibc-2.2.5/stdio-common/sscanf.c
+--- glibc-2.2.5.orig/stdio-common/sscanf.c	2001-07-06 06:55:41.000000000 +0200
++++ glibc-2.2.5/stdio-common/sscanf.c	2003-08-11 13:27:58.000000000 +0200
+@@ -27,9 +27,7 @@
+ /* Read formatted input from S, according to the format string FORMAT.  */
+ /* VARARGS2 */
+ int
+-sscanf (s, format)
+-     const char *s;
+-     const char *format;
++sscanf (const char *s, const char *format,...)
+ {
+   va_list arg;
+   int done;
+

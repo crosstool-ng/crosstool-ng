@@ -1,0 +1,203 @@
+Taken from http://sources.redhat.com/ml/crossgcc/2004-02/msg00104.html
+Author: addsub@eyou.com
+Target: ARM
+
+Fixes http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/testsuite/gcc.c-torture/execute/920501-8.c
+and makes printf("%f", 1.0) work.
+
+Lennert Buytenhek wrote in http://sources.redhat.com/ml/crossgcc/2004-09/msg00115.html :
+ It ... fixes the 'printf("%f\n", 0.5); prints 0.000000' and general 'floating point
+ is broken' on my big-endian hardfloat FPA ARM platform. ...
+ It's definitely needed for hardfloat.  So I'd think it's needed for
+ big-endian systems in any case, and for VFP on little-endian systems
+ too.  Someone would have to verify that though.
+
+Lennert Buytenhek wrote in http://sources.redhat.com/ml/crossgcc/2004-09/msg00123.html
+ I just had a look at glibc-20040830, and [this patch] is still needed and useful
+ for this version.  glibc-20040830 out-of-the-box still contains the
+ following wrong assumptions:
+ - sysdeps/arm/bits/endian.h: float word order is big endian (which it is
+   not on vfp systems)
+ - sysdeps/arm/gmp-mparam.h: IEEE doubles are mixed endian (which they
+   are not on big endian systems, neither on vfp systems)
+ - sysdeps/arm/ieee754.h: IEEE doubles are in little endian byte order
+   (which they are not on big endian systems)
+ [This patch] seems the right solution for all of these issues.
+
+Dimitry Andric wrote in http://sources.redhat.com/ml/crossgcc/2004-09/msg00132.html :
+ It's even needed for glibc CVS, AFAICS.
+ The patch hunk which modifies glibc.new/sysdeps/arm/bits/endian.h
+ (currently at version 1.4) is only needed for proper VFP operation.
+ But the hunk which modifies sysdeps/arm/gmp-mparam.h, and the hunk
+ that deletes sysdeps/arm/ieee754.h (yes, this IS correct), are needed
+ for proper operation of *any* FP model on big endian ARM.
+
+See also discussion in followups to
+http://sources.redhat.com/ml/crossgcc/2004-05/msg00245.html)
+
+Message-ID: <276985760.37584@eyou.com>
+Received: from unknown (HELO eyou.com) (172.16.2.2)
+ by 0.0.0.0 with SMTP; Tue, 17 Feb 2004 10:42:40 +0800
+Received: (qmail 8238 invoked by uid 65534); 17 Feb 2004 10:42:38 +0800
+Date: 17 Feb 2004 10:42:38 +0800
+Message-ID: <20040217104238.8237.qmail@eyou.com>
+From: "add" <addsub@eyou.com>
+To: dank@kegel.com
+Reply-To: "add" <addsub@eyou.com>
+Subject: Re:&nbsp;&nbsp;&nbsp;problem&nbsp;while&nbsp;building&nbsp;arm&nbsp;vfp&nbsp;softfloat&nbsp;gcc&nbsp;`
+
+Hi, Dan, This is a patch I applied to my glibc-2.3.2, then my softfloat
+toolchain can printf("%f\n",1.0). So you may have a try of this
+
+
+diff -uNrp glibc.old/sysdeps/arm/bits/endian.h glibc.new/sysdeps/arm/bits/endian.h
+--- glibc.old/sysdeps/arm/bits/endian.h	1999-04-12 11:59:13.000000000 -0400
++++ glibc.new/sysdeps/arm/bits/endian.h	2004-02-12 09:15:13.000000000 -0500
+@@ -9,4 +9,9 @@
+ #else
+ #define __BYTE_ORDER __LITTLE_ENDIAN
+ #endif
++
++#ifdef __VFP_FP__
++#define __FLOAT_WORD_ORDER __BYTE_ORDER
++#else
+ #define __FLOAT_WORD_ORDER __BIG_ENDIAN
++#endif
+diff -uNrp glibc.old/sysdeps/arm/gmp-mparam.h glibc.new/sysdeps/arm/gmp-mparam.h
+--- glibc.old/sysdeps/arm/gmp-mparam.h	2001-07-07 15:21:19.000000000 -0400
++++ glibc.new/sysdeps/arm/gmp-mparam.h	2004-02-12 09:15:13.000000000 -0500
+@@ -26,5 +26,13 @@ MA 02111-1307, USA. */
+ #define BITS_PER_SHORTINT 16
+ #define BITS_PER_CHAR 8
+ 
+-#define IEEE_DOUBLE_BIG_ENDIAN 0
+-#define IEEE_DOUBLE_MIXED_ENDIAN 1
++#if defined(__ARMEB__)
++# define IEEE_DOUBLE_MIXED_ENDIAN 0
++# define IEEE_DOUBLE_BIG_ENDIAN 1
++#elif defined(__VFP_FP__)
++# define IEEE_DOUBLE_MIXED_ENDIAN 0
++# define IEEE_DOUBLE_BIG_ENDIAN 0
++#else
++# define IEEE_DOUBLE_BIG_ENDIAN 0
++# define IEEE_DOUBLE_MIXED_ENDIAN 1
++#endif
+diff -uNrp glibc.old/sysdeps/arm/ieee754.h glibc.new/sysdeps/arm/ieee754.h
+--- glibc.old/sysdeps/arm/ieee754.h	2001-07-07 15:21:19.000000000 -0400
++++ glibc.new/sysdeps/arm/ieee754.h	1969-12-31 19:00:00.000000000 -0500
+@@ -1,115 +0,0 @@
+-/* Copyright (C) 1992, 1995, 1996, 1998 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, write to the Free
+-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+-   02111-1307 USA.  */
+-
+-#ifndef _IEEE754_H
+-
+-#define _IEEE754_H 1
+-#include <features.h>
+-
+-#include <endian.h>
+-
+-__BEGIN_DECLS
+-
+-union ieee754_float
+-  {
+-    float f;
+-
+-    /* This is the IEEE 754 single-precision format.  */
+-    struct
+-      {
+-	unsigned int mantissa:23;
+-	unsigned int exponent:8;
+-	unsigned int negative:1;
+-      } ieee;
+-
+-    /* This format makes it easier to see if a NaN is a signalling NaN.  */
+-    struct
+-      {
+-	unsigned int mantissa:22;
+-	unsigned int quiet_nan:1;
+-	unsigned int exponent:8;
+-	unsigned int negative:1;
+-      } ieee_nan;
+-  };
+-
+-#define IEEE754_FLOAT_BIAS	0x7f /* Added to exponent.  */
+-
+-
+-union ieee754_double
+-  {
+-    double d;
+-
+-    /* This is the IEEE 754 double-precision format.  */
+-    struct
+-      {
+-	unsigned int mantissa0:20;
+-	unsigned int exponent:11;
+-	unsigned int negative:1;
+-	unsigned int mantissa1:32;
+-      } ieee;
+-
+-    /* This format makes it easier to see if a NaN is a signalling NaN.  */
+-    struct
+-      {
+-	unsigned int mantissa0:19;
+-	unsigned int quiet_nan:1;
+-	unsigned int exponent:11;
+-	unsigned int negative:1;
+-	unsigned int mantissa1:32;
+-      } ieee_nan;
+-  };
+-
+-#define IEEE754_DOUBLE_BIAS	0x3ff /* Added to exponent.  */
+-
+-
+-/* The following two structures are correct for `new' floating point systems but
+-   wrong for the old FPPC.  The only solution seems to be to avoid their use on
+-   old hardware.  */
+-
+-union ieee854_long_double
+-  {
+-    long double d;
+-
+-    /* This is the IEEE 854 double-extended-precision format.  */
+-    struct
+-      {
+-	unsigned int exponent:15;
+-	unsigned int empty:16;
+-	unsigned int negative:1;
+-	unsigned int mantissa1:32;
+-	unsigned int mantissa0:32;
+-      } ieee;
+-
+-    /* This is for NaNs in the IEEE 854 double-extended-precision format.  */
+-    struct
+-      {
+-	unsigned int exponent:15;
+-	unsigned int empty:16;
+-	unsigned int negative:1;
+-	unsigned int mantissa1:32;
+-	unsigned int mantissa0:30;
+-	unsigned int quiet_nan:1;
+-	unsigned int one:1;
+-      } ieee_nan;
+-  };
+-
+-#define IEEE854_LONG_DOUBLE_BIAS 0x3fff
+-
+-__END_DECLS
+-
+-#endif /* ieee754.h */

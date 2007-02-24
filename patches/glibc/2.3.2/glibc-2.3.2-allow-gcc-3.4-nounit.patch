@@ -1,0 +1,137 @@
+Fixes errors like
+
+# gcc-3.4.0-glibc-2.3.2/build-glibc/csu/crtn.o(.text+0x0):mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/csu/crtn.S:20: multiple definition of `dummy'
+# gcc-3.4.0-glibc-2.3.2/build-glibc/csu/crti.o(.text+0x0):mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/csu/crti.S:42: first defined here
+# /gcc-3.4.0-glibc-2.3.2/build-glibc/csu/crti.o(.init+0x28):mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/csu/crti.S:58: undefined reference to `i_am_not_a_leaf'
+
+CVSROOT:	/cvs/glibc
+Module name:	libc
+Changes by:	aj@sourceware.org	2003-12-02 07:37:29
+
+Modified files:
+	.              : configure.in configure config.make.in 
+	csu            : Makefile 
+	locale         : Makefile 
+	linuxthreads   : Makefile 
+	linuxthreads/sysdeps/unix/sysv/linux/x86_64: Makefile 
+	nptl           : Makefile 
+	nptl/sysdeps/unix/sysv/linux/x86_64: Makefile 
+
+Log message:
+	* config.make.in (fno-unit-at-a-time): Define.
+	
+	* configure.in: Add test for -fno-unit-at-a-time.
+	Fix text for -fpie.
+	
+	* csu/Makefile (CFLAGS-initfini.s): Add $(fno_unit_at_a_time).
+	* locale/Makefile (CFLAGS-loadlocale.c): Likewise.
+	
+	For linuxthreads:
+	* Makefile (CFLAGS-pt-initfini.s): Add $(fno_unit_at_a_time).
+	* sysdeps/unix/sysv/linux/x86_64/Makefile (CFLAGS-pt-initfini.s):
+	Likewise.
+	
+	For nptl:
+	* Makefile (CFLAGS-pt-initfini.s): Add $(fno_unit_at_a_time).
+	* sysdeps/unix/sysv/linux/x86_64/Makefile (CFLAGS-pt-initfini.s):
+	Likewise.
+
+Main glibc change retrieved with
+wget -O foo.patch 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/config.make.in.diff?r1=1.98&r2=1.99&cvsroot=glibc' \
+'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/configure.diff?r1=1.393&r2=1.394&cvsroot=glibc' \
+'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/csu/Makefile.diff?r1=1.71&r2=1.72&cvsroot=glibc' \
+'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/locale/Makefile.diff?r1=1.71&r2=1.72&cvsroot=glibc'
+
+and then rediffed against glibc-2.3.2
+See also ../glibc-linuxthreads-2.3.2/glibc-linuxthreads-2.3.2-allow-3.4.patch
+
+diff -aur glibc-2.3.2/config.make.in glibc-2.3.2-nounit/config.make.in
+--- glibc-2.3.2/config.make.in	2002-11-14 14:53:32.000000000 -0800
++++ glibc-2.3.2-nounit/config.make.in	2004-05-29 23:19:58.000000000 -0700
+@@ -50,6 +50,7 @@
+ old-glibc-headers = @old_glibc_headers@
+ unwind-find-fde = @libc_cv_gcc_unwind_find_fde@
+ have-initfini-array = @libc_cv_initfinit_array@
++fno-unit-at-a-time = @fno_unit_at_a_time@
+ 
+ static-libgcc = @libc_cv_gcc_static_libgcc@
+ 
+diff -aur glibc-2.3.2/configure glibc-2.3.2-nounit/configure
+--- glibc-2.3.2/configure	2003-02-26 01:20:48.000000000 -0800
++++ glibc-2.3.2-nounit/configure	2004-05-30 06:22:31.000000000 -0700
+@@ -312,7 +312,7 @@
+ # include <unistd.h>
+ #endif"
+ 
+-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS with_fp with_cvs oldest_abi subdirs force_install all_warnings build build_cpu build_vendor build_os host host_cpu host_vendor host_os base_machine sysnames INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LN_S PWD_P CC MAKE MSGFMT MAKEINFO SED AUTOCONF CFLAGS LDFLAGS CPPFLAGS ac_ct_CC OBJEXT BUILD_CC cross_compiling CPP AR OBJDUMP RANLIB ac_ct_RANLIB MIG AS LD CCVERSION SYSINCLUDES libc_cv_gcc_static_libgcc BASH libc_cv_have_bash2 KSH libc_cv_have_ksh AWK PERL INSTALL_INFO OLD_DEBIAN_INSTALL_INFO BISON VERSIONING libc_cv_asm_protected_directive libc_cv_initfinit_array libc_cv_z_nodelete libc_cv_z_nodlopen libc_cv_z_initfirst libc_cv_Bgroup libc_cv_z_combreloc libc_cv_have_initfini no_whole_archive exceptions LIBGD EGREP sizeof_long_double libc_cv_gcc_unwind_find_fde uname_sysname uname_release uname_version old_glibc_headers libc_cv_slibdir libc_cv_localedir libc_cv_sysconfdir libc_cv_rootsbindir use_ldconfig ldd_rewrite_script gnu_ld gnu_as elf xcoff static shared pic_default profile omitfp bounded static_nss nopic_initfini DEFINES linux_doors mach_interface_list VERSION RELEASE LIBOBJS LTLIBOBJS'
++ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS with_fp with_cvs oldest_abi subdirs force_install all_warnings build build_cpu build_vendor build_os host host_cpu host_vendor host_os base_machine sysnames INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA LN_S PWD_P CC MAKE MSGFMT MAKEINFO SED AUTOCONF CFLAGS LDFLAGS CPPFLAGS ac_ct_CC OBJEXT BUILD_CC cross_compiling CPP AR OBJDUMP RANLIB ac_ct_RANLIB MIG AS LD CCVERSION SYSINCLUDES libc_cv_gcc_static_libgcc BASH libc_cv_have_bash2 KSH libc_cv_have_ksh AWK PERL INSTALL_INFO OLD_DEBIAN_INSTALL_INFO BISON VERSIONING libc_cv_asm_protected_directive libc_cv_initfinit_array libc_cv_z_nodelete libc_cv_z_nodlopen libc_cv_z_initfirst libc_cv_Bgroup libc_cv_z_combreloc fno_unit_at_a_time libc_cv_have_initfini no_whole_archive exceptions LIBGD EGREP sizeof_long_double libc_cv_gcc_unwind_find_fde uname_sysname uname_release uname_version old_glibc_headers libc_cv_slibdir libc_cv_localedir libc_cv_sysconfdir libc_cv_rootsbindir use_ldconfig ldd_rewrite_script gnu_ld gnu_as elf xcoff static shared pic_default profile omitfp bounded static_nss nopic_initfini DEFINES linux_doors mach_interface_list VERSION RELEASE LIBOBJS LTLIBOBJS'
+ ac_subst_files=''
+ 
+ # Initialize some variables set by options.
+@@ -4984,6 +4984,35 @@
+ fi
+ 
+ 
++echo "$as_me:$LINENO: checking for -fno-unit-at-a-time" >&5
++echo $ECHO_N "checking for -fno-unit-at-a-time... $ECHO_C" >&6
++if test "${libc_cv_fno_unit_at_a_time+set}" = set; then
++  echo $ECHO_N "(cached) $ECHO_C" >&6
++else
++  cat > conftest.c <<EOF
++int foo;
++EOF
++if { ac_try='${CC-cc} $CFLAGS $CPPFLAGS -S -fno-unit-at-a-time
++			    conftest.c 1>&5'
++  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
++  (eval $ac_try) 2>&5
++  ac_status=$?
++  echo "$as_me:$LINENO: \$? = $ac_status" >&5
++  (exit $ac_status); }; }
++then
++  libc_cv_fno_unit_at_a_time=yes
++else
++  libc_cv_fno_unit_at_a_time=no
++fi
++rm -f conftest*
++fi
++echo "$as_me:$LINENO: result: $libc_cv_fno_unit_at_a_time" >&5
++echo "${ECHO_T}$libc_cv_fno_unit_at_a_time" >&6
++if test $libc_cv_fno_unit_at_a_time = yes; then
++  fno_unit_at_a_time=-fno-unit-at-a-time
++fi
++
++
+ if test $elf != yes; then
+   echo "$as_me:$LINENO: checking for .init and .fini sections" >&5
+ echo $ECHO_N "checking for .init and .fini sections... $ECHO_C" >&6
+@@ -7236,6 +7265,7 @@
+ s,@libc_cv_z_initfirst@,$libc_cv_z_initfirst,;t t
+ s,@libc_cv_Bgroup@,$libc_cv_Bgroup,;t t
+ s,@libc_cv_z_combreloc@,$libc_cv_z_combreloc,;t t
++s,@fno_unit_at_a_time@,$fno_unit_at_a_time,;t t
+ s,@libc_cv_have_initfini@,$libc_cv_have_initfini,;t t
+ s,@no_whole_archive@,$no_whole_archive,;t t
+ s,@exceptions@,$exceptions,;t t
+diff -aur glibc-2.3.2/csu/Makefile glibc-2.3.2-nounit/csu/Makefile
+--- glibc-2.3.2/csu/Makefile	2002-12-31 14:24:37.000000000 -0800
++++ glibc-2.3.2-nounit/csu/Makefile	2004-05-29 23:18:27.000000000 -0700
+@@ -99,7 +99,7 @@
+ $(objpfx)crt%.o: $(objpfx)crt%.S $(objpfx)defs.h
+ 	$(compile.S) -g0 $(ASFLAGS-.os) -o $@
+ 
+-CFLAGS-initfini.s = -g0 -fPIC -fno-inline-functions
++CFLAGS-initfini.s = -g0 -fPIC -fno-inline-functions $(fno-unit-at-a-time)
+ 
+ vpath initfini.c $(full_config_sysdirs)
+ 
+diff -aur glibc-2.3.2/locale/Makefile glibc-2.3.2-nounit/locale/Makefile
+--- glibc-2.3.2/locale/Makefile	2002-10-17 10:05:53.000000000 -0700
++++ glibc-2.3.2-nounit/locale/Makefile	2004-05-29 23:18:27.000000000 -0700
+@@ -100,6 +100,7 @@
+ CFLAGS-charmap.c = -Wno-write-strings -Wno-char-subscripts
+ CFLAGS-locfile.c = -Wno-write-strings -Wno-char-subscripts
+ CFLAGS-charmap-dir.c = -Wno-write-strings
++CFLAGS-loadlocale.c = $(fno-unit-at-a-time)
+ 
+ # This makes sure -DNOT_IN_libc is passed for all these modules.
+ cpp-srcs-left := $(addsuffix .c,$(localedef-modules) $(localedef-aux) \

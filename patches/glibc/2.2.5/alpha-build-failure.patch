@@ -1,0 +1,37 @@
+See http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=156841
+
+Here's the error I got before I applied the patch:
+
+/home3/dank/crosstool-0.5/result/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/lib/gcc-lib/alpha-unknown-linux-gnu/3.2.3/../../../../alpha-unknown-linux-gnu/bin/ld: /home3/dank/crosstool-0.5/build/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/libc_pic.os: pc-relative relocation against dynamic symbol __divlu
+/home3/dank/crosstool-0.5/result/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/lib/gcc-lib/alpha-unknown-linux-gnu/3.2.3/../../../../alpha-unknown-linux-gnu/bin/ld: /home3/dank/crosstool-0.5/build/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/libc_pic.os: pc-relative relocation against dynamic symbol __divqu
+/home3/dank/crosstool-0.5/result/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/lib/gcc-lib/alpha-unknown-linux-gnu/3.2.3/../../../../alpha-unknown-linux-gnu/bin/ld: /home3/dank/crosstool-0.5/build/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/libc_pic.os: pc-relative relocation against dynamic symbol __remlu
+/home3/dank/crosstool-0.5/result/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/lib/gcc-lib/alpha-unknown-linux-gnu/3.2.3/../../../../alpha-unknown-linux-gnu/bin/ld: /home3/dank/crosstool-0.5/build/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/libc_pic.os: pc-relative relocation against dynamic symbol __remqu
+collect2: ld returned 1 exit status
+make[1]: *** [/home3/dank/crosstool-0.5/build/alpha-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.5/build-glibc/libc.so] Error 1
+
+
+--- glibc-2.2.5/sysdeps/alpha/divrem.h	6 Jul 2001 04:55:45 -0000	1.8
++++ glibc-2.2.5/sysdeps/alpha/divrem.h	15 Jun 2002 20:53:37 -0000	1.9
+@@ -1,4 +1,4 @@
+-/* Copyright (C) 1996, 1997 Free Software Foundation, Inc.
++/* Copyright (C) 1996,97,2002 Free Software Foundation, Inc.
+    Contributed by David Mosberger (davidm@cs.arizona.edu).
+    This file is part of the GNU C Library.
+ 
+@@ -86,6 +86,7 @@
+ 
+ 	.align 3
+ UFUNC_NAME:
++$udiv_entry:
+ 	lda	sp, -STACK(sp)
+ 	.frame	sp, STACK, retaddr, 0
+ #ifdef PROF
+@@ -206,7 +207,7 @@
+ 	cmovge	AT, AT, arg2
+ 
+ 	/* Do the unsigned division.  */
+-	bsr	retaddr, UFUNC_NAME
++	bsr	retaddr, $udiv_entry
+ 
+ 	/* Restore originals and adjust the sign of the result.  */
+ 	ldq	arg1, 0(sp)

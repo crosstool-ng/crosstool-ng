@@ -1,0 +1,86 @@
+
+Fixes
+
+In file included from arch/ppc/kernel/time.c:68:
+arch/ppc/kernel/time.c:92: error: static declaration of 'time_offset' follows non-static declaration
+include/linux/timex.h:236: error: previous declaration of 'time_offset' was here
+make[1]: *** [arch/ppc/kernel/time.o] Error 1
+
+when compiling with gcc-4.0
+
+Taken from
+http://user.it.uu.se/~mikpe/linux/patches/2.6/patch-gcc4-fixes-v2-2.6.11
+Also removes some obsolete externs that caused problems for Mike
+Mike's patch has a bit more stuff in it, but this was enough for me
+
+
+diff -rupN linux-2.6.11/arch/ppc/kernel/time.c linux-2.6.11.gcc4-fixes-v2/arch/ppc/kernel/time.c
+--- linux-2.6.11/arch/ppc/kernel/time.c	2005-03-02 19:24:14.000000000 +0100
++++ linux-2.6.11.gcc4-fixes-v2/arch/ppc/kernel/time.c	2005-03-02 19:36:26.000000000 +0100
+@@ -89,7 +89,7 @@ unsigned long tb_to_ns_scale;
+ 
+ extern unsigned long wall_jiffies;
+ 
+-static long time_offset;
++static long ppc_time_offset;
+ 
+ DEFINE_SPINLOCK(rtc_lock);
+ 
+@@ -172,7 +172,7 @@ void timer_interrupt(struct pt_regs * re
+ 		     xtime.tv_sec - last_rtc_update >= 659 &&
+ 		     abs((xtime.tv_nsec / 1000) - (1000000-1000000/HZ)) < 500000/HZ &&
+ 		     jiffies - wall_jiffies == 1) {
+-		  	if (ppc_md.set_rtc_time(xtime.tv_sec+1 + time_offset) == 0)
++		  	if (ppc_md.set_rtc_time(xtime.tv_sec+1 + ppc_time_offset) == 0)
+ 				last_rtc_update = xtime.tv_sec+1;
+ 			else
+ 				/* Try again one minute later */
+@@ -289,7 +289,7 @@ void __init time_init(void)
+ 	unsigned old_stamp, stamp, elapsed;
+ 
+         if (ppc_md.time_init != NULL)
+-                time_offset = ppc_md.time_init();
++                ppc_time_offset = ppc_md.time_init();
+ 
+ 	if (__USE_RTC()) {
+ 		/* 601 processor: dec counts down by 128 every 128ns */
+@@ -334,10 +334,10 @@ void __init time_init(void)
+ 	set_dec(tb_ticks_per_jiffy);
+ 
+ 	/* If platform provided a timezone (pmac), we correct the time */
+-        if (time_offset) {
+-		sys_tz.tz_minuteswest = -time_offset / 60;
++        if (ppc_time_offset) {
++		sys_tz.tz_minuteswest = -ppc_time_offset / 60;
+ 		sys_tz.tz_dsttime = 0;
+-		xtime.tv_sec -= time_offset;
++		xtime.tv_sec -= ppc_time_offset;
+         }
+         set_normalized_timespec(&wall_to_monotonic,
+                                 -xtime.tv_sec, -xtime.tv_nsec);
+diff -rupN linux-2.6.11/arch/ppc/syslib/open_pic_defs.h linux-2.6.11.gcc4-fixes-v2/arch/ppc/syslib/open_pic_defs.h
+--- linux-2.6.11/arch/ppc/syslib/open_pic_defs.h	2005-03-02 19:24:14.000000000 +0100
++++ linux-2.6.11.gcc4-fixes-v2/arch/ppc/syslib/open_pic_defs.h	2005-03-02 19:36:26.000000000 +0100
+@@ -172,9 +172,6 @@ struct OpenPIC {
+     OpenPIC_Processor Processor[OPENPIC_MAX_PROCESSORS];
+ };
+ 
+-extern volatile struct OpenPIC __iomem *OpenPIC;
+-
+-
+     /*
+      *  Current Task Priority Register
+      */
+diff -rupN linux-2.6.11/include/asm-ppc/prom.h linux-2.6.11.gcc4-fixes-v2/include/asm-ppc/prom.h
+--- linux-2.6.11/include/asm-ppc/prom.h	2003-09-28 12:19:57.000000000 +0200
++++ linux-2.6.11.gcc4-fixes-v2/include/asm-ppc/prom.h	2005-03-02 19:36:26.000000000 +0100
+@@ -13,9 +13,6 @@
+ typedef void *phandle;
+ typedef void *ihandle;
+ 
+-extern char *prom_display_paths[];
+-extern unsigned int prom_num_displays;
+-
+ struct address_range {
+ 	unsigned int space;
+ 	unsigned int address;

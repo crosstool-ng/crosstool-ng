@@ -1,0 +1,497 @@
+Fixes
+td_init.c:30: error: parse error before string constant
+td_init.c:30: error: parse error before string constant
+
+From http://sources.redhat.com/ml/crossgcc/2005-01/msg00106.html :
+---
+Date: Mon, 31 Jan 2005 10:27:32 -0800
+Message-ID: <BF124E1E7928E546B5705D93C699ABDC0C7E99@glimmer.glimmerglassnet.com>
+From: "Vince Chen" <chen at glimmerglass dot com>
+To: <crossgcc at sources dot redhat dot com>
+
+I needed to build glibc-2.2.2 using gcc-3.x to support
+some of our older redhat machines.
+
+This file patches glibc-linuxthreads-2.2.2.
+
+When using crosstool, I placed it in:
+
+   patches/glibc-linuxthreads-2.2.2/linuxthreads-gcc3.patch
+
+(you also need the glibc-gcc3.patch)
+
+-vince
+---
+[removed parts already in threadparam.patch]
+
+===================================================================
+--- glibc-2.2.2/linuxthreads_db.orig/td_init.c	1999-11-22 12:52:34.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_init.c	2005-01-27 19:05:36.000000000 -0800
+@@ -27,6 +27,6 @@
+ td_init (void)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_init");
+   return TD_OK;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_log.c glibc-2.2.2/linuxthreads_db/td_log.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_log.c	1999-10-07 23:31:32.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_log.c	2005-01-27 19:05:29.000000000 -0800
+@@ -27,6 +27,6 @@
+   /* This interface is deprecated in the Sun interface.  We provide it
+      for compatibility but don't do anyhting ourself.  We might in
+      future do some logging if this seems reasonable.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_log");
+   return TD_OK;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_clear_event.c glibc-2.2.2/linuxthreads_db/td_ta_clear_event.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_clear_event.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_clear_event.c	2005-01-27 19:05:20.000000000 -0800
+@@ -22,14 +22,12 @@
+ 
+ 
+ td_err_e
+-td_ta_clear_event (ta, event)
+-     const td_thragent_t *ta;
+-     td_thr_events_t *event;
++td_ta_clear_event (const td_thragent_t *ta, td_thr_events_t *event)
+ {
+   td_thr_events_t old_event;
+   int i;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_clear_event");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_delete.c glibc-2.2.2/linuxthreads_db/td_ta_delete.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_delete.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_delete.c	2005-01-27 19:04:59.000000000 -0800
+@@ -26,7 +26,7 @@
+ td_err_e
+ td_ta_delete (td_thragent_t *ta)
+ {
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_delete");
+ 
+   /* Safety check.  */
+   if (ta == NULL || __td_agent_list == NULL)
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_enable_stats.c glibc-2.2.2/linuxthreads_db/td_ta_enable_stats.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_enable_stats.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_enable_stats.c	2005-01-27 19:04:50.000000000 -0800
+@@ -25,7 +25,7 @@
+ td_ta_enable_stats (const td_thragent_t *ta, int enable)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_enable_stats");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_event_addr.c glibc-2.2.2/linuxthreads_db/td_ta_event_addr.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_event_addr.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_event_addr.c	2005-01-27 19:04:41.000000000 -0800
+@@ -29,7 +29,7 @@
+   td_err_e res = TD_NOEVENT;
+   const char *symbol = NULL;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_event_addr");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_event_getmsg.c glibc-2.2.2/linuxthreads_db/td_ta_event_getmsg.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_event_getmsg.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_event_getmsg.c	2005-01-27 19:04:33.000000000 -0800
+@@ -32,7 +32,7 @@
+   td_eventbuf_t event;
+   psaddr_t addr;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_event_getmsg");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_get_nthreads.c glibc-2.2.2/linuxthreads_db/td_ta_get_nthreads.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_get_nthreads.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_get_nthreads.c	2005-01-27 19:04:25.000000000 -0800
+@@ -26,7 +26,7 @@
+ {
+   psaddr_t addr;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_get_nthreads");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_get_ph.c glibc-2.2.2/linuxthreads_db/td_ta_get_ph.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_get_ph.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_get_ph.c	2005-01-27 19:04:17.000000000 -0800
+@@ -24,7 +24,7 @@
+ td_err_e
+ td_ta_get_ph (const td_thragent_t *ta, struct ps_prochandle **ph)
+ {
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_get_ph");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_get_stats.c glibc-2.2.2/linuxthreads_db/td_ta_get_stats.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_get_stats.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_get_stats.c	2005-01-27 19:04:06.000000000 -0800
+@@ -25,7 +25,7 @@
+ td_ta_get_stats (const td_thragent_t *ta, td_ta_stats_t *statsp)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_get_stats");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_map_id2thr.c glibc-2.2.2/linuxthreads_db/td_ta_map_id2thr.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_map_id2thr.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_map_id2thr.c	2005-01-27 19:03:54.000000000 -0800
+@@ -28,7 +28,7 @@
+   struct _pthread_descr_struct pds;
+   int pthread_threads_max;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_map_id2thr");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_map_lwp2thr.c glibc-2.2.2/linuxthreads_db/td_ta_map_lwp2thr.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_map_lwp2thr.c	1999-11-22 18:25:26.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_map_lwp2thr.c	2005-01-27 19:03:46.000000000 -0800
+@@ -34,7 +34,7 @@
+ # define num 1
+ #endif
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_map_lwp2thr");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_new.c glibc-2.2.2/linuxthreads_db/td_ta_new.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_new.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_new.c	2005-01-27 19:03:36.000000000 -0800
+@@ -36,7 +36,7 @@
+   psaddr_t addr;
+   struct agent_list *elemp;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_new");
+ 
+   /* Get the global event mask.  This is one of the variables which
+      are new in the thread library to enable debugging.  If it is
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_reset_stats.c glibc-2.2.2/linuxthreads_db/td_ta_reset_stats.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_reset_stats.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_reset_stats.c	2005-01-27 19:03:27.000000000 -0800
+@@ -25,7 +25,7 @@
+ td_ta_reset_stats (const td_thragent_t *ta)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_reset_stats");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_set_event.c glibc-2.2.2/linuxthreads_db/td_ta_set_event.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_set_event.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_set_event.c	2005-01-27 19:03:15.000000000 -0800
+@@ -22,14 +22,12 @@
+ 
+ 
+ td_err_e
+-td_ta_set_event (ta, event)
+-     const td_thragent_t *ta;
+-     td_thr_events_t *event;
++td_ta_set_event (const td_thragent_t *ta, td_thr_events_t *event)
+ {
+   td_thr_events_t old_event;
+   int i;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_set_event");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_setconcurrency.c glibc-2.2.2/linuxthreads_db/td_ta_setconcurrency.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_setconcurrency.c	1999-11-08 14:52:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_setconcurrency.c	2005-01-27 19:02:48.000000000 -0800
+@@ -25,7 +25,7 @@
+ td_ta_setconcurrency (const td_thragent_t *ta, int level)
+ {
+   /* This is something LinuxThreads does not support.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_setconcurrency");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_thr_iter.c glibc-2.2.2/linuxthreads_db/td_ta_thr_iter.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_thr_iter.c	2000-02-28 12:34:06.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_thr_iter.c	2005-01-27 19:02:39.000000000 -0800
+@@ -86,7 +86,7 @@
+ # define num 1
+ #endif
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_thr_iter");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_ta_tsd_iter.c glibc-2.2.2/linuxthreads_db/td_ta_tsd_iter.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_ta_tsd_iter.c	2000-02-28 12:34:06.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_ta_tsd_iter.c	2005-01-27 19:02:29.000000000 -0800
+@@ -29,7 +29,7 @@
+   int pthread_keys_max;
+   int cnt;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_ta_tsd_iter");
+ 
+   /* Test whether the TA parameter is ok.  */
+   if (! ta_ok (ta))
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_clear_event.c glibc-2.2.2/linuxthreads_db/td_thr_clear_event.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_clear_event.c	1999-11-03 10:37:18.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_clear_event.c	2005-01-27 19:02:19.000000000 -0800
+@@ -24,14 +24,12 @@
+ 
+ 
+ td_err_e
+-td_thr_clear_event (th, event)
+-     const td_thrhandle_t *th;
+-     td_thr_events_t *event;
++td_thr_clear_event (const td_thrhandle_t *th, td_thr_events_t *event)
+ {
+   td_thr_events_t old_event;
+   int i;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_clear_event");
+ 
+   /* Write the new value into the thread data structure.  */
+   if (ps_pdread (th->th_ta_p->ph,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_dbresume.c glibc-2.2.2/linuxthreads_db/td_thr_dbresume.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_dbresume.c	1999-10-07 23:40:02.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_dbresume.c	2005-01-27 19:01:54.000000000 -0800
+@@ -25,6 +25,6 @@
+ td_thr_dbresume (const td_thrhandle_t *th)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_dbresume");
+   return TD_NOCAPAB;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_dbsuspend.c glibc-2.2.2/linuxthreads_db/td_thr_dbsuspend.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_dbsuspend.c	1999-10-07 23:40:33.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_dbsuspend.c	2005-01-27 19:01:46.000000000 -0800
+@@ -25,6 +25,6 @@
+ td_thr_dbsuspend (const td_thrhandle_t *th)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_dbsuspend");
+   return TD_NOCAPAB;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_event_enable.c glibc-2.2.2/linuxthreads_db/td_thr_event_enable.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_event_enable.c	1999-11-02 16:06:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_event_enable.c	2005-01-27 19:01:35.000000000 -0800
+@@ -24,11 +24,9 @@
+ 
+ 
+ td_err_e
+-td_thr_event_enable (th, onoff)
+-     const td_thrhandle_t *th;
+-     int onoff;
++td_thr_event_enable (const td_thrhandle_t *th, int onoff)
+ {
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_event_enable");
+ 
+   /* Write the new value into the thread data structure.  */
+   if (ps_pdwrite (th->th_ta_p->ph,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_event_getmsg.c glibc-2.2.2/linuxthreads_db/td_thr_event_getmsg.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_event_getmsg.c	1999-11-02 16:06:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_event_getmsg.c	2005-01-27 19:01:11.000000000 -0800
+@@ -29,7 +29,7 @@
+ {
+   td_eventbuf_t event;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_event_getmsg");
+ 
+   /* Read the even structure from the target.  */
+   if (ps_pdread (th->th_ta_p->ph,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_get_info.c glibc-2.2.2/linuxthreads_db/td_thr_get_info.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_get_info.c	2000-05-01 14:56:42.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_get_info.c	2005-01-27 19:00:59.000000000 -0800
+@@ -29,7 +29,7 @@
+ {
+   struct _pthread_descr_struct pds;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_get_info");
+ 
+   /* Get the thread descriptor.  */
+   if (ps_pdread (th->th_ta_p->ph, th->th_unique, &pds,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_getfpregs.c glibc-2.2.2/linuxthreads_db/td_thr_getfpregs.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_getfpregs.c	1999-11-02 16:06:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_getfpregs.c	2005-01-27 19:00:49.000000000 -0800
+@@ -26,7 +26,7 @@
+ {
+   struct _pthread_descr_struct pds;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_getfpregs");
+ 
+   /* We have to get the state and the PID for this thread.  */
+   if (ps_pdread (th->th_ta_p->ph, th->th_unique, &pds,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_getgregs.c glibc-2.2.2/linuxthreads_db/td_thr_getgregs.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_getgregs.c	2000-02-11 15:48:51.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_getgregs.c	2005-01-27 19:00:37.000000000 -0800
+@@ -26,7 +26,7 @@
+ {
+   struct _pthread_descr_struct pds;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_getgregs");
+ 
+   /* We have to get the state and the PID for this thread.  */
+   if (ps_pdread (th->th_ta_p->ph, th->th_unique, &pds,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_getxregs.c glibc-2.2.2/linuxthreads_db/td_thr_getxregs.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_getxregs.c	1999-10-07 23:46:09.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_getxregs.c	2005-01-27 19:00:26.000000000 -0800
+@@ -25,6 +25,6 @@
+ td_thr_getxregs (const td_thrhandle_t *th, void *xregs)
+ {
+   /* XXX This might be platform specific.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_getxregs");
+   return TD_NOXREGS;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_getxregsize.c glibc-2.2.2/linuxthreads_db/td_thr_getxregsize.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_getxregsize.c	1999-10-07 23:46:33.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_getxregsize.c	2005-01-27 19:00:16.000000000 -0800
+@@ -25,6 +25,6 @@
+ td_thr_getxregsize (const td_thrhandle_t *th, int *sizep)
+ {
+   /* XXX This might be platform specific.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_getxregsize");
+   return TD_NOXREGS;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_set_event.c glibc-2.2.2/linuxthreads_db/td_thr_set_event.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_set_event.c	1999-11-03 10:37:18.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_set_event.c	2005-01-27 19:00:08.000000000 -0800
+@@ -24,14 +24,12 @@
+ 
+ 
+ td_err_e
+-td_thr_set_event (th, event)
+-     const td_thrhandle_t *th;
+-     td_thr_events_t *event;
++td_thr_set_event (const td_thrhandle_t *th, td_thr_events_t *event)
+ {
+   td_thr_events_t old_event;
+   int i;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_set_event");
+ 
+   /* Write the new value into the thread data structure.  */
+   if (ps_pdread (th->th_ta_p->ph,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_setfpregs.c glibc-2.2.2/linuxthreads_db/td_thr_setfpregs.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_setfpregs.c	1999-11-02 16:06:10.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_setfpregs.c	2005-01-27 18:59:06.000000000 -0800
+@@ -26,7 +26,7 @@
+ {
+   struct _pthread_descr_struct pds;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_setfpregs");
+ 
+   /* We have to get the state and the PID for this thread.  */
+   if (ps_pdread (th->th_ta_p->ph, th->th_unique, &pds,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_setgregs.c glibc-2.2.2/linuxthreads_db/td_thr_setgregs.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_setgregs.c	2000-02-11 15:48:51.000000000 -0800
++++ glibc-2.2.2/linuxthreads_db/td_thr_setgregs.c	2005-01-27 18:58:57.000000000 -0800
+@@ -26,7 +26,7 @@
+ {
+   struct _pthread_descr_struct pds;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_setgregs");
+ 
+   /* We have to get the state and the PID for this thread.  */
+   if (ps_pdread (th->th_ta_p->ph, th->th_unique, &pds,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_setprio.c glibc-2.2.2/linuxthreads_db/td_thr_setprio.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_setprio.c	1999-10-07 23:49:11.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_setprio.c	2005-01-27 18:58:46.000000000 -0800
+@@ -25,6 +25,6 @@
+ td_thr_setprio (const td_thrhandle_t *th, int prio)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_setprio");
+   return TD_OK;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_setsigpending.c glibc-2.2.2/linuxthreads_db/td_thr_setsigpending.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_setsigpending.c	1999-10-07 23:49:38.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_setsigpending.c	2005-01-27 18:58:34.000000000 -0800
+@@ -26,6 +26,6 @@
+ 		      const sigset_t *ss)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_setsigpending");
+   return TD_OK;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_setxregs.c glibc-2.2.2/linuxthreads_db/td_thr_setxregs.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_setxregs.c	1999-10-07 23:48:20.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_setxregs.c	2005-01-27 18:58:21.000000000 -0800
+@@ -25,6 +25,6 @@
+ td_thr_setxregs (const td_thrhandle_t *ta, const void *addr)
+ {
+   /* XXX This might have to be platform specific.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_setxregs");
+   return TD_NOXREGS;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_sigsetmask.c glibc-2.2.2/linuxthreads_db/td_thr_sigsetmask.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_sigsetmask.c	1999-10-07 23:50:34.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_sigsetmask.c	2005-01-27 18:57:58.000000000 -0800
+@@ -25,6 +25,6 @@
+ td_thr_sigsetmask (const td_thrhandle_t *th, const sigset_t *ss)
+ {
+   /* XXX We have to figure out what has to be done.  */
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_sigsetmask");
+   return TD_OK;
+ }
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_tsd.c glibc-2.2.2/linuxthreads_db/td_thr_tsd.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_tsd.c	1999-10-07 23:52:15.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_tsd.c	2005-01-27 18:58:09.000000000 -0800
+@@ -33,7 +33,7 @@
+   unsigned int idx2nd;
+   void *p;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_tsd");
+ 
+   /* Get the thread descriptor.  */
+   if (ps_pdread (th->th_ta_p->ph, th->th_unique, &pds,
+diff -ru glibc-2.2.2/linuxthreads_db.orig/td_thr_validate.c glibc-2.2.2/linuxthreads_db/td_thr_validate.c
+--- glibc-2.2.2/linuxthreads_db.orig/td_thr_validate.c	1999-10-14 17:24:20.000000000 -0700
++++ glibc-2.2.2/linuxthreads_db/td_thr_validate.c	2005-01-27 18:57:41.000000000 -0800
+@@ -28,7 +28,7 @@
+   int pthread_threads_max = th->th_ta_p->pthread_threads_max;
+   int cnt;
+ 
+-  LOG (__FUNCTION__);
++  LOG ("td_thr_validate");
+ 
+   /* Now get all descriptors, one after the other.  */
+   for (cnt = 0; cnt < pthread_threads_max; ++cnt, ++handles)

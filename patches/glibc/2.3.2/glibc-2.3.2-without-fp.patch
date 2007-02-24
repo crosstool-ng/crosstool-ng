@@ -1,0 +1,89 @@
+Sender: libc-alpha-owner@sources.redhat.com
+Date: Tue, 29 Jul 2003 17:49:47 -0400
+From: Daniel Jacobowitz <drow@mvista.com>
+To: GNU C Library <libc-alpha@sources.redhat.com>
+Subject: Re: __sim_exceptions undefined when linking glibc-2.3.2's libm.so with --without-fp
+Message-ID: <20030729214947.GA29932@nevyn.them.org>
+
+On Tue, Jul 29, 2003 at 02:53:33PM -0700, Dan Kegel wrote:
+> On ppc405, I'm getting the following when linking glibc's libm:
+> /gcc-3.3-glibc-2.3.2/build-glibc/math/libm_pic.a(fclrexcpt.os)(.text+0x1a): 
+> In function `feclearexcept@GLIBC_2.1':
+> : undefined reference to `__sim_exceptions'
+> 
+> That symbol seems to be present in libc.so.  nm shows
+
+--without-fp doesn't work.  Try this.  Make up a changelog entry if it
+works.
+
+Date: Tue, 29 Jul 2003 14:56:50 -0700
+Message-Id: <200307292156.h6TLuol24356@magilla.sf.frob.com>
+From: Roland McGrath <roland@redhat.com>
+To: Daniel Jacobowitz <drow@mvista.com>
+Cc: GNU C Library <libc-alpha@sources.redhat.com>
+Subject: Re: __sim_exceptions undefined when linking glibc-2.3.2's libm.so with --without-fp
+In-Reply-To: Daniel Jacobowitz's message of  Tuesday, 29 July 2003 17:49:47 -0400 <20030729214947.GA29932@nevyn.them.org>
+
+> +int __sim_exceptions __attribute__ ((section(".bss")));
+
+Use __attribute__ ((nocommon)) instead (and please watch the standard
+whitespace conventions, i.e. ``section ('').
+
+diff -purN glibc-2.3.2.orig/sysdeps/powerpc/nofpu/sim-full.c glibc-2.3.2/sysdeps/powerpc/nofpu/sim-full.c
+--- glibc-2.3.2.orig/sysdeps/powerpc/nofpu/sim-full.c	2002-10-19 16:06:29.000000000 -0400
++++ glibc-2.3.2/sysdeps/powerpc/nofpu/sim-full.c	2003-05-14 15:10:42.000000000 -0400
+@@ -24,11 +24,14 @@
+ 
+ /* Global to store sticky exceptions.  */
+-int __sim_exceptions;
++int __sim_exceptions __attribute__ ((nocommon));
++libc_hidden_data_def (__sim_exceptions);
+ 
+ /* By default, no exceptions should trap.  */
+ int __sim_disabled_exceptions = 0xffffffff;
++libc_hidden_data_def (__sim_disabled_exceptions);
+ 
+-int __sim_round_mode;
++int __sim_round_mode __attribute__ ((nocommon));
++libc_hidden_data_def (__sim_round_mode);
+ 
+ void
+ __simulate_exceptions (int x)
+diff -purN glibc-2.3.2.orig/sysdeps/powerpc/nofpu/soft-supp.h glibc-2.3.2/sysdeps/powerpc/nofpu/soft-supp.h
+--- glibc-2.3.2.orig/sysdeps/powerpc/nofpu/soft-supp.h	2002-10-19 16:06:29.000000000 -0400
++++ glibc-2.3.2/sysdeps/powerpc/nofpu/soft-supp.h	2003-05-14 15:09:53.000000000 -0400
+@@ -27,7 +27,11 @@ typedef union
+ } fenv_union_t;
+ 
+ 
+-extern int __sim_exceptions attribute_hidden;
+-extern int __sim_disabled_exceptions attribute_hidden;
+-extern int __sim_round_mode attribute_hidden;
++extern int __sim_exceptions;
++libc_hidden_proto (__sim_exceptions);
++extern int __sim_disabled_exceptions;
++libc_hidden_proto (__sim_disabled_exceptions);
++extern int __sim_round_mode;
++libc_hidden_proto (__sim_round_mode);
++
+ extern void __simulate_exceptions (int x) attribute_hidden;
+diff -urp glibc-2.3.2.orig/sysdeps/powerpc/soft-fp/sfp-machine.h glibc-2.3.2/sysdeps/powerpc/soft-fp/sfp-machine.h
+--- glibc-2.3.2.orig/sysdeps/powerpc/soft-fp/sfp-machine.h	2002-10-17 18:36:14.000000000 -0400
++++ glibc-2.3.2/sysdeps/powerpc/soft-fp/sfp-machine.h	2003-05-14 16:48:13.000000000 -0400
+@@ -52,7 +52,11 @@
+ #define FP_HANDLE_EXCEPTIONS  __simulate_exceptions (_fex)
+ #define FP_ROUNDMODE          __sim_round_mode
+ 
+-extern int __sim_exceptions attribute_hidden;
+-extern int __sim_disabled_exceptions attribute_hidden;
+-extern int __sim_round_mode attribute_hidden;
++extern int __sim_exceptions;
++libc_hidden_proto (__sim_exceptions);
++extern int __sim_disabled_exceptions;
++libc_hidden_proto (__sim_disabled_exceptions);
++extern int __sim_round_mode;
++libc_hidden_proto (__sim_round_mode);
++
+ extern void __simulate_exceptions (int x) attribute_hidden;
+
+

@@ -1,0 +1,42 @@
+Message-ID: <33159.207.230.144.240.1093980498.squirrel@207.230.144.240>
+Date: Tue, 31 Aug 2004 14:28:18 -0500 (CDT)
+Subject: Crosstool 0.28-rc35
+From: "Jason Rothstein" <fdragon@fdragon.org>
+To: dank@kegel.com
+
+Could you please add the patches in GCC PR 16430 to GCC 3.4.1?
+
+http://gcc.gnu.org/PR16430
+
+These fix one of 2 current ICE conditions when building a sparc64 ada
+compilers.
+
+
+http://gcc.gnu.org/cgi-bin/cvsweb.cgi/gcc/gcc/config/sparc/sparc.c.diff?cvsroot=gcc&only_with_tag=gcc-3_4-branch&r1=1.271.4.16&r2=1.271.4.17
+
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/sparc/sparc.c,v
+retrieving revision 1.271.4.16
+retrieving revision 1.271.4.17
+diff -u -r1.271.4.16 -r1.271.4.17
+--- gcc/gcc/config/sparc/sparc.c	2004/07/08 13:00:56	1.271.4.16
++++ gcc/gcc/config/sparc/sparc.c	2004/07/08 14:36:51	1.271.4.17
+@@ -5808,6 +5808,18 @@
+ 	    abort ();
+ 
+ 	  mode = mode_for_size (bytes * BITS_PER_UNIT, MODE_INT, 0);
++
++	  /* ??? We probably should have made the same ABI change in
++	     3.4.0 as the one we made for unions.   The latter was
++	     required by the SCD though, while the former is not
++	     specified, so we favored compatibility and efficiency.
++
++	     Now we're stuck for aggregates larger than 16 bytes,
++	     because OImode vanished in the meantime.  Let's not
++	     try to be unduly clever, and simply follow the ABI
++	     for unions in that case.  */
++	  if (mode == BLKmode)
++	    return function_arg_union_value (bytes, mode, regbase);
+ 	}
+       else if (GET_MODE_CLASS (mode) == MODE_INT
+ 	       && GET_MODE_SIZE (mode) < UNITS_PER_WORD)

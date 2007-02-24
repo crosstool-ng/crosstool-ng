@@ -1,0 +1,45 @@
+Fixes
+
+../sysdeps/powerpc/powerpc32/dl-machine.h: In function '_dl_relocate_object':
+../sysdeps/powerpc/powerpc32/dl-machine.h:461: error: invalid storage class for function 'elf_machine_rela_relative'
+../sysdeps/powerpc/powerpc32/dl-machine.h:469: error: invalid storage class for function 'elf_machine_lazy_rel'
+make[2]: *** [/home/dank/queue/jobdir.dual2/crosstool-dev/build/powerpc-750-linux-gnu/gcc-4.0-20050305-glibc-2.3-20050307/build-glibc/elf/dl-reloc.o] Error 1
+
+--- glibc-2.3.6.orig/sysdeps/powerpc/powerpc32/dl-machine.h	Wed Jul 30 23:33:52 2003
++++ glibc-2.3.6/sysdeps/powerpc/powerpc32/dl-machine.h		Thu Mar 17 13:19:16 2005
+@@ -455,8 +455,14 @@
+     }
+ }
+ 
+-auto inline void
+-__attribute__ ((always_inline))
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rela_relative (Elf32_Addr l_addr, const Elf32_Rela *reloc,
+ 			   void *const reloc_addr_arg)
+ {
+@@ -464,8 +470,14 @@
+   *reloc_addr = l_addr + reloc->r_addend;
+ }
+ 
+-auto inline void
+-__attribute__ ((always_inline))
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_lazy_rel (struct link_map *map,
+ 		      Elf32_Addr l_addr, const Elf32_Rela *reloc)
+ {
+
+Signed-off-by: Robert P. J. Day <rpjday@mindspring.com>

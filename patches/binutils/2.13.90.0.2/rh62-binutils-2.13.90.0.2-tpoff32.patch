@@ -1,0 +1,27 @@
+2002-08-07  Jakub Jelinek  <jakub@redhat.com>
+
+	* elf32-i386.c (elf_i386_relocate_section): Fill in proper addend
+	for R_386_TLS_TPOFF32 relocs against symndx 0.
+
+--- binutils/bfd/elf32-i386.c.jj	2002-07-30 16:14:55.000000000 +0200
++++ binutils/bfd/elf32-i386.c	2002-08-07 23:41:48.000000000 +0200
+@@ -2561,13 +2567,17 @@ elf_i386_relocate_section (output_bfd, i
+ 	      outrel.r_offset = (htab->sgot->output_section->vma
+ 				 + htab->sgot->output_offset + off);
+ 
+-	      bfd_put_32 (output_bfd, 0,
+-			  htab->sgot->contents + off);
+ 	      indx = h && h->dynindx != -1 ? h->dynindx : 0;
+ 	      if (r_type == R_386_TLS_GD)
+ 		dr_type = R_386_TLS_DTPMOD32;
+ 	      else
+ 		dr_type = R_386_TLS_TPOFF32;
++	      if (dr_type == R_386_TLS_TPOFF32 && indx == 0)
++		bfd_put_32 (output_bfd, relocation - dtpoff_base (info),
++			    htab->sgot->contents + off);
++	      else
++		bfd_put_32 (output_bfd, 0,
++			    htab->sgot->contents + off);
+ 	      outrel.r_info = ELF32_R_INFO (indx, dr_type);
+ 	      loc = (Elf32_External_Rel *) htab->srelgot->contents;
+ 	      loc += htab->srelgot->reloc_count++;

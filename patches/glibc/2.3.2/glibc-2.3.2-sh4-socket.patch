@@ -1,0 +1,39 @@
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/unix/sysv/linux/sh/socket.S.diff?r1=1.5&r2=1.6&cvsroot=glibc
+
+Ankur Sheth said:
+"The problem that I ran into was that multi-threaded apps would crash with a
+seg fault when they invoked some of the socket calls (sendto() in my case.
+This happened only on the sh4.  Turns out that a certain register (PR) was
+not being saved and restored properly before and after invoking the system
+call.  This patch fixes it.  It applies cleanly on glibc 2.3.2. 
+[Thanks to Kaz for helping us find this.]"
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/unix/sysv/linux/sh/socket.S,v
+retrieving revision 1.5
+retrieving revision 1.6
+diff -u -r1.5 -r1.6
+--- libc/sysdeps/unix/sysv/linux/sh/socket.S	2003/01/05 11:07:44	1.5
++++ libc/sysdeps/unix/sysv/linux/sh/socket.S	2003/07/12 01:25:53	1.6
+@@ -94,7 +94,9 @@
+ #if defined NEED_CANCELLATION && defined CENABLE
+ .Lsocket_cancel:
+ 	/* Enable asynchronous cancellation.  */
++	sts.l pr,@-r15
+ 	CENABLE
++	lds.l @r15+,pr
+ 
+ 	/* Do the system call trap.  */
+ 	mov #+P(SOCKOP_,socket), r4
+@@ -102,9 +104,11 @@
+ 	mov.l .L1,r3
+ 	trapa #0x12
+ 
++	sts.l pr,@-r15
+ 	mov.l r0,@-r15
+ 	CDISABLE
+ 	mov.l @r15+,r0
++	lds.l @r15+,pr
+ 
+ 	/* Pop args off the stack */
+ 	P(POPARGS_,NARGS)

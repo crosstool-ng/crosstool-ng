@@ -1,0 +1,72 @@
+When configuring a s390->s390 or cris->cris crosscompiler
+(ok, I haven't hit this yet, but one of these days I'll get me an account
+on an s390, and then I'll need this patch :-), you'll get the
+following error:
+
++ /build/s390-unknown-linux-gnu/gcc-3.3-glibc-2.3.2/gcc-3.3/configure
+--target=s390-unknown-linux-gnu --host=s390-host_unknown-linux-gnu
+--prefix=/result/s390-unknown-linux-gnu/gcc-3.3-glibc-2.3.2
+--enable-languages=c
+--with-local-prefix=/result/s390-unknown-linux-gnu/gcc-3.3-glibc-2.3.2/s390-
+unknown-linux-gnu --enable-threads=no --without-headers --with-newlib
+--disable-shared
+...
+*** --with-headers is only supported when cross compiling
+
+This error pops up only when you're using Daniel Jacobowitz's technique
+of slightly changing the target and host tuples to make them different
+enough to force gcc's build system to not try to pull in system libraries
+or headers.  This technique is needed e.g. to build an x86 -> x86
+cross-compiler.
+(The LFS developers ran into the same bug that prompted me to use
+this technique; they point people who run into it to
+http://linuxfromscratch.org/~greg/pure_lfs.txt, which is a different
+way of avoiding this problem.  I think the tuple tweak is the way to go, though.)
+
+config-patches@gnu.org rejected this patch, on the grounds that there
+is only one vendor of each of those two architectures, so the 
+canonicalization is by definition correct.  When I pointed out the
+difficulty this causes for people building s390 -> s390 or
+cris -> cris compilers that are incompatible with the system
+libraries and thus must be built like cross-compilers, he grumped and said 
+"autoconf should let you specify a cross-compiler in some other way than
+comparing tuple strings".
+
+
+
+--- gcc-3.3/config.sub.old	Sun Jun  8 20:38:47 2003
++++ gcc-3.3/config.sub	Sun Jun  8 20:40:34 2003
+@@ -433,9 +433,12 @@
+ 	crds | unos)
+ 		basic_machine=m68k-crds
+ 		;;
+-	cris | cris-* | etrax*)
++	cris | etrax*)
+ 		basic_machine=cris-axis
+ 		;;
++	cris-*)
++		basic_machine=cris-`echo $basic_machine | sed 's/^[^-]*-//'`
++		;;
+ 	da30 | da30-*)
+ 		basic_machine=m68k-da30
+ 		;;
+@@ -820,11 +823,17 @@
+ 	rtpc | rtpc-*)
+ 		basic_machine=romp-ibm
+ 		;;
+-	s390 | s390-*)
++	s390)
+ 		basic_machine=s390-ibm
+ 		;;
+-	s390x | s390x-*)
++	s390-*)
++		basic_machine=s390-`echo $basic_machine | sed 's/^[^-]*-//'`
++		;;
++	s390x)
+ 		basic_machine=s390x-ibm
++		;;
++	s390x-*)
++		basic_machine=s390x-`echo $basic_machine | sed 's/^[^-]*-//'`
+ 		;;
+ 	sa29200)
+ 		basic_machine=a29k-amd

@@ -1,0 +1,100 @@
+[ Revised; now also changes CFLAGS-pt-initfini.s as suggested by 
+  http://sources.redhat.com/ml/crossgcc/2004-07/msg00169.html
+  to not crash when building a debug glibc on mips ]
+
+Fixes errors like
+
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.o(.text+0x0):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.S:20: multiple definition of `dummy'
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.o(.text+0x0):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.S:42: first defined here
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.o(.text+0x18):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.S:37: multiple definition of `_init'
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.o(.text+0x30):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.S:76: first defined here
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.o(.init+0x1c):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.S:86: multiple definition of `_fini'
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.o(.init+0x10):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.S:48: first defined here
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.o(.init+0x28):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crti.S:58: undefined reference to `i_am_not_a_leaf'
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.o(.init+0x4c):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.S:108: undefined reference to `i_am_not_a_leaf'
+mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.o(.init+0x50):build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/crtn.S:109: undefined reference to `i_am_not_a_leaf'
+collect2: ld returned 1 exit status
+make[2]: *** [build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/build-glibc/linuxthreads/libpthread.so] Error 1
+make[2]: Leaving directory `build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/glibc-2.3.2/linuxthreads'
+make[1]: *** [linuxthreads/others] Error 2
+make[1]: Leaving directory `build/mipsel-unknown-linux-gnu/gcc-3.4.0-glibc-2.3.2/glibc-2.3.2'
+make: *** [all] Error 2
+
+
+CVSROOT:	/cvs/glibc
+Module name:	libc
+Changes by:	aj@sourceware.org	2003-12-02 07:37:29
+
+Modified files:
+	.              : configure.in configure config.make.in 
+	csu            : Makefile 
+	locale         : Makefile 
+	linuxthreads   : Makefile 
+	linuxthreads/sysdeps/unix/sysv/linux/x86_64: Makefile 
+	nptl           : Makefile 
+	nptl/sysdeps/unix/sysv/linux/x86_64: Makefile 
+
+Log message:
+	* config.make.in (fno-unit-at-a-time): Define.
+	
+	* configure.in: Add test for -fno-unit-at-a-time.
+	Fix text for -fpie.
+	
+	* csu/Makefile (CFLAGS-initfini.s): Add $(fno_unit_at_a_time).
+	* locale/Makefile (CFLAGS-loadlocale.c): Likewise.
+	
+	For linuxthreads:
+	* Makefile (CFLAGS-pt-initfini.s): Add $(fno_unit_at_a_time).
+	* sysdeps/unix/sysv/linux/x86_64/Makefile (CFLAGS-pt-initfini.s):
+	Likewise.
+	
+	For nptl:
+	* Makefile (CFLAGS-pt-initfini.s): Add $(fno_unit_at_a_time).
+	* sysdeps/unix/sysv/linux/x86_64/Makefile (CFLAGS-pt-initfini.s):
+	Likewise.
+
+linuxthreads change retrieved with
+wget -O foo.patch 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/linuxthreads/Makefile.diff?r1=1.83&r2=1.84&cvsroot=glibc' \
+'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/linuxthreads/sysdeps/unix/sysv/linux/x86_64/Makefile.diff?r1=1.5&r2=1.6&cvsroot=glibc'
+
+and then rediffed against glibc-2.3.2
+And then extended to mips...
+
+===================================================================
+RCS file: /cvs/glibc/libc/linuxthreads/Makefile,v
+retrieving revision 1.83
+retrieving revision 1.84
+diff -u -r1.83 -r1.84
+--- libc/linuxthreads/Makefile	2003/10/02 18:48:48	1.83
++++ libc/linuxthreads/Makefile	2003/12/02 07:37:28	1.84
+@@ -101,7 +101,7 @@
+ extra-objs += $(crti-objs) $(crtn-objs)
+ omit-deps += crti crtn
+ 
+-CFLAGS-pt-initfini.s = -g0 -fPIC -fno-inline-functions
++CFLAGS-pt-initfini.s = -g0 -fPIC -fno-inline-functions $(fno-unit-at-a-time)
+ endif
+ 
+ librt-tests = ex10 ex11
+===================================================================
+RCS file: /cvs/glibc/libc/linuxthreads/sysdeps/unix/sysv/linux/x86_64/Makefile,v
+retrieving revision 1.5
+retrieving revision 1.6
+diff -u -r1.5 -r1.6
+--- libc/linuxthreads/sysdeps/unix/sysv/linux/x86_64/Makefile	2003/04/11 23:34:02	1.5
++++ libc/linuxthreads/sysdeps/unix/sysv/linux/x86_64/Makefile	2003/12/02 07:37:28	1.6
+@@ -1,3 +1,4 @@
+ ifeq ($(subdir),linuxthreads)
+-CFLAGS-pt-initfini.s = -g0 -fPIC -fno-inline-functions -fno-asynchronous-unwind-tables
++CFLAGS-pt-initfini.s = -g0 -fPIC -fno-inline-functions \
++		       -fno-asynchronous-unwind-tables $(fno-unit-at-a-time)
+ endif
+--- glibc-2.3.2/linuxthreads/sysdeps/unix/sysv/linux/mips/Makefile.old	2004-05-30 18:24:41.000000000 -0700
++++ glibc-2.3.2/linuxthreads/sysdeps/unix/sysv/linux/mips/Makefile	2004-05-30 18:28:03.000000000 -0700
+@@ -1,2 +1,6 @@
+ # pull in __syscall_error routine
+ libpthread-routines += sysdep
++
++ifeq ($(subdir),linuxthreads)
++CFLAGS-pt-initfini.s = -g0 -fPIC -fno-inline-functions $(fno-unit-at-a-time)
++endif

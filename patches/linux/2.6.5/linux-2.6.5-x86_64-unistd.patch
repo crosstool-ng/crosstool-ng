@@ -1,0 +1,80 @@
+Retrieved with wget http://www.x86-64.org/lists/discuss/msg04963.html
+then tabs fixed up by rediffing
+
+Message-Id: EFF62C7EE88E71429E38641A1172F4C2077104@net.teracruz.com
+To: discuss@xxxxxxxxxx
+Subject: Compile error with glibc 2.3.2 + Linux 2.6.5 ARCH=x86_64
+From: "David Lee" david.lee@xxxxxxxxxxxx
+Date: Wed, 21 Apr 2004 15:26:04 -0500</li>
+
+I am getting compiler errors when trying to compile glibc 2.3.2 using
+the kernel headers from linux 2.6.5.  The headers from linux 2.6.3 work
+fine.
+
+I've traced the cause of the problem to a change made in
+./include/asm-x86_64/unistd.h in the 2.6.4 release.
+
++#ifndef __ASSEMBLY__
++
++#include <linux/linkage.h>
++#include <linux/compiler.h>
++#include <linux/types.h>
++#include <asm/ptrace.h>
++
++asmlinkage long sys_ptrace(long request, long pid,
++                                unsigned long addr, long data);
++asmlinkage long sys_iopl(unsigned int level, struct pt_regs regs);
++asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int
+turn_on);
++struct sigaction;
++asmlinkage long sys_rt_sigaction(int sig,
++                                const struct sigaction __user *act,
++                                struct sigaction __user *oact,
++                                size_t sigsetsize);
++
++#endif  /* __ASSEMBLY__ */
+
+Within glibc, ./sysdeps/unix/sysv/linux/x86_64/syscall.S ends up
+including this file, which chokes the assembler with the struct
+declarations in the above #include's.
+
+/home/dlee/vcs/Products/Breeze/Dev/Prj/LinuxRH8/tscale2/tools/x86_64/x86
+_64-linux/glibcinclude/linux/posix_types.h: Assembler messages:
+/home/dlee/vcs/Products/Breeze/Dev/Prj/LinuxRH8/tscale2/tools/x86_64/x86
+_64-linux/glibcinclude/linux/posix_types.h:36: Error: no such
+instruction: `typedef struct{'
+
+There are also errors about conflicting re-declarations further along in
+the glibc build.
+
+../posix/sys/types.h:62: error: conflicting types for `dev_t'
+/home/dlee/vcs/Products/Breeze/Dev/Prj/LinuxRH8/tscale2/tools/x86_64/x86
+_64-linux/glibcinclude/linux/types.h:23: error: previous declaration of
+`dev_t'
+
+Changing the '#ifndef __ASSEMBLY__' to '#if ((!defined __ASSEMBLY__) &&
+(defined __KERNEL__))' clears up the problem.  My patch is below.
+
+dave
+
+
+--- linux-2.6.5/include/asm-x86_64/unistd.h.old	2004-04-03 19:37:36.000000000 -0800
++++ linux-2.6.5/include/asm-x86_64/unistd.h	2004-05-05 11:07:11.000000000 -0700
+@@ -713,7 +713,7 @@
+ 
+ #endif /* __KERNEL_SYSCALLS__ */
+ 
+-#ifndef __ASSEMBLY__
++#if ((!defined __ASSEMBLY__) && (defined __KERNEL__))
+ 
+ #include <linux/linkage.h>
+ #include <linux/compiler.h>
+@@ -730,7 +730,7 @@
+ 				struct sigaction __user *oact,
+ 				size_t sigsetsize);
+ 
+-#endif	/* __ASSEMBLY__ */
++#endif /* ((!defined __ASSEMBLY__) && (defined __KERNEL__) */
+ 
+ #endif /* __NO_STUBS */
+ 

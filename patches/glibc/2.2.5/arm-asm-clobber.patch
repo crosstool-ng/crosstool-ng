@@ -1,0 +1,23 @@
+http://gcc.gnu.org/PR11103
+
+Error:
+../sysdeps/unix/sysv/linux/arm/sigaction.c: In function `__libc_sigaction':
+../sysdeps/unix/sysv/linux/arm/sigaction.c:100: error: asm-specifier for variable `_a1' conflicts with asm clobber list
+../sysdeps/unix/sysv/linux/arm/sigaction.c:139: error: asm-specifier for variable `_a1' conflicts with asm clobber list
+make[2]: *** [/crosstool-0.22/build/arm-unknown-linux-gnu/gcc-3.3-glibc-2.2.5/build-glibc/signal/sigaction.o] Error 1
+
+Fix from http://lists.arm.linux.org.uk/pipermail/linux-arm/2003-July/005826.html
+rediffed against glibc-2.2.5
+Not tested.  (I don't even understand it, just being a patch monkey...)
+
+--- glibc-2.2.5/sysdeps/unix/sysv/linux/arm/sysdep.h.old	Wed Aug 27 09:58:15 2003
++++ glibc-2.2.5/sysdeps/unix/sysv/linux/arm/sysdep.h	Wed Aug 27 09:59:04 2003
+@@ -131,7 +131,7 @@
+        asm volatile ("swi	%1	@ syscall " #name	\
+ 		     : "=r" (_a1)				\
+ 		     : "i" (SYS_ify(name)) ASM_ARGS_##nr	\
+-		     : "a1", "memory");				\
++		     : "memory");				\
+        _sys_result = _a1;					\
+      }								\
+      if (_sys_result >= (unsigned int) -4095)			\

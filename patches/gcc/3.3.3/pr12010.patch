@@ -1,0 +1,81 @@
+Adjusted for gcc-3.3-20040119
+
+See http://gcc.gnu.org/PR12010
+
+Without this patch, one gets both compile and link time errors in
+'make check' when configured for cross-compiling.
+
+In particular, 'make check' on a cross-compiler fails with
+
+/testsuite_flags: /testsuite_flags: No such file or directory
+    while executing
+"exec sh ${odir_v3}/testsuite_flags --build-includes"
+    (procedure "g++_include_flags" line 21)
+    invoked from within
+"g++_include_flags [get_multilibs] "
+    (procedure "g++_init" line 63)
+    invoked from within
+"${tool}_init $test_file_name"
+    (procedure "runtest" line 19)
+...
+make[1]: [check-g++] Error 1 (ignored)
+
+--- gcc-3.3-20040119/gcc/testsuite/lib/g++.exp.orig	2004-01-25 17:56:24.000000000 -0800
++++ gcc-3.3-20040119/gcc/testsuite/lib/g++.exp	2004-01-25 18:29:44.000000000 -0800
+@@ -72,6 +72,8 @@ proc g++_version { } {
+ #
+ proc g++_include_flags { paths } {
+     global srcdir
++    global objdir
++    global target_triplet
+     global HAVE_LIBSTDCXX_V3
+     global TESTING_IN_BUILD_TREE
+ 
+@@ -90,6 +92,20 @@ proc g++_include_flags { paths } {
+ 
+     if { ${HAVE_LIBSTDCXX_V3} } {
+       set odir_v3 [lookfor_file ${gccpath} libstdc++-v3]
++      if { $odir_v3 == "" } {
++          verbose "g++_include_flags: couldn't find libstdc++-v3 on first try, now looking in build directory $objdir"
++          # first assume no multilibs
++          set odir_v3 [lookfor_file ${objdir} "$target_triplet/libstdc++-v3"]
++      }
++      if { $odir_v3 == "" } {
++          verbose "g++_include_flags: couldn't find libstdc++-v3 on second try, trying multilib"
++          # assume multilib only one level deep
++          set multisub [file tail $gccpath]
++          set odir_v3 [lookfor_file ${objdir} "$target_triplet/$multisub/libstdc++-v3"]
++      }
++      if { $odir_v3 == "" } {
++           error "Can't find libstdc++-v3"
++      }
+       append flags [exec sh ${odir_v3}/testsuite_flags --build-includes]
+     } else {
+       set odir_v2 [lookfor_file ${gccpath} libstdc++]
+
+--- gcc-3.3-20040119/libstdc++-v3/testsuite/lib/libstdc++-v3-dg.exp.old	Sun Jul 13 10:42:01 2003
++++ gcc-3.3-20040119/libstdc++-v3/testsuite/lib/libstdc++-v3-dg.exp	Sun Jul 13 11:39:54 2003
+@@ -48,8 +48,23 @@
+     global ld_library_path
+     global original_ld_library_path
+     global tool_root_dir
++    global target_triplet
+ 
+     set blddir [lookfor_file [get_multilibs] libstdc++-v3]
++    if { $blddir == "" } {
++        set multilibs [get_multilibs]
++        # FIXME: assume multilib only one level deep
++        set multisub [file tail $multilibs]
++        verbose "libstdc++-v3-init: couldn't find libstdc++-v3 in $multilibs, trying $objdir"
++        set blddir [lookfor_file ${objdir} "$target_triplet/$multisub/libstdc++-v3"]
++    }
++    if { $blddir == "" } {
++        verbose "libstdc++-v3-init: couldn't find libstdc++-v3, trying $objdir without multilibs"
++        set blddir [lookfor_file ${objdir} "$target_triplet/libstdc++-v3"]
++    }
++    if { $blddir == "" } {
++         error "Can't find libstdc++-v3"
++    }
+ 
+     # By default, we assume we want to run program images.
+     global dg-do-what-default

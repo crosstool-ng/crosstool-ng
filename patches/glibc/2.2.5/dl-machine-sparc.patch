@@ -1,0 +1,230 @@
+--- glibc-2.2.5/sysdeps/sparc/sparc32/dl-machine.h.old	Sat Jun  7 18:19:03 2003
++++ glibc-2.2.5/sysdeps/sparc/sparc32/dl-machine.h	Sat Jun  7 18:20:04 2003
+@@ -148,23 +148,23 @@
+    and then redirect to the address it returns.  */
+ #define TRAMPOLINE_TEMPLATE(tramp_name, fixup_name)	\
+   asm ( "\
+-	.text
+-	.globl	" #tramp_name "
+-	.type	" #tramp_name ", @function
+-	.align	32
+-" #tramp_name ":
+-	/* Set up the arguments to fixup --
+-	   %o0 = link_map out of plt0
+-	   %o1 = offset of reloc entry
+-	   %o2 = return address  */
+-	ld	[%o7 + 8], %o0
+-	srl	%g1, 10, %o1
+-	mov	%i7, %o2
+-	call	" #fixup_name "
+-	 sub	%o1, 4*12, %o1
+-	jmp	%o0
+-	 restore
+-	.size	" #tramp_name ", . - " #tramp_name "
++	.text\n\
++	.globl	" #tramp_name "\n\
++	.type	" #tramp_name ", @function\n\
++	.align	32\n\
++" #tramp_name ":\n\
++	/* Set up the arguments to fixup --\n\
++	   %o0 = link_map out of plt0\n\
++	   %o1 = offset of reloc entry\n\
++	   %o2 = return address  */\n\
++	ld	[%o7 + 8], %o0\n\
++	srl	%g1, 10, %o1\n\
++	mov	%i7, %o2\n\
++	call	" #fixup_name "\n\
++	 sub	%o1, 4*12, %o1\n\
++	jmp	%o0\n\
++	 restore\n\
++	.size	" #tramp_name ", . - " #tramp_name "\n\
+ 	.previous")
+ 
+ #ifndef PROF
+@@ -199,96 +199,96 @@
+    its return value is the user program's entry point.  */
+ 
+ #define RTLD_START __asm__ ("\
+-	.text
+-	.globl	_start
+-	.type	_start, @function
+-	.align	32
+-_start:
+-  /* Allocate space for functions to drop their arguments.  */
+-	sub	%sp, 6*4, %sp
+-  /* Pass pointer to argument block to _dl_start.  */
+-	call	_dl_start
+-	 add	%sp, 22*4, %o0
+-	/* FALTHRU */
+-	.globl	_dl_start_user
+-	.type	_dl_start_user, @function
+-_dl_start_user:
+-  /* Load the PIC register.  */
+-1:	call	2f
+-	 sethi	%hi(_GLOBAL_OFFSET_TABLE_-(1b-.)), %l7
+-2:	or	%l7, %lo(_GLOBAL_OFFSET_TABLE_-(1b-.)), %l7
+-	add	%l7, %o7, %l7
+-  /* Save the user entry point address in %l0 */
+-	mov	%o0, %l0
+-  /* Store the highest stack address.  */
+-	sethi	%hi(__libc_stack_end), %g2
+-	or	%g2, %lo(__libc_stack_end), %g2
+-	ld	[%l7 + %g2], %l1
+-	sethi	%hi(_dl_skip_args), %g2
+-	add	%sp, 6*4, %l2
+-	or	%g2, %lo(_dl_skip_args), %g2
+-	st	%l2, [%l1]
+-  /* See if we were run as a command with the executable file name as an
+-     extra leading argument.  If so, adjust the contents of the stack.  */
+-	ld	[%l7+%g2], %i0
+-	ld	[%i0], %i0
+-	tst	%i0
+-	beq	3f
+-	 ld	[%sp+22*4], %i5		/* load argc */
+-	/* Find out how far to shift.  */
+-	sethi	%hi(_dl_argv), %l3
+-	or	%l3, %lo(_dl_argv), %l3
+-	ld	[%l7+%l3], %l3
+-	sub	%i5, %i0, %i5
+-	ld	[%l3], %l4
+-	sll	%i0, 2, %i2
+-	st	%i5, [%sp+22*4]
+-	sub	%l4, %i2, %l4
+-	add	%sp, 23*4, %i1
+-	add	%i1, %i2, %i2
+-	st	%l4, [%l3]
+-	/* Copy down argv */
+-21:	ld	[%i2], %i3
+-	add	%i2, 4, %i2
+-	tst	%i3
+-	st	%i3, [%i1]
+-	bne	21b
+-	 add	%i1, 4, %i1
+-	/* Copy down env */
+-22:	ld	[%i2], %i3
+-	add	%i2, 4, %i2
+-	tst	%i3
+-	st	%i3, [%i1]
+-	bne	22b
+-	 add	%i1, 4, %i1
+-	/* Copy down auxiliary table.  */
+-23:	ld	[%i2], %i3
+-	ld	[%i2+4], %i4
+-	add	%i2, 8, %i2
+-	tst	%i3
+-	st	%i3, [%i1]
+-	st	%i4, [%i1+4]
+-	bne	23b
+-	 add	%i1, 8, %i1
+-  /* %o0 = _dl_loaded, %o1 = argc, %o2 = argv, %o3 = envp.  */
+-3:	sethi	%hi(_dl_loaded), %o0
+-	add	%sp, 23*4, %o2
+-	orcc	%o0, %lo(_dl_loaded), %o0
+-	sll	%i5, 2, %o3
+-	ld	[%l7+%o0], %o0
+-	add	%o3, 4, %o3
+-	mov	%i5, %o1
+-	add	%o2, %o3, %o3
+-	call	_dl_init
+-	 ld	[%o0], %o0
+-  /* Pass our finalizer function to the user in %g1.  */
+-	sethi	%hi(_dl_fini), %g1
+-	or	%g1, %lo(_dl_fini), %g1
+-	ld	[%l7+%g1], %g1
+-  /* Jump to the user's entry point and deallocate the extra stack we got.  */
+-	jmp	%l0
+-	 add	%sp, 6*4, %sp
+-	.size   _dl_start_user, . - _dl_start_user
++	.text\n\
++	.globl	_start\n\
++	.type	_start, @function\n\
++	.align	32\n\
++_start:\n\
++  /* Allocate space for functions to drop their arguments.  */\n\
++	sub	%sp, 6*4, %sp\n\
++  /* Pass pointer to argument block to _dl_start.  */\n\
++	call	_dl_start\n\
++	 add	%sp, 22*4, %o0\n\
++	/* FALTHRU */\n\
++	.globl	_dl_start_user\n\
++	.type	_dl_start_user, @function\n\
++_dl_start_user:\n\
++  /* Load the PIC register.  */\n\
++1:	call	2f\n\
++	 sethi	%hi(_GLOBAL_OFFSET_TABLE_-(1b-.)), %l7\n\
++2:	or	%l7, %lo(_GLOBAL_OFFSET_TABLE_-(1b-.)), %l7\n\
++	add	%l7, %o7, %l7\n\
++  /* Save the user entry point address in %l0 */\n\
++	mov	%o0, %l0\n\
++  /* Store the highest stack address.  */\n\
++	sethi	%hi(__libc_stack_end), %g2\n\
++	or	%g2, %lo(__libc_stack_end), %g2\n\
++	ld	[%l7 + %g2], %l1\n\
++	sethi	%hi(_dl_skip_args), %g2\n\
++	add	%sp, 6*4, %l2\n\
++	or	%g2, %lo(_dl_skip_args), %g2\n\
++	st	%l2, [%l1]\n\
++  /* See if we were run as a command with the executable file name as an\n\
++     extra leading argument.  If so, adjust the contents of the stack.  */\n\
++	ld	[%l7+%g2], %i0\n\
++	ld	[%i0], %i0\n\
++	tst	%i0\n\
++	beq	3f\n\
++	 ld	[%sp+22*4], %i5		/* load argc */\n\
++	/* Find out how far to shift.  */\n\
++	sethi	%hi(_dl_argv), %l3\n\
++	or	%l3, %lo(_dl_argv), %l3\n\
++	ld	[%l7+%l3], %l3\n\
++	sub	%i5, %i0, %i5\n\
++	ld	[%l3], %l4\n\
++	sll	%i0, 2, %i2\n\
++	st	%i5, [%sp+22*4]\n\
++	sub	%l4, %i2, %l4\n\
++	add	%sp, 23*4, %i1\n\
++	add	%i1, %i2, %i2\n\
++	st	%l4, [%l3]\n\
++	/* Copy down argv */\n\
++21:	ld	[%i2], %i3\n\
++	add	%i2, 4, %i2\n\
++	tst	%i3\n\
++	st	%i3, [%i1]\n\
++	bne	21b\n\
++	 add	%i1, 4, %i1\n\
++	/* Copy down env */\n\
++22:	ld	[%i2], %i3\n\
++	add	%i2, 4, %i2\n\
++	tst	%i3\n\
++	st	%i3, [%i1]\n\
++	bne	22b\n\
++	 add	%i1, 4, %i1\n\
++	/* Copy down auxiliary table.  */\n\
++23:	ld	[%i2], %i3\n\
++	ld	[%i2+4], %i4\n\
++	add	%i2, 8, %i2\n\
++	tst	%i3\n\
++	st	%i3, [%i1]\n\
++	st	%i4, [%i1+4]\n\
++	bne	23b\n\
++	 add	%i1, 8, %i1\n\
++  /* %o0 = _dl_loaded, %o1 = argc, %o2 = argv, %o3 = envp.  */\n\
++3:	sethi	%hi(_dl_loaded), %o0\n\
++	add	%sp, 23*4, %o2\n\
++	orcc	%o0, %lo(_dl_loaded), %o0\n\
++	sll	%i5, 2, %o3\n\
++	ld	[%l7+%o0], %o0\n\
++	add	%o3, 4, %o3\n\
++	mov	%i5, %o1\n\
++	add	%o2, %o3, %o3\n\
++	call	_dl_init\n\
++	 ld	[%o0], %o0\n\
++  /* Pass our finalizer function to the user in %g1.  */\n\
++	sethi	%hi(_dl_fini), %g1\n\
++	or	%g1, %lo(_dl_fini), %g1\n\
++	ld	[%l7+%g1], %g1\n\
++  /* Jump to the user's entry point and deallocate the extra stack we got.  */\n\
++	jmp	%l0\n\
++	 add	%sp, 6*4, %sp\n\
++	.size   _dl_start_user, . - _dl_start_user\n\
+ 	.previous");
+ 
+ static inline Elf32_Addr

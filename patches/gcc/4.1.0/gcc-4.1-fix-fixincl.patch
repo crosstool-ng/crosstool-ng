@@ -1,0 +1,71 @@
+See http://gcc.gnu.org/PR22541
+
+From: Dan Kegel
+
+When building gcc-3.4.3 or gcc-4.x into a clean $PREFIX,
+the configure script happily copies the glibc include files from include to sys-include;
+here's the line from the log file (with $PREFIX instead of the real prefix):
+
+Copying $PREFIX/i686-unknown-linux-gnu/include to $PREFIX/i686-unknown-linux-gnu/sys-include
+
+But later, when running fixincludes, it gives the error message
+ The directory that should contain system headers does not exist:
+  $PREFIX/lib/gcc/i686-unknown-linux-gnu/3.4.3/../../../../i686-unknown-linux-gnu/sys-include
+
+Nevertheless, it continues building; the header files it installs in
+ $PREFIX/lib/gcc/i686-unknown-linux-gnu/3.4.3/include
+do not include the boilerplate that would cause it to #include_next the
+glibc headers in the system header directory.
+Thus the resulting toolchain can't compile the following program:
+#include <limits.h>
+int x = PATH_MAX;
+because its limits.h doesn't include the glibc header.
+
+The problem is that gcc/Makefile.in assumes that
+it can refer to $PREFIX/i686-unknown-linux-gnu  with the path
+                $PREFIX/lib/../i686-unknown-linux-gnu, but
+that fails because the directory $PREFIX/lib doesn't exist during 'make all';
+it is only created later, during 'make install'.  (Which makes this problem
+confusing, since one only notices the breakage well after 'make install',
+at which point the path configure complained about does exist, and has the
+right stuff in it.)
+
+A fix that I've been using for a while is to use sed to canonicalize
+the path.  The sed syntax is a bit obtuse, but it works. 
+
+(hey, that's the first time I've ever used a label in a sed script; thanks to the sed faq
+for explaining the :a ... ta method of looping to repeat a search-and-replace until it doesn't match.)
+
+[rediffed against gcc-4.1-20060210]
+
+--- gcc-4.1-20060210/gcc/Makefile.in.old	2006-01-11 06:29:29.000000000 -0800
++++ gcc-4.1-20060210/gcc/Makefile.in	2006-02-14 16:08:54.000000000 -0800
+@@ -388,7 +388,10 @@
+ CROSS_SYSTEM_HEADER_DIR = @CROSS_SYSTEM_HEADER_DIR@
+ 
+ # autoconf sets SYSTEM_HEADER_DIR to one of the above.
+-SYSTEM_HEADER_DIR = @SYSTEM_HEADER_DIR@
++# Purge it of unneccessary internal relative paths
++# to directories that might not exist yet.
++# The sed idiom for this is to repeat the search-and-replace until it doesn't match, using :a ... ta.
++SYSTEM_HEADER_DIR = `echo @SYSTEM_HEADER_DIR@ | sed -e :a -e "s,[^/]*/\.\.\/,," -e ta`
+ 
+ # Control whether to run fixproto and fixincludes.
+ STMP_FIXPROTO = @STMP_FIXPROTO@
+@@ -3167,13 +3170,15 @@
+ ../$(build_subdir)/fixincludes/fixincl: ; @ :
+ 
+ # Build fixed copies of system files.
++# Abort if no system headers available, unless building a crosscompiler.
++# Canonicalize $gcc_tooldir/sys-include in same way as $SYSTEM_HEADER_DIR was canonicalized so test still works
+ stmp-fixinc: gsyslimits.h macro_list \
+   $(build_objdir)/fixincludes/fixincl \
+   $(build_objdir)/fixincludes/fixinc.sh
+ 	@if ! $(inhibit_libc) && test ! -d ${SYSTEM_HEADER_DIR}; then \
+ 	  echo The directory that should contain system headers does not exist: >&2 ; \
+ 	  echo "  ${SYSTEM_HEADER_DIR}" >&2 ; \
+-	  if test "x${SYSTEM_HEADER_DIR}" = "x${gcc_tooldir}/sys-include"; \
++	  if test "x${SYSTEM_HEADER_DIR}" = "x`echo "${gcc_tooldir}/sys-include" | sed -e :a -e "s,[^/]*/\.\.\/,," -e ta`"; \
+ 	  then sleep 1; else exit 1; fi; \
+ 	fi
+ 	rm -rf include; mkdir include

@@ -1,0 +1,50 @@
+http://www.spinics.net/lists/arm/msg08012.html
+
+To: Dimitry Andric <dimitry@xxxxxxxxxx>
+Subject: Re: Kernel Compile Error: use of old and new-style options to set FPU type
+From: Marc Britten <maillists@xxxxxxxxxxxxxxxxx>
+Date: Wed, 16 Jun 2004 03:03:15 -0400
+Cc: linux-arm@xxxxxxxxxxxxxxxxxxxxxx
+In-reply-to: <1525495613.20040615202902@andric.com>
+
+Dimitry Andric wrote:
+
+>>Assembler messages:
+>>Error: use of old and new-style options to set FPU type
+>   Try removing -Wa,-mno-fpu from CFLAGS (and possibly AFLAGS, but I'm
+>   not sure, depends on what your compiler generates by default) in
+>   arch/arm/Makefile.
+
+Just to let people know, this was successful.
+
+Thanks,
+
+Marc Britten
+
+--------
+
+Fixes error
+
+...
+make -f scripts/Makefile.build obj=scripts/mod
+  /opt/crosstool/arm-unknown-linux-gnu/gcc-3.4.1-glibc-2.3.3/bin/arm-unknown-linux-gnu-gcc -Wp,-MD,scripts/mod/.empty.o.d -nostdinc -iwithprefix include -D__KERNEL__ -Iinclude  -Wall -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -fno-omit-frame-pointer -mapcs -mno-sched-prolog -mlittle-endian -mapcs-32   -malignment-traps -msoft-float -Wa,-mno-fpu -Uarm -Os -Wdeclaration-after-statement    -DKBUILD_BASENAME=empty -DKBUILD_MODNAME=empty -c -o scripts/mod/empty.o scripts/mod/empty.c
+Assembler messages:
+Error: use of old and new-style options to set FPU type
+make[2]: *** [scripts/mod/empty.o] Error 1
+make[1]: *** [scripts/mod] Error 2
+make: *** [scripts] Error 2
+
+
+--- linux-2.6.8/arch/arm/Makefile.old	2004-09-01 21:27:07.000000000 -0700
++++ linux-2.6.8/arch/arm/Makefile	2004-09-01 21:27:31.000000000 -0700
+@@ -55,8 +55,8 @@
+ tune-$(CONFIG_CPU_V6)		:=-mtune=strongarm
+ 
+ # Need -Uarm for gcc < 3.x
+-CFLAGS		+=-mapcs-32 $(arch-y) $(tune-y) $(call check_gcc,-malignment-traps,-mshort-load-bytes) -msoft-float -Wa,-mno-fpu -Uarm
+-AFLAGS		+=-mapcs-32 $(arch-y) $(tune-y) -msoft-float -Wa,-mno-fpu
++CFLAGS		+=-mapcs-32 $(arch-y) $(tune-y) $(call check_gcc,-malignment-traps,-mshort-load-bytes) -msoft-float -Uarm
++AFLAGS		+=-mapcs-32 $(arch-y) $(tune-y) -msoft-float
+ 
+ CHECK		:= $(CHECK) -D__arm__=1
+ 

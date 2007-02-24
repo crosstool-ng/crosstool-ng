@@ -1,0 +1,60 @@
+The following fixes an error that occurs when building glibc-2.3.2 (but not glibc-2.2.5) for sh4:
+
+In file included from sys/ustat.h:30,
+                 from ../sysdeps/unix/sysv/linux/ustat.c:21:
+../sysdeps/generic/bits/ustat.h:26: error: redefinition of `struct ustat'
+make[2]: *** [/home3/dank/crosstool-0.7/build/sh4-unknown-linux-gnu/gcc-3.3-glibc-2.3.2/build-glibc/misc/ustat.o] Error 1
+make[2]: Leaving directory `/home3/dank/crosstool-0.7/build/sh4-unknown-linux-gnu/gcc-3.3-glibc-2.3.2/glibc-2.3.2/misc'
+make[1]: *** [misc/subdir_lib] Error 2
+make[1]: Leaving directory `/home3/dank/crosstool-0.7/build/sh4-unknown-linux-gnu/gcc-3.3-glibc-2.3.2/glibc-2.3.2'
+make: *** [all] Error 2
+
+----------- snip ---------------
+
+Date: Fri, 06 Jun 2003 08:00:00 +0900
+From: kaz Kojima <kkojima@rr.iij4u.or.jp>
+Subject: [linux-sh:02770] Re: Compiling glibc-2.3.2 for sh4 fails with "include/asm/user.h:32:
+ error: redefinition of `struct user_fpu_struct'"
+To: linux-sh@m17n.org
+Message-Id: <200306052250.h55Moeb08707@r-rr.iij4u.or.jp>
+
+Hi,
+
+Dan Kegel <dank@kegel.com> wrote:
+> When I try to build glibc-2.3.2 for sh4, it fails with the error
+[snip]
+> /home3/dank/crosstool-0.3/result/sh4-linux/gcc-3.3-glibc-2.3.2/sh4-linux/include/asm/user.h:32: error: redefinition of `struct user_fpu_struct'
+> /home3/dank/crosstool-0.3/result/sh4-linux/gcc-3.3-glibc-2.3.2/sh4-linux/include/asm/user.h:39: error: redefinition of `struct user'
+[snip]
+> The error reminds me of the kind of thing fixed by
+> http://www.kegel.com/crossgcc/crosstool-0.4/glibc-2.3.2-patches/sh-user.patch
+
+It seems that the definitions in asm/user.h and the above patch collide.
+I'm not sure why you need this patch, but is it needed for the problem
+about struct ustat that you pointed out in this list, isn't it?
+I found why I don't hit ustat problem - my local kernel tree includes
+the following patch, though I can't recall about it.
+
+Regards,
+	kaz
+--
+diff -u linux-2.5.69-sf-orig/include/linux/types.h /usr/local/sh4-unknown-linux-gnu/include/linux/types.h
+--- linux-2.5.69-sf-orig/include/linux/types.h	Wed Mar  5 12:29:34 2003
++++ sh4-unknown-linux-gnu/include/linux/types.h	Sat Apr 19 10:05:52 2003
+@@ -141,6 +141,7 @@
+ 
+ #endif /* __KERNEL_STRICT_NAMES */
+ 
++#ifdef	__KERNEL__
+ /*
+  * Below are truly Linux-specific types that should never collide with
+  * any application/library that wants linux/types.h.
+@@ -152,5 +153,6 @@
+ 	char			f_fname[6];
+ 	char			f_fpack[6];
+ };
++#endif
+ 
+ #endif /* _LINUX_TYPES_H */
+
+

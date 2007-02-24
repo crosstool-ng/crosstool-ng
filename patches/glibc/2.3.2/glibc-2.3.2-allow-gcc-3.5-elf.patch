@@ -1,0 +1,34 @@
+
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/elf/dl-load.c.diff?r1=1.235&r2=1.236&cvsroot=glibc
+
+Fixes gcc-3.5 errors
+
+dl-load.c: In function `_dl_map_object_from_fd':
+dl-load.c:1179: error: invalid lvalue in assignment
+dl-load.c:1205: error: invalid lvalue in assignment
+
+===================================================================
+RCS file: /cvs/glibc/libc/elf/dl-load.c,v
+retrieving revision 1.235
+retrieving revision 1.236
+diff -u -r1.235 -r1.236
+--- libc/elf/dl-load.c	2004/02/09 07:03:48	1.235
++++ libc/elf/dl-load.c	2004/02/21 18:25:41	1.236
+@@ -1228,7 +1228,7 @@
+       }
+     else
+       /* Adjust the PT_PHDR value by the runtime load address.  */
+-      (ElfW(Addr)) l->l_phdr += l->l_addr;
++      l->l_phdr = (ElfW(Phdr) *) ((ElfW(Addr)) l->l_phdr + l->l_addr);
+   }
+ 
+ #ifdef USE_TLS
+@@ -1254,7 +1254,7 @@
+ 	}
+     }
+   else
+-    (ElfW(Addr)) l->l_ld += l->l_addr;
++    l->l_ld = (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+ 
+   l->l_entry += l->l_addr;
+ 

@@ -1,0 +1,81 @@
+Message-ID: <424A8F67.7060307@kaear.co.uk>
+Date: Wed, 30 Mar 2005 12:37:11 +0100
+From: Piete Sartain <kaear@kaear.co.uk>
+To:  crossgcc@sources.redhat.com
+Subject: [Patch]  CT 0.3 - glibc-2.2.5-allow-gcc-4.0-mipsel
+
+
+I copied the relevant sections out of 
+http://kegel.com/crosstool/crosstool-0.29/patches/glibc-2.3-20050307/glibc-2.3.4-allow-gcc-4.0-powerpc64.patch 
+for a mipsel target.
+
+The build still fails, but now with an assembler error at crtbegin.o.
+
+[---dank: judging from my old buildlogs, this should fix:
+
+In file included from dynamic-link.h:21,
+                 from dl-reloc.c:153:
+../sysdeps/mips/dl-machine.h: In function '_dl_relocate_object':
+../sysdeps/mips/dl-machine.h:477: error: invalid storage class for function 'elf_machine_rel'
+../sysdeps/mips/dl-machine.h:539: error: invalid storage class for function 'elf_machine_rel_relative'
+../sysdeps/mips/dl-machine.h:546: error: invalid storage class for function 'elf_machine_lazy_rel'
+../sysdeps/mips/dl-machine.h:554: error: invalid storage class for function 'elf_machine_got_rel'
+../sysdeps/mips/dl-machine.h:641: error: invalid storage class for function 'elf_machine_runtime_setup'
+make[2]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-0.30/build/mipsel-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/glibc-2.2.5/elf'
+make[2]: *** [/home/dank/queue/jobdir.fast2/crosstool-0.30/build/mipsel-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/build-glibc/elf/dl-reloc.o] Error 1
+make[1]: *** [elf/subdir_lib] Error 2
+make[1]: Leaving directory `/home/dank/queue/jobdir.fast2/crosstool-0.30/build/mipsel-unknown-linux-gnu/gcc-4.0-20050305-glibc-2.2.5/glibc-2.2.5'
+make: *** [all] Error 2
+---]
+
+
+--- glibc-2.2.5/sysdeps/mips/dl-machine.h.old	2005-03-28 18:19:56.000000000 +0100
++++ glibc-2.2.5/sysdeps/mips/dl-machine.h	2005-03-28 18:25:15.000000000 +0100
+@@ -534,14 +534,28 @@
+     }
+ }
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_rel_relative (ElfW(Addr) l_addr, const ElfW(Rel) *reloc,
+ 			  ElfW(Addr) *const reloc_addr)
+ {
+   /* XXX Nothing to do.  There is no relative relocation, right?  */
+ }
+ 
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_lazy_rel (struct link_map *map,
+ 		      ElfW(Addr) l_addr, const ElfW(Rel) *reloc)
+ {
+@@ -550,7 +564,14 @@
+ 
+ #ifndef RTLD_BOOTSTRAP
+ /* Relocate GOT. */
+-static inline void
++#if __GNUC__ >= 4
++  auto inline void
++#else
++  static inline void
++#endif
++#if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)
++  __attribute ((always_inline))
++#endif
+ elf_machine_got_rel (struct link_map *map, int lazy)
+ {
+   ElfW(Addr) *got;
+

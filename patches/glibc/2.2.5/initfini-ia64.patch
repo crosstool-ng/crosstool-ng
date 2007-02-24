@@ -1,0 +1,219 @@
+Retrieved with
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/sysdeps/ia64/elf/initfini.c.diff?r1=1.2&r2=1.3&cvsroot=glibc'
+
+Revision 1.3, Sun Aug 25 00:34:23 2002 UTC (2 years, 1 month ago) by drepper
+Branch: MAIN
+CVS Tags: glibc-2-3-1, glibc-2-3
+Changes since 1.2: +78 -78 lines
+
+(__asm__): Don't use newlines embedded in string.
+
+Fixes error
+
+../sysdeps/ia64/elf/initfini.c:30:10: missing terminating " character
+../sysdeps/ia64/elf/initfini.c:32:10: #include expects "FILENAME" or <FILENAME>
+../sysdeps/ia64/elf/initfini.c:37: error: request for member `section' in something not a structure or union
+../sysdeps/ia64/elf/initfini.c:38: error: parse error before numeric constant
+../sysdeps/ia64/elf/initfini.c:39: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:40: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:46: error: syntax error at '@' token
+../sysdeps/ia64/elf/initfini.c:46: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:48: error: parse error before "r15"
+../sysdeps/ia64/elf/initfini.c:48: warning: type defaults to `int' in declaration of `r15'
+../sysdeps/ia64/elf/initfini.c:50: error: parse error before '.' token
+../sysdeps/ia64/elf/initfini.c:56: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:57: error: parse error before "r12"
+../sysdeps/ia64/elf/initfini.c:57: warning: type defaults to `int' in declaration of `r12'
+../sysdeps/ia64/elf/initfini.c:58: warning: type defaults to `int' in declaration of `r12'
+../sysdeps/ia64/elf/initfini.c:58: warning: data definition has no type or storage class
+../sysdeps/ia64/elf/initfini.c:59: error: parse error before "gp"
+../sysdeps/ia64/elf/initfini.c:59: warning: type defaults to `int' in declaration of `gp'
+../sysdeps/ia64/elf/initfini.c:63: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:74: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:80: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:81: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:89: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:92: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:96: error: parse error before '.' token
+../sysdeps/ia64/elf/initfini.c:101: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:106: error: syntax error at '#' token
+../sysdeps/ia64/elf/initfini.c:107:1: missing terminating " character
+make[2]: *** [/home/dank/wk/crosstool-0.28-rc37/build/ia64-unknown-linux-gnu/gcc-3.3.4-glibc-2.2.5/build-glibc/csu/initfini.s] Error 1
+make[2]: Leaving directory `/home/dank/wk/crosstool-0.28-rc37/build/ia64-unknown-linux-gnu/gcc-3.3.4-glibc-2.2.5/glibc-2.2.5/csu'
+make[1]: *** [csu/subdir_lib] Error 2
+make[1]: Leaving directory `/home/dank/wk/crosstool-0.28-rc37/build/ia64-unknown-linux-gnu/gcc-3.3.4-glibc-2.2.5/glibc-2.2.5'
+make: *** [all] Error 2
+
+===================================================================
+RCS file: /cvs/glibc/libc/sysdeps/ia64/elf/initfini.c,v
+retrieving revision 1.2
+retrieving revision 1.3
+diff -u -r1.2 -r1.3
+--- libc/sysdeps/ia64/elf/initfini.c	2001/07/06 04:55:54	1.2
++++ libc/sysdeps/ia64/elf/initfini.c	2002/08/25 00:34:23	1.3
+@@ -1,5 +1,5 @@
+ /* Special .init and .fini section support for ia64.
+-   Copyright (C) 2000 Free Software Foundation, Inc.
++   Copyright (C) 2000, 2002 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -27,81 +27,81 @@
+    * crtn.s puts the corresponding function epilogues
+    in the .init and .fini sections. */
+ 
+-__asm__ ("
+-
+-#include \"defs.h\"
+-
+-/*@HEADER_ENDS*/
+-
+-/*@_init_PROLOG_BEGINS*/
+-	.section .init
+-	.align 16
+-	.global _init#
+-	.proc _init#
+-_init:
+-	alloc r34 = ar.pfs, 0, 3, 0, 0
+-	mov r32 = r12
+-	mov r33 = b0
+-	adds r12 = -16, r12
+-	addl r14 = @ltoff(@fptr(__gmon_start__#)), gp
+-	;;
+-	ld8 r15 = [r14]
+-	;;
+-	cmp.eq p6, p7 = 0, r15
+-	(p6) br.cond.dptk .L5
+-
+-/* we could use r35 to save gp, but we use the stack since that's what
+- * all the other init routines will do --davidm 00/04/05 */
+-	st8 [r12] = gp, -16
+-	br.call.sptk.many b0 = __gmon_start__# ;;
+-	adds r12 = 16, r12
+-	;;
+-	ld8 gp = [r12]
+-	;;
+-.L5:
+-	.align 16
+-	.endp _init#
+-
+-/*@_init_PROLOG_ENDS*/
+-
+-/*@_init_EPILOG_BEGINS*/
+-	.section .init
+-	.regstk 0,2,0,0
+-	mov r12 = r32
+-	mov ar.pfs = r34
+-	mov b0 = r33
+-	br.ret.sptk.many b0
+-	.endp _init#
+-/*@_init_EPILOG_ENDS*/
+-
+-/*@_fini_PROLOG_BEGINS*/
+-	.section .fini
+-	.align 16
+-	.global _fini#
+-	.proc _fini#
+-_fini:
+-	alloc r34 = ar.pfs, 0, 3, 0, 0
+-	mov r32 = r12
+-	mov r33 = b0
+-	adds r12 = -16, r12
+-	;;
+-	.align 16
+-	.endp _fini#
+-
+-/*@_fini_PROLOG_ENDS*/
+-	br.call.sptk.many b0 = i_am_not_a_leaf# ;;
+-	;;
+-
+-/*@_fini_EPILOG_BEGINS*/
+-	.section .fini
+-	mov r12 = r32
+-	mov ar.pfs = r34
+-	mov b0 = r33
+-	br.ret.sptk.many b0
+-	.endp _fini#
+-
+-/*@_fini_EPILOG_ENDS*/
+-
+-/*@TRAILER_BEGINS*/
+-	.weak	__gmon_start__#
++__asm__ ("\n\
++\n\
++#include \"defs.h\"\n\
++\n\
++/*@HEADER_ENDS*/\n\
++\n\
++/*@_init_PROLOG_BEGINS*/\n\
++	.section .init\n\
++	.align 16\n\
++	.global _init#\n\
++	.proc _init#\n\
++_init:\n\
++	alloc r34 = ar.pfs, 0, 3, 0, 0\n\
++	mov r32 = r12\n\
++	mov r33 = b0\n\
++	adds r12 = -16, r12\n\
++	addl r14 = @ltoff(@fptr(__gmon_start__#)), gp\n\
++	;;\n\
++	ld8 r15 = [r14]\n\
++	;;\n\
++	cmp.eq p6, p7 = 0, r15\n\
++	(p6) br.cond.dptk .L5\n\
++\n\
++/* we could use r35 to save gp, but we use the stack since that's what\n\
++ * all the other init routines will do --davidm 00/04/05 */\n\
++	st8 [r12] = gp, -16\n\
++	br.call.sptk.many b0 = __gmon_start__# ;;\n\
++	adds r12 = 16, r12\n\
++	;;\n\
++	ld8 gp = [r12]\n\
++	;;\n\
++.L5:\n\
++	.align 16\n\
++	.endp _init#\n\
++\n\
++/*@_init_PROLOG_ENDS*/\n\
++\n\
++/*@_init_EPILOG_BEGINS*/\n\
++	.section .init\n\
++	.regstk 0,2,0,0\n\
++	mov r12 = r32\n\
++	mov ar.pfs = r34\n\
++	mov b0 = r33\n\
++	br.ret.sptk.many b0\n\
++	.endp _init#\n\
++/*@_init_EPILOG_ENDS*/\n\
++\n\
++/*@_fini_PROLOG_BEGINS*/\n\
++	.section .fini\n\
++	.align 16\n\
++	.global _fini#\n\
++	.proc _fini#\n\
++_fini:\n\
++	alloc r34 = ar.pfs, 0, 3, 0, 0\n\
++	mov r32 = r12\n\
++	mov r33 = b0\n\
++	adds r12 = -16, r12\n\
++	;;\n\
++	.align 16\n\
++	.endp _fini#\n\
++\n\
++/*@_fini_PROLOG_ENDS*/\n\
++	br.call.sptk.many b0 = i_am_not_a_leaf# ;;\n\
++	;;\n\
++\n\
++/*@_fini_EPILOG_BEGINS*/\n\
++	.section .fini\n\
++	mov r12 = r32\n\
++	mov ar.pfs = r34\n\
++	mov b0 = r33\n\
++	br.ret.sptk.many b0\n\
++	.endp _fini#\n\
++\n\
++/*@_fini_EPILOG_ENDS*/\n\
++\n\
++/*@TRAILER_BEGINS*/\n\
++	.weak	__gmon_start__#\n\
+ ");

@@ -1,0 +1,28 @@
+This fixes the error
+
+In file included from gthr-default.h:1,
+                 from /build/arm-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/gcc-2.95.3/gcc/gthr.h:98,
+                 from /build/arm-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/gcc-2.95.3/gcc/libgcc2.c:3034:
+/build/arm-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/gcc-2.95.3/gcc/gthr-posix.h:37: pthread.h: No such file or directory
+make[3]: *** [libgcc2.a] Error 1
+make[3]: Leaving directory `/build/arm-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/build-gcc-core/gcc'
+
+in what I think is a nicer way than the patch used by the arm team,
+i.e. "perl -pi -e 's/^(TARGET_LIBGCC2_CFLAGS.*)/$1 -Dinhibit_libc -D__gthr_posix_h/' gcc/config/arm/t-linux"
+which seems a bit of a kludge.
+
+--- gcc-2.95.3/gcc/configure.old	Fri Mar 16 06:13:48 2001
++++ gcc-2.95.3/gcc/configure	Sun Jun  8 13:02:20 2003
+@@ -853,9 +853,9 @@
+ # Check whether --enable-threads or --disable-threads was given.
+ if test "${enable_threads+set}" = set; then
+   enableval="$enable_threads"
+-  if test x$enable_threads = xno; then
+-	enable_threads=''
+-fi
++  #if test x$enable_threads = xno; then
++	#enable_threads=''
++  #fi
+ else
+   enable_threads=''
+ fi

@@ -1,0 +1,71 @@
+Workaround for buglet in std::vector etc. when compiling
+with gcc-4.0.1 -Wall -O -fno-exceptions
+Fixes:
+
+.../include/c++/4.0.0/bits/vector.tcc: In member function 'void std::vector<_Tp,
+_Alloc>::reserve(size_t) [with _Tp = int, _Alloc = std::allocator<int>]':
+.../include/c++/4.0.0/bits/vector.tcc:78: warning: control may reach end of
+non-void function 'typename _Alloc::pointer std::vector<_Tp,
+_Alloc>::_M_allocate_and_copy(size_t, _ForwardIterator, _ForwardIterator) [with
+_ForwardIterator = int*, _Tp = int, _Alloc = std::allocator<int>]' being inlined
+
+See http://gcc.gnu.org/PR21951
+
+To: gcc-patches at gcc dot gnu dot org
+Subject: [4.0.x] may reach end warning in system headers
+Message-Id: <20050701183024.E138714C16A9@geoffk5.apple.com>
+Date: Fri,  1 Jul 2005 11:30:24 -0700 (PDT)
+From: gkeating at apple dot com (Geoffrey Keating)
+
+
+One of our users was getting
+
+/usr/include/gcc/darwin/4.0/c++/bits/stl_uninitialized.h:113: warning:
+control may reach end of non-void function '_ForwardIterator
+std::__uninitialized_copy_aux(_InputIterator, _InputIterator,
+_ForwardIterator, __false_type) [with _InputIterator =
+__gnu_cxx::__normal_iterator<TPoolAllocator::tAllocState*,
+std::vector<TPoolAllocator::tAllocState,
+std::allocator<TPoolAllocator::tAllocState> > >, _ForwardIterator =
+__gnu_cxx::__normal_iterator<TPoolAllocator::tAllocState*,
+std::vector<TPoolAllocator::tAllocState,
+std::allocator<TPoolAllocator::tAllocState> > >]' being inlined
+
+which shouldn't be happening, he has no way to change a standard C++
+header.  The warning is bogus anyway, but it's fixed in 4.1 through
+the CFG changes, which I don't really want to backport to the 4.0
+branch, so instead I'll add this patch.  Other warnings generated from
+tree-inline.c check for DECL_SYSTEM_HEADER like this.
+
+Bootstrapped & tested on powerpc-darwin8, I'll commit when the branch
+is unfrozen.
+
+-- 
+- Geoffrey Keating <geoffk@apple.com>
+
+===File ~/patches/gcc-40-4121982.patch======================
+Index: ChangeLog
+2005-06-28  Geoffrey Keating  <geoffk@apple.com>
+
+	* tree-inline.c (expand_call_inline): Prevent 'may reach end'
+	warning in system headers.
+
+Index: tree-inline.c
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/tree-inline.c,v
+retrieving revision 1.170.8.4
+diff -u -p -u -p -r1.170.8.4 tree-inline.c
+--- gcc-4.0.1/gcc/tree-inline.c.old	6 Jun 2005 19:20:32 -0000	1.170.8.4
++++ gcc-4.0.1/gcc/tree-inline.c	1 Jul 2005 18:27:26 -0000
+@@ -1693,7 +1693,8 @@ expand_call_inline (tree *tp, int *walk_
+ 	&& !TREE_NO_WARNING (fn)
+ 	&& !VOID_TYPE_P (TREE_TYPE (TREE_TYPE (fn)))
+ 	&& return_slot_addr == NULL_TREE
+-	&& block_may_fallthru (copy))
++	&& block_may_fallthru (copy)
++	&& !DECL_IN_SYSTEM_HEADER (fn))
+       {
+ 	warning ("control may reach end of non-void function %qD being inlined",
+ 		 fn);
+============================================================
+

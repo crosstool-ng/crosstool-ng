@@ -1,0 +1,215 @@
+# This file contains some usefull common functions
+# Copyright 2007 Yann E. MORIN
+# Licensed under the GPL v2. See COPYING in the root of this package
+
+CT_OnError() {
+    ret=$?
+    CT_DoLog ERROR "Build failed in step \"${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}\""
+    for((step=(CT_STEP_COUNT-1); step>1; step--)); do
+        CT_DoLog ERROR "      called in step \"${CT_STEP_MESSAGE[${step}]}\""
+    done
+    CT_DoLog ERROR "Error happened in \"${BASH_SOURCE[1]}\" in function \"${FUNCNAME[1]}\" (line unknown, sorry)"
+    for((depth=2; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
+        CT_DoLog ERROR "      called from \"${BASH_SOURCE[${depth}]}\" at line # ${BASH_LINENO[${depth}-1]} in function \"${FUNCNAME[${depth}]}\""
+    done
+    CT_DoLog ERROR "Look at \"${CT_ACTUAL_LOG_FILE}\" for more info on this error."
+    exit $ret
+}
+trap CT_OnError ERR
+
+set -E
+set -o pipefail
+
+# This is crosstool-ng-0.0.1
+CT_VERSION=ng-0.0.1
+
+# The different log levels:
+CT_LOG_LEVEL_ERROR=0
+CT_LOG_LEVEL_WARN=1
+CT_LOG_LEVEL_INFO=2
+CT_LOG_LEVEL_EXTRA=3
+CT_LOG_LEVEL_DEBUG=4
+
+# Attributes
+_A_NOR="\\033[0m"
+_A_BRI="\\033[1m"
+_A_DIM="\\033[2m"
+_A_UND="\\033[4m"
+_A_BRB="\\033[5m"
+_A_REV="\\033[7m"
+_A_HID="\\033[8m"
+
+# Fore colors
+_F_BLK="\\033[30m"
+_F_RED="\\033[31m"
+_F_GRN="\\033[32m"
+_F_YEL="\\033[33m"
+_F_BLU="\\033[34m"
+_F_MAG="\\033[35m"
+_F_CYA="\\033[36m"
+_F_WHI="\\033[37m"
+
+# A function to log what is happening
+# Different log level are available:
+#   - ERROR:   A serious, fatal error occurred
+#   - WARN:    A non fatal, non serious error occurred, take your responsbility with the generated build
+#   - INFO:    Informational messages
+#   - EXTRA:   Extra informational messages
+#   - DEBUG:   Debug messages
+# Usage: CT_DoLog <level> [message]
+# If message is empty, then stdin will be logged.
+CT_DoLog() {
+    local max_level
+    local level
+    eval max_level="\${CT_LOG_LEVEL_${CT_LOG_LEVEL_MAX}}"
+    # Set the maximum log level to DEBUG if we have none
+    [ -z ${max_level} ] && max_level=${CT_LOG_LEVEL_DEBUG}
+
+    local LEVEL="$1"
+    shift
+    eval level="\${CT_LOG_LEVEL_${LEVEL}}"
+
+    if [ $# -eq 0 ]; then
+        cat -
+    else
+        echo "${1}"
+    fi |( IFS="\n" # We want the full lines, even leading spaces
+          cpt=0
+          indent=$((2*CT_STEP_COUNT))
+          while read line; do
+              l="`printf \"[%-5s]%*s%s%s\" \"${LEVEL}\" \"${indent}\" \" \" \"${line}\"`"
+              # There will always be a log file, be it /dev/null
+              echo -e "${l}" >>"${CT_ACTUAL_LOG_FILE}"
+              color="CT_${LEVEL}_COLOR"
+              normal="CT_NORMAL_COLOR"
+              if [ ${level} -le ${max_level} ]; then
+                  echo -e "${!color}${l}${!normal}"
+              else
+                  ${CT_PROG_BAR}
+              fi
+          done
+        )
+
+    return 0
+}
+
+# Abort the execution with a error message
+# Usage: CT_Abort <message>
+CT_Abort() {
+    CT_DoLog ERROR "$1" >&2
+    exit 1
+}
+
+# Test a condition, and print a message if satisfied
+# Usage: CT_Test <message> <tests>
+CT_Test() {
+    local ret
+    local m="$1"
+    shift
+    test "$@" && CT_DoLog WARN "$m"
+    return 0
+}
+
+# Test a condition, and abort with an error message if satisfied
+# Usage: CT_TestAndAbort <message> <tests>
+CT_TestAndAbort() {
+    local m="$1"
+    shift
+    test "$@" && CT_Abort "$m"
+    return 0
+}
+
+# Test a condition, and abort with an error message if not satisfied
+# Usage: CT_TestAndAbort <message> <tests>
+CT_TestOrAbort() {
+    local m="$1"
+    shift
+    test "$@" || CT_Abort "$m"
+    return 0
+}
+
+# Test the presence of a tool, or abort if not found
+# Usage: CT_HasOrAbort <tool>
+CT_HasOrAbort() {
+    CT_TestAndAbort "\"${1}\" not found and needed for successfull toolchain build." -z "`which \"${1}\"`"
+    return 0
+}
+
+# Get current date with nanosecond precision
+# On those system not supporting nanosecond precision, faked with rounding down
+# to the highest entire second
+# Usage: CT_DoDate <fmt>
+CT_DoDate() {
+    date "$1" |sed -r -e 's/%N$/000000000/;'
+}
+
+CT_STEP_COUNT=1
+CT_STEP_MESSAGE[${CT_STEP_COUNT}]="<none>"
+# Memorise a step being done so that any error is caught
+# Usage: CT_DoStep <loglevel> <message>
+CT_DoStep() {
+    local start=`CT_DoDate +%s%N`
+    CT_DoLog "$1" "================================================================="
+    CT_DoLog "$1" "$2"
+    CT_STEP_COUNT=$((CT_STEP_COUNT+1))
+    CT_STEP_LEVEL[${CT_STEP_COUNT}]="$1"; shift
+    CT_STEP_START[${CT_STEP_COUNT}]="${start}"
+    CT_STEP_MESSAGE[${CT_STEP_COUNT}]="$1"
+    return 0
+}
+
+# End the step just being done
+# Usage: CT_EndStep
+CT_EndStep() {
+    local stop=`CT_DoDate +%s%N`
+    local duration=`printf "%032d" $((stop-${CT_STEP_START[${CT_STEP_COUNT}]})) |sed -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;'`
+    local level="${CT_STEP_LEVEL[${CT_STEP_COUNT}]}"
+    local message="${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}"
+    CT_STEP_COUNT=$((CT_STEP_COUNT-1))
+    CT_DoLog "${level}" "${message}: done in ${duration}s"
+    return 0
+}
+
+# Pushes into a directory, and pops back
+CT_Pushd() {
+    pushd "$1" >/dev/null 2>&1
+}
+CT_Popd() {
+    popd >/dev/null 2>&1
+}
+
+# Makes a path absolute
+# Usage: CT_MakeAbsolutePath path
+CT_MakeAbsolutePath() {
+    # Try to cd in that directory
+    if [ -d "$1" ]; then
+        CT_Pushd "$1"
+        pwd
+        CT_Popd
+    else
+        # No such directory, fail back to guessing
+        case "$1" in
+            /*)  echo "$1";;
+            *)   echo "`pwd`/$1";;
+        esac
+    fi
+    
+    return 0
+}
+
+# Creates a temporary directory
+# $1: variable to assign to
+# Usage: CT_MktempDir foo
+CT_MktempDir() {
+    # Some mktemp do not allow more than 6 Xs
+    eval "$1"="`mktemp -q -d \"${CT_BUILD_DIR}/.XXXXXX\"`"
+    CT_TestOrAbort "Could not make temporary directory" -n "${!1}" -a -d "${!1}"
+}
+
+# Echoes the specified string on stdout until the pipe breaks.
+# Doesn't fail
+# $1: string to echo
+# Usage: CT_DoYes "" |make oldconfig
+CT_DoYes() {
+    yes "$1" || true
+}

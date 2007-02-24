@@ -1,0 +1,48 @@
+Backport from cvs 
+
+Fixes:
+
+../sysdeps/unix/sysv/linux/errlist.c:41: weak declaration of `_old_sys_nerr' must precede definition
+make[2]: *** [/home/dank/downloads/crosstool-0.24/build/mipsel-unknown-linux-gnu/gcc-3.2.3-glibc-2.2.3/build-glibc/stdio-common/errlist.os] Error 1
+
+as well as breakage on arches where ; is a comment char in asm
+
+--- glibc-2.1.3/sysdeps/unix/sysv/linux/errlist.c.old	2004-03-05 15:32:21.000000000 -0800
++++ glibc-2.1.3/sysdeps/unix/sysv/linux/errlist.c	2004-03-05 15:39:39.000000000 -0800
+@@ -24,13 +24,13 @@
+ # define SYS_ERRLIST __new_sys_errlist
+ # define SYS_NERR __new_sys_nerr
+ 
+-asm (".data; .globl __old_sys_errlist;  __old_sys_errlist:");
++asm (".data\n\t.globl __old_sys_errlist\n\t __old_sys_errlist:");
+ #endif
+ 
+ #include <sysdeps/gnu/errlist.c>
+ 
+ #if defined HAVE_ELF && defined PIC && defined DO_VERSIONING
+-asm (".type __old_sys_errlist,@object;.size __old_sys_errlist,"
++asm (".type __old_sys_errlist,@object\n\t.size __old_sys_errlist,"
+      OLD_ERRLIST_SIZE_STR "*" PTR_SIZE_STR);
+ 
+ extern const char *const *__old_sys_errlist;
+@@ -38,17 +38,16 @@
+ const int __old_sys_nerr = OLD_ERRLIST_SIZE;
+ 
+ strong_alias (__old_sys_nerr, _old_sys_nerr);
+-weak_alias (__old_sys_nerr, _old_sys_nerr)
+ symbol_version (__old_sys_nerr, _sys_nerr, GLIBC_2.0);
+ symbol_version (_old_sys_nerr, sys_nerr, GLIBC_2.0);
+-weak_alias (__old_sys_errlist, _old_sys_errlist);
++strong_alias (__old_sys_errlist, _old_sys_errlist);
+ symbol_version (__old_sys_errlist, _sys_errlist, GLIBC_2.0);
+ symbol_version (_old_sys_errlist, sys_errlist, GLIBC_2.0);
+ 
+-weak_alias (__new_sys_nerr, _new_sys_nerr)
++strong_alias (__new_sys_nerr, _new_sys_nerr)
+ default_symbol_version (__new_sys_nerr, _sys_nerr, GLIBC_2.1);
+ default_symbol_version (_new_sys_nerr, sys_nerr, GLIBC_2.1);
+-weak_alias (__new_sys_errlist, _new_sys_errlist)
++strong_alias (__new_sys_errlist, _new_sys_errlist)
+ default_symbol_version (__new_sys_errlist, _sys_errlist, GLIBC_2.1);
+ default_symbol_version (_new_sys_errlist, sys_errlist, GLIBC_2.1);
+ 

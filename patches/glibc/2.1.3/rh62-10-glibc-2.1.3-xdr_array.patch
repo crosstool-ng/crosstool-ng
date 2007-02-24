@@ -1,0 +1,36 @@
+--- glibc-2.1.3/sunrpc/rpc/types.h	Fri Oct 16 13:43:49 1998
++++ glibc-2.1.3/sunrpc/rpc/types.h	Thu Aug  1 09:06:38 2002
+@@ -55,6 +55,10 @@
+ 
+ #include <stdlib.h>		/* For malloc decl.  */
+ #define mem_alloc(bsize)	malloc(bsize)
++/*
++ * XXX: This must not use the second argument, or code in xdr_array.c needs
++ * to be modified.
++ */
+ #define mem_free(ptr, bsize)	free(ptr)
+ 
+ #ifndef makedev /* ie, we haven't already included it */
+--- glibc-2.1.3/sunrpc/xdr_array.c	Thu Jul 16 15:23:51 1998
++++ glibc-2.1.3/sunrpc/xdr_array.c	Thu Aug  1 09:07:45 2002
+@@ -44,6 +44,7 @@
+ #include <string.h>
+ #include <rpc/types.h>
+ #include <rpc/xdr.h>
++#include <limits.h>
+ 
+ #define LASTUNSIGNED	((u_int)0-1)
+ 
+@@ -76,7 +77,11 @@
+       return FALSE;
+     }
+   c = *sizep;
+-  if ((c > maxsize) && (xdrs->x_op != XDR_FREE))
++  /*
++   * XXX: Let the overflow possibly happen with XDR_FREE because mem_free()
++   * doesn't actually use its second argument anyway.
++   */
++  if ((c > maxsize || c > UINT_MAX / elsize) && (xdrs->x_op != XDR_FREE))
+     {
+       return FALSE;
+     }

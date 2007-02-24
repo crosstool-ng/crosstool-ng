@@ -1,0 +1,143 @@
+See http://gcc.gnu.org/PR18508
+
+This should fix cygwin errors like:
+
+basename: missing operand
+Try `basename --help' for more information.
+mv: `libgcc_s_nof.so.1' and `libgcc_s_nof.so.1.' are the same file
+make[2]: *** [nof/libgcc_s_nof.so] Error 1
+make[2]: Leaving directory `/home/cvachoucek/crosstool-0.32/build/powerpc-750-linux-gnu/gcc-3.4.3-glibc-2.3.5/build-gcc/gcc'
+make[1]: *** [stmp-multilib] Error 2
+make[1]: Leaving directory `/home/cvachoucek/crosstool-0.32/build/powerpc-750-linux-gnu/gcc-3.4.3-glibc-2.3.5/build-gcc/gcc'
+make: *** [install-gcc] Error 2
+
+From gcc-patches-return-133821-listarch-gcc-patches=gcc dot gnu dot org at gcc dot gnu dot org Wed Nov 17 00:15:28 2004
+Return-Path: <gcc-patches-return-133821-listarch-gcc-patches=gcc dot gnu dot org at gcc dot gnu dot org>
+Delivered-To: listarch-gcc-patches at gcc dot gnu dot org
+Received: (qmail 12823 invoked by alias); 17 Nov 2004 00:15:19 -0000
+Mailing-List: contact gcc-patches-help at gcc dot gnu dot org; run by ezmlm
+List-Archive: <http://gcc.gnu.org/ml/gcc-patches/>
+List-Post: <mailto:gcc-patches at gcc dot gnu dot org>
+List-Help: <mailto:gcc-patches-help at gcc dot gnu dot org>
+Sender: gcc-patches-owner at gcc dot gnu dot org
+Date: Tue, 16 Nov 2004 16:14:57 -0800
+From: "H dot  J dot  Lu" <hjl at lucon dot org>
+To: gcc-patches at gcc dot gnu dot org
+Subject: PATCH: PR other/18508: "basename: too few arguments" when building without bootstrap
+Message-ID: <20041117001457.GA13610@lucon.org>
+
+I think it is safe to use `.backup' to backup the existing shared
+library. No processes should be using the old shared library when
+we get there.
+
+
+H.J.
+---
+2004-11-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR other/18508
+	* config/alpha/t-osf4 (SHLIB_LINK): Use `.backup' as the suffix
+	to back up the existing shared library.
+	* config/arm/t-netbsd (SHLIB_LINK): Likewise.
+	* config/i386/t-nwld (SHLIB_LINK): Likewise. [deleted]
+	* config/mips/t-slibgcc-irix (SHLIB_LINK): Likewise. [deleted]
+	* config/pa/t-hpux-shlib (SHLIB_LINK): Likewise.
+	* config/sh/t-linux (SHLIB_LINK): Likewise.
+	* config/t-libunwind-elf (SHLIBUNWIND_LINK): Likewise.
+	* config/t-slibgcc-darwin (SHLIB_LINK): Likewise.
+	* config/t-slibgcc-elf-ver (SHLIB_LINK): Likewise.
+	* config/t-slibgcc-sld (SHLIB_LINK): Likewise.
+
+[ paths adjusted for patch -p1, rediffed agaainst gcc-3.4.3. 
+  Looks like the t-iris5-6 hunk in cvs is missing here; this must
+  have been the mainline patch. ]
+
+--- gcc-3.4.3/gcc/config/alpha/t-osf4.stage	2004-10-18 09:14:39.000000000 -0700
++++ gcc-3.4.3/gcc/config/alpha/t-osf4	2004-11-16 16:06:41.686905479 -0800
+@@ -19,7 +19,7 @@ SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2
+ 	-o $(SHLIB_NAME).tmp @multilib_flags@ $(SHLIB_OBJS) -lc && \
+ 	rm -f $(SHLIB_SONAME) && \
+ 	if [ -f $(SHLIB_NAME) ]; then \
+-	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+ 	$(LN_S) $(SHLIB_NAME) $(SHLIB_SONAME)
+--- gcc-3.4.3/gcc/config/arm/t-netbsd.stage	2004-10-18 09:14:40.000000000 -0700
++++ gcc-3.4.3/gcc/config/arm/t-netbsd	2004-11-16 16:06:46.016348194 -0800
+@@ -14,7 +14,7 @@ SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2
+ 	-o $(SHLIB_NAME).tmp @multilib_flags@ $(SHLIB_OBJS) -lc && \
+ 	rm -f $(SHLIB_SONAME) && \
+ 	if [ -f $(SHLIB_NAME) ]; then \
+-	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+ 	$(LN_S) $(SHLIB_NAME) $(SHLIB_SONAME)
+--- gcc-3.4.3/gcc/config/pa/t-hpux-shlib.stage	2004-10-18 09:14:46.000000000 -0700
++++ gcc-3.4.3/gcc/config/pa/t-hpux-shlib	2004-11-16 16:06:57.982807875 -0800
+@@ -8,7 +8,7 @@ SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2
+ 	-o $(SHLIB_NAME).tmp @multilib_flags@ $(SHLIB_OBJS) -lc && \
+         rm -f $(SHLIB_SONAME) && \
+ 	if [ -f $(SHLIB_NAME) ]; then \
+-	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+         $(LN_S) $(SHLIB_NAME) $(SHLIB_SONAME)
+--- gcc-3.4.3/gcc/config/sh/t-linux.stage	2004-10-18 09:14:48.000000000 -0700
++++ gcc-3.4.3/gcc/config/sh/t-linux	2004-11-16 16:07:00.787446863 -0800
+@@ -24,7 +24,7 @@ SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2
+ 	-o $(SHLIB_NAME).tmp @multilib_flags@ $(SHLIB_OBJS) $(SHLIB_LC) && \
+ 	rm -f $(SHLIB_SOLINK) && \
+ 	if [ -f $(SHLIB_NAME) ]; then \
+-	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+ 	(echo "/* GNU ld script"; \
+--- gcc-3.4.3/gcc/config/t-libunwind-elf.stage	2004-10-18 09:14:39.000000000 -0700
++++ gcc-3.4.3/gcc/config/t-libunwind-elf	2004-11-16 16:07:08.133501281 -0800
+@@ -14,8 +14,7 @@ SHLIBUNWIND_LINK = $(GCC_FOR_TARGET) $(L
+ 	@multilib_flags@ $(SHLIB_OBJS) -lc && \
+ 	rm -f $(SHLIB_SOLINK) && \
+ 	if [ -f $(SHLIBUNWIND_NAME) ]; then \
+-	  mv -f $(SHLIBUNWIND_NAME) \
+-	     $(SHLIBUNWIND_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIBUNWIND_NAME) $(SHLIBUNWIND_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIBUNWIND_NAME).tmp $(SHLIBUNWIND_NAME) && \
+ 	$(LN_S) $(SHLIBUNWIND_NAME) $(SHLIB_SOLINK)
+--- gcc-3.4.3/gcc/config/t-slibgcc-darwin.stage	2004-10-18 09:14:39.000000000 -0700
++++ gcc-3.4.3/gcc/config/t-slibgcc-darwin	2004-11-16 16:07:13.777774752 -0800
+@@ -17,7 +17,7 @@ SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2
+ 	@multilib_flags@ $(SHLIB_OBJS) -lc && \
+ 	rm -f $(SHLIB_SOLINK) && \
+ 	if [ -f $(SHLIB_NAME) ]; then \
+-	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+ 	$(LN_S) $(SHLIB_NAME) $(SHLIB_SOLINK)
+--- gcc-3.4.3/gcc/config/t-slibgcc-elf-ver.stage	2004-10-18 09:14:39.000000000 -0700
++++ gcc-3.4.3/gcc/config/t-slibgcc-elf-ver	2004-11-16 16:04:40.961445223 -0800
+@@ -17,7 +17,7 @@ SHLIB_LINK = $(GCC_FOR_TARGET) $(LIBGCC2
+ 	-o $(SHLIB_NAME).tmp @multilib_flags@ $(SHLIB_OBJS) $(SHLIB_LC) && \
+ 	rm -f $(SHLIB_SOLINK) && \
+ 	if [ -f $(SHLIB_NAME) ]; then \
+-	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+ 	$(LN_S) $(SHLIB_NAME) $(SHLIB_SOLINK)
+--- gcc-3.4.3/gcc/config/t-slibgcc-sld.old	2004-10-18 09:00:47.000000000 -0700
++++ gcc-3.4.3/gcc/config/t-slibgcc-sld	2005-05-14 13:44:48.000000000 -0700
+@@ -14,7 +14,7 @@
+ 	@multilib_flags@ $(SHLIB_OBJS) -lc && \
+ 	rm -f $(SHLIB_SOLINK) && \
+ 	if [ -f $(SHLIB_NAME) ]; then \
+-	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).`basename $(STAGE_PREFIX)`; \
++	  mv -f $(SHLIB_NAME) $(SHLIB_NAME).backup; \
+ 	else true; fi && \
+ 	mv $(SHLIB_NAME).tmp $(SHLIB_NAME) && \
+ 	$(LN_S) $(SHLIB_NAME) $(SHLIB_SOLINK)

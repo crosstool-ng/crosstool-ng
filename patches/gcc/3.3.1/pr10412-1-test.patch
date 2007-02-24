@@ -1,0 +1,46 @@
+--- /dev/null	Sat Dec 14 13:56:51 2002
++++ gcc-3.3.1/gcc/testsuite/gcc.dg/pr10412-1.c	Sun Sep 14 16:15:21 2003
+@@ -0,0 +1,43 @@
++/* PR target/10412
++ * Reporter: shrinivasa@kpitcummins.com 
++ * Summary: Renesas SH - Incorrect code generation
++ * Description:
++ * When following code is compiled  with
++ * sh-elf-gcc  -S -mhitachi -m2 -O2 bug1.c
++ * generates an incorrect code.
++ *
++ * Testcase tweaked by dank@kegel.com
++ * Problem only happens with -mhitachi -m2.  Not sure if I can give those
++ * options for all sh targets.  They work on sh4, though.
++ * Not marked as xfail as it's a regression relative to hardhat 2.0 gcc-2.97.
++*/
++/* { dg-do run } */
++/* { dg-options "-O2" } */
++int global_val;
++
++int func0(int x)
++{
++	global_val += x;
++	return (x != 99);
++}
++
++int func1(unsigned long addr)
++{
++	int err;
++
++	err = func0(addr);
++	if (err)
++		return (err);
++
++	err = func0(addr * 7);	/* address of func0 is lost during multiplication -> probable SIGSEGV */
++	return (err);
++}
++
++int main(int argc, char **argv)
++{
++	global_val = 0;
++	global_val += func1(99);
++	if (global_val != 99 * 8 + 1)
++		abort();
++	return 0;
++}

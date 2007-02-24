@@ -1,0 +1,26 @@
+wget "http://sources.redhat.com/cgi-bin/get-raw-msg?listname=libc-alpha&date=2003-09&msgid=20030911190500.GE12344%40sunsite.ms.mff.cuni.cz"
+aka http://sources.redhat.com/ml/libc-alpha/2003-09/msg00104.html
+
+This seems to fix the error
+   gcc-3.4.1-glibc-2.3.3/lib/gcc/powerpc-7400-linux-gnu/3.4.1/../../../../powerpc-7400-linux-gnu/bin/ld: cannot find -lgcc_eh
+   make[1]: *** [build/powerpc-7400-linux-gnu/gcc-3.4.1-glibc-2.3.3/build-glibc/libc.so] Error 1
+but I assume it will cause trouble with nptl, since it's so violent
+
+FIXME: once we figure out why this patch is wrong, fix it right :-)
+
+Rediffed against glibc-20040822
+
+
+--- glibc-20040822/Makeconfig.orig	2004-08-04 20:34:28.000000000 -0700
++++ glibc-20040822/Makeconfig	2004-08-24 07:36:49.000000000 -0700
+@@ -527,8 +527,8 @@
+  libgcc_eh := -Wl,--as-needed -lgcc_s$(libgcc_s_suffix) -Wl,--no-as-needed
+ endif
+ ifneq ($(have-cc-with-libunwind),yes)
+- gnulib := -lgcc $(libgcc_eh)
+- static-gnulib := -lgcc -lgcc_eh
++ gnulib := -lgcc 
++ static-gnulib := -lgcc 
+ else
+  gnulib := -lgcc $(libgcc_eh) -lunwind
+  static-gnulib := -lgcc -lgcc_eh -lunwind

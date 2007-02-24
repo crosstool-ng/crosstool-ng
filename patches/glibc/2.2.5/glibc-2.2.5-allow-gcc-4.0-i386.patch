@@ -1,0 +1,49 @@
+Fixes
+../sysdeps/i386/dl-machine.h: In function '_dl_relocate_object':
+../sysdeps/i386/dl-machine.h:306: error: invalid storage class for function 'elf_machine_rel'
+../sysdeps/i386/dl-machine.h:385: error: invalid storage class for function 'elf_machine_rel_relative'
+../sysdeps/i386/dl-machine.h:393: error: invalid storage class for function 'elf_machine_lazy_rel'
+
+when building glibc-2.2.5 with gcc-4.0.
+
+--- /home/dank/downloads/glibc-2.2.5/sysdeps/i386/dl-machine.h	2001-08-30 16:09:10.000000000 -0700
++++ glibc-2.2.5/sysdeps/i386/dl-machine.h	2005-03-11 14:00:22.601858328 -0800
+@@ -298,7 +299,12 @@
+ /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
+    MAP is the object containing the reloc.  */
+ 
++#if __GNUC__ >= 4
++auto inline void
++__attribute ((always_inline))
++#else
+ static inline void
++#endif
+ elf_machine_rel (struct link_map *map, const Elf32_Rel *reloc,
+ 		 const Elf32_Sym *sym, const struct r_found_version *version,
+ 		 Elf32_Addr *const reloc_addr)
+@@ -378,7 +384,12 @@
+     }
+ }
+ 
++#if __GNUC__ >= 4
++auto inline void
++__attribute ((always_inline))
++#else
+ static inline void
++#endif
+ elf_machine_rel_relative (Elf32_Addr l_addr, const Elf32_Rel *reloc,
+ 			  Elf32_Addr *const reloc_addr)
+ {
+@@ -386,7 +397,12 @@
+   *reloc_addr += l_addr;
+ }
+ 
++#if __GNUC__ >= 4
++auto inline void
++__attribute ((always_inline))
++#else
+ static inline void
++#endif
+ elf_machine_lazy_rel (struct link_map *map,
+ 		      Elf32_Addr l_addr, const Elf32_Rel *reloc)
+ {

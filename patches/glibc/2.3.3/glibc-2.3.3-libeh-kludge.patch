@@ -1,0 +1,75 @@
+wget "http://sources.redhat.com/cgi-bin/get-raw-msg?listname=libc-alpha&date=2003-09&msgid=20030911190500.GE12344%40sunsite.ms.mff.cuni.cz"
+aka http://sources.redhat.com/ml/libc-alpha/2003-09/msg00104.html
+
+This seems to fix the error
+   gcc-3.4.1-glibc-2.3.3/lib/gcc/powerpc-7400-linux-gnu/3.4.1/../../../../powerpc-7400-linux-gnu/bin/ld: cannot find -lgcc_eh
+   make[1]: *** [build/powerpc-7400-linux-gnu/gcc-3.4.1-glibc-2.3.3/build-glibc/libc.so] Error 1
+but I assume it might cause trouble with nptl
+FIXME: once we figure out why this patch is wrong, fix it right :-)
+
+Date: Thu, 11 Sep 2003 21:05:00 +0200
+From: Jakub Jelinek <jakub at redhat dot com>
+To: libc-alpha at sources dot redhat dot com
+Subject: Re: Another ugly bootstrapping patch for libgcc_eh
+Message-ID: <20030911190500.GE12344@sunsite.ms.mff.cuni.cz>
+Reply-To: Jakub Jelinek <jakub at redhat dot com>
+References: <20030911194944.GA6104@nevyn.them.org> <20030911180703.GD12344@sunsite.ms.mff.cuni.cz> <20030911203621.GA31503@nevyn.them.org>
+In-Reply-To: <20030911203621 dot GA31503 at nevyn dot them dot org>
+
+On Thu, Sep 11, 2003 at 04:36:21PM -0400, Daniel Jacobowitz wrote:
+> > Why exactly do you need that?
+> > What exact library needs the functions from libgcc_eh.a?
+> > There shouldn't be any these days (__register_*/__frame_state_for etc.
+> > functions should come from sysdeps/generic on arches which need them,
+> > _Unwind_* come from unwind*.c).
+> > IMHO both:
+> > 
+> > # Force the backward compatibility EH functions to be linked.
+> > LDFLAGS-c.so += -u __register_frame
+> > 
+> > in Makerules and -lgcc_eh in Makeconfig should go.
+> 
+> If you say so.  That -lgcc_eh's been in and out quite a number of
+> times.  I was just assuming that it was necessary.
+
+I have been testing following patch on hammer.
+linuxthreads built just fine and NPTL libraries too,
+and in both cases libraries had the same exported symbols as without
+the patch (though its .text slightly shrunk because it no longer contained
+unneeded libgcc_eh routines (and also libc.so has fewer .plt slots).
+Unfortunately, sln in NPTL build doesn't link, as libgcc_eh.a is needed
+in this case.
+So, IMHO we need my Makerules change and Daniel's patch.
+
+2003-09-11  Jakub Jelinek  <jakub@redhat.com>
+
+	#* Makerules (LDFLAGS-c.so): Remove -u __register_frame.
+	* Makeconfig (gnulib): Remove -lgcc_eh.
+
+# Ulrich already applied this.
+#--- libc/Makerules.jj	2003-07-23 03:56:16.000000000 -0400
+#+++ libc/Makerules	2003-09-11 16:22:44.000000000 -0400
+#@@ -572,8 +572,6 @@ LDFLAGS-c.so = -nostdlib -nostartfiles
+# LDLIBS-c.so += $(gnulib)
+# # Give libc.so an entry point and make it directly runnable itself.
+# LDFLAGS-c.so += -e __libc_main
+#-# Force the backward compatibility EH functions to be linked.
+#-LDFLAGS-c.so += -u __register_frame
+# # Pre-link the objects of libc_pic.a so that we can locally resolve
+# # COMMON symbols before we link against ld.so.  This is because ld.so
+# # contains some of libc_pic.a already, which will prevent the COMMONs
+--- libc/Makeconfig.jj	2003-07-22 08:25:32.000000000 -0400
++++ libc/Makeconfig	2003-09-11 16:23:08.000000000 -0400
+@@ -505,7 +505,7 @@ link-libc-bounded = $(common-objpfx)libc
+ link-extra-libs-bounded = $(foreach lib,$(LDLIBS-$(@F:%-bp=%)),$(common-objpfx)$(lib)_b.a)
+ 
+ ifndef gnulib
+-gnulib := -lgcc -lgcc_eh
++gnulib := -lgcc
+ endif
+ ifeq ($(elf),yes)
+ +preinit = $(addprefix $(csu-objpfx),crti.o)
+
+
+	Jakub
+

@@ -1,0 +1,75 @@
+Fix found here: http://www.freelists.org/archives/openbeos/11-2005/msg00090.html
+
+Fixes:
+In file included from ./targ-cpu.h:1,
+                 from /home/dank/crosstool-new/build/i686-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/binutils-2.15/gas/config/obj-elf.h:42,
+                 from ./obj-format.h:1,
+                 from /home/dank/crosstool-new/build/i686-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/binutils-2.15/gas/config/te-linux.h:4,
+                 from ./targ-env.h:1,
+                 from /home/dank/crosstool-new/build/i686-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/binutils-2.15/gas/as.h:626,
+                 from /home/dank/crosstool-new/build/i686-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/binutils-2.15/gas/app.c:30:
+/home/dank/crosstool-new/build/i686-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/binutils-2.15/gas/config/tc-i386.h:451: error: array type has incomplete element type
+make[3]: *** [app.o] Error 1
+make[3]: Leaving directory `/home/dank/crosstool-new/build/i686-unknown-linux-gnu/gcc-2.95.3-glibc-2.2.2/build-binutils/gas'
+
+when building binutils-2.15 with gcc-4.0
+
+
+diff -ur binutils-2.15.old/gas/as.h binutils-2.15/gas/as.h
+--- binutils-2.15.old/gas/as.h	2003-11-22 18:14:21.000000000 -0800
++++ binutils-2.15/gas/as.h	2006-02-14 22:05:35.000000000 -0800
+@@ -605,7 +605,26 @@
+ struct expressionS;
+ struct fix;
+ typedef struct symbol symbolS;
+-struct relax_type;
++
++/* JF moved this here from as.h under the theory that nobody except MACHINE.c
++   and write.c care about it anyway.  */
++/* [zooey]: the above no longer holds with gcc4, as it keeps bugging about
++            incomplete element types in arrays, if relax_type isn't defined
++            here. So I moved the definition back from tc.h to here. */
++struct relax_type
++{
++  /* Forward reach. Signed number. > 0.  */
++  long rlx_forward;
++  /* Backward reach. Signed number. < 0.  */
++  long rlx_backward;
++
++  /* Bytes length of this address.  */
++  unsigned char rlx_length;
++
++  /* Next longer relax-state.  0 means there is no 'next' relax-state.  */
++  relax_substateT rlx_more;
++};
++
+ typedef struct frag fragS;
+ 
+ #ifdef BFD_ASSEMBLER
+diff -ur binutils-2.15.old/gas/tc.h binutils-2.15/gas/tc.h
+--- binutils-2.15.old/gas/tc.h	2003-12-03 15:39:38.000000000 -0800
++++ binutils-2.15/gas/tc.h	2006-02-14 22:03:35.000000000 -0800
+@@ -24,23 +24,6 @@
+ 
+ extern const pseudo_typeS md_pseudo_table[];
+ 
+-/* JF moved this here from as.h under the theory that nobody except MACHINE.c
+-   and write.c care about it anyway.  */
+-
+-struct relax_type
+-{
+-  /* Forward reach. Signed number. > 0.  */
+-  long rlx_forward;
+-  /* Backward reach. Signed number. < 0.  */
+-  long rlx_backward;
+-
+-  /* Bytes length of this address.  */
+-  unsigned char rlx_length;
+-
+-  /* Next longer relax-state.  0 means there is no 'next' relax-state.  */
+-  relax_substateT rlx_more;
+-};
+-
+ typedef struct relax_type relax_typeS;
+ 
+ extern const int md_reloc_size;	/* Size of a relocation record */

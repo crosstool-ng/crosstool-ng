@@ -1,0 +1,153 @@
+Workaround for buglet in std::vector etc. when compiling 
+with gcc-4.0.0 -Wall -O -fno-exceptions
+Fixes:
+
+.../include/c++/4.0.0/bits/vector.tcc: In member function 'void std::vector<_Tp,
+_Alloc>::reserve(size_t) [with _Tp = int, _Alloc = std::allocator<int>]':
+.../include/c++/4.0.0/bits/vector.tcc:78: warning: control may reach end of
+non-void function 'typename _Alloc::pointer std::vector<_Tp,
+_Alloc>::_M_allocate_and_copy(size_t, _ForwardIterator, _ForwardIterator) [with
+_ForwardIterator = int*, _Tp = int, _Alloc = std::allocator<int>]' being inlined
+
+See http://gcc.gnu.org/PR21951
+
+--- gcc-4.0.1-20050607/libstdc++-v3/include/bits/stl_vector.h.old	2005-06-11 03:58:20.000000000 -0700
++++ gcc-4.0.1-20050607/libstdc++-v3/include/bits/stl_vector.h	2005-06-11 04:01:21.000000000 -0700
+@@ -765,13 +765,13 @@
+ 	    {
+ 	      std::__uninitialized_copy_a(__first, __last, __result,
+ 					  this->get_allocator());
+-	      return __result;
+ 	    }
+ 	  catch(...)
+ 	    {
+ 	      _M_deallocate(__result, __n);
+ 	      __throw_exception_again;
+ 	    }
++	  return __result;
+ 	}
+ 
+ 
+--- gcc-4.0.1-20050607/libstdc++-v3/include/bits/stl_uninitialized.h.old	2005-06-11 03:58:20.000000000 -0700
++++ gcc-4.0.1-20050607/libstdc++-v3/include/bits/stl_uninitialized.h	2005-06-11 04:05:18.990003248 -0700
+@@ -84,13 +84,13 @@
+ 	{
+ 	  for (; __first != __last; ++__first, ++__cur)
+ 	    std::_Construct(&*__cur, *__first);
+-	  return __cur;
+ 	}
+       catch(...)
+ 	{
+ 	  std::_Destroy(__result, __cur);
+ 	  __throw_exception_again;
+ 	}
++      return __cur;
+     }
+ 
+   /**
+@@ -236,13 +236,13 @@
+ 	{
+ 	  for (; __first != __last; ++__first, ++__cur)
+ 	    __alloc.construct(&*__cur, *__first);
+-	  return __cur;
+ 	}
+       catch(...)
+ 	{
+ 	  std::_Destroy(__result, __cur, __alloc);
+ 	  __throw_exception_again;
+ 	}
++      return __cur;
+     }
+ 
+   template<typename _InputIterator, typename _ForwardIterator, typename _Tp>
+@@ -337,11 +337,13 @@
+ 	{
+ 	  return std::__uninitialized_copy_a(__first2, __last2, __mid, __alloc);
+ 	}
++#ifdef __EXCEPTIONS  // work around http://gcc.gnu.org/PR21951 in gcc-4.0 only
+       catch(...)
+ 	{
+ 	  std::_Destroy(__result, __mid, __alloc);
+ 	  __throw_exception_again;
+ 	}
++#endif
+     }
+ 
+   // __uninitialized_fill_copy
+@@ -360,11 +362,13 @@
+ 	{
+ 	  return std::__uninitialized_copy_a(__first, __last, __mid, __alloc);
+ 	}
++#ifdef __EXCEPTIONS  // work around http://gcc.gnu.org/PR21951 in gcc-4.0 only
+       catch(...)
+ 	{
+ 	  std::_Destroy(__result, __mid, __alloc);
+ 	  __throw_exception_again;
+ 	}
++#endif
+     }
+ 
+   // __uninitialized_copy_fill
+--- gcc-4.0.1-20050607/libstdc++-v3/include/ext/rope.old	2005-06-11 03:58:20.000000000 -0700
++++ gcc-4.0.1-20050607/libstdc++-v3/include/ext/rope	2005-06-11 04:13:26.628870872 -0700
+@@ -1645,11 +1645,13 @@
+ 	_S_cond_store_eos(__buf[__size]);
+ 	try
+ 	  { return _S_new_RopeLeaf(__buf, __size, __a); }
++#ifdef __EXCEPTIONS  // work around http://gcc.gnu.org/PR21951 in gcc-4.0 only
+ 	catch(...)
+ 	  {
+ 	    _RopeRep::__STL_FREE_STRING(__buf, __size, __a);
+ 	    __throw_exception_again;
+ 	  }
++#endif
+       }
+ 
+       // Concatenation of nonempty strings.
+--- gcc-4.0.1-20050607/libstdc++-v3/include/ext/memory.old	2005-06-11 03:58:20.000000000 -0700
++++ gcc-4.0.1-20050607/libstdc++-v3/include/ext/memory	2005-06-11 04:13:52.897877376 -0700
+@@ -85,11 +85,13 @@
+ 	    std::_Construct(&*__cur, *__first);
+ 	  return pair<_InputIter, _ForwardIter>(__first, __cur);
+ 	}
++#ifdef __EXCEPTIONS  // work around http://gcc.gnu.org/PR21951 in gcc-4.0 only
+       catch(...)
+ 	{
+ 	  std::_Destroy(__result, __cur);
+ 	  __throw_exception_again;
+ 	}
++#endif
+     }
+ 
+   template<typename _RandomAccessIter, typename _Size, typename _ForwardIter>
+@@ -144,11 +146,13 @@
+ 	    __alloc.construct(&*__cur, *__first);
+ 	  return pair<_InputIter, _ForwardIter>(__first, __cur);
+ 	}
++#ifdef __EXCEPTIONS  // work around http://gcc.gnu.org/PR21951 in gcc-4.0 only
+       catch(...)
+ 	{
+ 	  std::_Destroy(__result, __cur, __alloc);
+ 	  __throw_exception_again;
+ 	}
++#endif
+     }
+ 
+   template<typename _InputIter, typename _Size, typename _ForwardIter,
+--- gcc-4.0.1-20050607/libstdc++-v3/include/ext/hashtable.h.old	2005-06-11 03:58:20.000000000 -0700
++++ gcc-4.0.1-20050607/libstdc++-v3/include/ext/hashtable.h	2005-06-11 04:14:28.384482592 -0700
+@@ -607,13 +607,13 @@
+ 	try
+ 	  {
+ 	    this->get_allocator().construct(&__n->_M_val, __obj);
+-	    return __n;
+ 	  }
+ 	catch(...)
+ 	  {
+ 	    _M_put_node(__n);
+ 	    __throw_exception_again;
+ 	  }
++	return __n;
+       }
+ 
+       void

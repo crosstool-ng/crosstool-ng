@@ -1,0 +1,37 @@
+Fixes the following problem when testing a cross-compiler:
+
+============================================
+Testing g++.dg/compat/abi/bitfield1,
+...
+Invoking the compiler as /crosstool-0.12/build/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/build-gcc/gcc/testsuite/../g++  ...
+/crosstool-0.12/build/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/gcc-3.3/gcc/testsuite/g++.dg/compat/abi/bitfield1_main.C
+pid is 16028 -16028
+compiler exited with status 1
+output is:
+sh: error while loading shared libraries: /opt/cegl-2.0/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/powerpc-750-linux-gnu/./lib/libdl.so.2: ELF file data encoding not little-endian
+/crosstool-0.12/build/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/build-gcc/gcc/testsuite/../g++: error while loading shared libraries: /opt/cegl-2.0/powerpc-750-linux-gnu/gcc-3.3-glibc-2.2.5/powerpc-750-linux-gnu/./lib/libc.so.6: ELF file data encoding not little-endian
+
+FAIL: g++.dg/compat/abi/bitfield1 main_tst.o compile
+============================================
+
+--- gcc-3.3/gcc/testsuite/g++.dg/compat/compat.exp.old	Thu Oct 17 17:22:57 2002
++++ gcc-3.3/gcc/testsuite/g++.dg/compat/compat.exp	Mon Jul 14 10:59:19 2003
+@@ -42,11 +42,13 @@
+ proc compat-fix-library-path { } {
+     global ld_library_path
+ 
+-    # See comments in lib/g++.exp for why this is needed.
+-    setenv  LD_LIBRARY_PATH     $ld_library_path
+-    setenv  SHLIB_PATH          $ld_library_path
+-    setenv  LD_LIBRARYN32_PATH  $ld_library_path
+-    setenv  LD_LIBRARY64_PATH   $ld_library_path
++    if {![is_remote target]} {
++	# See comments in lib/g++.exp for why this is needed.
++	setenv  LD_LIBRARY_PATH     $ld_library_path
++	setenv  SHLIB_PATH          $ld_library_path
++	setenv  LD_LIBRARYN32_PATH  $ld_library_path
++	setenv  LD_LIBRARY64_PATH   $ld_library_path
++    }
+ }
+ 
+ #

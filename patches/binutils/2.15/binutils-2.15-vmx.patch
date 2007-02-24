@@ -1,0 +1,45 @@
+Grabbed with
+wget 'http://sources.redhat.com/cgi-bin/cvsweb.cgi/src/opcodes/ppc-opc.c.diff?r1=1.70&r2=1.71&cvsroot=src'
+See 
+http://mail.gnu.org/archive/html/bug-binutils/2004-05/msg00071.html
+and
+http://sources.redhat.com/ml/binutils-cvs/2004-05/msg00111.html
+
+This fixes problems like
+{standard input}: Assembler messages:
+{standard input}:1: Error: Unrecognized opcode: `dssall' 
+which show up in binutils-2.15 when building the Linux kernel,
+or possibly failed compilations when building setjmp/longjmp in glibc.
+
+An alternative fix would be to pass -many to the assembler.
+A patch to do that for glibc is at
+wget 'http://sources.redhat.com/cgi-bin/get-raw-msg?listname=libc-alpha&date=2004-05&msgid=40B36E8C.9030609%40us.ibm.com'
+Yet another, better, fix would be for gcc to generate assembly
+that told the assembler which processor type to use.
+Presumably the Linux kernel sources would need a fix, too.
+Probably better to just fix binutils to accept sources that it used to.
+
+
+===================================================================
+RCS file: /cvs/src/src/opcodes/ppc-opc.c,v
+retrieving revision 1.70
+retrieving revision 1.71
+diff -u -r1.70 -r1.71
+--- src/opcodes/ppc-opc.c	2004/05/05 13:43:36	1.70
++++ src/opcodes/ppc-opc.c	2004/05/19 05:11:48	1.71
+@@ -1004,8 +1004,13 @@
+ 
+   /* If only one bit of the FXM field is set, we can use the new form
+      of the instruction, which is faster.  Unlike the Power4 branch hint
+-     encoding, this is not backward compatible.  */
+-  else if ((dialect & PPC_OPCODE_POWER4) != 0 && (value & -value) == value)
++     encoding, this is not backward compatible.  Do not generate the
++     new form unless -mpower4 has been given, or -many and the two
++     operand form of mfcr was used.  */
++  else if ((value & -value) == value
++	   && ((dialect & PPC_OPCODE_POWER4) != 0
++	       || ((dialect & PPC_OPCODE_ANY) != 0
++		   && (insn & (0x3ff << 1)) == 19 << 1)))
+     insn |= 1 << 20;
+ 
+   /* Any other value on mfcr is an error.  */

@@ -1,0 +1,46 @@
+http://sources.redhat.com/cgi-bin/cvsweb.cgi/libc/stdlib/msort.c.diff?r1=1.20&r2=1.21&cvsroot=glibc
+
+Fixes
+
+msort.c: In function `msort_with_tmp':
+msort.c:59: error: invalid lvalue in increment
+msort.c:59: error: invalid lvalue in increment
+msort.c:64: error: invalid lvalue in increment
+msort.c:64: error: invalid lvalue in increment
+
+when building with gcc-3.5.
+
+===================================================================
+RCS file: /cvs/glibc/libc/stdlib/msort.c,v
+retrieving revision 1.20
+retrieving revision 1.21
+diff -u -r1.20 -r1.21
+--- libc/stdlib/msort.c	2002/09/24 04:20:57	1.20
++++ libc/stdlib/msort.c	2004/02/07 15:57:34	1.21
+@@ -1,6 +1,6 @@
+ /* An alternative to qsort, with an identical interface.
+    This file is part of the GNU C Library.
+-   Copyright (C) 1992,95-97,99,2000,01,02 Free Software Foundation, Inc.
++   Copyright (C) 1992,95-97,99,2000,01,02,04 Free Software Foundation, Inc.
+    Written by Mike Haertel, September 1988.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -56,12 +56,16 @@
+ 	if ((*cmp) (b1, b2) <= 0)
+ 	  {
+ 	    --n1;
+-	    *((op_t *) tmp)++ = *((op_t *) b1)++;
++	    *((op_t *) tmp) = *((op_t *) b1);
++	    tmp += sizeof (op_t);
++	    b1 += sizeof (op_t);
+ 	  }
+ 	else
+ 	  {
+ 	    --n2;
+-	    *((op_t *) tmp)++ = *((op_t *) b2)++;
++	    *((op_t *) tmp) = *((op_t *) b2);
++	    tmp += sizeof (op_t);
++	    b2 += sizeof (op_t);
+ 	  }
+       }
+   else
