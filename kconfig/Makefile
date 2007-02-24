@@ -16,18 +16,6 @@ config: $(obj)/conf
 oldconfig: $(obj)/conf
 	@$< -s $(KCONFIG_TOP)
 
-randconfig: $(obj)/conf
-	@$< -r $(KCONFIG_TOP)
-
-allyesconfig: $(obj)/conf
-	@$< -y $(KCONFIG_TOP)
-
-allnoconfig: $(obj)/conf
-	@$< -n $(KCONFIG_TOP)
-
-defconfig: $(obj)/conf
-	@$< -d $(KCONFIG_TOP)
-
 # Build a list of all available samples
 SAMPLES = $(patsubst $(CT_TOP_DIR)/samples/%,%,$(filter-out %Makefile,$(wildcard $(CT_TOP_DIR)/samples/*)))
 SAMPLES_CONFIG = $(patsubst %,%_config,$(SAMPLES))
@@ -42,10 +30,6 @@ help::
 	@echo  '  config	  - Update current config utilising a line-oriented program'
 	@echo  '  menuconfig	  - Update current config utilising a menu based program'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
-	@echo  '  randconfig	  - New config with random answer to all options'
-	@echo  '  defconfig	  - New config with default answer to all options'
-	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
-	@echo  '  allnoconfig	  - New config where all options are answered with no'
 	@echo
 	@echo  'Preconfigured configuration targets:'
 	@for s in $(SAMPLES_CONFIG); do   \
