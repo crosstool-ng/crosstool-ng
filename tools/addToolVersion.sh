@@ -57,8 +57,10 @@ done
 [ -n "${tool}" -o -n "${VERSION}" ] || { doHelp; exit 1; }
 
 case "${cat}" in
-    CC)     ;;
-    KERNEL) FINAL=; CORE=;;
+    CC)     [ -z "${CORE}" -a -z "${FINAL}" ] && { doHelp; exit 1; };;
+    KERNEL) unset FINAL CORE
+            [ -z "${tool_suffix}" ] && { doHelp; exit 1; }
+            ;;
     *)      FINAL=1; CORE=;;
 esac
 
