@@ -27,9 +27,9 @@ $(SAMPLES_CONFIG):
 # Help text used by make help
 help::
 	@echo  'General purpose configuration targets:'
-	@echo  '  config	  - Update current config utilising a line-oriented program'
-	@echo  '  menuconfig	  - Update current config utilising a menu based program'
-	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
+	@echo  '  config	  - Update current config using a line-oriented program'
+	@echo  '  menuconfig	  - Update current config using a menu based program'
+	@echo  '  oldconfig	  - Update current config using a provided .config as base'
 	@echo
 	@echo  'Preconfigured configuration targets:'
 	@for s in $(SAMPLES_CONFIG); do   \
