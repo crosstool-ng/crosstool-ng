@@ -36,10 +36,6 @@ include $(CT_TOP_DIR)/tools/Makefile
 build: .config
 	@$(CT_TOP_DIR)/scripts/crosstool.sh
 
-.PHONY: clean
-clean::
-	@rm -f .crosstool.config
-
 .PHONY: distclean
 distclean:: clean
 	@rm -f .config* ..config.tmp
