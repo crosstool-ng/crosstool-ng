@@ -258,6 +258,11 @@ if [ -n "${CT_TARGET_ALIAS}" ]; then
     CT_Popd
 fi
 
+if [ "${CT_REMOVE_DOCS}" = "y" ]; then
+	CT_DoLog INFO "Removing installed documentation"
+    rm -rf "${CT_PREFIX_DIR}/"{man,info}
+fi
+
 CT_STOP_DATE=`CT_DoDate +%s%N`
 CT_STOP_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
 CT_DoLog INFO "Build completed at ${CT_STOP_DATE_HUMAN}"
