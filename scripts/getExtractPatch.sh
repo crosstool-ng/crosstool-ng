@@ -282,15 +282,10 @@ if [ "${CT_NO_DOWNLOAD}" != "y" ]; then
     # C library addons
     addons_list=`echo "${CT_LIBC_ADDONS}" |sed -r -e 's/,/ /g; s/ $//g;'`
     for addon in ${addons_list}; do
-        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" \
-                   ftp://ftp.gnu.org/gnu/glibc
+        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ${libc_src}
     done
-    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
-        CT_GetFile "uClibc-locale-030818"                        \
-                   http://www.uclibc.org/downloads               \
-                   http://www.uclibc.org/downloads/snapshots     \
-                   http://www.uclibc.org/downloads/old-releases
-    fi
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_GetFile "${CT_LIBC}-ports-${CT_LIBC_VERSION}" ${libc_src}
+    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_GetFile "uClibc-locale-030818" ${libc_src}
 
     # libfloat if asked for
     if [ "${CT_ARCH_FLOAT_SW_LIBFLOAT}" = "y" ]; then
@@ -326,9 +321,8 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
     for addon in ${addons_list}; do
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
     done
-    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
-        CT_ExtractAndPatch "uclibc-locale-030818"
-    fi
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_ExtractAndPatch "${CT_LIBC}-ports-${CT_LIBC_VERSION}"
+    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_ExtractAndPatch "uClibc-locale-030818"
 
     [ "${CT_ARCH_FLOAT_SW_LIBFLOAT}" = "y" ] && CT_ExtractAndPatch "${CT_LIBFLOAT_FILE}"
 
