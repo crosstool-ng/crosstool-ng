@@ -7,6 +7,10 @@ obj = ./kconfig
 PHONY += clean help oldconfig menuconfig config silentoldconfig \
 	randconfig allyesconfig allnoconfig allmodconfig defconfig
 
+ifneq ($(KBUILD_NO_NLS),)
+CFLAGS += -DKBUILD_NO_NLS
+endif
+
 menuconfig: $(obj)/mconf
 	@$< $(KCONFIG_TOP)
 
@@ -45,11 +49,11 @@ SHIPPED = kconfig/zconf.tab.c kconfig/lex.zconf.c kconfig/zconf.hash.c
 	@ln -s $(notdir $<) $@
 
 kconfig/mconf: $(SHIPPED) kconfig/mconf.c
-	@$(HOST_CC) -o $@ kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
+	@$(HOST_CC) $(CFLAGS) -o $@ kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
 		-lcurses "-DCURSES_LOC=<ncurses.h>"
 
 kconfig/conf: $(SHIPPED) kconfig/conf.c
-	@$(HOST_CC) -o $@ kconfig/{conf.c,zconf.tab.c}
+	@$(HOST_CC) $(CFLAGS) -o $@ kconfig/{conf.c,zconf.tab.c}
 
 clean::
 	@rm -f $(wildcard kconfig/*zconf*.c) kconfig/{conf,mconf}
