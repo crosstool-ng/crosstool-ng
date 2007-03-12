@@ -21,9 +21,9 @@ include $(CT_TOP_DIR)/kconfig/Makefile
 
 help::
 	@echo  'Build targets:'
-	@echo  '* build		  - Build the toolchain'
-	@echo  '  clean		  - Remove generated files'
-	@echo  '  distclean	  - Remove generated files and configuration'
+	@echo  '* build          - Build the toolchain'
+	@echo  '  clean          - Remove generated files'
+	@echo  '  distclean      - Remove generated files and configuration'
 
 include $(CT_TOP_DIR)/tools/Makefile
 

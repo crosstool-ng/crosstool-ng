@@ -7,6 +7,11 @@ obj = ./kconfig
 PHONY += clean help oldconfig menuconfig config silentoldconfig \
 	randconfig allyesconfig allnoconfig allmodconfig defconfig
 
+# Darwin (MacOS-X) does not have proper libintl support
+ifeq ($(shell uname -s),Darwin)
+KBUILD_NO_NLS:=1
+endif
+
 ifneq ($(KBUILD_NO_NLS),)
 CFLAGS += -DKBUILD_NO_NLS
 endif
@@ -31,9 +36,9 @@ $(SAMPLES_CONFIG):
 # Help text used by make help
 help::
 	@echo  'General purpose configuration targets:'
-	@echo  '  config	  - Update current config using a line-oriented program'
-	@echo  '  menuconfig	  - Update current config using a menu based program'
-	@echo  '  oldconfig	  - Update current config using a provided .config as base'
+	@echo  '  config         - Update current config using a line-oriented program'
+	@echo  '  menuconfig     - Update current config using a menu based program'
+	@echo  '  oldconfig      - Update current config using a provided .config as base'
 	@echo
 	@echo  'Preconfigured configuration targets:'
 	@for s in $(SAMPLES_CONFIG); do   \

@@ -8,4 +8,4 @@ updatetools:
 	@wget "$(CONFIG_GUESS_SRC)" -O "$(CONFIG_GUESS_DEST)"
 
 help::
-	@echo '  updatetools	  - Update the config tools'
+	@echo  '  updatetools    - Update the config tools'
