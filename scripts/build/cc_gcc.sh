@@ -38,6 +38,7 @@ do_cc() {
     else
        extra_config="${extra_config} --disable-multilib"
     fi
+    [ "${CT_CC_CXA_ATEXIT}" == "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 
@@ -56,7 +57,6 @@ do_cc() {
         --disable-nls                           \
         --enable-threads=posix                  \
         --enable-symvers=gnu                    \
-        --enable-__cxa_atexit                   \
         --enable-c99                            \
         --enable-long-long                      \
         ${CT_CC_EXTRA_CONFIG}                   2>&1 |CT_DoLog DEBUG

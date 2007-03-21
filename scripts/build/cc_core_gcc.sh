@@ -20,6 +20,7 @@ do_cc_core() {
     [ -n "${CT_ARCH_TUNE}" ] && extra_config="${extra_config} --with-tune=${CT_ARCH_TUNE}"
     [ -n "${CT_ARCH_ARCH}" ] && extra_config="${extra_config} --with-arch=${CT_ARCH_ARCH}"
     [ -n "${CT_ARCH_FPU}" ] && extra_config="${extra_config} --with-fpu=${CT_ARCH_FPU}"
+    [ "${CT_CC_CXA_ATEXIT}" == "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 
@@ -38,7 +39,6 @@ do_cc_core() {
         --disable-nls                               \
         --enable-threads=no                         \
         --enable-symvers=gnu                        \
-        --enable-__cxa_atexit                       \
         --enable-languages=c                        \
         --disable-shared                            \
         ${CT_CC_CORE_EXTRA_CONFIG}                  2>&1 |CT_DoLog DEBUG
