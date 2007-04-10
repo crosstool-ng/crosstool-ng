@@ -19,7 +19,7 @@ case "${_wget},${_curl}" in
 esac
 
 CT_DoGetFileWget() {
-    # Need to return true because it is legitimate not to find the tarball at
+    # Need to return true because it is legitimate to not find the tarball at
     # some of the provided URLs (think about snapshots, different layouts for
     # different gcc versions, etc...)
     # Some (very old!) FTP server might not support the passive mode, thus
