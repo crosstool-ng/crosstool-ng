@@ -72,13 +72,21 @@ case "${CT_KERNEL},${CT_CANADIAN}" in
     *)        CT_HOST="`echo \"${CT_HOST}\" |sed -r -e 's/-/-host_/;'`";;
 esac
 
+# Ah! Recent versions of binutils need some of the build system (read CT_BUILD)
+# tools to be accessible (ar is but an example). Do that:
+CT_DoLog EXTRA "Making build system tools available"
+mkdir -p "${CT_PREFIX_DIR}/bin"
+for tool in ar; do
+    ln -s "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
+done
+
 # Ha. cygwin host have an .exe suffix (extension) for executables.
 [ "${CT_KERNEL}" = "cygwin" ] && EXEEXT=".exe" || EXEEXT=""
 
 # Transform the ARCH into a kernel-understandable ARCH
 case "${CT_ARCH}" in
     x86) CT_KERNEL_ARCH=i386;;
-    ppc) CT_KERNL_ARCH=powerpc;;
+    ppc) CT_KERNEL_ARCH=powerpc;;
     *)   CT_KERNEL_ARCH="${CT_ARCH}";;
 esac
 
