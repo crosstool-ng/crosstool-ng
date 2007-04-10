@@ -8,7 +8,7 @@ export PROJECTVERSION=0.0.1
 export CT_TOP_DIR=$(shell pwd)
 
 .PHONY: all
-all: build
+all: _ct_build
 
 HOST_CC = gcc -funsigned-char
 
@@ -33,7 +33,7 @@ include $(CT_TOP_DIR)/tools/Makefile
 	@test -f .config
 
 # Actual build
-build: .config
+_ct_build: .config
 	@$(CT_TOP_DIR)/scripts/crosstool.sh
 
 .PHONY: distclean
