@@ -2,7 +2,7 @@
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
 
 # The project version
-export PROJECTVERSION=0.0.1
+export PROJECTVERSION=0.0.1-svn
 
 # This should eventually be computed if compiling out-of-tree is implemented
 export CT_TOP_DIR=$(shell pwd)
@@ -23,7 +23,7 @@ help::
 	@echo  'Build targets:'
 	@echo  '* build          - Build the toolchain'
 	@echo  '  clean          - Remove generated files'
-	@echo  '  distclean      - Remove generated files and configuration'
+	@echo  '  distclean      - Remove generated files, configuration and build directories'
 
 include $(CT_TOP_DIR)/tools/Makefile
 
@@ -39,4 +39,4 @@ _ct_build: .config
 .PHONY: distclean
 distclean:: clean
 	@rm -f .config* ..config.tmp
-
+	@rm -rf "$(CT_TOP_DIR)/build"
