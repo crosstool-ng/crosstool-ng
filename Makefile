@@ -2,7 +2,7 @@
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
 
 # The project version
-export PROJECTVERSION=0.0.1-svn
+export PROJECTVERSION=0.0.1
 
 # This should eventually be computed if compiling out-of-tree is implemented
 export CT_TOP_DIR=$(shell pwd)
