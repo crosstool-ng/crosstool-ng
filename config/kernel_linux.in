@@ -28,18 +28,25 @@ config KERNEL_LINUX_HEADERS_COPY
       You do NOT want this. It's badly broken because it leaks kernel internals
       to userspace.
 
+config KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR
+    bool
+    prompt "Use custom directory"
+    help
+      If you have some kernel headers lying around, you can enter the path
+      below.
+
 endchoice
 
 config KERNEL
     string
-    default "linux" if KERNEL_LINUX_HEADERS_INSTALL || KERNEL_LINUX_HEADERS_COPY
+    default "linux" if ! KERNEL_LINUX_HEADERS_SANITISED
     default "linux-libc-headers" if KERNEL_LINUX_HEADERS_SANITISED
 
 config KERNEL_VERSION_SEE_EXTRAVERSION
     bool
     prompt "See extra versions"
     default n
-    depends on ! KERNEL_LINUX_HEADERS_SANITISED
+    depends on KERNEL_LINUX_HEADERS_COPY || KERNEL_LINUX_HEADERS_INSTALL
     help
       See extra versions (kernel with 4 numbers, eg 2.6.19.1).
 
@@ -60,6 +67,19 @@ endif
 if KERNEL_LINUX_HEADERS_SANITISED
 source config/kernel_linux_headers_sanitised.in
 endif
+
+config KERNEL_LINUX_HEADERS_CUSTOM_DIR
+    string
+    prompt "Where are those custom headers?"
+    depends on KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR
+    help
+      Enter the base directory where the headers are to be found.
+      
+      Eg. if the headers are in /some/place/include, then enter /some/place.
+          This is the same path you entered when you typed:
+            make INSTALL_HDR_PATH=/some/place headers_install
+
+if ! KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR
 
 choice
     bool
@@ -100,3 +120,5 @@ config KERNEL_LINUX_CONFIG_FILE
       Path to the kernel configuration file.
       
       You _must_ provide one (for now).
+
+endif

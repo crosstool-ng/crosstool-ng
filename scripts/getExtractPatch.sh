@@ -232,12 +232,14 @@ if [ "${CT_NO_DOWNLOAD}" != "y" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
 
     # Kernel: for now, I don't care about cygwin.
-    CT_GetFile "${CT_KERNEL_FILE}"                                  \
-               ftp://ftp.kernel.org/pub/linux/kernel/v2.6           \
-               ftp://ftp.kernel.org/pub/linux/kernel/v2.4           \
-               ftp://ftp.kernel.org/pub/linux/kernel/v2.2           \
-               ftp://ftp.kernel.org/pub/linux/kernel/v2.6/testing   \
-               http://ep09.pld-linux.org/~mmazur/linux-libc-headers
+    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
+        CT_GetFile "${CT_KERNEL_FILE}"                                  \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.6           \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.4           \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.2           \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.6/testing   \
+                   http://ep09.pld-linux.org/~mmazur/linux-libc-headers
+    fi
 
     # binutils
     CT_GetFile "${CT_BINUTILS_FILE}"                            \
@@ -313,7 +315,9 @@ fi # CT_NO_DOWNLOAD
 if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
     CT_DoStep INFO "Extracting and patching toolchain components"
 
-    CT_ExtractAndPatch "${CT_KERNEL_FILE}"
+    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
+        CT_ExtractAndPatch "${CT_KERNEL_FILE}"
+    fi
     CT_ExtractAndPatch "${CT_BINUTILS_FILE}"
     CT_ExtractAndPatch "${CT_CC_CORE_FILE}"
     CT_ExtractAndPatch "${CT_CC_FILE}"

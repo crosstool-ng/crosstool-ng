@@ -6,7 +6,9 @@
 do_kernel_check_config() {
     CT_DoStep INFO "Checking kernel configuration"
 
-    CT_TestOrAbort "You did not provide a kernel config file!" -n "${CT_KERNEL_LINUX_CONFIG_FILE}" -a -f "${CT_KERNEL_LINUX_CONFIG_FILE}"
+    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
+        CT_TestOrAbort "You did not provide a kernel config file!" -n "${CT_KERNEL_LINUX_CONFIG_FILE}" -a -f "${CT_KERNEL_LINUX_CONFIG_FILE}"
+    fi
 
     CT_EndStep
 }
@@ -15,34 +17,39 @@ do_kernel_check_config() {
 do_kernel_headers() {
     CT_DoStep INFO "Installing kernel headers"
 
-    # We need to enter this directory to find the kernel version strings
-    cd "${CT_SRC_DIR}/${CT_KERNEL_FILE}"
-    if [ "${CT_KERNEL_LINUX_HEADERS_SANITISED}" != "y" ]; then
-        k_version=`awk '/^VERSION =/ { print $3 }' Makefile`
-        k_patchlevel=`awk '/^PATCHLEVEL =/ { print $3 }' Makefile`
-        k_sublevel=`awk '/^SUBLEVEL =/ { print $3 }' Makefile`
-        k_extraversion=`awk '/^EXTRAVERSION =/ { print $3 }' Makefile`
+    # Special case when using pre-installed headers
+    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
+        do_kernel_preinstalled
     else
-        k_version=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 1`
-        k_patchlevel=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 2`
-        k_sublevel=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 3`
-        k_extraversion=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 4`
-    fi
+        # We need to enter this directory to find the kernel version strings
+        cd "${CT_SRC_DIR}/${CT_KERNEL_FILE}"
+        if [ "${CT_KERNEL_LINUX_HEADERS_SANITISED}" != "y" ]; then
+            k_version=`awk '/^VERSION =/ { print $3 }' Makefile`
+            k_patchlevel=`awk '/^PATCHLEVEL =/ { print $3 }' Makefile`
+            k_sublevel=`awk '/^SUBLEVEL =/ { print $3 }' Makefile`
+            k_extraversion=`awk '/^EXTRAVERSION =/ { print $3 }' Makefile`
+        else
+            k_version=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 1`
+            k_patchlevel=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 2`
+            k_sublevel=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 3`
+            k_extraversion=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 4`
+        fi
 
-    case "${k_version}.${k_patchlevel}" in
-        2.2|2.4|2.6) ;;
-        *)  CT_Abort "Unsupported kernel version \"linux-${k_version}.${k_patchlevel}\".";;
-    esac
+        case "${k_version}.${k_patchlevel}" in
+            2.2|2.4|2.6) ;;
+            *)  CT_Abort "Unsupported kernel version \"linux-${k_version}.${k_patchlevel}\".";;
+        esac
 
-    # Kernel version that support verbosity will use this, others will ignore it:
-    V_OPT="V=${CT_KERNEL_LINUX_VERBOSE_LEVEL}"
+        # Kernel version that support verbosity will use this, others will ignore it:
+        V_OPT="V=${CT_KERNEL_LINUX_VERBOSE_LEVEL}"
 
-    if [ "${CT_KERNEL_LINUX_HEADERS_INSTALL}" = "y" ]; then
-        do_kernel_install
-    elif [ "${CT_KERNEL_LINUX_HEADERS_SANITISED}" = "y" ]; then
-        do_kernel_sanitised
-    else [ "${CT_KERNEL_LINUX_HEADERS_COPY}" = "y" ];
-        do_kernel_copy
+        if [ "${CT_KERNEL_LINUX_HEADERS_INSTALL}" = "y" ]; then
+            do_kernel_install
+        elif [ "${CT_KERNEL_LINUX_HEADERS_SANITISED}" = "y" ]; then
+            do_kernel_sanitised
+        else [ "${CT_KERNEL_LINUX_HEADERS_COPY}" = "y" ];
+            do_kernel_copy
+        fi
     fi
 
     CT_EndStep
@@ -145,4 +152,15 @@ do_kernel_copy() {
     cp -rv include/asm-generic "${CT_HEADERS_DIR}/asm-generic" 2>&1 |CT_DoLog DEBUG
     cp -rv include/linux "${CT_HEADERS_DIR}" 2>&1 |CT_DoLog DEBUG
     cp -rv include/asm-${CT_KERNEL_ARCH} "${CT_HEADERS_DIR}/asm" 2>&1 |CT_DoLog DEBUG
+}
+
+# Use preinstalled headers (most probably by using make headers_install in a
+# modified (read: customised) kernel tree). In this case, simply copy
+# the headers in place
+do_kernel_preinstalled() {
+    CT_DoLog EXTRA "Copying preinstalled kernel headers"
+
+    mkdir -p "${CT_SYSROOT_DIR}/usr"
+    cd "${CT_KERNEL_LINUX_HEADERS_CUSTOM_DIR}"
+    cp -rv include "${CT_SYSROOT_DIR}/usr" 2>&1 |CT_DoLog DEBUG
 }
