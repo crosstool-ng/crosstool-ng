@@ -5,9 +5,7 @@
 
 #include <sys/stat.h>
 #include <ctype.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,9 +21,7 @@ static void conf_warning(const char *fmt, ...)
 static const char *conf_filename;
 static int conf_lineno, conf_warnings, conf_unsaved;
 
-#ifndef conf_defname
 const char conf_defname[] = "arch/$ARCH/defconfig";
-#endif
 
 static void conf_warning(const char *fmt, ...)
 {
@@ -104,7 +100,7 @@ int conf_read_simple(const char *name, int def)
 		in = zconf_fopen(name);
 		if (in)
 			goto load;
-		sym_change_count++;
+		sym_add_change_count(1);
 		if (!sym_defconfig_list)
 			return 1;
 
@@ -316,7 +312,7 @@ int conf_read(const char *name)
 	struct expr *e;
 	int i, flags;
 
-	sym_change_count = 0;
+	sym_set_change_count(0);
 
 	if (conf_read_simple(name, S_DEF_USER))
 		return 1;
@@ -368,25 +364,10 @@ int conf_read(const char *name)
 		sym->flags &= flags | ~SYMBOL_DEF_USER;
 	}
 
-	sym_change_count += conf_warnings || conf_unsaved;
+	sym_add_change_count(conf_warnings || conf_unsaved);
 
 	return 0;
 }
-
-struct menu *next_menu(struct menu *menu)
-{
-	if (menu->list) return menu->list;
-	do {
-		if (menu->next) {
-			menu = menu->next;
-			break;
-		}
-	} while ((menu = menu->parent));
-
-	return menu;
-}
-
-#define SYMBOL_FORCEWRITE (1<<31)
 
 int conf_write(const char *name)
 {
@@ -395,7 +376,7 @@ int conf_write(const char *name)
 	struct menu *menu;
 	const char *basename;
 	char dirname[128], tmpname[128], newname[128];
-	int type, l, writetype;
+	int type, l;
 	const char *str;
 	time_t now;
 	int use_timestamp = 1;
@@ -451,19 +432,8 @@ int conf_write(const char *name)
 		     use_timestamp ? "# " : "",
 		     use_timestamp ? ctime(&now) : "");
 
-	if (!sym_change_count)
+	if (!conf_get_changed())
 		sym_clear_all_valid();
-
-	// Write out all symbols (even in closed sub-menus).
-	if (1) {
-		for (menu = rootmenu.list; menu; menu = next_menu(menu))
-			if (menu->sym) menu->sym->flags |= SYMBOL_FORCEWRITE;
-		writetype = SYMBOL_FORCEWRITE;
-
-	// Don't write  out symbols in closed menus.
-
-	} else writetype = SYMBOL_WRITE;
-
 
 	menu = rootmenu.list;
 	while (menu) {
@@ -478,9 +448,9 @@ int conf_write(const char *name)
 				     "#\n", str);
 		} else if (!(sym->flags & SYMBOL_CHOICE)) {
 			sym_calc_value(sym);
-			if (!(sym->flags & writetype))
+			if (!(sym->flags & SYMBOL_WRITE))
 				goto next;
-			sym->flags &= ~writetype;
+			sym->flags &= ~SYMBOL_WRITE;
 			type = sym->type;
 			if (type == S_TRISTATE) {
 				sym_calc_value(modules_sym);
@@ -520,32 +490,29 @@ int conf_write(const char *name)
 			case S_HEX:
 				str = sym_get_string_value(sym);
 				if (str[0] != '0' || (str[1] != 'x' && str[1] != 'X')) {
-					fprintf(out, "CT_%s=%s\n", sym->name, *str ? str : "0");
+					fprintf(out, "CT_%s=%s\n", sym->name, str);
 					break;
 				}
 			case S_INT:
 				str = sym_get_string_value(sym);
-				fprintf(out, "CT_%s=%s\n", sym->name, *str ? str : "0");
+				fprintf(out, "CT_%s=%s\n", sym->name, str);
 				break;
 			}
 		}
 
 	next:
-		if (writetype == SYMBOL_WRITE) {
-			if (menu->list) {
-				menu = menu->list;
-				continue;
-			}
-			if (menu->next)
+		if (menu->list) {
+			menu = menu->list;
+			continue;
+		}
+		if (menu->next)
+			menu = menu->next;
+		else while ((menu = menu->parent)) {
+			if (menu->next) {
 				menu = menu->next;
-			else while ((menu = menu->parent)) {
-				if (menu->next) {
-					menu = menu->next;
-					break;
-				}
+				break;
 			}
-		} else
-			menu = next_menu(menu);
+		}
 	}
 	fclose(out);
 
@@ -561,7 +528,7 @@ int conf_write(const char *name)
 		 "# configuration written to %s\n"
 		 "#\n"), newname);
 
-	sym_change_count = 0;
+	sym_set_change_count(0);
 
 	return 0;
 }
@@ -797,4 +764,31 @@ int conf_write_autoconf(void)
 		return 1;
 
 	return 0;
+}
+
+static int sym_change_count;
+static void (*conf_changed_callback)(void);
+
+void sym_set_change_count(int count)
+{
+	int _sym_change_count = sym_change_count;
+	sym_change_count = count;
+	if (conf_changed_callback &&
+	    (bool)_sym_change_count != (bool)count)
+		conf_changed_callback();
+}
+
+void sym_add_change_count(int count)
+{
+	sym_set_change_count(count + sym_change_count);
+}
+
+bool conf_get_changed(void)
+{
+	return sym_change_count;
+}
+
+void conf_set_changed_callback(void (*fn)(void))
+{
+	conf_changed_callback = fn;
 }

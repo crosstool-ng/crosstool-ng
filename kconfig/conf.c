@@ -557,7 +557,7 @@ int main(int ac, char **av)
 	case ask_silent:
 		if (stat(".config", &tmpstat)) {
 			printf(_("***\n"
-				"*** You have not yet configured your "PROJECT_NAME"!\n"
+				"*** You have not yet configured "PROJECT_NAME"!\n"
 				"***\n"
 				"*** Please run some configurator (e.g. \"make oldconfig\" or\n"
 				"*** \"make menuconfig\" or \"make xconfig\").\n"
@@ -600,7 +600,7 @@ int main(int ac, char **av)
 			input_mode = ask_silent;
 			valid_stdin = 1;
 		}
-	} else if (sym_change_count) {
+	} else if (conf_get_changed()) {
 		name = getenv("KCONFIG_NOSILENTUPDATE");
 		if (name && *name) {
 			fprintf(stderr, _("\n*** "PROJECT_NAME" configuration requires explicit update.\n\n"));
@@ -613,11 +613,11 @@ int main(int ac, char **av)
 		conf_cnt = 0;
 		check_conf(&rootmenu);
 	} while (conf_cnt);
-
-	if (!conf_write(NULL)) {
-skip_check:
-		return 0;
+	if (conf_write(NULL)) {
+		fprintf(stderr, _("\n*** Error during writing of "PROJECT_NAME" configuration.\n\n"));
+		return 1;
 	}
-	fprintf(stderr, _("\n*** Error writing "PROJECT_NAME" configuration.\n\n"));
-	return 1;
+skip_check:
+
+	return 0;
 }

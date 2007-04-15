@@ -6,12 +6,6 @@
 #ifndef LKC_H
 #define LKC_H
 
-#define PROJECT_NAME "crosstool-NG"
-
-// Make some warnings go away
-#define YYENABLE_NLS 0
-#define YYLTYPE_IS_TRIVIAL 0
-
 #include "expr.h"
 
 #ifndef KBUILD_NO_NLS
@@ -37,6 +31,7 @@ extern "C" {
 
 #define SRCTREE "srctree"
 
+#define PROJECT_NAME "crosstool-NG"
 #define PACKAGE "crosstool-NG"
 #define LOCALEDIR "/usr/share/locale"
 
@@ -71,6 +66,8 @@ char *zconf_curname(void);
 
 /* confdata.c */
 char *conf_get_default_confname(void);
+void sym_set_change_count(int count);
+void sym_add_change_count(int count);
 
 /* kconfig_load.c */
 void kconfig_load(void);

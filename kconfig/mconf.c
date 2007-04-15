@@ -868,7 +868,7 @@ int main(int ac, char **av)
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
 
-	conf_parse(av[1] ? av[1] : "");
+	conf_parse(av[1]);
 	conf_read(NULL);
 
 	sym = sym_lookup("PROJECTVERSION", 0);
@@ -890,26 +890,33 @@ int main(int ac, char **av)
 	do {
 		conf(&rootmenu);
 		dialog_clear();
-		res = dialog_yesno(NULL,
-				   _("Do you wish to save your "
-				     "new "PROJECT_NAME" configuration?\n"
-				     "<ESC><ESC> to continue."),
-				   6, 60);
+		if (conf_get_changed())
+			res = dialog_yesno(NULL,
+					   _("Do you wish to save your "
+					     "new "PROJECT_NAME" configuration?\n"
+					     "<ESC><ESC> to continue."),
+					   6, 60);
+		else
+			res = -1;
 	} while (res == KEY_ESC);
 	end_dialog();
-	if (res == 0) {
+
+	switch (res) {
+	case 0:
 		if (conf_write(NULL)) {
 			fprintf(stderr, _("\n\n"
-				"Error writing "PROJECT_NAME" configuration.\n"
-				"Your configuration changes were NOT saved."
+				"Error during writing of "PROJECT_NAME" configuration.\n"
+				"Your kernel configuration changes were NOT saved."
 				"\n\n"));
 			return 1;
 		}
+	case -1:
 		printf(_("\n\n"
 			"*** End of "PROJECT_NAME" configuration.\n"
-			"*** Execute 'make' to build, or try 'make help'."
+			"*** Execute 'make' to build the kernel or try 'make help'."
 			"\n\n"));
-	} else {
+		break;
+	default:
 		fprintf(stderr, _("\n\n"
 			"Your configuration changes were NOT saved."
 			"\n\n"));
