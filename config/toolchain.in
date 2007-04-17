@@ -1,0 +1,164 @@
+menu "Toolchain options"
+
+comment "General toolchain options"
+
+config USE_SYSROOT
+    bool
+    prompt "Use sysroot'ed toolchain"
+    default y
+    help
+      Use the 'shinny new' sysroot feature of gcc: libraries split between
+      prefix/target/sys-root/lib and prefix/target/sys-root/usr/lib
+      
+      You definitely want to say 'Y' here. Yes you do. I know you do. Say 'Y'.
+
+config SHARED_LIBS
+    bool
+    prompt "Build shared libraries"
+    default y
+    help
+      Say 'y' here, unless you don't want shared libraries.
+      
+      You might not want shared librries if you're building for a target that
+      don't support it (maybe some nommu targets, for example, or bare metal).
+
+config TARGET_MULTILIB
+    bool
+#    prompt "Enable 'multilib' support (EXPERIMENTAL)"
+    default n
+    help
+      Enable the so-called 'multilib' support.
+      
+      With the same toolchain, and on some architectures, you will be able to
+      build big and little endian binaries, soft- and hard-float, etc...
+      
+      See the gcc configure manual at http://gcc.gnu.org/install/configure.html
+      to see what multilib your target supports.
+      
+      It's preferable for now to build two (or more) toolchains, one for each
+      configuration you need to support (eg. one for thumb and one for ARM,
+      etc...). You can use the vendor string to diferentiate those toolchains.
+
+config TARGET_VENDOR
+    string
+    prompt "Vendor string"
+    default "unknown"
+    help
+      Vendor part of the machine triplet.
+      
+      A triplet is of the form arch-vendor-kernel-system.
+      You can set the second part, vendor, to whatever you see fit.
+      Use a single word, or use underscores "_" to separate words.
+      
+      Keep the default (unkown) if you don't know better.
+
+config TARGET_ALIAS
+    string
+    prompt "Target alias"
+    default ""
+    help
+      Normaly, you'd call your toolchain component (especially gcc) by
+      prefixing the target triplet followed by a dash and the component name
+      (eg. armeb-unknown-linux-uclibc-gcc).
+      
+      You can enter a shortcut here. This string will be used to create
+      symbolic links to the toolchain tools (eg. if you enter "foo-bar" here,
+      then gcc for your toolchain will also be available as "foo-bar-gcc" along
+      with the original name).
+      
+      You shouldn't need to enter anything here, unless you plan to manually
+      call the tools (autotools-based ./configure will use the standard name).
+
+config ARCH
+    string
+    default "arm"     if ARCH_ARM
+    default "mips"    if ARCH_MIPS
+    default "x86"     if ARCH_x86
+    default "x86_64"  if ARCH_x86_64
+
+comment "Toolchain type"
+
+choice
+    bool
+    prompt "Type"
+    default CROSS
+
+config NATIVE
+    bool
+    prompt "Native (EXPERIMENTAL)"
+    depends on EXPERIMENTAL
+    help
+      Build a native toolchain.
+      See docs/overview.txt
+
+config CROSS
+    bool
+    prompt "Cross"
+    help
+      Build a cross-toolchain.
+      See docs/overview.txt
+
+config CROSS_NATIVE
+    bool
+    prompt "Croos-native (EXPERIMENTAL)"
+    depends on EXPERIMENTAL
+    help
+      Build a cross-native toolchain.
+      See docs/overview.txt
+
+config CANADIAN
+    bool
+    prompt "Canadian (EXPERIMENTAL)"
+    depends on EXPERIMENTAL
+    default n
+    help
+      Build a canadian-toolchain.
+      See docs/overview.txt
+
+endchoice
+
+config BUILD 
+    string
+    prompt "Build system triplet"
+    default ""
+    help
+      Canonical name of the machine building the toolchain.
+      You should leave empty, unless you really now what you're doing.
+
+config CC_NATIVE
+    string
+    prompt "Native gcc"
+    default "gcc"
+    help
+      The native C compiler.
+      
+      You can set this to an alternative compiler if you have more than one
+      installed (eg. gcc is gcc-4.1.1 and you want to use gcc-3.4.6).
+      
+      You can leave this empty as well, in which case gcc will be used.
+
+config HOST
+    string
+    prompt "Host system triplet"
+    default ""
+    depends on NATIVE || CANADIAN
+    help
+      Canonical name of the machine running the toolchain.
+
+config HOST_CC
+    string
+    prompt "Cross-compiler prefix for host system"
+    default "${CT_HOST}-"
+    depends on NATIVE || CANADIAN
+    help
+      C compiler targeting the host system.
+
+config TARGET_CC
+    string
+    prompt "Cross-compiler prefix for target system"
+    default "${CT_TARGET}-"
+    depends on CANADIAN
+    help
+      C compiler targeting the target system.
+
+endmenu
