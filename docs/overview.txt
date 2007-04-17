@@ -22,9 +22,9 @@ Toolchains are made of different piece of software, each being quite complex
 and requiring specially crafted options to build and work seamlessly. This
 is usually not that easy, even in the not-so-trivial case of native toolchains.
 The work reaches a higher degree of complexity when it comes to cross-
-compilation, where it can becomes quite a nightmare...
+compilation, where it can become quite a nightmare...
 
-Some cross-toolchain exits on the internet, and can be used for general
+Some cross-toolchains exist on the internet, and can be used for general
 development, but they have a number of limitations:
   - they can be general purpose, in that they are configured for the majority:
     no optimisation for your specific target,
@@ -99,6 +99,67 @@ toolchain.
 
 You are then free to add the toolchain /bin directory in your PATH to use
 it at will.
+
+
+___________________
+                  /
+Toolchain types  /
+________________/
+
+There are four kinds of toolchains you could encounter.
+
+First off, you must understand the following: when it comes to compilers there
+are up to four machines involved:
+  1) the machine configuring the toolchain components: the config machine
+  2) the machine building the toolchain components:    the build machine
+  3) the machine running the toolchain:                the host machine
+  4) the machine the toolchain is building for:        the target machine
+
+We can most of the time assume that the config machine and the build machine
+are the same. Most of the time, this will be true. The only time it isn't
+is if you're using distributed compilation (such as distcc). Let's forget
+this for the sake of simplicity.
+
+So we're left with three machines:
+ - build
+ - host
+ - target
+
+Any toolchain will involve those three machines. You can be as pretty sure of
+this as "2 and 2 are 4". Here is how they come into play:
+
+1) build == host == target
+    This is a plain native toolchain, targetting the exact same machine as the
+    one it is built on, and running again on this exact same machine. You have
+    to build such a toolchain when you want to use an updated component, such
+    as a newer gcc for example.
+    ct-ng calls it "native".
+
+2) build == host != target
+    This is a classic cross-toolchain, which is expected to be run on the same
+    machine it is compiled on, and generate code to run on a second machine,
+    the target.
+    ct-ng calls it "cross".
+
+3) build != host == target
+    Such a toolchain is also a native toolchain, as it targets the same machine
+    as it runs on. But it is build on another machine. You want such a
+    toolchain when porting to a new architecture, or if the build machine is
+    much faster than the host machine.
+    ct-ng calls it "cross-native".
+
+4) build != host != target
+    This one is called a canadian-toolchain (*), is is tricky. The three
+    machines in play are different. You might want such a toolchain if you
+    have a fast build machine, but the users will use it on another machine,
+    and will produce code to run on a third machine.
+    ct-ng calls it "canadian".
+
+ct-ng can build all these kinds of toolchains (or is aiming at it, anyway!)
+
+(*) The term Canadian Cross came about because at the time that these issues
+    were all being hashed out, Canada had three national political parties.
+    http://en.wikipedia.org/wiki/Cross_compiler
 
 _____________
             /
