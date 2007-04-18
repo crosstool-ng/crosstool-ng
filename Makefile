@@ -17,7 +17,6 @@ help::
 	@echo
 
 include $(CT_TOP_DIR)/kconfig/Makefile
-#include $(CT_TOP_DIR)/samples/Makefile
 
 help::
 	@echo  'Build targets:'
@@ -27,7 +26,7 @@ help::
 
 include $(CT_TOP_DIR)/tools/Makefile
 
-.config: config/*.in
+.config: $(shell find $(CT_TOP_DIR)/config -type f -name '*.in')
 	@make menuconfig
 	@# Because exiting menuconfig without saving is not an error to menuconfig
 	@test -f .config
