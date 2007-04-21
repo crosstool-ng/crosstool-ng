@@ -16,6 +16,7 @@ do_cc_core() {
 
     extra_config=""
     [ "${CT_ARCH_FLOAT_SW}" = "y" ] && extra_config="${extra_config} --with-float=soft"
+    [ -n "${CT_ARCH_ABI}" ]  && extra_config="${extra_config} --with-abi=${CT_ARCH_ABI}"
     [ -n "${CT_ARCH_CPU}" ]  && extra_config="${extra_config} --with-cpu=${CT_ARCH_CPU}"
     [ -n "${CT_ARCH_TUNE}" ] && extra_config="${extra_config} --with-tune=${CT_ARCH_TUNE}"
     [ -n "${CT_ARCH_ARCH}" ] && extra_config="${extra_config} --with-arch=${CT_ARCH_ARCH}"
