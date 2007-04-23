@@ -149,6 +149,9 @@ case "${CT_LIBC}" in
     glibc)  CT_TARGET="${CT_TARGET}-gnu";;
     uClibc) CT_TARGET="${CT_TARGET}-uclibc";;
 esac
+case "${CT_ARCH_ABI}" in
+    eabi)   CT_TARGET="${CT_TARGET}eabi";;
+esac
 CT_TARGET="`${CT_TOP_DIR}/tools/config.sub ${CT_TARGET}`"
 
 # Now, build up the variables from the user-configured options.
