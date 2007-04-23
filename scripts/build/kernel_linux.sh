@@ -6,8 +6,21 @@
 do_kernel_check_config() {
     CT_DoStep INFO "Checking kernel configuration"
 
-    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
-        CT_TestOrAbort "You did not provide a kernel config file!" -n "${CT_KERNEL_LINUX_CONFIG_FILE}" -a -f "${CT_KERNEL_LINUX_CONFIG_FILE}"
+    if [    "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" \
+         -a \( -z "${CT_KERNEL_LINUX_CONFIG_FILE}" -o ! -r "${CT_KERNEL_LINUX_CONFIG_FILE}" \) ]; then
+        CT_DoLog WARN "You did not provide a kernel configuration file!"
+        CT_DoLog WARN "I will try to generate one for you, but beware!"
+
+        CT_DoStep INFO "Building a default configuration file for linux kernel"
+
+        mkdir -p "${CT_BUILD_DIR}/build-kernel-defconfig"
+        cd "${CT_BUILD_DIR}/build-kernel-defconfig"
+        make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}" O=`pwd`   \
+             ARCH=${CT_KERNEL_ARCH} defconfig               2>&1 |CT_DoLog DEBUG
+
+        CT_KERNEL_LINUX_CONFIG_FILE="`pwd`/.config"
+
+        CT_EndStep
     fi
 
     CT_EndStep
