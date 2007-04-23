@@ -59,14 +59,13 @@ _F_WHI="\\033[37m"
 # Usage: CT_DoLog <level> [message]
 # If message is empty, then stdin will be logged.
 CT_DoLog() {
-    local max_level
-    local level
+    local max_level LEVEL level cur_l cur_L
+    local l
     eval max_level="\${CT_LOG_LEVEL_${CT_LOG_LEVEL_MAX}}"
     # Set the maximum log level to DEBUG if we have none
     [ -z ${max_level} ] && max_level=${CT_LOG_LEVEL_DEBUG}
 
-    local LEVEL="$1"
-    shift
+    LEVEL="$1"; shift
     eval level="\${CT_LOG_LEVEL_${LEVEL}}"
 
     if [ $# -eq 0 ]; then
@@ -77,12 +76,18 @@ CT_DoLog() {
           cpt=0
           indent=$((2*CT_STEP_COUNT))
           while read line; do
-              l="`printf \"[%-5s]%*s%s%s\" \"${LEVEL}\" \"${indent}\" \" \" \"${line}\"`"
+              case "${CT_LOG_SEE_TOOLS_WARN},${line}" in
+                y,*"warning:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
+                *"error:"*)             cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
+                "make["?*"]:"*"Stop.")  cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
+                *)                      cur_L="${LEVEL}"; cur_l="${level}";;
+              esac
+              l="`printf \"[%-5s]%*s%s%s\" \"${cur_L}\" \"${indent}\" \" \" \"${line}\"`"
               # There will always be a log file, be it /dev/null
               echo -e "${l}" >>"${CT_ACTUAL_LOG_FILE}"
-              color="CT_${LEVEL}_COLOR"
+              color="CT_${cur_L}_COLOR"
               normal="CT_NORMAL_COLOR"
-              if [ ${level} -le ${max_level} ]; then
+              if [ ${cur_l} -le ${max_level} ]; then
                   echo -e "${!color}${l}${!normal}"
               else
                   ${CT_PROG_BAR}
