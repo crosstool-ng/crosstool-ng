@@ -111,7 +111,7 @@ PARALLELMFLAGS=
 [ ${CT_LOAD} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -l${CT_LOAD}"
 
 CT_DoStep EXTRA "Dumping internal crosstool-NG configuration"
-CT_DoLog EXTRA "Building a toolchain for :"
+CT_DoLog EXTRA "Building a toolchain for:"
 CT_DoLog EXTRA "  build  = ${CT_BUILD}"
 CT_DoLog EXTRA "  host   = ${CT_HOST}"
 CT_DoLog EXTRA "  target = ${CT_TARGET}"

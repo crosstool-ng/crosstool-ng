@@ -3,12 +3,12 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 do_cc() {
-    CT_DoStep INFO "Installing final C compiler"
+    CT_DoStep INFO "Installing final compiler"
 
     mkdir -p "${CT_BUILD_DIR}/build-cc"
     cd "${CT_BUILD_DIR}/build-cc"
 
-    CT_DoLog EXTRA "Configuring C compiler"
+    CT_DoLog EXTRA "Configuring compiler"
 
     # Enable selected languages
     lang_opt="c"
@@ -24,7 +24,7 @@ do_cc() {
     CT_Test "Building Objective-C language is not yet supported. Will try..." "${CT_CC_LANG_OBJC}" = "y"
     CT_Test "Building Objective-C++ language is not yet supported. Will try..." "${CT_CC_LANG_OBJCXX}" = "y"
     CT_Test "Building ${CT_CC_LANG_OTHERS} language(s) is not yet supported. Will try..." -n "${CT_CC_LANG_OTHERS}"
-    lang_opt=`echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/^(.*),*$/\1/;'`
+    lang_opt=`echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;'`
 
     extra_config="--enable-languages=${lang_opt}"
     [ "${CT_ARCH_FLOAT_SW}" = "y" ] && extra_config="${extra_config} --with-float=soft"
@@ -88,7 +88,7 @@ do_cc() {
         esac ;;
     esac
 
-    CT_DoLog EXTRA "Building C compiler"
+    CT_DoLog EXTRA "Building compiler"
     make ${PARALLELMFLAGS} all 2>&1 |CT_DoLog DEBUG
 
     CT_DoLog EXTRA "Installing C compiler"
