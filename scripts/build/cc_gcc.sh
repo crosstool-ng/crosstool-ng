@@ -8,7 +8,7 @@ do_cc() {
     mkdir -p "${CT_BUILD_DIR}/build-cc"
     cd "${CT_BUILD_DIR}/build-cc"
 
-    CT_DoLog EXTRA "Configuring compiler"
+    CT_DoLog EXTRA "Configuring final compiler"
 
     # Enable selected languages
     lang_opt="c"
@@ -88,10 +88,10 @@ do_cc() {
         esac ;;
     esac
 
-    CT_DoLog EXTRA "Building compiler"
+    CT_DoLog EXTRA "Building final compiler"
     make ${PARALLELMFLAGS} all 2>&1 |CT_DoLog DEBUG
 
-    CT_DoLog EXTRA "Installing C compiler"
+    CT_DoLog EXTRA "Installing final compiler"
     make install 2>&1 |CT_DoLog DEBUG
 
     # FIXME: shouldn't people who want this just --disable-multilib in final gcc
