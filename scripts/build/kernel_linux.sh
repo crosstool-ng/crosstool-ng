@@ -80,13 +80,6 @@ do_kernel_install() {
         *)   CT_Abort "Kernel version >= 2.6.18 is needed to install kernel headers.";;
     esac
 
-    CT_DoLog EXTRA "Configuring kernel headers"
-    cp "${CT_KERNEL_LINUX_CONFIG_FILE}" .config
-    CT_DoYes "" |make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"      \
-                      O="${CT_BUILD_DIR}/build-kernel-headers"  \
-                      ${V_OPT}                                  \
-                      ARCH=${CT_KERNEL_ARCH} oldconfig          2>&1 |CT_DoLog DEBUG
-
     CT_DoLog EXTRA "Installing kernel headers"
     make ARCH=${CT_KERNEL_ARCH}                     \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
