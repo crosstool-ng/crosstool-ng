@@ -2,6 +2,25 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# Download uClibc
+do_libc_get() {
+	libc_src="http://www.uclibc.org/downloads
+              http://www.uclibc.org/downloads/snapshots
+              http://www.uclibc.org/downloads/old-releases"
+    # For uClibc, we have almost every thing: releases, and snapshots
+    # for the last month or so. We'll have to deal with svn revisions
+    # later...
+    CT_GetFile "${CT_LIBC_FILE}" ${libc_src}
+    # uClibc locales
+    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_GetFile "uClibc-locale-030818" ${libc_src}
+}
+
+# Extract uClibc
+do_libc_extract() {
+    CT_ExtractAndPatch "${CT_LIBC_FILE}"
+    # uClibc locales
+    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_ExtractAndPatch "uClibc-locale-030818"
+}
 
 # Check that uClibc has been previously configured
 do_libc_check_config() {

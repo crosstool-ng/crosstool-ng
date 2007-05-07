@@ -13,10 +13,11 @@ all: _ct_build
 HOST_CC = gcc -funsigned-char
 
 help::
-	@echo  'Available make targets (*: default target):'
+	@echo  'Available make targets:'
 	@echo
 
 include $(CT_TOP_DIR)/kconfig/Makefile
+include $(CT_TOP_DIR)/samples/Makefile
 
 help::
 	@echo  'Build targets:'
@@ -25,6 +26,9 @@ help::
 	@echo  '  distclean      - Remove generated files, configuration and build directories'
 
 include $(CT_TOP_DIR)/tools/Makefile
+
+help::
+	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
 
 .config: $(shell find $(CT_TOP_DIR)/config -type f -name '*.in')
 	@make menuconfig

@@ -2,6 +2,26 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# Download core gcc
+do_cc_core_get() {
+    # Ah! gcc folks are kind of 'different': they store the tarballs in
+    # subdirectories of the same name! That's because gcc is such /crap/ that
+    # it is such /big/ that it needs being splitted for distribution! Sad. :-(
+    # Arrgghh! Some of those versions does not follow this convention:
+    # gcc-3.3.3 lives in releases/gcc-3.3.3, while gcc-2.95.* isn't in a
+    # subdirectory! You bastard!
+    CT_GetFile "${CT_CC_CORE_FILE}"                                    \
+               ftp://ftp.gnu.org/gnu/gcc/${CT_CC_CORE_FILE}            \
+               ftp://ftp.gnu.org/gnu/gcc/releases/${CT_CC_CORE_FILE}   \
+               ftp://ftp.gnu.org/gnu/gcc
+}
+
+# Extract core gcc
+do_cc_core_extract() {
+    CT_ExtractAndPatch "${CT_CC_CORE_FILE}"
+}
+
+# Build core gcc
 do_cc_core() {
     mkdir -p "${CT_BUILD_DIR}/build-cc-core"
     cd "${CT_BUILD_DIR}/build-cc-core"

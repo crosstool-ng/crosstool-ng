@@ -218,3 +218,234 @@ CT_MktempDir() {
 CT_DoYes() {
     yes "$1" || true
 }
+
+# Download an URL using wget
+# Usage: CT_DoGetFileWget <URL>
+CT_DoGetFileWget() {
+    # Need to return true because it is legitimate to not find the tarball at
+    # some of the provided URLs (think about snapshots, different layouts for
+    # different gcc versions, etc...)
+    # Some (very old!) FTP server might not support the passive mode, thus
+    # retry without
+    # With automated download as we are doing, it can be very dangerous to use
+    # -c to continue the downloads. It's far better to simply overwrite the
+    # destination file
+    wget -nc --progress=dot:binary --tries=3 --passive-ftp "$1" || wget -nc --progress=dot:binary --tries=3 "$1" || true
+}
+
+# Download an URL using curl
+# Usage: CT_DoGetFileCurl <URL>
+CT_DoGetFileCurl() {
+	# Note: comments about wget method are also valid here
+	# Plus: no good progreess indicator is available with curl,
+	#       so output is consigned to oblivion
+	curl --ftp-pasv -O --retry 3 "$1" >/dev/null || curl -O --retry 3 "$1" >/dev/null || true
+}
+
+# Wrapper function to call one of curl or wget
+# Usage: CT_DoGetFile <URL>
+CT_DoGetFile() {
+    local _wget=`which wget`
+    local _curl=`which curl`
+    case "${_wget},${_curl}" in
+        ,)  CT_DoError "Could find neither wget nor curl";;
+        ,*) CT_DoGetFileCurl "$1";;
+        *)  CT_DoGetFileWget "$1";;
+    esac
+}
+
+# Download the file from one of the URLs passed as argument
+# Usage: CT_GetFile <filename> <url> [<url> ...]
+CT_GetFile() {
+    local got_it
+    local ext
+    local url
+    local file="$1"
+    shift
+
+    # Do we already have it?
+    ext=`CT_GetFileExtension "${file}"`
+    if [ -n "${ext}" ]; then
+        if [ "${CT_FORCE_DOWNLOAD}" = "y" ]; then
+            rm -f "${CT_TARBALLS_DIR}/${file}${ext}"
+        else
+            return 0
+        fi
+    fi
+
+    CT_DoLog EXTRA "Retrieving \"${file}\""
+    CT_Pushd "${CT_TARBALLS_DIR}"
+    # File not yet downloaded, try to get it
+    got_it=0
+    if [ "${got_it}" != "y" ]; then
+        # We'd rather have a bzip2'ed tarball, then gzipped, and finally plain tar.
+        for ext in .tar.bz2 .tar.gz .tgz .tar; do
+            # Try all urls in turn
+            for url in "$@"; do
+                case "${url}" in
+                    *)  CT_DoLog EXTRA "Trying \"${url}/${file}${ext}\""
+                        CT_DoGetFile "${url}/${file}${ext}" 2>&1 |CT_DoLog DEBUG
+                        ;;
+                esac
+                [ -f "${file}${ext}" ] && got_it=1 && break 2 || true
+            done
+        done
+    fi
+    CT_Popd
+
+    CT_TestAndAbort "Could not download \"${file}\", and not present in \"${CT_TARBALLS_DIR}\"" ${got_it} -eq 0
+}
+
+# Get the file name extension of a component
+# Usage: CT_GetFileExtension <component_name-component_version>
+# If found, echoes the extension to stdout
+# If not found, echoes nothing on stdout.
+CT_GetFileExtension() {
+    local ext
+    local file="$1"
+    local got_it=1
+
+    CT_Pushd "${CT_TARBALLS_DIR}"
+    for ext in .tar.gz .tar.bz2 .tgz .tar; do
+        if [ -f "${file}${ext}" ]; then
+            echo "${ext}"
+            got_it=0
+            break
+        fi
+    done
+    CT_Popd
+
+    return 0
+}
+
+# Extract a tarball and patch the resulting sources if necessary.
+# Some tarballs need to be extracted in specific places. Eg.: glibc addons
+# must be extracted in the glibc directory; uCLibc locales must be extracted
+# in the extra/locale sub-directory of uClibc.
+CT_ExtractAndPatch() {
+    local file="$1"
+    local base_file=`echo "${file}" |cut -d - -f 1`
+    local ver_file=`echo "${file}" |cut -d - -f 2-`
+    local official_patch_dir
+    local custom_patch_dir
+    local libc_addon
+    local ext=`CT_GetFileExtension "${file}"`
+    CT_TestAndAbort "\"${file}\" not found in \"${CT_TARBALLS_DIR}\"" -z "${ext}"
+    local full_file="${CT_TARBALLS_DIR}/${file}${ext}"
+
+    CT_Pushd "${CT_SRC_DIR}"
+
+    # Add-ons need a little love, really.
+    case "${file}" in
+        glibc-[a-z]*-*)
+            CT_TestAndAbort "Trying to extract the C-library addon/locales \"${file}\" when C-library not yet extracted" ! -d "${CT_LIBC_FILE}"
+            cd "${CT_LIBC_FILE}"
+            libc_addon=y
+            [ -f ".${file}.extracted" ] && return 0
+            touch ".${file}.extracted"
+            ;;
+        uClibc-locale-*)
+            CT_TestAndAbort "Trying to extract the C-library addon/locales \"${file}\" when C-library not yet extracted" ! -d "${CT_LIBC_FILE}"
+            cd "${CT_LIBC_FILE}/extra/locale"
+            libc_addon=y
+            [ -f ".${file}.extracted" ] && return 0
+            touch ".${file}.extracted"
+            ;;
+    esac
+
+    # If the directory exists, then consider extraction and patching done
+    [ -d "${file}" ] && return 0
+
+    CT_DoLog EXTRA "Extracting \"${file}\""
+    case "${ext}" in
+        .tar.bz2)     tar xvjf "${full_file}" |CT_DoLog DEBUG;;
+        .tar.gz|.tgz) tar xvzf "${full_file}" |CT_DoLog DEBUG;;
+        .tar)         tar xvf  "${full_file}" |CT_DoLog DEBUG;;
+        *)            CT_Abort "Don't know how to handle \"${file}\": unknown extension" ;;
+    esac
+
+    # Snapshots might not have the version number in the extracted directory
+    # name. This is also the case for some (old) packages, such as libfloat.
+    # Overcome this issue by symlink'ing the directory.
+    if [ ! -d "${file}" -a "${libc_addon}" != "y" ]; then
+        case "${ext}" in
+            .tar.bz2)     base=`tar tjf "${full_file}" |head -n 1 |cut -d / -f 1 || true`;;
+            .tar.gz|.tgz) base=`tar tzf "${full_file}" |head -n 1 |cut -d / -f 1 || true`;;
+            .tar)         base=`tar tf  "${full_file}" |head -n 1 |cut -d / -f 1 || true`;;
+        esac
+        CT_TestOrAbort "There was a problem when extracting \"${file}\"" -d "${base}" -o "${base}" != "${file}"
+        ln -s "${base}" "${file}"
+    fi
+
+    # Kludge: outside this function, we wouldn't know if we had just extracted
+    # a libc addon, or a plain package. Apply patches now.
+    CT_DoLog EXTRA "Patching \"${file}\""
+
+    # If libc addon, we're already in the correct place.
+    [ -z "${libc_addon}" ] && cd "${file}"
+
+    [ "${CUSTOM_PATCH_ONLY}" = "y" ] || official_patch_dir="${CT_TOP_DIR}/patches/${base_file}/${ver_file}"
+    [ "${CT_CUSTOM_PATCH}" = "y" ] && custom_patch_dir="${CT_CUSTOM_PATCH_DIR}/${base_file}/${ver_file}"
+    for patch_dir in "${official_patch_dir}" "${custom_patch_dir}"; do
+        if [ -n "${patch_dir}" -a -d "${patch_dir}" ]; then
+            for p in "${patch_dir}"/*.patch; do
+                if [ -f "${p}" ]; then
+                    CT_DoLog DEBUG "Applying patch \"${p}\""
+                    patch -g0 -F1 -p1 -f <"${p}" |CT_DoLog DEBUG
+                    CT_TestAndAbort "Failed while applying patch file \"${p}\"" ${PIPESTATUS[0]} -ne 0
+                fi
+            done
+        fi
+    done
+
+    CT_Popd
+}
+
+# Compute the target triplet from what is provided by the user
+# Usage: CT_DoBuildTargetTriplet
+# In fact this function takes the environment variables to build the target
+# triplet. It is needed both by the normal build sequence, as well as the
+# sample saving sequence.
+CT_DoBuildTargetTriplet() {
+    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
+        y,) target_endian_eb=eb; target_endian_el=;;
+        ,y) target_endian_eb=; target_endian_el=el;;
+    esac
+    case "${CT_ARCH}" in
+        arm)  CT_TARGET="${CT_ARCH}${target_endian_eb}";;
+        mips) CT_TARGET="${CT_ARCH}${target_endian_el}";;
+        x86*) # Much love for this one :-(
+              # Ultimately, we should use config.sub to output the correct
+              # procesor name. Work for later...
+              arch="${CT_ARCH_ARCH}"
+              [ -z "${arch}" ] && arch="${CT_ARCH_TUNE}"
+              case "${CT_ARCH}" in
+                  x86_64)      CT_TARGET=x86_64;;
+              	  *)  case "${arch}" in
+                          "")                                       CT_TARGET=i386;;
+                          i386|i486|i586|i686)                      CT_TARGET="${arch}";;
+                          winchip*)                                 CT_TARGET=i486;;
+                          pentium|pentium-mmx|c3*)                  CT_TARGET=i586;;
+                          nocona|athlon*64|k8|athlon-fx|opteron)    CT_TARGET=x86_64;;
+                          pentiumpro|pentium*|athlon*)              CT_TARGET=i686;;
+                          *)                                        CT_TARGET=i586;;
+                      esac;;
+              esac;;
+    esac
+    case "${CT_TARGET_VENDOR}" in
+        "") CT_TARGET="${CT_TARGET}-unknown";;
+        *)  CT_TARGET="${CT_TARGET}-${CT_TARGET_VENDOR}";;
+    esac
+    case "${CT_KERNEL}" in
+        linux*)  CT_TARGET="${CT_TARGET}-linux";;
+        cygwin*) CT_TARGET="${CT_TARGET}-cygwin";;
+    esac
+    case "${CT_LIBC}" in
+        glibc)  CT_TARGET="${CT_TARGET}-gnu";;
+        uClibc) CT_TARGET="${CT_TARGET}-uclibc";;
+    esac
+    case "${CT_ARCH_ABI}" in
+        eabi)   CT_TARGET="${CT_TARGET}eabi";;
+    esac
+    CT_TARGET="`${CT_TOP_DIR}/tools/config.sub ${CT_TARGET}`"
+}

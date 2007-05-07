@@ -2,6 +2,19 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# Download binutils
+do_binutils_get() {
+    CT_GetFile "${CT_BINUTILS_FILE}"                            \
+               ftp://ftp.gnu.org/gnu/binutils                   \
+               ftp://ftp.kernel.org/pub/linux/devel/binutils
+}
+
+# Extract binutils
+do_binutils_extract() {
+    CT_ExtractAndPatch "${CT_BINUTILS_FILE}"
+}
+
+# Build binutils
 do_binutils() {
     mkdir -p "${CT_BUILD_DIR}/build-binutils"
     cd "${CT_BUILD_DIR}/build-binutils"

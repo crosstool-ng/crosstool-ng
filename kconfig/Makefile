@@ -25,24 +25,14 @@ config: $(obj)/conf
 oldconfig: $(obj)/conf
 	@$< -s $(KCONFIG_TOP)
 
-# Build a list of all available samples
-SAMPLES = $(patsubst $(CT_TOP_DIR)/samples/%,%,$(filter-out %Makefile,$(wildcard $(CT_TOP_DIR)/samples/*)))
-.PHONY: $(SAMPLES)
-$(SAMPLES):
-	@cp "$(CT_TOP_DIR)/samples/$(@)/crosstool.config" "$(CT_TOP_DIR)/.config"
-	@$(MAKE) oldconfig
-
 # Help text used by make help
 help::
 	@echo  'General purpose configuration targets:'
 	@echo  '  config         - Update current config using a line-oriented program'
 	@echo  '  menuconfig     - Update current config using a menu based program'
 	@echo  '  oldconfig      - Update current config using a provided .config as base'
-	@echo
-	@echo  'Preconfigured targets:'
-	@for s in $(SAMPLES); do   \
-	    echo  "  $${s}"; \
-	 done
+	@# saveconfig is listed here for homogeneity, but implemented in samples/Makefile
+	@echo  '  saveconfig     - Save current config as a preconfigured target'
 	@echo  ''
 
 # Cheesy build

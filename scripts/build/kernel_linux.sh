@@ -2,6 +2,27 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# Download the kernel
+do_kernel_get() {
+    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
+        CT_GetFile "${CT_KERNEL_FILE}"                                  \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.6           \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.4           \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.2           \
+                   ftp://ftp.kernel.org/pub/linux/kernel/v2.6/testing   \
+                   http://ep09.pld-linux.org/~mmazur/linux-libc-headers
+    fi
+    return 0
+}
+
+# Extract kernel
+do_kernel_extract() {
+    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
+        CT_ExtractAndPatch "${CT_KERNEL_FILE}"
+    fi
+    return 0
+}
+
 # Check kernel configuration
 do_kernel_check_config() {
     CT_DoStep INFO "Checking kernel configuration"

@@ -2,6 +2,33 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# Download glibc
+do_libc_download() {
+    # Ah! Not all GNU folks seem stupid. All glibc releases are in the same
+    # directory. Good. Alas, there is no snapshot there. I'll deal with them
+    # later on... :-/
+    CT_GetFile "${CT_LIBC_FILE}" ftp://ftp.gnu.org/gnu/glibc
+
+    # C library addons
+    addons_list=`echo "${CT_LIBC_ADDONS}" |sed -r -e 's/,/ /g; s/ $//g;'`
+    for addon in ${addons_list}; do
+        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
+    done
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_GetFile "${CT_LIBC}-ports-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
+}
+
+# Extract glibc
+do_libc_extract() {
+    CT_ExtractAndPatch "${CT_LIBC_FILE}"
+
+    # C library addons
+    addons_list=`echo "${CT_LIBC_ADDONS}" |sed -r -e 's/,/ /g; s/ $//g;'`
+    for addon in ${addons_list}; do
+        CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+    done
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_ExtractAndPatch "${CT_LIBC}-ports-${CT_LIBC_VERSION}"
+}
+
 # There is nothing to do for glibc check config
 do_libc_check_config() {
     CT_DoStep INFO "Checking C library configuration"
@@ -44,7 +71,8 @@ do_libc_headers() {
         --host="${CT_TARGET}"                   \
         --prefix=/usr                           \
         --with-headers="${CT_HEADERS_DIR}"      \
-        --without-cvs --disable-sanity-checks   \
+        --without-cvs                           \
+        --disable-sanity-checks                 \
         --enable-hacker-mode                    \
         --enable-add-ons=""                     \
         --without-nptl                          2>&1 |CT_DoLog DEBUG
@@ -142,7 +170,7 @@ do_libc() {
     CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
 
     # Add some default CC args
-    extra_cc_args=
+    extra_cc_args="${CT_CFLAGS_FOR_HOST}"
     case "${CT_LIBC_EXTRA_CC_ARGS}" in
         *-mbig-endian*) ;;
         *-mlittle-endian*) ;;
