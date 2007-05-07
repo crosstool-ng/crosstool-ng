@@ -1,6 +1,9 @@
 # Makefile for crosstool-NG.
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
 
+# Don't print directory as we descend into them
+MAKEFLAGS += --no-print-directory
+
 # The project version
 export PROJECTVERSION=0.0.2-svn
 
