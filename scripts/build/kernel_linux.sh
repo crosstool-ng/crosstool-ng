@@ -27,8 +27,13 @@ do_kernel_extract() {
 do_kernel_check_config() {
     CT_DoStep INFO "Checking kernel configuration"
 
-    if [    "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" \
-         -a \( -z "${CT_KERNEL_LINUX_CONFIG_FILE}" -o ! -r "${CT_KERNEL_LINUX_CONFIG_FILE}" \) ]; then
+    # Only the copied or sanitised headers need a config file.
+    # Pre-existing headers as well as headers_install don't.
+    if [ "${CT_KERNEL_LINUX_NEEDS_CONFIG}" = "y"        \
+         -a \( -z "${CT_KERNEL_LINUX_CONFIG_FILE}"      \
+               -o ! -r "${CT_KERNEL_LINUX_CONFIG_FILE}" \
+            \)                                          \
+       ]; then
         CT_DoLog WARN "You did not provide a kernel configuration file!"
         CT_DoLog WARN "I will try to generate one for you, but beware!"
 
