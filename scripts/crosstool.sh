@@ -330,9 +330,9 @@ if [ "${CT_NO_DOWNLOAD}" != "y" ]; then
 	CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
     do_kernel_get
     do_binutils_get
-    do_libc_get
-    do_libfloat_get
     do_cc_core_get
+    do_libfloat_get
+    do_libc_get
     do_cc_get
     CT_EndStep
 fi

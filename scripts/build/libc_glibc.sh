@@ -3,7 +3,7 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 # Download glibc
-do_libc_download() {
+do_libc_get() {
     # Ah! Not all GNU folks seem stupid. All glibc releases are in the same
     # directory. Good. Alas, there is no snapshot there. I'll deal with them
     # later on... :-/
@@ -15,6 +15,8 @@ do_libc_download() {
         CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
     done
     [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_GetFile "${CT_LIBC}-ports-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
+
+    return 0
 }
 
 # Extract glibc
@@ -27,6 +29,8 @@ do_libc_extract() {
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
     done
     [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_ExtractAndPatch "${CT_LIBC}-ports-${CT_LIBC_VERSION}"
+
+    return 0
 }
 
 # There is nothing to do for glibc check config

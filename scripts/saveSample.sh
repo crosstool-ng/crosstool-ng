@@ -27,17 +27,34 @@ CT_LOG_LEVEL_MAX="INFO"
 # Target triplet: CT_TARGET needs a little love:
 CT_DoBuildTargetTriplet
 
+# Kludge: if any of the config options needs either CT_TARGET or CT_TOP_DIR,
+# re-parse them:
+. "${CT_TOP_DIR}/.config"
+
 # Create the sample directory
 [ -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ] || svn mkdir "${CT_TOP_DIR}/samples/${CT_TARGET}" >/dev/null 2>&1
 
 # Save the crosstool-NG config file
 cp "${CT_TOP_DIR}/.config" "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 
+# Function to copy a file to the sample directory
+# Needed in case the file is already there (think of a previously available sample)
+# Usage: CT_DoAddFileToSample <source> <dest>
+CT_DoAddFileToSample() {
+    source="$1"
+    dest="$2"
+    inode_s=`ls -i "${source}"`
+    inode_d=`ls -i "${dest}"`
+    if [ "${inode_s}" != "${inode_d}" ]; then
+        cp "${source}" "${dest}"
+    fi
+    svn add "${dest}" >/dev/null 2>&1
+}
+
 # Save the kernel .config file
 if [ -n "${CT_KERNEL_LINUX_CONFIG_FILE}" ]; then
     # We save the file, and then point the saved sample to this file
-    cp "${CT_KERNEL_LINUX_CONFIG_FILE}" "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"
-    svn add "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config" >/dev/null 2>&1
+    CT_DoAddFileToSample "${CT_KERNEL_LINUX_CONFIG_FILE}" "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"
     sed -r -i -e 's|^(CT_KERNEL_LINUX_CONFIG_FILE=).+$|\1"${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"|;' \
         "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 else
@@ -50,8 +67,7 @@ fi
 # Save the uClibc .config file
 if [ -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
     # We save the file, and then point the saved sample to this file
-    cp "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"
-    svn add "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config" >/dev/null 2>&1
+    CT_DoAddFileToSample "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"
     sed -r -i -e 's|^(CT_LIBC_UCLIBC_CONFIG_FILE=).+$|\1"${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"|;' \
         "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 else

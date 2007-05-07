@@ -13,6 +13,8 @@ do_libc_get() {
     CT_GetFile "${CT_LIBC_FILE}" ${libc_src}
     # uClibc locales
     [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_GetFile "uClibc-locale-030818" ${libc_src}
+
+    return 0
 }
 
 # Extract uClibc
@@ -20,6 +22,8 @@ do_libc_extract() {
     CT_ExtractAndPatch "${CT_LIBC_FILE}"
     # uClibc locales
     [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_ExtractAndPatch "uClibc-locale-030818"
+
+    return 0
 }
 
 # Check that uClibc has been previously configured

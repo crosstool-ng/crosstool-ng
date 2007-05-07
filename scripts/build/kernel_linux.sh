@@ -102,13 +102,17 @@ do_kernel_install() {
     esac
 
     CT_DoLog EXTRA "Installing kernel headers"
-    make ARCH=${CT_KERNEL_ARCH}                     \
+    make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
+         O="`pwd`"                                  \
+         ARCH=${CT_KERNEL_ARCH}                     \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
          ${V_OPT}                                   \
          headers_install                            2>&1 |CT_DoLog DEBUG
 
     CT_DoLog EXTRA "Checking installed headers"
-    make ARCH=${CT_KERNEL_ARCH}                     \
+    make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
+         O="`pwd`"                                  \
+         ARCH=${CT_KERNEL_ARCH}                     \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
          ${V_OPT}                                   \
          headers_check                              2>&1 |CT_DoLog DEBUG
