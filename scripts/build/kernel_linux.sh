@@ -25,8 +25,6 @@ do_kernel_extract() {
 
 # Check kernel configuration
 do_kernel_check_config() {
-    CT_DoStep INFO "Checking kernel configuration"
-
     # Only the copied or sanitised headers need a config file.
     # Pre-existing headers as well as headers_install don't.
     if [ "${CT_KERNEL_LINUX_NEEDS_CONFIG}" = "y"        \
@@ -48,8 +46,6 @@ do_kernel_check_config() {
 
         CT_EndStep
     fi
-
-    CT_EndStep
 }
 
 # Wrapper to the actual headers install method
