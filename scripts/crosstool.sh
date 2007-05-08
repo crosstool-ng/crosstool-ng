@@ -39,13 +39,18 @@ CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_D
 
 # The progress bar indicator is asked for
 if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
+    _CT_PROG_BAR_DATE() {
+        local str=`CT_DoDate +%s`
+        local elapsed=$((str-(CT_STAR_DATE/(1000*1000*1000))))
+        printf "[%02d:%02d]" $((elapsed/60)) $((elapsed%60))
+    }
     _CT_PROG_BAR() {
-        [ $((cpt/5)) -eq 0 ] && echo -en "/"
-        [ $((cpt/5)) -eq 1 ] && echo -en "-"
-        [ $((cpt/5)) -eq 2 ] && echo -en "\\"
-        [ $((cpt/5)) -eq 3 ] && echo -en "|"
         echo -en "\r"
-        cpt=$(((cpt+1)%20))
+        [ $((cpt/10)) -eq 0 ] && echo -en "`_CT_PROG_BAR_DATE` /"
+        [ $((cpt/10)) -eq 1 ] && echo -en "`_CT_PROG_BAR_DATE` -"
+        [ $((cpt/10)) -eq 2 ] && echo -en "`_CT_PROG_BAR_DATE` \\"
+        [ $((cpt/10)) -eq 3 ] && echo -en "`_CT_PROG_BAR_DATE` |"
+        cpt=$(((cpt+1)%40))
     }
     CT_PROG_BAR=_CT_PROG_BAR
     export -f _CT_PROG_BAR
