@@ -80,11 +80,11 @@ do_cc() {
         --enable-symvers=gnu                    \
         --enable-c99                            \
         --enable-long-long                      \
-        ${CT_CC_EXTRA_CONFIG}                   2>&1 |CT_DoLog DEBUG
+        ${CT_CC_EXTRA_CONFIG}                   2>&1 |CT_DoLog ALL
 
     if [ ! "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
-        make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog DEBUG
+        make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog ALL
     fi
 
 
@@ -109,10 +109,10 @@ do_cc() {
     esac
 
     CT_DoLog EXTRA "Building final compiler"
-    make ${PARALLELMFLAGS} all 2>&1 |CT_DoLog DEBUG
+    make ${PARALLELMFLAGS} all 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing final compiler"
-    make install 2>&1 |CT_DoLog DEBUG
+    make install 2>&1 |CT_DoLog ALL
 
     # FIXME: shouldn't people who want this just --disable-multilib in final gcc
     # and be done with it?

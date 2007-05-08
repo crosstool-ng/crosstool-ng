@@ -40,7 +40,7 @@ do_kernel_check_config() {
         mkdir -p "${CT_BUILD_DIR}/build-kernel-defconfig"
         cd "${CT_BUILD_DIR}/build-kernel-defconfig"
         make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}" O=`pwd`   \
-             ARCH=${CT_KERNEL_ARCH} defconfig               2>&1 |CT_DoLog DEBUG
+             ARCH=${CT_KERNEL_ARCH} defconfig               2>&1 |CT_DoLog ALL
 
         CT_KERNEL_LINUX_CONFIG_FILE="`pwd`/.config"
 
@@ -92,7 +92,7 @@ do_kernel_headers() {
 
 # Install kernel headers using headers_install from kernel sources.
 do_kernel_install() {
-    CT_DoLog EXTRA "Using kernel's headers_install"
+    CT_DoLog DEBUG "Using kernel's headers_install"
 
     mkdir -p "${CT_BUILD_DIR}/build-kernel-headers"
     cd "${CT_BUILD_DIR}/build-kernel-headers"
@@ -108,7 +108,7 @@ do_kernel_install() {
          ARCH=${CT_KERNEL_ARCH}                     \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
          ${V_OPT}                                   \
-         headers_install                            2>&1 |CT_DoLog DEBUG
+         headers_install                            2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Checking installed headers"
     make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
@@ -116,20 +116,20 @@ do_kernel_install() {
          ARCH=${CT_KERNEL_ARCH}                     \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
          ${V_OPT}                                   \
-         headers_check                              2>&1 |CT_DoLog DEBUG
+         headers_check                              2>&1 |CT_DoLog ALL
 }
 
 # Install kernel headers from oldish Mazur's sanitised headers.
 do_kernel_sanitised() {
     CT_DoLog EXTRA "Copying sanitised headers"
     cd "${CT_SRC_DIR}/${CT_KERNEL_FILE}"
-    cp -rv include/linux "${CT_HEADERS_DIR}" 2>&1 |CT_DoLog DEBUG
-    cp -rv "include/asm-${CT_KERNEL_ARCH}" "${CT_HEADERS_DIR}/asm" 2>&1 |CT_DoLog DEBUG
+    cp -rv include/linux "${CT_HEADERS_DIR}" 2>&1 |CT_DoLog ALL
+    cp -rv "include/asm-${CT_KERNEL_ARCH}" "${CT_HEADERS_DIR}/asm" 2>&1 |CT_DoLog ALL
 }
 
 # Install kernel headers by plain copy.
 do_kernel_copy() {
-    CT_DoLog EXTRA "Copying plain kernel headers"
+    CT_DoLog DEBUG "Copying plain kernel headers"
     CT_DoLog WARN "You are using plain kernel headers. You really shouldn't do that."
     CT_DoLog WARN "You'd be better off by using installed headers (or sanitised headers)."
 
@@ -178,12 +178,12 @@ do_kernel_copy() {
                                  ;;
                  esac
                  ;;
-    esac 2>&1 |CT_DoLog DEBUG
+    esac 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Copying kernel headers"
-    cp -rv include/asm-generic "${CT_HEADERS_DIR}/asm-generic" 2>&1 |CT_DoLog DEBUG
-    cp -rv include/linux "${CT_HEADERS_DIR}" 2>&1 |CT_DoLog DEBUG
-    cp -rv include/asm-${CT_KERNEL_ARCH} "${CT_HEADERS_DIR}/asm" 2>&1 |CT_DoLog DEBUG
+    cp -rv include/asm-generic "${CT_HEADERS_DIR}/asm-generic" 2>&1 |CT_DoLog ALL
+    cp -rv include/linux "${CT_HEADERS_DIR}" 2>&1 |CT_DoLog ALL
+    cp -rv include/asm-${CT_KERNEL_ARCH} "${CT_HEADERS_DIR}/asm" 2>&1 |CT_DoLog ALL
 }
 
 # Use preinstalled headers (most probably by using make headers_install in a
@@ -194,5 +194,5 @@ do_kernel_preinstalled() {
 
     mkdir -p "${CT_SYSROOT_DIR}/usr"
     cd "${CT_KERNEL_LINUX_HEADERS_CUSTOM_DIR}"
-    cp -rv include "${CT_SYSROOT_DIR}/usr" 2>&1 |CT_DoLog DEBUG
+    cp -rv include "${CT_SYSROOT_DIR}/usr" 2>&1 |CT_DoLog ALL
 }

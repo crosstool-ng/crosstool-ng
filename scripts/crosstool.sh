@@ -64,7 +64,8 @@ if [ "${CT_LOG_USE_COLORS}" = "y" ]; then
     CT_WARN_COLOR="${_A_NOR}${_A_BRI}${_F_YEL}"
     CT_INFO_COLOR="${_A_NOR}${_A_BRI}${_F_GRN}"
     CT_EXTRA_COLOR="${_A_NOR}${_A_DIM}${_F_GRN}"
-    CT_DEBUG_COLOR="${_A_NOR}${_A_DIM}${_F_WHI}"
+    CT_DEBUG_COLOR="${_A_NOR}${_A_BRI}${_F_BLU}"
+    CT_ALL_COLOR="${_A_NOR}${_A_DIM}${_F_WHI}"
     CT_NORMAL_COLOR="${_A_NOR}"
 else
     CT_ERROR_COLOR=
@@ -72,6 +73,7 @@ else
     CT_INFO_COLOR=
     CT_EXTRA_COLOR=
     CT_DEBUG_COLOR=
+    CT_ALL_COLOR=
     CT_NORMAL_COLOR=
 fi
 

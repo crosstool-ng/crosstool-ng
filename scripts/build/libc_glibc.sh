@@ -10,7 +10,7 @@ do_libc_get() {
     CT_GetFile "${CT_LIBC_FILE}" ftp://ftp.gnu.org/gnu/glibc
 
     # C library addons
-    addons_list=`echo "${CT_LIBC_ADDONS}" |sed -r -e 's/,/ /g; s/ $//g;'`
+    addons_list=`echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e 's/,/ /g; s/ $//g;'`
     for addon in ${addons_list}; do
         CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
     done
@@ -24,7 +24,7 @@ do_libc_extract() {
     CT_ExtractAndPatch "${CT_LIBC_FILE}"
 
     # C library addons
-    addons_list=`echo "${CT_LIBC_ADDONS}" |sed -r -e 's/,/ /g; s/ $//g;'`
+    addons_list=`echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e 's/,/ /g; s/ $//g;'`
     for addon in ${addons_list}; do
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
     done
@@ -66,6 +66,11 @@ do_libc_headers() {
     # is ok here, since all we want are the basic headers at this point.
     # Override libc_cv_ppc_machine so glibc-cvs doesn't complain
     # 'a version of binutils that supports .machine "altivec" is needed'.
+
+    # We also need to use the ports addon if specified
+    addons=
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons="${CT_LIBC}-ports-${CT_LIBC_VERSION}"
+
     libc_cv_ppc_machine=yes                     \
     CC=${CT_CC_NATIVE}                          \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
@@ -76,8 +81,8 @@ do_libc_headers() {
         --without-cvs                           \
         --disable-sanity-checks                 \
         --enable-hacker-mode                    \
-        --enable-add-ons=""                     \
-        --without-nptl                          2>&1 |CT_DoLog DEBUG
+        --enable-add-ons="${addons}"            \
+        --without-nptl                          2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing C library headers"
 
@@ -93,9 +98,11 @@ do_libc_headers() {
         # errlist-compat.c.
         # Note: BOOTSTRAP_GCC is used by:
         # patches/glibc-2.3.5/glibc-mips-bootstrap-gcc-header-install.patch
-        libc_cv_ppc_machine=yes                             \
-        make CFLAGS=-DBOOTSTRAP_GCC sysdeps/gnu/errlist.c   2>&1 |CT_DoLog DEBUG
+
+        libc_cv_ppc_machine=yes                                 \
+        make CFLAGS="-O -DBOOTSTRAP_GCC" sysdeps/gnu/errlist.c  2>&1 |CT_DoLog ALL
         mkdir -p stdio-common
+
         # sleep for 2 seconds for benefit of filesystems with lousy time
         # resolution, like FAT, so make knows for sure errlist-compat.c doesn't
         # need generating
@@ -105,8 +112,8 @@ do_libc_headers() {
     # Note: BOOTSTRAP_GCC (see above)
     libc_cv_ppc_machine=yes                                 \
     make cross-compiling=yes install_root=${CT_SYSROOT_DIR} \
-        CFLAGS=-DBOOTSTRAP_GCC ${LIBC_SYSROOT_ARG}          \
-        install-headers                                     2>&1 |CT_DoLog DEBUG
+         CFLAGS="-O -DBOOTSTRAP_GCC" ${LIBC_SYSROOT_ARG}    \
+         install-headers                                    2>&1 |CT_DoLog ALL
 
     # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
     # so do them by hand.  We can tolerate an empty stubs.h for the moment.
@@ -142,7 +149,7 @@ do_libc() {
     extra_config=""
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *enable-kernel*) ;;
-        *) extra_config="${extra_config} --enable-kernel=${CT_KERNEL_VERSION}"
+        *) extra_config="${extra_config} --enable-kernel=`echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;'`"
     esac
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *-tls*) ;;
@@ -164,12 +171,13 @@ do_libc() {
                 ,y) extra_config="${extra_config} --without-fp";;
             esac;;
     esac
-    case "${CT_LIBC_ADDONS},${CT_LIBC_ADDONS_LIST}" in
-        y,) extra_config="${extra_config} --enable-add-ons";;
-        y,*) extra_config="${extra_config} --enable-add-ons=${CT_LIBC_ADDONS_LIST}";;
-    esac
 
-    CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
+    case "${CT_LIBC_ADDONS},${CT_LIBC_GLIBC_USE_PORTS}" in
+        y,y)    addons_config="--enable-add-ons=${CT_LIBC_ADDONS_LIST},${CT_LIBC}-ports-${CT_LIBC_VERSION}";;
+        y,)     addons_config="--enable-add-ons=${CT_LIBC_ADDONS_LIST}";;
+        ,y)     addons_config="--enable-add-ons=${CT_LIBC}-ports-${CT_LIBC_VERSION}";;
+        *)      addons_config="";;
+    esac
 
     # Add some default CC args
     extra_cc_args="${CT_CFLAGS_FOR_HOST}"
@@ -182,6 +190,8 @@ do_libc() {
             esac;;
     esac
 
+    CT_DoLog DEBUG "Configuring with addons : \"${addons_config}\""
+    CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
     CT_DoLog DEBUG "Extra CC args passed: \"${extra_cc_args}\""
 
     # sh3 and sh4 really need to set configparms as of gcc-3.4/glibc-2.3.2
@@ -214,13 +224,15 @@ do_libc() {
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
         --prefix=/usr                                               \
         --build=${CT_BUILD} --host=${CT_TARGET}                     \
-        ${CT_LIBC_GLIBC_EXTRA_CONFIG}                               \
-        ${extra_config}                                             \
         --without-cvs                                               \
+        --without-nptl                                              \
         --disable-profile                                           \
         --disable-debug                                             \
         --without-gd                                                \
-        --with-headers="${CT_HEADERS_DIR}"                          2>&1 |CT_DoLog DEBUG
+        --with-headers="${CT_HEADERS_DIR}"                          \
+        ${addons_config}                                            \
+        ${extra_config}                                             \
+        ${CT_LIBC_GLIBC_EXTRA_CONFIG}                               2>&1 |CT_DoLog ALL
 
     if grep -l '^install-lib-all:' "${CT_SRC_DIR}/${CT_LIBC_FILE}/Makerules" > /dev/null; then
         # nptl-era glibc.
@@ -248,17 +260,17 @@ do_libc() {
     CT_DoLog EXTRA "Building C library"
     make LD=${CT_TARGET}-ld             \
          RANLIB=${CT_TARGET}-ranlib     \
-         ${GLIBC_INITIAL_BUILD_RULE}    2>&1 |CT_DoLog DEBUG
+         ${GLIBC_INITIAL_BUILD_RULE}    2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing C library"
     make install_root="${CT_SYSROOT_DIR}"   \
          ${LIBC_SYSROOT_ARG}                \
-         ${GLIBC_INITIAL_INSTALL_RULE}      2>&1 |CT_DoLog DEBUG
+         ${GLIBC_INITIAL_INSTALL_RULE}      2>&1 |CT_DoLog ALL
 
     # This doesn't seem to work when building a crosscompiler,
     # as it tries to execute localedef using the just-built ld.so!?
     #CT_DoLog EXTRA "Installing locales"
-    #make localedata/install-locales install_root=${SYSROOT} 2>&1 |CT_DoLog DEBUG
+    #make localedata/install-locales install_root=${SYSROOT} 2>&1 |CT_DoLog ALL
 
     # Fix problems in linker scripts.
     #
@@ -276,13 +288,13 @@ do_libc() {
     for file in libc.so libpthread.so libgcc_s.so; do
         for dir in lib lib64 usr/lib usr/lib64; do
             if [ -f "${CT_SYSROOT_DIR}/${dir}/${file}" -a ! -L ${CT_SYSROOT_DIR}/$lib/$file ]; then
-                mv "${CT_SYSROOT_DIR}/${dir}/${file}" "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
+                cp "${CT_SYSROOT_DIR}/${dir}/${file}" "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
                 CT_DoLog DEBUG "Fixing \"${CT_SYS_ROOT_DIR}/${dir}/${file}\""
                 sed -i -r -e 's,/usr/lib/,,g;
                               s,/usr/lib64/,,g;
                               s,/lib/,,g;
                               s,/lib64/,,g;
-                              /BUG in libc.scripts.output-format.sed/d' "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
+                              /BUG in libc.scripts.output-format.sed/d' "${CT_SYSROOT_DIR}/${dir}/${file}"
             fi
         done
     done
@@ -303,13 +315,15 @@ do_libc_finish() {
     cd "${CT_BUILD_DIR}/build-libc"
 
     CT_DoLog EXTRA "Re-building C library"
-    make LD=${CT_TARGET}-ld RANLIB=${CT_TARGET}-ranlib 2>&1 |CT_DoLog DEBUG
+    make LD=${CT_TARGET}-ld RANLIB=${CT_TARGET}-ranlib 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing missing C library components"
     # note: should do full install and then fix linker scripts, but this is faster
     for t in bin rootsbin sbin data others; do
         make install_root="${CT_SYSROOT_DIR}"   \
              ${LIBC_SYSROOT_ARG}                \
-             install-${t}                       2>&1 |CT_DoLog DEBUG
+             install-${t}                       2>&1 |CT_DoLog ALL
     done
+
+    CT_EndStep
 }

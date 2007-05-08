@@ -30,13 +30,13 @@ do_binutils() {
         --prefix=${CT_PREFIX_DIR}                   \
         --disable-nls                               \
         ${CT_BINUTILS_EXTRA_CONFIG}                 \
-        ${BINUTILS_SYSROOT_ARG}                     2>&1 |CT_DoLog DEBUG
+        ${BINUTILS_SYSROOT_ARG}                     2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building binutils"
-    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog DEBUG
+    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing binutils"
-    make install            2>&1 |CT_DoLog DEBUG
+    make install            2>&1 |CT_DoLog ALL
 
     # Make those new tools available to the core C compiler to come:
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
@@ -46,7 +46,7 @@ do_binutils() {
     for t in ar as ld strip; do
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
-    done |CT_DoLog DEBUG
+    done |CT_DoLog ALL
 
     CT_EndStep
 }

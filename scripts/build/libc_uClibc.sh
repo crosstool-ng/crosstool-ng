@@ -68,13 +68,13 @@ do_libc_headers() {
     # use of the native build host tools, which we need at this
     # stage, as we don't have target tools yet.
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |make CROSS= PREFIX="${CT_SYSROOT_DIR}/" oldconfig 2>&1 |CT_DoLog DEBUG
+    CT_DoYes "" |make CROSS= PREFIX="${CT_SYSROOT_DIR}/" oldconfig 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building headers"
-    make ${PARALLELMFLAGS} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers 2>&1 |CT_DoLog DEBUG
+    make ${PARALLELMFLAGS} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing headers"
-    make CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev 2>&1 |CT_DoLog DEBUG
+    make CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev 2>&1 |CT_DoLog ALL
 
     CT_EndStep
 }
@@ -104,7 +104,7 @@ do_libc() {
     CT_DoYes "" |make ${PARALLELMFLAGS}             \
                       CROSS=${CT_TARGET}-           \
                       PREFIX="${CT_SYSROOT_DIR}/"   \
-                      oldconfig                     2>&1 |CT_DoLog DEBUG
+                      oldconfig                     2>&1 |CT_DoLog ALL
 
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, thus the STRIPTOOL= assignment
@@ -113,7 +113,7 @@ do_libc() {
          CROSS=${CT_TARGET}-            \
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
-         all                            2>&1 |CT_DoLog DEBUG
+         all                            2>&1 |CT_DoLog ALL
 
     # YEM-FIXME: we want to install libraries in $SYSROOT/lib, but we don't want
     # to install headers in $SYSROOT/include, thus making only install_runtime.
@@ -127,17 +127,14 @@ do_libc() {
     make CROSS=${CT_TARGET}-            \
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
-         install                        2>&1 |CT_DoLog DEBUG
+         install                        2>&1 |CT_DoLog ALL
 
     CT_EndStep
 }
 
 # This function is used to install those components needing the final C compiler
 do_libc_finish() {
-    CT_DoStep INFO "Finishing C library"
-    # uClibc has nothing to finish
-    CT_DoLog EXTRA "uClibc has nothing to finish"
-    CT_EndStep
+    :
 }
 
 # Initialises the .config file to sensible values

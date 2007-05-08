@@ -41,17 +41,17 @@ do_libfloat() {
     CT_DoLog EXTRA "Copying sources to build dir"
     mkdir build-libfloat
     cd build-libfloat
-    ( cd "${CT_SRC_DIR}/${CT_LIBFLOAT_FILE}"; tar cf - . ) |tar xvf - |CT_DoLog DEBUG
+    ( cd "${CT_SRC_DIR}/${CT_LIBFLOAT_FILE}"; tar cf - . ) |tar xvf - |CT_DoLog ALL
 
     CT_DoLog EXTRA "Cleaning library"
-    make clean 2>&1 |CT_DoLog DEBUG
+    make clean 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building library"
-    make CROSS_COMPILE="${CT_CC_CORE_PREFIX_DIR}/bin/${CT_TARGET}-" 2>&1 |CT_DoLog DEBUG
+    make CROSS_COMPILE="${CT_CC_CORE_PREFIX_DIR}/bin/${CT_TARGET}-" 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing library"
     make CROSS_COMPILE="${CT_CC_CORE_PREFIX_DIR}/bin/${CT_TARGET}-" \
-         DESTDIR="${CT_SYSROOT_DIR}" install                       2>&1 |CT_DoLog DEBUG
+         DESTDIR="${CT_SYSROOT_DIR}" install                       2>&1 |CT_DoLog ALL
 
     CT_Popd
 

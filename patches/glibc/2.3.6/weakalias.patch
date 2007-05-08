@@ -1,0 +1,45 @@
+This one was taken from debian.
+
+# DP: Description: Fix __bind redefinition problem
+# DP: Related bugs: 
+# DP: Dpatch author: Phil Blundell
+# DP: Patch author: Daniel Jacobowitz
+# DP: Upstream status: In CVS
+# DP: Status Details:
+# DP: Date: 2005-12-25
+
+Index: sysdeps/unix/sysv/linux/arm/socket.S
+===================================================================
+RCS file: /cvs/glibc/ports/sysdeps/unix/sysv/linux/arm/socket.S,v
+retrieving revision 1.12
+retrieving revision 1.13
+diff -u -r1.12 -r1.13
+--- glibc-2.3.6.ds1.orig/sysdeps/unix/sysv/linux/arm/socket.S	4 Dec 2004 21:20:16 -0000	1.12
++++ glibc-2.3.6.ds1/sysdeps/unix/sysv/linux/arm/socket.S	27 Oct 2005 18:50:12 -0000	1.13
+@@ -1,4 +1,6 @@
+-/* Copyright (C) 1995, 1996, 1997, 1998, 2003 Free Software Foundation, Inc.
++/* Copyright (C) 1995, 1996, 1997, 1998, 2003, 2004, 2005
++   Free Software Foundation, Inc.
++
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -32,7 +34,11 @@
+    The .S files for the other calls just #define socket and #include this.  */
+ 
+ #ifndef __socket
++#ifndef NO_WEAK_ALIAS
+ #define __socket P(__,socket)
++#else
++#define __socket socket
++#endif
+ #endif
+ 
+ #define PUSHARGS_1	str a1, [sp, $-4]!
+@@ -120,4 +126,6 @@
+ 
+ PSEUDO_END (__socket)
+ 
++#ifndef NO_WEAK_ALIAS
+ weak_alias (__socket, socket)
++#endif

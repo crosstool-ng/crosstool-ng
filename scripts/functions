@@ -29,6 +29,7 @@ CT_LOG_LEVEL_WARN=1
 CT_LOG_LEVEL_INFO=2
 CT_LOG_LEVEL_EXTRA=3
 CT_LOG_LEVEL_DEBUG=4
+CT_LOG_LEVEL_ALL=5
 
 # Attributes
 _A_NOR="\\033[0m"
@@ -56,6 +57,7 @@ _F_WHI="\\033[37m"
 #   - INFO:    Informational messages
 #   - EXTRA:   Extra informational messages
 #   - DEBUG:   Debug messages
+#   - ALL:     Component's build messages
 # Usage: CT_DoLog <level> [message]
 # If message is empty, then stdin will be logged.
 CT_DoLog() {
@@ -63,7 +65,7 @@ CT_DoLog() {
     local l
     eval max_level="\${CT_LOG_LEVEL_${CT_LOG_LEVEL_MAX}}"
     # Set the maximum log level to DEBUG if we have none
-    [ -z ${max_level} ] && max_level=${CT_LOG_LEVEL_DEBUG}
+    [ -z "${max_level}" ] && max_level=${CT_LOG_LEVEL_DEBUG}
 
     LEVEL="$1"; shift
     eval level="\${CT_LOG_LEVEL_${LEVEL}}"
@@ -79,7 +81,7 @@ CT_DoLog() {
               case "${CT_LOG_SEE_TOOLS_WARN},${line}" in
                 y,*"warning:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
                 *"error:"*)             cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
-                "make["?*"]:"*"Stop.")  cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
+                *"make["?*"]:"*"Stop.") cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
                 *)                      cur_L="${LEVEL}"; cur_l="${level}";;
               esac
               l="`printf \"[%-5s]%*s%s%s\" \"${cur_L}\" \"${indent}\" \" \" \"${line}\"`"
@@ -249,8 +251,8 @@ CT_DoGetFile() {
     local _curl=`which curl`
     case "${_wget},${_curl}" in
         ,)  CT_DoError "Could find neither wget nor curl";;
-        ,*) CT_DoGetFileCurl "$1";;
-        *)  CT_DoGetFileWget "$1";;
+        ,*) CT_DoGetFileCurl "$1" |CT_DoLog DEBUG;;
+        *)  CT_DoGetFileWget "$1" |CT_DoLog DEBUG;;
     esac
 }
 
@@ -270,7 +272,7 @@ CT_GetFile() {
             CT_DoLog DEBUG "Removing already present \"${file}\""
             rm -f "${CT_TARBALLS_DIR}/${file}${ext}"
         else
-            CT_DoLog EXTRA "Already have \"${file}\""
+            CT_DoLog DEBUG "Already have \"${file}\""
             return 0
         fi
     fi
@@ -285,8 +287,8 @@ CT_GetFile() {
             # Try all urls in turn
             for url in "$@"; do
                 case "${url}" in
-                    *)  CT_DoLog EXTRA "Trying \"${url}/${file}${ext}\""
-                        CT_DoGetFile "${url}/${file}${ext}" 2>&1 |CT_DoLog DEBUG
+                    *)  CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
+                        CT_DoGetFile "${url}/${file}${ext}" 2>&1
                         ;;
                 esac
                 [ -f "${file}${ext}" ] && got_it=1 && break 2 || true
@@ -357,15 +359,15 @@ CT_ExtractAndPatch() {
 
     # If the directory exists, then consider extraction and patching done
     if [ -d "${file}" ]; then
-        CT_DoLog EXTRA "Already extracted \"${file}\""
+        CT_DoLog DEBUG "Already extracted \"${file}\""
         return 0
     fi
 
     CT_DoLog EXTRA "Extracting \"${file}\""
     case "${ext}" in
-        .tar.bz2)     tar xvjf "${full_file}" |CT_DoLog DEBUG;;
-        .tar.gz|.tgz) tar xvzf "${full_file}" |CT_DoLog DEBUG;;
-        .tar)         tar xvf  "${full_file}" |CT_DoLog DEBUG;;
+        .tar.bz2)     tar xvjf "${full_file}" |CT_DoLog ALL;;
+        .tar.gz|.tgz) tar xvzf "${full_file}" |CT_DoLog ALL;;
+        .tar)         tar xvf  "${full_file}" |CT_DoLog ALL;;
         *)            CT_Abort "Don't know how to handle \"${file}\": unknown extension" ;;
     esac
 
@@ -396,7 +398,7 @@ CT_ExtractAndPatch() {
             for p in "${patch_dir}"/*.patch; do
                 if [ -f "${p}" ]; then
                     CT_DoLog DEBUG "Applying patch \"${p}\""
-                    patch -g0 -F1 -p1 -f <"${p}" |CT_DoLog DEBUG
+                    patch -g0 -F1 -p1 -f <"${p}" |CT_DoLog ALL
                     CT_TestAndAbort "Failed while applying patch file \"${p}\"" ${PIPESTATUS[0]} -ne 0
                 fi
             done

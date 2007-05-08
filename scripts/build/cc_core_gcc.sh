@@ -62,18 +62,18 @@ do_cc_core() {
         --enable-symvers=gnu                        \
         --enable-languages=c                        \
         --disable-shared                            \
-        ${CT_CC_CORE_EXTRA_CONFIG}                  2>&1 |CT_DoLog DEBUG
+        ${CT_CC_CORE_EXTRA_CONFIG}                  2>&1 |CT_DoLog ALL
 
     if [ ! "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
-        make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog DEBUG
+        make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog ALL
     fi
 
     CT_DoLog EXTRA "Building core C compiler"
-    make ${PARALLELMFLAGS} all-gcc 2>&1 |CT_DoLog DEBUG
+    make ${PARALLELMFLAGS} all-gcc 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing core C compiler"
-    make install-gcc 2>&1 |CT_DoLog DEBUG
+    make install-gcc 2>&1 |CT_DoLog ALL
 
     CT_EndStep
 }
