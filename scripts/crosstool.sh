@@ -45,11 +45,10 @@ if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
         printf "[%02d:%02d]" $((elapsed/60)) $((elapsed%60))
     }
     _CT_PROG_BAR() {
-        echo -en "\r"
-        [ $((cpt/10)) -eq 0 ] && echo -en "`_CT_PROG_BAR_DATE` /"
-        [ $((cpt/10)) -eq 1 ] && echo -en "`_CT_PROG_BAR_DATE` -"
-        [ $((cpt/10)) -eq 2 ] && echo -en "`_CT_PROG_BAR_DATE` \\"
-        [ $((cpt/10)) -eq 3 ] && echo -en "`_CT_PROG_BAR_DATE` |"
+        [ $((cpt/10)) -eq 0 ] && echo -en "\r`_CT_PROG_BAR_DATE` /"
+        [ $((cpt/10)) -eq 1 ] && echo -en "\r`_CT_PROG_BAR_DATE` -"
+        [ $((cpt/10)) -eq 2 ] && echo -en "\r`_CT_PROG_BAR_DATE` \\"
+        [ $((cpt/10)) -eq 3 ] && echo -en "\r`_CT_PROG_BAR_DATE` |"
         cpt=$(((cpt+1)%40))
     }
     CT_PROG_BAR=_CT_PROG_BAR
