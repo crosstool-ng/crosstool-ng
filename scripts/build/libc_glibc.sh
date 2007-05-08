@@ -35,9 +35,7 @@ do_libc_extract() {
 
 # There is nothing to do for glibc check config
 do_libc_check_config() {
-    CT_DoStep INFO "Checking C library configuration"
-    CT_DoLog EXTRA "glibc has nothing to check"
-    CT_EndStep
+    :
 }
 
 # This function installs the glibc headers needed to build the core compiler
