@@ -306,7 +306,7 @@ CT_EndStep
 # export any variable, nor re-parse the configuration and functions files.
 . "${CT_TOP_DIR}/scripts/build/kernel_${CT_KERNEL}.sh"
 . "${CT_TOP_DIR}/scripts/build/binutils.sh"
-. "${CT_TOP_DIR}/scripts/build/libc_libfloat.sh"
+. "${CT_TOP_DIR}/scripts/build/libfloat.sh"
 . "${CT_TOP_DIR}/scripts/build/libc_${CT_LIBC}.sh"
 . "${CT_TOP_DIR}/scripts/build/cc_core_${CT_CC_CORE}.sh"
 . "${CT_TOP_DIR}/scripts/build/cc_${CT_CC}.sh"
