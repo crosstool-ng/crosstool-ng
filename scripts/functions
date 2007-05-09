@@ -75,7 +75,7 @@ CT_DoLog() {
     else
         echo "${1}"
     fi |( IFS="\n" # We want the full lines, even leading spaces
-          cpt=0
+          CT_PROG_BAR_CPT=0
           indent=$((2*CT_STEP_COUNT))
           while read line; do
               case "${CT_LOG_SEE_TOOLS_WARN},${line}" in
@@ -91,9 +91,16 @@ CT_DoLog() {
               normal="CT_NORMAL_COLOR"
               if [ ${cur_l} -le ${max_level} ]; then
                   echo -e "\r${!color}${l}${!normal}"
-                  CT_PROG_BAR_CPT=0 # Force redrawing progress bar on next 'unlogged' line
-              else
-                  ${CT_PROG_BAR}
+              fi
+              if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
+                  str=`CT_DoDate +%s`
+                  elapsed=$((str-(CT_STAR_DATE/(1000*1000*1000))))
+                  [ ${CT_PROG_BAR_CPT} -eq 0  ] && bar="/"
+                  [ ${CT_PROG_BAR_CPT} -eq 10 ] && bar="-"
+                  [ ${CT_PROG_BAR_CPT} -eq 20 ] && bar="\\"
+                  [ ${CT_PROG_BAR_CPT} -eq 30 ] && bar="|"
+                  printf "\r[%02d:%02d] %s " $((elapsed/60)) $((elapsed%60)) "${bar}"
+                  CT_PROG_BAR_CPT=$(((CT_PROG_BAR_CPT+1)%40))
               fi
           done
         )

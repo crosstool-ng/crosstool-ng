@@ -37,28 +37,7 @@ CT_TOP_DIR="`CT_MakeAbsolutePath \"${CT_TOP_DIR}\"`"
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
 . "${CT_TOP_DIR}/.config"
 
-# The progress bar indicator is asked for
-if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
-    _CT_PROG_BAR_DATE() {
-        local str=`CT_DoDate +%s`
-        local elapsed=$((str-(CT_STAR_DATE/(1000*1000*1000))))
-        printf "[%02d:%02d]" $((elapsed/60)) $((elapsed%60))
-    }
-    _CT_PROG_BAR() {
-        [ ${CT_PROG_BAR_CPT} -eq 0  ] && echo -en "\r`_CT_PROG_BAR_DATE` /"
-        [ ${CT_PROG_BAR_CPT} -eq 10 ] && echo -en "\r`_CT_PROG_BAR_DATE` -"
-        [ ${CT_PROG_BAR_CPT} -eq 20 ] && echo -en "\r`_CT_PROG_BAR_DATE` \\"
-        [ ${CT_PROG_BAR_CPT} -eq 30 ] && echo -en "\r`_CT_PROG_BAR_DATE` |"
-        CT_PROG_BAR_CPT=$(((CT_PROG_BAR_CPT+1)%40))
-    }
-    CT_PROG_BAR_CPT=0
-    CT_PROG_BAR=_CT_PROG_BAR
-    export -f _CT_PROG_BAR
-else
-    CT_PROG_BAR=
-fi
-
-# Apply the color scheme if needed
+# Override the color scheme if needed
 if [ "${CT_LOG_USE_COLORS}" = "y" ]; then
     CT_ERROR_COLOR="${_A_NOR}${_A_BRI}${_F_RED}"
     CT_WARN_COLOR="${_A_NOR}${_A_BRI}${_F_YEL}"
