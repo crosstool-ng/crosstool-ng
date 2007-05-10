@@ -229,6 +229,28 @@ CT_DoYes() {
     yes "$1" || true
 }
 
+# Get the file name extension of a component
+# Usage: CT_GetFileExtension <component_name-component_version>
+# If found, echoes the extension to stdout
+# If not found, echoes nothing on stdout.
+CT_GetFileExtension() {
+    local ext
+    local file="$1"
+    local got_it=1
+
+    CT_Pushd "${CT_TARBALLS_DIR}"
+    for ext in .tar.gz .tar.bz2 .tgz .tar; do
+        if [ -f "${file}${ext}" ]; then
+            echo "${ext}"
+            got_it=0
+            break
+        fi
+    done
+    CT_Popd
+
+    return 0
+}
+
 # Download an URL using wget
 # Usage: CT_DoGetFileWget <URL>
 CT_DoGetFileWget() {
@@ -276,58 +298,39 @@ CT_GetFile() {
     # Do we already have it?
     ext=`CT_GetFileExtension "${file}"`
     if [ -n "${ext}" ]; then
-        if [ "${CT_FORCE_DOWNLOAD}" = "y" ]; then
-            CT_DoLog DEBUG "Removing already present \"${file}\""
-            rm -f "${CT_TARBALLS_DIR}/${file}${ext}"
-        else
-            CT_DoLog DEBUG "Already have \"${file}\""
-            return 0
-        fi
+        CT_DoLog DEBUG "Already have \"${file}\""
+        return 0
     fi
 
     CT_DoLog EXTRA "Retrieving \"${file}\""
     CT_Pushd "${CT_TARBALLS_DIR}"
     # File not yet downloaded, try to get it
     got_it=0
-    if [ "${got_it}" != "y" ]; then
-        # We'd rather have a bzip2'ed tarball, then gzipped, and finally plain tar.
-        for ext in .tar.bz2 .tar.gz .tgz .tar; do
-            # Try all urls in turn
-            for url in "$@"; do
-                case "${url}" in
-                    *)  CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
-                        CT_DoGetFile "${url}/${file}${ext}"
-                        ;;
-                esac
-                [ -f "${file}${ext}" ] && got_it=1 && break 2 || true
-            done
-        done
-    fi
-    CT_Popd
-
-    CT_TestAndAbort "Could not download \"${file}\", and not present in \"${CT_TARBALLS_DIR}\"" ${got_it} -eq 0
-}
-
-# Get the file name extension of a component
-# Usage: CT_GetFileExtension <component_name-component_version>
-# If found, echoes the extension to stdout
-# If not found, echoes nothing on stdout.
-CT_GetFileExtension() {
-    local ext
-    local file="$1"
-    local got_it=1
-
-    CT_Pushd "${CT_TARBALLS_DIR}"
-    for ext in .tar.gz .tar.bz2 .tgz .tar; do
-        if [ -f "${file}${ext}" ]; then
-            echo "${ext}"
-            got_it=0
-            break
+    # We'd rather have a bzip2'ed tarball, then gzipped, and finally plain tar.
+    for ext in .tar.bz2 .tar.gz .tgz .tar; do
+        if [ ${got_it} -ne 1 ]; then
+            # Try local copy first, if it exists
+            if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
+                 "${CT_FORCE_DOWNLOAD}" != "y" ]; then
+                cp -v "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog DEBUG
+                got_it=1
+                break 1
+            else
+                # Try all urls in turn
+                for url in "$@"; do
+                    case "${url}" in
+                        *)  CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
+                            CT_DoGetFile "${url}/${file}${ext}"
+                            ;;
+                    esac
+                    [ -f "${file}${ext}" ] && got_it=1 && break 2 || true
+                done
+            fi
         fi
     done
     CT_Popd
 
-    return 0
+    CT_TestAndAbort "Could not download \"${file}\", and not present in \"${CT_LOCAL_TARBALLS_DIR}\"" ${got_it} -eq 0
 }
 
 # Extract a tarball and patch the resulting sources if necessary.

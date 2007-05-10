@@ -11,7 +11,7 @@ export PROJECTVERSION=0.0.2-svn
 export CT_TOP_DIR=$(shell pwd)
 
 .PHONY: all
-all: _ct_build
+all: build
 
 HOST_CC = gcc -funsigned-char
 
@@ -39,10 +39,10 @@ help::
 	@test -f .config
 
 # Actual build
-_ct_build: .config
+build: .config
 	@$(CT_TOP_DIR)/scripts/crosstool.sh
 
 .PHONY: distclean
 distclean:: clean
 	@rm -f .config* ..config.tmp
-	@rm -rf "$(CT_TOP_DIR)/build"
+	@rm -rf "$(CT_TOP_DIR)/targets"

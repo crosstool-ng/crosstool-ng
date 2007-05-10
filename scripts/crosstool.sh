@@ -118,15 +118,55 @@ CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
 # then rescan the options file now:
 . "${CT_TOP_DIR}/.config"
 
+# Where will we work?
+CT_TARBALLS_DIR="${CT_TOP_DIR}/targets/tarballs"
+CT_SRC_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/src"
+CT_BUILD_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/build"
+
+# Make all path absolute, it so much easier!
+CT_LOCAL_TARBALLS_DIR="`CT_MakeAbsolutePath \"${CT_LOCAL_TARBALLS_DIR}\"`"
+
 # Some more sanity checks now that we have all paths set up
 case "${CT_TARBALLS_DIR},${CT_SRC_DIR},${CT_BUILD_DIR},${CT_PREFIX_DIR},${CT_INSTALL_DIR}" in
     *" "*) CT_Abort "Don't use spaces in paths, it breaks things.";;
 esac
 
+# Check now if we can write to the destination directory:
+if [ -d "${CT_INSTALL_DIR}" ]; then
+    CT_TestAndAbort "Destination directory \"${CT_INSTALL_DIR}\" is not removable" ! -w `dirname "${CT_INSTALL_DIR}"`
+fi
+
+# Get rid of pre-existing installed toolchain and previous build directories.
+# We need to do that _before_ we can safely log, because the log file will
+# most probably be in the toolchain directory.
+if [ "${CT_FORCE_DOWNLOAD}" = "y" -a -d "${CT_TARBALLS_DIR}" ]; then
+    mv "${CT_TARBALLS_DIR}" "${CT_TARBALLS_DIR}.$$"
+    nohup rm -rf "${CT_TARBALLS_DIR}.$$" >/dev/null 2>&1 &
+fi
+if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
+    mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.$$"
+    nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1 &
+fi
+if [ -d "${CT_BUILD_DIR}" ]; then
+    mv "${CT_BUILD_DIR}" "${CT_BUILD_DIR}.$$"
+    nohup rm -rf "${CT_BUILD_DIR}.$$" >/dev/null 2>&1 &
+fi
+if [ -d "${CT_INSTALL_DIR}" ]; then
+    mv "${CT_INSTALL_DIR}" "${CT_INSTALL_DIR}.$$"
+    nohup rm -rf "${CT_INSTALL_DIR}.$$" >/dev/null 2>&1 &
+fi
+
 # Note: we'll always install the core compiler in its own directory, so as to
 # not mix the two builds: core and final. Anyway, its generic, wether we use
 # a different compiler as core, or not.
 CT_CC_CORE_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core"
+
+# Create the directories we'll use
+mkdir -p "${CT_TARBALLS_DIR}"
+mkdir -p "${CT_SRC_DIR}"
+mkdir -p "${CT_BUILD_DIR}"
+mkdir -p "${CT_INSTALL_DIR}"
+mkdir -p "${CT_CC_CORE_PREFIX_DIR}"
 
 # Good, now grab a bit of informations on the system we're being run,
 # just in case something goes awok, and it's not our fault:
@@ -143,36 +183,6 @@ CT_SYS_USER="`id -un`"
 CT_SYS_DATE=`CT_DoDate +%Y%m%d.%H%M%S`
 CT_SYS_GCC=`gcc -dumpversion`
 CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_SYS_DATE} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME} for ${CT_TARGET}"
-
-# Check now if we can write to the destination directory:
-if [ -d "${CT_INSTALL_DIR}" ]; then
-    CT_TestAndAbort "Destination directory \"${CT_INSTALL_DIR}\" is not removable" ! -w `dirname "${CT_INSTALL_DIR}"`
-fi
-
-# Get rid of pre-existing installed toolchain and previous build directories.
-# We need to do that _before_ we can safely log, because the log file will
-# most probably be in the toolchain directory.
-if [ -d "${CT_INSTALL_DIR}" ]; then
-    mv "${CT_INSTALL_DIR}" "${CT_INSTALL_DIR}.$$"
-    nohup rm -rf "${CT_INSTALL_DIR}.$$" >/dev/null 2>&1 &
-fi
-if [ -d "${CT_BUILD_DIR}" ]; then
-    mv "${CT_BUILD_DIR}" "${CT_BUILD_DIR}.$$"
-    nohup rm -rf "${CT_BUILD_DIR}.$$" >/dev/null 2>&1 &
-fi
-if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
-    mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.$$"
-    nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1 &
-fi
-mkdir -p "${CT_INSTALL_DIR}"
-mkdir -p "${CT_BUILD_DIR}"
-mkdir -p "${CT_TARBALLS_DIR}"
-mkdir -p "${CT_SRC_DIR}"
-
-# Make all path absolute, it so much easier!
-# Now we have had the directories created, we even will get rid of embedded .. in paths:
-CT_SRC_DIR="`CT_MakeAbsolutePath \"${CT_SRC_DIR}\"`"
-CT_TARBALLS_DIR="`CT_MakeAbsolutePath \"${CT_TARBALLS_DIR}\"`"
 
 # Redirect log to the actual log file now we can
 # It's quite understandable that the log file will be installed in the install
@@ -312,16 +322,14 @@ CT_EndStep
 . "${CT_TOP_DIR}/scripts/build/cc_${CT_CC}.sh"
 
 # Now for the job by itself. Go have a coffee!
-if [ "${CT_NO_DOWNLOAD}" != "y" ]; then
-	CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
-    do_kernel_get
-    do_binutils_get
-    do_cc_core_get
-    do_libfloat_get
-    do_libc_get
-    do_cc_get
-    CT_EndStep
-fi
+CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
+do_kernel_get
+do_binutils_get
+do_cc_core_get
+do_libfloat_get
+do_libc_get
+do_cc_get
+CT_EndStep
 
 if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
     if [ "${CT_FORCE_EXTRACT}" = "y" ]; then
@@ -348,23 +356,25 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         do_libc
         do_cc
         do_libc_finish
+
+        # Create the aliases to the target tools
+        if [ -n "${CT_TARGET_ALIAS}" ]; then
+            CT_DoLog EXTRA "Creating symlinks from \"${CT_TARGET}-*\" to \"${CT_TARGET_ALIAS}-*\""
+            CT_Pushd "${CT_PREFIX_DIR}/bin"
+            for t in "${CT_TARGET}-"*; do
+                _t="`echo \"$t\" |sed -r -e 's/^'\"${CT_TARGET}\"'-/'\"${CT_TARGET_ALIAS}\"'-/;'`"
+                CT_DoLog DEBUG "Linking \"${_t}\" -> \"${t}\""
+                ln -s "${t}" "${_t}"
+            done
+            CT_Popd
+        fi
+
+        # Remove the generated documentation files
+        if [ "${CT_REMOVE_DOCS}" = "y" ]; then
+        	CT_DoLog INFO "Removing installed documentation"
+            rm -rf "${CT_PREFIX_DIR}/"{man,info}
+        fi
     fi
-fi
-
-if [ -n "${CT_TARGET_ALIAS}" ]; then
-    CT_DoLog EXTRA "Creating symlinks from \"${CT_TARGET}-*\" to \"${CT_TARGET_ALIAS}-*\""
-    CT_Pushd "${CT_PREFIX_DIR}/bin"
-    for t in "${CT_TARGET}-"*; do
-        _t="`echo \"$t\" |sed -r -e 's/^'\"${CT_TARGET}\"'-/'\"${CT_TARGET_ALIAS}\"'-/;'`"
-        CT_DoLog DEBUG "Linking \"${_t}\" -> \"${t}\""
-        ln -s "${t}" "${_t}"
-    done
-    CT_Popd
-fi
-
-if [ "${CT_REMOVE_DOCS}" = "y" ]; then
-	CT_DoLog INFO "Removing installed documentation"
-    rm -rf "${CT_PREFIX_DIR}/"{man,info}
 fi
 
 CT_STOP_DATE=`CT_DoDate +%s%N`
