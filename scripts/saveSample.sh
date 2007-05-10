@@ -12,17 +12,15 @@
 
 # Log to a temporary file until we have built our environment
 CT_ACTUAL_LOG_FILE="${CT_TOP_DIR}/$$.log"
+
+# Override log level
+unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG 
 CT_LOG_INFO=y
 CT_LOG_LEVEL_MAX="INFO"
 
 # Parse the configuration file
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
 . "${CT_TOP_DIR}/.config"
-
-# Override log level
-unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG 
-CT_LOG_INFO=y
-CT_LOG_LEVEL_MAX="INFO"
 
 # Target triplet: CT_TARGET needs a little love:
 CT_DoBuildTargetTriplet
