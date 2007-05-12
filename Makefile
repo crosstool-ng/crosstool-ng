@@ -25,6 +25,7 @@ include $(CT_TOP_DIR)/samples/Makefile
 help::
 	@echo  'Build targets:'
 	@echo  '* build          - Build the toolchain'
+	@echo  '  tarball        - Build a tarball of the configured toolchain'
 	@echo  '  clean          - Remove generated files'
 	@echo  '  distclean      - Remove generated files, configuration and build directories'
 
@@ -41,6 +42,10 @@ help::
 # Actual build
 build: .config
 	@$(CT_TOP_DIR)/scripts/crosstool.sh
+
+.PHONY: tarball
+tarball:
+	@$(CT_TOP_DIR)/scripts/tarball.sh
 
 .PHONY: distclean
 distclean:: clean
