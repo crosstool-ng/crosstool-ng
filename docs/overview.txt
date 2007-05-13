@@ -1,7 +1,8 @@
 File.........: overview.txt
 Content......: Overview of how ct-ng works.
-Copyrigth....: (C) 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
+Copyrigth....: (C) 2007 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
 License......: see COPYING in the root of this package
+
 ________________
                /
 Introduction  /
@@ -67,7 +68,8 @@ http://code.google.com/p/crosstool/.
 
 At the time of writing, crosstool only supports building with one C library,
 namely glibc, and one C compiler, gcc; it is cripled with historical support
-for legacy components, and is some kind of a mess to upgrade.
+for legacy components, and is some kind of a mess to upgrade. Also, submited
+patches take a looong time before they are integrated mainline.
 
 I once managed to add support for uClibc-based toolchains, but it did not make
 into mainline, mostly because I don't have time to port the patch forward to
@@ -100,6 +102,64 @@ toolchain.
 You are then free to add the toolchain /bin directory in your PATH to use
 it at will.
 
+____________________________
+                           /
+Configuring crosstool-NG  /
+_________________________/
+
+crosstool-NG is configured the same way you configure your Linux kernel: by
+using a curses-based menu. It is assumed you now how to handle this.
+
+Almost every config item has a help entry. Read it carefully.
+
+String and number options can refer to environment variables. In such a case,
+you  must use the shell syntax: ${VAR}. No such option is ever needed by make.
+You need to neither single- nor double-quote the string options.
+
+There are three environment variablea that are computed by crosstool-NG, and
+that you can use:
+
+CT_TARGET:
+  It represents the target triplet you are building for. You can use it for
+  example in the installation/prefix directory, such as:
+    /opt/x-tools/${CT_TARGET}
+
+CT_TOP_DIR:
+  The top directory where crosstool-NG sits. You shouldn't need it in most
+  cases. There is one case where you may need it: if you have local patches
+  and you store them in your copy of crosstool-NG, you can refer to them
+  by using CT_TOP_DIR, such as:
+    ${CT_TOP_DIR}/patches.myproject
+
+CT_VERSION:
+  The version of crosstool-NG you are using. Not much help for you, but it's
+  there if you need it.
+
+Interesting config options |
+---------------------------*
+
+CT_LOCAL_TARBALLS_DIR:
+  If you already have sone tarballs in a direcotry, enter it here. That will
+  speed up the retrieving phase, where crosstool-ng would otherwise download
+  those tarballs.
+
+CT_PREFIX_DIR:
+  This is where the toolchain will be installed in (and for now, where it
+  will run from).
+
+CT_LOG_FILE:
+  The file where *all* log messages will go. Keep the default, in goes in
+  ${CT_PREFIX_DIR}/${CT_TARGET}.log
+
+CT_TARGET_VENDOR:
+  An identifier for your toolchain, will take place in the vendor part of the
+  target triplet. It shall *not* contain spaces or dashes. Usually, keep it
+  to a one-word string, or use underscores to separate words if you need.
+  Avoid dots, commas, and special characters.
+
+CT_TARGET_ALIAS:
+  An alias for the toolchian. It will be used as a prefix to the toolchain
+  tools. For example, you will have ${CT_TARGET_ALIAS}-gcc
 
 ___________________
                   /
@@ -149,7 +209,7 @@ this as "2 and 2 are 4". Here is how they come into play:
     ct-ng calls it "cross-native".
 
 4) build != host != target
-    This one is called a canadian-toolchain (*), is is tricky. The three
+    This one is called a canadian-toolchain (*), and is tricky. The three
     machines in play are different. You might want such a toolchain if you
     have a fast build machine, but the users will use it on another machine,
     and will produce code to run on a third machine.
@@ -166,4 +226,19 @@ _____________
 Internals  /
 __________/
 
-<To be completed>
+Internally, crosstool-NG is script-based. To ease usage, the frontend is
+Makefile-based.
+
+Makefile front-end |
+-------------------*
+
+The Makefile defines a set of rules to call each action. You can get the
+list, along with some terse description, by typing "make help" in your
+favourite command line.
+
+The Makefile sets the version variable from the version file in ${CT_TOP_DIR}
+which is then available to others in the CT_VERSION environment variable.
+
+The kconfig language is a hacked version, vampirised from the toybox project
+by Rob LANDLEY (http://www.landley.net/code/toybox/), adapted to my needs.
+
