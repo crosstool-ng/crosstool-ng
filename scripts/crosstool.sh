@@ -30,9 +30,6 @@ CT_STAR_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
 # Log to a temporary file until we have built our environment
 CT_ACTUAL_LOG_FILE="${CT_TOP_DIR}/$$.log"
 
-# CT_TOP_DIR should be an absolute path.
-CT_TOP_DIR="`CT_MakeAbsolutePath \"${CT_TOP_DIR}\"`"
-
 # Parse the configuration file
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
 . "${CT_TOP_DIR}/.config"
