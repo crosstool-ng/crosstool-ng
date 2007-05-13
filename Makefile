@@ -4,11 +4,10 @@
 # Don't print directory as we descend into them
 MAKEFLAGS += --no-print-directory
 
-# The project version
-export PROJECTVERSION=0.0.2-svn
-
-# This should eventually be computed if compiling out-of-tree is implemented
 export CT_TOP_DIR=$(shell pwd)
+
+# This is crosstool-ng version string
+export CT_VERSION=$(shell cat $(CT_TOP_DIR)/version)
 
 .PHONY: all
 all: build

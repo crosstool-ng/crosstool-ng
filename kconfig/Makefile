@@ -16,6 +16,9 @@ ifneq ($(KBUILD_NO_NLS),)
 CFLAGS += -DKBUILD_NO_NLS
 endif
 
+# Derive the project version from, well, the project version:
+export PROJECTVERSION=$(CT_VERSION)
+
 menuconfig: $(obj)/mconf
 	@$< $(KCONFIG_TOP)
 

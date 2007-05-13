@@ -182,7 +182,7 @@ CT_SYS_PROCESSOR=`uname -p`
 CT_SYS_USER="`id -un`"
 CT_SYS_DATE=`CT_DoDate +%Y%m%d.%H%M%S`
 CT_SYS_GCC=`gcc -dumpversion`
-CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_SYS_DATE} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME} for ${CT_TARGET}"
+CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_SYS_DATE} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME}"
 
 # Redirect log to the actual log file now we can
 # It's quite understandable that the log file will be installed in the install
