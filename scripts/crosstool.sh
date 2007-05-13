@@ -114,7 +114,7 @@ CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
 CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
 [ "${CT_ARCH_FLOAT_SW_LIBFLOAT}" = "y" ] && CT_LIBFLOAT_FILE="libfloat-990616"
 
-# Kludge: If any of the configured options needs CT_TARGET or CT_TOP_DIR,
+# Kludge: If any of the configured options needs CT_TARGET,
 # then rescan the options file now:
 . "${CT_TOP_DIR}/.config"
 
