@@ -904,22 +904,15 @@ int main(int ac, char **av)
 	switch (res) {
 	case 0:
 		if (conf_write(NULL)) {
-			fprintf(stderr, _("\n\n"
-				"Error during writing of "PROJECT_NAME" configuration.\n"
-				"Your kernel configuration changes were NOT saved."
-				"\n\n"));
+			fprintf(stderr,
+				_( "Error during writing of "PROJECT_NAME" configuration.\n"
+				   "Your configuration changes were NOT saved.\n"));
 			return 1;
 		}
 	case -1:
-		printf(_("\n\n"
-			"*** End of "PROJECT_NAME" configuration.\n"
-			"*** Execute 'make' to build the kernel or try 'make help'."
-			"\n\n"));
 		break;
 	default:
-		fprintf(stderr, _("\n\n"
-			"Your configuration changes were NOT saved."
-			"\n\n"));
+		fprintf(stderr, _( "Your configuration changes were NOT saved.\n"));
 	}
 
 	return 0;

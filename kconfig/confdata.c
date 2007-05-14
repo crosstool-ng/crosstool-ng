@@ -524,10 +524,6 @@ int conf_write(const char *name)
 			return 1;
 	}
 
-	printf(_("#\n"
-		 "# configuration written to %s\n"
-		 "#\n"), newname);
-
 	sym_set_change_count(0);
 
 	return 0;
