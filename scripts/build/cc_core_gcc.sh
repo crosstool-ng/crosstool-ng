@@ -28,7 +28,7 @@ do_cc_core() {
 
     CT_DoStep INFO "Installing core C compiler"
 
-    CT_DoLog EXTRA "Copy headers to install area of bootstrap gcc, so it can build libgcc2"
+    CT_DoLog EXTRA "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
     mkdir -p "${CT_CC_CORE_PREFIX_DIR}/${CT_TARGET}/include"
     cp -r "${CT_HEADERS_DIR}"/* "${CT_CC_CORE_PREFIX_DIR}/${CT_TARGET}/include" 2>&1 |CT_DoLog DEBUG
 
