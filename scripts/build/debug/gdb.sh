@@ -31,7 +31,7 @@ do_debug_gdb_build() {
     esac
 
     if [ "${CT_GDB_CROSS}" = "y" ]; then
-        CT_DoStep EXTRA "Installing cross-gdb"
+        CT_DoStep INFO "Installing cross-gdb"
         CT_DoLog EXTRA "Configuring cross-gdb"
 
         mkdir -p "${CT_BUILD_DIR}/build-gdb-cross"
@@ -54,7 +54,7 @@ do_debug_gdb_build() {
 
         CT_EndStep
 
-        CT_DoStep EXTRA "Installing gdbserver"
+        CT_DoStep INFO "Installing gdbserver"
         CT_DoLog EXTRA "Configuring gdbserver"
 
         mkdir -p "${CT_BUILD_DIR}/build-gdb-gdbserver"

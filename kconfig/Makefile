@@ -16,16 +16,28 @@ ifneq ($(KBUILD_NO_NLS),)
 CFLAGS += -DKBUILD_NO_NLS
 endif
 
+# Build a list of all config files
+CONFIG_FILES = $(filter-out %debug.in,$(shell find $(CT_TOP_DIR)/config -type f -name '*.in'))
+
 # Derive the project version from, well, the project version:
 export PROJECTVERSION=$(CT_VERSION)
 
-menuconfig: $(obj)/mconf
+$(CT_TOP_DIR)/config/debug.in: $(CONFIG_FILES)
+	@echo "# Debug facilities menu" >$@
+	@echo "# Generated file, do not edit!!!" >>$@
+	@echo "menu \"Debug facilities\"" >>$@
+	@for f in $(patsubst $(CT_TOP_DIR)/%,%,$(wildcard $(CT_TOP_DIR)/config/debug/*.in)); do \
+	     echo "source $${f}";                                                               \
+	 done >>$@
+	@echo "endmenu" >>$@
+
+menuconfig: $(obj)/mconf $(CT_TOP_DIR)/config/debug.in
 	@$< $(KCONFIG_TOP)
 
-config: $(obj)/conf
+config: $(obj)/conf $(CT_TOP_DIR)/config/debug.in
 	@$< $(KCONFIG_TOP)
 
-oldconfig: $(obj)/conf
+oldconfig: $(obj)/conf $(CT_TOP_DIR)/config/debug.in
 	@$< -s $(KCONFIG_TOP)
 
 # Help text used by make help
@@ -54,3 +66,4 @@ kconfig/conf: $(SHIPPED) kconfig/conf.c
 
 clean::
 	@rm -f $(wildcard kconfig/*zconf*.c) kconfig/{conf,mconf}
+	@rm -f "$(CT_TOP_DIR)/config/debug.in"

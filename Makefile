@@ -33,7 +33,7 @@ include $(CT_TOP_DIR)/tools/Makefile
 help::
 	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
 
-.config: $(shell find $(CT_TOP_DIR)/config -type f -name '*.in')
+.config: $(CONFIG_FILES) $(CT_TOP_DIR)/config/debug.in
 	@make oldconfig
 
 # Actual build
