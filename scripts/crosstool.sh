@@ -10,14 +10,14 @@
 
 # What this file does is prepare the environment, based upon the user-choosen
 # options. It also checks the existing environment for un-friendly variables,
-# and checks for needed tools. It eventually calls the main build script.
+# and builds the tools.
 
-# User must set CT_TOP_DIR in is environment!
-# Once we can build out-of-tree, then this will have to go.
+# CT_TOP_DIR is set by the makefile. If we don't have it, something's gone horribly wrong...
 if [ -z "${CT_TOP_DIR}" -o ! -d "${CT_TOP_DIR}" ]; then
     # We don't have the functions right now, because we don't have CT_TOP_DIR.
     # Do the print stuff by hand:
-    echo "CT_TOP_DIR not set. You must set CT_TOP_DIR to the top directory where crosstool is installed."
+    echo "CT_TOP_DIR not set, or not a directory. Something's gone horribly wrong."
+    echo "Please send a bug report (see README)"
     exit 1
 fi
 
@@ -30,34 +30,22 @@ CT_STAR_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
 # Log to a temporary file until we have built our environment
 CT_ACTUAL_LOG_FILE="${CT_TOP_DIR}/$$.log"
 
-# Parse the configuration file
+# Are we configured? We'll need that later...
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
+
+# Parse the configuration file
+# It has some info about the logging facility, so include it early
 . "${CT_TOP_DIR}/.config"
 
-# Override the color scheme if needed
-if [ "${CT_LOG_USE_COLORS}" = "y" ]; then
-    CT_ERROR_COLOR="${_A_NOR}${_A_BRI}${_F_RED}"
-    CT_WARN_COLOR="${_A_NOR}${_A_BRI}${_F_YEL}"
-    CT_INFO_COLOR="${_A_NOR}${_A_BRI}${_F_GRN}"
-    CT_EXTRA_COLOR="${_A_NOR}${_A_DIM}${_F_GRN}"
-    CT_DEBUG_COLOR="${_A_NOR}${_A_BRI}${_F_BLU}"
-    CT_ALL_COLOR="${_A_NOR}${_A_DIM}${_F_WHI}"
-    CT_NORMAL_COLOR="${_A_NOR}"
-else
-    CT_ERROR_COLOR=
-    CT_WARN_COLOR=
-    CT_INFO_COLOR=
-    CT_EXTRA_COLOR=
-    CT_DEBUG_COLOR=
-    CT_ALL_COLOR=
-    CT_NORMAL_COLOR=
-fi
+# renice oursleves
+renice ${CT_NICE} $$ |CT_DoLog DEBUG
 
 # Yes! We can do full logging from now on!
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 
-# renice oursleves
-renice ${CT_NICE} $$ |CT_DoLog DEBUG
+CT_DoStep DEBUG "Dumping crosstool-NG configuration"
+cat ${CT_TOP_DIR}/.config |egrep '^(# |)CT_' |CT_DoLog DEBUG
+CT_EndStep
 
 # Some sanity checks in the environment and needed tools
 CT_DoLog INFO "Checking environment sanity"
@@ -89,14 +77,14 @@ CT_HasOrAbort sed
 CT_HasOrAbort bison
 CT_HasOrAbort flex
 
-CT_DoStep DEBUG "Dumping crosstool-NG configuration"
-cat ${CT_TOP_DIR}/.config |egrep '^(# |)CT_' |CT_DoLog DEBUG
-CT_EndStep
-
 CT_DoLog INFO "Building environment variables"
 
 # Target triplet: CT_TARGET needs a little love:
 CT_DoBuildTargetTriplet
+
+# Kludge: If any of the configured options needs CT_TARGET,
+# then rescan the options file now:
+. "${CT_TOP_DIR}/.config"
 
 # Now, build up the variables from the user-configured options.
 CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
@@ -111,14 +99,11 @@ CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
 CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
 [ "${CT_ARCH_FLOAT_SW_LIBFLOAT}" = "y" ] && CT_LIBFLOAT_FILE="libfloat-990616"
 
-# Kludge: If any of the configured options needs CT_TARGET,
-# then rescan the options file now:
-. "${CT_TOP_DIR}/.config"
-
 # Where will we work?
 CT_TARBALLS_DIR="${CT_TOP_DIR}/targets/tarballs"
 CT_SRC_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/src"
 CT_BUILD_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/build"
+CT_DEBUG_INSTALL_DIR="${CT_INSTALL_DIR}/${CT_TARGET}/debug-root"
 
 # Make all path absolute, it so much easier!
 CT_LOCAL_TARBALLS_DIR="`CT_MakeAbsolutePath \"${CT_LOCAL_TARBALLS_DIR}\"`"
@@ -133,24 +118,51 @@ if [ -d "${CT_INSTALL_DIR}" ]; then
     CT_TestAndAbort "Destination directory \"${CT_INSTALL_DIR}\" is not removable" ! -w `dirname "${CT_INSTALL_DIR}"`
 fi
 
+# Good, now grab a bit of informations on the system we're being run on,
+# just in case something goes awok, and it's not our fault:
+CT_SYS_USER="`id -un`"
+CT_SYS_HOSTNAME=`hostname -f 2>/dev/null || true`
+# Hmmm. Some non-DHCP-enabled machines do not have an FQDN... Fall back to node name.
+CT_SYS_HOSTNAME="${CT_SYS_HOSTNAME:-`uname -n`}"
+CT_SYS_KERNEL=`uname -s`
+CT_SYS_REVISION=`uname -r`
+# MacOS X lacks '-o' :
+CT_SYS_OS=`uname -o || echo "Unknown (maybe MacOS-X)"`
+CT_SYS_MACHINE=`uname -m`
+CT_SYS_PROCESSOR=`uname -p`
+CT_SYS_GCC=`gcc -dumpversion`
+CT_SYS_TARGET=`${CT_TOP_DIR}/tools/config.guess`
+CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_STAR_DATE_HUMAN} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME}"
+
+CT_DoLog EXTRA "Preparing working directories"
+
 # Get rid of pre-existing installed toolchain and previous build directories.
 # We need to do that _before_ we can safely log, because the log file will
 # most probably be in the toolchain directory.
 if [ "${CT_FORCE_DOWNLOAD}" = "y" -a -d "${CT_TARBALLS_DIR}" ]; then
     mv "${CT_TARBALLS_DIR}" "${CT_TARBALLS_DIR}.$$"
+    chmod -R u+w "${CT_TARBALLS_DIR}.$$"
     nohup rm -rf "${CT_TARBALLS_DIR}.$$" >/dev/null 2>&1 &
 fi
 if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
     mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.$$"
+    chmod -R u+w "${CT_SRC_DIR}.$$"
     nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1 &
 fi
 if [ -d "${CT_BUILD_DIR}" ]; then
     mv "${CT_BUILD_DIR}" "${CT_BUILD_DIR}.$$"
+    chmod -R u+w "${CT_BUILD_DIR}.$$"
     nohup rm -rf "${CT_BUILD_DIR}.$$" >/dev/null 2>&1 &
 fi
 if [ -d "${CT_INSTALL_DIR}" ]; then
     mv "${CT_INSTALL_DIR}" "${CT_INSTALL_DIR}.$$"
+    chmod -R u+w "${CT_INSTALL_DIR}.$$"
     nohup rm -rf "${CT_INSTALL_DIR}.$$" >/dev/null 2>&1 &
+fi
+if [ -d "${CT_DEBUG_INSTALL_DIR}" ]; then
+    mv "${CT_DEBUG_INSTALL_DIR}" "${CT_DEBUG_INSTALL_DIR}.$$"
+    chmod -R u+w "${CT_DEBUG_INSTALL_DIR}.$$"
+    nohup rm -rf "${CT_DEBUG_INSTALL_DIR}.$$" >/dev/null 2>&1 &
 fi
 
 # Note: we'll always install the core compiler in its own directory, so as to
@@ -163,23 +175,8 @@ mkdir -p "${CT_TARBALLS_DIR}"
 mkdir -p "${CT_SRC_DIR}"
 mkdir -p "${CT_BUILD_DIR}"
 mkdir -p "${CT_INSTALL_DIR}"
+mkdir -p "${CT_DEBUG_INSTALL_DIR}"
 mkdir -p "${CT_CC_CORE_PREFIX_DIR}"
-
-# Good, now grab a bit of informations on the system we're being run,
-# just in case something goes awok, and it's not our fault:
-CT_SYS_HOSTNAME=`hostname -f 2>/dev/null || true`
-# Hmmm. Some non-DHCP-enabled machines do not have an FQDN... Fall back to node name.
-CT_SYS_HOSTNAME="${CT_SYS_HOSTNAME:-`uname -n`}"
-CT_SYS_KERNEL=`uname -s`
-CT_SYS_REVISION=`uname -r`
-# MacOS X lacks '-o' :
-CT_SYS_OS=`uname -o || echo "Unknown (maybe MacOS-X)"`
-CT_SYS_MACHINE=`uname -m`
-CT_SYS_PROCESSOR=`uname -p`
-CT_SYS_USER="`id -un`"
-CT_SYS_DATE=`CT_DoDate +%Y%m%d.%H%M%S`
-CT_SYS_GCC=`gcc -dumpversion`
-CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_SYS_DATE} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME}"
 
 # Redirect log to the actual log file now we can
 # It's quite understandable that the log file will be installed in the install
@@ -270,9 +267,11 @@ esac
 # Do that:
 CT_DoLog EXTRA "Making build system tools available"
 mkdir -p "${CT_PREFIX_DIR}/bin"
-for tool in ar; do
+for tool in ar gcc; do
     ln -s "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
-    ln -s "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
+    case "${CT_TOOLCHAIN_TYPE}" in
+        cross|native)   ln -s "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}";;
+    esac
 done
 
 # Ha. cygwin host have an .exe suffix (extension) for executables.
@@ -317,6 +316,7 @@ CT_EndStep
 . "${CT_TOP_DIR}/scripts/build/libc_${CT_LIBC}.sh"
 . "${CT_TOP_DIR}/scripts/build/cc_core_${CT_CC_CORE}.sh"
 . "${CT_TOP_DIR}/scripts/build/cc_${CT_CC}.sh"
+. "${CT_TOP_DIR}/scripts/build/debug.sh"
 
 # Now for the job by itself. Go have a coffee!
 CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
@@ -326,6 +326,7 @@ do_cc_core_get
 do_libfloat_get
 do_libc_get
 do_cc_get
+do_debug_get
 CT_EndStep
 
 if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
@@ -336,10 +337,11 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
     CT_DoStep INFO "Extracting and patching toolchain components"
     do_kernel_extract
     do_binutils_extract
-    do_libc_extract
-    do_libfloat_extract
     do_cc_core_extract
+    do_libfloat_extract
+    do_libc_extract
     do_cc_extract
+    do_debug_extract
     CT_EndStep
 
     if [ "${CT_ONLY_EXTRACT}" != "y" ]; then
@@ -353,6 +355,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         do_libc
         do_cc
         do_libc_finish
+        do_debug
 
         # Create the aliases to the target tools
         if [ -n "${CT_TARGET_ALIAS}" ]; then
@@ -370,18 +373,22 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         if [ "${CT_REMOVE_DOCS}" = "y" ]; then
         	CT_DoLog INFO "Removing installed documentation"
             rm -rf "${CT_PREFIX_DIR}/"{man,info}
+            rm -rf "${CT_DEBUG_INSTALL_DIR}/usr/"{man,info}
         fi
     fi
 fi
 
-CT_STOP_DATE=`CT_DoDate +%s%N`
-CT_STOP_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
-CT_DoLog INFO "Build completed at ${CT_STOP_DATE_HUMAN}"
-elapsed=$((CT_STOP_DATE-CT_STAR_DATE))
-elapsed_min=$((elapsed/(60*1000*1000*1000)))
-elapsed_sec=`printf "%02d" $(((elapsed%(60*1000*1000*1000))/(1000*1000*1000)))`
-elapsed_csec=`printf "%02d" $(((elapsed%(1000*1000*1000))/(10*1000*1000)))`
-CT_DoLog INFO "(elapsed: ${elapsed_min}:${elapsed_sec}.${elapsed_csec})"
+# OK, now we're done, set the toolchain read-only
+# Don't log, the log file may become read-only any moment...
+chmod -R a-w "${CT_INSTALL_DIR}"
+
+# We stil have some small bits to log
+chmod u+w "${CT_LOG_FILE}"
+
+CT_DoEnd INFO
+
+# All files should now be read-only, log-file included
+chmod a-w "${CT_LOG_FILE}"
 
 # Restore a 'normal' color setting
 echo -en "${CT_NORMAL_COLOR}"

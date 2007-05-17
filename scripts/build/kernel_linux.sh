@@ -117,6 +117,8 @@ do_kernel_install() {
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
          ${V_OPT}                                   \
          headers_check                              2>&1 |CT_DoLog ALL
+
+    find "${CT_SYSROOT_DIR}" -type f -name '.check*' -exec rm {} \;
 }
 
 # Install kernel headers from oldish Mazur's sanitised headers.

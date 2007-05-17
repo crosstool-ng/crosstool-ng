@@ -7,16 +7,19 @@ doHelp() {
     cat <<-EOF
 Usage: ${myname} <tool> [option] <version>
   'tool' in one of:
-    --gcc, --tcc, --binutils, --glibc, --uClibc, --linux, --cygwin
+    --gcc, --binutils, --glibc, --uClibc, --linux, --gdb
 
-  Options:
+  Valid options for all tools:
     --experimental, -x
       mark the version as being experimental
 
-  Valid mandatory 'option' for tool==gcc is one of:
+    --obsolete, -o
+      mark the version as being obsolete
+
+  Valid mandatory 'option' for tool==gcc is one and only one of:
     --core, --final
 
-  Valid mandatory 'option' for tool==linux is one of:
+  Valid mandatory 'option' for tool==linux is one and only one of:
     --install, --sanitised, --copy
 
   'version' is a valid version for the specified tool.
@@ -30,32 +33,38 @@ Usage: ${myname} <tool> [option] <version>
 EOF
 }
 
+cat=
 tool=
 tool_prefix=
+tool_suffix=
 CORE=
 FINAL=
 VERSION=
 EXP=
+OBS=
 
 i=1
 while [ $i -le $# ]; do
     case "${!i}" in
+        # Tools:
         --gcc)              cat=CC;        tool=gcc;      tool_prefix=cc_;      tool_suffix=;;
-#        --tcc)              cat=CC;        tool=tcc;      tool_prefix=cc_;      tool_suffix=;;
         --binutils)         cat=BINUTILS;  tool=binutils; tool_prefix=;         tool_suffix=;;
         --glibc)            cat=LIBC;      tool=glibc;    tool_prefix=libc_;    tool_suffix=;;
         --uClibc)           cat=LIBC;      tool=uClibc;   tool_prefix=libc_;    tool_suffix=;;
-        --linux)            cat=KERNEL;    tool=linux;    tool_prefix=kernel_;;
-#        --cygwin)           cat=KERNEL;    tool=cygwin;   tool_prefix=kernel_;;
-        --core)             CORE=1;;
-        --final)            FINAL=1;;
+        --linux)            cat=KERNEL;    tool=linux;    tool_prefix=kernel_;  tool_suffix=;;
+        --gdb)              cat=GDB;       tool=gdb;      tool_prefix=debug/    tool_suffix=;;
+        # Tools options:
+        -x|--experimental)  EXP=1; OBS=;;
+        -o|--obsolete)      OBS=1; EXP=;;
+        --core)             CORE=1; FINAL=;;
+        --final)            FINAL=1; CORE=;;
         --install)          tool_suffix=install;;
         --sanitised)        tool_suffix=sanitised;;
         --copy)             tool_suffix=copy;;
-        -x|--experimental)  EXP=1;;
+        # Misc:
         -h|--help)          doHelp; exit 0;;
-        -*)             echo "Unknown option: \"${!i}\". (use -h/--help for help"; exit 1;;
-        *)              VERSION="${VERSION} ${!i}";;
+        -*)                 echo "Unknown option: \"${!i}\". (use -h/--help for help"; exit 1;;
+        *)                  VERSION="${VERSION} ${!i}";;
     esac
     i=$((i+1))
 done
@@ -63,30 +72,18 @@ done
 [ -n "${tool}" -o -n "${VERSION}" ] || { doHelp; exit 1; }
 
 case "${cat}" in
-    CC)     [ -z "${CORE}" -a -z "${FINAL}" ] && { doHelp; exit 1; };;
+    CC)     [    -z "${CORE}" -a -z "${FINAL}" ] && { doHelp; exit 1; };;
     KERNEL) unset FINAL CORE
             [ -z "${tool_suffix}" ] && { doHelp; exit 1; }
             ;;
-    *)      FINAL=1; CORE=;;
+    *)      CORE=; FINAL=;;
 esac
 
+MIDDLE_V=; MIDDLE_F=
+[ -n "${CORE}" ] && MIDDLE_V="_CORE" && MIDDLE_F="core_"
 for ver in ${VERSION}; do
     unset DEP L1 L2 L3 L4 L5 FILE
-	v=`echo "${ver}" |sed -r -e 's/-/_/g; s/\./_/g;'`
-    if [ -n "${CORE}" ]; then
-        L1="config ${cat}_CORE_V_${v}\n"
-        L2="    bool\n"
-        L3="    prompt \"${ver}\"\n"
-        L5="    default \"${ver}\" if ${cat}_CORE_V_${v}"
-        FILE="config/${tool_prefix}core_${tool}.in"
-    fi
-    if [ -n "${FINAL}" ]; then
-        L1="config ${cat}_V_${v}\n"
-        L2="    bool\n"
-        L3="    prompt \"${ver}\"\n"
-        L5="    default \"${ver}\" if ${cat}_V_${v}"
-        FILE="config/${tool_prefix}${tool}.in"
-    fi
+    v=`echo "${ver}" |sed -r -e 's/-/_/g; s/\./_/g;'`
     if [ "${cat}" = "KERNEL" ]; then
         TOOL_SUFFIX="`echo \"${tool_suffix}\" |tr [[:lower:]] [[:upper:]]`"
         L1="config ${cat}_${TOOL_SUFFIX}_V_${v}\n"
@@ -99,8 +96,15 @@ for ver in ${VERSION}; do
         esac
         L5="    default \"${ver}\" if ${cat}_${TOOL_SUFFIX}_V_${v}"
         FILE="config/${tool_prefix}${tool}_headers_${tool_suffix}.in"
+    else
+        L1="config ${cat}${MIDDLE}_V_${v}\n"
+        L2="    bool\n"
+        L3="    prompt \"${ver}\"\n"
+        L5="    default \"${ver}\" if ${cat}${MIDDLE}_V_${v}"
+        FILE="config/${tool_prefix}${MIDDLE_F}${tool}.in"
     fi
     [ -n "${EXP}" ] && DEP="${DEP} && EXPERIMENTAL"
+    [ -n "${OBS}" ] && DEP="${DEP} && OBSOLETE"
     case "${DEP}" in
         "") ;;
         *)  L4="    depends on `echo \"${DEP}\" |sed -r -e 's/^ \\&\\& //; s/\\&/\\\\&/g;'`\n"

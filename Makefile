@@ -34,9 +34,7 @@ help::
 	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
 
 .config: $(shell find $(CT_TOP_DIR)/config -type f -name '*.in')
-	@make menuconfig
-	@# Because exiting menuconfig without saving is not an error to menuconfig
-	@test -f .config
+	@make oldconfig
 
 # Actual build
 build: .config
