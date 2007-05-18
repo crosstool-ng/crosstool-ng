@@ -95,8 +95,8 @@ do_debug_gdb_build() {
         CT_DoStep EXTRA "Installing native gdb"
         CT_DoLog EXTRA "Configuring native gdb"
 
-        mkdir -p "${CT_BUILD_DIR}/build-gdb-cross"
-        cd "${CT_BUILD_DIR}/build-gdb-cross"
+        mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
+        cd "${CT_BUILD_DIR}/build-gdb-native"
 
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
@@ -109,7 +109,7 @@ do_debug_gdb_build() {
             --disable-gdbtk                             \
             --without-x                                 \
             --disable-sim                               \
-            --enable-gdbserver                          \
+            --disable-gdbserver                          \
             --without-included-gettext                  \
             ${extra_config}                             2>&1 |CT_DoLog ALL
 
