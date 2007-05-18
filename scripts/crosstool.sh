@@ -372,8 +372,9 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         # Remove the generated documentation files
         if [ "${CT_REMOVE_DOCS}" = "y" ]; then
         	CT_DoLog INFO "Removing installed documentation"
-            rm -rf "${CT_PREFIX_DIR}/"{man,info}
-            rm -rf "${CT_DEBUG_INSTALL_DIR}/usr/"{man,info}
+            rm -rf "${CT_PREFIX_DIR}/"{,usr/}{man,info}
+            rm -rf "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
+            rm -rf "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
         fi
     fi
 fi
