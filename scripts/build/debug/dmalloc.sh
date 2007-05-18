@@ -44,7 +44,7 @@ do_debug_dmalloc_build() {
     CT_DoLog EXTRA "Building dmalloc"
     make ${PARALLELMFLAGS}                                      2>&1 |CT_DoLog ALL
 
-    CT_DoLog EXTRA "Building dmalloc"
+    CT_DoLog EXTRA "Installing dmalloc"
     make DESTDIR="${CT_SYSROOT_DIR}"       installincs      \
                                            installlib       2>&1 |CT_DoLog ALL
     make DESTDIR="${CT_DEBUG_INSTALL_DIR}" installutil      2>&1 |CT_DoLog ALL
