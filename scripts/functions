@@ -299,30 +299,29 @@ CT_GetFile() {
     # File not yet downloaded, try to get it
     got_it=0
     # We'd rather have a bzip2'ed tarball, then gzipped, and finally plain tar.
+    # Try local copy first, if it exists
     for ext in .tar.bz2 .tar.gz .tgz .tar; do
-        if [ ${got_it} -ne 1 ]; then
-            # Try local copy first, if it exists
-            if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
-                 "${CT_FORCE_DOWNLOAD}" != "y" ]; then
-                cp -v "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog DEBUG
-                got_it=1
-                break 1
-            else
-                # Try all urls in turn
-                for url in "$@"; do
-                    case "${url}" in
-                        *)  CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
-                            CT_DoGetFile "${url}/${file}${ext}"
-                            ;;
-                    esac
-                    [ -f "${file}${ext}" ] && got_it=1 && break 2 || true
-                done
-            fi
+        if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
+             "${CT_FORCE_DOWNLOAD}" != "y" ]; then
+            cp -v "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog DEBUG
+            return 0
         fi
+    done
+    # Try to download it
+    for ext in .tar.bz2 .tar.gz .tgz .tar; do
+        # Try all urls in turn
+        for url in "$@"; do
+            case "${url}" in
+                *)  CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
+                    CT_DoGetFile "${url}/${file}${ext}"
+                    ;;
+            esac
+            [ -f "${file}${ext}" ] && return 0 || true
+        done
     done
     CT_Popd
 
-    CT_TestAndAbort "Could not download \"${file}\", and not present in \"${CT_LOCAL_TARBALLS_DIR}\"" ${got_it} -eq 0
+    CT_Abort "Could not download \"${file}\", and not present in \"${CT_LOCAL_TARBALLS_DIR}\""
 }
 
 # Extract a tarball and patch the resulting sources if necessary.
