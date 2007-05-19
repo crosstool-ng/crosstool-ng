@@ -14,7 +14,7 @@ do_libfloat_get() {
                ftp://ftp.de.debian.org/debian/pool/main/libf/libfloat
     CT_Pushd "${CT_TARBALLS_DIR}"
     ext=`CT_GetFileExtension "${libfloat_file}"`
-    ln -s "${libfloat_file}${ext}" "${CT_LIBFLOAT_FILE}${ext}"
+    ln -svf "${libfloat_file}${ext}" "${CT_LIBFLOAT_FILE}${ext}" |CT_DoLog DEBUG
     CT_Popd
 }
 

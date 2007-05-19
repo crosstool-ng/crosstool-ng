@@ -142,32 +142,46 @@ mungeuClibcConfig() {
     config_file="$1"
     munge_file="${CT_BUILD_DIR}/munge-uClibc-config.sed"
 
+    # Hack our target in the config file.
+    # Also remove stripping: its the responsibility of the
+    # firmware builder to strip or not.
     cat > "${munge_file}" <<-ENDSED
 s/^(TARGET_.*)=y$/# \\1 is not set/
 s/^# TARGET_${CT_KERNEL_ARCH} is not set/TARGET_${CT_KERNEL_ARCH}=y/
 s/^TARGET_ARCH=".*"/TARGET_ARCH="${CT_KERNEL_ARCH}"/
+s/.*(DOSTRIP).*/# \\1 is not set/
 ENDSED
 
+    # Accomodate for old and new uClibc versions, where the
+    # way to select between big/little endian has changed
     case "${CT_ARCH_BE},${CT_ARCH_LE}" in
         y,) cat >> "${munge_file}" <<-ENDSED
-s/.*(ARCH_BIG_ENDIAN).*/\\1=y/
 s/.*(ARCH_LITTLE_ENDIAN).*/# \\1 is not set/
+s/.*(ARCH_BIG_ENDIAN).*/\\1=y/
+s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/# \\1 is not set/
+s/.*(ARCH_WANTS_BIG_ENDIAN).*/\\1=y/
 ENDSED
         ;;
         ,y) cat >> "${munge_file}" <<-ENDSED
-s/.*(ARCH_BIG_ENDIAN).*/# \\1 is not set/
 s/.*(ARCH_LITTLE_ENDIAN).*/\\1=y/
+s/.*(ARCH_BIG_ENDIAN).*/# \\1 is not set/
+s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/\\1=y/
+s/.*(ARCH_WANTS_BIG_ENDIAN).*/# \\1 is not set/
 ENDSED
         ;;
     esac
 
+    # Accomodate for old and new uClibc version, where the
+    # way to select between hard/soft float has changed
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
         y,) cat >> "${munge_file}" <<-ENDSED
 s/.*(HAS_FPU).*/\\1=y/
+s/.*(UCLIBC_HAS_FPU).*/\\1=y/
 ENDSED
             ;;
         ,y) cat >> "${munge_file}" <<-ENDSED
 s/.*(HAS_FPU).*/\\# \\1 is not set/
+s/.*(UCLIBC_HAS_FPU).*/# \\1 is not set/
 ENDSED
             ;;
     esac
@@ -191,12 +205,19 @@ s/^KERNEL_HEADERS=".*"/KERNEL_HEADERS="${quoted_headers_dir}"/
 s/^UCLIBC_DOWNLOAD_PREGENERATED_LOCALE=y/\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE is not set/
 ENDSED
 
-    # Hack our -pipe into WARNINGS, which will be internally incorporated to
-    # CFLAGS. This a dirty hack, but yet needed
     if [ "${CT_USE_PIPES}" = "y" ]; then
-        cat >> "${munge_file}" <<-ENDSED
+        if grep UCLIBC_EXTRA_CFLAGS extra/Configs/Config.in >/dev/null 2>&1; then
+            # Good, there is special provision for such things as -pipe!
+            cat >> "${munge_file}" <<-ENDSED
+s/^(UCLIBC_EXTRA_CFLAGS=".*)"$/\\1 -pipe"/
+ENDSED
+        else
+            # Hack our -pipe into WARNINGS, which will be internally incorporated to
+            # CFLAGS. This a dirty hack, but yet needed
+            cat >> "${munge_file}" <<-ENDSED
 s/^(WARNINGS=".*)"$/\\1 -pipe"/
 ENDSED
+        fi
     fi
 
     # Force on options needed for C++ if we'll be making a C++ compiler.
@@ -227,6 +248,7 @@ s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
 s/^DOASSERTS=y/# DOASSERTS is not set/
 s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
 s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
+s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
 ENDSED
         ;;
       1)
@@ -237,6 +259,7 @@ s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
 s/^DOASSERTS=y/# DOASSERTS is not set/
 s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
 s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
+s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
 ENDSED
         ;;
       2)
@@ -247,6 +270,7 @@ s/^# DODEBUG_PT is not set.*/DODEBUG_PT=y/
 s/^# DOASSERTS is not set.*/DOASSERTS=y/
 s/^# SUPPORT_LD_DEBUG is not set.*/SUPPORT_LD_DEBUG=y/
 s/^# SUPPORT_LD_DEBUG_EARLY is not set.*/SUPPORT_LD_DEBUG_EARLY=y/
+s/^# UCLIBC_MALLOC_DEBUGGING is not set/UCLIBC_MALLOC_DEBUGGING=y/
 ENDSED
         ;;
     esac

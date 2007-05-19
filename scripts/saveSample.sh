@@ -30,7 +30,13 @@ CT_DoBuildTargetTriplet
 . "${CT_TOP_DIR}/.config"
 
 # Create the sample directory
-[ -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ] || svn mkdir "${CT_TOP_DIR}/samples/${CT_TARGET}" >/dev/null 2>&1
+# In case it was manually made, add it to svn
+if [ -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
+    # svn won't fail when adding a directory already managed by svn
+    svn add "${CT_TOP_DIR}/samples/${CT_TARGET}" >/dev/null 2>&1
+else
+    svn mkdir "${CT_TOP_DIR}/samples/${CT_TARGET}" >/dev/null 2>&1
+fi
 
 # Save the crosstool-NG config file
 cp "${CT_TOP_DIR}/.config" "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
@@ -42,7 +48,7 @@ CT_DoAddFileToSample() {
     source="$1"
     dest="$2"
     inode_s=`ls -i "${source}"`
-    inode_d=`ls -i "${dest}"`
+    inode_d=`ls -i "${dest}" 2>/dev/null || true`
     if [ "${inode_s}" != "${inode_d}" ]; then
         cp "${source}" "${dest}"
     fi
