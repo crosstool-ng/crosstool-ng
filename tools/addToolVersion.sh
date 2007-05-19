@@ -99,10 +99,10 @@ for ver in ${VERSION}; do
         L5="    default \"${ver}\" if ${cat}_${TOOL_SUFFIX}_V_${v}"
         FILE="config/${tool_prefix}${tool}_headers_${tool_suffix}.in"
     else
-        L1="config ${cat}${MIDDLE}_V_${v}\n"
+        L1="config ${cat}${MIDDLE_V}_V_${v}\n"
         L2="    bool\n"
         L3="    prompt \"${ver}\"\n"
-        L5="    default \"${ver}\" if ${cat}${MIDDLE}_V_${v}"
+        L5="    default \"${ver}\" if ${cat}${MIDDLE_V}_V_${v}"
         FILE="config/${tool_prefix}${MIDDLE_F}${tool}.in"
     fi
     [ -n "${EXP}" ] && DEP="${DEP} && EXPERIMENTAL"
