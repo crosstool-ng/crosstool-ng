@@ -27,8 +27,12 @@ fi
 CT_STAR_DATE=`CT_DoDate +%s%N`
 CT_STAR_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
 
-# Log to a temporary file until we have built our environment
-CT_ACTUAL_LOG_FILE="${CT_TOP_DIR}/$$.log"
+# Log policy:
+#  - what goes to the log file goes to fd #1 (stdout)
+#  - what goes to the screen goes to fd #6
+tmp_log_file="${CT_TOP_DIR}/$$.log"
+exec 6>&1
+exec >>"${tmp_log_file}"
 
 # Are we configured? We'll need that later...
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
@@ -182,22 +186,22 @@ mkdir -p "${CT_CC_CORE_PREFIX_DIR}"
 # It's quite understandable that the log file will be installed in the install
 # directory, so we must first ensure it exists and is writeable (above) before
 # we can log there
+exec >/dev/null
 case "${CT_LOG_TO_FILE},${CT_LOG_FILE}" in
-    ,*)   rm -f "${CT_ACTUAL_LOG_FILE}"
-          CT_ACTUAL_LOG_FILE=/dev/null
+    ,*)   rm -f "${tmp_log_file}"
           ;;
     y,/*) mkdir -p "`dirname \"${CT_LOG_FILE}\"`"
-          mv "${CT_ACTUAL_LOG_FILE}" "${CT_LOG_FILE}"
-          CT_ACTUAL_LOG_FILE="${CT_LOG_FILE}"
+          mv "${tmp_log_file}" "${CT_LOG_FILE}"
+          exec >>"${CT_LOG_FILE}"
           ;;
     y,*)  mkdir -p "`pwd`/`dirname \"${CT_LOG_FILE}\"`"
-          mv "${CT_ACTUAL_LOG_FILE}" "`pwd`/${CT_LOG_FILE}"
-          CT_ACTUAL_LOG_FILE="`pwd`/${CT_LOG_FILE}"
+          mv "${tmp_log_file}" "`pwd`/${CT_LOG_FILE}"
+          exec >>"${CT_LOG_FILE}"
           ;;
 esac
 
 # Determine build system if not set by the user
-CT_Test "You did not specify the build system. Guessing." -z "${CT_BUILD}"
+CT_Test "You did not specify the build system. That's OK, I can guess..." -z "${CT_BUILD}"
 CT_BUILD="`${CT_TOP_DIR}/tools/config.sub \"${CT_BUILD:-\`${CT_TOP_DIR}/tools/config.guess\`}\"`"
 
 # Arrange paths depending on wether we use sys-root or not.

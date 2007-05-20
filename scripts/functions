@@ -12,7 +12,7 @@ CT_OnError() {
     for((depth=2; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
         CT_DoLog ERROR "      called from \"${BASH_SOURCE[${depth}]}\" at line # ${BASH_LINENO[${depth}-1]} in function \"${FUNCNAME[${depth}]}\""
     done
-    CT_DoLog ERROR "Look at \"${CT_ACTUAL_LOG_FILE}\" for more info on this error."
+    [ "${CT_LOG_TO_FILE}" = "y" ] && CT_DoLog ERROR "Look at \"${CT_LOG_FILE}\" for more info on this error."
     CT_STEP_COUNT=1
     CT_DoEnd ERROR
     exit $ret
@@ -54,30 +54,31 @@ CT_DoLog() {
         cat -
     else
         echo "${1}"
-    fi |( IFS="\n" # We want the full lines, even leading spaces
+    fi |( offset=$((`CT_DoDate +%s`+(CT_STAR_DATE/(1000*1000*1000))))
+          IFS="\n" # We want the full lines, even leading spaces
           CT_PROG_BAR_CPT=0
           indent=$((2*CT_STEP_COUNT))
           while read line; do
               case "${CT_LOG_SEE_TOOLS_WARN},${line}" in
                 y,*"warning:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
+                y,*"WARNING:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
                 *"error:"*)             cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
                 *"make["?*"]:"*"Stop.") cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
                 *)                      cur_L="${LEVEL}"; cur_l="${level}";;
               esac
               l="`printf \"[%-5s]%*s%s%s\" \"${cur_L}\" \"${indent}\" \" \" \"${line}\"`"
               # There will always be a log file, be it /dev/null
-              echo -e "${l}" >>"${CT_ACTUAL_LOG_FILE}"
+              echo -e "${l}"
               if [ ${cur_l} -le ${max_level} ]; then
-                  echo -e "\r${l}"
+                  echo -e "\r${l}" >&6
               fi
               if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
-                  str=`CT_DoDate +%s`
-                  elapsed=$((str-(CT_STAR_DATE/(1000*1000*1000))))
+                  elapsed=$((SECONDS+OFFSET))
                   [ ${CT_PROG_BAR_CPT} -eq 0  ] && bar="/"
                   [ ${CT_PROG_BAR_CPT} -eq 10 ] && bar="-"
                   [ ${CT_PROG_BAR_CPT} -eq 20 ] && bar="\\"
                   [ ${CT_PROG_BAR_CPT} -eq 30 ] && bar="|"
-                  printf "\r[%02d:%02d] %s " $((elapsed/60)) $((elapsed%60)) "${bar}"
+                  printf "\r[%02d:%02d] %s " $((elapsed/60)) $((elapsed%60)) "${bar}" >&6
                   CT_PROG_BAR_CPT=$(((CT_PROG_BAR_CPT+1)%40))
               fi
           done
