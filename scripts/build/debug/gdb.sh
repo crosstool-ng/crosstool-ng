@@ -41,7 +41,7 @@ do_debug_gdb_build() {
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
             --target=${CT_TARGET}                       \
-            --prefix="${CT_INSTALL_DIR}"                \
+            --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
             --enable-threads                            \
             ${extra_config}                             2>&1 |CT_DoLog ALL
