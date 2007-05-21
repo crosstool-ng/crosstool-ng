@@ -32,7 +32,7 @@ do_libc_check_config() {
 
     CT_TestOrAbort "You did not provide a uClibc config file!" -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" -a -f "${CT_LIBC_UCLIBC_CONFIG_FILE}"
 
-    cp "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_BUILD_DIR}/uClibc.config"
+    cp "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_SRC_DIR}/uClibc.config"
 
     if egrep '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
         CT_DoLog WARN "Your uClibc version refers to the kernel _sources_, which is bad."
@@ -40,7 +40,7 @@ do_libc_check_config() {
     fi
 
     CT_DoLog EXTRA "Munging uClibc configuration"
-    mungeuClibcConfig "${CT_BUILD_DIR}/uClibc.config"
+    mungeuClibcConfig "${CT_SRC_DIR}/uClibc.config"
 
     CT_EndStep
 }
@@ -61,7 +61,7 @@ do_libc_headers() {
     { cd "${CT_SRC_DIR}/${CT_LIBC_FILE}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
-    cp "${CT_BUILD_DIR}/uClibc.config" .config
+    cp "${CT_SRC_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the
     # compiler tools to use.  Setting it to the empty string forces
@@ -91,7 +91,7 @@ do_libc() {
     { cd "${CT_SRC_DIR}/${CT_LIBC_FILE}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
-    cp "${CT_BUILD_DIR}/uClibc.config" .config
+    cp "${CT_SRC_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the compiler
     # tools to use.  The newly built tools should be in our path, so we need
