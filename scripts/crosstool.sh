@@ -304,11 +304,11 @@ if [ -z "${CT_RESTART}" ]; then
     mkdir -p "${CT_PREFIX_DIR}/bin"
     for tool in ar as dlltool gcc g++ gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
         if [ -n "`which ${tool}`" ]; then
-            ln -s "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
+            ln -sv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
             case "${CT_TOOLCHAIN_TYPE}" in
-                cross|native)   ln -s "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}";;
+                cross|native)   ln -sv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}";;
             esac
-        fi
+        fi |CT_DoLog DEBUG
     done
 
     # Ha. cygwin host have an .exe suffix (extension) for executables.
@@ -435,21 +435,22 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         rm -rf "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
         rm -rf "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
     fi
+
+    CT_DoLog EXTRA "Removing access to the build system tools"
+    find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
+    find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
 fi
 
 # OK, now we're done, set the toolchain read-only
 # Don't log, the log file may become read-only any moment...
 chmod -R a-w "${CT_INSTALL_DIR}"
 
-# We stil have some small bits to log
+# We still have some small bits to log
 chmod u+w "${CT_LOG_FILE}"
 
 CT_DoEnd INFO
 
-# All files should now be read-only, log-file included
+# All files should now be read-only, log file included
 chmod a-w "${CT_LOG_FILE}"
-
-# Restore a 'normal' color setting
-echo -en "${CT_NORMAL_COLOR}"
 
 trap - EXIT
