@@ -304,7 +304,7 @@ CT_GetFile() {
         if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
              "${CT_FORCE_DOWNLOAD}" != "y" ]; then
             CT_DoLog EXTRA "Copying \"${file}\" from local copy"
-            cp -v "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog DEBUG
+            cp -v "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
             return 0
         fi
     done
@@ -459,4 +459,113 @@ CT_DoBuildTargetTriplet() {
         eabi)   CT_TARGET="${CT_TARGET}eabi";;
     esac
     CT_TARGET="`${CT_TOP_DIR}/tools/config.sub ${CT_TARGET}`"
+}
+
+# This function does pause the build until the user strikes "Return"
+# Usage: CT_DoPause [optional_message]
+CT_DoPause() {
+    local foo
+    local message="${1:-Pausing for your pleasure}"
+    CT_DoLog INFO "${message}"
+    read -p "Press \"Enter\" to continue, or Ctrl-C to stop..." foo >&6
+    return 0
+}
+
+# This function saves the state of the toolchain to be able to restart
+# at any one point
+# Usage: CT_DoSaveState <next_step_name>
+CT_DoSaveState() {
+	[ "${CT_DEBUG_CT_SAVE_STEPS}" = "y" ] || return 0
+    local state_name="$1"
+    local state_dir="${CT_STATE_DIR}/${state_name}"
+
+    CT_DoLog DEBUG "Saving state to restart at step \"${state_name}\"..."
+    rm -rf "${state_dir}"
+    mkdir -p "${state_dir}"
+
+    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
+        y)  tar_opt=czf; tar_ext=".tar.gz";;
+        *)  tar_opt=cf;  tar_ext=".tar";;
+    esac
+
+    CT_DoLog DEBUG "  Saving environment and aliases"
+    # We must omit shell functions
+    # 'isgrep' is here because I don't seem to
+    # be able to remove the functions names.
+    set |awk '
+         BEGIN { _p = 1; }
+         $0~/^[^ ] ()/ { _p = 0; }
+         _p == 1
+         $0 == "}" { _p = 1; }
+         ' |egrep -v '^[^ ]+ \(\)' >"${state_dir}/env.sh"
+
+    CT_DoLog DEBUG "  Saving CT_CC_CORE_PREFIX_DIR=\"${CT_CC_CORE_PREFIX_DIR}\""
+    CT_Pushd "${CT_CC_CORE_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/cc_core_prefix_dir${tar_ext}" .
+    CT_Popd
+
+    CT_DoLog DEBUG "  Saving CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
+    CT_Pushd "${CT_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/prefix_dir${tar_ext}" .
+    CT_Popd
+
+    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
+        CT_DoLog DEBUG "  Saving log file"
+        exec >/dev/null
+        case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
+            y)  gzip -3 -c "${CT_LOG_FILE}"  >"${state_dir}/log.gz";;
+            *)  cat "${CT_LOG_FILE}" >"${state_dir}/log";;
+        esac
+        exec >>"${CT_LOG_FILE}"
+    fi
+}
+
+# This functions restores a previously saved state
+# Usage: CT_DoLoadState <state_name>
+CT_DoLoadState(){
+    local state_name="$1"
+    local state_dir="${CT_STATE_DIR}/${state_name}"
+
+    # We need to do something special with the log file!
+    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
+        exec >"${state_dir}/tail.log"
+    fi
+    CT_DoLog DEBUG "Restoring state at step \"${state_name}\"..."
+
+    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
+        y)  tar_opt=xzf; tar_ext=".tar.gz";;
+        *)  tar_opt=cf;  tar_ext=".tar";;
+    esac
+
+    CT_DoLog DEBUG "  Removing previous build directories"
+    chmod -R u+rwX "${CT_PREFIX_DIR}" "${CT_CC_CORE_PREFIX_DIR}"
+    rm -rf         "${CT_PREFIX_DIR}" "${CT_CC_CORE_PREFIX_DIR}"
+    mkdir -p       "${CT_PREFIX_DIR}" "${CT_CC_CORE_PREFIX_DIR}"
+
+    CT_DoLog DEBUG "  Restoring CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
+    CT_Pushd "${CT_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/prefix_dir${tar_ext}"
+    CT_Popd
+
+    CT_DoLog DEBUG "  Restoring CT_CC_CORE_PREFIX_DIR=\"${CT_CC_CORE_PREFIX_DIR}\""
+    CT_Pushd "${CT_CC_CORE_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/cc_core_prefix_dir${tar_ext}"
+    CT_Popd
+
+    # Restore the environment, discarding any error message
+    # (for example, read-only bash internals)
+    CT_DoLog DEBUG "  Restoring environment"
+    . "${state_dir}/env.sh" >/dev/null 2>&1 || true
+
+    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
+        CT_DoLog DEBUG "  Restoring log file"
+        exec >/dev/null
+        case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
+            y)  zcat "${state_dir}/log.gz" >"${CT_LOG_FILE}";;
+            *)  cat "${state_dir}/log" >"${CT_LOG_FILE}";;
+        esac
+        cat "${state_dir}/tail.log" >>"${CT_LOG_FILE}"
+        exec >>"${CT_LOG_FILE}"
+        rm -f "${state_dir}/tail.log"
+    fi
 }

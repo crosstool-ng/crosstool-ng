@@ -9,6 +9,8 @@ export CT_TOP_DIR=$(shell pwd)
 # This is crosstool-ng version string
 export CT_VERSION=$(shell cat $(CT_TOP_DIR)/version)
 
+export CT_RESTART=$(RESTART)
+
 .PHONY: all
 all: build
 
@@ -32,6 +34,7 @@ include $(CT_TOP_DIR)/tools/Makefile
 
 help::
 	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
+	@echo  'Pass RESTART=<step> to restart a previously saved step (read doc first!)'
 
 .config: $(CONFIG_FILES) $(CT_TOP_DIR)/config/debug.in
 	@make oldconfig
