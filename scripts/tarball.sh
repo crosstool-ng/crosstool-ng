@@ -9,8 +9,8 @@
 # We need the functions first:
 . "${CT_TOP_DIR}/scripts/functions"
 
-# Log to a temporary file until we have built our environment
-CT_ACTUAL_LOG_FILE="${CT_TOP_DIR}/$$.log"
+exec 6>&1
+exec >/dev/null
 
 # Override log level
 unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG
@@ -85,4 +85,3 @@ tar cfj "${botdir}/${CT_TARGET}.tar.bz2" "${CT_PREFIX_DIR}" 2>/dev/null
 
 rm -f "${CT_PREFIX_DIR}/${topdir}.${CT_TARGET}.tar.bzip2"
 rm -rf "${tempdir}"
-rm -f "${CT_TOP_DIR}/$$.log"

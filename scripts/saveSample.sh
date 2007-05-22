@@ -10,8 +10,8 @@
 
 . "${CT_TOP_DIR}/scripts/functions"
 
-# Log to a temporary file until we have built our environment
-CT_ACTUAL_LOG_FILE="${CT_TOP_DIR}/$$.log"
+exec 6>&1
+exec >/dev/null
 
 # Override log level
 unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG 
@@ -86,5 +86,3 @@ fi
 svn add "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config" >/dev/null 2>&1
 
 svn stat "${CT_TOP_DIR}/samples/${CT_TARGET}" 2>/dev/null |CT_DoLog INFO
-
-rm -f "${CT_ACTUAL_LOG_FILE}"
