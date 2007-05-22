@@ -25,8 +25,9 @@ do_binutils() {
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
         ${CT_CANADIAN_OPT}                          \
-        --target=${CT_TARGET}                       \
+        --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
+        --target=${CT_TARGET}                       \
         --prefix=${CT_PREFIX_DIR}                   \
         --disable-nls                               \
         ${CT_BINUTILS_EXTRA_CONFIG}                 \
