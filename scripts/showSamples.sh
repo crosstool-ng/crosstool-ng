@@ -11,12 +11,11 @@ dump_single_sample() {
     local width="$1"
     local sample="$2"
     . "${CT_TOP_DIR}/samples/${sample}/crosstool.config"
-    # Build the components string
-    local str="${CT_KERNEL}-${CT_KERNEL_VERSION}"
-    str="${str} binutils-${CT_BINUTILS_VERSION}"
-    str="${str} ${CT_CC}-${CT_CC_VERSION}"
-    str="${str} ${CT_LIBC}-${CT_LIBC_VERSION}"
-    printf "  %-*s - %s\n" ${width} "${sample}" "${str}"
+    printf "  %-*s" ${width} "${sample}"
+    [ -f "${CT_TOP_DIR}/samples/${sample}/broken" ] && printf "  (broken)"
+    echo
+    echo "    | ${CT_KERNEL}-${CT_KERNEL_VERSION} binutils-${CT_BINUTILS_VERSION}"
+    echo "    \ ${CT_CC}-${CT_CC_VERSION} ${CT_LIBC}-${CT_LIBC_VERSION}"
 }
 
 # Get largest sample width
