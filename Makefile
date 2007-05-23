@@ -26,13 +26,15 @@ include $(CT_TOP_DIR)/samples/Makefile
 help::
 	@echo  'Build targets:'
 	@echo  '* build          - Build the toolchain'
-	@echo  '  tarball        - Build a tarball of the configured toolchain'
 	@echo  '  clean          - Remove generated files'
 	@echo  '  distclean      - Remove generated files, configuration and build directories'
 
 include $(CT_TOP_DIR)/tools/Makefile
 
 help::
+	@echo  'Distribution targets:'
+	@echo  '  tarball        - Build a tarball of the configured toolchain'
+	@echo
 	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
 	@echo  'Pass RESTART=<step> to restart a previously saved step (read doc first!)'
 
