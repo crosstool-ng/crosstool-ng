@@ -14,8 +14,8 @@ dump_single_sample() {
     printf "  %-*s" ${width} "${sample}"
     [ -f "${CT_TOP_DIR}/samples/${sample}/broken" ] && printf "  (broken)"
     echo
-    echo "    | ${CT_KERNEL}-${CT_KERNEL_VERSION} binutils-${CT_BINUTILS_VERSION}"
-    echo "    \ ${CT_CC}-${CT_CC_VERSION} ${CT_LIBC}-${CT_LIBC_VERSION}"
+    echo "   \   ${CT_KERNEL}-${CT_KERNEL_VERSION} binutils-${CT_BINUTILS_VERSION}"
+    echo "    \_ ${CT_CC}-${CT_CC_VERSION} ${CT_LIBC}-${CT_LIBC_VERSION}"
 }
 
 # Get largest sample width
