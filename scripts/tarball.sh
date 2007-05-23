@@ -12,11 +12,6 @@
 exec 6>&1
 exec >/dev/null
 
-# Override log level
-unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG
-CT_LOG_INFO=y
-CT_LOG_LEVEL_MAX="INFO"
-
 # Parse the configuration file:
 . ${CT_TOP_DIR}/.config
 
@@ -25,6 +20,11 @@ CT_DoBuildTargetTriplet
 # Kludge: if any of the config options needs either CT_TARGET or CT_TOP_DIR,
 # re-parse them:
 . "${CT_TOP_DIR}/.config"
+
+# Override log level
+unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG
+CT_LOG_INFO=y
+CT_LOG_LEVEL_MAX="INFO"
 
 # Build the files' base names
 CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
