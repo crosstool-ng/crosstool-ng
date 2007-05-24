@@ -276,7 +276,7 @@ if [ -z "${CT_RESTART}" ]; then
         # Do test here...
     else
         CT_HOST="${CT_BUILD}"
-        CT_CANADIAN_OPT=
+        CT_CANADIAN_OPT="--build=${CT_BUILD}"
         # Add the target toolchain in the path so that we can build the C library
         export PATH="${CT_PREFIX_DIR}/bin:${CT_CC_CORE_PREFIX_DIR}/bin:${PATH}"
     fi
