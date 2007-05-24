@@ -82,7 +82,7 @@ do_cc() {
         --enable-long-long                      \
         ${CT_CC_EXTRA_CONFIG}                   2>&1 |CT_DoLog ALL
 
-    if [ ! "${CT_CANADIAN}" = "y" ]; then
+    if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
         make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog ALL
     fi
