@@ -410,6 +410,10 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         fi
         if [ ${do_it} -eq 1 ]; then
             do_${step}
+            if [ "${CT_STOP}" = "${step}" ]; then
+                CT_DoLog ERROR "Stopping just after step \"${step}\", as requested."
+                exit 0
+            fi
             if [ "${CTDEBUG_CT_PAUSE_STEPS}" = "y" ]; then
                 CT_DoPause "Step \"${step}\" finished"
             fi

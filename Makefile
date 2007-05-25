@@ -9,6 +9,7 @@ export CT_TOP_DIR=$(shell pwd)
 # This is crosstool-ng version string
 export CT_VERSION=$(shell cat $(CT_TOP_DIR)/version)
 
+export CT_STOP=$(STOP)
 export CT_RESTART=$(RESTART)
 
 .PHONY: all
@@ -35,8 +36,11 @@ help::
 	@echo  'Distribution targets:'
 	@echo  '  tarball        - Build a tarball of the configured toolchain'
 	@echo
+	@echo  'Environement variables:'
+	@echo  '  STOP           - Stop the build just after this step'
+	@echo  '  RESTART        - Restart the build just before this step'
+	@echo
 	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
-	@echo  'Pass RESTART=<step> to restart a previously saved step (read doc first!)'
 
 .config: $(CONFIG_FILES) $(CT_TOP_DIR)/config/debug.in
 	@make oldconfig

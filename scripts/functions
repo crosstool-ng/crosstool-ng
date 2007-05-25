@@ -519,12 +519,14 @@ CT_DoSaveState() {
 CT_DoLoadState(){
     local state_name="$1"
     local state_dir="${CT_STATE_DIR}/${state_name}"
+    local old_RESTART="${CT_RESTART}"
+    local old_STOP="${CT_STOP}"
 
     # We need to do something special with the log file!
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
         exec >"${state_dir}/tail.log"
     fi
-    CT_DoLog DEBUG "Restoring state at step \"${state_name}\"..."
+    CT_DoLog INFO "Restoring state at step \"${state_name}\", as requested."
 
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
         y)  tar_opt=xzf; tar_ext=".tar.gz";;
@@ -550,6 +552,11 @@ CT_DoLoadState(){
     # (for example, read-only bash internals)
     CT_DoLog DEBUG "  Restoring environment"
     . "${state_dir}/env.sh" >/dev/null 2>&1 || true
+
+    # Restore the new RESTART and STOP steps
+    CT_RESTART="${old_RESTART}"
+    CT_STOP="${old_STOP}"
+    unset old_stop old_restart
 
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
         CT_DoLog DEBUG "  Restoring log file"
