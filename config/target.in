@@ -19,52 +19,73 @@ choice
 config ARCH_ARM
     bool
     prompt "arm"
-    select ARCH_SUPPORTS_BE
-    select ARCH_SUPPORTS_LE
+    select ARCH_SUPPORTS_BOTH_ENDIAN
     select ARCH_SUPPORTS_LIBFLOAT
 
 config ARCH_MIPS
     bool
     prompt "mips"
-    select ARCH_SUPPORTS_BE
-    select ARCH_SUPPORTS_LE
+    select ARCH_SUPPORTS_BOTH_ENDIAN
 
 config ARCH_x86
     bool
     prompt "x86"
-    select ARCH_SUPPORTS_LE
     select ARCH_SUPPORTS_LIBFLOAT
 
 config ARCH_x86_64
     bool
     prompt "x86_64"
-    select ARCH_SUPPORTS_LE
 
 endchoice
 
-config ARCH_SUPPORTS_BE
-    bool
-    default n
-
-config ARCH_SUPPORTS_LE
+config ARCH_SUPPORTS_BOTH_ENDIAN
     bool
     default n
 
 choice
     bool
     prompt "Endianness:"
+    depends on ARCH_SUPPORTS_BOTH_ENDIAN
 
 config ARCH_BE
     bool
     prompt "Big endian"
-    depends on ARCH_SUPPORTS_BE
 
 config ARCH_LE
     bool
     prompt "Little endian"
-    depends on ARCH_SUPPORTS_LE
 
 endchoice
+
+choice
+    bool
+    prompt "Threading implentation to use:"
+    default THREADS_NPTL           if LIBC_SUPPORT_NPTL
+    default THREADS_LINUXTHREADS   if LIBC_SUPPORT_LINUXTHREADS && ! LIBC_SUPPORT_NPTL
+    default THREADS_NONE           if ! LIBC_SUPPORT_LINUXTHREADS && ! LIBC_SUPPORT_NPTL
+
+config THREADS_NPTL
+    bool
+    prompt "nptl (EXPERIMENTAL)"
+    depends on LIBC_SUPPORT_NPTL
+    depends on EXPERIMENTAL
+
+config THREADS_LINUXTHREADS
+    bool
+    prompt "linuxthreads"
+    depends on LIBC_SUPPORT_LINUXTHREADS
+
+config THREADS_NONE
+    bool
+    prompt "none"
+
+endchoice
+
+config THREADS
+    string
+    default "nptl"          if THREADS_NPTL
+    default "linuxthreads"  if THREADS_LINUXTHREADS
+    default "none"          if THREADS_NONE
 
 comment "Target optimisations"
 

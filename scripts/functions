@@ -2,6 +2,7 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# Prepare the fault handler
 CT_OnError() {
     ret=$?
     CT_DoLog ERROR "Build failed in step \"${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}\""
@@ -17,10 +18,22 @@ CT_OnError() {
     CT_DoEnd ERROR
     exit $ret
 }
+
+# Install the fault handler
 trap CT_OnError ERR
 
+# Inherit the fault handler in subshells and functions
 set -E
+
+# Make pipes fail on the _first_ failed command
+# Not supported on bash < 3.x, but we need it, so drop the obsoleting bash-2.x
 set -o pipefail
+
+# Don't hash commands' locations, and search every time it is requested.
+# This is slow, but needed because of the static/shared core gcc which shall
+# always match to shared if it exists, and only fallback to static if the
+# shared is not found
+set +o hashall
 
 # The different log levels:
 CT_LOG_LEVEL_ERROR=0
@@ -392,8 +405,16 @@ CT_ExtractAndPatch() {
     # a libc addon, or a plain package. Apply patches now.
     CT_DoLog EXTRA "Patching \"${file}\""
 
-    # If libc addon, we're already in the correct place.
-    [ -z "${libc_addon}" ] && cd "${file}"
+    if [ "${libc_addon}" = "y" ]; then
+        # Some addons tarball directly contian the correct addon directory,
+        # while others have the addon directory named ofter the tarball.
+        # Fix that bu always using the short name (eg: linuxthreads, ports, etc...)
+        addon_short_name=`echo "${file}" |sed -r -e 's/^[^-]+-//; s/-[^-]+$//;'`
+        [ -d "${addon_short_name}" ] || ln -s "${file}" "${addon_short_name}"
+        # If libc addon, we're already in the correct place
+    else
+        cd "${file}"
+    fi
 
     [ "${CUSTOM_PATCH_ONLY}" = "y" ] || official_patch_dir="${CT_TOP_DIR}/patches/${base_file}/${ver_file}"
     [ "${CT_CUSTOM_PATCH}" = "y" ] && custom_patch_dir="${CT_CUSTOM_PATCH_DIR}/${base_file}/${ver_file}"
@@ -493,14 +514,19 @@ CT_DoSaveState() {
          $0 == "}" { _p = 1; }
          ' |egrep -v '^[^ ]+ \(\)' >"${state_dir}/env.sh"
 
-    CT_DoLog DEBUG "  Saving CT_CC_CORE_PREFIX_DIR=\"${CT_CC_CORE_PREFIX_DIR}\""
-    CT_Pushd "${CT_CC_CORE_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/cc_core_prefix_dir${tar_ext}" .
+    CT_DoLog DEBUG "  Saving CT_CC_CORE_STATIC_PREFIX_DIR=\"${CT_CC_CORE_STATIC_PREFIX_DIR}\""
+    CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/cc_core_static_prefix_dir${tar_ext}" .
+    CT_Popd
+
+    CT_DoLog DEBUG "  Saving CT_CC_CORE_SHARED_PREFIX_DIR=\"${CT_CC_CORE_SHARED_PREFIX_DIR}\""
+    CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/cc_core_shared_prefix_dir${tar_ext}" .
     CT_Popd
 
     CT_DoLog DEBUG "  Saving CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
     CT_Pushd "${CT_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/prefix_dir${tar_ext}" .
+    tar ${tar_opt} "${state_dir}/prefix_dir${tar_ext}" --exclude '*.log' .
     CT_Popd
 
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
@@ -514,7 +540,7 @@ CT_DoSaveState() {
     fi
 }
 
-# This functions restores a previously saved state
+# This function restores a previously saved state
 # Usage: CT_DoLoadState <state_name>
 CT_DoLoadState(){
     local state_name="$1"
@@ -534,18 +560,23 @@ CT_DoLoadState(){
     esac
 
     CT_DoLog DEBUG "  Removing previous build directories"
-    chmod -R u+rwX "${CT_PREFIX_DIR}" "${CT_CC_CORE_PREFIX_DIR}"
-    rm -rf         "${CT_PREFIX_DIR}" "${CT_CC_CORE_PREFIX_DIR}"
-    mkdir -p       "${CT_PREFIX_DIR}" "${CT_CC_CORE_PREFIX_DIR}"
+    chmod -R u+rwX "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+    rm -rf         "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+    mkdir -p       "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
 
     CT_DoLog DEBUG "  Restoring CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
     CT_Pushd "${CT_PREFIX_DIR}"
     tar ${tar_opt} "${state_dir}/prefix_dir${tar_ext}"
     CT_Popd
 
-    CT_DoLog DEBUG "  Restoring CT_CC_CORE_PREFIX_DIR=\"${CT_CC_CORE_PREFIX_DIR}\""
-    CT_Pushd "${CT_CC_CORE_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/cc_core_prefix_dir${tar_ext}"
+    CT_DoLog DEBUG "  Restoring CT_CC_CORE_SHARED_PREFIX_DIR=\"${CT_CC_CORE_SHARED_PREFIX_DIR}\""
+    CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/cc_core_shared_prefix_dir${tar_ext}"
+    CT_Popd
+
+    CT_DoLog DEBUG "  Restoring CT_CC_CORE_STATIC_PREFIX_DIR=\"${CT_CC_CORE_STATIC_PREFIX_DIR}\""
+    CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+    tar ${tar_opt} "${state_dir}/cc_core_static_prefix_dir${tar_ext}"
     CT_Popd
 
     # Restore the environment, discarding any error message

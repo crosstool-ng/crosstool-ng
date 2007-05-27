@@ -31,7 +31,7 @@ CT_STAR_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
 #  - first of all, save stdout so we can see the live logs: fd #6
 exec 6>&1
 #  - then point stdout to the log file (temporary for now)
-tmp_log_file="${CT_TOP_DIR}/$$.log"
+tmp_log_file="${CT_TOP_DIR}/log.$$"
 exec >>"${tmp_log_file}"
 
 # Are we configured? We'll need that later...
@@ -118,7 +118,8 @@ CT_DEBUG_INSTALL_DIR="${CT_INSTALL_DIR}/${CT_TARGET}/debug-root"
 # Note: we'll always install the core compiler in its own directory, so as to
 # not mix the two builds: core and final. Anyway, its generic, wether we use
 # a different compiler as core, or not.
-CT_CC_CORE_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core"
+CT_CC_CORE_STATIC_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-static"
+CT_CC_CORE_SHARED_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-shared"
 CT_STATE_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/state"
 
 # Make all path absolute, it so much easier!
@@ -201,11 +202,12 @@ mkdir -p "${CT_BUILD_DIR}"
 mkdir -p "${CT_INSTALL_DIR}"
 mkdir -p "${CT_PREFIX_DIR}"
 mkdir -p "${CT_DEBUG_INSTALL_DIR}"
-mkdir -p "${CT_CC_CORE_PREFIX_DIR}"
+mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
 mkdir -p "${CT_STATE_DIR}"
 
 # Kludge: CT_INSTALL_DIR and CT_PREFIX_DIR might have grown read-only if
-# the previous build was successfull. To ba able to move the logfile there,
+# the previous build was successfull. To be able to move the logfile there,
 # switch them back to read/write
 chmod -R u+w "${CT_INSTALL_DIR}" "${CT_PREFIX_DIR}"
 
@@ -269,16 +271,22 @@ if [ -z "${CT_RESTART}" ]; then
     mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
 
     # Canadian-cross are really picky on the way they are built. Tweak the values.
+    CT_UNIQ_BUILD=`echo "${CT_BUILD}" |sed -r -e 's/-/-build_/'`
     if [ "${CT_CANADIAN}" = "y" ]; then
         # Arrange so that gcc never, ever think that build system == host system
-        CT_CANADIAN_OPT="--build=`echo \"${CT_BUILD}\" |sed -r -e 's/-/-build_/'`"
+        CT_CANADIAN_OPT="--build=${CT_UNIQ_BUILD}"
         # We shall have a compiler for this target!
         # Do test here...
     else
         CT_HOST="${CT_BUILD}"
         CT_CANADIAN_OPT="--build=${CT_BUILD}"
         # Add the target toolchain in the path so that we can build the C library
-        export PATH="${CT_PREFIX_DIR}/bin:${CT_CC_CORE_PREFIX_DIR}/bin:${PATH}"
+        # Carefully add paths in the order we want them:
+        #  - first try in ${CT_PREFIX_DIR}/bin
+        #  - then try in ${CT_CC_CORE_SHARED_PREFIX_DIR}/bin
+        #  - then try in ${CT_CC_CORE_STATIC_PREFIX_DIR}/bin
+        #  - fall back to searching user's PATH
+        export PATH="${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}"
     fi
 
     # Modify GCC_HOST to never be equal to $BUILD or $TARGET
@@ -294,7 +302,7 @@ if [ -z "${CT_RESTART}" ]; then
     # (Copied almost as-is from original crosstool):
     case "${CT_KERNEL},${CT_CANADIAN}" in
         cygwin,y) ;;
-        *)        CT_HOST="`echo \"${CT_HOST}\" |sed -r -e 's/-/-host_/;'`";;
+        *,y)      CT_HOST="`echo \"${CT_HOST}\" |sed -r -e 's/-/-host_/;'`";;
     esac
 
     # Ah! Recent versions of binutils need some of the build and/or host system
@@ -304,10 +312,9 @@ if [ -z "${CT_RESTART}" ]; then
     mkdir -p "${CT_PREFIX_DIR}/bin"
     for tool in ar as dlltool gcc g++ gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
         if [ -n "`which ${tool}`" ]; then
-            ln -sv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
-            case "${CT_TOOLCHAIN_TYPE}" in
-                cross|native)   ln -sv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}";;
-            esac
+            ln -sfv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
+            ln -sfv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}"
+            ln -sfv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
         fi |CT_DoLog DEBUG
     done
 
@@ -392,8 +399,10 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
                 kernel_check_config     \
                 kernel_headers          \
                 binutils                \
+                cc_core_pass_1          \
                 libc_headers            \
-                cc_core                 \
+                libc_start_files        \
+                cc_core_pass_2          \
                 libfloat                \
                 libc                    \
                 cc                      \

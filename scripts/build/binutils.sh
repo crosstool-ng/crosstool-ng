@@ -39,14 +39,18 @@ do_binutils() {
     CT_DoLog EXTRA "Installing binutils"
     make install            2>&1 |CT_DoLog ALL
 
-    # Make those new tools available to the core C compiler to come:
+    # Make those new tools available to the core C compilers to come:
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
     # well. Create that (libfloat is one such sucker).
-    mkdir -p "${CT_CC_CORE_PREFIX_DIR}/${CT_TARGET}/bin"
-    mkdir -p "${CT_CC_CORE_PREFIX_DIR}/bin"
+    mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin"
+    mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin"
+    mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin"
+    mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin"
     for t in ar as ld strip; do
-        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
-        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
+        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
+        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
+        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
+        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
     done |CT_DoLog ALL
 
     CT_EndStep

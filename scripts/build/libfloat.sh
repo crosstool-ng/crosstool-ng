@@ -40,11 +40,11 @@ do_libfloat() {
     make clean 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building library"
-    make CROSS_COMPILE="${CT_CC_CORE_PREFIX_DIR}/bin/${CT_TARGET}-" 2>&1 |CT_DoLog ALL
+    make CROSS_COMPILE="${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-" 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing library"
-    make CROSS_COMPILE="${CT_CC_CORE_PREFIX_DIR}/bin/${CT_TARGET}-" \
-         DESTDIR="${CT_SYSROOT_DIR}" install                       2>&1 |CT_DoLog ALL
+    make CROSS_COMPILE="${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-"  \
+         DESTDIR="${CT_SYSROOT_DIR}" install                                2>&1 |CT_DoLog ALL
 
     CT_Popd
 

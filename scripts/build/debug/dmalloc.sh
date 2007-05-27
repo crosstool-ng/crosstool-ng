@@ -22,7 +22,7 @@ do_debug_dmalloc_build() {
         y)  extra_config="${extra_config} --enable-cxx";;
         *)  extra_config="${extra_config} --disable-cxx";;
     esac
-    case "${CT_LIBC_THREADS_NONE}" in
+    case "${CT_THREADS_NONE}" in
         y)  extra_config="${extra_config} --disable-threads";;
         *)  extra_config="${extra_config} --enable-threads";;
     esac

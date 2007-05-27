@@ -79,6 +79,11 @@ do_libc_headers() {
     CT_EndStep
 }
 
+# Build and install start files
+do_libc_start_files() {
+    :
+}
+
 # This function build and install the full uClibc
 do_libc() {
     CT_DoStep INFO "Installing C library"

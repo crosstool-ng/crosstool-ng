@@ -31,10 +31,15 @@ help::
 	@echo  '  distclean      - Remove generated files, configuration and build directories'
 
 include $(CT_TOP_DIR)/tools/Makefile
+include $(CT_TOP_DIR)/Makefile.steps
 
 help::
 	@echo  'Distribution targets:'
 	@echo  '  tarball        - Build a tarball of the configured toolchain'
+	@echo  ''
+	@echo  'Environement variables:'
+	@echo  '  STOP           - Stop the build just after this step'
+	@echo  '  RESTART        - Restart the build just before this step'
 	@echo
 	@echo  'Environement variables:'
 	@echo  '  STOP           - Stop the build just after this step'
@@ -56,4 +61,5 @@ tarball:
 .PHONY: distclean
 distclean:: clean
 	@rm -f .config* ..config.tmp
+	@rm -f log.*
 	@rm -rf "$(CT_TOP_DIR)/targets"

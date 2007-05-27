@@ -11,10 +11,13 @@ do_libc_get() {
 
     # C library addons
     addons_list=`echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e 's/,/ /g; s/ $//g;'`
+    case "${CT_THREADS}" in
+        linuxthreads)   addons_list="${addons_list} linuxthreads";;
+    esac
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list} ports"
     for addon in ${addons_list}; do
         CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
     done
-    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_GetFile "${CT_LIBC}-ports-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
 
     return 0
 }
@@ -25,10 +28,13 @@ do_libc_extract() {
 
     # C library addons
     addons_list=`echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e 's/,/ /g; s/ $//g;'`
+    case "${CT_THREADS}" in
+        linuxthreads)   addons_list="${addons_list} linuxthreads";;
+    esac
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list} ports"
     for addon in ${addons_list}; do
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
     done
-    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_ExtractAndPatch "${CT_LIBC}-ports-${CT_LIBC_VERSION}"
 
     return 0
 }
@@ -68,21 +74,27 @@ do_libc_headers() {
     # 'a version of binutils that supports .machine "altivec" is needed'.
 
     # We also need to use the ports addon if specified
-    addons=
-    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons="${CT_LIBC}-ports-${CT_LIBC_VERSION}"
+    addons_list=
+    case "${CT_LIBC_ADDONS},${CT_LIBC_GLIBC_USE_PORTS}" in
+        y,y)    addons_list="${CT_LIBC_ADDONS_LIST},ports";;
+        y,)     addons_list="${CT_LIBC_ADDONS_LIST}";;
+        ,y)     addons_list="ports";;
+        *)      addons_list="";;
+    esac
+    addons_config="--enable-add-ons=`echo ${addons_list} |sed -r -e 's/,+/,/g; s/^,+//; s/,+$//;'`"
 
     libc_cv_ppc_machine=yes                     \
     CC=${CT_CC_NATIVE}                          \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
-        --build="${CT_BUILD}"                   \
+        --build="${CT_UNIQ_BUILD}"              \
         --host="${CT_TARGET}"                   \
         --prefix=/usr                           \
         --with-headers="${CT_HEADERS_DIR}"      \
         --without-cvs                           \
         --disable-sanity-checks                 \
         --enable-hacker-mode                    \
-        --enable-add-ons="${addons}"            \
-        --without-nptl                          2>&1 |CT_DoLog ALL
+        --without-nptl                          \
+        ${addons_config}                        2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing C library headers"
 
@@ -133,6 +145,131 @@ do_libc_headers() {
     # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
     [ "${CT_ARCH}" != "arm" ] && cp misc/syscall-list.h "${CT_HEADERS_DIR}/bits/syscall.h" || true
 
+    # Those headers are to be manually copied so gcc can build properly
+    pthread_h=
+    pthreadtypes_h=
+    case "${CT_THREADS}" in
+        nptl)
+            # NOTE: for some archs, the pathes are different, but they are not
+            # supported by ct-ng right now. See original crosstool when they are.
+            pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
+            pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/nptl/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/bits/pthreadtypes.h"
+            ;;
+        linuxthreads)
+            pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
+            pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/linuxthreads/sysdeps/pthread/bits/pthreadtypes.h"
+            ;;
+    esac
+    if [ -n "${pthread_h}" ]; then
+        cp -v "${pthread_h}" "${CT_HEADERS_DIR}/pthread.h" 2>&1 |CT_DoLog ALL
+    fi
+    if [ -n "${pthreadtypes_h}" ]; then
+        cp -v "${pthreadtypes_h}" "${CT_HEADERS_DIR}/bits/pthreadtypes.h" 2>&1 |CT_DoLog ALL
+    fi
+
+    CT_EndStep
+}
+
+# Build and install start files
+do_libc_start_files() {
+    # Needed only in the NPTL case. Otherwise, return.
+    [ "${CT_THREADS}" = "nptl" ] || return 0
+
+    CT_DoStep INFO "Installing C library start files"
+
+    mkdir -p "${CT_BUILD_DIR}/build-libc-startfiles"
+    cd "${CT_BUILD_DIR}/build-libc-startfiles"
+
+    CT_DoLog EXTRA "Configuring C library"
+
+    # Add some default glibc config options if not given by user.
+    extra_config=""
+    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+        *enable-kernel*) ;;
+        *) extra_config="${extra_config} --enable-kernel=`echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;'`"
+    esac
+    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+        *-tls*) ;;
+        *) extra_config="${extra_config} --with-tls"
+    esac
+    case "${CT_SHARED_LIBS}" in
+        y) extra_config="${extra_config} --enable-shared";;
+        *) extra_config="${extra_config} --disable-shared";;
+    esac
+    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+        *--with-fp*) ;;
+        *--without-fp*) ;;
+        *)  case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
+                y,) extra_config="${extra_config} --with-fp";;
+                ,y) extra_config="${extra_config} --without-fp";;
+            esac;;
+    esac
+    # Obviously, we want threads, as we come here only for NPTL
+    extra_config="${extra_config} --with-__thread"
+
+    addons_list=
+    case "${CT_LIBC_ADDONS},${CT_LIBC_GLIBC_USE_PORTS}" in
+        y,y)    addons_list="nptl,${CT_LIBC_ADDONS_LIST},ports";;
+        y,)     addons_list="nptl,${CT_LIBC_ADDONS_LIST}";;
+        ,y)     addons_list="nptl,ports";;
+        *)      addons_list="nptl";;
+    esac
+    addons_config="--enable-add-ons=`echo ${addons_list} |sed -r -e 's/,+/,/g; s/^,+//; s/,+$//;'`"
+    extra_config="${extra_config} ${addons_config}"
+
+    # Add some default CC args
+    extra_cc_args="${CT_CFLAGS_FOR_HOST}"
+    case "${CT_LIBC_EXTRA_CC_ARGS}" in
+        *-mbig-endian*) ;;
+        *-mlittle-endian*) ;;
+        *)  case "${CT_ARCH_BE},${CT_ARCH_LE}" in
+                y,) extra_cc_args="${extra_cc_args} -mbig-endian";;
+                ,y) extra_cc_args="${extra_cc_args} -mlittle-endian";;
+            esac;;
+    esac
+
+    CT_DoLog DEBUG "Configuring with addons : \"${addons_list}\""
+    CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
+    CT_DoLog DEBUG "Extra CC args passed: \"${extra_cc_args}\""
+
+    # sh3 and sh4 really need to set configparms as of gcc-3.4/glibc-2.3.2
+    # note: this is awkward, doesn't work well if you need more than one line in configparms
+    echo ${CT_LIBC_GLIBC_CONFIGPARMS} > configparms
+
+    echo "libc_cv_forced_unwind=yes" > config.cache
+    echo "libc_cv_c_cleanup=yes" >> config.cache
+
+    # Please see the comment for the configure step in do_libc().
+
+    BUILD_CC=${CT_CC_NATIVE}                                        \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
+    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    AR=${CT_TARGET}-ar                                              \
+    RANLIB=${CT_TARGET}-ranlib                                      \
+    "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
+        --prefix=/usr                                               \
+        --build="${CT_UNIQ_BUILD}"                                  \
+        --host=${CT_TARGET}                                         \
+        --without-cvs                                               \
+        --disable-profile                                           \
+        --disable-debug                                             \
+        --without-gd                                                \
+        --with-headers="${CT_HEADERS_DIR}"                          \
+        --cache-file=config.cache                                   \
+        ${extra_config}                                             \
+        ${CT_LIBC_GLIBC_EXTRA_CONFIG}                               2>&1 |CT_DoLog ALL
+
+
+    #TODO: should check whether slibdir has been set in configparms to */lib64
+    #      and copy the startfiles into the appropriate libdir.
+    make csu/subdir_lib 2>&1 |CT_DoLog ALL
+
+    if [ "${CT_USE_SYSROOT}" = "y" ]; then
+        cp -fp csu/crt[1in].o "${CT_SYSROOT_DIR}/usr/lib/"
+    else
+        cp -fp csu/crt[1in].o "${CT_SYSROOT_DIR}/lib/"
+    fi
+
     CT_EndStep
 }
 
@@ -146,51 +283,59 @@ do_libc() {
     CT_DoLog EXTRA "Configuring C library"
 
     # Add some default glibc config options if not given by user.
-    extra_config=""
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *enable-kernel*) ;;
-        *) extra_config="${extra_config} --enable-kernel=`echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;'`"
+    # We don't need to be conditional on wether the user did set different
+    # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
+
+    extra_config="--enable-kernel=`echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;'`"
+
+    case "${CT_THREADS}" in
+        nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
+        linuxthreads)   extra_config="${extra_config} --with-__thread --without-tls --without-nptl";;
+        none)           extra_config="${extra_config} --without-__thread --without-nptl"
+                        case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+                            *-tls*) ;;
+                            *) extra_config="${extra_config} --without-tls";;
+                        esac
+                        ;;
     esac
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *-tls*) ;;
-        *) extra_config="${extra_config} --without-tls"
-    esac
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *-__thread*) ;;
-        *) extra_config="${extra_config} --without-__thread"
-    esac
+
     case "${CT_SHARED_LIBS}" in
         y) extra_config="${extra_config} --enable-shared";;
         *) extra_config="${extra_config} --disable-shared";;
     esac
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-    	*--with-fp*) ;;
-    	*--without-fp*) ;;
-    	*)  case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-                y,) extra_config="${extra_config} --with-fp";;
-                ,y) extra_config="${extra_config} --without-fp";;
-            esac;;
+
+    case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
+        y,) extra_config="${extra_config} --with-fp";;
+        ,y) extra_config="${extra_config} --without-fp";;
     esac
 
+    addons_list=
     case "${CT_LIBC_ADDONS},${CT_LIBC_GLIBC_USE_PORTS}" in
-        y,y)    addons_config="--enable-add-ons=${CT_LIBC_ADDONS_LIST},${CT_LIBC}-ports-${CT_LIBC_VERSION}";;
-        y,)     addons_config="--enable-add-ons=${CT_LIBC_ADDONS_LIST}";;
-        ,y)     addons_config="--enable-add-ons=${CT_LIBC}-ports-${CT_LIBC_VERSION}";;
-        *)      addons_config="";;
+        y,y)    addons_list="${CT_LIBC_ADDONS_LIST},ports";;
+        y,)     addons_list="${CT_LIBC_ADDONS_LIST}";;
+        ,y)     addons_list="ports";;
+        *)      addons_list="";;
     esac
+    case "${CT_THREADS}" in
+        none)   ;;
+        *)      addons_list="${addons_list},${CT_THREADS}";;
+    esac
+    case "${addons_list}" in
+        "") ;;
+        *)  addons_config="--enable-add-ons=`echo ${addons_list} |sed -r -e 's/,+/,/g; s/^,+//g; s/,+$//;'`";;
+    esac
+    extra_config="${extra_config} ${addons_config}"
 
     # Add some default CC args
-    extra_cc_args="${CT_CFLAGS_FOR_HOST}"
-    case "${CT_LIBC_EXTRA_CC_ARGS}" in
-        *-mbig-endian*) ;;
-        *-mlittle-endian*) ;;
-        *)  case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-                y,) extra_cc_args="${extra_cc_args} -mbig-endian";;
-                ,y) extra_cc_args="${extra_cc_args} -mlittle-endian";;
-            esac;;
+    if [ "${CT_USE_PIPES}" = "y" ]; then
+        extra_cc_args="-pipe"
+    fi
+    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
+        y,) extra_cc_args="${extra_cc_args} -mbig-endian";;
+        ,y) extra_cc_args="${extra_cc_args} -mlittle-endian";;
     esac
 
-    CT_DoLog DEBUG "Configuring with addons : \"${addons_config}\""
+    CT_DoLog DEBUG "Configuring with addons : \"${addons_list}\""
     CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
     CT_DoLog DEBUG "Extra CC args passed: \"${extra_cc_args}\""
 
@@ -201,11 +346,10 @@ do_libc() {
     # For glibc 2.3.4 and later we need to set some autoconf cache
     # variables, because nptl/sysdeps/pthread/configure.in does not
     # work when cross-compiling.
-    if test -d ${GLIBC_DIR}/nptl; then
-        libc_cv_forced_unwind=yes
-        libc_cv_c_cleanup=yes
-        export libc_cv_forced_unwind libc_cv_c_cleanup
-    fi
+    if [ "${CT_THREADS}" = "nptl" ]; then
+        echo libc_cv_forced_unwind=yes
+        echo libc_cv_c_cleanup=yes
+    fi >config.cache
 
     # Configure with --prefix the way we want it on the target...
     # There are a whole lot of settings here.  You'll probably want
@@ -216,19 +360,26 @@ do_libc() {
     # Set BUILD_CC, or you won't be able to build datafiles
     # Set --build, else glibc-2.3.2 will think you're not cross-compiling, and try to run the test programs
 
+    # OK. I'm fed up with those folks telling me what I should do.
+    # I don't configure nptl? Well, maybe that's purposedly because
+    # I don't want nptl! --disable-sanity-checks will shut up those
+    # silly messages. GNU folks again, he?
+
     BUILD_CC=${CT_CC_NATIVE}                                        \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
-    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    CC="${CT_TARGET}-gcc ${extra_cc_args} ${CT_LIBC_EXTRA_CC_ARGS}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
         --prefix=/usr                                               \
-        --build=${CT_BUILD} --host=${CT_TARGET}                     \
+        --build=${CT_UNIQ_BUILD}                                    \
+        --host=${CT_TARGET}                                         \
         --without-cvs                                               \
-        --without-nptl                                              \
         --disable-profile                                           \
         --disable-debug                                             \
         --without-gd                                                \
+        --disable-sanity-checks                                     \
+        --cache-file=config.cache                                   \
         --with-headers="${CT_HEADERS_DIR}"                          \
         ${addons_config}                                            \
         ${extra_config}                                             \
