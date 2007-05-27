@@ -29,10 +29,10 @@ do_libfloat() {
     # builds OK with those versions of gcc that have severed softfloat support
     # code
     CT_DoStep INFO "Installing software floating point emulation library libfloat"
-    mkdir build-libfloat
+    CT_Pushd "${CT_BUILD_DIR}"
+    mkdir -p build-libfloat
     cd build-libfloat
 
-    CT_Pushd "${CT_BUILD_DIR}"
     CT_DoLog EXTRA "Copying sources to build dir"
     ( cd "${CT_SRC_DIR}/${CT_LIBFLOAT_FILE}"; tar cf - . ) |tar xvf - |CT_DoLog ALL
 
@@ -40,11 +40,10 @@ do_libfloat() {
     make clean 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building library"
-    make CROSS_COMPILE="${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-" 2>&1 |CT_DoLog ALL
+    make CROSS_COMPILE="${CT_TARGET}-" 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing library"
-    make CROSS_COMPILE="${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-"  \
-         DESTDIR="${CT_SYSROOT_DIR}" install                                2>&1 |CT_DoLog ALL
+    make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
 
     CT_Popd
 
