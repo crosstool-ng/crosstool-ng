@@ -451,6 +451,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
 
     CT_DoLog EXTRA "Removing access to the build system tools"
     find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
+    find "${CT_PREFIX_DIR}/bin" -name "${CT_UNIQ_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
 fi
 
