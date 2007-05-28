@@ -54,13 +54,6 @@ CT_EndStep
 # Some sanity checks in the environment and needed tools
 CT_DoLog INFO "Checking environment sanity"
 
-# First of really first of really all, **must not** move lower than here!
-if [ -n "${CT_RESTART}" -a -z "${CT_DEBUG_CT_SAVE_STEPS}" ]; then
-    CT_DoLog ERROR "You asked to restart a non-restartable build"
-    CT_DoLog ERROR "This happened because you didn't set CT_DEBUG_CT_SAVE_STEPS in the config options"
-    CT_Abort "I will stop here to avoid any carnage"
-fi
-
 # Enable known ordering of files in directory listings:
 CT_Test "Crosstool-NG might not work as expected with LANG=\"${LANG}\"" -n "${LANG}"
 case "${LC_COLLATE},${LC_ALL}" in
@@ -112,7 +105,7 @@ CT_LIBFLOAT_FILE="libfloat-${CT_LIBFLOAT_VERSION}"
 
 # Where will we work?
 CT_TARBALLS_DIR="${CT_TOP_DIR}/targets/tarballs"
-CT_SRC_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/src"
+CT_SRC_DIR="${CT_TOP_DIR}/targets/src"
 CT_BUILD_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/build"
 CT_DEBUG_INSTALL_DIR="${CT_INSTALL_DIR}/${CT_TARGET}/debug-root"
 # Note: we'll always install the core compiler in its own directory, so as to
@@ -121,6 +114,14 @@ CT_DEBUG_INSTALL_DIR="${CT_INSTALL_DIR}/${CT_TARGET}/debug-root"
 CT_CC_CORE_STATIC_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-static"
 CT_CC_CORE_SHARED_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-shared"
 CT_STATE_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/state"
+
+# We must ensure that we can restart if asked for!
+if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
+    CT_DoLog ERROR "You asked to restart a non-restartable build"
+    CT_DoLog ERROR "This happened because you didn't set CT_DEBUG_CT_SAVE_STEPS"
+    CT_DoLog ERROR "in the config options for the previous build"
+    CT_Abort "I will stop here to avoid any carnage"
+fi
 
 # Make all path absolute, it so much easier!
 CT_LOCAL_TARBALLS_DIR="`CT_MakeAbsolutePath \"${CT_LOCAL_TARBALLS_DIR}\"`"
@@ -394,6 +395,8 @@ fi
 # Now for the job by itself. Go have a coffee!
 if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     # Because of CT_RESTART, this becomes quite complex
+    do_stop=0
+    prev_step=
     [ -n "${CT_RESTART}" ] && do_it=0 || do_it=1
     for step in libc_check_config       \
                 kernel_check_config     \
@@ -413,20 +416,25 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
             if [ "${CT_RESTART}" = "${step}" ]; then
                 CT_DoLoadState "${step}"
                 do_it=1
+                do_stop=0
             fi
         else
             CT_DoSaveState ${step}
+            if [ ${do_stop} -eq 1 ]; then
+                CT_DoLog ERROR "Stopping just after step \"${prev_step}\", as requested."
+                exit 0
+            fi
         fi
         if [ ${do_it} -eq 1 ]; then
             do_${step}
             if [ "${CT_STOP}" = "${step}" ]; then
-                CT_DoLog ERROR "Stopping just after step \"${step}\", as requested."
-                exit 0
+                do_stop=1
             fi
             if [ "${CTDEBUG_CT_PAUSE_STEPS}" = "y" ]; then
                 CT_DoPause "Step \"${step}\" finished"
             fi
         fi
+        prev_step="${step}"
     done
 
     # Create the aliases to the target tools
