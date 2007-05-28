@@ -67,8 +67,7 @@ CT_DoLog() {
         cat -
     else
         echo "${1}"
-    fi |( offset=$((`CT_DoDate +%s`+(CT_STAR_DATE/(1000*1000*1000))))
-          IFS="\n" # We want the full lines, even leading spaces
+    fi |( IFS="\n" # We want the full lines, even leading spaces
           CT_PROG_BAR_CPT=0
           indent=$((2*CT_STEP_COUNT))
           while read line; do
@@ -86,12 +85,11 @@ CT_DoLog() {
                   echo -e "\r${l}" >&6
               fi
               if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
-                  elapsed=$((SECONDS+OFFSET))
                   [ ${CT_PROG_BAR_CPT} -eq 0  ] && bar="/"
                   [ ${CT_PROG_BAR_CPT} -eq 10 ] && bar="-"
                   [ ${CT_PROG_BAR_CPT} -eq 20 ] && bar="\\"
                   [ ${CT_PROG_BAR_CPT} -eq 30 ] && bar="|"
-                  printf "\r[%02d:%02d] %s " $((elapsed/60)) $((elapsed%60)) "${bar}" >&6
+                  printf "\r[%02d:%02d] %s " $((SECONDS/60)) $((SECONDS%60)) "${bar}" >&6
                   CT_PROG_BAR_CPT=$(((CT_PROG_BAR_CPT+1)%40))
               fi
           done
@@ -547,6 +545,8 @@ CT_DoLoadState(){
     local state_dir="${CT_STATE_DIR}/${state_name}"
     local old_RESTART="${CT_RESTART}"
     local old_STOP="${CT_STOP}"
+
+    CT_TestOrAbort "The previous build did not reach the point where it could be restarted at \"${CT_RESTART}\"" -d "${state_dir}"
 
     # We need to do something special with the log file!
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
