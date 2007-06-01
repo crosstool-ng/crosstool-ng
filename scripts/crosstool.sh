@@ -363,6 +363,7 @@ fi
 . "${CT_TOP_DIR}/scripts/build/cc_core_${CT_CC_CORE}.sh"
 . "${CT_TOP_DIR}/scripts/build/cc_${CT_CC}.sh"
 . "${CT_TOP_DIR}/scripts/build/debug.sh"
+. "${CT_TOP_DIR}/scripts/build/tools.sh"
 
 if [ -z "${CT_RESTART}" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
@@ -372,6 +373,7 @@ if [ -z "${CT_RESTART}" ]; then
     do_libfloat_get
     do_libc_get
     do_cc_get
+    do_tools_get
     do_debug_get
     CT_EndStep
 
@@ -387,6 +389,7 @@ if [ -z "${CT_RESTART}" ]; then
         do_libfloat_extract
         do_libc_extract
         do_cc_extract
+        do_tools_extract
         do_debug_extract
         CT_EndStep
     fi
@@ -410,6 +413,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
                 libc                    \
                 cc                      \
                 libc_finish             \
+                tools                   \
                 debug                   \
                 ; do
         if [ ${do_it} -eq 0 ]; then

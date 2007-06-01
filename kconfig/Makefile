@@ -2,6 +2,9 @@
 # crosstool-ng configuration targets
 # These targets are used from top-level makefile
 
+# Derive the project version from, well, the project version:
+export PROJECTVERSION=$(CT_VERSION)
+
 KCONFIG_TOP = config/config.in
 obj = ./kconfig
 PHONY += clean help oldconfig menuconfig config silentoldconfig \
@@ -18,11 +21,14 @@ endif
 
 # Build a list of all config files
 CONFIG_FILES = $(filter-out %debug.in,$(shell find $(CT_TOP_DIR)/config -type f -name '*.in'))
+DEBUG_CONFIG_FILES = $(shell find $(CT_TOP_DIR)/config/debug -type f -name '*.in')
+TOOLS_CONFIG_FILES = $(shell find $(CT_TOP_DIR)/config/tools -type f -name '*.in')
 
-# Derive the project version from, well, the project version:
-export PROJECTVERSION=$(CT_VERSION)
+.PHONY: generated_config_files
+generated_config_files: $(CT_TOP_DIR)/config/debug.in	\
+						$(CT_TOP_DIR)/config/tools.in
 
-$(CT_TOP_DIR)/config/debug.in: $(CONFIG_FILES)
+$(CT_TOP_DIR)/config/debug.in: $(DEBUG_CONFIG_FILES)
 	@echo "# Debug facilities menu" >$@
 	@echo "# Generated file, do not edit!!!" >>$@
 	@echo "menu \"Debug facilities\"" >>$@
@@ -31,13 +37,22 @@ $(CT_TOP_DIR)/config/debug.in: $(CONFIG_FILES)
 	 done >>$@
 	@echo "endmenu" >>$@
 
-menuconfig: $(obj)/mconf $(CT_TOP_DIR)/config/debug.in
+$(CT_TOP_DIR)/config/tools.in: $(TOOLS_CONFIG_FILES)
+	@echo "# Tools facilities menu" >$@
+	@echo "# Generated file, do not edit!!!" >>$@
+	@echo "menu \"Tools facilities\"" >>$@
+	@for f in $(patsubst $(CT_TOP_DIR)/%,%,$(wildcard $(CT_TOP_DIR)/config/tools/*.in)); do \
+	     echo "source $${f}";                                                               \
+	 done >>$@
+	@echo "endmenu" >>$@
+
+menuconfig: $(obj)/mconf generated_config_files
 	@$< $(KCONFIG_TOP)
 
-config: $(obj)/conf $(CT_TOP_DIR)/config/debug.in
+config: $(obj)/conf generated_config_files
 	@$< $(KCONFIG_TOP)
 
-oldconfig: $(obj)/conf $(CT_TOP_DIR)/config/debug.in
+oldconfig: $(obj)/conf generated_config_files
 	@$< -s $(KCONFIG_TOP)
 
 # Help text used by make help
@@ -66,4 +81,4 @@ kconfig/conf: $(SHIPPED) kconfig/conf.c
 
 clean::
 	@rm -f $(wildcard kconfig/*zconf*.c) kconfig/{conf,mconf}
-	@rm -f "$(CT_TOP_DIR)/config/debug.in"
+	@rm -f "$(CT_TOP_DIR)/config/debug.in" "$(CT_TOP_DIR)/config/tools.in"
