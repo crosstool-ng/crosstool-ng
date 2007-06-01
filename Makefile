@@ -40,11 +40,7 @@ help::
 	@echo  'Environement variables:'
 	@echo  '  STOP           - Stop the build just after this step'
 	@echo  '  RESTART        - Restart the build just before this step'
-	@echo
-	@echo  'Environement variables:'
-	@echo  '  STOP           - Stop the build just after this step'
-	@echo  '  RESTART        - Restart the build just before this step'
-	@echo
+	@echo  ''
 	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
 
 .config: $(CONFIG_FILES) $(CT_TOP_DIR)/config/debug.in
