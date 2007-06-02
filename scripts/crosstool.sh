@@ -405,10 +405,10 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
                 kernel_check_config     \
                 kernel_headers          \
                 binutils                \
-                cc_core_static          \
+                cc_core_pass_1          \
                 libc_headers            \
                 libc_start_files        \
-                cc_core_shared          \
+                cc_core_pass_2          \
                 libfloat                \
                 libc                    \
                 cc                      \
