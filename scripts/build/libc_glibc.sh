@@ -10,12 +10,9 @@ do_libc_get() {
     CT_GetFile "${CT_LIBC_FILE}" ftp://ftp.gnu.org/gnu/glibc
 
     # C library addons
-    addons_list=`echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e 's/,/ /g; s/ $//g;'`
-    case "${CT_THREADS}" in
-        linuxthreads)   addons_list="${addons_list} linuxthreads";;
-    esac
-    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list} ports"
-    for addon in ${addons_list}; do
+    for addon in `do_libc_add_ons_list " "`; do
+        # NPTL addon is not to be downloaded, in any case
+        [ "${addon}" = "nptl" ] && continue || true
         CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
     done
 
@@ -27,12 +24,9 @@ do_libc_extract() {
     CT_ExtractAndPatch "${CT_LIBC_FILE}"
 
     # C library addons
-    addons_list=`echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e 's/,/ /g; s/ $//g;'`
-    case "${CT_THREADS}" in
-        linuxthreads)   addons_list="${addons_list} linuxthreads";;
-    esac
-    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list} ports"
-    for addon in ${addons_list}; do
+    for addon in `do_libc_add_ons_list " "`; do
+        # NPTL addon is not to be extracted, in any case
+        [ "${addon}" = "nptl" ] && continue || true
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
     done
 
@@ -73,15 +67,15 @@ do_libc_headers() {
     # Override libc_cv_ppc_machine so glibc-cvs doesn't complain
     # 'a version of binutils that supports .machine "altivec" is needed'.
 
-    # We also need to use the ports addon if specified
-    addons_list=
-    case "${CT_LIBC_ADDONS},${CT_LIBC_GLIBC_USE_PORTS}" in
-        y,y)    addons_list="${CT_LIBC_ADDONS_LIST},ports";;
-        y,)     addons_list="${CT_LIBC_ADDONS_LIST}";;
-        ,y)     addons_list="ports";;
-        *)      addons_list="";;
-    esac
-    addons_config="--enable-add-ons=`echo ${addons_list} |sed -r -e 's/,+/,/g; s/^,+//; s/,+$//;'`"
+    addons_config="--enable-add-ons=`do_libc_add_ons_list ,`"
+    # We need to remove any threading addon when installing headers
+    addons_config="${addons_config//nptl/}"
+    addons_config="${addons_config//linuxthreads/}"
+    addons_config=`echo "${addons_config}" |sed -r -e 's/,+/,/g; s/^,+//; s/,+$//;'`
+
+    cross_cc=`which "${CT_TARGET}-gcc" || true`
+    CT_DoLog DEBUG "Using gcc for target: \"${cross_cc}\""
+    CT_DoLog DEBUG "Extra config passed : \"${addons_config}\""
 
     libc_cv_ppc_machine=yes                     \
     CC=${CT_CC_NATIVE}                          \
@@ -93,8 +87,8 @@ do_libc_headers() {
         --without-cvs                           \
         --disable-sanity-checks                 \
         --enable-hacker-mode                    \
-        --without-nptl                          \
-        ${addons_config}                        2>&1 |CT_DoLog ALL
+        ${addons_config}                        \
+        --without-nptl                          2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing C library headers"
 
@@ -207,14 +201,7 @@ do_libc_start_files() {
     # Obviously, we want threads, as we come here only for NPTL
     extra_config="${extra_config} --with-__thread"
 
-    addons_list=
-    case "${CT_LIBC_ADDONS},${CT_LIBC_GLIBC_USE_PORTS}" in
-        y,y)    addons_list="nptl,${CT_LIBC_ADDONS_LIST},ports";;
-        y,)     addons_list="nptl,${CT_LIBC_ADDONS_LIST}";;
-        ,y)     addons_list="nptl,ports";;
-        *)      addons_list="nptl";;
-    esac
-    addons_config="--enable-add-ons=`echo ${addons_list} |sed -r -e 's/,+/,/g; s/^,+//; s/,+$//;'`"
+    addons_config="--enable-add-ons=`do_libc_add_ons_list ,`"
     extra_config="${extra_config} ${addons_config}"
 
     # Add some default CC args
@@ -228,9 +215,11 @@ do_libc_start_files() {
             esac;;
     esac
 
-    CT_DoLog DEBUG "Configuring with addons : \"${addons_list}\""
+    cross_cc=`which "${CT_TARGET}-gcc" || true`
+    CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""
+    CT_DoLog DEBUG "Configuring with addons : \"`do_libc_add_ons_list ,`\""
     CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
-    CT_DoLog DEBUG "Extra CC args passed: \"${extra_cc_args}\""
+    CT_DoLog DEBUG "Extra CC args passed    : \"${extra_cc_args}\""
 
     # sh3 and sh4 really need to set configparms as of gcc-3.4/glibc-2.3.2
     # note: this is awkward, doesn't work well if you need more than one line in configparms
@@ -309,22 +298,11 @@ do_libc() {
         ,y) extra_config="${extra_config} --without-fp";;
     esac
 
-    addons_list=
-    case "${CT_LIBC_ADDONS},${CT_LIBC_GLIBC_USE_PORTS}" in
-        y,y)    addons_list="${CT_LIBC_ADDONS_LIST},ports";;
-        y,)     addons_list="${CT_LIBC_ADDONS_LIST}";;
-        ,y)     addons_list="ports";;
-        *)      addons_list="";;
-    esac
-    case "${CT_THREADS}" in
-        none)   ;;
-        *)      addons_list="${addons_list},${CT_THREADS}";;
-    esac
-    case "${addons_list}" in
+    case "`do_libc_add_ons_list ,`" in
         "") ;;
-        *)  addons_config="--enable-add-ons=`echo ${addons_list} |sed -r -e 's/,+/,/g; s/^,+//g; s/,+$//;'`";;
+        *)  extra_config="${extra_config} --enable-add-ons=`do_libc_add_ons_list ,`";;
     esac
-    extra_config="${extra_config} ${addons_config}"
+
 
     # Add some default CC args
     if [ "${CT_USE_PIPES}" = "y" ]; then
@@ -335,9 +313,11 @@ do_libc() {
         ,y) extra_cc_args="${extra_cc_args} -mlittle-endian";;
     esac
 
-    CT_DoLog DEBUG "Configuring with addons : \"${addons_list}\""
+    cross_cc=`which "${CT_TARGET}-gcc" || true`
+    CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""
+    CT_DoLog DEBUG "Configuring with addons : \"`do_libc_add_ons_list ,`\""
     CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
-    CT_DoLog DEBUG "Extra CC args passed: \"${extra_cc_args}\""
+    CT_DoLog DEBUG "Extra CC args passed    : \"${extra_cc_args}\""
 
     # sh3 and sh4 really need to set configparms as of gcc-3.4/glibc-2.3.2
     # note: this is awkward, doesn't work well if you need more than one line in configparms
@@ -381,7 +361,6 @@ do_libc() {
         --disable-sanity-checks                                     \
         --cache-file=config.cache                                   \
         --with-headers="${CT_HEADERS_DIR}"                          \
-        ${addons_config}                                            \
         ${extra_config}                                             \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}                               2>&1 |CT_DoLog ALL
 
@@ -478,3 +457,17 @@ do_libc_finish() {
 
     CT_EndStep
 }
+
+# Build up the addons list, separated with $1
+do_libc_add_ons_list() {
+    local sep="$1"
+    local addons_list=`echo "${CT_LIBC_ADDONS_LIST//,/${sep}}" |tr -s ,`
+    case "${CT_THREADS}" in
+        none)   ;;
+        *)      addons_list="${addons_list}${sep}${CT_THREADS}";;
+    esac
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
+    addons_list="${addons_list%%${sep}}"
+    echo "${addons_list##${sep}}"
+}
+
