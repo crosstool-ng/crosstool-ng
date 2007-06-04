@@ -36,7 +36,7 @@ case "${CT_SSTRIP_FROM}" in
                 return 0
             fi
             CT_Pushd "${CT_SRC_DIR}"
-            CT_DoLog EXTRA "Retrieving sstrip (buildroot)"
+            CT_DoLog EXTRA "Retrieving \"sstrip\" (from buildroot's svn)"
             mkdir -p sstrip
             cd sstrip
             http_data=`lynx -dump "${sstrip_url}"`
