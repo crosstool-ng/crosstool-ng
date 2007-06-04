@@ -62,7 +62,7 @@ CT_Pushd "${CT_TOP_DIR}/.."
 botdir=`pwd`
 
 # Build the list of files to exclude:
-echo "${topdir}/*.log" >"${tempdir}/${CT_TARGET}.list"
+echo "${topdir}/log.*" >"${tempdir}/${CT_TARGET}.list"
 echo "${topdir}/targets/*-*-*-*" >>"${tempdir}/${CT_TARGET}.list"
 for t in `ls -1 "${topdir}/targets/tarballs/"`; do
     case "${CT_TARBALLS}" in
