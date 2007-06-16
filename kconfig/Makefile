@@ -55,7 +55,7 @@ oldconfig: $(obj)/conf $(GEN_CONFIG_FILES)
 	@$< -s $(KCONFIG_TOP)
 
 defoldconfig:$(obj)/conf $(GEN_CONFIG_FILES)
-	@$< -s $(KCONFIG_TOP) >/dev/null
+	@yes "" |$< -s $(KCONFIG_TOP) >/dev/null
 
 # Help text used by make help
 help::
