@@ -2,6 +2,11 @@
 
 is_enabled="${CT_GDB}"
 
+do_print_filename() {
+    [ "${CT_GDB}" = "y" ] || return 0
+    echo "gdb`do_debug_gdb_suffix`"
+}
+
 do_debug_gdb_suffix() {
     case "${CT_GDB_VERSION}" in
         snapshot)   ;;

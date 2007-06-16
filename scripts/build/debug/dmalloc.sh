@@ -2,6 +2,11 @@
 
 is_enabled="${CT_DMALLOC}"
 
+do_print_filename() {
+    [ "${CT_DMALLOC}" = "y" ] || return 0
+    echo "dmalloc-${CT_DMALLOC_VERSION}"
+}
+
 do_debug_dmalloc_get() {
     CT_GetFile "dmalloc-${CT_DMALLOC_VERSION}" http://dmalloc.com/releases/
 }

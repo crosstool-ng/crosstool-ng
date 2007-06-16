@@ -2,6 +2,16 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+do_print_filename() {
+    [ "${CT_LIBC}" = "glibc" ] || return 0
+    echo "${CT_LIBC_FILE}"
+    for addon in `do_libc_add_ons_list " "`; do
+        # NPTL addon is not to be downloaded, in any case
+        [ "${addon}" = "nptl" ] && continue || true
+        echo "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+    done
+}
+
 # Download glibc
 do_libc_get() {
     # Ah! Not all GNU folks seem stupid. All glibc releases are in the same

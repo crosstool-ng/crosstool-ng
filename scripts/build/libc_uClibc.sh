@@ -2,6 +2,12 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+do_print_filename() {
+    [ "${CT_LIBC}" = "uClibc" ] || return 0
+    echo "${CT_LIBC_FILE}"
+    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && echo "uClibc-locale-030818" || true
+}
+
 # Download uClibc
 do_libc_get() {
 	libc_src="http://www.uclibc.org/downloads
@@ -12,7 +18,7 @@ do_libc_get() {
     # later...
     CT_GetFile "${CT_LIBC_FILE}" ${libc_src}
     # uClibc locales
-    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_GetFile "uClibc-locale-030818" ${libc_src}
+    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_GetFile "uClibc-locale-030818" ${libc_src} || true
 
     return 0
 }
@@ -21,7 +27,7 @@ do_libc_get() {
 do_libc_extract() {
     CT_ExtractAndPatch "${CT_LIBC_FILE}"
     # uClibc locales
-    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_ExtractAndPatch "uClibc-locale-030818"
+    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_ExtractAndPatch "uClibc-locale-030818" || true
 
     return 0
 }

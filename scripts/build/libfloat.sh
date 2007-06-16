@@ -5,6 +5,10 @@
 # Define libfloat functions depending on wether it is selected or not
 if [ "${CT_ARCH_FLOAT_SW_LIBFLOAT}" = "y" ]; then
 
+do_print_filename() {
+    echo "${CT_LIBFLOAT_FILE}"
+}
+
 # Download libfloat
 do_libfloat_get() {
     # Ah! libfloat separates the version string from the base name with
@@ -14,7 +18,7 @@ do_libfloat_get() {
                ftp://ftp.de.debian.org/debian/pool/main/libf/libfloat
     CT_Pushd "${CT_TARBALLS_DIR}"
     ext=`CT_GetFileExtension "${libfloat_file}"`
-    ln -svf "${libfloat_file}${ext}" "${CT_LIBFLOAT_FILE}${ext}" |CT_DoLog DEBUG
+    ln -vf "${libfloat_file}${ext}" "${CT_LIBFLOAT_FILE}${ext}" |CT_DoLog DEBUG
     CT_Popd
 }
 
@@ -52,6 +56,9 @@ do_libfloat() {
 
 else # "${CT_ARCH_FLOAT_SW_LIBFLOAT}" != "y"
 
+do_print_filename() {
+    true
+}
 do_libfloat_get() {
     true
 }

@@ -2,6 +2,10 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+do_print_filename() {
+    echo "${CT_BINUTILS_FILE}"
+}
+
 # Download binutils
 do_binutils_get() {
     CT_GetFile "${CT_BINUTILS_FILE}"                            \

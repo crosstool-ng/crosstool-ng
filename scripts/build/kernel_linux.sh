@@ -2,6 +2,11 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+do_print_filename() {
+    [ "${CT_KERNEL}" = "linux" ] || return 0
+    echo "${CT_KERNEL_FILE}"
+}
+
 # Download the kernel
 do_kernel_get() {
     if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then

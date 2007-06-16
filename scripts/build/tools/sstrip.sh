@@ -4,6 +4,9 @@ is_enabled="${CT_SSTRIP}"
 
 case "${CT_SSTRIP_FROM}" in
     ELFkickers)
+        do_print_filename() {
+            echo "ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}"
+        }
         do_tools_sstrip_get() {
             CT_GetFile "ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}"     \
                        http://www.muppetlabs.com/~breadbox/pub/software
@@ -29,16 +32,17 @@ case "${CT_SSTRIP_FROM}" in
 
     buildroot)
         sstrip_url='http://buildroot.uclibc.org/cgi-bin/viewcvs.cgi/trunk/buildroot/toolchain/sstrip/sstrip.c'
+        do_print_filename() {
+            echo "sstrip.c"
+        }
         do_tools_sstrip_get() {
             # With this one, we must handle the download by ourselves,
             # we can't leave the job to the classic CT_GetFile.
-            if [ -f "${CT_SRC_DIR}/sstrip/sstrip.c" ]; then
+            if [ -f "${CT_TARBALLS_DIR}/sstrip.c" ]; then
                 return 0
             fi
-            CT_Pushd "${CT_SRC_DIR}"
+            CT_Pushd "${CT_TARBALLS_DIR}"
             CT_DoLog EXTRA "Retrieving \"sstrip\" (from buildroot's svn)"
-            mkdir -p sstrip
-            cd sstrip
             http_data=`lynx -dump "${sstrip_url}"`
             link=`echo -en "${http_data}"                           \
                   |egrep '\[[[:digit:]]+\]download'                 \
@@ -52,7 +56,8 @@ case "${CT_SSTRIP_FROM}" in
         }
         do_tools_sstrip_extract() {
             # We'll let buildroot guys take care of sstrip maintenance and patching.
-            :
+            mkdir -p "${CT_SRC_DIR}/sstrip"
+            cp -v "${CT_TARBALLS_DIR}/sstrip.c" "${CT_SRC_DIR}/sstrip" |CT_DoLog ALL
         }
         do_tools_sstrip_build() {
             CT_DoStep INFO "Installing sstrip"
@@ -66,6 +71,20 @@ case "${CT_SSTRIP_FROM}" in
             install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip" 2>&1 |CT_DoLog ALL
 
             CT_EndStep
+        }
+    ;;
+
+    *)  do_print_filename() {
+            :
+        }
+        do_tools_sstrip_get() {
+            :
+        }
+        do_tools_sstrip_extract() {
+            :
+        }
+        do_tools_sstrip_build() {
+            :
         }
     ;;
 esac
