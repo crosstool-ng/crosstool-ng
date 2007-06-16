@@ -10,8 +10,9 @@
 
 . "${CT_TOP_DIR}/scripts/functions"
 
-exec 6>&1
+# Don't care about any log file
 exec >/dev/null
+rm -f "${tmp_log_file}"
 
 # Parse the configuration file
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"

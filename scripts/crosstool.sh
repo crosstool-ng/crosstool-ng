@@ -27,13 +27,6 @@ fi
 CT_STAR_DATE=`CT_DoDate +%s%N`
 CT_STAR_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
 
-# Log policy:
-#  - first of all, save stdout so we can see the live logs: fd #6
-exec 6>&1
-#  - then point stdout to the log file (temporary for now)
-tmp_log_file="${CT_TOP_DIR}/log.$$"
-exec >>"${tmp_log_file}"
-
 # Are we configured? We'll need that later...
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
 
