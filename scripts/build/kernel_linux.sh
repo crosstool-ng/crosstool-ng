@@ -4,7 +4,10 @@
 
 do_print_filename() {
     [ "${CT_KERNEL}" = "linux" ] || return 0
-    echo "${CT_KERNEL_FILE}"
+    case "${CT_KERNEL_LINUX_HEADERS_SANITISED}" in
+        y)  echo "linux-libc-headers-${CT_KERNEL_VERSION}";;
+        *)  echo "linux-${CT_KERNEL_VERSION}";;
+    esac
 }
 
 # Download the kernel

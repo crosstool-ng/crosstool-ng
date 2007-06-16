@@ -4,7 +4,7 @@
 
 do_print_filename() {
     [ "${CT_LIBC}" = "uClibc" ] || return 0
-    echo "${CT_LIBC_FILE}"
+    echo "uClibc-${CT_LIBC_VERSION}"
     [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && echo "uClibc-locale-030818" || true
 }
 

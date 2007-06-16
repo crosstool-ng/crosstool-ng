@@ -4,7 +4,7 @@
 
 do_print_filename() {
     [ "${CT_CC_CORE}" = "gcc" ] || return 0
-    echo "${CT_CC_CORE_FILE}"
+    echo "gcc-${CT_CC_CORE_VERSION}"
 }
 
 # Download core gcc

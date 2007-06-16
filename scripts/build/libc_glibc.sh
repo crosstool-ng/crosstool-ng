@@ -4,11 +4,11 @@
 
 do_print_filename() {
     [ "${CT_LIBC}" = "glibc" ] || return 0
-    echo "${CT_LIBC_FILE}"
+    echo "glibc-${CT_LIBC_VERSION}"
     for addon in `do_libc_add_ons_list " "`; do
         # NPTL addon is not to be downloaded, in any case
         [ "${addon}" = "nptl" ] && continue || true
-        echo "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+        echo "glibc-${addon}-${CT_LIBC_VERSION}"
     done
 }
 

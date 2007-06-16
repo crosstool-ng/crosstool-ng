@@ -4,7 +4,7 @@
 
 do_print_filename() {
     [ "${CT_CC}" = "gcc" ] || return 0
-    echo "${CT_CC_FILE}"
+    echo "gcc-${CT_CC_VERSION}"
 }
 
 # Download final gcc

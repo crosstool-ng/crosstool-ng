@@ -6,7 +6,7 @@
 if [ "${CT_ARCH_FLOAT_SW_LIBFLOAT}" = "y" ]; then
 
 do_print_filename() {
-    echo "${CT_LIBFLOAT_FILE}"
+    echo "libfloat-${CT_LIBFLOAT_VERSION}"
 }
 
 # Download libfloat
