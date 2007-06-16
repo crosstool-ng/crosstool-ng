@@ -503,7 +503,6 @@ int main(int ac, char **av)
 			break;
 		case 's':
 			input_mode = ask_silent;
-			valid_stdin = isatty(0) && isatty(1) && isatty(2);
 			break;
 		case 'd':
 			input_mode = set_default;
