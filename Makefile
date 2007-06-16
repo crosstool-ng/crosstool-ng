@@ -43,8 +43,8 @@ help::
 	@echo  ''
 	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
 
-.config: $(CONFIG_FILES) $(CT_TOP_DIR)/config/debug.in
-	@make oldconfig
+.config:
+	@echo "You must run either one of \"make config\" or \"make menuconfig\" first"
 
 # Actual build
 build: .config
@@ -58,4 +58,5 @@ tarball:
 distclean:: clean
 	@rm -f .config* ..config.tmp
 	@rm -f log.*
+	@[ ! -d "$(CT_TOP_DIR)/targets" ] || chmod -R u+w "$(CT_TOP_DIR)/targets"
 	@rm -rf "$(CT_TOP_DIR)/targets"
