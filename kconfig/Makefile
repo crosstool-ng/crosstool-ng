@@ -24,9 +24,8 @@ CONFIG_FILES = $(filter-out %debug.in,$(shell find $(CT_TOP_DIR)/config -type f 
 DEBUG_CONFIG_FILES = $(shell find $(CT_TOP_DIR)/config/debug -type f -name '*.in')
 TOOLS_CONFIG_FILES = $(shell find $(CT_TOP_DIR)/config/tools -type f -name '*.in')
 
-.PHONY: generated_config_files
-generated_config_files: $(CT_TOP_DIR)/config/debug.in	\
-						$(CT_TOP_DIR)/config/tools.in
+GEN_CONFIG_FILES=$(CT_TOP_DIR)/config/debug.in	\
+				 $(CT_TOP_DIR)/config/tools.in
 
 $(CT_TOP_DIR)/config/debug.in: $(DEBUG_CONFIG_FILES)
 	@echo "# Debug facilities menu" >$@
@@ -46,14 +45,17 @@ $(CT_TOP_DIR)/config/tools.in: $(TOOLS_CONFIG_FILES)
 	 done >>$@
 	@echo "endmenu" >>$@
 
-menuconfig: $(obj)/mconf generated_config_files
+menuconfig: $(obj)/mconf $(GEN_CONFIG_FILES)
 	@$< $(KCONFIG_TOP)
 
-config: $(obj)/conf generated_config_files
+config: $(obj)/conf $(GEN_CONFIG_FILES)
 	@$< $(KCONFIG_TOP)
 
-oldconfig: $(obj)/conf generated_config_files
+oldconfig: $(obj)/conf $(GEN_CONFIG_FILES)
 	@$< -s $(KCONFIG_TOP)
+
+defoldconfig:$(obj)/conf $(GEN_CONFIG_FILES)
+	@$< -s $(KCONFIG_TOP) >/dev/null
 
 # Help text used by make help
 help::
@@ -81,4 +83,4 @@ kconfig/conf: $(SHIPPED) kconfig/conf.c
 
 clean::
 	@rm -f $(wildcard kconfig/*zconf*.c) kconfig/{conf,mconf}
-	@rm -f "$(CT_TOP_DIR)/config/debug.in" "$(CT_TOP_DIR)/config/tools.in"
+	@rm -f $(GEN_CONFIG_FILES)
