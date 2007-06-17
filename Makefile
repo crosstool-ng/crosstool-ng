@@ -46,6 +46,7 @@ help::
 
 .config:
 	@echo "You must run either one of \"make config\" or \"make menuconfig\" first"
+	@false
 
 # Actual build
 build: .config
