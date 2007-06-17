@@ -58,14 +58,10 @@ defoldconfig:$(obj)/conf $(GEN_CONFIG_FILES)
 	@yes "" |$< -s $(KCONFIG_TOP) >/dev/null
 
 # Help text used by make help
-help::
-	@echo  'General purpose configuration targets:'
+help-config::
 	@echo  '  config         - Update current config using a line-oriented program'
 	@echo  '  menuconfig     - Update current config using a menu based program'
 	@echo  '  oldconfig      - Update current config using a provided .config as base'
-	@# saveconfig is listed here for homogeneity, but implemented in samples/Makefile
-	@echo  '  saveconfig     - Save current config as a preconfigured target'
-	@echo  ''
 
 # Cheesy build
 

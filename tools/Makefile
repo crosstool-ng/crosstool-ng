@@ -7,6 +7,5 @@ updatetools:
 	@wget "$(CONFIG_SUB_SRC)" -O "$(CONFIG_SUB_DEST)"
 	@wget "$(CONFIG_GUESS_SRC)" -O "$(CONFIG_GUESS_DEST)"
 
-help::
+help-distrib::
 	@echo  '  updatetools    - Update the config tools'
-	@echo  ''

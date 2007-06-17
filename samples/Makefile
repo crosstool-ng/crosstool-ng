@@ -3,10 +3,14 @@
 # Build the list of available samples
 CT_SAMPLES = $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config))
 
-help::
-	@echo  'Preconfigured targets:'
+help-config::
+	@echo  '  saveconfig     - Save current config as a preconfigured target'
+
+help-samples::
 	@$(CT_TOP_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
-	@echo  ''
+
+help-build::
+	@echo  '  regtest        - Regtest-build all samples'
 
 # How we do build one sample
 .PHONY: $(CT_SAMPLES)

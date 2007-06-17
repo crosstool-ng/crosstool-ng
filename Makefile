@@ -17,32 +17,54 @@ all: build
 
 HOST_CC = gcc -funsigned-char
 
-help::
+# Help system
+help:: help-head help-config help-samples help-build help-distrib help-env help-tail
+
+help-head::
 	@echo  'Available make targets:'
+
+help-config::
 	@echo
+	@echo  'Configuration targets:'
 
-include $(CT_TOP_DIR)/kconfig/Makefile
-include $(CT_TOP_DIR)/samples/Makefile
+help-samples::
+	@echo
+	@echo  'Preconfigured targets:'
 
-help::
+help-build::
+	@echo
 	@echo  'Build targets:'
+
+help-distrib::
+	@echo
+	@echo  'Distribution targets:'
+
+help-env::
+	@echo
+	@echo  'Environement variables (see docs/overview.txt):'
+
+help-tail::
+	@echo
+	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
+
+# End help system
+
+help-build::
 	@echo  '* build          - Build the toolchain'
-	@echo  '  regtest        - Regtest-build all samples'
 	@echo  '  clean          - Remove generated files'
 	@echo  '  distclean      - Remove generated files, configuration and build directories'
 
+include $(CT_TOP_DIR)/kconfig/Makefile
+include $(CT_TOP_DIR)/samples/Makefile
 include $(CT_TOP_DIR)/tools/Makefile
 include $(CT_TOP_DIR)/Makefile.steps
 
-help::
-	@echo  'Distribution targets:'
+help-distrib::
 	@echo  '  tarball        - Build a tarball of the configured toolchain'
-	@echo  ''
-	@echo  'Environement variables (see docs/overview.txt):'
+
+help-env::
 	@echo  '  STOP           - Stop the build just after this step'
 	@echo  '  RESTART        - Restart the build just before this step'
-	@echo  ''
-	@echo  'Execute "make" or "make all" to build all targets marked with [*]'
 
 .config:
 	@echo "You must run either one of \"make config\" or \"make menuconfig\" first"
