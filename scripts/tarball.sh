@@ -9,8 +9,9 @@
 # We need the functions first:
 . "${CT_TOP_DIR}/scripts/functions"
 
-exec 6>&1
+# Don't care about any log file
 exec >/dev/null
+rm -f "${tmp_log_file}"
 
 # Parse the configuration file:
 . ${CT_TOP_DIR}/.config
@@ -21,34 +22,30 @@ CT_DoBuildTargetTriplet
 # re-parse them:
 . "${CT_TOP_DIR}/.config"
 
-# Override log level
-unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG
-CT_LOG_INFO=y
-CT_LOG_LEVEL_MAX="INFO"
-
-# Build the files' base names
-CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
-CT_BINUTILS_FILE="binutils-${CT_BINUTILS_VERSION}"
-CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
-for addon in ${CT_LIBC_ADDONS_LIST}; do
-    CT_LIBC_ADDONS_FILES="${CT_LIBC_ADDONS_FILES} ${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
-done
-[ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && CT_LIBC_ADDONS_FILES="${CT_LIBC_ADDONS_FILES} ${CT_LIBC}-ports-${CT_LIBC_VERSION}"
-[ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]  && CT_LIBC_ADDONS_FILES="${CT_LIBC_ADDONS_FILES} ${CT_LIBC}-locales-030818"
-[ "${CT_CC_USE_CORE}" = "y" ]          && CT_CC_CORE_FILE="${CT_CC_CORE}-${CT_CC_CORE_VERSION}"
-CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
-[ "${CT_ARCH_FLOAT_SW_LIBFLOAT}" = "y" ] && CT_LIBFLOAT_FILE="libfloat-990616"
-
-# Build a one-line list of the files to ease scanning below
+# Build a one-line list of files to include
+CT_DoStep DEBUG "Building list of tarballs to add"
 CT_TARBALLS_DIR="${CT_TOP_DIR}/targets/tarballs"
-CT_TARBALLS=" "
-for file_var in CT_KERNEL_FILE CT_BINUTILS_FILE CT_LIBC_FILE CT_LIBC_ADDONS_FILES CT_CC_CORE_FILE CT_CC_FILE CT_LIBFLOAT_FILE; do
-    for file in ${!file_var}; do
-        ext=`CT_GetFileExtension "${file}"`
-        CT_TestAndAbort "Missing tarball for: \"${file}\"" -z "${ext}"
-        CT_TARBALLS="${CT_TARBALLS}${file}${ext} "
+CT_TARBALLS=""
+for dir in '' tools debug; do
+    CT_DoStep DEBUG "Scanning directory \"${dir}\""
+    for script in "${CT_TOP_DIR}/scripts/build/${dir}/"*.sh; do
+        CT_DoStep DEBUG "Testing component \"${script}\""
+        [ -n "${script}" ] || continue
+        unset do_print_file_name
+        . "${script}"
+        for file in `do_print_filename`; do
+            CT_DoLog DEBUG "Finding tarball for \"${file}\""
+            [ -n "${file}" ] || continue
+            ext=`CT_GetFileExtension "${file}"`
+            CT_TestOrAbort "Missing tarball for: \"${file}\"" -f "${CT_TOP_DIR}/targets/tarballs/${file}${ext}"
+            CT_DoLog DEBUG "Found \"${file}${ext}\""
+            CT_TARBALLS="${CT_TARBALLS} ${file}${ext}"
+        done
+        CT_EndStep
     done
-done
+    CT_EndStep
+done    
+CT_EndStep
 
 # We need to emulate a build directory:
 CT_BUILD_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/build"
@@ -61,27 +58,39 @@ CT_Pushd "${CT_TOP_DIR}/.."
 
 botdir=`pwd`
 
-# Build the list of files to exclude:
-echo "${topdir}/log.*" >"${tempdir}/${CT_TARGET}.list"
-echo "${topdir}/targets/*-*-*-*" >>"${tempdir}/${CT_TARGET}.list"
-for t in `ls -1 "${topdir}/targets/tarballs/"`; do
-    case "${CT_TARBALLS}" in
-        *" ${t} "*) ;;
-        *)          echo "${topdir}/targets/tarballs/${t}" >>"${tempdir}/${CT_TARGET}.list"
-    esac
-done
+# Build the list of files to exclude
+CT_DoLog DEBUG "Building list of files to exclude"
+exclude_list="${tempdir}/${CT_TARGET}.list"
+{ echo ".svn";                                                  \
+  echo "${topdir}/log.*";                                       \
+  echo "${topdir}/targets/src";                                 \
+  echo "${topdir}/targets/tst";                                 \
+  echo "${topdir}/targets/*-*-*-*";                             \
+  for t in `ls -1 "${topdir}/targets/tarballs/"`; do            \
+      case " ${CT_TARBALLS} " in                                \
+          *" ${t} "*) ;;                                        \
+          *)          echo "${topdir}/targets/tarballs/${t}";;  \
+      esac;                                                     \
+  done;                                                         \
+} >"${exclude_list}"
 
-CT_DoLog INFO "Saving crosstool"
-tar cfj "${CT_PREFIX_DIR}/${topdir}.${CT_TARGET}.tar.bzip2" \
-    --no-wildcards-match-slash                              \
-    -X "${tempdir}/${CT_TARGET}.list"                       \
-    "${topdir}"                                             2>/dev/null
+# Render the install directory writable
+chmod u+w "${CT_PREFIX_DIR}"
+
+CT_DoLog INFO "Saving crosstool-ng into the toolchain directory"
+tar cvjf "${CT_PREFIX_DIR}/${topdir}.${CT_TARGET}.tar.bzip2"    \
+    --no-wildcards-match-slash                                  \
+    -X "${exclude_list}"                                        \
+    "${topdir}"                                                 2>&1 |CT_DoLog ALL
 
 CT_Popd
 
-# Save the generated toolchain
-CT_DoLog INFO "Saving the generated toolchain"
-tar cfj "${botdir}/${CT_TARGET}.tar.bz2" "${CT_PREFIX_DIR}" 2>/dev/null
+CT_DoLog INFO "Saving the toolchain"
+tar cvjf "${botdir}/${CT_TARGET}.tar.bz2" "${CT_PREFIX_DIR}"    2>&1 |CT_DoLog ALL
 
+CT_DoLog DEBUG "Getting rid of working directories"
 rm -f "${CT_PREFIX_DIR}/${topdir}.${CT_TARGET}.tar.bzip2"
 rm -rf "${tempdir}"
+
+# Render the install directory non-writable
+chmod u-w "${CT_PREFIX_DIR}"
