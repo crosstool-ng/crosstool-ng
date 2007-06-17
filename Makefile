@@ -37,7 +37,7 @@ help::
 	@echo  'Distribution targets:'
 	@echo  '  tarball        - Build a tarball of the configured toolchain'
 	@echo  ''
-	@echo  'Environement variables:'
+	@echo  'Environement variables (see docs/overview.txt):'
 	@echo  '  STOP           - Stop the build just after this step'
 	@echo  '  RESTART        - Restart the build just before this step'
 	@echo  ''

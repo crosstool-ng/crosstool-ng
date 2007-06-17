@@ -10,12 +10,9 @@ export GREP_OPTIONS=
 dump_single_sample() {
     local width="$1"
     local sample="$2"
-    . "${CT_TOP_DIR}/samples/${sample}/crosstool.config"
     printf "  %-*s" ${width} "${sample}"
     [ -f "${CT_TOP_DIR}/samples/${sample}/broken" ] && printf "  (broken)"
     echo
-    echo "   \   ${CT_KERNEL}-${CT_KERNEL_VERSION} binutils-${CT_BINUTILS_VERSION}"
-    echo "    \_ ${CT_CC}-${CT_CC_VERSION} ${CT_LIBC}-${CT_LIBC_VERSION}"
 }
 
 # Get largest sample width
