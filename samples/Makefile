@@ -34,7 +34,6 @@ regtest:
 	     sed -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config                                          &&  \
 	     sed -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config                                 &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config                                        &&  \
-	     sed -i -r -e 's:^.*(CT_LOG_FILE).*$$:\1="$${CT_PREFIX_DIR}/build.log":;' .config               &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config                                   &&  \
 	     yes "" |make -C $(CT_TOP_DIR) defoldconfig >/dev/null 2>&1                                     &&  \
 	     make -C $(CT_TOP_DIR)                                                                          &&  \

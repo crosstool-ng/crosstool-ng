@@ -92,5 +92,7 @@ CT_DoLog DEBUG "Getting rid of working directories"
 rm -f "${CT_PREFIX_DIR}/${topdir}.${CT_TARGET}.tar.bzip2"
 rm -rf "${tempdir}"
 
-# Render the install directory non-writable
-chmod u-w "${CT_PREFIX_DIR}"
+if [ "${CT_INSTALL_DIR_RO}" = "y" ]; then
+    # Render the install directory non-writable
+    chmod u-w "${CT_PREFIX_DIR}"
+fi

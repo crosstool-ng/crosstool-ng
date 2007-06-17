@@ -9,7 +9,7 @@ config FOOBAR
 
 menu "Paths and misc options"
 
-comment "Crosstool behavior"
+comment "Crosstool-ng behavior"
 
 config EXPERIMENTAL
     bool
@@ -194,6 +194,16 @@ config REMOVE_DOCS
       Remove the installed documentation (man and info pages).
       Gains around 8MiB for a uClibc-based, C and C++ compiler.
 
+config INSTALL_DIR_RO
+    bool
+    prompt "Render the toolchain read-only"
+    default n
+    help
+      Render the directory of the toolchain (and its sub-directories)
+      read-only.
+      
+      Usefull for toolchains destined for production.
+
 comment "Downloading"
 
 config FORCE_DOWNLOAD
@@ -252,7 +262,7 @@ config LOG_ERROR
     prompt "ERROR"
     help
       The build will be silent.
-      Only if there is an error will you see a mesage.
+      Only if there is an error will you see a message.
 
 config LOG_WARN
     bool
@@ -297,16 +307,18 @@ config LOG_LEVEL_MAX
 
 config LOG_SEE_TOOLS_WARN
     bool
-    prompt "Warnings from the tool builds as CT warnings"
+    prompt "Warnings from the tools' builds"
     default n
     depends on ! LOG_ERROR
     help
-      Treat warnings fron the different tools as crosstool warnings.
+      Treat warnings from the different tools as crosstool-ng warnings.
       If you say 'y' here, then those warnings will be prefixed with
       '[WARN ]' instead of the default '[ALL  ]'.
 
       You can safely say 'n' here. Those warnings will anyway be
       recorded in the log file (provided you configured one).
+
+      Tools error will always be logged as crosstool-ng errors.
 
 config LOG_PROGRESS_BAR
     bool
@@ -330,19 +342,20 @@ config LOG_TO_FILE
     default y
     help
       Save *full* logs to a file. Even log levels you didn't specify above
-      will be available in this file.
+      will be available in this file. The log file will be named build.log
+      and stored in the toolchain prefix dir (set above).
 
       As a bonus, there is a script in tools/extractConfig.sh that is able
       to extract the configuration of crosstool-NG from the log file.
 
       Definitely, say Y.
 
-config LOG_FILE
-    string
-    prompt "Log file"
-    default "${CT_PREFIX_DIR}/${CT_TARGET}.log"
+config LOG_FILE_COMPRESS
+    bool
+    prompt "Compress the log file"
+    default n
     depends on LOG_TO_FILE
     help
-      File name into which to put logs.
+      Compress the log file once the toolchain is successfully built.
 
 endmenu

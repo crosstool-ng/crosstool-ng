@@ -211,19 +211,14 @@ chmod -R u+w "${CT_INSTALL_DIR}" "${CT_PREFIX_DIR}"
 # directory, so we must first ensure it exists and is writeable (above) before
 # we can log there
 exec >/dev/null
-case "${CT_LOG_TO_FILE},${CT_LOG_FILE}" in
-    ,*)   rm -f "${tmp_log_file}"
-          ;;
-    y,/*) mkdir -p "`dirname \"${CT_LOG_FILE}\"`"
-          cat "${tmp_log_file}" >>"${CT_LOG_FILE}"
-          rm -f "${tmp_log_file}"
-          exec >>"${CT_LOG_FILE}"
-          ;;
-    y,*)  mkdir -p "`pwd`/`dirname \"${CT_LOG_FILE}\"`"
-          cat "${tmp_log_file}" >>"`pwd`/${CT_LOG_FILE}"
-          rm -f "${tmp_log_file}"
-          exec >>"${CT_LOG_FILE}"
-          ;;
+case "${CT_LOG_TO_FILE}" in
+    y)  CT_LOG_FILE="${CT_PREFIX_DIR}/build.log"
+        cat "${tmp_log_file}" >>"${CT_LOG_FILE}"
+        rm -f "${tmp_log_file}"
+        exec >>"${CT_LOG_FILE}"
+        ;;
+    *)  rm -f "${tmp_log_file}"
+        ;;
 esac
 
 # Setting up the rest of the environment only is not restarting
@@ -303,7 +298,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Ah! Recent versions of binutils need some of the build and/or host system
     # (read CT_BUILD and CT_HOST) tools to be accessible (ar is but an example).
     # Do that:
-    CT_DoLog EXTRA "Making build system tools available"
+    CT_DoLog DEBUG "Making build system tools available"
     mkdir -p "${CT_PREFIX_DIR}/bin"
     for tool in ar as dlltool gcc g++ gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
         if [ -n "`which ${tool}`" ]; then
@@ -455,22 +450,24 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         rm -rf "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
     fi
 
-    CT_DoLog EXTRA "Removing access to the build system tools"
+    CT_DoLog DEBUG "Removing access to the build system tools"
     find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_UNIQ_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
 fi
 
-# OK, now we're done, set the toolchain read-only
-# Don't log, the log file may become read-only any moment...
-chmod -R a-w "${CT_INSTALL_DIR}"
-
-# We still have some small bits to log
-chmod u+w "${CT_LOG_FILE}"
-
 CT_DoEnd INFO
 
-# All files should now be read-only, log file included
-chmod a-w "${CT_LOG_FILE}"
+if [ "${CT_LOG_FILE_COMPRESS}" = y ]; then
+    CT_DoLog EXTRA "Compressing log file"
+    exec >/dev/null
+    bzip2 -9 "${CT_LOG_FILE}"
+fi
+
+if [ "${CT_INSTALL_DIR_RO}" = "y" ]; then
+    # OK, now we're done, set the toolchain read-only
+    # Don't log, the log file may become read-only any moment...
+    chmod -R a-w "${CT_INSTALL_DIR}" >/dev/null 2>&1
+fi
 
 trap - EXIT
