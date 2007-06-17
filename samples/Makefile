@@ -38,11 +38,11 @@ regtest:
 	     sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config                                   &&  \
 	     yes "" |make -C $(CT_TOP_DIR) defoldconfig >/dev/null 2>&1                                     &&  \
 	     make -C $(CT_TOP_DIR)                                                                          &&  \
+	     echo "Making tarball for sample \"$${samp}\""                                                  &&  \
 	     make -C $(CT_TOP_DIR) tarball                                                                  &&  \
-	     chmod -R u+w $(CT_TOP_DIR)/targets                                                             &&  \
-	     rm -rf $(CT_TOP_DIR)/targets;                                                                      \
+	     echo "Cleaning sample \"$${samp}\""                                                            &&  \
+	     make -C $(CT_TOP_DIR) distclean;                                                                   \
 	 done
-	@make distclean
 
 saveconfig:
 	$(CT_TOP_DIR)/scripts/saveSample.sh
