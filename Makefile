@@ -27,6 +27,7 @@ include $(CT_TOP_DIR)/samples/Makefile
 help::
 	@echo  'Build targets:'
 	@echo  '* build          - Build the toolchain'
+	@echo  '  regtest        - Regtest-build all samples'
 	@echo  '  clean          - Remove generated files'
 	@echo  '  distclean      - Remove generated files, configuration and build directories'
 
