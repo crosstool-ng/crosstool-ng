@@ -30,7 +30,7 @@ $(CT_SAMPLES):
 .PHONY: regtest
 regtest:
 	@for samp in $(CT_SAMPLES); do                                                                          \
-	     echo "Building sample \"$${samp}\""                                                            &&  \
+	     echo -e "\rBuilding sample \"$${samp}\""                                                       &&  \
 	     cp "$(CT_TOP_DIR)/samples/$${samp}/crosstool.config" "$(CT_TOP_DIR)/.config"                   &&  \
 	     yes "" |make -C $(CT_TOP_DIR) defoldconfig >/dev/null 2>&1                                     &&  \
 	     sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"${CT_TOP_DIR}/targets/tst/$${CT_TARGET}":;' .config   &&  \
@@ -41,9 +41,9 @@ regtest:
 	     sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config                                   &&  \
 	     yes "" |make -C $(CT_TOP_DIR) defoldconfig >/dev/null 2>&1                                     &&  \
 	     make -C $(CT_TOP_DIR)                                                                          &&  \
-	     echo "Making tarball for sample \"$${samp}\""                                                  &&  \
-	     make -C $(CT_TOP_DIR) tarball                                                                  &&  \
-	     echo "Cleaning sample \"$${samp}\""                                                            &&  \
+	     echo -e "\rMaking tarball for sample \"$${samp}\""                                             &&  \
+	     make -C $(CT_TOP_DIR) tarball;                                                                     \
+	     echo -e "\rCleaning sample \"$${samp}\"";                                                          \
 	     make -C $(CT_TOP_DIR) distclean;                                                                   \
 	 done
 
