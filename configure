@@ -3,11 +3,11 @@
 VERSION=$(cat version)
 DATE=$(date +%Y%m%d)
 
-PREFIX=/usr/local
-BINDIR="${PREFIX}/bin"
-LIBDIR="${PREFIX}/lib"
-DOCDIR="${PREFIX}/share/doc"
-MANDIR="${PREFIX}/share/man"
+PREFIX_DEFAULT=/usr/local
+BINDIR_DEFAULT="${PREFIX}/bin"
+LIBDIR_DEFAULT="${PREFIX}/lib"
+DOCDIR_DEFAULT="${PREFIX}/share/doc"
+MANDIR_DEFAULT="${PREFIX}/share/man"
 
 BINDIR_set=
 LIBDIR_set=
@@ -72,6 +72,34 @@ set_mandir() {
     return ${ret}
 }
 
+do_help() {
+    cat <<__EOF__
+\`configure' configures ct-ng ${VERSION} to adapt to many kind of systems.
+
+USAGE: ./configure [OPTION]...
+
+Defaults for the options are specified in brackets.
+
+Configuration:
+  -h, --help              display this help and exit                                                                                                                  
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [${PREFIX_DEFAULT}]
+
+By default, \`make install' will install all the files in
+\`${PREFIX_DEFAULT}/bin', \`${PREFIX_DEFAULT}/lib' etc.  You can specify
+an installation prefix other than \`${PREFIX_DEFAULT}' using \`--prefix',
+for instance \`--prefix=\${HOME}'.
+
+For better control, use the options below.
+
+Fine tuning of the installation directories:
+  --bindir=DIR           user executables [PREFIX/bin]
+  --libdir=DIR           object code libraries [PREFIX/lib]
+  --docdir=DIR           info documentation [PREFIX/share/doc]
+  --mandir=DIR           man documentation [PREFIX/share/man]
+__EOF__
+}
+
 while [ $# -ne 0 ]; do
     case "$1" in
         --prefix*)  set_prefix "$1" "$2" && shift || shift 2;;
@@ -79,8 +107,12 @@ while [ $# -ne 0 ]; do
         --libdir*)  set_libdir "$1" "$2" && shift || shift 2;;
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
+        --help|-h)  do_help; exit 0;;
+        *)          do_help; exit 1;;
     esac
 done
+
+[ -z "${PREFIX}" ] && set_prefix --prefix "${PREFIX_DEFAULT}"
 
 sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
        -e "s,@@LIBDIR@@,${LIBDIR},g;"   \
