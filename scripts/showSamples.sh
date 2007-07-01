@@ -10,9 +10,16 @@ export GREP_OPTIONS=
 dump_single_sample() {
     local width="$1"
     local sample="$2"
-    printf "  %-*s" ${width} "${sample}"
-    [ -f "${CT_TOP_DIR}/samples/${sample}/broken" ] && printf "  (broken)"
-    echo
+    if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
+        sample_top="${CT_TOP_DIR}"
+        sample_type="local"
+    else
+        sample_top="${CT_LIB_DIR}"
+        sample_type="global"
+    fi
+    printf "  %-*s  (%s" ${width} "${sample}" "${sample_type}"
+    [ -f "${sample_top}/samples/${sample}/broken" ] && printf ",broken"
+    echo ")"
 }
 
 # Get largest sample width

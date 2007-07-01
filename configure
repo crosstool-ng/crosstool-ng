@@ -1,0 +1,91 @@
+#!/bin/sh
+
+VERSION=$(cat version)
+DATE=$(date +%Y%m%d)
+
+PREFIX=/usr/local
+BINDIR="${PREFIX}/bin"
+LIBDIR="${PREFIX}/lib"
+DOCDIR="${PREFIX}/share/doc"
+MANDIR="${PREFIX}/share/man"
+
+BINDIR_set=
+LIBDIR_set=
+DOCDIR_set=
+MANDIR_set=
+
+get_optval(){
+    local ret
+    case "$1" in
+        --*=?*)
+            echo "${1:9}"
+            ret=0
+            ;;
+        *)
+            echo "${2}"
+            ret=1
+            ;;
+    esac
+    return ${ret}
+}
+
+set_prefix() {
+    local ret
+    PREFIX=$(get_optval "$1" "$2")
+    ret=$?
+    [ -z "${BINDIR_set}" ] && BINDIR="${PREFIX}/bin"
+    [ -z "${LIBDIR_set}" ] && LIBDIR="${PREFIX}/lib"
+    [ -z "${DOCDIR_set}" ] && DOCDIR="${PREFIX}/share/doc"
+    [ -z "${MANDIR_set}" ] && MANDIR="${PREFIX}/share/man"
+    return ${ret}
+}
+
+set_bindir() {
+    local ret
+    BINDIR=$(get_optval "$1" "$2")
+    ret=$?
+    BINDIR_set=1
+    return ${ret}
+}
+
+set_libdir() {
+    local ret
+    LIBDIR=$(get_optval "$1" "$2")
+    ret=$?
+    LIBDIR_set=1
+    return ${ret}
+}
+
+set_docdir() {
+    local ret
+    DOCDIR=$(get_optval "$1" "$2")
+    ret=$?
+    DOCDIR_set=1
+    return ${ret}
+}
+
+set_mandir() {
+    local ret
+    MANDIR=$(get_optval "$1" "$2")
+    ret=$?
+    MANDIR_set=1
+    return ${ret}
+}
+
+while [ $# -ne 0 ]; do
+    case "$1" in
+        --prefix*)  set_prefix "$1" "$2" && shift || shift 2;;
+        --bindir*)  set_bindir "$1" "$2" && shift || shift 2;;
+        --libdir*)  set_libdir "$1" "$2" && shift || shift 2;;
+        --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
+        --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
+    esac
+done
+
+sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
+       -e "s,@@LIBDIR@@,${LIBDIR},g;"   \
+       -e "s,@@DOCDIR@@,${DOCDIR},g;"   \
+       -e "s,@@MANDIR@@,${MANDIR},g;"   \
+       -e "s,@@VERSION@@,${VERSION},g;" \
+       -e "s,@@DATE@@,${DATE},g;"       \
+        Makefile.in >Makefile

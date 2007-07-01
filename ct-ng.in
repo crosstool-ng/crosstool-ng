@@ -1,0 +1,99 @@
+#!@@CT_MAKE@@ -f
+# Makefile for crosstool-NG.
+# Copyright 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
+
+# Don't print directory as we descend into them
+MAKEFLAGS += --no-print-directory
+
+# Remember the name of the Makefile
+CT_MAKEFILE := $(lastword $(MAKEFILE_LIST))
+CT_NG := $(shell echo '$(CT_MAKEFILE)' |sed -r -e 's,($(subst :,|,$(PATH)))/,,;')
+
+export CT_TOP_DIR:=$(shell pwd)
+export CT_LIB_DIR:=@@CT_LIBDIR@@
+export CT_DOC_DIR:=@@CT_DOCDIR@@
+
+# This is crosstool-ng version string
+export CT_VERSION=$(shell cat $(CT_LIB_DIR)/version)
+
+export CT_STOP=$(STOP)
+export CT_RESTART=$(RESTART)
+
+.PHONY: $(PHONY)
+PHONY += all
+all: build
+
+HOST_CC = gcc -funsigned-char
+
+# Help system
+help:: help-head help-config help-samples help-build help-distrib help-env help-tail
+
+help-head::
+	@echo  'Available make rules:'
+
+help-config::
+	@echo
+	@echo  'Configuration rules:'
+
+help-samples::
+	@echo
+	@echo  'Preconfigured rules:'
+
+help-build::
+	@echo
+	@echo  'Build rules:'
+
+help-distrib::
+	@echo
+	@echo  'Distribution rules:'
+
+help-env::
+	@echo
+	@echo  'Environement variables (see @@CT_DOCDIR@@/overview.txt):'
+
+help-tail::
+	@echo
+	@echo  'Execute "$(CT_NG) config" or "$(CT_NG) menuconfig" to configure ct-ng'
+	@echo  'Execute "$(CT_NG)" or "$(CT_NG) all" to build all targets marked with [*]'
+
+# End help system
+
+help-build::
+	@echo  '* build          - Build the toolchain'
+	@echo  '  clean          - Remove generated files'
+	@echo  '  distclean      - Remove generated files, configuration and build directories'
+
+include $(CT_LIB_DIR)/kconfig/Makefile
+include $(CT_LIB_DIR)/samples/Makefile
+include $(CT_LIB_DIR)/tools/Makefile
+include $(CT_LIB_DIR)/Makefile.steps
+
+help-distrib::
+	@echo  '  tarball        - Build a tarball of the configured toolchain'
+
+help-env::
+	@echo  '  STOP           - Stop the build just after this step'
+	@echo  '  RESTART        - Restart the build just before this step'
+
+.config:
+	@echo  'You must run either one of "$(CT_NG) config" or "$(CT_NG) menuconfig" first'
+	@false
+
+# Actual build
+build:: .config
+	@$(CT_LIB_DIR)/scripts/crosstool.sh
+
+PHONY += tarball
+tarball:
+	@$(CT_LIB_DIR)/scripts/tarball.sh
+
+PHONY += clean
+clean::
+	@rm -f $(CT_TOP_DIR)/.config.*
+
+PHONY += distclean
+distclean:: clean
+	@rm -f $(CT_TOP_DIR)/.config* $(CT_TOP_DIR)/..config.tmp
+	@rm -f $(CT_TOP_DIR)/log.*
+	@[ ! -d "$(CT_TOP_DIR)/targets" ] || chmod -R u+w "$(CT_TOP_DIR)/targets"
+	@rm -rf "$(CT_TOP_DIR)/targets"

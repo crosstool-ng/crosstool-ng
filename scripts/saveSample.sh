@@ -8,7 +8,7 @@
 #  - the kernel .config file if specified
 #  - the uClibc .config file if uClibc selected
 
-. "${CT_TOP_DIR}/scripts/functions"
+. "${CT_LIB_DIR}/scripts/functions"
 
 # Don't care about any log file
 exec >/dev/null
@@ -31,12 +31,8 @@ CT_LOG_INFO=y
 CT_LOG_LEVEL_MAX="INFO"
 
 # Create the sample directory
-# In case it was manually made, add it to svn
-if [ -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
-    # svn won't fail when adding a directory already managed by svn
-    svn add "${CT_TOP_DIR}/samples/${CT_TARGET}" >/dev/null 2>&1
-else
-    svn mkdir "${CT_TOP_DIR}/samples/${CT_TARGET}" >/dev/null 2>&1
+if [ ! -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
+    mkdir -p "${CT_TOP_DIR}/samples/${CT_TARGET}"
 fi
 
 # Save the crosstool-NG config file
@@ -53,19 +49,24 @@ CT_DoAddFileToSample() {
     if [ "${inode_s}" != "${inode_d}" ]; then
         cp "${source}" "${dest}"
     fi
-    svn add "${dest}" >/dev/null 2>&1
 }
+
+if [ "${CT_TOP_DIR}" = "${CT_LIB_DIR}" ]; then
+    samp_top_dir="\${CT_LIB_DIR}"
+else
+    samp_top_dir="\${CT_TOP_DIR}"
+fi
 
 # Save the kernel .config file
 if [ -n "${CT_KERNEL_LINUX_CONFIG_FILE}" ]; then
     # We save the file, and then point the saved sample to this file
     CT_DoAddFileToSample "${CT_KERNEL_LINUX_CONFIG_FILE}" "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"
-    sed -r -i -e 's|^(CT_KERNEL_LINUX_CONFIG_FILE=).+$|\1"${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"|;' \
+    sed -r -i -e 's|^(CT_KERNEL_LINUX_CONFIG_FILE=).+$|\1"'"${samp_top_dir}"'/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"|;' \
         "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 else
     # remove any dangling files
     for f in "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-"*.config; do
-        if [ -f "${f}" ]; then svn rm --force "${f}" >/dev/null 2>&1; fi
+        if [ -f "${f}" ]; then rm -f "${f}"; fi
     done
 fi
 
@@ -73,17 +74,11 @@ fi
 if [ -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
     # We save the file, and then point the saved sample to this file
     CT_DoAddFileToSample "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"
-    sed -r -i -e 's|^(CT_LIBC_UCLIBC_CONFIG_FILE=).+$|\1"${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"|;' \
+    sed -r -i -e 's|^(CT_LIBC_UCLIBC_CONFIG_FILE=).+$|\1"'"${samp_top_dir}"'/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"|;' \
         "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 else
     # remove any dangling files
     for f in "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_LIBC}-"*.config; do
-        if [ -f "${f}" ]; then svn rm --force "${f}" >/dev/null 2>&1; fi
+        if [ -f "${f}" ]; then rm -f "${f}"; fi
     done
 fi
-
-# We could svn add earlier, but it's better to
-# add a frozen file than modifying it later
-svn add "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config" >/dev/null 2>&1
-
-svn stat "${CT_TOP_DIR}/samples/${CT_TARGET}" 2>/dev/null |CT_DoLog INFO

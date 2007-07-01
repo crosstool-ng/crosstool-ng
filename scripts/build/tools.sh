@@ -2,7 +2,7 @@
 
 # List all tools facilities, and parse their scripts
 CT_TOOLS_FACILITY_LIST=
-for f in "${CT_TOP_DIR}/scripts/build/tools/"*.sh; do
+for f in "${CT_LIB_DIR}/scripts/build/tools/"*.sh; do
     is_enabled=
     . "${f}"
     f=`basename "${f}" .sh`

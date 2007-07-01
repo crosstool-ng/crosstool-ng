@@ -12,17 +12,8 @@
 # options. It also checks the existing environment for un-friendly variables,
 # and builds the tools.
 
-# CT_TOP_DIR is set by the makefile. If we don't have it, something's gone horribly wrong...
-if [ -z "${CT_TOP_DIR}" -o ! -d "${CT_TOP_DIR}" ]; then
-    # We don't have the functions right now, because we don't have CT_TOP_DIR.
-    # Do the print stuff by hand:
-    echo "CT_TOP_DIR not set, or not a directory. Something's gone horribly wrong."
-    echo "Please send a bug report (see README)"
-    exit 1
-fi
-
 # Parse the common functions
-. "${CT_TOP_DIR}/scripts/functions"
+. "${CT_LIB_DIR}/scripts/functions"
 
 CT_STAR_DATE=`CT_DoDate +%s%N`
 CT_STAR_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
@@ -41,7 +32,7 @@ renice ${CT_NICE} $$ |CT_DoLog DEBUG
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 
 CT_DoStep DEBUG "Dumping crosstool-NG configuration"
-cat ${CT_TOP_DIR}/.config |egrep '^(# |)CT_' |CT_DoLog DEBUG
+cat "${CT_TOP_DIR}/.config" |egrep '^(# |)CT_' |CT_DoLog DEBUG
 CT_EndStep
 
 # Some sanity checks in the environment and needed tools
@@ -143,7 +134,7 @@ CT_SYS_OS=`uname -o || echo "Unknown (maybe MacOS-X)"`
 CT_SYS_MACHINE=`uname -m`
 CT_SYS_PROCESSOR=`uname -p`
 CT_SYS_GCC=`gcc -dumpversion`
-CT_SYS_TARGET=`${CT_TOP_DIR}/tools/config.guess`
+CT_SYS_TARGET=`CT_DoConfigGuess`
 CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_STAR_DATE_HUMAN} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME}"
 
 CT_DoLog EXTRA "Preparing working directories"
@@ -225,7 +216,8 @@ esac
 if [ -z "${CT_RESTART}" ]; then
     # Determine build system if not set by the user
     CT_Test "You did not specify the build system. That's OK, I can guess..." -z "${CT_BUILD}"
-    CT_BUILD="`${CT_TOP_DIR}/tools/config.sub \"${CT_BUILD:-\`${CT_TOP_DIR}/tools/config.guess\`}\"`"
+    CT_BUILD="${CT_BUILD:-`CT_DoConfigGuess`}"
+    CT_BUILD=`CT_DoConfigSub "${CT_BUILD}"`
 
     # Arrange paths depending on wether we use sys-root or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
@@ -345,14 +337,14 @@ fi
 
 # Include sub-scripts instead of calling them: that way, we do not have to
 # export any variable, nor re-parse the configuration and functions files.
-. "${CT_TOP_DIR}/scripts/build/kernel_${CT_KERNEL}.sh"
-. "${CT_TOP_DIR}/scripts/build/binutils.sh"
-. "${CT_TOP_DIR}/scripts/build/libfloat.sh"
-. "${CT_TOP_DIR}/scripts/build/libc_${CT_LIBC}.sh"
-. "${CT_TOP_DIR}/scripts/build/cc_core_${CT_CC_CORE}.sh"
-. "${CT_TOP_DIR}/scripts/build/cc_${CT_CC}.sh"
-. "${CT_TOP_DIR}/scripts/build/debug.sh"
-. "${CT_TOP_DIR}/scripts/build/tools.sh"
+. "${CT_LIB_DIR}/scripts/build/kernel_${CT_KERNEL}.sh"
+. "${CT_LIB_DIR}/scripts/build/binutils.sh"
+. "${CT_LIB_DIR}/scripts/build/libfloat.sh"
+. "${CT_LIB_DIR}/scripts/build/libc_${CT_LIBC}.sh"
+. "${CT_LIB_DIR}/scripts/build/cc_core_${CT_CC_CORE}.sh"
+. "${CT_LIB_DIR}/scripts/build/cc_${CT_CC}.sh"
+. "${CT_LIB_DIR}/scripts/build/debug.sh"
+. "${CT_LIB_DIR}/scripts/build/tools.sh"
 
 if [ -z "${CT_RESTART}" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"

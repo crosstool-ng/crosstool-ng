@@ -2,7 +2,7 @@
 
 # List all debug facilities, and parse their scripts
 CT_DEBUG_FACILITY_LIST=
-for f in "${CT_TOP_DIR}/scripts/build/debug/"*.sh; do
+for f in "${CT_LIB_DIR}/scripts/build/debug/"*.sh; do
     is_enabled=
     . "${f}"
     f=`basename "${f}" .sh`

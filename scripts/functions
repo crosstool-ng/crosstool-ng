@@ -425,7 +425,9 @@ CT_ExtractAndPatch() {
         cd "${file}"
     fi
 
-    [ "${CUSTOM_PATCH_ONLY}" = "y" ] || official_patch_dir="${CT_TOP_DIR}/patches/${base_file}/${ver_file}"
+    official_patch_dir=
+    custom_patch_dir=
+    [ "${CUSTOM_PATCH_ONLY}" = "y" ] || official_patch_dir="${CT_LIB_DIR}/patches/${base_file}/${ver_file}"
     [ "${CT_CUSTOM_PATCH}" = "y" ] && custom_patch_dir="${CT_CUSTOM_PATCH_DIR}/${base_file}/${ver_file}"
     for patch_dir in "${official_patch_dir}" "${custom_patch_dir}"; do
         if [ -n "${patch_dir}" -a -d "${patch_dir}" ]; then
@@ -440,6 +442,24 @@ CT_ExtractAndPatch() {
     done
 
     CT_Popd
+}
+
+# Two wrappers to call config.(guess|sub) either from CT_TOP_DIR or CT_LIB_DIR.
+# Those from CT_TOP_DIR, if they exist, will be be more recent than those from CT_LIB_DIR.
+CT_DoConfigGuess() {
+    if [ -x "${CT_TOP_DIR}/tools/config.guess" ]; then
+        "${CT_TOP_DIR}/tools/config.guess"
+    else
+        "${CT_LIB_DIR}/tools/config.guess"
+    fi
+}
+
+CT_DoConfigSub() {
+    if [ -x "${CT_TOP_DIR}/tools/config.sub" ]; then
+        "${CT_TOP_DIR}/tools/config.sub" "$@"
+    else
+        "${CT_LIB_DIR}/tools/config.sub" "$@"
+    fi
 }
 
 # Compute the target triplet from what is provided by the user
@@ -482,7 +502,7 @@ CT_DoBuildTargetTriplet() {
         glibc)  CT_TARGET="${CT_TARGET}-gnu";;
         uClibc) CT_TARGET="${CT_TARGET}-uclibc";;
     esac
-    CT_TARGET="`${CT_TOP_DIR}/tools/config.sub ${CT_TARGET}`"
+    CT_TARGET=`CT_DoConfigSub "${CT_TARGET}"`
 }
 
 # This function does pause the build until the user strikes "Return"

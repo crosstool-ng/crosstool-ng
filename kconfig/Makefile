@@ -6,9 +6,8 @@
 export PROJECTVERSION=$(CT_VERSION)
 
 KCONFIG_TOP = config/config.in
-obj = ./kconfig
-PHONY += clean help oldconfig menuconfig config silentoldconfig \
-	randconfig allyesconfig allnoconfig allmodconfig defconfig
+obj = $(CT_TOP_DIR)/kconfig
+PHONY += clean help oldconfig menuconfig config defoldconfig
 
 # Darwin (MacOS-X) does not have proper libintl support
 ifeq ($(shell uname -s),Darwin)
@@ -20,14 +19,21 @@ CFLAGS += -DKBUILD_NO_NLS
 endif
 
 # Build a list of all config files
-CONFIG_FILES = $(filter-out %debug.in,$(shell find $(CT_TOP_DIR)/config -type f -name '*.in'))
-DEBUG_CONFIG_FILES = $(shell find $(CT_TOP_DIR)/config/debug -type f -name '*.in')
-TOOLS_CONFIG_FILES = $(shell find $(CT_TOP_DIR)/config/tools -type f -name '*.in')
+DEBUG_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config/debug -type f -name '*.in')
+TOOLS_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config/tools -type f -name '*.in')
 
-GEN_CONFIG_FILES=$(CT_TOP_DIR)/config/debug.in	\
-				 $(CT_TOP_DIR)/config/tools.in
+STATIC_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config -type f -name '*.in')
+GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/debug.in	\
+				 $(CT_TOP_DIR)/config.gen/tools.in
 
-$(CT_TOP_DIR)/config/debug.in: $(DEBUG_CONFIG_FILES)
+CONFIG_FILES=$(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
+
+$(GEN_CONFIG_FILES):: $(CT_TOP_DIR)/config.gen
+
+$(CT_TOP_DIR)/config.gen:
+	@mkdir -p $(CT_TOP_DIR)/config.gen
+
+$(CT_TOP_DIR)/config.gen/debug.in:: $(DEBUG_CONFIG_FILES)
 	@echo "# Debug facilities menu" >$@
 	@echo "# Generated file, do not edit!!!" >>$@
 	@echo "menu \"Debug facilities\"" >>$@
@@ -36,7 +42,7 @@ $(CT_TOP_DIR)/config/debug.in: $(DEBUG_CONFIG_FILES)
 	 done >>$@
 	@echo "endmenu" >>$@
 
-$(CT_TOP_DIR)/config/tools.in: $(TOOLS_CONFIG_FILES)
+$(CT_TOP_DIR)/config.gen/tools.in:: $(TOOLS_CONFIG_FILES)
 	@echo "# Tools facilities menu" >$@
 	@echo "# Generated file, do not edit!!!" >>$@
 	@echo "menu \"Tools facilities\"" >>$@
@@ -45,16 +51,21 @@ $(CT_TOP_DIR)/config/tools.in: $(TOOLS_CONFIG_FILES)
 	 done >>$@
 	@echo "endmenu" >>$@
 
-menuconfig: $(obj)/mconf $(GEN_CONFIG_FILES)
+config menuconfig oldconfig defoldconfig:: $(KCONFIG_TOP)
+
+$(KCONFIG_TOP):
+	@ln -s $(CT_LIB_DIR)/config config
+
+menuconfig:: $(obj)/mconf $(CONFIG_FILES)
 	@$< $(KCONFIG_TOP)
 
-config: $(obj)/conf $(GEN_CONFIG_FILES)
+config:: $(obj)/conf $(CONFIG_FILES)
 	@$< $(KCONFIG_TOP)
 
-oldconfig: $(obj)/conf $(GEN_CONFIG_FILES)
+oldconfig:: $(obj)/conf $(CONFIG_FILES)
 	@$< -s $(KCONFIG_TOP)
 
-defoldconfig:$(obj)/conf $(GEN_CONFIG_FILES)
+defoldconfig:: $(obj)/conf $(CONFIG_FILES)
 	@yes "" |$< -s $(KCONFIG_TOP) >/dev/null
 
 # Help text used by make help
@@ -65,18 +76,27 @@ help-config::
 
 # Cheesy build
 
-SHIPPED = kconfig/zconf.tab.c kconfig/lex.zconf.c kconfig/zconf.hash.c
+SHIPPED = $(CT_LIB_DIR)/kconfig/zconf.tab.c $(CT_LIB_DIR)/kconfig/lex.zconf.c $(CT_LIB_DIR)/kconfig/zconf.hash.c
 
 %.c: %.c_shipped
 	@ln -s $(notdir $<) $@
 
-kconfig/mconf: $(SHIPPED) kconfig/mconf.c
-	@$(HOST_CC) $(CFLAGS) -o $@ kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
+$(obj)/conf $(obj)/mconf:: $(obj)
+
+$(obj):
+	@mkdir -p $(obj)
+
+$(obj)/mconf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c
+	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
 		-lcurses "-DCURSES_LOC=<ncurses.h>"
 
-kconfig/conf: $(SHIPPED) kconfig/conf.c
-	@$(HOST_CC) $(CFLAGS) -o $@ kconfig/{conf.c,zconf.tab.c}
+$(obj)/conf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c
+	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{conf.c,zconf.tab.c}
 
 clean::
-	@rm -f $(wildcard kconfig/*zconf*.c) kconfig/{conf,mconf}
-	@rm -f $(GEN_CONFIG_FILES)
+	@rm -f $(CT_TOP_DIR)/kconfig/{,m}conf
+	@rm -rf $(CT_TOP_DIR)/config.gen
+
+distclean::
+	@rm -f $(CT_TOP_DIR)/config
+	@[ $(CT_LIB_DIR) = $(CT_TOP_DIR) ] || rm -rf $(CT_TOP_DIR)/kconfig

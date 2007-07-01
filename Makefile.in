@@ -1,0 +1,109 @@
+# Makefile.in for building crosstool-ng
+# This file serves as source for the ./configure operation
+
+all: build
+
+###############################################################################
+# Configuration variables
+
+VERSION:= @@VERSION@@
+BINDIR := @@BINDIR@@
+LIBDIR := @@LIBDIR@@/ct-ng-$(VERSION)
+DOCDIR := @@DOCDIR@@/ct-ng-$(VERSION)
+MANDIR := @@MANDIR@@/man1
+DATE   := @@DATE@@
+MAKE   := $(shell which make || type -p make || echo /usr/bin/make)
+
+###############################################################################
+# Global make rules
+
+build: build-bin build-lib build-doc
+
+install: build install-bin install-lib install-doc
+
+clean: clean-bin clean-lib clean-doc
+
+distclean: clean
+	@rm -f Makefile
+
+uninstall: uninstall-bin uninstall-lib uninstall-doc
+
+###############################################################################
+# Specific make rules
+
+#--------------------------------------
+# Build rules
+
+build-bin: ct-ng
+
+build-lib:
+
+build-doc: docs/ct-ng.1
+
+%: %.in
+	@sed -r -e 's,@@CT_MAKE@@,$(MAKE),g;'       \
+	        -e 's,@@CT_BINDIR@@,$(BINDIR),g;'   \
+	        -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'   \
+	        -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'   \
+	        -e 's,@@CT_MANDIR@@,$(MANDIR),g;'   \
+	        -e 's,@@CT_VERSION@@,$(VERSION),g;'	\
+	        -e 's,@@CT_DATE@@,$(DATE),g;'       \
+	     $@.in >$@
+
+#--------------------------------------
+# Clean rules
+
+clean-bin:
+	@rm -f ct-ng
+
+clean-lib:
+
+clean-doc:
+	@rm -f docs/ct-ng.1
+
+#--------------------------------------
+# Install rules
+
+install-bin: $(BINDIR)
+	@install -m 755 ct-ng $(BINDIR)/ct-ng
+
+install-lib: $(LIBDIR) install-lib-main install-lib-samples
+
+install-lib-main: $(LIBDIR)
+	@for src_dir in config kconfig patches scripts tools; do            \
+	     tar cf - --exclude=.svn $${src_dir} |(cd $(LIBDIR); tar xf -); \
+	 done
+	@for src_file in Makefile.steps version; do                 \
+	     install -m 644 $${src_file} $(LIBDIR)/$${src_file};    \
+	 done
+
+# Samples need a little love:
+#  - change every occurence of CT_TOP_DIR to CT_LIB_DIR
+install-lib-samples: $(LIBDIR) install-lib-main
+	@tar cf - --exclude=.svn samples |(cd $(LIBDIR); tar xf -)
+	@for samp_file in $(LIBDIR)/samples/*/crosstool.config; do					\
+	     sed -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file}; \
+	 done
+
+install-doc: $(DOCDIR) $(MANDIR)
+	@for doc_file in LICENSES licenses.d COPYING CREDITS docs/overview.txt; do	\
+	     install -m 644 docs/overview.txt $(DOCDIR);    						\
+	 done
+	@install -m 644 docs/ct-ng.1 $(MANDIR)
+
+$(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR):
+	@install -m 755 -d $@
+
+
+#--------------------------------------
+# Uninstall rules
+
+uninstall-bin:
+	@rm -f $(BINDIR)/ct-ng
+
+uninstall-lib:
+	@rm -rf $(LIBDIR)
+
+uninstall-doc:
+	@rm -rf $(DOCDIR)
+	@rm -f $(MANDIR)/ct-ng.1

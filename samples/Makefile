@@ -1,22 +1,31 @@
 # Makefile to manage samples
 
 # Build the list of available samples
-CT_SAMPLES = $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config))
+CT_TOP_SAMPLES := $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config))
+CT_LIB_SAMPLES := $(filter-out $(CT_TOP_SAMPLES),$(patsubst $(CT_LIB_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_LIB_DIR)/samples/*/crosstool.config)))
+
+CT_SAMPLES := $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES)
 
 help-config::
 	@echo  '  saveconfig     - Save current config as a preconfigured target'
 
 help-samples::
-	@$(CT_TOP_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
+	@$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
 help-build::
 	@echo  '  regtest        - Regtest-build all samples'
 
 # How we do build one sample
-.PHONY: $(CT_SAMPLES)
+PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES):
-	@cp "$(CT_TOP_DIR)/samples/$(@)/crosstool.config" "$(CT_TOP_DIR)/.config"
-	@$(MAKE) oldconfig
+	@$(MAKE) -f $(CT_MAKEFILE) $(patsubst %,%_copy_config,$(@)) oldconfig
+
+$(patsubst %,%_copy_config,$(CT_SAMPLES)):
+	@if [ -f $(CT_TOP_DIR)/samples/$(patsubst %_copy_config,%,$(@))/crosstool.config ]; then                    \
+	      cp "$(CT_TOP_DIR)/samples/$(patsubst %_copy_config,%,$(@))/crosstool.config" "$(CT_TOP_DIR)/.config"; \
+	 else                                                                                                       \
+	      cp "$(CT_LIB_DIR)/samples/$(patsubst %_copy_config,%,$(@))/crosstool.config" "$(CT_TOP_DIR)/.config"; \
+	 fi
 
 # And now for building all samples one after the other
 # We could use a simple rule like: 'regtest: $(CT_SAMPLES)', but that doesn't
@@ -27,25 +36,25 @@ $(CT_SAMPLES):
 # Finaly, we can't use 'make sample-name' as we need to provide default values
 # if the options set has changed, but oldconfig does not like when stdin is
 # not a terminal (eg. it is a pipe).
-.PHONY: regtest
+PHONY += regtest
 regtest:
 	@for samp in $(CT_SAMPLES); do                                                                          \
 	     echo -e "\rBuilding sample \"$${samp}\""                                                       &&  \
-	     cp "$(CT_TOP_DIR)/samples/$${samp}/crosstool.config" "$(CT_TOP_DIR)/.config"                   &&  \
-	     yes "" |make -C $(CT_TOP_DIR) defoldconfig >/dev/null 2>&1                                     &&  \
-	     sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"${CT_TOP_DIR}/targets/tst/$${CT_TARGET}":;' .config   &&  \
+	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) $${samp}_copy_config                                &&  \
+	     yes "" |$(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) defoldconfig >/dev/null 2>&1                &&  \
+	     sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$${CT_TOP_DIR}/targets/tst/$${CT_TARGET}":;' .config  &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config         &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config                                          &&  \
 	     sed -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config                                 &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config                                        &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config                                   &&  \
-	     yes "" |make -C $(CT_TOP_DIR) defoldconfig >/dev/null 2>&1                                     &&  \
-	     make -C $(CT_TOP_DIR)                                                                          &&  \
+	     yes "" |$(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) defoldconfig >/dev/null 2>&1                &&  \
+	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE)                                                     &&  \
 	     echo -e "\rMaking tarball for sample \"$${samp}\""                                             &&  \
-	     make -C $(CT_TOP_DIR) tarball;                                                                     \
-	     echo -e "\rCleaning sample \"$${samp}\"";                                                          \
-	     make -C $(CT_TOP_DIR) distclean;                                                                   \
+	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) tarball                                             ;   \
+	     echo -e "\rCleaning sample \"$${samp}\""                                                       ;   \
+	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) distclean                                           ;   \
 	 done
 
 saveconfig:
-	$(CT_TOP_DIR)/scripts/saveSample.sh
+	$(CT_LIB_DIR)/scripts/saveSample.sh
