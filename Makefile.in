@@ -8,10 +8,11 @@ all: build
 
 VERSION:= @@VERSION@@
 BINDIR := @@BINDIR@@
-LIBDIR := @@LIBDIR@@/ct-ng-$(VERSION)
-DOCDIR := @@DOCDIR@@/ct-ng-$(VERSION)
-MANDIR := @@MANDIR@@/man1
+LIBDIR := @@LIBDIR@@
+DOCDIR := @@DOCDIR@@
+MANDIR := @@MANDIR@@
 DATE   := @@DATE@@
+LOCAL  := @@LOCAL@@
 MAKE   := $(shell which make || type -p make || echo /usr/bin/make)
 
 ###############################################################################
@@ -65,12 +66,19 @@ clean-doc:
 #--------------------------------------
 # Install rules
 
-install-bin: $(BINDIR)
+# If using localy, don't install
+install-local:
+	@if [ "$(LOCAL)" = "1" ]; then                                      \
+	     echo "You're using local copy as runtime. You can't install."; \
+	     false;                                                         \
+	 fi
+
+install-bin: install-local $(BINDIR)
 	@install -m 755 ct-ng $(BINDIR)/ct-ng
 
-install-lib: $(LIBDIR) install-lib-main install-lib-samples
+install-lib: install-local $(LIBDIR) install-lib-main install-lib-samples
 
-install-lib-main: $(LIBDIR)
+install-lib-main: install-local $(LIBDIR)
 	@for src_dir in config kconfig patches scripts tools; do            \
 	     tar cf - --exclude=.svn $${src_dir} |(cd $(LIBDIR); tar xf -); \
 	 done
@@ -80,13 +88,13 @@ install-lib-main: $(LIBDIR)
 
 # Samples need a little love:
 #  - change every occurence of CT_TOP_DIR to CT_LIB_DIR
-install-lib-samples: $(LIBDIR) install-lib-main
+install-lib-samples: install-local $(LIBDIR) install-lib-main
 	@tar cf - --exclude=.svn samples |(cd $(LIBDIR); tar xf -)
 	@for samp_file in $(LIBDIR)/samples/*/crosstool.config; do					\
 	     sed -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file}; \
 	 done
 
-install-doc: $(DOCDIR) $(MANDIR)
+install-doc: install-local $(DOCDIR) $(MANDIR)
 	@for doc_file in LICENSES licenses.d COPYING CREDITS docs/overview.txt; do	\
 	     install -m 644 docs/overview.txt $(DOCDIR);    						\
 	 done
