@@ -57,4 +57,4 @@ regtest:
 	 done
 
 saveconfig:
-	$(CT_LIB_DIR)/scripts/saveSample.sh
+	@$(CT_LIB_DIR)/scripts/saveSample.sh
