@@ -1,5 +1,5 @@
 # ===========================================================================
-# crosstool-ng configuration targets
+# crosstool-NG configuration targets
 # These targets are used from top-level makefile
 
 # Derive the project version from, well, the project version:

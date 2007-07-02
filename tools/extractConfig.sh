@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# This scripts extracts a crosstool-ng configuration from the log file
-# of a toolchain build with crosstool-ng.
+# This scripts extracts a crosstool-NG configuration from the log file
+# of a toolchain build with crosstool-NG.
 
 # Usage: $0 <logfile>
 

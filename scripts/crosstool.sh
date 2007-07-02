@@ -39,7 +39,7 @@ CT_EndStep
 CT_DoLog INFO "Checking environment sanity"
 
 # Enable known ordering of files in directory listings:
-CT_Test "Crosstool-NG might not work as expected with LANG=\"${LANG}\"" -n "${LANG}"
+CT_Test "crosstool-NG might not work as expected with LANG=\"${LANG}\"" -n "${LANG}"
 case "${LC_COLLATE},${LC_ALL}" in
   # These four combinations are known to sort files in the correct order:
   fr_FR*,)  ;;
