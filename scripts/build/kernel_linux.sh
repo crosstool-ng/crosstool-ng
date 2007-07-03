@@ -118,15 +118,16 @@ do_kernel_install() {
          ${V_OPT}                                   \
          headers_install                            2>&1 |CT_DoLog ALL
 
-    CT_DoLog EXTRA "Checking installed headers"
-    make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
-         O="`pwd`"                                  \
-         ARCH=${CT_KERNEL_ARCH}                     \
-         INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
-         ${V_OPT}                                   \
-         headers_check                              2>&1 |CT_DoLog ALL
-
-    find "${CT_SYSROOT_DIR}" -type f -name '.check*' -exec rm {} \;
+    if [ "${CT_KERNEL_LINUX_HEADERS_INSTALL_CHECK}" = "y" ]; then
+        CT_DoLog EXTRA "Checking installed headers"
+        make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
+             O="`pwd`"                                  \
+             ARCH=${CT_KERNEL_ARCH}                     \
+             INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
+             ${V_OPT}                                   \
+             headers_check                              2>&1 |CT_DoLog ALL
+        find "${CT_SYSROOT_DIR}" -type f -name '.check*' -exec rm {} \;
+    fi
 }
 
 # Install kernel headers from oldish Mazur's sanitised headers.
