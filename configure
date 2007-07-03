@@ -9,7 +9,6 @@ BINDIR_set=
 LIBDIR_set=
 DOCDIR_set=
 MANDIR_set=
-LOCAL_set=
 
 get_optval(){
     local ret
@@ -80,7 +79,6 @@ Defaults for the options are specified in brackets.
 Configuration:
   -h, --help              display this help and exit                                                                                                                  
   --prefix=PREFIX         install files in PREFIX [${PREFIX_DEFAULT}]
-  --local                 don't install, and use current directory
 
 By default, \`make install' will install all the files in
 \`${PREFIX_DEFAULT}/bin', \`${PREFIX_DEFAULT}/lib' etc.  You can specify
@@ -104,20 +102,12 @@ while [ $# -ne 0 ]; do
         --libdir*)  set_libdir "$1" "$2" && shift || shift 2;;
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
-        --local)    LOCAL_set=1; shift;;
         --help|-h)  do_help; exit 0;;
         *)          do_help; exit 1;;
     esac
 done
 
 [ -z "${PREFIX}" ] && set_prefix "" "${PREFIX_DEFAULT}"
-if [ "${LOCAL_set}" = "1" ]; then
-    set_prefix "" $(pwd)
-    set_bindir "" $(pwd)
-    set_libdir "" $(pwd)
-    set_docdir "" $(pwd)/docs
-    set_mandir "" $(pwd)/docs
-fi
 
 sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
        -e "s,@@LIBDIR@@,${LIBDIR},g;"   \
@@ -125,7 +115,6 @@ sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
        -e "s,@@MANDIR@@,${MANDIR},g;"   \
        -e "s,@@VERSION@@,${VERSION},g;" \
        -e "s,@@DATE@@,${DATE},g;"       \
-       -e "s,@@LOCAL@@,${LOCAL_set},g;" \
        Makefile.in >Makefile
 
 cat <<__EOF__
