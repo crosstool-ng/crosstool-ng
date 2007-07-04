@@ -41,6 +41,12 @@ case "${CT_SSTRIP_FROM}" in
             if [ -f "${CT_TARBALLS_DIR}/sstrip.c" ]; then
                 return 0
             fi
+            if [ -f "${CT_LOCAL_TARBALLS_DIR}/sstrip.c" ]; then
+                CT_DoLog EXTRA "Copying \"sstrip.c\" from local copy"
+                cp -v "${CT_LOCAL_TARBALLS_DIR}/sstrip.c"   \
+                      "${CT_TARBALLS_DIR}/sstrip.c"         2>&1 |CT_DoLog ALL
+                return 0
+            fi
             CT_Pushd "${CT_TARBALLS_DIR}"
             CT_DoLog EXTRA "Retrieving \"sstrip\" (from buildroot's svn)"
             http_data=`lynx -dump "${sstrip_url}"`
