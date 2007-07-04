@@ -63,13 +63,13 @@ ________/
 crosstool was first 'conceived' by Dan Kegel, which offered it to the community,
 as a set of scripts, a repository of patches, and some pre-configured, general
 purpose setup files to be used to configure crosstool. This is available at
-www.kegel.com/crosstool, and the subversion repository is hosted on google at
-http://code.google.com/p/crosstool/.
+http://www.kegel.com/crosstool, and the subversion repository is hosted on
+google at http://code.google.com/p/crosstool/.
 
 At the time of writing, crosstool only supports building with one C library,
 namely glibc, and one C compiler, gcc; it is cripled with historical support
 for legacy components, and is some kind of a mess to upgrade. Also, submited
-patches take a looong time before they are integrated mainline.
+patches take a loooong time before they are integrated mainline.
 
 I once managed to add support for uClibc-based toolchains, but it did not make
 into mainline, mostly because I don't have time to port the patch forward to
@@ -77,7 +77,8 @@ the new versions, due in part to the big effort it was taking.
 
 So I decided to clean up crosstool in the state it was, re-order the things
 in place, and add appropriate support for what I needed, that is uClibc
-support.
+support. That was a disaster, as inclusion into mainline is slow as hell,
+and the changes were so numerous.
 
 The only option left to me was rewrite crosstool from scratch. I decided to go
 this way, and name the new implementation crosstool-NG, standing for crosstool
@@ -95,7 +96,7 @@ using a curses-based menu. It is assumed you now how to handle this.
 To enter the menu, type:
   ct-ng menuconfig
 
-Almost every config item has a help entry. Read it carefully.
+Almost every config item has a help entry. Read them carefully.
 
 String and number options can refer to environment variables. In such a case,
 you must use the shell syntax: ${VAR}. You shall neither single- nor double-
@@ -155,7 +156,7 @@ will support, the version of the components you want to use, etc... The
 value for those options are then stored in a configuration file.
 
 To build the toolchain, simply type:
-  ct-ng
+  ct-ng build
 
 This will use the above configuration to retrieve, extract and patch the
 components, build, install and eventually test your newly built toolchain.
@@ -165,6 +166,8 @@ it at will.
 
 In any case, you can get some terse help. Just type:
   ct-ng help
+or:
+  man 1 ct-ng
 
 
 Stoping and restarting a build |
@@ -215,7 +218,7 @@ are up to four machines involved:
   1) the machine configuring the toolchain components: the config machine
   2) the machine building the toolchain components:    the build machine
   3) the machine running the toolchain:                the host machine
-  4) the machine the toolchain is building for:        the target machine
+  4) the machine the toolchain is generating code for: the target machine
 
 We can most of the time assume that the config machine and the build machine
 are the same. Most of the time, this will be true. The only time it isn't
@@ -275,7 +278,21 @@ Makefile-based.
 Makefile front-end |
 -------------------*
 
-To Be Written later...
+The entry point to crosstool-NG is the Makefile script "ct-ng". Calling this
+script with an action will act exactly as if the Makefile was in the current
+working directory and make was called with the action as rule. Thus:
+  ct-ng menuconfig
+is equivalent to having the Makefile in CWD, and calling:
+  make menuconfig
+
+Having ct-ng as it is avoids copying the Makefile everywhere, and acts as a
+traditional command.
+
+ct-ng loads sub- Makefiles from the library directory $(CT_LIB_DIR), as set up
+at configuration time with ./configure.
+
+ct-ng also search for config files, sub-tools, samples, scripts and patches in
+that library directory.
 
 Kconfig parser |
 ---------------*
@@ -285,3 +302,13 @@ by Rob LANDLEY (http://www.landley.net/code/toybox/), itself coming from the
 Linux kernel (http://www.linux.org/ http://www.kernel.org/), and (heavily)
 adapted to my needs.
 
+The kconfig parsers (conf and mconf) are not installed pre-built, but as
+source files. Thus you can have the directory where crosstool-NG is installed,
+exported (via NFS or whatever) and have clients with different architectures
+use the same crosstool-NG installation, and most notably, the same set of
+patches.
+
+Build scripts |
+--------------*
+
+To Be Written later...
