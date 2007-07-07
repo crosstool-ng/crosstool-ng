@@ -293,10 +293,11 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoLog DEBUG "Making build system tools available"
     mkdir -p "${CT_PREFIX_DIR}/bin"
     for tool in ar as dlltool gcc g++ gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
-        if [ -n "`which ${tool}`" ]; then
-            ln -sfv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
-            ln -sfv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}"
-            ln -sfv "`which ${tool}`" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
+        tmp=`CT_Which ${tool}`
+        if [ -n "${tmp}" ]; then
+            ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
+            ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}"
+            ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
         fi |CT_DoLog DEBUG
     done
 

@@ -158,8 +158,16 @@ CT_TestOrAbort() {
 # Test the presence of a tool, or abort if not found
 # Usage: CT_HasOrAbort <tool>
 CT_HasOrAbort() {
-    CT_TestAndAbort "\"${1}\" not found and needed for successfull toolchain build." -z "`which \"${1}\"`"
+    CT_TestAndAbort "\"${1}\" not found and needed for successfull toolchain build." -z "`CT_Which \"${1}\"`"
     return 0
+}
+
+# Search a program: wrap "which" for those system where
+# "which" verbosely says there is no match (Mdk are such
+# suckers...)
+# Usage: CT_Which <filename>
+CT_Which() {
+  which "$1" 2>/dev/null || true
 }
 
 # Get current date with nanosecond precision
@@ -292,8 +300,8 @@ CT_DoGetFileCurl() {
 # Wrapper function to call one of curl or wget
 # Usage: CT_DoGetFile <URL>
 CT_DoGetFile() {
-    local _wget=`which wget`
-    local _curl=`which curl`
+    local _wget=`CT_Which wget`
+    local _curl=`CT_Which curl`
     case "${_wget},${_curl}" in
         ,)  CT_DoError "Could find neither wget nor curl";;
         ,*) CT_DoGetFileCurl "$1" 2>&1 |CT_DoLog ALL;;

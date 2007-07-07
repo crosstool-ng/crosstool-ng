@@ -83,7 +83,7 @@ do_libc_headers() {
     addons_config="${addons_config//linuxthreads/}"
     addons_config=`echo "${addons_config}" |sed -r -e 's/,+/,/g; s/^,+//; s/,+$//;'`
 
-    cross_cc=`which "${CT_TARGET}-gcc" || true`
+    cross_cc=`CT_Which "${CT_TARGET}-gcc"`
     CT_DoLog DEBUG "Using gcc for target: \"${cross_cc}\""
     CT_DoLog DEBUG "Extra config passed : \"${addons_config}\""
 
@@ -225,7 +225,7 @@ do_libc_start_files() {
             esac;;
     esac
 
-    cross_cc=`which "${CT_TARGET}-gcc" || true`
+    cross_cc=`CT_Which "${CT_TARGET}-gcc"`
     CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""
     CT_DoLog DEBUG "Configuring with addons : \"`do_libc_add_ons_list ,`\""
     CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
@@ -323,7 +323,7 @@ do_libc() {
         ,y) extra_cc_args="${extra_cc_args} -mlittle-endian";;
     esac
 
-    cross_cc=`which "${CT_TARGET}-gcc" || true`
+    cross_cc=`CT_Which "${CT_TARGET}-gcc"`
     CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""
     CT_DoLog DEBUG "Configuring with addons : \"`do_libc_add_ons_list ,`\""
     CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
