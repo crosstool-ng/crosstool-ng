@@ -40,20 +40,20 @@ PHONY += regtest
 regtest:
 	@for samp in $(CT_SAMPLES); do                                                                          \
 	     echo -e "\rBuilding sample \"$${samp}\""                                                       &&  \
-	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) $${samp}_copy_config                                &&  \
-	     yes "" |$(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) defoldconfig >/dev/null 2>&1                &&  \
+	     $(CT_NG) $${samp}_copy_config                                                                  &&  \
+	     yes "" |$(CT_NG) defoldconfig >/dev/null 2>&1                                                  &&  \
 	     sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$${CT_TOP_DIR}/targets/tst/$${CT_TARGET}":;' .config  &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config         &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config                                          &&  \
 	     sed -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config                                 &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config                                        &&  \
 	     sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config                                   &&  \
-	     yes "" |$(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) defoldconfig >/dev/null 2>&1                &&  \
-	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE)                                                     &&  \
+	     yes "" |$(CT_NG) defoldconfig >/dev/null 2>&1                                                  &&  \
+	     $(CT_NG) build                                                                                 &&  \
 	     echo -e "\rMaking tarball for sample \"$${samp}\""                                             &&  \
-	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) tarball                                             ;   \
+	     $(CT_NG) tarball                                                                               ;   \
 	     echo -e "\rCleaning sample \"$${samp}\""                                                       ;   \
-	     $(MAKE) -C $(CT_TOP_DIR) -f $(CT_MAKEFILE) distclean                                           ;   \
+	     $(CT_NG) distclean                                                                             ;   \
 	 done
 
 saveconfig:
