@@ -120,8 +120,7 @@ do_libc() {
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, thus the STRIPTOOL= assignment
     CT_DoLog EXTRA "Building C library"
-    make ${PARALLELMFLAGS}              \
-         CROSS=${CT_TARGET}-            \
+    make CROSS=${CT_TARGET}-            \
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
          all                            2>&1 |CT_DoLog ALL
