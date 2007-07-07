@@ -77,7 +77,7 @@ do_libc_headers() {
     CT_DoYes "" |make CROSS= PREFIX="${CT_SYSROOT_DIR}/" oldconfig 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building headers"
-    make ${PARALLELMFLAGS} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers 2>&1 |CT_DoLog ALL
+    make CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing headers"
     make CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev 2>&1 |CT_DoLog ALL
@@ -112,8 +112,7 @@ do_libc() {
     # to best fit the target. So it is useless and seems to be a bad thing to
     # use LIBC_EXTRA_CFLAGS here.
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |make ${PARALLELMFLAGS}             \
-                      CROSS=${CT_TARGET}-           \
+    CT_DoYes "" |make CROSS=${CT_TARGET}-           \
                       PREFIX="${CT_SYSROOT_DIR}/"   \
                       oldconfig                     2>&1 |CT_DoLog ALL
 
