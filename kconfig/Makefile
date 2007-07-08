@@ -101,4 +101,3 @@ clean::
 
 distclean::
 	@rm -f $(CT_TOP_DIR)/config
-	@[ $(CT_LIB_DIR) = $(CT_TOP_DIR) ] || rm -rf $(CT_TOP_DIR)/kconfig
