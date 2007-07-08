@@ -423,6 +423,12 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         prev_step="${step}"
     done
 
+    # Install the /populator/
+    sed -r -e 's,@@CT_READELF@@,'"${CT_PREFIX_DIR}/bin/${CT_TARGET}-readelf"',g;'   \
+           -e 's,@@CT_SYSROOT_DIR@@,'"${CT_SYSROOT_DIR}"',g;'                       \
+           "${CT_LIB_DIR}/tools/populate.in" >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
+    chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
+
     # Create the aliases to the target tools
     if [ -n "${CT_TARGET_ALIAS}" ]; then
         CT_DoLog EXTRA "Creating symlinks from \"${CT_TARGET}-*\" to \"${CT_TARGET_ALIAS}-*\""

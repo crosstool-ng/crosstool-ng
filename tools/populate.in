@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# This script will populate the root directory with libs from the sysroot.
+# (C) 2007 Yann E. MORIN
+# Licensed under the GPL v2
+
+CT_READELF="@@CT_READELF@@"
+CT_SYSROOT_DIR="@@CT_SYSROOT_DIR@@"
+
+myname=$(basename "$0")
+
+doHelp() {
+    cat <<_EOF_
+$myname [ -f ] < -s source_root > < -d destination_root >
+
+    -f  force execution: if destination directory already exists,
+        it will be removed first.
+
+    -s dir
+        use 'dir' as the un-populated (source) root directory
+
+    -d dir
+        use 'dir' as the place to put the populated root directory
+
+    -v  Be verbose
+_EOF_
+}
+
+CT_FORCE=no
+CT_ROOT_SRC_DIR=
+CT_ROOT_DST_DIR=
+CT_ECHO=true
+while getopts ":fs:d:vh" CT_OPT; do
+    case "${CT_OPT}" in
+        f)  CT_FORCE=yes;;
+        s)  CT_ROOT_SRC_DIR="${OPTARG}";;
+        d)  CT_ROOT_DST_DIR="${OPTARG}";;
+        v)  CT_ECHO=echo;;
+        h)  doHelp
+            exit 0
+            ;;
+        :)  echo "$myname: \"-${OPTARG}\" takes exactly one argument."
+            exit 1
+            ;;
+        ?)  echo "$myname: unknown option \"-${OPTARG}\"."
+            exit 1
+            ;;
+    esac
+done
+
+# Sanity checks
+if [ -z "${CT_ROOT_SRC_DIR}" -o -z "${CT_ROOT_DST_DIR}" ]; then
+    doHelp
+    exit 1
+fi
+if [ ! -d "${CT_ROOT_SRC_DIR}" ]; then
+    echo "$myname: \"${CT_ROOT_SRC_DIR}\": no such file or directory"
+    exit 1
+fi
+if [ -d "${CT_ROOT_DST_DIR}" -a "${CT_FORCE}" != "yes" ]; then
+    echo "$myname: \"${CT_ROOT_DST_DIR}\": already exists"
+    exit 1
+fi
+src_inode=$(ls -di "${CT_ROOT_SRC_DIR}")
+dst_inode=$(ls -di "${CT_ROOT_DST_DIR}" 2>/dev/null)
+if [ "${src_inode}" = "${dst_inode}" ]; then
+    echo "$myname: source and destination are the same!"
+    exit 1
+fi
+
+# Get rid of potentially older destination directory
+if [ -d "${CT_ROOT_DST_DIR}" ]; then
+    mv "${CT_ROOT_DST_DIR}" "${CT_ROOT_DST_DIR}.$$"
+    nohup rm -rf "${CT_ROOT_DST_DIR}.$$" >/dev/null 2>&1 &
+fi
+
+# Create the working copy
+mkdir -p "${CT_ROOT_DST_DIR}"
+
+# Make all path absolute
+case "${CT_ROOT_SRC_DIR}" in
+    /*) ;;
+    *)  CT_ROOT_SRC_DIR=$(cd "${CT_ROOT_SRC_DIR}"; pwd)
+esac
+case "${CT_ROOT_DST_DIR}" in
+    /*) ;;
+    *)  CT_ROOT_DST_DIR=$(cd "${CT_ROOT_DST_DIR}"; pwd)
+esac
+
+cd "${CT_ROOT_SRC_DIR}"
+tar cf - . |(cd "${CT_ROOT_DST_DIR}"; tar xf -)
+
+# Parse the working copy for executables and libraries
+cd "${CT_ROOT_DST_DIR}"
+still_needed=1
+while [ ${still_needed} -eq 1 ]; do
+    ${CT_ECHO} "Looping..."
+    still_needed=0
+    for f in $(find . -type f -exec file {} \; |egrep ': ELF [[:digit:]]+-bit .SB (executable|shared object),' |cut -d ":" -f 1); do
+        ${CT_ECHO} "Scanning \"${f}\""
+        for libname in $("${CT_READELF}" -d "${f}" |egrep '(NEEDED)' |sed -r -e 's,.+\[(.+)\] *$,\1,;'); do
+            ${CT_ECHO} "  searching for \"${libname}\""
+            if [    -e "${CT_ROOT_DST_DIR}/lib/${libname}"     \
+                 -o -e "${CT_ROOT_DST_DIR}/usr/lib/${libname}" ]; then
+                ${CT_ECHO} "    already present"
+                continue
+            fi
+            for dir in . usr ..; do
+                ${CT_ECHO} -n "    trying in \"${dir}\""
+                tgt_dir="${dir}"
+                [ "${tgt_dir}" = ".." ] && tgt_dir="usr"
+                libfile="${CT_SYSROOT_DIR}/${dir}/lib/${libname}"
+                ${CT_ECHO} ": \"${libfile}\""
+                if [ -e "${libfile}" ]; then
+                    mkdir -p "${CT_ROOT_DST_DIR}/${dir}/lib"
+                    ${CT_ECHO} "      installing \"${tgt_dir}/lib/${libname}\""
+                    cp "${libfile}" "${CT_ROOT_DST_DIR}/${tgt_dir}/lib/${libname}"
+                    still_needed=1
+                    break
+                fi
+            done
+        done
+    done
+done
