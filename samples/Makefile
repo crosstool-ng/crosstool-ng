@@ -50,10 +50,13 @@ regtest:
 	     sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config                                   &&  \
 	     yes "" |$(CT_NG) defoldconfig >/dev/null 2>&1                                                  &&  \
 	     $(CT_NG) build                                                                                 &&  \
+	     echo -e "\rSuccessfully built sample \"$${samp}\""                                             &&  \
 	     echo -e "\rMaking tarball for sample \"$${samp}\""                                             &&  \
-	     $(CT_NG) tarball                                                                               ;   \
+	     $(CT_NG) tarball                                                                               &&  \
+	     echo -e "\rSuccessfully built tarball for sample \"$${samp}\""                                 ;   \
 	     echo -e "\rCleaning sample \"$${samp}\""                                                       ;   \
 	     $(CT_NG) distclean                                                                             ;   \
+	     echo -e "\r"                                                                                   ;   \
 	 done
 
 saveconfig:
