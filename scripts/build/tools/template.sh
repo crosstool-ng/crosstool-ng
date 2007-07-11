@@ -35,8 +35,8 @@ do_tools_foobar_extract() {
 # Put your build code here
 do_tools_foobar_build() {
     # For example:
-    # mkdir -p "${CT_BUIL_DIR}/build-foobar"
-    # CT_Pushd "${CT_BUIL_DIR}/build-foobar"
+    # mkdir -p "${CT_BUILD_DIR}/build-foobar"
+    # CT_Pushd "${CT_BUILD_DIR}/build-foobar"
     # "${CT_SRC_DIR}/foobar-${CT_FOOBAR_VERSION}/configure"   \
     #     --build=${CT_BUILD}                                 \
     #     --host=${CT_TARGET}                                 \
