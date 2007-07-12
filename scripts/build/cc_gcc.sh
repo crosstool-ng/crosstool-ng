@@ -139,7 +139,7 @@ do_cc() {
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
-    ln "${CT_TARGET}-gcc" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc"
+    ln "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-{g,}cc
 
     CT_EndStep
 }
