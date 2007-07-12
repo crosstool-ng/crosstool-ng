@@ -41,8 +41,8 @@ do_debug_duma_build() {
         CT_DoLog EXTRA "Building library \"${lib}\""
         make HOSTCC="${CT_CC_NATIVE}"       \
              HOSTCXX="${CT_CC_NATIVE}"      \
-             CC="${CT_TARGET}-gcc"          \
-             CXX="${CT_TARGET}-gcc"         \
+             CC="${CT_TARGET}-${CT_CC}"     \
+             CXX="${CT_TARGET}-${CT_CC}"    \
              DUMA_CPP="${DUMA_CPP}"         \
              ${lib}                         2>&1 |CT_DoLog ALL
         CT_DoLog EXTRA "Installing library \"${lib}\""

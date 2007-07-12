@@ -94,7 +94,7 @@ do_debug_gdb_build() {
             ${extra_config}                             2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building gdbserver"
-        make ${PARALLELMFLAGS} CC=${CT_TARGET}-gcc      2>&1 |CT_DoLog ALL
+        make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Installing gdbserver"
         make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
@@ -125,7 +125,7 @@ do_debug_gdb_build() {
             ${extra_config}                             2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building native gdb"
-        make ${PARALLELMFLAGS} CC=${CT_TARGET}-gcc      2>&1 |CT_DoLog ALL
+        make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Installing native gdb"
         make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
