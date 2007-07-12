@@ -256,7 +256,6 @@ CT_DoYes() {
 CT_GetFileExtension() {
     local ext
     local file="$1"
-    local got_it=1
 
     CT_Pushd "${CT_TARBALLS_DIR}"
     # we need to also check for an empty extension for those very
@@ -265,7 +264,6 @@ CT_GetFileExtension() {
     for ext in .tar.gz .tar.bz2 .tgz .tar ''; do
         if [ -f "${file}${ext}" ]; then
             echo "${ext}"
-            got_it=0
             break
         fi
     done
@@ -310,13 +308,19 @@ CT_DoGetFile() {
 }
 
 # Download the file from one of the URLs passed as argument
-# Usage: CT_GetFile <filename> <url> [<url> ...]
+# Usage: CT_GetFile <filename> [extension] <url> [url ...]
 CT_GetFile() {
-    local got_it
     local ext
     local url
     local file="$1"
+    local first_ext=""
     shift
+    case "$1" in
+        .tar.bz2|.tar.gz|.tgz|.tar)
+            first_ext="$1"
+            shift
+            ;;
+    esac
 
     # Do we already have it?
     ext=`CT_GetFileExtension "${file}"`
@@ -326,11 +330,10 @@ CT_GetFile() {
     fi
 
     CT_Pushd "${CT_TARBALLS_DIR}"
-    # File not yet downloaded, try to get it
-    got_it=0
-    # We'd rather have a bzip2'ed tarball, then gzipped, and finally plain tar.
+    # We'd rather have a bzip2'ed tarball, then gzipped tarball, plain tarball,
+    # or, as a failover, a file without extension.
     # Try local copy first, if it exists
-    for ext in .tar.bz2 .tar.gz .tgz .tar; do
+    for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
              "${CT_FORCE_DOWNLOAD}" != "y" ]; then
             CT_DoLog EXTRA "Copying \"${file}\" from local copy"
@@ -340,7 +343,7 @@ CT_GetFile() {
     done
     # Try to download it
     CT_DoLog EXTRA "Retrieving \"${file}\""
-    for ext in .tar.bz2 .tar.gz .tgz .tar; do
+    for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         # Try all urls in turn
         for url in "$@"; do
             case "${url}" in
