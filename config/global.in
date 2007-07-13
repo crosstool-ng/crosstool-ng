@@ -3,6 +3,10 @@
 # Ah, this option is here to break the dependency tracking, and allow
 # dependent option to line-up with the options they depend on ,rather
 # than being indented
+# Use it to intersperse two config options depending one on the other,
+# but don't want the second to be indented (for example because you have
+# a comment between the two to separate them). See DOWNLOAD and EXTRACT
+# options to see how it is used.
 config FOOBAR
     bool
     default n
@@ -10,6 +14,16 @@ config FOOBAR
 menu "Paths and misc options"
 
 comment "crosstool-NG behavior"
+
+config OBSOLETE
+    bool
+    prompt "Use obsolete features"
+    default n
+    help
+      If you set this to Y, you will be able to select obsolete features.
+      
+      Such obsolete features are the use of old kernel headers, old
+      gcc versions, etc...
 
 config EXPERIMENTAL
     bool
@@ -25,15 +39,13 @@ config EXPERIMENTAL
         - unfinished, in which case you could try hacking it and send me the result
         - non-existant, in which case you could also try hacking it in and send the result
 
-config OBSOLETE
+config BROKEN
     bool
-    prompt "Use obsolete features"
+    prompt "Try broken stuff"
     default n
+    depends on EXPERIMENTAL
     help
-      If you set this to Y, you will be able to select obsolete features.
-      
-      Such obsolete features are the use of old kernel headers, old
-      gcc versions, etc...
+      Select this if you want to _debug_ broken stuff.
 
 config DEBUG_CT
     bool
@@ -226,13 +238,13 @@ config ONLY_DOWNLOAD
 
 config FOOBAR
 
+if ! ONLY_DOWNLOAD
+
 comment "Extracting"
-    depends on ! ONLY_DOWNLOAD
 
 config FORCE_EXTRACT
     bool
     prompt "Force extractions"
-    depends on ! ONLY_DOWNLOAD
     default n
     help
       Force extraction of already exctracted tarballs.
@@ -243,12 +255,13 @@ config FORCE_EXTRACT
 config ONLY_EXTRACT
     bool
     prompt "Stop after extracting tarballs"
-    depends on ! ONLY_DOWNLOAD
     default n
     help
       Exit after unpacking and patching tarballs.
       
       Usefull to look at the code before doing the build itself.
+
+endif # ! ONLY_DOWNLOAD
 
 comment "Logging"
 
