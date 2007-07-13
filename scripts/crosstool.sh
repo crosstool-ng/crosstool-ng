@@ -64,6 +64,7 @@ CT_HasOrAbort awk
 CT_HasOrAbort sed
 CT_HasOrAbort bison
 CT_HasOrAbort flex
+CT_HasOrAbort lynx
 
 CT_DoLog INFO "Building environment variables"
 
