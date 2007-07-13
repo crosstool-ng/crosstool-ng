@@ -8,7 +8,7 @@ doHelp() {
 Usage: ${myname} <tool> [option] <version>
   'tool' in one of:
     --gcc, --binutils, --glibc, --uClibc, --linux,
-    --gdb, --dmalloc, --duma, --strace
+    --gdb, --dmalloc, --duma, --strace, --ltrace, --libelf
 
   Valid options for all tools:
     --experimental, -x
@@ -57,6 +57,8 @@ while [ $i -le $# ]; do
         --dmalloc)          cat=DMALLOC;   tool=dmalloc;  tool_prefix=debug/    tool_suffix=;;
         --duma)             cat=DUMA;      tool=duma;     tool_prefix=debug/    tool_suffix=;;
         --strace)           cat=STRACE;    tool=strace;   tool_prefix=debug/    tool_suffix=;;
+        --ltrace)           cat=LTRACE;    tool=ltrace;   tool_prefix=debug/    tool_suffix=;;
+        --libelf)           cat=LIBELF;    tool=libelf;   tool_prefix=tools/    tool_suffix=;;
         # Tools options:
         -x|--experimental)  EXP=1; OBS=;;
         -o|--obsolete)      OBS=1; EXP=;;
