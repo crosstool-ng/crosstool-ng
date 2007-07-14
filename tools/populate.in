@@ -26,15 +26,15 @@ $myname [-f] [-v] -s source_root -d destination_root
 _EOF_
 }
 
-CT_FORCE=no
 CT_ROOT_SRC_DIR=
 CT_ROOT_DST_DIR=
+CT_FORCE=no
 CT_ECHO=true
-while getopts ":fs:d:vh" CT_OPT; do
+while getopts ":s:d:fvh" CT_OPT; do
     case "${CT_OPT}" in
-        f)  CT_FORCE=yes;;
         s)  CT_ROOT_SRC_DIR="${OPTARG}";;
         d)  CT_ROOT_DST_DIR="${OPTARG}";;
+        f)  CT_FORCE=y;;
         v)  CT_ECHO=echo;;
         h)  doHelp
             exit 0
@@ -57,7 +57,7 @@ if [ ! -d "${CT_ROOT_SRC_DIR}" ]; then
     echo "$myname: \"${CT_ROOT_SRC_DIR}\": no such file or directory"
     exit 1
 fi
-if [ -d "${CT_ROOT_DST_DIR}" -a "${CT_FORCE}" != "yes" ]; then
+if [ -d "${CT_ROOT_DST_DIR}" -a "${CT_FORCE}" != "y" ]; then
     echo "$myname: \"${CT_ROOT_DST_DIR}\": already exists"
     exit 1
 fi
@@ -94,8 +94,8 @@ while [ ${still_needed} -eq 1 ]; do
         ${CT_ECHO} "Scanning \"${f}\""
         for libname in $("${CT_READELF}" -d "${f}" |egrep '(NEEDED)' |sed -r -e 's,.+\[(.+)\] *$,\1,;'); do
             ${CT_ECHO} "  searching for \"${libname}\""
-            if [    -e "${CT_ROOT_DST_DIR}/lib/${libname}"     \
-                 -o -e "${CT_ROOT_DST_DIR}/usr/lib/${libname}" ]; then
+            if [    -e "lib/${libname}"     \
+                 -o -e "usr/lib/${libname}" ]; then
                 ${CT_ECHO} "    already present"
                 continue
             fi
@@ -107,9 +107,9 @@ while [ ${still_needed} -eq 1 ]; do
                 libfile="${CT_SYSROOT_DIR}/${dir}/lib/${libname}"
                 ${CT_ECHO} ": \"${libfile}\""
                 if [ -e "${libfile}" ]; then
-                    mkdir -p "${CT_ROOT_DST_DIR}/${dir}/lib"
+                    mkdir -p "${dir}/lib"
                     ${CT_ECHO} "      installing \"${tgt_dir}/lib/${libname}\""
-                    cp "${libfile}" "${CT_ROOT_DST_DIR}/${tgt_dir}/lib/${libname}"
+                    cp "${libfile}" "${tgt_dir}/lib/${libname}"
                     still_needed=1
                     break
                 fi
