@@ -42,6 +42,7 @@ build-lib:
 build-doc: docs/ct-ng.1
 
 %: %.in
+	@echo "  SED    $@"
 	@sed -r -e 's,@@CT_MAKE@@,$(MAKE),g;'       \
 	        -e 's,@@CT_BINDIR@@,$(BINDIR),g;'   \
 	        -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'   \
@@ -65,36 +66,46 @@ clean-doc:
 #--------------------------------------
 # Install rules
 
-install-bin: $(BINDIR)
+install-bin: install-lib $(BINDIR)
+	@echo "  INST   ct-ng"
 	@install -m 755 ct-ng $(BINDIR)/ct-ng
+	@echo "  LN     ct-ng.extract-config"
 	@ln -sf $(LIBDIR)/tools/ct-ng.extract-config $(BINDIR)/ct-ng.extract-config
 
 install-lib: $(LIBDIR) install-lib-main install-lib-samples
 
 install-lib-main: $(LIBDIR)
 	@for src_dir in config kconfig patches scripts tools; do            \
+	     echo "  INST   $${src_dir}/";                                  \
 	     tar cf - --exclude=.svn $${src_dir} |(cd $(LIBDIR); tar xf -); \
 	 done
 	@rm -f $(LIBDIR)/tools/addToolVersion.sh
 	@for src_file in Makefile.steps version; do                 \
+	     echo "  INST   $${src_file}";                          \
 	     install -m 644 $${src_file} $(LIBDIR)/$${src_file};    \
 	 done
 
 # Samples need a little love:
 #  - change every occurence of CT_TOP_DIR to CT_LIB_DIR
 install-lib-samples: $(LIBDIR) install-lib-main
+	@echo "  INST   samples/"
 	@tar cf - --exclude=.svn samples |(cd $(LIBDIR); tar xf -)
 	@for samp_file in $(LIBDIR)/samples/*/crosstool.config; do                  \
 	     sed -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file}; \
 	 done
 
-install-doc: $(DOCDIR) $(MANDIR)
+install-doc: install-man $(DOCDIR)
 	@for doc_file in CREDITS docs/overview.txt; do  \
+	     echo "  INST   $${doc_file}";              \
 	     install -m 644 "$${doc_file}" $(DOCDIR);   \
 	 done
+
+install-man: $(MANDIR)
+	@echo "  INST   ct-ng.1"
 	@install -m 644 docs/ct-ng.1 $(MANDIR)
 
 $(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)::
+	@echo "  MKDIR  $@"
 	@install -m 755 -d $@
 
 
@@ -103,6 +114,7 @@ $(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)::
 
 uninstall-bin:
 	@rm -f $(BINDIR)/ct-ng
+	@rm -f $(BINDIR)/ct-ng.extract-config
 
 uninstall-lib:
 	@rm -rf $(LIBDIR)
