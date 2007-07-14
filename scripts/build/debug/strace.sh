@@ -24,13 +24,13 @@ do_debug_strace_build() {
     "${CT_SRC_DIR}/strace-${CT_STRACE_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_TARGET}                                 \
-        --prefix=/usr
+        --prefix=/usr                                       2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building strace"
-    make
+    make    2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing strace"
-    make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
+    make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
 
     CT_Popd
     CT_EndStep
