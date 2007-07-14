@@ -425,6 +425,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     done
 
     # Install the /populator/
+    CT_DoLog EXTRA "Installing the populate helper"
     sed -r -e 's,@@CT_READELF@@,'"${CT_PREFIX_DIR}/bin/${CT_TARGET}-readelf"',g;'   \
            -e 's,@@CT_SYSROOT_DIR@@,'"${CT_SYSROOT_DIR}"',g;'                       \
            "${CT_LIB_DIR}/tools/populate.in" >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
