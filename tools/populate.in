@@ -11,7 +11,7 @@ myname=$(basename "$0")
 
 doHelp() {
     cat <<_EOF_
-$myname [ -f ] < -s source_root > < -d destination_root >
+$myname [-f] [-v] -s source_root -d destination_root
 
     -f  force execution: if destination directory already exists,
         it will be removed first.
@@ -78,14 +78,8 @@ fi
 mkdir -p "${CT_ROOT_DST_DIR}"
 
 # Make all path absolute
-case "${CT_ROOT_SRC_DIR}" in
-    /*) ;;
-    *)  CT_ROOT_SRC_DIR=$(cd "${CT_ROOT_SRC_DIR}"; pwd)
-esac
-case "${CT_ROOT_DST_DIR}" in
-    /*) ;;
-    *)  CT_ROOT_DST_DIR=$(cd "${CT_ROOT_DST_DIR}"; pwd)
-esac
+CT_ROOT_SRC_DIR=$(cd "${CT_ROOT_SRC_DIR}"; pwd)
+CT_ROOT_DST_DIR=$(cd "${CT_ROOT_DST_DIR}"; pwd)
 
 cd "${CT_ROOT_SRC_DIR}"
 tar cf - . |(cd "${CT_ROOT_DST_DIR}"; tar xf -)
@@ -105,6 +99,7 @@ while [ ${still_needed} -eq 1 ]; do
                 ${CT_ECHO} "    already present"
                 continue
             fi
+            # Need to scan .. for libgcc_s et al.
             for dir in . usr ..; do
                 ${CT_ECHO} -n "    trying in \"${dir}\""
                 tgt_dir="${dir}"
