@@ -42,7 +42,7 @@ case "${CT_SSTRIP_FROM}" in
                 return 0
             fi
             if [ -f "${CT_LOCAL_TARBALLS_DIR}/sstrip.c" ]; then
-                CT_DoLog EXTRA "Copying \"sstrip.c\" from local copy"
+                CT_DoLog EXTRA "Retrieving \"sstrip.c\" from local copy"
                 cp -v "${CT_LOCAL_TARBALLS_DIR}/sstrip.c"   \
                       "${CT_TARBALLS_DIR}/sstrip.c"         2>&1 |CT_DoLog ALL
                 return 0

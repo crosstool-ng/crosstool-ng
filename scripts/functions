@@ -334,24 +334,31 @@ CT_GetFile() {
     # or, as a failover, a file without extension.
     # Try local copy first, if it exists
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
+        CT_DoLog DEBUG "Trying \"${CT_LOCAL_TARBALLS_DIR}/${file}${ext}\""
         if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
              "${CT_FORCE_DOWNLOAD}" != "y" ]; then
-            CT_DoLog EXTRA "Copying \"${file}\" from local copy"
+            CT_DoLog EXTRA "Retrieving \"${file}\" from local storage"
             cp -v "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
             return 0
         fi
     done
     # Try to download it
-    CT_DoLog EXTRA "Retrieving \"${file}\""
+    CT_DoLog EXTRA "Retrieving \"${file}\" from network"
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         # Try all urls in turn
         for url in "$@"; do
-            case "${url}" in
-                *)  CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
-                    CT_DoGetFile "${url}/${file}${ext}"
-                    ;;
-            esac
-            [ -f "${file}${ext}" ] && return 0 || true
+            CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
+            CT_DoGetFile "${url}/${file}${ext}"
+            if [ -f "${file}${ext}" ]; then
+                # No need to test if the file already exists because
+                # it does NOT. If it did exist, we'd have been stopped
+                # above, when looking for local copies.
+                if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
+                    CT_DoLog EXTRA "Saving \"${file}\" to local storage"
+                    cp -v "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}" |CT_DoLog ALL
+                fi
+                return 0
+            fi
         done
     done
     CT_Popd
