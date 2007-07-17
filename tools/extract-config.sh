@@ -3,9 +3,9 @@
 # This scripts extracts a crosstool-NG configuration from the log file
 # of a toolchain build with crosstool-NG.
 
-# Usage: $0 <logfile>
+# Usage: cat <logfile> |$0
 
-cat "$1" |awk '
+awk '
 BEGIN {
   dump = 0;
 }
