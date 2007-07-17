@@ -42,7 +42,7 @@ case "${CT_SSTRIP_FROM}" in
                 return 0
             fi
             if [ -f "${CT_LOCAL_TARBALLS_DIR}/sstrip.c" ]; then
-                CT_DoLog EXTRA "Retrieving \"sstrip.c\" from local copy"
+                CT_DoLog EXTRA "Retrieving \"sstrip.c\" from local storage"
                 cp -v "${CT_LOCAL_TARBALLS_DIR}/sstrip.c"   \
                       "${CT_TARBALLS_DIR}/sstrip.c"         2>&1 |CT_DoLog ALL
                 return 0
@@ -57,7 +57,11 @@ case "${CT_SSTRIP_FROM}" in
                      |egrep '^ *8\.'                                \
                      |sed -r -e 's/^ *'${link}'\. +(.+)$/\1/;'`
             CT_DoGetFile "${rev_url}" 2>&1 |CT_DoLog ALL
-            mv sstrip.c?* sstrip.c
+            mv -v sstrip.c?* sstrip.c 2>&1 |CT_DoLog DEBUG
+            if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
+                CT_DoLog EXTRA "Saving \sstrip.c\" to local storage"
+                cp -v sstrip.c "${CT_LOCAL_TARBALLS_DIR}" 2>&1 |CT_DoLog DEBUG
+            fi
             CT_Popd
         }
         do_tools_sstrip_extract() {
