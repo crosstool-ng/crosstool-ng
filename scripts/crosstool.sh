@@ -424,6 +424,11 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         prev_step="${step}"
     done
 
+    CT_DoLog DEBUG "Removing access to the build system tools"
+    find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
+    find "${CT_PREFIX_DIR}/bin" -name "${CT_UNIQ_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
+    find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
+
     # Install the /populator/
     CT_DoLog EXTRA "Installing the populate helper"
     sed -r -e 's,@@CT_READELF@@,'"${CT_PREFIX_DIR}/bin/${CT_TARGET}-readelf"',g;'   \
@@ -450,11 +455,6 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         rm -rf "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
         rm -rf "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
     fi
-
-    CT_DoLog DEBUG "Removing access to the build system tools"
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_UNIQ_BUILD}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \+ |CT_DoLog DEBUG
 fi
 
 CT_DoEnd INFO
