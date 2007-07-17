@@ -443,7 +443,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         for t in "${CT_TARGET}-"*; do
             _t="`echo \"$t\" |sed -r -e 's/^'\"${CT_TARGET}\"'-/'\"${CT_TARGET_ALIAS}\"'-/;'`"
             CT_DoLog DEBUG "Linking \"${_t}\" -> \"${t}\""
-            ln -s "${t}" "${_t}"
+            ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog DEBUG
         done
         CT_Popd
     fi
