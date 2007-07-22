@@ -82,7 +82,7 @@ help-config::
 
 # Cheesy build
 
-SHIPPED = $(CT_LIB_DIR)/kconfig/zconf.tab.c $(CT_LIB_DIR)/kconfig/lex.zconf.c $(CT_LIB_DIR)/kconfig/zconf.hash.c
+SHIPPED := $(CT_LIB_DIR)/kconfig/zconf.tab.c $(CT_LIB_DIR)/kconfig/lex.zconf.c $(CT_LIB_DIR)/kconfig/zconf.hash.c
 
 %.c: %.c_shipped
 	@ln -s $(notdir $<) $@
@@ -101,9 +101,7 @@ $(obj)/conf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c
 
 clean::
 	@rm -f $(CT_TOP_DIR)/kconfig/{,m}conf
+	@rm -f $(SHIPPED)
 	@rmdir --ignore-fail-on-non-empty $(CT_TOP_DIR)/kconfig 2>/dev/null || true
-	@rm -f $(CT_TOP_DIR)/config
+	@rm -f $(CT_TOP_DIR)/config 2>/dev/null || true
 	@rm -rf $(CT_TOP_DIR)/config.gen
-
-distclean::
-	@rm -f $(CT_TOP_DIR)/config
