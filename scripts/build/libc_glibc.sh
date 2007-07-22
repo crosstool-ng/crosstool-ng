@@ -158,6 +158,9 @@ do_libc_headers() {
             # supported by ct-ng right now. See original crosstool when they are.
             pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
             pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/nptl/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/bits/pthreadtypes.h"
+            if [ ! -f "${pthreadtypes_h}" ]; then
+                pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_LIBC}-ports-${CT_LIBC_VERSION}/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/nptl/bits/pthreadtypes.h"
+            fi
             ;;
         linuxthreads)
             pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
