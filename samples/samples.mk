@@ -20,7 +20,9 @@ help-build::
 # How we do build one sample
 PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES):
+	@echo  'Configuring for "$@"'
 	@$(CT_NG) $(patsubst %,copy_config_%,$(@)) oldconfig
+	@echo  'Execute "$(CT_NG) build" to build your toolchain'
 
 $(patsubst %,copy_config_%,$(CT_SAMPLES)):
 	@if [ -f $(CT_TOP_DIR)/samples/$(patsubst copy_config_%,%,$(@))/crosstool.config ]; then                    \
