@@ -38,6 +38,10 @@ CT_EndStep
 # Some sanity checks in the environment and needed tools
 CT_DoLog INFO "Checking environment sanity"
 
+CT_DoLog DEBUG "Unsetting and unexporting MAKEFLAGS"
+unset MAKEFLAGS
+export MAKEFLAGS
+
 # Enable known ordering of files in directory listings:
 CT_Test "crosstool-NG might not work as expected with LANG=\"${LANG}\"" -n "${LANG}"
 case "${LC_COLLATE},${LC_ALL}" in
