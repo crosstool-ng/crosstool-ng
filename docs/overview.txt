@@ -85,6 +85,58 @@ this way, and name the new implementation crosstool-NG, standing for crosstool
 Next Generation, as many other comunity projects do, and as a wink at the TV
 series "Star Trek: The Next Generation". ;-)
 
+
+___________________________
+                          /
+Installing crosstool-NG  /
+________________________/
+
+There are two ways you can use crosstool-NG:
+ - build and install it, then get rid of the sources like you'd do for most
+   programs,
+ - or only build it and run from the source directory.
+
+The former should be used if you got crosstool-NG from a packaged tarball, see
+"Install method", below, while the latter is most usefull for developpers that
+checked the code out from SVN, and want to submit patches, see "The Hacker's
+way", below.
+
+Install method |
+---------------+
+
+If you go for the install, then you just follow the classical, but yet easy
+./configure way:
+  ./configure --prefix=/some/place
+  make
+  make install
+  export PATH="${PATH}:/some/place/bin"
+
+You can then get rid of crosstool-NG source. Next create a directory to serve
+as a working place, cd in there and run:
+  ct-ng help
+
+See below for complete usage.
+
+The Hacker's way |
+-----------------+
+
+If you go the hacker's way, then the usage is a bit different, although very
+simple:
+  ./configure --local
+  make
+
+Now, *do not* remove crosstool-NG sources. They are needed to run crosstool-NG!
+Stay in the directory holding the sources, and run:
+  ./ct-ng help
+
+See below for complete usage.
+
+Now, provided you checked-out the code, you can send me your interesting changes
+by running:
+  svn diff
+
+and mailing me the result! :-P
+
 ____________________________
                            /
 Configuring crosstool-NG  /
@@ -106,7 +158,7 @@ Almost every config item has a help entry. Read them carefully.
 
 String and number options can refer to environment variables. In such a case,
 you must use the shell syntax: ${VAR}. You shall neither single- nor double-
-quote the string options.
+quote the string/number options.
 
 There are three environment variables that are computed by crosstool-NG, and
 that you can use:
@@ -159,7 +211,7 @@ CT_OBSOLETE:
   Show obsolete versions or tools. Most of the time, you don't want to base
   your toolchain on too old a version (of gcc, for example). But at times, it
   can come handy to use such an old version for regression tests. Those old
-  versions are hidden behind CT_BSOLETE.
+  versions are hidden behind CT_OBSOLETE.
 
 CT_EXPERIMENTAL:
   Show experimental versions or tools. Again, you might not want to base your
@@ -171,7 +223,7 @@ CT_BROKEN:
   Show broken versions or tools. Some usefull tools are currently broken: they
   won't compile, run, or worse, cause defects when running. But if you are
   brave enough, you can try and debug them. They are hidden behind CT_BROKEN,
-  which itself is hiddent behind EXPERIMENTAL.
+  which itself is hidden behind EXPERIMENTAL.
 
 Re-building an existing toolchain |
 ----------------------------------+
@@ -257,9 +309,11 @@ your PATH, such as:
 and then using the target triplet to tell the build systems to use your
 toolchain:
   ./configure --target=your-target-triplet
+or
   make CC=your-target-triplet-gcc
+or
   make CROSS_COMPILE=your-target-triplet-
-  and so on...
+and so on...
 
 When your root directory is ready, it is still missing some important bits: the
 toolchain's libraries. To populate your root directory with those libs, just
@@ -273,6 +327,24 @@ contains only those things you install in it.
 
 You can then use /your/root-populated to build up your file system image, a
 tarball, or to NFS-mount it from your target, or whatever you need.
+
+populate accepts the following options:
+
+ -s [src_dir]
+    Use 'src_dir' as the 'source', un-populated root directory
+
+ -d [dst_dir]
+    Put the 'destination', populated root directory in 'dst_dir'
+
+ -f
+    Remove 'dst_dir' if it previously existed
+
+ -v
+    Be verbose, and tell what's going on (you can see exactly where libs are
+    coming from).
+
+ -h
+    Print the help
 
 ___________________
                   /
@@ -350,6 +422,7 @@ The entry point to crosstool-NG is the Makefile script "ct-ng". Calling this
 script with an action will act exactly as if the Makefile was in the current
 working directory and make was called with the action as rule. Thus:
   ct-ng menuconfig
+
 is equivalent to having the Makefile in CWD, and calling:
   make menuconfig
 
@@ -362,13 +435,16 @@ at configuration time with ./configure.
 ct-ng also search for config files, sub-tools, samples, scripts and patches in
 that library directory.
 
+Because of a stupid make behavior/bug I was unable to track down, implicit make
+rules are disabled: installing with --local would triger those rules, and mconf
+was unbuildable.
+
 Kconfig parser |
 ---------------*
 
 The kconfig language is a hacked version, vampirised from the toybox project
 by Rob LANDLEY (http://www.landley.net/code/toybox/), itself coming from the
-Linux kernel (http://www.linux.org/ http://www.kernel.org/), and (heavily)
-adapted to my needs.
+Linux kernel (http://www.kernel.org/), and (heavily) adapted to my needs.
 
 The kconfig parsers (conf and mconf) are not installed pre-built, but as
 source files. Thus you can have the directory where crosstool-NG is installed,
