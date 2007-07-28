@@ -20,14 +20,14 @@ MAKE   := $(shell which $(MAKE) || type -p $(MAKE) || echo /usr/bin/make)
 
 build: build-bin build-lib build-doc
 
-install: install-local-test build install-bin install-lib install-doc
+install: install-local-test build install-bin install-lib install-doc install-man
 
 clean: clean-bin clean-lib clean-doc
 
 distclean: clean
 	@rm -f Makefile
 
-uninstall: uninstall-bin uninstall-lib uninstall-doc
+uninstall: install-local-test uninstall-bin uninstall-lib uninstall-doc uninstall-man
 
 ###############################################################################
 # Specific make rules
@@ -69,9 +69,9 @@ clean-doc:
 
 # If using localy, don't install
 install-local-test:
-	@if [ "$(LOCAL)" = "1" ]; then                                      \
-	     echo "You're using local copy as runtime. You can't install."; \
-	     false;                                                         \
+	@if [ "$(LOCAL)" = "1" ]; then                                          \
+	     echo "You're using local copy as runtime. You can't (un)install."; \
+	     false;                                                             \
 	 fi
 
 install-bin: install-local-test $(BINDIR)
@@ -118,13 +118,12 @@ $(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)::
 #--------------------------------------
 # Uninstall rules
 
-uninstall-bin:
+uninstall-bin: install-local-test
 	@rm -f $(BINDIR)/ct-ng
-	@rm -f $(BINDIR)/ct-ng.extract-config
 
-uninstall-lib:
+uninstall-lib: install-local-test
 	@rm -rf $(LIBDIR)
 
-uninstall-doc:
+uninstall-doc: install-local-test
 	@rm -rf $(DOCDIR)
 	@rm -f $(MANDIR)/ct-ng.1
