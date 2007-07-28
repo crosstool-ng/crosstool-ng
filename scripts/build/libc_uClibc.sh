@@ -38,15 +38,13 @@ do_libc_check_config() {
 
     CT_TestOrAbort "You did not provide a uClibc config file!" -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" -a -f "${CT_LIBC_UCLIBC_CONFIG_FILE}"
 
-    cp "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_SRC_DIR}/uClibc.config"
-
     if egrep '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
         CT_DoLog WARN "Your uClibc version refers to the kernel _sources_, which is bad."
         CT_DoLog WARN "I can't guarantee that our little hack will work. Please try to upgrade."
     fi
 
     CT_DoLog EXTRA "Munging uClibc configuration"
-    mungeuClibcConfig "${CT_SRC_DIR}/uClibc.config"
+    mungeuClibcConfig "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_BUILD_DIR}/uClibc.config"
 
     CT_EndStep
 }
@@ -67,7 +65,7 @@ do_libc_headers() {
     { cd "${CT_SRC_DIR}/${CT_LIBC_FILE}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
-    cp "${CT_SRC_DIR}/uClibc.config" .config
+    cp "${CT_BUILD_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the
     # compiler tools to use.  Setting it to the empty string forces
@@ -102,7 +100,7 @@ do_libc() {
     { cd "${CT_SRC_DIR}/${CT_LIBC_FILE}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
-    cp "${CT_SRC_DIR}/uClibc.config" .config
+    cp "${CT_BUILD_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the compiler
     # tools to use.  The newly built tools should be in our path, so we need
@@ -147,14 +145,19 @@ do_libc_finish() {
 }
 
 # Initialises the .config file to sensible values
+# $1: original file
+# $2: munged file
 mungeuClibcConfig() {
-    config_file="$1"
+    src_config_file="$1"
+    dst_config_file="$2"
     munge_file="${CT_BUILD_DIR}/munge-uClibc-config.sed"
+
+    echo -n >"${munge_file}"
 
     # Hack our target in the config file.
     # Also remove stripping: its the responsibility of the
     # firmware builder to strip or not.
-    cat > "${munge_file}" <<-ENDSED
+    cat >>"${munge_file}" <<-ENDSED
 s/^(TARGET_.*)=y$/# \\1 is not set/
 s/^# TARGET_${CT_KERNEL_ARCH} is not set/TARGET_${CT_KERNEL_ARCH}=y/
 s/^TARGET_ARCH=".*"/TARGET_ARCH="${CT_KERNEL_ARCH}"/
@@ -164,14 +167,14 @@ ENDSED
     # Accomodate for old and new uClibc versions, where the
     # way to select between big/little endian has changed
     case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) cat >> "${munge_file}" <<-ENDSED
+        y,) cat >>"${munge_file}" <<-ENDSED
 s/.*(ARCH_LITTLE_ENDIAN).*/# \\1 is not set/
 s/.*(ARCH_BIG_ENDIAN).*/\\1=y/
 s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/# \\1 is not set/
 s/.*(ARCH_WANTS_BIG_ENDIAN).*/\\1=y/
 ENDSED
         ;;
-        ,y) cat >> "${munge_file}" <<-ENDSED
+        ,y) cat >>"${munge_file}" <<-ENDSED
 s/.*(ARCH_LITTLE_ENDIAN).*/\\1=y/
 s/.*(ARCH_BIG_ENDIAN).*/# \\1 is not set/
 s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/\\1=y/
@@ -183,12 +186,12 @@ ENDSED
     # Accomodate for old and new uClibc version, where the
     # way to select between hard/soft float has changed
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-        y,) cat >> "${munge_file}" <<-ENDSED
+        y,) cat >>"${munge_file}" <<-ENDSED
 s/.*(HAS_FPU).*/\\1=y/
 s/.*(UCLIBC_HAS_FPU).*/\\1=y/
 ENDSED
             ;;
-        ,y) cat >> "${munge_file}" <<-ENDSED
+        ,y) cat >>"${munge_file}" <<-ENDSED
 s/.*(HAS_FPU).*/\\# \\1 is not set/
 s/.*(UCLIBC_HAS_FPU).*/# \\1 is not set/
 ENDSED
@@ -205,7 +208,7 @@ ENDSED
     # DEVEL_PREFIX is left as '/usr/' because it is post-pended to $PREFIX, wich is the correct value of ${PREFIX}/${TARGET}
     # Some (old) versions of uClibc use KERNEL_SOURCE (which is _wrong_), and
     # newer versions use KERNEL_HEADERS (which is right). See:
-    cat >> "${munge_file}" <<-ENDSED
+    cat >>"${munge_file}" <<-ENDSED
 s/^DEVEL_PREFIX=".*"/DEVEL_PREFIX="\\/usr\\/"/
 s/^RUNTIME_PREFIX=".*"/RUNTIME_PREFIX="\\/"/
 s/^SHARED_LIB_LOADER_PREFIX=.*/SHARED_LIB_LOADER_PREFIX="\\/lib\\/"/
@@ -217,7 +220,7 @@ ENDSED
     if [ "${CT_USE_PIPES}" = "y" ]; then
         if grep UCLIBC_EXTRA_CFLAGS extra/Configs/Config.in >/dev/null 2>&1; then
             # Good, there is special provision for such things as -pipe!
-            cat >> "${munge_file}" <<-ENDSED
+            cat >>"${munge_file}" <<-ENDSED
 s/^(UCLIBC_EXTRA_CFLAGS=".*)"$/\\1 -pipe"/
 ENDSED
         else
@@ -237,7 +240,7 @@ ENDSED
     # pregenerated locales is not compatible with crosstool; besides,
     # crosstool downloads them as part of getandpatch.sh.
     if [ "${CT_CC_LANG_CXX}" = "y" ]; then
-        cat >> "${munge_file}" <<-ENDSED
+        cat >>"${munge_file}" <<-ENDSED
 s/^# DO_C99_MATH is not set/DO_C99_MATH=y/
 s/^# UCLIBC_CTOR_DTOR is not set/UCLIBC_CTOR_DTOR=y/
 # Add these three lines when doing C++?
@@ -283,6 +286,5 @@ s/^# UCLIBC_MALLOC_DEBUGGING is not set/UCLIBC_MALLOC_DEBUGGING=y/
 ENDSED
         ;;
     esac
-    sed -r -i -f "${munge_file}" "${config_file}"
-    rm -f "${munge_file}"
+    sed -r -f "${munge_file}" "${src_config_file}" >"${dst_config_file}"
 }
