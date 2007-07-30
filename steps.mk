@@ -9,7 +9,6 @@ CT_STEPS := libc_check_config       \
             libc_headers            \
             libc_start_files        \
             cc_core_pass_2          \
-            libfloat                \
             libc                    \
             cc                      \
             libc_finish             \

@@ -45,7 +45,7 @@ do_binutils() {
 
     # Make those new tools available to the core C compilers to come:
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
-    # well. Create that (libfloat is one such sucker).
+    # well. Create that.
     mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin"
     mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin"
     mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin"

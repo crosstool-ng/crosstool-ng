@@ -90,7 +90,6 @@ fi
 CT_CC_CORE_FILE="${CT_CC_CORE}-${CT_CC_CORE_VERSION}"
 CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
 CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
-CT_LIBFLOAT_FILE="libfloat-${CT_LIBFLOAT_VERSION}"
 
 # Where will we work?
 CT_TARBALLS_DIR="${CT_TOP_DIR}/targets/tarballs"
@@ -345,7 +344,6 @@ fi
 # export any variable, nor re-parse the configuration and functions files.
 . "${CT_LIB_DIR}/scripts/build/kernel_${CT_KERNEL}.sh"
 . "${CT_LIB_DIR}/scripts/build/binutils.sh"
-. "${CT_LIB_DIR}/scripts/build/libfloat.sh"
 . "${CT_LIB_DIR}/scripts/build/libc_${CT_LIBC}.sh"
 . "${CT_LIB_DIR}/scripts/build/cc_core_${CT_CC_CORE}.sh"
 . "${CT_LIB_DIR}/scripts/build/cc_${CT_CC}.sh"
@@ -357,7 +355,6 @@ if [ -z "${CT_RESTART}" ]; then
     do_kernel_get
     do_binutils_get
     do_cc_core_get
-    do_libfloat_get
     do_libc_get
     do_cc_get
     do_tools_get
@@ -373,7 +370,6 @@ if [ -z "${CT_RESTART}" ]; then
         do_kernel_extract
         do_binutils_extract
         do_cc_core_extract
-        do_libfloat_extract
         do_libc_extract
         do_cc_extract
         do_tools_extract
@@ -396,7 +392,6 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
                 libc_headers            \
                 libc_start_files        \
                 cc_core_pass_2          \
-                libfloat                \
                 libc                    \
                 cc                      \
                 libc_finish             \
