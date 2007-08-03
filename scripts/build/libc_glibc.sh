@@ -150,7 +150,7 @@ do_libc_headers() {
     [ "${CT_ARCH}" != "arm" ] && cp misc/syscall-list.h "${CT_HEADERS_DIR}/bits/syscall.h" || true
 
     # Those headers are to be manually copied so gcc can build properly
-    pthread_h=
+    pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
     pthreadtypes_h=
     case "${CT_THREADS}" in
         nptl)
@@ -163,8 +163,11 @@ do_libc_headers() {
             fi
             ;;
         linuxthreads)
-            pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
             pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/linuxthreads/sysdeps/pthread/bits/pthreadtypes.h"
+            ;;
+        *)
+            pthread_h=
+            pthreadtypes_h=
             ;;
     esac
     if [ -n "${pthread_h}" ]; then
