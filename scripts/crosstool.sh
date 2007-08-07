@@ -147,7 +147,7 @@ CT_DoLog EXTRA "Preparing working directories"
 if [ -d "${CT_BUILD_DIR}" ]; then
     mv "${CT_BUILD_DIR}" "${CT_BUILD_DIR}.$$"
     chmod -R u+w "${CT_BUILD_DIR}.$$"
-    setsid nohup rm -rf "${CT_BUILD_DIR}.$$" >/dev/null 2>&1 &
+    nohup rm -rf "${CT_BUILD_DIR}.$$" >/dev/null 2>&1 &
 fi
 
 # Don't eradicate directories if we need to restart
@@ -158,28 +158,28 @@ if [ -z "${CT_RESTART}" ]; then
     if [ "${CT_FORCE_DOWNLOAD}" = "y" -a -d "${CT_TARBALLS_DIR}" ]; then
         mv "${CT_TARBALLS_DIR}" "${CT_TARBALLS_DIR}.$$"
         chmod -R u+w "${CT_TARBALLS_DIR}.$$"
-        setsid nohup rm -rf "${CT_TARBALLS_DIR}.$$" >/dev/null 2>&1 &
+        nohup rm -rf "${CT_TARBALLS_DIR}.$$" >/dev/null 2>&1 &
     fi
     if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
         mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.$$"
         chmod -R u+w "${CT_SRC_DIR}.$$"
-        setsid nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1 &
+        nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1 &
     fi
     if [ -d "${CT_INSTALL_DIR}" ]; then
         mv "${CT_INSTALL_DIR}" "${CT_INSTALL_DIR}.$$"
         chmod -R u+w "${CT_INSTALL_DIR}.$$"
-        setsid nohup rm -rf "${CT_INSTALL_DIR}.$$" >/dev/null 2>&1 &
+        nohup rm -rf "${CT_INSTALL_DIR}.$$" >/dev/null 2>&1 &
     fi
     if [ -d "${CT_DEBUG_INSTALL_DIR}" ]; then
         mv "${CT_DEBUG_INSTALL_DIR}" "${CT_DEBUG_INSTALL_DIR}.$$"
         chmod -R u+w "${CT_DEBUG_INSTALL_DIR}.$$"
-        setsid nohup rm -rf "${CT_DEBUG_INSTALL_DIR}.$$" >/dev/null 2>&1 &
+        nohup rm -rf "${CT_DEBUG_INSTALL_DIR}.$$" >/dev/null 2>&1 &
     fi
     # In case we start anew, get rid of the previously saved state directory
     if [ -d "${CT_STATE_DIR}" ]; then
         mv "${CT_STATE_DIR}" "${CT_STATE_DIR}.$$"
         chmod -R u+w "${CT_STATE_DIR}.$$"
-        setsid nohup rm -rf "${CT_STATE_DIR}.$$" >/dev/null 2>&1 &
+        nohup rm -rf "${CT_STATE_DIR}.$$" >/dev/null 2>&1 &
     fi
 fi
 
@@ -364,7 +364,7 @@ if [ -z "${CT_RESTART}" ]; then
     if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         if [ "${CT_FORCE_EXTRACT}" = "y" ]; then
             mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.$$"
-            setsid nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1
+            nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1
         fi
         CT_DoStep INFO "Extracting and patching toolchain components"
         do_kernel_extract
