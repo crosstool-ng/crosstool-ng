@@ -436,16 +436,22 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
 
     # Create the aliases to the target tools
-    if [ -n "${CT_TARGET_ALIAS}" ]; then
-        CT_DoLog EXTRA "Creating symlinks from \"${CT_TARGET}-*\" to \"${CT_TARGET_ALIAS}-*\""
-        CT_Pushd "${CT_PREFIX_DIR}/bin"
-        for t in "${CT_TARGET}-"*; do
+    CT_DoStep EXTRA "Creating toolchain aliases"
+    CT_Pushd "${CT_PREFIX_DIR}/bin"
+    for t in "${CT_TARGET}-"*; do
+        if [ -n "${CT_TARGET_ALIAS}" ]; then
             _t="`echo \"$t\" |sed -r -e 's/^'\"${CT_TARGET}\"'-/'\"${CT_TARGET_ALIAS}\"'-/;'`"
             CT_DoLog DEBUG "Linking \"${_t}\" -> \"${t}\""
-            ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog DEBUG
-        done
-        CT_Popd
-    fi
+            ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog ALL
+        fi
+        if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
+            _t="`echo \"$t\" |sed -r -e \"${CT_TARGET_ALIAS_SED_EXPR}\"`"
+            CT_DoLog DEBUG "Linking \"${_t}\" -> \"${t}\""
+            ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog ALL
+        fi
+    done
+    CT_Popd
+    CT_EndStep
 
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then
