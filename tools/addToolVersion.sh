@@ -43,6 +43,7 @@ FINAL=
 VERSION=
 EXP=
 OBS=
+prompt_suffix=
 
 i=1
 while [ $i -le $# ]; do
@@ -60,8 +61,8 @@ while [ $i -le $# ]; do
         --ltrace)           cat=LTRACE;    tool=ltrace;   tool_prefix=debug/    tool_suffix=;;
         --libelf)           cat=LIBELF;    tool=libelf;   tool_prefix=tools/    tool_suffix=;;
         # Tools options:
-        -x|--experimental)  EXP=1; OBS=;;
-        -o|--obsolete)      OBS=1; EXP=;;
+        -x|--experimental)  EXP=1; OBS=; prompt_suffix=" (EXPERIMENTAL)";;
+        -o|--obsolete)      OBS=1; EXP=; prompt_suffix=" (OBSOLETE)";;
         --core)             CORE=1; FINAL=;;
         --final)            FINAL=1; CORE=;;
         --install)          tool_suffix=install;;
@@ -94,7 +95,7 @@ for ver in ${VERSION}; do
         TOOL_SUFFIX="`echo \"${tool_suffix}\" |tr [[:lower:]] [[:upper:]]`"
         L1="config ${cat}_${TOOL_SUFFIX}_V_${v}\n"
         L2="    bool\n"
-        L3="    prompt \"${ver}\"\n"
+        L3="    prompt \"${ver}${prompt_suffix}\"\n"
         # Extra versions are not necessary visible:
         case "${tool_suffix},${ver}" in
             sanitised,*)    ;; # Sanitised headers always have an extra version
@@ -105,7 +106,7 @@ for ver in ${VERSION}; do
     else
         L1="config ${cat}${MIDDLE_V}_V_${v}\n"
         L2="    bool\n"
-        L3="    prompt \"${ver}\"\n"
+        L3="    prompt \"${ver}${prompt_suffix}\"\n"
         L5="    default \"${ver}\" if ${cat}${MIDDLE_V}_V_${v}"
         FILE="config/${tool_prefix}${MIDDLE_F}${tool}.in"
     fi
