@@ -59,7 +59,7 @@ do_libc_headers() {
     mkdir -p "${CT_BUILD_DIR}/build-libc-headers"
     cd "${CT_BUILD_DIR}/build-libc-headers"
 
-    CT_DoLog EXTRA "Configuring C library headers"
+    CT_DoLog EXTRA "Configuring C library"
 
     # The following three things have to be done to build glibc-2.3.x, but they don't hurt older versions.
     # 1. override CC to keep glibc's configure from using $TARGET-gcc. 
@@ -221,7 +221,14 @@ do_libc_start_files() {
     extra_config="${extra_config} ${addons_config}"
 
     # Add some default CC args
-    extra_cc_args="${CT_CFLAGS_FOR_HOST}"
+    glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
+    glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+    if [ ${glibc_version_major} -ge 2 -a ${glibc_version_minor} -ge 6 ]; then
+        # Don't use -pipe: configure chokes on it for glibc >= 2.6.
+        extra_cc_args="${CT_CFLAGS_FOR_HOST/-pipe}"
+    else
+        extra_cc_args="${CT_CFLAGS_FOR_HOST}"
+    fi
     case "${CT_LIBC_EXTRA_CC_ARGS}" in
         *-mbig-endian*) ;;
         *-mlittle-endian*) ;;
@@ -247,7 +254,7 @@ do_libc_start_files() {
     # Please see the comment for the configure step in do_libc().
 
     BUILD_CC=${CT_CC_NATIVE}                                        \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O "  \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
@@ -267,8 +274,10 @@ do_libc_start_files() {
 
     #TODO: should check whether slibdir has been set in configparms to */lib64
     #      and copy the startfiles into the appropriate libdir.
+    CT_DoLog EXTRA "Building C library start files"
     make csu/subdir_lib 2>&1 |CT_DoLog ALL
 
+    CT_DoLog EXTRA "Installing C library start files"
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
         cp -fp csu/crt[1in].o "${CT_SYSROOT_DIR}/usr/lib/"
     else
@@ -321,8 +330,13 @@ do_libc() {
 
 
     # Add some default CC args
-    if [ "${CT_USE_PIPES}" = "y" ]; then
-        extra_cc_args="-pipe"
+    glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
+    glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+    if [ ${glibc_version_major} -ge 2 -a ${glibc_version_minor} -ge 6 ]; then
+        # Don't use -pipe: configure chokes on it for glibc >= 2.6.
+        extra_cc_args="${CT_CFLAGS_FOR_HOST/-pipe}"
+    else
+        extra_cc_args="${CT_CFLAGS_FOR_HOST}"
     fi
     case "${CT_ARCH_BE},${CT_ARCH_LE}" in
         y,) extra_cc_args="${extra_cc_args} -mbig-endian";;
@@ -363,7 +377,7 @@ do_libc() {
 
     BUILD_CC=${CT_CC_NATIVE}                                        \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
-    CC="${CT_TARGET}-gcc ${extra_cc_args} ${CT_LIBC_EXTRA_CC_ARGS}" \
+    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
