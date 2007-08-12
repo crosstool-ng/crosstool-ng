@@ -546,8 +546,8 @@ CT_DoSaveState() {
     mkdir -p "${state_dir}"
 
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  tar_opt=czf; tar_ext=".tar.gz";;
-        *)  tar_opt=cf;  tar_ext=".tar";;
+        y)  tar_opt=z; tar_ext=.gz;;
+        *)  tar_opt=;  tar_ext=;;
     esac
 
     CT_DoLog DEBUG "  Saving environment and aliases"
@@ -561,17 +561,17 @@ CT_DoSaveState() {
 
     CT_DoLog DEBUG "  Saving CT_CC_CORE_STATIC_PREFIX_DIR=\"${CT_CC_CORE_STATIC_PREFIX_DIR}\""
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/cc_core_static_prefix_dir${tar_ext}" .
+    tar cv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" . |CT_DoLog DEBUG
     CT_Popd
 
     CT_DoLog DEBUG "  Saving CT_CC_CORE_SHARED_PREFIX_DIR=\"${CT_CC_CORE_SHARED_PREFIX_DIR}\""
     CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/cc_core_shared_prefix_dir${tar_ext}" .
+    tar cv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}" . |CT_DoLog DEBUG
     CT_Popd
 
     CT_DoLog DEBUG "  Saving CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
     CT_Pushd "${CT_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/prefix_dir${tar_ext}" --exclude '*.log' .
+    tar cv${tar_opt}f "${state_dir}/prefix_dir.tar${tar_ext}" --exclude '*.log' . |CT_DoLog DEBUG
     CT_Popd
 
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
@@ -602,8 +602,8 @@ CT_DoLoadState(){
     CT_DoLog INFO "Restoring state at step \"${state_name}\", as requested."
 
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  tar_opt=xzf; tar_ext=".tar.gz";;
-        *)  tar_opt=cf;  tar_ext=".tar";;
+        y)  tar_opt=z; tar_ext=.gz;;
+        *)  tar_opt=;  tar_ext=;;
     esac
 
     CT_DoLog DEBUG "  Removing previous build directories"
@@ -613,17 +613,17 @@ CT_DoLoadState(){
 
     CT_DoLog DEBUG "  Restoring CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
     CT_Pushd "${CT_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/prefix_dir${tar_ext}"
+    tar xv${tar_opt}f "${state_dir}/prefix_dir$.tar{tar_ext}" |CT_DoLog DEBUG
     CT_Popd
 
     CT_DoLog DEBUG "  Restoring CT_CC_CORE_SHARED_PREFIX_DIR=\"${CT_CC_CORE_SHARED_PREFIX_DIR}\""
     CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/cc_core_shared_prefix_dir${tar_ext}"
+    tar xv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
     CT_Popd
 
     CT_DoLog DEBUG "  Restoring CT_CC_CORE_STATIC_PREFIX_DIR=\"${CT_CC_CORE_STATIC_PREFIX_DIR}\""
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-    tar ${tar_opt} "${state_dir}/cc_core_static_prefix_dir${tar_ext}"
+    tar xv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
     CT_Popd
 
     # Restore the environment, discarding any error message
