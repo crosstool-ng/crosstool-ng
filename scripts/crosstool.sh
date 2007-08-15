@@ -72,8 +72,8 @@ CT_HasOrAbort lynx
 
 CT_DoLog INFO "Building environment variables"
 
-# Target triplet: CT_TARGET needs a little love:
-CT_DoBuildTargetTriplet
+# Target tuple: CT_TARGET needs a little love:
+CT_DoBuildTargetTuple
 
 # Kludge: If any of the configured options needs CT_TARGET,
 # then rescan the options file now:

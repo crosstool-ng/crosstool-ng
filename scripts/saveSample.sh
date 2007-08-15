@@ -18,8 +18,8 @@ rm -f "${tmp_log_file}"
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
 . "${CT_TOP_DIR}/.config"
 
-# Target triplet: CT_TARGET needs a little love:
-CT_DoBuildTargetTriplet
+# Target tuple: CT_TARGET needs a little love:
+CT_DoBuildTargetTuple
 
 # Kludge: if any of the config options needs either CT_TARGET or CT_TOP_DIR,
 # re-parse them:
