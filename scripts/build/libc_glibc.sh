@@ -225,6 +225,7 @@ do_libc_start_files() {
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
     if [ ${glibc_version_major} -ge 2 -a ${glibc_version_minor} -ge 6 ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
+        CT_Test 'Removing "-pipe" for use with glibc>=2.6' "${CT_USE_PIPES}" = "y"
         extra_cc_args="${CT_CFLAGS_FOR_HOST/-pipe}"
     else
         extra_cc_args="${CT_CFLAGS_FOR_HOST}"
@@ -334,6 +335,7 @@ do_libc() {
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
     if [ ${glibc_version_major} -ge 2 -a ${glibc_version_minor} -ge 6 ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
+        CT_Test 'Removing "-pipe" for use with glibc>=2.6' "${CT_USE_PIPES}" = "y"
         extra_cc_args="${CT_CFLAGS_FOR_HOST/-pipe}"
     else
         extra_cc_args="${CT_CFLAGS_FOR_HOST}"
