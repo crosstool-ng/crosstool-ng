@@ -53,7 +53,7 @@ do_libc_check_config() {
 do_libc_headers() {
     # Only need to install bootstrap uClibc headers for gcc-3.0 and above?  Or maybe just gcc-3.3 and above?
     # See also http://gcc.gnu.org/PR8180, which complains about the need for this step.
-    grep -q 'gcc-[34]' "${CT_SRC_DIR}/${CT_CC_CORE_FILE}/ChangeLog" || return 0
+    grep -q 'gcc-[34]' "${CT_SRC_DIR}/${CT_CC_FILE}/ChangeLog" 2>/dev/null || return 0
 
     CT_DoStep INFO "Installing C library headers"
 

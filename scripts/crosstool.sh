@@ -82,12 +82,6 @@ CT_DoBuildTargetTriplet
 # Now, build up the variables from the user-configured options.
 CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
 CT_BINUTILS_FILE="binutils-${CT_BINUTILS_VERSION}"
-if [ "${CT_CC_USE_CORE}" != "y" ]; then
-    CT_CC_CORE="${CT_CC}"
-    CT_CC_CORE_VERSION="${CT_CC_VERSION}"
-    CT_CC_CORE_EXTRA_CONFIG="${CT_CC_EXTRA_CONFIG}"
-fi
-CT_CC_CORE_FILE="${CT_CC_CORE}-${CT_CC_CORE_VERSION}"
 CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
 CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
 
@@ -97,8 +91,7 @@ CT_SRC_DIR="${CT_TOP_DIR}/targets/src"
 CT_BUILD_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/build"
 CT_DEBUG_INSTALL_DIR="${CT_INSTALL_DIR}/${CT_TARGET}/debug-root"
 # Note: we'll always install the core compiler in its own directory, so as to
-# not mix the two builds: core and final. Anyway, its generic, wether we use
-# a different compiler as core, or not.
+# not mix the two builds: core and final.
 CT_CC_CORE_STATIC_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-static"
 CT_CC_CORE_SHARED_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-shared"
 CT_STATE_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/state"
@@ -345,7 +338,6 @@ fi
 . "${CT_LIB_DIR}/scripts/build/kernel_${CT_KERNEL}.sh"
 . "${CT_LIB_DIR}/scripts/build/binutils.sh"
 . "${CT_LIB_DIR}/scripts/build/libc_${CT_LIBC}.sh"
-. "${CT_LIB_DIR}/scripts/build/cc_core_${CT_CC_CORE}.sh"
 . "${CT_LIB_DIR}/scripts/build/cc_${CT_CC}.sh"
 . "${CT_LIB_DIR}/scripts/build/debug.sh"
 . "${CT_LIB_DIR}/scripts/build/tools.sh"
@@ -354,9 +346,8 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
     do_kernel_get
     do_binutils_get
-    do_cc_core_get
-    do_libc_get
     do_cc_get
+    do_libc_get
     do_tools_get
     do_debug_get
     CT_EndStep
@@ -369,9 +360,8 @@ if [ -z "${CT_RESTART}" ]; then
         CT_DoStep INFO "Extracting and patching toolchain components"
         do_kernel_extract
         do_binutils_extract
-        do_cc_core_extract
-        do_libc_extract
         do_cc_extract
+        do_libc_extract
         do_tools_extract
         do_debug_extract
         CT_EndStep

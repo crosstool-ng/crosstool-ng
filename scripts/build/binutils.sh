@@ -43,7 +43,7 @@ do_binutils() {
     CT_DoLog EXTRA "Installing binutils"
     make install            2>&1 |CT_DoLog ALL
 
-    # Make those new tools available to the core C compilers to come:
+    # Make those new tools available to the core C compilers to come.
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
     # well. Create that.
     mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin"
