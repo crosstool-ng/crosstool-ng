@@ -1,0 +1,27 @@
+diff -durN gcc-3.4.6.orig/gcc/flow.c gcc-3.4.6/gcc/flow.c
+--- gcc-3.4.6.orig/gcc/flow.c	2005-09-01 22:51:09.000000000 +0200
++++ gcc-3.4.6/gcc/flow.c	2007-08-15 23:00:30.000000000 +0200
+@@ -1884,6 +1884,7 @@
+ 	  rtx set_src = SET_SRC (pc_set (BB_END (bb)));
+ 	  rtx cond_true = XEXP (set_src, 0);
+ 	  rtx reg = XEXP (cond_true, 0);
++ 	  enum rtx_code inv_cond;
+ 
+ 	  if (GET_CODE (reg) == SUBREG)
+ 	    reg = SUBREG_REG (reg);
+@@ -1892,11 +1893,13 @@
+ 	     in the form of a comparison of a register against zero.  
+ 	     If the condition is more complex than that, then it is safe
+ 	     not to record any information.  */
+-	  if (GET_CODE (reg) == REG
++ 	  inv_cond = reversed_comparison_code (cond_true, BB_END (bb));
++ 	  if (inv_cond != UNKNOWN
++	      && GET_CODE (reg) == REG
+ 	      && XEXP (cond_true, 1) == const0_rtx)
+ 	    {
+ 	      rtx cond_false
+-		= gen_rtx_fmt_ee (reverse_condition (GET_CODE (cond_true)),
++		= gen_rtx_fmt_ee (inv_cond,
+ 				  GET_MODE (cond_true), XEXP (cond_true, 0),
+ 				  XEXP (cond_true, 1));
+ 	      if (GET_CODE (XEXP (set_src, 1)) == PC)
