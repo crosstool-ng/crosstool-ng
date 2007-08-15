@@ -7,15 +7,15 @@ CT_LIB_SAMPLES := $(filter-out $(CT_TOP_SAMPLES),$(patsubst $(CT_LIB_DIR)/sample
 CT_SAMPLES := $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES)
 
 help-config::
-	@echo  '  saveconfig     - Save current config as a preconfigured target'
+	@echo  '  saveconfig         - Save current config as a preconfigured target'
 
 help-samples::
 	@$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
 help-build::
-	@echo  '  regtest        - Regtest-build all samples'
-	@echo  '  regtest-local  - Regtest-build all local samples'
-	@echo  '  regtest-global - Regtest-build all global samples'
+	@echo  '  regtest[.#]        - Regtest-build all samples'
+	@echo  '  regtest-local[.#]  - Regtest-build all local samples'
+	@echo  '  regtest-global[.#] - Regtest-build all global samples'
 
 # How we do build one sample
 PHONY += $(CT_SAMPLES)
@@ -38,6 +38,9 @@ regtest: regtest-local regtest-global
 regtest-local: $(patsubst %,regtest_%,$(CT_TOP_SAMPLES))
 
 regtest-global: $(patsubst %,regtest_%,$(CT_LIB_SAMPLES))
+
+regtest.% regtest-local.% regtest-global.%:
+	@$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
 
 # One regtest per sample
 # We could use a simple rule like: 'regtest: $(CT_SAMPLES)', but that doesn't

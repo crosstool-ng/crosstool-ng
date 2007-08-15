@@ -25,7 +25,7 @@ $(patsubst %,%+,$(CT_STEPS)):
 	@$(CT_NG) RESTART=$(patsubst %+,%,$@) build
 
 help-build::
-	@echo  '  liststeps      - List all build steps'
+	@echo  '  liststeps          - List all build steps'
 
 liststeps:
 	@echo  'Available build steps, in order:'

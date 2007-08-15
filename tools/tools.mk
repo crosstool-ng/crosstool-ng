@@ -25,7 +25,7 @@ $(CONFIG_GUESS_DEST):
 	@chmod u+rwx,go+rx-w $@
 
 help-distrib::
-	@echo  '  updatetools    - Update the config tools'
+	@echo  '  updatetools        - Update the config tools'
 
 distclean::
 	@[ $(CT_TOP_DIR) = $(CT_LIB_DIR) ] || rm -rf $(CT_TOP_DIR)/tools

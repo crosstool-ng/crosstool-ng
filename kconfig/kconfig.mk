@@ -74,11 +74,11 @@ extractconfig:: $(obj)/conf $(CONFIG_FILES)
 
 # Help text used by make help
 help-config::
-	@echo  '  config         - Update current config using a line-oriented program'
-	@echo  '  menuconfig     - Update current config using a menu based program'
-	@echo  '  oldconfig      - Update current config using a provided .config as base'
-	@echo  '  extractconfig  - Create a new config using options extracted from a'
-	@echo  '                   build log piped into stdin'
+	@echo  '  config             - Update current config using a line-oriented program'
+	@echo  '  menuconfig         - Update current config using a menu based program'
+	@echo  '  oldconfig          - Update current config using a provided .config as base'
+	@echo  '  extractconfig      - Create a new config using options extracted from a'
+	@echo  '                       build log piped into stdin'
 
 # Cheesy build
 

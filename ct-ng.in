@@ -41,7 +41,7 @@ help-samples::
 
 help-build::
 	@echo
-	@echo  'Build actions:'
+	@echo  'Build actions (#: force number of // jobs):'
 
 help-clean::
 	@echo
@@ -65,31 +65,38 @@ help-tail::
 # End help system
 
 help-build::
-	@echo  '  build          - Build the toolchain'
+	@echo  '  build[.#]          - Build the toolchain'
 
 help-clean::
-	@echo  '  clean          - Remove generated files'
-	@echo  '  distclean      - Remove generated files, configuration and build directories'
+	@echo  '  clean              - Remove generated files'
+	@echo  '  distclean          - Remove generated files, configuration and build directories'
 
 include $(CT_LIB_DIR)/kconfig/kconfig.mk
+include $(CT_LIB_DIR)/steps.mk
 include $(CT_LIB_DIR)/samples/samples.mk
 include $(CT_LIB_DIR)/tools/tools.mk
-include $(CT_LIB_DIR)/steps.mk
 
 help-distrib::
-	@echo  '  tarball        - Build a tarball of the configured toolchain'
+	@echo  '  tarball            - Build a tarball of the configured toolchain'
 
 help-env::
-	@echo  '  STOP           - Stop the build just after this step'
-	@echo  '  RESTART        - Restart the build just before this step'
+	@echo  '  STOP               - Stop the build just after this step'
+	@echo  '  RESTART            - Restart the build just before this step'
 
 .config:
 	@echo  'You must run either one of "$(CT_NG) config" or "$(CT_NG) menuconfig" first'
 	@false
 
 # Actual build
+ifeq ($(CT_JOBS),)
+CT_JOBS:=1
+endif
+export CT_JOBS
 build:: .config
 	@$(CT_LIB_DIR)/scripts/crosstool.sh
+
+build.%::
+	@$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
 
 PHONY += tarball
 #tarball:

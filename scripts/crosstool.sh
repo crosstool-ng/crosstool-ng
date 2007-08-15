@@ -319,6 +319,9 @@ if [ -z "${CT_RESTART}" ]; then
     CT_CFLAGS_FOR_HOST=
     [ "${CT_USE_PIPES}" = "y" ] && CT_CFLAGS_FOR_HOST="${CT_CFLAGS_FOR_HOST} -pipe"
 
+    # Override the configured jobs with what's been given on the command line
+    [ -n "${CT_JOBS}" ] && CT_PARALLEL_JOBS="${CT_JOBS}"
+
     # And help make go faster
     PARALLELMFLAGS=
     [ ${CT_PARALLEL_JOBS} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -j${CT_PARALLEL_JOBS}"
