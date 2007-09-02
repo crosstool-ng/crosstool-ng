@@ -59,7 +59,7 @@ case "${CT_SSTRIP_FROM}" in
             CT_DoGetFile "${rev_url}" 2>&1 |CT_DoLog ALL
             mv -v sstrip.c?* sstrip.c 2>&1 |CT_DoLog DEBUG
             if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-                CT_DoLog EXTRA "Saving \sstrip.c\" to local storage"
+                CT_DoLog EXTRA "Saving \"sstrip.c\" to local storage"
                 cp -v sstrip.c "${CT_LOCAL_TARBALLS_DIR}" 2>&1 |CT_DoLog DEBUG
             fi
             CT_Popd
