@@ -44,7 +44,7 @@ do_debug_duma_build() {
              CC="${CT_TARGET}-${CT_CC}"     \
              CXX="${CT_TARGET}-${CT_CC}"    \
              DUMA_CPP="${DUMA_CPP}"         \
-             ${lib}                         2>&1 |CT_DoLog ALL
+             ${libs}                        2>&1 |CT_DoLog ALL
         CT_DoLog EXTRA "Installing library \"${lib}\""
         install -m 644 "${lib}" "${CT_SYSROOT_DIR}/usr/lib" 2>&1 |CT_DoLog ALL
     done
