@@ -54,7 +54,7 @@ $(CT_TOP_DIR)/config.gen/tools.in:: $(TOOLS_CONFIG_FILES)
 config menuconfig oldconfig defoldconfig extractconfig:: $(KCONFIG_TOP)
 
 $(KCONFIG_TOP):
-	@ln -s $(CT_LIB_DIR)/config config
+	@ln -sf $(CT_LIB_DIR)/config config
 
 menuconfig:: $(obj)/mconf $(CONFIG_FILES)
 	@$< $(KCONFIG_TOP)
