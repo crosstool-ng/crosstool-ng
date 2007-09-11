@@ -5,9 +5,9 @@
 # Don't print directory as we descend into them
 MAKEFLAGS += --no-print-directory --no-builtin-rules
 
-# Remember the name of the Makefile
-CT_MAKEFILE := $(lastword $(MAKEFILE_LIST))
-CT_NG := $(CT_MAKEFILE)
+# This is where ct-ng is.
+# Don't bother to change it other than with a new ./configure!
+CT_NG:=@@CT_BINDIR@@/ct-ng
 
 export CT_TOP_DIR:=$(shell pwd)
 export CT_LIB_DIR:=@@CT_LIBDIR@@
@@ -88,14 +88,10 @@ help-env::
 	@false
 
 # Actual build
-ifeq ($(CT_JOBS),)
-CT_JOBS:=1
-endif
-export CT_JOBS
-build:: .config
+build: .config
 	@$(CT_LIB_DIR)/scripts/crosstool.sh
 
-build.%::
+build.%:
 	@$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
 
 PHONY += tarball
