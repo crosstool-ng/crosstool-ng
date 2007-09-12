@@ -27,46 +27,32 @@ get_optval(){
 }
 
 set_prefix() {
-    local ret
     PREFIX=$(get_optval "$1" "$2")
-    ret=$?
-    [ -z "${BINDIR_set}" ] && BINDIR="${PREFIX}/bin"
-    [ -z "${LIBDIR_set}" ] && LIBDIR="${PREFIX}/lib/ct-ng-${VERSION}"
-    [ -z "${DOCDIR_set}" ] && DOCDIR="${PREFIX}/share/doc/ct-ng-${VERSION}"
-    [ -z "${MANDIR_set}" ] && MANDIR="${PREFIX}/share/man/man1"
-    return ${ret}
+    return $?
 }
 
 set_bindir() {
-    local ret
-    BINDIR=$(get_optval "$1" "$2")
-    ret=$?
     BINDIR_set=1
-    return ${ret}
+    BINDIR=$(get_optval "$1" "$2")
+    return $?
 }
 
 set_libdir() {
-    local ret
-    LIBDIR=$(get_optval "$1" "$2")
-    ret=$?
     LIBDIR_set=1
-    return ${ret}
+    LIBDIR=$(get_optval "$1" "$2")
+    return $?
 }
 
 set_docdir() {
-    local ret
-    DOCDIR=$(get_optval "$1" "$2")
-    ret=$?
     DOCDIR_set=1
-    return ${ret}
+    DOCDIR=$(get_optval "$1" "$2")
+    return $?
 }
 
 set_mandir() {
-    local ret
-    MANDIR=$(get_optval "$1" "$2")
-    ret=$?
     MANDIR_set=1
-    return ${ret}
+    MANDIR=$(get_optval "$1" "$2")
+    return $?
 }
 
 do_help() {
@@ -97,6 +83,14 @@ Fine tuning of the installation directories:
 __EOF__
 }
 
+do_error() {
+    echo "[ERROR] ${@}"
+    exit 1
+}
+
+#---------------------------------------------------------------------
+# Set user's options
+
 while [ $# -ne 0 ]; do
     case "$1" in
         --prefix*)  set_prefix "$1" "$2" && shift || shift 2;;
@@ -118,6 +112,19 @@ if [ "${LOCAL_set}" = "1" ]; then
     set_docdir "" $(pwd)/docs
     set_mandir "" $(pwd)/docs
 fi
+
+[ -z "${BINDIR_set}" ] && BINDIR="${PREFIX}/bin"
+[ -z "${LIBDIR_set}" ] && LIBDIR="${PREFIX}/lib/ct-ng-${VERSION}"
+[ -z "${DOCDIR_set}" ] && DOCDIR="${PREFIX}/share/doc/ct-ng-${VERSION}"
+[ -z "${MANDIR_set}" ] && MANDIR="${PREFIX}/share/man/man1"
+
+#---------------------------------------------------------------------
+# Some sanity checks, now
+
+# Check bash is present, and at least version 3.0
+[ -x /bin/bash ] || do_error "bash 3.0 or above was not found in /bin/bash"
+bash_version=$(/bin/bash --version |head -n 1 |cut -d ' ' -f 4)
+[ ${bash_version//%.*} -ge 3 ] || do_error "bash 3.0 or above is needed (found ${bash_version})"
 
 sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
        -e "s,@@LIBDIR@@,${LIBDIR},g;"   \
