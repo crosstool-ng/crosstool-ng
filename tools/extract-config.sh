@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This scripts extracts a crosstool-NG configuration from the log file
 # of a toolchain build with crosstool-NG.

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Adds a new version to one of the toolchain component
 myname="$0"

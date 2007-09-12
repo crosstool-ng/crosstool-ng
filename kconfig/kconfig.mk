@@ -94,7 +94,8 @@ $(obj):
 
 $(obj)/mconf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
-		-lcurses "-DCURSES_LOC=<ncurses.h>"
+	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ccflags)              \
+	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ldflags $(HOST_CC))
 
 $(obj)/conf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{conf.c,zconf.tab.c}
