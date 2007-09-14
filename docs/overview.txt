@@ -485,23 +485,42 @@ An architecture is defined by:
      follow the API defined below. Eg.: arch/arm/functions
 
 The "functions" file API:
- > the function "CT_DoBuildTargetTuple"
+ > the function "CT_DoArchValues"
    + parameters: none
    + environment:
       - all variables from the ".config" file,
       - the two variables "target_endian_eb" and "target_endian_el" which are
-        the endiannes suffixes
+        the endianness suffixes
    + return value: 0 upon success, !0 upon failure
    + provides:
-     - the target tuple stored in the variable CT_TARGET_ARCH
-
- > the environment variable CT_ARCH_ENDIAN_OPT
-   + contains:
-     - the value of the CFLAGS values for selecting the endiannes (eg.: -ml
-       for a Super-H little endian, -mbig-endian for an ARM big endian).
-     - empty if the architecture can not set the endianness (eg x86 and
-       x86_64).
-
+     - the environment variable CT_TARGET_ARCH
+     - mandatory
+     - contains:
+       the architecture part of the target tuple.
+       Eg.: "armeb" for big endian ARM
+            "i386" for an i386
+   + provides:
+     - the environment variable CT_TARGET_ARCH
+     - optional
+     - contain:
+       the sytem part of the target tuple.
+       Eg.: "gnu" for glibc on most architectures
+            "gnueabi" for glibc on an ARM EABI
+     - defaults to:
+       - for glibc-based toolchain: "gnu"
+       - for uClibc-based toolchain: "uclibc"
+   + provides:
+     - the environment variable CT_ARCH_ENDIAN_OPT
+     - optional
+     - contains:
+       the compiler option to set the endianness.
+       Eg.: "-ml" for a Super-H little endian
+            "-mbig-endian" for an ARM big endian
+            /empty/ for x86 and x86_64
+     - defaults to:
+       - for bi-endian big endian architectures: "-mbig-endian"
+       - for bi-endian little endian architectures: "-mlittle-endian"
+       - for single-endian architectures: /empty/
 
 Build scripts |
 --------------*

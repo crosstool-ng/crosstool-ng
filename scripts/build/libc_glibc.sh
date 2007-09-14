@@ -230,14 +230,7 @@ do_libc_start_files() {
     else
         extra_cc_args="${CT_CFLAGS_FOR_HOST}"
     fi
-    case "${CT_LIBC_EXTRA_CC_ARGS}" in
-        *-mbig-endian*) ;;
-        *-mlittle-endian*) ;;
-        *)  case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-                y,) extra_cc_args="${extra_cc_args} -mbig-endian";;
-                ,y) extra_cc_args="${extra_cc_args} -mlittle-endian";;
-            esac;;
-    esac
+    extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
 
     cross_cc=`CT_Which "${CT_TARGET}-gcc"`
     CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""
@@ -340,10 +333,7 @@ do_libc() {
     else
         extra_cc_args="${CT_CFLAGS_FOR_HOST}"
     fi
-    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) extra_cc_args="${extra_cc_args} -mbig-endian";;
-        ,y) extra_cc_args="${extra_cc_args} -mlittle-endian";;
-    esac
+    extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
 
     cross_cc=`CT_Which "${CT_TARGET}-gcc"`
     CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""

@@ -487,42 +487,32 @@ CT_DoConfigSub() {
 # tuple. It is needed both by the normal build sequence, as well as the
 # sample saving sequence.
 CT_DoBuildTargetTuple() {
+    # Set the endianness suffix, and the default endianness gcc option
     case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) target_endian_eb=eb; target_endian_el=;;
-        ,y) target_endian_eb=; target_endian_el=el;;
+        y,) target_endian_eb=eb
+            target_endian_el=
+            CT_ARCH_ENDIAN_OPT="-mbig-endian"
+            ;;
+        ,y) target_endian_eb=
+            target_endian_el=el
+            CT_ARCH_ENDIAN_OPT="-mlittle-endian"
+            ;;
     esac
-    case "${CT_ARCH}" in
-        arm)  CT_TARGET="${CT_ARCH}${target_endian_eb}";;
-        ia64) CT_TARGET="${CT_ARCH}";;
-        mips) CT_TARGET="${CT_ARCH}${target_endian_el}";;
-        x86*) # Much love for this one :-(
-              arch="${CT_ARCH_ARCH}"
-              [ -z "${arch}" ] && arch="${CT_ARCH_TUNE}"
-              case "${CT_ARCH}" in
-                  x86_64)  CT_TARGET=x86_64;;
-              	  *)  case "${arch}" in
-                          "")                                       CT_TARGET=i386;;
-                          i386|i486|i586|i686)                      CT_TARGET="${arch}";;
-                          winchip*)                                 CT_TARGET=i486;;
-                          pentium|pentium-mmx|c3*)                  CT_TARGET=i586;;
-                          nocona|athlon*64|k8|athlon-fx|opteron)    CT_TARGET=x86_64;;
-                          pentiumpro|pentium*|athlon*)              CT_TARGET=i686;;
-                          *)                                        CT_TARGET=i586;;
-                      esac;;
-              esac;;
-    esac
-    case "${CT_TARGET_VENDOR}" in
-        "") CT_TARGET="${CT_TARGET}-unknown";;
-        *)  CT_TARGET="${CT_TARGET}-${CT_TARGET_VENDOR}";;
-    esac
-    case "${CT_KERNEL}" in
-        linux*)  CT_TARGET="${CT_TARGET}-linux";;
-    esac
+
+    # Set defaults for the system part of the tuple. Can be overriden
+    # by architecture-specific values.
     case "${CT_LIBC}" in
-        glibc)  CT_TARGET="${CT_TARGET}-gnu";;
-        uClibc) CT_TARGET="${CT_TARGET}-uclibc";;
+        glibc)  CT_TARGET_SYS=gnu;;
+        uClibc) CT_TARGET_SYS=uclibc;;
     esac
-    CT_TARGET=`CT_DoConfigSub "${CT_TARGET}"`
+
+    # Call the architecture specific settings
+    CT_DoArchValues
+
+    case "${CT_KERNEL}" in
+        linux*)  CT_TARGET_KERNEL=linux;;
+    esac
+    CT_TARGET=`CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}-${CT_TARGET_SYS}"`
 }
 
 # This function does pause the build until the user strikes "Return"
