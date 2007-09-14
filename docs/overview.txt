@@ -467,6 +467,42 @@ exported (via NFS or whatever) and have clients with different architectures
 use the same crosstool-NG installation, and most notably, the same set of
 patches.
 
+Architecture-specific |
+----------------------*
+
+An architecture is defined by:
+
+ - a human-readable name, in lower case letters, with numbers as appropriate.
+   The underscore is allowed. Eg.: arm, x86_64
+ - a boolean kconfig option named after the architecture (in capital letters
+   if possible) prefixed with "ARCH_". Eg.: ARCH_ARM, ARCH_x86_64
+ - a directory in "arch/" named after the architecture, with the same letters
+   as above. Eg.: arch/arm, arch/x86_64
+   This directory contains:
+   - a configuration file in kconfig syntax, named "config.in", which may be
+     empty. Eg.: arch/arm/config.in
+   - a function script in bash-3.0 syntax, named "functions", which shall
+     follow the API defined below. Eg.: arch/arm/functions
+
+The "functions" file API:
+ > the function "CT_DoBuildTargetTuple"
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file,
+      - the two variables "target_endian_eb" and "target_endian_el" which are
+        the endiannes suffixes
+   + return value: 0 upon success, !0 upon failure
+   + provides:
+     - the target tuple stored in the variable CT_TARGET_ARCH
+
+ > the environment variable CT_ARCH_ENDIAN_OPT
+   + contains:
+     - the value of the CFLAGS values for selecting the endiannes (eg.: -ml
+       for a Super-H little endian, -mbig-endian for an ARM big endian).
+     - empty if the architecture can not set the endianness (eg x86 and
+       x86_64).
+
+
 Build scripts |
 --------------*
 
