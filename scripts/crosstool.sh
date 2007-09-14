@@ -25,11 +25,11 @@ CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_D
 # It has some info about the logging facility, so include it early
 . "${CT_TOP_DIR}/.config"
 
-# renice oursleves
-renice ${CT_NICE} $$ |CT_DoLog DEBUG
-
 # Yes! We can do full logging from now on!
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
+
+# renice oursleves
+renice ${CT_NICE} $$ |CT_DoLog DEBUG
 
 CT_DoStep DEBUG "Dumping crosstool-NG configuration"
 cat "${CT_TOP_DIR}/.config" |egrep '^(# |)CT_' |CT_DoLog DEBUG
