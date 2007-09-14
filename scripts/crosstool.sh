@@ -304,13 +304,6 @@ if [ -z "${CT_RESTART}" ]; then
     # Ha. cygwin host have an .exe suffix (extension) for executables.
     [ "${CT_KERNEL}" = "cygwin" ] && EXEEXT=".exe" || EXEEXT=""
 
-    # Transform the ARCH into a kernel-understandable ARCH
-    case "${CT_ARCH}" in
-        x86) CT_KERNEL_ARCH=i386;;
-        ppc) CT_KERNEL_ARCH=powerpc;;
-        *)   CT_KERNEL_ARCH="${CT_ARCH}";;
-    esac
-
     # Build up the TARGET_CFLAGS from user-provided options
     # Override with user-specified CFLAGS
     [ -n "${CT_ARCH_CPU}" ]  && CT_TARGET_CFLAGS="-mcpu=${CT_ARCH_CPU} ${CT_TARGET_CFLAGS}"
