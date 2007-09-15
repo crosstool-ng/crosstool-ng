@@ -301,9 +301,6 @@ if [ -z "${CT_RESTART}" ]; then
         fi |CT_DoLog DEBUG
     done
 
-    # Ha. cygwin host have an .exe suffix (extension) for executables.
-    [ "${CT_KERNEL}" = "cygwin" ] && EXEEXT=".exe" || EXEEXT=""
-
     # Build up the TARGET_CFLAGS from user-provided options
     # Override with user-specified CFLAGS
     [ -n "${CT_ARCH_CPU}" ]  && CT_TARGET_CFLAGS="-mcpu=${CT_ARCH_CPU} ${CT_TARGET_CFLAGS}"
