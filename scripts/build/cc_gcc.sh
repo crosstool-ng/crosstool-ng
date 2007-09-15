@@ -65,13 +65,7 @@ do_cc_core_static() {
 
     CT_DoLog EXTRA "Configuring static core C compiler"
 
-    extra_config=""
-    [ "${CT_ARCH_FLOAT_SW}" = "y" ] && extra_config="${extra_config} --with-float=soft"
-    [ -n "${CT_ARCH_ABI}" ]  && extra_config="${extra_config} --with-abi=${CT_ARCH_ABI}"
-    [ -n "${CT_ARCH_ARCH}" ] && extra_config="${extra_config} --with-arch=${CT_ARCH_ARCH}"
-    [ -n "${CT_ARCH_CPU}" ]  && extra_config="${extra_config} --with-cpu=${CT_ARCH_CPU}"
-    [ -n "${CT_ARCH_TUNE}" ] && extra_config="${extra_config} --with-tune=${CT_ARCH_TUNE}"
-    [ -n "${CT_ARCH_FPU}" ] && extra_config="${extra_config} --with-fpu=${CT_ARCH_FPU}"
+    extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
@@ -123,13 +117,7 @@ do_cc_core_shared() {
 
     CT_DoLog EXTRA "Configuring shared core C compiler"
 
-    extra_config=""
-    [ "${CT_ARCH_FLOAT_SW}" = "y" ] && extra_config="${extra_config} --with-float=soft"
-    [ -n "${CT_ARCH_ABI}" ]  && extra_config="${extra_config} --with-abi=${CT_ARCH_ABI}"
-    [ -n "${CT_ARCH_ARCH}" ] && extra_config="${extra_config} --with-arch=${CT_ARCH_ARCH}"
-    [ -n "${CT_ARCH_CPU}" ]  && extra_config="${extra_config} --with-cpu=${CT_ARCH_CPU}"
-    [ -n "${CT_ARCH_TUNE}" ] && extra_config="${extra_config} --with-tune=${CT_ARCH_TUNE}"
-    [ -n "${CT_ARCH_FPU}" ] && extra_config="${extra_config} --with-fpu=${CT_ARCH_FPU}"
+    extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
@@ -228,18 +216,8 @@ do_cc() {
     lang_opt=`echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;'`
 
     extra_config="--enable-languages=${lang_opt}"
-    [ "${CT_ARCH_FLOAT_SW}" = "y" ] && extra_config="${extra_config} --with-float=soft"
+    extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_SHARED_LIBS}" = "y" ] || extra_config="${extra_config} --disable-shared"
-    [ -n "${CT_ARCH_ABI}" ]  && extra_config="${extra_config} --with-abi=${CT_ARCH_ABI}"
-    [ -n "${CT_ARCH_CPU}" ]  && extra_config="${extra_config} --with-cpu=${CT_ARCH_CPU}"
-    [ -n "${CT_ARCH_TUNE}" ] && extra_config="${extra_config} --with-tune=${CT_ARCH_TUNE}"
-    [ -n "${CT_ARCH_ARCH}" ] && extra_config="${extra_config} --with-arch=${CT_ARCH_ARCH}"
-    [ -n "${CT_ARCH_FPU}" ] && extra_config="${extra_config} --with-fpu=${CT_ARCH_FPU}"
-    if [ "${CT_TARGET_MULTILIB}" = "y" ]; then
-       extra_config="${extra_config} --enable-multilib"
-    else
-       extra_config="${extra_config} --disable-multilib"
-    fi
     [ "${CT_CC_CXA_ATEXIT}" == "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
@@ -267,7 +245,6 @@ do_cc() {
         CT_DoLog EXTRA "Building libiberty"
         make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog ALL
     fi
-
 
     # Idea from <cort.dougan at gmail.com>:
     # Fix lib/lib64 confusion for GCC 3.3.3 on PowerPC64 and x86_64.

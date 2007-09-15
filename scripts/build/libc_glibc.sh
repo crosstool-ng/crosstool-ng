@@ -155,7 +155,7 @@ do_libc_headers() {
     case "${CT_THREADS}" in
         nptl)
             # NOTE: for some archs, the pathes are different, but they are not
-            # supported by ct-ng right now. See original crosstool when they are.
+            # supported by crosstool-NG right now. See original crosstool when they are.
             pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
             pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/nptl/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/bits/pthreadtypes.h"
             if [ ! -f "${pthreadtypes_h}" ]; then
@@ -206,13 +206,9 @@ do_libc_start_files() {
         y) extra_config="${extra_config} --enable-shared";;
         *) extra_config="${extra_config} --disable-shared";;
     esac
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *--with-fp*) ;;
-        *--without-fp*) ;;
-        *)  case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-                y,) extra_config="${extra_config} --with-fp";;
-                ,y) extra_config="${extra_config} --without-fp";;
-            esac;;
+    case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
+        y,) extra_config="${extra_config} --with-fp";;
+        ,y) extra_config="${extra_config} --without-fp";;
     esac
     # Obviously, we want threads, as we come here only for NPTL
     extra_config="${extra_config} --with-__thread"
@@ -238,8 +234,9 @@ do_libc_start_files() {
     CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
     CT_DoLog DEBUG "Extra CC args passed    : \"${extra_cc_args}\""
 
-    # sh3 and sh4 really need to set configparms as of gcc-3.4/glibc-2.3.2
-    # note: this is awkward, doesn't work well if you need more than one line in configparms
+    # Super-H really needs to set configparms as of gcc-3.4/glibc-2.3.2
+    # note: this is awkward, doesn't work well if you need more than one
+    # line in configparms
     echo ${CT_LIBC_GLIBC_CONFIGPARMS} > configparms
 
     echo "libc_cv_forced_unwind=yes" > config.cache

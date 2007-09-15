@@ -491,11 +491,11 @@ CT_DoBuildTargetTuple() {
     case "${CT_ARCH_BE},${CT_ARCH_LE}" in
         y,) target_endian_eb=eb
             target_endian_el=
-            CT_ARCH_ENDIAN_OPT="-mbig-endian"
+            CT_ARCH_ENDIAN_CFLAG="-mbig-endian"
             ;;
         ,y) target_endian_eb=
             target_endian_el=el
-            CT_ARCH_ENDIAN_OPT="-mlittle-endian"
+            CT_ARCH_ENDIAN_CFLAG="-mlittle-endian"
             ;;
     esac
 
@@ -509,13 +509,32 @@ CT_DoBuildTargetTuple() {
     # Transform the ARCH into a kernel-understandable ARCH
     CT_KERNEL_ARCH="${CT_ARCH}"
 
+    # Set the default values for ARCH, ABI, CPU, TUNE, FPU and FLOAT
+    unset CT_ARCH_ARCH_CFLAG CT_ARCH_ABI_CFLAG CT_ARCH_CPU_CFLAG CT_ARCH_TUNE_CFLAG CT_ARCH_FPU_CFLAG
+    unset CT_ARCH_WITH_ARCH CT_ARCH_WITH_ABI CT_ARCH_WITH_CPU CT_ARCH_WITH_TUNE CT_ARCH_WITH_FPU
+    [ "${CT_ARCH_ARCH}"     ] && { CT_ARCH_ARCH_CFLAG="-march=${CT_ARCH_ARCH}";  CT_ARCH_WITH_ARCH="--with-arch=${CT_ARCH_ARCH}"; }
+    [ "${CT_ARCH_ABI}"      ] && { CT_ARCH_ABI_CFLAG="-mabi=${CT_ARCH_ABI}";     CT_ARCH_WITH_ABI="--with-abi=${CT_ARCH_ABI}";    }
+    [ "${CT_ARCH_CPU}"      ] && { CT_ARCH_CPU_CFLAG="-mcpu=${CT_ARCH_CPU}";     CT_ARCH_WITH_CPU="--with-cpu=${CT_ARCH_CPU}";    }
+    [ "${CT_ARCH_TUNE}"     ] && { CT_ARCH_TUNE_CFLAG="-march=${CT_ARCH_TUNE}";  CT_ARCH_WITH_TUNE="--with-tune=${CT_ARCH_TUNE}"; }
+    [ "${CT_ARCH_FPU}"      ] && { CT_ARCH_FPU_CFLAG="-mfpu=${CT_ARCH_FPU}";     CT_ARCH_WITH_FPU="--with-fpu=${CT_ARCH_FPU}";    }
+    [ "${CT_ARCH_FLOAT_SW}" ] && { CT_ARCH_FPU_CFLAG="-msoft-float";             CT_ARCH_WITH_FLOAT="--with-float=soft";          }
+
     # Call the architecture specific settings
     CT_DoArchValues
 
+    # Finish the target tuple construction
     case "${CT_KERNEL}" in
         linux*)  CT_TARGET_KERNEL=linux;;
     esac
     CT_TARGET=`CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}-${CT_TARGET_SYS}"`
+
+    # Prepare the target CFLAGS
+    CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} ${CT_ARCH_ARCH_CFLAGS}"
+    CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} ${CT_ARCH_ABI_CFLAGS}"
+    CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} ${CT_ARCH_CPU_CFLAGS}"
+    CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} ${CT_ARCH_TUNE_CFLAGS}"
+    CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} ${CT_ARCH_FPU_CFLAGS}"
+    CT_TARGET_CFLAGS="${CT_TARGET_CFLAGS} ${CT_ARCH_FLOAT_CFLAGS}"
 }
 
 # This function does pause the build until the user strikes "Return"

@@ -301,13 +301,6 @@ if [ -z "${CT_RESTART}" ]; then
         fi |CT_DoLog DEBUG
     done
 
-    # Build up the TARGET_CFLAGS from user-provided options
-    # Override with user-specified CFLAGS
-    [ -n "${CT_ARCH_CPU}" ]  && CT_TARGET_CFLAGS="-mcpu=${CT_ARCH_CPU} ${CT_TARGET_CFLAGS}"
-    [ -n "${CT_ARCH_TUNE}" ] && CT_TARGET_CFLAGS="-mtune=${CT_ARCH_TUNE} ${CT_TARGET_CFLAGS}"
-    [ -n "${CT_ARCH_ARCH}" ] && CT_TARGET_CFLAGS="-march=${CT_ARCH_ARCH} ${CT_TARGET_CFLAGS}"
-    [ -n "${CT_ARCH_FPU}" ]  && CT_TARGET_CFLAGS="-mfpu=${CT_ARCH_FPU} ${CT_TARGET_CFLAGS}"
-
     # Help gcc
     CT_CFLAGS_FOR_HOST=
     [ "${CT_USE_PIPES}" = "y" ] && CT_CFLAGS_FOR_HOST="${CT_CFLAGS_FOR_HOST} -pipe"
