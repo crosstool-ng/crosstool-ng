@@ -164,6 +164,20 @@ s/^TARGET_ARCH=".*"/TARGET_ARCH="${CT_KERNEL_ARCH}"/
 s/.*(DOSTRIP).*/# \\1 is not set/
 ENDSED
 
+    # Ah. We may one day need architecture-specific handler here...
+    # Hack the ARM {E,O}ABI into the config file
+    if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
+        cat >>"${munge_file}" <<-ENDSED
+s/.*(CONFIG_ARM_OABI).*/# \\1 is not set/
+s/.*(CONFIG_ARM_EABI).*/\\1=y/
+ENDSED
+    else
+        cat >>"${munge_file}" <<-ENDSED
+s/.*(CONFIG_ARM_OABI).*/\\1=y/
+s/.*(CONFIG_ARM_EABI).*/# \\1 is not set/
+ENDSED
+    fi
+
     # Accomodate for old and new uClibc versions, where the
     # way to select between big/little endian has changed
     case "${CT_ARCH_BE},${CT_ARCH_LE}" in
@@ -198,7 +212,7 @@ ENDSED
             ;;
     esac
 
-    # Change paths to work with crosstool
+    # Change paths to work with crosstool-NG
     # From http://www.uclibc.org/cgi-bin/viewcvs.cgi?rev=16846&view=rev
     #  " we just want the kernel headers, not the whole kernel source ...
     #  " so people may need to update their paths slightly

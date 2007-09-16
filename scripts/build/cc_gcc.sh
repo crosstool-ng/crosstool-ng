@@ -231,7 +231,8 @@ do_cc() {
     # detection problem only matters for gcc-3.2.x and later, I think.
     # --disable-nls to work around crash bug on ppc405, but also because
     # embedded systems don't really need message catalogs...
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
+    TARGET_CFLAGS="${CT_TARGET_CFLAGS}"         \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"     \
         ${CT_CANADIAN_OPT}                      \
         --target=${CT_TARGET} --host=${CT_HOST} \

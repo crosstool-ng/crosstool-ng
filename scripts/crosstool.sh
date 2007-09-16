@@ -82,6 +82,10 @@ CT_DoBuildTargetTuple
 # then rescan the options file now:
 . "${CT_TOP_DIR}/.config"
 
+# Second kludge: merge user-supplied target CFLAGS with architecture-provided
+# target CFLAGS
+CT_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_TARGET_CFLAGS}"
+
 # Now, build up the variables from the user-configured options.
 CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
 CT_BINUTILS_FILE="binutils-${CT_BINUTILS_VERSION}"
@@ -212,7 +216,7 @@ case "${CT_LOG_TO_FILE}" in
         ;;
 esac
 
-# Setting up the rest of the environment only is not restarting
+# Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
     # Determine build system if not set by the user
     CT_Test "You did not specify the build system. That's OK, I can guess..." -z "${CT_BUILD}"
