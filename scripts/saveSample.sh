@@ -18,6 +18,9 @@ rm -f "${tmp_log_file}"
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
 . "${CT_TOP_DIR}/.config"
 
+# Parse the architecture-specific functions
+. "${CT_LIB_DIR}/arch/${CT_ARCH}/functions"
+
 # Target tuple: CT_TARGET needs a little love:
 CT_DoBuildTargetTuple
 
