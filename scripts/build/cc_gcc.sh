@@ -219,6 +219,11 @@ do_cc() {
     extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_SHARED_LIBS}" = "y" ] || extra_config="${extra_config} --disable-shared"
     [ "${CT_CC_CXA_ATEXIT}" == "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
+    if [ "${CT_TARGET_MULTILIB}" = "y" ]; then
+        extra_config="${extra_config} --enable-multilib"
+    else
+        extra_config="${extra_config} --disable-multilib"
+    fi
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 
