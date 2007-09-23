@@ -99,8 +99,14 @@ fi
 # Make all path absolute, it so much easier!
 CT_LOCAL_TARBALLS_DIR="`CT_MakeAbsolutePath \"${CT_LOCAL_TARBALLS_DIR}\"`"
 
+# If the local tarball directory does not exist, say so, and don't try to save there!
+if [ ! -d "${CT_LOCAL_TARBALLS_DIR}" ]; then
+    CT_DoLog WARN "Directory \"${CT_LOCAL_TARBALLS_DIR}\" does not exist. Will not save downloaded tarballs to local storage."
+    CT_SAVE_TARBALLS=""
+fi
+
 # Some more sanity checks now that we have all paths set up
-case "${CT_TARBALLS_DIR},${CT_SRC_DIR},${CT_BUILD_DIR},${CT_PREFIX_DIR},${CT_INSTALL_DIR}" in
+case "${CT_LOCAL_TARBALLS_DIR},${CT_TARBALLS_DIR},${CT_SRC_DIR},${CT_BUILD_DIR},${CT_PREFIX_DIR},${CT_INSTALL_DIR}" in
     *" "*) CT_Abort "Don't use spaces in paths, it breaks things.";;
 esac
 
