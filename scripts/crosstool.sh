@@ -42,22 +42,6 @@ CT_DoLog DEBUG "Unsetting and unexporting MAKEFLAGS"
 unset MAKEFLAGS
 export MAKEFLAGS
 
-# Enable known ordering of files in directory listings:
-CT_Test "crosstool-NG might not work as expected with LANG=\"${LANG}\"" -n "${LANG}"
-case "${LC_COLLATE},${LC_ALL}" in
-  # These four combinations are known to sort files in the correct order:
-  fr_FR*,)  ;;
-  en_US*,)  ;;
-  *,fr_FR*) ;;
-  *,en_US*) ;;
-  # Anything else is destined to be borked if not gracefuly handled:
-  *) CT_DoLog WARN "Either LC_COLLATE=\"${LC_COLLATE}\" or LC_ALL=\"${LC_ALL}\" is not supported."
-     export LC_ALL=`locale -a |egrep "^(fr_FR|en_US)" |head -n 1`
-     CT_TestOrAbort "Neither en_US* nor fr_FR* locales found on your system." -n "${LC_ALL}"
-     CT_DoLog WARN "Forcing to known working LC_ALL=\"${LC_ALL}\"."
-     ;;
-esac
-
 # Other environment sanity checks
 CT_TestAndAbort "Don't set LD_LIBRARY_PATH. It screws up the build." -n "${LD_LIBRARY_PATH}"
 CT_TestAndAbort "Don't set CFLAGS. It screws up the build." -n "${CFLAGS}"
