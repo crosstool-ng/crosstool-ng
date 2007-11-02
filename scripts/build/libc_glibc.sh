@@ -81,14 +81,14 @@ do_libc_headers() {
     # We need to remove any threading addon when installing headers
     addons_config="${addons_config//nptl/}"
     addons_config="${addons_config//linuxthreads/}"
-    addons_config=`echo "${addons_config}" |sed -r -e 's/,+/,/g; s/^,+//; s/,+$//;'`
+    addons_config=`echo "${addons_config}" |sed -r -e 's/^,+//; s/,+$//; s/,+/,/g;'`
 
     cross_cc=`CT_Which "${CT_TARGET}-gcc"`
     CT_DoLog DEBUG "Using gcc for target: \"${cross_cc}\""
     CT_DoLog DEBUG "Extra config passed : \"${addons_config}\""
 
     libc_cv_ppc_machine=yes                     \
-    CC=${CT_CC_NATIVE}                          \
+    CC=${cross_cc}                              \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
         --build="${CT_UNIQ_BUILD}"              \
         --host="${CT_TARGET}"                   \
@@ -246,7 +246,7 @@ do_libc_start_files() {
 
     BUILD_CC=${CT_CC_NATIVE}                                        \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O "  \
-    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}"      \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
