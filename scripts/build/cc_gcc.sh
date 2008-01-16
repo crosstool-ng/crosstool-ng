@@ -278,27 +278,14 @@ do_cc() {
     CT_DoLog EXTRA "Installing final compiler"
     make install 2>&1 |CT_DoLog ALL
 
-    # FIXME: shouldn't people who want this just --disable-multilib in final gcc
-    # and be done with it?
-    # This code should probably be deleted, it was written long ago and hasn't
-    # been tested in ages.
-    # kludge: If the chip does not have a floating point unit
-    # (i.e. if GLIBC_EXTRA_CONFIG contains --without-fp),
-    # and there are shared libraries in /lib/nof, copy them to /lib
-    # so they get used by default.
-    # FIXME: only rs6000/powerpc seem to use nof.  See MULTILIB_DIRNAMES
-    # in $GCC_DIR/gcc/config/$TARGET/* to see what your arch calls it.
-    #case "${CT_LIBC_EXTRA_CONFIG}" in
-    #    *--without-fp*)
-    #        if test -d "${CT_SYSROOT_DIR}/lib/nof"; then
-    #            cp -af "${CT_SYSROOT_DIR}/lib/nof/"*.so* "${CT_SYSROOT_DIR}/lib" || true
-    #        fi
-    #    ;;
-    #esac
-
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
     ln "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-{g,}cc
+
+    # gcc installs stuff in prefix/target/lib, when it would make better sense
+    # to install that into sysroot/usr/lib
+    CT_DoLog EXTRA "Moving improperly installed gcc libs to sysroot"
+    ( cd "${CT_PREFIX_DIR}/${CT_TARGET}/lib"; tar cf - . ) | ( cd "${CT_SYSROOT_DIR}/usr/lib"; tar xfv - )
 
     CT_EndStep
 }
