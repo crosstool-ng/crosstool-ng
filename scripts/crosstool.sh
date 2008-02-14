@@ -92,7 +92,7 @@ if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
     CT_DoLog ERROR "You asked to restart a non-restartable build"
     CT_DoLog ERROR "This happened because you didn't set CT_DEBUG_CT_SAVE_STEPS"
     CT_DoLog ERROR "in the config options for the previous build, or the state"
-    CT_DoLog ERROR "directoy for the previous build was deleted."
+    CT_DoLog ERROR "directory for the previous build was deleted."
     CT_Abort "I will stop here to avoid any carnage"
 fi
 
@@ -187,7 +187,7 @@ mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
 mkdir -p "${CT_STATE_DIR}"
 
 # Kludge: CT_INSTALL_DIR and CT_PREFIX_DIR might have grown read-only if
-# the previous build was successfull. To be able to move the logfile there,
+# the previous build was successful. To be able to move the logfile there,
 # switch them back to read/write
 chmod -R u+w "${CT_INSTALL_DIR}" "${CT_PREFIX_DIR}"
 
