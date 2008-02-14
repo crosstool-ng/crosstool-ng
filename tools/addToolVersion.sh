@@ -17,9 +17,6 @@ Usage: ${myname} <tool> [option] <version>
     --obsolete, -o
       mark the version as being obsolete
 
-  Valid mandatory 'option' for tool==gcc is one and only one of:
-    --core, --final
-
   Valid mandatory 'option' for tool==linux is one and only one of:
     --install, --sanitised, --copy
 
@@ -38,8 +35,6 @@ cat=
 tool=
 tool_prefix=
 tool_suffix=
-CORE=
-FINAL=
 VERSION=
 EXP=
 OBS=
@@ -63,8 +58,6 @@ while [ $i -le $# ]; do
         # Tools options:
         -x|--experimental)  EXP=1; OBS=; prompt_suffix=" (EXPERIMENTAL)";;
         -o|--obsolete)      OBS=1; EXP=; prompt_suffix=" (OBSOLETE)";;
-        --core)             CORE=1; FINAL=;;
-        --final)            FINAL=1; CORE=;;
         --install)          tool_suffix=install;;
         --sanitised)        tool_suffix=sanitised;;
         --copy)             tool_suffix=copy;;
@@ -79,15 +72,10 @@ done
 [ -n "${tool}" -o -n "${VERSION}" ] || { doHelp; exit 1; }
 
 case "${cat}" in
-    CC)     [    -z "${CORE}" -a -z "${FINAL}" ] && { doHelp; exit 1; };;
-    KERNEL) unset FINAL CORE
-            [ -z "${tool_suffix}" ] && { doHelp; exit 1; }
-            ;;
-    *)      CORE=; FINAL=;;
+    KERNEL) [ -z "${tool_suffix}" ] && { doHelp; exit 1; } ;;
+    *)      ;;
 esac
 
-MIDDLE_V=; MIDDLE_F=
-[ -n "${CORE}" ] && MIDDLE_V="_CORE" && MIDDLE_F="core_"
 for ver in ${VERSION}; do
     unset DEP L1 L2 L3 L4 L5 FILE
     v=`echo "${ver}" |sed -r -e 's/-/_/g; s/\./_/g;'`
@@ -104,11 +92,11 @@ for ver in ${VERSION}; do
         L5="    default \"${ver}\" if ${cat}_${TOOL_SUFFIX}_V_${v}"
         FILE="config/${tool_prefix}${tool}_headers_${tool_suffix}.in"
     else
-        L1="config ${cat}${MIDDLE_V}_V_${v}\n"
+        L1="config ${cat}_V_${v}\n"
         L2="    bool\n"
         L3="    prompt \"${ver}${prompt_suffix}\"\n"
-        L5="    default \"${ver}\" if ${cat}${MIDDLE_V}_V_${v}"
-        FILE="config/${tool_prefix}${MIDDLE_F}${tool}.in"
+        L5="    default \"${ver}\" if ${cat}_V_${v}"
+        FILE="config/${tool_prefix}${tool}.in"
     fi
     [ -n "${EXP}" ] && DEP="${DEP} && EXPERIMENTAL"
     [ -n "${OBS}" ] && DEP="${DEP} && OBSOLETE"
