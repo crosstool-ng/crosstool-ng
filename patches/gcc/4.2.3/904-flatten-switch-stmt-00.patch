@@ -1,0 +1,24 @@
+diff -durN gcc-4.2.1.orig/gcc/stmt.c gcc-4.2.1/gcc/stmt.c
+--- gcc-4.2.1.orig/gcc/stmt.c	2007-07-19 05:25:32.000000000 +0200
++++ gcc-4.2.1/gcc/stmt.c	2007-08-03 20:37:19.000000000 +0200
+@@ -2512,7 +2512,11 @@
+ 	  use_cost_table
+ 	    = (TREE_CODE (orig_type) != ENUMERAL_TYPE
+ 	       && estimate_case_costs (case_list));
+-	  balance_case_nodes (&case_list, NULL);
++	  /* When optimizing for size, we want a straight list to avoid
++	     jumps as much as possible. This basically creates an if-else
++	     chain.  */
++	  if (!optimize_size)
++	    balance_case_nodes (&case_list, NULL);
+ 	  emit_case_nodes (index, case_list, default_label, index_type);
+ 	  emit_jump (default_label);
+ 	}
+@@ -3070,6 +3074,7 @@
+ 	    {
+ 	      if (!node_has_low_bound (node, index_type))
+ 		{
++		  if (!optimize_size) /* don't jl to the .default_label. */
+ 		  emit_cmp_and_jump_insns (index,
+ 					   convert_modes
+ 					   (mode, imode,

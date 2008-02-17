@@ -1,0 +1,58 @@
+This patch (C) 2007 Yann E. MORIN
+Licensed under GPL v2.
+
+First hunk of this patch solves compiling uClibc:
+
+make[1]: Entering directory `/home/ymorin/x-tools/build/armeb-unknown-linux-uclibc/gcc-4.1.1-uClibc-0.9.28.1/build-libc'
+  LD libuClibc-0.9.29.so
+libc/libc_so.a(difftime.os): In function `difftime':
+difftime.c:(.text+0x8): undefined reference to `__floatsidf'
+difftime.c:(.text+0x2c): undefined reference to `__subdf3'
+libc/libc_so.a(_fpmaxtostr.os): In function `_fpmaxtostr':
+_fpmaxtostr.c:(.text+0xd4): undefined reference to `__nedf2'
+_fpmaxtostr.c:(.text+0xf8): undefined reference to `__eqdf2'
+_fpmaxtostr.c:(.text+0x114): undefined reference to `__divdf3'
+_fpmaxtostr.c:(.text+0x120): undefined reference to `__ltdf2'
+_fpmaxtostr.c:(.text+0x1c4): undefined reference to `__muldf3'
+_fpmaxtostr.c:(.text+0x388): undefined reference to `__gedf2'
+_fpmaxtostr.c:(.text+0x430): undefined reference to `__adddf3'
+libc/libc_so.a(__psfs_do_numeric.os): In function `__psfs_do_numeric':
+__psfs_do_numeric.c:(.text+0x520): undefined reference to `__truncdfsf2'
+libc/libc_so.a(strtof.os): In function `strtof':
+strtof.c:(.text+0x1c): undefined reference to `__extendsfdf2'
+/home/ymorin/x-tools/build/armeb-unknown-linux-uclibc/gcc-4.1.1-uClibc-0.9.28.1/cc_core_prefix/lib/gcc/arm-linux-uclibc/4.1.1/libgcc.a(_fixunsdfsi.o):
+In function `__fixunsdfsi':
+libgcc2.c:(.text+0x34): undefined reference to `__fixdfsi'
+make[2]: *** [lib/libc.so] Error 1
+make[1]: *** [lib/libc.so.0] Error 2
+make[1]: Leaving directory `/home/ymorin/x-tools/build/armeb-unknown-linux-uclibc/gcc-4.1.1-uClibc-0.9.28.1/build-libc'
+make: *** [/home/ymorin/x-tools/build/armeb-unknown-linux-uclibc/gcc-4.1.1-uClibc-0.9.28.1/build-libc/lib/libc.a]
+Error 2
+
+The second hunk fixes building final gcc because soft-float implies using -lfloat (which we don't have).
+
+
+diff -dur gcc-4.2.0.orig/gcc/config.gcc gcc-4.2.0/gcc/config.gcc
+--- gcc-4.2.0.orig/gcc/config.gcc	2007-07-15 11:24:18.000000000 +0200
++++ gcc-4.2.0/gcc/config.gcc	2007-07-15 11:26:02.000000000 +0200
+@@ -721,7 +721,7 @@
+ 	    default_use_cxa_atexit=yes
+ 	    ;;
+ 	*)
+-	    tmake_file="$tmake_file arm/t-linux"
++	    tmake_file="$tmake_file arm/t-linux arm/t-arm-elf"
+ 	    ;;
+ 	esac
+ 	tm_file="$tm_file arm/aout.h arm/arm.h"
+diff -dur gcc-4.2.0.orig/gcc/config/arm/linux-elf.h gcc-4.2.0/gcc/config/arm/linux-elf.h
+--- gcc-4.2.0.orig/gcc/config/arm/linux-elf.h	2007-07-15 11:24:18.000000000 +0200
++++ gcc-4.2.0/gcc/config/arm/linux-elf.h	2007-07-15 11:26:02.000000000 +0200
+@@ -63,7 +63,7 @@
+    %{shared:-lc} \
+    %{!shared:%{profile:-lc_p}%{!profile:-lc}}"
+ 
+-#define LIBGCC_SPEC "%{msoft-float:-lfloat} %{mfloat-abi=soft*:-lfloat} -lgcc"
++#define LIBGCC_SPEC "-lgcc"
+ 
+ #define GLIBC_DYNAMIC_LINKER "/lib/ld-linux.so.2"
+ 
