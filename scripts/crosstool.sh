@@ -307,6 +307,20 @@ if [ -z "${CT_RESTART}" ]; then
     [ ${CT_PARALLEL_JOBS} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -j${CT_PARALLEL_JOBS}"
     [ ${CT_LOAD} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -l${CT_LOAD}"
 
+    # Set environment for proxy access
+    if [ "${CT_USE_HTTP_PROXY}" = "y" ]; then
+      http_proxy="http://"
+      case  "${CT_HTTP_PROXY_USER}:${CT_HTTP_PROXY_PASSWD}" in
+        :)      ;;
+        :*)     http_proxy="${http_proxy}:${CT_HTP_PROXY_PASSWD}@";;
+        *:)     http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}@";;
+        *:*)    http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}:${CT_HTP_PROXY_PASSWD}@";;
+      esac
+      export http_proxy="${http_proxy}${HTTP_PROXY_HOST}:${HTTP_PROXY_PORT}/"
+      export https_proxy="${http_proxy}"
+      export ftp_proxy="${http_proxy}"
+    fi
+
     CT_DoStep EXTRA "Dumping internal crosstool-NG configuration"
     CT_DoLog EXTRA "Building a toolchain for:"
     CT_DoLog EXTRA "  build  = ${CT_BUILD}"
