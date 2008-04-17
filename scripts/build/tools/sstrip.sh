@@ -48,7 +48,7 @@ case "${CT_SSTRIP_FROM}" in
                 return 0
             fi
             CT_Pushd "${CT_TARBALLS_DIR}"
-            CT_DoLog EXTRA "Retrieving \"sstrip\" (from buildroot's svn)"
+            CT_DoLog EXTRA "Retrieving \"sstrip\" from network"
             http_data=`lynx -dump "${sstrip_url}"`
             link=`echo -en "${http_data}"                           \
                   |egrep '\[[[:digit:]]+\]download'                 \
