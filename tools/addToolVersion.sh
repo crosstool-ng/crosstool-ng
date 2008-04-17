@@ -44,17 +44,17 @@ i=1
 while [ $i -le $# ]; do
     case "${!i}" in
         # Tools:
-        --gcc)              cat=CC;        tool=gcc;      tool_prefix=cc_;      tool_suffix=;;
-        --binutils)         cat=BINUTILS;  tool=binutils; tool_prefix=;         tool_suffix=;;
-        --glibc)            cat=LIBC;      tool=glibc;    tool_prefix=libc_;    tool_suffix=;;
-        --uClibc)           cat=LIBC;      tool=uClibc;   tool_prefix=libc_;    tool_suffix=;;
-        --linux)            cat=KERNEL;    tool=linux;    tool_prefix=kernel_;  tool_suffix=;;
-        --gdb)              cat=GDB;       tool=gdb;      tool_prefix=debug/    tool_suffix=;;
-        --dmalloc)          cat=DMALLOC;   tool=dmalloc;  tool_prefix=debug/    tool_suffix=;;
-        --duma)             cat=DUMA;      tool=duma;     tool_prefix=debug/    tool_suffix=;;
-        --strace)           cat=STRACE;    tool=strace;   tool_prefix=debug/    tool_suffix=;;
-        --ltrace)           cat=LTRACE;    tool=ltrace;   tool_prefix=debug/    tool_suffix=;;
-        --libelf)           cat=LIBELF;    tool=libelf;   tool_prefix=tools/    tool_suffix=;;
+        --gcc)              cat=CC;        tool=gcc;      tool_prefix=cc;      tool_suffix=;;
+        --binutils)         cat=BINUTILS;  tool=binutils; tool_prefix=;        tool_suffix=;;
+        --glibc)            cat=LIBC;      tool=glibc;    tool_prefix=libc;    tool_suffix=;;
+        --uClibc)           cat=LIBC;      tool=uClibc;   tool_prefix=libc;    tool_suffix=;;
+        --linux)            cat=KERNEL;    tool=linux;    tool_prefix=kernel;  tool_suffix=;;
+        --gdb)              cat=GDB;       tool=gdb;      tool_prefix=debug    tool_suffix=;;
+        --dmalloc)          cat=DMALLOC;   tool=dmalloc;  tool_prefix=debug    tool_suffix=;;
+        --duma)             cat=DUMA;      tool=duma;     tool_prefix=debug    tool_suffix=;;
+        --strace)           cat=STRACE;    tool=strace;   tool_prefix=debug    tool_suffix=;;
+        --ltrace)           cat=LTRACE;    tool=ltrace;   tool_prefix=debug    tool_suffix=;;
+        --libelf)           cat=LIBELF;    tool=libelf;   tool_prefix=tools    tool_suffix=;;
         # Tools options:
         -x|--experimental)  EXP=1; OBS=; prompt_suffix=" (EXPERIMENTAL)";;
         -o|--obsolete)      OBS=1; EXP=; prompt_suffix=" (OBSOLETE)";;
@@ -90,13 +90,13 @@ for ver in ${VERSION}; do
             *,*.*.*.*)      DEP="${DEP} && KERNEL_VERSION_SEE_EXTRAVERSION";;
         esac
         L5="    default \"${ver}\" if ${cat}_${TOOL_SUFFIX}_V_${v}"
-        FILE="config/${tool_prefix}${tool}_headers_${tool_suffix}.in"
+        FILE="config/${tool_prefix}/${tool}_headers_${tool_suffix}.in"
     else
         L1="config ${cat}_V_${v}\n"
         L2="    bool\n"
         L3="    prompt \"${ver}${prompt_suffix}\"\n"
         L5="    default \"${ver}\" if ${cat}_V_${v}"
-        FILE="config/${tool_prefix}${tool}.in"
+        FILE="config/${tool_prefix}/${tool}.in"
     fi
     [ -n "${EXP}" ] && DEP="${DEP} && EXPERIMENTAL"
     [ -n "${OBS}" ] && DEP="${DEP} && OBSOLETE"
