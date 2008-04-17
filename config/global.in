@@ -251,23 +251,23 @@ choice
     prompt "Proxy type"
     default USE_NO_PROXY
 
-config USE_NO_PROXY
+config PROXY_TYPE_NONE
     bool
     prompt "No proxy"
     help
       Select this option if you have a direct connection to the internet,
       or if you already set the environment adequately.
 
-config USE_HTTP_PROXY
+config PROXY_TYPE_HTTP
     bool
     prompt "HTTP proxy"
     help
       Use an HTTP proxy to connect to to the internet.
-      Onlt the http and ftp protocols will be tunneled through this
+      Only the http and ftp protocols will be tunneled through this
       proxy.
 
-      Alternatively to setting this options, you can set and export
-      the following variable in your environment:
+      Alternatively to setting this option, you can set and export the
+      following variables in your environment:
         ftp_proxy=http://user:passwd@proxy.server:port/
         http_proxy=http://user:passwd@proxy.server:port/
         https_proxy=http://user:passwd@proxy.server:port/
@@ -277,27 +277,94 @@ config USE_HTTP_PROXY
 # choice menu!
 # To add a third entry in the choice menu, add it after the
 # if...endif conditional below, and so on for a fourth entry...
-if USE_HTTP_PROXY
+if PROXY_TYPE_HTTP
 
-config HTTP_PROXY_HOST
+config PROXY_HOST
     string
-    prompt "HTTP proxy hostname/IP"
+    prompt "hostname/IP"
 
-config HTTP_PROXY_PORT
+config PROXY_PORT
     int
-    prompt "HTTP proxy port"
+    prompt "port"
+    default 0
     
-config HTTP_PROXY_USER
+config PROXY_USER
     string
-    prompt "HTTP proxy user name"
+    prompt "user name"
 
-config HTTP_PROXY_PASSWD
+config PROXY_PASS
     string
-    prompt "HTTP proxy password"
+    prompt "password"
 
 endif # USE_HTTP_PROXY
 
+config PROXY_TYPE_SOCKS
+    bool
+    prompt "SOCKS 4/5 proxy"
+    help
+      Use a Socks 4/5 proxy to connect to the internet.
+      All protocols can get tunneled through this kind of proxy (depending
+      on your proxy configuration, so;e do not allow all protocols, but
+      chances are that protocols needed by crosstool-NG are allowed).
+
+      Alternatively to setting this option, you can set and export the
+      following variable in your environment:
+        LD_PRELOAD=/path/to/your/tsocks-library.so
+
+      In any case, wether you set this option or you export the aforementionned
+      variable, you will _have_ to  configure the /etc/tsocks.conf file
+      accordingly to your network setup.
+
+      This option makes use of the tsocks library. You will have to have tsocks
+      installed on your system, of course.
+
+      If you think you do not know what tsocks is, or how to configure it,
+      chances are that you do not need to set this option.
+
+if PROXY_TYPE_SOCKS
+
+choice
+    bool
+    prompt "type"
+    default PROXY_TYPE_SOCKS_5
+
+config PROXY_TYPE_SOCKS_5
+    bool
+    prompt "SOCKS 5"
+
+config PROXY_TYPE_SOCKS_4
+    bool
+    prompt "SOCKS 4"
+
 endchoice
+
+config PROXY_HOST
+    string
+    prompt "hostname/IP"
+
+config PROXY_PORT
+    int
+    prompt "port"
+    default 0
+
+config PROXY_USER
+    string
+    prompt "user name"
+
+config PROXY_PASS
+    string
+    prompt "password"
+
+endif # USE_SOCKS_PROXY
+
+endchoice
+
+config PROXY_TYPE
+    string
+    default "none" if PROXY_TYPE_NONE
+    default "HTTP" if PROXY_TYPE_HTTP
+    default "socks5" if PROXY_TYPE_SOCKS_5
+    default "socks4" if PROXY_TYPE_SOCKS_4
 
 # Force restore indentation
 config FOOBAR

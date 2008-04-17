@@ -206,6 +206,37 @@ case "${CT_LOG_TO_FILE}" in
         ;;
 esac
 
+# Set environment for proxy access
+# This has to be done even if we are restarting, as they don't get
+# saved in the step snapshot.
+case "${CT_PROXY_TYPE}" in
+  none) ;;
+  http)
+    http_proxy="http://"
+    case  "${CT_PROXY_USER}:${CT_PROXY_PASS}" in
+      :)      ;;
+      :*)     http_proxy="${http_proxy}:${CT_HTP_PROXY_PASS}@";;
+      *:)     http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}@";;
+      *:*)    http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}:${CT_HTP_PROXY_PASS}@";;
+    esac
+    export http_proxy="${http_proxy}${HTTP_PROXY_HOST}:${HTTP_PROXY_PORT}/"
+    export https_proxy="${http_proxy}"
+    export ftp_proxy="${http_proxy}"
+    ;;
+  socks?)
+    # Re;ove any lingering config file from any previous run
+    rm -f "${CT_BUILD_DIR}/tsocks.conf"
+    ( echo "server=${CT_PROXY_HOST}";
+      echo "server_port=${CT_PROXY_PORT}";
+      echo "server_type=${CT_PROXY_TYPE#socks}";
+      [ -n "${CT_PROXY_USER}"   ] && echo "default_user=${CT_PROXY_USER}";
+      [ -n "${CT_PROXY_PASS}" ] && echo "default_pass=${CT_PROXY_PASS}";
+    ) >"${CT_BUILD_DIR}/tsocks.conf"
+    export TSOCKS_CONF_FILE="${CT_BUILD_DIR}/tsocks.conf"
+    . tsocks -on
+    ;;
+esac
+
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
     # Determine build system if not set by the user
@@ -306,20 +337,6 @@ if [ -z "${CT_RESTART}" ]; then
     PARALLELMFLAGS=
     [ ${CT_PARALLEL_JOBS} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -j${CT_PARALLEL_JOBS}"
     [ ${CT_LOAD} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -l${CT_LOAD}"
-
-    # Set environment for proxy access
-    if [ "${CT_USE_HTTP_PROXY}" = "y" ]; then
-      http_proxy="http://"
-      case  "${CT_HTTP_PROXY_USER}:${CT_HTTP_PROXY_PASSWD}" in
-        :)      ;;
-        :*)     http_proxy="${http_proxy}:${CT_HTP_PROXY_PASSWD}@";;
-        *:)     http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}@";;
-        *:*)    http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}:${CT_HTP_PROXY_PASSWD}@";;
-      esac
-      export http_proxy="${http_proxy}${HTTP_PROXY_HOST}:${HTTP_PROXY_PORT}/"
-      export https_proxy="${http_proxy}"
-      export ftp_proxy="${http_proxy}"
-    fi
 
     CT_DoStep EXTRA "Dumping internal crosstool-NG configuration"
     CT_DoLog EXTRA "Building a toolchain for:"
