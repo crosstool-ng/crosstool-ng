@@ -125,14 +125,16 @@ fi
 # If we can't get the revision number, use date
 case "${VERSION}" in
   *+svn)
-    REVISION=$(LANG=C svn info 2>/dev/null |egrep 'Revision: ' |cut -d ' ' -f 2-)
-    if [ -n "${REVISION}" ]; then
-      URL=$(LANG=C svn info 2>/dev/null |egrep 'URL: ' |cut -d ' ' -f 2-)
-      ROOT=$(LANG=C svn info 2>/dev/null |egrep 'Repository Root: ' |cut -d ' ' -f 3-)
-      VERSION="${VERSION}:${URL#${ROOT}}@${REVISION}"
-    else
-      VERSION="${VERSION}:unknown@$(date +%Y%m%d.%H%M%S)"
-    fi
+    REVISION=$(svnversion)
+    case "${REVISION}" in
+      exported)
+        VERSION="${VERSION}:unknown@$(date +%Y%m%d.%H%M%S)";;
+      *)
+        URL=$(LANG=C svn info 2>/dev/null |egrep 'URL: ' |cut -d ' ' -f 2-)
+        ROOT=$(LANG=C svn info 2>/dev/null |egrep 'Repository Root: ' |cut -d ' ' -f 3-)
+        VERSION="${VERSION}:${URL#${ROOT}}@${REVISION}"
+        ;;
+    esac
     ;;
 esac
 
