@@ -1,0 +1,171 @@
+# Options specific to downloading and extracting packages
+
+comment "Downloading"
+
+config FORCE_DOWNLOAD
+    bool
+    prompt "Force downloads"
+    default n
+    help
+      Force downloading tarballs, even if one already exists.
+      
+      Usefull if you suspect a tarball to be damaged.
+
+config ONLY_DOWNLOAD
+    bool
+    prompt "Stop after downloading tarballs"
+    default n
+    help
+      Only download the tarballs. Exit once it done.
+      
+      Usefull to pre-retrieve the tarballs before going off-line.
+
+choice
+    bool
+    prompt "Proxy type"
+    default USE_NO_PROXY
+
+config PROXY_TYPE_NONE
+    bool
+    prompt "No proxy"
+    help
+      Select this option if you have a direct connection to the internet,
+      or if you already set the environment adequately.
+
+config PROXY_TYPE_HTTP
+    bool
+    prompt "HTTP proxy"
+    help
+      Use an HTTP proxy to connect to to the internet.
+      Only the http and ftp protocols will be tunneled through this
+      proxy.
+
+      Alternatively to setting this option, you can set and export the
+      following variables in your environment:
+        ftp_proxy=http://user:passwd@proxy.server:port/
+        http_proxy=http://user:passwd@proxy.server:port/
+        https_proxy=http://user:passwd@proxy.server:port/
+
+# Haha! Here is an interesting feature/bug of mconf!
+# The following config entries will be shown out-side the
+# choice menu!
+# To add a third entry in the choice menu, add it after the
+# if...endif conditional below, and so on for a fourth entry...
+if PROXY_TYPE_HTTP
+
+config PROXY_HOST
+    string
+    prompt "hostname/IP"
+
+config PROXY_PORT
+    int
+    prompt "port"
+    default 0
+    
+config PROXY_USER
+    string
+    prompt "user name"
+
+config PROXY_PASS
+    string
+    prompt "password"
+
+endif # USE_HTTP_PROXY
+
+config PROXY_TYPE_SOCKS
+    bool
+    prompt "SOCKS 4/5 proxy"
+    help
+      Use a Socks 4/5 proxy to connect to the internet.
+      All protocols can get tunneled through this kind of proxy (depending
+      on your proxy configuration, so;e do not allow all protocols, but
+      chances are that protocols needed by crosstool-NG are allowed).
+
+      Alternatively to setting this option, you can set and export the
+      following variable in your environment:
+        LD_PRELOAD=/path/to/your/tsocks-library.so
+
+      In any case, wether you set this option or you export the aforementionned
+      variable, you will _have_ to  configure the /etc/tsocks.conf file
+      accordingly to your network setup.
+
+      This option makes use of the tsocks library. You will have to have tsocks
+      installed on your system, of course.
+
+      If you think you do not know what tsocks is, or how to configure it,
+      chances are that you do not need to set this option.
+
+if PROXY_TYPE_SOCKS
+
+choice
+    bool
+    prompt "type"
+    default PROXY_TYPE_SOCKS_5
+
+config PROXY_TYPE_SOCKS_5
+    bool
+    prompt "SOCKS 5"
+
+config PROXY_TYPE_SOCKS_4
+    bool
+    prompt "SOCKS 4"
+
+endchoice
+
+config PROXY_HOST
+    string
+    prompt "hostname/IP"
+
+config PROXY_PORT
+    int
+    prompt "port"
+    default 0
+
+config PROXY_USER
+    string
+    prompt "user name"
+
+config PROXY_PASS
+    string
+    prompt "password"
+
+endif # USE_SOCKS_PROXY
+
+endchoice
+
+config PROXY_TYPE
+    string
+    default "none" if PROXY_TYPE_NONE
+    default "HTTP" if PROXY_TYPE_HTTP
+    default "socks5" if PROXY_TYPE_SOCKS_5
+    default "socks4" if PROXY_TYPE_SOCKS_4
+
+# Force restore indentation
+config BREAK_INDENT
+    bool
+    default n
+
+if ! ONLY_DOWNLOAD
+
+comment "Extracting"
+
+config FORCE_EXTRACT
+    bool
+    prompt "Force extractions"
+    default n
+    help
+      Force extraction of already exctracted tarballs.
+      
+      Usefull if you suspect a previous extract did not complete (eg. broken
+      tarball), or you added a new set of patches for this component.
+
+config ONLY_EXTRACT
+    bool
+    prompt "Stop after extracting tarballs"
+    default n
+    help
+      Exit after unpacking and patching tarballs.
+      
+      Usefull to look at the code before doing the build itself.
+
+endif # ! ONLY_DOWNLOAD
