@@ -74,7 +74,8 @@ endif # USE_HTTP_PROXY
 
 config PROXY_TYPE_SOCKS
     bool
-    prompt "SOCKS 4/5 proxy"
+    prompt "SOCKS 4/5 proxy (EXPERIMENTAL)"
+    depends on EXPERIMENTAL
     help
       Use a Socks 4/5 proxy to connect to the internet.
       All protocols can get tunneled through this kind of proxy (depending
@@ -100,17 +101,35 @@ if PROXY_TYPE_SOCKS
 choice
     bool
     prompt "type"
-    default PROXY_TYPE_SOCKS_5
+    default PROXY_TYPE_SOCKS_SYS
 
-config PROXY_TYPE_SOCKS_5
+config PROXY_TYPE_SOCKS_SYS
     bool
-    prompt "SOCKS 5"
+    prompt "Use system settings"
+    help
+      Use that if your system is already configured to
+      connect to SOCKS 4/5 proxies.
+
+config PROXY_TYPE_SOCKS_AUTO
+    bool
+    prompt "Auto"
+    help
+      crosstool-NG will attempt to guess what type of
+      SOCKS version the proxy speaks.
 
 config PROXY_TYPE_SOCKS_4
     bool
     prompt "SOCKS 4"
 
+config PROXY_TYPE_SOCKS_5
+    bool
+    prompt "SOCKS 5"
+
 endchoice
+
+if ! PROXY_TYPE_SOCKS_SYS
+
+comment "THIS IS HIGHLY EXPERIMENTAL!!!"
 
 config PROXY_HOST
     string
@@ -129,16 +148,20 @@ config PROXY_PASS
     string
     prompt "password"
 
+endif # ! PROXY_TYPE_SOCKS_SYS
+
 endif # USE_SOCKS_PROXY
 
 endchoice
 
 config PROXY_TYPE
     string
-    default "none" if PROXY_TYPE_NONE
-    default "http" if PROXY_TYPE_HTTP
-    default "socks5" if PROXY_TYPE_SOCKS_5
-    default "socks4" if PROXY_TYPE_SOCKS_4
+    default "none"      if PROXY_TYPE_NONE
+    default "http"      if PROXY_TYPE_HTTP
+    default "sockssys"  if PROXY_TYPE_SOCKS_SYS
+    default "socksauto" if PROXY_TYPE_SOCKS_AUTO
+    default "socks4"    if PROXY_TYPE_SOCKS_4
+    default "socks5"    if PROXY_TYPE_SOCKS_5
 
 # Force restore indentation
 config BREAK_INDENT

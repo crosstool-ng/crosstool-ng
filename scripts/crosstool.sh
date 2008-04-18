@@ -224,15 +224,55 @@ case "${CT_PROXY_TYPE}" in
     export ftp_proxy="${http_proxy}"
     CT_DoLog DEBUG "http_proxy='${http_proxy}'"
     ;;
-  socks?)
-    # Re;ove any lingering config file from any previous run
+  sockssys)
+    CT_HasOrAbort tsocks
+    . tsocks -on
+    ;;
+  socks*)
+    CT_HasOrAbort tsocks
+    # Remove any lingering config file from any previous run
     rm -f "${CT_BUILD_DIR}/tsocks.conf"
-    ( echo "server=${CT_PROXY_HOST}";
-      echo "server_port=${CT_PROXY_PORT}";
-      echo "server_type=${CT_PROXY_TYPE#socks}";
+    # Find all interfaces and build locally accessible networks
+    /sbin/ifconfig |gawk '
+      $0 ~ /inet addr:/ {
+        split( $2, ip, ":|\\." );
+        ip_num = ip[2]*2^24 + ip[3]*2^16 + ip[4]*2^8 + ip[5]*2^0;
+        # Skip 127.0.0.1
+        if( ip_num == 2130706433 ) {
+          next;
+        }
+        split( $(NF), mask, ":|\\." );
+        mask_num = mask[2]*2^24 + mask[3]*2^16 + mask[4]*2^8 + mask[5]*2^0;
+        ip_num = and( ip_num, mask_num );
+        printf( "local = %d.%d.%d.%d/%d.%d.%d.%d\n",
+                and( 0xFF, rshift( ip_num,   24 ) ),
+                and( 0xFF, rshift( ip_num,   16 ) ),
+                and( 0xFF, rshift( ip_num,    8 ) ),
+                and( 0xFF, rshift( ip_num,    0 ) ),
+                and( 0xFF, rshift( mask_num, 24 ) ),
+                and( 0xFF, rshift( mask_num, 16 ) ),
+                and( 0xFF, rshift( mask_num,  8 ) ),
+                and( 0xFF, rshift( mask_num,  0 ) ) );
+      }
+    ' >"${CT_BUILD_DIR}/tsocks.conf"
+    ( echo "server = ${CT_PROXY_HOST}";
+      echo "server_port = ${CT_PROXY_PORT}";
       [ -n "${CT_PROXY_USER}"   ] && echo "default_user=${CT_PROXY_USER}";
       [ -n "${CT_PROXY_PASS}" ] && echo "default_pass=${CT_PROXY_PASS}";
-    ) >"${CT_BUILD_DIR}/tsocks.conf"
+    ) >>"${CT_BUILD_DIR}/tsocks.conf"
+    case "${CT_PROXY_TYPE/socks}" in
+      4|5) proxy_type="${CT_PROXY_TYPE/socks}";;
+      auto)
+        reply=$(inspectsocks "${CT_PROXY_HOST}" "${CT_PROXY_PORT}" 2>&1 || true)
+        case "${reply}" in
+          *"server is a version 4 socks server"*) proxy_type=4;;
+          *"server is a version 5 socks server"*) proxy_type=5;;
+          *) CT_Abort "Unable to determine SOCKS proxy type for '${CT_PROXY_HOST}:${CT_PROXY_PORT}'"
+        esac
+      ;;
+    esac
+    echo "server_type = ${proxy_type}" >> "${CT_BUILD_DIR}/tsocks.conf"
+    validateconf -f "${CT_BUILD_DIR}/tsocks.conf" 2>&1 |CT_DoLog DEBUG
     export TSOCKS_CONF_FILE="${CT_BUILD_DIR}/tsocks.conf"
     . tsocks -on
     ;;
