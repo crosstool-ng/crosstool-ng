@@ -215,13 +215,14 @@ case "${CT_PROXY_TYPE}" in
     http_proxy="http://"
     case  "${CT_PROXY_USER}:${CT_PROXY_PASS}" in
       :)      ;;
-      :*)     http_proxy="${http_proxy}:${CT_HTP_PROXY_PASS}@";;
-      *:)     http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}@";;
-      *:*)    http_proxy="${http_proxy}${CT_HTTP_PROXY_USER}:${CT_HTP_PROXY_PASS}@";;
+      :*)     http_proxy="${http_proxy}:${CT_PROXY_PASS}@";;
+      *:)     http_proxy="${http_proxy}${CT_PROXY_USER}@";;
+      *:*)    http_proxy="${http_proxy}${CT_PROXY_USER}:${CT_PROXY_PASS}@";;
     esac
-    export http_proxy="${http_proxy}${HTTP_PROXY_HOST}:${HTTP_PROXY_PORT}/"
+    export http_proxy="${http_proxy}${CT_PROXY_HOST}:${CT_PROXY_PORT}/"
     export https_proxy="${http_proxy}"
     export ftp_proxy="${http_proxy}"
+    CT_DoLog DEBUG "http_proxy='${http_proxy}'"
     ;;
   socks?)
     # Re;ove any lingering config file from any previous run
