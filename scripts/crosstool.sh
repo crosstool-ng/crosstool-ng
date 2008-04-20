@@ -233,28 +233,11 @@ case "${CT_PROXY_TYPE}" in
     # Remove any lingering config file from any previous run
     rm -f "${CT_BUILD_DIR}/tsocks.conf"
     # Find all interfaces and build locally accessible networks
-    /sbin/ifconfig |gawk '
-      $0 ~ /inet addr:/ {
-        split( $2, ip, ":|\\." );
-        ip_num = ip[2]*2^24 + ip[3]*2^16 + ip[4]*2^8 + ip[5]*2^0;
-        # Skip 127.0.0.1
-        if( ip_num == 2130706433 ) {
-          next;
-        }
-        split( $(NF), mask, ":|\\." );
-        mask_num = mask[2]*2^24 + mask[3]*2^16 + mask[4]*2^8 + mask[5]*2^0;
-        ip_num = and( ip_num, mask_num );
-        printf( "local = %d.%d.%d.%d/%d.%d.%d.%d\n",
-                and( 0xFF, rshift( ip_num,   24 ) ),
-                and( 0xFF, rshift( ip_num,   16 ) ),
-                and( 0xFF, rshift( ip_num,    8 ) ),
-                and( 0xFF, rshift( ip_num,    0 ) ),
-                and( 0xFF, rshift( mask_num, 24 ) ),
-                and( 0xFF, rshift( mask_num, 16 ) ),
-                and( 0xFF, rshift( mask_num,  8 ) ),
-                and( 0xFF, rshift( mask_num,  0 ) ) );
-      }
-    ' >"${CT_BUILD_DIR}/tsocks.conf"
+    /sbin/ifconfig |egrep 'inet addr' |while read inet addr bcast mask; do
+      ip="${addr/*:}"
+      mask="${mask/*:}"
+      [ -n "${mask}" -a "${ip}" != "127.0.0.1" ] && echo "local = ${ip}/${mask}"
+    done >"${CT_BUILD_DIR}/tsocks.conf"
     ( echo "server = ${CT_PROXY_HOST}";
       echo "server_port = ${CT_PROXY_PORT}";
       [ -n "${CT_PROXY_USER}"   ] && echo "default_user=${CT_PROXY_USER}";
