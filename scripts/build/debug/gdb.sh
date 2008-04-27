@@ -42,6 +42,15 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-gdb-cross"
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
+        CC_for_gdb=
+        LD_for_gdb=
+        if [ "${CT_GDB_CROSS_STATIC_GDBSERVER}" = "y" ]; then
+            CC_for_gdb="gcc -static"
+            LD_for_gdb="ld -static"
+        fi
+
+        CC="${CC_for_gdb}"                              \
+        LD="${LD_forgdb}"                               \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
