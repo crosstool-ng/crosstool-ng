@@ -57,5 +57,37 @@ do_binutils() {
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
     done |CT_DoLog ALL
 
+    # Now on for the target libraries
+    targets=
+    [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ] && targets="${build_targets} libiberty"
+    [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets="${build_targets} bfd"
+    targets="${targets# }"
+
+    if [ -n "${targets}" ]; then
+        CT_DoStep INFO "Installing binutils for target"
+        mkdir -p "${CT_BUILD_DIR}/build-binutils-for-target"
+        CT_Pushd "${CT_BUILD_DIR}/build-binutils-for-target"
+
+        CT_DoLog EXTRA "Configuring binutils for target"
+        "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"       \
+            --build=${CT_BUILD}                             \
+            --host=${CT_TARGET}                             \
+            --target=${CT_TARGET}                           \
+            --prefix=/usr                                   \
+            ${CT_BINUTILS_EXTRA_CONFIG}                     \
+            --disable-nls                                   2>&1 |CT_DoLog ALL
+
+        build_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1all-/g;')
+        install_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1install-/g;')
+
+        CT_DoLog EXTRA "Building binutils' libraries (${targets}) for target"
+        make ${PARALLELMFLAGS} ${build_targets}  2>&1 |CT_DoLog ALL
+        CT_DoLog EXTRA "Installing binutils' libraries (${targets}) for target"
+        make DESTDIR="${CT_SYSROOT_DIR}" ${install_targets}  2>&1 |CT_DoLog ALL
+
+        CT_Popd
+        CT_EndStep
+    fi
+
     CT_EndStep
 }
