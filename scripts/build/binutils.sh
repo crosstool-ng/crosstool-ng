@@ -78,6 +78,7 @@ do_binutils_target() {
             --host=${CT_TARGET}                             \
             --target=${CT_TARGET}                           \
             --prefix=/usr                                   \
+            --enable-shared --enable-static                 \
             ${CT_BINUTILS_EXTRA_CONFIG}                     \
             --disable-nls                                   2>&1 |CT_DoLog ALL
 
