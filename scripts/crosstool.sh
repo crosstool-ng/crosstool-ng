@@ -455,20 +455,8 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     do_stop=0
     prev_step=
     [ -n "${CT_RESTART}" ] && do_it=0 || do_it=1
-    for step in libc_check_config       \
-                kernel_check_config     \
-                kernel_headers          \
-                binutils                \
-                cc_core_pass_1          \
-                libc_headers            \
-                libc_start_files        \
-                cc_core_pass_2          \
-                libc                    \
-                cc                      \
-                libc_finish             \
-                tools                   \
-                debug                   \
-                ; do
+    # CT_STEPS comes from steps.mk!
+    for step in ${CT_STEPS}; do
         if [ ${do_it} -eq 0 ]; then
             if [ "${CT_RESTART}" = "${step}" ]; then
                 CT_DoLoadState "${step}"

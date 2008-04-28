@@ -1,19 +1,22 @@
 # Makefile for each steps
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
 
-CT_STEPS := libc_check_config       \
-            kernel_check_config     \
-            kernel_headers          \
-            binutils                \
-            cc_core_pass_1          \
-            libc_headers            \
-            libc_start_files        \
-            cc_core_pass_2          \
-            libc                    \
-            cc                      \
-            libc_finish             \
-            tools                   \
-            debug                   \
+CT_STEPS := libc_check_config   \
+            kernel_check_config \
+            kernel_headers      \
+            binutils            \
+            cc_core_pass_1      \
+            libc_headers        \
+            libc_start_files    \
+            cc_core_pass_2      \
+            libc                \
+            cc                  \
+            libc_finish         \
+            binutils_target     \
+            tools               \
+            debug               \
+
+export CT_STEPS
 
 $(CT_STEPS):
 	@$(CT_NG) RESTART=$@ STOP=$@ build

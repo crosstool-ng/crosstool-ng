@@ -57,7 +57,11 @@ do_binutils() {
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
     done |CT_DoLog ALL
 
-    # Now on for the target libraries
+    CT_EndStep
+}
+
+# Now on for the target libraries
+do_binutils_target() {
     targets=
     [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ] && targets="${build_targets} libiberty"
     [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets="${build_targets} bfd"
@@ -88,6 +92,4 @@ do_binutils() {
         CT_Popd
         CT_EndStep
     fi
-
-    CT_EndStep
 }
