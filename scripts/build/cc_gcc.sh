@@ -31,24 +31,19 @@ do_cc_extract() {
 do_cc_core_pass_1() {
     # In case we're NPTL, build the static core gcc;
     # in any other case, do nothing.
-    CT_DoStep INFO "Core C compiler, pass 1"
     case "${CT_THREADS}" in
         nptl)   do_cc_core_static;;
-        *)      CT_DoLog INFO "Nothing to do";;
     esac
-    CT_EndStep
 }
 
 # Core gcc pass 2
 do_cc_core_pass_2() {
     # In case we're NPTL, build the shared core gcc,
     # in any other case, build the static core gcc.
-    CT_DoStep INFO "Core C compiler, pass 2"
     case "${CT_THREADS}" in
         nptl)   do_cc_core_shared;;
         *)      do_cc_core_static;;
     esac
-    CT_EndStep
 }
 
 #------------------------------------------------------------------------------
