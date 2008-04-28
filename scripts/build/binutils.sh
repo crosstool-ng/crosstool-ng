@@ -63,8 +63,8 @@ do_binutils() {
 # Now on for the target libraries
 do_binutils_target() {
     targets=
-    [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ] && targets="${build_targets} libiberty"
-    [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets="${build_targets} bfd"
+    [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ] && targets="${targets} libiberty"
+    [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets="${targets} bfd"
     targets="${targets# }"
 
     if [ -n "${targets}" ]; then
