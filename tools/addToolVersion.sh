@@ -9,6 +9,7 @@ Usage: ${myname} <tool> [option] <version>
   'tool' in one of:
     --gcc, --binutils, --glibc, --uClibc, --linux,
     --gdb, --dmalloc, --duma, --strace, --ltrace, --libelf
+    --gmp, --mpfr
 
   Valid options for all tools:
     --experimental, -x
@@ -55,6 +56,8 @@ while [ $i -le $# ]; do
         --strace)           cat=STRACE;    tool=strace;   tool_prefix=debug    tool_suffix=;;
         --ltrace)           cat=LTRACE;    tool=ltrace;   tool_prefix=debug    tool_suffix=;;
         --libelf)           cat=LIBELF;    tool=libelf;   tool_prefix=tools    tool_suffix=;;
+        --gmp)              cat=GMP;       tool=gmp;      tool_prefix=cc;      tool_suffix=;;
+        --mpfr)             cat=MPFR;      tool=mpfr;     tool_prefix=cc;      tool_suffix=;;
         # Tools options:
         -x|--experimental)  EXP=1; OBS=; prompt_suffix=" (EXPERIMENTAL)";;
         -o|--obsolete)      OBS=1; EXP=; prompt_suffix=" (OBSOLETE)";;

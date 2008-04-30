@@ -25,6 +25,13 @@ do_binutils() {
 
     CT_DoStep INFO "Installing binutils"
 
+    binutils_opts=
+    # If GMP and MPFR were configured, then use that,
+    # otherwise let binutils find the system-wide libraries, if they exist.
+    if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+        binutils_opts="--with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+    fi
+
     CT_DoLog EXTRA "Configuring binutils"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
@@ -34,6 +41,7 @@ do_binutils() {
         --target=${CT_TARGET}                       \
         --prefix=${CT_PREFIX_DIR}                   \
         --disable-nls                               \
+        ${binutils_opts}                            \
         ${CT_BINUTILS_EXTRA_CONFIG}                 \
         ${BINUTILS_SYSROOT_ARG}                     2>&1 |CT_DoLog ALL
 

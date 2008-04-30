@@ -1,0 +1,38 @@
+Original patch from http://gmplib.org/patches/mpf_set_str.c.diff
+Re-diffed to match crosstool-NG conventions.
+
+diff -dur gmp-4.2.2.orig/mpf/set_str.c gmp-4.2.2/mpf/set_str.c
+--- gmp-4.2.2.orig/mpf/set_str.c	2007-08-30 20:31:40.000000000 +0200
++++ gmp-4.2.2/mpf/set_str.c	2008-01-28 23:05:29.000000000 +0100
+@@ -271,8 +271,29 @@
+       }
+ 
+     if (expptr != 0)
+-      /* FIXME: Should do some error checking here.  */
+-      exp_in_base = strtol (expptr, (char **) 0, exp_base);
++      {
++	/* Scan and convert the exponent, in base exp_base.  */
++	long dig, neg = -(long) ('-' == expptr[0]);
++	expptr -= neg;			/* conditional increment */
++	c = (unsigned char) *expptr++;
++	dig = digit_value[c];
++	if (dig >= exp_base)
++	  {
++	    TMP_FREE;
++	    return -1;
++	  }
++	exp_in_base = dig;
++	c = (unsigned char) *expptr++;
++	dig = digit_value[c];
++	while (dig < exp_base)
++	  {
++	    exp_in_base = exp_in_base * exp_base;
++	    exp_in_base += dig;
++	    c = (unsigned char) *expptr++;
++	    dig = digit_value[c];
++	  }
++	exp_in_base = (exp_in_base ^ neg) - neg; /* conditional negation */
++      }
+     else
+       exp_in_base = 0;
+     if (dotpos != 0)

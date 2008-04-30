@@ -7,7 +7,7 @@ do_print_filename() {
     echo "gcc-${CT_CC_VERSION}"
 }
 
-# Download final gcc
+# Download gcc
 do_cc_get() {
     # Ah! gcc folks are kind of 'different': they store the tarballs in
     # subdirectories of the same name! That's because gcc is such /crap/ that
@@ -21,7 +21,7 @@ do_cc_get() {
                ftp://ftp.gnu.org/gnu/gcc
 }
 
-# Extract final gcc
+# Extract gcc
 do_cc_extract() {
     CT_ExtractAndPatch "${CT_CC_FILE}"
 }
@@ -62,6 +62,7 @@ do_cc_core_static() {
 
     extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
+    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 
@@ -114,6 +115,7 @@ do_cc_core_shared() {
 
     extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
+    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 
@@ -202,12 +204,10 @@ do_cc() {
     [ "${CT_CC_LANG_JAVA}" = "y"     ] && lang_opt="${lang_opt},java"
     [ "${CT_CC_LANG_OBJC}" = "y"     ] && lang_opt="${lang_opt},objc"
     [ "${CT_CC_LANG_OBJCXX}" = "y"   ] && lang_opt="${lang_opt},obj-c++"
-    CT_Test "Building Fortran language is not yet supported. Will try..." "${CT_CC_LANG_FORTRAN}" = "y"
     CT_Test "Building ADA language is not yet supported. Will try..." "${CT_CC_LANG_ADA}" = "y"
-    CT_Test "Building Java language is not yet supported. Will try..." "${CT_CC_LANG_JAVA}" = "y"
     CT_Test "Building Objective-C language is not yet supported. Will try..." "${CT_CC_LANG_OBJC}" = "y"
     CT_Test "Building Objective-C++ language is not yet supported. Will try..." "${CT_CC_LANG_OBJCXX}" = "y"
-    CT_Test "Building ${CT_CC_LANG_OTHERS} language(s) is not yet supported. Will try..." -n "${CT_CC_LANG_OTHERS}"
+    CT_Test "Building ${CT_CC_LANG_OTHERS//,/ } language(s) is not yet supported. Will try..." -n "${CT_CC_LANG_OTHERS}"
     lang_opt=`echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;'`
 
     extra_config="--enable-languages=${lang_opt}"
@@ -219,6 +219,7 @@ do_cc() {
     else
         extra_config="${extra_config} --disable-multilib"
     fi
+    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 

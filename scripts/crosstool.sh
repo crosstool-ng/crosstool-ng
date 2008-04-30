@@ -73,6 +73,8 @@ CT_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_TARGET_CFLAGS}"
 # Now, build up the variables from the user-configured options.
 CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
 CT_BINUTILS_FILE="binutils-${CT_BINUTILS_VERSION}"
+CT_GMP_FILE="gmp-${CT_GMP_VERSION}"
+CT_MPFR_FILE="mpfr-${CT_MPFR_VERSION}"
 CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
 CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
 
@@ -417,6 +419,8 @@ fi
 # Include sub-scripts instead of calling them: that way, we do not have to
 # export any variable, nor re-parse the configuration and functions files.
 . "${CT_LIB_DIR}/scripts/build/kernel_${CT_KERNEL}.sh"
+. "${CT_LIB_DIR}/scripts/build/gmp.sh"
+. "${CT_LIB_DIR}/scripts/build/mpfr.sh"
 . "${CT_LIB_DIR}/scripts/build/binutils.sh"
 . "${CT_LIB_DIR}/scripts/build/libc_${CT_LIBC}.sh"
 . "${CT_LIB_DIR}/scripts/build/cc_${CT_CC}.sh"
@@ -426,6 +430,8 @@ fi
 if [ -z "${CT_RESTART}" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
     do_kernel_get
+    do_gmp_get
+    do_mpfr_get
     do_binutils_get
     do_cc_get
     do_libc_get
@@ -440,6 +446,8 @@ if [ -z "${CT_RESTART}" ]; then
         fi
         CT_DoStep INFO "Extracting and patching toolchain components"
         do_kernel_extract
+        do_gmp_extract
+        do_mpfr_extract
         do_binutils_extract
         do_cc_extract
         do_libc_extract
@@ -455,7 +463,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     do_stop=0
     prev_step=
     [ -n "${CT_RESTART}" ] && do_it=0 || do_it=1
-    # CT_STEPS comes from steps.mk!
+    # Aha! CT_STEPS comes from steps.mk!
     for step in ${CT_STEPS}; do
         if [ ${do_it} -eq 0 ]; then
             if [ "${CT_RESTART}" = "${step}" ]; then
