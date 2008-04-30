@@ -2,6 +2,8 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+
 do_print_filename() {
     [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] || return 0
     echo "mpfr-${CT_MPFR_VERSION}"
@@ -45,3 +47,12 @@ do_mpfr() {
 
     CT_EndStep
 }
+
+else # No MPFR
+
+do_print_filename() { :; }
+do_mpfr_get() { :; }
+do_mpfr_extract() { :; }
+do_mpfr() { :; }
+
+fi

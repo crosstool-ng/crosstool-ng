@@ -2,8 +2,9 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+
 do_print_filename() {
-    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] || return 0
     echo "gmp-${CT_GMP_VERSION}"
 }
 
@@ -47,3 +48,12 @@ do_gmp() {
 
     CT_EndStep
 }
+
+else # Mo GMP 
+
+do_print_filename() { :; }
+do_gmp_get() { :; }
+do_gmp_extract() { :; }
+do_gmp() { :; }
+
+fi
