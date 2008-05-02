@@ -389,6 +389,11 @@ do_libc() {
         # is present, it means we're building glibc-2.3.3 or later, and we can't
         # build programs yet, as they require libeh, which won't be installed
         # until full build of gcc
+        # YEM-FIXME: This comment is misleading: latest glibc-s do not have the
+        #            make-install-lib-all.patch applied, so do not pass through this
+        #            part of the if statement; nonetheless, they do build, and
+        #            the result is useable (maybe the dual-pass core gcc is
+        #            responsible for this).
         GLIBC_INITIAL_BUILD_RULE=lib
         GLIBC_INITIAL_INSTALL_RULE="install-lib-all install-headers"
         GLIBC_INSTALL_APPS_LATER=yes
