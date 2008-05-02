@@ -66,7 +66,7 @@ while [ $i -le $# ]; do
         --copy)             tool_suffix=copy;;
         # Misc:
         -h|--help)          doHelp; exit 0;;
-        -*)                 echo "Unknown option: \"${!i}\". (use -h/--help for help"; exit 1;;
+        -*)                 echo "Unknown option: \"${!i}\" (use -h/--help for help)."; exit 1;;
         *)                  VERSION="${VERSION} ${!i}";;
     esac
     i=$((i+1))
