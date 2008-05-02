@@ -10,12 +10,16 @@ help-config::
 	@echo  '  saveconfig         - Save current config as a preconfigured target'
 
 help-samples::
+	@echo  '  show-samples       - show a brief overview of each samples listed below:'
 	@$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
 help-build::
 	@echo  '  regtest[.#]        - Regtest-build all samples'
 	@echo  '  regtest-local[.#]  - Regtest-build all local samples'
 	@echo  '  regtest-global[.#] - Regtest-build all global samples'
+
+show-samples:
+	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(CT_SAMPLES)
 
 # How we do build one sample
 PHONY += $(CT_SAMPLES)
