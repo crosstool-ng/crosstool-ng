@@ -10,9 +10,7 @@ do_print_filename() {
 
 # Download GMP
 do_gmp_get() {
-    CT_GetFile "${CT_GMP_FILE}"                 \
-               http://ftp.sunet.se/pub/gnu/gmp  \
-               ftp://ftp.gnu.org/gnu/gmp
+    CT_GetFile "${CT_GMP_FILE}" {ftp,http}://{ftp.sunet.se/pub,ftp.gnu.org}/gnu/gmp
 }
 
 # Extract GMP

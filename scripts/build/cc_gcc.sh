@@ -15,10 +15,8 @@ do_cc_get() {
     # Arrgghh! Some of those versions does not follow this convention:
     # gcc-3.3.3 lives in releases/gcc-3.3.3, while gcc-2.95.* isn't in a
     # subdirectory! You bastard!
-    CT_GetFile "${CT_CC_FILE}"                                  \
-               ftp://ftp.gnu.org/gnu/gcc/${CT_CC_FILE}          \
-               ftp://ftp.gnu.org/gnu/gcc/releases/${CT_CC_FILE} \
-               ftp://ftp.gnu.org/gnu/gcc
+    CT_GetFile "${CT_CC_FILE}"  \
+               {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/${CT_CC_FILE}}
 }
 
 # Extract gcc

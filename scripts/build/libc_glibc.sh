@@ -17,13 +17,13 @@ do_libc_get() {
     # Ah! Not all GNU folks seem stupid. All glibc releases are in the same
     # directory. Good. Alas, there is no snapshot there. I'll deal with them
     # later on... :-/
-    CT_GetFile "${CT_LIBC_FILE}" ftp://ftp.gnu.org/gnu/glibc
+    CT_GetFile "${CT_LIBC_FILE}" {ftp,http}://ftp.gnu.org/gnu/glibc
 
     # C library addons
     for addon in `do_libc_add_ons_list " "`; do
         # NPTL addon is not to be downloaded, in any case
         [ "${addon}" = "nptl" ] && continue || true
-        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ftp://ftp.gnu.org/gnu/glibc
+        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" {ftp,http}://ftp.gnu.org/gnu/glibc
     done
 
     return 0

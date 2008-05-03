@@ -10,7 +10,7 @@ do_print_filename() {
 
 # Download uClibc
 do_libc_get() {
-	libc_src="http://www.uclibc.org/downloads
+    libc_src="http://www.uclibc.org/downloads
               http://www.uclibc.org/downloads/snapshots
               http://www.uclibc.org/downloads/old-releases"
     # For uClibc, we have almost every thing: releases, and snapshots

@@ -15,11 +15,9 @@ do_debug_gdb_suffix() {
 }
 
 do_debug_gdb_get() {
-    CT_GetFile "gdb`do_debug_gdb_suffix`"                           \
-               ftp://ftp.gnu.org/pub/gnu/gdb                        \
-               ftp://sources.redhat.com/pub/gdb/releases            \
-               ftp://sources.redhat.com/pub/gdb/old-releases        \
-               ftp://sources.redhat.com/pub/gdb/snapshots/current 
+    CT_GetFile "gdb`do_debug_gdb_suffix`"           \
+               {ftp,http}://ftp.gnu.org/pub/gnu/gdb \
+               ftp://sources.redhat.com/pub/gdb/{{,old-}releases,snapshots/current}
 }
 
 do_debug_gdb_extract() {

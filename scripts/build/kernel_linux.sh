@@ -13,11 +13,8 @@ do_print_filename() {
 # Download the kernel
 do_kernel_get() {
     if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
-        CT_GetFile "${CT_KERNEL_FILE}"                                  \
-                   ftp://ftp.kernel.org/pub/linux/kernel/v2.6           \
-                   ftp://ftp.kernel.org/pub/linux/kernel/v2.4           \
-                   ftp://ftp.kernel.org/pub/linux/kernel/v2.2           \
-                   ftp://ftp.kernel.org/pub/linux/kernel/v2.6/testing   \
+        CT_GetFile "${CT_KERNEL_FILE}"                                                  \
+                   {ftp,http}://ftp.kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}   \
                    http://ep09.pld-linux.org/~mmazur/linux-libc-headers
     fi
     return 0
