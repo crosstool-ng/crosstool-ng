@@ -5,9 +5,9 @@ CT_DEBUG_FACILITY_LIST=
 for f in "${CT_LIB_DIR}/scripts/build/debug/"*.sh; do
     is_enabled=
     . "${f}"
-    f=$(basename "${f#???-}" .sh)
+    f=$(basename "${f}" .sh)
     if [ "${is_enabled}" = "y" ]; then
-        CT_DEBUG_FACILITY_LIST="${CT_DEBUG_FACILITY_LIST} ${f}"
+        CT_DEBUG_FACILITY_LIST="${CT_DEBUG_FACILITY_LIST} ${f#???-}"
     fi
 done
 
