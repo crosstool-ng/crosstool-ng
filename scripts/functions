@@ -283,22 +283,22 @@ CT_DoGetFileWget() {
     # With automated download as we are doing, it can be very dangerous to use
     # -c to continue the downloads. It's far better to simply overwrite the
     # destination file
-    # Some company networks have proxies to connect to to the internet, but
-    # it's not easy to detect them, and wget may never timeout while connecting,
-    # so force a global 120s timeout.
-    wget -T 120 -nc --progress=dot:binary --tries=3 --passive-ftp "$1"  \
-    || wget -T 120 -nc --progress=dot:binary --tries=3 "$1"             \
+    # Some company networks have firewalls to connect to the internet, but it's
+    # not easy to detect them, and wget does not timeout by default  while
+    # connecting, so force a global ${CT_CONNECT_TIMEOUT}-second timeout.
+    wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 --passive-ftp "$1"    \
+    || wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 "$1"               \
     || true
 }
 
 # Download an URL using curl
 # Usage: CT_DoGetFileCurl <URL>
 CT_DoGetFileCurl() {
-    # Note: comments about wget method are also valid here
+    # Note: comments about wget method (above) are also valid here
     # Plus: no good progress indicator is available with curl,
     #       so output is consigned to oblivion
-    curl --ftp-pasv -O --retry 3 "$1" --connect-timeout 120 >/dev/null  \
-    || curl -O --retry 3 "$1" --connect-timeout 120 >/dev/null          \
+    curl --ftp-pasv -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT} >/dev/null    \
+    || curl -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT} >/dev/null            \
     || true
 }
 
