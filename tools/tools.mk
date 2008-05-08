@@ -5,9 +5,9 @@
 # scripts for later inclusion mainline. If CT_LIB_DIR != CT_TOP_DIR, then those
 # scripts are downloaded only for use in CT_TOP_DIR.
 
-CONFIG_SUB_SRC="http://cvs.savannah.gnu.org/viewcvs/*checkout*/config/config/config.sub"
+CONFIG_SUB_SRC="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD"
 CONFIG_SUB_DEST="$(CT_TOP_DIR)/tools/config.sub"
-CONFIG_GUESS_SRC="http://cvs.savannah.gnu.org/viewcvs/*checkout*/config/config/config.guess"
+CONFIG_GUESS_SRC="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD"
 CONFIG_GUESS_DEST="$(CT_TOP_DIR)/tools/config.guess"
 
 $(CT_TOP_DIR)/tools:
