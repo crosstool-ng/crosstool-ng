@@ -402,6 +402,7 @@ do_libc() {
     else
         # classic glibc.  
         # We can build and install everything with the bootstrap compiler.
+        # YEM-FIXME: See the above FIXME as well.
         GLIBC_INITIAL_BUILD_RULE=all
         GLIBC_INITIAL_INSTALL_RULE=install
         GLIBC_INSTALL_APPS_LATER=no
