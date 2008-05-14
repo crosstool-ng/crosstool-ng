@@ -65,6 +65,7 @@ do_cc_core_static() {
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
+    CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"         \
         ${CT_CANADIAN_OPT}                          \
@@ -81,6 +82,7 @@ do_cc_core_static() {
         --enable-symvers=gnu                        \
         --enable-languages=c                        \
         --disable-shared                            \
+        --enable-target-optspace                    \
         ${CT_CC_CORE_EXTRA_CONFIG}                  2>&1 |CT_DoLog ALL
 
     if [ "${CT_CANADIAN}" = "y" ]; then
@@ -117,6 +119,7 @@ do_cc_core_shared() {
 
     CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
 
+    CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"         \
         ${CT_CANADIAN_OPT}                          \
@@ -131,6 +134,7 @@ do_cc_core_shared() {
         --enable-symvers=gnu                        \
         --enable-languages=c                        \
         --enable-shared                             \
+        --enable-target-optspace                    \
         ${CT_CC_CORE_EXTRA_CONFIG}                  2>&1 |CT_DoLog ALL
 
     # HACK: we need to override SHLIB_LC from gcc/config/t-slibgcc-elf-ver or
@@ -225,6 +229,7 @@ do_cc() {
     # detection problem only matters for gcc-3.2.x and later, I think.
     # --disable-nls to work around crash bug on ppc405, but also because
     # embedded systems don't really need message catalogs...
+    CC_FOR_BUILD="${CT_CC_NATIVE}"              \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
     TARGET_CFLAGS="${CT_TARGET_CFLAGS}"         \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"     \
@@ -239,6 +244,7 @@ do_cc() {
         --enable-symvers=gnu                    \
         --enable-c99                            \
         --enable-long-long                      \
+        --enable-target-optspace                \
         ${CT_CC_EXTRA_CONFIG}                   2>&1 |CT_DoLog ALL
 
     if [ "${CT_CANADIAN}" = "y" ]; then
