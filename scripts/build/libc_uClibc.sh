@@ -75,10 +75,10 @@ do_libc_headers() {
     CT_DoYes "" |make CROSS= PREFIX="${CT_SYSROOT_DIR}/" oldconfig 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building headers"
-    make CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers 2>&1 |CT_DoLog ALL
+    make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing headers"
-    make CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev 2>&1 |CT_DoLog ALL
+    make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev 2>&1 |CT_DoLog ALL
 
     CT_EndStep
 }
@@ -120,6 +120,7 @@ do_libc() {
     make CROSS=${CT_TARGET}-            \
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
+         ${CT_LIBC_UCLIBC_VERBOSITY}    \
          all                            2>&1 |CT_DoLog ALL
 
     # YEM-FIXME: we want to install libraries in $SYSROOT/lib, but we don't want
@@ -134,6 +135,7 @@ do_libc() {
     make CROSS=${CT_TARGET}-            \
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
+         ${CT_LIBC_UCLIBC_VERBOSITY}    \
          install                        2>&1 |CT_DoLog ALL
 
     CT_EndStep
