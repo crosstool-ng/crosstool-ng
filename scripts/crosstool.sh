@@ -13,6 +13,11 @@
 # and builds the tools.
 
 # Parse the common functions
+# Note: some initialisation and sanitizing is done while parsing this file,
+# most notably:
+#  - set trap handler on errors,
+#  - don't hash commands lookups,
+#  - initialise logging.
 . "${CT_LIB_DIR}/scripts/functions"
 
 CT_STAR_DATE=`CT_DoDate +%s%N`
@@ -386,7 +391,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Do that:
     CT_DoLog DEBUG "Making build system tools available"
     mkdir -p "${CT_PREFIX_DIR}/bin"
-    for tool in ar as dlltool gcc g++ gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
+    for tool in ar as dlltool ${CT_CC_NATIVE:=gcc} gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
         tmp=`CT_Which ${tool}`
         if [ -n "${tmp}" ]; then
             ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
