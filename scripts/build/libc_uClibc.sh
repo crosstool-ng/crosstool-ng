@@ -201,12 +201,12 @@ ENDSED
     # way to select between hard/soft float has changed
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
         y,) cat >>"${munge_file}" <<-ENDSED
-s/[^_]*(HAS_FPU).*/\\1=y/
+s/^[^_]*(HAS_FPU).*/\\1=y/
 s/.*(UCLIBC_HAS_FPU).*/\\1=y/
 ENDSED
             ;;
         ,y) cat >>"${munge_file}" <<-ENDSED
-s/[^_]*(HAS_FPU).*/\\# \\1 is not set/
+s/^[^_]*(HAS_FPU).*/\\# \\1 is not set/
 s/.*(UCLIBC_HAS_FPU).*/# \\1 is not set/
 ENDSED
             ;;
