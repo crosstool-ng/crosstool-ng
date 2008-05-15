@@ -441,8 +441,8 @@ CT_ExtractAndPatch() {
     CT_DoLog EXTRA "Patching \"${file}\""
 
     if [ "${libc_addon}" = "y" ]; then
-        # Some addons tarball directly contian the correct addon directory,
-        # while others have the addon directory named ofter the tarball.
+        # Some addon tarballs directly contain the correct addon directory,
+        # while others have the addon directory named after the tarball.
         # Fix that by always using the short name (eg: linuxthreads, ports, etc...)
         addon_short_name=`echo "${file}" |sed -r -e 's/^[^-]+-//; s/-[^-]+$//;'`
         [ -d "${addon_short_name}" ] || ln -s "${file}" "${addon_short_name}"
@@ -466,6 +466,15 @@ CT_ExtractAndPatch() {
             done
         fi
     done
+
+    if [ "${CT_OVERIDE_CONFIG_GUESS_SUB}" = "y" ]; then
+        CT_DoLog ALL "Overiding config.guess and config.sub"
+        for cfg in config_guess config_sub; do
+            eval ${cfg}="${CT_LIB_DIR}/tools/${cfg/_/.}"
+            [ -e "${CT_TOP_DIR}/tools/${cfg/_/.}" ] && eval ${cfg}="${CT_TOP_DIR}/tools/${cfg/_/.}"
+            find . -type f -name "${cfg/_/.}" -exec cp -v "${!cfg}" {} \; |CT_DoLog ALL
+        done
+    fi
 
     CT_Popd
 }
