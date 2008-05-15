@@ -11,4 +11,21 @@ CT_DoArchValues() {
         uClibc,)    CT_TARGET_SYS=uclibc;;
         uClibc,y)   CT_TARGET_SYS=uclibcgnueabi;;
     esac
+
+    case "${CT_ARCH_ABI},${CT_ARCH_ARM_EABI}" in
+        *,) ;;
+        aapcs,y)
+            CT_DoLog DEBUG "'--with-abi=aapcs' is in fact '-mabi=aapcs-linux' when used in CFLAGS."
+            CT_ARCH_ABI_CFLAGS="-mabi=aapcs-linux"
+            ;;
+        ,y)
+            CT_DoLog WARN "Forcing ABI to 'aapcs-linux' for use with EABI."
+            CT_ARCH_WITH_ABI="--with-abi=aapcs"
+            CT_ARCH_ABI_CFLAGS="-mabi=aapcs-linux"
+            ;;
+        *,y)
+            CT_DoLog ERROR "ABI='${CT_ARCH_ABI}' not supported for EABI."
+            CT_Abort "If you know you are right, please edit 'arch/arm/functions' in crosstool-NG sources."
+            ;;
+    esac
 }
