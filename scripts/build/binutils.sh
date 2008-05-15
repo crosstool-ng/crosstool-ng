@@ -40,7 +40,10 @@ do_binutils() {
         --target=${CT_TARGET}                       \
         --prefix=${CT_PREFIX_DIR}                   \
         --disable-nls                               \
+        --disable-multilib                          \
+        --disable-werror                            \
         ${binutils_opts}                            \
+        ${CT_ARCH_WITH_FLOAT}                       \
         ${CT_BINUTILS_EXTRA_CONFIG}                 \
         ${BINUTILS_SYSROOT_ARG}                     2>&1 |CT_DoLog ALL
 
@@ -80,14 +83,18 @@ do_binutils_target() {
         CT_Pushd "${CT_BUILD_DIR}/build-binutils-for-target"
 
         CT_DoLog EXTRA "Configuring binutils for target"
-        "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"       \
-            --build=${CT_BUILD}                             \
-            --host=${CT_TARGET}                             \
-            --target=${CT_TARGET}                           \
-            --prefix=/usr                                   \
-            --enable-shared --enable-static                 \
-            ${CT_BINUTILS_EXTRA_CONFIG}                     \
-            --disable-nls                                   2>&1 |CT_DoLog ALL
+        "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
+            --build=${CT_BUILD}                         \
+            --host=${CT_TARGET}                         \
+            --target=${CT_TARGET}                       \
+            --prefix=/usr                               \
+            --disable-werror                            \
+            --enable-shared                             \
+            --enable-static                             \
+            --disable-nls                               \
+            --disable-multilib                          \
+            ${CT_ARCH_WITH_FLOAT}                       \
+            ${CT_BINUTILS_EXTRA_CONFIG}                 2>&1 |CT_DoLog ALL
 
         build_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1all-/g;')
         install_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1install-/g;')
