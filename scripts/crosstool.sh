@@ -446,8 +446,9 @@ if [ -z "${CT_RESTART}" ]; then
 
     if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         if [ "${CT_FORCE_EXTRACT}" = "y" ]; then
-            mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.$$"
-            setsid nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1
+            mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.force.$$"
+            setsid nohup rm -rf "${CT_SRC_DIR}.force.$$" >/dev/null 2>&1
+            mkdir -p "${CT_SRC_DIR}"
         fi
         CT_DoStep INFO "Extracting and patching toolchain components"
         do_kernel_extract
