@@ -11,7 +11,8 @@ do_print_filename() {
 
 # Download MPFR
 do_mpfr_get() {
-    CT_GetFile "${CT_MPFR_FILE}" http://www.mpfr.org/mpfr-current/
+    CT_GetFile "${CT_MPFR_FILE}" http://www.mpfr.org/mpfr-current/          \
+                                 http://www.mpfr.org/mpfr-${CT_MPFR_VERSION}/
 }
 
 # Extract MPFR
