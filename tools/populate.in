@@ -39,10 +39,10 @@ while getopts ":s:d:fvh" CT_OPT; do
         h)  doHelp
             exit 0
             ;;
-        :)  echo "$myname: \"-${OPTARG}\" takes exactly one argument."
+        :)  echo "$myname: '-${OPTARG}' takes exactly one argument."
             exit 1
             ;;
-        ?)  echo "$myname: unknown option \"-${OPTARG}\"."
+        ?)  echo "$myname: unknown option '-${OPTARG}'."
             exit 1
             ;;
     esac
@@ -54,11 +54,11 @@ if [ -z "${CT_ROOT_SRC_DIR}" -o -z "${CT_ROOT_DST_DIR}" ]; then
     exit 1
 fi
 if [ ! -d "${CT_ROOT_SRC_DIR}" ]; then
-    echo "$myname: \"${CT_ROOT_SRC_DIR}\": no such file or directory"
+    echo "$myname: '${CT_ROOT_SRC_DIR}': no such file or directory"
     exit 1
 fi
 if [ -d "${CT_ROOT_DST_DIR}" -a "${CT_FORCE}" != "y" ]; then
-    echo "$myname: \"${CT_ROOT_DST_DIR}\": already exists"
+    echo "$myname: '${CT_ROOT_DST_DIR}': already exists"
     exit 1
 fi
 src_inode=$(ls -di "${CT_ROOT_SRC_DIR}")
@@ -91,9 +91,9 @@ while [ ${still_needed} -eq 1 ]; do
     ${CT_ECHO} "Looping..."
     still_needed=0
     for f in $(find . -type f -exec file {} \; |egrep ': ELF [[:digit:]]+-bit .SB (executable|shared object),' |cut -d ":" -f 1); do
-        ${CT_ECHO} "Scanning \"${f}\""
+        ${CT_ECHO} "Scanning '${f}'"
         for libname in $("${CT_READELF}" -d "${f}" |egrep '(NEEDED)' |sed -r -e 's,.+\[(.+)\] *$,\1,;'); do
-            ${CT_ECHO} "  searching for \"${libname}\""
+            ${CT_ECHO} "  searching for '${libname}'"
             if [    -e "lib/${libname}"     \
                  -o -e "usr/lib/${libname}" ]; then
                 ${CT_ECHO} "    already present"
@@ -101,14 +101,14 @@ while [ ${still_needed} -eq 1 ]; do
             fi
             # Need to scan .. for libgcc_s et al.
             for dir in . usr ..; do
-                ${CT_ECHO} -n "    trying in \"${dir}\""
+                ${CT_ECHO} -n "    trying in '${dir}'"
                 tgt_dir="${dir}"
                 [ "${tgt_dir}" = ".." ] && tgt_dir="usr"
                 libfile="${CT_SYSROOT_DIR}/${dir}/lib/${libname}"
-                ${CT_ECHO} ": \"${libfile}\""
+                ${CT_ECHO} ": '${libfile}'"
                 if [ -e "${libfile}" ]; then
                     mkdir -p "${dir}/lib"
-                    ${CT_ECHO} "      installing \"${tgt_dir}/lib/${libname}\""
+                    ${CT_ECHO} "      installing '${tgt_dir}/lib/${libname}'"
                     cp "${libfile}" "${tgt_dir}/lib/${libname}"
                     still_needed=1
                     break

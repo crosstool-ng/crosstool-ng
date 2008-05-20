@@ -5,7 +5,7 @@
 do_print_filename() {
     [ "${CT_LIBC}" = "glibc" ] || return 0
     echo "glibc-${CT_LIBC_VERSION}"
-    for addon in `do_libc_add_ons_list " "`; do
+    for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be downloaded, in any case
         [ "${addon}" = "nptl" ] && continue || true
         echo "glibc-${addon}-${CT_LIBC_VERSION}"
@@ -20,7 +20,7 @@ do_libc_get() {
     CT_GetFile "${CT_LIBC_FILE}" {ftp,http}://ftp.gnu.org/gnu/glibc
 
     # C library addons
-    for addon in `do_libc_add_ons_list " "`; do
+    for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be downloaded, in any case
         [ "${addon}" = "nptl" ] && continue || true
         CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" {ftp,http}://ftp.gnu.org/gnu/glibc
@@ -34,7 +34,7 @@ do_libc_extract() {
     CT_ExtractAndPatch "${CT_LIBC_FILE}"
 
     # C library addons
-    for addon in `do_libc_add_ons_list " "`; do
+    for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be extracted, in any case
         [ "${addon}" = "nptl" ] && continue || true
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
@@ -77,15 +77,15 @@ do_libc_headers() {
     # Override libc_cv_ppc_machine so glibc-cvs doesn't complain
     # 'a version of binutils that supports .machine "altivec" is needed'.
 
-    addons_config="--enable-add-ons=`do_libc_add_ons_list ,`"
+    addons_config="--enable-add-ons=$(do_libc_add_ons_list ,)"
     # We need to remove any threading addon when installing headers
     addons_config="${addons_config//nptl/}"
     addons_config="${addons_config//linuxthreads/}"
-    addons_config=`echo "${addons_config}" |sed -r -e 's/^,+//; s/,+$//; s/,+/,/g;'`
+    addons_config=$(echo "${addons_config}" |sed -r -e 's/^,+//; s/,+$//; s/,+/,/g;')
 
-    cross_cc=`CT_Which "${CT_TARGET}-gcc"`
-    CT_DoLog DEBUG "Using gcc for target: \"${cross_cc}\""
-    CT_DoLog DEBUG "Extra config passed : \"${addons_config}\""
+    cross_cc=$(CT_Which "${CT_TARGET}-gcc")
+    CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
+    CT_DoLog DEBUG "Extra config passed : '${addons_config}'"
 
     libc_cv_ppc_machine=yes                     \
     CC=${cross_cc}                              \
@@ -196,7 +196,7 @@ do_libc_start_files() {
     extra_config=""
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *enable-kernel*) ;;
-        *) extra_config="${extra_config} --enable-kernel=`echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;'`"
+        *) extra_config="${extra_config} --enable-kernel=$(echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
     esac
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *-tls*) ;;
@@ -213,7 +213,7 @@ do_libc_start_files() {
     # Obviously, we want threads, as we come here only for NPTL
     extra_config="${extra_config} --with-__thread"
 
-    addons_config="--enable-add-ons=`do_libc_add_ons_list ,`"
+    addons_config="--enable-add-ons=$(do_libc_add_ons_list ,)"
     extra_config="${extra_config} ${addons_config}"
 
     # Add some default CC args
@@ -229,11 +229,11 @@ do_libc_start_files() {
     fi
     extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
 
-    cross_cc=`CT_Which "${CT_TARGET}-gcc"`
-    CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""
-    CT_DoLog DEBUG "Configuring with addons : \"`do_libc_add_ons_list ,`\""
-    CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
-    CT_DoLog DEBUG "Extra CC args passed    : \"${extra_cc_args}\""
+    cross_cc=$(CT_Which "${CT_TARGET}-gcc")
+    CT_DoLog DEBUG "Using gcc for target    : '${cross_cc}'"
+    CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
+    CT_DoLog DEBUG "Extra config args passed: '${extra_config}'"
+    CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     # Super-H really needs to set configparms as of gcc-3.4/glibc-2.3.2
     # note: this is awkward, doesn't work well if you need more than one
@@ -292,7 +292,7 @@ do_libc() {
     # We don't need to be conditional on wether the user did set different
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
 
-    extra_config="--enable-kernel=`echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;'`"
+    extra_config="--enable-kernel=$(echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
 
     case "${CT_THREADS}" in
         nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
@@ -315,9 +315,9 @@ do_libc() {
         ,y) extra_config="${extra_config} --without-fp";;
     esac
 
-    case "`do_libc_add_ons_list ,`" in
+    case "$(do_libc_add_ons_list ,)" in
         "") ;;
-        *)  extra_config="${extra_config} --enable-add-ons=`do_libc_add_ons_list ,`";;
+        *)  extra_config="${extra_config} --enable-add-ons=$(do_libc_add_ons_list ,)";;
     esac
 
 
@@ -334,11 +334,11 @@ do_libc() {
     fi
     extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
 
-    cross_cc=`CT_Which "${CT_TARGET}-gcc"`
-    CT_DoLog DEBUG "Using gcc for target    : \"${cross_cc}\""
-    CT_DoLog DEBUG "Configuring with addons : \"`do_libc_add_ons_list ,`\""
-    CT_DoLog DEBUG "Extra config args passed: \"${extra_config}\""
-    CT_DoLog DEBUG "Extra CC args passed    : \"${extra_cc_args}\""
+    cross_cc=$(CT_Which "${CT_TARGET}-gcc")
+    CT_DoLog DEBUG "Using gcc for target    : '${cross_cc}'"
+    CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
+    CT_DoLog DEBUG "Extra config args passed: '${extra_config}'"
+    CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     # sh3 and sh4 really need to set configparms as of gcc-3.4/glibc-2.3.2
     # note: this is awkward, doesn't work well if you need more than one line in configparms
@@ -446,7 +446,7 @@ do_libc() {
         for dir in lib lib64 usr/lib usr/lib64; do
             if [ -f "${CT_SYSROOT_DIR}/${dir}/${file}" -a ! -L ${CT_SYSROOT_DIR}/$lib/$file ]; then
                 cp "${CT_SYSROOT_DIR}/${dir}/${file}" "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
-                CT_DoLog DEBUG "Fixing \"${CT_SYS_ROOT_DIR}/${dir}/${file}\""
+                CT_DoLog DEBUG "Fixing '${CT_SYS_ROOT_DIR}/${dir}/${file}'"
                 sed -i -r -e 's,/usr/lib/,,g;
                               s,/usr/lib64/,,g;
                               s,/lib/,,g;
@@ -488,7 +488,7 @@ do_libc_finish() {
 # Build up the addons list, separated with $1
 do_libc_add_ons_list() {
     local sep="$1"
-    local addons_list=`echo "${CT_LIBC_ADDONS_LIST//,/${sep}}" |tr -s ,`
+    local addons_list=$(echo "${CT_LIBC_ADDONS_LIST//,/${sep}}" |tr -s ,)
     case "${CT_THREADS}" in
         none)   ;;
         *)      addons_list="${addons_list}${sep}${CT_THREADS}";;

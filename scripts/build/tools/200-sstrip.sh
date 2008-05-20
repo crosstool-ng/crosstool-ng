@@ -42,24 +42,24 @@ case "${CT_SSTRIP_FROM}" in
                 return 0
             fi
             if [ -f "${CT_LOCAL_TARBALLS_DIR}/sstrip.c" ]; then
-                CT_DoLog EXTRA "Using \"sstrip\" from local storage"
+                CT_DoLog EXTRA "Using 'sstrip' from local storage"
                 ln -sf "${CT_LOCAL_TARBALLS_DIR}/sstrip.c"  \
                        "${CT_TARBALLS_DIR}/sstrip.c"        2>&1 |CT_DoLog ALL
                 return 0
             fi
             CT_Pushd "${CT_TARBALLS_DIR}"
-            CT_DoLog EXTRA "Retrieving \"sstrip\" from network"
-            http_data=`lynx -dump "${sstrip_url}"`
-            link=`echo -en "${http_data}"                           \
+            CT_DoLog EXTRA "Retrieving 'sstrip' from network"
+            http_data=$(lynx -dump "${sstrip_url}")
+            link=$(echo -en "${http_data}"                          \
                   |egrep '\[[[:digit:]]+\]download'                 \
-                  |sed -r -e 's/.*\[([[:digit:]]+)\]download.*/\1/;'`
-            rev_url=`echo -en "${http_data}"                        \
+                  |sed -r -e 's/.*\[([[:digit:]]+)\]download.*/\1/;')
+            rev_url=$(echo -en "${http_data}"                       \
                      |egrep '^ *8\.'                                \
-                     |sed -r -e 's/^ *'${link}'\. +(.+)$/\1/;'`
+                     |sed -r -e 's/^ *'${link}'\. +(.+)$/\1/;')
             CT_DoGetFile "${rev_url}" 2>&1 |CT_DoLog ALL
             mv -v sstrip.c?* sstrip.c 2>&1 |CT_DoLog DEBUG
             if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-                CT_DoLog EXTRA "Saving \"sstrip.c\" to local storage"
+                CT_DoLog EXTRA "Saving 'sstrip.c' to local storage"
                 cp -v sstrip.c "${CT_LOCAL_TARBALLS_DIR}" 2>&1 |CT_DoLog DEBUG
             fi
             CT_Popd

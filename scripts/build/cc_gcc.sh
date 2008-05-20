@@ -62,7 +62,7 @@ do_cc_core_static() {
     [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
     [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
-    CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
+    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
@@ -117,7 +117,7 @@ do_cc_core_shared() {
     [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
     [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
-    CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
+    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
     CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
@@ -210,7 +210,7 @@ do_cc() {
     CT_Test "Building Objective-C language is not yet supported. Will try..." "${CT_CC_LANG_OBJC}" = "y"
     CT_Test "Building Objective-C++ language is not yet supported. Will try..." "${CT_CC_LANG_OBJCXX}" = "y"
     CT_Test "Building ${CT_CC_LANG_OTHERS//,/ } language(s) is not yet supported. Will try..." -n "${CT_CC_LANG_OTHERS}"
-    lang_opt=`echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;'`
+    lang_opt=$(echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;')
 
     extra_config="--enable-languages=${lang_opt}"
     extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
@@ -223,7 +223,7 @@ do_cc() {
     fi
     [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
-    CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
+    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
     # --enable-symvers=gnu really only needed for sh4 to work around a
     # detection problem only matters for gcc-3.2.x and later, I think.
@@ -262,10 +262,10 @@ do_cc() {
       gcc-3.3.[34])
         case "${CT_TARGET}" in
           powerpc64-unknown-linux-gnu|x86_64-unknown-linux-gnu)
-            for d in `find "${CT_SYSROOT_DIR}" -name lib -type d -empty`; do
-              if [ -d `dirname "${d}"`/lib64 ] ; then
+            for d in $(find "${CT_SYSROOT_DIR}" -name lib -type d -empty); do
+              if [ -d $(dirname "${d}")/lib64 ] ; then
                 rm -rf "${d}"
-                ln -s `dirname "${d}"`/lib64 "${d}"
+                ln -s $(dirname "${d}")/lib64 "${d}"
               fi
             done ;;
           *) ;;

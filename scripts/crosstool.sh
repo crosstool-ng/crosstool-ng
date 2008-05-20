@@ -20,8 +20,8 @@
 #  - initialise logging.
 . "${CT_LIB_DIR}/scripts/functions"
 
-CT_STAR_DATE=`CT_DoDate +%s%N`
-CT_STAR_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
+CT_STAR_DATE=$(CT_DoDate +%s%N)
+CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 
 # Are we configured? We'll need that later...
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
@@ -104,12 +104,12 @@ if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
 fi
 
 # Make all path absolute, it so much easier!
-CT_LOCAL_TARBALLS_DIR="`CT_MakeAbsolutePath \"${CT_LOCAL_TARBALLS_DIR}\"`"
+CT_LOCAL_TARBALLS_DIR=$(CT_MakeAbsolutePath "${CT_LOCAL_TARBALLS_DIR}")
 
 # If the local tarball directory does not exist, say so, and don't try to save there!
 if [ ! -d "${CT_LOCAL_TARBALLS_DIR}" ]; then
-    CT_DoLog WARN "Directory \"${CT_LOCAL_TARBALLS_DIR}\" does not exist. Will not save downloaded tarballs to local storage."
-    CT_SAVE_TARBALLS=""
+    CT_DoLog WARN "Directory '${CT_LOCAL_TARBALLS_DIR}' does not exist. Will not save downloaded tarballs to local storage."
+    CT_SAVE_TARBALLS=
 fi
 
 # Some more sanity checks now that we have all paths set up
@@ -119,23 +119,23 @@ esac
 
 # Check now if we can write to the destination directory:
 if [ -d "${CT_INSTALL_DIR}" ]; then
-    CT_TestAndAbort "Destination directory \"${CT_INSTALL_DIR}\" is not removable" ! -w `dirname "${CT_INSTALL_DIR}"`
+    CT_TestAndAbort "Destination directory '${CT_INSTALL_DIR}' is not removable" ! -w $(dirname "${CT_INSTALL_DIR}")
 fi
 
 # Good, now grab a bit of informations on the system we're being run on,
 # just in case something goes awok, and it's not our fault:
-CT_SYS_USER="`id -un`"
-CT_SYS_HOSTNAME=`hostname -f 2>/dev/null || true`
+CT_SYS_USER=$(id -un)
+CT_SYS_HOSTNAME=$(hostname -f 2>/dev/null || true)
 # Hmmm. Some non-DHCP-enabled machines do not have an FQDN... Fall back to node name.
-CT_SYS_HOSTNAME="${CT_SYS_HOSTNAME:-`uname -n`}"
-CT_SYS_KERNEL=`uname -s`
-CT_SYS_REVISION=`uname -r`
+CT_SYS_HOSTNAME="${CT_SYS_HOSTNAME:-$(uname -n)}"
+CT_SYS_KERNEL=$(uname -s)
+CT_SYS_REVISION=$(uname -r)
 # MacOS X lacks '-o' :
-CT_SYS_OS=`uname -o || echo "Unknown (maybe MacOS-X)"`
-CT_SYS_MACHINE=`uname -m`
-CT_SYS_PROCESSOR=`uname -p`
-CT_SYS_GCC=`gcc -dumpversion`
-CT_SYS_TARGET=`CT_DoConfigGuess`
+CT_SYS_OS=$(uname -o || echo "Unknown (maybe MacOS-X)")
+CT_SYS_MACHINE=$(uname -m)
+CT_SYS_PROCESSOR=$(uname -p)
+CT_SYS_GCC=$(gcc -dumpversion)
+CT_SYS_TARGET=$(CT_DoConfigGuess)
 CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_STAR_DATE_HUMAN} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME}"
 
 CT_DoLog EXTRA "Preparing working directories"
@@ -315,8 +315,8 @@ esac
 if [ -z "${CT_RESTART}" ]; then
     # Determine build system if not set by the user
     CT_Test "You did not specify the build system. That's OK, I can guess..." -z "${CT_BUILD}"
-    CT_BUILD="${CT_BUILD:-`CT_DoConfigGuess`}"
-    CT_BUILD=`CT_DoConfigSub "${CT_BUILD}"`
+    CT_BUILD="${CT_BUILD:-$(CT_DoConfigGuess)}"
+    CT_BUILD=$(CT_DoConfigSub "${CT_BUILD}")
 
     # Arrange paths depending on wether we use sys-root or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
@@ -352,7 +352,7 @@ if [ -z "${CT_RESTART}" ]; then
     mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
 
     # Canadian-cross are really picky on the way they are built. Tweak the values.
-    CT_UNIQ_BUILD=`echo "${CT_BUILD}" |sed -r -e 's/-/-build_/'`
+    CT_UNIQ_BUILD=$(echo "${CT_BUILD}" |sed -r -e 's/-/-build_/')
     if [ "${CT_CANADIAN}" = "y" ]; then
         # Arrange so that gcc never, ever think that build system == host system
         CT_CANADIAN_OPT="--build=${CT_UNIQ_BUILD}"
@@ -383,7 +383,7 @@ if [ -z "${CT_RESTART}" ]; then
     # (Copied almost as-is from original crosstool):
     case "${CT_KERNEL},${CT_CANADIAN}" in
         cygwin,y) ;;
-        *,y)      CT_HOST="`echo \"${CT_HOST}\" |sed -r -e 's/-/-host_/;'`";;
+        *,y)      CT_HOST=$(echo "${CT_HOST}" |sed -r -e 's/-/-host_/;');;
     esac
 
     # Ah! Recent versions of binutils need some of the build and/or host system
@@ -392,7 +392,7 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoLog DEBUG "Making build system tools available"
     mkdir -p "${CT_PREFIX_DIR}/bin"
     for tool in ar as dlltool ${CT_CC_NATIVE:=gcc} gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
-        tmp=`CT_Which ${tool}`
+        tmp=$(CT_Which ${tool})
         if [ -n "${tmp}" ]; then
             ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
             ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}"
@@ -480,7 +480,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         else
             CT_DoSaveState ${step}
             if [ ${do_stop} -eq 1 ]; then
-                CT_DoLog ERROR "Stopping just after step \"${prev_step}\", as requested."
+                CT_DoLog ERROR "Stopping just after step '${prev_step}', as requested."
                 exit 0
             fi
         fi
@@ -490,7 +490,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
                 do_stop=1
             fi
             if [ "${CTDEBUG_CT_PAUSE_STEPS}" = "y" ]; then
-                CT_DoPause "Step \"${step}\" finished"
+                CT_DoPause "Step '${step}' finished"
             fi
         fi
         prev_step="${step}"
@@ -513,13 +513,13 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     CT_Pushd "${CT_PREFIX_DIR}/bin"
     for t in "${CT_TARGET}-"*; do
         if [ -n "${CT_TARGET_ALIAS}" ]; then
-            _t="`echo \"$t\" |sed -r -e 's/^'\"${CT_TARGET}\"'-/'\"${CT_TARGET_ALIAS}\"'-/;'`"
-            CT_DoLog DEBUG "Linking \"${_t}\" -> \"${t}\""
+            _t=$(echo "$t" |sed -r -e 's/^'"${CT_TARGET}"'-/'"${CT_TARGET_ALIAS}"'-/;')
+            CT_DoLog DEBUG "Linking '${_t}' -> '${t}'"
             ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog ALL
         fi
         if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
-            _t="`echo \"$t\" |sed -r -e \"${CT_TARGET_ALIAS_SED_EXPR}\"`"
-            CT_DoLog DEBUG "Linking \"${_t}\" -> \"${t}\""
+            _t=$(echo "$t" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
+            CT_DoLog DEBUG "Linking '${_t}' -> '${t}'"
             ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog ALL
         fi
     done

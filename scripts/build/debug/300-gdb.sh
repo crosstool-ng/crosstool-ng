@@ -4,7 +4,7 @@ is_enabled="${CT_GDB}"
 
 do_print_filename() {
     [ "${CT_GDB}" = "y" ] || return 0
-    echo "gdb`do_debug_gdb_suffix`"
+    echo "gdb$(do_debug_gdb_suffix)"
 }
 
 do_debug_gdb_suffix() {
@@ -15,17 +15,17 @@ do_debug_gdb_suffix() {
 }
 
 do_debug_gdb_get() {
-    CT_GetFile "gdb`do_debug_gdb_suffix`"           \
+    CT_GetFile "gdb$(do_debug_gdb_suffix)"           \
                {ftp,http}://ftp.gnu.org/pub/gnu/gdb \
                ftp://sources.redhat.com/pub/gdb/{{,old-}releases,snapshots/current}
 }
 
 do_debug_gdb_extract() {
-    CT_ExtractAndPatch "gdb`do_debug_gdb_suffix`"
+    CT_ExtractAndPatch "gdb$(do_debug_gdb_suffix)"
 }
 
 do_debug_gdb_build() {
-    gdb_src_dir="${CT_SRC_DIR}/gdb`do_debug_gdb_suffix`"
+    gdb_src_dir="${CT_SRC_DIR}/gdb$(do_debug_gdb_suffix)"
 
     extra_config=
     # Version 6.3 and below behave badly with gdbmi

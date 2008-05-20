@@ -5,15 +5,15 @@
 # Prepare the fault handler
 CT_OnError() {
     ret=$?
-    CT_DoLog ERROR "Build failed in step \"${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}\""
+    CT_DoLog ERROR "Build failed in step '${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}'"
     for((step=(CT_STEP_COUNT-1); step>1; step--)); do
-        CT_DoLog ERROR "      called in step \"${CT_STEP_MESSAGE[${step}]}\""
+        CT_DoLog ERROR "      called in step '${CT_STEP_MESSAGE[${step}]}'"
     done
-    CT_DoLog ERROR "Error happened in \"${BASH_SOURCE[1]}\" in function \"${FUNCNAME[1]}\" (line unknown, sorry)"
+    CT_DoLog ERROR "Error happened in '${BASH_SOURCE[1]}' in function '${FUNCNAME[1]}' (line unknown, sorry)"
     for((depth=2; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
-        CT_DoLog ERROR "      called from \"${BASH_SOURCE[${depth}]}\" at line # ${BASH_LINENO[${depth}-1]} in function \"${FUNCNAME[${depth}]}\""
+        CT_DoLog ERROR "      called from '${BASH_SOURCE[${depth}]}' at line # ${BASH_LINENO[${depth}-1]} in function '${FUNCNAME[${depth}]}'"
     done
-    [ "${CT_LOG_TO_FILE}" = "y" ] && CT_DoLog ERROR "Look at \"${CT_LOG_FILE}\" for more info on this error."
+    [ "${CT_LOG_TO_FILE}" = "y" ] && CT_DoLog ERROR "Look at '${CT_LOG_FILE}' for more info on this error."
     CT_STEP_COUNT=1
     CT_DoEnd ERROR
     exit $ret
@@ -75,7 +75,11 @@ CT_DoLog() {
     else
         echo "${1}"
     fi |( IFS="\n" # We want the full lines, even leading spaces
-          CT_PROG_BAR_CPT=0
+          _prog_bar_cpt=0
+          _prog_bar[0]='/'
+          _prog_bar[1]='-'
+          _prog_bar[2]='\'
+          _prog_bar[3]='|'
           indent=$((2*CT_STEP_COUNT))
           while read line; do
               case "${CT_LOG_SEE_TOOLS_WARN},${line}" in
@@ -85,19 +89,15 @@ CT_DoLog() {
                 *"make["?*"]:"*"Stop.") cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
                 *)                      cur_L="${LEVEL}"; cur_l="${level}";;
               esac
-              l="`printf \"[%-5s]%*s%s%s\" \"${cur_L}\" \"${indent}\" \" \" \"${line}\"`"
-              # There will always be a log file, be it /dev/null
-              echo -e "${l}"
+              # There will always be a log file (stdout, fd #1), be it /dev/null
+              printf "[%-5s]%*s%s%s\n" "${cur_L}" "${indent}" " " "${line}"
               if [ ${cur_l} -le ${max_level} ]; then
-                  echo -e "\r${l}" >&6
+                  # Only print to console (fd #6) if log level is high enough.
+                  printf "\r[%-5s]%*s%s%s\n" "${cur_L}" "${indent}" " " "${line}" >&6
               fi
               if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
-                  [ ${CT_PROG_BAR_CPT} -eq 0  ] && bar="/"
-                  [ ${CT_PROG_BAR_CPT} -eq 10 ] && bar="-"
-                  [ ${CT_PROG_BAR_CPT} -eq 20 ] && bar="\\"
-                  [ ${CT_PROG_BAR_CPT} -eq 30 ] && bar="|"
-                  printf "\r[%02d:%02d] %s " $((SECONDS/60)) $((SECONDS%60)) "${bar}" >&6
-                  CT_PROG_BAR_CPT=$(((CT_PROG_BAR_CPT+1)%40))
+                  printf "\r[%02d:%02d] %s " $((SECONDS/60)) $((SECONDS%60)) "${_prog_bar[$((_prog_bar_cpt/10))]}" >&6
+                  _prog_bar_cpt=$(((_prog_bar_cpt+1)%40))
               fi
           done
         )
@@ -110,13 +110,13 @@ CT_DoLog() {
 CT_DoEnd()
 {
     local level="$1"
-    CT_STOP_DATE=`CT_DoDate +%s%N`
-    CT_STOP_DATE_HUMAN=`CT_DoDate +%Y%m%d.%H%M%S`
+    CT_STOP_DATE=$(CT_DoDate +%s%N)
+    CT_STOP_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
     CT_DoLog "${level:-INFO}" "Build completed at ${CT_STOP_DATE_HUMAN}"
     elapsed=$((CT_STOP_DATE-CT_STAR_DATE))
     elapsed_min=$((elapsed/(60*1000*1000*1000)))
-    elapsed_sec=`printf "%02d" $(((elapsed%(60*1000*1000*1000))/(1000*1000*1000)))`
-    elapsed_csec=`printf "%02d" $(((elapsed%(1000*1000*1000))/(10*1000*1000)))`
+    elapsed_sec=$(printf "%02d" $(((elapsed%(60*1000*1000*1000))/(1000*1000*1000))))
+    elapsed_csec=$(printf "%02d" $(((elapsed%(1000*1000*1000))/(10*1000*1000))))
     CT_DoLog ${level:-INFO} "(elapsed: ${elapsed_min}:${elapsed_sec}.${elapsed_csec})"
 }
 
@@ -158,7 +158,7 @@ CT_TestOrAbort() {
 # Test the presence of a tool, or abort if not found
 # Usage: CT_HasOrAbort <tool>
 CT_HasOrAbort() {
-    CT_TestAndAbort "\"${1}\" not found and needed for successful toolchain build." -z "`CT_Which \"${1}\"`"
+    CT_TestAndAbort "'${1}' not found and needed for successful toolchain build." -z ""$(CT_Which "${1}")
     return 0
 }
 
@@ -183,7 +183,7 @@ CT_STEP_MESSAGE[${CT_STEP_COUNT}]="<none>"
 # Memorise a step being done so that any error is caught
 # Usage: CT_DoStep <loglevel> <message>
 CT_DoStep() {
-    local start=`CT_DoDate +%s%N`
+    local start=$(CT_DoDate +%s%N)
     CT_DoLog "$1" "================================================================="
     CT_DoLog "$1" "$2"
     CT_STEP_COUNT=$((CT_STEP_COUNT+1))
@@ -196,8 +196,8 @@ CT_DoStep() {
 # End the step just being done
 # Usage: CT_EndStep
 CT_EndStep() {
-    local stop=`CT_DoDate +%s%N`
-    local duration=`printf "%032d" $((stop-${CT_STEP_START[${CT_STEP_COUNT}]})) |sed -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;'`
+    local stop=$(CT_DoDate +%s%N)
+    local duration=$(printf "%032d" $((stop-${CT_STEP_START[${CT_STEP_COUNT}]})) |sed -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;')
     local level="${CT_STEP_LEVEL[${CT_STEP_COUNT}]}"
     local message="${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}"
     CT_STEP_COUNT=$((CT_STEP_COUNT-1))
@@ -225,7 +225,7 @@ CT_MakeAbsolutePath() {
         # No such directory, fail back to guessing
         case "$1" in
             /*)  echo "$1";;
-            *)   echo "`pwd`/$1";;
+            *)   echo "$(pwd)/$1";;
         esac
     fi
     
@@ -237,7 +237,7 @@ CT_MakeAbsolutePath() {
 # Usage: CT_MktempDir foo
 CT_MktempDir() {
     # Some mktemp do not allow more than 6 Xs
-    eval "$1"="`mktemp -q -d \"${CT_BUILD_DIR}/.XXXXXX\"`"
+    eval "$1"=$(mktemp -q -d "${CT_BUILD_DIR}/.XXXXXX")
     CT_TestOrAbort "Could not make temporary directory" -n "${!1}" -a -d "${!1}"
 }
 
@@ -302,8 +302,8 @@ CT_DoGetFileCurl() {
     || true
 }
 
-_wget=`CT_Which wget`
-_curl=`CT_Which curl`
+_wget=$(CT_Which wget)
+_curl=$(CT_Which curl)
 # Wrapper function to call one of curl or wget
 # Usage: CT_DoGetFile <URL>
 CT_DoGetFile() {
@@ -330,9 +330,9 @@ CT_GetFile() {
     esac
 
     # Do we already have it?
-    ext=`CT_GetFileExtension "${file}"`
+    ext=$(CT_GetFileExtension "${file}")
     if [ -n "${ext}" ]; then
-        CT_DoLog DEBUG "Already have \"${file}\""
+        CT_DoLog DEBUG "Already have '${file}'"
         return 0
     fi
 
@@ -341,27 +341,27 @@ CT_GetFile() {
     # or, as a failover, a file without extension.
     # Try local copy first, if it exists
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
-        CT_DoLog DEBUG "Trying \"${CT_LOCAL_TARBALLS_DIR}/${file}${ext}\""
+        CT_DoLog DEBUG "Trying '${CT_LOCAL_TARBALLS_DIR}/${file}${ext}'"
         if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
              "${CT_FORCE_DOWNLOAD}" != "y" ]; then
-            CT_DoLog EXTRA "Using \"${file}\" from local storage"
+            CT_DoLog EXTRA "Using '${file}' from local storage"
             ln -sv "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
             return 0
         fi
     done
     # Try to download it
-    CT_DoLog EXTRA "Retrieving \"${file}\" from network"
+    CT_DoLog EXTRA "Retrieving '${file}' from network"
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         # Try all urls in turn
         for url in "$@"; do
-            CT_DoLog DEBUG "Trying \"${url}/${file}${ext}\""
+            CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
             CT_DoGetFile "${url}/${file}${ext}"
             if [ -f "${file}${ext}" ]; then
                 # No need to test if the file already exists because
                 # it does NOT. If it did exist, we'd have been stopped
                 # above, when looking for local copies.
                 if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-                    CT_DoLog EXTRA "Saving \"${file}\" to local storage"
+                    CT_DoLog EXTRA "Saving '${file}' to local storage"
                     mv "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}" |CT_DoLog ALL
                     ln -sv "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
                 fi
@@ -371,7 +371,7 @@ CT_GetFile() {
     done
     CT_Popd
 
-    CT_Abort "Could not download \"${file}\", and not present in \"${CT_LOCAL_TARBALLS_DIR}\""
+    CT_Abort "Could not download '${file}', and not present in '${CT_LOCAL_TARBALLS_DIR}'"
 }
 
 # Extract a tarball and patch the resulting sources if necessary.
@@ -380,13 +380,13 @@ CT_GetFile() {
 # in the extra/locale sub-directory of uClibc.
 CT_ExtractAndPatch() {
     local file="$1"
-    local base_file=`echo "${file}" |cut -d - -f 1`
-    local ver_file=`echo "${file}" |cut -d - -f 2-`
+    local base_file=$(echo "${file}" |cut -d - -f 1)
+    local ver_file=$(echo "${file}" |cut -d - -f 2-)
     local official_patch_dir
     local custom_patch_dir
     local libc_addon
-    local ext=`CT_GetFileExtension "${file}"`
-    CT_TestAndAbort "\"${file}\" not found in \"${CT_TARBALLS_DIR}\"" -z "${ext}"
+    local ext=$(CT_GetFileExtension "${file}")
+    CT_TestAndAbort "'${file}' not found in '${CT_TARBALLS_DIR}'" -z "${ext}"
     local full_file="${CT_TARBALLS_DIR}/${file}${ext}"
 
     CT_Pushd "${CT_SRC_DIR}"
@@ -394,14 +394,14 @@ CT_ExtractAndPatch() {
     # Add-ons need a little love, really.
     case "${file}" in
         glibc-[a-z]*-*)
-            CT_TestAndAbort "Trying to extract the C-library addon/locales \"${file}\" when C-library not yet extracted" ! -d "${CT_LIBC_FILE}"
+            CT_TestAndAbort "Trying to extract the C-library addon/locales '${file}' when C-library not yet extracted" ! -d "${CT_LIBC_FILE}"
             cd "${CT_LIBC_FILE}"
             libc_addon=y
             [ -f ".${file}.extracted" ] && return 0
             touch ".${file}.extracted"
             ;;
         uClibc-locale-*)
-            CT_TestAndAbort "Trying to extract the C-library addon/locales \"${file}\" when C-library not yet extracted" ! -d "${CT_LIBC_FILE}"
+            CT_TestAndAbort "Trying to extract the C-library addon/locales '${file}' when C-library not yet extracted" ! -d "${CT_LIBC_FILE}"
             cd "${CT_LIBC_FILE}/extra/locale"
             libc_addon=y
             [ -f ".${file}.extracted" ] && return 0
@@ -411,16 +411,16 @@ CT_ExtractAndPatch() {
 
     # If the directory exists, then consider extraction and patching done
     if [ -d "${file}" ]; then
-        CT_DoLog DEBUG "Already extracted \"${file}\""
+        CT_DoLog DEBUG "Already extracted '${file}'"
         return 0
     fi
 
-    CT_DoLog EXTRA "Extracting \"${file}\""
+    CT_DoLog EXTRA "Extracting '${file}'"
     case "${ext}" in
         .tar.bz2)     tar xvjf "${full_file}" |CT_DoLog ALL;;
         .tar.gz|.tgz) tar xvzf "${full_file}" |CT_DoLog ALL;;
         .tar)         tar xvf  "${full_file}" |CT_DoLog ALL;;
-        *)            CT_Abort "Don't know how to handle \"${file}\": unknown extension" ;;
+        *)            CT_Abort "Don't know how to handle '${file}': unknown extension" ;;
     esac
 
     # Snapshots might not have the version number in the extracted directory
@@ -428,23 +428,23 @@ CT_ExtractAndPatch() {
     # Overcome this issue by symlink'ing the directory.
     if [ ! -d "${file}" -a "${libc_addon}" != "y" ]; then
         case "${ext}" in
-            .tar.bz2)     base=`tar tjf "${full_file}" |head -n 1 |cut -d / -f 1 || true`;;
-            .tar.gz|.tgz) base=`tar tzf "${full_file}" |head -n 1 |cut -d / -f 1 || true`;;
-            .tar)         base=`tar tf  "${full_file}" |head -n 1 |cut -d / -f 1 || true`;;
+            .tar.bz2)     base=$(tar tjf "${full_file}" |head -n 1 |cut -d / -f 1 || true);;
+            .tar.gz|.tgz) base=$(tar tzf "${full_file}" |head -n 1 |cut -d / -f 1 || true);;
+            .tar)         base=$(tar tf  "${full_file}" |head -n 1 |cut -d / -f 1 || true);;
         esac
-        CT_TestOrAbort "There was a problem when extracting \"${file}\"" -d "${base}" -o "${base}" != "${file}"
+        CT_TestOrAbort "There was a problem when extracting '${file}'" -d "${base}" -o "${base}" != "${file}"
         ln -s "${base}" "${file}"
     fi
 
     # Kludge: outside this function, we wouldn't know if we had just extracted
     # a libc addon, or a plain package. Apply patches now.
-    CT_DoLog EXTRA "Patching \"${file}\""
+    CT_DoLog EXTRA "Patching '${file}'"
 
     if [ "${libc_addon}" = "y" ]; then
         # Some addon tarballs directly contain the correct addon directory,
         # while others have the addon directory named after the tarball.
         # Fix that by always using the short name (eg: linuxthreads, ports, etc...)
-        addon_short_name=`echo "${file}" |sed -r -e 's/^[^-]+-//; s/-[^-]+$//;'`
+        addon_short_name=$(echo "${file}" |sed -r -e 's/^[^-]+-//; s/-[^-]+$//;')
         [ -d "${addon_short_name}" ] || ln -s "${file}" "${addon_short_name}"
         # If libc addon, we're already in the correct place
     else
@@ -459,9 +459,9 @@ CT_ExtractAndPatch() {
         if [ -n "${patch_dir}" -a -d "${patch_dir}" ]; then
             for p in "${patch_dir}"/*.patch; do
                 if [ -f "${p}" ]; then
-                    CT_DoLog DEBUG "Applying patch \"${p}\""
+                    CT_DoLog DEBUG "Applying patch '${p}'"
                     patch -g0 -F1 -p1 -f <"${p}" |CT_DoLog ALL
-                    CT_TestAndAbort "Failed while applying patch file \"${p}\"" ${PIPESTATUS[0]} -ne 0
+                    CT_TestAndAbort "Failed while applying patch file '${p}'" ${PIPESTATUS[0]} -ne 0
                 fi
             done
         fi
@@ -542,7 +542,7 @@ CT_DoBuildTargetTuple() {
     case "${CT_KERNEL}" in
         linux*)  CT_TARGET_KERNEL=linux;;
     esac
-    CT_TARGET=`CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}-${CT_TARGET_SYS}"`
+    CT_TARGET=$(CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}-${CT_TARGET_SYS}")
 
     # Prepare the target CFLAGS
     CT_ARCH_TARGET_CFLAGS="${CT_ARCH_ARCH_CFLAG}"
@@ -560,7 +560,7 @@ CT_DoPause() {
     local foo
     local message="${1:-Pausing for your pleasure}"
     CT_DoLog INFO "${message}"
-    read -p "Press \"Enter\" to continue, or Ctrl-C to stop..." foo >&6
+    read -p "Press 'Enter' to continue, or Ctrl-C to stop..." foo >&6
     return 0
 }
 
@@ -572,7 +572,7 @@ CT_DoSaveState() {
     local state_name="$1"
     local state_dir="${CT_STATE_DIR}/${state_name}"
 
-    CT_DoLog DEBUG "Saving state to restart at step \"${state_name}\"..."
+    CT_DoLog DEBUG "Saving state to restart at step '${state_name}'..."
     rm -rf "${state_dir}"
     mkdir -p "${state_dir}"
 
@@ -590,17 +590,17 @@ CT_DoSaveState() {
          $0 == "}" { _p = 1; }
          ' >"${state_dir}/env.sh"
 
-    CT_DoLog DEBUG "  Saving CT_CC_CORE_STATIC_PREFIX_DIR=\"${CT_CC_CORE_STATIC_PREFIX_DIR}\""
+    CT_DoLog DEBUG "  Saving CT_CC_CORE_STATIC_PREFIX_DIR='${CT_CC_CORE_STATIC_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
     tar cv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" . |CT_DoLog DEBUG
     CT_Popd
 
-    CT_DoLog DEBUG "  Saving CT_CC_CORE_SHARED_PREFIX_DIR=\"${CT_CC_CORE_SHARED_PREFIX_DIR}\""
+    CT_DoLog DEBUG "  Saving CT_CC_CORE_SHARED_PREFIX_DIR='${CT_CC_CORE_SHARED_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
     tar cv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}" . |CT_DoLog DEBUG
     CT_Popd
 
-    CT_DoLog DEBUG "  Saving CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
+    CT_DoLog DEBUG "  Saving CT_PREFIX_DIR='${CT_PREFIX_DIR}'"
     CT_Pushd "${CT_PREFIX_DIR}"
     tar cv${tar_opt}f "${state_dir}/prefix_dir.tar${tar_ext}" --exclude '*.log' . |CT_DoLog DEBUG
     CT_Popd
@@ -624,13 +624,13 @@ CT_DoLoadState(){
     local old_RESTART="${CT_RESTART}"
     local old_STOP="${CT_STOP}"
 
-    CT_TestOrAbort "The previous build did not reach the point where it could be restarted at \"${CT_RESTART}\"" -d "${state_dir}"
+    CT_TestOrAbort "The previous build did not reach the point where it could be restarted at '${CT_RESTART}'" -d "${state_dir}"
 
     # We need to do something special with the log file!
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
         exec >"${state_dir}/tail.log"
     fi
-    CT_DoLog INFO "Restoring state at step \"${state_name}\", as requested."
+    CT_DoLog INFO "Restoring state at step '${state_name}', as requested."
 
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
         y)  tar_opt=z; tar_ext=.gz;;
@@ -642,17 +642,17 @@ CT_DoLoadState(){
     rm -rf         "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
     mkdir -p       "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
 
-    CT_DoLog DEBUG "  Restoring CT_PREFIX_DIR=\"${CT_PREFIX_DIR}\""
+    CT_DoLog DEBUG "  Restoring CT_PREFIX_DIR='${CT_PREFIX_DIR}'"
     CT_Pushd "${CT_PREFIX_DIR}"
     tar xv${tar_opt}f "${state_dir}/prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
     CT_Popd
 
-    CT_DoLog DEBUG "  Restoring CT_CC_CORE_SHARED_PREFIX_DIR=\"${CT_CC_CORE_SHARED_PREFIX_DIR}\""
+    CT_DoLog DEBUG "  Restoring CT_CC_CORE_SHARED_PREFIX_DIR='${CT_CC_CORE_SHARED_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
     tar xv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
     CT_Popd
 
-    CT_DoLog DEBUG "  Restoring CT_CC_CORE_STATIC_PREFIX_DIR=\"${CT_CC_CORE_STATIC_PREFIX_DIR}\""
+    CT_DoLog DEBUG "  Restoring CT_CC_CORE_STATIC_PREFIX_DIR='${CT_CC_CORE_STATIC_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
     tar xv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
     CT_Popd

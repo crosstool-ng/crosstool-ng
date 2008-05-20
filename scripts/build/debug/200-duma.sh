@@ -13,7 +13,7 @@ do_debug_duma_get() {
     # but with an underscore. Create a link so that crosstool-NG can
     # work correctly:
     cd "${CT_TARBALLS_DIR}"
-    duma_ext=`CT_GetFileExtension "duma_${CT_DUMA_VERSION}"`
+    duma_ext=$(CT_GetFileExtension "duma_${CT_DUMA_VERSION}")
     rm -f "duma-${CT_DUMA_VERSION}${duma_ext}"
     ln -sf "duma_${CT_DUMA_VERSION}${duma_ext}" "duma-${CT_DUMA_VERSION}${duma_ext}"
 }
@@ -38,14 +38,14 @@ do_debug_duma_build() {
     [ "${CT_DUMA_A}" = "y" ] && libs="${libs} libduma.a"
     [ "${CT_DUMA_SO}" = "y" ] && libs="${libs} libduma.so.0.0"
     for lib in ${libs}; do
-        CT_DoLog EXTRA "Building library \"${lib}\""
+        CT_DoLog EXTRA "Building library '${lib}'"
         make HOSTCC="${CT_CC_NATIVE}"       \
              HOSTCXX="${CT_CC_NATIVE}"      \
              CC="${CT_TARGET}-${CT_CC}"     \
              CXX="${CT_TARGET}-${CT_CC}"    \
              DUMA_CPP="${DUMA_CPP}"         \
              ${libs}                        2>&1 |CT_DoLog ALL
-        CT_DoLog EXTRA "Installing library \"${lib}\""
+        CT_DoLog EXTRA "Installing library '${lib}'"
         install -m 644 "${lib}" "${CT_SYSROOT_DIR}/usr/lib" 2>&1 |CT_DoLog ALL
     done
     if [ "${CT_DUMA_SO}" = "y" ]; then

@@ -47,8 +47,8 @@ cp "${CT_TOP_DIR}/.config" "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 CT_DoAddFileToSample() {
     source="$1"
     dest="$2"
-    inode_s=`ls -i "${source}"`
-    inode_d=`ls -i "${dest}" 2>/dev/null || true`
+    inode_s=$(ls -i "${source}")
+    inode_d=$(ls -i "${dest}" 2>/dev/null || true)
     if [ "${inode_s}" != "${inode_d}" ]; then
         cp "${source}" "${dest}"
     fi

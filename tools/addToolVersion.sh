@@ -66,7 +66,7 @@ while [ $i -le $# ]; do
         --copy)             tool_suffix=copy;;
         # Misc:
         -h|--help)          doHelp; exit 0;;
-        -*)                 echo "Unknown option: \"${!i}\" (use -h/--help for help)."; exit 1;;
+        -*)                 echo "Unknown option: '${!i}' (use -h/--help for help)."; exit 1;;
         *)                  VERSION="${VERSION} ${!i}";;
     esac
     i=$((i+1))
@@ -81,9 +81,9 @@ esac
 
 for ver in ${VERSION}; do
     unset DEP L1 L2 L3 L4 L5 FILE
-    v=`echo "${ver}" |sed -r -e 's/-/_/g; s/\./_/g;'`
+    v=$(echo "${ver}" |sed -r -e 's/-/_/g; s/\./_/g;')
     if [ "${cat}" = "KERNEL" ]; then
-        TOOL_SUFFIX="`echo \"${tool_suffix}\" |tr [[:lower:]] [[:upper:]]`"
+        TOOL_SUFFIX=$(echo "${tool_suffix}" |tr [[:lower:]] [[:upper:]])
         L1="config ${cat}_${TOOL_SUFFIX}_V_${v}\n"
         L2="    bool\n"
         L3="    prompt \"${ver}${prompt_suffix}\"\n"
@@ -105,7 +105,7 @@ for ver in ${VERSION}; do
     [ -n "${OBS}" ] && DEP="${DEP} && OBSOLETE"
     case "${DEP}" in
         "") ;;
-        *)  L4="    depends on `echo \"${DEP}\" |sed -r -e 's/^ \\&\\& //; s/\\&/\\\\&/g;'`\n"
+        *)  L4="    depends on "$(echo "${DEP}" |sed -r -e 's/^ \\&\\& //; s/\\&/\\\\&/g;')"\n"
     esac
     sed -r -i -e 's/^(# CT_INSERT_VERSION_ABOVE)$/'"${L1}${L2}${L3}${L4}"'\n\1/;
                   s/^(# CT_INSERT_VERSION_STRING_ABOVE)$/'"${L5}"'\n\1/;' "${FILE}"

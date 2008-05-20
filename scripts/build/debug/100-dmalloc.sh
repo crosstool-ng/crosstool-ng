@@ -36,7 +36,7 @@ do_debug_dmalloc_build() {
         *)  extra_config="${extra_config} --disable-shlib";;
     esac
 
-    CT_DoLog DEBUG "Extra config passed: \"${extra_config}\""
+    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
     LD="${CT_TARGET}-ld"                                        \
     AR="${CT_TARGET}-ar"                                        \

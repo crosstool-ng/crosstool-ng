@@ -44,10 +44,10 @@ do_kernel_check_config() {
 
         mkdir -p "${CT_BUILD_DIR}/build-kernel-defconfig"
         cd "${CT_BUILD_DIR}/build-kernel-defconfig"
-        make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}" O=`pwd`   \
+        make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}" O=$(pwd)  \
              ARCH=${CT_KERNEL_ARCH} defconfig               2>&1 |CT_DoLog ALL
 
-        CT_KERNEL_LINUX_CONFIG_FILE="`pwd`/.config"
+        CT_KERNEL_LINUX_CONFIG_FILE="$(pwd)/.config"
 
         CT_EndStep
     fi
@@ -64,20 +64,20 @@ do_kernel_headers() {
         # We need to enter this directory to find the kernel version strings
         cd "${CT_SRC_DIR}/${CT_KERNEL_FILE}"
         if [ "${CT_KERNEL_LINUX_HEADERS_SANITISED}" != "y" ]; then
-            k_version=`awk '/^VERSION =/ { print $3 }' Makefile`
-            k_patchlevel=`awk '/^PATCHLEVEL =/ { print $3 }' Makefile`
-            k_sublevel=`awk '/^SUBLEVEL =/ { print $3 }' Makefile`
-            k_extraversion=`awk '/^EXTRAVERSION =/ { print $3 }' Makefile`
+            k_version=$(awk '/^VERSION =/ { print $3 }' Makefile)
+            k_patchlevel=$(awk '/^PATCHLEVEL =/ { print $3 }' Makefile)
+            k_sublevel=$(awk '/^SUBLEVEL =/ { print $3 }' Makefile)
+            k_extraversion=$(awk '/^EXTRAVERSION =/ { print $3 }' Makefile)
         else
-            k_version=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 1`
-            k_patchlevel=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 2`
-            k_sublevel=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 3`
-            k_extraversion=`echo "${CT_KERNEL_VERSION}." |cut -d . -f 4`
+            k_version=$(echo "${CT_KERNEL_VERSION}." |cut -d . -f 1)
+            k_patchlevel=$(echo "${CT_KERNEL_VERSION}." |cut -d . -f 2)
+            k_sublevel=$(echo "${CT_KERNEL_VERSION}." |cut -d . -f 3)
+            k_extraversion=$(echo "${CT_KERNEL_VERSION}." |cut -d . -f 4)
         fi
 
         case "${k_version}.${k_patchlevel}" in
             2.2|2.4|2.6) ;;
-            *)  CT_Abort "Unsupported kernel version \"linux-${k_version}.${k_patchlevel}\".";;
+            *)  CT_Abort "Unsupported kernel version 'linux-${k_version}.${k_patchlevel}'.";;
         esac
 
         # Kernel version that support verbosity will use this, others will ignore it:
@@ -109,7 +109,7 @@ do_kernel_install() {
 
     CT_DoLog EXTRA "Installing kernel headers"
     make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
-         O="`pwd`"                                  \
+         O=$(pwd)                                   \
          ARCH=${CT_KERNEL_ARCH}                     \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
          ${V_OPT}                                   \
@@ -118,7 +118,7 @@ do_kernel_install() {
     if [ "${CT_KERNEL_LINUX_HEADERS_INSTALL_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking installed headers"
         make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
-             O="`pwd`"                                  \
+             O=$(pwd)                                   \
              ARCH=${CT_KERNEL_ARCH}                     \
              INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
              ${V_OPT}                                   \
@@ -154,7 +154,7 @@ do_kernel_copy() {
                  cd "${CT_BUILD_DIR}/build-kernel-headers"
                  cp "${CT_KERNEL_LINUX_CONFIG_FILE}" .config
                  CT_DoYes "" |make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"         \
-                                   O="`pwd`" ${V_OPT} ARCH=${CT_KERNEL_ARCH}    \
+                                   O=$(pwd) ${V_OPT} ARCH=${CT_KERNEL_ARCH}     \
                                    oldconfig
                  case "${CT_KERNEL_ARCH}" in
                      sh*)        # sh does secret stuff in 'make prepare' that can't be
@@ -166,7 +166,7 @@ do_kernel_copy() {
                                       ARCH=${CT_KERNEL_ARCH} ${V_OPT}   \
                                       prepare include/linux/version.h
                                  ;;
-                     arm*|cris*) make ${PARALLELMFLAGS}                 \
+                     arm*|cris*) make ${PARALLELMFLAGS}                     \
                                       ARCH=${CT_KERNEL_ARCH} ${V_OPT}       \
                                       include/asm include/linux/version.h   \
                                       include/asm-${CT_KERNEL_ARCH}/.arch

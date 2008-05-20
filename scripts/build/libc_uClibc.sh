@@ -218,8 +218,8 @@ ENDSED
     # From http://www.uclibc.org/cgi-bin/viewcvs.cgi?rev=16846&view=rev
     #  " we just want the kernel headers, not the whole kernel source ...
     #  " so people may need to update their paths slightly
-    quoted_kernel_source=`echo "${CT_HEADERS_DIR}" | sed -r -e 's,/include/?$,,; s,/,\\\\/,g;'`
-    quoted_headers_dir=`echo ${CT_HEADERS_DIR} | sed -r -e 's,/,\\\\/,g;'`
+    quoted_kernel_source=$(echo "${CT_HEADERS_DIR}" | sed -r -e 's,/include/?$,,; s,/,\\/,g;')
+    quoted_headers_dir=$(echo "${CT_HEADERS_DIR}" | sed -r -e 's,/,\\/,g;')
     # CROSS_COMPILER_PREFIX is left as is, as the CROSS parameter is forced on the command line
     # DEVEL_PREFIX is left as '/usr/' because it is post-pended to $PREFIX, wich is the correct value of ${PREFIX}/${TARGET}
     # Some (old) versions of uClibc use KERNEL_SOURCE (which is _wrong_), and
