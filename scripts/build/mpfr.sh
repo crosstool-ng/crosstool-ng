@@ -32,6 +32,7 @@ do_mpfr() {
         --build=${CT_BUILD}                                 \
         --host=${CT_HOST}                                   \
         --prefix="${CT_PREFIX_DIR}"                         \
+        --enable-thread-safe                                \
         --disable-shared --enable-static                    \
         --with-gmp="${CT_PREFIX_DIR}"                       2>&1 |CT_DoLog ALL
 
