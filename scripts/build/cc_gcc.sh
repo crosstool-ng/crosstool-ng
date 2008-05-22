@@ -59,8 +59,12 @@ do_cc_core_static() {
     CT_DoLog EXTRA "Configuring static core C compiler"
 
     extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
     [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+    if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
+        extra_config="${extra_config} --enable-__cxa_atexit"
+    else
+        extra_config="${extra_config} --disable-__cxa_atexit"
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
@@ -114,8 +118,12 @@ do_cc_core_shared() {
     CT_DoLog EXTRA "Configuring shared core C compiler"
 
     extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_CC_CXA_ATEXIT}" = "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
     [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+    if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
+        extra_config="${extra_config} --enable-__cxa_atexit"
+    else
+        extra_config="${extra_config} --disable-__cxa_atexit"
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
@@ -215,7 +223,11 @@ do_cc() {
     extra_config="--enable-languages=${lang_opt}"
     extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_SHARED_LIBS}" = "y" ] || extra_config="${extra_config} --disable-shared"
-    [ "${CT_CC_CXA_ATEXIT}" == "y" ] && extra_config="${extra_config} --enable-__cxa_atexit"
+    if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
+        extra_config="${extra_config} --enable-__cxa_atexit"
+    else
+        extra_config="${extra_config} --disable-__cxa_atexit"
+    fi
     if [ "${CT_TARGET_MULTILIB}" = "y" ]; then
         extra_config="${extra_config} --enable-multilib"
     else
