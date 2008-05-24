@@ -221,17 +221,13 @@ do_cc() {
     lang_opt=$(echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;')
 
     extra_config="--enable-languages=${lang_opt}"
+    extra_config="${extra_config} --disable-multilib"
     extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_SHARED_LIBS}" = "y" ] || extra_config="${extra_config} --disable-shared"
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config="${extra_config} --enable-__cxa_atexit"
     else
         extra_config="${extra_config} --disable-__cxa_atexit"
-    fi
-    if [ "${CT_TARGET_MULTILIB}" = "y" ]; then
-        extra_config="${extra_config} --enable-multilib"
-    else
-        extra_config="${extra_config} --disable-multilib"
     fi
     [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
