@@ -72,8 +72,10 @@ CT_DoBuildTargetTuple
 . "${CT_TOP_DIR}/.config"
 
 # Second kludge: merge user-supplied target CFLAGS with architecture-provided
-# target CFLAGS
+# target CFLAGS. Do the same for LDFLAGS in case it happens in the future.
+# Put user-supplied flags at the end, so that they take precedence.
 CT_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_TARGET_CFLAGS}"
+CT_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_TARGET_LDFLAGS}"
 
 # Now, build up the variables from the user-configured options.
 CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
