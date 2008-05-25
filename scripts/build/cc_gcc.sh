@@ -224,12 +224,12 @@ do_cc() {
     extra_config="${extra_config} --disable-multilib"
     extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_SHARED_LIBS}" = "y" ] || extra_config="${extra_config} --disable-shared"
+    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config="${extra_config} --enable-__cxa_atexit"
     else
         extra_config="${extra_config} --disable-__cxa_atexit"
     fi
-    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
@@ -239,7 +239,9 @@ do_cc() {
     # embedded systems don't really need message catalogs...
     CC_FOR_BUILD="${CT_CC_NATIVE}"              \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
-    TARGET_CFLAGS="${CT_TARGET_CFLAGS}"         \
+    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"     \
+    CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"   \
+    LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"   \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"     \
         ${CT_CANADIAN_OPT}                      \
         --target=${CT_TARGET} --host=${CT_HOST} \
