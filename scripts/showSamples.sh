@@ -48,7 +48,6 @@ dump_single_sample() {
         [ "${CT_LTRACE}"  ] && echo -n " ltrace-${CT_LTRACE_VERSION}"
         [ "${CT_STRACE}"  ] && echo -n " strace-${CT_STRACE_VERSION}"
         echo
-        echo
     fi
 }
 

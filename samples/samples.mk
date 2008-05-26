@@ -10,7 +10,8 @@ help-config::
 	@echo  '  saveconfig         - Save current config as a preconfigured target'
 
 help-samples::
-	@echo  '  show-samples       - show a brief overview of each samples listed below:'
+	@echo  '  samples            - prints the list of all samples (for scripting)'
+	@echo  '  show-<sample>      - show a brief overview of <sample>'
 	@$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
 help-build::
@@ -18,8 +19,11 @@ help-build::
 	@echo  '  regtest-local[.#]  - Regtest-build all local samples'
 	@echo  '  regtest-global[.#] - Regtest-build all global samples'
 
-show-samples:
-	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(CT_SAMPLES)
+$(patsubst %,show-%,$(CT_SAMPLES)):
+	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
+
+samples:
+	@echo $(CT_SAMPLES) |sed -r -e 's/ /\n/g;' |sort
 
 # How we do build one sample
 PHONY += $(CT_SAMPLES)
