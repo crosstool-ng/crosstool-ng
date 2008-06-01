@@ -30,10 +30,13 @@ $(patsubst %,%+,$(CT_STEPS)):
 	@$(CT_NG) RESTART=$(patsubst %+,%,$@) build
 
 help-build::
-	@echo  '  liststeps          - List all build steps'
+	@echo  '  list-steps         - List all build steps'
 
-liststeps:
+list-steps:
 	@echo  'Available build steps, in order:'
 	@for step in $(CT_STEPS); do    \
 	     echo "  - $${step}";       \
 	 done
+	@echo  'Use "$(CT_NG) <step>" to execute only that step.'
+	@echo  'Use "$(CT_NG) +<step>" to execute up to that step.'
+	@echo  'Use "$(CT_NG) <step>+" to execute from that step onward.'

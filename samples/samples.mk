@@ -10,8 +10,9 @@ help-config::
 	@echo  '  saveconfig         - Save current config as a preconfigured target'
 
 help-samples::
-	@echo  '  samples            - prints the list of all samples (for scripting)'
-	@echo  '  show-<sample>      - show a brief overview of <sample>'
+	@echo  '  list-samples       - prints the list of all samples (for scripting)'
+	@echo  '  show-<sample>      - show a brief overview of <sample> (list below)'
+	@echo  '  <sample>           - preconfigure crosstool-NG with <sample> (list below)'
 	@$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
 help-build::
@@ -22,7 +23,8 @@ help-build::
 $(patsubst %,show-%,$(CT_SAMPLES)):
 	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
 
-samples:
+PHONY += list-samples
+list-samples: .FORCE
 	@echo $(CT_SAMPLES) |sed -r -e 's/ /\n/g;' |sort
 
 # How we do build one sample
