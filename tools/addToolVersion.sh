@@ -80,7 +80,12 @@ case "${cat}" in
 esac
 
 for ver in ${VERSION}; do
-    unset DEP L1 L2 L3 L4 L5 FILE
+    # Split VERSION into MAJOR MINOR PATCHLEVEL EXTRAVERSION 
+    VERSION_M=$(echo "${VERSION}...." |cut -d . -f 1)
+    VERSION_m=$(echo "${VERSION}...." |cut -d . -f 2)
+    VERSION_P=$(echo "${VERSION}...." |cut -d . -f 3)
+    VERSION_E=$(echo "${VERSION}...." |cut -d . -f 4)
+    unset DEP L1 L2 L3 L4 L5 L6 FILE
     v=$(echo "${ver}" |sed -r -e 's/-/_/g; s/\./_/g;')
     if [ "${cat}" = "KERNEL" ]; then
         TOOL_SUFFIX=$(echo "${tool_suffix}" |tr [[:lower:]] [[:upper:]])
@@ -98,7 +103,14 @@ for ver in ${VERSION}; do
         L1="config ${cat}_V_${v}\n"
         L2="    bool\n"
         L3="    prompt \"${ver}${prompt_suffix}\"\n"
-        L5="    default \"${ver}\" if ${cat}_V_${v}"
+        L6="    default \"${ver}\" if ${cat}_V_${v}"
+        case "${tool}" in
+            gcc)
+                if [ ${VERSION_M} -gt 4 -o \( ${VERSION_M} -eq 4 -a ${VERSION_m} -gret 3 i\) ]; then
+                    L5="    select CC_GCC_4_3_or_later"
+                fi
+                ;;
+        esac
         FILE="config/${tool_prefix}/${tool}.in"
     fi
     [ -n "${EXP}" ] && DEP="${DEP} && EXPERIMENTAL"
@@ -107,6 +119,6 @@ for ver in ${VERSION}; do
         "") ;;
         *)  L4="    depends on "$(echo "${DEP}" |sed -r -e 's/^ \\&\\& //; s/\\&/\\\\&/g;')"\n"
     esac
-    sed -r -i -e 's/^(# CT_INSERT_VERSION_ABOVE)$/'"${L1}${L2}${L3}${L4}"'\n\1/;
-                  s/^(# CT_INSERT_VERSION_STRING_ABOVE)$/'"${L5}"'\n\1/;' "${FILE}"
+    sed -r -i -e 's/^(# CT_INSERT_VERSION_ABOVE)$/'"${L1}${L2}${L3}${L4}${L5}"'\n\1/;
+                  s/^(# CT_INSERT_VERSION_STRING_ABOVE)$/'"${L6}"'\n\1/;' "${FILE}"
 done
