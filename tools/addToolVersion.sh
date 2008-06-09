@@ -115,12 +115,10 @@ for ver in ${VERSION}; do
     fi
     [ -n "${EXP}" ] && DEP="${DEP} && EXPERIMENTAL"
     [ -n "${OBS}" ] && DEP="${DEP} && OBSOLETE"
-    echo "${DEP}"
     case "${DEP}" in
         "") ;;
         *)  L4="    depends on "$(echo "${DEP}" |sed -r -e 's/^ \&\& //; s/\&/\\&/g;')"\n"
     esac
-    echo "${L4}"
     sed -r -i -e 's/^(# CT_INSERT_VERSION_ABOVE)$/'"${L1}${L2}${L3}${L4}${L5}"'\n\1/;
                   s/^(# CT_INSERT_VERSION_STRING_ABOVE)$/'"${L6}"'\n\1/;' "${FILE}"
 done
