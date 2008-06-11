@@ -25,17 +25,19 @@ MAKE   := $(shell which $(MAKE) || type -p $(MAKE) || echo /usr/bin/make)
 ###############################################################################
 # Global make rules
 
-build: build-bin build-lib build-man
+TARGETS := bin lib doc man
 
-install: build install-bin install-lib install-doc install-man
+build: $(patsubst %,build-%,$(TARGETS))
 
-clean: clean-bin clean-lib clean-doc
+install: local-test build $(patsubst %,install-%,$(TARGETS))
+
+clean: $(patsubst %,clean-%,$(TARGETS))
 
 distclean: clean
 	@echo "  RM     'Makefile'"
 	@rm -f Makefile
 
-uninstall: uninstall-bin uninstall-lib uninstall-doc uninstall-man
+uninstall: local-test $(patsubst %,uninstall-%,$(TARGETS))
 
 ###############################################################################
 # Specific make rules
@@ -48,6 +50,8 @@ build-bin: ct-ng
 	@chmod a+x $<
 
 build-lib:
+
+build-doc:
 
 build-man: docs/ct-ng.1.gz
 
@@ -76,6 +80,8 @@ clean-bin:
 clean-lib:
 
 clean-doc:
+
+clean-man:
 	@echo "  RM     'docs/ct-ng.1'"
 	@rm -f docs/ct-ng.1
 	@echo "  RM     'docs/ct-ng.1.gz'"
@@ -94,12 +100,14 @@ local-test:
 #--------------------------------------
 # Install rules
 
-install-%: local-test
-
 install-bin: $(BINDIR)
 	@echo "  INST   'ct-ng'"
 	@install -m 755 ct-ng "$(BINDIR)/ct-ng"
 
+# If one is hacking crosstool-NG, the patch set might change between any two
+# installations of the same VERSION, thus the patches must be removed prior
+# to being installed. It is simpler to remove the whole lib/ directory, as it
+# is the goal of the install-lib rule to install the lib/ directory...
 install-lib: uninstall-lib $(LIBDIR) install-lib-main install-lib-samples
 
 install-lib-main: $(LIBDIR)
@@ -130,7 +138,7 @@ install-man: $(MANDIR)
 	@echo "  INST   'ct-ng.1.gz'"
 	@install -m 644 docs/ct-ng.1.gz "$(MANDIR)"
 
-$(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)::
+$(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR):
 	@echo "  MKDIR  '$@'"
 	@install -m 755 -d "$@"
 
@@ -138,16 +146,18 @@ $(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)::
 #--------------------------------------
 # Uninstall rules
 
-uninstall-%: local-test
-
 uninstall-bin:
+	@echo "  RM     '$(BINDIR)/ct-ng'"
 	@rm -f "$(BINDIR)/ct-ng"
 
 uninstall-lib:
+	@echo "  RM     '$(LIBDIR)/'"
 	@rm -rf "$(LIBDIR)"
 
 uninstall-doc:
+	@echo "  RM     '$(DOCDIR)/'"
 	@rm -rf "$(DOCDIR)"
 
 uninstall-man:
+	@echo "  RM     '$(MANDIR)/ct-ng.1.gz'"
 	@rm -f "$(MANDIR)/ct-ng.1"{,.gz}
