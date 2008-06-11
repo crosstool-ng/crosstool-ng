@@ -1,6 +1,8 @@
 # Makefile.in for building crosstool-NG
 # This file serves as source for the ./configure operation
 
+MAKEFLAGS += --no-print-directory --no-builtin-rules
+
 all: Makefile build
 
 # Check if Makefile is up to date:
@@ -25,15 +27,15 @@ MAKE   := $(shell which $(MAKE) || type -p $(MAKE) || echo /usr/bin/make)
 
 build: build-bin build-lib build-man
 
-install: install-local-test build install-bin install-lib install-doc install-man
+install: build install-bin install-lib install-doc install-man
 
 clean: clean-bin clean-lib clean-doc
 
 distclean: clean
-	@echo "  RM     Makefile"
+	@echo "  RM     'Makefile'"
 	@rm -f Makefile
 
-uninstall: install-local-test uninstall-bin uninstall-lib uninstall-doc uninstall-man
+uninstall: uninstall-bin uninstall-lib uninstall-doc uninstall-man
 
 ###############################################################################
 # Specific make rules
@@ -42,7 +44,7 @@ uninstall: install-local-test uninstall-bin uninstall-lib uninstall-doc uninstal
 # Build rules
 
 build-bin: ct-ng
-	@echo "  CHMOD  $<"
+	@echo "  CHMOD  '$<'"
 	@chmod a+x $<
 
 build-lib:
@@ -50,11 +52,11 @@ build-lib:
 build-man: docs/ct-ng.1.gz
 
 docs/ct-ng.1.gz: docs/ct-ng.1
-	@echo "  GZIP   $@"
+	@echo "  GZIP   '$@'"
 	@gzip -c9 $< >$@
 
 %: %.in Makefile
-	@echo "  SED    $@"
+	@echo "  SED    '$@'"
 	@sed -r -e 's,@@CT_MAKE@@,$(MAKE),g;'       \
 	        -e 's,@@CT_BINDIR@@,$(BINDIR),g;'   \
 	        -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'   \
@@ -68,79 +70,84 @@ docs/ct-ng.1.gz: docs/ct-ng.1
 # Clean rules
 
 clean-bin:
-	@echo "  RM     ct-ng"
+	@echo "  RM     'ct-ng'"
 	@rm -f ct-ng
 
 clean-lib:
 
 clean-doc:
-	@echo "  RM     docs/ct-ng.1"
+	@echo "  RM     'docs/ct-ng.1'"
 	@rm -f docs/ct-ng.1
-	@echo "  RM     docs/ct-ng.1.gz"
+	@echo "  RM     'docs/ct-ng.1.gz'"
 	@rm -f docs/ct-ng.1.gz
 
 #--------------------------------------
-# Install rules
+# Check for --local setup
 
 # If using locally, don't install
-install-local-test:
+local-test:
 	@if [ "$(LOCAL)" = "1" ]; then                                          \
 	     echo "You're using local copy as runtime. You can't (un)install."; \
 	     false;                                                             \
 	 fi
 
-install-%: install-local-test
+#--------------------------------------
+# Install rules
+
+install-%: local-test
 
 install-bin: $(BINDIR)
-	@echo "  INST   ct-ng"
-	@install -m 755 ct-ng $(BINDIR)/ct-ng
+	@echo "  INST   'ct-ng'"
+	@install -m 755 ct-ng "$(BINDIR)/ct-ng"
 
 install-lib: uninstall-lib $(LIBDIR) install-lib-main install-lib-samples
 
 install-lib-main: $(LIBDIR)
-	@for src_dir in arch config kconfig patches scripts tools; do            \
-	     echo "  INST   $${src_dir}/";                                  \
-	     tar cf - --exclude=.svn $${src_dir} |(cd $(LIBDIR); tar xf -); \
+	@for src_dir in arch config kconfig patches scripts tools; do           \
+	     echo "  INST   '$${src_dir}/'";                                    \
+	     tar cf - --exclude=.svn $${src_dir} |(cd "$(LIBDIR)"; tar xf -);   \
 	 done
-	@rm -f $(LIBDIR)/tools/addToolVersion.sh
-	@echo "  INST   steps.mk"
-	@install -m 644 steps.mk $(LIBDIR)/steps.mk
+	@rm -f "$(LIBDIR)/tools/addToolVersion.sh"
+	@echo "  INST   'steps.mk'"
+	@install -m 644 steps.mk "$(LIBDIR)/steps.mk"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
 install-lib-samples: $(LIBDIR) install-lib-main
-	@echo "  INST   samples/"
-	@tar cf - --exclude=.svn samples |(cd $(LIBDIR); tar xf -)
-	@for samp_file in $(LIBDIR)/samples/*/crosstool.config; do                  \
+	@echo "  INST   'samples/'"
+	@tar cf - --exclude=.svn samples |(cd "$(LIBDIR)"; tar xf -)
+	@for samp_file in "$(LIBDIR)/samples/"*"/crosstool.config"; do              \
 	     sed -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file}; \
 	 done
 
 install-doc: $(DOCDIR)
-	@for doc_file in docs/CREDITS docs/overview.txt; do	\
-	     echo "  INST   $${doc_file}";              	\
-	     install -m 644 "$${doc_file}" $(DOCDIR);   	\
+	@for doc_file in docs/CREDITS docs/overview.txt; do \
+	     echo "  INST   '$${doc_file}'";                \
+	     install -m 644 "$${doc_file}" "$(DOCDIR)";     \
 	 done
 
 install-man: $(MANDIR)
-	@echo "  INST   ct-ng.1.gz"
-	@install -m 644 docs/ct-ng.1.gz $(MANDIR)
+	@echo "  INST   'ct-ng.1.gz'"
+	@install -m 644 docs/ct-ng.1.gz "$(MANDIR)"
 
 $(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)::
-	@echo "  MKDIR  $@"
-	@install -m 755 -d $@
+	@echo "  MKDIR  '$@'"
+	@install -m 755 -d "$@"
 
 
 #--------------------------------------
 # Uninstall rules
 
-uninstall-bin: install-local-test
-	@rm -f $(BINDIR)/ct-ng
+uninstall-%: local-test
 
-uninstall-lib: install-local-test
-	@rm -rf $(LIBDIR)
+uninstall-bin:
+	@rm -f "$(BINDIR)/ct-ng"
 
-uninstall-doc: install-local-test
-	@rm -rf $(DOCDIR)
+uninstall-lib:
+	@rm -rf "$(LIBDIR)"
 
-uninstall-man: install-local-test
-	@rm -f $(MANDIR)/ct-ng.1{,.gz}
+uninstall-doc:
+	@rm -rf "$(DOCDIR)"
+
+uninstall-man:
+	@rm -f "$(MANDIR)/ct-ng.1"{,.gz}

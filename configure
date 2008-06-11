@@ -113,11 +113,6 @@ if [ "${LOCAL_set}" = "1" ]; then
     set_mandir "" $(pwd)/docs
 fi
 
-[ -z "${BINDIR_set}" ] && BINDIR="${PREFIX}/bin"
-[ -z "${LIBDIR_set}" ] && LIBDIR="${PREFIX}/lib/ct-ng-${VERSION}"
-[ -z "${DOCDIR_set}" ] && DOCDIR="${PREFIX}/share/doc/ct-ng-${VERSION}"
-[ -z "${MANDIR_set}" ] && MANDIR="${PREFIX}/share/man/man1"
-
 #---------------------------------------------------------------------
 # Some sanity checks, now
 
@@ -129,16 +124,23 @@ case "${VERSION}" in
     REVISION=$(LC_ALL=C svnversion)
     case "${REVISION}" in
       exported)
-        VERSION="${VERSION}:unknown@$(date +%Y%m%d.%H%M%S)";;
+        VERSION="${VERSION}unknown@$(date +%Y%m%d.%H%M%S)";;
       *)
         URL=$(LC_ALL=C svn info 2>/dev/null |egrep 'URL: ' |cut -d ' ' -f 2-)
         ROOT=$(LC_ALL=C svn info 2>/dev/null |egrep 'Repository Root: ' |cut -d ' ' -f 3-)
-        VERSION="${VERSION}:${URL#${ROOT}}@${REVISION}"
+        VERSION="${VERSION}${URL#${ROOT}}@${REVISION}"
         ;;
     esac
+    VERSION="${VERSION/\//_}"
     ;;
 esac
 echo "${VERSION}"
+
+# Now we have the version string, we can buyild up the paths
+[ -z "${BINDIR_set}" ] && BINDIR="${PREFIX}/bin"
+[ -z "${LIBDIR_set}" ] && LIBDIR="${PREFIX}/lib/ct-ng-${VERSION}"
+[ -z "${DOCDIR_set}" ] && DOCDIR="${PREFIX}/share/doc/ct-ng-${VERSION}"
+[ -z "${MANDIR_set}" ] && MANDIR="${PREFIX}/share/man/man1"
 
 # Check bash is present, and at least version 3.0
 echo -n "Checking bash is at least bash-3.0... "
@@ -161,9 +163,9 @@ echo "ok"
 
 cat <<__EOF__
 crosstool-NG configured as follows:
-  PREFIX="${PREFIX}"
-  BINDIR="${BINDIR}"
-  LIBDIR="${LIBDIR}"
-  DOCDIR="${DOCDIR}"
-  MANDIR="${MANDIR}"
+  PREFIX='${PREFIX}'
+  BINDIR='${BINDIR}'
+  LIBDIR='${LIBDIR}'
+  DOCDIR='${DOCDIR}'
+  MANDIR='${MANDIR}'
 __EOF__
