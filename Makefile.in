@@ -89,13 +89,15 @@ install-local-test:
 	     false;                                                             \
 	 fi
 
-install-bin: install-local-test $(BINDIR)
+install-%: install-local-test
+
+install-bin: $(BINDIR)
 	@echo "  INST   ct-ng"
 	@install -m 755 ct-ng $(BINDIR)/ct-ng
 
-install-lib: install-local-test $(LIBDIR) install-lib-main install-lib-samples
+install-lib: uninstall-lib $(LIBDIR) install-lib-main install-lib-samples
 
-install-lib-main: install-local-test $(LIBDIR)
+install-lib-main: $(LIBDIR)
 	@for src_dir in arch config kconfig patches scripts tools; do            \
 	     echo "  INST   $${src_dir}/";                                  \
 	     tar cf - --exclude=.svn $${src_dir} |(cd $(LIBDIR); tar xf -); \
@@ -106,20 +108,20 @@ install-lib-main: install-local-test $(LIBDIR)
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
-install-lib-samples: install-local-test $(LIBDIR) install-lib-main
+install-lib-samples: $(LIBDIR) install-lib-main
 	@echo "  INST   samples/"
 	@tar cf - --exclude=.svn samples |(cd $(LIBDIR); tar xf -)
 	@for samp_file in $(LIBDIR)/samples/*/crosstool.config; do                  \
 	     sed -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file}; \
 	 done
 
-install-doc: install-local-test $(DOCDIR)
+install-doc: $(DOCDIR)
 	@for doc_file in docs/CREDITS docs/overview.txt; do	\
 	     echo "  INST   $${doc_file}";              	\
 	     install -m 644 "$${doc_file}" $(DOCDIR);   	\
 	 done
 
-install-man: install-local-test $(MANDIR)
+install-man: $(MANDIR)
 	@echo "  INST   ct-ng.1.gz"
 	@install -m 644 docs/ct-ng.1.gz $(MANDIR)
 

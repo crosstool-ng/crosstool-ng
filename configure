@@ -123,6 +123,7 @@ fi
 
 # If this version is a svn snapshot, try to get the revision number
 # If we can't get the revision number, use date
+echo -n "Computing version string... "
 case "${VERSION}" in
   *+svn)
     REVISION=$(LC_ALL=C svnversion)
@@ -137,13 +138,17 @@ case "${VERSION}" in
     esac
     ;;
 esac
+echo "${VERSION}"
 
 # Check bash is present, and at least version 3.0
+echo -n "Checking bash is at least bash-3.0... "
 [ -x /bin/bash ] || do_error "bash 3.0 or above was not found in /bin/bash"
 bash_version=$(/bin/bash -c 'echo ${BASH_VERSION}')
 bash_major=$(/bin/bash -c 'echo ${BASH_VERSINFO[0]}')
 [ ${bash_major} -ge 3 ] || do_error "bash 3.0 or above is needed (/bin/bash is ${bash_version})"
+echo "ok (${bash_version})"
 
+echo -n "Building up Makefile... "
 sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
        -e "s,@@LIBDIR@@,${LIBDIR},g;"   \
        -e "s,@@DOCDIR@@,${DOCDIR},g;"   \
@@ -152,6 +157,7 @@ sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
        -e "s,@@DATE@@,${DATE},g;"       \
        -e "s,@@LOCAL@@,${LOCAL_set},g;" \
        Makefile.in >Makefile
+echo "ok"
 
 cat <<__EOF__
 crosstool-NG configured as follows:
