@@ -20,6 +20,9 @@ help-build::
 	@echo  '  regtest-local[.#]  - Regtest-build all local samples'
 	@echo  '  regtest-global[.#] - Regtest-build all global samples'
 
+help-distrib::
+	@echo  '  wiki-samples       - Print a DokuWiki table of samples'
+
 $(patsubst %,show-%,$(CT_SAMPLES)):
 	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
 
@@ -84,3 +87,6 @@ $(patsubst %,regtest_%,$(CT_SAMPLES)):
 
 saveconfig:
 	@$(CT_LIB_DIR)/scripts/saveSample.sh
+
+wiki-samples:
+	@$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
