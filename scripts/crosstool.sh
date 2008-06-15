@@ -402,6 +402,12 @@ if [ -z "${CT_RESTART}" ]; then
         fi |CT_DoLog DEBUG
     done
 
+    # Some makeinfo versions are a pain in [put your most sensible body part here].
+    # Go ahead with those, by creating a wrapper that keeps partial files, and that
+    # never fails:
+    echo -e "#!/bin/sh\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue" >"${CT_PREFIX_DIR}/bin/makeinfo"
+    chmod 700 "${CT_PREFIX_DIR}/bin/makeinfo"
+
     # Help gcc
     CT_CFLAGS_FOR_HOST=
     [ "${CT_USE_PIPES}" = "y" ] && CT_CFLAGS_FOR_HOST="${CT_CFLAGS_FOR_HOST} -pipe"
@@ -502,6 +508,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_UNIQ_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
+    rm -fv "${CT_PREFIX_DIR}/bin/makeinfo" |CT_DoLog DEBUG
 
     # Install the /populator/
     CT_DoLog EXTRA "Installing the populate helper"
