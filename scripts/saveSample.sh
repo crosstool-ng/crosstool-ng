@@ -39,7 +39,9 @@ if [ ! -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
 fi
 
 # Save the crosstool-NG config file
-cp "${CT_TOP_DIR}/.config" "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
+sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1=${HOME}/x-tools/${CT_TARGET}|;' \
+    <"${CT_TOP_DIR}/.config"                                        \
+    >"${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 
 # Function to copy a file to the sample directory
 # Needed in case the file is already there (think of a previously available sample)
