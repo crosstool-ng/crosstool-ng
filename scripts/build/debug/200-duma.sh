@@ -1,4 +1,4 @@
-# Biuld script for D.U.M.A.
+# Build script for D.U.M.A.
 
 is_enabled="${CT_DUMA}"
 
@@ -34,31 +34,43 @@ do_debug_duma_build() {
     DUMA_CPP=
     [ "${CT_CC_LANG_CXX}" = "y" ] && DUMA_CPP=1
 
+    # The shared library needs some love: some version have libduma.so.0.0,
+    # while others have libduma.so.0.0.0
+    duma_so=$(make -n -p 2>&1 |egrep '^libduma.so[^:]*:' |head -n 1 |cut -d : -f 1)
+
     libs=
     [ "${CT_DUMA_A}" = "y" ] && libs="${libs} libduma.a"
-    [ "${CT_DUMA_SO}" = "y" ] && libs="${libs} libduma.so.0.0"
-    for lib in ${libs}; do
-        CT_DoLog EXTRA "Building library '${lib}'"
-        make HOSTCC="${CT_CC_NATIVE}"       \
-             HOSTCXX="${CT_CC_NATIVE}"      \
-             CC="${CT_TARGET}-${CT_CC}"     \
-             CXX="${CT_TARGET}-${CT_CC}"    \
-             DUMA_CPP="${DUMA_CPP}"         \
-             ${libs}                        2>&1 |CT_DoLog ALL
-        CT_DoLog EXTRA "Installing library '${lib}'"
-        install -m 644 "${lib}" "${CT_SYSROOT_DIR}/usr/lib" 2>&1 |CT_DoLog ALL
-    done
+    [ "${CT_DUMA_SO}" = "y" ] && libs="${libs} ${duma_so}"
+    libs="${libs# }"
+    CT_DoLog EXTRA "Building libraries '${libs}'"
+    make HOSTCC="${CT_CC_NATIVE}"       \
+         HOSTCXX="${CT_CC_NATIVE}"      \
+         CC="${CT_TARGET}-gcc"          \
+         CXX="${CT_TARGET}-g++"         \
+         RANLIB="${CT_TARGET}-ranlib"   \
+         DUMA_CPP="${DUMA_CPP}"         \
+         ${libs}                        2>&1 |CT_DoLog ALL
+    CT_DoLog EXTRA "Installing libraries '${libs}'"
+    install -m 644 ${libs} "${CT_SYSROOT_DIR}/usr/lib" 2>&1 |CT_DoLog ALL
     if [ "${CT_DUMA_SO}" = "y" ]; then
-        CT_DoLog EXTRA "Installing shared library links"
-        ln -vsf libduma.so.0.0 "${CT_SYSROOT_DIR}/usr/lib/libduma.so.0" 2>&1 |CT_DoLog ALL
-        ln -vsf libduma.so.0.0 "${CT_SYSROOT_DIR}/usr/lib/libduma.so"   2>&1 |CT_DoLog ALL
+        CT_DoLog EXTRA "Installing shared library link"
+        ln -vsf ${duma_so} "${CT_SYSROOT_DIR}/usr/lib/libduma.so"   2>&1 |CT_DoLog ALL
+        CT_DoLog EXTRA "Installing wrapper script"
+        mkdir -p "${CT_DEBUG_INSTALL_DIR}/usr/bin"
+        # Install a simpler, smaller, safer wrapper than the one provided by D.U.M.A.
+        cat >"${CT_DEBUG_INSTALL_DIR}/usr/bin/duma" <<_EOF_
+#!/bin/sh
+if [ \$# -eq 0 ]; then
+  echo "Usage: \$0 <executable [args]>"
+  exit 1
+fi
+export LD_PRELOAD="${duma_so}"
+exec "\$@"
+_EOF_
+        chmod 755 "${CT_DEBUG_INSTALL_DIR}/usr/bin/duma"
     fi
-    CT_DoLog EXTRA "Installing LD_PRELOAD wrapper script"
-    mkdir -p "${CT_DEBUG_INSTALL_DIR}/usr/bin"
-    cp -v duma.sh                               \
-       "${CT_DEBUG_INSTALL_DIR}/usr/bin/duma"   2>&1 |CT_DoLog ALL
 
-    CT_EndStep
     CT_Popd
+    CT_EndStep
 }
 
