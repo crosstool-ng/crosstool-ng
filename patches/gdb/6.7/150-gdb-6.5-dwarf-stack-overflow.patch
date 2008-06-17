@@ -1,0 +1,52 @@
+Original patch from gentoo: gentoo/src/patchsets/gdb/6.7/80_all_gdb-6.5-dwarf-stack-overflow.patch
+-= BEGIN original header =-
+http://bugs.gentoo.org/144833
+
+for gdb/ChangeLog:
+2006-08-22  Will Drewry <wad@google.com>
+	    Tavis Ormandy <taviso@google.com>
+
+	* dwarf2read.c (decode_locdesc): Enforce location description stack
+	boundaries.
+	* dwarfread.c (locval): Likewise.
+
+-= END original header =-
+diff -durN gdb-6.7.orig/gdb/dwarf2read.c gdb-6.7/gdb/dwarf2read.c
+--- gdb-6.7.orig/gdb/dwarf2read.c	2007-09-05 02:51:48.000000000 +0200
++++ gdb-6.7/gdb/dwarf2read.c	2008-06-17 23:25:38.000000000 +0200
+@@ -9061,8 +9061,7 @@
+    callers will only want a very basic result and this can become a
+    complaint.
+ 
+-   Note that stack[0] is unused except as a default error return.
+-   Note that stack overflow is not yet handled.  */
++   Note that stack[0] is unused except as a default error return. */
+ 
+ static CORE_ADDR
+ decode_locdesc (struct dwarf_block *blk, struct dwarf2_cu *cu)
+@@ -9079,7 +9078,7 @@
+ 
+   i = 0;
+   stacki = 0;
+-  stack[stacki] = 0;
++  stack[++stacki] = 0;
+ 
+   while (i < size)
+     {
+@@ -9261,6 +9260,16 @@
+ 		     dwarf_stack_op_name (op));
+ 	  return (stack[stacki]);
+ 	}
++      /* Enforce maximum stack depth of size-1 to avoid ++stacki writing
++         outside of the allocated space. Also enforce minimum > 0.
++         -- wad@google.com 14 Aug 2006 */
++      if (stacki >= sizeof (stack) / sizeof (*stack) - 1)
++	internal_error (__FILE__, __LINE__,
++	                _("location description stack too deep: %d"),
++	                stacki);
++      if (stacki <= 0)
++	internal_error (__FILE__, __LINE__,
++	                _("location description stack too shallow"));
+     }
+   return (stack[stacki]);
+ }

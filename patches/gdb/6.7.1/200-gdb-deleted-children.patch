@@ -1,0 +1,26 @@
+Original patch from gentoo: gentoo/src/patchsets/gdb/6.7.1/50_all_gdb-deleted-children.patch
+-= BEGIN original header =-
+http://bugs.gentoo.org/210636
+http://sourceware.org/ml/gdb-patches/2007-11/msg00136.html
+
+2007-11-07  Vladimir Prus  <vladimir@codesourcery.com>
+
+	Fix crash when a variable object being deleted
+	has any of its children deleted previously.
+	
+	* varobj.c (delete_variable_1): Don't recurse
+	into deleted children.
+
+-= END original header =-
+diff -durN gdb-6.7.1.orig/gdb/varobj.c gdb-6.7.1/gdb/varobj.c
+--- gdb-6.7.1.orig/gdb/varobj.c	2007-08-31 21:01:17.000000000 +0200
++++ gdb-6.7.1/gdb/varobj.c	2008-06-17 23:27:45.000000000 +0200
+@@ -1295,6 +1295,8 @@
+   for (i = 0; i < VEC_length (varobj_p, var->children); ++i)
+     {   
+       varobj_p child = VEC_index (varobj_p, var->children, i);
++      if (!child)
++	continue;
+       if (!remove_from_parent_p)
+ 	child->parent = NULL;
+       delete_variable_1 (resultp, delcountp, child, 0, only_children_p);
