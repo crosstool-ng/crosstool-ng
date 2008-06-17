@@ -52,7 +52,7 @@ do_cc_core_static() {
 
     CT_DoStep INFO "Installing static core C compiler"
 
-    CT_DoLog EXTRA "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
+    CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
     mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/include"
     cp -r "${CT_HEADERS_DIR}"/* "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/include" 2>&1 |CT_DoLog DEBUG
 
@@ -111,7 +111,7 @@ do_cc_core_shared() {
 
     CT_DoStep INFO "Installing shared core C compiler"
 
-    CT_DoLog EXTRA "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
+    CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
     mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/include"
     cp -r "${CT_HEADERS_DIR}"/* "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/include" 2>&1 |CT_DoLog DEBUG
 
