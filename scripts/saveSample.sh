@@ -39,7 +39,7 @@ if [ ! -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
 fi
 
 # Save the crosstool-NG config file
-sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1=${HOME}/x-tools/${CT_TARGET}|;' \
+sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;' \
     <"${CT_TOP_DIR}/.config"                                        \
     >"${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 
