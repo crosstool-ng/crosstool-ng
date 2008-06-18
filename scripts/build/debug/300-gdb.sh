@@ -5,6 +5,7 @@ is_enabled="${CT_GDB}"
 do_print_filename() {
     [ "${CT_GDB}" = "y" ] || return 0
     echo "gdb$(do_debug_gdb_suffix)"
+    [ "${CT_GDB_NATIVE}" = "y" ] && echo "ncurses-${CT_NCURSES_VERSION}"
 }
 
 do_debug_gdb_suffix() {
@@ -15,13 +16,19 @@ do_debug_gdb_suffix() {
 }
 
 do_debug_gdb_get() {
-    CT_GetFile "gdb$(do_debug_gdb_suffix)"           \
-               {ftp,http}://ftp.gnu.org/pub/gnu/gdb \
+    CT_GetFile "gdb$(do_debug_gdb_suffix)"              \
+               {ftp,http}://ftp.gnu.org/pub/gnu/gdb     \
                ftp://sources.redhat.com/pub/gdb/{{,old-}releases,snapshots/current}
+    if [ "${CT_GDB_NATIVE}" = "y" ]; then
+        CT_GetFile "ncurses-${CT_NCURSES_VERSION}"          \
+                   {ftp,http}://ftp.gnu.org/pub/gnu/ncurses \
+                   ftp://invisible-island.net/ncurses
+    fi
 }
 
 do_debug_gdb_extract() {
     CT_ExtractAndPatch "gdb$(do_debug_gdb_suffix)"
+    [ "${CT_GDB_NATIVE}" = "y" ] && CT_ExtractAndPatch "ncurses-${CT_NCURSES_VERSION}"
 }
 
 do_debug_gdb_build() {
@@ -110,7 +117,38 @@ do_debug_gdb_build() {
     fi
 
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
-        CT_DoStep EXTRA "Installing native gdb"
+        CT_DoStep INFO "Installing native gdb"
+
+        CT_DoStep INFO "Installing ncurses library"
+        CT_DoLog EXTRA "Configuring ncurses"
+        mkdir -p "${CT_BUILD_DIR}/build-ncurses"
+        cd "${CT_BUILD_DIR}/build-ncurses"
+
+        ncurses_opts=
+        [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
+
+        "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
+            --build=${CT_BUILD}                                 \
+            --host=${CT_TARGET}                                 \
+            --with-build-cc=${CT_CC}                            \
+            --with-build-cpp=${CT_CC}                           \
+            --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
+            --prefix=/usr                                       \
+            --with-shared                                       \
+            --without-sysmouse                                  \
+            --without-progs                                     \
+            --enable-termcap                                    \
+            --without-develop                                   \
+            ${ncurses_opts}                                     2>&1 |CT_DoLog ALL
+
+        CT_DoLog EXTRA "Building ncurses"
+        make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+
+        CT_DoLog EXTRA "Installing ncurses"
+        make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
+
+        CT_EndStep
+
         CT_DoLog EXTRA "Configuring native gdb"
 
         mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
@@ -127,7 +165,7 @@ do_debug_gdb_build() {
             --disable-gdbtk                             \
             --without-x                                 \
             --disable-sim                               \
-            --disable-gdbserver                          \
+            --disable-gdbserver                         \
             --without-included-gettext                  \
             ${extra_config}                             2>&1 |CT_DoLog ALL
 
