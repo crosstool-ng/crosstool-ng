@@ -53,13 +53,13 @@ dump_single_sample() {
         fi
     else
         echo -n "| ''${sample}''  "
+        echo -n "|  ${CT_KERNEL_VERSION}  "
+        echo -n "|  ${CT_BINUTILS_VERSION}  "
         echo -n "|  ${CT_CC_VERSION}  "
         echo -n "|  ''${CT_LIBC}''  "
         echo -n "|  ${CT_LIBC_VERSION}  "
-        echo -n "|  ${CT_BINUTILS_VERSION}  "
-        echo -n "|  ${CT_KERNEL_VERSION}  "
-        echo -n "|  ${CT_ARCH_FLOAT_HW:+hard}${CT_ARCH_FLOAT_SW:+soft} float  "
         echo -n "|  ${CT_THREADS_NPTL:+NPTL}${CT_THREADS_LINUXTHREADS:+linuxthreads}${CT_THREADS_NONE:+none}  "
+        echo -n "|  ${CT_ARCH_FLOAT_HW:+hard}${CT_ARCH_FLOAT_SW:+soft} float  "
         echo -n "|  "
         if [ -f "${sample_top}/samples/${sample}/reported.by" ]; then
             ( . "${sample_top}/samples/${sample}/reported.by"; \
@@ -79,8 +79,18 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^ $(date +%Y%m%d.%H%M) ||||||||||"
-    echo "^ Target ^ gcc version ^ libc ^ libc version ^ binutils version ^ kernel headers ^  float support  ^  threading model  ^  Misc  ^  Reported by  ^"
+    echo "^ $(date +%Y%m%d.%H%M) ^ |||||||||"
+    echo -n "^ Target "
+    echo -n "^  kernel headers\\\\ version  "
+    echo -n "^  binutils version  "
+    echo -n "^  gcc version  "
+    echo -n "^  libc  "
+    echo -n "^  libc version  "
+    echo -n "^  threading model  "
+    echo -n "^  float support  "
+    echo -n "^  Misc  "
+    echo -n "^  Reported by  "
+    echo    "^"
 fi
 for sample in "${@}"; do
     ( dump_single_sample ${opt} ${width} "${sample}" )
