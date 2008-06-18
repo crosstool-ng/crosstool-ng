@@ -145,6 +145,7 @@ do_debug_gdb_build() {
         make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Installing ncurses"
+        mkdir -p -v "${CT_SYSROOT_DIR}/usr/bin"     2>&1 |CT_DoLog ALL
         make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
 
         CT_EndStep
