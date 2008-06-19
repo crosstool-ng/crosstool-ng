@@ -13,38 +13,59 @@ config GDB_CROSS
     bool
     prompt "Cross-gdb"
     default y
+    select GDB_GDBSERVER
     help
-      Build and install a cross-gdb for the target, and to run on host.
+      Build and install a cross-gdb for the target, to run on host.
 
-config GDB_CROSS_STATIC_GDB
+config GDB_CROSS_STATIC
     bool
     prompt "Build a static cross gdb"
     default n
     depends on GDB_CROSS
     help
       A static cross gdb can be usefull if you debug on a machine that is
-      not the one that is used to compile.
+      not the one that is used to compile the toolchain.
 
-config GDB_CROSS_STATIC_GDBSERVER
+      That way, you can share the cross-gdb without installing a toolchain
+      on every machine that will be used to debug target programs.
+
+config GDB_NATIVE
+    bool
+    prompt "Native gdb"
+    default n
+    select GDB_GDBSERVER
+    help
+      Build and install a native gdb for the target, to run on the target.
+
+config GDB_NATIVE_STATIC
+    bool
+    prompt "Build a static native gdb"
+    default n
+    depends on GDB_NATIVE
+    help
+      In case you have trouble with dynamic loading of shared libraries,
+      you will find that a static gdb comes in handy.
+
+config GDB_GDBSERVER
+    bool
+    prompt "gdbserver"
+    default n
+    help
+      Build and install a gdbserver for the target, to run on the target.
+
+config GDB_GDBSERVER_STATIC
     bool
     prompt "Build a static gdbserver"
     default n
-    depends on GDB_CROSS
+    depends on GDB_GDBSERVER
     help
       In case you have trouble with dynamic loading of shared libraries,
       you will find that a static gdbserver comes in handy.
 
-config GDB_NATIVE
-    bool
-    prompt "Native gdb (EXPERIMENTAL)"
-    default n
-    depends on EXPERIMENTAL
-    help
-      Build and install a native gdb for the target, to run on the target.
-
 choice
     bool
     prompt "gdb version"
+    depends on GDB_CROSS || GDB_NATIVE || GDB_GDBSERVER
 
 config GDB_V_snapshot
     bool
@@ -118,6 +139,6 @@ config NCURSES_VERSION
     default "4.2" if NCURSES_V_4_2
     default "5.6" if NCURSES_V_5_6
 
-endif # ncurses
+endif # GDB_NATIVE --> ncurses
 
 endif

@@ -47,22 +47,29 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-gdb-cross"
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
+        if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+            extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+        fi
+        case "${CT_THREADS}" in
+            none)   extra_config="${extra_config} --disable-threads";;
+            *)      extra_config="${extra_config} --enable-threads";;
+        esac
+
         CC_for_gdb=
         LD_for_gdb=
-        if [ "${CT_GDB_CROSS_STATIC_GDBSERVER}" = "y" ]; then
+        if [ "${CT_GDB_CROSS_STATIC}" = "y" ]; then
             CC_for_gdb="gcc -static"
             LD_for_gdb="ld -static"
         fi
 
         CC="${CC_for_gdb}"                              \
-        LD="${LD_forgdb}"                               \
+        LD="${LD_for_gdb}"                              \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
             --target=${CT_TARGET}                       \
             --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
-            --enable-threads                            \
             ${extra_config}                             2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building cross-gdb"
@@ -70,48 +77,6 @@ do_debug_gdb_build() {
 
         CT_DoLog EXTRA "Installing cross-gdb"
         make install                                    2>&1 |CT_DoLog ALL
-
-        CT_EndStep
-
-        CT_DoStep INFO "Installing gdbserver"
-        CT_DoLog EXTRA "Configuring gdbserver"
-
-        mkdir -p "${CT_BUILD_DIR}/build-gdb-gdbserver"
-        cd "${CT_BUILD_DIR}/build-gdb-gdbserver"
-
-        # Workaround for bad versions, where the configure
-        # script for gdbserver is not executable...
-        # Bah, GNU folks strike again... :-(
-        chmod +x "${gdb_src_dir}/gdb/gdbserver/configure"
-
-        gdbserver_LDFLAGS=
-        if [ "${CT_GDB_CROSS_STATIC_GDBSERVER}" = "y" ]; then
-            gdbserver_LDFLAGS=-static
-        fi
-
-        LDFLAGS="${gdbserver_LDFLAGS}"                  \
-        "${gdb_src_dir}/gdb/gdbserver/configure"        \
-            --build=${CT_BUILD}                         \
-            --host=${CT_TARGET}                         \
-            --target=${CT_TARGET}                       \
-            --prefix=/usr                               \
-            --sysconfdir=/etc                           \
-            --localstatedir=/var                        \
-            --includedir="${CT_HEADERS_DIR}"            \
-            --with-build-sysroot="${CT_SYSROOT_DIR}"    \
-            --program-prefix=                           \
-            --without-uiout                             \
-            --disable-tui                               \
-            --disable-gdbtk                             \
-            --without-x                                 \
-            --without-included-gettext                  \
-            ${extra_config}                             2>&1 |CT_DoLog ALL
-
-        CT_DoLog EXTRA "Building gdbserver"
-        make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
-
-        CT_DoLog EXTRA "Installing gdbserver"
-        make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
 
         CT_EndStep
     fi
@@ -138,7 +103,6 @@ do_debug_gdb_build() {
             --without-sysmouse                                  \
             --without-progs                                     \
             --enable-termcap                                    \
-            --without-develop                                   \
             ${ncurses_opts}                                     2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building ncurses"
@@ -155,6 +119,22 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
         cd "${CT_BUILD_DIR}/build-gdb-native"
 
+        case "${CT_THREADS}" in
+            none)   extra_config="${extra_config} --disable-threads";;
+            *)      extra_config="${extra_config} --enable-threads";;
+        esac
+
+        CC_for_gdb=
+        LD_for_gdb=
+        if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
+            CC_for_gdb="${CT_TARGET}-gcc -static"
+            LD_for_gdb="${CT_TARGET}-ld -static"
+        fi
+
+        export ac_cv_func_strncmp_works=yes
+
+        CC="${CC_for_gdb}"                              \
+        LD="${LD_for_gdb}"                              \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -166,14 +146,66 @@ do_debug_gdb_build() {
             --disable-gdbtk                             \
             --without-x                                 \
             --disable-sim                               \
-            --disable-gdbserver                         \
+            --disable-werror                            \
             --without-included-gettext                  \
+            --without-develop                           \
             ${extra_config}                             2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building native gdb"
         make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Installing native gdb"
+        make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
+
+        # Building a native gdb also builds a gdbserver
+        CT_DoLog DEBUG "Removing spurious gdbserver"
+        find "${CT_DEBUG_INSTALL_DIR}" -type f -name gdbserver -exec rm -fv {} + 2>&1 |CT_DoLog ALL
+
+        unset ac_cv_func_strncmp_works
+
+        CT_EndStep
+    fi
+
+    if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
+        CT_DoStep INFO "Installing gdbserver"
+        CT_DoLog EXTRA "Configuring gdbserver"
+
+        mkdir -p "${CT_BUILD_DIR}/build-gdb-gdbserver"
+        cd "${CT_BUILD_DIR}/build-gdb-gdbserver"
+
+        # Workaround for bad versions, where the configure
+        # script for gdbserver is not executable...
+        # Bah, GNU folks strike again... :-(
+        chmod +x "${gdb_src_dir}/gdb/gdbserver/configure"
+
+        gdbserver_LDFLAGS=
+        if [ "${CT_GDB_GDBSERVER_STATIC}" = "y" ]; then
+            gdbserver_LDFLAGS=-static
+        fi
+
+        LDFLAGS="${gdbserver_LDFLAGS}"                  \
+        "${gdb_src_dir}/gdb/gdbserver/configure"        \
+            --build=${CT_BUILD}                         \
+            --host=${CT_TARGET}                         \
+            --target=${CT_TARGET}                       \
+            --prefix=/usr                               \
+            --sysconfdir=/etc                           \
+            --localstatedir=/var                        \
+            --includedir="${CT_HEADERS_DIR}"            \
+            --with-build-sysroot="${CT_SYSROOT_DIR}"    \
+            --program-prefix=                           \
+            --without-uiout                             \
+            --disable-tui                               \
+            --disable-gdbtk                             \
+            --without-x                                 \
+            --without-included-gettext                  \
+            --without-develop                           \
+            ${extra_config}                             2>&1 |CT_DoLog ALL
+
+        CT_DoLog EXTRA "Building gdbserver"
+        make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
+
+        CT_DoLog EXTRA "Installing gdbserver"
         make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
 
         CT_EndStep
