@@ -120,7 +120,9 @@ CT_DoEnd()
     local level="$1"
     CT_STOP_DATE=$(CT_DoDate +%s%N)
     CT_STOP_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
-    CT_DoLog "${level:-INFO}" "Build completed at ${CT_STOP_DATE_HUMAN}"
+    if [ "${level}" = "ERROR" ]; then
+        CT_DoLog "${level:-INFO}" "Build completed at ${CT_STOP_DATE_HUMAN}"
+    fi
     elapsed=$((CT_STOP_DATE-CT_STAR_DATE))
     elapsed_min=$((elapsed/(60*1000*1000*1000)))
     elapsed_sec=$(printf "%02d" $(((elapsed%(60*1000*1000*1000))/(1000*1000*1000))))
@@ -206,10 +208,11 @@ CT_DoStep() {
 CT_EndStep() {
     local stop=$(CT_DoDate +%s%N)
     local duration=$(printf "%032d" $((stop-${CT_STEP_START[${CT_STEP_COUNT}]})) |sed -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;')
+    local elapsed=$(printf "%02d:%02d" $((SECONDS/60)) $((SECONDS%60)))
     local level="${CT_STEP_LEVEL[${CT_STEP_COUNT}]}"
     local message="${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}"
     CT_STEP_COUNT=$((CT_STEP_COUNT-1))
-    CT_DoLog "${level}" "${message}: done in ${duration}s"
+    CT_DoLog "${level}" "${message}: done in ${duration}s (at ${elapsed})"
     return 0
 }
 
