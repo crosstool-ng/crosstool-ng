@@ -46,7 +46,7 @@ do_debug_duma_build() {
     make HOSTCC="${CT_CC_NATIVE}"       \
          HOSTCXX="${CT_CC_NATIVE}"      \
          CC="${CT_TARGET}-gcc"          \
-         CXX="${CT_TARGET}-g++"         \
+         CXX="${CT_TARGET}-gcc"         \
          RANLIB="${CT_TARGET}-ranlib"   \
          DUMA_CPP="${DUMA_CPP}"         \
          ${libs}                        2>&1 |CT_DoLog ALL
