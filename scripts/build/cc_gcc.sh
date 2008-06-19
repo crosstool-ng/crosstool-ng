@@ -297,7 +297,8 @@ do_cc() {
     # gcc installs stuff in prefix/target/lib, when it would make better sense
     # to install that into sysroot/usr/lib
     CT_DoLog EXTRA "Moving improperly installed gcc libs to sysroot"
-    ( cd "${CT_PREFIX_DIR}/${CT_TARGET}/lib"; tar cf - . ) | ( cd "${CT_SYSROOT_DIR}/usr/lib"; tar xfv - )
+    ( cd "${CT_PREFIX_DIR}/${CT_TARGET}/lib"; tar cf - . ) | ( cd "${CT_SYSROOT_DIR}/usr/lib"; tar xfv - ) |CT_DoLog ALL
+    rm -rf "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
 
     CT_EndStep
 }
