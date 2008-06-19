@@ -266,11 +266,15 @@ s/^# UCLIBC_CTOR_DTOR is not set/UCLIBC_CTOR_DTOR=y/
 ENDSED
     fi
 
+    # Always build the libpthread_db
+    cat >>"${munge_file}" <<-ENDSED
+s/^# PTHREADS_DEBUG_SUPPORT is not set.*/PTHREADS_DEBUG_SUPPORT=y/
+ENDSED
+
     # Force on debug options if asked for
     case "${CT_LIBC_UCLIBC_DEBUG_LEVEL}" in
       0)
         cat >>"${munge_file}" <<-ENDSED
-s/^PTHREADS_DEBUG_SUPPORT=y/# PTHREADS_DEBUG_SUPPORT is not set/
 s/^DODEBUG=y/# DODEBUG is not set/
 s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
 s/^DOASSERTS=y/# DOASSERTS is not set/
@@ -281,7 +285,6 @@ ENDSED
         ;;
       1)
         cat >>"${munge_file}" <<-ENDSED
-s/^# PTHREADS_DEBUG_SUPPORT is not set.*/PTHREADS_DEBUG_SUPPORT=y/
 s/^# DODEBUG is not set.*/DODEBUG=y/
 s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
 s/^DOASSERTS=y/# DOASSERTS is not set/
@@ -292,7 +295,6 @@ ENDSED
         ;;
       2)
         cat >>"${munge_file}" <<-ENDSED
-s/^# PTHREADS_DEBUG_SUPPORT is not set.*/PTHREADS_DEBUG_SUPPORT=y/
 s/^# DODEBUG is not set.*/DODEBUG=y/
 s/^# DODEBUG_PT is not set.*/DODEBUG_PT=y/
 s/^# DOASSERTS is not set.*/DOASSERTS=y/
