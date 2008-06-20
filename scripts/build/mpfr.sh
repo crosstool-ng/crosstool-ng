@@ -34,8 +34,10 @@ do_mpfr() {
     # This hack is not bad per se, but the MPFR guys would be better to not
     # do that in the future...
     CT_DoLog EXTRA "Re-building configuration files"
+    CT_Pushd "${CT_SRC_DIR}/${CT_MPFR_FILE}"
     autoreconf -fi  2>&1 |CT_DoLog ALL
     libtoolize      2>&1 |CT_DoLog ALL
+    CT_Popd
 
     CT_DoLog EXTRA "Configuring MPFR"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                          \
