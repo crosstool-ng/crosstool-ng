@@ -24,11 +24,15 @@ do_mpfr_extract() {
     # built sanely, and thus ./configure fails on Gentoo.
     # See: http://sourceware.org/ml/crossgcc/2008-05/msg00080.html
     # and: http://sourceware.org/ml/crossgcc/2008-06/msg00005.html
-    # This hack is not bad per se, but the MPFR guys would be better to not
+    # This hack is not bad per se, but the MPFR guys would be better not to
     # do that in the future...
     CT_Pushd "${CT_SRC_DIR}/${CT_MPFR_FILE}"
-    autoreconf -fi  2>&1 |CT_DoLog ALL
-    libtoolize      2>&1 |CT_DoLog ALL
+    if [ ! -f .autotools.ct-ng ]; then
+        CT_DoLog EXTRA "Re-building autotools files"
+        autoreconf -fi  2>&1 |CT_DoLog ALL
+        libtoolize -f   2>&1 |CT_DoLog ALL
+        touch .autotools.ct-ng
+    fi
     CT_Popd
 }
 

@@ -5,7 +5,9 @@ is_enabled="${CT_GDB}"
 do_print_filename() {
     [ "${CT_GDB}" = "y" ] || return 0
     echo "gdb$(do_debug_gdb_suffix)"
-    [ "${CT_GDB_NATIVE}" = "y" ] && echo "ncurses-${CT_NCURSES_VERSION}"
+    if [ "${CT_GDB_NATIVE}" = "y" ]; then
+        echo "ncurses-${CT_NCURSES_VERSION}"
+    fi
 }
 
 do_debug_gdb_suffix() {
@@ -28,7 +30,9 @@ do_debug_gdb_get() {
 
 do_debug_gdb_extract() {
     CT_ExtractAndPatch "gdb$(do_debug_gdb_suffix)"
-    [ "${CT_GDB_NATIVE}" = "y" ] && CT_ExtractAndPatch "ncurses-${CT_NCURSES_VERSION}"
+    if [ "${CT_GDB_NATIVE}" = "y" ]; then
+        CT_ExtractAndPatch "ncurses-${CT_NCURSES_VERSION}"
+    fi
 }
 
 do_debug_gdb_build() {
