@@ -51,12 +51,13 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-gdb-cross"
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
+        cross_extra_config="${extra_config}"
         if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
-            extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+            cross_extra_config="${cross_extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
         fi
         case "${CT_THREADS}" in
-            none)   extra_config="${extra_config} --disable-threads";;
-            *)      extra_config="${extra_config} --enable-threads";;
+            none)   cross_extra_config="${cross_extra_config} --disable-threads";;
+            *)      cross_extra_config="${cross_extra_config} --enable-threads";;
         esac
 
         CC_for_gdb=
@@ -66,6 +67,8 @@ do_debug_gdb_build() {
             LD_for_gdb="ld -static"
         fi
 
+        CT_DoLog DEBUG "Extra config passed: '${cross_extra_config# }'"
+
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
         "${gdb_src_dir}/configure"                      \
@@ -74,7 +77,7 @@ do_debug_gdb_build() {
             --target=${CT_TARGET}                       \
             --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
-            ${extra_config}                             2>&1 |CT_DoLog ALL
+            ${cross_extra_config}                       2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building cross-gdb"
         make ${PARALLELMFLAGS}                          2>&1 |CT_DoLog ALL
@@ -123,10 +126,14 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
         cd "${CT_BUILD_DIR}/build-gdb-native"
 
+        native_extra_config="${extra_config}"
         case "${CT_THREADS}" in
-            none)   extra_config="${extra_config} --disable-threads";;
-            *)      extra_config="${extra_config} --enable-threads";;
+            none)   native_extra_config="${native_extra_config} --disable-threads";;
+            *)      native_extra_config="${native_extra_config} --enable-threads";;
         esac
+        if [ "${CT_GMP_MPFR_TARGET}" = "y" ]; then
+            native_extra_config="${native_extra_config} --with-gmp=${CT_SYSROOT_DIR}/usr --with-mpfr=${CT_SYSROOT_DIR}/usr"
+        fi
 
         CC_for_gdb=
         LD_for_gdb=
@@ -136,6 +143,8 @@ do_debug_gdb_build() {
         fi
 
         export ac_cv_func_strncmp_works=yes
+
+        CT_DoLog DEBUG "Extra config passed: '${native_extra_config# }'"
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
@@ -153,7 +162,7 @@ do_debug_gdb_build() {
             --disable-werror                            \
             --without-included-gettext                  \
             --without-develop                           \
-            ${extra_config}                             2>&1 |CT_DoLog ALL
+            ${native_extra_config}                      2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building native gdb"
         make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
@@ -186,6 +195,8 @@ do_debug_gdb_build() {
             gdbserver_LDFLAGS=-static
         fi
 
+        gdbserver_extra_config="${extra_config}"
+
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
             --build=${CT_BUILD}                         \
@@ -203,7 +214,7 @@ do_debug_gdb_build() {
             --without-x                                 \
             --without-included-gettext                  \
             --without-develop                           \
-            ${extra_config}                             2>&1 |CT_DoLog ALL
+            ${gdbserver_extra_config}                   2>&1 |CT_DoLog ALL
 
         CT_DoLog EXTRA "Building gdbserver"
         make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL

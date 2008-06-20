@@ -2,9 +2,17 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+do_print_filename() { :; }
+do_gmp_get() { :; }
+do_gmp_extract() { :; }
+do_gmp() { :; }
+do_gmp_target() { :; }
+
+# Overide functions depending on configuration
+if [ "${CT_GMP_MPFR}" = "y" ]; then
 
 do_print_filename() {
+    [ "${CT_GMP_MPFR}" = "y" ] || return 0
     echo "gmp-${CT_GMP_VERSION}"
 }
 
@@ -38,7 +46,7 @@ do_gmp() {
 
     if [ "${CT_GMP_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking GMP"
-        make -s check       2>&1 |CT_DoLog ALL
+        make ${PARALLELMFLAGS} -s check 2>&1 |CT_DoLog ALL
     fi
 
     CT_DoLog EXTRA "Installing GMP"
@@ -47,11 +55,34 @@ do_gmp() {
     CT_EndStep
 }
 
-else # Mo GMP 
+if [ "${CT_GMP_MPFR_TARGET}" = "y" ]; then
 
-do_print_filename() { :; }
-do_gmp_get() { :; }
-do_gmp_extract() { :; }
-do_gmp() { :; }
+do_gmp_target() {
+    mkdir -p "${CT_BUILD_DIR}/build-gmp-target"
+    cd "${CT_BUILD_DIR}/build-gmp-target"
 
-fi
+    CT_DoStep INFO "Installing GMP for the target"
+
+    CT_DoLog EXTRA "Configuring GMP"
+    CFLAGS="${CT_CFLAGS_FOR_TARGET}"            \
+    "${CT_SRC_DIR}/${CT_GMP_FILE}/configure"    \
+        --build=${CT_BUILD}                     \
+        --host=${CT_TARGET}                     \
+        --prefix=/usr                           \
+        --disable-shared --enable-static        \
+        --enable-fft --enable-mpbsd             2>&1 |CT_DoLog ALL
+
+    CT_DoLog EXTRA "Building GMP"
+    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+
+    # Not possible to check MPFR while X-compiling
+
+    CT_DoLog EXTRA "Installing GMP"
+    make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
+
+    CT_EndStep
+}
+
+fi # CT_GMP_MPFR_TARGET == y
+
+fi # CT_GMP_MPFR == y

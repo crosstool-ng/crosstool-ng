@@ -2,10 +2,17 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+do_print_filename() { :; }
+do_mpfr_get() { :; }
+do_mpfr_extract() { :; }
+do_mpfr() { :; }
+do_mpfr_target() { :; }
+
+# Overide function depending on configuration
+if [ "${CT_GMP_MPFR}" = "y" ]; then
 
 do_print_filename() {
-    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] || return 0
+    [ "${CT_GMP_MPFR}" = "y" ] || return 0
     echo "mpfr-${CT_MPFR_VERSION}"
 }
 
@@ -57,7 +64,7 @@ do_mpfr() {
 
     if [ "${CT_MPFR_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPFR"
-        make -s check       2>&1 |CT_DoLog ALL
+        make ${PARALLELMFLAGS} -s check 2>&1 |CT_DoLog ALL
     fi
 
     CT_DoLog EXTRA "Installing MPFR"
@@ -66,11 +73,35 @@ do_mpfr() {
     CT_EndStep
 }
 
-else # No MPFR
+if [ "${CT_GMP_MPFR_TARGET}" = "y" ]; then
 
-do_print_filename() { :; }
-do_mpfr_get() { :; }
-do_mpfr_extract() { :; }
-do_mpfr() { :; }
+do_mpfr_target() {
+    mkdir -p "${CT_BUILD_DIR}/build-mpfr-target"
+    cd "${CT_BUILD_DIR}/build-mpfr-target"
 
-fi
+    CT_DoStep INFO "Installing MPFR for the target"
+
+    CT_DoLog EXTRA "Configuring MPFR"
+    CFLAGS="${CT_CFLAGS_FOR_TARGET}"                        \
+    "${CT_SRC_DIR}/${CT_MPFR_FILE}/configure"               \
+        --build=${CT_BUILD}                                 \
+        --host=${CT_TARGET}                                 \
+        --prefix=/usr                                       \
+        --enable-thread-safe                                \
+        --disable-shared --enable-static                    \
+        --with-gmp="${CT_SYSROOT_DIR}/usr"                  2>&1 |CT_DoLog ALL
+
+    CT_DoLog EXTRA "Building MPFR"
+    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+
+    # Not possible to check MPFR while X-compiling
+
+    CT_DoLog EXTRA "Installing MPFR"
+    make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
+
+    CT_EndStep
+}
+
+fi # CT_GMP_MPFR_TARGET == y
+
+fi # CT_GMP_MPFR == y
