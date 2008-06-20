@@ -18,13 +18,6 @@ do_mpfr_get() {
 # Extract MPFR
 do_mpfr_extract() {
     CT_ExtractAndPatch "${CT_MPFR_FILE}"
-}
-
-do_mpfr() {
-    mkdir -p "${CT_BUILD_DIR}/build-mpfr"
-    cd "${CT_BUILD_DIR}/build-mpfr"
-
-    CT_DoStep INFO "Installing MPFR"
 
     # OK, Gentoo have a sanity check that libtool.m4 and ltmain.sh have the
     # same version number. Unfortunately, some tarballs of MPFR are not
@@ -33,11 +26,17 @@ do_mpfr() {
     # and: http://sourceware.org/ml/crossgcc/2008-06/msg00005.html
     # This hack is not bad per se, but the MPFR guys would be better to not
     # do that in the future...
-    CT_DoLog EXTRA "Re-building configuration files"
     CT_Pushd "${CT_SRC_DIR}/${CT_MPFR_FILE}"
     autoreconf -fi  2>&1 |CT_DoLog ALL
     libtoolize      2>&1 |CT_DoLog ALL
     CT_Popd
+}
+
+do_mpfr() {
+    mkdir -p "${CT_BUILD_DIR}/build-mpfr"
+    cd "${CT_BUILD_DIR}/build-mpfr"
+
+    CT_DoStep INFO "Installing MPFR"
 
     CT_DoLog EXTRA "Configuring MPFR"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                          \
