@@ -158,7 +158,6 @@ do_debug_gdb_build() {
         make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
 
         # Building a native gdb also builds a gdbserver
-        CT_DoLog DEBUG "Removing spurious gdbserver"
         find "${CT_DEBUG_INSTALL_DIR}" -type f -name gdbserver -exec rm -fv {} + 2>&1 |CT_DoLog ALL
 
         unset ac_cv_func_strncmp_works
