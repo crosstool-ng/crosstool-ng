@@ -29,9 +29,9 @@ CT_DoBuildTargetTuple
 . "${CT_TOP_DIR}/.config"
 
 # Override log level
-unset CT_LOG_ERROR CT_LOG_WARN CT_LOG_EXTRA CT_LOG_DEBUG 
-CT_LOG_INFO=y
-CT_LOG_LEVEL_MAX="INFO"
+unset CT_LOG_ERROR CT_LOG_INFO CT_LOG_EXTRA CT_LOG_DEBUG LOG_ALL
+CT_LOG_WARN=y
+CT_LOG_LEVEL_MAX="WARN"
 
 # Create the sample directory
 if [ ! -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
@@ -39,8 +39,8 @@ if [ ! -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
 fi
 
 # Save the crosstool-NG config file
-sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;' \
-    <"${CT_TOP_DIR}/.config"                                        \
+sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'   \
+    <"${CT_TOP_DIR}/.config"                                            \
     >"${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 
 # Function to copy a file to the sample directory
