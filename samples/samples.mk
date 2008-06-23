@@ -4,7 +4,7 @@
 CT_TOP_SAMPLES := $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config))
 CT_LIB_SAMPLES := $(filter-out $(CT_TOP_SAMPLES),$(patsubst $(CT_LIB_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_LIB_DIR)/samples/*/crosstool.config)))
 
-CT_SAMPLES := $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES)
+CT_SAMPLES := $(sort $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES))
 
 help-config::
 	@echo  '  saveconfig         - Save current config as a preconfigured target'
