@@ -98,6 +98,7 @@ do_debug_gdb_build() {
 
         ncurses_opts=
         [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
+        [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts="${ncurses_opts} --without-ada"
 
         "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
             --build=${CT_BUILD}                                 \
