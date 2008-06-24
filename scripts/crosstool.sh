@@ -86,15 +86,16 @@ CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
 CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
 
 # Where will we work?
-CT_TARBALLS_DIR="${CT_TOP_DIR}/targets/tarballs"
-CT_SRC_DIR="${CT_TOP_DIR}/targets/src"
-CT_BUILD_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/build"
+: "${CT_WORK_DIR:=${CT_TOP_DIR}/targets}"
+CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
+CT_SRC_DIR="${CT_WORK_DIR}/src"
+CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
 CT_DEBUG_INSTALL_DIR="${CT_INSTALL_DIR}/${CT_TARGET}/debug-root"
 # Note: we'll always install the core compiler in its own directory, so as to
 # not mix the two builds: core and final.
 CT_CC_CORE_STATIC_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-static"
 CT_CC_CORE_SHARED_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-shared"
-CT_STATE_DIR="${CT_TOP_DIR}/targets/${CT_TARGET}/state"
+CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
 
 # We must ensure that we can restart if asked for!
 if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
