@@ -33,7 +33,6 @@ config GDB_NATIVE
     bool
     prompt "Native gdb"
     default n
-    select GMP_MPFR_TARGET if GMP_MPFR
     help
       Build and install a native gdb for the target, to run on the target.
 
@@ -46,6 +45,24 @@ config GDB_NATIVE_STATIC
       In case you have trouble with dynamic loading of shared libraries,
       you will find that a static gdb comes in handy.
 
+config GDB_NATIVE_USE_GMP_MPFR
+    bool
+    prompt "Use GMP and MPFR (EXPERIMENTAL)"
+    default n
+    depends on EXPERIMENTAL
+    depends on GDB_NATIVE
+    select GMP_MPFR
+    select GMP_MPFR_TARGET
+    help
+      gdb can make use of the GMP and MPFR libraries.
+
+      While the cross-gdb (above) can use the libraries compiled for the
+      host, the native gdb needs the libraries for the target (where it will
+      eventually run).
+
+      Setting this option will force building the GMP and MPFR libraries for
+      the target, and configure the native gdb to use them.
+
 config GDB_GDBSERVER
     bool
     prompt "gdbserver"
@@ -56,7 +73,7 @@ config GDB_GDBSERVER
 config GDB_GDBSERVER_STATIC
     bool
     prompt "Build a static gdbserver"
-    default n
+    default y
     depends on GDB_GDBSERVER
     help
       In case you have trouble with dynamic loading of shared libraries,
