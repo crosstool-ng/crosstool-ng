@@ -62,8 +62,12 @@ dump_single_sample() {
         echo -n "|  ${CT_ARCH_FLOAT_HW:+hard}${CT_ARCH_FLOAT_SW:+soft} float  "
         echo -n "|  "
         if [ -f "${sample_top}/samples/${sample}/reported.by" ]; then
-            ( . "${sample_top}/samples/${sample}/reported.by"; \
-              echo -n "|  [[${reporter_url}|${reporter_name}]]  "
+            ( . "${sample_top}/samples/${sample}/reported.by"
+              if [ -n "${reporter_url}" ]; then
+                  echo -n "|  [[${reporter_url}|${reporter_name}]]  "
+              else
+                  echo -n "|  ${reporter_name}  "
+              fi
             )
         else
             echo -n "|  [[http://ymorin.is-a-geek.org/|YEM]]  "
