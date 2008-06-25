@@ -11,6 +11,9 @@ DOCDIR_set=
 MANDIR_set=
 LOCAL_set=
 
+qo_quit=
+CONTRIB_list=
+
 get_optval(){
     local ret
     case "$1" in
@@ -55,6 +58,23 @@ set_mandir() {
     return $?
 }
 
+set_contrib() {
+    opt_val=$(get_optval "$1" "$2")
+    local ret=$?
+    case "${opt_val}" in
+        all)
+            CONTRIB_list=$(LC_ALL=C ls -1 contrib/*.patch.lzma |sed -r -e 's|.*/||; s|\.patch\.lzma||;')
+            ;;
+        list)
+            do_quit=1
+            echo "Available contributions:"
+            LC_ALL=C ls -1 contrib/*.patch.lzma |sed -r -e 's|.*/||; s|\.patch\.lzma||; s|^|  |;'
+            ;;
+        *)  CONTRIB_list="${CONTRIB_list},${opt_val}";;
+    esac
+    return $ret
+}
+
 do_help() {
     cat <<__EOF__
 \`configure' configures crosstool-NG ${VERSION} to adapt to many kind of systems.
@@ -80,6 +100,12 @@ Fine tuning of the installation directories:
   --libdir=DIR           object code libraries [PREFIX/lib]
   --docdir=DIR           info documentation [PREFIX/share/doc]
   --mandir=DIR           man documentation [PREFIX/share/man]
+
+Optional Features:
+  --with-contrib=XXX     Include externally contributed features found in the
+                         contrib/ sub-directory. Set to a comma-separated list
+                         of features. Use 'all' to use all contributions, and
+                         'list' to see which are available.
 __EOF__
 }
 
@@ -99,6 +125,10 @@ while [ $# -ne 0 ]; do
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
         --local)    LOCAL_set=1; shift;;
+        --with-contrib*)
+                    set_contrib "$1" "$2" && shift || shift 2
+                    [ "${do_quit}" = "1" ] && exit 0
+                    ;;
         --help|-h)  do_help; exit 0;;
         *)          do_help; exit 1;;
     esac
@@ -136,7 +166,7 @@ case "${VERSION}" in
 esac
 echo "${VERSION}"
 
-# Now we have the version string, we can buyild up the paths
+# Now we have the version string, we can build up the paths
 [ -z "${BINDIR_set}" ] && BINDIR="${PREFIX}/bin"
 [ -z "${LIBDIR_set}" ] && LIBDIR="${PREFIX}/lib/ct-ng-${VERSION}"
 [ -z "${DOCDIR_set}" ] && DOCDIR="${PREFIX}/share/doc/ct-ng-${VERSION}"
@@ -149,6 +179,16 @@ bash_version=$(/bin/bash -c 'echo ${BASH_VERSION}')
 bash_major=$(/bin/bash -c 'echo ${BASH_VERSINFO[0]}')
 [ ${bash_major} -ge 3 ] || do_error "bash 3.0 or above is needed (/bin/bash is ${bash_version})"
 echo "ok (${bash_version})"
+
+echo -n "Applying contributed code: "
+for c in ${CONTRIB_list//,/ }; do
+    echo -n "${c}... "
+    if [ ! -f "contrib/${c}.patch.lzma" ]; then
+        do_error "Contribution '${c}' does not exist"
+    fi
+    lzcat "contrib/${c}.patch.lzma" |patch -p1 >/dev/null 2>&1
+done
+echo "done"
 
 echo -n "Building up Makefile... "
 sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
@@ -168,4 +208,6 @@ crosstool-NG configured as follows:
   LIBDIR='${LIBDIR}'
   DOCDIR='${DOCDIR}'
   MANDIR='${MANDIR}'
+  CONTRIB='${CONTRIB_list//
+/,}'
 __EOF__
