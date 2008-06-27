@@ -3,6 +3,34 @@ Content......: Overview of how crosstool-NG works.
 Copyrigth....: (C) 2007 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
 License......: Creative Commons Attribution Share Alike (CC-by-sa), v2.5
 
+____________________
+                   /
+Table Of Content  /
+_________________/
+
+
+Introduction
+History
+Installing crosstool-NG
+  Install method
+  The hacker's way
+  Contributed code
+Configuring crosstool-NG
+  Interesting config options
+  Re-building an existing toolchain
+Running crosstool-NG
+  Stopping and restarting a build
+  Testing all toolchains at once
+  Overriding the number of // jobs
+Using the toolchain
+Toolchain types
+Internals
+  Makefile front-end
+  Kconfig parser
+  Architecture-specific
+  Adding a new version of a component
+  Build scripts
+
 ________________
                /
 Introduction  /
@@ -492,19 +520,50 @@ patches.
 Architecture-specific |
 ----------------------+
 
+Note: this chapter is not really well written, and might thus be a little bit
+complex to understand. To get a better grasp of what an architecture is, the
+reader is kindly encouraged to look at the "arch/" sub-directory, and to the
+existing architectures to see how things are laid out.
+
 An architecture is defined by:
 
  - a human-readable name, in lower case letters, with numbers as appropriate.
-   The underscore is allowed. Eg.: arm, x86_64
- - a boolean kconfig option named after the architecture (in capital letters
-   if possible) prefixed with "ARCH_". Eg.: ARCH_ARM, ARCH_x86_64
+   The underscore is allowed; space and special characters are not.
+     Eg.: arm, x86_64
  - a directory in "arch/" named after the architecture, with the same letters
    as above. Eg.: arch/arm, arch/x86_64
-   This directory contains:
-   - a configuration file in kconfig syntax, named "config.in", which may be
-     empty. Eg.: arch/arm/config.in
+   This directory contains the following files, and only those files:
+   - a configuration file in kconfig syntax, named "config.in", which shall
+     follow the API defined below.
+       Eg.: arch/arm/config.in
    - a function script in bash-3.0 syntax, named "functions", which shall
-     follow the API defined below. Eg.: arch/arm/functions
+     follow the API defined below.
+       Eg.: arch/arm/functions
+   - an optional file, named "experimental" (in lower case!), which, if it
+     is present, means that support for this architecture is EXPERIMENTAL.
+       Eg.: arch/arm/experimental
+
+The "config.in" file API:
+ > the config option "ARCH_%arch%" (where %arch% is to be replaced with the
+   actual architecture name).
+   That config option must have *neither* a type, *nor* a prompt! Also, it can
+   *not* depend on any other config option (EXPERIMENTAL is managed as above).
+     Eg.:
+       config ARCH_arm
+   + optional:
+       selects adequate associated config options.
+       Eg.:
+         config ARCH_arm
+           select ARCH_SUPPORTS_BOTH_ENDIAN
+           select ARCH_DEFAULT_LE
+
+ > other target-specific options, at your discretion. Note however that to
+   avoid name-clashing, such options shall be prefixed with "ARCH_%arch%",
+   where %arch% is again replaced by the actual architecture name.
+   (Note: due to historical reasons, and lack of time to clean up the code,
+    I may have left some config options that do not completely conform to
+    this, as the architecture name was written all upper case. However, the
+    prefix is unique among architectures, and does not cause harm).
 
 The "functions" file API:
  > the function "CT_DoArchValues"
@@ -578,7 +637,7 @@ The "functions" file API:
        - CT_ARCH_ENDIAN_CFLAG : the gcc switch to choose big or little endian                   ( "-mbig-endian" or "-mlittle-endian" )
      - default to:
        see above.
-     
+
 Adding a new version of a component |
 ------------------------------------+
 

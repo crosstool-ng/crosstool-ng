@@ -19,11 +19,14 @@ CFLAGS += -DKBUILD_NO_NLS
 endif
 
 # Build a list of all config files
-DEBUG_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config/debug -type f -name '*.in')
-TOOLS_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config/tools -type f -name '*.in')
+ARCHS              = $(patsubst $(CT_LIB_DIR)/arch/%,%,$(wildcard $(CT_LIB_DIR)/arch/*))
+ARCH_CONFIG_FILE   = $(wildcard $(CT_LIB_DIR)/arch/*/*.in)
+DEBUG_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/debug/*.in)
+TOOLS_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
 
 STATIC_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config -type f -name '*.in')
-GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/debug.in	\
+GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/arch.in	\
+				 $(CT_TOP_DIR)/config.gen/debug.in	\
 				 $(CT_TOP_DIR)/config.gen/tools.in
 
 CONFIG_FILES=$(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
@@ -32,6 +35,29 @@ $(GEN_CONFIG_FILES):: $(CT_TOP_DIR)/config.gen
 
 $(CT_TOP_DIR)/config.gen:
 	@mkdir -p $(CT_TOP_DIR)/config.gen
+
+$(CT_TOP_DIR)/config.gen/arch.in:: $(ARCH_CONFIG_FILES)
+	@(echo "# Architectures menu";                                              \
+	  echo "# Generated file, do not edit!!!";                                  \
+	  echo "";                                                                  \
+	  for arch in $(ARCHS); do                                                  \
+	    echo "config ARCH_$${arch}";                                            \
+	    echo "    bool";                                                        \
+	    echo -n "    prompt \"$${arch}";                                        \
+	    if [ -f $(CT_LIB_DIR)/arch/$${arch}/experimental ]; then                \
+	      echo " (EXPERIMENTAL)\"";                                             \
+	      echo "    depends on EXPERIMENTAL";                                   \
+	    else                                                                    \
+	      echo "\"";                                                            \
+	    fi;                                                                     \
+	    echo "if ARCH_$${arch}";                                                \
+	    echo "config ARCH";                                                     \
+	    echo "    default \"$${arch}\" if ARCH_$${arch}";                       \
+	    echo "source config/arch/$${arch}/config.in";                           \
+	    echo "endif";                                                           \
+	    echo "";                                                                \
+	  done;                                                                     \
+	) >$@
 
 $(CT_TOP_DIR)/config.gen/debug.in:: $(DEBUG_CONFIG_FILES)
 	@echo "# Debug facilities menu" >$@
