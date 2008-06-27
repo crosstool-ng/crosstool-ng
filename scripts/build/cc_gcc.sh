@@ -163,21 +163,21 @@ do_cc_core_shared() {
     # So much easier if we just edit the source tree, but hey...
     if [ ! -f "${CT_SRC_DIR}/${CT_CC_FILE}/gcc/BASE-VER" ]; then
         make configure-libiberty
-        make -C libiberty libiberty.a
+        make ${PARALLELMFLAGS} -C libiberty libiberty.a
         make configure-gcc
         make configure-libcpp
-        make all-libcpp
+        make ${PARALLELMFLAGS} all-libcpp
     else
         make configure-gcc
         make configure-libcpp
         make configure-build-libiberty
-        make all-libcpp
-        make all-build-libiberty
+        make ${PARALLELMFLAGS} all-libcpp
+        make ${PARALLELMFLAGS} all-build-libiberty
     fi 2>&1 |CT_DoLog ALL
     # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
     if [ -d "${CT_SRC_DIR}/${CT_CC_FILE}/libdecnumber" ]; then
         make configure-libdecnumber
-        make -C libdecnumber libdecnumber.a
+        make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
     fi 2>&1 |CT_DoLog ALL
     make -C gcc libgcc.mk 2>&1 |CT_DoLog ALL
     sed -r -i -e 's@-lc@@g' gcc/libgcc.mk
