@@ -136,11 +136,12 @@ do_debug_gdb_build() {
             native_extra_config="${native_extra_config} --with-gmp=${CT_SYSROOT_DIR}/usr --with-mpfr=${CT_SYSROOT_DIR}/usr"
         fi
 
-        CC_for_gdb=
-        LD_for_gdb=
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
             CC_for_gdb="${CT_TARGET}-gcc -static"
             LD_for_gdb="${CT_TARGET}-ld -static"
+        else
+            CC_for_gdb="${CT_TARGET}-gcc"
+            LD_for_gdb="${CT_TARGET}-ld"
         fi
 
         export ac_cv_func_strncmp_works=yes
