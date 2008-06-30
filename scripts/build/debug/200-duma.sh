@@ -58,15 +58,9 @@ do_debug_duma_build() {
         CT_DoLog EXTRA "Installing wrapper script"
         mkdir -p "${CT_DEBUG_INSTALL_DIR}/usr/bin"
         # Install a simpler, smaller, safer wrapper than the one provided by D.U.M.A.
-        cat >"${CT_DEBUG_INSTALL_DIR}/usr/bin/duma" <<_EOF_
-#!/bin/sh
-if [ \$# -eq 0 ]; then
-  echo "Usage: \$0 <executable [args]>"
-  exit 1
-fi
-export LD_PRELOAD="${duma_so}"
-exec "\$@"
-_EOF_
+        sed -r -e 's:^LIBDUMA_SO=.*:LIBDUMA_SO=/usr/lib/'"${duma_so}"':;'   \
+            "${CT_LIB_DIR}/scripts/build/debug/duma.in"                     \
+            >"${CT_DEBUG_INSTALL_DIR}/usr/bin/duma"
         chmod 755 "${CT_DEBUG_INSTALL_DIR}/usr/bin/duma"
     fi
 
