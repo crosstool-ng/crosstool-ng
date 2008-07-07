@@ -43,7 +43,7 @@ $(CT_TOP_DIR)/config.gen/arch.in:: $(ARCH_CONFIG_FILES)
 	  for arch in $(ARCHS); do                                                  \
 	    echo "config ARCH_$${arch}";                                            \
 	    echo "    bool";                                                        \
-	    echo -n "    prompt \"$${arch}";                                        \
+	    printf "    prompt \"$${arch}";                                         \
 	    if [ -f $(CT_LIB_DIR)/arch/$${arch}/experimental ]; then                \
 	      echo " (EXPERIMENTAL)\"";                                             \
 	      echo "    depends on EXPERIMENTAL";                                   \

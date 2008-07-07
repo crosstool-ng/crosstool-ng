@@ -154,7 +154,9 @@ mungeuClibcConfig() {
     dst_config_file="$2"
     munge_file="${CT_BUILD_DIR}/munge-uClibc-config.sed"
 
-    echo -n >"${munge_file}"
+    # Start with a fresh file
+    rm -f "${munge_file}"
+    touch "${munge_file}"
 
     # Hack our target in the config file.
     # Also remove stripping: its the responsibility of the
