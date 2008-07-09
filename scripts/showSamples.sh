@@ -85,7 +85,7 @@ done
 if [ "${opt}" = -w ]; then
     echo "^ $(date +%Y%m%d.%H%M) ^ |||||||||"
     printf "^ Target "
-    printf "^  kernel headers\\\\ version  "
+    printf "^  kernel headers\\\\\\\\ version  "
     printf "^  binutils version  "
     printf "^  gcc version  "
     printf "^  libc  "
