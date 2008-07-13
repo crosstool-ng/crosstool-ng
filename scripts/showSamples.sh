@@ -38,7 +38,7 @@ dump_single_sample() {
             [ "${CT_CC_LANG_ADA}" = "y"     ] && printf ",ADA"
             [ "${CT_CC_LANG_OBJC}" = "y"    ] && printf ",Objective-C"
             [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ",Objective-C++"
-            [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",$CT_CC_LANG_OTHERS}"
+            [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
             echo    ")"
             echo    "    C library : ${CT_LIBC}-${CT_LIBC_VERSION}"
             printf  "    Tools     :"
@@ -60,7 +60,15 @@ dump_single_sample() {
         printf "|  ${CT_LIBC_VERSION}  "
         printf "|  ${CT_THREADS_NPTL:+NPTL}${CT_THREADS_LINUXTHREADS:+linuxthreads}${CT_THREADS_NONE:+none}  "
         printf "|  ${CT_ARCH_FLOAT_HW:+hard}${CT_ARCH_FLOAT_SW:+soft} float  "
-        printf "|  "
+        printf "|  C"
+        [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ", C++"
+        [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ", Fortran"
+        [ "${CT_CC_LANG_JAVA}" = "y"    ] && printf ", Java"
+        [ "${CT_CC_LANG_ADA}" = "y"     ] && printf ", ADA"
+        [ "${CT_CC_LANG_OBJC}" = "y"    ] && printf ", Objective-C"
+        [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ", Objective-C++"
+        [ -n "${CT_CC_LANG_OTHERS}"     ] && printf "\\\\\\\\ Others: ${CT_CC_LANG_OTHERS}"
+        printf "  |  "
         if [ -f "${sample_top}/samples/${sample}/reported.by" ]; then
             ( . "${sample_top}/samples/${sample}/reported.by"
               if [ -n "${reporter_url}" ]; then
@@ -83,7 +91,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^ $(date +%Y%m%d.%H%M) ^ |||||||||"
+    echo "^  Data collected: ^ $(date +%Y%m%d.%H%M) |||||||||"
     printf "^ Target "
     printf "^  kernel headers\\\\\\\\ version  "
     printf "^  binutils version  "
@@ -92,6 +100,7 @@ if [ "${opt}" = -w ]; then
     printf "^  libc version  "
     printf "^  threading model  "
     printf "^  float support  "
+    printf "^  languages  "
     printf "^  Misc  "
     printf "^  Reported by  "
     echo   "^"
