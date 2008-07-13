@@ -91,16 +91,15 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^  Data collected: ^ $(date +%Y%m%d.%H%M) |||||||||"
+    echo "^ $(date +%Y%m%d.%H%M) ^ ||||||||||"
     printf "^ Target "
-    printf "^  kernel headers\\\\\\\\ version  "
+    printf "^  Kernel headers\\\\\\\\ version  "
     printf "^  binutils version  "
     printf "^  gcc version  "
-    printf "^  libc  "
-    printf "^  libc version  "
-    printf "^  threading model  "
-    printf "^  float support  "
-    printf "^  languages  "
+    printf "^  C library version  ^"
+    printf "^  Threading model  "
+    printf "^  Floating point\\\\\\\\ support  "
+    printf "^  Languages  "
     printf "^  Misc  "
     printf "^  Reported by  "
     echo   "^"
