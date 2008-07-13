@@ -27,7 +27,7 @@ do_binutils() {
     binutils_opts=
     # If GMP and MPFR were configured, then use that,
     # otherwise let binutils find the system-wide libraries, if they exist.
-    if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+    if [ "${CT_GMP_MPFR}" = "y" ]; then
         binutils_opts="--with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     fi
 

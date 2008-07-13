@@ -52,7 +52,7 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config="${extra_config}"
-        if [ "${CT_CC_GCC_GMP_MPFR}" = "y" ]; then
+        if [ "${CT_GMP_MPFR}" = "y" ]; then
             cross_extra_config="${cross_extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
         fi
         case "${CT_THREADS}" in

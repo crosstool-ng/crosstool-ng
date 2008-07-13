@@ -59,7 +59,7 @@ do_cc_core_static() {
     CT_DoLog EXTRA "Configuring static core C compiler"
 
     extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+    [ "${CT_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config="${extra_config} --enable-__cxa_atexit"
     else
@@ -118,7 +118,7 @@ do_cc_core_shared() {
     CT_DoLog EXTRA "Configuring shared core C compiler"
 
     extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+    [ "${CT_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config="${extra_config} --enable-__cxa_atexit"
     else
@@ -224,7 +224,7 @@ do_cc() {
     extra_config="${extra_config} --disable-multilib"
     extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_SHARED_LIBS}" = "y" ]     || extra_config="${extra_config} --disable-shared"
-    [ "${CT_CC_GCC_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+    [ "${CT_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     [ -n "${CT_CC_PKGVERSION}" ]      && extra_config="${extra_config} --with-pkgversion=${CT_CC_PKGVERSION}"
     [ -n "${CT_CC_BUGURL}" ]          && extra_config="${extra_config} --with-bugurl=${CT_CC_BUGURL}"
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
