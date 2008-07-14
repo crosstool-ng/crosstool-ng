@@ -40,7 +40,7 @@ do_gmp() {
         --host=${CT_HOST}                       \
         --prefix="${CT_PREFIX_DIR}"             \
         --disable-shared --enable-static        \
-        --enable-fft --enable-mpbsd             2>&1 |CT_DoLog ALL
+        --enable-fft --enable-mpbsd
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
@@ -72,15 +72,15 @@ do_gmp_target() {
         --host=${CT_TARGET}                     \
         --prefix=/usr                           \
         --disable-shared --enable-static        \
-        --enable-fft --enable-mpbsd             2>&1 |CT_DoLog ALL
+        --enable-fft --enable-mpbsd
 
     CT_DoLog EXTRA "Building GMP"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
     # Not possible to check MPFR while X-compiling
 
     CT_DoLog EXTRA "Installing GMP"
-    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
 
     CT_EndStep
 }
