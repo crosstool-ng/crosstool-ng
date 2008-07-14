@@ -36,8 +36,8 @@ do_mpfr_extract() {
     CT_Pushd "${CT_SRC_DIR}/${CT_MPFR_FILE}"
     if [ ! -f .autotools.ct-ng ]; then
         CT_DoLog EXTRA "Re-building autotools files"
-        autoreconf -fi  2>&1 |CT_DoLog ALL
-        libtoolize -f   2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL autoreconf -fi
+        CT_DoExecLog ALL libtoolize -f
         touch .autotools.ct-ng
     fi
     CT_Popd
@@ -50,25 +50,26 @@ do_mpfr() {
     CT_DoStep INFO "Installing MPFR"
 
     CT_DoLog EXTRA "Configuring MPFR"
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                          \
-    "${CT_SRC_DIR}/${CT_MPFR_FILE}/configure"               \
-        --build=${CT_BUILD}                                 \
-        --host=${CT_HOST}                                   \
-        --prefix="${CT_PREFIX_DIR}"                         \
-        --enable-thread-safe                                \
-        --disable-shared --enable-static                    \
-        --with-gmp="${CT_PREFIX_DIR}"                       2>&1 |CT_DoLog ALL
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
+    CT_DoExecLog ALL                            \
+    "${CT_SRC_DIR}/${CT_MPFR_FILE}/configure"   \
+        --build=${CT_BUILD}                     \
+        --host=${CT_HOST}                       \
+        --prefix="${CT_PREFIX_DIR}"             \
+        --enable-thread-safe                    \
+        --disable-shared --enable-static        \
+        --with-gmp="${CT_PREFIX_DIR}"
 
     CT_DoLog EXTRA "Building MPFR"
-    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
     if [ "${CT_MPFR_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPFR"
-        make ${PARALLELMFLAGS} -s check 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing MPFR"
-    make install            2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make install
 
     CT_EndStep
 }
@@ -82,22 +83,23 @@ do_mpfr_target() {
     CT_DoStep INFO "Installing MPFR for the target"
 
     CT_DoLog EXTRA "Configuring MPFR"
-    CFLAGS="${CT_CFLAGS_FOR_TARGET}"                        \
-    "${CT_SRC_DIR}/${CT_MPFR_FILE}/configure"               \
-        --build=${CT_BUILD}                                 \
-        --host=${CT_TARGET}                                 \
-        --prefix=/usr                                       \
-        --enable-thread-safe                                \
-        --disable-shared --enable-static                    \
-        --with-gmp="${CT_SYSROOT_DIR}/usr"                  2>&1 |CT_DoLog ALL
+    CFLAGS="${CT_CFLAGS_FOR_TARGET}"            \
+    CT_DoExecLog ALL                            \
+    "${CT_SRC_DIR}/${CT_MPFR_FILE}/configure"   \
+        --build=${CT_BUILD}                     \
+        --host=${CT_TARGET}                     \
+        --prefix=/usr                           \
+        --enable-thread-safe                    \
+        --disable-shared --enable-static        \
+        --with-gmp="${CT_SYSROOT_DIR}/usr"
 
     CT_DoLog EXTRA "Building MPFR"
-    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
     # Not possible to check MPFR while X-compiling
 
     CT_DoLog EXTRA "Installing MPFR"
-    make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
 
     CT_EndStep
 }
