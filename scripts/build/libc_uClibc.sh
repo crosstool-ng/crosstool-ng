@@ -72,13 +72,13 @@ do_libc_headers() {
     # use of the native build host tools, which we need at this
     # stage, as we don't have target tools yet.
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |make CROSS= PREFIX="${CT_SYSROOT_DIR}/" oldconfig 2>&1 |CT_DoLog ALL
+    CT_DoYes "" |CT_DoExecLog ALL make CROSS= PREFIX="${CT_SYSROOT_DIR}/" oldconfig
 
     CT_DoLog EXTRA "Building headers"
-    make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers
 
     CT_DoLog EXTRA "Installing headers"
-    make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev
 
     CT_EndStep
 }
@@ -110,18 +110,20 @@ do_libc() {
     # to best fit the target. So it is useless and seems to be a bad thing to
     # use LIBC_EXTRA_CFLAGS here.
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |make CROSS=${CT_TARGET}-           \
-                      PREFIX="${CT_SYSROOT_DIR}/"   \
-                      oldconfig                     2>&1 |CT_DoLog ALL
+    CT_DoYes "" |CT_DoExecLog ALL               \
+                 make CROSS=${CT_TARGET}-       \
+                 PREFIX="${CT_SYSROOT_DIR}/"    \
+                 oldconfig
 
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, thus the STRIPTOOL= assignment
     CT_DoLog EXTRA "Building C library"
+    CT_DoExecLog ALL                    \
     make CROSS=${CT_TARGET}-            \
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
          ${CT_LIBC_UCLIBC_VERBOSITY}    \
-         all                            2>&1 |CT_DoLog ALL
+         all
 
     # YEM-FIXME: we want to install libraries in $SYSROOT/lib, but we don't want
     # to install headers in $SYSROOT/include, thus making only install_runtime.
@@ -132,11 +134,12 @@ do_libc() {
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, thus the STRIPTOOL= assignment
     CT_DoLog EXTRA "Installing C library"
+    CT_DoExecLog ALL                    \
     make CROSS=${CT_TARGET}-            \
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
          ${CT_LIBC_UCLIBC_VERBOSITY}    \
-         install                        2>&1 |CT_DoLog ALL
+         install
 
     CT_EndStep
 }
