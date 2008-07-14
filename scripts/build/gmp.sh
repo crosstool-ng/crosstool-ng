@@ -34,6 +34,7 @@ do_gmp() {
 
     CT_DoLog EXTRA "Configuring GMP"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
+    CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/${CT_GMP_FILE}/configure"    \
         --build=${CT_BUILD}                     \
         --host=${CT_HOST}                       \
@@ -42,15 +43,15 @@ do_gmp() {
         --enable-fft --enable-mpbsd             2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building GMP"
-    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
     if [ "${CT_GMP_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking GMP"
-        make ${PARALLELMFLAGS} -s check 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing GMP"
-    make install            2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make install
 
     CT_EndStep
 }
@@ -65,6 +66,7 @@ do_gmp_target() {
 
     CT_DoLog EXTRA "Configuring GMP"
     CFLAGS="${CT_CFLAGS_FOR_TARGET}"            \
+    CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/${CT_GMP_FILE}/configure"    \
         --build=${CT_BUILD}                     \
         --host=${CT_TARGET}                     \
@@ -73,12 +75,12 @@ do_gmp_target() {
         --enable-fft --enable-mpbsd             2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Building GMP"
-    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
 
     # Not possible to check MPFR while X-compiling
 
     CT_DoLog EXTRA "Installing GMP"
-    make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
 
     CT_EndStep
 }
