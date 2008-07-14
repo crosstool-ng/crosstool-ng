@@ -71,19 +71,20 @@ do_debug_gdb_build() {
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
+        CT_DoExecLog ALL                                \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
             --target=${CT_TARGET}                       \
             --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
-            ${cross_extra_config}                       2>&1 |CT_DoLog ALL
+            ${cross_extra_config}
 
         CT_DoLog EXTRA "Building cross-gdb"
-        make ${PARALLELMFLAGS}                          2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
         CT_DoLog EXTRA "Installing cross-gdb"
-        make install                                    2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make install
 
         CT_EndStep
     fi
@@ -100,6 +101,7 @@ do_debug_gdb_build() {
         [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
         [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts="${ncurses_opts} --without-ada"
 
+        CT_DoExecLog ALL                                        \
         "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
             --build=${CT_BUILD}                                 \
             --host=${CT_TARGET}                                 \
@@ -111,14 +113,14 @@ do_debug_gdb_build() {
             --without-sysmouse                                  \
             --without-progs                                     \
             --enable-termcap                                    \
-            ${ncurses_opts}                                     2>&1 |CT_DoLog ALL
+            ${ncurses_opts}
 
         CT_DoLog EXTRA "Building ncurses"
-        make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
         CT_DoLog EXTRA "Installing ncurses"
-        mkdir -p -v "${CT_SYSROOT_DIR}/usr/bin"     2>&1 |CT_DoLog ALL
-        make DESTDIR="${CT_SYSROOT_DIR}" install    2>&1 |CT_DoLog ALL
+        mkdir -p "${CT_SYSROOT_DIR}/usr/bin"
+        CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
 
         CT_EndStep
 
@@ -150,6 +152,7 @@ do_debug_gdb_build() {
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
+        CT_DoExecLog ALL                                \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -164,13 +167,13 @@ do_debug_gdb_build() {
             --disable-werror                            \
             --without-included-gettext                  \
             --without-develop                           \
-            ${native_extra_config}                      2>&1 |CT_DoLog ALL
+            ${native_extra_config}
 
         CT_DoLog EXTRA "Building native gdb"
-        make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing native gdb"
-        make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
 
         # Building a native gdb also builds a gdbserver
         find "${CT_DEBUG_INSTALL_DIR}" -type f -name gdbserver -exec rm -fv {} + 2>&1 |CT_DoLog ALL
@@ -200,6 +203,7 @@ do_debug_gdb_build() {
         gdbserver_extra_config="${extra_config}"
 
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
+        CT_DoExecLog ALL                                \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -216,13 +220,13 @@ do_debug_gdb_build() {
             --without-x                                 \
             --without-included-gettext                  \
             --without-develop                           \
-            ${gdbserver_extra_config}                   2>&1 |CT_DoLog ALL
+            ${gdbserver_extra_config}
 
         CT_DoLog EXTRA "Building gdbserver"
-        make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC} 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing gdbserver"
-        make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
 
         CT_EndStep
     fi

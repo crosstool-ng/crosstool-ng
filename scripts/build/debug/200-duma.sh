@@ -43,15 +43,16 @@ do_debug_duma_build() {
     [ "${CT_DUMA_SO}" = "y" ] && libs="${libs} ${duma_so}"
     libs="${libs# }"
     CT_DoLog EXTRA "Building libraries '${libs}'"
+    CT_DoExecLog ALL                    \
     make HOSTCC="${CT_CC_NATIVE}"       \
          HOSTCXX="${CT_CC_NATIVE}"      \
          CC="${CT_TARGET}-gcc"          \
          CXX="${CT_TARGET}-gcc"         \
          RANLIB="${CT_TARGET}-ranlib"   \
          DUMA_CPP="${DUMA_CPP}"         \
-         ${libs}                        2>&1 |CT_DoLog ALL
+         ${libs}
     CT_DoLog EXTRA "Installing libraries '${libs}'"
-    install -m 644 ${libs} "${CT_SYSROOT_DIR}/usr/lib" 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL install -m 644 ${libs} "${CT_SYSROOT_DIR}/usr/lib"
     if [ "${CT_DUMA_SO}" = "y" ]; then
         CT_DoLog EXTRA "Installing shared library link"
         ln -vsf ${duma_so} "${CT_SYSROOT_DIR}/usr/lib/libduma.so"   2>&1 |CT_DoLog ALL

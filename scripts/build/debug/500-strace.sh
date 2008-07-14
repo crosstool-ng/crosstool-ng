@@ -21,16 +21,17 @@ do_debug_strace_build() {
     CT_Pushd "${CT_BUILD_DIR}/build-strace"
 
     CT_DoLog EXTRA "Configuring strace"
+    CT_DoExecLog ALL                                        \
     "${CT_SRC_DIR}/strace-${CT_STRACE_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_TARGET}                                 \
-        --prefix=/usr                                       2>&1 |CT_DoLog ALL
+        --prefix=/usr
 
     CT_DoLog EXTRA "Building strace"
-    make    2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing strace"
-    make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install  2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
 
     CT_Popd
     CT_EndStep

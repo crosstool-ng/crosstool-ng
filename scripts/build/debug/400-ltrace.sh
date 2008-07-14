@@ -27,16 +27,17 @@ do_debug_ltrace_build() {
     CT_DoLog EXTRA "Configuring ltrace"
 #    CFLAGS="-I${CT_SYSROOT_DIR}/usr/include"                \
 #    LDFLAGS="-L${CT_SYSROOT_DIR}/usr/include"               \
+    CT_DoExecLog ALL                                        \
     "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_TARGET}                                 \
         --prefix=/usr
 
     CT_DoLog EXTRA "Building ltrace"
-    make
+    CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing ltrace"
-    make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
+    CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
 
     CT_Popd
     CT_EndStep

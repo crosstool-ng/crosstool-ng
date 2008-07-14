@@ -21,10 +21,10 @@ case "${CT_SSTRIP_FROM}" in
             ( cd "${CT_SRC_DIR}/ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}/sstrip"; tar cf - . ) |tar xf -
 
             CT_DoLog EXTRA "Building sstrip"
-            make CC="${CT_CC_NATIVE}" sstrip 2>&1 |CT_DoLog ALL
+            CT_DoExecLog ALL make CC="${CT_CC_NATIVE}" sstrip
             
             CT_DoLog EXTRA "Installing sstrip"
-            install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip" 2>&1 |CT_DoLog ALL
+            CT_DoExecLog ALL install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip"
 
             CT_EndStep
         }
@@ -60,14 +60,14 @@ case "${CT_SSTRIP_FROM}" in
             mv -v sstrip.c?* sstrip.c 2>&1 |CT_DoLog DEBUG
             if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
                 CT_DoLog EXTRA "Saving 'sstrip.c' to local storage"
-                cp -v sstrip.c "${CT_LOCAL_TARBALLS_DIR}" 2>&1 |CT_DoLog DEBUG
+                CT_DoExecLog ALL cp -v sstrip.c "${CT_LOCAL_TARBALLS_DIR}"
             fi
             CT_Popd
         }
         do_tools_sstrip_extract() {
             # We'll let buildroot guys take care of sstrip maintenance and patching.
             mkdir -p "${CT_SRC_DIR}/sstrip"
-            cp -v "${CT_TARBALLS_DIR}/sstrip.c" "${CT_SRC_DIR}/sstrip" |CT_DoLog ALL
+            CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/sstrip.c" "${CT_SRC_DIR}/sstrip"
         }
         do_tools_sstrip_build() {
             CT_DoStep INFO "Installing sstrip"
@@ -75,10 +75,10 @@ case "${CT_SSTRIP_FROM}" in
             cd "${CT_BUILD_DIR}/build-sstrip"
 
             CT_DoLog EXTRA "Building sstrip"
-            ${CT_CC_NATIVE} -Wall -o sstrip "${CT_SRC_DIR}/sstrip/sstrip.c" 2>&1 |CT_DoLog ALL
+            CT_DoExecLog ALL ${CT_CC_NATIVE} -Wall -o sstrip "${CT_SRC_DIR}/sstrip/sstrip.c"
 
             CT_DoLog EXTRA "Installing sstrip"
-            install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip" 2>&1 |CT_DoLog ALL
+            CT_DoExecLog ALL install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip"
 
             CT_EndStep
         }

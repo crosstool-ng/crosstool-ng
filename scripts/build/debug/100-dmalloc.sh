@@ -40,19 +40,19 @@ do_debug_dmalloc_build() {
 
     LD="${CT_TARGET}-ld"                                        \
     AR="${CT_TARGET}-ar"                                        \
+    CT_DoExecLog ALL                                            \
     "${CT_SRC_DIR}/dmalloc-${CT_DMALLOC_VERSION}/configure"     \
         --prefix=/usr                                           \
         --build="${CT_BUILD}"                                   \
         --host="${CT_TARGET}"                                   \
-        ${extra_config}                                         2>&1 |CT_DoLog ALL
+        ${extra_config}
 
     CT_DoLog EXTRA "Building dmalloc"
-    make 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make 2>&1 |CT_DoLog ALL
 
     CT_DoLog EXTRA "Installing dmalloc"
-    make DESTDIR="${CT_SYSROOT_DIR}"       installincs      \
-                                           installlib       2>&1 |CT_DoLog ALL
-    make DESTDIR="${CT_DEBUG_INSTALL_DIR}" installutil      2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" installincs installlib
+    CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" installutil
 
     CT_EndStep
 }
