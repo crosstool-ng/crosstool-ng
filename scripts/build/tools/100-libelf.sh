@@ -25,6 +25,7 @@ do_tools_libelf_build() {
 
     CT_DoLog EXTRA "Configuring libelf"
     CC="${CT_TARGET}-gcc"                                   \
+    CT_DoExecLog ALL                                        \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_TARGET}                                 \
@@ -34,13 +35,13 @@ do_tools_libelf_build() {
         --enable-elf64                                      \
         --enable-shared                                     \
         --enable-extended-format                            \
-        --enable-static                                     2>&1 |CT_DoLog ALL
+        --enable-static
 
     CT_DoLog EXTRA "Building libelf"
-    make    2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing libelf"
-    make instroot="${CT_SYSROOT_DIR}" install   2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make instroot="${CT_SYSROOT_DIR}" install
 
     CT_Popd
     CT_EndStep
