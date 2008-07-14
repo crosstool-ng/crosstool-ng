@@ -102,9 +102,9 @@ do_binutils_target() {
         install_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1install-/g;')
 
         CT_DoLog EXTRA "Building binutils' libraries (${targets}) for target"
-        CT_DoExeCLog ALL make ${PARALLELMFLAGS} ${build_targets}
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} ${build_targets}
         CT_DoLog EXTRA "Installing binutils' libraries (${targets}) for target"
-        CT_DoExeCLog ALL make DESTDIR="${CT_SYSROOT_DIR}" ${install_targets}
+        CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" ${install_targets}
 
         CT_Popd
         CT_EndStep
