@@ -37,13 +37,14 @@ do_debug_foobar_build() {
     # For example:
     # mkdir -p "${CT_BUILD_DIR}/build-foobar"
     # CT_Pushd "${CT_BUILD_DIR}/build-foobar"
+    # CT_DoExecLog ALL                                        \
     # "${CT_SRC_DIR}/foobar-${CT_FOOBAR_VERSION}/configure"   \
     #     --build=${CT_BUILD}                                 \
     #     --host=${CT_TARGET}                                 \
     #     --prefix=/usr                                       \
     #     --foobar-options
-    # make
-    # make DESTDIR="${CT_SYSROOT_DIR}" install
+    # CT_DoExecLog ALL make
+    # CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
     # CT_Popd
     :
 }
