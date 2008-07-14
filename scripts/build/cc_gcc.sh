@@ -71,6 +71,7 @@ do_cc_core_static() {
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"         \
         ${CT_CANADIAN_OPT}                          \
         --host=${CT_HOST}                           \
@@ -87,18 +88,18 @@ do_cc_core_static() {
         --enable-languages=c                        \
         --disable-shared                            \
         --enable-target-optspace                    \
-        ${CT_CC_CORE_EXTRA_CONFIG}                  2>&1 |CT_DoLog ALL
+        ${CT_CC_CORE_EXTRA_CONFIG}
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
-        make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
     fi
 
     CT_DoLog EXTRA "Building static core C compiler"
-    make ${PARALLELMFLAGS} all-gcc 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS} all-gcc
 
     CT_DoLog EXTRA "Installing static core C compiler"
-    make install-gcc 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make install-gcc
 
     CT_EndStep
 }
@@ -129,6 +130,7 @@ do_cc_core_shared() {
 
     CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"         \
         ${CT_CANADIAN_OPT}                          \
         --target=${CT_TARGET}                       \
@@ -143,7 +145,7 @@ do_cc_core_shared() {
         --enable-languages=c                        \
         --enable-shared                             \
         --enable-target-optspace                    \
-        ${CT_CC_CORE_EXTRA_CONFIG}                  2>&1 |CT_DoLog ALL
+        ${CT_CC_CORE_EXTRA_CONFIG}
 
     # HACK: we need to override SHLIB_LC from gcc/config/t-slibgcc-elf-ver or
     # gcc/config/t-libunwind so -lc is removed from the link for
@@ -162,36 +164,32 @@ do_cc_core_shared() {
     # Next we have to configure gcc, create libgcc.mk then edit it...
     # So much easier if we just edit the source tree, but hey...
     if [ ! -f "${CT_SRC_DIR}/${CT_CC_FILE}/gcc/BASE-VER" ]; then
-        make configure-libiberty
-        make ${PARALLELMFLAGS} -C libiberty libiberty.a
-        make configure-gcc
-        make configure-libcpp
-        make ${PARALLELMFLAGS} all-libcpp
+        CT_DoExecLog ALL make configure-libiberty
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
+        CT_DoExecLog ALL make configure-gcc configure-libcpp
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp
     else
-        make configure-gcc
-        make configure-libcpp
-        make configure-build-libiberty
-        make ${PARALLELMFLAGS} all-libcpp
-        make ${PARALLELMFLAGS} all-build-libiberty
-    fi 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make configure-gcc configure-libcpp configure-build-libiberty
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
+    fi
     # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
     if [ -d "${CT_SRC_DIR}/${CT_CC_FILE}/libdecnumber" ]; then
-        make configure-libdecnumber
-        make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
-    fi 2>&1 |CT_DoLog ALL
-    make -C gcc libgcc.mk 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make configure-libdecnumber
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
+    fi
+    CT_DoExecLog ALL make -C gcc libgcc.mk
     sed -r -i -e 's@-lc@@g' gcc/libgcc.mk
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
-        make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
     fi
 
     CT_DoLog EXTRA "Building shared core C compiler"
-    make ${PARALLELMFLAGS} all-gcc 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS} all-gcc
 
     CT_DoLog EXTRA "Installing shared core C compiler"
-    make install-gcc 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make install-gcc
 
     CT_EndStep
 }
@@ -244,6 +242,7 @@ do_cc() {
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"     \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"   \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"   \
+    CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"     \
         ${CT_CANADIAN_OPT}                      \
         --target=${CT_TARGET} --host=${CT_HOST} \
@@ -257,11 +256,11 @@ do_cc() {
         --enable-c99                            \
         --enable-long-long                      \
         --enable-target-optspace                \
-        ${CT_CC_EXTRA_CONFIG}                   2>&1 |CT_DoLog ALL
+        ${CT_CC_EXTRA_CONFIG}
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
-        make ${PARALLELMFLAGS} all-build-libiberty 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
     fi
 
     # Idea from <cort.dougan at gmail.com>:
@@ -285,14 +284,14 @@ do_cc() {
     esac
 
     CT_DoLog EXTRA "Building final compiler"
-    make ${PARALLELMFLAGS} all 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS} all
 
     CT_DoLog EXTRA "Installing final compiler"
-    make install 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make install
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
-    ln "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-{g,}cc
+    ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-{g,}cc 2>&1 |CT_DoLog ALL
 
     # gcc installs stuff in prefix/target/lib, when it would make better sense
     # to install that into sysroot/usr/lib
