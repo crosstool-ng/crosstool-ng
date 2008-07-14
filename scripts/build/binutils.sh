@@ -33,6 +33,7 @@ do_binutils() {
 
     CT_DoLog EXTRA "Configuring binutils"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
         ${CT_CANADIAN_OPT}                          \
         --build=${CT_BUILD}                         \
@@ -45,13 +46,13 @@ do_binutils() {
         ${binutils_opts}                            \
         ${CT_ARCH_WITH_FLOAT}                       \
         ${CT_BINUTILS_EXTRA_CONFIG}                 \
-        ${BINUTILS_SYSROOT_ARG}                     2>&1 |CT_DoLog ALL
+        ${BINUTILS_SYSROOT_ARG}
 
     CT_DoLog EXTRA "Building binutils"
-    make ${PARALLELMFLAGS}  2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
     CT_DoLog EXTRA "Installing binutils"
-    make install            2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make install
 
     # Make those new tools available to the core C compilers to come.
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
@@ -65,7 +66,7 @@ do_binutils() {
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
-    done |CT_DoLog ALL
+    done 2>&1 |CT_DoLog ALL
 
     CT_EndStep
 }
@@ -83,6 +84,7 @@ do_binutils_target() {
         CT_Pushd "${CT_BUILD_DIR}/build-binutils-for-target"
 
         CT_DoLog EXTRA "Configuring binutils for target"
+        CT_DoExecLog ALL                                \
         "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -94,15 +96,15 @@ do_binutils_target() {
             --disable-nls                               \
             --disable-multilib                          \
             ${CT_ARCH_WITH_FLOAT}                       \
-            ${CT_BINUTILS_EXTRA_CONFIG}                 2>&1 |CT_DoLog ALL
+            ${CT_BINUTILS_EXTRA_CONFIG}
 
         build_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1all-/g;')
         install_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1install-/g;')
 
         CT_DoLog EXTRA "Building binutils' libraries (${targets}) for target"
-        make ${PARALLELMFLAGS} ${build_targets}  2>&1 |CT_DoLog ALL
+        CT_DoExeCLog ALL make ${PARALLELMFLAGS} ${build_targets}
         CT_DoLog EXTRA "Installing binutils' libraries (${targets}) for target"
-        make DESTDIR="${CT_SYSROOT_DIR}" ${install_targets}  2>&1 |CT_DoLog ALL
+        CT_DoExeCLog ALL make DESTDIR="${CT_SYSROOT_DIR}" ${install_targets}
 
         CT_Popd
         CT_EndStep
