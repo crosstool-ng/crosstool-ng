@@ -108,21 +108,23 @@ do_kernel_install() {
     esac
 
     CT_DoLog EXTRA "Installing kernel headers"
+    CT_DoExecLog ALL                                \
     make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
          O=$(pwd)                                   \
          ARCH=${CT_KERNEL_ARCH}                     \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
          ${V_OPT}                                   \
-         headers_install                            2>&1 |CT_DoLog ALL
+         headers_install
 
     if [ "${CT_KERNEL_LINUX_HEADERS_INSTALL_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking installed headers"
+        CT_DoExecLog ALL                                \
         make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
              O=$(pwd)                                   \
              ARCH=${CT_KERNEL_ARCH}                     \
              INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
              ${V_OPT}                                   \
-             headers_check                              2>&1 |CT_DoLog ALL
+             headers_check
         find "${CT_SYSROOT_DIR}" -type f -name '.check*' -exec rm {} \;
     fi
 }
