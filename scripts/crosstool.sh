@@ -235,13 +235,12 @@ case "${CT_PROXY_TYPE}" in
     CT_DoLog DEBUG "http_proxy='${http_proxy}'"
     ;;
   sockssys)
-    CT_HasOrAbort tsocks
     # Force not using HTTP proxy
     unset http_proxy ftp_proxy https_proxy
+    CT_HasOrAbort tsocks
     . tsocks -on
     ;;
   socks*)
-    CT_HasOrAbort tsocks
     # Force not using HTTP proxy
     unset http_proxy ftp_proxy https_proxy
     # Remove any lingering config file from any previous run
@@ -249,7 +248,7 @@ case "${CT_PROXY_TYPE}" in
     # Find all interfaces and build locally accessible networks
     server_ip=$(ping -c 1 -W 2 "${CT_PROXY_HOST}" |head -n 1 |sed -r -e 's/^[^\(]+\(([^\)]+)\).*$/\1/;' || true)
     CT_TestOrAbort "SOCKS proxy '${CT_PROXY_HOST}' has no IP." -n "${server_ip}"
-    /sbin/ifconfig |gawk -v server_ip="${server_ip}" '
+    /sbin/ifconfig |awk -v server_ip="${server_ip}" '
       BEGIN {
         split( server_ip, tmp, "\\." );
         server_ip_num = tmp[1] * 2^24 + tmp[2] * 2^16 + tmp[3] * 2^8 + tmp[4] * 2^0;
@@ -308,7 +307,9 @@ case "${CT_PROXY_TYPE}" in
       ;;
     esac
     echo "server_type = ${proxy_type}" >> "${CT_BUILD_DIR}/tsocks.conf"
-    validateconf -f "${CT_BUILD_DIR}/tsocks.conf" 2>&1 |CT_DoLog DEBUG
+    CT_HasOrAbort tsocks
+    # If tsocks was found, then validateconf is present (distributed with tsocks).
+    CT_DoExecLog DEBUG validateconf -f "${CT_BUILD_DIR}/tsocks.conf"
     export TSOCKS_CONF_FILE="${CT_BUILD_DIR}/tsocks.conf"
     . tsocks -on
     ;;
