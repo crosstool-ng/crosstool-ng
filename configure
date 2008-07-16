@@ -3,6 +3,27 @@
 VERSION=$(cat .version)
 DATE=$(date +%Y%m%d)
 
+# All absolutely required tools, one per line to ease diff.
+# See function 'has_or_abort, below, for syntax
+#  - Hopefully, if gcc is present, then all associated tools will be
+#  - awk must be GNU awk
+#  - makeinfo for building docs, even if discarded later on
+#  - others obvious... :-/
+TOOLS_TO_CHECK='
+make/^GNU
+gcc
+awk/^GNU
+sed
+bison
+flex
+makeinfo
+patch
+tar
+gzip
+bzip2
+foo/^GNU
+'
+
 PREFIX_DEFAULT=/usr/local
 
 BINDIR_set=
@@ -13,6 +34,37 @@ LOCAL_set=
 
 do_quit=
 CONTRIB_list=
+
+# Simply print the error message, and exit. Obvious, he?
+do_error() {
+    echo "${@}"
+    exit 1
+}
+
+# A small function to test for existence of various tools
+# Usage: has_or_abort foobar
+#          -> foobar must exist in PATH
+# Usage: has_or_abort foobar/string
+#          -> foobar must exist in PATH, and $(foobar --version) must contain 'string'
+has_or_abort() {
+    tool=$(echo "${1}/" |cut -d / -f 1)
+    regexp=$(echo "${1}/" |cut -d / -f 2)
+    printf "Checking for '${tool}'... "
+    where=$(which "${tool}" 2>/dev/null || true)
+    if [ -z "${where}" ]; then
+        do_error "not found!"
+    else
+        printf "${where}"
+        if [ -n "${regexp}" ]; then
+            str=$(${tool} --version 2>&1 |egrep "${regexp}" |head -n 1)
+            if [ -z "${str}" ]; then
+                do_error " failed: '${tool} --version' does not match regexp '${regexp}'"
+            fi
+        fi
+        echo
+    fi
+    return 0
+}
 
 # Given an option string and the following argument,
 # echoes the value of the option.
@@ -124,11 +176,6 @@ Optional Features:
 __EOF__
 }
 
-do_error() {
-    echo "[ERROR] ${@}"
-    exit 1
-}
-
 #---------------------------------------------------------------------
 # Set user's options
 
@@ -193,24 +240,32 @@ echo "${VERSION}"
 [ -z "${MANDIR_set}" ] && MANDIR="${PREFIX}/share/man/man1"
 
 # Check bash is present, and at least version 3.0
-printf "Checking bash is at least bash-3.0... "
-[ -x /bin/bash ] || do_error "bash 3.0 or above was not found in /bin/bash"
+printf "Checking '/bin/bash' is at least bash-3.0... "
+[ -x /bin/bash ] || do_error "bash 3.0 or above was not found in '/bin/bash'"
 bash_version=$(/bin/bash -c 'echo ${BASH_VERSION}')
 bash_major=$(/bin/bash -c 'echo ${BASH_VERSINFO[0]}')
-[ ${bash_major} -ge 3 ] || do_error "bash 3.0 or above is needed (/bin/bash is ${bash_version})"
-echo "ok (${bash_version})"
+[ ${bash_major} -ge 3 ] || do_error "bash 3.0 or above is needed ('/bin/bash' is '${bash_version}')"
+echo "${bash_version}"
 
-printf "Applying contributed code: "
+# Check the existence of absolutely required tools
+for tool in ${TOOLS_TO_CHECK}; do
+    has_or_abort "${tool}"
+done
+
 # It's safer to change all ',' to spaces rather than setting IFS
 CONTRIB_list=$(echo "${CONTRIB_list}" |sed -r -e 's/,+/ /g;')
-for c in ${CONTRIB_list}; do
-    printf "${c}, "
-    if [ ! -f "contrib/${c}.patch.lzma" ]; then
-        do_error "Contribution '${c}' does not exist"
-    fi
-    lzcat "contrib/${c}.patch.lzma" |patch -p1 >/dev/null 2>&1
-done
-echo "done"
+if [ -n "${CONTRIB_list}" ]; then
+    has_or_abort lzcat
+    printf "Applying contributed code: "
+    for c in ${CONTRIB_list}; do
+        printf "${c}, "
+        if [ ! -f "contrib/${c}.patch.lzma" ]; then
+            do_error "Contribution '${c}' does not exist"
+        fi
+        lzcat "contrib/${c}.patch.lzma" |patch -p1 >/dev/null 2>&1
+    done
+    echo "done"
+fi
 
 printf "Building up Makefile... "
 sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
@@ -221,9 +276,10 @@ sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
        -e "s,@@DATE@@,${DATE},g;"       \
        -e "s,@@LOCAL@@,${LOCAL_set},g;" \
        Makefile.in >Makefile
-echo "ok"
+echo "done"
 
 cat <<__EOF__
+
 crosstool-NG configured as follows:
   PREFIX='${PREFIX}'
   BINDIR='${BINDIR}'
