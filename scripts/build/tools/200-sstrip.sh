@@ -31,6 +31,7 @@ case "${CT_SSTRIP_FROM}" in
     ;;
 
     buildroot)
+        CT_HasOrAbort lynx
         sstrip_url='http://buildroot.uclibc.org/cgi-bin/viewcvs.cgi/trunk/buildroot/toolchain/sstrip/sstrip.c'
         do_print_filename() {
             echo "sstrip.c"

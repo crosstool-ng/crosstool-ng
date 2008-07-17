@@ -53,11 +53,6 @@ CT_TestAndAbort "Don't set CFLAGS. It screws up the build." -n "${CFLAGS}"
 CT_TestAndAbort "Don't set CXXFLAGS. It screws up the build." -n "${CXXFLAGS}"
 CT_Test "GREP_OPTIONS screws up the build. Resetting." -n "${GREP_OPTIONS}"
 GREP_OPTIONS=
-CT_HasOrAbort awk
-CT_HasOrAbort sed
-CT_HasOrAbort bison
-CT_HasOrAbort flex
-CT_HasOrAbort lynx
 
 CT_DoLog INFO "Building environment variables"
 
