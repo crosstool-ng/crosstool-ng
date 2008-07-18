@@ -31,6 +31,8 @@ DOCDIR_set=
 MANDIR_set=
 LOCAL_set=
 
+FORCE=0
+
 do_quit=
 CONTRIB_list=
 
@@ -51,13 +53,16 @@ has_or_abort() {
     printf "Checking for '${tool}'... "
     where=$(which "${tool}" 2>/dev/null || true)
     if [ -z "${where}" ]; then
-        do_error "not found!"
+        printf "not found!"
+        [ ${FORCE} -eq 0 ] && do_error " bailing out..."
+        echo
     else
         printf "${where}"
         if [ -n "${regexp}" ]; then
             str=$(${tool} --version 2>&1 |egrep "${regexp}" |head -n 1)
             if [ -z "${str}" ]; then
-                do_error " failed: '${tool} --version' does not match regexp '${regexp}'"
+                printf " failed: '${tool} --version' does not match regexp '${regexp}'"
+                [ ${FORCE} -eq 0 ] && do_error " bailing out..."
             fi
         fi
         echo
@@ -153,6 +158,9 @@ Configuration:
 Installation directories:
   --prefix=PREFIX         install files in PREFIX [${PREFIX_DEFAULT}]
   --local                 don't install, and use current directory
+  --force                 force ./configure to run, even if a tool was not
+                          found. Use at your own risk, only if you know
+                          what you are doing!
 
 By default, \`make install' will install all the files in
 \`${PREFIX_DEFAULT}/bin', \`${PREFIX_DEFAULT}/lib' etc.  You can specify
@@ -186,6 +194,7 @@ while [ $# -ne 0 ]; do
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
         --local)    LOCAL_set=1; shift;;
+        --force)    FORCE=1; shift;;
         --with-contrib*)
                     set_contrib "$1" "$2" && shift || shift 2
                     [ "${do_quit}" = "1" ] && exit 0
