@@ -18,6 +18,9 @@ rm -f "${tmp_log_file}"
 CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
 . "${CT_TOP_DIR}/.config"
 
+# Do not use a progress bar
+unset CT_LOG_PROGRESS_BAR
+
 # Parse the architecture-specific functions
 . "${CT_LIB_DIR}/arch/${CT_ARCH}/functions"
 
@@ -28,8 +31,8 @@ CT_DoBuildTargetTuple
 # re-parse them:
 . "${CT_TOP_DIR}/.config"
 
-# Override log level
-unset CT_LOG_ERROR CT_LOG_INFO CT_LOG_EXTRA CT_LOG_DEBUG LOG_ALL
+# Override log options
+unset CT_LOG_PROGRESS_BAR CT_LOG_ERROR CT_LOG_INFO CT_LOG_EXTRA CT_LOG_DEBUG LOG_ALL
 CT_LOG_WARN=y
 CT_LOG_LEVEL_MAX="WARN"
 
