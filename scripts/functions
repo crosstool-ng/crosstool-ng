@@ -361,18 +361,50 @@ CT_GetFile() {
             return 0
         fi
     done
-    # Try to download it
+
+    # Not found locally, try from the network
     CT_DoLog EXTRA "Retrieving '${file}' from network"
+
+    # Start with LAN mirror
+    if [ "${CT_USE_LAN_MIRROR}" = "y" ]; then
+        LAN_URLs=
+        for pat in ${CT_LAN_MIRROR_PATTERNS}; do
+            # Please note: we just have the file's basename in a single piece.
+            # So we have to just try and split it back into name and version... :-(
+            pat="${pat//\%pkg/${file%-*}}"
+            pat="${pat//\%ver/${file##*-}}"
+            LAN_URLs="${LAN_URLs} ${CT_LAN_MIRROR_SCHEME}://${CT_LAN_MIRROR_HOSTNAME}/${pat}"
+        done
+        for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
+            for url in ${LAN_URLs}; do
+                CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
+                CT_DoGetFile "${url}/${file}${ext}"
+                if [ -f "${file}${ext}" ]; then
+                    if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
+                        # No need to test if the file already exists because
+                        # it does NOT. If it did exist, we'd have been stopped
+                        # above, when looking for local copies.
+                        CT_DoLog EXTRA "Saving '${file}' to local storage"
+                        mv "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}" |CT_DoLog ALL
+                        ln -sv "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
+                    fi
+                    return 0
+                fi
+            done
+        done
+    fi
+
+    # OK, available neither localy, nor from the LAN mirror (if any).
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         # Try all urls in turn
         for url in "$@"; do
             CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
             CT_DoGetFile "${url}/${file}${ext}"
             if [ -f "${file}${ext}" ]; then
-                # No need to test if the file already exists because
-                # it does NOT. If it did exist, we'd have been stopped
-                # above, when looking for local copies.
                 if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
+                    # No need to test if the file already exists because
+                    # it does NOT. If it did exist, we'd have been stopped
+                    # above, when looking for local copies.
                     CT_DoLog EXTRA "Saving '${file}' to local storage"
                     mv "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}" |CT_DoLog ALL
                     ln -sv "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL

@@ -11,51 +11,99 @@ config FORCE_DOWNLOAD
       
       Usefull if you suspect a tarball to be damaged.
 
-config ONLY_DOWNLOAD
+menuconfig USE_LAN_MIRROR
     bool
-    prompt "Stop after downloading tarballs"
+    prompt "Use LAN mirror"
     default n
     help
-      Only download the tarballs. Exit once it done.
+      If you have a machine on your LAN that mirrors some of the needed
+      tarballs, you can say 'Y' here, and configure adequate values in
+      the following options.
       
-      Usefull to pre-retrieve the tarballs before going off-line.
+      Tarballs will be be preferably fetched from the LAN mirror, and if
+      not found there, standard places will be searched for.
 
-config CONNECT_TIMEOUT
-    int
-    prompt "connection timeout"
-    default 10
+if USE_LAN_MIRROR
+
+choice
+    bool
+    prompt "Server type:"
+
+config LAN_MIRROR_HTTP
+    bool
+    prompt "http"
+
+config LAN_MIRROR_FTP
+    bool
+    prompt "ftp"
+
+endchoice # Server type
+
+config LAN_MIRROR_SCHEME
+    string
+    default "http"  if LAN_MIRROR_HTTP
+    default "ftp"   if LAN_MIRROR_FTP
+
+config LAN_MIRROR_HOSTNAME
+    string
+    prompt "hostname"
+    depends on EXPERIMENTAL
+    default  "localhost"
     help
-      From the curl manual:
-        Maximum time in seconds that you allow the connection to the server to take.
+      Enter here the hostname on your LAN mirror.
 
-      The scenario is as follows;
-        - some enterprise networks have firewalls that prohibit FTP traffic, while
-          still allowing HTTP
-        - most download sites have http:// equivalent for the ftp:// URL
-        - after this number of seconds, it is considered that the connection could
-          not be established, and the next URL in the list is tried, until we reach
-          an URL that will go through the firewall, most probably an http:// URL.
+config LAN_MIRROR_PATTERNS
+    string
+    prompt "locations patterns (READ HELP!)"
+    default "/downloads /downloads/%pkg /downloads/%pkg/%ver /downloads/%pkg-%ver"
+    help
+      A space-separated list of patterns to find the tarballs on the
+      LAN mirror.
 
-      If you have a slow network, you'd better set this value higher than the default
-      10s. If you know a firewall is blocking connections, but your network is globally
-      fast, you can try to lower this value to jump more quickly to allowed URLs. YMMV.
+      You can use the following 'variables', and they'll get replaced by
+      adequate values:
+        %pkg : name of the package
+        %ver : version of the package
 
-      Note that this value applies equally to wget if you have that installed.
+      Thus for gcc-4.2.4, %pkg will be replaced with 'gcc', and %ver with
+      '4.2.4' (both without quotes). Thus if you entered the default
+      pattern: "/downloads/%pkg/ /downloads/%pkg/%ver /downloads/%pkg-%ver"
+      the tarball for gcc-4.2.4 would be searched for in:
+        /downloads/gcc/
+        /downloads/gcc/4.2.4/
+        /downloads/gcc-4.2.4/
 
-      Of course, you'd be better off to use a proxy, as offered by the following
-      choice of options.
+      Of course, if the files on the LAN mirror are really arranged in weird
+      ways, entering a list of patterns will be tedious... But see below.
+
+config LAN_MIRROR_LS_R
+    bool
+    prompt "Use ls-lr.gz et al."
+    default n
+    help
+      If the tarball was not found at any of the above locations, see if the
+      server has a ls-lr.gz (or similar) file, and use that file to see if
+      the tarball is listed somewhere in that file.
+
+      Common file names looked for are:
+        ls-lrRt.txt     (used at ftp.gnu.org)
+        find.txt        (ditto)
+        ls-lR
+
+endif # USE_LAN_MIRROR
+
+menuconfig USE_PROXY
+    bool
+    prompt "Proxy settings"
+    default n
+    help
+      Say 'Y' here if you need to use a proxy to connect to the internet.
+
+if USE_PROXY
 
 choice
     bool
     prompt "Proxy type"
-    default PROXY_TYPE_NONE
-
-config PROXY_TYPE_NONE
-    bool
-    prompt "No proxy"
-    help
-      Select this option if you have a direct connection to the internet,
-      or if you already set the environment adequately.
 
 config PROXY_TYPE_HTTP
     bool
@@ -173,11 +221,47 @@ endif # USE_SOCKS_PROXY
 
 endchoice
 
+endif # Proxy settings
+
 config PROXY_TYPE
     string
-    default "none"      if PROXY_TYPE_NONE
+    default "none"      if ! USE_PROXY
     default "http"      if PROXY_TYPE_HTTP
     default "sockssys"  if PROXY_TYPE_SOCKS_SYS
     default "socksauto" if PROXY_TYPE_SOCKS_AUTO
     default "socks4"    if PROXY_TYPE_SOCKS_4
     default "socks5"    if PROXY_TYPE_SOCKS_5
+
+config CONNECT_TIMEOUT
+    int
+    prompt "connection timeout"
+    default 10
+    help
+      From the curl manual:
+        Maximum time in seconds that you allow the connection to the server to take.
+
+      The scenario is as follows;
+        - some enterprise networks have firewalls that prohibit FTP traffic, while
+          still allowing HTTP
+        - most download sites have http:// equivalent for the ftp:// URL
+        - after this number of seconds, it is considered that the connection could
+          not be established, and the next URL in the list is tried, until we reach
+          an URL that will go through the firewall, most probably an http:// URL.
+
+      If you have a slow network, you'd better set this value higher than the default
+      10s. If you know a firewall is blocking connections, but your network is globally
+      fast, you can try to lower this value to jump more quickly to allowed URLs. YMMV.
+
+      Note that this value applies equally to wget if you have that installed.
+
+      Of course, you'd be better off to use a proxy, as offered by the previous
+      option.
+
+config ONLY_DOWNLOAD
+    bool
+    prompt "Stop after downloading tarballs"
+    default n
+    help
+      Only download the tarballs. Exit once it done.
+      
+      Usefull to pre-retrieve the tarballs before going off-line.
