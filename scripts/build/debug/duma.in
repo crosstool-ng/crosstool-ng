@@ -13,7 +13,18 @@ case "$1" in
     shift
     ;;
   -off)
-    LD_PRELOAD="${LD_PRELOAD//${LIBDUMA_SO}/}"
+    # We use a suposedly POSIX-compliant shell: /bin/sh
+    #  -> we can't use "${LD_PRELOAD//${LIBDUMA_SO}/}", it's not POSIX
+    # We don't know if sed will be present on the target
+    #  -> we can't use $(echo "${LD_PRELOAD}" |sed -r -e "s|${LIBDUMA_SO}||;")
+    # So, iterate through LD_PRELOAD, and keep only those libs that
+    # are not "${LIBDUMA_SO}"
+    old_LD_PRELOAD="${LD_PRELOAD}"
+    LD_PRELOAD=
+    for lib in ${old_LD_PRELOAD}; do
+      [ "${lib}" = "${LIBDUMA_SO}" ] || LD_PRELOAD="${LD_PRELOAD} ${lib}"
+    done
+    unset old_LD_PRELOAD
     shift
     ;;
   -show)
