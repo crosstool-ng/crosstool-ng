@@ -53,8 +53,10 @@ dump_single_sample() {
         fi
     else
         printf "| ''${sample}''  "
+        printf "|  ''${CT_KERNEL}''  "
         printf "|  ${CT_KERNEL_VERSION}  "
         printf "|  ${CT_BINUTILS_VERSION}  "
+        printf "|  ''${CT_CC}''  "
         printf "|  ${CT_CC_VERSION}  "
         printf "|  ''${CT_LIBC}''  "
         printf "|  ${CT_LIBC_VERSION}  "
@@ -68,7 +70,7 @@ dump_single_sample() {
         [ "${CT_CC_LANG_OBJC}" = "y"    ] && printf ", Objective-C"
         [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ", Objective-C++"
         [ -n "${CT_CC_LANG_OTHERS}"     ] && printf "\\\\\\\\ Others: ${CT_CC_LANG_OTHERS}"
-        printf "  |  "
+        printf "  "
         if [ -f "${sample_top}/samples/${sample}/reported.by" ]; then
             ( . "${sample_top}/samples/${sample}/reported.by"
               if [ -n "${reporter_url}" ]; then
@@ -91,16 +93,15 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^ $(date +%Y%m%d.%H%M) ^ ||||||||||"
+    echo "^ $(date +%Y%m%d.%H%M) ^ |||||||||||"
     printf "^ Target "
-    printf "^  Kernel headers\\\\\\\\ version  "
+    printf "^  Kernel headers\\\\\\\\ version  ^"
     printf "^  binutils version  "
-    printf "^  gcc version  "
+    printf "^  C compiler\\\\\\\\ version  ^"
     printf "^  C library version  ^"
     printf "^  Threading model  "
     printf "^  Floating point\\\\\\\\ support  "
     printf "^  Languages  "
-    printf "^  Misc  "
     printf "^  Reported by  "
     echo   "^"
 fi
