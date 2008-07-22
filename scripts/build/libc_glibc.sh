@@ -17,13 +17,19 @@ do_libc_get() {
     # Ah! Not all GNU folks seem stupid. All glibc releases are in the same
     # directory. Good. Alas, there is no snapshot there. I'll deal with them
     # later on... :-/
-    CT_GetFile "${CT_LIBC_FILE}" {ftp,http}://ftp.gnu.org/gnu/glibc
+    CT_GetFile "${CT_LIBC_FILE}"                        \
+               {ftp,http}://ftp.gnu.org/gnu/glibc       \
+               ftp://gcc.gnu.org/pub/glibc/releases     \
+               ftp://gcc.gnu.org/pub/glibc/snapshots
 
     # C library addons
     for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be downloaded, in any case
         [ "${addon}" = "nptl" ] && continue || true
-        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" {ftp,http}://ftp.gnu.org/gnu/glibc
+        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" \
+                   {ftp,http}://ftp.gnu.org/gnu/glibc       \
+                   ftp://gcc.gnu.org/pub/glibc/releases     \
+                   ftp://gcc.gnu.org/pub/glibc/snapshots
     done
 
     return 0
@@ -219,6 +225,12 @@ do_libc_start_files() {
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+    # In case we're using a snapshot, fake a >=2.6 version.
+    if [    "${CT_LIBC_V_LATEST}" = "y" \
+         -o "${CT_LIBC_V_date}" = "y"   ]; then
+        glibc_version_major=3
+        glibc_version_minor=0
+    fi
     if [    ${glibc_version_major} -eq 2 -a ${glibc_version_minor} -ge 6    \
          -o ${glibc_version_major} -gt 2                                    ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
@@ -324,6 +336,12 @@ do_libc() {
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+    # In case we're using a snapshot, fake a >=2.6 version.
+    if [    "${CT_LIBC_V_LATEST}" = "y" \
+         -o "${CT_LIBC_V_date}" = "y"   ]; then
+        glibc_version_major=3
+        glibc_version_minor=0
+    fi
     if [    ${glibc_version_major} -eq 2 -a ${glibc_version_minor} -ge 6    \
          -o ${glibc_version_major} -gt 2                                    ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
