@@ -43,7 +43,7 @@ trap "rm -f $tmp" 0 1 2 3 15
 # Check if we can link to ncurses
 check() {
 	echo "main() {}" | $cc -xc - -o $tmp 2> /dev/null
-	if [ $? != 0 ]; then
+	if [ $? -ne 0 ]; then
 		echo " *** Unable to find the ncurses libraries."          1>&2
 		echo " *** make menuconfig require the ncurses libraries"  1>&2
 		echo " *** "                                               1>&2
@@ -57,7 +57,7 @@ usage() {
 	printf "Usage: $0 [-check compiler options|-header|-library]\n"
 }
 
-if [ $# == 0 ]; then
+if [ $# -eq 0 ]; then
 	usage
 	exit 1
 fi
