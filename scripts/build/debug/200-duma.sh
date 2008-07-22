@@ -12,10 +12,13 @@ do_debug_duma_get() {
     # D.U.M.A. doesn't separate its name from its version with a dash,
     # but with an underscore. Create a link so that crosstool-NG can
     # work correctly:
-    cd "${CT_TARBALLS_DIR}"
+    CT_Pushd "${CT_TARBALLS_DIR}"
     duma_ext=$(CT_GetFileExtension "duma_${CT_DUMA_VERSION}")
     rm -f "duma-${CT_DUMA_VERSION}${duma_ext}"
     ln -sf "duma_${CT_DUMA_VERSION}${duma_ext}" "duma-${CT_DUMA_VERSION}${duma_ext}"
+    # Downloading from sourceforge leaves garbage, cleanup
+    rm -f showfiles.php\?group_id\=*
+    CT_Popd
 }
 
 do_debug_duma_extract() {
