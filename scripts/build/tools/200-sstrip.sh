@@ -31,7 +31,6 @@ case "${CT_SSTRIP_FROM}" in
     ;;
 
     buildroot)
-        CT_HasOrAbort lynx
         do_print_filename() {
             echo "sstrip.c"
         }
