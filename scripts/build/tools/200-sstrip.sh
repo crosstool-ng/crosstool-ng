@@ -32,38 +32,13 @@ case "${CT_SSTRIP_FROM}" in
 
     buildroot)
         CT_HasOrAbort lynx
-        sstrip_url='http://buildroot.uclibc.org/cgi-bin/viewcvs.cgi/trunk/buildroot/toolchain/sstrip/sstrip.c'
         do_print_filename() {
             echo "sstrip.c"
         }
         do_tools_sstrip_get() {
-            # With this one, we must handle the download by ourselves,
-            # we can't leave the job to the classic CT_GetFile.
-            if [ -f "${CT_TARBALLS_DIR}/sstrip.c" ]; then
-                return 0
-            fi
-            if [ -f "${CT_LOCAL_TARBALLS_DIR}/sstrip.c" ]; then
-                CT_DoLog EXTRA "Using 'sstrip' from local storage"
-                ln -sf "${CT_LOCAL_TARBALLS_DIR}/sstrip.c"  \
-                       "${CT_TARBALLS_DIR}/sstrip.c"        2>&1 |CT_DoLog ALL
-                return 0
-            fi
-            CT_Pushd "${CT_TARBALLS_DIR}"
-            CT_DoLog EXTRA "Retrieving 'sstrip' from network"
-            http_data=$(lynx -dump "${sstrip_url}")
-            link=$(echo -en "${http_data}"                          \
-                  |egrep '\[[[:digit:]]+\]download'                 \
-                  |sed -r -e 's/.*\[([[:digit:]]+)\]download.*/\1/;')
-            rev_url=$(echo -en "${http_data}"                       \
-                     |egrep '^ *8\.'                                \
-                     |sed -r -e 's/^ *'${link}'\. +(.+)$/\1/;')
-            CT_DoGetFile "${rev_url}" 2>&1 |CT_DoLog ALL
-            mv -v sstrip.c?* sstrip.c 2>&1 |CT_DoLog DEBUG
-            if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-                CT_DoLog EXTRA "Saving 'sstrip.c' to local storage"
-                CT_DoExecLog ALL cp -v sstrip.c "${CT_LOCAL_TARBALLS_DIR}"
-            fi
-            CT_Popd
+            # Note: the space between sstrip and .c is on purpose.
+            CT_GetFile sstrip .c    \
+                       "http://buildroot.uclibc.org/cgi-bin/viewcvs.cgi/*checkout*/trunk/buildroot/toolchain/sstrip/"
         }
         do_tools_sstrip_extract() {
             # We'll let buildroot guys take care of sstrip maintenance and patching.
