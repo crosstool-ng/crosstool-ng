@@ -177,8 +177,26 @@ do_cc_core_shared() {
         CT_DoExecLog ALL make configure-libdecnumber
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
     fi
-    CT_DoExecLog ALL make -C gcc libgcc.mk
-    sed -r -i -e 's@-lc@@g' gcc/libgcc.mk
+
+    # Starting with GCC 4.3, libgcc.mk is no longer built,
+    # and libgcc.mvars is used instead.
+
+    gcc_version_major=$(echo ${CT_CC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
+    gcc_version_minor=$(echo ${CT_CC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+
+    if [    ${gcc_version_major} -eq 4 -a ${gcc_version_minor} -ge 3    \
+         -o ${gcc_version_major} -gt 4                                  ]; then
+        libgcc_rule="libgcc.mvars"
+        build_rules="all-gcc all-target-libgcc"
+        install_rules="install-gcc install-target-libgcc"
+    else
+        libgcc_rule="libgcc.mk"
+        build_rules="all-gcc"
+        install_rules="install-gcc"
+    fi
+
+    CT_DoExecLog ALL make -C gcc ${libgcc_rule}
+    sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
@@ -186,10 +204,10 @@ do_cc_core_shared() {
     fi
 
     CT_DoLog EXTRA "Building shared core C compiler"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} all-gcc
+    CT_DoExecLog ALL make ${PARALLELMFLAGS} ${build_rules}
 
     CT_DoLog EXTRA "Installing shared core C compiler"
-    CT_DoExecLog ALL make install-gcc
+    CT_DoExecLog ALL make ${install_rules}
 
     CT_EndStep
 }
