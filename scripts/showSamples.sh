@@ -53,7 +53,11 @@ dump_single_sample() {
         fi
     else
         printf "| ''${sample}''  "
-        printf "|  ''${CT_KERNEL}''  "
+        if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
+            printf "|  //custom//  "
+        else
+            printf "|  ''${CT_KERNEL}''  "
+        fi
         printf "|  ${CT_KERNEL_VERSION}  "
         printf "|  ${CT_BINUTILS_VERSION}  "
         printf "|  ''${CT_CC}''  "
