@@ -262,18 +262,20 @@ CT_DoYes() {
 }
 
 # Get the file name extension of a component
-# Usage: CT_GetFileExtension <component_name-component_version>
+# Usage: CT_GetFileExtension <component_name-component_version> [extension]
 # If found, echoes the extension to stdout
 # If not found, echoes nothing on stdout.
 CT_GetFileExtension() {
     local ext
     local file="$1"
+    shift
+    local first_ext="$1"
 
     CT_Pushd "${CT_TARBALLS_DIR}"
     # we need to also check for an empty extension for those very
     # peculiar components that don't have one (such as sstrip from
     # buildroot).
-    for ext in .tar.gz .tar.bz2 .tgz .tar ''; do
+    for ext in ${first_ext} .tar.gz .tar.bz2 .tgz .tar ''; do
         if [ -f "${file}${ext}" ]; then
             echo "${ext}"
             break
@@ -343,7 +345,7 @@ CT_GetFile() {
     esac
 
     # Do we already have it?
-    ext=$(CT_GetFileExtension "${file}")
+    ext=$(CT_GetFileExtension "${file}" ${first_ext})
     if [ -n "${ext}" ]; then
         CT_DoLog DEBUG "Already have '${file}'"
         return 0
