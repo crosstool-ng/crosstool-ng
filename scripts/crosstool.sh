@@ -495,7 +495,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
             if [ "${CT_STOP}" = "${step}" ]; then
                 do_stop=1
             fi
-            if [ "${CTDEBUG_CT_PAUSE_STEPS}" = "y" ]; then
+            if [ "${CT_DEBUG_PAUSE_STEPS}" = "y" ]; then
                 CT_DoPause "Step '${step}' finished"
             fi
         fi
