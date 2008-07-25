@@ -109,6 +109,12 @@ if [ "${opt}" = -w ]; then
     printf "^  Reported by  "
     echo   "^"
 fi
+
 for sample in "${@}"; do
     ( dump_single_sample ${opt} ${width} "${sample}" )
 done
+
+if [ "${opt}" = -w ]; then
+    printf "^ Total: ${#@} samples  | |||||||||||"
+    echo   ""
+fi
