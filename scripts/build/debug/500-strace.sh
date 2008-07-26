@@ -9,6 +9,10 @@ do_print_filename() {
 
 do_debug_strace_get() {
     CT_GetFile "strace-${CT_STRACE_VERSION}" http://mesh.dl.sourceforge.net/sourceforge/strace/
+    # Downloading from sourceforge leaves garbage, cleanup
+    CT_Pushd "${CT_TARBALLS_DIR}"
+    rm -f showfiles.php\?group_id\=*
+    CT_Popd
 }
 
 do_debug_strace_extract() {
