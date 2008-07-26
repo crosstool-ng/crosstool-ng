@@ -95,6 +95,7 @@ do_libc_headers() {
 
     libc_cv_ppc_machine=yes                     \
     CC=${cross_cc}                              \
+    CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
         --build="${CT_UNIQ_BUILD}"              \
         --host="${CT_TARGET}"                   \
@@ -104,7 +105,7 @@ do_libc_headers() {
         --disable-sanity-checks                 \
         --enable-hacker-mode                    \
         ${addons_config}                        \
-        --without-nptl                          2>&1 |CT_DoLog ALL
+        --without-nptl
 
     CT_DoLog EXTRA "Installing C library headers"
 
@@ -121,39 +122,45 @@ do_libc_headers() {
         # Note: BOOTSTRAP_GCC is used by:
         # patches/glibc-2.3.5/glibc-mips-bootstrap-gcc-header-install.patch
 
-        libc_cv_ppc_machine=yes                                 \
-        make CFLAGS="-O -DBOOTSTRAP_GCC" sysdeps/gnu/errlist.c  2>&1 |CT_DoLog ALL
+        libc_cv_ppc_machine=yes             \
+        CT_DoExecLog ALL                    \
+        make CFLAGS="-O -DBOOTSTRAP_GCC"    \
+             sysdeps/gnu/errlist.c
         mkdir -p stdio-common
 
         # sleep for 2 seconds for benefit of filesystems with lousy time
         # resolution, like FAT, so make knows for sure errlist-compat.c doesn't
         # need generating
         sleep 2
-        touch stdio-common/errlist-compat.c
+        CT_DoExecLog ALL touch stdio-common/errlist-compat.c
     fi
     # Note: BOOTSTRAP_GCC (see above)
-    libc_cv_ppc_machine=yes                                 \
-    make cross-compiling=yes install_root=${CT_SYSROOT_DIR} \
-         CFLAGS="-O -DBOOTSTRAP_GCC" ${LIBC_SYSROOT_ARG}    \
-         install-headers                                    2>&1 |CT_DoLog ALL
+    libc_cv_ppc_machine=yes             \
+    CT_DoExecLog ALL                    \
+    make cross-compiling=yes            \
+         install_root=${CT_SYSROOT_DIR} \
+         CFLAGS="-O -DBOOTSTRAP_GCC"    \
+         ${LIBC_SYSROOT_ARG}            \
+         install-headers
 
     # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
     # so do them by hand.  We can tolerate an empty stubs.h for the moment.
     # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
     mkdir -p "${CT_HEADERS_DIR}/gnu"
-    touch "${CT_HEADERS_DIR}/gnu/stubs.h"
-    cp "${CT_SRC_DIR}/${CT_LIBC_FILE}/include/features.h" "${CT_HEADERS_DIR}/features.h"
+    CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
+    CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/${CT_LIBC_FILE}/include/features.h"  \
+                           "${CT_HEADERS_DIR}/features.h"
 
     # Building the bootstrap gcc requires either setting inhibit_libc, or
     # having a copy of stdio_lim.h... see
     # http://sources.redhat.com/ml/libc-alpha/2003-11/msg00045.html
-    cp bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
+    CT_DoExecLog ALL cp -v bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
 
     # Following error building gcc-4.0.0's gcj:
     #  error: bits/syscall.h: No such file or directory
     # solved by following copy; see http://sourceware.org/ml/crossgcc/2005-05/msg00168.html
     # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
-    [ "${CT_ARCH}" != "arm" ] && cp misc/syscall-list.h "${CT_HEADERS_DIR}/bits/syscall.h" || true
+    [ "${CT_ARCH}" != "arm" ] && CT_DoExecLog ALL cp -v misc/syscall-list.h "${CT_HEADERS_DIR}/bits/syscall.h" || true
 
     # Those headers are to be manually copied so gcc can build properly
     pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
@@ -177,10 +184,10 @@ do_libc_headers() {
             ;;
     esac
     if [ -n "${pthread_h}" ]; then
-        cp -v "${pthread_h}" "${CT_HEADERS_DIR}/pthread.h" 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL cp -v "${pthread_h}" "${CT_HEADERS_DIR}/pthread.h"
     fi
     if [ -n "${pthreadtypes_h}" ]; then
-        cp -v "${pthreadtypes_h}" "${CT_HEADERS_DIR}/bits/pthreadtypes.h" 2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL cp -v "${pthreadtypes_h}" "${CT_HEADERS_DIR}/bits/pthreadtypes.h"
     fi
 
     CT_EndStep
@@ -262,6 +269,7 @@ do_libc_start_files() {
     CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}"      \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
+    CT_DoExecLog ALL                                                \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
         --prefix=/usr                                               \
         --build="${CT_UNIQ_BUILD}"                                  \
@@ -273,19 +281,19 @@ do_libc_start_files() {
         --with-headers="${CT_HEADERS_DIR}"                          \
         --cache-file=config.cache                                   \
         ${extra_config}                                             \
-        ${CT_LIBC_GLIBC_EXTRA_CONFIG}                               2>&1 |CT_DoLog ALL
+        ${CT_LIBC_GLIBC_EXTRA_CONFIG}
 
 
     #TODO: should check whether slibdir has been set in configparms to */lib64
     #      and copy the startfiles into the appropriate libdir.
     CT_DoLog EXTRA "Building C library start files"
-    make csu/subdir_lib 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make csu/subdir_lib
 
     CT_DoLog EXTRA "Installing C library start files"
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        cp -fp csu/crt[1in].o "${CT_SYSROOT_DIR}/usr/lib/"
+        CT_DoExecLog ALL cp -fpv csu/crt[1in].o "${CT_SYSROOT_DIR}/usr/lib/"
     else
-        cp -fp csu/crt[1in].o "${CT_SYSROOT_DIR}/lib/"
+        CT_DoExecLog ALL cp -fpv csu/crt[1in].o "${CT_SYSROOT_DIR}/lib/"
     fi
 
     CT_EndStep
@@ -331,7 +339,6 @@ do_libc() {
         "") ;;
         *)  extra_config="${extra_config} --enable-add-ons=$(do_libc_add_ons_list ,)";;
     esac
-
 
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
@@ -389,6 +396,7 @@ do_libc() {
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
+    CT_DoExecLog ALL                                                \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
         --prefix=/usr                                               \
         --build=${CT_UNIQ_BUILD}                                    \
@@ -401,7 +409,7 @@ do_libc() {
         --cache-file=config.cache                                   \
         --with-headers="${CT_HEADERS_DIR}"                          \
         ${extra_config}                                             \
-        ${CT_LIBC_GLIBC_EXTRA_CONFIG}                               2>&1 |CT_DoLog ALL
+        ${CT_LIBC_GLIBC_EXTRA_CONFIG}
 
     if grep -l '^install-lib-all:' "${CT_SRC_DIR}/${CT_LIBC_FILE}/Makerules" > /dev/null; then
         # nptl-era glibc.
@@ -433,14 +441,14 @@ do_libc() {
     # Note: LD and RANLIB needed by glibc-2.1.3's c_stub directory, at least on macosx
     # No need for PARALLELMFLAGS here, Makefile already reads this environment variable
     CT_DoLog EXTRA "Building C library"
-    make LD=${CT_TARGET}-ld             \
-         RANLIB=${CT_TARGET}-ranlib     \
-         ${GLIBC_INITIAL_BUILD_RULE}    2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make LD=${CT_TARGET}-ld            \
+                           RANLIB=${CT_TARGET}-ranlib   \
+                           ${GLIBC_INITIAL_BUILD_RULE}
 
     CT_DoLog EXTRA "Installing C library"
-    make install_root="${CT_SYSROOT_DIR}"   \
-         ${LIBC_SYSROOT_ARG}                \
-         ${GLIBC_INITIAL_INSTALL_RULE}      2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"  \
+                          ${LIBC_SYSROOT_ARG}               \
+                          ${GLIBC_INITIAL_INSTALL_RULE}
 
     # This doesn't seem to work when building a crosscompiler,
     # as it tries to execute localedef using the just-built ld.so!?
@@ -463,13 +471,13 @@ do_libc() {
     for file in libc.so libpthread.so libgcc_s.so; do
         for dir in lib lib64 usr/lib usr/lib64; do
             if [ -f "${CT_SYSROOT_DIR}/${dir}/${file}" -a ! -L ${CT_SYSROOT_DIR}/$lib/$file ]; then
-                cp "${CT_SYSROOT_DIR}/${dir}/${file}" "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
+                CT_DoExecLog ALL cp -v "${CT_SYSROOT_DIR}/${dir}/${file}" "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
                 CT_DoLog DEBUG "Fixing '${CT_SYS_ROOT_DIR}/${dir}/${file}'"
-                sed -i -r -e 's,/usr/lib/,,g;
-                              s,/usr/lib64/,,g;
-                              s,/lib/,,g;
-                              s,/lib64/,,g;
-                              /BUG in libc.scripts.output-format.sed/d' "${CT_SYSROOT_DIR}/${dir}/${file}"
+                CT_DoExecLog ALL sed -i -r -e 's,/usr/lib/,,g;
+                                               s,/usr/lib64/,,g;
+                                               s,/lib/,,g;
+                                               s,/lib64/,,g;
+                                               /BUG in libc.scripts.output-format.sed/d' "${CT_SYSROOT_DIR}/${dir}/${file}"
             fi
         done
     done
@@ -490,14 +498,14 @@ do_libc_finish() {
     cd "${CT_BUILD_DIR}/build-libc"
 
     CT_DoLog EXTRA "Re-building C library"
-    make LD=${CT_TARGET}-ld RANLIB=${CT_TARGET}-ranlib 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL make LD=${CT_TARGET}-ld RANLIB=${CT_TARGET}-ranlib
 
     CT_DoLog EXTRA "Installing missing C library components"
     # note: should do full install and then fix linker scripts, but this is faster
     for t in bin rootsbin sbin data others; do
-        make install_root="${CT_SYSROOT_DIR}"   \
-             ${LIBC_SYSROOT_ARG}                \
-             install-${t}                       2>&1 |CT_DoLog ALL
+        CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"  \
+                              ${LIBC_SYSROOT_ARG}               \
+                              install-${t}
     done
 
     CT_EndStep
