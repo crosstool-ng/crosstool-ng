@@ -195,7 +195,7 @@ do_cc_core_shared() {
         install_rules="install-gcc"
     fi
 
-    CT_DoExecLog ALL make -C gcc ${libgcc_rule}
+    CT_DoExecLog ALL make ${PARALLELMFLAGS} -C gcc ${libgcc_rule}
     sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
 
     if [ "${CT_CANADIAN}" = "y" ]; then
