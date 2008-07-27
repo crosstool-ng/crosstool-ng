@@ -42,8 +42,10 @@ if [ ! -d "${CT_TOP_DIR}/samples/${CT_TARGET}" ]; then
 fi
 
 # Save the crosstool-NG config file
-sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'   \
-    <"${CT_TOP_DIR}/.config"                                            \
+sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'       \
+       -e 's|^# CT_LOG_TO_FILE is not set$|CT_LOG_TO_FILE=y|;'              \
+       -e 's|^# CT_LOG_FILE_COMPRESS is not set$|CT_LOG_FILE_COMPRESS=y|;'  \
+    <"${CT_TOP_DIR}/.config"                                                \
     >"${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 
 # Function to copy a file to the sample directory
