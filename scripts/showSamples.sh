@@ -106,7 +106,7 @@ if [ "${opt}" = -w ]; then
     printf "^  Threading model  "
     printf "^  Floating point\\\\\\\\ support  "
     printf "^  Languages  "
-    printf "^  Reported by  "
+    printf "^  First reported by  "
     echo   "^"
 fi
 
