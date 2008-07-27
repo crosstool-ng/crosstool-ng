@@ -636,13 +636,17 @@ CT_DoSaveState() {
     esac
 
     CT_DoLog DEBUG "  Saving environment and aliases"
-    # We must omit shell functions
+    # We must omit shell functions, and some specific bash variables
+    # that break when restoring the environment, later. We could do
+    # all the processing in the awk script, but a sed is easier...
     set |awk '
-         BEGIN { _p = 1; }
-         $0~/^[^ ]+ \(\)/ { _p = 0; }
-         _p == 1
-         $0 == "}" { _p = 1; }
-         ' >"${state_dir}/env.sh"
+             BEGIN { _p = 1; }
+             $0~/^[^ ]+ \(\)/ { _p = 0; }
+             _p == 1
+             $0 == "}" { _p = 1; }
+             ' |sed -r -e '/^BASH_(ARGC|ARGV|LINENO|SOURCE|VERSINFO)=/d;
+                           /^(UID|EUID)=/d;
+                           /^(FUNCNAME|GROUPS|PPID|SHELLOPTS)=/d;' >"${state_dir}/env.sh"
 
     CT_DoLog DEBUG "  Saving CT_CC_CORE_STATIC_PREFIX_DIR='${CT_CC_CORE_STATIC_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
