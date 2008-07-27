@@ -350,6 +350,20 @@ if [ -z "${CT_RESTART}" ]; then
     mkdir -p "${CT_SYSROOT_DIR}/lib"
     mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
 
+    # Prevent gcc from installing its libraries outside of the sys-root
+    ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
+
+    # Now, in case we're 64 bits, just have lib64/ be a symlink to lib/
+    # so as to have all libraries in the same directory (we can do that
+    # because we are *not* multilib).
+    case "${CT_TARGET}" in
+        powerpc64*|ppc64*|x86_64*)
+            ln -sf "lib" "${CT_SYSROOT_DIR}/lib64"
+            ln -sf "lib" "${CT_SYSROOT_DIR}/usr/lib64"
+            ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib64"
+            ;;
+    esac
+
     # Canadian-cross are really picky on the way they are built. Tweak the values.
     CT_UNIQ_BUILD=$(echo "${CT_BUILD}" |sed -r -e 's/-/-build_/')
     if [ "${CT_CANADIAN}" = "y" ]; then
