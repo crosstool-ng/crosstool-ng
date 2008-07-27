@@ -281,26 +281,6 @@ do_cc() {
         CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
     fi
 
-    # Idea from <cort.dougan at gmail.com>:
-    # Fix lib/lib64 confusion for GCC 3.3.3 on PowerPC64 and x86_64.
-    # GCC 3.4.0 and up don't suffer from this confusion, and don't need this
-    # kludge.
-    # FIXME: we should patch gcc's source rather than uglify crosstool.sh.
-    # FIXME: is this needed for gcc-3.3.[56]?
-    case "${CT_CC_FILE}" in
-      gcc-3.3.[34])
-        case "${CT_TARGET}" in
-          powerpc64-unknown-linux-gnu|x86_64-unknown-linux-gnu)
-            for d in $(find "${CT_SYSROOT_DIR}" -name lib -type d -empty); do
-              if [ -d $(dirname "${d}")/lib64 ] ; then
-                rm -rf "${d}"
-                ln -s $(dirname "${d}")/lib64 "${d}"
-              fi
-            done ;;
-          *) ;;
-        esac ;;
-    esac
-
     CT_DoLog EXTRA "Building final compiler"
     CT_DoExecLog ALL make ${PARALLELMFLAGS} all
 
@@ -310,12 +290,6 @@ do_cc() {
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
     ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-{g,}cc 2>&1 |CT_DoLog ALL
-
-    # gcc installs stuff in prefix/target/lib, when it would make better sense
-    # to install that into sysroot/usr/lib
-    CT_DoLog EXTRA "Moving improperly installed gcc libs to sysroot"
-    ( cd "${CT_PREFIX_DIR}/${CT_TARGET}/lib"; tar cf - . ) | ( cd "${CT_SYSROOT_DIR}/usr/lib"; tar xfv - ) |CT_DoLog ALL
-    rm -rf "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
 
     CT_EndStep
 }
