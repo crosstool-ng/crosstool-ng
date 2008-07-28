@@ -1,0 +1,237 @@
+Patch provided bu Ioannis E. VENETIS
+
+Using:
+
+typedef int lll_lock_t;
+
+creates problems during compilation. Since glibc 2.7 got rid of the 'typedef' and
+uses directly 'int', we do the same here.
+
+diff -Naur glibc-2.6/nptl/allocatestack.c glibc-2.6.new/nptl/allocatestack.c
+--- glibc-2.6/nptl/allocatestack.c	2006-08-23 20:39:47.000000000 +0300
++++ glibc-2.6.new/nptl/allocatestack.c	2008-07-27 20:56:19.000000000 +0300
+@@ -103,7 +103,7 @@
+ static size_t stack_cache_actsize;
+ 
+ /* Mutex protecting this variable.  */
+-static lll_lock_t stack_cache_lock = LLL_LOCK_INITIALIZER;
++static int stack_cache_lock = LLL_LOCK_INITIALIZER;
+ 
+ /* List of queued stack frames.  */
+ static LIST_HEAD (stack_cache);
+diff -Naur glibc-2.6/nptl/descr.h glibc-2.6.new/nptl/descr.h
+--- glibc-2.6/nptl/descr.h	2006-09-24 20:10:55.000000000 +0300
++++ glibc-2.6.new/nptl/descr.h	2008-07-27 20:54:41.000000000 +0300
+@@ -304,10 +304,10 @@
+   int parent_cancelhandling;
+ 
+   /* Lock to synchronize access to the descriptor.  */
+-  lll_lock_t lock;
++  int lock;
+ 
+   /* Lock for synchronizing setxid calls.  */
+-  lll_lock_t setxid_futex;
++  int setxid_futex;
+ 
+ #if HP_TIMING_AVAIL
+   /* Offset of the CPU clock at start thread start time.  */
+diff -Naur glibc-2.6/nptl/pthread_attr_init.c glibc-2.6.new/nptl/pthread_attr_init.c
+--- glibc-2.6/nptl/pthread_attr_init.c	2004-03-19 01:56:31.000000000 +0200
++++ glibc-2.6.new/nptl/pthread_attr_init.c	2008-07-27 20:55:03.000000000 +0300
+@@ -27,7 +27,7 @@
+ 
+ 
+ struct pthread_attr *__attr_list;
+-lll_lock_t __attr_list_lock = LLL_LOCK_INITIALIZER;
++int __attr_list_lock = LLL_LOCK_INITIALIZER;
+ 
+ 
+ int
+diff -Naur glibc-2.6/nptl/pthreadP.h glibc-2.6.new/nptl/pthreadP.h
+--- glibc-2.6/nptl/pthreadP.h	2006-08-23 20:42:52.000000000 +0300
++++ glibc-2.6.new/nptl/pthreadP.h	2008-07-27 20:56:40.000000000 +0300
+@@ -143,7 +143,7 @@
+ 
+ /* Attribute handling.  */
+ extern struct pthread_attr *__attr_list attribute_hidden;
+-extern lll_lock_t __attr_list_lock attribute_hidden;
++extern int __attr_list_lock attribute_hidden;
+ 
+ /* First available RT signal.  */
+ extern int __current_sigrtmin attribute_hidden;
+diff -Naur glibc-2.6/nptl/semaphoreP.h glibc-2.6.new/nptl/semaphoreP.h
+--- glibc-2.6/nptl/semaphoreP.h	2006-05-11 20:08:37.000000000 +0300
++++ glibc-2.6.new/nptl/semaphoreP.h	2008-07-27 20:55:42.000000000 +0300
+@@ -48,7 +48,7 @@
+ extern void *__sem_mappings attribute_hidden;
+ 
+ /* Lock to protect the search tree.  */
+-extern lll_lock_t __sem_mappings_lock attribute_hidden;
++extern int __sem_mappings_lock attribute_hidden;
+ 
+ 
+ /* Initializer for mountpoint.  */
+diff -Naur glibc-2.6/nptl/sem_open.c glibc-2.6.new/nptl/sem_open.c
+--- glibc-2.6/nptl/sem_open.c	2006-05-11 20:09:43.000000000 +0300
++++ glibc-2.6.new/nptl/sem_open.c	2008-07-27 20:55:22.000000000 +0300
+@@ -147,7 +147,7 @@
+ void *__sem_mappings attribute_hidden;
+ 
+ /* Lock to protect the search tree.  */
+-lll_lock_t __sem_mappings_lock attribute_hidden = LLL_LOCK_INITIALIZER;
++int __sem_mappings_lock attribute_hidden = LLL_LOCK_INITIALIZER;
+ 
+ 
+ /* Search for existing mapping and if possible add the one provided.  */
+diff -Naur glibc-2.6/nptl/pthread_once.c glibc-2.6.new/nptl/pthread_once.c
+--- glibc-2.6/nptl/pthread_once.c	2002-11-27 00:50:31.000000000 +0200
++++ glibc-2.6.new/nptl/pthread_once.c	2008-07-27 20:57:12.000000000 +0300
+@@ -22,7 +22,7 @@
+ 
+ 
+ 
+-static lll_lock_t once_lock = LLL_LOCK_INITIALIZER;
++static int once_lock = LLL_LOCK_INITIALIZER;
+ 
+ 
+ int
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/alpha/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/alpha/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/alpha/lowlevellock.h	2006-07-29 08:06:07.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/alpha/lowlevellock.h	2008-07-27 20:59:15.000000000 +0300
+@@ -230,9 +230,6 @@
+ /* Our internal lock implementation is identical to the binary-compatible
+    mutex implementation. */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ /* Initializers for lock.  */
+ #define LLL_LOCK_INITIALIZER		(0)
+ #define LLL_LOCK_INITIALIZER_LOCKED	(1)
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/fork.c glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/fork.c
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/fork.c	2003-12-21 01:37:13.000000000 +0200
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/fork.c	2008-07-27 21:00:01.000000000 +0300
+@@ -183,7 +183,7 @@
+ 	}
+ 
+       /* Initialize the fork lock.  */
+-      __fork_lock = (lll_lock_t) LLL_LOCK_INITIALIZER;
++      __fork_lock = (int) LLL_LOCK_INITIALIZER;
+     }
+   else
+     {
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/fork.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/fork.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/fork.h	2006-05-15 23:19:43.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/fork.h	2008-07-27 20:58:49.000000000 +0300
+@@ -26,7 +26,7 @@
+ extern unsigned long int *__fork_generation_pointer attribute_hidden;
+ 
+ /* Lock to protect allocation and deallocation of fork handlers.  */
+-extern lll_lock_t __fork_lock attribute_hidden;
++extern int __fork_lock attribute_hidden;
+ 
+ /* Elements of the fork handler lists.  */
+ struct fork_handler
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/i386/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/i386/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/i386/lowlevellock.h	2006-09-05 17:44:25.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/i386/lowlevellock.h	2008-07-27 21:00:19.000000000 +0300
+@@ -436,9 +436,6 @@
+ /* We have a separate internal lock implementation which is not tied
+    to binary compatibility.  */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ /* Initializers for lock.  */
+ #define LLL_LOCK_INITIALIZER		(0)
+ #define LLL_LOCK_INITIALIZER_LOCKED	(1)
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/ia64/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/ia64/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/ia64/lowlevellock.h	2006-07-29 08:06:07.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/ia64/lowlevellock.h	2008-07-27 20:58:16.000000000 +0300
+@@ -223,9 +223,6 @@
+ /* We have a separate internal lock implementation which is not tied
+    to binary compatibility.  We can use the lll_mutex_*.  */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ extern int lll_unlock_wake_cb (int *__futex) attribute_hidden;
+ 
+ /* Initializers for lock.  */
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/powerpc/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/powerpc/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/powerpc/lowlevellock.h	2006-07-29 08:06:07.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/powerpc/lowlevellock.h	2008-07-27 21:00:36.000000000 +0300
+@@ -254,9 +254,6 @@
+ /* Our internal lock implementation is identical to the binary-compatible
+    mutex implementation. */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ /* Initializers for lock.  */
+ #define LLL_LOCK_INITIALIZER		(0)
+ #define LLL_LOCK_INITIALIZER_LOCKED	(1)
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/register-atfork.c glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/register-atfork.c
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/register-atfork.c	2005-12-22 00:17:21.000000000 +0200
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/register-atfork.c	2008-07-27 21:00:55.000000000 +0300
+@@ -24,7 +24,7 @@
+ 
+ 
+ /* Lock to protect allocation and deallocation of fork handlers.  */
+-lll_lock_t __fork_lock = LLL_LOCK_INITIALIZER;
++int __fork_lock = LLL_LOCK_INITIALIZER;
+ 
+ 
+ /* Number of pre-allocated handler entries.  */
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/s390/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/s390/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/s390/lowlevellock.h	2006-07-29 08:06:07.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/s390/lowlevellock.h	2008-07-27 21:01:14.000000000 +0300
+@@ -309,9 +309,6 @@
+ /* We have a separate internal lock implementation which is not tied
+    to binary compatibility.  We can use the lll_mutex_*.  */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ /* Initializers for lock.  */
+ #define LLL_LOCK_INITIALIZER		(0)
+ #define LLL_LOCK_INITIALIZER_LOCKED	(1)
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/sh/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/sh/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/sh/lowlevellock.h	2006-07-29 08:06:06.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/sh/lowlevellock.h	2008-07-27 20:58:00.000000000 +0300
+@@ -278,9 +278,6 @@
+ /* We have a separate internal lock implementation which is not tied
+    to binary compatibility.  */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ /* Initializers for lock.  */
+ #define LLL_LOCK_INITIALIZER		(0)
+ #define LLL_LOCK_INITIALIZER_LOCKED	(1)
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/sparc/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/sparc/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/sparc/lowlevellock.h	2006-07-29 08:06:06.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/sparc/lowlevellock.h	2008-07-27 20:59:39.000000000 +0300
+@@ -237,9 +237,6 @@
+ /* We have a separate internal lock implementation which is not tied
+    to binary compatibility.  We can use the lll_mutex_*.  */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ extern int lll_unlock_wake_cb (int *__futex) attribute_hidden;
+ 
+ /* Initializers for lock.  */
+diff -Naur glibc-2.6/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h
+--- glibc-2.6/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h	2006-09-05 17:45:34.000000000 +0300
++++ glibc-2.6.new/nptl/sysdeps/unix/sysv/linux/x86_64/lowlevellock.h	2008-07-27 20:58:33.000000000 +0300
+@@ -446,9 +446,6 @@
+ /* We have a separate internal lock implementation which is not tied
+    to binary compatibility.  */
+ 
+-/* Type for lock object.  */
+-typedef int lll_lock_t;
+-
+ /* Initializers for lock.  */
+ #define LLL_LOCK_INITIALIZER		(0)
+ #define LLL_LOCK_INITIALIZER_LOCKED	(1)

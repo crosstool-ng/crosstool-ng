@@ -1,0 +1,50 @@
+Patch pointed to by Ryan ARNOLD on the libc-help ML.
+See: http://sourceware.org/ml/libc-help/2008-06/msg00063.html
+
+Forwarded to crosstool-NG by Ioannis E. VENETIS:
+See: http://sourceware.org/ml/libc-help/2008-06/msg00063.html
+
+GCC 4.3 changed the location of some of the header files.  I don't
+understand why you'd be getting these errors while building GCC since
+it provides them.
+
+With regard to GLIBC, Roland checked in some changes so that the GLIBC
+build system could find the new locations of the GCC provided header
+files.
+
+diff -durN glibc-2.6.orig/configure.in glibc-2.6/configure.in
+--- glibc-2.6.orig/configure.in	2007-06-08 05:16:36.000000000 +0200
++++ glibc-2.6/configure.in	2008-06-24 18:38:46.000000000 +0200
+@@ -911,8 +911,12 @@
+ # header directory and add that to the list.  NOTE: Only does the right
+ # thing on a system that doesn't need fixincludes.  (Not presently a problem.)
+ if test -n "$sysheaders"; then
+-  ccheaders=`$CC -print-file-name=include`
+-  SYSINCLUDES="-nostdinc -isystem $ccheaders \
++  SYSINCLUDES=-nostdinc
++  for d in include include-fixed; do
++    i=`$CC -print-file-name="$d"` && test "x$i" != x && test "x$i" != "x$d" &&
++    SYSINCLUDES="$SYSINCLUDES -isystem $i"
++  done
++  SYSINCLUDES="$SYSINCLUDES \
+ -isystem `echo $sysheaders | sed 's/:/ -isystem /g'`"
+   if test -n "$CXX"; then
+     cxxversion=`$CXX -dumpversion 2>&AS_MESSAGE_LOG_FD` &&
+diff -durN glibc-2.6.orig/configure glibc-2.6/configure
+--- glibc-2.6.orig/configure	2008-06-24 18:35:34.000000000 +0200
++++ glibc-2.6/configure	2008-06-24 18:38:46.000000000 +0200
+@@ -4562,8 +4562,12 @@
+ # header directory and add that to the list.  NOTE: Only does the right
+ # thing on a system that doesn't need fixincludes.  (Not presently a problem.)
+ if test -n "$sysheaders"; then
+-  ccheaders=`$CC -print-file-name=include`
+-  SYSINCLUDES="-nostdinc -isystem $ccheaders \
++  SYSINCLUDES=-nostdinc
++  for d in include include-fixed; do
++    i=`$CC -print-file-name="$d"` && test "x$i" != "x$d" &&
++    SYSINCLUDES="$SYSINCLUDES -isystem $i"
++  done
++  SYSINCLUDES="$SYSINCLUDES \
+ -isystem `echo $sysheaders | sed 's/:/ -isystem /g'`"
+   if test -n "$CXX"; then
+     cxxversion=`$CXX -dumpversion 2>&5` &&
