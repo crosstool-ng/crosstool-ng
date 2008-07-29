@@ -86,6 +86,14 @@ dump_single_sample() {
         else
             printf "|  [[http://ymorin.is-a-geek.org/|YEM]]  "
         fi
+        sample_updated=$(date -u "+%Y%m%d"                                                  \
+                              -d "$(LC_ALL=C svn info ${sample_top}/samples/${sample}       \
+                                    |GREP_OPTIONS= egrep '^Last Changed Date:'              \
+                                    |sed -r -e 's/^[^:]+: //;'                              \
+                                            -e 's/^(.+:.. [+-][[:digit:]]{4}) \(.+\)$/\1/;' \
+                                   )"                                                       \
+                        )
+        printf "|  ${sample_updated}  "
         echo "|"
     fi
 }
@@ -97,7 +105,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^ $(date +%Y%m%d.%H%M) ^ |||||||||||"
+    echo "^ @@DATE@@  ^ ||||||||||||"
     printf "^ Target "
     printf "^  Kernel headers\\\\\\\\ version  ^"
     printf "^  binutils version  "
@@ -106,7 +114,8 @@ if [ "${opt}" = -w ]; then
     printf "^  Threading model  "
     printf "^  Floating point\\\\\\\\ support  "
     printf "^  Languages  "
-    printf "^  First reported by  "
+    printf "^  Initially\\\\\\\\ reported by  "
+    printf "^  Last\\\\\\\\ updated  "
     echo   "^"
 fi
 
@@ -115,6 +124,6 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  | |||||||||||"
+    printf "^ Total: ${#@} samples  | ||||||||||||"
     echo   ""
 fi
