@@ -122,9 +122,10 @@ do_libc_headers() {
         # Note: BOOTSTRAP_GCC is used by:
         # patches/glibc-2.3.5/glibc-mips-bootstrap-gcc-header-install.patch
 
-        libc_cv_ppc_machine=yes             \
-        CT_DoExecLog ALL                    \
-        make CFLAGS="-O -DBOOTSTRAP_GCC"    \
+        libc_cv_ppc_machine=yes                         \
+        CT_DoExecLog ALL                                \
+        make CFLAGS="-O -DBOOTSTRAP_GCC"                \
+             OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"    \
              sysdeps/gnu/errlist.c
         mkdir -p stdio-common
 
@@ -135,12 +136,13 @@ do_libc_headers() {
         CT_DoExecLog ALL touch stdio-common/errlist-compat.c
     fi
     # Note: BOOTSTRAP_GCC (see above)
-    libc_cv_ppc_machine=yes             \
-    CT_DoExecLog ALL                    \
-    make cross-compiling=yes            \
-         install_root=${CT_SYSROOT_DIR} \
-         CFLAGS="-O -DBOOTSTRAP_GCC"    \
-         ${LIBC_SYSROOT_ARG}            \
+    libc_cv_ppc_machine=yes                         \
+    CT_DoExecLog ALL                                \
+    make cross-compiling=yes                        \
+         install_root=${CT_SYSROOT_DIR}             \
+         CFLAGS="-O -DBOOTSTRAP_GCC"                \
+         ${LIBC_SYSROOT_ARG}                        \
+         OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"    \
          install-headers
 
     # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
@@ -287,7 +289,7 @@ do_libc_start_files() {
     #TODO: should check whether slibdir has been set in configparms to */lib64
     #      and copy the startfiles into the appropriate libdir.
     CT_DoLog EXTRA "Building C library start files"
-    CT_DoExecLog ALL make csu/subdir_lib
+    CT_DoExecLog ALL make OBJDUMP_FOR_HOST="${CT_TARGET}-objdump" csu/subdir_lib
 
     CT_DoLog EXTRA "Installing C library start files"
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
@@ -441,13 +443,15 @@ do_libc() {
     # Note: LD and RANLIB needed by glibc-2.1.3's c_stub directory, at least on macosx
     # No need for PARALLELMFLAGS here, Makefile already reads this environment variable
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL make LD=${CT_TARGET}-ld            \
-                           RANLIB=${CT_TARGET}-ranlib   \
+    CT_DoExecLog ALL make LD=${CT_TARGET}-ld                        \
+                           RANLIB=${CT_TARGET}-ranlib               \
+                           OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"  \
                            ${GLIBC_INITIAL_BUILD_RULE}
 
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"  \
-                          ${LIBC_SYSROOT_ARG}               \
+    CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"          \
+                          ${LIBC_SYSROOT_ARG}                       \
+                          OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
                           ${GLIBC_INITIAL_INSTALL_RULE}
 
     # This doesn't seem to work when building a crosscompiler,
@@ -503,8 +507,9 @@ do_libc_finish() {
     CT_DoLog EXTRA "Installing missing C library components"
     # note: should do full install and then fix linker scripts, but this is faster
     for t in bin rootsbin sbin data others; do
-        CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"  \
-                              ${LIBC_SYSROOT_ARG}               \
+        CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"          \
+                              ${LIBC_SYSROOT_ARG}                       \
+                              OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
                               install-${t}
     done
 
