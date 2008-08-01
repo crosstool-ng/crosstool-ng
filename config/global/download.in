@@ -11,93 +11,14 @@ config FORCE_DOWNLOAD
       
       Usefull if you suspect a tarball to be damaged.
 
-menuconfig USE_LAN_MIRROR
-    bool
-    prompt "Use LAN mirror"
-    default n
-    help
-      If you have a machine on your LAN that mirrors some of the needed
-      tarballs, you can say 'Y' here, and configure adequate values in
-      the following options.
-      
-      Tarballs will be be preferably fetched from the LAN mirror, and if
-      not found there, standard places will be searched for.
-
-if USE_LAN_MIRROR
-
-choice
-    bool
-    prompt "Server type:"
-
-config LAN_MIRROR_HTTP
-    bool
-    prompt "http"
-
-config LAN_MIRROR_FTP
-    bool
-    prompt "ftp"
-
-endchoice # Server type
-
-config LAN_MIRROR_SCHEME
-    string
-    default "http"  if LAN_MIRROR_HTTP
-    default "ftp"   if LAN_MIRROR_FTP
-
-config LAN_MIRROR_HOSTNAME
-    string
-    prompt "hostname"
-    depends on EXPERIMENTAL
-    default  "localhost"
-    help
-      Enter here the hostname on your LAN mirror.
-
-config LAN_MIRROR_PATTERNS
-    string
-    prompt "locations patterns (READ HELP!)"
-    default "/downloads /downloads/%pkg /downloads/%pkg/%ver /downloads/%pkg-%ver"
-    help
-      A space-separated list of patterns to find the tarballs on the
-      LAN mirror.
-
-      You can use the following 'variables', and they'll get replaced by
-      adequate values:
-        %pkg : name of the package
-        %ver : version of the package
-
-      Thus for gcc-4.2.4, %pkg will be replaced with 'gcc', and %ver with
-      '4.2.4' (both without quotes). Thus if you entered the default
-      pattern: "/downloads/%pkg/ /downloads/%pkg/%ver /downloads/%pkg-%ver"
-      the tarball for gcc-4.2.4 would be searched for in:
-        /downloads/gcc/
-        /downloads/gcc/4.2.4/
-        /downloads/gcc-4.2.4/
-
-      Of course, if the files on the LAN mirror are really arranged in weird
-      ways, entering a list of patterns will be tedious... But see below.
-
-config LAN_MIRROR_LS_R
-    bool
-    prompt "Use ls-lr.gz et al."
-    default n
-    help
-      If the tarball was not found at any of the above locations, see if the
-      server has a ls-lr.gz (or similar) file, and use that file to see if
-      the tarball is listed somewhere in that file.
-
-      Common file names looked for are:
-        ls-lrRt.txt     (used at ftp.gnu.org)
-        find.txt        (ditto)
-        ls-lR
-
-endif # USE_LAN_MIRROR
-
 menuconfig USE_PROXY
     bool
-    prompt "Proxy settings"
+    prompt "Use a proxy"
     default n
     help
       Say 'Y' here if you need to use a proxy to connect to the internet.
+      
+      You can then choose between an HTTP or a SOCKS 4/5 proxy.
 
 if USE_PROXY
 
@@ -112,7 +33,7 @@ config PROXY_TYPE_HTTP
       Use an HTTP proxy to connect to to the internet.
       Only the http and ftp protocols will be tunneled through this
       proxy.
-
+      
       Alternatively to setting this option, you can set and export the
       following variables in your environment:
         ftp_proxy=http://user:passwd@proxy.server:port/
@@ -150,18 +71,18 @@ config PROXY_TYPE_SOCKS
     prompt "SOCKS 4/5 proxy"
     help
       Use a Socks 4/5 proxy to connect to the internet.
-      All protocols can get tunneled through this kind of proxy (depending
-      on your proxy configuration, some do not allow all protocols, but
-      chances are that protocols needed by crosstool-NG are allowed).
-
+      All protocols can get tunneled through this kind of proxy (your
+      proxy configuration may not allow all protocols, but chances are
+      that protocols needed by crosstool-NG are allowed).
+      
       Alternatively to setting this option, you can configure tsocks
       system-wide, and set and export the following variable in your
       environment:
         LD_PRELOAD=/path/to/your/tsocks-library.so
-
+      
       This option makes use of the tsocks library. You will have to have tsocks
       installed on your system, of course.
-
+      
       If you think you do not know what tsocks is, or how to configure it,
       chances are that you do not need to set this option.
 
@@ -220,7 +141,7 @@ endif # USE_SOCKS_PROXY
 
 endchoice
 
-endif # Proxy settings
+endif # USE_PROXY
 
 config PROXY_TYPE
     string
@@ -231,6 +152,90 @@ config PROXY_TYPE
     default "socks4"    if PROXY_TYPE_SOCKS_4
     default "socks5"    if PROXY_TYPE_SOCKS_5
 
+menuconfig USE_LAN_MIRROR
+    bool
+    prompt "Use LAN mirror"
+    default n
+    help
+      If you have a machine on your LAN that mirrors some of the needed
+      tarballs, you can say 'Y' here, and configure adequate values in
+      the following options.
+      
+      Tarballs will be be preferably fetched from the LAN mirror, and if
+      not found there, standard places will be searched for.
+      
+      Obviously, nothing prevents you from using a mirror that is in fact
+      *not* on your LAN, for example on another subnet of your company's
+      network, or a mirror on the Internet.
+
+if USE_LAN_MIRROR
+
+config LAN_MIRROR_USE_PROXY
+    bool
+    prompt "Use the proxy"
+    default n
+    depends on USE_PROXY
+    help
+      Say 'Y' here if you need to use the proxy to connect to the LAN mirror.
+      
+      You'll need to say 'Y' if the LAN mirror is not really on your LAN.
+
+choice
+    bool
+    prompt "Server type:"
+
+config LAN_MIRROR_HTTP
+    bool
+    prompt "http"
+
+config LAN_MIRROR_FTP
+    bool
+    prompt "ftp"
+
+endchoice # Server type
+
+config LAN_MIRROR_SCHEME
+    string
+    default "http"  if LAN_MIRROR_HTTP
+    default "ftp"   if LAN_MIRROR_FTP
+
+config LAN_MIRROR_HOSTNAME
+    string
+    prompt "hostname"
+    default ""
+    help
+      Enter here the hostname on your LAN mirror.
+
+config LAN_MIRROR_BASE
+    string
+    prompt "Base directory"
+    default ""
+    help
+      This is the base directory searched for for tarballs. If you enter
+      /mirror, then the search is performed in the following directories
+      on the server:
+        /mirror/<name>/
+        /mirror/
+      
+      where <name> is replaced with the actual package name.
+
+config LAN_MIRROR_LS_R
+    bool
+#    prompt "Use ls-lR et al."
+    depends on EXPERIMENTAL
+    default n
+    help
+      If the tarball was not found at the above location, see if the server
+      has a ls-lr.gz (or similar) file, and use that file to see if the
+      tarball is listed somewhere in that file.
+      
+      Common file names looked for are:
+        ls-lrRt.txt     (used at ftp.gnu.org)
+        find.txt        (ditto)
+        ls-lR
+
+endif # USE_LAN_MIRROR
+
 config CONNECT_TIMEOUT
     int
     prompt "connection timeout"
@@ -238,7 +243,7 @@ config CONNECT_TIMEOUT
     help
       From the curl manual:
         Maximum time in seconds that you allow the connection to the server to take.
-
+      
       The scenario is as follows;
         - some enterprise networks have firewalls that prohibit FTP traffic, while
           still allowing HTTP
@@ -246,13 +251,13 @@ config CONNECT_TIMEOUT
         - after this number of seconds, it is considered that the connection could
           not be established, and the next URL in the list is tried, until we reach
           an URL that will go through the firewall, most probably an http:// URL.
-
+      
       If you have a slow network, you'd better set this value higher than the default
       10s. If you know a firewall is blocking connections, but your network is globally
       fast, you can try to lower this value to jump more quickly to allowed URLs. YMMV.
-
+      
       Note that this value applies equally to wget if you have that installed.
-
+      
       Of course, you'd be better off to use a proxy, as offered by the previous
       option.
 

@@ -101,8 +101,10 @@ if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
     CT_Abort "I will stop here to avoid any carnage"
 fi
 
-# Make all path absolute, it so much easier!
-CT_LOCAL_TARBALLS_DIR=$(CT_MakeAbsolutePath "${CT_LOCAL_TARBALLS_DIR}")
+if [ -n "${CT_LOCAL_TARBALLS_DIR}" ]; then
+    # Make absolute path, it so much easier!
+    CT_LOCAL_TARBALLS_DIR=$(CT_MakeAbsolutePath "${CT_LOCAL_TARBALLS_DIR}")
+fi
 
 # If the local tarball directory does not exist, say so, and don't try to save there!
 if [ ! -d "${CT_LOCAL_TARBALLS_DIR}" ]; then
@@ -209,105 +211,6 @@ case "${CT_LOG_TO_FILE}" in
         ;;
     *)  rm -f "${tmp_log_file}"
         ;;
-esac
-
-# Set environment for proxy access
-# This has to be done even if we are restarting, as they don't get
-# saved in the step snapshot.
-case "${CT_PROXY_TYPE}" in
-  none) ;;
-  http)
-    http_proxy="http://"
-    case  "${CT_PROXY_USER}:${CT_PROXY_PASS}" in
-      :)      ;;
-      :*)     http_proxy="${http_proxy}:${CT_PROXY_PASS}@";;
-      *:)     http_proxy="${http_proxy}${CT_PROXY_USER}@";;
-      *:*)    http_proxy="${http_proxy}${CT_PROXY_USER}:${CT_PROXY_PASS}@";;
-    esac
-    export http_proxy="${http_proxy}${CT_PROXY_HOST}:${CT_PROXY_PORT}/"
-    export https_proxy="${http_proxy}"
-    export ftp_proxy="${http_proxy}"
-    CT_DoLog DEBUG "http_proxy='${http_proxy}'"
-    ;;
-  sockssys)
-    # Force not using HTTP proxy
-    unset http_proxy ftp_proxy https_proxy
-    CT_HasOrAbort tsocks
-    . tsocks -on
-    ;;
-  socks*)
-    # Force not using HTTP proxy
-    unset http_proxy ftp_proxy https_proxy
-    # Remove any lingering config file from any previous run
-    rm -f "${CT_BUILD_DIR}/tsocks.conf"
-    # Find all interfaces and build locally accessible networks
-    server_ip=$(ping -c 1 -W 2 "${CT_PROXY_HOST}" |head -n 1 |sed -r -e 's/^[^\(]+\(([^\)]+)\).*$/\1/;' || true)
-    CT_TestOrAbort "SOCKS proxy '${CT_PROXY_HOST}' has no IP." -n "${server_ip}"
-    /sbin/ifconfig |awk -v server_ip="${server_ip}" '
-      BEGIN {
-        split( server_ip, tmp, "\\." );
-        server_ip_num = tmp[1] * 2^24 + tmp[2] * 2^16 + tmp[3] * 2^8 + tmp[4] * 2^0;
-        pairs = 0;
-      }
-
-      $0 ~ /^[[:space:]]*inet addr:/ {
-        split( $2, tmp, ":|\\." );
-        if( ( tmp[2] == 127 ) && ( tmp[3] == 0 ) && ( tmp[4] == 0 ) && ( tmp[5] == 1 ) ) {
-          /* Skip 127.0.0.1, it'\''s taken care of by tsocks itself */
-          next;
-        }
-        ip_num = tmp[2] * 2^24 + tmp[3] * 2^16 + tmp[4] * 2 ^8 + tmp[5] * 2^0;
-        i = 32;
-        do {
-          i--;
-          mask = 2^32 - 2^i;
-        } while( (i!=0) && ( and( server_ip_num, mask ) == and( ip_num, mask ) ) );
-        mask = and( 0xFFFFFFFF, lshift( mask, 1 ) );
-        if( (i!=0) && (mask!=0) ) {
-          masked_ip = and( ip_num, mask );
-          for( i=0; i<pairs; i++ ) {
-            if( ( masked_ip == ips[i] ) && ( mask == masks[i] ) ) {
-              next;
-            }
-          }
-          ips[pairs] = masked_ip;
-          masks[pairs] = mask;
-          pairs++;
-          printf( "local = %d.%d.%d.%d/%d.%d.%d.%d\n",
-                  and( 0xFF, masked_ip / 2^24 ),
-                  and( 0xFF, masked_ip / 2^16 ),
-                  and( 0xFF, masked_ip / 2^8 ),
-                  and( 0xFF, masked_ip / 2^0 ),
-                  and( 0xFF, mask / 2^24 ),
-                  and( 0xFF, mask / 2^16 ),
-                  and( 0xFF, mask / 2^8 ),
-                  and( 0xFF, mask / 2^0 ) );
-        }
-      }
-    ' >"${CT_BUILD_DIR}/tsocks.conf"
-    ( echo "server = ${server_ip}";
-      echo "server_port = ${CT_PROXY_PORT}";
-      [ -n "${CT_PROXY_USER}"   ] && echo "default_user=${CT_PROXY_USER}";
-      [ -n "${CT_PROXY_PASS}" ] && echo "default_pass=${CT_PROXY_PASS}";
-    ) >>"${CT_BUILD_DIR}/tsocks.conf"
-    case "${CT_PROXY_TYPE/socks}" in
-      4|5) proxy_type="${CT_PROXY_TYPE/socks}";;
-      auto)
-        reply=$(inspectsocks "${server_ip}" "${CT_PROXY_PORT}" 2>&1 || true)
-        case "${reply}" in
-          *"server is a version 4 socks server") proxy_type=4;;
-          *"server is a version 5 socks server") proxy_type=5;;
-          *) CT_Abort "Unable to determine SOCKS proxy type for '${CT_PROXY_HOST}:${CT_PROXY_PORT}'"
-        esac
-      ;;
-    esac
-    echo "server_type = ${proxy_type}" >> "${CT_BUILD_DIR}/tsocks.conf"
-    CT_HasOrAbort tsocks
-    # If tsocks was found, then validateconf is present (distributed with tsocks).
-    CT_DoExecLog DEBUG validateconf -f "${CT_BUILD_DIR}/tsocks.conf"
-    export TSOCKS_CONF_FILE="${CT_BUILD_DIR}/tsocks.conf"
-    . tsocks -on
-    ;;
 esac
 
 # Setting up the rest of the environment only if not restarting
