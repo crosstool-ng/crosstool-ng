@@ -427,9 +427,9 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
 
     # Install the /populator/
     CT_DoLog EXTRA "Installing the populate helper"
-    sed -r -e 's,@@CT_READELF@@,'"${CT_PREFIX_DIR}/bin/${CT_TARGET}-readelf"',g;'   \
-           -e 's,@@CT_SYSROOT_DIR@@,'"${CT_SYSROOT_DIR}"',g;'                       \
-           "${CT_LIB_DIR}/tools/populate.in" >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
+    sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
+        "${CT_LIB_DIR}/tools/populate.in"           \
+        >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
     chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
 
     # Create the aliases to the target tools
@@ -438,15 +438,13 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     for t in "${CT_TARGET}-"*; do
         if [ -n "${CT_TARGET_ALIAS}" ]; then
             _t=$(echo "$t" |sed -r -e 's/^'"${CT_TARGET}"'-/'"${CT_TARGET_ALIAS}"'-/;')
-            CT_DoLog DEBUG "Linking '${_t}' -> '${t}'"
-            ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog ALL
+            ln -sv "${t}" "${_t}" 2>&1
         fi
         if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
             _t=$(echo "$t" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
-            CT_DoLog DEBUG "Linking '${_t}' -> '${t}'"
-            ln -sv "${t}" "${_t}" 2>&1 |CT_DoLog ALL
+            ln -sv "${t}" "${_t}" 2>&1
         fi
-    done
+    done |CT_DoLog ALL
     CT_Popd
     CT_EndStep
 
