@@ -34,7 +34,7 @@ CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_D
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 
 # renice oursleves
-renice ${CT_NICE} $$ |CT_DoLog DEBUG
+CT_DoExecLog DEBUG renice ${CT_NICE} $$
 
 CT_DoStep DEBUG "Dumping crosstool-NG configuration"
 cat "${CT_TOP_DIR}/.config" |egrep '^(# |)CT_' |CT_DoLog DEBUG
@@ -419,6 +419,8 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         prev_step="${step}"
     done
 
+    CT_DoLog INFO "================================================================="
+
     CT_DoLog DEBUG "Removing access to the build system tools"
     find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_UNIQ_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
@@ -433,7 +435,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
 
     # Create the aliases to the target tools
-    CT_DoStep EXTRA "Creating toolchain aliases"
+    CT_DoLog EXTRA "Creating toolchain aliases"
     CT_Pushd "${CT_PREFIX_DIR}/bin"
     for t in "${CT_TARGET}-"*; do
         if [ -n "${CT_TARGET_ALIAS}" ]; then
@@ -446,7 +448,6 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         fi
     done |CT_DoLog ALL
     CT_Popd
-    CT_EndStep
 
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then
