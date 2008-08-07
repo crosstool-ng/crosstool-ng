@@ -1,0 +1,175 @@
+Index: uClibc/ldso/ldso/sparc/dl-sysdep.h
+===================================================================
+--- uClibc/ldso/ldso/sparc/dl-sysdep.h	(revision 23055)
++++ uClibc/ldso/ldso/sparc/dl-sysdep.h	(working copy)
+@@ -141,7 +141,7 @@
+ static __inline__ Elf32_Addr
+ elf_machine_load_address (void)
+ {
+-	register Elf32_Addr *pc __asm__ ("%o7"), *got __asm ("%l7");
++	register Elf32_Addr *pc __asm__ ("%o7"), *got __asm__ ("%l7");
+ 
+ 	__asm__ ("sethi %%hi(_GLOBAL_OFFSET_TABLE_-4), %1\n\t"
+ 	       "call 1f\n\t"
+Index: uClibc/libc/sysdeps/linux/i386/bits/mathinline.h
+===================================================================
+--- uClibc/libc/sysdeps/linux/i386/bits/mathinline.h	(revision 23055)
++++ uClibc/libc/sysdeps/linux/i386/bits/mathinline.h	(working copy)
+@@ -299,12 +299,12 @@
+   __extension__ long long int __p = (long long int) __x;		      \
+   if (__x == (long double) __p)						      \
+     {									      \
+-      __asm __volatile__						      \
++      __asm__ __volatile__						      \
+ 	("fscale"							      \
+ 	 : "=t" (__value) : "0" (1.0), "u" (__x));			      \
+       return __value;							      \
+     }									      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fld	%%st(0)\n\t"						      \
+      "frndint			# int(x)\n\t"				      \
+      "fxch\n\t"								      \
+@@ -312,7 +312,7 @@
+      "f2xm1			# 2^(fract(x)) - 1\n\t"			      \
+      : "=t" (__value), "=u" (__exponent) : "0" (__x));			      \
+   __value += 1.0;							      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fscale"								      \
+      : "=t" (__value) : "0" (__value), "u" (__exponent));		      \
+   return __value)
+@@ -321,7 +321,7 @@
+ #  define __sincos_code \
+   register long double __cosr;						      \
+   register long double __sinr;						      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fsincos\n\t"							      \
+      "fnstsw	%%ax\n\t"						      \
+      "testl	$0x400, %%eax\n\t"					      \
+@@ -373,7 +373,7 @@
+   register long double __value;						      \
+   register long double __exponent;					      \
+   register long double __temp;						      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fldl2e			# e^x - 1 = 2^(x * log2(e)) - 1\n\t"	      \
+      "fmul	%%st(1)		# x * log2(e)\n\t"			      \
+      "fst	%%st(1)\n\t"						      \
+@@ -383,7 +383,7 @@
+      "f2xm1			# 2^(fract(x * log2(e))) - 1\n\t"	      \
+      "fscale			# 2^(x * log2(e)) - 2^(int(x * log2(e)))\n\t" \
+      : "=t" (__value), "=u" (__exponent) : "0" (__x));			      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fscale			# 2^int(x * log2(e))\n\t"		      \
+      : "=t" (__temp) : "0" (1.0), "u" (__exponent));			      \
+   __temp -= 1.0;							      \
+@@ -398,7 +398,7 @@
+ #  define __exp_code \
+   register long double __value;						      \
+   register long double __exponent;					      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fldl2e			# e^x = 2^(x * log2(e))\n\t"		      \
+      "fmul	%%st(1)		# x * log2(e)\n\t"			      \
+      "fst	%%st(1)\n\t"						      \
+@@ -408,7 +408,7 @@
+      "f2xm1			# 2^(fract(x * log2(e))) - 1\n\t"	      \
+      : "=t" (__value), "=u" (__exponent) : "0" (__x));			      \
+   __value += 1.0;							      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fscale"								      \
+      : "=t" (__value) : "0" (__value), "u" (__exponent));		      \
+   return __value
+@@ -421,7 +421,7 @@
+ __inline_mathcodeNP (tan, __x, \
+   register long double __value;						      \
+   register long double __value2 __attribute__ ((__unused__));		      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fptan"								      \
+      : "=t" (__value2), "=u" (__value) : "0" (__x));			      \
+   return __value)
+@@ -435,7 +435,7 @@
+ #else
+ # define __atan2_code \
+   register long double __value;						      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fpatan"								      \
+      : "=t" (__value) : "0" (__x), "u" (__y) : "st(1)");		      \
+   return __value
+@@ -449,7 +449,7 @@
+ #if defined __FAST_MATH__ && !__GNUC_PREREQ (3, 5)
+ __inline_mathcodeNP2 (fmod, __x, __y, \
+   register long double __value;						      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("1:	fprem\n\t"						      \
+      "fnstsw	%%ax\n\t"						      \
+      "sahf\n\t"								      \
+@@ -552,7 +552,7 @@
+ #ifdef __FAST_MATH__
+ # define __ldexp_code \
+   register long double __value;						      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fscale"								      \
+      : "=t" (__value) : "0" (__x), "u" ((long double) __y));		      \
+   return __value
+@@ -581,7 +581,7 @@
+   if (__fabsl (__x) >= 1.0 - 0.5 * __M_SQRT2)				      \
+     __value = logl (1.0 + __x);						      \
+   else									      \
+-    __asm __volatile__							      \
++    __asm__ __volatile__							      \
+       ("fldln2\n\t"							      \
+        "fxch\n\t"							      \
+        "fyl2xp1"							      \
+@@ -611,7 +611,7 @@
+ __inline_mathcodeNP(logb, __x, \
+   register long double __value;						      \
+   register long double __junk;						      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("fxtract\n\t"							      \
+      : "=t" (__junk), "=u" (__value) : "0" (__x));			      \
+   return __value)
+@@ -699,7 +699,7 @@
+ __inline_mathcodeNP2 (drem, __x, __y, \
+   register double __value;						      \
+   register int __clobbered;						      \
+-  __asm __volatile__							      \
++  __asm__ __volatile__							      \
+     ("1:	fprem1\n\t"						      \
+      "fstsw	%%ax\n\t"						      \
+      "sahf\n\t"								      \
+Index: uClibc/libc/sysdeps/linux/x86_64/sigaction.c
+===================================================================
+--- uClibc/libc/sysdeps/linux/x86_64/sigaction.c	(revision 23055)
++++ uClibc/libc/sysdeps/linux/x86_64/sigaction.c	(working copy)
+@@ -135,7 +135,7 @@
+ 
+ #define RESTORE(name, syscall) RESTORE2 (name, syscall)
+ # define RESTORE2(name, syscall) \
+-asm						\
++__asm__						\
+   (						\
+    ".text\n" \
+    "__" #name ":\n"				\
+Index: uClibc/libc/sysdeps/linux/mips/sigaction.c
+===================================================================
+--- uClibc/libc/sysdeps/linux/mips/sigaction.c	(revision 23055)
++++ uClibc/libc/sysdeps/linux/mips/sigaction.c	(working copy)
+@@ -140,7 +140,7 @@
+ 
+ #define RESTORE(name, syscall) RESTORE2 (name, syscall)
+ #define RESTORE2(name, syscall) \
+-asm						\
++__asm__						\
+   (						\
+    ".align 4\n"					\
+    "__" #name ":\n"				\
