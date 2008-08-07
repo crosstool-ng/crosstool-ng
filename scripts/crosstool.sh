@@ -71,6 +71,8 @@ CT_DoBuildTargetTuple
 # Put user-supplied flags at the end, so that they take precedence.
 CT_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_TARGET_CFLAGS}"
 CT_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_TARGET_LDFLAGS}"
+CT_CC_CORE_EXTRA_CONFIG="${CT_ARCH_CC_CORE_EXTRA_CONFIG} ${CT_CC_CORE_EXTRA_CONFIG}"
+CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 
 # Now, build up the variables from the user-configured options.
 CT_KERNEL_FILE="${CT_KERNEL}-${CT_KERNEL_VERSION}"
