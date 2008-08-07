@@ -30,23 +30,28 @@ do_cc_core_pass_1() {
     # In case we're NPTL, build the static core gcc;
     # in any other case, do nothing.
     case "${CT_THREADS}" in
-        nptl)   do_cc_core_static;;
+        nptl)   do_cc_core_static build_libgcc=no;;
     esac
 }
 
 # Core gcc pass 2
 do_cc_core_pass_2() {
     # In case we're NPTL, build the shared core gcc,
-    # in any other case, build the static core gcc.
+    # in any other case, build the static core gcc and the target libgcc.
     case "${CT_THREADS}" in
         nptl)   do_cc_core_shared;;
-        *)      do_cc_core_static;;
+        *)      do_cc_core_static build_libgcc=yes;;
     esac
 }
 
 #------------------------------------------------------------------------------
 # Build static core gcc
+# We need to know wether to build the target libgcc!
+# Usage: do_cc_core_static <build_libgcc=[yes|no]>
 do_cc_core_static() {
+    eval $1
+    CT_TestOrAbort "Internal Error: '$0' does not know wether to build, or not to build, target libgcc" -n "${build_libgcc}"
+
     mkdir -p "${CT_BUILD_DIR}/build-cc-core-static"
     cd "${CT_BUILD_DIR}/build-cc-core-static"
 
@@ -90,56 +95,45 @@ do_cc_core_static() {
         --enable-target-optspace                    \
         ${CT_CC_CORE_EXTRA_CONFIG}
 
-    # HACK: we need to override SHLIB_LC from gcc/config/t-slibgcc-elf-ver or
-    # gcc/config/t-libunwind so -lc is removed from the link for
-    # libgcc_s.so, as we do not have a target -lc yet.
-    # This is not as ugly as it appears to be ;-) All symbols get resolved
-    # during the glibc build, and we provide a proper libgcc_s.so for the
-    # cross toolchain during the final gcc build.
-    #
-    # As we cannot modify the source tree, nor override SHLIB_LC itself
-    # during configure or make, we have to edit the resultant
-    # gcc/libgcc.mk itself to remove -lc from the link.
-    # This causes us to have to jump through some hoops...
-    #
-    # To produce libgcc.mk to edit we firstly require libiberty.a,
-    # so we configure then build it.
-    # Next we have to configure gcc, create libgcc.mk then edit it...
-    # So much easier if we just edit the source tree, but hey...
-    if [ ! -f "${CT_SRC_DIR}/${CT_CC_FILE}/gcc/BASE-VER" ]; then
-        CT_DoExecLog ALL make configure-libiberty
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
-        CT_DoExecLog ALL make configure-gcc configure-libcpp
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp
-    else
-        CT_DoExecLog ALL make configure-gcc configure-libcpp configure-build-libiberty
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
-    fi
-    # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
-    if [ -d "${CT_SRC_DIR}/${CT_CC_FILE}/libdecnumber" ]; then
-        CT_DoExecLog ALL make configure-libdecnumber
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
-    fi
+    if [ "${build_libgcc}" = "yes" ]; then
+        if [ ! -f "${CT_SRC_DIR}/${CT_CC_FILE}/gcc/BASE-VER" ]; then
+            CT_DoExecLog ALL make configure-libiberty
+            CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
+            CT_DoExecLog ALL make configure-gcc configure-libcpp
+            CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp
+        else
+            CT_DoExecLog ALL make configure-gcc configure-libcpp configure-build-libiberty
+            CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
+        fi
+        # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
+        if [ -d "${CT_SRC_DIR}/${CT_CC_FILE}/libdecnumber" ]; then
+            CT_DoExecLog ALL make configure-libdecnumber
+            CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
+        fi
 
-    # Starting with GCC 4.3, libgcc.mk is no longer built,
-    # and libgcc.mvars is used instead.
+        # Starting with GCC 4.3, libgcc.mk is no longer built,
+        # and libgcc.mvars is used instead.
 
-    gcc_version_major=$(echo ${CT_CC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
-    gcc_version_minor=$(echo ${CT_CC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+        gcc_version_major=$(echo ${CT_CC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
+        gcc_version_minor=$(echo ${CT_CC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
 
-    if [    ${gcc_version_major} -eq 4 -a ${gcc_version_minor} -ge 3    \
-         -o ${gcc_version_major} -gt 4                                  ]; then
-        libgcc_rule="libgcc.mvars"
-        build_rules="all-gcc all-target-libgcc"
-        install_rules="install-gcc install-target-libgcc"
-    else
-        libgcc_rule="libgcc.mk"
-        build_rules="all-gcc"
-        install_rules="install-gcc"
-    fi
+        if [    ${gcc_version_major} -eq 4 -a ${gcc_version_minor} -ge 3    \
+             -o ${gcc_version_major} -gt 4                                  ]; then
+            libgcc_rule="libgcc.mvars"
+            build_rules="all-gcc all-target-libgcc"
+            install_rules="install-gcc install-target-libgcc"
+        else
+            libgcc_rule="libgcc.mk"
+            build_rules="all-gcc"
+            install_rules="install-gcc"
+        fi
 
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} -C gcc ${libgcc_rule}
-    sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C gcc ${libgcc_rule}
+        sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
+    else # build_libgcc
+            build_rules="all-gcc"
+            install_rules="install-gcc"
+    fi   # ! build libgcc
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
