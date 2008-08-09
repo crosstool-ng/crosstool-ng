@@ -426,8 +426,8 @@ _curl=$(CT_Which curl)
 CT_DoGetFile() {
     case "${_wget},${_curl}" in
         ,)  CT_DoError "Could find neither wget nor curl";;
-        ,*) CT_DoGetFileCurl "$1" 2>&1 |CT_DoLog ALL;;
-        *)  CT_DoGetFileWget "$1" 2>&1 |CT_DoLog ALL;;
+        ,*) CT_DoExecLog ALL CT_DoGetFileCurl "$1" 2>&1;;
+        *)  CT_DoExecLog ALL CT_DoGetFileWget "$1" 2>&1;;
     esac
 }
 
@@ -467,7 +467,7 @@ CT_GetFile() {
             if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
                  "${CT_FORCE_DOWNLOAD}" != "y" ]; then
                 CT_DoLog EXTRA "Got '${file}' from local storage"
-                ln -sv "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
+                CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}"
                 return 0
             fi
         done
@@ -495,8 +495,8 @@ CT_GetFile() {
                         # it does NOT. If it did exist, we'd have been stopped
                         # above, when looking for local copies.
                         CT_DoLog EXTRA "Saving '${file}' to local storage"
-                        mv "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}" |CT_DoLog ALL
-                        ln -sv "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
+                        CT_DoExecLog ALL mv "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}"
+                        CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}"
                     fi
                     CT_DoLog EXTRA "Got '${file}' from the LAN mirror"
                     return 0
@@ -518,8 +518,8 @@ CT_GetFile() {
                     # it does NOT. If it did exist, we'd have been stopped
                     # above, when looking for local copies.
                     CT_DoLog EXTRA "Saving '${file}' to local storage"
-                    mv "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}" |CT_DoLog ALL
-                    ln -sv "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}" |CT_DoLog ALL
+                    CT_DoExecLog ALL mv "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}"
+                    CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}"
                 fi
                 CT_DoLog EXTRA "Got '${file}' from the Internet"
                 return 0
@@ -574,9 +574,9 @@ CT_ExtractAndPatch() {
 
     CT_DoLog EXTRA "Extracting '${file}'"
     case "${ext}" in
-        .tar.bz2)     tar xvjf "${full_file}" |CT_DoLog ALL;;
-        .tar.gz|.tgz) tar xvzf "${full_file}" |CT_DoLog ALL;;
-        .tar)         tar xvf  "${full_file}" |CT_DoLog ALL;;
+        .tar.bz2)     CT_DoExecLog ALL tar xvjf "${full_file}";;
+        .tar.gz|.tgz) CT_DoExecLog ALL tar xvzf "${full_file}";;
+        .tar)         CT_DoExecLog ALL tar xvf  "${full_file}";;
         *)            CT_Abort "Don't know how to handle '${file}': unknown extension" ;;
     esac
 
@@ -617,7 +617,7 @@ CT_ExtractAndPatch() {
             for p in "${patch_dir}"/*.patch; do
                 if [ -f "${p}" ]; then
                     CT_DoLog DEBUG "Applying patch '${p}'"
-                    patch -g0 -F1 -p1 -f <"${p}" |CT_DoLog ALL
+                    CT_DoExecLog ALL patch -g0 -F1 -p1 -f <"${p}"
                     CT_TestAndAbort "Failed while applying patch file '${p}'" ${PIPESTATUS[0]} -ne 0
                 fi
             done
@@ -629,6 +629,7 @@ CT_ExtractAndPatch() {
         for cfg in config_guess config_sub; do
             eval ${cfg}="${CT_LIB_DIR}/tools/${cfg/_/.}"
             [ -e "${CT_TOP_DIR}/tools/${cfg/_/.}" ] && eval ${cfg}="${CT_TOP_DIR}/tools/${cfg/_/.}"
+            # Can't use CT_DoExecLog because of the '{} \;' to be passed un-mangled to find
             find . -type f -name "${cfg/_/.}" -exec cp -v "${!cfg}" {} \; |CT_DoLog ALL
         done
     fi
@@ -758,17 +759,17 @@ CT_DoSaveState() {
 
     CT_DoLog DEBUG "  Saving CT_CC_CORE_STATIC_PREFIX_DIR='${CT_CC_CORE_STATIC_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-    tar cv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" . |CT_DoLog DEBUG
+    CT_DoExecLog DEBUG tar cv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" .
     CT_Popd
 
     CT_DoLog DEBUG "  Saving CT_CC_CORE_SHARED_PREFIX_DIR='${CT_CC_CORE_SHARED_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
-    tar cv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}" . |CT_DoLog DEBUG
+    CT_DoExecLog DEBUG tar cv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}" .
     CT_Popd
 
     CT_DoLog DEBUG "  Saving CT_PREFIX_DIR='${CT_PREFIX_DIR}'"
     CT_Pushd "${CT_PREFIX_DIR}"
-    tar cv${tar_opt}f "${state_dir}/prefix_dir.tar${tar_ext}" --exclude '*.log' . |CT_DoLog DEBUG
+    CT_DoExecLog DEBUG tar cv${tar_opt}f "${state_dir}/prefix_dir.tar${tar_ext}" --exclude '*.log' .
     CT_Popd
 
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
@@ -810,17 +811,17 @@ CT_DoLoadState(){
 
     CT_DoLog DEBUG "  Restoring CT_PREFIX_DIR='${CT_PREFIX_DIR}'"
     CT_Pushd "${CT_PREFIX_DIR}"
-    tar xv${tar_opt}f "${state_dir}/prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
+    CT_DoExecLog DEBUG tar xv${tar_opt}f "${state_dir}/prefix_dir.tar${tar_ext}"
     CT_Popd
 
     CT_DoLog DEBUG "  Restoring CT_CC_CORE_SHARED_PREFIX_DIR='${CT_CC_CORE_SHARED_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_SHARED_PREFIX_DIR}"
-    tar xv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
+    CT_DoExecLog DEBUG tar xv${tar_opt}f "${state_dir}/cc_core_shared_prefix_dir.tar${tar_ext}"
     CT_Popd
 
     CT_DoLog DEBUG "  Restoring CT_CC_CORE_STATIC_PREFIX_DIR='${CT_CC_CORE_STATIC_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-    tar xv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" |CT_DoLog DEBUG
+    CT_DoExecLog DEBUG tar xv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}"
     CT_Popd
 
     # Restore the environment, discarding any error message
