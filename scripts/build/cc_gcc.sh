@@ -30,7 +30,8 @@ do_cc_core_pass_1() {
     # In case we're NPTL, build the static core gcc;
     # in any other case, do nothing.
     case "${CT_THREADS}" in
-        nptl)   do_cc_core_static build_libgcc=no;;
+        nptl)   do_cc_core mode=static build_libgcc=no;;
+        *)      ;;
     esac
 }
 
@@ -39,31 +40,58 @@ do_cc_core_pass_2() {
     # In case we're NPTL, build the shared core gcc,
     # in any other case, build the static core gcc and the target libgcc.
     case "${CT_THREADS}" in
-        nptl)   do_cc_core_shared;;
-        *)      do_cc_core_static build_libgcc=yes;;
+        nptl)   do_cc_core mode=shared build_libgcc=yes;;
+        *)      do_cc_core mode=static build_libgcc=yes;;
     esac
 }
 
 #------------------------------------------------------------------------------
-# Build static core gcc
-# We need to know wether to build the target libgcc!
-# Usage: do_cc_core_static <build_libgcc=[yes|no]>
-do_cc_core_static() {
+# Build core gcc
+# This function is used to build both the static and the shared core C conpiler,
+# with or without the target libgcc. We need to know wether:
+#  - we're building static or shared: mode=[static|shared]
+#  - we need to build libgcc or not:  build_libgcc=[yes|no]
+# Usage: do_cc_core_static mode=[static|shared] build_libgcc=[yes|no]
+do_cc_core() {
+    local mode
+    local build_libgcc
+    local core_prefix_dir
+    local extra_config
+
     eval $1
-    CT_TestOrAbort "Internal Error: '$0' does not know wether to build, or not to build, target libgcc" -n "${build_libgcc}"
+    eval $2
+    CT_TestOrAbort "Internal Error: 'mode' must either 'static' or 'shared', not '${mode:-(empty)}'" "${mode}" = "static" -o "${mode}" = "shared"
+    CT_TestOrAbort "Internal Error: 'build_libgcc' must be either 'yes' or 'no', not '${build_libgcc:-(empty)}'" "${build_libgcc}" = "yes" -o "${build_libgcc}" = "no"
+    # In normal conditions, ( "${mode}" = "shared" ) implies
+    # ( "${build_libgcc}" = "yes" ), but I won't check for that
 
-    mkdir -p "${CT_BUILD_DIR}/build-cc-core-static"
-    cd "${CT_BUILD_DIR}/build-cc-core-static"
+    mkdir -p "${CT_BUILD_DIR}/build-cc-core-${mode}"
+    cd "${CT_BUILD_DIR}/build-cc-core-${mode}"
 
-    CT_DoStep INFO "Installing static core C compiler"
+    CT_DoStep INFO "Installing ${mode} core C compiler"
+    case "${mode}" in
+        static)
+            core_prefix_dir="${CT_CC_CORE_STATIC_PREFIX_DIR}"
+            extra_config="${extra_config} --with-newlib --enable-threads=no --disable-shared"
+            ;;
+        shared)
+            core_prefix_dir="${CT_CC_CORE_SHARED_PREFIX_DIR}"
+            extra_config="${extra_config} --enable-shared"
+            ;;
+    esac
 
     CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
-    mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/include"
-    cp -r "${CT_HEADERS_DIR}"/* "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/include" 2>&1 |CT_DoLog DEBUG
+    CT_DoExecLog ALL mkdir -p "${core_prefix_dir}/${CT_TARGET}/include"
+    CT_DoExecLog ALL cp -r "${CT_HEADERS_DIR}"/* "${core_prefix_dir}/${CT_TARGET}/include"
 
-    CT_DoLog EXTRA "Configuring static core C compiler"
+    CT_DoLog EXTRA "Configuring ${mode} core C compiler"
 
-    extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_ARCH}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_ABI}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_CPU}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_TUNE}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_FPU}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config="${extra_config} --enable-__cxa_atexit"
@@ -81,21 +109,34 @@ do_cc_core_static() {
         ${CT_CANADIAN_OPT}                          \
         --host=${CT_HOST}                           \
         --target=${CT_TARGET}                       \
-        --prefix="${CT_CC_CORE_STATIC_PREFIX_DIR}"  \
+        --prefix="${core_prefix_dir}"               \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --disable-multilib                          \
-        --with-newlib                               \
         ${CC_CORE_SYSROOT_ARG}                      \
         ${extra_config}                             \
         --disable-nls                               \
-        --enable-threads=no                         \
         --enable-symvers=gnu                        \
         --enable-languages=c                        \
-        --disable-shared                            \
         --enable-target-optspace                    \
         ${CT_CC_CORE_EXTRA_CONFIG}
 
     if [ "${build_libgcc}" = "yes" ]; then
+        # HACK: we need to override SHLIB_LC from gcc/config/t-slibgcc-elf-ver or
+        # gcc/config/t-libunwind so -lc is removed from the link for
+        # libgcc_s.so, as we do not have a target -lc yet.
+        # This is not as ugly as it appears to be ;-) All symbols get resolved
+        # during the glibc build, and we provide a proper libgcc_s.so for the
+        # cross toolchain during the final gcc build.
+        #
+        # As we cannot modify the source tree, nor override SHLIB_LC itself
+        # during configure or make, we have to edit the resultant
+        # gcc/libgcc.mk itself to remove -lc from the link.
+        # This causes us to have to jump through some hoops...
+        #
+        # To produce libgcc.mk to edit we firstly require libiberty.a,
+        # so we configure then build it.
+        # Next we have to configure gcc, create libgcc.mk then edit it...
+        # So much easier if we just edit the source tree, but hey...
         if [ ! -f "${CT_SRC_DIR}/${CT_CC_FILE}/gcc/BASE-VER" ]; then
             CT_DoExecLog ALL make configure-libiberty
             CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
@@ -140,118 +181,10 @@ do_cc_core_static() {
         CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
     fi
 
-    CT_DoLog EXTRA "Building static core C compiler"
+    CT_DoLog EXTRA "Building ${mode} core C compiler"
     CT_DoExecLog ALL make ${PARALLELMFLAGS} ${build_rules}
 
-    CT_DoLog EXTRA "Installing static core C compiler"
-    CT_DoExecLog ALL make ${install_rules}
-
-    CT_EndStep
-}
-
-#------------------------------------------------------------------------------
-# Build shared core gcc
-do_cc_core_shared() {
-    mkdir -p "${CT_BUILD_DIR}/build-cc-core-shared"
-    cd "${CT_BUILD_DIR}/build-cc-core-shared"
-
-    CT_DoStep INFO "Installing shared core C compiler"
-
-    CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
-    mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/include"
-    cp -r "${CT_HEADERS_DIR}"/* "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/include" 2>&1 |CT_DoLog DEBUG
-
-    CT_DoLog EXTRA "Configuring shared core C compiler"
-
-    extra_config="${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
-    if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
-        extra_config="${extra_config} --enable-__cxa_atexit"
-    else
-        extra_config="${extra_config} --disable-__cxa_atexit"
-    fi
-
-    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
-
-    CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    CT_DoExecLog ALL                                \
-    "${CT_SRC_DIR}/${CT_CC_FILE}/configure"         \
-        ${CT_CANADIAN_OPT}                          \
-        --target=${CT_TARGET}                       \
-        --host=${CT_HOST}                           \
-        --prefix="${CT_CC_CORE_SHARED_PREFIX_DIR}"  \
-        --with-local-prefix="${CT_SYSROOT_DIR}"     \
-        --disable-multilib                          \
-        ${CC_CORE_SYSROOT_ARG}                      \
-        ${extra_config}                             \
-        --disable-nls                               \
-        --enable-symvers=gnu                        \
-        --enable-languages=c                        \
-        --enable-shared                             \
-        --enable-target-optspace                    \
-        ${CT_CC_CORE_EXTRA_CONFIG}
-
-    # HACK: we need to override SHLIB_LC from gcc/config/t-slibgcc-elf-ver or
-    # gcc/config/t-libunwind so -lc is removed from the link for
-    # libgcc_s.so, as we do not have a target -lc yet.
-    # This is not as ugly as it appears to be ;-) All symbols get resolved
-    # during the glibc build, and we provide a proper libgcc_s.so for the
-    # cross toolchain during the final gcc build.
-    #
-    # As we cannot modify the source tree, nor override SHLIB_LC itself
-    # during configure or make, we have to edit the resultant
-    # gcc/libgcc.mk itself to remove -lc from the link.
-    # This causes us to have to jump through some hoops...
-    #
-    # To produce libgcc.mk to edit we firstly require libiberty.a,
-    # so we configure then build it.
-    # Next we have to configure gcc, create libgcc.mk then edit it...
-    # So much easier if we just edit the source tree, but hey...
-    if [ ! -f "${CT_SRC_DIR}/${CT_CC_FILE}/gcc/BASE-VER" ]; then
-        CT_DoExecLog ALL make configure-libiberty
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
-        CT_DoExecLog ALL make configure-gcc configure-libcpp
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp
-    else
-        CT_DoExecLog ALL make configure-gcc configure-libcpp configure-build-libiberty
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
-    fi
-    # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
-    if [ -d "${CT_SRC_DIR}/${CT_CC_FILE}/libdecnumber" ]; then
-        CT_DoExecLog ALL make configure-libdecnumber
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
-    fi
-
-    # Starting with GCC 4.3, libgcc.mk is no longer built,
-    # and libgcc.mvars is used instead.
-
-    gcc_version_major=$(echo ${CT_CC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
-    gcc_version_minor=$(echo ${CT_CC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
-
-    if [    ${gcc_version_major} -eq 4 -a ${gcc_version_minor} -ge 3    \
-         -o ${gcc_version_major} -gt 4                                  ]; then
-        libgcc_rule="libgcc.mvars"
-        build_rules="all-gcc all-target-libgcc"
-        install_rules="install-gcc install-target-libgcc"
-    else
-        libgcc_rule="libgcc.mk"
-        build_rules="all-gcc"
-        install_rules="install-gcc"
-    fi
-
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} -C gcc ${libgcc_rule}
-    sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
-
-    if [ "${CT_CANADIAN}" = "y" ]; then
-        CT_DoLog EXTRA "Building libiberty"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
-    fi
-
-    CT_DoLog EXTRA "Building shared core C compiler"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} ${build_rules}
-
-    CT_DoLog EXTRA "Installing shared core C compiler"
+    CT_DoLog EXTRA "Installing ${mode} core C compiler"
     CT_DoExecLog ALL make ${install_rules}
 
     CT_EndStep
