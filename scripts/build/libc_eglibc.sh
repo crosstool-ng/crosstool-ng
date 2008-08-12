@@ -74,20 +74,20 @@ do_libc_get() {
        [ "${CT_FORCE_DOWNLOAD}" != "y" ]; then
         CT_DoLog EXTRA "Got 'eglibc-${CT_LIBC_VERSION}' from local storage"
         for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
-            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${file}"
+            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${CT_TARBALLS_DIR}/${file}"
         done
         return 0
     fi
 
     # Not found locally, try from the network
-    CT_DoLog EXTRA "Retrieving eglibc from network"
+    CT_DoLog EXTRA "Retrieving 'eglibc-${CT_LIBC_VERSION}'"
     do_eglibc_get
 
     if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-        CT_DoLog EXTRA "Saving eglibc files to local storage"
+        CT_DoLog EXTRA "Saving 'eglibc-${CT_LIBC_VERSION}' to local storage"
         for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
-            CT_DoExecLog ALL mv -f "${file}" "${CT_LOCAL_TARBALLS_DIR}"
-            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${file}"
+            CT_DoExecLog ALL mv -f "${CT_TARBALLS_DIR}/${file}" "${CT_LOCAL_TARBALLS_DIR}"
+            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${CT_TARBALLS_DIR}/${file}"
         done
     fi
 
