@@ -35,7 +35,7 @@ do_mpfr_extract() {
     # do that in the future...
     CT_Pushd "${CT_SRC_DIR}/${CT_MPFR_FILE}"
     if [ ! -f .autotools.ct-ng ]; then
-        CT_DoLog EXTRA "Re-building autotools files"
+        CT_DoLog DEBUG "Re-building autotools files"
         CT_DoExecLog ALL autoreconf -fi
         CT_DoExecLog ALL libtoolize -f
         touch .autotools.ct-ng
