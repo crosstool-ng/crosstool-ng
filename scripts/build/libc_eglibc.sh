@@ -72,7 +72,7 @@ do_libc_get() {
        [ -a "${CT_LOCAL_TARBALLS_DIR}/${eglibc_localedef}" ]    && \
        [ -a "${CT_LOCAL_TARBALLS_DIR}/${eglibc_ports}" ]        && \
        [ "${CT_FORCE_DOWNLOAD}" != "y" ]; then
-        CT_DoLog EXTRA "Got 'eglibc-${CT_LIBC_VERSION}' from local storage"
+        CT_DoLog DEBUG "Got 'eglibc-${CT_LIBC_VERSION}' from local storage"
         for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
             CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${CT_TARBALLS_DIR}/${file}"
         done
