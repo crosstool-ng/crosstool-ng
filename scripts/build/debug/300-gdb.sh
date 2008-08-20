@@ -78,6 +78,7 @@ do_debug_gdb_build() {
             --target=${CT_TARGET}                       \
             --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
+            --disable-werror                            \
             ${cross_extra_config}
 
         CT_DoLog EXTRA "Building cross-gdb"
@@ -220,6 +221,7 @@ do_debug_gdb_build() {
             --without-x                                 \
             --without-included-gettext                  \
             --without-develop                           \
+            --disable-werror                            \
             ${gdbserver_extra_config}
 
         CT_DoLog EXTRA "Building gdbserver"
