@@ -13,6 +13,10 @@ config LIBC_GLIBC
     select LIBC_SUPPORT_NPTL
     select LIBC_SUPPORT_LINUXTHREADS
 
+if LIBC_GLIBC
+source config/libc/glibc.in
+endif
+
 config LIBC_EGLIBC
     bool
     prompt "eglibc (EXPERIMENTAL)"
@@ -20,10 +24,18 @@ config LIBC_EGLIBC
     select LIBC_SUPPORT_LINUXTHREADS
     depends on EXPERIMENTAL
 
+if LIBC_EGLIBC
+source config/libc/eglibc.in
+endif
+
 config LIBC_UCLIBC
     bool
     prompt "uClibc"
     select LIBC_SUPPORT_LINUXTHREADS
+
+if LIBC_UCLIBC
+source config/libc/uClibc.in
+endif
 
 endchoice
 
@@ -44,17 +56,34 @@ config LIBC_SUPPORT_LINUXTHREADS
     bool
     default n
 
-if LIBC_GLIBC
-source config/libc/glibc.in
-endif
+choice
+    bool
+    prompt "Threading implementation to use:"
+    default THREADS_NPTL           if LIBC_SUPPORT_NPTL
+    default THREADS_LINUXTHREADS   if LIBC_SUPPORT_LINUXTHREADS && ! LIBC_SUPPORT_NPTL
+    default THREADS_NONE           if ! LIBC_SUPPORT_LINUXTHREADS && ! LIBC_SUPPORT_NPTL
 
-if LIBC_EGLIBC
-source config/libc/eglibc.in
-endif
+config THREADS_NPTL
+    bool
+    prompt "nptl"
+    depends on LIBC_SUPPORT_NPTL
 
-if LIBC_UCLIBC
-source config/libc/uClibc.in
-endif
+config THREADS_LINUXTHREADS
+    bool
+    prompt "linuxthreads"
+    depends on LIBC_SUPPORT_LINUXTHREADS
+
+config THREADS_NONE
+    bool
+    prompt "none"
+
+endchoice
+
+config THREADS
+    string
+    default "nptl"          if THREADS_NPTL
+    default "linuxthreads"  if THREADS_LINUXTHREADS
+    default "none"          if THREADS_NONE
 
 config LIBC_VERSION
     help
