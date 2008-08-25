@@ -331,6 +331,10 @@ if [ -z "${CT_RESTART}" ]; then
     # Override the configured jobs with what's been given on the command line
     [ -n "${CT_JOBS}" ] && CT_PARALLEL_JOBS="${CT_JOBS}"
 
+    # Help ./configure scripts go faster
+    [ "${CT_CONFIG_SHELL_ASH}" = "y" ] && export CONFIG_SHELL=/bin/ash
+    export CONFIG_SHELL
+
     # And help make go faster
     PARALLELMFLAGS=
     [ ${CT_PARALLEL_JOBS} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -j${CT_PARALLEL_JOBS}"
