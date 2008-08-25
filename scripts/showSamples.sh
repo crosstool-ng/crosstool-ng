@@ -30,6 +30,9 @@ dump_single_sample() {
         echo ")"
         if [ ${verbose} -ne 0 ]; then
             echo    "    OS        : ${CT_KERNEL}-${CT_KERNEL_VERSION}"
+            if [ "${CT_GMP_MPFR}" = "y" ]; then
+                echo    "    GMP/MPFR  : gmp-${CT_GMP_VERSION} / mpfr-${CT_MPFR_VERSION}"
+            fi
             echo    "    binutils  : binutils-${CT_BINUTILS_VERSION}"
             printf  "    C compiler: ${CT_CC}-${CT_CC_VERSION} (C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
