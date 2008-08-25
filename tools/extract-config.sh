@@ -10,7 +10,7 @@ BEGIN {
   dump = 0;
 }
 
-$0~/Dumping crosstool-NG configuration: done in.+s$/ {
+$0~/Dumping crosstool-NG configuration: done in/ {
   dump = 0;
 }
 
