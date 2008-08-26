@@ -277,7 +277,7 @@ do_libc_add_ons_list() {
         none)   ;;
         *)      addons_list="${addons_list}${sep}${CT_THREADS}";;
     esac
-    [ "${CT_LIBC_EGLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
     addons_list="${addons_list%%${sep}}"
     echo "${addons_list##${sep}}"
 }
