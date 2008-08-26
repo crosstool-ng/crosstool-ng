@@ -67,3 +67,47 @@ config LIBC_ADDONS_LIST
       earlier.
 
       Eg.: crypt        (for very old libces)
+
+config LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
+    bool
+    prompt "Use headers version for minimum kernel version supported"
+    default y
+    help
+      If enabled, crosstool-ng will use the chosen version of kernel
+      headers for the glibc minimum kernel version supported, which is
+      what gets passed to "--enable-kernel=" when configuring glibc.
+
+      Enabling this will ensure that no legacy compatibility code for
+      older kernels is built into your C libraries, but it will
+      be unable to run on kernel versions older than whichever kernel
+      headers version you've built the toolchain for.
+
+      If you know for sure that your toolchain will never need to build
+      applications that will run under a kernel version older than your
+      chosen kernel headers version (CT_KERNEL_VERSION), you can choose
+      "y" here.
+
+config LIBC_GLIBC_MIN_KERNEL_CHOSEN
+    string
+    prompt "Minimum kernel version supported"
+    default "2.6.9"
+    depends on ! LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
+    help
+      Specify the earliest Linux kernel version you want glibc to
+      include support for.  This does not have to match the kernel
+      headers version used for your toolchain.  This controls what is
+      passed to the "--enable-kernel=" option to the glibc configure
+      script.
+
+      If you want to be able to statically link programs with your
+      toolchain's C library, make sure this kernel version is lower than
+      all kernels you wish to support to avoid "FATAL: kernel too old"
+      errors.  The higher the version you specify, the less legacy code
+      will be built into libc.
+
+      Most people can leave this at the default value of "2.6.9".
+
+config LIBC_GLIBC_MIN_KERNEL
+    string
+    default KERNEL_VERSION if LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
+    default LIBC_GLIBC_MIN_KERNEL_CHOSEN if ! LIBC_GLIBC_USE_HEADERS_MIN_KERNEL

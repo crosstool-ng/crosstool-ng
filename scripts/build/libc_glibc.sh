@@ -211,7 +211,7 @@ do_libc_start_files() {
     extra_config=""
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *enable-kernel*) ;;
-        *) extra_config="${extra_config} --enable-kernel=$(echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+        *) extra_config="${extra_config} --enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
     esac
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *-tls*) ;;
@@ -314,7 +314,7 @@ do_libc() {
     # We don't need to be conditional on wether the user did set different
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
 
-    extra_config="--enable-kernel=$(echo ${CT_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+    extra_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
 
     case "${CT_THREADS}" in
         nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
