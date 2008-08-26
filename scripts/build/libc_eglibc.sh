@@ -204,7 +204,7 @@ do_libc() {
         nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
         linuxthreads)   extra_config="${extra_config} --with-__thread --without-tls --without-nptl";;
         none)           extra_config="${extra_config} --without-__thread --without-nptl"
-                        case "${CT_LIBC_EGLIBC_EXTRA_CONFIG}" in
+                        case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
                             *-tls*) ;;
                             *) extra_config="${extra_config} --without-tls";;
                         esac
@@ -236,7 +236,7 @@ do_libc() {
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     BUILD_CC=${CT_CC_NATIVE}                                        \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_EGLIBC_EXTRA_CFLAGS} -O"  \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
@@ -250,7 +250,7 @@ do_libc() {
         --without-gd                                                \
         --without-cvs                                               \
         ${extra_config}                                             \
-        ${CT_LIBC_EGLIBC_EXTRA_CONFIG}
+        ${CT_LIBC_GLIBC_EXTRA_CONFIG}
     
     CT_DoLog EXTRA "Building C library"
 
