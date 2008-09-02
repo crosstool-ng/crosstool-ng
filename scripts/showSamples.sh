@@ -25,10 +25,10 @@ dump_single_sample() {
     fi
     . "${sample_top}/samples/${sample}/crosstool.config"
     if [ -z "${wiki}" ]; then
-        printf "  %-*s  (%s" ${width} "${sample}" "${sample_type}"
-        [ -f "${sample_top}/samples/${sample}/broken" ] && printf ",B"
-        [ "${CT_EXPERIMENTAL}" = "y" ] && printf ",X"
-        echo ")"
+        printf "  %-*s  [%s" ${width} "${sample}" "${sample_type}"
+        [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf " "
+        [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
+        echo "]"
         if [ ${verbose} -ne 0 ]; then
             echo    "    OS        : ${CT_KERNEL}-${CT_KERNEL_VERSION}"
             if [ "${CT_GMP_MPFR}" = "y" ]; then
