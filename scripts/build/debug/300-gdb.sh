@@ -17,11 +17,46 @@ do_debug_gdb_suffix() {
     esac
 }
 
-do_debug_gdb_get() {
-    CT_GetFile "gdb$(do_debug_gdb_suffix)"              \
-               {ftp,http}://ftp.gnu.org/pub/gnu/gdb     \
-               ftp://sources.redhat.com/pub/gdb/{{,old-}releases,snapshots/current}
+do_debug_gdb_parts() {
+    do_gdb=
+    do_insight=
+    do_ncurses=
+
+    if [ "${CT_GDB_CROSS}" = y ]; then
+        if [ "${CT_GDB_CROSS_INSIGHT}" = "y" ]; then
+            do_insight=y
+        else
+            do_gdb=y
+        fi
+    fi
+
+    if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
+        do_gdb=y
+    fi
+
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
+        do_gdb=y
+        do_ncurses=y
+    fi
+}
+
+do_debug_gdb_get() {
+    do_debug_gdb_parts
+
+    if [ "${do_gdb}" = "y" ]; then
+        CT_GetFile "gdb$(do_debug_gdb_suffix)"              \
+                   {ftp,http}://ftp.gnu.org/pub/gnu/gdb     \
+                   ftp://sources.redhat.com/pub/gdb/{{,old-}releases,snapshots/current}
+    fi
+
+    if [ "${do_insight}" = "y" ]; then
+        CT_GetFile "insight-${CT_GDB_VERSION}"                                              \
+                   ftp://sourceware.org/pub/insight/releases                                \
+                   {ftp,http}://ftp.twaren.net/Unix/Sourceware/insight/releases             \
+                   {ftp,http}://ftp.gwdg.de/pub/linux/sources.redhat.com/insight/releases
+    fi
+
+    if [ "${do_ncurses}" = "y" ]; then
         CT_GetFile "ncurses-${CT_NCURSES_VERSION}"          \
                    {ftp,http}://ftp.gnu.org/pub/gnu/ncurses \
                    ftp://invisible-island.net/ncurses
@@ -29,14 +64,24 @@ do_debug_gdb_get() {
 }
 
 do_debug_gdb_extract() {
-    CT_ExtractAndPatch "gdb$(do_debug_gdb_suffix)"
-    if [ "${CT_GDB_NATIVE}" = "y" ]; then
+    do_debug_gdb_parts
+
+    if [ "${do_gdb}" = "y" ]; then
+        CT_ExtractAndPatch "gdb$(do_debug_gdb_suffix)"
+    fi
+
+    if [ "${do_insight}" = "y" ]; then
+        CT_ExtractAndPatch "insight-${CT_GDB_VERSION}"
+    fi
+
+    if [ "${do_ncurses}" = "y" ]; then
         CT_ExtractAndPatch "ncurses-${CT_NCURSES_VERSION}"
     fi
 }
 
 do_debug_gdb_build() {
     gdb_src_dir="${CT_SRC_DIR}/gdb$(do_debug_gdb_suffix)"
+    insight_src_dir="${CT_SRC_DIR}/insight-${CT_GDB_VERSION}"
 
     extra_config=
     # Version 6.3 and below behave badly with gdbmi
@@ -67,12 +112,15 @@ do_debug_gdb_build() {
             LD_for_gdb="ld -static"
         fi
 
+        gdb_cross_configure="${gdb_src_dir}/configure"
+        [ "${CT_GDB_CROSS_INSIGHT}" = "y" ] && gdb_cross_configure="${insight_src_dir}/configure"
+
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config# }'"
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
         CT_DoExecLog ALL                                \
-        "${gdb_src_dir}/configure"                      \
+        "${gdb_cross_configure}"                        \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
             --target=${CT_TARGET}                       \
