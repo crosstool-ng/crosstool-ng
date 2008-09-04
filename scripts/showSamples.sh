@@ -57,6 +57,10 @@ dump_single_sample() {
         fi
     else
         printf "| ''${sample}''  "
+        printf "|  "
+        [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X"
+        [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B"
+        printf '  '
         printf "|  ''${CT_KERNEL}''  "
         if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
             printf "|  //custom//  "
@@ -109,8 +113,9 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^ @@DATE@@  ^ ||||||||||||"
+    echo "^ @@DATE@@  ^ |||||||||||||"
     printf "^ Target "
+    printf "^  Status  "
     printf "^  Kernel headers\\\\\\\\ version  ^"
     printf "^  binutils version  "
     printf "^  C compiler\\\\\\\\ version  ^"
@@ -128,7 +133,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  | ||||||||||||"
+    printf "^ Total: ${#@} samples  | ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': Samples is curently BROKEN. |||||||||||||"
     echo   ""
 elif [ -z "${opt}" ]; then
     echo '      l (local)       : sample was found in current directory'
