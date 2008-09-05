@@ -1,0 +1,30 @@
+# To be sourced
+
+_ct-ng () {
+    local cur prev samples show_samples actions steps start_steps stop_steps ct_ng_opts vars
+    COMPREPLY=()
+    cur=$(_get_cword)
+    prev=${COMP_WORDS[COMP_CWORD-1]}
+
+    samples=$(${COMP_WORDS[0]} list-samples)
+    show_samples=$(echo "${samples}" |sed -r -e 's/(^| )/\1show-/g;')
+
+    steps=$(${COMP_WORDS[0]} list-steps |awk '$1 == "-" { print $2; }')
+    start_steps=$(echo "${steps}" |sed -r -e 's/(^| )/\1+/;')
+    stop_steps=$(echo "${steps}" |sed -r -e 's/(^| )/+\1/;')
+
+    actions='config menuconfig oldconfig saveconfig extractconfig
+             list-samples build list-steps regtest regtest-local
+             regtest-global clean distclean wiki-samples update-tools
+             tarball'
+
+    vars="RESTART= STOP="
+
+    ct_ng_opts="${samples} ${show_samples}
+                ${steps} ${start_steps} ${stop_steps}
+                ${actions} ${vars}"
+
+    COMPREPLY=($(compgen -W "${ct_ng_opts}" -- "${cur}"))
+    return 0
+}
+complete -F _ct-ng ct-ng
