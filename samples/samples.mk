@@ -35,6 +35,18 @@ PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES):
 	@echo  'Configuring for "$@"'
 	@$(CT_NG) $(patsubst %,copy_config_%,$(@)) oldconfig
+	@if grep -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then        \
+	   echo  '';                                                            \
+	   echo  '***********************************************************'; \
+	   echo  '';                                                            \
+	   echo  'WARNING! This sample may enable experimental features.';      \
+	   echo  '         Please be sure to review the configuration prior';   \
+	   echo  '         to building and using your toolchain!';              \
+	   echo  'Now, you have been warned!';                                  \
+	   echo  '';                                                            \
+	   echo  '***********************************************************'; \
+	   echo  '';                                                            \
+	 fi
 	@echo  'Execute "$(CT_NG) build" to build your toolchain'
 
 $(patsubst %,copy_config_%,$(CT_SAMPLES)):
