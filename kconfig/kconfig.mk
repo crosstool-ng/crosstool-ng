@@ -118,12 +118,22 @@ $(obj)/conf $(obj)/mconf:: $(obj)
 $(obj):
 	@mkdir -p $(obj)
 
-$(obj)/mconf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c
+HEADERS = $(CT_LIB_DIR)/kconfig/expr.h      \
+          $(CT_LIB_DIR)/kconfig/lkc.h       \
+          $(CT_LIB_DIR)/kconfig/lkc_proto.h
+
+FILES = $(CT_LIB_DIR)/kconfig/confdata.c    \
+        $(CT_LIB_DIR)/kconfig/expr.c        \
+        $(CT_LIB_DIR)/kconfig/menu.c        \
+        $(CT_LIB_DIR)/kconfig/symbol.c      \
+        $(CT_LIB_DIR)/kconfig/util.c
+
+$(obj)/mconf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c $(HEADERS) $(FILES)
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
 	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ccflags)              \
 	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ldflags $(HOST_CC))
 
-$(obj)/conf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c
+$(obj)/conf:: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c $(HEADERS) $(FILES)
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{conf.c,zconf.tab.c}
 
 clean::
