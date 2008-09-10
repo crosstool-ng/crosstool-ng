@@ -352,7 +352,7 @@ fi
 
 # Include sub-scripts instead of calling them: that way, we do not have to
 # export any variable, nor re-parse the configuration and functions files.
-. "${CT_LIB_DIR}/scripts/build/kernel_${CT_KERNEL}.sh"
+. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
 . "${CT_LIB_DIR}/scripts/build/gmp.sh"
 . "${CT_LIB_DIR}/scripts/build/mpfr.sh"
 . "${CT_LIB_DIR}/scripts/build/binutils.sh"

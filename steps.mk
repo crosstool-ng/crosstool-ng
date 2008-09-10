@@ -2,7 +2,6 @@
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
 
 CT_STEPS := libc_check_config   \
-            kernel_check_config \
             kernel_headers      \
             gmp                 \
             mpfr                \
