@@ -11,6 +11,20 @@ if ! BARE_METAL
 
 menu "C-library"
 
+config LIBC_VERSION
+    string
+    help
+      Enter the date of the snapshot you want to use in the form: YYYYMMDD
+      where YYYY is the 4-digit year, MM the 2-digit month and DD the 2-digit
+      day in the month.
+      
+      Please note:
+      - glibc has snapshots done every monday, and only the last ten are kept.
+      - uClibc has daily snapshots, and only the last 30-or-so are kept.
+      
+      So if you want to be able to re-build your toolchain later, you will
+      have to save your C library tarball by yourself.
+
 choice
     bool
     prompt "C-library to use:"
@@ -21,10 +35,6 @@ config LIBC_GLIBC
     prompt "glibc"
     select LIBC_SUPPORT_NPTL
     select LIBC_SUPPORT_LINUXTHREADS
-
-if LIBC_GLIBC
-source config/libc/glibc.in
-endif
 
 config LIBC_EGLIBC
     bool
@@ -40,23 +50,14 @@ config LIBC_EGLIBC
       cross-compilation support.  EGLIBC also includes some embedded ports
       (such as e500/spe) that are normally separate add-ons of GLIBC.
 
-if LIBC_EGLIBC
-source config/libc/eglibc.in
-endif
-
 config LIBC_UCLIBC
     bool
     prompt "uClibc"
     select LIBC_SUPPORT_LINUXTHREADS
 
-if LIBC_UCLIBC
-source config/libc/uClibc.in
-endif
-
 endchoice
 
-config LIBC_VERSION
-    string
+comment "Common C library options"
 
 config LIBC_SUPPORT_NPTL
     bool
@@ -65,6 +66,12 @@ config LIBC_SUPPORT_NPTL
 config LIBC_SUPPORT_LINUXTHREADS
     bool
     default n
+
+config THREADS
+    string
+    default "nptl"          if THREADS_NPTL
+    default "linuxthreads"  if THREADS_LINUXTHREADS
+    default "none"          if THREADS_NONE
 
 choice
     bool
@@ -89,24 +96,24 @@ config THREADS_NONE
 
 endchoice
 
-config THREADS
-    string
-    default "nptl"          if THREADS_NPTL
-    default "linuxthreads"  if THREADS_LINUXTHREADS
-    default "none"          if THREADS_NONE
+if LIBC_GLIBC
+source config/libc/glibc.in
+endif
 
-config LIBC_VERSION
-    help
-      Enter the date of the snapshot you want to use in the form: YYYYMMDD
-      where YYYY is the 4-digit year, MM the 2-digit month and DD the 2-digit
-      day in the month.
-      
-      Please note:
-      - glibc has snapshots done every monday, and only the last ten are kept.
-      - uClibc has daily snapshots, and only the last 30-or-so are kept.
-      
-      So if you want to be able to re-build your toolchain later, you will
-      have to save your C library tarball by yourself.
+if LIBC_EGLIBC
+source config/libc/eglibc.in
+endif
+
+# Hack: mconf does not allow to include a file multiple times,
+# so include glibc and eglibc common options from here, rather
+# than from each config files.
+if LIBC_GLIBC || LIBC_EGLIBC
+source config/libc/glibc-eglibc-common.in
+endif
+
+if LIBC_UCLIBC
+source config/libc/uClibc.in
+endif
 
 endmenu
 

@@ -7,6 +7,8 @@
 # If mconf is updated to accept multiple inclusion of the same
 # file, then the symlink can go (and the includers be updated).
 
+comment "glibc/eglibc common options"
+
 config LIBC_GLIBC_EXTRA_CONFIG
     string
     prompt "extra config"
@@ -68,30 +70,57 @@ config LIBC_ADDONS_LIST
 
       Eg.: crypt        (for very old libces)
 
-config LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
+if KERNEL_LINUX
+
+choice
     bool
-    prompt "Use headers version for minimum kernel version supported"
-    default y
+    prompt "Minimum supported kernel version"
+    default LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS
+
+config LIBC_GLIBC_KERNEL_VERSION_NONE
+    bool
+    prompt "Let ./configure decide"
     help
+      Let ./configure decide what minimum kernel version glibc/eglibc
+      will be able to run against.
+      
+      This will inclde legacy compatibility code for older kernels in
+      the C library, thus ensuring that it will run on a large number
+      of old kernels.
+      
+      The minimum kernel version supported will be dependent upon the
+      target you build for. For example:
+        alpha*-*-linux-gnu      Requires Linux 2.6.9 for NPTL
+        sh[34]-*-linux-gnu      Requires Linux 2.6.11
+        powerpc*                Requires Linux 2.4.19
+        arm*-*-linux-*gnueabi   Requires Linux 2.6.16
+
+config LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS
+    bool
+    prompt "Same as kernel headers (default)"
+    help
+      Normaly, you'll want glibc/eglibc to run against the same kernel
+      version as the one used for the headers.
+      
+      This is the default.
+      
       If enabled, crosstool-ng will use the chosen version of kernel
       headers for the glibc minimum kernel version supported, which is
       what gets passed to "--enable-kernel=" when configuring glibc.
-
+      
       Enabling this will ensure that no legacy compatibility code for
       older kernels is built into your C libraries, but it will
       be unable to run on kernel versions older than whichever kernel
       headers version you've built the toolchain for.
-
+      
       If you know for sure that your toolchain will never need to build
       applications that will run under a kernel version older than your
       chosen kernel headers version (CT_KERNEL_VERSION), you can choose
       "y" here.
 
-config LIBC_GLIBC_MIN_KERNEL_CHOSEN
-    string
-    prompt "Minimum kernel version supported"
-    default "2.6.9"
-    depends on ! LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
+config LIBC_GLIBC_KERNEL_VERSION_CHOSEN
+    bool
+    prompt "Specific kernel version"
     help
       Specify the earliest Linux kernel version you want glibc to
       include support for.  This does not have to match the kernel
@@ -107,7 +136,34 @@ config LIBC_GLIBC_MIN_KERNEL_CHOSEN
 
       Most people can leave this at the default value of "2.6.9".
 
+if LIBC_GLIBC_KERNEL_VERSION_CHOSEN
+
+config LIBC_GLIBC_MIN_KERNEL_VERSION
+    string
+    prompt "Minimum kernel version to support"
+    default "2.6.9"
+    help
+      Enter here the lowest kernel version glibc/eglibc will be able to
+      run against.
+      
+      The minimum kernel version supported will be dependent upon the
+      target you build for. For example:
+        alpha*-*-linux-gnu      Requires Linux 2.6.9 for NPTL
+        sh[34]-*-linux-gnu      Requires Linux 2.6.11
+        powerpc*                Requires Linux 2.4.19
+        arm*-*-linux-*gnueabi   Requires Linux 2.6.16
+      
+      Note that no sanity check is performed by crosstool-NG to ensure
+      that the value you enter here is appropriate for your target.
+
+endif # LIBC_GLIBC_KERNEL_VERSION_CHOSEN
+
+endchoice
+
 config LIBC_GLIBC_MIN_KERNEL
     string
-    default KERNEL_VERSION if LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
-    default LIBC_GLIBC_MIN_KERNEL_CHOSEN if ! LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
+    default ""                            if LIBC_GLIBC_KERNEL_VERSION_NONE
+    default KERNEL_VERSION                if LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS
+    default LIBC_GLIBC_MIN_KERNEL_VERSION if LIBC_GLIBC_USE_HEADERS_MIN_KERNEL
+
+endif # KERNEL_LINUX

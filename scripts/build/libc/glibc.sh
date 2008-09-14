@@ -89,9 +89,21 @@ do_libc_headers() {
     addons_config="${addons_config//linuxthreads/}"
     addons_config=$(echo "${addons_config}" |sed -r -e 's/^,+//; s/,+$//; s/,+/,/g;')
 
+    extra_config="${addons_config}"
+    min_kernel_config=
+    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+        *enable-kernel*) ;;
+        *)  if [    "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" \
+                 -o "${CT_LIBC_GLIBC_USE_HEADERS_MIN_KERNEL}" = "y"    ]; then
+                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+            fi
+            ;;
+    esac
+    extra_config="${extra_config} ${min_kernel_config}"
+
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
-    CT_DoLog DEBUG "Extra config passed : '${addons_config}'"
+    CT_DoLog DEBUG "Extra config passed : '${extra_config}'"
 
     libc_cv_ppc_machine=yes                     \
     CC=${cross_cc}                              \
@@ -104,7 +116,7 @@ do_libc_headers() {
         --without-cvs                           \
         --disable-sanity-checks                 \
         --enable-hacker-mode                    \
-        ${addons_config}                        \
+        ${extra_config}                         \
         --without-nptl
 
     CT_DoLog EXTRA "Installing C library headers"
@@ -208,11 +220,17 @@ do_libc_start_files() {
     CT_DoLog EXTRA "Configuring C library"
 
     # Add some default glibc config options if not given by user.
-    extra_config=""
+    extra_config=
+    min_kernel_config=
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *enable-kernel*) ;;
-        *) extra_config="${extra_config} --enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+        *)  if [    "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" \
+                 -o "${CT_LIBC_GLIBC_USE_HEADERS_MIN_KERNEL}" = "y"    ]; then
+                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+            fi
+            ;;
     esac
+    extra_config="${extra_config} ${min_kernel_config}"
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *-tls*) ;;
         *) extra_config="${extra_config} --with-tls"
@@ -314,7 +332,17 @@ do_libc() {
     # We don't need to be conditional on wether the user did set different
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
 
-    extra_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+    extra_config=
+    min_kernel_config=""
+    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+        *enable-kernel*) ;;
+        *)  if [    "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" \
+                 -o "${CT_LIBC_GLIBC_USE_HEADERS_MIN_KERNEL}" = "y"    ]; then
+                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+            fi
+            ;;
+    esac
+    extra_config="${extra_config} ${min_kernel_config}"
 
     case "${CT_THREADS}" in
         nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
