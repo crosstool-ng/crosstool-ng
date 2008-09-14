@@ -356,8 +356,8 @@ fi
 . "${CT_LIB_DIR}/scripts/build/gmp.sh"
 . "${CT_LIB_DIR}/scripts/build/mpfr.sh"
 . "${CT_LIB_DIR}/scripts/build/binutils.sh"
-. "${CT_LIB_DIR}/scripts/build/libc_${CT_LIBC}.sh"
-. "${CT_LIB_DIR}/scripts/build/cc_${CT_CC}.sh"
+. "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
+. "${CT_LIB_DIR}/scripts/build/cc/${CT_CC}.sh"
 . "${CT_LIB_DIR}/scripts/build/debug.sh"
 . "${CT_LIB_DIR}/scripts/build/tools.sh"
 
@@ -433,12 +433,13 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
     rm -fv "${CT_PREFIX_DIR}/bin/makeinfo" |CT_DoLog DEBUG
 
-    # Install the /populator/
-    CT_DoLog EXTRA "Installing the populate helper"
-    sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
-        "${CT_LIB_DIR}/tools/populate.in"           \
-        >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
-    chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
+    if [ "${CT_BARE_METAL}" != "y" ]; then
+        CT_DoLog EXTRA "Installing the populate helper"
+        sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
+            "${CT_LIB_DIR}/tools/populate.in"           \
+            >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
+        chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
+    fi
 
     # Create the aliases to the target tools
     CT_DoLog EXTRA "Creating toolchain aliases"

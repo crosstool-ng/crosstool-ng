@@ -30,7 +30,7 @@ dump_single_sample() {
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
         echo "]"
         if [ ${verbose} -ne 0 ]; then
-            echo    "    OS        : ${CT_KERNEL}-${CT_KERNEL_VERSION}"
+            echo    "    OS        : ${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
             if [ "${CT_GMP_MPFR}" = "y" ]; then
                 echo    "    GMP/MPFR  : gmp-${CT_GMP_VERSION} / mpfr-${CT_MPFR_VERSION}"
             fi
@@ -44,7 +44,7 @@ dump_single_sample() {
             [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ",Objective-C++"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
             echo    ")"
-            echo    "    C library : ${CT_LIBC}-${CT_LIBC_VERSION}"
+            echo    "    C library : ${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}"
             printf  "    Tools     :"
             [ "${CT_LIBELF}"  ] && printf " libelf-${CT_LIBELF_VERSION}"
             [ "${CT_SSTRIP}"  ] && printf " sstrip"
@@ -133,7 +133,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  | ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': Samples is curently BROKEN. |||||||||||||"
+    printf "^ Total: ${#@} samples  | ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': sample is curently BROKEN. |||||||||||||"
     echo   ""
 elif [ -z "${opt}" ]; then
     echo '      l (local)       : sample was found in current directory'

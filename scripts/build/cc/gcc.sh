@@ -1,4 +1,5 @@
 # This file adds the function to build the gcc C compiler
+        ${extra_config}                         \
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
@@ -27,20 +28,26 @@ do_cc_extract() {
 #------------------------------------------------------------------------------
 # Core gcc pass 1
 do_cc_core_pass_1() {
-    # In case we're NPTL, build the static core gcc;
-    # in any other case, do nothing.
-    case "${CT_THREADS}" in
-        nptl)   do_cc_core mode=static build_libgcc=no;;
+    # If we're building for bare metal, build the static core gcc,
+    # with libgcc.
+    # In case we're not bare metal, and we're NPTL, build the static core gcc.
+    # In any other case, do nothing.
+    case "${CT_BARE_METAL},${CT_THREADS}" in
+        y,*)    do_cc_core mode=baremetal build_libgcc=yes;;
+        ,nptl)  do_cc_core mode=static build_libgcc=no;;
         *)      ;;
     esac
 }
 
 # Core gcc pass 2
 do_cc_core_pass_2() {
-    # In case we're NPTL, build the shared core gcc,
-    # in any other case, build the static core gcc and the target libgcc.
-    case "${CT_THREADS}" in
-        nptl)   do_cc_core mode=shared build_libgcc=yes;;
+    # In case we're building for bare metal, do nothing, we already have
+    # our compiler.
+    # In case we're NPTL, build the shared core gcc.
+    # In any other case, build the static core gcc and the target libgcc.
+    case "${CT_BARE_METAL},${CT_THREADS}" in
+        y,*)    ;;
+        ,nptl)  do_cc_core mode=shared build_libgcc=yes;;
         *)      do_cc_core mode=static build_libgcc=yes;;
     esac
 }
@@ -49,9 +56,9 @@ do_cc_core_pass_2() {
 # Build core gcc
 # This function is used to build both the static and the shared core C conpiler,
 # with or without the target libgcc. We need to know wether:
-#  - we're building static or shared: mode=[static|shared]
-#  - we need to build libgcc or not:  build_libgcc=[yes|no]
-# Usage: do_cc_core_static mode=[static|shared] build_libgcc=[yes|no]
+#  - we're building static, shared or bare metal: mode=[static|shared|baremetal]
+#  - we need to build libgcc or not             : build_libgcc=[yes|no]
+# Usage: do_cc_core_static mode=[static|shared|baremetal] build_libgcc=[yes|no]
 do_cc_core() {
     local mode
     local build_libgcc
@@ -60,7 +67,7 @@ do_cc_core() {
 
     eval $1
     eval $2
-    CT_TestOrAbort "Internal Error: 'mode' must either 'static' or 'shared', not '${mode:-(empty)}'" "${mode}" = "static" -o "${mode}" = "shared"
+    CT_TestOrAbort "Internal Error: 'mode' must either 'static', 'shared' or 'baremetal', not '${mode:-(empty)}'" "${mode}" = "static" -o "${mode}" = "shared" -o "${mode}" = "baremetal"
     CT_TestOrAbort "Internal Error: 'build_libgcc' must be either 'yes' or 'no', not '${build_libgcc:-(empty)}'" "${build_libgcc}" = "yes" -o "${build_libgcc}" = "no"
     # In normal conditions, ( "${mode}" = "shared" ) implies
     # ( "${build_libgcc}" = "yes" ), but I won't check for that
@@ -73,16 +80,25 @@ do_cc_core() {
         static)
             core_prefix_dir="${CT_CC_CORE_STATIC_PREFIX_DIR}"
             extra_config="${extra_config} --with-newlib --enable-threads=no --disable-shared"
+            copy_headers=y
             ;;
         shared)
             core_prefix_dir="${CT_CC_CORE_SHARED_PREFIX_DIR}"
             extra_config="${extra_config} --enable-shared"
+            copy_headers=y
+            ;;
+        baremetal)
+            core_prefix_dir="${CT_PREFIX_DIR}"
+            extra_config="${extra_config} --with-newlib --enable-threads=no --disable-shared"
+            copy_headers=n
             ;;
     esac
 
-    CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
-    CT_DoExecLog ALL mkdir -p "${core_prefix_dir}/${CT_TARGET}/include"
-    CT_DoExecLog ALL cp -r "${CT_HEADERS_DIR}"/* "${core_prefix_dir}/${CT_TARGET}/include"
+    if [ "${copy_headers}" = "y" ]; then
+        CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
+        CT_DoExecLog ALL mkdir -p "${core_prefix_dir}/${CT_TARGET}/include"
+        CT_DoExecLog ALL cp -r "${CT_HEADERS_DIR}"/* "${core_prefix_dir}/${CT_TARGET}/include"
+    fi
 
     CT_DoLog EXTRA "Configuring ${mode} core C compiler"
 
@@ -193,6 +209,9 @@ do_cc_core() {
 #------------------------------------------------------------------------------
 # Build final gcc
 do_cc() {
+    # If building for bare metal, nothing to be done here, the static core conpiler is enough!
+    [ "${CT_BARE_METAL}" = "y" ] && return 0
+
     CT_DoStep INFO "Installing final compiler"
 
     mkdir -p "${CT_BUILD_DIR}/build-cc"
@@ -216,8 +235,13 @@ do_cc() {
 
     extra_config="--enable-languages=${lang_opt}"
     extra_config="${extra_config} --disable-multilib"
-    extra_config="${extra_config} ${CT_ARCH_WITH_ARCH} ${CT_ARCH_WITH_ABI} ${CT_ARCH_WITH_CPU} ${CT_ARCH_WITH_TUNE} ${CT_ARCH_WITH_FPU} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_SHARED_LIBS}" = "y" ]     || extra_config="${extra_config} --disable-shared"
+    extra_config="${extra_config} ${CT_ARCH_WITH_ARCH}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_ABI}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_CPU}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_TUNE}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_FPU}"
+    extra_config="${extra_config} ${CT_ARCH_WITH_FLOAT}"
+    [ "${CT_SHARED_LIBS}" = "y" ]                   || extra_config="${extra_config} --disable-shared"
     [ "${CT_GMP_MPFR}" = "y" ]                      && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     [ -n "${CT_CC_PKGVERSION}" ]                    && extra_config="${extra_config} --with-pkgversion=${CT_CC_PKGVERSION}"
     [ -n "${CT_CC_BUGURL}" ]                        && extra_config="${extra_config} --with-bugurl=${CT_CC_BUGURL}"
