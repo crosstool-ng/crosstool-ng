@@ -3,13 +3,12 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 do_print_filename() {
-    [ "${CT_KERNEL}" = "linux" ] || return 0
     echo "linux-${CT_KERNEL_VERSION}"
 }
 
 # Download the kernel
 do_kernel_get() {
-    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
         CT_GetFile "${CT_KERNEL_FILE}" {ftp,http}://ftp.kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
     fi
     return 0
@@ -17,7 +16,7 @@ do_kernel_get() {
 
 # Extract kernel
 do_kernel_extract() {
-    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" != "y" ]; then
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
         CT_ExtractAndPatch "${CT_KERNEL_FILE}"
     fi
     return 0
@@ -27,7 +26,7 @@ do_kernel_extract() {
 do_kernel_headers() {
     CT_DoStep INFO "Installing kernel headers"
 
-    if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" = "y" ]; then
         do_kernel_preinstalled
     else
         do_kernel_install
@@ -59,7 +58,7 @@ do_kernel_install() {
          ${V_OPT}                                   \
          headers_install
 
-    if [ "${CT_KERNEL_LINUX_HEADERS_INSTALL_CHECK}" = "y" ]; then
+    if [ "${CT_KERNEL_LINUX_INSTALL_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking installed headers"
         CT_DoExecLog ALL                                \
         make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
@@ -79,6 +78,6 @@ do_kernel_preinstalled() {
     CT_DoLog EXTRA "Copying preinstalled kernel headers"
 
     mkdir -p "${CT_SYSROOT_DIR}/usr"
-    cd "${CT_KERNEL_LINUX_HEADERS_CUSTOM_DIR}"
-    cp -rv include "${CT_SYSROOT_DIR}/usr" 2>&1 |CT_DoLog ALL
+    cd "${CT_KERNEL_LINUX_CUSTOM_DIR}"
+    CT_DoExecLog ALL cp -rv include "${CT_SYSROOT_DIR}/usr"
 }
