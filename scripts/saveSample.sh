@@ -67,19 +67,6 @@ else
     samp_top_dir="\${CT_TOP_DIR}"
 fi
 
-# Save the kernel .config file
-if [ -n "${CT_KERNEL_LINUX_CONFIG_FILE}" ]; then
-    # We save the file, and then point the saved sample to this file
-    CT_DoAddFileToSample "${CT_KERNEL_LINUX_CONFIG_FILE}" "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"
-    sed -r -i -e 's|^(CT_KERNEL_LINUX_CONFIG_FILE=).+$|\1"'"${samp_top_dir}"'/samples/${CT_TARGET}/${CT_KERNEL}-${CT_KERNEL_VERSION}.config"|;' \
-        "${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
-else
-    # remove any dangling files
-    for f in "${CT_TOP_DIR}/samples/${CT_TARGET}/${CT_KERNEL}-"*.config; do
-        if [ -f "${f}" ]; then rm -f "${f}"; fi
-    done
-fi
-
 # Save the uClibc .config file
 if [ -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
     # We save the file, and then point the saved sample to this file
