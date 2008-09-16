@@ -559,7 +559,7 @@ int main(int ac, char **av)
 				"*** You have not yet configured "PROJECT_NAME"!\n"
 				"***\n"
 				"*** Please run some configurator (e.g. \"make oldconfig\" or\n"
-				"*** \"make menuconfig\" or \"make xconfig\").\n"
+				"*** \"make menuconfig\" or \"make config\").\n"
 				"***\n"));
 			exit(1);
 		}
