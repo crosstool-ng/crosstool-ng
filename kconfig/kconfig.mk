@@ -20,7 +20,7 @@ endif
 
 # Build a list of all config files
 ARCHS              = $(patsubst $(CT_LIB_DIR)/arch/%,%,$(wildcard $(CT_LIB_DIR)/arch/*))
-ARCH_CONFIG_FILE   = $(wildcard $(CT_LIB_DIR)/arch/*/*.in)
+ARCH_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/arch/*/*.in)
 DEBUG_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/debug/*.in)
 TOOLS_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
 
