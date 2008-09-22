@@ -19,9 +19,6 @@ do_eglibc_get() {
         *)      svn_url="svn://svn.eglibc.org/branches/eglibc-${CT_LIBC_VERSION}";;
     esac
 
-    CT_MktempDir tmp_dir
-    CT_Pushd "${tmp_dir}"
-
     case "${CT_EGLIBC_CHECKOUT}" in
         y)  svn_action="checkout";;
         *)  svn_action="export --force";;
@@ -32,18 +29,13 @@ do_eglibc_get() {
 
     # Compress eglibc
     CT_DoExecLog ALL mv libc "${CT_LIBC_FILE}"
-    CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${CT_LIBC_FILE}.tar.bz2" "${CT_LIBC_FILE}"
+    CT_DoExecLog ALL tar cjf "${CT_LIBC_FILE}.tar.bz2" "${CT_LIBC_FILE}"
 
     # Compress linuxthreads, localedef and ports
     # Assign them the name the way ct-ng like it
     for addon in linuxthreads localedef ports; do
-        CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${CT_LIBC}-${addon}-${CT_LIBC_VERSION}.tar.bz2" "${addon}"
+        CT_DoExecLog ALL tar cjf "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}.tar.bz2" "${addon}"
     done
-
-    CT_Popd
-
-    # Remove source files
-    CT_DoExecLog ALL rm -rf "${tmp_dir}"
 }
 
 # Download glibc
@@ -81,7 +73,20 @@ do_libc_get() {
 
     # Not found locally, try from the network
     CT_DoLog EXTRA "Retrieving 'eglibc-${CT_LIBC_VERSION}'"
+
+    CT_MktempDir tmp_dir
+    CT_Pushd "${tmp_dir}"
+
     do_eglibc_get
+    CT_DoLog DEBUG "Moving 'eglibc-${CT_LIBC_VERSION}' to tarball directory"
+    for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
+        CT_DoExecLog ALL mv -f "${file}" "${CT_TARBALLS_DIR}"
+    done
+
+    CT_Popd
+
+    # Remove source files
+    CT_DoExecLog ALL rm -rf "${tmp_dir}"
 
     if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
         CT_DoLog EXTRA "Saving 'eglibc-${CT_LIBC_VERSION}' to local storage"
