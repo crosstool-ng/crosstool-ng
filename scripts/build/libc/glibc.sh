@@ -489,13 +489,7 @@ do_libc() {
 
     # Fix problems in linker scripts.
     #
-    # 1. Remove absolute paths
-    # Any file in a list of known suspects that isn't a symlink is assumed to be a linker script.
-    # FIXME: test -h is not portable
-    # FIXME: probably need to check more files than just these three...
-    # Need to use sed instead of just assuming we know what's in libc.so because otherwise alpha breaks
-    #
-    # 2. Remove lines containing BUG per http://sources.redhat.com/ml/bug-glibc/2003-05/msg00055.html,
+    # Remove lines containing BUG per http://sources.redhat.com/ml/bug-glibc/2003-05/msg00055.html,
     # needed to fix gcc-3.2.3/glibc-2.3.2 targeting arm
     #
     # To make "strip *.so.*" not fail (ptxdist does this), rename to .so_orig rather than .so.orig
@@ -505,11 +499,7 @@ do_libc() {
             if [ -f "${CT_SYSROOT_DIR}/${dir}/${file}" -a ! -L ${CT_SYSROOT_DIR}/$lib/$file ]; then
                 CT_DoExecLog ALL cp -v "${CT_SYSROOT_DIR}/${dir}/${file}" "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
                 CT_DoLog DEBUG "Fixing '${CT_SYS_ROOT_DIR}/${dir}/${file}'"
-                CT_DoExecLog ALL sed -i -r -e 's,/usr/lib/,,g;
-                                               s,/usr/lib64/,,g;
-                                               s,/lib/,,g;
-                                               s,/lib64/,,g;
-                                               /BUG in libc.scripts.output-format.sed/d' "${CT_SYSROOT_DIR}/${dir}/${file}"
+                CT_DoExecLog ALL sed -i -r -e '/BUG in libc.scripts.output-format.sed/d' "${CT_SYSROOT_DIR}/${dir}/${file}"
             fi
         done
     done
