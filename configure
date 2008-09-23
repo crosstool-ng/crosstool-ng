@@ -10,9 +10,10 @@ DATE=$(date +%Y%m%d)
 #  - makeinfo for building docs, even if discarded later on
 #  - others obvious... :-/
 TOOLS_TO_CHECK='
-make/^GNU
+/bin/bash/^GNU bash, version 3\.
+make/^GNU Make
 gcc
-awk/^GNU
+awk/^GNU Awk
 sed
 bison
 flex
@@ -46,12 +47,12 @@ do_error() {
 
 # A small function to test for existence of various tools
 # Usage: has_or_abort foobar
-#          -> foobar must exist in PATH
+#          -> foobar must exist in PATH or be an exiting fully qualified file name
 # Usage: has_or_abort foobar/string
-#          -> foobar must exist in PATH, and $(foobar --version) must contain 'string'
+#          -> foobar must exist in PATH or be an existing FQFN, and $(foobar --version) must contain 'string'
 has_or_abort() {
-    tool=$(echo "${1}/" |cut -d / -f 1)
-    regexp=$(echo "${1}/" |cut -d / -f 2)
+    tool="${1%/*}"
+    regexp="${1##*/}"
     printf "Checking for '${tool}'... "
     where=$(which "${tool}" 2>/dev/null || true)
     if [ -z "${where}" ]; then
@@ -249,18 +250,13 @@ echo "${VERSION}"
 [ -z "${DOCDIR_set}" ] && DOCDIR="${PREFIX}/share/doc/ct-ng-${VERSION}"
 [ -z "${MANDIR_set}" ] && MANDIR="${PREFIX}/share/man/man1"
 
-# Check bash is present, and at least version 3.0
-printf "Checking '/bin/bash' is at least bash-3.0... "
-[ -x /bin/bash ] || do_error "bash 3.0 or above was not found in '/bin/bash'"
-bash_version=$(/bin/bash -c 'echo ${BASH_VERSION}')
-bash_major=$(/bin/bash -c 'echo ${BASH_VERSINFO[0]}')
-[ ${bash_major} -ge 3 ] || do_error "bash 3.0 or above is needed ('/bin/bash' is '${bash_version}')"
-echo "${bash_version}"
-
 # Check the existence of absolutely required tools
-for tool in ${TOOLS_TO_CHECK}; do
-    has_or_abort "${tool}"
-done
+{ IFS='
+';
+  for tool in ${TOOLS_TO_CHECK}; do
+      has_or_abort "${tool}"
+  done;
+}
 
 # It's safer to change all ',' to spaces rather than setting IFS
 CONTRIB_list=$(echo "${CONTRIB_list}" |sed -r -e 's/,+/ /g;')
