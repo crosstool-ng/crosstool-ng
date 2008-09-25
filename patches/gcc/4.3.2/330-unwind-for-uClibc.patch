@@ -1,0 +1,25 @@
+diff -durN gcc-4.3.1.orig/gcc/config/t-linux-uclibc gcc-4.3.1/gcc/config/t-linux-uclibc
+--- gcc-4.3.1.orig/gcc/config/t-linux-uclibc	1970-01-01 01:00:00.000000000 +0100
++++ gcc-4.3.1/gcc/config/t-linux-uclibc	2008-07-29 13:07:15.000000000 +0200
+@@ -0,0 +1,5 @@
++# Remove glibc specific files added in t-linux
++SHLIB_MAPFILES := $(filter-out $(srcdir)/config/libgcc-glibc.ver, $(SHLIB_MAPFILES))
++
++# Use unwind-dw2-fde instead of unwind-dw2-fde-glibc
++LIB2ADDEH := $(subst unwind-dw2-fde-glibc.c,unwind-dw2-fde.c,$(LIB2ADDEH))
+diff -durN gcc-4.3.1.orig/gcc/config.gcc gcc-4.3.1/gcc/config.gcc
+--- gcc-4.3.1.orig/gcc/config.gcc	2008-07-29 13:11:02.000000000 +0200
++++ gcc-4.3.1/gcc/config.gcc	2008-07-29 13:10:05.000000000 +0200
+@@ -2651,6 +2651,12 @@
+ 	;;
+ esac
+ 
++# Rather than hook into each target, just do it after all the linux
++# targets have been processed
++case ${target} in
++  *-linux-uclibc*) tm_defines="${tm_defines} USE_UCLIBC" ; tmake_file="${tmake_file} t-linux-uclibc";;
++esac
++
+ case ${target} in
+ i[34567]86-*-linux*aout* | i[34567]86-*-linux*libc1)
+ 	tmake_file="${tmake_file} i386/t-gmm_malloc"
