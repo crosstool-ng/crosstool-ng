@@ -9,21 +9,45 @@ DATE=$(date +%Y%m%d)
 #  - awk must be GNU awk
 #  - makeinfo for building docs, even if discarded later on
 #  - others obvious... :-/
+#
+# Format of a pattern to check for, one per line:
+#   pattern := tool_test  OR  pattern|tool_test
+#   tool_test := tool/regexp
+#   tool := name of the tool  OR  absolute pathname to the tool
+#   regexp := valid grep(1) extended regular expression  OR  empty
+#
+# In case a pattern list is given (eg foo|bar|buz), then tests are performed
+# from left to right, stopping at the first matching test (like the shell
+# would parse 'foo || bar || buz' ).
+#
+# Examples:
+#    /bin/bash/^GNU bash, version 3\.
+#       will ensure that /bin/bash exists, and that $(/bin/bash --version)
+#       matches the regexp '^GNU bash, version 3\.'
+#    autoconf/(GNU Autoconf)|autoconf2.50/
+#       will ensure that:
+#         - 'autoconf' is to be found in the PATH, and that $(autoconf
+#           --version) matches the regexp '(GNU Autoconf)' (which btw is
+#           the signature of autoconf >= 2.50),
+#       OR that:
+#         - 'autoconf2.50' is to be found in the PATH
+#
 TOOLS_TO_CHECK='
 /bin/bash/^GNU bash, version 3\.
 make/^GNU Make
-gcc
+gcc/
 awk/^GNU Awk
-sed
-bison
-flex
-makeinfo
-automake
-libtool
-patch
-tar
-gzip
-bzip2
+sed/
+bison/
+flex/
+makeinfo/
+autoconf/(GNU Autoconf)|autoconf-2.50/|autoconf2.50/
+automake/
+libtool/
+patch/
+tar/
+gzip/
+bzip2/
 '
 
 PREFIX_DEFAULT=/usr/local
@@ -46,30 +70,33 @@ do_error() {
 }
 
 # A small function to test for existence of various tools
-# Usage: has_or_abort foobar
-#          -> foobar must exist in PATH or be an exiting fully qualified file name
-# Usage: has_or_abort foobar/string
-#          -> foobar must exist in PATH or be an existing FQFN, and $(foobar --version) must contain 'string'
+# Usage: has_or_abort test_pattern (see top of file, TOOLS_TO_CHECK, for
+#                                   complete pattern format)
 has_or_abort() {
-    tool="${1%/*}"
-    regexp="${1##*/}"
-    printf "Checking for '${tool}'... "
-    where=$(which "${tool}" 2>/dev/null || true)
-    if [ -z "${where}" ]; then
-        printf "not found!"
-        [ ${FORCE} -eq 0 ] && do_error " Bailing out..."
-        echo
-    else
-        printf "${where}"
-        if [ -n "${regexp}" ]; then
-            str=$(${tool} --version 2>&1 |egrep "${regexp}" |head -n 1)
-            if [ -z "${str}" ]; then
-                printf " failed: '${tool} --version' does not match regexp '${regexp}'."
-                [ ${FORCE} -eq 0 ] && do_error " Bailing out..."
-            fi
-        fi
-        echo
-    fi
+    { IFS="|"; for item in ${1}; do
+          tool="${item%/*}"
+          regexp="${item##*/}"
+          printf "Checking for '${tool}'... "
+          where=$(which "${tool}" 2>/dev/null || true)
+          if [ -z "${where}" ]; then
+              echo "not found"
+              where=
+              continue
+          else
+              if [ -n "${regexp}" ]; then
+                  str=$(${tool} --version 2>&1 |grep -E "${regexp}" |head -n 1)
+                  if [ -z "${str}" ]; then
+                      echo "wrong version string"
+                      where=""
+                      continue
+                  fi
+              fi
+              echo "${where}"
+              return 0
+          fi
+      done;
+    }
+    [ ${FORCE} -eq 0 ] && do_error "Bailing out..."
     return 0
 }
 
