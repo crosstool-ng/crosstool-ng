@@ -110,6 +110,11 @@ do_libc_extract() {
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
     done
 
+    # The configure files may be older than the configure.in files
+    # if using a snapshot (or even some tarballs). Fake them being
+    # up to date.
+    find "${CT_SRC_DIR}/${CT_LIBC_FILE}" -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
+
     return 0
 }
 
@@ -118,7 +123,7 @@ do_libc_check_config() {
     :
 }
 
-# This function installs the glibc headers needed to build the core compiler
+# This function installs the eglibc headers needed to build the core compiler
 do_libc_headers() {
     # Instead of doing two time the same actions, headers will
     # be installed with start files
