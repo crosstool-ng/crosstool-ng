@@ -148,10 +148,6 @@ help-config::
 
 SHIPPED := $(CT_LIB_DIR)/kconfig/zconf.tab.c $(CT_LIB_DIR)/kconfig/lex.zconf.c $(CT_LIB_DIR)/kconfig/zconf.hash.c
 
-%.c: %.c_shipped
-	@echo '  LN   kconfig/$(notdir $@)'
-	@ln -s $(notdir $<) $@
-
 $(obj)/conf $(obj)/mconf: $(obj)
 
 $(obj):
