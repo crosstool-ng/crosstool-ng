@@ -179,7 +179,6 @@ $(obj)/conf: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c    \
 
 clean::
 	@rm -f $(CT_TOP_DIR)/kconfig/{,m}conf
-	@rm -f $(SHIPPED)
 	@rmdir --ignore-fail-on-non-empty $(CT_TOP_DIR)/kconfig 2>/dev/null || true
 	@rm -f $(CT_TOP_DIR)/config 2>/dev/null || true
 	@rm -rf $(CT_TOP_DIR)/config.gen
