@@ -98,7 +98,7 @@ $(CT_TOP_DIR)/config.gen/debug.in: $(DEBUG_CONFIG_FILES)
 	@(echo "# Debug facilities menu";                                   \
 	  echo "# Generated file, do not edit!!!";                          \
 	  echo "menu \"Debug facilities\"";                                 \
-	  for f in $(patsubst $(CT_TOP_DIR)/%,%,$(DEBUG_CONFIG_FILES)); do  \
+	  for f in $(patsubst $(CT_LIB_DIR)/%,%,$(DEBUG_CONFIG_FILES)); do  \
 	     echo "source $${f}";                                           \
 	  done;                                                             \
 	  echo "endmenu";                                                   \
@@ -109,7 +109,7 @@ $(CT_TOP_DIR)/config.gen/tools.in: $(TOOLS_CONFIG_FILES)
 	@(echo "# Tools facilities menu";                                   \
 	  echo "# Generated file, do not edit!!!";                          \
 	  echo "menu \"Tools facilities\"";                                 \
-	  for f in $(patsubst $(CT_TOP_DIR)/%,%,$(TOOLS_CONFIG_FILES)); do  \
+	  for f in $(patsubst $(CT_LIB_DIR)/%,%,$(TOOLS_CONFIG_FILES)); do  \
 	     echo "source $${f}";                                           \
 	  done;                                                             \
 	  echo "endmenu";                                                   \
@@ -170,7 +170,7 @@ FILES = $(CT_LIB_DIR)/kconfig/confdata.c    \
 $(obj)/mconf: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c  \
               $(HEADERS) $(FILES)                       \
               $(CT_LIB_DIR)/kconfig/kconfig.mk
-	@echo '  LNK  kconfig/mconf'
+	@echo '  LD   kconfig/mconf'
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
 	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ccflags)              \
 	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ldflags $(HOST_CC))
@@ -178,7 +178,7 @@ $(obj)/mconf: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c  \
 $(obj)/conf: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c    \
              $(HEADERS) $(FILES)                        \
              $(CT_LIB_DIR)/kconfig/kconfig.mk
-	@echo '  LNK  kconfig/conf'
+	@echo '  LD   kconfig/conf'
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{conf.c,zconf.tab.c}
 
 clean::
