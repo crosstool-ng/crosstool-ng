@@ -659,6 +659,53 @@ The "functions" file API:
      - default to:
        - all empty
 
+Kernel specific |
+----------------+
+
+A kernel is defined by:
+
+ - a human-readable name, in lower case letters, with numbers as appropriate.
+   The underscore is allowed; space and special characters are not (although
+   they are internally replaced with underscores.
+     Eg.: linux, bare-metal
+ - a file in "config/kernel/", named after the kernel name, and suffixed with
+   ".in".
+     Eg.: config/kernel/linux.in, config/kernel/bare-metal.in
+
+The kernel's ".in" file must contain:
+ > an optional lines containing exactly "# EXPERIMENTAL", starting on the
+   first column, and without any following space or other character.
+   If this line is present, then this kernel is considered EXPERIMENTAL,
+   and correct dependency on EXPERIMENTAL will be set.
+ > the config option "KERNEL_%kernel_name%" (where %kernel_name% is to be
+   replaced with the actual kernel name, with all special characters and
+   spaces replaced by underscores).
+   That config option must have *neither* a type, *nor* a prompt! Also, it can
+   *not* depends on EXPERIMENTAL.
+     Eg.: KERNEL_linux, KERNEL_bare_metal
+   + mandatory:
+       defines a (terse) help entry for this kernel.
+       Eg.:
+         config KERNEL_bare_metal
+           help
+             Build a compiler for use without any kernel.
+   + optional:
+       selects adequate associated config options.
+       Eg.:
+         config KERNEL_bare_metal
+           select BARE_METAL
+           help
+             Build a compiler for use without any kernel.
+
+ > other kernel specific options, at your discretion. Note however that, to
+   avoid name-clashing, such options should be prefixed with
+   "KERNEL_%kernel_name%", where %kernel_name% is again tp be replaced with
+   the actual kernel name.
+   (Note: due to historical reasons, and lack of time to clean up the code,
+    I may have left some config options that do not completely conform to
+    this, as the kernel name was written all upper case. However, the prefix
+    is unique among kernels, and does not cause harm).
+
 Adding a new version of a component |
 ------------------------------------+
 

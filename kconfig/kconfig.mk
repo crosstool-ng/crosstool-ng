@@ -48,7 +48,8 @@ $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
 	  echo "# Generated file, do not edit!!!";                                  \
 	  echo "";                                                                  \
 	  for arch in $(ARCHS); do                                                  \
-	    echo "config ARCH_$${arch}";                                            \
+	    _arch=$$(echo "$${arch}" |sed -r -s -e 's/[-.+]/_/g;');                 \
+	    echo "config ARCH_$${_arch}";                                           \
 	    echo "    bool";                                                        \
 	    printf "    prompt \"$${arch}";                                         \
 	    if [ -f $(CT_LIB_DIR)/arch/$${arch}/experimental ]; then                \
@@ -57,9 +58,9 @@ $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
 	    else                                                                    \
 	      echo "\"";                                                            \
 	    fi;                                                                     \
-	    echo "if ARCH_$${arch}";                                                \
+	    echo "if ARCH_$${_arch}";                                               \
 	    echo "config ARCH";                                                     \
-	    echo "    default \"$${arch}\" if ARCH_$${arch}";                       \
+	    echo "    default \"$${arch}\" if ARCH_$${_arch}";                      \
 	    echo "source config/arch/$${arch}/config.in";                           \
 	    echo "endif";                                                           \
 	    echo "";                                                                \
@@ -68,29 +69,27 @@ $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
 
 $(CT_TOP_DIR)/config.gen/kernel.in: $(KERN_CONFIG_FILES)
 	@echo '  IN   config.gen/kernel.in'
-	@(echo "# Kernel menu";                                         \
-	  echo "# Generated file, do not edit!!!";                      \
-	  echo "";                                                      \
-	  for kern in $(KERNELS); do                                    \
-		_exp="$${kern/*./}";                                        \
-	    _kern1="$${kern/.experimental/}";                           \
-	    _kern2=$$(echo "$${_kern1}" |sed -r -e 's/[ -\/]/_/g;');    \
-	    echo "config KERNEL_$${_kern2}";                            \
-	    echo "    bool";                                            \
-	    printf "    prompt \"$${_kern1}";                           \
-	    if [ "$${_exp}" != "$${kern}" ]; then                       \
-	        echo " (EXPERIMENTAL)\"";                               \
-	        echo "    depends on EXPERIMENTAL";                     \
-	    else                                                        \
-	        echo "\"";                                              \
-		fi;                                                         \
-	    echo "if KERNEL_$${_kern2}";                                \
-	    echo "config KERNEL";                                       \
-	    echo "    default \"$${_kern1}\" if KERNEL_$${_kern2}";     \
-	    echo "source config/kernel/$${kern}.in";			        \
-	    echo "endif";                                               \
-	    echo "";                                                    \
-	  done;                                                         \
+	@(echo "# Kernel menu";                                                             \
+	  echo "# Generated file, do not edit!!!";                                          \
+	  echo "";                                                                          \
+	  for kern in $(KERNELS); do                                                        \
+	    _kern=$$(echo "$${kern}" |sed -r -s -e 's/[-.+]/_/g;');                         \
+	    echo "config KERNEL_$${_kern}";                                                 \
+	    echo "    bool";                                                                \
+	    printf "    prompt \"$${kern}";                                                 \
+	    if grep -E '^# +EXPERIMENTAL$$' config/kernel/$${kern}.in >/dev/null 2>&1; then \
+	      echo " (EXPERIMENTAL)\"";                                                     \
+	      echo "  depends on EXPERIMENTAL";                                             \
+	    else                                                                            \
+	      echo "\"";                                                                    \
+		fi;                                                                             \
+	    echo "if KERNEL_$${_kern}";                                                     \
+	    echo "config KERNEL";                                                           \
+	    echo "    default \"$${kern}\" if KERNEL_$${_kern}";                            \
+	    echo "source config/kernel/$${kern}.in";                                        \
+	    echo "endif";                                                                   \
+	    echo "";                                                                        \
+	  done;                                                                             \
 	 ) >$@
 
 $(CT_TOP_DIR)/config.gen/debug.in: $(DEBUG_CONFIG_FILES)
