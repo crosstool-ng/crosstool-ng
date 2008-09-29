@@ -39,32 +39,32 @@ KERNELS = $(patsubst $(CT_LIB_DIR)/config/kernel/%.in,%,$(KERN_CONFIG_FILES))
 $(GEN_CONFIG_FILES): $(CT_TOP_DIR)/config.gen           \
                      $(CT_LIB_DIR)/kconfig/kconfig.mk
 
-$(CT_TOP_DIR)/config.gen:
+$(CT_TOP_DIR)/config.gen: $(KCONFIG_TOP)
 	@mkdir -p $(CT_TOP_DIR)/config.gen
 
 $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
 	@echo '  IN   config.gen/arch.in'
-	@(echo "# Architectures menu";                                              \
-	  echo "# Generated file, do not edit!!!";                                  \
-	  echo "";                                                                  \
-	  for arch in $(ARCHS); do                                                  \
-	    _arch=$$(echo "$${arch}" |sed -r -s -e 's/[-.+]/_/g;');                 \
-	    echo "config ARCH_$${_arch}";                                           \
-	    echo "    bool";                                                        \
-	    printf "    prompt \"$${arch}";                                         \
-	    if [ -f $(CT_LIB_DIR)/arch/$${arch}/experimental ]; then                \
-	      echo " (EXPERIMENTAL)\"";                                             \
-	      echo "    depends on EXPERIMENTAL";                                   \
-	    else                                                                    \
-	      echo "\"";                                                            \
-	    fi;                                                                     \
-	    echo "if ARCH_$${_arch}";                                               \
-	    echo "config ARCH";                                                     \
-	    echo "    default \"$${arch}\" if ARCH_$${_arch}";                      \
-	    echo "source config/arch/$${arch}/config.in";                           \
-	    echo "endif";                                                           \
-	    echo "";                                                                \
-	  done;                                                                     \
+	@(echo "# Architectures menu";                                                              \
+	  echo "# Generated file, do not edit!!!";                                                  \
+	  echo "";                                                                                  \
+	  for arch in $(ARCHS); do                                                                  \
+	    _arch=$$(echo "$${arch}" |sed -r -s -e 's/[-.+]/_/g;');                                 \
+	    echo "config ARCH_$${_arch}";                                                           \
+	    echo "    bool";                                                                        \
+	    printf "    prompt \"$${arch}";                                                         \
+	    if grep -E '^# +EXPERIMENTAL$$' config/arch/$${arch}/config.in >/dev/null 2>&1; then    \
+	      echo " (EXPERIMENTAL)\"";                                                             \
+	      echo "    depends on EXPERIMENTAL";                                                   \
+	    else                                                                                    \
+	      echo "\"";                                                                            \
+	    fi;                                                                                     \
+	    echo "if ARCH_$${_arch}";                                                               \
+	    echo "config ARCH";                                                                     \
+	    echo "    default \"$${arch}\" if ARCH_$${_arch}";                                      \
+	    echo "source config/arch/$${arch}/config.in";                                           \
+	    echo "endif";                                                                           \
+	    echo "";                                                                                \
+	  done;                                                                                     \
 	 ) >$@
 
 $(CT_TOP_DIR)/config.gen/kernel.in: $(KERN_CONFIG_FILES)
