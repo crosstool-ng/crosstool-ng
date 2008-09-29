@@ -48,7 +48,7 @@ do_cc_core_pass_2() {
     case "${CT_BARE_METAL},${CT_THREADS}" in
         y,*)    ;;
         ,nptl)  do_cc_core mode=shared build_libgcc=yes;;
-        *)      do_cc_core mode=static build_libgcc=yes;;
+        *)      do_cc_core mode=static build_libgcc=no;;
     esac
 }
 
