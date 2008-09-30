@@ -43,12 +43,20 @@ do_cc_core_pass_1() {
 do_cc_core_pass_2() {
     # In case we're building for bare metal, do nothing, we already have
     # our compiler.
-    # In case we're NPTL, build the shared core gcc.
-    # In any other case, build the static core gcc and the target libgcc.
+    # In case we're NPTL, build the shared core gcc and the target libgcc.
+    # In any other case, build the static core gcc and, if using gcc-4.3+,
+    # also build the target libgcc.
     case "${CT_BARE_METAL},${CT_THREADS}" in
         y,*)    ;;
-        ,nptl)  do_cc_core mode=shared build_libgcc=yes;;
-        *)      do_cc_core mode=static build_libgcc=no;;
+        ,nptl)
+            do_cc_core mode=shared build_libgcc=yes
+            ;;
+        *)  if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
+                do_cc_core mode=static build_libgcc=yes
+            else
+                do_cc_core mode=static build_libgcc=no
+            fi
+            ;;
     esac
 }
 
@@ -171,11 +179,7 @@ do_cc_core() {
         # Starting with GCC 4.3, libgcc.mk is no longer built,
         # and libgcc.mvars is used instead.
 
-        gcc_version_major=$(echo ${CT_CC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
-        gcc_version_minor=$(echo ${CT_CC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
-
-        if [    ${gcc_version_major} -eq 4 -a ${gcc_version_minor} -ge 3    \
-             -o ${gcc_version_major} -gt 4                                  ]; then
+        if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
             libgcc_rule="libgcc.mvars"
             build_rules="all-gcc all-target-libgcc"
             install_rules="install-gcc install-target-libgcc"
