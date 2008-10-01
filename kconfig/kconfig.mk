@@ -7,7 +7,7 @@ export PROJECTVERSION=$(CT_VERSION)
 
 KCONFIG_TOP = config/config.in
 obj = $(CT_TOP_DIR)/kconfig
-PHONY += clean help oldconfig menuconfig config defoldconfig extractconfig
+PHONY += clean help oldconfig menuconfig config defoldconfig
 
 # Darwin (MacOS-X) does not have proper libintl support
 ifeq ($(shell uname -s),Darwin)
@@ -114,7 +114,7 @@ $(CT_TOP_DIR)/config.gen/tools.in: $(TOOLS_CONFIG_FILES)
 	  echo "endmenu";                                                   \
 	 ) >$@
 
-config menuconfig oldconfig defoldconfig extractconfig: $(KCONFIG_TOP)
+config menuconfig oldconfig defoldconfig: $(KCONFIG_TOP)
 
 $(KCONFIG_TOP):
 	@ln -sf $(CT_LIB_DIR)/config config
@@ -131,16 +131,11 @@ oldconfig: $(CONFIG_FILES) $(obj)/conf
 defoldconfig: $(CONFIG_FILES) $(obj)/conf
 	@yes "" |$(obj)/conf -s $(KCONFIG_TOP)
 
-extractconfig: $(CONFIG_FILES) $(obj)/conf
-	@$(CT_LIB_DIR)/tools/extract-config.sh >.config
-	@$(obj)/conf -s $(KCONFIG_TOP)
-
 # Help text used by make help
 help-config::
 	@echo  '  config             - Update current config using a line-oriented program'
 	@echo  '  menuconfig         - Update current config using a menu based program'
 	@echo  '  oldconfig          - Update current config using a provided .config as base'
-	@echo  '  extractconfig      - Create a new config using options extracted from a'
 	@echo  '                       build log piped into stdin'
 
 # Cheesy build

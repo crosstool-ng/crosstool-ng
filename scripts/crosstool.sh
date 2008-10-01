@@ -36,7 +36,7 @@ CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 # renice oursleves
 CT_DoExecLog DEBUG renice ${CT_NICE} $$
 
-CT_DoStep DEBUG "Dumping crosstool-NG configuration"
+CT_DoStep DEBUG "Dumping user-supplied crosstool-NG configuration"
 cat "${CT_TOP_DIR}/.config" |egrep '^(# |)CT_' |CT_DoLog DEBUG
 CT_EndStep
 
@@ -340,6 +340,10 @@ if [ -z "${CT_RESTART}" ]; then
     [ ${CT_PARALLEL_JOBS} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -j${CT_PARALLEL_JOBS}"
     [ ${CT_LOAD} -ne 0 ] && PARALLELMFLAGS="${PARALLELMFLAGS} -l${CT_LOAD}"
     export PARALLELMFLAGS
+
+    CT_DoLog EXTRA "Installing user-supplied crosstool-NG configuration"
+    CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/tools/toolchain-config.in" "${CT_PREFIX_DIR}/bin/${CT_TARGET}.ct-ng.config"
+    bzip2 -c -9 .config >>"${CT_PREFIX_DIR}/bin/${CT_TARGET}.ct-ng.config"
 
     CT_DoStep EXTRA "Dumping internal crosstool-NG configuration"
     CT_DoLog EXTRA "Building a toolchain for:"
