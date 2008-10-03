@@ -19,7 +19,7 @@ CFLAGS += -DKBUILD_NO_NLS
 endif
 
 # Build a list of all config files
-ARCH_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/arch/*/config.in)
+ARCH_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/arch/*/config.in)
 KERN_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/kernel/*.in)
 DEBUG_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/debug/*.in)
 TOOLS_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
@@ -33,7 +33,7 @@ GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/arch.in	\
 CONFIG_FILES=$(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
 
 # Build list of items
-ARCHS   = $(patsubst $(CT_LIB_DIR)/arch/%/config.in,%,$(ARCH_CONFIG_FILES))
+ARCHS   = $(patsubst $(CT_LIB_DIR)/config/arch/%/config.in,%,$(ARCH_CONFIG_FILES))
 KERNELS = $(patsubst $(CT_LIB_DIR)/config/kernel/%.in,%,$(KERN_CONFIG_FILES))
 
 $(GEN_CONFIG_FILES): $(CT_TOP_DIR)/config.gen           \
