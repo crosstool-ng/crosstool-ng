@@ -541,18 +541,18 @@ An architecture is defined by:
  - a human-readable name, in lower case letters, with numbers as appropriate.
    The underscore is allowed; space and special characters are not.
      Eg.: arm, x86_64
- - a directory in "arch/" named after the architecture, with the same letters
-   as above. Eg.: arch/arm, arch/x86_64
+ - a directory in "config/arch/" named after the architecture, with the same
+   letters as above. Eg.: arch/arm, arch/x86_64
    This directory contains the following files, and only those files:
    - a configuration file in kconfig syntax, named "config.in", which shall
      follow the API defined below.
-       Eg.: arch/arm/config.in
+       Eg.: config/arch/arm/config.in
    - a function script in bash-3.0 syntax, named "functions", which shall
      follow the API defined below.
-       Eg.: arch/arm/functions
+       Eg.: config/arch/arm/functions
    - an optional file, named "experimental" (in lower case!), which, if it
      is present, means that support for this architecture is EXPERIMENTAL.
-       Eg.: arch/arm/experimental
+       Eg.: config/arch/arm/experimental
 
 The "config.in" file API:
  > the config option "ARCH_%arch%" (where %arch% is to be replaced with the
@@ -588,9 +588,9 @@ The "functions" file API:
  > the function "CT_DoArchValues"
    + parameters: none
    + environment:
-      - all variables from the ".config" file,
-      - the two variables "target_endian_eb" and "target_endian_el" which are
-        the endianness suffixes
+     - all variables from the ".config" file,
+     - the two variables "target_endian_eb" and "target_endian_el" which are
+       the endianness suffixes
    + return value: 0 upon success, !0 upon failure
    + provides:
      - mandatory
@@ -656,6 +656,9 @@ The "functions" file API:
      - default to:
        - all empty
 
+You can have a look at "config/arch/arm/" for an quite complete example of
+what an actual architecture description looks like.
+
 Kernel specific |
 ----------------+
 
@@ -668,12 +671,16 @@ A kernel is defined by:
  - a file in "config/kernel/", named after the kernel name, and suffixed with
    ".in".
      Eg.: config/kernel/linux.in, config/kernel/bare-metal.in
+ - a file in "scripts/build/kernel/", named after the kernel name, and suffixed
+   with ".sh".
+     Eg.: scripts/build/kernel/linux.sh, scripts/build/kernel/bare-metal.sh
 
 The kernel's ".in" file must contain:
  > an optional lines containing exactly "# EXPERIMENTAL", starting on the
    first column, and without any following space or other character.
    If this line is present, then this kernel is considered EXPERIMENTAL,
    and correct dependency on EXPERIMENTAL will be set.
+
  > the config option "KERNEL_%kernel_name%" (where %kernel_name% is to be
    replaced with the actual kernel name, with all special characters and
    spaces replaced by underscores).
@@ -702,6 +709,58 @@ The kernel's ".in" file must contain:
     I may have left some config options that do not completely conform to
     this, as the kernel name was written all upper case. However, the prefix
     is unique among kernels, and does not cause harm).
+
+The kernel's ".sh" file API:
+ > is a bash script fragment
+
+ > defines the function "do_print_filename":
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file,
+   + return value: ignored
+   + behavior: output the kernel's tarball filename, with adequate suffix,
+     on stdout.
+       Eg.: linux-2.6.26.5.tar.bz2
+
+ > defines the function "do_kernel_get":
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file.
+   + return value: 0 for success, !0 for failure.
+   + behavior: download the kernel's sources, and store the tarball into
+     "${CT_TARBALLS_DIR}". To this end, a functions is available, that
+     abstracts downloading tarballs:
+     - CT_DoGet <tarball_base_name> <URL1 [URL...]>
+       Eg.: CT_DoGet linux-2.6.26.5 ftp://ftp.kernel.org/pub/linux/kernel/v2.6
+     Note: retrieving sources from svn, cvs, git and the likes is not supported
+     by CT_DoGet. You'll have to do this by hand, as it is done for eglibc in
+     "scripts/build/libc/eglibc.sh"
+
+ > defines the function "do_kernel_extract":
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file,
+   + return value: 0 for success, !0 for failure.
+   + behavior: extract the kernel's tarball into "${CT_SRC_DIR}", and apply
+     required patches. To this end, a function is available, that abstracts
+     extracting tarballs:
+     - CT_ExtractAndPatch <tarball_base_name>
+       Eg.: CT_ExtractAndPatch linux-2.6.26.5
+
+ > defines the function "do_kernel_headers":
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file,
+   + return value: 0 for success, !0 for failure.
+   + behavior: install the kernel headers (if any) in "${CT_SYSROOT_DIR}/usr/include"
+
+ > defines any kernel-specific helper functions
+   These functions, if any, must be prefixed with "do_kernel_%CT_KERNEL%_",
+   where '%CT_KERNEL%' is to be replaced with the actual kernel name, to avoid
+   any name-clashing.
+
+You can have a look at "config/kernel/linux.in" and "scripts/build/kernel/linux.sh"
+as an example of what a complex kernel description looks like,
 
 Adding a new version of a component |
 ------------------------------------+
