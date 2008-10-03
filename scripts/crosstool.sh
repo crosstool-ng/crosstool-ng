@@ -57,7 +57,7 @@ GREP_OPTIONS=
 CT_DoLog INFO "Building environment variables"
 
 # Parse architecture-specific functions
-. "${CT_LIB_DIR}/arch/${CT_ARCH}/functions"
+. "${CT_LIB_DIR}/config/arch/${CT_ARCH}/functions"
 
 # Target tuple: CT_TARGET needs a little love:
 CT_DoBuildTargetTuple
