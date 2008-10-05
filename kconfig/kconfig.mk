@@ -19,7 +19,7 @@ CFLAGS += -DKBUILD_NO_NLS
 endif
 
 # Build a list of all config files
-ARCH_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/arch/*/config.in)
+ARCH_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/arch/*.in)
 KERN_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/kernel/*.in)
 DEBUG_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/debug/*.in)
 TOOLS_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
@@ -33,7 +33,7 @@ GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/arch.in	\
 CONFIG_FILES=$(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
 
 # Build list of items
-ARCHS   = $(patsubst $(CT_LIB_DIR)/config/arch/%/config.in,%,$(ARCH_CONFIG_FILES))
+ARCHS   = $(patsubst $(CT_LIB_DIR)/config/arch/%.in,%,$(ARCH_CONFIG_FILES))
 KERNELS = $(patsubst $(CT_LIB_DIR)/config/kernel/%.in,%,$(KERN_CONFIG_FILES))
 
 $(GEN_CONFIG_FILES): $(CT_TOP_DIR)/config.gen           \
@@ -44,27 +44,27 @@ $(CT_TOP_DIR)/config.gen: $(KCONFIG_TOP)
 
 $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
 	@echo '  IN   config.gen/arch.in'
-	@(echo "# Architectures menu";                                                              \
-	  echo "# Generated file, do not edit!!!";                                                  \
-	  echo "";                                                                                  \
-	  for arch in $(ARCHS); do                                                                  \
-	    _arch=$$(echo "$${arch}" |sed -r -s -e 's/[-.+]/_/g;');                                 \
-	    echo "config ARCH_$${_arch}";                                                           \
-	    echo "    bool";                                                                        \
-	    printf "    prompt \"$${arch}";                                                         \
-	    if grep -E '^# +EXPERIMENTAL$$' config/arch/$${arch}/config.in >/dev/null 2>&1; then    \
-	      echo " (EXPERIMENTAL)\"";                                                             \
-	      echo "    depends on EXPERIMENTAL";                                                   \
-	    else                                                                                    \
-	      echo "\"";                                                                            \
-	    fi;                                                                                     \
-	    echo "if ARCH_$${_arch}";                                                               \
-	    echo "config ARCH";                                                                     \
-	    echo "    default \"$${arch}\" if ARCH_$${_arch}";                                      \
-	    echo "source config/arch/$${arch}/config.in";                                           \
-	    echo "endif";                                                                           \
-	    echo "";                                                                                \
-	  done;                                                                                     \
+	@(echo "# Architectures menu";                                                      \
+	  echo "# Generated file, do not edit!!!";                                          \
+	  echo "";                                                                          \
+	  for arch in $(ARCHS); do                                                          \
+	    _arch=$$(echo "$${arch}" |sed -r -s -e 's/[-.+]/_/g;');                         \
+	    echo "config ARCH_$${_arch}";                                                   \
+	    echo "    bool";                                                                \
+	    printf "    prompt \"$${arch}";                                                 \
+	    if grep -E '^# +EXPERIMENTAL$$' config/arch/$${arch}.in >/dev/null 2>&1; then   \
+	      echo " (EXPERIMENTAL)\"";                                                     \
+	      echo "    depends on EXPERIMENTAL";                                           \
+	    else                                                                            \
+	      echo "\"";                                                                    \
+	    fi;                                                                             \
+	    echo "if ARCH_$${_arch}";                                                       \
+	    echo "config ARCH";                                                             \
+	    echo "    default \"$${arch}\" if ARCH_$${_arch}";                              \
+	    echo "source config/arch/$${arch}.in";                                          \
+	    echo "endif";                                                                   \
+	    echo "";                                                                        \
+	  done;                                                                             \
 	 ) >$@
 
 $(CT_TOP_DIR)/config.gen/kernel.in: $(KERN_CONFIG_FILES)
