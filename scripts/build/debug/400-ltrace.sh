@@ -1,9 +1,6 @@
 # Build script for ltrace
 
-is_enabled="${CT_LTRACE}"
-
 do_print_filename() {
-    [ "${CT_LTRACE}" = "y" ] || return 0
     echo "ltrace-${CT_LTRACE_VERSION}.orig"
 }
 

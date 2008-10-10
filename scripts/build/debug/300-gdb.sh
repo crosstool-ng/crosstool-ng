@@ -1,9 +1,6 @@
 # Build script for the gdb debug facility
 
-is_enabled="${CT_GDB}"
-
 do_print_filename() {
-    [ "${CT_GDB}" = "y" ] || return 0
     echo "gdb$(do_debug_gdb_suffix)"
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         echo "ncurses-${CT_NCURSES_VERSION}"

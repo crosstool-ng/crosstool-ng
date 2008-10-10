@@ -3,11 +3,15 @@
 # List all debug facilities, and parse their scripts
 CT_DEBUG_FACILITY_LIST=
 for f in "${CT_LIB_DIR}/scripts/build/debug/"*.sh; do
-    is_enabled=
-    . "${f}"
-    f=$(basename "${f}" .sh)
-    if [ "${is_enabled}" = "y" ]; then
-        CT_DEBUG_FACILITY_LIST="${CT_DEBUG_FACILITY_LIST} ${f#???-}"
+    _f="$(basename "${f}" .sh)"
+    _f="${_f#???-}"
+    __f="CT_DEBUG_${_f}"
+    if [ "${!__f}" = "y" ]; then
+        CT_DoLog DEBUG "Enabling debug '${_f}'"
+        . "${f}"
+        CT_DEBUG_FACILITY_LIST="${CT_DEBUG_FACILITY_LIST} ${_f}"
+    else
+        CT_DoLog DEBUG "Disabling debug '${_f}'"
     fi
 done
 

@@ -22,19 +22,21 @@ endif
 ARCH_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/arch/*.in)
 KERNEL_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/kernel/*.in)
 DEBUG_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/debug/*.in)
-TOOLS_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
+TOOL_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
 
 STATIC_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config -type f -name '*.in')
-GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/arch.in	\
-				 $(CT_TOP_DIR)/config.gen/kernel.in	\
-				 $(CT_TOP_DIR)/config.gen/debug.in	\
-				 $(CT_TOP_DIR)/config.gen/tools.in
+GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/arch.in   \
+                 $(CT_TOP_DIR)/config.gen/kernel.in \
+                 $(CT_TOP_DIR)/config.gen/tools.in  \
+                 $(CT_TOP_DIR)/config.gen/debug.in
 
 CONFIG_FILES=$(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
 
 # Build list of items
 ARCHS   = $(patsubst $(CT_LIB_DIR)/config/arch/%.in,%,$(ARCH_CONFIG_FILES))
 KERNELS = $(patsubst $(CT_LIB_DIR)/config/kernel/%.in,%,$(KERNEL_CONFIG_FILES))
+DEBUGS  = $(patsubst $(CT_LIB_DIR)/config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
+TOOLS   = $(patsubst $(CT_LIB_DIR)/config/tools/%.in,%,$(TOOL_CONFIG_FILES))
 
 $(GEN_CONFIG_FILES): $(CT_TOP_DIR)/config.gen           \
                      $(CT_LIB_DIR)/kconfig/kconfig.mk
@@ -84,27 +86,45 @@ $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
 $(CT_TOP_DIR)/config.gen/kernel.in: $(KERNEL_CONFIG_FILES)
 	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Kernel,KERNEL,config/kernel,$(KERNELS))
 
-$(CT_TOP_DIR)/config.gen/debug.in: $(DEBUG_CONFIG_FILES)
-	@echo '  IN   config.gen/debug.in'
-	@(echo "# Debug facilities menu";                                   \
+# Function build_gen_menu_in:
+# $1 : destination file
+# $2 : name of entries family (eg. Tools, Debug...)
+# $3 : prefix for the menu entries (eg. TOOL, DEBUG)
+# $4 : base directory containing config files
+# $5 : list of config entries (eg. for tools: "libelf sstrip"..., and for
+#      debug: "dmalloc duma gdb"...)
+# Example to build the tools generated config file:
+# $(call build_gen_menu_in,config.gen/tools.in,Tools,TOOL,config/tools,$(TOOLS))
+define build_gen_menu_in
+	@echo '  IN   $(1)'
+	@(echo "# $(2) facilities menu";                                    \
 	  echo "# Generated file, do not edit!!!";                          \
-	  echo "menu \"Debug facilities\"";                                 \
-	  for f in $(patsubst $(CT_LIB_DIR)/%,%,$(DEBUG_CONFIG_FILES)); do  \
-	     echo "source $${f}";                                           \
+	  echo "";                                                          \
+	  for entry in $(5); do                                             \
+	    file="$(4)/$${entry}.in";                                       \
+	    _entry=$$(echo "$${entry}" |sed -r -s -e 's/[-.+]/_/g;');       \
+	    echo "menuconfig $(3)_$${_entry}";                              \
+	    echo "    bool";                                                \
+	    printf "    prompt \"$${entry}";                                \
+	    if grep -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
+	      echo " (EXPERIMENTAL)\"";                                     \
+	      echo "    depends on EXPERIMENTAL";                           \
+	    else                                                            \
+	      echo "\"";                                                    \
+	    fi;                                                             \
+	    echo "if $(3)_$${_entry}";                                      \
+	    echo "source $${file}";                                         \
+	    echo "endif";                                                   \
+	    echo "";                                                        \
 	  done;                                                             \
-	  echo "endmenu";                                                   \
-	 ) >$@
+	 ) >$(1)
+endef
 
-$(CT_TOP_DIR)/config.gen/tools.in: $(TOOLS_CONFIG_FILES)
-	@echo '  IN   config.gen/tools.in'
-	@(echo "# Tools facilities menu";                                   \
-	  echo "# Generated file, do not edit!!!";                          \
-	  echo "menu \"Tools facilities\"";                                 \
-	  for f in $(patsubst $(CT_LIB_DIR)/%,%,$(TOOLS_CONFIG_FILES)); do  \
-	     echo "source $${f}";                                           \
-	  done;                                                             \
-	  echo "endmenu";                                                   \
-	 ) >$@
+$(CT_TOP_DIR)/config.gen/tools.in: $(TOOL_CONFIG_FILES)
+	$(call build_gen_menu_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Tools,TOOL,config/tools,$(TOOLS))
+
+$(CT_TOP_DIR)/config.gen/debug.in: $(DEBUG_CONFIG_FILES)
+	$(call build_gen_menu_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Debug,DEBUG,config/debug,$(DEBUGS))
 
 config menuconfig oldconfig defoldconfig: $(KCONFIG_TOP)
 

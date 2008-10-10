@@ -1,9 +1,6 @@
 # Build script for strace
 
-is_enabled="${CT_STRACE}"
-
 do_print_filename() {
-    [ "${CT_STRACE}" = "y" ] || return 0
     echo "strace-${CT_STRACE_VERSION}"
 }
 

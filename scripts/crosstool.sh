@@ -362,8 +362,8 @@ fi
 . "${CT_LIB_DIR}/scripts/build/binutils.sh"
 . "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
 . "${CT_LIB_DIR}/scripts/build/cc/${CT_CC}.sh"
-. "${CT_LIB_DIR}/scripts/build/debug.sh"
 . "${CT_LIB_DIR}/scripts/build/tools.sh"
+. "${CT_LIB_DIR}/scripts/build/debug.sh"
 
 if [ -z "${CT_RESTART}" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"

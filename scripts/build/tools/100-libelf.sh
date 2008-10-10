@@ -1,9 +1,6 @@
 # Build script for libelf
 
-is_enabled="${CT_LIBELF}"
-
 do_print_filename() {
-    [ "{CT_LIBELF}" = "y" ] || return 0
     echo "libelf-${CT_LIBELF_VERSION}"
 }
 

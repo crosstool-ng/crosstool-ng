@@ -1,9 +1,6 @@
 # Build script for D.U.M.A.
 
-is_enabled="${CT_DUMA}"
-
 do_print_filename() {
-    [ "${CT_DUMA}" = "y" ] || return 0
     echo "duma_${CT_DUMA_VERSION}"
 }
 

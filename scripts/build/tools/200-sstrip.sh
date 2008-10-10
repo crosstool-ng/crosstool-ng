@@ -1,7 +1,5 @@
 # This will build and install sstrip to run on host and sstrip target files
 
-is_enabled="${CT_SSTRIP}"
-
 case "${CT_SSTRIP_FROM}" in
     ELFkickers)
         do_print_filename() {

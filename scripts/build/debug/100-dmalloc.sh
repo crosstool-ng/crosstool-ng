@@ -1,9 +1,6 @@
 # Build script for the dmalloc debug library facility
 
-is_enabled="${CT_DMALLOC}"
-
 do_print_filename() {
-    [ "${CT_DMALLOC}" = "y" ] || return 0
     echo "dmalloc-${CT_DMALLOC_VERSION}"
 }
 
