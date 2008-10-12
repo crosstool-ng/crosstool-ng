@@ -52,39 +52,49 @@ $(CT_TOP_DIR)/config.gen: $(KCONFIG_TOP)
 # $5 : list of config entries (eg. for architectures: "alpha arm ia64"...,
 #      and for kernels: "bare-metal linux"...)
 # Example to build the kernels generated config file:
-# $(call build_gen_choice_in,config.gen/kernel.in,Kernel,KERNEL,config/kernel,$(KERNELS))
+# $(call build_gen_choice_in,config.gen/kernel.in,Target OS,KERNEL,config/kernel,$(KERNELS))
 define build_gen_choice_in
 	@echo '  IN   $(1)'
-	@(echo "# $(2) menu";                                                               \
-	  echo "# Generated file, do not edit!!!";                                          \
-	  echo "";                                                                          \
-	  for entry in $(5); do                                                             \
-	    file="$(4)/$${entry}.in";                                                       \
-	    _entry=$$(echo "$${entry}" |sed -r -s -e 's/[-.+]/_/g;');                       \
-	    echo "config $(3)_$${_entry}";                                                  \
-	    echo "    bool";                                                                \
-	    printf "    prompt \"$${entry}";                                                \
-	    if grep -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then                  \
-	      echo " (EXPERIMENTAL)\"";                                                     \
-	      echo "    depends on EXPERIMENTAL";                                           \
-	    else                                                                            \
-	      echo "\"";                                                                    \
-	    fi;                                                                             \
-	    echo "if $(3)_$${_entry}";                                                      \
-	    echo "config $(3)";                                                             \
-	    echo "    default \"$${entry}\" if $(3)_$${_entry}";                            \
-	    echo "source $${file}";                                                         \
-	    echo "endif";                                                                   \
-	    echo "";                                                                        \
-	  done;                                                                             \
+	@(echo "# $(2) menu";                                               \
+	  echo "# Generated file, do not edit!!!";                          \
+	  echo "";                                                          \
+	  echo "choice";                                                    \
+	  echo "    bool";                                                  \
+	  echo "    prompt \"$(2)\"";                                       \
+	  echo "";                                                          \
+	  for entry in $(5); do                                             \
+	    file="$(4)/$${entry}.in";                                       \
+	    _entry=$$(echo "$${entry}" |sed -r -s -e 's/[-.+]/_/g;');       \
+	    echo "config $(3)_$${_entry}";                                  \
+	    echo "    bool";                                                \
+	    printf "    prompt \"$${entry}";                                \
+	    if grep -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
+	      echo " (EXPERIMENTAL)\"";                                     \
+	      echo "    depends on EXPERIMENTAL";                           \
+	    else                                                            \
+	      echo "\"";                                                    \
+	    fi;                                                             \
+	  done;                                                             \
+	  echo "";                                                          \
+	  echo "endchoice";                                                 \
+	  for entry in $(5); do                                             \
+	    file="$(4)/$${entry}.in";                                       \
+	    _entry=$$(echo "$${entry}" |sed -r -s -e 's/[-.+]/_/g;');       \
+	    echo "";                                                        \
+	    echo "if $(3)_$${_entry}";                                      \
+	    echo "config $(3)";                                             \
+	    echo "    default \"$${entry}\" if $(3)_$${_entry}";            \
+	    echo "source $${file}";                                         \
+	    echo "endif";                                                   \
+	  done;                                                             \
 	 ) >$(1)
 endef
 
 $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
-	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Architecture,ARCH,config/arch,$(ARCHS))
+	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Target Architecture,ARCH,config/arch,$(ARCHS))
 
 $(CT_TOP_DIR)/config.gen/kernel.in: $(KERNEL_CONFIG_FILES)
-	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Kernel,KERNEL,config/kernel,$(KERNELS))
+	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Target OS,KERNEL,config/kernel,$(KERNELS))
 
 # Function build_gen_menu_in:
 # $1 : destination file
