@@ -88,7 +88,7 @@ CT_DoLog() {
                 y,*"warning:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
                 y,*"WARNING:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
                 *"error:"*)             cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
-                *"make["?*"]:"*"Stop.") cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
+                *"make["*"]: *** ["*)   cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
                 *)                      cur_L="${LEVEL}"; cur_l="${level}";;
               esac
               # There will always be a log file (stdout, fd #1), be it /dev/null
@@ -596,8 +596,12 @@ CT_ExtractAndPatch() {
         # Some addon tarballs directly contain the correct addon directory,
         # while others have the addon directory named after the tarball.
         # Fix that by always using the short name (eg: linuxthreads, ports, etc...)
-        addon_short_name=$(echo "${file}" |sed -r -e 's/^[^-]+-//; s/-[^-]+$//;')
-        [ -d "${addon_short_name}" ] || ln -s "${file}" "${addon_short_name}"
+        addon_short_name=$(echo "${file}" |sed -r -e 's/^[^-]+-([^-]+)-.*$/\1/;')
+        if [ ! -d "${addon_short_name}" ]; then
+            mv "${file}" "${addon_short_name}"
+            # Keep a symlink to avoid re-extracting later on.
+            ln -s "${addon_short_name}" "${file}"
+        fi
         # If libc addon, we're already in the correct place
     else
         cd "${file}"
