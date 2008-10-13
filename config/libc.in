@@ -2,10 +2,7 @@
 
 config LIBC
     string
-    default "none"   if BARE_METAL
-    default "glibc"  if LIBC_GLIBC
-    default "eglibc" if LIBC_EGLIBC
-    default "uClibc" if LIBC_UCLIBC
+    default "none" if BARE_METAL
 
 if ! BARE_METAL
 
@@ -25,37 +22,7 @@ config LIBC_VERSION
       So if you want to be able to re-build your toolchain later, you will
       have to save your C library tarball by yourself.
 
-choice
-    bool
-    prompt "C-library to use:"
-    default LIBC_GLIBC
-
-config LIBC_GLIBC
-    bool
-    prompt "glibc"
-    select LIBC_SUPPORT_NPTL
-    select LIBC_SUPPORT_LINUXTHREADS
-
-config LIBC_EGLIBC
-    bool
-    prompt "eglibc (EXPERIMENTAL)"
-    select LIBC_SUPPORT_NPTL
-    select LIBC_SUPPORT_LINUXTHREADS
-    depends on EXPERIMENTAL
-    help
-      EGLIBC (Embedded GLIBC) is a variant of the standard GNU GLIBC
-      that is designed to work well on embedded systems.  EGLIBC strives
-      to be source and binary compatible with GLIBC.  Its goals include
-      a reduced footprint, configurable components, and improved
-      cross-compilation support.  EGLIBC also includes some embedded ports
-      (such as e500/spe) that are normally separate add-ons of GLIBC.
-
-config LIBC_UCLIBC
-    bool
-    prompt "uClibc"
-    select LIBC_SUPPORT_LINUXTHREADS
-
-endchoice
+source config.gen/libc.in
 
 comment "Common C library options"
 
@@ -96,23 +63,11 @@ config THREADS_NONE
 
 endchoice
 
-if LIBC_GLIBC
-source config/libc/glibc.in
-endif
-
-if LIBC_EGLIBC
-source config/libc/eglibc.in
-endif
-
 # Hack: mconf does not allow to include a file multiple times,
 # so include glibc and eglibc common options from here, rather
 # than from each config files.
-if LIBC_GLIBC || LIBC_EGLIBC
-source config/libc/glibc-eglibc-common.in
-endif
-
-if LIBC_UCLIBC
-source config/libc/uClibc.in
+if LIBC_glibc || LIBC_eglibc
+source config/libc/glibc-eglibc.in-common
 endif
 
 endmenu

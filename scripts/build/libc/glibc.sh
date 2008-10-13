@@ -282,7 +282,7 @@ do_libc_start_files() {
     # Super-H really needs to set configparms as of gcc-3.4/glibc-2.3.2
     # note: this is awkward, doesn't work well if you need more than one
     # line in configparms
-    echo ${CT_LIBC_GLIBC_CONFIGPARMS} > configparms
+    [ "${CT_ARCH_sh}" = "y" ] && echo "no-z-defs=yes" > configparms
 
     echo "libc_cv_forced_unwind=yes" > config.cache
     echo "libc_cv_c_cleanup=yes" >> config.cache
