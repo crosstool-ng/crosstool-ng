@@ -21,6 +21,7 @@ endif
 # Build a list of all config files
 ARCH_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/arch/*.in)
 KERNEL_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/kernel/*.in)
+CC_CONFIG_FILES     = $(wildcard $(CT_LIB_DIR)/config/cc/*.in)
 LIBC_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/libc/*.in)
 DEBUG_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/debug/*.in)
 TOOL_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
@@ -28,6 +29,7 @@ TOOL_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
 STATIC_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config -type f -name '*.in')
 GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/arch.in   \
                  $(CT_TOP_DIR)/config.gen/kernel.in \
+                 $(CT_TOP_DIR)/config.gen/cc.in     \
                  $(CT_TOP_DIR)/config.gen/libc.in   \
                  $(CT_TOP_DIR)/config.gen/tools.in  \
                  $(CT_TOP_DIR)/config.gen/debug.in
@@ -37,6 +39,7 @@ CONFIG_FILES=$(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
 # Build list of items
 ARCHS   = $(patsubst $(CT_LIB_DIR)/config/arch/%.in,%,$(ARCH_CONFIG_FILES))
 KERNELS = $(patsubst $(CT_LIB_DIR)/config/kernel/%.in,%,$(KERNEL_CONFIG_FILES))
+CCS     = $(patsubst $(CT_LIB_DIR)/config/cc/%.in,%,$(CC_CONFIG_FILES))
 LIBCS   = $(patsubst $(CT_LIB_DIR)/config/libc/%.in,%,$(LIBC_CONFIG_FILES))
 DEBUGS  = $(patsubst $(CT_LIB_DIR)/config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
 TOOLS   = $(patsubst $(CT_LIB_DIR)/config/tools/%.in,%,$(TOOL_CONFIG_FILES))
@@ -98,6 +101,9 @@ $(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
 
 $(CT_TOP_DIR)/config.gen/kernel.in: $(KERNEL_CONFIG_FILES)
 	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Target OS,KERNEL,config/kernel,$(KERNELS))
+
+$(CT_TOP_DIR)/config.gen/cc.in: $(CC_CONFIG_FILES)
+	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),C compiler,CC,config/cc,$(CCS))
 
 $(CT_TOP_DIR)/config.gen/libc.in: $(LIBC_CONFIG_FILES)
 	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),C library,LIBC,config/libc,$(LIBCS))
