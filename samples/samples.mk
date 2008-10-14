@@ -30,11 +30,11 @@ PHONY += list-samples
 list-samples: .FORCE
 	@echo $(CT_SAMPLES) |sed -r -e 's/ /\n/g;' |sort
 
-# How we do build one sample
+# How we do recall one sample
 PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES):
-	@echo  'Configuring for "$@"'
-	@$(CT_NG) $(patsubst %,copy_config_%,$(@)) oldconfig
+	@cp $(call sample_dir,$@)/crosstool.config .config
+	@$(MAKE) -rf $(CT_NG) oldconfig
 	@if grep -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then        \
 	   echo  '';                                                            \
 	   echo  '***********************************************************'; \
@@ -47,14 +47,13 @@ $(CT_SAMPLES):
 	   echo  '***********************************************************'; \
 	   echo  '';                                                            \
 	 fi
-	@echo  'Execute "$(CT_NG) build" to build your toolchain'
+	@echo  'Now configured for "$@"'
 
-$(patsubst %,copy_config_%,$(CT_SAMPLES)):
-	@if [ -f $(CT_TOP_DIR)/samples/$(patsubst copy_config_%,%,$(@))/crosstool.config ]; then                    \
-	      cp "$(CT_TOP_DIR)/samples/$(patsubst copy_config_%,%,$(@))/crosstool.config" "$(CT_TOP_DIR)/.config"; \
-	 else                                                                                                       \
-	      cp "$(CT_LIB_DIR)/samples/$(patsubst copy_config_%,%,$(@))/crosstool.config" "$(CT_TOP_DIR)/.config"; \
-	 fi
+# The 'sample_dir' function prints the directory in which the sample is,
+# searching first in local samples, then in global samples
+define sample_dir
+$$( [ -d $(CT_TOP_DIR)/samples/$(1) ] && echo "$(CT_TOP_DIR)/samples/$(1)" || echo "$(CT_LIB_DIR)/samples/$(1)")
+endef
 
 # And now for building all samples one after the other
 PHONY += regtest regtest_local regtest_global
