@@ -5,8 +5,11 @@
 # Derive the project version from, well, the project version:
 export PROJECTVERSION=$(CT_VERSION)
 
+#-----------------------------------------------------------
+# Some static /configuration/
+
 KCONFIG_TOP = config/config.in
-obj = $(CT_TOP_DIR)/kconfig
+obj = kconfig
 PHONY += clean help oldconfig menuconfig defoldconfig
 
 # Darwin (MacOS-X) does not have proper libintl support
@@ -18,39 +21,65 @@ ifneq ($(KBUILD_NO_NLS),)
 CFLAGS += -DKBUILD_NO_NLS
 endif
 
-# Build a list of all config files
-ARCH_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/arch/*.in)
-KERNEL_CONFIG_FILES = $(wildcard $(CT_LIB_DIR)/config/kernel/*.in)
-CC_CONFIG_FILES     = $(wildcard $(CT_LIB_DIR)/config/cc/*.in)
-LIBC_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/libc/*.in)
-DEBUG_CONFIG_FILES  = $(wildcard $(CT_LIB_DIR)/config/debug/*.in)
-TOOL_CONFIG_FILES   = $(wildcard $(CT_LIB_DIR)/config/tools/*.in)
+#-----------------------------------------------------------
+# List all config files, source and generated
 
-STATIC_CONFIG_FILES = $(shell find $(CT_LIB_DIR)/config -type f -name '*.in')
-GEN_CONFIG_FILES=$(CT_TOP_DIR)/config.gen/arch.in   \
-                 $(CT_TOP_DIR)/config.gen/kernel.in \
-                 $(CT_TOP_DIR)/config.gen/cc.in     \
-                 $(CT_TOP_DIR)/config.gen/libc.in   \
-                 $(CT_TOP_DIR)/config.gen/tools.in  \
-                 $(CT_TOP_DIR)/config.gen/debug.in
+# Build the list of all source config files
+STATIC_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(shell find $(CT_LIB_DIR)/config -type f -name '*.in' 2>/dev/null))
+# ... and how to access them:
+$(STATIC_CONFIG_FILES): config
 
-CONFIG_FILES=$(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
+# Build a list of per-component-type source config files
+ARCH_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/arch/*.in))
+KERNEL_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/kernel/*.in))
+CC_CONFIG_FILES     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/cc/*.in))
+LIBC_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/libc/*.in))
+DEBUG_CONFIG_FILES  = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/debug/*.in))
+TOOL_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/tools/*.in))
 
-# Build list of items
-ARCHS   = $(patsubst $(CT_LIB_DIR)/config/arch/%.in,%,$(ARCH_CONFIG_FILES))
-KERNELS = $(patsubst $(CT_LIB_DIR)/config/kernel/%.in,%,$(KERNEL_CONFIG_FILES))
-CCS     = $(patsubst $(CT_LIB_DIR)/config/cc/%.in,%,$(CC_CONFIG_FILES))
-LIBCS   = $(patsubst $(CT_LIB_DIR)/config/libc/%.in,%,$(LIBC_CONFIG_FILES))
-DEBUGS  = $(patsubst $(CT_LIB_DIR)/config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
-TOOLS   = $(patsubst $(CT_LIB_DIR)/config/tools/%.in,%,$(TOOL_CONFIG_FILES))
-
-$(GEN_CONFIG_FILES): $(CT_TOP_DIR)/config.gen           \
+# Build the list of generated config files
+GEN_CONFIG_FILES = config.gen/arch.in     \
+                   config.gen/kernel.in   \
+                   config.gen/cc.in       \
+                   config.gen/libc.in     \
+                   config.gen/tools.in    \
+                   config.gen/debug.in
+# ... and how to access them:
+# Generated files depends on kconfig.mk (this file) because it has the
+# functions needed to build the genrated files, and thus they might
+# need re-generation if kconfig.mk changes
+$(GEN_CONFIG_FILES): config.gen                         \
                      $(CT_LIB_DIR)/kconfig/kconfig.mk
 
-$(CT_TOP_DIR)/config.gen: $(KCONFIG_TOP)
-	@mkdir -p $(CT_TOP_DIR)/config.gen
+# KCONFIG_TOP should already be in STATIC_CONFIG_FILES, anyway...
+CONFIG_FILES = $(sort $(KCONFIG_TOP) $(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES))
 
-# Function build_gen_choice_in:
+# Where to access to the source config files from
+config:
+	@echo "  LN    config"
+	@ln -s $(CT_LIB_DIR)/config config
+
+# Where to store the generated config files into
+config.gen:
+	@echo "  MKDIR config.gen"
+	@mkdir -p config.gen
+
+#-----------------------------------------------------------
+# Build list of per-component-type items to easily build generated files
+
+ARCHS   = $(patsubst config/arch/%.in,%,$(ARCH_CONFIG_FILES))
+KERNELS = $(patsubst config/kernel/%.in,%,$(KERNEL_CONFIG_FILES))
+CCS     = $(patsubst config/cc/%.in,%,$(CC_CONFIG_FILES))
+LIBCS   = $(patsubst config/libc/%.in,%,$(LIBC_CONFIG_FILES))
+DEBUGS  = $(patsubst config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
+TOOLS   = $(patsubst config/tools/%.in,%,$(TOOL_CONFIG_FILES))
+
+#-----------------------------------------------------------
+# Helper functions to ease building generated config files
+
+# The function 'build_gen_choice_in' builds a choice-menu of a list of
+# components in the given list, also adding source-ing of associazted
+# config files:
 # $1 : destination file
 # $2 : name for the entries family (eg. Architecture, kernel...)
 # $3 : prefix for the choice entries (eg. ARCH, KERNEL...)
@@ -60,7 +89,7 @@ $(CT_TOP_DIR)/config.gen: $(KCONFIG_TOP)
 # Example to build the kernels generated config file:
 # $(call build_gen_choice_in,config.gen/kernel.in,Target OS,KERNEL,config/kernel,$(KERNELS))
 define build_gen_choice_in
-	@echo '  IN   $(1)'
+	@echo '  IN    $(1)'
 	@(echo "# $(2) menu";                                               \
 	  echo "# Generated file, do not edit!!!";                          \
 	  echo "";                                                          \
@@ -96,19 +125,8 @@ define build_gen_choice_in
 	 ) >$(1)
 endef
 
-$(CT_TOP_DIR)/config.gen/arch.in: $(ARCH_CONFIG_FILES)
-	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Target Architecture,ARCH,config/arch,$(ARCHS))
-
-$(CT_TOP_DIR)/config.gen/kernel.in: $(KERNEL_CONFIG_FILES)
-	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Target OS,KERNEL,config/kernel,$(KERNELS))
-
-$(CT_TOP_DIR)/config.gen/cc.in: $(CC_CONFIG_FILES)
-	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),C compiler,CC,config/cc,$(CCS))
-
-$(CT_TOP_DIR)/config.gen/libc.in: $(LIBC_CONFIG_FILES)
-	$(call build_gen_choice_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),C library,LIBC,config/libc,$(LIBCS))
-
-# Function build_gen_menu_in:
+# The function 'build_gen_menu_in' builds a menuconfig for each component in
+# the given list, source-ing the associated files conditionnaly:
 # $1 : destination file
 # $2 : name of entries family (eg. Tools, Debug...)
 # $3 : prefix for the menu entries (eg. TOOL, DEBUG)
@@ -118,7 +136,7 @@ $(CT_TOP_DIR)/config.gen/libc.in: $(LIBC_CONFIG_FILES)
 # Example to build the tools generated config file:
 # $(call build_gen_menu_in,config.gen/tools.in,Tools,TOOL,config/tools,$(TOOLS))
 define build_gen_menu_in
-	@echo '  IN   $(1)'
+	@echo '  IN    $(1)'
 	@(echo "# $(2) facilities menu";                                    \
 	  echo "# Generated file, do not edit!!!";                          \
 	  echo "";                                                          \
@@ -142,16 +160,29 @@ define build_gen_menu_in
 	 ) >$(1)
 endef
 
-$(CT_TOP_DIR)/config.gen/tools.in: $(TOOL_CONFIG_FILES)
-	$(call build_gen_menu_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Tools,TOOL,config/tools,$(TOOLS))
+#-----------------------------------------------------------
+# The rules for the generated config files
 
-$(CT_TOP_DIR)/config.gen/debug.in: $(DEBUG_CONFIG_FILES)
-	$(call build_gen_menu_in,$(patsubst $(CT_TOP_DIR)/%,%,$@),Debug,DEBUG,config/debug,$(DEBUGS))
+config.gen/arch.in: $(ARCH_CONFIG_FILES)
+	$(call build_gen_choice_in,$@,Target Architecture,ARCH,config/arch,$(ARCHS))
 
-menuconfig oldconfig defoldconfig: $(KCONFIG_TOP)
+config.gen/kernel.in: $(KERNEL_CONFIG_FILES)
+	$(call build_gen_choice_in,$@,Target OS,KERNEL,config/kernel,$(KERNELS))
 
-$(KCONFIG_TOP):
-	@ln -sf $(CT_LIB_DIR)/config config
+config.gen/cc.in: $(CC_CONFIG_FILES)
+	$(call build_gen_choice_in,$@,C compiler,CC,config/cc,$(CCS))
+
+config.gen/libc.in: $(LIBC_CONFIG_FILES)
+	$(call build_gen_choice_in,$@,C library,LIBC,config/libc,$(LIBCS))
+
+config.gen/tools.in: $(TOOL_CONFIG_FILES)
+	$(call build_gen_menu_in,$@,Tools,TOOL,config/tools,$(TOOLS))
+
+config.gen/debug.in: $(DEBUG_CONFIG_FILES)
+	$(call build_gen_menu_in,$@,Debug,DEBUG,config/debug,$(DEBUGS))
+
+#-----------------------------------------------------------
+# The configurators rules
 
 menuconfig: $(CONFIG_FILES) $(obj)/mconf
 	@$(obj)/mconf $(KCONFIG_TOP)
@@ -162,13 +193,16 @@ oldconfig: $(CONFIG_FILES) $(obj)/conf
 defoldconfig: $(CONFIG_FILES) $(obj)/conf
 	@yes "" |$(obj)/conf -s $(KCONFIG_TOP)
 
+#-----------------------------------------------------------
 # Help text used by make help
+
 help-config::
 	@echo  '  menuconfig         - Update current config using a menu based program'
 	@echo  '  oldconfig          - Update current config using a provided .config as base'
 	@echo  '                       build log piped into stdin'
 
-# Cheesy build
+#-----------------------------------------------------------
+# Not-so-cheesy build, needs rework...
 
 SHIPPED := $(CT_LIB_DIR)/kconfig/zconf.tab.c $(CT_LIB_DIR)/kconfig/lex.zconf.c $(CT_LIB_DIR)/kconfig/zconf.hash.c
 
@@ -190,7 +224,7 @@ FILES = $(CT_LIB_DIR)/kconfig/confdata.c    \
 $(obj)/mconf: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c  \
               $(HEADERS) $(FILES)                       \
               $(CT_LIB_DIR)/kconfig/kconfig.mk
-	@echo '  LD   kconfig/mconf'
+	@echo '  LD    $@'
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{mconf.c,zconf.tab.c,lxdialog/*.c} \
 	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ccflags)              \
 	     $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ldflags $(HOST_CC))
@@ -198,11 +232,17 @@ $(obj)/mconf: $(SHIPPED) $(CT_LIB_DIR)/kconfig/mconf.c  \
 $(obj)/conf: $(SHIPPED) $(CT_LIB_DIR)/kconfig/conf.c    \
              $(HEADERS) $(FILES)                        \
              $(CT_LIB_DIR)/kconfig/kconfig.mk
-	@echo '  LD   kconfig/conf'
+	@echo '  LD    $@'
 	@$(HOST_CC) $(CFLAGS) -o $@ $(CT_LIB_DIR)/kconfig/{conf.c,zconf.tab.c}
 
+#-----------------------------------------------------------
+# Cleaning up the mess...
+
 clean::
-	@rm -f $(CT_TOP_DIR)/kconfig/{,m}conf
-	@rmdir --ignore-fail-on-non-empty $(CT_TOP_DIR)/kconfig 2>/dev/null || true
-	@rm -f $(CT_TOP_DIR)/config 2>/dev/null || true
-	@rm -rf $(CT_TOP_DIR)/config.gen
+	@echo "  CLEAN kconfig"
+	@rm -f kconfig/{,m}conf
+	@rmdir --ignore-fail-on-non-empty kconfig 2>/dev/null || true
+	@echo "  CLEAN config"
+	@rm -f config 2>/dev/null || true
+	@echo "  CLEAN config.gen"
+	@rm -rf config.gen
