@@ -83,17 +83,17 @@ dump_single_sample() {
         [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ", Objective-C++"
         [ -n "${CT_CC_LANG_OTHERS}"     ] && printf "\\\\\\\\ Others: ${CT_CC_LANG_OTHERS}"
         printf "  "
-        if [ -f "${sample_top}/samples/${sample}/reported.by" ]; then
-            ( . "${sample_top}/samples/${sample}/reported.by"
+        ( . "${sample_top}/samples/${sample}/reported.by"
+          if [ -n "${reporter_name}" ]; then
               if [ -n "${reporter_url}" ]; then
                   printf "|  [[${reporter_url}|${reporter_name}]]  "
               else
                   printf "|  ${reporter_name}  "
               fi
-            )
-        else
-            printf "|  [[http://ymorin.is-a-geek.org/|YEM]]  "
-        fi
+          else
+              printf "|  [[http://ymorin.is-a-geek.org/|YEM]]  "
+          fi
+        )
         sample_updated=$(date -u "+%Y%m%d"                                                  \
                               -d "$(LC_ALL=C svn info ${sample_top}/samples/${sample}       \
                                     |GREP_OPTIONS= egrep '^Last Changed Date:'              \

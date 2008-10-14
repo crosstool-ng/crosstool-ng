@@ -35,18 +35,30 @@ PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES):
 	@cp $(call sample_dir,$@)/crosstool.config .config
 	@$(MAKE) -rf $(CT_NG) oldconfig
+	@echo
+	@echo  '***********************************************************'
+	@echo
+	@( . $(call sample_dir,$@)/reported.by;                                     \
+	   echo "Initially reported by: $${reporter_name:-Yann E. MORIN}";          \
+	   echo "URL: $${reporter_url:-http://ymorin.is-a-geek.org/}";              \
+	   if [ -n "$${reporter_comment}" ]; then                                   \
+	     echo  ;                                                                \
+	     echo  "Comment:";                                                      \
+	     printf "$${reporter_comment}\n";                                       \
+	   fi;                                                                      \
+	   echo  ;                                                                  \
+	   echo  '***********************************************************';     \
+	 )
 	@if grep -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then        \
-	   echo  '';                                                            \
-	   echo  '***********************************************************'; \
-	   echo  '';                                                            \
+	   echo  ;                                                              \
 	   echo  'WARNING! This sample may enable experimental features.';      \
 	   echo  '         Please be sure to review the configuration prior';   \
 	   echo  '         to building and using your toolchain!';              \
 	   echo  'Now, you have been warned!';                                  \
-	   echo  '';                                                            \
+	   echo  ;                                                              \
 	   echo  '***********************************************************'; \
-	   echo  '';                                                            \
 	 fi
+	@echo
 	@echo  'Now configured for "$@"'
 
 # The 'sample_dir' function prints the directory in which the sample is,
