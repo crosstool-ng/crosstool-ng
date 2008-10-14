@@ -45,6 +45,7 @@ fi
 sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'       \
        -e 's|^# CT_LOG_TO_FILE is not set$|CT_LOG_TO_FILE=y|;'              \
        -e 's|^# CT_LOG_FILE_COMPRESS is not set$|CT_LOG_FILE_COMPRESS=y|;'  \
+       -e 's|^(CT_LOCAL_TARBALLS_DIR)=.*|\1="${HOME}/src"|;'                \
     <"${CT_TOP_DIR}/.config"                                                \
     >"${CT_TOP_DIR}/samples/${CT_TARGET}/crosstool.config"
 
