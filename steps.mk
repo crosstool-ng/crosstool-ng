@@ -38,6 +38,6 @@ list-steps:
 	@for step in $(CT_STEPS); do    \
 	     echo "  - $${step}";       \
 	 done
-	@echo  'Use "$(CT_NG) <step>" to execute only that step.'
-	@echo  'Use "$(CT_NG) +<step>" to execute up to that step.'
-	@echo  'Use "$(CT_NG) <step>+" to execute from that step onward.'
+	@echo  'Use "<step>" as action to execute only that step.'
+	@echo  'Use "+<step>" as action to execute up to that step.'
+	@echo  'Use "<step>+" as action to execute from that step onward.'
