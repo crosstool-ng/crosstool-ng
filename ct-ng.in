@@ -27,12 +27,26 @@ export CT_VERSION:=@@CT_VERSION@@
 export CT_STOP:=$(STOP)
 export CT_RESTART:=$(RESTART)
 
+ifeq ($(strip $(V)),)
+  SILENT=@
+  ECHO=echo
+else
+  ifeq ($(strip $(V)),0)
+    SILENT=@
+    ECHO=:
+  else
+    ifeq ($(strip $(V)),1)
+      SILENT=
+      ECHO=:
+    endif)
+  endif
+endif
+export V
+
 .FORCE:
 .PHONY: $(PHONY)
 PHONY += all
 all: help
-
-HOST_CC := gcc -funsigned-char
 
 # Help system
 help:: help-head help-config help-samples help-build help-clean help-distrib help-env help-tail
@@ -71,8 +85,6 @@ help-tail::
 	@echo  'Use action "version" to see the version'
 	@echo  'See "man 1 ct-ng" for some help as well'
 
-# End help system
-
 help-build::
 	@echo  '  build[.#]          - Build the toolchain'
 
@@ -92,22 +104,24 @@ help-env::
 	@echo  '  STOP               - Stop the build just after this step'
 	@echo  '  RESTART            - Restart the build just before this step'
 
+# End help system
+
 .config:
 	@echo  'You must run either one of "$(CT_NG) config" or "$(CT_NG) menuconfig" first'
 	@false
 
 # Actual build
 build: .config
-	@$(CT_LIB_DIR)/scripts/crosstool.sh
+	$(SILENT)$(CT_LIB_DIR)/scripts/crosstool.sh
 
 build.%:
-	@$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
+	$(SILENT)$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
 
 PHONY += tarball
 #tarball:
 #	@$(CT_LIB_DIR)/scripts/tarball.sh
 tarball:
-	@echo 'Tarbal creation disabled for now... Sorry.'
+	@echo 'Tarball creation disabled for now... Sorry.'
 	@true
 
 PHONY += version
@@ -122,11 +136,13 @@ version:
 
 PHONY += clean
 clean::
-	@rm -f $(CT_TOP_DIR)/.config.*
+	$(SILENT)rm -f .config.*
 
 PHONY += distclean
 distclean:: clean
-	@rm -f $(CT_TOP_DIR)/.config* $(CT_TOP_DIR)/..config.tmp
-	@rm -f $(CT_TOP_DIR)/log.*
-	@[ ! -d "$(CT_TOP_DIR)/targets" ] || chmod -R u+w "$(CT_TOP_DIR)/targets"
-	@rm -rf "$(CT_TOP_DIR)/targets"
+	@$(ECHO) "  CLEAN .config log"
+	$(SILENT)rm -f .config* ..config.tmp
+	$(SILENT)rm -f log.*
+	@$(ECHO) "  CLEAN targets"
+	$(SILENT)chmod -R u+w targets >/dev/null 2>&1 || true
+	$(SILENT)rm -rf targets

@@ -22,13 +22,13 @@ CT_STEPS := libc_check_config   \
 export CT_STEPS
 
 $(CT_STEPS):
-	@$(CT_NG) RESTART=$@ STOP=$@ build
+	$(SILENT)$(MAKE) -rf $(CT_NG) RESTART=$@ STOP=$@ build
 
 $(patsubst %,+%,$(CT_STEPS)):
-	@$(CT_NG) STOP=$(patsubst +%,%,$@) build
+	$(SILENT)$(MAKE) -rf $(CT_NG) STOP=$(patsubst +%,%,$@) build
 
 $(patsubst %,%+,$(CT_STEPS)):
-	@$(CT_NG) RESTART=$(patsubst %+,%,$@) build
+	$(SILENT)$(MAKE) -rf $(CT_NG) RESTART=$(patsubst %+,%,$@) build
 
 help-build::
 	@echo  '  list-steps         - List all build steps'

@@ -33,12 +33,12 @@ list-samples: .FORCE
 # How we do recall one sample
 PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES):
-	@cp $(call sample_dir,$@)/crosstool.config .config
-	@$(MAKE) -rf $(CT_NG) oldconfig
+	$(SILENT)cp $(call sample_dir,$@)/crosstool.config .config
+	$(SILENT)$(MAKE) -rf $(CT_NG) oldconfig
 	@echo
 	@echo  '***********************************************************'
 	@echo
-	@( . $(call sample_dir,$@)/reported.by;                                     \
+	$(SILENT)( . $(call sample_dir,$@)/reported.by;                             \
 	   echo "Initially reported by: $${reporter_name:-Yann E. MORIN}";          \
 	   echo "URL: $${reporter_url:-http://ymorin.is-a-geek.org/}";              \
 	   if [ -n "$${reporter_comment}" ]; then                                   \
@@ -49,14 +49,14 @@ $(CT_SAMPLES):
 	   echo  ;                                                                  \
 	   echo  '***********************************************************';     \
 	 )
-	@if grep -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then        \
-	   echo  ;                                                              \
-	   echo  'WARNING! This sample may enable experimental features.';      \
-	   echo  '         Please be sure to review the configuration prior';   \
-	   echo  '         to building and using your toolchain!';              \
-	   echo  'Now, you have been warned!';                                  \
-	   echo  ;                                                              \
-	   echo  '***********************************************************'; \
+	$(SILENT)if grep -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then    \
+	   echo  ;                                                                  \
+	   echo  'WARNING! This sample may enable experimental features.';          \
+	   echo  '         Please be sure to review the configuration prior';       \
+	   echo  '         to building and using your toolchain!';                  \
+	   echo  'Now, you have been warned!';                                      \
+	   echo  ;                                                                  \
+	   echo  '***********************************************************';     \
 	 fi
 	@echo
 	@echo  'Now configured for "$@"'
@@ -76,7 +76,7 @@ regtest-local: $(patsubst %,regtest_%,$(CT_TOP_SAMPLES))
 regtest-global: $(patsubst %,regtest_%,$(CT_LIB_SAMPLES))
 
 regtest.% regtest-local.% regtest-global.%:
-	@$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
+	$(SILENT)$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
 
 # One regtest per sample
 # We could use a simple rule like: 'regtest: $(CT_SAMPLES)', but that doesn't
@@ -88,7 +88,7 @@ regtest.% regtest-local.% regtest-global.%:
 # if the options set has changed, but oldconfig does not like when stdin is
 # not a terminal (eg. it is a pipe).
 $(patsubst %,regtest_%,$(CT_SAMPLES)):
-	@samp=$(patsubst regtest_%,%,$@)                                                                ;   \
+	$(SILENT)samp=$(patsubst regtest_%,%,$@)                                                        ;   \
 	 echo -e "\rBuilding sample \"$${samp}\""                                                       &&  \
 	 $(CT_NG) copy_config_$${samp}                                                                  &&  \
 	 yes "" |$(CT_NG) defoldconfig >/dev/null 2>&1                                                  &&  \
@@ -109,7 +109,7 @@ $(patsubst %,regtest_%,$(CT_SAMPLES)):
 	 echo -e "\r"
 
 saveconfig:
-	@$(CT_LIB_DIR)/scripts/saveSample.sh
+	$(SILENT)$(CT_LIB_DIR)/scripts/saveSample.sh
 
 wiki-samples:
-	@$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
+	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)

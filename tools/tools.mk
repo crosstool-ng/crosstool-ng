@@ -11,21 +11,21 @@ CONFIG_GUESS_SRC="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;
 CONFIG_GUESS_DEST="$(CT_TOP_DIR)/tools/config.guess"
 
 $(CT_TOP_DIR)/tools:
-	@mkdir -p $(CT_TOP_DIR)/tools
+	$(SILENT)mkdir -p $(CT_TOP_DIR)/tools
 
 PHONY += updatetools
 updatetools: $(CT_TOP_DIR)/tools $(CONFIG_SUB_DEST) $(CONFIG_GUESS_DEST)
 
 $(CONFIG_SUB_DEST):
-	@wget $(CONFIG_SUB_SRC) -O $@
-	@chmod u+rwx,go+rx-w $@
+	$(SILENT)wget $(CONFIG_SUB_SRC) -O $@
+	$(SILENT)chmod u+rwx,go+rx-w $@
 
 $(CONFIG_GUESS_DEST):
-	@wget $(CONFIG_GUESS_SRC) -O $@
-	@chmod u+rwx,go+rx-w $@
+	$(SILENT)wget $(CONFIG_GUESS_SRC) -O $@
+	$(SILENT)chmod u+rwx,go+rx-w $@
 
 help-distrib::
 	@echo  '  updatetools        - Update the config tools'
 
 distclean::
-	@[ $(CT_TOP_DIR) = $(CT_LIB_DIR) ] || rm -rf $(CT_TOP_DIR)/tools
+	$(SILENT)[ $(CT_TOP_DIR) = $(CT_LIB_DIR) ] || rm -rf $(CT_TOP_DIR)/tools
