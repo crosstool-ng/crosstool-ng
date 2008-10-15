@@ -8,8 +8,9 @@ do_print_filename() {
 
 # Download binutils
 do_binutils_get() {
-    CT_GetFile "${CT_BINUTILS_FILE}"    \
-               {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils
+    CT_GetFile "${CT_BINUTILS_FILE}"                                                    \
+               {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils   \
+               ftp://gcc.gnu.org/pub/binutils/{releases,snapshots}
 }
 
 # Extract binutils
