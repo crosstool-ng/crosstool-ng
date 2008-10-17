@@ -12,15 +12,6 @@ KCONFIG_TOP = config/config.in
 obj = kconfig
 PHONY += clean help oldconfig menuconfig defoldconfig
 
-# Darwin (MacOS-X) does not have proper libintl support
-ifeq ($(shell uname -s),Darwin)
-KBUILD_NO_NLS:=1
-endif
-
-ifneq ($(KBUILD_NO_NLS),)
-CFLAGS += -DKBUILD_NO_NLS
-endif
-
 #-----------------------------------------------------------
 # List all config files, source and generated
 
@@ -212,9 +203,12 @@ vpath %.h $(CT_LIB_DIR)
 # What is the compiler?
 HOST_CC ?= gcc -funsigned-char
 
+# Compiler flags to use gettext
+EXTRA_CFLAGS += $(shell $(SHELL) $(CT_LIB_DIR)/kconfig/check-gettext.sh $(HOST_CC) $(CFLAGS))
+
 # Compiler and linker flags to use ncurses
-CFLAGS += $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ccflags)
-LDFLAGS += $(shell $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ldflags $(HOST_CC))
+EXTRA_CFLAGS += $(shell $(SHELL) $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ccflags)
+EXTRA_LDFLAGS += $(shell $(SHELL) $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ldflags $(HOST_CC))
 
 # Common source files, and lxdialog source files
 SRC = kconfig/zconf.tab.c
@@ -241,7 +235,7 @@ DEPS = $(patsubst %.c,%.d,$(sort $(conf_SRC) $(mconf_SRC)))
 	   mkdir -p $(obj)/lxdialog;        \
 	 fi
 	@$(ECHO) "  DEP   $@"
-	$(SILENT)$(HOST_CC) $(CFLAGS) -MM $< |sed -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
+	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |sed -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
 -include $(DEPS)
 
 # Each .o must depend on the corresponding .c (obvious, isn't it?),
@@ -259,15 +253,15 @@ DEPS = $(patsubst %.c,%.d,$(sort $(conf_SRC) $(mconf_SRC)))
 	   mkdir -p $(obj)/lxdialog;        \
 	 fi
 	@$(ECHO) "  CC    $@"
-	$(SILENT)$(HOST_CC) $(CFLAGS) -o $@ -c $<
+	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ -c $<
 
 $(obj)/mconf: $(mconf_OBJ)
 	@$(ECHO) '  LD    $@'
-	$(SILENT)$(HOST_CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
 
 $(obj)/conf: $(conf_OBJ)
 	@$(ECHO) '  LD    $@'
-	$(SILENT)$(HOST_CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
 
 #-----------------------------------------------------------
 # Cleaning up the mess...

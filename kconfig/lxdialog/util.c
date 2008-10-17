@@ -221,16 +221,14 @@ static void init_dialog_colors(void)
  */
 static void color_setup(const char *theme)
 {
-	if (set_theme(theme)) {
-		if (has_colors()) {	/* Terminal supports color? */
-			start_color();
-			init_dialog_colors();
-		}
-	}
-	else
-	{
+	int use_color;
+
+	use_color = set_theme(theme);
+	if (use_color && has_colors()) {
+		start_color();
+		init_dialog_colors();
+	} else
 		set_mono_theme();
-	}
 }
 
 /*
@@ -268,26 +266,41 @@ void dialog_clear(void)
 /*
  * Do some initialization for dialog
  */
-void init_dialog(const char *backtitle)
+int init_dialog(const char *backtitle)
 {
+	int height, width;
+
+	initscr();		/* Init curses */
+	getmaxyx(stdscr, height, width);
+	if (height < 19 || width < 80) {
+		endwin();
+		return -ERRDISPLAYTOOSMALL;
+	}
+
 	dlg.backtitle = backtitle;
 	color_setup(getenv("MENUCONFIG_COLOR"));
-}
 
-void reset_dialog(void)
-{
-	initscr();		/* Init curses */
 	keypad(stdscr, TRUE);
 	cbreak();
 	noecho();
 	dialog_clear();
+
+	return 0;
+}
+
+void set_dialog_backtitle(const char *backtitle)
+{
+	dlg.backtitle = backtitle;
 }
 
 /*
  * End using dialog functions.
  */
-void end_dialog(void)
+void end_dialog(int x, int y)
 {
+	/* move cursor back to original position */
+	move(y, x);
+	refresh();
 	endwin();
 }
 
@@ -338,7 +351,7 @@ void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x)
 		newl = 1;
 		word = tempstr;
 		while (word && *word) {
-			sp = index(word, ' ');
+			sp = strchr(word, ' ');
 			if (sp)
 				*sp++ = 0;
 
@@ -350,7 +363,7 @@ void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x)
 			if (wlen > room ||
 			    (newl && wlen < 4 && sp
 			     && wlen + 1 + strlen(sp) > room
-			     && (!(sp2 = index(sp, ' '))
+			     && (!(sp2 = strchr(sp, ' '))
 				 || wlen + 1 + (sp2 - sp) > room))) {
 				cur_y++;
 				cur_x = x;
