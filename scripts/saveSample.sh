@@ -58,8 +58,8 @@ sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'       \
 CT_DoAddFileToSample() {
     source="$1"
     dest="$2"
-    inode_s=$(ls -i "${source}")
-    inode_d=$(ls -i "${dest}" 2>/dev/null || true)
+    inode_s=$(ls -i "${source}" |awk '{ print $1; }')
+    inode_d=$(ls -i "${dest}" 2>/dev/null |awk '{ print $1; }' || true)
     if [ "${inode_s}" != "${inode_d}" ]; then
         cp "${source}" "${dest}"
     fi
