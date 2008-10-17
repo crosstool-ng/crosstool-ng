@@ -187,10 +187,10 @@ config.gen/debug.in: $(DEBUG_CONFIG_FILES)
 menuconfig: $(obj)/mconf $(CONFIG_FILES)
 	$(SILENT)$< $(KCONFIG_TOP)
 
-oldconfig: .config $(obj)/conf $(CONFIG_FILES)
+oldconfig: $(obj)/conf .config $(CONFIG_FILES)
 	$(SILENT)$< -s $(KCONFIG_TOP)
 
-defoldconfig: .config $(obj)/conf $(CONFIG_FILES)
+defoldconfig: $(obj)/conf .config $(CONFIG_FILES)
 	$(SILENT)yes "" |$< -s $(KCONFIG_TOP)
 
 #-----------------------------------------------------------
