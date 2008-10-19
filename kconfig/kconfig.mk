@@ -14,17 +14,20 @@ obj = kconfig
 #-----------------------------------------------------------
 # The configurators rules
 
-PHONY += oldconfig menuconfig defoldconfig
+configurators = menuconfig oldconfig defoldconfig
+PHONY += $(configurators)
 
-menuconfig: $(obj)/mconf config_files
+$(configurators): config_files
+
+menuconfig: $(obj)/mconf
 	@$(ECHO) "  MCONF $(KCONFIG_TOP)"
 	$(SILENT)$< $(KCONFIG_TOP)
 
-oldconfig: $(obj)/conf .config config_files
+oldconfig: $(obj)/conf .config
 	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$< -s $(KCONFIG_TOP)
 
-defoldconfig: $(obj)/conf .config config_files
+defoldconfig: $(obj)/conf .config
 	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)yes "" |$< -s $(KCONFIG_TOP)
 
@@ -68,7 +71,20 @@ mconf_OBJ = $(patsubst %.c,%.o,$(mconf_SRC))
 
 # Cheesy auto-dependencies
 DEPS = $(patsubst %.c,%.dep,$(sort $(conf_SRC) $(mconf_SRC)))
+
+# Only parse the following if a configurator was called, to avoid building
+# dependencies when not needed (eg. list-steps, list-samples...)
+# We must be carefull what we enclose, because we need some of the variable
+# definitions for clean (and distclean) at least.
+# Just protecting the "-include $(DEPS)" line should be sufficient.
+
+ifneq ($(strip $(MAKECMDGOALS)),)
+ifneq ($(strip $(filter $(configurators),$(MAKECMDGOALS))),)
+
 -include $(DEPS)
+
+endif # MAKECMDGOALS contains a configurator rule
+endif # MAKECMDGOALS != ""
 
 # This is not very nice, as they will get rebuild even if (dist)cleaning... :-(
 # Should look into the Linux kernel Kbuild to see how they do that...
