@@ -88,23 +88,14 @@ do_libc_headers() {
     # Override libc_cv_ppc_machine so glibc-cvs doesn't complain
     # 'a version of binutils that supports .machine "altivec" is needed'.
 
-    addons_config="--enable-add-ons=$(do_libc_add_ons_list ,)"
+    addons_list="$(do_libc_add_ons_list ,)"
     # We need to remove any threading addon when installing headers
-    addons_config="${addons_config//nptl/}"
-    addons_config="${addons_config//linuxthreads/}"
-    addons_config=$(echo "${addons_config}" |sed -r -e 's/^,+//; s/,+$//; s/,+/,/g;')
+    addons_list="${addons_list//nptl/}"
+    addons_list="${addons_list//linuxthreads/}"
+    # Remove duplicate, leading and trailing separators
+    addons_config="--enable-add-ons=$(echo "${addons_list}" |sed -r -e 's/,+/,/; s/^,//; s/,$//g;')"
 
-    extra_config="${addons_config}"
-    min_kernel_config=
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *enable-kernel*) ;;
-        *)  if [    "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" \
-                 -o "${CT_LIBC_GLIBC_USE_HEADERS_MIN_KERNEL}" = "y"    ]; then
-                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
-            fi
-            ;;
-    esac
-    extra_config="${extra_config} ${min_kernel_config}"
+    extra_config="${addons_config} $(do_libc_min_kernel_config)"
 
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
@@ -226,16 +217,6 @@ do_libc_start_files() {
 
     # Add some default glibc config options if not given by user.
     extra_config=
-    min_kernel_config=
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *enable-kernel*) ;;
-        *)  if [    "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" \
-                 -o "${CT_LIBC_GLIBC_USE_HEADERS_MIN_KERNEL}" = "y"    ]; then
-                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
-            fi
-            ;;
-    esac
-    extra_config="${extra_config} ${min_kernel_config}"
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *-tls*) ;;
         *) extra_config="${extra_config} --with-tls"
@@ -253,6 +234,8 @@ do_libc_start_files() {
 
     addons_config="--enable-add-ons=$(do_libc_add_ons_list ,)"
     extra_config="${extra_config} ${addons_config}"
+
+    extra_config="${extra_config} $(do_libc_min_kernel_config)"
 
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
@@ -338,17 +321,6 @@ do_libc() {
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
 
     extra_config=
-    min_kernel_config=""
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *enable-kernel*) ;;
-        *)  if [    "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" \
-                 -o "${CT_LIBC_GLIBC_USE_HEADERS_MIN_KERNEL}" = "y"    ]; then
-                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
-            fi
-            ;;
-    esac
-    extra_config="${extra_config} ${min_kernel_config}"
-
     case "${CT_THREADS}" in
         nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
         linuxthreads)   extra_config="${extra_config} --with-__thread --without-tls --without-nptl";;
@@ -374,6 +346,8 @@ do_libc() {
         "") ;;
         *)  extra_config="${extra_config} --enable-add-ons=$(do_libc_add_ons_list ,)";;
     esac
+
+    extra_config="${extra_config} $(do_libc_min_kernel_config)"
 
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
@@ -542,13 +516,39 @@ do_libc_finish() {
 # Build up the addons list, separated with $1
 do_libc_add_ons_list() {
     local sep="$1"
-    local addons_list=$(echo "${CT_LIBC_ADDONS_LIST//,/${sep}}" |tr -s ,)
+    local addons_list=$(echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e "s/[ ,]/${sep}/g;")
     case "${CT_THREADS}" in
         none)   ;;
         *)      addons_list="${addons_list}${sep}${CT_THREADS}";;
     esac
     [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
-    addons_list="${addons_list%%${sep}}"
-    echo "${addons_list##${sep}}"
+    # Remove duplicate, leading and trailing separators
+    echo "${addons_list}" |sed -r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
 }
 
+# Builds up the minimum supported Linux kernel version
+do_libc_min_kernel_config() {
+    local min_kernel_config=
+    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+        *enable-kernel*) ;;
+        *)  if [ "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" ]; then
+                # We can't rely on the kernel version from the configuration,
+                # because it might not be available if the user uses pre-installed
+                # headers. On the other hand, both method will have the kernel
+                # version installed in "usr/include/linux/version.h" in the sys-root.
+                # Parse that instead of having two code-paths.
+                version_code_file="${CT_SYSROOT_DIR}/usr/include/linux/version.h"
+                CT_TestOrAbort "Linux version is unavailable in installed headers files" -f "${version_code_file}" -a -r "${version_code_file}"
+                version_code=$(grep -E LINUX_VERSION_CODE "${version_code_file}" |cut -d ' ' -f 3)
+                version=$(((version_code>>16)&0xFF))
+                patchlevel=$(((version_code>>8)&0xFF))
+                sublevel=$((version_code&0xFF))
+                min_kernel_config="--enable-kernel=${version}.${patchlevel}.${sublevel}"
+            elif [ "${CT_LIBC_GLIBC_KERNEL_VERSION_CHOSEN}" = "y" ]; then
+                # Trim the fourth part of the linux version, keeping only the first three numbers
+                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+            fi
+            ;;
+    esac
+    echo "${min_kernel_config}"
+}
