@@ -95,7 +95,7 @@ read -p "Reporter name [${reporter_name}]: " reporter_name
 read -p "Reporter URL [${reporter_url}]: " reporter_url
 if [ -n "${reporter_comment}" ]; then
   echo "Old comment if you need to copy-paste:"
-  printf "${reporter_comment}"
+  printf "${reporter_comment}\n"
 fi
 echo "Reporter comment (Ctrl-D to finish):"
 reporter_comment=$(cat)
