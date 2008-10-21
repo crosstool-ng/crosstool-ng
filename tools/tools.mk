@@ -28,4 +28,5 @@ help-distrib::
 	@echo  '  updatetools        - Update the config tools'
 
 distclean::
+	@$(ECHO) "  CLEAN tools"
 	$(SILENT)[ $(CT_TOP_DIR) = $(CT_LIB_DIR) ] || rm -rf $(CT_TOP_DIR)/tools

@@ -24,6 +24,9 @@ export CT_DOC_DIR:=@@CT_DOCDIR@@
 # This is crosstool-NG version string
 export CT_VERSION:=@@CT_VERSION@@
 
+# Don't go parallel
+.NOTPARALLEL:
+
 export CT_STOP:=$(STOP)
 export CT_RESTART:=$(RESTART)
 
@@ -38,6 +41,11 @@ else
     ifeq ($(strip $(V)),1)
       SILENT=
       ECHO=:
+    else
+      ifeq ($(strip $(V)),2)
+        SILENT=
+        ECHO=echo
+      endif
     endif
   endif
 endif
@@ -137,13 +145,13 @@ version:
 
 PHONY += clean
 clean::
-	$(SILENT)rm -f .config.*
+	@$(ECHO) "  CLEAN log"
+	$(SILENT)rm -f log.* .config.* ..config*
 
 PHONY += distclean
 distclean:: clean
-	@$(ECHO) "  CLEAN .config log"
-	$(SILENT)rm -f .config* ..config.tmp
-	$(SILENT)rm -f log.*
+	@$(ECHO) "  CLEAN .config"
+	$(SILENT)rm -f .config .config.* ..config*
 	@$(ECHO) "  CLEAN targets"
 	$(SILENT)chmod -R u+w targets >/dev/null 2>&1 || true
 	$(SILENT)rm -rf targets
