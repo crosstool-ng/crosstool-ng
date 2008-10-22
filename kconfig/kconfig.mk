@@ -5,31 +5,24 @@
 # Derive the project version from, well, the project version:
 export PROJECTVERSION=$(CT_VERSION)
 
-#-----------------------------------------------------------
-# Some static /configuration/
-
 # The place where the kconfig stuff lies
 obj = kconfig
 
 #-----------------------------------------------------------
 # The configurators rules
 
-configurators = menuconfig oldconfig defoldconfig
+configurators = menuconfig oldconfig
 PHONY += $(configurators)
 
 $(configurators): config_files
 
 menuconfig: $(obj)/mconf
-	@$(ECHO) "  MCONF $(KCONFIG_TOP)"
+	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$< $(KCONFIG_TOP)
 
 oldconfig: $(obj)/conf .config
 	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$< -s $(KCONFIG_TOP)
-
-defoldconfig: $(obj)/conf .config
-	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
-	$(SILENT)yes "" |$< -s $(KCONFIG_TOP)
 
 #-----------------------------------------------------------
 # Help text used by make help
@@ -37,7 +30,6 @@ defoldconfig: $(obj)/conf .config
 help-config::
 	@echo  '  menuconfig         - Update current config using a menu based program'
 	@echo  '  oldconfig          - Update current config using a provided .config as base'
-	@echo  '  defoldconfig       - As oldconfig, above, but using defaults for new options'
 
 #-----------------------------------------------------------
 # Hmmm! Cheesy build!
@@ -49,29 +41,53 @@ vpath %.h $(CT_LIB_DIR)
 
 # What is the compiler?
 HOST_CC ?= gcc -funsigned-char
+HOST_LD ?= gcc
+
+# Helpers
+check_gettext = $(CT_LIB_DIR)/kconfig/check-gettext.sh
+check_lxdialog = $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh
+
+# Build flags
+CFLAGS = 
+LDFLAGS =
 
 # Compiler flags to use gettext
-EXTRA_CFLAGS += $(shell $(SHELL) $(CT_LIB_DIR)/kconfig/check-gettext.sh $(HOST_CC) $(CFLAGS))
+INTL_CFLAGS = $(shell $(SHELL) $(check_gettext) $(HOST_CC) $(EXTRA_CFLAGS))
 
 # Compiler and linker flags to use ncurses
-EXTRA_CFLAGS += $(shell $(SHELL) $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ccflags)
-EXTRA_LDFLAGS += $(shell $(SHELL) $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh -ldflags $(HOST_CC))
+NCURSES_CFLAGS = $(shell $(SHELL) $(check_lxdialog) -ccflags)
+NCURSES_LDFLAGS = $(shell $(SHELL) $(check_lxdialog) -ldflags $(HOST_CC) $(LX_FLAGS) $(EXTRA_CFLAGS))
 
-# Common source files, and lxdialog source files
-SRC = kconfig/zconf.tab.c
-LXSRC = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/kconfig/lxdialog/*.c))
+# Common source files
+COMMON_SRC = kconfig/zconf.tab.c
+COMMON_OBJ = $(patsubst %.c,%.o,$(COMMON_SRC))
+COMMON_DEP = $(patsubst %.o,%.dep,$(COMMON_OBJ))
+$(COMMON_OBJ) $(COMMON_DEP): CFLAGS += $(INTL_CFLAGS)
+
+# lxdialog source files
+LX_SRC = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/kconfig/lxdialog/*.c))
+LX_OBJ = $(patsubst %.c,%.o,$(LX_SRC))
+LX_DEP = $(patsubst %.o,%.dep,$(LX_OBJ))
+$(LX_OBJ) $(LX_DEP): CFLAGS += $(NCURSES_CFLAGS) $(INTL_CFLAGS)
 
 # What's needed to build 'conf'
-conf_SRC  = $(SRC) kconfig/conf.c
-conf_OBJ  = $(patsubst %.c,%.o,$(conf_SRC))
+conf_SRC = kconfig/conf.c
+conf_OBJ = $(patsubst %.c,%.o,$(conf_SRC))
+conf_DEP = $(patsubst %.o,%.dep,$(conf_OBJ))
+$(conf_OBJ) $(conf_DEP): CFLAGS += $(INTL_CFLAGS)
 
 # What's needed to build 'mconf'
-mconf_SRC = $(SRC) $(LXSRC) kconfig/mconf.c
+mconf_SRC = kconfig/mconf.c
 mconf_OBJ = $(patsubst %.c,%.o,$(mconf_SRC))
+mconf_DEP = $(patsubst %.c,%.dep,$(mconf_SRC))
+$(mconf_OBJ) $(mconf_DEP): CFLAGS += $(NCURSES_CFLAGS) $(INTL_CFLAGS)
+$(obj)/mconf: LDFLAGS += $(NCURSES_LDFLAGS)
+
+# These are generated files:
+ALL_OBJS = $(sort $(COMMON_OBJ) $(LX_OBJ) $(conf_OBJ) $(mconf_OBJ))
+ALL_DEPS = $(sort $(COMMON_DEP) $(LX_DEP) $(conf_DEP) $(mconf_DEP))
 
 # Cheesy auto-dependencies
-DEPS = $(patsubst %.c,%.dep,$(sort $(conf_SRC) $(mconf_SRC)))
-
 # Only parse the following if a configurator was called, to avoid building
 # dependencies when not needed (eg. list-steps, list-samples...)
 # We must be carefull what we enclose, because we need some of the variable
@@ -81,52 +97,58 @@ DEPS = $(patsubst %.c,%.dep,$(sort $(conf_SRC) $(mconf_SRC)))
 ifneq ($(strip $(MAKECMDGOALS)),)
 ifneq ($(strip $(filter $(configurators),$(MAKECMDGOALS))),)
 
+DEPS = $(COMMON_DEP)
+ifneq ($(strip $(filter oldconfig,$(MAKECMDGOALS))),)
+DEPS += $(conf_DEP)
+endif
+ifneq ($(strip $(filter menuconfig,$(MAKECMDGOALS))),)
+DEPS += $(mconf_DEP) $(LX_DEP)
+endif
+
 -include $(DEPS)
 
 endif # MAKECMDGOALS contains a configurator rule
 endif # MAKECMDGOALS != ""
 
-# This is not very nice, as they will get rebuild even if (dist)cleaning... :-(
-# Should look into the Linux kernel Kbuild to see how they do that...
-# To really make me look into this, keep the annoying "DEP xxx" messages.
-# Also see the comment for the "%.o: %c" rule below
-%.dep: %.c $(CT_LIB_DIR)/kconfig/kconfig.mk $(CT_NG)
-	$(SILENT)if [ ! -d $(obj)/lxdialog ]; then  \
-	   $(ECHO) "  MKDIR $(obj)";           \
-	   mkdir -p $(obj)/lxdialog;        \
-	 fi
-	@$(ECHO) "  DEP   $@"
-	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |sed -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
-
-# Each .o must depend on the corresponding .c (obvious, isn't it?),
-# but *can not* depend on kconfig/, because kconfig can be touched
-# during the build (who's touching it, btw?) so each .o would be
-# re-built when they sould not be.
+# Each .o or .dep *can not* directly depend on kconfig/, because kconfig can
+# be touched during the build (who's touching it, btw?) so each .o or .dep
+# would be re-built when it sould not be.
 # So manually check for presence of $(obj) (ie. kconfig), and only mkdir
 # if needed. After all, that's not so bad...
 # mkdir $(obj)/lxdialog, because we need it, and incidentally, that
 # also creates $(obj).
-# Also rebuild the object files is the makefile is changed
-%.o: %.c $(CT_LIB_DIR)/kconfig/kconfig.mk
+define check_kconfig_dir
 	$(SILENT)if [ ! -d $(obj)/lxdialog ]; then  \
 	   $(ECHO) "  MKDIR $(obj)";           \
 	   mkdir -p $(obj)/lxdialog;        \
 	 fi
+endef
+
+# Build the dependency for C files
+%.dep: %.c $(CT_LIB_DIR)/kconfig/kconfig.mk
+	$(check_kconfig_dir)
+	@$(ECHO) "  DEP   $@"
+	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |sed -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
+
+# Build C files
+%.o: %.c $(CT_LIB_DIR)/kconfig/kconfig.mk
+	$(check_kconfig_dir)
 	@$(ECHO) "  CC    $@"
 	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ -c $<
 
-$(obj)/mconf: $(mconf_OBJ)
+# Actual link
+$(obj)/mconf: $(COMMON_OBJ) $(LX_OBJ) $(mconf_OBJ)
 	@$(ECHO) '  LD    $@'
-	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
+	$(SILENT)$(HOST_LD) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
 
-$(obj)/conf: $(conf_OBJ)
+$(obj)/conf: $(COMMON_OBJ) $(conf_OBJ)
 	@$(ECHO) '  LD    $@'
-	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
+	$(SILENT)$(HOST_LD) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
 
 #-----------------------------------------------------------
 # Cleaning up the mess...
 
 clean::
 	@$(ECHO) "  CLEAN kconfig"
-	$(SILENT)rm -f kconfig/{,m}conf $(conf_OBJ) $(mconf_OBJ) $(DEPS)
+	$(SILENT)rm -f kconfig/{,m}conf $(ALL_OBJS) $(ALL_DEPS)
 	$(SILENT)rmdir --ignore-fail-on-non-empty kconfig{/lxdialog,} 2>/dev/null || true
