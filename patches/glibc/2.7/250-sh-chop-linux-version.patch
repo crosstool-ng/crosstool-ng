@@ -1,0 +1,49 @@
+--- glibc-2.7/sysdeps/unix/sysv/linux/dl-osinfo.h.orig	2007-09-15 23:54:08.000000000 +0100
++++ glibc-2.7/sysdeps/unix/sysv/linux/dl-osinfo.h	2008-08-20 09:26:26.000000000 +0100
+@@ -83,6 +83,10 @@
+   int parts;
+   char *cp;
+   struct utsname uts;
++  int dotsfound = 0;
++  int versionindex = 0;
++  char *choppoint;
++
+ 
+   /* Try the uname system call.  */
+   if (__uname (&uts))
+@@ -102,8 +106,34 @@
+   else
+     buf = uts.release;
+ 
++  /* We are only interested in the first three kernel numbers, so */
++  /* chop off anything past that: */
++
++  choppoint = buf;
++  while (1)
++    {
++      versionindex++;
++      if (versionindex == 63) break;
++      if (*choppoint == '.') dotsfound++;
++      choppoint++;
++      if (dotsfound == 2)
++      {
++        if (*choppoint == '0' || *choppoint == '1'
++          || *choppoint == '2' || *choppoint == '3'
++          || *choppoint == '4' || *choppoint == '5'
++          || *choppoint == '6' || *choppoint == '7'
++          || *choppoint == '8' || *choppoint == '9')
++          continue;
++        else
++          {
++            *choppoint = 0;
++            break;
++          }
++      }
++    }
++
+   /* Now convert it into a number.  The string consists of at most
+-     three parts.  */
++     three parts.  Now it does, anyway.  ;-)  */
+   version = 0;
+   parts = 0;
+   cp = buf;
