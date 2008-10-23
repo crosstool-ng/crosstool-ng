@@ -695,14 +695,16 @@ CT_DoBuildTargetTuple() {
     [ "${CT_ARCH_FPU}"      ] && { CT_ARCH_FPU_CFLAG="-mfpu=${CT_ARCH_FPU}";     CT_ARCH_WITH_FPU="--with-fpu=${CT_ARCH_FPU}";    }
     [ "${CT_ARCH_FLOAT_SW}" ] && { CT_ARCH_FLOAT_CFLAG="-msoft-float";           CT_ARCH_WITH_FLOAT="--with-float=soft";          }
 
+    # Build the kernel tuple part
+    case "${CT_KERNEL}" in
+        bare-metal) CT_TARGET_KERNEL=;;
+        linux)      CT_TARGET_KERNEL=linux-;;
+    esac
+
     # Call the architecture specific settings
-    CT_DoArchValues
+    CT_DoArchTupleValues
 
     # Finish the target tuple construction
-    case "${CT_KERNEL}" in
-        none)   CT_TARGET_KERNEL=;;
-        linux)  CT_TARGET_KERNEL=linux-;;
-    esac
     CT_TARGET=$(CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}${CT_TARGET_SYS}")
 
     # Prepare the target CFLAGS

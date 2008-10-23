@@ -1,6 +1,6 @@
 # Compute ARM-specific values
 
-CT_DoArchValues() {
+CT_DoArchTupleValues() {
     # The architecture part of the tuple:
     CT_TARGET_ARCH="${CT_ARCH}${target_endian_eb}"
 

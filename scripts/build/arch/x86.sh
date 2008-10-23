@@ -2,7 +2,7 @@
 
 # This one really need a little love! :-(
 
-CT_DoArchValues() {
+CT_DoArchTupleValues() {
     # The architecture part of the tuple:
     arch="${CT_ARCH_ARCH}"
     [ -z "${arch}" ] && arch="${CT_ARCH_TUNE}"
