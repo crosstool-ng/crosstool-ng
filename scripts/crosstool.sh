@@ -23,12 +23,9 @@
 CT_STAR_DATE=$(CT_DoDate +%s%N)
 CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 
-# Are we configured? We'll need that later...
-CT_TestOrAbort "Configuration file not found. Please create one." -f "${CT_TOP_DIR}/.config"
-
 # Parse the configuration file
 # It has some info about the logging facility, so include it early
-. "${CT_TOP_DIR}/.config"
+. .config
 
 # Yes! We can do full logging from now on!
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
@@ -37,7 +34,7 @@ CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 CT_DoExecLog DEBUG renice ${CT_NICE} $$
 
 CT_DoStep DEBUG "Dumping user-supplied crosstool-NG configuration"
-cat "${CT_TOP_DIR}/.config" |egrep '^(# |)CT_' |CT_DoLog DEBUG
+CT_DoExecLog DEBUG egrep '^(# |)CT_' .config
 CT_EndStep
 
 # Some sanity checks in the environment and needed tools
@@ -52,12 +49,21 @@ CT_TestAndAbort "Don't set LD_LIBRARY_PATH. It screws up the build." -n "${LD_LI
 CT_TestAndAbort "Don't set CFLAGS. It screws up the build." -n "${CFLAGS}"
 CT_TestAndAbort "Don't set CXXFLAGS. It screws up the build." -n "${CXXFLAGS}"
 CT_Test "GREP_OPTIONS screws up the build. Resetting." -n "${GREP_OPTIONS}"
-GREP_OPTIONS=
+export GREP_OPTIONS=
 
 CT_DoLog INFO "Building environment variables"
 
-# Parse architecture-specific functions
+# Include sub-scripts instead of calling them: that way, we do not have to
+# export any variable, nor re-parse the configuration and functions files.
 . "${CT_LIB_DIR}/scripts/build/arch/${CT_ARCH}.sh"
+. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
+. "${CT_LIB_DIR}/scripts/build/gmp.sh"
+. "${CT_LIB_DIR}/scripts/build/mpfr.sh"
+. "${CT_LIB_DIR}/scripts/build/binutils.sh"
+. "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
+. "${CT_LIB_DIR}/scripts/build/cc/${CT_CC}.sh"
+. "${CT_LIB_DIR}/scripts/build/tools.sh"
+. "${CT_LIB_DIR}/scripts/build/debug.sh"
 
 # Target tuple: CT_TARGET needs a little love:
 CT_DoBuildTargetTuple
@@ -353,17 +359,6 @@ if [ -z "${CT_RESTART}" ]; then
     set |egrep '^CT_.+=' |sort |CT_DoLog DEBUG
     CT_EndStep
 fi
-
-# Include sub-scripts instead of calling them: that way, we do not have to
-# export any variable, nor re-parse the configuration and functions files.
-. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
-. "${CT_LIB_DIR}/scripts/build/gmp.sh"
-. "${CT_LIB_DIR}/scripts/build/mpfr.sh"
-. "${CT_LIB_DIR}/scripts/build/binutils.sh"
-. "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
-. "${CT_LIB_DIR}/scripts/build/cc/${CT_CC}.sh"
-. "${CT_LIB_DIR}/scripts/build/tools.sh"
-. "${CT_LIB_DIR}/scripts/build/debug.sh"
 
 if [ -z "${CT_RESTART}" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"

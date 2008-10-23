@@ -674,6 +674,9 @@ CT_DoBuildTargetTuple() {
             ;;
     esac
 
+    # Build the default architecture tuple part
+    CT_TARGET_ARCH="${CT_ARCH}"
+
     # Set defaults for the system part of the tuple. Can be overriden
     # by architecture-specific values.
     case "${CT_LIBC}" in
@@ -695,17 +698,15 @@ CT_DoBuildTargetTuple() {
     [ "${CT_ARCH_FPU}"      ] && { CT_ARCH_FPU_CFLAG="-mfpu=${CT_ARCH_FPU}";     CT_ARCH_WITH_FPU="--with-fpu=${CT_ARCH_FPU}";    }
     [ "${CT_ARCH_FLOAT_SW}" ] && { CT_ARCH_FLOAT_CFLAG="-msoft-float";           CT_ARCH_WITH_FLOAT="--with-float=soft";          }
 
-    # Build the kernel tuple part
-    case "${CT_KERNEL}" in
-        bare-metal) CT_TARGET_KERNEL=;;
-        linux)      CT_TARGET_KERNEL=linux-;;
-    esac
+    # Build the default kernel tuple part
+    CT_TARGET_KERNEL="${CT_KERNEL}"
 
-    # Call the architecture specific settings
+    # Overide the default values with the components specific settings
     CT_DoArchTupleValues
+    CT_DoKernelTupleValues
 
     # Finish the target tuple construction
-    CT_TARGET=$(CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}${CT_TARGET_SYS}")
+    CT_TARGET=$(CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}${CT_TARGET_KERNEL:+-}${CT_TARGET_SYS}")
 
     # Prepare the target CFLAGS
     CT_ARCH_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_ARCH_ENDIAN_CFLAG}"

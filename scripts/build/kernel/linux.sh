@@ -2,6 +2,11 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+CT_DoKernelTupleValues() {
+    # Nothing to do, keep the default value
+    :
+}
+
 do_print_filename() {
     echo "linux-${CT_KERNEL_VERSION}"
 }
