@@ -24,8 +24,9 @@ CT_TestOrAbort "Configuration file not found. Please create one." -f .config
 # Do not use a progress bar
 unset CT_LOG_PROGRESS_BAR
 
-# Parse architecture-specific functions
+# Parse architecture and kernel specific functions
 . "${CT_LIB_DIR}/scripts/build/arch/${CT_ARCH}.sh"
+. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
 
 # Target tuple: CT_TARGET needs a little love:
 CT_DoBuildTargetTuple
