@@ -21,9 +21,10 @@ do_debug_ltrace_build() {
     mkdir -p "${CT_BUILD_DIR}/build-ltrace"
     CT_Pushd "${CT_BUILD_DIR}/build-ltrace"
 
+    CT_DoLog EXTRA "Copying sources to build dir"
+    (cd "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}"; tar cf - .)| tar xvf - |CT_DoLog ALL
+
     CT_DoLog EXTRA "Configuring ltrace"
-#    CFLAGS="-I${CT_SYSROOT_DIR}/usr/include"                \
-#    LDFLAGS="-L${CT_SYSROOT_DIR}/usr/include"               \
     CT_DoExecLog ALL                                        \
     "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
