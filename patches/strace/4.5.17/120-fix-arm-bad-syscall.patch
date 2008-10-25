@@ -1,0 +1,23 @@
+Original patch from gentoo: ../../dev/crosstool-NG/ct-ng.trunk/patches/strace/4.5.17/120-fix-arm-bad-syscall.patch
+-= BEGIN original header =-
+diff -dur strace-4.5.16.orig/syscall.c strace-4.5.16/syscall.c
+-= END original header =-
+diff -durN strace-4.5.17.orig/syscall.c strace-4.5.17/syscall.c
+--- strace-4.5.17.orig/syscall.c	2008-05-28 01:18:29.000000000 +0200
++++ strace-4.5.17/syscall.c	2008-10-24 21:30:13.000000000 +0200
+@@ -1016,6 +1016,15 @@
+ 		/*
+ 		 * Note: we only deal with only 32-bit CPUs here.
+ 		 */
++
++		if (!(tcp->flags & TCB_INSYSCALL) &&
++		    (tcp->flags & TCB_WAITEXECVE)) {
++			/* caught a fake syscall from the execve's exit */
++			tcp->flags &= ~TCB_WAITEXECVE;
++			return 0;
++		}
++
++
+ 		if (regs.ARM_cpsr & 0x20) {
+ 			/*
+ 			 * Get the Thumb-mode system call number

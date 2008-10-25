@@ -1,0 +1,68 @@
+Original patch from gentoo: ../../dev/crosstool-NG/ct-ng.trunk/patches/strace/4.5.17/160-undef-syscall.patch
+-= BEGIN original header =-
+diff -dur strace-4.5.16.orig/linux/syscallent.h strace-4.5.16/linux/syscallent.h
+-= END original header =-
+diff -durN strace-4.5.17.orig/linux/syscallent.h strace-4.5.17/linux/syscallent.h
+--- strace-4.5.17.orig/linux/syscallent.h	2008-07-18 03:23:49.000000000 +0200
++++ strace-4.5.17/linux/syscallent.h	2008-10-24 21:30:13.000000000 +0200
+@@ -130,7 +130,11 @@
+ 	{ 2,	TF,	sys_statfs,		"statfs"	}, /* 99 */
+ 	{ 2,	TD,	sys_fstatfs,		"fstatfs"	}, /* 100 */
+ 	{ 3,	0,	sys_ioperm,		"ioperm"	}, /* 101 */
+-	{ 2,	TD,	sys_socketcall,		"socketcall", SYS_socketcall }, /* 102 */
++	{ 2,	TD,	sys_socketcall,		"socketcall"
++#ifdef __NR_socketcall
++	    , SYS_socketcall
++#endif
++								}, /* 102 */
+ 	{ 3,	0,	sys_syslog,		"syslog"	}, /* 103 */
+ 	{ 3,	0,	sys_setitimer,		"setitimer"	}, /* 104 */
+ 	{ 2,	0,	sys_getitimer,		"getitimer"	}, /* 105 */
+@@ -145,7 +149,11 @@
+ 	{ 4,	TP,	sys_wait4,		"wait4", SYS_wait4 }, /* 114 */
+ 	{ 1,	0,	sys_swapoff,		"swapoff"	}, /* 115 */
+ 	{ 1,	0,	sys_sysinfo,		"sysinfo"	}, /* 116 */
+-	{ 6,	0,	sys_ipc,		"ipc", SYS_ipc }, /* 117 */
++	{ 6,	0,	sys_ipc,		"ipc"
++#ifdef __NR_ipc
++	    , SYS_ipc
++#endif
++								}, /* 117 */
+ 	{ 1,	TD,	sys_fsync,		"fsync"		}, /* 118 */
+ 	{ 1,	TS,	sys_sigreturn,		"sigreturn"	}, /* 119 */
+ 	{ 5,	TP,	sys_clone,		"clone", SYS_clone }, /* 120 */
+@@ -282,7 +290,11 @@
+ 	{ 3,	0,	sys_io_cancel,		"io_cancel"	}, /* 249 */
+ 	{ 5,	0,	sys_fadvise64,		"fadvise64"	}, /* 250 */
+ 	{ 5,	0,	printargs,		"SYS_251"	}, /* 251 */
+-	{ 1,	TP,	sys_exit,		"exit_group", __NR_exit_group }, /* 252 */
++	{ 1,	TP,	sys_exit,		"exit_group"
++#ifdef __NR_exit_group
++	    , __NR_exit_group
++#endif
++								}, /* 252 */
+ 	{ 4,	0,	printargs,		"lookup_dcookie"}, /* 253 */
+ 	{ 1,	0,	sys_epoll_create,	"epoll_create"	}, /* 254 */
+ 	{ 4,	TD,	sys_epoll_ctl,		"epoll_ctl"	}, /* 255 */
+diff -durN strace-4.5.17.orig/syscall.c strace-4.5.17/syscall.c
+--- strace-4.5.17.orig/syscall.c	2008-10-24 21:30:13.000000000 +0200
++++ strace-4.5.17/syscall.c	2008-10-24 21:30:13.000000000 +0200
+@@ -2452,14 +2452,18 @@
+ 	switch (known_scno(tcp)) {
+ #ifdef LINUX
+ #if !defined (ALPHA) && !defined(MIPS) && !defined(HPPA)
++#ifdef __NR_socketcall
+ 	case SYS_socketcall:
+ 		decode_subcall(tcp, SYS_socket_subcall,
+ 			SYS_socket_nsubcalls, deref_style);
+ 		break;
++#endif
++#ifdef __NR_ipc
+ 	case SYS_ipc:
+ 		decode_subcall(tcp, SYS_ipc_subcall,
+ 			SYS_ipc_nsubcalls, shift_style);
+ 		break;
++#endif
+ #endif /* !(ALPHA || MIPS || HPPA) */
+ #endif /* LINUX */
+ #ifdef SVR4
