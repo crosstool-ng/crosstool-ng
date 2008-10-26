@@ -26,7 +26,7 @@ do_debug_ltrace_build() {
 
     CT_DoLog EXTRA "Configuring ltrace"
     CT_DoExecLog ALL        \
-    ./configure"            \
+    ./configure             \
         --build=${CT_BUILD} \
         --host=${CT_TARGET} \
         --prefix=/usr
