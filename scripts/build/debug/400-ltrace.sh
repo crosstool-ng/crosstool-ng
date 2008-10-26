@@ -25,10 +25,10 @@ do_debug_ltrace_build() {
     (cd "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}"; tar cf - .)| tar xvf - |CT_DoLog ALL
 
     CT_DoLog EXTRA "Configuring ltrace"
-    CT_DoExecLog ALL                                        \
-    "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}/configure"   \
-        --build=${CT_BUILD}                                 \
-        --host=${CT_TARGET}                                 \
+    CT_DoExecLog ALL        \
+    ./configure"            \
+        --build=${CT_BUILD} \
+        --host=${CT_TARGET} \
         --prefix=/usr
 
     CT_DoLog EXTRA "Building ltrace"
