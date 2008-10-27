@@ -3,7 +3,7 @@
 # These targets are used from top-level makefile
 
 #-----------------------------------------------------------
-# List all config files, source and generated
+# List all config files, wether sourced or generated
 
 # The top-level config file to be used be configurators
 KCONFIG_TOP = config/config.in

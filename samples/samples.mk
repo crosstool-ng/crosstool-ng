@@ -1,10 +1,13 @@
 # Makefile to manage samples
 
+# ----------------------------------------------------------
 # Build the list of available samples
 CT_TOP_SAMPLES := $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config))
 CT_LIB_SAMPLES := $(filter-out $(CT_TOP_SAMPLES),$(patsubst $(CT_LIB_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_LIB_DIR)/samples/*/crosstool.config)))
-
 CT_SAMPLES := $(sort $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES))
+
+# ----------------------------------------------------------
+# This part deals with the samples help entries
 
 help-config::
 	@echo  '  saveconfig         - Save current config as a preconfigured target'
@@ -23,12 +26,34 @@ help-build::
 help-distrib::
 	@echo  '  wiki-samples       - Print a DokuWiki table of samples'
 
+# ----------------------------------------------------------
+# This part deals with printing samples information
+
+# Prints the details of a sample
+PHONY += $(patsubst %,show-%,$(CT_SAMPLES))
 $(patsubst %,show-%,$(CT_SAMPLES)):
 	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
 
+# print the list of all available samples
 PHONY += list-samples
 list-samples: .FORCE
 	@echo $(CT_SAMPLES) |sed -r -e 's/ /\n/g;' |sort
+
+wiki-samples:
+	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
+
+# ----------------------------------------------------------
+# This part deals with saving/restoring samples
+
+# Save a sample
+saveconfig:
+	$(SILENT)$(CT_LIB_DIR)/scripts/saveSample.sh
+
+# The 'sample_dir' function prints the directory in which the sample is,
+# searching first in local samples, then in global samples
+define sample_dir
+$$( [ -d $(CT_TOP_DIR)/samples/$(1) ] && echo "$(CT_TOP_DIR)/samples/$(1)" || echo "$(CT_LIB_DIR)/samples/$(1)")
+endef
 
 # How we do recall one sample
 PHONY += $(CT_SAMPLES)
@@ -61,13 +86,9 @@ $(CT_SAMPLES):
 	@echo
 	@echo  'Now configured for "$@"'
 
-# The 'sample_dir' function prints the directory in which the sample is,
-# searching first in local samples, then in global samples
-define sample_dir
-$$( [ -d $(CT_TOP_DIR)/samples/$(1) ] && echo "$(CT_TOP_DIR)/samples/$(1)" || echo "$(CT_LIB_DIR)/samples/$(1)")
-endef
-
+# ----------------------------------------------------------
 # And now for building all samples one after the other
+
 PHONY += regtest regtest_local regtest_global
 regtest: regtest-local regtest-global
 
@@ -107,9 +128,3 @@ $(patsubst %,regtest_%,$(CT_SAMPLES)):
 	 echo -e "\rCleaning sample \"$${samp}\""                                                       ;   \
 	 $(CT_NG) distclean                                                                             ;   \
 	 echo -e "\r"
-
-saveconfig:
-	$(SILENT)$(CT_LIB_DIR)/scripts/saveSample.sh
-
-wiki-samples:
-	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)

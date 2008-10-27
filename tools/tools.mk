@@ -5,6 +5,16 @@
 # scripts for later inclusion mainline. If CT_LIB_DIR != CT_TOP_DIR, then those
 # scripts are downloaded only for use in CT_TOP_DIR.
 
+# ----------------------------------------------------------
+# The tools help entry
+
+help-distrib::
+	@echo  '  updatetools        - Update the config tools'
+
+# ----------------------------------------------------------
+# Where to get tools from, and where to store them into
+# The tools are: config.guess and config.sub
+
 CONFIG_SUB_SRC="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD"
 CONFIG_SUB_DEST="$(CT_TOP_DIR)/tools/config.sub"
 CONFIG_GUESS_SRC="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD"
@@ -16,6 +26,9 @@ $(CT_TOP_DIR)/tools:
 PHONY += updatetools
 updatetools: $(CT_TOP_DIR)/tools $(CONFIG_SUB_DEST) $(CONFIG_GUESS_DEST)
 
+# ----------------------------------------------------------
+# How to retrieve the tools
+
 $(CONFIG_SUB_DEST):
 	$(SILENT)wget $(CONFIG_SUB_SRC) -O $@
 	$(SILENT)chmod u+rwx,go+rx-w $@
@@ -24,8 +37,8 @@ $(CONFIG_GUESS_DEST):
 	$(SILENT)wget $(CONFIG_GUESS_SRC) -O $@
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
-help-distrib::
-	@echo  '  updatetools        - Update the config tools'
+# ----------------------------------------------------------
+# Clean up the mess
 
 distclean::
 	@$(ECHO) "  CLEAN tools"
