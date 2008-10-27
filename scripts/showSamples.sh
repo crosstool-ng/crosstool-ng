@@ -139,5 +139,5 @@ elif [ -z "${opt}" ]; then
     echo '      l (local)       : sample was found in current directory'
     echo '      g (global)      : sample was installed with crosstool-NG'
     echo '      X (EXPERIMENTAL): sample may use EXPERIMENTAL features'
-    echo '      B (BORKEN)      : sample is currently broken'
+    echo '      B (BROKEN)      : sample is currently broken'
 fi
