@@ -297,7 +297,7 @@ do_cc() {
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
-    ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-{g,}cc 2>&1 |CT_DoLog ALL
+    CT_DoExecLog ALL ln -sv "${CT_TARGET}"-gcc "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-cc
 
     CT_EndStep
 }
