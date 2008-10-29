@@ -7,7 +7,7 @@ Quote:
  dcbX bug). The source of the problem is sysdeps/powerpc/power3/memset.S
 
 --- glibc-2.7/sysdeps/powerpc/powerpc32/memset.S	2007-03-26 13:09:07.000000000 -0700
-+++ glibc-2.7/sysdeps/powerpc/powerpc32/memset.S.new	2008-10-23 12:20:04.000000000 -0700
++++ glibc-2.7/sysdeps/powerpc/powerpc32/memset.S.new	2008-10-23 20:28:52.000000000 -0700
 @@ -112,11 +112,13 @@
  	clrrwi.	rALIGN, rLEN, 5
  	mtcrf	0x01, rLEN	/* 40th instruction from .align */
@@ -22,7 +22,23 @@ Quote:
  
  /* Store blocks of 32-bytes (256-bits) starting on a 32-byte boundary.
     Can't assume that rCHR is zero or that the cache line size is either
-@@ -248,6 +250,7 @@
+@@ -158,6 +160,7 @@
+ 	add	rMEMP, rMEMP, rALIGN
+ 	b	L(medium_tail2)	/* 72nd instruction from .align */
+ 
++#ifndef BROKEN_PPC_8xx_CPU15
+ 	.align	5
+ 	nop
+ /* Clear cache lines of memory in 128-byte chunks.
+@@ -191,6 +194,7 @@
+ 	bdnz	L(zloop)
+ 	beqlr	cr5
+ 	b	L(medium_tail2)
++#endif /* ! BROKEN_PPC_8xx_CPU15 */
+ 
+ 	.align	5
+ L(small):
+@@ -248,6 +252,7 @@
  	stw	rCHR, -8(rMEMP)
  	blr
  
@@ -30,7 +46,7 @@ Quote:
  L(checklinesize):
  #ifdef SHARED
  	mflr	rTMP
-@@ -329,6 +332,7 @@
+@@ -329,6 +334,7 @@
  L(handletail32):
  	clrrwi.	rALIGN, rLEN, 5
  	b	L(nondcbz)

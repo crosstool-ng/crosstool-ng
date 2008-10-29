@@ -443,6 +443,14 @@ do_libc() {
         GLIBC_INSTALL_APPS_LATER=no
     fi
 
+    # glibc initial build hacks
+    # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
+    case "${CT_ARCH},${CT_ARCH_CPU}" in
+	powerpc,8??)
+	    CT_DoLog DEBUG "Activating support for memset on broken ppc-8xx (CPU15 erratum)"
+	    GLIBC_INITIAL_BUILD_ASFLAGS="-DBROKEN_PPC_8xx_CPU15";;
+    esac
+
     # If this fails with an error like this:
     # ...  linux/autoconf.h: No such file or directory 
     # then you need to set the KERNELCONFIG variable to point to a .config file for this arch.
@@ -453,6 +461,7 @@ do_libc() {
     CT_DoExecLog ALL make LD=${CT_TARGET}-ld                        \
                            RANLIB=${CT_TARGET}-ranlib               \
                            OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"  \
+                           ASFLAGS="${GLIBC_INITIAL_BUILD_ASFLAGS}" \
                            ${GLIBC_INITIAL_BUILD_RULE}
 
     CT_DoLog EXTRA "Installing C library"
