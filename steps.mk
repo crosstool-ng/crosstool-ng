@@ -48,10 +48,10 @@ list-steps:
 # This part deals with executing steps
 
 $(CT_STEPS):
-	$(SILENT)$(MAKE) -rf $(CT_NG) RESTART=$@ STOP=$@ build
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) RESTART=$@ STOP=$@ build
 
 $(patsubst %,+%,$(CT_STEPS)):
-	$(SILENT)$(MAKE) -rf $(CT_NG) STOP=$(patsubst +%,%,$@) build
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) STOP=$(patsubst +%,%,$@) build
 
 $(patsubst %,%+,$(CT_STEPS)):
-	$(SILENT)$(MAKE) -rf $(CT_NG) RESTART=$(patsubst %+,%,$@) build
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) RESTART=$(patsubst %+,%,$@) build
