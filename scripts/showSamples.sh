@@ -25,7 +25,7 @@ dump_single_sample() {
     fi
     . "${sample_top}/samples/${sample}/crosstool.config"
     if [ -z "${wiki}" ]; then
-        printf "  %-*s  [%s" ${width} "${sample}" "${sample_type}"
+        printf "    %-*s  [%s" ${width} "${sample}" "${sample_type}"
         [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf " "
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
         echo "]"
