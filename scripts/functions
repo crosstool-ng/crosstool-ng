@@ -474,40 +474,27 @@ CT_GetFile() {
 
     # Not found locally, try from the network
 
-    # Start with LAN mirror
-    if [ "${CT_USE_LAN_MIRROR}" = "y" ]; then
-        CT_DoSetProxy ${CT_LAN_MIRROR_USE_PROXY:+${CT_PROXY_TYPE}}
-        CT_DoLog DEBUG "Trying to retrieve a copy of '${file}' from LAN mirror '${CT_LAN_MIRROR_HOSTNAME}'"
-        CT_TestOrAbort "Please set the LAN mirror hostname" -n "${CT_LAN_MIRROR_HOSTNAME}"
-        CT_TestOrAbort "Please tell me where to find tarballs on the LAN mirror '${CT_LAN_MIRROR_HOSTNAME}'" -n "${CT_LAN_MIRROR_BASE}"
-        for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
-            # Please note: we just have the file's basename in a single piece.
-            # So we have to just try and split it back into name and version... :-(
-            for url in "${CT_LAN_MIRROR_SCHEME}://${CT_LAN_MIRROR_HOSTNAME}/${CT_LAN_MIRROR_BASE}/${file%-*}"  \
-                       "${CT_LAN_MIRROR_SCHEME}://${CT_LAN_MIRROR_HOSTNAME}/${CT_LAN_MIRROR_BASE}";            \
-            do
-                CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
-                CT_DoGetFile "${url}/${file}${ext}"
-                if [ -f "${file}${ext}" ]; then
-                    CT_DoLog DEBUG "Got '${file}' from the LAN mirror"
-                    if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-                        # The file may already exist if downloads are forced: remove it first
-                        CT_DoLog EXTRA "Saving '${file}' to local storage"
-                        CT_DoExecLog ALL rm -f "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}"
-                        CT_DoExecLog ALL mv -f "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}"
-                        CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}"
-                    fi
-                    return 0
-                fi
-            done
-        done
+    # Add URLs on the LAN mirror
+    LAN_URLS=
+    if [ "${CT_USE_MIRROR}" = "y" ]; then
+        CT_DoLog DEBUG "Trying to retrieve a copy of '${file}' from LAN mirror '${CT_MIRROR_HOSTNAME}'"
+        CT_TestOrAbort "Please set the LAN mirror hostname" -n "${CT_MIRROR_HOSTNAME}"
+        CT_TestOrAbort "Please tell me where to find tarballs on the LAN mirror '${CT_MIRROR_HOSTNAME}'" -n "${CT_MIRROR_BASE}"
+        LAN_URLS="${LAN_URLS} ${CT_MIRROR_SCHEME}://${CT_MIRROR_HOSTNAME}/${CT_MIRROR_BASE}/${file%-*}"
+        LAN_URLS="${LAN_URLS} ${CT_MIRROR_SCHEME}://${CT_MIRROR_HOSTNAME}/${CT_MIRROR_BASE}"
     fi
 
-    # OK, available neither localy, nor from the LAN mirror (if any).
+    if [ "${CT_PREFER_MIRROR}" = "y" ]; then
+        URLS="${LAN_URLS} ${@}"
+    else
+        URLS="${@} ${LAN_URLS}"
+    fi
+
+    # Scan all URLs in turn, and try to grab a tarball from there
     CT_DoSetProxy ${CT_PROXY_TYPE}
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         # Try all urls in turn
-        for url in "$@"; do
+        for url in ${URLS}; do
             CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
             CT_DoGetFile "${url}/${file}${ext}"
             if [ -f "${file}${ext}" ]; then
