@@ -16,15 +16,17 @@ help-samples::
 	@echo  '  list-samples       - prints the list of all samples (for scripting)'
 	@echo  '  show-<sample>      - show a brief overview of <sample> (list below)'
 	@echo  '  <sample>           - preconfigure crosstool-NG with <sample> (list below)'
+	@echo  '  build-all[.#]      - Build *all* samples (list below) and install in'
+	@echo  '                       $${CT_PREFIX} (which you must set)'
+	@echo  '  Available samples:'
 	@$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
-
-help-build::
-	@echo  '  regtest[.#]        - Regtest-build all samples'
-	@echo  '  regtest-local[.#]  - Regtest-build all local samples'
-	@echo  '  regtest-global[.#] - Regtest-build all global samples'
 
 help-distrib::
 	@echo  '  wiki-samples       - Print a DokuWiki table of samples'
+
+help-env::
+	@echo  '  CT_PREFIX          - directory in which to auto-install samples'
+	@echo  '                       (see action "build-all", above).'
 
 # ----------------------------------------------------------
 # This part deals with printing samples information
@@ -59,7 +61,7 @@ endef
 PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES):
 	$(SILENT)cp $(call sample_dir,$@)/crosstool.config .config
-	$(SILENT)$(MAKE) -rf $(CT_NG) oldconfig
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) oldconfig
 	@echo
 	@echo  '***********************************************************'
 	@echo
@@ -87,44 +89,48 @@ $(CT_SAMPLES):
 	@echo  'Now configured for "$@"'
 
 # ----------------------------------------------------------
-# And now for building all samples one after the other
+# Some helper functions
 
-PHONY += regtest regtest_local regtest_global
-regtest: regtest-local regtest-global
+# Create the rule to build a sample
+# $1: sample tuple
+# $2: prefix
+define build_sample
+	@$(ECHO) '  CP    .config'
+	$(SILENT)cp $(call sample_dir,$(1))/crosstool.config .config
+	@$(ECHO) '  SED   .config'
+	$(SILENT)sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(2)":;' .config
+	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config
+	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config
+	$(SILENT)sed -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config
+	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config
+	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) oldconfig
+	@$(ECHO) '  BUILD $(1)'
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) build
+endef
 
-regtest-local: $(patsubst %,regtest_%,$(CT_TOP_SAMPLES))
+# ----------------------------------------------------------
+# Build samples for use (not regtest!)
 
-regtest-global: $(patsubst %,regtest_%,$(CT_LIB_SAMPLES))
+# Check that PREFIX is set if building samples
+ifneq ($(strip $(MAKECMDGOALS)),)
+ifneq ($(strip $(filter $(patsubst %,build-%,$(CT_SAMPLES)) build-all,$(MAKECMDGOALS))),)
 
-regtest.% regtest-local.% regtest-global.%:
-	$(SILENT)$(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
+ifeq ($(strip $(CT_PREFIX)),)
+$(error Please set 'CT_PREFIX' to where you want to install generated toolchain samples!)
+endif
 
-# One regtest per sample
-# We could use a simple rule like: 'regtest: $(CT_SAMPLES)', but that doesn't
-# work because we want to save the samples as well.
-# Also, we don't want to see anylog at all, save for the elapsed time, and we
-# want to save the log file in a specific place
-# Furthermore, force the location where the toolchain will be installed.
-# Finaly, we can't use 'make sample-name' as we need to provide default values
-# if the options set has changed, but oldconfig does not like when stdin is
-# not a terminal (eg. it is a pipe).
-$(patsubst %,regtest_%,$(CT_SAMPLES)):
-	$(SILENT)samp=$(patsubst regtest_%,%,$@)                                                        ;   \
-	 echo -e "\rBuilding sample \"$${samp}\""                                                       &&  \
-	 $(CT_NG) copy_config_$${samp}                                                                  &&  \
-	 yes "" |$(CT_NG) defoldconfig >/dev/null 2>&1                                                  &&  \
-	 sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$${CT_TOP_DIR}/targets/tst/$${CT_TARGET}":;' .config  &&  \
-	 sed -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config         &&  \
-	 sed -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config                                          &&  \
-	 sed -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config                                 &&  \
-	 sed -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config                                        &&  \
-	 sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config                                   &&  \
-	 yes "" |$(CT_NG) defoldconfig >/dev/null 2>&1                                                  &&  \
-	 $(CT_NG) build                                                                                 &&  \
-	 echo -e "\rSuccessfully built sample \"$${samp}\""                                             &&  \
-	 echo -e "\rMaking tarball for sample \"$${samp}\""                                             &&  \
-	 $(CT_NG) tarball                                                                               &&  \
-	 echo -e "\rSuccessfully built tarball for sample \"$${samp}\""                                 ;   \
-	 echo -e "\rCleaning sample \"$${samp}\""                                                       ;   \
-	 $(CT_NG) distclean                                                                             ;   \
-	 echo -e "\r"
+endif # MAKECMDGOALS contains a build sample rule
+endif # MAKECMDGOALS != ""
+
+# Build a single sample
+$(patsubst %,build-%,$(CT_SAMPLES)):
+	$(call build_sample,$(patsubst build-%,%,$@),$(CT_PREFIX)/$(patsubst build-%,%,$@))
+
+# Build al samples
+build-all: $(patsubst %,build-%,$(CT_SAMPLES))
+
+# Build all samples, overiding the number of // jobs per sample
+build-all.%:
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
+
