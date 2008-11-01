@@ -253,13 +253,21 @@ ENDSED
         fi
     fi
 
-    # Force on options needed for C++ if we'll be making a C++ compiler.
+    # Locales support
     # Note that the two PREGEN_LOCALE and the XLOCALE lines may be missing
     # entirely if LOCALE is not set.  If LOCALE was already set, we'll
     # assume the user has already made all the appropriate generation
     # arrangements.  Note that having the uClibc Makefile download the
     # pregenerated locales is not compatible with crosstool; besides,
     # crosstool downloads them as part of getandpatch.sh.
+    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] ; then
+       cat >>"${munge_file}" <<-ENDSED
+s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\nUCLIBC_PREGENERATED_LOCALE_DATA=y\\n\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\n\\# UCLIBC_HAS_XLOCALE is not
+ENDSED
+    fi
+
+    # Force on options needed for C++ if we'll be making a C++ compiler.
+    # I'm not sure locales are a requirement for doing C++... Are they?
     if [ "${CT_CC_LANG_CXX}" = "y" ]; then
         cat >>"${munge_file}" <<-ENDSED
 s/^# DO_C99_MATH is not set/DO_C99_MATH=y/
