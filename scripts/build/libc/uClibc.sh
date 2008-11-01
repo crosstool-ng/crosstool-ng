@@ -78,7 +78,7 @@ do_libc_headers() {
     CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers
 
     CT_DoLog EXTRA "Installing headers"
-    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_dev
+    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_headers
 
     CT_EndStep
 }
@@ -127,12 +127,12 @@ do_libc() {
 
     # YEM-FIXME: we want to install libraries in $SYSROOT/lib, but we don't want
     # to install headers in $SYSROOT/include, thus making only install_runtime.
-    # Plus, the headers were previously installed earlier with install_dev, so
-    # all should be well. Unfortunately, the install_dev target does not install
-    # crti.o and consorts... :-( So reverting to target 'install'.
+    # Plus, the headers were previously installed earlier with install_headers,
+    # so all should be well. Unfortunately, the install_headers target does not
+    # install crti.o and consorts... :-( So reverting to target 'install'.
     # Note: PARALLELMFLAGS is not usefull for installation.
     # We do _not_ want to strip anything for now, in case we specifically
-    # asked for a debug toolchain, thus the STRIPTOOL= assignment
+    # asked for a debug toolchain, hence the STRIPTOOL= assignment
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL                    \
     make CROSS=${CT_TARGET}-            \
