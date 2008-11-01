@@ -117,12 +117,14 @@ do_libc() {
 
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, thus the STRIPTOOL= assignment
+    # /Old/ versions can not build in //
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL                    \
-    make CROSS=${CT_TARGET}-            \
-         PREFIX="${CT_SYSROOT_DIR}/"    \
-         STRIPTOOL=true                 \
-         ${CT_LIBC_UCLIBC_VERBOSITY}    \
+    CT_DoExecLog ALL                                    \
+    make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}  \
+         CROSS=${CT_TARGET}-                            \
+         PREFIX="${CT_SYSROOT_DIR}/"                    \
+         STRIPTOOL=true                                 \
+         ${CT_LIBC_UCLIBC_VERBOSITY}                    \
          all
 
     # YEM-FIXME: we want to install libraries in $SYSROOT/lib, but we don't want
