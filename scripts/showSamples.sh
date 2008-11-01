@@ -61,18 +61,22 @@ dump_single_sample() {
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X"
         [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B"
         printf '  '
-        printf "|  ''${CT_KERNEL}''  "
-        if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
-            printf "|  //custom//  "
-        else
-            printf "|  ${CT_KERNEL_VERSION}  "
+        printf "|  ''${CT_KERNEL}''  |"
+        if [ "${CT_KERNEL}" != "bare-metal" ];then
+            if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
+                printf "  //custom//  "
+            else
+                printf "  ${CT_KERNEL_VERSION}  "
+            fi
         fi
         printf "|  ${CT_BINUTILS_VERSION}  "
         printf "|  ''${CT_CC}''  "
         printf "|  ${CT_CC_VERSION}  "
-        printf "|  ''${CT_LIBC}''  "
-        printf "|  ${CT_LIBC_VERSION}  "
-        printf "|  ${CT_THREADS_NPTL:+NPTL}${CT_THREADS_LINUXTHREADS:+linuxthreads}${CT_THREADS_NONE:+none}  "
+        printf "|  ''${CT_LIBC}''  |"
+        if [ "${CT_LIBC}" != "none" ]; then
+            printf "  ${CT_LIBC_VERSION}  "
+        fi
+        printf "|  ${CT_THREADS:-none}  "
         printf "|  ${CT_ARCH_FLOAT_HW:+hard}${CT_ARCH_FLOAT_SW:+soft} float  "
         printf "|  C"
         [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ", C++"
