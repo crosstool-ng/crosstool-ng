@@ -310,17 +310,25 @@ if [ -z "${CT_RESTART}" ]; then
         *,y)      CT_HOST=$(echo "${CT_HOST}" |sed -r -e 's/-/-host_/;');;
     esac
 
+    # What's our shell?
+    # Will be plain /bin/sh on most systems, except if we have /bin/ash and we
+    # _explictly_ required using it
+    CT_SHELL="/bin/sh"
+    [ "${CT_CONFIG_SHELL_ASH}" = "y" -a -x "/bin/ash" ] && CT_SHELL="/bin/ash"
+
     # Ah! Recent versions of binutils need some of the build and/or host system
     # (read CT_BUILD and CT_HOST) tools to be accessible (ar is but an example).
     # Do that:
+    BANG='!'
     CT_DoLog DEBUG "Making build system tools available"
     mkdir -p "${CT_PREFIX_DIR}/bin"
     for tool in ar as dlltool ${CT_CC_NATIVE:=gcc} gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
         tmp=$(CT_Which ${tool})
         if [ -n "${tmp}" ]; then
-            ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
-            ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}"
-            ln -sfv "${tmp}" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
+            printf "#${BANG}${CT_SHELL}\nexec '${tmp}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
+            printf "#${BANG}${CT_SHELL}\nexec '${tmp}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}"
+            printf "#${BANG}${CT_SHELL}\nexec '${tmp}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
+            chmod 700 "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}" "${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
         fi |CT_DoLog DEBUG
     done
 
@@ -337,9 +345,9 @@ if [ -z "${CT_RESTART}" ]; then
     # Override the configured jobs with what's been given on the command line
     [ -n "${CT_JOBS}" ] && CT_PARALLEL_JOBS="${CT_JOBS}"
 
-    # Help ./configure scripts go faster
-    [ "${CT_CONFIG_SHELL_ASH}" = "y" ] && export CONFIG_SHELL=/bin/ash
-    export CONFIG_SHELL
+    # Set the shell to be used by ./configure scripts and by Makefiles (those
+    # that support it!).
+    export CONFIG_SHELL="${CT_SHELL}"
 
     # And help make go faster
     PARALLELMFLAGS=
