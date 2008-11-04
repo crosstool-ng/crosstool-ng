@@ -28,9 +28,9 @@ CT_STEPS := libc_check_config   \
             libc                \
             cc                  \
             libc_finish         \
-            binutils_target     \
             gmp_target          \
             mpfr_target         \
+            binutils_target     \
             tools               \
             debug               \
 
