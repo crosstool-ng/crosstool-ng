@@ -1,0 +1,812 @@
+This patch was vampirised from the 0.5-3.1 Debian-packaged version of ltrace,
+and contains the following fixes (exerpt from the Debian changelog). Moreover,
+you will also find an exerpt of the Debian copyright file with proper
+attribution.
+
+================ Debian changelog exerpt ================
+ltrace (0.5-3.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Big thanks for Anderson Lizardo for providing patches!
+  * Add generic support for arm targets, Closes: #176413
+  * Save funtion arguments on arm, Closes: #462530
+  * Add thumb instruction support, Closes: #462531
+  * Add basic arm/eabi support, Closes: #450931
+  * fix exec() testcase cleanup, Closes: #462532
+  * fix memory corruption in clone() test, Closes: #462533
+  * fix tracing child with "-p" option, Closes: #462535
+  * Update standard, no changes
+
+ -- Riku Voipio <riku.voipio@iki.fi>  Tue, 29 Jan 2008 00:26:50 +0200
+
+ltrace (0.5-3) unstable; urgency=low
+
+  * Really fix compilation problems in ppc (!)
+
+ -- Juan Cespedes <cespedes@debian.org>  Fri, 31 Aug 2007 19:04:03 +0200
+
+ltrace (0.5-2) unstable; urgency=low
+
+  * Fixed compilation issue in ppc
+
+ -- Juan Cespedes <cespedes@debian.org>  Fri, 31 Aug 2007 13:53:27 +0200
+
+ltrace (0.5-1) unstable; urgency=low
+
+  * New upstream version
+  * Remove some unneeded files in /usr/share/doc (ChangeLog, COPYING...)
+  * Fix several typos (closes: Bug#372928)
+  * Added more system calls to ltrace.conf
+
+ -- Juan Cespedes <cespedes@debian.org>  Thu, 30 Aug 2007 14:54:44 +0200
+============== End Debian changelog exerpt ==============
+
+================ Debian copyright exerpt ================
+Copyrights
+----------
+Copyright (C) 1997-2007 Juan Cespedes <cespedes@debian.org>
+
+ARMLinux port: Copyright (C) 1998 Pat Beirne <pbeirne@home.com>
+m68k port: Copyright (C) 1998 Roman Hodek <Roman.Hodek@informatik.uni-erlangen.de>
+Misc fixes: Copyright (C) 1999 Morten Eriksen <mortene@sim.no>
+s390 port: Copyright (C) 2001 IBM Poughkeepsie, IBM Cororation <slate@us.ibm.com>
+ELF hacking: Copyright (C) 1999 Silvio Cesare <silvio@big.net.au>
+PowerPC port: Copyright (C) 2001-2002 Anton Blanchard <anton@samba.org>
+SPARC port: Copyright (C) 1999 Jakub Jelinek <jakub@redhat.com>
+
+Autoconf stuff: Copyright 1992-1996 Free Software Foundation, Inc.
+install-sh: Copyright 1991 by the Massachusetts Institute of Technology
+C++ demangle: Copyright 1989-1997 Free Software Foundation, Inc.
+============== End Debian copyright exerpt ==============
+
+diff -durN ltrace-0.5.orig/breakpoints.c ltrace-0.5/breakpoints.c
+--- ltrace-0.5.orig/breakpoints.c	2006-06-14 06:55:21.000000000 +0200
++++ ltrace-0.5/breakpoints.c	2008-11-04 19:25:50.000000000 +0100
+@@ -53,6 +53,10 @@
+ 		if (libsym)
+ 			libsym->brkpnt = sbp;
+ 	}
++#ifdef __arm__
++	sbp->thumb_mode = proc->thumb_mode;
++	proc->thumb_mode = 0;
++#endif
+ 	sbp->enabled++;
+ 	if (sbp->enabled == 1 && proc->pid)
+ 		enable_breakpoint(proc->pid, sbp);
+diff -durN ltrace-0.5.orig/elf.c ltrace-0.5/elf.c
+--- ltrace-0.5.orig/elf.c	2006-06-14 06:55:21.000000000 +0200
++++ ltrace-0.5/elf.c	2008-11-04 19:25:50.000000000 +0100
+@@ -464,8 +464,7 @@
+ 			if (strcmp(xptr->name, PLTs_initialized_by_here) == 0) {
+ 				if (lte->ehdr.e_entry) {
+ 					add_library_symbol (
+-						elf_plt2addr (lte, (void*)(long)
+-							lte->ehdr.e_entry),
++						opd2addr (lte, lte->ehdr.e_entry),
+ 						PLTs_initialized_by_here,
+ 						lib_tail, 1, 0);
+ 					fprintf (stderr, "WARNING: Using e_ent"
+diff -durN ltrace-0.5.orig/etc/ltrace.conf ltrace-0.5/etc/ltrace.conf
+--- ltrace-0.5.orig/etc/ltrace.conf	2006-02-20 22:55:47.000000000 +0100
++++ ltrace-0.5/etc/ltrace.conf	2008-11-04 19:25:50.000000000 +0100
+@@ -444,3 +444,81 @@
+ int   SYS_removexattr(string,string);
+ int   SYS_lremovexattr(string,string);
+ int   SYS_fremovexattr(int,string);
++int   SYS_chdir(string);
++int   SYS_fchdir(int);
++int   SYS_chmod(string,octal);
++int   SYS_fchmod(int,octal);
++int   SYS_chown(string,int,int);
++int   SYS_fchown(int,int,int);
++int   SYS_lchown(string,int,int);
++int   SYS_chroot(string);
++int   SYS_dup(int);
++int   SYS_dup2(int,int);
++int   SYS_fdatasync(int);
++int   SYS_fsync(int);
++int   SYS_getpriority(int,int);
++int   SYS_setpriority(int,int,int);
++int   SYS_getrlimit(int,addr);
++int   SYS_setrlimit(int,addr);
++int   SYS_gettimeofday(addr,addr);
++int   SYS_settimeofday(addr,addr);
++int   SYS_setfsgid(int);
++int   SYS_setfsuid(int);
++int   SYS_getuid(void);
++int   SYS_setuid(int);
++int   SYS_getgid(void);
++int   SYS_setgid(int);
++int   SYS_getsid(int);
++int   SYS_setsid(int);
++int   SYS_setreuid(int,int);
++int   SYS_setregid(int,int);
++int   SYS_geteuid(void);
++int   SYS_getegid(void);
++int   SYS_setpgid(int,int);
++int   SYS_getresuid(addr,addr,addr);
++int   SYS_setresuid(int,int,int);
++int   SYS_getresgid(addr,addr,addr);
++int   SYS_setresgid(int,int,int);
++int   SYS_kill(int,int);
++int   SYS_link(string,string);
++int   SYS_madvise(addr,ulong,int);
++int   SYS_mkdir(string,octal);
++int   SYS_mknod(string,octal,int);
++int   SYS_msync(addr,ulong,int);
++int   SYS_nice(int);
++int   SYS_poll(addr,uint,int);
++int   SYS_readdir(uint,addr,uint);
++int   SYS_readlink(string,string,ulong);
++int   SYS_reboot(int,int,int,addr);
++int   SYS_rename(string,string);
++int   SYS_rmdir(string);
++int   SYS_sigaltstack(addr,addr);
++int   SYS_statfs(string,addr);
++int   SYS_fstatfs(int,addr);
++int   SYS_fstat(int,addr);
++int   SYS_lstat(string,addr);
++int   SYS_stime(addr);
++int   SYS_symlink(string, string);
++int   SYS_sysinfo(addr);
++int   SYS_syslog(int,string,int);
++int   SYS_truncate(string,long);
++int   SYS_ftruncate(int,long);
++int   SYS_mount(string,string,string,ulong,addr);
++int   SYS_umount(string);
++int   SYS_umount2(string,int);
++int   SYS_unlink(string);
++int   SYS_utime(string,addr);
++long  SYS_lseek(int,long,int);
++addr  SYS_signal(int,addr);
++int   SYS_sigaction(int,addr,addr);
++int   SYS_pause(void);
++int   SYS_sigpending(addr);
++int   SYS_sigprocmask(int,addr,addr);
++int   SYS_sigqueue(int,int,addr);
++int   SYS_sigsuspend(addr);
++int   SYS_wait(addr);
++int   SYS_waitpid(int,addr,int);
++ulong SYS_readv(int,addr,int);
++ulong SYS_writev(int,addr,int);
++int   SYS_mprotect(addr,int,int);
++int   SYS_access(string,octal);
+diff -durN ltrace-0.5.orig/ltrace.1 ltrace-0.5/ltrace.1
+--- ltrace-0.5.orig/ltrace.1	2006-06-16 03:15:18.000000000 +0200
++++ ltrace-0.5/ltrace.1	2008-11-04 19:25:50.000000000 +0100
+@@ -30,7 +30,7 @@
+ .TP
+ .I \-C, \-\-demangle
+ Decode (demangle) low-level symbol names into user-level names.
+-Besides removing any initial underscore prepended by the system,
++Besides removing any initial underscore prefix used by the system,
+ this makes C++ function names readable.
+ .TP
+ .I \-d, \-\-debug
+diff -durN ltrace-0.5.orig/ltrace.c ltrace-0.5/ltrace.c
+--- ltrace-0.5.orig/ltrace.c	2006-02-20 22:48:07.000000000 +0100
++++ ltrace-0.5/ltrace.c	2008-11-04 19:25:50.000000000 +0100
+@@ -54,6 +54,9 @@
+ {
+ 	exiting = 1;
+ 	debug(1, "Received interrupt signal; exiting...");
++	if (opt_o) {
++		fclose(output);
++	}
+ 	signal(SIGINT, SIG_IGN);
+ 	signal(SIGTERM, SIG_IGN);
+ 	signal(SIGALRM, signal_alarm);
+@@ -74,6 +77,9 @@
+ 	if (opt_c) {
+ 		show_summary();
+ 	}
++	if (opt_o) {
++		fclose(output);
++	}
+ }
+ 
+ static void guess_cols(void)
+diff -durN ltrace-0.5.orig/ltrace.h ltrace-0.5/ltrace.h
+--- ltrace-0.5.orig/ltrace.h	2006-06-14 06:55:21.000000000 +0200
++++ ltrace-0.5/ltrace.h	2008-11-04 19:25:50.000000000 +0100
+@@ -26,6 +26,9 @@
+ 	unsigned char orig_value[BREAKPOINT_LENGTH];
+ 	int enabled;
+ 	struct library_symbol *libsym;
++#ifdef __arm__
++	int thumb_mode;
++#endif
+ };
+ 
+ enum arg_type {
+@@ -119,6 +122,9 @@
+ 	void *arch_ptr;
+ 	short e_machine;
+ 	short need_to_reinitialize_breakpoints;
++#ifdef __arm__
++	int thumb_mode; /* ARM execution mode: 0: ARM mode, 1: Thumb mode */
++#endif
+ 
+ 	/* output: */
+ 	enum tof type_being_displayed;
+@@ -136,12 +142,14 @@
+ 		LT_EV_EXIT_SIGNAL,
+ 		LT_EV_SYSCALL,
+ 		LT_EV_SYSRET,
++		LT_EV_ARCH_SYSCALL,
++		LT_EV_ARCH_SYSRET,
+ 		LT_EV_BREAKPOINT
+ 	} thing;
+ 	union {
+ 		int ret_val;	/* _EV_EXIT */
+ 		int signum;	/* _EV_SIGNAL, _EV_EXIT_SIGNAL */
+-		int sysnum;	/* _EV_SYSCALL, _EV_SYSRET */
++		int sysnum;	/* _EV_SYSCALL, _EV_SYSRET, _EV_ARCH_SYSCALL, _EV_ARCH_SYSRET */
+ 		void *brk_addr;	/* _EV_BREAKPOINT */
+ 	} e_un;
+ };
+diff -durN ltrace-0.5.orig/options.c ltrace-0.5/options.c
+--- ltrace-0.5.orig/options.c	2006-04-24 22:06:23.000000000 +0200
++++ ltrace-0.5/options.c	2008-11-04 19:25:50.000000000 +0100
+@@ -42,6 +42,7 @@
+ #endif
+ int opt_n = 0;			/* indent trace output according to program flow */
+ int opt_T = 0;			/* show the time spent inside each call */
++int opt_o = 0;			/* output to a specific file */
+ 
+ /* List of pids given to option -p: */
+ struct opt_p_t *opt_p = NULL;	/* attach to process with a given pid */
+@@ -274,6 +275,7 @@
+ 			opt_n = atoi(optarg);
+ 			break;
+ 		case 'o':
++			opt_o++;
+ 			output = fopen(optarg, "w");
+ 			if (!output) {
+ 				fprintf(stderr,
+diff -durN ltrace-0.5.orig/options.h ltrace-0.5/options.h
+--- ltrace-0.5.orig/options.h	2006-03-13 18:43:13.000000000 +0100
++++ ltrace-0.5/options.h	2008-11-04 19:25:50.000000000 +0100
+@@ -20,6 +20,7 @@
+ extern int opt_C;		/* Demanglelow-level symbol names into user-level names */
+ extern int opt_n;		/* indent trace output according to program flow */
+ extern int opt_T;		/* show the time spent inside each call */
++extern int opt_o;		/* output to a specific file */
+ 
+ struct opt_p_t {
+ 	pid_t pid;
+diff -durN ltrace-0.5.orig/process_event.c ltrace-0.5/process_event.c
+--- ltrace-0.5.orig/process_event.c	2006-06-14 06:55:21.000000000 +0200
++++ ltrace-0.5/process_event.c	2008-11-04 19:25:50.000000000 +0100
+@@ -24,7 +24,9 @@
+ static void process_exit(struct event *event);
+ static void process_exit_signal(struct event *event);
+ static void process_syscall(struct event *event);
++static void process_arch_syscall(struct event *event);
+ static void process_sysret(struct event *event);
++static void process_arch_sysret(struct event *event);
+ static void process_breakpoint(struct event *event);
+ static void remove_proc(struct process *proc);
+ 
+@@ -81,6 +83,24 @@
+ 	}
+ }
+ 
++static char *arch_sysname(struct process *proc, int sysnum)
++{
++	static char result[128];
++	static char *arch_syscalent[] = {
++#include "arch_syscallent.h"
++	};
++	int nsyscals = sizeof arch_syscalent / sizeof arch_syscalent[0];
++
++	if (sysnum < 0 || sysnum >= nsyscals) {
++		sprintf(result, "ARCH_%d", sysnum);
++		return result;
++	} else {
++		sprintf(result, "ARCH_%s",
++			arch_syscalent[sysnum]);
++		return result;
++	}
++}
++
+ void process_event(struct event *event)
+ {
+ 	switch (event->thing) {
+@@ -115,6 +135,18 @@
+ 		      event->e_un.sysnum);
+ 		process_sysret(event);
+ 		return;
++	case LT_EV_ARCH_SYSCALL:
++		debug(1, "event: arch_syscall (%s [%d])",
++		      arch_sysname(event->proc, event->e_un.sysnum),
++		      event->e_un.sysnum);
++		process_arch_syscall(event);
++		return;
++	case LT_EV_ARCH_SYSRET:
++		debug(1, "event: arch_sysret (%s [%d])",
++		      arch_sysname(event->proc, event->e_un.sysnum),
++		      event->e_un.sysnum);
++		process_arch_sysret(event);
++		return;
+ 	case LT_EV_BREAKPOINT:
+ 		debug(1, "event: breakpoint");
+ 		process_breakpoint(event);
+@@ -195,6 +227,19 @@
+ 	continue_process(event->proc->pid);
+ }
+ 
++static void process_arch_syscall(struct event *event)
++{
++	if (opt_S) {
++		output_left(LT_TOF_SYSCALL, event->proc,
++			    arch_sysname(event->proc, event->e_un.sysnum));
++	}
++	if (event->proc->breakpoints_enabled == 0) {
++		enable_all_breakpoints(event->proc);
++	}
++	callstack_push_syscall(event->proc, 0xf0000 + event->e_un.sysnum);
++	continue_process(event->proc->pid);
++}
++
+ struct timeval current_time_spent;
+ 
+ static void calc_time_spent(struct process *proc)
+@@ -257,6 +302,19 @@
+ 	continue_process(event->proc->pid);
+ }
+ 
++static void process_arch_sysret(struct event *event)
++{
++	if (opt_T || opt_c) {
++		calc_time_spent(event->proc);
++	}
++	callstack_pop(event->proc);
++	if (opt_S) {
++		output_right(LT_TOF_SYSCALLR, event->proc,
++			     arch_sysname(event->proc, event->e_un.sysnum));
++	}
++	continue_process(event->proc->pid);
++}
++
+ static void process_breakpoint(struct event *event)
+ {
+ 	int i, j;
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/Makefile ltrace-0.5/sysdeps/linux-gnu/Makefile
+--- ltrace-0.5.orig/sysdeps/linux-gnu/Makefile	2008-11-04 19:25:11.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/Makefile	2008-11-04 19:25:50.000000000 +0100
+@@ -2,7 +2,7 @@
+ 
+ OBJ		=	trace.o proc.o breakpoint.o
+ 
+-all:		sysdep.h signalent.h syscallent.h signalent1.h syscallent1.h ../sysdep.o
++all:		sysdep.h signalent.h syscallent.h arch_syscallent.h signalent1.h syscallent1.h ../sysdep.o
+ 
+ sysdep.h:	$(ARCH)/arch.h
+ 		cat $(ARCH)/arch.h > sysdep.h
+@@ -26,6 +26,13 @@
+ 			> syscallent1.h; \
+ 		fi
+ 
++arch_syscallent.h:
++		if [ -f $(ARCH)/arch_syscallent.h ]; then \
++			cp $(ARCH)/arch_syscallent.h arch_syscallent.h; \
++		else \
++			> arch_syscallent.h; \
++		fi
++
+ ../sysdep.o:	os.o $(ARCH)/arch.o
+ 		$(CC) -nostdlib -r -o ../sysdep.o os.o $(ARCH)/arch.o
+ 
+@@ -37,7 +44,7 @@
+ 
+ clean:
+ 		$(MAKE) -C $(ARCH) clean
+-		rm -f $(OBJ) sysdep.h signalent.h signalent1.h syscallent.h
++		rm -f $(OBJ) sysdep.h signalent.h signalent1.h syscallent.h arch_syscallent.h
+ 		rm -f syscallent1.h os.o sysdep.o ../sysdep.o
+ 
+ dummy:
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arch_mksyscallent ltrace-0.5/sysdeps/linux-gnu/arch_mksyscallent
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arch_mksyscallent	1970-01-01 01:00:00.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/arch_mksyscallent	2008-11-04 19:25:50.000000000 +0100
+@@ -0,0 +1,43 @@
++#!/usr/bin/awk -f
++
++# hack expression to generate arch_syscallent.h from <asm/unistd.h>
++# It reads from stdin and writes to stdout
++# Currently (linux-2.6.16), it works OK on arm
++# It is untested in other architectures
++
++BEGIN {
++	max=0;
++	FS="[ \t\n()+]+";
++}
++
++{
++#	printf("/%s/%s/%s/%s/\n", $1, $2, $3, $4);
++	if (($1 ~ /^#define$/) && ($2 ~ /^__[A-Z]+_NR_/)) {
++		sub(/^__[A-Z]+_NR_/,"",$2);
++		if (($3>=0) && ($3<=1000)) {
++			SYSCALL[$3]=$2;
++			if ($3 > max) {
++				max=$3;
++			}
++		} else if (($3 ~ /^__[A-Z]+_NR_BASE$/) && ($4>=0) && ($4<=1000)) {
++			SYSCALL[$4]=$2;
++			if ($4 > max) {
++				max=$4;
++			}
++		}
++	}
++}
++
++END {
++	for(i=0; i<=max; i++) {
++		if (!SYSCALL[i]) {
++			SYSCALL[i] = i;
++		}
++		pad = 32 - length(SYSCALL[i]);
++		if (pad<1) {
++			pad=1;
++		}
++		printf("\t\"%s\",%*s/* %d */\n", SYSCALL[i], pad, "", i);
++	}
++}
++
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arm/Makefile ltrace-0.5/sysdeps/linux-gnu/arm/Makefile
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arm/Makefile	2006-02-20 22:44:45.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/arm/Makefile	2008-11-04 19:25:50.000000000 +0100
+@@ -1,4 +1,4 @@
+-OBJ	=	trace.o regs.o plt.o
++OBJ	=	trace.o regs.o plt.o breakpoint.o
+ 
+ all:		arch.o
+ 
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arm/arch.h ltrace-0.5/sysdeps/linux-gnu/arm/arch.h
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arm/arch.h	2006-04-24 22:06:23.000000000 +0200
++++ ltrace-0.5/sysdeps/linux-gnu/arm/arch.h	2008-11-04 19:25:50.000000000 +0100
+@@ -1,5 +1,10 @@
+-#define BREAKPOINT_VALUE { 0x01, 0x00, 0x9f, 0xef }
++#define ARCH_HAVE_ENABLE_BREAKPOINT 1
++#define ARCH_HAVE_DISABLE_BREAKPOINT 1
++
++#define BREAKPOINT_VALUE { 0xf0, 0x01, 0xf0, 0xe7 }
+ #define BREAKPOINT_LENGTH 4
++#define THUMB_BREAKPOINT_VALUE { 0x01, 0xde }
++#define THUMB_BREAKPOINT_LENGTH 2
+ #define DECR_PC_AFTER_BREAK 0
+ 
+ #define LT_ELFCLASS	ELFCLASS32
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arm/arch_syscallent.h ltrace-0.5/sysdeps/linux-gnu/arm/arch_syscallent.h
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arm/arch_syscallent.h	1970-01-01 01:00:00.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/arm/arch_syscallent.h	2008-11-04 19:25:50.000000000 +0100
+@@ -0,0 +1,6 @@
++	"0",                               /* 0 */
++	"breakpoint",                      /* 1 */
++	"cacheflush",                      /* 2 */
++	"usr26",                           /* 3 */
++	"usr32",                           /* 4 */
++	"set_tls",                         /* 5 */
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arm/breakpoint.c ltrace-0.5/sysdeps/linux-gnu/arm/breakpoint.c
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arm/breakpoint.c	1970-01-01 01:00:00.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/arm/breakpoint.c	2008-11-04 19:25:50.000000000 +0100
+@@ -0,0 +1,86 @@
++/*
++ * This file is part of ltrace.
++ *
++ * Copyright (C) 2007 by Instituto Nokia de Tecnologia (INdT)
++ *
++ * Author: Anderson Lizardo <anderson.lizardo@indt.org.br>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ *
++ * Modified from sysdeps/linux-gnu/breakpoint.c and added ARM Thumb support.
++*/
++
++#include <sys/ptrace.h>
++#include "config.h"
++#include "arch.h"
++#include "options.h"
++#include "output.h"
++#include "debug.h"
++
++void arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
++{
++	unsigned int i, j;
++	const unsigned char break_insn[] = BREAKPOINT_VALUE;
++	const unsigned char thumb_break_insn[] = THUMB_BREAKPOINT_VALUE;
++
++	debug(1, "arch_enable_breakpoint(%d,%p)", pid, sbp->addr);
++
++	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
++		long a =
++		    ptrace(PTRACE_PEEKTEXT, pid, sbp->addr + i * sizeof(long),
++			   0);
++		unsigned char *bytes = (unsigned char *)&a;
++
++		debug(2, "current = 0x%lx, orig_value = 0x%lx, thumb_mode = %d", a, *(long *)&sbp->orig_value, sbp->thumb_mode);
++		for (j = 0;
++		     j < sizeof(long)
++		     && i * sizeof(long) + j < BREAKPOINT_LENGTH; j++) {
++
++			sbp->orig_value[i * sizeof(long) + j] = bytes[j];
++			if (!sbp->thumb_mode) {
++				bytes[j] = break_insn[i * sizeof(long) + j];
++			}
++			else if (j < THUMB_BREAKPOINT_LENGTH) {
++				bytes[j] = thumb_break_insn[i * sizeof(long) + j];
++			}
++		}
++		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), a);
++	}
++}
++
++void arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
++{
++	unsigned int i, j;
++	const unsigned char break_insn[] = BREAKPOINT_VALUE;
++	const unsigned char thumb_break_insn[] = THUMB_BREAKPOINT_VALUE;
++
++	debug(1, "arch_disable_breakpoint(%d,%p)", pid, sbp->addr);
++
++	for (i = 0; i < 1 + ((BREAKPOINT_LENGTH - 1) / sizeof(long)); i++) {
++		long a =
++		    ptrace(PTRACE_PEEKTEXT, pid, sbp->addr + i * sizeof(long),
++			   0);
++		unsigned char *bytes = (unsigned char *)&a;
++
++		debug(2, "current = 0x%lx, orig_value = 0x%lx, thumb_mode = %d", a, *(long *)&sbp->orig_value, sbp->thumb_mode);
++		for (j = 0;
++		     j < sizeof(long)
++		     && i * sizeof(long) + j < BREAKPOINT_LENGTH; j++) {
++
++			bytes[j] = sbp->orig_value[i * sizeof(long) + j];
++		}
++		ptrace(PTRACE_POKETEXT, pid, sbp->addr + i * sizeof(long), a);
++	}
++}
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arm/ptrace.h ltrace-0.5/sysdeps/linux-gnu/arm/ptrace.h
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arm/ptrace.h	2006-02-20 22:44:45.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/arm/ptrace.h	2008-11-04 19:25:50.000000000 +0100
+@@ -1 +1,9 @@
+ #include <sys/ptrace.h>
++#include <asm/ptrace.h>
++
++typedef struct {
++	int valid;
++	struct pt_regs regs;
++	long func_arg[5];
++	long sysc_arg[5];
++} proc_archdep;
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arm/regs.c ltrace-0.5/sysdeps/linux-gnu/arm/regs.c
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arm/regs.c	2006-02-20 22:48:07.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/arm/regs.c	2008-11-04 19:25:50.000000000 +0100
+@@ -39,5 +39,10 @@
+  * a CISC architecture; in our case, we don't need that */
+ void *get_return_addr(struct process *proc, void *stack_pointer)
+ {
+-	return (void *)ptrace(PTRACE_PEEKUSER, proc->pid, off_lr, 0);
++	long addr = ptrace(PTRACE_PEEKUSER, proc->pid, off_lr, 0);
++
++	proc->thumb_mode = addr & 1;
++	if (proc->thumb_mode)
++		addr &= ~1;
++	return (void *)addr;
+ }
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/arm/trace.c ltrace-0.5/sysdeps/linux-gnu/arm/trace.c
+--- ltrace-0.5.orig/sysdeps/linux-gnu/arm/trace.c	2006-02-20 22:48:07.000000000 +0100
++++ ltrace-0.5/sysdeps/linux-gnu/arm/trace.c	2008-11-04 19:25:50.000000000 +0100
+@@ -2,6 +2,7 @@
+ #include "config.h"
+ #endif
+ 
++#include <string.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
+ #include <signal.h>
+@@ -9,6 +10,8 @@
+ #include <asm/ptrace.h>
+ 
+ #include "ltrace.h"
++#include "output.h"
++#include "ptrace.h"
+ 
+ #if (!defined(PTRACE_PEEKUSER) && defined(PTRACE_PEEKUSR))
+ # define PTRACE_PEEKUSER PTRACE_PEEKUSR
+@@ -18,19 +21,25 @@
+ # define PTRACE_POKEUSER PTRACE_POKEUSR
+ #endif
+ 
+-/* syscall tracing protocol: ArmLinux
+- on the way in, ip is 0
+- on the way out, ip is non-zero
+-*/
+ #define off_r0 0
++#define off_r7 28
+ #define off_ip 48
+ #define off_pc 60
+ 
+ void get_arch_dep(struct process *proc)
+ {
++	proc_archdep *a;
++
++	if (!proc->arch_ptr)
++		proc->arch_ptr = (void *)malloc(sizeof(proc_archdep));
++	a = (proc_archdep *) (proc->arch_ptr);
++	a->valid = (ptrace(PTRACE_GETREGS, proc->pid, 0, &a->regs) >= 0);
+ }
+ 
+-/* Returns 1 if syscall, 2 if sysret, 0 otherwise.
++/* Returns 0 if not a syscall,
++ *         1 if syscall entry, 2 if syscall exit,
++ *         3 if arch-specific syscall entry, 4 if arch-specific syscall exit,
++ *         -1 on error.
+  */
+ int syscall_p(struct process *proc, int status, int *sysnum)
+ {
+@@ -40,19 +49,39 @@
+ 		int pc = ptrace(PTRACE_PEEKUSER, proc->pid, off_pc, 0);
+ 		/* fetch the SWI instruction */
+ 		int insn = ptrace(PTRACE_PEEKTEXT, proc->pid, pc - 4, 0);
++		int ip = ptrace(PTRACE_PEEKUSER, proc->pid, off_ip, 0);
+ 
+-		*sysnum = insn & 0xFFFF;
+-		/* if it is a syscall, return 1 or 2 */
+-		if ((insn & 0xFFFF0000) == 0xef900000) {
+-			return ptrace(PTRACE_PEEKUSER, proc->pid, off_ip,
+-				      0) ? 2 : 1;
++		if (insn == 0xef000000 || insn == 0x0f000000) {
++			/* EABI syscall */
++			*sysnum = ptrace(PTRACE_PEEKUSER, proc->pid, off_r7, 0);
++		} else if ((insn & 0xfff00000) == 0xef900000) {
++			/* old ABI syscall */
++			*sysnum = insn & 0xfffff;
++		} else {
++			/* TODO: handle swi<cond> variations */
++			/* one possible reason for getting in here is that we
++			 * are coming from a signal handler, so the current
++			 * PC does not point to the instruction just after the
++			 * "swi" one. */
++			output_line(proc, "unexpected instruction 0x%x at %p", insn, pc - 4);
++			return -1;
++		}
++		if ((*sysnum & 0xf0000) == 0xf0000) {
++			/* arch-specific syscall */
++			*sysnum &= ~0xf0000;
++			return ip ? 4 : 3;
+ 		}
++		/* ARM syscall convention: on syscall entry, ip is zero;
++		 * on syscall exit, ip is non-zero */
++		return ip ? 2 : 1;
+ 	}
+ 	return 0;
+ }
+ 
+ long gimme_arg(enum tof type, struct process *proc, int arg_num)
+ {
++	proc_archdep *a = (proc_archdep *) proc->arch_ptr;
++
+ 	if (arg_num == -1) {	/* return value */
+ 		return ptrace(PTRACE_PEEKUSER, proc->pid, off_r0, 0);
+ 	}
+@@ -60,6 +89,10 @@
+ 	/* deal with the ARM calling conventions */
+ 	if (type == LT_TOF_FUNCTION || type == LT_TOF_FUNCTIONR) {
+ 		if (arg_num < 4) {
++			if (a->valid && type == LT_TOF_FUNCTION)
++				return a->regs.uregs[arg_num];
++			if (a->valid && type == LT_TOF_FUNCTIONR)
++				return a->func_arg[arg_num];
+ 			return ptrace(PTRACE_PEEKUSER, proc->pid, 4 * arg_num,
+ 				      0);
+ 		} else {
+@@ -69,6 +102,10 @@
+ 		}
+ 	} else if (type == LT_TOF_SYSCALL || type == LT_TOF_SYSCALLR) {
+ 		if (arg_num < 5) {
++			if (a->valid && type == LT_TOF_SYSCALL)
++				return a->regs.uregs[arg_num];
++			if (a->valid && type == LT_TOF_SYSCALLR)
++				return a->sysc_arg[arg_num];
+ 			return ptrace(PTRACE_PEEKUSER, proc->pid, 4 * arg_num,
+ 				      0);
+ 		} else {
+@@ -86,4 +123,11 @@
+ 
+ void save_register_args(enum tof type, struct process *proc)
+ {
++	proc_archdep *a = (proc_archdep *) proc->arch_ptr;
++	if (a->valid) {
++		if (type == LT_TOF_FUNCTION)
++			memcpy(a->func_arg, a->regs.uregs, sizeof(a->func_arg));
++		else
++			memcpy(a->sysc_arg, a->regs.uregs, sizeof(a->sysc_arg));
++	}
+ }
+diff -durN ltrace-0.5.orig/sysdeps/linux-gnu/ppc/arch.h ltrace-0.5/sysdeps/linux-gnu/ppc/arch.h
+--- ltrace-0.5.orig/sysdeps/linux-gnu/ppc/arch.h	2006-06-14 06:55:21.000000000 +0200
++++ ltrace-0.5/sysdeps/linux-gnu/ppc/arch.h	2008-11-04 19:25:50.000000000 +0100
+@@ -4,9 +4,12 @@
+ 
+ #define LT_ELFCLASS	ELFCLASS32
+ #define LT_ELF_MACHINE	EM_PPC
++
+ #ifdef __powerpc64__ // Says 'ltrace' is 64 bits, says nothing about target.
+ #define LT_ELFCLASS2	ELFCLASS64
+ #define LT_ELF_MACHINE2	EM_PPC64
++#define ARCH_SUPPORTS_OPD
++#endif
+ 
+ #define PLT_REINITALISATION_BP    "_start"
+ 
+@@ -16,6 +19,3 @@
+ #if (PPC_NOP_LENGTH != BREAKPOINT_LENGTH)
+ #error "Length of the breakpoint value not equal to the length of a nop instruction"
+ #endif
+-
+-
+-#endif
+diff -durN ltrace-0.5.orig/testsuite/ltrace.minor/Makefile.in ltrace-0.5/testsuite/ltrace.minor/Makefile.in
+--- ltrace-0.5.orig/testsuite/ltrace.minor/Makefile.in	2006-03-14 00:12:01.000000000 +0100
++++ ltrace-0.5/testsuite/ltrace.minor/Makefile.in	2008-11-04 19:25:50.000000000 +0100
+@@ -19,7 +19,7 @@
+ 
+ .SUFFIXES:	
+ clean:
+-	-rm -f demangle trace-fork trace-clone 
++	-rm -f demangle trace-fork trace-clone trace-exec trace-exec1
+ 	-rm -f time-record-tt time-record-ttt time-record-T
+ 	-rm -f attach-process count-record
+ 	-rm -f print-instruction-pointer
+diff -durN ltrace-0.5.orig/testsuite/ltrace.minor/trace-clone.c ltrace-0.5/testsuite/ltrace.minor/trace-clone.c
+--- ltrace-0.5.orig/testsuite/ltrace.minor/trace-clone.c	2006-03-16 01:38:47.000000000 +0100
++++ ltrace-0.5/testsuite/ltrace.minor/trace-clone.c	2008-11-04 19:25:50.000000000 +0100
+@@ -21,11 +21,11 @@
+ int main ()
+ {
+   pid_t pid;
+-  static char stack[STACK_SIZE];
++  char stack[STACK_SIZE];
+ #ifdef __ia64__
+   pid = __clone2((myfunc)&child, stack, STACK_SIZE, CLONE_FS, NULL);
+ #else
+-  pid = clone((myfunc)&child, stack,CLONE_FS, NULL );
++  pid = clone((myfunc)&child, stack + STACK_SIZE,CLONE_FS, NULL );
+ #endif
+   if (pid < 0)
+     {
+diff -durN ltrace-0.5.orig/wait_for_something.c ltrace-0.5/wait_for_something.c
+--- ltrace-0.5.orig/wait_for_something.c	2006-02-20 22:48:07.000000000 +0100
++++ ltrace-0.5/wait_for_something.c	2008-11-04 19:25:50.000000000 +0100
+@@ -71,6 +71,18 @@
+ 		event.thing = LT_EV_SYSRET;
+ 		event.e_un.sysnum = tmp;
+ 		return &event;
++	case 3:
++		event.thing = LT_EV_ARCH_SYSCALL;
++		event.e_un.sysnum = tmp;
++		return &event;
++	case 4:
++		event.thing = LT_EV_ARCH_SYSRET;
++		event.e_un.sysnum = tmp;
++		return &event;
++	case -1:
++		event.thing = LT_EV_NONE;
++		continue_process(event.proc->pid);
++		return &event;
+ 	}
+ 	if (WIFEXITED(status)) {
+ 		event.thing = LT_EV_EXIT;
