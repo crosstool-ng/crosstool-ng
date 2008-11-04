@@ -79,6 +79,12 @@ do_binutils_target() {
     [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets="${targets} bfd"
     targets="${targets# }"
 
+    binutils_opts=
+    # If GMP and MPFR were configured, then use that
+    if [ "${CT_GMP_MPFR_TARGET}" = "y" ]; then
+        binutils_opts="--with-gmp=${CT_SYSROOT_DIR}/usr --with-mpfr=${CT_SYSROOT_DIR}/usr"
+    fi
+
     if [ -n "${targets}" ]; then
         CT_DoStep INFO "Installing binutils for target"
         mkdir -p "${CT_BUILD_DIR}/build-binutils-for-target"
@@ -96,6 +102,7 @@ do_binutils_target() {
             --enable-static                             \
             --disable-nls                               \
             --disable-multilib                          \
+            ${binutils_opts}                            \
             ${CT_ARCH_WITH_FLOAT}                       \
             ${CT_BINUTILS_EXTRA_CONFIG}
 
