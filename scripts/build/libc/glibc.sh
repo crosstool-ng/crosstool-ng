@@ -479,11 +479,13 @@ do_libc() {
     #
     # Remove lines containing BUG per http://sources.redhat.com/ml/bug-glibc/2003-05/msg00055.html,
     # needed to fix gcc-3.2.3/glibc-2.3.2 targeting arm
+    # No need to look into the lib64/ dirs here and there, they point to the
+    # corresponding lib/ directories.
     #
     # To make "strip *.so.*" not fail (ptxdist does this), rename to .so_orig rather than .so.orig
     CT_DoLog EXTRA "Fixing C library linker scripts"
     for file in libc.so libpthread.so libgcc_s.so; do
-        for dir in lib lib64 usr/lib usr/lib64; do
+        for dir in lib usr/lib; do
             if [ -f "${CT_SYSROOT_DIR}/${dir}/${file}" -a ! -L ${CT_SYSROOT_DIR}/$lib/$file ]; then
                 CT_DoExecLog ALL cp -v "${CT_SYSROOT_DIR}/${dir}/${file}" "${CT_SYSROOT_DIR}/${dir}/${file}_orig"
                 CT_DoLog DEBUG "Fixing '${CT_SYS_ROOT_DIR}/${dir}/${file}'"
