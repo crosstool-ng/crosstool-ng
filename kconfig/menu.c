@@ -128,8 +128,14 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 	prop->visible.expr = menu_check_dep(dep);
 
 	if (prompt) {
-		if (isspace(*prompt)) {
-			prop_warn(prop, "leading whitespace ignored");
+		/* For crostool-NG, a leading pipe followed with spaces
+		 * means that pipe shall be removed, and the spaces should
+		 * not be trimmed.
+		 */
+		if (*prompt == '|')
+			prompt++;
+		else if (isspace(*prompt)) {
+			/* Silently trim leading spaces */
 			while (isspace(*prompt))
 				prompt++;
 		}
