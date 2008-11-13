@@ -44,8 +44,7 @@ do_debug_duma_build() {
     libs="${libs# }"
     CT_DoLog EXTRA "Building libraries '${libs}'"
     CT_DoExecLog ALL                    \
-    make HOSTCC="${CT_CC_NATIVE}"       \
-         HOSTCXX="${CT_CC_NATIVE}"      \
+    make HOSTCC="${CT_BUILD}-gcc"       \
          CC="${CT_TARGET}-gcc"          \
          CXX="${CT_TARGET}-gcc"         \
          RANLIB="${CT_TARGET}-ranlib"   \

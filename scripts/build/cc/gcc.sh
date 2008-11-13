@@ -126,11 +126,11 @@ do_cc_core() {
     CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
-    CC_FOR_BUILD="${CT_CC_NATIVE}"                  \
+    CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"         \
-        ${CT_CANADIAN_OPT}                          \
+        --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --target=${CT_TARGET}                       \
         --prefix="${core_prefix_dir}"               \
@@ -263,15 +263,16 @@ do_cc() {
     # detection problem only matters for gcc-3.2.x and later, I think.
     # --disable-nls to work around crash bug on ppc405, but also because
     # embedded systems don't really need message catalogs...
-    CC_FOR_BUILD="${CT_CC_NATIVE}"              \
+    CC_FOR_BUILD="${CT_BUILD}-gcc"              \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"     \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"   \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"   \
     CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/${CT_CC_FILE}/configure"     \
-        ${CT_CANADIAN_OPT}                      \
-        --target=${CT_TARGET} --host=${CT_HOST} \
+        --build=${CT_BUILD}                     \
+        --host=${CT_HOST}                       \
+        --target=${CT_TARGET}                   \
         --prefix="${CT_PREFIX_DIR}"             \
         ${CC_SYSROOT_ARG}                       \
         ${extra_config}                         \

@@ -81,7 +81,7 @@ choice
 
 config NATIVE
     bool
-    prompt "Native (EXPERIMENTAL)"
+    prompt "Native       (NO CODE!) (EXPERIMENTAL)"
     depends on EXPERIMENTAL
     help
       Build a native toolchain.
@@ -96,7 +96,7 @@ config CROSS
 
 config CROSS_NATIVE
     bool
-    prompt "Cross-native (EXPERIMENTAL)"
+    prompt "Cross-native (NO CODE!) (EXPERIMENTAL)"
     depends on EXPERIMENTAL
     help
       Build a cross-native toolchain.
@@ -104,7 +104,7 @@ config CROSS_NATIVE
 
 config CANADIAN
     bool
-    prompt "Canadian (EXPERIMENTAL)"
+    prompt "Canadian     (NO CODE!) (EXPERIMENTAL)"
     depends on EXPERIMENTAL
     help
       Build a canadian-toolchain.
@@ -119,48 +119,162 @@ config TOOLCHAIN_TYPE
     default "cross-native"  if CROSS_NATIVE
     default "canadian"      if CANADIAN
 
+comment "Build system"
+
 config BUILD 
     string
-    prompt "Build system tuple"
+    prompt "|  Tuple        (READ HELP!)"
     default ""
     help
       Canonical name of the machine building the toolchain.
       You should leave empty, unless you really now what you're doing.
 
-config CC_NATIVE
+config BUILD_PREFIX
     string
-    prompt "Native gcc"
-    default "gcc"
+    prompt "|  Tools prefix (READ HELP!)"
+    default ""
     help
-      The native C compiler.
+      If you have your *build system* tools in a weird location, and/or
+      they have an unusual prefix, enter it here.
       
-      You can set this to an alternative compiler if you have more than one
-      installed (eg. gcc is gcc-4.1.1 and you want to use gcc-3.4.6).
+      Usually, you should leave that empty!
       
-      You can leave this empty as well, in which case gcc will be used.
+      Eg.:
+        If your *build* gcc is /opt/build-tools/bin/weird-gcc then you
+        should enter:
+            /opt/build-tools/bin/weird-
+        
+        If your *build* gcc is /opt/build-tools/bin/weird-gcc and
+        /opt/build-tools/bin is in your PATH, you should enter:
+            weird-
+        
+        If your *build* gcc is /opt/build-tools/bin/gcc then you
+        should enter (do not forget to add the trailing '/'):
+            /opt/build-tools/bin/
+
+config BUILD_SUFFIX
+    string
+    prompt "|  Tools suffix (READ HELP!)"
+    default ""
+    help
+      If your *build system* tools have an unusual suffix, enter it
+      here.
+      
+      Usually, you should leave that empty!
+      
+      Eg.:
+        If your 'default' gcc is gcc 4.3.1, but you also have gcc-3.4.2
+        installed as gcc-3.4, then you should enter:
+            -3.4
+      
+      It can happen that some of the tools have a suffix, when others
+      don't, eg. you can have 'gcc-3.4' and 'ar'. crosstool-NG accounts
+      for that by checking the tools without the suffix in case it can
+      not find some of the tool.
+
+if CANADIAN
+
+comment "Host system"
 
 config HOST
     string
-    prompt "Host system tuple"
+    prompt "|  Tuple        (READ HELP!)"
     default ""
-    depends on NATIVE || CANADIAN
     help
       Canonical name of the machine running the toolchain.
 
-config HOST_CC
+config HOST_PREFIX
     string
-    prompt "Cross-compiler prefix for host system"
-    default "${CT_HOST}-"
-    depends on NATIVE || CANADIAN
+    prompt "|  Tools prefix (READ HELP!)"
+    default ""
     help
-      C compiler targeting the host system.
+      If you have your *host system* tools in a weird location, and/or
+      they have an unusual prefix, enter it here.
+      
+      Usually, you should leave that empty!
+      
+      Eg.:
+        If your *host* gcc is /opt/host-tools/bin/weird-gcc then you
+        should enter:
+            /opt/host-tools/bin/weird-
+        
+        If your *host* gcc is /opt/host-tools/bin/weird-gcc and
+        /opt/host-tools/bin is in your PATH, you should enter:
+            weird-
+        
+        If your *host* gcc is /opt/host-tools/bin/gcc then you
+        should enter (do not forget to add the trailing '/'):
+            /opt/host-tools/bin/
 
-config TARGET_CC
+config HOST_SUFFIX
     string
-    prompt "Cross-compiler prefix for target system"
-    default "${CT_TARGET}-"
-    depends on CANADIAN
+    prompt "|  Tools suffix (READ HELP!)"
+    default ""
     help
-      C compiler targeting the target system.
+      If your *host system* tools have an unusual suffix, enter it
+      here.
+      
+      Usually, you should leave that empty!
+      
+      Eg.:
+        If your 'default' gcc is gcc 4.3.1, but you also have gcc-3.4.2
+        installed as gcc-3.4, then you should enter:
+            -3.4
+      
+      It can happen that some of the tools have a suffix, when others
+      don't, eg. you can have 'gcc-3.4' and 'ar'. crosstool-NG accounts
+      for that by checking the tools without the suffix in case it can
+      not find some of the tool.
+
+endif # CANADIAN
+
+if CROSS_NATIVE || CANADIAN
+
+comment "Target system"
+
+config TARGET_PREFIX
+    string
+    prompt "|  Tools prefix (READ HELP!)"
+    default ""
+    help
+      If you have your *target system* tools in a weird location, and/or
+      they have an unusual prefix, enter it here.
+      
+      Usually, you should leave that empty!
+      
+      Eg.:
+        If your *target* gcc is /opt/target-tools/bin/weird-gcc then you
+        should enter:
+            /opt/target-tools/bin/weird-
+        
+        If your *target* gcc is /opt/target-tools/bin/weird-gcc and
+        /opt/target-tools/bin is in your PATH, you should enter:
+            weird-
+        
+        If your *target* gcc is /opt/target-tools/bin/gcc then you
+        should enter (do not forget to add the trailing '/'):
+            /opt/target-tools/bin/
+
+config TARGET_SUFFIX
+    string
+    prompt "|  Tools suffix (READ HELP!)"
+    default ""
+    help
+      If your *target system* tools have an unusual suffix, enter it
+      here.
+      
+      Usually, you should leave that empty!
+      
+      Eg.:
+        If your 'default' gcc is gcc 4.3.1, but you also have gcc-3.4.2
+        installed as gcc-3.4, then you should enter:
+            -3.4
+      
+      It can happen that some of the tools have a suffix, when others
+      don't, eg. you can have 'gcc-3.4' and 'ar'. crosstool-NG accounts
+      for that by checking the tools without the suffix in case it can
+      not find some of the tool.
+
+endif # CROSS_NATIVE || CANADIAN
 
 endmenu

@@ -149,7 +149,7 @@ do_libc_start_files() {
     CT_DoLog DEBUG "Using ar for target: '${cross_ar}'"
     CT_DoLog DEBUG "Using ranlib for target: '${cross_ranlib}'"
 
-    BUILD_CC=${CT_CC_NATIVE}                    \
+    BUILD_CC="${CT_BUILD}-gcc"                  \
     CC=${cross_cc}                              \
     CXX=${cross_cxx}                            \
     AR=${cross_ar}                              \
@@ -158,7 +158,7 @@ do_libc_start_files() {
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
         --prefix=/usr                           \
         --with-headers="${CT_HEADERS_DIR}"      \
-        --build="${CT_UNIQ_BUILD}"              \
+        --build="${CT_BUILD}"                   \
         --host="${CT_TARGET}"                   \
         --disable-profile                       \
         --without-gd                            \
@@ -245,7 +245,7 @@ do_libc() {
     CT_DoLog DEBUG "Extra config args passed: '${extra_config}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
-    BUILD_CC=${CT_CC_NATIVE}                                        \
+    BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
@@ -254,7 +254,7 @@ do_libc() {
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
         --prefix=/usr                                               \
         --with-headers="${CT_HEADERS_DIR}"                          \
-        --build=${CT_UNIQ_BUILD}                                    \
+        --build=${CT_BUILD}                                         \
         --host=${CT_TARGET}                                         \
         --disable-profile                                           \
         --without-gd                                                \

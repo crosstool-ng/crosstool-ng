@@ -105,7 +105,7 @@ do_libc_headers() {
     CC=${cross_cc}                              \
     CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
-        --build="${CT_UNIQ_BUILD}"              \
+        --build="${CT_BUILD}"                   \
         --host="${CT_TARGET}"                   \
         --prefix=/usr                           \
         --with-headers="${CT_HEADERS_DIR}"      \
@@ -272,7 +272,7 @@ do_libc_start_files() {
 
     # Please see the comment for the configure step in do_libc().
 
-    BUILD_CC=${CT_CC_NATIVE}                                        \
+    BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O "  \
     CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}"      \
     AR=${CT_TARGET}-ar                                              \
@@ -280,7 +280,7 @@ do_libc_start_files() {
     CT_DoExecLog ALL                                                \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
         --prefix=/usr                                               \
-        --build="${CT_UNIQ_BUILD}"                                  \
+        --build="${CT_BUILD}"                                       \
         --host=${CT_TARGET}                                         \
         --without-cvs                                               \
         --disable-profile                                           \
@@ -400,7 +400,7 @@ do_libc() {
     # I don't want nptl! --disable-sanity-checks will shut up those
     # silly messages. GNU folks again, he?
 
-    BUILD_CC=${CT_CC_NATIVE}                                        \
+    BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
@@ -408,7 +408,7 @@ do_libc() {
     CT_DoExecLog ALL                                                \
     "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
         --prefix=/usr                                               \
-        --build=${CT_UNIQ_BUILD}                                    \
+        --build=${CT_BUILD}                                         \
         --host=${CT_TARGET}                                         \
         --without-cvs                                               \
         --disable-profile                                           \

@@ -223,10 +223,11 @@ esac
 
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
-    # Determine build system if not set by the user
-    CT_Test "You did not specify the build system. That's OK, I can guess..." -z "${CT_BUILD}"
-    CT_BUILD="${CT_BUILD:-$(CT_DoConfigGuess)}"
-    CT_BUILD=$(CT_DoConfigSub "${CT_BUILD}")
+    # What's our shell?
+    # Will be plain /bin/sh on most systems, except if we have /bin/ash and we
+    # _explictly_ required using it
+    CT_SHELL="/bin/sh"
+    [ "${CT_CONFIG_SHELL_ASH}" = "y" -a -x "/bin/ash" ] && CT_SHELL="/bin/ash"
 
     # Arrange paths depending on wether we use sys-root or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
@@ -273,62 +274,120 @@ if [ -z "${CT_RESTART}" ]; then
         ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib64"
     fi
 
-    # Canadian-cross are really picky on the way they are built. Tweak the values.
-    CT_UNIQ_BUILD=$(echo "${CT_BUILD}" |sed -r -e 's/-/-build_/')
-    if [ "${CT_CANADIAN}" = "y" ]; then
-        # Arrange so that gcc never, ever think that build system == host system
-        CT_CANADIAN_OPT="--build=${CT_UNIQ_BUILD}"
-        # We shall have a compiler for this target!
-        # Do test here...
-    else
-        CT_HOST="${CT_BUILD}"
-        CT_CANADIAN_OPT="--build=${CT_BUILD}"
-        # Add the target toolchain in the path so that we can build the C library
-        # Carefully add paths in the order we want them:
-        #  - first try in ${CT_PREFIX_DIR}/bin
-        #  - then try in ${CT_CC_CORE_SHARED_PREFIX_DIR}/bin
-        #  - then try in ${CT_CC_CORE_STATIC_PREFIX_DIR}/bin
-        #  - fall back to searching user's PATH
-        export PATH="${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}"
-    fi
-
-    # Modify GCC_HOST to never be equal to $BUILD or $TARGET
-    # This strange operation causes gcc to always generate a cross-compiler
-    # even if the build machine is the same kind as the host.
-    # This is why CC has to be set when doing a canadian cross; you can't find a
-    # host compiler by appending -gcc to our whacky $GCC_HOST
-    # Kludge: it is reported that the above causes canadian crosses with cygwin
-    # hosts to fail, so avoid it just in that one case.  It would be cleaner to
-    # just move this into the non-canadian case above, but I'm afraid that might
-    # cause some configure script somewhere to decide that since build==host, they
-    # could run host binaries.
-    # (Copied almost as-is from original crosstool):
-    case "${CT_KERNEL},${CT_CANADIAN}" in
-        cygwin,y) ;;
-        *,y)      CT_HOST=$(echo "${CT_HOST}" |sed -r -e 's/-/-host_/;');;
+    # Determine build system if not set by the user
+    CT_Test "You did not specify the build system. That's OK, I can guess..." -z "${CT_BUILD}"
+    case "${CT_BUILD}" in
+        "") CT_BUILD=$(gcc -dumpmachine);;
+        *)  CT_BUILD=$(CT_DoConfigSub "${CT_BUILD}");;
     esac
 
-    # What's our shell?
-    # Will be plain /bin/sh on most systems, except if we have /bin/ash and we
-    # _explictly_ required using it
-    CT_SHELL="/bin/sh"
-    [ "${CT_CONFIG_SHELL_ASH}" = "y" -a -x "/bin/ash" ] && CT_SHELL="/bin/ash"
+    # Prepare mangling patterns to later modifyu BUILD and HOST (see below)
+    case "${CT_TOOLCHAIN_TYPE}" in
+        cross)
+            CT_HOST="${CT_BUILD}"
+            build_mangle="build_"
+            host_mangle="build_"
+            ;;
+        *)  CT_Abort "No code for '${CT_TOOLCHAIN_TYPE}' toolchain type!"
+            ;;
+    esac
 
-    # Ah! Recent versions of binutils need some of the build and/or host system
-    # (read CT_BUILD and CT_HOST) tools to be accessible (ar is but an example).
-    # Do that:
+    # Save the real tuples to generate shell-wrappers to the real tools
+    CT_REAL_BUILD="${CT_BUILD}"
+    CT_REAL_HOST="${CT_HOST}"
+
+    # Make BUILD and HOST full-fledge four-part tuples (gcc -dumpmachine
+    # might be only three-part tuple, and I don't know wether config.guess
+    # can return 3-part tuples...)
+    case "${CT_BUILD}" in
+        *-*-*-*-*)  CT_Abort "Unexpected 5-part (or more) build tuple: '${CT_BUILD}'";;
+        *-*-*-*)    ;;
+        *-*-*)      CT_BUILD="${CT_BUILD/-/-unknown-}";;
+        *)          CT_Abort "Unepxected 1- or 2-part build tuple: '${CT_BUILD}'";;
+    esac
+    case "${CT_HOST}" in
+        *-*-*-*-*)  CT_Abort "Unexpected 5-part (or more) host tuple: '${CT_HOST}'";;
+        *-*-*-*)    ;;
+        *-*-*)      CT_HOST="${CT_HOST/-/-unknown-}";;
+        *)          CT_Abort "Unepxected 1- or 2-part host tuple: '${CT_HOST}'";;
+    esac
+
+    # Modify BUILD and HOST so that gcc always generate a cross-compiler
+    # even if any of the build, host or target machines are the same.
+    # NOTE: we'll have to mangle the (BUILD|HOST)->TARGET x-compiler to
+    #       support canadain build, later...
+    CT_BUILD="${CT_BUILD/-/-${build_mangle}}"
+    CT_HOST="${CT_HOST/-/-${host_mangle}}"
+
+    # Now we have mangled our BUILD and HOST tuples, we must fake the new
+    # cross-tools for those mangled tuples.
     BANG='!'
     CT_DoLog DEBUG "Making build system tools available"
     mkdir -p "${CT_PREFIX_DIR}/bin"
-    for tool in ar as dlltool ${CT_CC_NATIVE:=gcc} gnatbind gnatmake ld nm ranlib strip windres objcopy objdump; do
-        tmp=$(CT_Which ${tool})
-        if [ -n "${tmp}" ]; then
-            printf "#${BANG}${CT_SHELL}\nexec '${tmp}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}"
-            printf "#${BANG}${CT_SHELL}\nexec '${tmp}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}"
-            printf "#${BANG}${CT_SHELL}\nexec '${tmp}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
-            chmod 700 "${CT_PREFIX_DIR}/bin/${CT_BUILD}-${tool}" "${CT_PREFIX_DIR}/bin/${CT_UNIQ_BUILD}-${tool}" "${CT_PREFIX_DIR}/bin/${CT_HOST}-${tool}"
-        fi |CT_DoLog DEBUG
+    for m in BUILD HOST; do
+        r="CT_REAL_${m}"
+        v="CT_${m}"
+        p="CT_${m}_PREFIX"
+        s="CT_${m}_SUFFIX"
+        if [ -n "${!p}" ]; then
+            t="${!p}"
+        else
+            t="${!r}-"
+        fi
+
+        for tool in ar as dlltool gcc g++ gnatbind gnatmake ld nm objcopy objdump ranlib strip windres; do
+            # First try with prefix + suffix
+            # Then try with prefix only
+            # Then try with suffix only, but only for BUILD, and HOST iff REAL_BUILD == REAL_HOST
+            # Finally try with neither prefix nor suffix, but only for BUILD, and HOST iff REAL_BUILD == REAL_HOST
+            # This is needed, because some tools have a prefix and
+            # a suffix (eg. gcc), while others may have only one,
+            # or even none (eg. binutils)
+            where=$(CT_Which "${t}${tool}${!s}")
+            [ -z "${where}" ] && where=$(CT_Which "${t}${tool}")
+            if [    -z "${where}"                         \
+                 -a \(    "${m}" = "BUILD"                \
+                       -o "${CT_REAL_BUILD}" = "${!r}" \) ]; then
+                where=$(CT_Which "${tool}${!s}")
+            fi
+            if [ -z "${where}"                            \
+                 -a \(    "${m}" = "BUILD"                \
+                       -o "${CT_REAL_BUILD}" = "${!r}" \) ]; then
+                where=$(CT_Which "${tool}")
+            fi
+
+            # Not all tools are available for all platforms, but some are really,
+            # bally needed
+            if [ -n "${where}" ]; then
+                CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
+                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${!v}-${tool}"
+                chmod 700 "${CT_PREFIX_DIR}/bin/${!v}-${tool}"
+            else
+                # We'll at least need some of them...
+                case "${tool}" in
+                    ar|as|gcc|ld|nm|objcopy|objdump|ranlib)
+                        CT_Abort "Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : either needed!"
+                        ;;
+                    *)
+                        # It does not deserve a WARN level.
+                        CT_DoLog DEBUG "  Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : not required."
+                        ;;
+                esac
+            fi
+        done
     done
+
+    # Carefully add paths in the order we want them:
+    #  - first try in ${CT_PREFIX_DIR}/bin
+    #  - then try in ${CT_CC_CORE_SHARED_PREFIX_DIR}/bin
+    #  - then try in ${CT_CC_CORE_STATIC_PREFIX_DIR}/bin
+    #  - fall back to searching user's PATH
+    # Of course, neither cross-native nor canadian can run on BUILD,
+    # so don't add those PATHs in this case...
+    case "${CT_TOOLCHAIN_TYPE}" in
+        cross)  export PATH="${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        *)  ;;
+    esac
 
     # Some makeinfo versions are a pain in [put your most sensible body part here].
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
@@ -359,8 +418,8 @@ if [ -z "${CT_RESTART}" ]; then
 
     CT_DoStep EXTRA "Dumping internal crosstool-NG configuration"
     CT_DoLog EXTRA "Building a toolchain for:"
-    CT_DoLog EXTRA "  build  = ${CT_BUILD}"
-    CT_DoLog EXTRA "  host   = ${CT_HOST}"
+    CT_DoLog EXTRA "  build  = ${CT_REAL_BUILD}"
+    CT_DoLog EXTRA "  host   = ${CT_REAL_HOST}"
     CT_DoLog EXTRA "  target = ${CT_TARGET}"
     set |egrep '^CT_.+=' |sort |CT_DoLog DEBUG
     CT_EndStep
@@ -434,7 +493,6 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
 
     CT_DoLog DEBUG "Removing access to the build system tools"
     find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_UNIQ_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
     rm -fv "${CT_PREFIX_DIR}/bin/makeinfo" |CT_DoLog DEBUG
 

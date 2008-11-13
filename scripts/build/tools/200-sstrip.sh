@@ -19,7 +19,7 @@ case "${CT_SSTRIP_FROM}" in
             ( cd "${CT_SRC_DIR}/ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}/sstrip"; tar cf - . ) |tar xf -
 
             CT_DoLog EXTRA "Building sstrip"
-            CT_DoExecLog ALL make CC="${CT_CC_NATIVE}" sstrip
+            CT_DoExecLog ALL make CC="${CT_HOST}-gcc" sstrip
             
             CT_DoLog EXTRA "Installing sstrip"
             CT_DoExecLog ALL install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip"
@@ -48,7 +48,7 @@ case "${CT_SSTRIP_FROM}" in
             cd "${CT_BUILD_DIR}/build-sstrip"
 
             CT_DoLog EXTRA "Building sstrip"
-            CT_DoExecLog ALL ${CT_CC_NATIVE} -Wall -o sstrip "${CT_SRC_DIR}/sstrip/sstrip.c"
+            CT_DoExecLog ALL "${CT_HOST}-gcc" -Wall -o sstrip "${CT_SRC_DIR}/sstrip/sstrip.c"
 
             CT_DoLog EXTRA "Installing sstrip"
             CT_DoExecLog ALL install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip"

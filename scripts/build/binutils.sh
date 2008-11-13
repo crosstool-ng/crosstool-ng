@@ -36,7 +36,6 @@ do_binutils() {
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
-        ${CT_CANADIAN_OPT}                          \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --target=${CT_TARGET}                       \
