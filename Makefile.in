@@ -5,10 +5,20 @@ MAKEFLAGS += --no-print-directory --no-builtin-rules
 
 all: Makefile build
 
+###############################################################################
+# Sanity checks
+
 # Check if Makefile is up to date:
 Makefile: Makefile.in
 	@echo "$< did changed: you must re-run './configure'"
 	@false
+
+# If installing with DESTDIR, check it's an absolute path
+ifneq ($(strip $(DESTDIR)),)
+  ifneq ($(DESTDIR),$(abspath /$(DESTDIR)))
+    $(error DESTDIR is not an absolute PATH: '$(DESTDIR)')
+  endif
+endif
 
 ###############################################################################
 # Configuration variables
@@ -100,46 +110,46 @@ local-test:
 #--------------------------------------
 # Install rules
 
-install-bin: $(BINDIR)
+install-bin: $(DESTDIR)$(BINDIR)
 	@echo "  INST   'ct-ng'"
-	@install -m 755 ct-ng "$(BINDIR)/ct-ng"
+	@install -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
 
 # If one is hacking crosstool-NG, the patch set might change between any two
 # installations of the same VERSION, thus the patches must be removed prior
 # to being installed. It is simpler to remove the whole lib/ directory, as it
 # is the goal of the install-lib rule to install the lib/ directory...
-install-lib: uninstall-lib $(LIBDIR) install-lib-main install-lib-samples
+install-lib: uninstall-lib $(DESTDIR)$(LIBDIR) install-lib-main install-lib-samples
 
 install-lib-main: $(LIBDIR)
-	@for src_dir in config kconfig patches scripts tools; do                \
-	     echo "  INST   '$${src_dir}/'";                                    \
-	     tar cf - --exclude=.svn $${src_dir} |(cd "$(LIBDIR)"; tar xf -);   \
+	@for src_dir in config kconfig patches scripts tools; do                        \
+	     echo "  INST   '$${src_dir}/'";                                            \
+	     tar cf - --exclude=.svn $${src_dir} |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -); \
 	 done
-	@rm -f "$(LIBDIR)/tools/addToolVersion.sh"
+	@rm -f "$(DESTDIR)$(LIBDIR)/tools/addToolVersion.sh"
 	@echo "  INST   'steps.mk'"
-	@install -m 644 steps.mk "$(LIBDIR)/steps.mk"
+	@install -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
-install-lib-samples: $(LIBDIR) install-lib-main
+install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
 	@echo "  INST   'samples/'"
-	@tar cf - --exclude=.svn samples |(cd "$(LIBDIR)"; tar xf -)
-	@for samp_file in "$(LIBDIR)/samples/"*"/crosstool.config"; do                          \
+	@tar cf - --exclude=.svn samples |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -)
+	@for samp_file in "$(DESTDIR)$(LIBDIR)/samples/"*"/crosstool.config"; do                \
 	     sed -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};             \
 	     sed -r -i -e 's,^(CT_WORK_DIR)=.*,\1="\$${CT_TOP_DIR}/targets",;' $${samp_file};   \
 	 done
 
-install-doc: $(DOCDIR)
-	@for doc_file in docs/CREDITS docs/overview.txt; do \
-	     echo "  INST   '$${doc_file}'";                \
-	     install -m 644 "$${doc_file}" "$(DOCDIR)";     \
+install-doc: $(DESTDIR)$(DOCDIR)
+	@for doc_file in docs/CREDITS docs/overview.txt; do         \
+	     echo "  INST   '$${doc_file}'";                        \
+	     install -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)";   \
 	 done
 
-install-man: $(MANDIR)
+install-man: $(DESTDIR)$(MANDIR)
 	@echo "  INST   'ct-ng.1.gz'"
-	@install -m 644 docs/ct-ng.1.gz "$(MANDIR)"
+	@install -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
 
-$(sort $(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)):
+$(sort $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(DOCDIR) $(DESTDIR)$(MANDIR)):
 	@echo "  MKDIR  '$@'"
 	@install -m 755 -d "$@"
 
@@ -148,17 +158,17 @@ $(sort $(BINDIR) $(LIBDIR) $(DOCDIR) $(MANDIR)):
 # Uninstall rules
 
 uninstall-bin:
-	@echo "  RM     '$(BINDIR)/ct-ng'"
-	@rm -f "$(BINDIR)/ct-ng"
+	@echo "  RM     '$(DESTDIR)$(BINDIR)/ct-ng'"
+	@rm -f "$(DESTDIR)$(BINDIR)/ct-ng"
 
 uninstall-lib:
-	@echo "  RMDIR  '$(LIBDIR)/'"
-	@rm -rf "$(LIBDIR)"
+	@echo "  RMDIR  '$(DESTDIR)$(LIBDIR)/'"
+	@rm -rf "$(DESTDIR)$(LIBDIR)"
 
 uninstall-doc:
-	@echo "  RMDIR  '$(DOCDIR)/'"
-	@rm -rf "$(DOCDIR)"
+	@echo "  RMDIR  '$(DESTDIR)$(DOCDIR)/'"
+	@rm -rf "$(DESTDIR)$(DOCDIR)"
 
 uninstall-man:
-	@echo "  RM     '$(MANDIR)/ct-ng.1.gz'"
-	@rm -f "$(MANDIR)/ct-ng.1"{,.gz}
+	@echo "  RM     '$(DESTDIR)$(MANDIR)/ct-ng.1.gz'"
+	@rm -f "$(DESTDIR)$(MANDIR)/ct-ng.1"{,.gz}
