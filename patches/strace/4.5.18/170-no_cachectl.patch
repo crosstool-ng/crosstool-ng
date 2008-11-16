@@ -1,0 +1,35 @@
+This patch is needed on newer uclibc becuase the uclibc header generation
+mechanism generates the sysnum.h properly NR_cacheflush is defined for ARM
+but there is no cachectl.h file which is exported to userspace. Strace 
+assumes that if SYS_cacheflush is defined than it icludes asm/cachectl.h
+which breaks the build for ARM now.
+
+This patch adds a check for ARM architecture.
+
+-Khem
+
+Here is error
+
+| if ccache arm-angstrom-linux-uclibcgnueabi-gcc -march=armv5te -mtune=arm926ej-s -DHAVE_CONFIG_H -I. -I. -I. -Ilinux/arm -I./linux/arm -Ilinux -I./linux  -isystem/home/kraj/work/oe/build/uclibc/tmp-omap5912osk/staging/arm-angstrom-linux-uclibcgnueabi/usr/include -Wall -isystem/home/kraj/work/oe/build/uclibc/tmp-omap5912osk/staging/arm-angstrom-linux-uclibcgnueabi/usr/include -fexpensive-optimizations -fomit-frame-pointer -frename-registers -Os -MT term.o -MD -MP -MF ".deps/term.Tpo" -c -o term.o term.c; \
+|   then mv -f ".deps/term.Tpo" ".deps/term.Po"; else rm -f ".deps/term.Tpo"; exit 1; fi
+| system.c:69:26: error: asm/cachectl.h: No such file or directory
+| make[1]: *** [system.o] Error 1
+| make[1]: *** Waiting for unfinished jobs....
+| signal.c: In function 'sys_sigreturn':
+| signal.c:1221: warning: passing argument 4 of 'ptrace' makes integer from pointer without a cast
+| make[1]: Leaving directory `/home/kraj/work/oe/build/uclibc/tmp-omap5912osk/work/armv5te-angstrom-linux-uclibcgnueabi/strace-4.5.14-r5/strace-4.5.14'
+| make: *** [all] Error 2
+| FATAL: oe_runmake failed
+
+Index: strace-4.5.14/system.c
+===================================================================
+--- strace-4.5.14.orig/system.c 2008-05-15 20:23:16.000000000 -0700
++++ strace-4.5.14/system.c  2008-05-15 20:24:03.000000000 -0700
+@@ -65,7 +65,7 @@
+ #include <linux/capability.h>
+ #endif
+ 
+-#ifdef SYS_cacheflush
++#if defined SYS_cacheflush && !defined ARM
+ #include <asm/cachectl.h>
+ #endif
