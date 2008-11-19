@@ -299,15 +299,20 @@ if [ -z "${CT_RESTART}" ]; then
     # Make BUILD and HOST full-fledge four-part tuples (gcc -dumpmachine
     # might be only three-part tuple, and I don't know wether config.guess
     # can return 3-part tuples...)
+    # Although Cygwin is not (yet) a supported build- or host-system, take
+    # its /peculiarity/ into acount right now, this will alleviate the
+    # burden of fighting bugs later, if Cygwin ever becomes supported.
     case "${CT_BUILD}" in
         *-*-*-*-*)  CT_Abort "Unexpected 5-part (or more) build tuple: '${CT_BUILD}'";;
         *-*-*-*)    ;;
+        *-*-cygwin) ;; # Don't mangle cygwin build tuples
         *-*-*)      CT_BUILD="${CT_BUILD/-/-unknown-}";;
         *)          CT_Abort "Unepxected 1- or 2-part build tuple: '${CT_BUILD}'";;
     esac
     case "${CT_HOST}" in
         *-*-*-*-*)  CT_Abort "Unexpected 5-part (or more) host tuple: '${CT_HOST}'";;
         *-*-*-*)    ;;
+        *-*-cygwin) ;; # Don't mangle cygwin host tuples
         *-*-*)      CT_HOST="${CT_HOST/-/-unknown-}";;
         *)          CT_Abort "Unepxected 1- or 2-part host tuple: '${CT_HOST}'";;
     esac
