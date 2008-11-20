@@ -20,12 +20,16 @@
 #  - initialise logging.
 . "${CT_LIB_DIR}/scripts/functions"
 
-CT_STAR_DATE=$(CT_DoDate +%s%N)
-CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
-
 # Parse the configuration file
 # It has some info about the logging facility, so include it early
 . .config
+
+# Overide the locale early, in case we ever translate crosstool-NG messages
+[ -z "${CT_NO_OVERIDE_LC_MESSAGES}" ] && export LC_ALL=C
+
+# Start date. Can't be done until we know the locale
+CT_STAR_DATE=$(CT_DoDate +%s%N)
+CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 
 # Yes! We can do full logging from now on!
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
