@@ -37,7 +37,19 @@ do_mpfr_extract() {
     if [ ! -f .autotools.ct-ng ]; then
         CT_DoLog DEBUG "Re-building autotools files"
         CT_DoExecLog ALL autoreconf -fi
-        CT_DoExecLog ALL libtoolize -f
+        # Starting with libtool-1.9f, config.{guess,sub} are no longer
+        # installed without -i, but starting with libtool-2.2.6, they
+        # are no longer removed without -i. Sight... Just use -i with
+        # libtool >=2
+        # See: http://sourceware.org/ml/crossgcc/2008-11/msg00046.html
+        # and: http://sourceware.org/ml/crossgcc/2008-11/msg00048.html
+        libtoolize_opt=
+        case "$(libtoolize --version |head -n 1 |gawk '{ print $(NF); }')" in
+            0.*)    ;;
+            1.*)    ;;
+            *)      libtoolize_opt=-i;;
+        esac
+        CT_DoExecLog ALL libtoolize -f ${libtoolize_opt}
         touch .autotools.ct-ng
     fi
     CT_Popd
