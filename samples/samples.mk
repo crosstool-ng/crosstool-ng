@@ -95,18 +95,17 @@ $(CT_SAMPLES):
 # $1: sample tuple
 # $2: prefix
 define build_sample
-	@$(ECHO) '  CP    .config'
+	@$(ECHO) '  CONF  $(1)'
 	$(SILENT)cp $(call sample_dir,$(1))/crosstool.config .config
-	@$(ECHO) '  SED   .config'
 	$(SILENT)sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(2)":;' .config
 	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config
 	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config
 	$(SILENT)sed -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config
 	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config
 	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config
-	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) oldconfig
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=0 oldconfig
 	@$(ECHO) '  BUILD $(1)'
-	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) build
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=0 build
 endef
 
 # ----------------------------------------------------------
