@@ -37,6 +37,7 @@ do_debug_dmalloc_build() {
 
     LD="${CT_TARGET}-ld"                                        \
     AR="${CT_TARGET}-ar"                                        \
+    CFLAGS=-fPIC                                                \
     CT_DoExecLog ALL                                            \
     "${CT_SRC_DIR}/dmalloc-${CT_DMALLOC_VERSION}/configure"     \
         --prefix=/usr                                           \
