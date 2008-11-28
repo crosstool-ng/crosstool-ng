@@ -284,7 +284,7 @@ if [ -z "${CT_RESTART}" ]; then
         "") CT_BUILD=$("${CT_BUILD_PREFIX}gcc${CT_BUILD_SUFFIX}" -dumpmachine);;
     esac
 
-    # Prepare mangling patterns to later modifyu BUILD and HOST (see below)
+    # Prepare mangling patterns to later modify BUILD and HOST (see below)
     case "${CT_TOOLCHAIN_TYPE}" in
         cross)
             CT_HOST="${CT_BUILD}"
@@ -315,7 +315,6 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Now we have mangled our BUILD and HOST tuples, we must fake the new
     # cross-tools for those mangled tuples.
-    BANG='!'
     CT_DoLog DEBUG "Making build system tools available"
     mkdir -p "${CT_PREFIX_DIR}/bin"
     for m in BUILD HOST; do
@@ -386,7 +385,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Some makeinfo versions are a pain in [put your most sensible body part here].
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
     # never fails:
-    echo -e "#!/bin/sh\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue" >"${CT_PREFIX_DIR}/bin/makeinfo"
+    printf "#${BANG}/bin/sh\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/bin/makeinfo"
     chmod 700 "${CT_PREFIX_DIR}/bin/makeinfo"
 
     # Help gcc
