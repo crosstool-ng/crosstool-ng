@@ -281,8 +281,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Determine build system if not set by the user
     CT_Test "You did not specify the build system. That's OK, I can guess..." -z "${CT_BUILD}"
     case "${CT_BUILD}" in
-        "") CT_BUILD=$(gcc -dumpmachine);;
-        *)  CT_BUILD=$(CT_DoConfigSub "${CT_BUILD}");;
+        "") CT_BUILD=$("${CT_BUILD_PREFIX}gcc${CT_BUILD_SUFFIX}" -dumpmachine);;
     esac
 
     # Prepare mangling patterns to later modifyu BUILD and HOST (see below)
@@ -300,26 +299,12 @@ if [ -z "${CT_RESTART}" ]; then
     CT_REAL_BUILD="${CT_BUILD}"
     CT_REAL_HOST="${CT_HOST}"
 
-    # Make BUILD and HOST full-fledge four-part tuples (gcc -dumpmachine
-    # might be only three-part tuple, and I don't know wether config.guess
-    # can return 3-part tuples...)
-    # Although Cygwin is not (yet) a supported build- or host-system, take
-    # its /peculiarity/ into acount right now, this will alleviate the
-    # burden of fighting bugs later, if Cygwin ever becomes supported.
-    case "${CT_BUILD}" in
-        *-*-*-*-*)  CT_Abort "Unexpected 5-part (or more) build tuple: '${CT_BUILD}'";;
-        *-*-*-*)    ;;
-        *-*-cygwin) ;; # Don't mangle cygwin build tuples
-        *-*-*)      CT_BUILD="${CT_BUILD/-/-unknown-}";;
-        *)          CT_Abort "Unepxected 1- or 2-part build tuple: '${CT_BUILD}'";;
-    esac
-    case "${CT_HOST}" in
-        *-*-*-*-*)  CT_Abort "Unexpected 5-part (or more) host tuple: '${CT_HOST}'";;
-        *-*-*-*)    ;;
-        *-*-cygwin) ;; # Don't mangle cygwin host tuples
-        *-*-*)      CT_HOST="${CT_HOST/-/-unknown-}";;
-        *)          CT_Abort "Unepxected 1- or 2-part host tuple: '${CT_HOST}'";;
-    esac
+    # Canonicalise CT_BUILD and CT_HOST
+    # Not only will it give us full-qualified tuples, but it will also ensure
+    # that they are valid tuples (in case of typo with user-provided tuples)
+    # That's way better than trying to rewrite config.sub ourselves...
+    CT_BUILD=$(./tools/config.sub "${CT_BUILD}")
+    CT_HOST=$(./tools/config.sub "${CT_HOST}")
 
     # Modify BUILD and HOST so that gcc always generate a cross-compiler
     # even if any of the build, host or target machines are the same.
