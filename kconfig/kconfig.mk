@@ -82,6 +82,9 @@ mconf_OBJ = $(patsubst %.c,%.o,$(mconf_SRC))
 mconf_DEP = $(patsubst %.c,%.dep,$(mconf_SRC))
 $(mconf_OBJ) $(mconf_DEP): CFLAGS += $(NCURSES_CFLAGS) $(INTL_CFLAGS)
 $(obj)/mconf: LDFLAGS += $(NCURSES_LDFLAGS)
+ifeq ($(shell uname -o 2>/dev/null || echo unknown),Cygwin)
+$(obj)/mconf: LDFLAGS += -Wl,--enable-auto-import
+endif
 
 # These are generated files:
 ALL_OBJS = $(sort $(COMMON_OBJ) $(LX_OBJ) $(conf_OBJ) $(mconf_OBJ))
@@ -139,11 +142,11 @@ endef
 # Actual link
 $(obj)/mconf: $(COMMON_OBJ) $(LX_OBJ) $(mconf_OBJ)
 	@$(ECHO) '  LD    $@'
-	$(SILENT)$(HOST_LD) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
+	$(SILENT)$(HOST_LD) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 $(obj)/conf: $(COMMON_OBJ) $(conf_OBJ)
 	@$(ECHO) '  LD    $@'
-	$(SILENT)$(HOST_LD) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $^
+	$(SILENT)$(HOST_LD) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 #-----------------------------------------------------------
 # Cleaning up the mess...
