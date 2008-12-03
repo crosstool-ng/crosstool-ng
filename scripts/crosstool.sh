@@ -303,8 +303,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Not only will it give us full-qualified tuples, but it will also ensure
     # that they are valid tuples (in case of typo with user-provided tuples)
     # That's way better than trying to rewrite config.sub ourselves...
-    CT_BUILD=$(./tools/config.sub "${CT_BUILD}")
-    CT_HOST=$(./tools/config.sub "${CT_HOST}")
+    CT_BUILD=$(CT_DoConfigSub "${CT_BUILD}")
+    CT_HOST=$(CT_DoConfigSub "${CT_HOST}")
 
     # Modify BUILD and HOST so that gcc always generate a cross-compiler
     # even if any of the build, host or target machines are the same.
