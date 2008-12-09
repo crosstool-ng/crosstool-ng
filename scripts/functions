@@ -697,7 +697,22 @@ CT_DoBuildTargetTuple() {
     CT_DoKernelTupleValues
 
     # Finish the target tuple construction
-    CT_TARGET=$(CT_DoConfigSub "${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}${CT_TARGET_KERNEL:+-}${CT_TARGET_SYS}")
+    CT_TARGET="${CT_TARGET_ARCH}-${CT_TARGET_VENDOR:-unknown}-${CT_TARGET_KERNEL}${CT_TARGET_KERNEL:+-}${CT_TARGET_SYS}"
+
+    # Sanity checks
+    __sed_alias=""
+    if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
+        __sed_alias=$(echo "${CT_TARGET}" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
+    fi
+    case ":${CT_TARGET_VENDOR}:${CT_TARGET_ALIAS}:${__sed_alias}:" in
+      :*" "*:*:*:) CT_Abort "Don't use spaces in the vendor string, it breaks things.";;
+      :*"-"*:*:*:) CT_Abort "Don't use dashes in the vendor string, it breaks things.";;
+      :*:*" "*:*:) CT_Abort "Don't use spaces in the target alias, it breaks things.";;
+      :*:*:*" "*:) CT_Abort "Don't use spaces in the target sed transform, it breaks things.";;
+    esac
+
+    # Canonicalise it
+    CT_TARGET=$(CT_DoConfigSub "${CT_TARGET}")
 
     # Prepare the target CFLAGS
     CT_ARCH_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_ARCH_ENDIAN_CFLAG}"
