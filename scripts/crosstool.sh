@@ -74,7 +74,7 @@ CT_DoBuildTargetTuple
 
 # Kludge: If any of the configured options needs CT_TARGET,
 # then rescan the options file now:
-. "${CT_TOP_DIR}/.config"
+. .config
 
 # Second kludge: merge user-supplied target CFLAGS with architecture-provided
 # target CFLAGS. Do the same for LDFLAGS in case it happens in the future.
