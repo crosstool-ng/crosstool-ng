@@ -492,7 +492,7 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     if [ "${CT_BARE_METAL}" != "y" ]; then
         CT_DoLog EXTRA "Installing the populate helper"
         sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
-            "${CT_LIB_DIR}/tools/populate.in"           \
+            "${CT_LIB_DIR}/scripts/populate.in"           \
             >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
         chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
     fi
