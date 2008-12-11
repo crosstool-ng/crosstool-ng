@@ -406,7 +406,7 @@ if [ -z "${CT_RESTART}" ]; then
     export PARALLELMFLAGS
 
     CT_DoLog EXTRA "Installing user-supplied crosstool-NG configuration"
-    CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/tools/toolchain-config.in" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
+    CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/scripts/toolchain-config.in" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
     bzip2 -c -9 .config >>"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
 
     CT_DoStep EXTRA "Dumping internal crosstool-NG configuration"
