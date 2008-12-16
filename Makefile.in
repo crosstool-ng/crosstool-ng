@@ -39,7 +39,7 @@ TARGETS := bin lib doc man
 
 build: $(patsubst %,build-%,$(TARGETS))
 
-install: real-install
+install: build real-install
 
 clean: $(patsubst %,clean-%,$(TARGETS))
 
@@ -100,7 +100,7 @@ clean-man:
 
 ifeq ($(strip $(LOCAL)),1)
 
-real-install: build
+real-install:
 	@echo "  CHMOD  'ct-ng'"
 	@chmod a+x ct-ng
 
@@ -112,7 +112,7 @@ else
 #--------------------------------------
 # Install rules
 
-real-install: build $(patsubst %,install-%,$(TARGETS))
+real-install: $(patsubst %,install-%,$(TARGETS))
 
 install-bin: $(DESTDIR)$(BINDIR)
 	@echo "  INST   'ct-ng'"
@@ -125,11 +125,11 @@ install-bin: $(DESTDIR)$(BINDIR)
 install-lib: uninstall-lib $(DESTDIR)$(LIBDIR) install-lib-main install-lib-samples
 
 install-lib-main: $(DESTDIR)$(LIBDIR)
-	@for src_dir in config kconfig patches scripts tools; do                        \
+	@for src_dir in config kconfig patches scripts; do                              \
 	     echo "  INST   '$${src_dir}/'";                                            \
 	     tar cf - --exclude=.svn $${src_dir} |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -); \
 	 done
-	@rm -f "$(DESTDIR)$(LIBDIR)/tools/addToolVersion.sh"
+	@rm -f "$(DESTDIR)$(LIBDIR)/scripts/addToolVersion.sh"
 	@echo "  INST   'steps.mk'"
 	@install -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
 
