@@ -1,7 +1,7 @@
 #!/bin/sh
 
-VERSION=$(cat .version)
-DATE=$(date +%Y%m%d)
+VERSION=$( cat .version )
+DATE=$( date +%Y%m%d )
 
 # All absolutely required tools, one per line to ease diff.
 # See function 'has_or_abort, below, for syntax
@@ -12,42 +12,43 @@ DATE=$(date +%Y%m%d)
 #
 # Format of a pattern to check for, one per line:
 #   pattern := tool_test  OR  pattern|tool_test
-#   tool_test := tool/regexp
-#   tool := name of the tool  OR  absolute pathname to the tool
-#   regexp := valid grep(1) extended regular expression  OR  empty
+#   tool_test := tool=regexp OR tool
+#   tool := basename of the tool  OR  absolute pathname to the tool
+#   regexp := valid grep(1) extended regular expression, $( tool --version)
+#             will be matched against this regexp.
 #
 # In case a pattern list is given (eg foo|bar|buz), then tests are performed
 # from left to right, stopping at the first matching test (like the shell
 # would parse 'foo || bar || buz' ).
 #
 # Examples:
-#    /bin/bash/^GNU bash, version 3\.
-#       will ensure that /bin/bash exists, and that $(/bin/bash --version)
+#    /bin/bash=^GNU bash, version 3\.
+#       will ensure that /bin/bash exists, and that $( /bin/bash --version )
 #       matches the regexp '^GNU bash, version 3\.'
-#    autoconf/(GNU Autoconf)|autoconf2.50/
+#    autoconf=(GNU Autoconf)|autoconf2.50
 #       will ensure that:
-#         - 'autoconf' is to be found in the PATH, and that $(autoconf
-#           --version) matches the regexp '(GNU Autoconf)' (which btw is
-#           the signature of autoconf >= 2.50),
+#         - 'autoconf' is to be found in the PATH, and that $( autoconf --version )
+#           matches the regexp '(GNU Autoconf)' (which btw is the signature of
+#           autoconf >= 2.50),
 #       OR that:
 #         - 'autoconf2.50' is to be found in the PATH
 #
 TOOLS_TO_CHECK='
-/bin/bash/^GNU bash, version 3\.
-make/^GNU Make
-gcc/
-gawk/^GNU Awk
-sed/
-bison/
-flex/
-makeinfo/
-automake/\(GNU automake\) [[:digit:]]+\.[[:digit:]]{2,}|automake/\(GNU automake\) [2-9][[:digit:]]*\.
-libtool/
-curl/|wget/
-patch/
-tar/
-gzip/
-bzip2/
+/bin/bash=^GNU bash, version 3\.
+make=^GNU Make
+gcc
+gawk=^GNU Awk
+sed
+bison
+flex
+makeinfo
+automake=\(GNU automake\) [[:digit:]]+\.[[:digit:]]{2,}|automake=\(GNU automake\) [2-9][[:digit:]]*\.
+libtool
+curl|wget
+patch
+tar
+gzip
+bzip2
 '
 
 PREFIX_DEFAULT=/usr/local
@@ -73,31 +74,40 @@ do_error() {
 # Usage: has_or_abort test_pattern (see top of file, TOOLS_TO_CHECK, for
 #                                   complete pattern format)
 has_or_abort() {
-    { IFS="|"; for item in ${1}; do
-          tool="${item%/*}"
-          regexp="${item##*/}"
-          printf "Checking for '${tool}'... "
-          where=$(which "${tool}" 2>/dev/null || true)
-          if [ -z "${where}" ]; then
-              echo "not found"
-              where=
-              continue
-          else
-              if [ -n "${regexp}" ]; then
-                  tool_version=$(${tool} --version 2>&1)
-                  str=$(echo "${tool_version}" |grep -E "${regexp}" |head -n 1)
-                  if [ -z "${str}" ]; then
-                      echo "${where}: wrong version string: expecting regexp '${regexp}'"
-                      where=""
-                      continue
-                  fi
-              fi
-              echo "${where}"
-              return 0
-          fi
-      done;
-    }
-    [ ${FORCE} -eq 0 ] && do_error "Bailing out..."
+    save_IFS="${IFS}"
+    IFS="|"
+    for item in ${1}; do
+        case "${item}" in
+            *=*)
+                tool="${item%%=*}"
+                regexp="${item#*=}"
+                ;;
+            *)  tool="${item}"
+                regexp=
+                ;;
+        esac
+        printf "Checking for '${tool}'... "
+        where=$( which "${tool}" 2>/dev/null )
+        if [ -z "${where}" ]; then
+            echo "not found"
+            where=
+            continue
+        else
+            if [ -n "${regexp}" ]; then
+                tool_version=$( ${tool} --version 2>&1 )
+                str=$( echo "${tool_version}" |grep -E "${regexp}" |head -n 1 )
+                if [ -z "${str}" ]; then
+                    echo "${where}: wrong version string: expecting regexp '${regexp}'"
+                    where=""
+                    continue
+                fi
+            fi
+            echo "${where}"
+            break
+        fi
+    done;
+    IFS="${save_IFS}"
+    [ -z "${where}" -a ${FORCE} -eq 0 ] && do_error "Bailing out..."
     return 0
 }
 
@@ -106,45 +116,38 @@ has_or_abort() {
 # If --var=val => echoes val and returns 0, meaning second arg was not consumed
 # If --var val => echoes val and returns non null, meaning second arg was used
 get_optval(){
-    local ret
     case "$1" in
         --*=?*)
             echo "${1}" |cut -d '=' -f 2-
-            ret=0
+            return 0
             ;;
         *)
             echo "${2}"
-            ret=1
+            return 1
             ;;
     esac
-    return ${ret}
 }
 
 # The set_xxx functions will set the corresponding configuration variable
 # They return 0 if second arg was not consumed, and non-zero if it was consumed.
 set_prefix() {
-    PREFIX=$(get_optval "$1" "$2")
-    return $?
+    PREFIX="$( get_optval "$1" "$2" )"
 }
 set_bindir() {
     BINDIR_set=1
-    BINDIR=$(get_optval "$1" "$2")
-    return $?
+    BINDIR="$( get_optval "$1" "$2" )"
 }
 set_libdir() {
     LIBDIR_set=1
-    LIBDIR=$(get_optval "$1" "$2")
-    return $?
+    LIBDIR="$( get_optval "$1" "$2" )"
 }
 set_docdir() {
     DOCDIR_set=1
-    DOCDIR=$(get_optval "$1" "$2")
-    return $?
+    DOCDIR="$( get_optval "$1" "$2" )"
 }
 set_mandir() {
     MANDIR_set=1
-    MANDIR=$(get_optval "$1" "$2")
-    return $?
+    MANDIR="$( get_optval "$1" "$2" )"
 }
 
 # The set_contrib function is different in that it will work like the others,
@@ -154,21 +157,21 @@ set_mandir() {
 # caller to quit immediately by setting do_quit to non null.
 # (can't use the return code, see above).
 set_contrib() {
-    opt_val=$(get_optval "$1" "$2")
-    local ret=$?
+    opt_val="$( get_optval "$1" "$2" )"
+    ret=$?
     case "${opt_val}" in
         all)
-            CONTRIB_list=$(LC_ALL=C ls -1 contrib/*.patch.lzma  \
-                           |xargs -I {} basename {} .patch.lzma \
-                           |sed -r -e ':a; /$/N; s/\n/,/; ta;'
-                          )
+            CONTRIB_list="$( LC_ALL=C ls -1 contrib/*.patch.lzma            \
+                                      |xargs -I {} basename {} .patch.lzma  \
+                                      |sed -r -e ':a; /$/N; s/\n/,/; ta;'   \
+                           )"
             ;;
         list)
             do_quit=1
             echo "Available contributions:"
-            LC_ALL=C ls -1 contrib/*.patch.lzma     \
-            |xargs -I {} basename {} .patch.lzma    \
-            |sed -r -e 's/^/  /;'
+            LC_ALL=C ls -1 contrib/*.patch.lzma             \
+                     |xargs -I {} basename {} .patch.lzma   \
+                     |sed -r -e 's/^/  /;'
             ;;
         *)  CONTRIB_list="${CONTRIB_list},${opt_val}";;
     esac
@@ -184,7 +187,7 @@ USAGE: ./configure [OPTION]...
 Defaults for the options are specified in brackets.
 
 Configuration:
-  -h, --help              display this help and exit                                                                                                                  
+  -h, --help              display this help and exit
       --force             force ./configure to complete, even if one or more
                           tools were not found. Use at your own risk, only if
                           you know what you are doing!
@@ -240,11 +243,11 @@ done
 
 # Special case when installing locally
 if [ "${LOCAL_set}" = "1" ]; then
-    set_prefix "" $(pwd)
-    set_bindir "" $(pwd)
-    set_libdir "" $(pwd)
-    set_docdir "" $(pwd)/docs
-    set_mandir "" $(pwd)/docs
+    set_prefix "" "$( pwd )"
+    set_bindir "" "$( pwd )"
+    set_libdir "" "$( pwd )"
+    set_docdir "" "$( pwd )/docs"
+    set_mandir "" "$( pwd )/docs"
 fi
 
 #---------------------------------------------------------------------
@@ -254,21 +257,27 @@ fi
 # If we can't get the revision number, use date
 printf "Computing version string... "
 case "${VERSION}" in
-  *+svn|svn)
-    REVISION=$(LC_ALL=C svnversion)
-    case "${REVISION}" in
-      exported)
-        VERSION="${VERSION}_unknown@$(date +%Y%m%d.%H%M%S)";;
-      *)
-        URL=$(LC_ALL=C svn info 2>/dev/null |egrep 'URL: ' |cut -d ' ' -f 2-)
-        ROOT=$(LC_ALL=C svn info 2>/dev/null |egrep 'Repository Root: ' |cut -d ' ' -f 3-)
-        VERSION="${VERSION}${URL#${ROOT}}@${REVISION}"
+    *+svn|svn)
+        REVISION="$( LC_ALL=C svnversion )"
+        case "${REVISION}" in
+            exported)
+                VERSION="${VERSION}_unknown@$( date +%Y%m%d.%H%M%S )";;
+            *)
+                URL="$( LC_ALL=C svn info 2>/dev/null   \
+                                 |egrep 'URL: '         \
+                                 |cut -d ' ' -f 2-      \
+                      )"
+                ROOT="$( LC_ALL=C svn info 2>/dev/null  \
+                         |egrep 'Repository Root: '     \
+                         |cut -d ' ' -f 3-              \
+                       )"
+                VERSION="${VERSION}${URL#${ROOT}}@${REVISION}"
+                ;;
+        esac
+        # Arrange to have no / in the directory name, no need to create an
+        # arbitrarily deep directory structure
+        VERSION="$( echo "${VERSION}" |sed -r -e 's|/+|_|g;' )"
         ;;
-    esac
-    # Arrange to have no / in the directory name, no need to create an
-    # arbitrarily deep directory structure
-    VERSION=$(echo "${VERSION}" |sed -r -e 's|/+|_|g;')
-    ;;
 esac
 echo "${VERSION}"
 
@@ -280,26 +289,29 @@ echo "${VERSION}"
 
 # Check that install PATHs are absolute
 for p in BIN LIB DOC MAN; do
-  var="${p}DIR"
-  eval v="\${${var}}"
-  case "${v}" in
-    /*) ;;
-    *)  do_error "'${var}' is not an absolute path: '${v}'"
-  esac
+    var="${p}DIR"
+    eval v='"${'"${var}"'}"'
+    case "${v}" in
+        /*) ;;
+        *)  do_error "'${var}' is not an absolute path: '${v}'"
+    esac
 done
 
 # Check the existence of absolutely required tools
-{ IFS='
-';
-  for tool in ${TOOLS_TO_CHECK}; do
-      has_or_abort "${tool}"
-  done;
-}
+save_IFS="${IFS}"
+IFS='
+'
+for tool in ${TOOLS_TO_CHECK}; do
+    has_or_abort "${tool}"
+done
+IFS="${save_IFS}"
 
 # It's safer to change all ',' to spaces rather than setting IFS
-CONTRIB_list=$(echo "${CONTRIB_list}" |sed -r -e 's/,+/ /g; s/ +/ /g; s/^ //g; s/ $//g;')
+CONTRIB_list="$( echo "${CONTRIB_list}"                             \
+                 |sed -r -e 's/,+/ /g; s/ +/ /g; s/^ //g; s/ $//g;' \
+               )"
 if [ -n "${CONTRIB_list}" ]; then
-    has_or_abort 'lzcat/'
+    has_or_abort 'lzcat'
     printf "Applying contributed code: "
     for c in ${CONTRIB_list}; do
         printf "${c}, "
@@ -312,14 +324,13 @@ if [ -n "${CONTRIB_list}" ]; then
 fi
 
 printf "Building up Makefile... "
-sed -r -e "s,@@BINDIR@@,${BINDIR},g;"   \
-       -e "s,@@LIBDIR@@,${LIBDIR},g;"   \
-       -e "s,@@DOCDIR@@,${DOCDIR},g;"   \
-       -e "s,@@MANDIR@@,${MANDIR},g;"   \
-       -e "s,@@VERSION@@,${VERSION},g;" \
-       -e "s,@@DATE@@,${DATE},g;"       \
-       -e "s,@@LOCAL@@,${LOCAL_set},g;" \
-       Makefile.in >Makefile
+sed -r -e "s,@@BINDIR@@,${BINDIR},g
+           s,@@LIBDIR@@,${LIBDIR},g
+           s,@@DOCDIR@@,${DOCDIR},g
+           s,@@MANDIR@@,${MANDIR},g
+           s,@@VERSION@@,${VERSION},g
+           s,@@DATE@@,${DATE},g
+           s,@@LOCAL@@,${LOCAL_set},g"  Makefile.in >Makefile
 echo "done"
 
 cat <<__EOF__
