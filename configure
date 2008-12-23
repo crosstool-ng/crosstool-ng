@@ -11,13 +11,13 @@ DATE=$( date +%Y%m%d )
 #  - others obvious... :-/
 #
 # Format of a pattern to check for, one per line:
-#   pattern := tool_test  OR  pattern|tool_test
+#   pattern := tool_test  OR  pattern || tool_test
 #   tool_test := tool=regexp OR tool
 #   tool := basename of the tool  OR  absolute pathname to the tool
 #   regexp := valid grep(1) extended regular expression, $( tool --version)
 #             will be matched against this regexp.
 #
-# In case a pattern list is given (eg foo|bar|buz), then tests are performed
+# In case a pattern list is given (eg foo || bar || buz), then tests are performed
 # from left to right, stopping at the first matching test (like the shell
 # would parse 'foo || bar || buz' ).
 #
@@ -25,7 +25,7 @@ DATE=$( date +%Y%m%d )
 #    /bin/bash=^GNU bash, version 3\.
 #       will ensure that /bin/bash exists, and that $( /bin/bash --version )
 #       matches the regexp '^GNU bash, version 3\.'
-#    autoconf=(GNU Autoconf)|autoconf2.50
+#    autoconf=(GNU Autoconf) || autoconf2.50
 #       will ensure that:
 #         - 'autoconf' is to be found in the PATH, and that $( autoconf --version )
 #           matches the regexp '(GNU Autoconf)' (which btw is the signature of
@@ -35,16 +35,17 @@ DATE=$( date +%Y%m%d )
 #
 TOOLS_TO_CHECK='
 /bin/bash=^GNU bash, version 3\.
+cut
+xargs
 make=^GNU Make
 gcc
 gawk=^GNU Awk
-sed
 bison
 flex
 makeinfo
-automake=\(GNU automake\) [[:digit:]]+\.[[:digit:]]{2,}|automake=\(GNU automake\) [2-9][[:digit:]]*\.
-libtool
-curl|wget
+automake=\(GNU automake\) (1\.[[:digit:]]{2,}\.|[2-9][[:digit:]]*\.)
+libtool=\(GNU libtool\) (2[[:digit:]]*\.|1\.6[[:digit:]]*\.|1\.5\.[2-9][[:digit:]]+)
+curl || wget
 patch
 tar
 gzip
@@ -75,8 +76,10 @@ do_error() {
 #                                   complete pattern format)
 has_or_abort() {
     save_IFS="${IFS}"
-    IFS="|"
-    for item in ${1}; do
+    tool_pattern="$( echo "${1}" |"${sed}" -r -e 's/ *\|\| */\n/g;' )"
+    IFS='
+'
+    for item in ${tool_pattern}; do
         case "${item}" in
             *=*)
                 tool="${item%%=*}"
@@ -92,22 +95,36 @@ has_or_abort() {
             echo "not found"
             where=
             continue
-        else
-            if [ -n "${regexp}" ]; then
-                tool_version=$( ${tool} --version 2>&1 )
-                str=$( echo "${tool_version}" |grep -E "${regexp}" |head -n 1 )
-                if [ -z "${str}" ]; then
-                    echo "${where}: wrong version string: expecting regexp '${regexp}'"
-                    where=""
-                    continue
-                fi
+        elif [ -n "${regexp}" ]; then
+            tool_version=$( ${tool} --version 2>&1 )
+            str=$( echo "${tool_version}" |"${grep}" -E "${regexp}" |head -n 1 )
+            if [ -z "${str}" ]; then
+                echo "not found"
+                where=""
+                continue
             fi
-            echo "${where}"
-            break
         fi
+        echo "${where}"
+        break
     done;
+    if [ -z "${where}" ]; then
+        for item in ${tool_pattern}; do
+            case "${item}" in
+                *=*)
+                    tool="${item%%=*}"
+                    regexp="${item#*=}"
+                    ;;
+                *)  tool="${item}"
+                    regexp=
+                    ;;
+            esac
+            echo "  could not find '${tool}' matching regexp '${regexp}'"
+        done
+        echo "Either you are missing entirely the needed tool,"
+        echo "or the version you have is tool old."
+        [ ${FORCE} -eq 0 ] && do_error "Bailing out..."
+    fi
     IFS="${save_IFS}"
-    [ -z "${where}" -a ${FORCE} -eq 0 ] && do_error "Bailing out..."
     return 0
 }
 
@@ -161,9 +178,9 @@ set_contrib() {
     ret=$?
     case "${opt_val}" in
         all)
-            CONTRIB_list="$( LC_ALL=C ls -1 contrib/*.patch.lzma            \
-                                      |xargs -I {} basename {} .patch.lzma  \
-                                      |sed -r -e ':a; /$/N; s/\n/,/; ta;'   \
+            CONTRIB_list="$( LC_ALL=C ls -1 contrib/*.patch.lzma                \
+                                      |xargs -I {} basename {} .patch.lzma      \
+                                      |"${sed}" -r -e ':a; /$/N; s/\n/,/; ta;'  \
                            )"
             ;;
         list)
@@ -171,7 +188,7 @@ set_contrib() {
             echo "Available contributions:"
             LC_ALL=C ls -1 contrib/*.patch.lzma             \
                      |xargs -I {} basename {} .patch.lzma   \
-                     |sed -r -e 's/^/  /;'
+                     |"${sed}" -r -e 's/^/  /;'
             ;;
         *)  CONTRIB_list="${CONTRIB_list},${opt_val}";;
     esac
@@ -218,6 +235,34 @@ __EOF__
 }
 
 #---------------------------------------------------------------------
+# Some sanity checks, now
+
+# We check for grep and sed manually, because it is used in has_or_abort
+printf "Checking for 'grep'... "
+grep="$( which grep 2>/dev/null )"
+[ -z "${grep}" ] && do_error "not found"
+echo "${grep}"
+printf "Checking whether '${grep}' supports -E... "
+if echo 'foo' |"${grep}" -E 'foo' >/dev/null 2>&1; then
+    echo "yes"
+else
+    do_error "no"
+fi
+printf "Checking for 'sed'... "
+sed="$( which sed 2>/dev/null )"
+[ -z "${sed}" ] && do_error "not found"
+echo "${sed}"
+
+# Check the existence of absolutely required tools
+save_IFS="${IFS}"
+IFS='
+'
+for tool in ${TOOLS_TO_CHECK}; do
+    has_or_abort "${tool}"
+done
+IFS="${save_IFS}"
+
+#---------------------------------------------------------------------
 # Set user's options
 
 while [ $# -ne 0 ]; do
@@ -251,7 +296,27 @@ if [ "${LOCAL_set}" = "1" ]; then
 fi
 
 #---------------------------------------------------------------------
-# Some sanity checks, now
+# Apply contributed code
+
+# It's safer to change all ',' to spaces rather than setting IFS
+CONTRIB_list="$( echo "${CONTRIB_list}"                                     \
+                 |"${sed}" -r -e 's/,+/ /g; s/ +/ /g; s/^ //g; s/ $//g;'    \
+               )"
+if [ -n "${CONTRIB_list}" ]; then
+    has_or_abort 'lzcat'
+    printf "Applying contributed code: "
+    for c in ${CONTRIB_list}; do
+        printf "${c}, "
+        if [ ! -f "contrib/${c}.patch.lzma" ]; then
+            do_error "Contribution '${c}' does not exist"
+        fi
+        lzcat "contrib/${c}.patch.lzma" |patch -p1 >/dev/null 2>&1
+    done
+    echo "done"
+fi
+
+#---------------------------------------------------------------------
+# Compute the version string
 
 # If this version is a svn snapshot, try to get the revision number
 # If we can't get the revision number, use date
@@ -267,19 +332,22 @@ case "${VERSION}" in
                                  |egrep 'URL: '         \
                                  |cut -d ' ' -f 2-      \
                       )"
-                ROOT="$( LC_ALL=C svn info 2>/dev/null  \
-                         |egrep 'Repository Root: '     \
-                         |cut -d ' ' -f 3-              \
+                ROOT="$( LC_ALL=C svn info 2>/dev/null      \
+                         |"${grep}" '^Repository Root: '    \
+                         |cut -d ' ' -f 3-                  \
                        )"
                 VERSION="${VERSION}${URL#${ROOT}}@${REVISION}"
                 ;;
         esac
         # Arrange to have no / in the directory name, no need to create an
         # arbitrarily deep directory structure
-        VERSION="$( echo "${VERSION}" |sed -r -e 's|/+|_|g;' )"
+        VERSION="$( echo "${VERSION}" |"${sed}" -r -e 's|/+|_|g;' )"
         ;;
 esac
 echo "${VERSION}"
+
+#---------------------------------------------------------------------
+# Compute and check install paths
 
 # Now we have the version string, we can build up the paths
 [ -z "${BINDIR_set}" ] && BINDIR="${PREFIX}/bin"
@@ -297,40 +365,17 @@ for p in BIN LIB DOC MAN; do
     esac
 done
 
-# Check the existence of absolutely required tools
-save_IFS="${IFS}"
-IFS='
-'
-for tool in ${TOOLS_TO_CHECK}; do
-    has_or_abort "${tool}"
-done
-IFS="${save_IFS}"
-
-# It's safer to change all ',' to spaces rather than setting IFS
-CONTRIB_list="$( echo "${CONTRIB_list}"                             \
-                 |sed -r -e 's/,+/ /g; s/ +/ /g; s/^ //g; s/ $//g;' \
-               )"
-if [ -n "${CONTRIB_list}" ]; then
-    has_or_abort 'lzcat'
-    printf "Applying contributed code: "
-    for c in ${CONTRIB_list}; do
-        printf "${c}, "
-        if [ ! -f "contrib/${c}.patch.lzma" ]; then
-            do_error "Contribution '${c}' does not exist"
-        fi
-        lzcat "contrib/${c}.patch.lzma" |patch -p1 >/dev/null 2>&1
-    done
-    echo "done"
-fi
+#---------------------------------------------------------------------
+# That's all, folks!
 
 printf "Building up Makefile... "
-sed -r -e "s,@@BINDIR@@,${BINDIR},g
-           s,@@LIBDIR@@,${LIBDIR},g
-           s,@@DOCDIR@@,${DOCDIR},g
-           s,@@MANDIR@@,${MANDIR},g
-           s,@@VERSION@@,${VERSION},g
-           s,@@DATE@@,${DATE},g
-           s,@@LOCAL@@,${LOCAL_set},g"  Makefile.in >Makefile
+"${sed}" -r -e "s,@@BINDIR@@,${BINDIR},g
+                s,@@LIBDIR@@,${LIBDIR},g
+                s,@@DOCDIR@@,${DOCDIR},g
+                s,@@MANDIR@@,${MANDIR},g
+                s,@@VERSION@@,${VERSION},g
+                s,@@DATE@@,${DATE},g
+                s,@@LOCAL@@,${LOCAL_set},g"  Makefile.in >Makefile
 echo "done"
 
 cat <<__EOF__
@@ -342,4 +387,8 @@ crosstool-NG configured as follows:
   DOCDIR='${DOCDIR}'
   MANDIR='${MANDIR}'
   CONTRIB='${CONTRIB_list}'
+
+Now run:
+  make
+  make install
 __EOF__
