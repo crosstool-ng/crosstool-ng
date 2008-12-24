@@ -72,6 +72,7 @@ do_cc_core() {
     local build_libgcc
     local core_prefix_dir
     local extra_config
+    local lang_opt
 
     eval $1
     eval $2
@@ -80,10 +81,11 @@ do_cc_core() {
     # In normal conditions, ( "${mode}" = "shared" ) implies
     # ( "${build_libgcc}" = "yes" ), but I won't check for that
 
+    CT_DoStep INFO "Installing ${mode} core C compiler"
     mkdir -p "${CT_BUILD_DIR}/build-cc-core-${mode}"
     cd "${CT_BUILD_DIR}/build-cc-core-${mode}"
 
-    CT_DoStep INFO "Installing ${mode} core C compiler"
+    lang_opt=c
     case "${mode}" in
         static)
             core_prefix_dir="${CT_CC_CORE_STATIC_PREFIX_DIR}"
@@ -98,6 +100,7 @@ do_cc_core() {
         baremetal)
             core_prefix_dir="${CT_PREFIX_DIR}"
             extra_config="${extra_config} --with-newlib --enable-threads=no --disable-shared"
+            [ "${CT_CC_LANG_CXX}" = "y" ] && lang_opt="${lang_opt},c++"
             copy_headers=n
             ;;
     esac
@@ -140,7 +143,7 @@ do_cc_core() {
         ${extra_config}                             \
         --disable-nls                               \
         --enable-symvers=gnu                        \
-        --enable-languages=c                        \
+        --enable-languages="${lang_opt}"            \
         --enable-target-optspace                    \
         ${CT_CC_CORE_EXTRA_CONFIG}
 
