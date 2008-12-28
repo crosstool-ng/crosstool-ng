@@ -6,21 +6,6 @@ MAKEFLAGS += --no-print-directory --no-builtin-rules
 all: Makefile build
 
 ###############################################################################
-# Sanity checks
-
-# Check if Makefile is up to date:
-Makefile: Makefile.in
-	@echo "$< did changed: you must re-run './configure'"
-	@false
-
-# If installing with DESTDIR, check it's an absolute path
-ifneq ($(strip $(DESTDIR)),)
-  ifneq ($(DESTDIR),$(abspath /$(DESTDIR)))
-    $(error DESTDIR is not an absolute PATH: '$(DESTDIR)')
-  endif
-endif
-
-###############################################################################
 # Configuration variables
 
 VERSION:= @@VERSION@@
@@ -30,7 +15,27 @@ DOCDIR := @@DOCDIR@@
 MANDIR := @@MANDIR@@
 DATE   := @@DATE@@
 LOCAL  := @@LOCAL@@
-MAKE   := $(shell which $(MAKE) || type -p $(MAKE) || echo /usr/bin/make)
+MAKE   := $(shell which $(MAKE) 2>/dev/null || type -p $(MAKE) 2>/dev/null || echo "ct-ng:nomake")
+
+###############################################################################
+# Sanity checks
+
+# Check if Makefile is up to date:
+Makefile: Makefile.in
+	@echo "$< did changed: you must re-run './configure'"
+	@false
+
+# Check we do have make
+ifeq ($(strip $(MAKE)),ct-ng:nomake)
+  $(error 'make' was not found on your system)
+endif
+
+# If installing with DESTDIR, check it's an absolute path
+ifneq ($(strip $(DESTDIR)),)
+  ifneq ($(DESTDIR),$(abspath /$(DESTDIR)))
+    $(error DESTDIR is not an absolute PATH: '$(DESTDIR)')
+  endif
+endif
 
 ###############################################################################
 # Global make rules
