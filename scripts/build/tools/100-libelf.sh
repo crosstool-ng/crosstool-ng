@@ -1,9 +1,5 @@
 # Build script for libelf
 
-do_print_filename() {
-    echo "libelf-${CT_LIBELF_VERSION}"
-}
-
 do_tools_libelf_get() {
     # The server hosting libelf will return an "HTTP 300 : Multiple Choices"
     # error code if we try to download a file that does not exists there.

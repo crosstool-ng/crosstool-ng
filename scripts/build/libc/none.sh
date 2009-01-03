@@ -2,10 +2,6 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_print_filename() {
-    :
-}
-
 do_libc_get() {
     :
 }
@@ -22,7 +18,6 @@ do_libc_headers() {
     :
 }
 
-# Build and install start files
 do_libc_start_files() {
     :
 }

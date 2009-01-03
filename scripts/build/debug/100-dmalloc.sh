@@ -1,9 +1,5 @@
 # Build script for the dmalloc debug library facility
 
-do_print_filename() {
-    echo "dmalloc-${CT_DMALLOC_VERSION}"
-}
-
 do_debug_dmalloc_get() {
     CT_GetFile "dmalloc-${CT_DMALLOC_VERSION}" http://dmalloc.com/releases/
 }

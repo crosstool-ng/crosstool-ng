@@ -2,9 +2,6 @@
 
 case "${CT_SSTRIP_FROM}" in
     ELFkickers)
-        do_print_filename() {
-            echo "ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}"
-        }
         do_tools_sstrip_get() {
             CT_GetFile "ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}"     \
                        http://www.muppetlabs.com/~breadbox/pub/software
@@ -29,9 +26,6 @@ case "${CT_SSTRIP_FROM}" in
     ;;
 
     buildroot)
-        do_print_filename() {
-            echo "sstrip.c"
-        }
         do_tools_sstrip_get() {
             # Note: the space between sstrip and .c is on purpose.
             CT_GetFile sstrip .c    \
@@ -57,10 +51,7 @@ case "${CT_SSTRIP_FROM}" in
         }
     ;;
 
-    *)  do_print_filename() {
-            :
-        }
-        do_tools_sstrip_get() {
+    *)  do_tools_sstrip_get() {
             :
         }
         do_tools_sstrip_extract() {

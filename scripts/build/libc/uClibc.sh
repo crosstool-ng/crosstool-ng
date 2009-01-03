@@ -2,12 +2,6 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_print_filename() {
-    [ "${CT_LIBC}" = "uClibc" ] || return 0
-    echo "uClibc-${CT_LIBC_VERSION}"
-    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && echo "uClibc-locale-030818" || true
-}
-
 # Download uClibc
 do_libc_get() {
     libc_src="http://www.uclibc.org/downloads

@@ -2,7 +2,6 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_print_filename() { :; }
 do_mpfr_get() { :; }
 do_mpfr_extract() { :; }
 do_mpfr() { :; }
@@ -10,11 +9,6 @@ do_mpfr_target() { :; }
 
 # Overide function depending on configuration
 if [ "${CT_GMP_MPFR}" = "y" ]; then
-
-do_print_filename() {
-    [ "${CT_GMP_MPFR}" = "y" ] || return 0
-    echo "mpfr-${CT_MPFR_VERSION}"
-}
 
 # Download MPFR
 do_mpfr_get() {

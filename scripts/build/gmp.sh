@@ -2,7 +2,6 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_print_filename() { :; }
 do_gmp_get() { :; }
 do_gmp_extract() { :; }
 do_gmp() { :; }
@@ -10,11 +9,6 @@ do_gmp_target() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_GMP_MPFR}" = "y" ]; then
-
-do_print_filename() {
-    [ "${CT_GMP_MPFR}" = "y" ] || return 0
-    echo "gmp-${CT_GMP_VERSION}"
-}
 
 # Download GMP
 do_gmp_get() {

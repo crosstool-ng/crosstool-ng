@@ -1,9 +1,5 @@
 # Build script for D.U.M.A.
 
-do_print_filename() {
-    echo "duma_${CT_DUMA_VERSION}"
-}
-
 do_debug_duma_get() {
     CT_GetFile "duma_${CT_DUMA_VERSION}" http://mesh.dl.sourceforge.net/sourceforge/duma/
     # D.U.M.A. doesn't separate its name from its version with a dash,

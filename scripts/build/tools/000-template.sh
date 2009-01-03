@@ -1,16 +1,5 @@
 # Template file for a tool utility
 
-# Small function to print the filename
-# Note that this function gets redefined over and over again for each tool.
-# It's of no use when building the toolchain proper, but shows all its
-# usefullness when saving the toolchain and building the tarball.
-# Echo the name of the file, without the extension, below.
-do_print_filename() {
-    # For example:
-    # echo "foobar-${CT_FOOBAR_VERSION}"
-    :
-}
-
 # Put your download code here
 do_tools_foobar_get() {
     # For example:

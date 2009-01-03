@@ -1,9 +1,5 @@
 # Build script for ltrace
 
-do_print_filename() {
-    echo "ltrace-${CT_LTRACE_VERSION}.orig"
-}
-
 do_debug_ltrace_get() {
     CT_GetFile "ltrace_${CT_LTRACE_VERSION}.orig" {ftp,http}://ftp.de.debian.org/debian/pool/main/l/ltrace/
     # Create a link so that the following steps are easier to do:

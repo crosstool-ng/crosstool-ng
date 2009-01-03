@@ -1,15 +1,5 @@
 # eglibc build functions (initially by Thomas JOURDAN).
 
-do_print_filename() {
-    [ "${CT_LIBC}" = "eglibc" ] || return 0
-    echo "eglibc-${CT_LIBC_VERSION}"
-    for addon in $(do_libc_add_ons_list " "); do
-        # NPTL addon is not to be downloaded, in any case
-        [ "${addon}" = "nptl" ] && continue || true
-        echo "eglibc-${addon}-${CT_LIBC_VERSION}"
-    done
-}
-
 # Download eglibc repository
 do_eglibc_get() {
     CT_HasOrAbort svn

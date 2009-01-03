@@ -7,10 +7,6 @@ CT_DoKernelTupleValues() {
     CT_TARGET_KERNEL=
 }
 
-do_print_filename() {
-    :
-}
-
 do_kernel_get() {
     :
 }

@@ -2,11 +2,6 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_print_filename() {
-    [ "${CT_CC}" = "gcc" ] || return 0
-    echo "gcc-${CT_CC_VERSION}"
-}
-
 # Download gcc
 do_cc_get() {
     # Ah! gcc folks are kind of 'different': they store the tarballs in

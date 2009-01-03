@@ -1,9 +1,5 @@
 # Build script for strace
 
-do_print_filename() {
-    echo "strace-${CT_STRACE_VERSION}"
-}
-
 do_debug_strace_get() {
     CT_GetFile "strace-${CT_STRACE_VERSION}" http://mesh.dl.sourceforge.net/sourceforge/strace/
     # Downloading from sourceforge leaves garbage, cleanup

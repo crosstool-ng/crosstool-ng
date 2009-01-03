@@ -7,10 +7,6 @@ CT_DoKernelTupleValues() {
     :
 }
 
-do_print_filename() {
-    echo "linux-${CT_KERNEL_VERSION}"
-}
-
 # Download the kernel
 do_kernel_get() {
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
