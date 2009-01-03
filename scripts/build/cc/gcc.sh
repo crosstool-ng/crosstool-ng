@@ -1,5 +1,4 @@
 # This file adds the function to build the gcc C compiler
-        ${extra_config}                         \
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
