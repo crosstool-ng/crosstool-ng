@@ -4,14 +4,14 @@
 
 # Download binutils
 do_binutils_get() {
-    CT_GetFile "${CT_BINUTILS_FILE}"                                                    \
+    CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
                {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils   \
                ftp://gcc.gnu.org/pub/binutils/{releases,snapshots}
 }
 
 # Extract binutils
 do_binutils_extract() {
-    CT_ExtractAndPatch "${CT_BINUTILS_FILE}"
+    CT_ExtractAndPatch "binutils-${CT_BINUTILS_VERSION}"
 }
 
 # Build binutils
@@ -29,19 +29,19 @@ do_binutils() {
     fi
 
     CT_DoLog EXTRA "Configuring binutils"
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    CT_DoExecLog ALL                                \
-    "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
-        --build=${CT_BUILD}                         \
-        --host=${CT_HOST}                           \
-        --target=${CT_TARGET}                       \
-        --prefix=${CT_PREFIX_DIR}                   \
-        --disable-nls                               \
-        --disable-multilib                          \
-        --disable-werror                            \
-        ${binutils_opts}                            \
-        ${CT_ARCH_WITH_FLOAT}                       \
-        ${CT_BINUTILS_EXTRA_CONFIG}                 \
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"                              \
+    CT_DoExecLog ALL                                            \
+    "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
+        --build=${CT_BUILD}                                     \
+        --host=${CT_HOST}                                       \
+        --target=${CT_TARGET}                                   \
+        --prefix=${CT_PREFIX_DIR}                               \
+        --disable-nls                                           \
+        --disable-multilib                                      \
+        --disable-werror                                        \
+        ${binutils_opts}                                        \
+        ${CT_ARCH_WITH_FLOAT}                                   \
+        ${CT_BINUTILS_EXTRA_CONFIG}                             \
         ${BINUTILS_SYSROOT_ARG}
 
     CT_DoLog EXTRA "Building binutils"
@@ -86,19 +86,19 @@ do_binutils_target() {
         CT_Pushd "${CT_BUILD_DIR}/build-binutils-for-target"
 
         CT_DoLog EXTRA "Configuring binutils for target"
-        CT_DoExecLog ALL                                \
-        "${CT_SRC_DIR}/${CT_BINUTILS_FILE}/configure"   \
-            --build=${CT_BUILD}                         \
-            --host=${CT_TARGET}                         \
-            --target=${CT_TARGET}                       \
-            --prefix=/usr                               \
-            --disable-werror                            \
-            --enable-shared                             \
-            --enable-static                             \
-            --disable-nls                               \
-            --disable-multilib                          \
-            ${binutils_opts}                            \
-            ${CT_ARCH_WITH_FLOAT}                       \
+        CT_DoExecLog ALL                                            \
+        "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
+            --build=${CT_BUILD}                                     \
+            --host=${CT_TARGET}                                     \
+            --target=${CT_TARGET}                                   \
+            --prefix=/usr                                           \
+            --disable-werror                                        \
+            --enable-shared                                         \
+            --enable-static                                         \
+            --disable-nls                                           \
+            --disable-multilib                                      \
+            ${binutils_opts}                                        \
+            ${CT_ARCH_WITH_FLOAT}                                   \
             ${CT_BINUTILS_EXTRA_CONFIG}
 
         build_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1all-/g;')
