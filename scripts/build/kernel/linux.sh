@@ -10,7 +10,8 @@ CT_DoKernelTupleValues() {
 # Download the kernel
 do_kernel_get() {
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
-        CT_GetFile "linux-${CT_KERNEL_VERSION}" {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
+        CT_GetFile "linux-${CT_KERNEL_VERSION}" \
+                   {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
     fi
     return 0
 }
