@@ -4,23 +4,51 @@
 
 # Download glibc
 do_libc_get() {
+   local date
+
     # Ah! Not all GNU folks seem stupid. All glibc releases are in the same
     # directory. Good. Alas, there is no snapshot there. I'll deal with them
     # later on... :-/
-    CT_GetFile "${CT_LIBC_FILE}"                        \
-               {ftp,http}://ftp.gnu.org/gnu/glibc       \
-               ftp://gcc.gnu.org/pub/glibc/releases     \
-               ftp://gcc.gnu.org/pub/glibc/snapshots
+    # Update: sadly, glibc folks do be stupid: they no longer build
+    # release tarballs as of glibc-2.8, hence forcing us to fetch
+    # from CVS (CVS! Don't those guys know the world of SCM has
+    # evolved since the dawn ages of CVS?) Sigh...
+    if [ "${CT_LIBC_GLIBC_2_8_or_later}" = "y" ]; then
+        # No release tarball available...
+        date="${CT_LIBC_GLIBC_CVS_date}"
+        CT_GetCVS "${CT_LIBC_FILE}"                                     \
+                  ":pserver:anoncvs@sources.redhat.com:/cvs/glibc"      \
+                  "libc"                                                \
+                  "glibc-${CT_LIBC_VERSION}-branch${date:+:}${date}"    \
+                  "${CT_LIBC_FILE}"
 
-    # C library addons
-    for addon in $(do_libc_add_ons_list " "); do
-        # NPTL addon is not to be downloaded, in any case
-        [ "${addon}" = "nptl" ] && continue || true
-        CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" \
+        # C library addons
+        for addon in $(do_libc_add_ons_list " "); do
+            # NPTL addon is not to be downloaded, in any case
+            [ "${addon}" = "nptl" ] && continue || true
+            CT_GetCVS "glibc-${addon}-${CT_LIBC_VERSION}"                   \
+                      ":pserver:anoncvs@sources.redhat.com:/cvs/glibc"      \
+                      "${addon}"                                            \
+                      "glibc-${CT_LIBC_VERSION}-branch${date:+:}${date}"    \
+                      "glibc-${addon}-${CT_LIBC_VERSION}"
+        done
+    else
+        # Release tarballs are available
+        CT_GetFile "${CT_LIBC_FILE}"                        \
                    {ftp,http}://ftp.gnu.org/gnu/glibc       \
                    ftp://gcc.gnu.org/pub/glibc/releases     \
                    ftp://gcc.gnu.org/pub/glibc/snapshots
-    done
+
+        # C library addons
+        for addon in $(do_libc_add_ons_list " "); do
+            # NPTL addon is not to be downloaded, in any case
+            [ "${addon}" = "nptl" ] && continue || true
+            CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" \
+                       {ftp,http}://ftp.gnu.org/gnu/glibc       \
+                       ftp://gcc.gnu.org/pub/glibc/releases     \
+                       ftp://gcc.gnu.org/pub/glibc/snapshots
+        done
+    fi
 
     return 0
 }

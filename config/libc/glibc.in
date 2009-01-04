@@ -36,6 +36,16 @@ config LIBC_V_2_7
     bool
     prompt "2.7"
 
+config LIBC_V_2_8
+    bool
+    prompt "2_8"
+    select LIBC_GLIBC_2_8_or_later
+
+config LIBC_V_2_9
+    bool
+    prompt "2_9"
+    select LIBC_GLIBC_2_8_or_later
+
 # CT_INSERT_VERSION_ABOVE
 # Don't remove above line!
 
@@ -62,6 +72,45 @@ config LIBC_VERSION
     default "2.6" if LIBC_V_2_6
     default "2.6.1" if LIBC_V_2_6_1
     default "2.7" if LIBC_V_2_7
+    default "2_8" if LIBC_V_2_8
+    default "2_9" if LIBC_V_2_9
 # CT_INSERT_VERSION_STRING_ABOVE
 # Don't remove above line!
 
+config LIBC_GLIBC_2_8_or_later
+    bool
+    default n
+
+if LIBC_GLIBC_2_8_or_later
+
+config LIBC_GLIBC_latest_snapshot
+    bool
+    prompt "Use latest nightly snapshot"
+    default n
+    help
+      Say 'y' to use the latest nightly snapshot.
+      Not recommended, as the toolchain will not be reproducible.
+
+if ! LIBC_GLIBC_latest_snapshot
+
+comment "Using CVS checkout"
+
+config LIBC_GLIBC_CVS_date
+    string
+    prompt "checkout as of date"
+    default ""
+    help
+      The date, in ISO-8601 format, at which to check out the repository.
+
+#config LIBC_GLIBC_CVS_CHECKOUT
+#    bool
+#    prompt "checkout instead of export"
+#    default n
+#    help
+#      Use checkout rather than export, so that you can later update
+#      the sources.
+#      Not recommended, as the toolchain could be non-reproducible.
+
+endif # ! LIBC_GLIBC_latest_snapshot
+
+endif # LIBC_GLIBC_2_8_or_later
