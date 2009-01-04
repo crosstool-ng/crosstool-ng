@@ -10,7 +10,7 @@ do_libc_get() {
     # For uClibc, we have almost every thing: releases, and snapshots
     # for the last month or so. We'll have to deal with svn revisions
     # later...
-    CT_GetFile "${CT_LIBC_FILE}" ${libc_src}
+    CT_GetFile "uClibc-${CT_LIBC_VERSION}" ${libc_src}
     # uClibc locales
     [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_GetFile "uClibc-locale-030818" ${libc_src} || true
 
@@ -19,9 +19,13 @@ do_libc_get() {
 
 # Extract uClibc
 do_libc_extract() {
-    CT_ExtractAndPatch "${CT_LIBC_FILE}"
+    CT_ExtractAndPatch "uClibc-${CT_LIBC_VERSION}"
     # uClibc locales
-    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_ExtractAndPatch "uClibc-locale-030818" || true
+    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
+        CT_Pushd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"
+        CT_ExtractAndPatch "uClibc-locale-030818" nochdir || true
+        CT_Popd
+    fi
 
     return 0
 }
@@ -52,7 +56,7 @@ do_libc_headers() {
 
     # Simply copy files until uClibc has the ablity to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    { cd "${CT_SRC_DIR}/${CT_LIBC_FILE}"; tar cf - .; } |tar xf -
+    { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
     cp "${CT_BUILD_DIR}/uClibc.config" .config
@@ -87,7 +91,7 @@ do_libc() {
 
     # Simply copy files until uClibc has the ablity to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    { cd "${CT_SRC_DIR}/${CT_LIBC_FILE}"; tar cf - .; } |tar xf -
+    { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
     cp "${CT_BUILD_DIR}/uClibc.config" .config
@@ -146,7 +150,7 @@ do_libc_finish() {
 
     # Simply copy files until uClibc has the ablity to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    { cd "${CT_SRC_DIR}/${CT_LIBC_FILE}"; tar cf - .; } |tar xf -
+    { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
     cp "${CT_BUILD_DIR}/uClibc.config" .config

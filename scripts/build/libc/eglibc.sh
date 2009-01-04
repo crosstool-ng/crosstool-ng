@@ -18,13 +18,14 @@ do_eglibc_get() {
     CT_DoExecLog ALL svn ${svn_action} -r "${CT_EGLIBC_REVISION:-HEAD}" "${svn_url}" . 2>&1
 
     # Compress eglibc
-    CT_DoExecLog ALL mv libc "${CT_LIBC_FILE}"
-    CT_DoExecLog ALL tar cjf "${CT_LIBC_FILE}.tar.bz2" "${CT_LIBC_FILE}"
+    CT_DoExecLog ALL mv libc "eglibc-${CT_LIBC_VERSION}"
+    CT_DoExecLog ALL tar cjf "eglibc-${CT_LIBC_VERSION}.tar.bz2" "eglibc-${CT_LIBC_VERSION}"
 
     # Compress linuxthreads, localedef and ports
     # Assign them the name the way ct-ng like it
     for addon in linuxthreads localedef ports; do
-        CT_DoExecLog ALL tar cjf "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}.tar.bz2" "${addon}"
+        CT_DoExecLog ALL mv "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
+        CT_DoExecLog ALL tar cjf "eglibc-${addon}-${CT_LIBC_VERSION}.tar.bz2" "eglibc-${addon}-${CT_LIBC_VERSION}"
     done
 }
 
@@ -35,7 +36,7 @@ do_libc_get() {
     # simultaneously.
 
     # build filename
-    eglibc="${CT_LIBC_FILE}.tar.bz2"
+    eglibc="eglibc-${CT_LIBC_VERSION}.tar.bz2"
     eglibc_linuxthreads="${CT_LIBC}-linuxthreads-${CT_LIBC_VERSION}.tar.bz2"
     eglibc_localedef="${CT_LIBC}-localedef-${CT_LIBC_VERSION}.tar.bz2"
     eglibc_ports="${CT_LIBC}-ports-${CT_LIBC_VERSION}.tar.bz2"
@@ -91,19 +92,22 @@ do_libc_get() {
 
 # Extract eglibc
 do_libc_extract() {
-    CT_ExtractAndPatch "${CT_LIBC_FILE}"
+    CT_ExtractAndPatch "eglibc-${CT_LIBC_VERSION}"
 
     # C library addons
     for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be extracted, in any case
         [ "${addon}" = "nptl" ] && continue || true
-        CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+        CT_Pushd "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
+        CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" nochdir
+        [ ! -d "${addon}" ] && ln -s "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
+        CT_Popd
     done
 
     # The configure files may be older than the configure.in files
     # if using a snapshot (or even some tarballs). Fake them being
     # up to date.
-    find "${CT_SRC_DIR}/${CT_LIBC_FILE}" -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
+    find "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}" -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
 
     return 0
 }
@@ -139,20 +143,20 @@ do_libc_start_files() {
     CT_DoLog DEBUG "Using ar for target: '${cross_ar}'"
     CT_DoLog DEBUG "Using ranlib for target: '${cross_ranlib}'"
 
-    BUILD_CC="${CT_BUILD}-gcc"                  \
-    CC=${cross_cc}                              \
-    CXX=${cross_cxx}                            \
-    AR=${cross_ar}                              \
-    RANLIB=${cross_ranlib}                      \
-    CT_DoExecLog ALL                            \
-    "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
-        --prefix=/usr                           \
-        --with-headers="${CT_HEADERS_DIR}"      \
-        --build="${CT_BUILD}"                   \
-        --host="${CT_TARGET}"                   \
-        --disable-profile                       \
-        --without-gd                            \
-        --without-cvs                           \
+    BUILD_CC="${CT_BUILD}-gcc"                          \
+    CC=${cross_cc}                                      \
+    CXX=${cross_cxx}                                    \
+    AR=${cross_ar}                                      \
+    RANLIB=${cross_ranlib}                              \
+    CT_DoExecLog ALL                                    \
+    "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure" \
+        --prefix=/usr                                   \
+        --with-headers="${CT_HEADERS_DIR}"              \
+        --build="${CT_BUILD}"                           \
+        --host="${CT_TARGET}"                           \
+        --disable-profile                               \
+        --without-gd                                    \
+        --without-cvs                                   \
         --enable-add-ons
 
     CT_DoLog EXTRA "Installing C library headers"
@@ -241,7 +245,7 @@ do_libc() {
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     CT_DoExecLog ALL                                                \
-    "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
+    "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure"             \
         --prefix=/usr                                               \
         --with-headers="${CT_HEADERS_DIR}"                          \
         --build=${CT_BUILD}                                         \

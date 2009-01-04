@@ -84,9 +84,6 @@ CT_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_TARGET_LDFLAGS}"
 CT_CC_CORE_EXTRA_CONFIG="${CT_ARCH_CC_CORE_EXTRA_CONFIG} ${CT_CC_CORE_EXTRA_CONFIG}"
 CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 
-# Now, build up the variables from the user-configured options.
-CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
-
 # Where will we work?
 : "${CT_WORK_DIR:=${CT_TOP_DIR}/targets}"
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
@@ -106,11 +103,6 @@ if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
     CT_DoLog ERROR "in the config options for the previous build, or the state"
     CT_DoLog ERROR "directory for the previous build was deleted."
     CT_Abort "I will stop here to avoid any carnage"
-fi
-
-if [ -n "${CT_LOCAL_TARBALLS_DIR}" ]; then
-    # Make absolute path, it so much easier!
-    CT_LOCAL_TARBALLS_DIR=$(CT_MakeAbsolutePath "${CT_LOCAL_TARBALLS_DIR}")
 fi
 
 # If the local tarball directory does not exist, say so, and don't try to save there!

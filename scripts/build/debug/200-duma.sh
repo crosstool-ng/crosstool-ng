@@ -16,15 +16,12 @@ do_debug_duma_get() {
 
 do_debug_duma_extract() {
     CT_ExtractAndPatch "duma-${CT_DUMA_VERSION}"
-    cd "${CT_SRC_DIR}"
-    rm -f "duma-${CT_DUMA_VERSION}"
-    ln -sf "duma_${CT_DUMA_VERSION}" "duma-${CT_DUMA_VERSION}"
 }
 
 do_debug_duma_build() {
     CT_DoStep INFO "Installing D.U.M.A."
     CT_DoLog EXTRA "Copying sources"
-    cp -a "${CT_SRC_DIR}/duma_${CT_DUMA_VERSION}" "${CT_BUILD_DIR}/build-duma"
+    cp -a "${CT_SRC_DIR}/duma-${CT_DUMA_VERSION}" "${CT_BUILD_DIR}/build-duma"
     CT_Pushd "${CT_BUILD_DIR}/build-duma"
 
     DUMA_CPP=

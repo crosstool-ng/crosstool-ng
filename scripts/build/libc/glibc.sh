@@ -16,11 +16,11 @@ do_libc_get() {
     if [ "${CT_LIBC_GLIBC_2_8_or_later}" = "y" ]; then
         # No release tarball available...
         date="${CT_LIBC_GLIBC_CVS_date}"
-        CT_GetCVS "${CT_LIBC_FILE}"                                     \
+        CT_GetCVS "glibc-${CT_LIBC_VERSION}"                            \
                   ":pserver:anoncvs@sources.redhat.com:/cvs/glibc"      \
                   "libc"                                                \
                   "glibc-${CT_LIBC_VERSION}-branch${date:+:}${date}"    \
-                  "${CT_LIBC_FILE}"
+                  "glibc-${CT_LIBC_VERSION}"
 
         # C library addons
         for addon in $(do_libc_add_ons_list " "); do
@@ -34,7 +34,7 @@ do_libc_get() {
         done
     else
         # Release tarballs are available
-        CT_GetFile "${CT_LIBC_FILE}"                        \
+        CT_GetFile "glibc-${CT_LIBC_VERSION}"               \
                    {ftp,http}://ftp.gnu.org/gnu/glibc       \
                    ftp://gcc.gnu.org/pub/glibc/releases     \
                    ftp://gcc.gnu.org/pub/glibc/snapshots
@@ -43,7 +43,7 @@ do_libc_get() {
         for addon in $(do_libc_add_ons_list " "); do
             # NPTL addon is not to be downloaded, in any case
             [ "${addon}" = "nptl" ] && continue || true
-            CT_GetFile "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" \
+            CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"      \
                        {ftp,http}://ftp.gnu.org/gnu/glibc       \
                        ftp://gcc.gnu.org/pub/glibc/releases     \
                        ftp://gcc.gnu.org/pub/glibc/snapshots
@@ -55,19 +55,22 @@ do_libc_get() {
 
 # Extract glibc
 do_libc_extract() {
-    CT_ExtractAndPatch "${CT_LIBC_FILE}"
+    CT_ExtractAndPatch "glibc-${CT_LIBC_VERSION}"
 
     # C library addons
     for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be extracted, in any case
         [ "${addon}" = "nptl" ] && continue || true
-        CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+        CT_Pushd "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}"
+        CT_ExtractAndPatch "glibc-${addon}-${CT_LIBC_VERSION}" nochdir
+        [ ! -d "${addon}" ] && ln -s "glibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
+        CT_Popd
     done
 
     # The configure files may be older than the configure.in files
     # if using a snapshot (or even some tarballs). Fake them being
     # up to date.
-    find "${CT_SRC_DIR}/${CT_LIBC_FILE}" -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
+    find "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}" -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
 
     return 0
 }
@@ -115,23 +118,23 @@ do_libc_headers() {
     CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
     CT_DoLog DEBUG "Extra config passed : '${extra_config}'"
 
-    libc_cv_ppc_machine=yes                     \
-    CC=${cross_cc}                              \
-    CT_DoExecLog ALL                            \
-    "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"   \
-        --build="${CT_BUILD}"                   \
-        --host="${CT_TARGET}"                   \
-        --prefix=/usr                           \
-        --with-headers="${CT_HEADERS_DIR}"      \
-        --without-cvs                           \
-        --disable-sanity-checks                 \
-        --enable-hacker-mode                    \
-        ${extra_config}                         \
+    libc_cv_ppc_machine=yes                             \
+    CC=${cross_cc}                                      \
+    CT_DoExecLog ALL                                    \
+    "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/configure"  \
+        --build="${CT_BUILD}"                           \
+        --host="${CT_TARGET}"                           \
+        --prefix=/usr                                   \
+        --with-headers="${CT_HEADERS_DIR}"              \
+        --without-cvs                                   \
+        --disable-sanity-checks                         \
+        --enable-hacker-mode                            \
+        ${extra_config}                                 \
         --without-nptl
 
     CT_DoLog EXTRA "Installing C library headers"
 
-    if grep -q GLIBC_2.3 "${CT_SRC_DIR}/${CT_LIBC_FILE}/ChangeLog"; then
+    if grep -q GLIBC_2.3 "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/ChangeLog"; then
         # glibc-2.3.x passes cross options to $(CC) when generating errlist-compat.c,
         # which fails without a real cross-compiler.
         # Fortunately, we don't need errlist-compat.c, since we just need .h
@@ -172,7 +175,7 @@ do_libc_headers() {
     # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
     mkdir -p "${CT_HEADERS_DIR}/gnu"
     CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
-    CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/${CT_LIBC_FILE}/include/features.h"  \
+    CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/include/features.h"  \
                            "${CT_HEADERS_DIR}/features.h"
 
     # Building the bootstrap gcc requires either setting inhibit_libc, or
@@ -187,20 +190,20 @@ do_libc_headers() {
     [ "${CT_ARCH}" != "arm" ] && CT_DoExecLog ALL cp -v misc/syscall-list.h "${CT_HEADERS_DIR}/bits/syscall.h" || true
 
     # Those headers are to be manually copied so gcc can build properly
-    pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
+    pthread_h="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/${CT_THREADS}/sysdeps/pthread/pthread.h"
     pthreadtypes_h=
     case "${CT_THREADS}" in
         nptl)
             # NOTE: for some archs, the pathes are different, but they are not
             # supported by crosstool-NG right now. See original crosstool when they are.
-            pthread_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_THREADS}/sysdeps/pthread/pthread.h"
-            pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/nptl/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/bits/pthreadtypes.h"
+            pthread_h="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/${CT_THREADS}/sysdeps/pthread/pthread.h"
+            pthreadtypes_h="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/nptl/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/bits/pthreadtypes.h"
             if [ ! -f "${pthreadtypes_h}" ]; then
-                pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/${CT_LIBC}-ports-${CT_LIBC_VERSION}/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/nptl/bits/pthreadtypes.h"
+                pthreadtypes_h="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/ports/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/nptl/bits/pthreadtypes.h"
             fi
             ;;
         linuxthreads)
-            pthreadtypes_h="${CT_SRC_DIR}/${CT_LIBC_FILE}/linuxthreads/sysdeps/pthread/bits/pthreadtypes.h"
+            pthreadtypes_h="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/linuxthreads/sysdeps/pthread/bits/pthreadtypes.h"
             ;;
         *)
             pthread_h=
@@ -292,7 +295,7 @@ do_libc_start_files() {
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     CT_DoExecLog ALL                                                \
-    "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
+    "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/configure"              \
         --prefix=/usr                                               \
         --build="${CT_BUILD}"                                       \
         --host=${CT_TARGET}                                         \
@@ -420,7 +423,7 @@ do_libc() {
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     CT_DoExecLog ALL                                                \
-    "${CT_SRC_DIR}/${CT_LIBC_FILE}/configure"                       \
+    "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/configure"              \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
         --host=${CT_TARGET}                                         \
@@ -434,7 +437,7 @@ do_libc() {
         ${extra_config}                                             \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
 
-    if grep -l '^install-lib-all:' "${CT_SRC_DIR}/${CT_LIBC_FILE}/Makerules" > /dev/null; then
+    if grep -l '^install-lib-all:' "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/Makerules" > /dev/null; then
         # nptl-era glibc.
         # If the install-lib-all target (which is added by our make-install-lib-all.patch)
         # is present, it means we're building glibc-2.3.3 or later, and we can't
