@@ -10,7 +10,7 @@ CT_DoKernelTupleValues() {
 # Download the kernel
 do_kernel_get() {
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
-        CT_GetFile "${CT_KERNEL_FILE}" {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
+        CT_GetFile "linux-${CT_KERNEL_VERSION}" {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
     fi
     return 0
 }
@@ -18,7 +18,7 @@ do_kernel_get() {
 # Extract kernel
 do_kernel_extract() {
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
-        CT_ExtractAndPatch "${CT_KERNEL_FILE}"
+        CT_ExtractAndPatch "linux-${CT_KERNEL_VERSION}"
     fi
     return 0
 }
@@ -45,28 +45,28 @@ do_kernel_install() {
 
     # Only starting with 2.6.18 does headers_install is usable. We only
     # have 2.6 version available, so only test for sublevel.
-    k_sublevel=$(gawk '/^SUBLEVEL =/ { print $3 }' "${CT_SRC_DIR}/${CT_KERNEL_FILE}/Makefile")
+    k_sublevel=$(gawk '/^SUBLEVEL =/ { print $3 }' "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}/Makefile")
     [ ${k_sublevel} -ge 18 ] || CT_Abort "Kernel version >= 2.6.18 is needed to install kernel headers."
 
     V_OPT="V=${CT_KERNEL_LINUX_VERBOSE_LEVEL}"
 
     CT_DoLog EXTRA "Installing kernel headers"
-    CT_DoExecLog ALL                                \
-    make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
-         O=$(pwd)                                   \
-         ARCH=${CT_KERNEL_ARCH}                     \
-         INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
-         ${V_OPT}                                   \
+    CT_DoExecLog ALL                                    \
+    make -C "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}"  \
+         O=$(pwd)                                       \
+         ARCH=${CT_KERNEL_ARCH}                         \
+         INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
+         ${V_OPT}                                       \
          headers_install
 
     if [ "${CT_KERNEL_LINUX_INSTALL_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking installed headers"
-        CT_DoExecLog ALL                                \
-        make -C "${CT_SRC_DIR}/${CT_KERNEL_FILE}"       \
-             O=$(pwd)                                   \
-             ARCH=${CT_KERNEL_ARCH}                     \
-             INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"   \
-             ${V_OPT}                                   \
+        CT_DoExecLog ALL                                    \
+        make -C "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}"  \
+             O=$(pwd)                                       \
+             ARCH=${CT_KERNEL_ARCH}                         \
+             INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
+             ${V_OPT}                                       \
              headers_check
         find "${CT_SYSROOT_DIR}" -type f -name '.check*' -exec rm {} \;
     fi
