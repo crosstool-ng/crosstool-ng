@@ -12,12 +12,12 @@ if [ "${CT_GMP_MPFR}" = "y" ]; then
 
 # Download GMP
 do_gmp_get() {
-    CT_GetFile "${CT_GMP_FILE}" {ftp,http}://{ftp.sunet.se/pub,ftp.gnu.org}/gnu/gmp
+    CT_GetFile "gmp-${CT_GMP_VERSION}" {ftp,http}://{ftp.sunet.se/pub,ftp.gnu.org}/gnu/gmp
 }
 
 # Extract GMP
 do_gmp_extract() {
-    CT_ExtractAndPatch "${CT_GMP_FILE}"
+    CT_ExtractAndPatch "gmp-${CT_GMP_VERSION}"
 }
 
 do_gmp() {
@@ -27,13 +27,13 @@ do_gmp() {
     CT_DoStep INFO "Installing GMP"
 
     CT_DoLog EXTRA "Configuring GMP"
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
-    CT_DoExecLog ALL                            \
-    "${CT_SRC_DIR}/${CT_GMP_FILE}/configure"    \
-        --build=${CT_BUILD}                     \
-        --host=${CT_HOST}                       \
-        --prefix="${CT_PREFIX_DIR}"             \
-        --disable-shared --enable-static        \
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CT_DoExecLog ALL                                \
+    "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
+        --build=${CT_BUILD}                         \
+        --host=${CT_HOST}                           \
+        --prefix="${CT_PREFIX_DIR}"                 \
+        --disable-shared --enable-static            \
         --enable-fft --enable-mpbsd
 
     CT_DoLog EXTRA "Building GMP"
@@ -59,13 +59,13 @@ do_gmp_target() {
     CT_DoStep INFO "Installing GMP for the target"
 
     CT_DoLog EXTRA "Configuring GMP"
-    CFLAGS="${CT_CFLAGS_FOR_TARGET}"            \
-    CT_DoExecLog ALL                            \
-    "${CT_SRC_DIR}/${CT_GMP_FILE}/configure"    \
-        --build=${CT_BUILD}                     \
-        --host=${CT_TARGET}                     \
-        --prefix=/usr                           \
-        --disable-shared --enable-static        \
+    CFLAGS="${CT_CFLAGS_FOR_TARGET}"                \
+    CT_DoExecLog ALL                                \
+    "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
+        --build=${CT_BUILD}                         \
+        --host=${CT_TARGET}                         \
+        --prefix=/usr                               \
+        --disable-shared --enable-static            \
         --enable-fft --enable-mpbsd
 
     CT_DoLog EXTRA "Building GMP"

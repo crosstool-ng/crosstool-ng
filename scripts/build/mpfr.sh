@@ -12,13 +12,13 @@ if [ "${CT_GMP_MPFR}" = "y" ]; then
 
 # Download MPFR
 do_mpfr_get() {
-    CT_GetFile "${CT_MPFR_FILE}" http://www.mpfr.org/mpfr-current/          \
+    CT_GetFile "mpfr-${CT_MPFR_VERSION}" http://www.mpfr.org/mpfr-current/  \
                                  http://www.mpfr.org/mpfr-${CT_MPFR_VERSION}/
 }
 
 # Extract MPFR
 do_mpfr_extract() {
-    CT_ExtractAndPatch "${CT_MPFR_FILE}"
+    CT_ExtractAndPatch "mpfr-${CT_MPFR_VERSION}"
 
     # OK, Gentoo have a sanity check that libtool.m4 and ltmain.sh have the
     # same version number. Unfortunately, some tarballs of MPFR are not
@@ -27,7 +27,7 @@ do_mpfr_extract() {
     # and: http://sourceware.org/ml/crossgcc/2008-06/msg00005.html
     # This hack is not bad per se, but the MPFR guys would be better not to
     # do that in the future...
-    CT_Pushd "${CT_SRC_DIR}/${CT_MPFR_FILE}"
+    CT_Pushd "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}"
     if [ ! -f .autotools.ct-ng ]; then
         CT_DoLog DEBUG "Re-building autotools files"
         CT_DoExecLog ALL autoreconf -fi
@@ -56,14 +56,14 @@ do_mpfr() {
     CT_DoStep INFO "Installing MPFR"
 
     CT_DoLog EXTRA "Configuring MPFR"
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
-    CT_DoExecLog ALL                            \
-    "${CT_SRC_DIR}/${CT_MPFR_FILE}/configure"   \
-        --build=${CT_BUILD}                     \
-        --host=${CT_HOST}                       \
-        --prefix="${CT_PREFIX_DIR}"             \
-        --enable-thread-safe                    \
-        --disable-shared --enable-static        \
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"                      \
+    CT_DoExecLog ALL                                    \
+    "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
+        --build=${CT_BUILD}                             \
+        --host=${CT_HOST}                               \
+        --prefix="${CT_PREFIX_DIR}"                     \
+        --enable-thread-safe                            \
+        --disable-shared --enable-static                \
         --with-gmp="${CT_PREFIX_DIR}"
 
     CT_DoLog EXTRA "Building MPFR"
@@ -89,14 +89,14 @@ do_mpfr_target() {
     CT_DoStep INFO "Installing MPFR for the target"
 
     CT_DoLog EXTRA "Configuring MPFR"
-    CFLAGS="${CT_CFLAGS_FOR_TARGET}"            \
-    CT_DoExecLog ALL                            \
-    "${CT_SRC_DIR}/${CT_MPFR_FILE}/configure"   \
-        --build=${CT_BUILD}                     \
-        --host=${CT_TARGET}                     \
-        --prefix=/usr                           \
-        --enable-thread-safe                    \
-        --disable-shared --enable-static        \
+    CFLAGS="${CT_CFLAGS_FOR_TARGET}"                    \
+    CT_DoExecLog ALL                                    \
+    "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
+        --build=${CT_BUILD}                             \
+        --host=${CT_TARGET}                             \
+        --prefix=/usr                                   \
+        --enable-thread-safe                            \
+        --disable-shared --enable-static                \
         --with-gmp="${CT_SYSROOT_DIR}/usr"
 
     CT_DoLog EXTRA "Building MPFR"
