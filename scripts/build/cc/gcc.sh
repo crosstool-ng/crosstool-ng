@@ -10,13 +10,13 @@ do_cc_get() {
     # Arrgghh! Some of those versions does not follow this convention:
     # gcc-3.3.3 lives in releases/gcc-3.3.3, while gcc-2.95.* isn't in a
     # subdirectory! You bastard!
-    CT_GetFile "${CT_CC_FILE}"  \
-               {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/${CT_CC_FILE}}
+    CT_GetFile "gcc-${CT_CC_VERSION}"   \
+               {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/gcc-${CT_CC_VERSION}}
 }
 
 # Extract gcc
 do_cc_extract() {
-    CT_ExtractAndPatch "${CT_CC_FILE}"
+    CT_ExtractAndPatch "gcc-${CT_CC_VERSION}"
 }
 
 #------------------------------------------------------------------------------
@@ -126,7 +126,7 @@ do_cc_core() {
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CT_DoExecLog ALL                                \
-    "${CT_SRC_DIR}/${CT_CC_FILE}/configure"         \
+    "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --target=${CT_TARGET}                       \
@@ -158,7 +158,7 @@ do_cc_core() {
         # so we configure then build it.
         # Next we have to configure gcc, create libgcc.mk then edit it...
         # So much easier if we just edit the source tree, but hey...
-        if [ ! -f "${CT_SRC_DIR}/${CT_CC_FILE}/gcc/BASE-VER" ]; then
+        if [ ! -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
             CT_DoExecLog ALL make configure-libiberty
             CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
             CT_DoExecLog ALL make configure-gcc configure-libcpp
@@ -168,7 +168,7 @@ do_cc_core() {
             CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
-        if [ -d "${CT_SRC_DIR}/${CT_CC_FILE}/libdecnumber" ]; then
+        if [ -d "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/libdecnumber" ]; then
             CT_DoExecLog ALL make configure-libdecnumber
             CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
         fi
@@ -260,26 +260,26 @@ do_cc() {
     # detection problem only matters for gcc-3.2.x and later, I think.
     # --disable-nls to work around crash bug on ppc405, but also because
     # embedded systems don't really need message catalogs...
-    CC_FOR_BUILD="${CT_BUILD}-gcc"              \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
-    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"     \
-    CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"   \
-    LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"   \
-    CT_DoExecLog ALL                            \
-    "${CT_SRC_DIR}/${CT_CC_FILE}/configure"     \
-        --build=${CT_BUILD}                     \
-        --host=${CT_HOST}                       \
-        --target=${CT_TARGET}                   \
-        --prefix="${CT_PREFIX_DIR}"             \
-        ${CC_SYSROOT_ARG}                       \
-        ${extra_config}                         \
-        --with-local-prefix="${CT_SYSROOT_DIR}" \
-        --disable-nls                           \
-        --enable-threads=posix                  \
-        --enable-symvers=gnu                    \
-        --enable-c99                            \
-        --enable-long-long                      \
-        --enable-target-optspace                \
+    CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"         \
+    CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
+    LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"       \
+    CT_DoExecLog ALL                                \
+    "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
+        --build=${CT_BUILD}                         \
+        --host=${CT_HOST}                           \
+        --target=${CT_TARGET}                       \
+        --prefix="${CT_PREFIX_DIR}"                 \
+        ${CC_SYSROOT_ARG}                           \
+        ${extra_config}                             \
+        --with-local-prefix="${CT_SYSROOT_DIR}"     \
+        --disable-nls                               \
+        --enable-threads=posix                      \
+        --enable-symvers=gnu                        \
+        --enable-c99                                \
+        --enable-long-long                          \
+        --enable-target-optspace                    \
         ${CT_CC_EXTRA_CONFIG}
 
     if [ "${CT_CANADIAN}" = "y" ]; then

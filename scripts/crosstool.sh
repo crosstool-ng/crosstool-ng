@@ -85,7 +85,6 @@ CT_CC_CORE_EXTRA_CONFIG="${CT_ARCH_CC_CORE_EXTRA_CONFIG} ${CT_CC_CORE_EXTRA_CONF
 CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 
 # Now, build up the variables from the user-configured options.
-CT_CC_FILE="${CT_CC}-${CT_CC_VERSION}"
 CT_LIBC_FILE="${CT_LIBC}-${CT_LIBC_VERSION}"
 
 # Where will we work?
