@@ -255,7 +255,7 @@ CT_MakeAbsolutePath() {
 # Usage: CT_MktempDir foo
 CT_MktempDir() {
     # Some mktemp do not allow more than 6 Xs
-    eval "$1"=$(mktemp -q -d "${CT_BUILD_DIR}/.XXXXXX")
+    eval "$1"=$(mktemp -q -d "${CT_BUILD_DIR}/tmp.XXXXXX")
     CT_TestOrAbort "Could not make temporary directory" -n "${!1}" -a -d "${!1}"
     CT_DoLog DEBUG "Made temporary directory '${!1}'"
     return 0
@@ -403,7 +403,7 @@ CT_DoGetFileWget() {
     # -c to continue the downloads. It's far better to simply overwrite the
     # destination file
     # Some company networks have firewalls to connect to the internet, but it's
-    # not easy to detect them, and wget does not timeout by default  while
+    # not easy to detect them, and wget does not timeout by default while
     # connecting, so force a global ${CT_CONNECT_TIMEOUT}-second timeout.
     wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 --passive-ftp "$1"    \
     || wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 "$1"               \
@@ -433,13 +433,61 @@ CT_DoGetFile() {
     esac
 }
 
+# This function tries to retrieve a tarball form a local directory
+# Usage: CT_GetLocal <basename> [.extension]
+CT_GetLocal() {
+    local basename="$1"
+    local first_ext="$2"
+    local ext
+
+    # Do we already have it in *our* tarballs dir?
+    ext=$(CT_GetFileExtension "${basename}" ${first_ext})
+    if [ -n "${ext}" ]; then
+        CT_DoLog DEBUG "Already have '${basename}'"
+        return 0
+    fi
+
+    if [ -n "${CT_LOCAL_TARBALLS_DIR}" ]; then
+        CT_DoLog DEBUG "Trying to retrieve an already downloaded copy of '${basename}'"
+        # We'd rather have a bzip2'ed tarball, then gzipped tarball, plain tarball,
+        # or, as a failover, a file without extension.
+        # Try local copy first, if it exists
+        for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
+            CT_DoLog DEBUG "Trying '${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}'"
+            if [ -r "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" -a \
+                 "${CT_FORCE_DOWNLOAD}" != "y" ]; then
+                CT_DoLog DEBUG "Got '${basename}' from local storage"
+                CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" "${CT_TARBALLS_DIR}/${basename}${ext}"
+                return 0
+            fi
+        done
+    fi
+    return 1
+}
+
+# This function saves the specified to local storage if possible,
+# and if so, symlinks it for later usage
+# Usage: CT_SaveLocal </full/path/file.name>
+CT_SaveLocal() {
+    local file="$1"
+    local basename="${file##*/}"
+
+    if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
+        CT_DoLog EXTRA "Saving '${file}' to local storage"
+        # The file may already exist if downloads are forced: remove it first
+        CT_DoExecLog ALL rm -f "${CT_LOCAL_TARBALLS_DIR}/${basename}"
+        CT_DoExecLog ALL mv -f "${file}" "${CT_LOCAL_TARBALLS_DIR}"
+        CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${basename}" "${file}"
+    fi
+}
+
 # Download the file from one of the URLs passed as argument
-# Usage: CT_GetFile <filename> [.extension] <url> [url ...]
+# Usage: CT_GetFile <basename> [.extension] <url> [url ...]
 CT_GetFile() {
     local ext
     local url
     local file="$1"
-    local first_ext=""
+    local first_ext
     shift
     # If next argument starts with a dot, then this is not an URL,
     # and we can consider that it is a preferred extension.
@@ -449,34 +497,13 @@ CT_GetFile() {
             ;;
     esac
 
-    # Do we already have it?
-    ext=$(CT_GetFileExtension "${file}" ${first_ext})
-    if [ -n "${ext}" ]; then
-        CT_DoLog DEBUG "Already have '${file}'"
-        return 0
-    fi
+    # Does it exist localy?
+    CT_GetLocal "${file}" ${first_ext} && return 0 || true
+    # No, it does not...
 
     # Try to retrieve the file
     CT_DoLog EXTRA "Retrieving '${file}'"
     CT_Pushd "${CT_TARBALLS_DIR}"
-
-    if [ -n "${CT_LOCAL_TARBALLS_DIR}" ]; then
-        CT_DoLog DEBUG "Trying to retrieve an already downloaded copy of '${file}'"
-        # We'd rather have a bzip2'ed tarball, then gzipped tarball, plain tarball,
-        # or, as a failover, a file without extension.
-        # Try local copy first, if it exists
-        for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
-            CT_DoLog DEBUG "Trying '${CT_LOCAL_TARBALLS_DIR}/${file}${ext}'"
-            if [ -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" -a \
-                 "${CT_FORCE_DOWNLOAD}" != "y" ]; then
-                CT_DoLog DEBUG "Got '${file}' from local storage"
-                CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}"
-                return 0
-            fi
-        done
-    fi
-
-    # Not found locally, try from the network
 
     # Add URLs on the LAN mirror
     LAN_URLS=
@@ -503,13 +530,7 @@ CT_GetFile() {
             CT_DoGetFile "${url}/${file}${ext}"
             if [ -f "${file}${ext}" ]; then
                 CT_DoLog DEBUG "Got '${file}' from the Internet"
-                if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-                    # The file may already exist if downloads are forced: remove it first
-                    CT_DoLog EXTRA "Saving '${file}' to local storage"
-                    CT_DoExecLog ALL rm -f "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}"
-                    CT_DoExecLog ALL mv -f "${file}${ext}" "${CT_LOCAL_TARBALLS_DIR}"
-                    CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" "${file}${ext}"
-                fi
+                CT_SaveLocal "${CT_TARBALLS_DIR}/${file}${ext}"
                 return 0
             fi
         done
@@ -517,6 +538,41 @@ CT_GetFile() {
     CT_Popd
 
     CT_Abort "Could not retrieve '${file}'."
+}
+
+# Checkout from CVS, and build the associated tarball
+# The tarball will be called ${basename}.tar.bz2
+# Prerequisite: either the server does not require password,
+# or the user must already be logged in.
+# 'tag' is the tag to retrieve. Must be specified, but can be empty.
+# If dirname is specified, then module will be renamed to dirname
+# prior to building the tarball.
+# Usage: CT_GetCVS <basename> <url> <module> <tag> [dirname]
+CT_GetCVS() {
+    local basename="$1"
+    local uri="$2"
+    local module="$3"
+    local tag="${4:+-r ${4}}"
+    local dirname="$5"
+    local tmp_dir
+
+    # Does it exist localy?
+    CT_GetLocal "${basename}" && return 0 || true
+    # No, it does not...
+
+    CT_DoLog EXTRA "Retrieving '${basename}'"
+
+    CT_MktempDir tmp_dir
+    CT_Pushd "${tmp_dir}"
+
+    CT_DoSetProxy ${CT_PROXY_TYPE}
+    CT_DoExecLog ALL cvs -z 9 -d "${uri}" co -P ${tag} "${module}"
+    [ -n "${dirname}" ] && CT_DoExecLog ALL mv "${module}" "${dirname}"
+    CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${dirname:-${module}}"
+    CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"
+
+    CT_Popd
+    CT_DoExecLog ALL rm -rf "${tmp_dir}"
 }
 
 # Extract a tarball and patch the resulting sources if necessary.
