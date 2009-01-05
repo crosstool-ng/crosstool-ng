@@ -21,7 +21,8 @@ do_debug_duma_extract() {
 do_debug_duma_build() {
     CT_DoStep INFO "Installing D.U.M.A."
     CT_DoLog EXTRA "Copying sources"
-    cp -a "${CT_SRC_DIR}/duma-${CT_DUMA_VERSION}" "${CT_BUILD_DIR}/build-duma"
+    # DUMA separates its name from the version with an underscore, not a dash
+    cp -a "${CT_SRC_DIR}/duma_${CT_DUMA_VERSION}" "${CT_BUILD_DIR}/build-duma"
     CT_Pushd "${CT_BUILD_DIR}/build-duma"
 
     DUMA_CPP=
