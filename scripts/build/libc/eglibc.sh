@@ -100,7 +100,6 @@ do_libc_extract() {
         [ "${addon}" = "nptl" ] && continue || true
         CT_Pushd "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
         CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" nochdir
-        [ ! -d "${addon}" ] && ln -s "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
         CT_Popd
     done
 
