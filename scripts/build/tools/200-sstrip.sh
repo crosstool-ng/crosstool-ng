@@ -7,7 +7,8 @@ case "${CT_SSTRIP_FROM}" in
                        http://www.muppetlabs.com/~breadbox/pub/software
         }
         do_tools_sstrip_extract() {
-            CT_ExtractAndPatch "ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}"
+            CT_Extract "ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}"
+            CT_Patch "ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}"
         }
         do_tools_sstrip_build() {
             CT_DoStep INFO "Installing sstrip"

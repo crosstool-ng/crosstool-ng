@@ -8,7 +8,8 @@ do_tools_libelf_get() {
 }
 
 do_tools_libelf_extract() {
-    CT_ExtractAndPatch "libelf-${CT_LIBELF_VERSION}"
+    CT_Extract "libelf-${CT_LIBELF_VERSION}"
+    CT_Patch "libelf-${CT_LIBELF_VERSION}"
 }
 
 do_tools_libelf_build() {

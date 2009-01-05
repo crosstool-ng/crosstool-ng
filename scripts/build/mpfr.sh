@@ -18,7 +18,8 @@ do_mpfr_get() {
 
 # Extract MPFR
 do_mpfr_extract() {
-    CT_ExtractAndPatch "mpfr-${CT_MPFR_VERSION}"
+    CT_Extract "mpfr-${CT_MPFR_VERSION}"
+    CT_Patch "mpfr-${CT_MPFR_VERSION}"
 
     # OK, Gentoo have a sanity check that libtool.m4 and ltmain.sh have the
     # same version number. Unfortunately, some tarballs of MPFR are not

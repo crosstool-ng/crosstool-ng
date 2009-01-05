@@ -17,7 +17,8 @@ do_gmp_get() {
 
 # Extract GMP
 do_gmp_extract() {
-    CT_ExtractAndPatch "gmp-${CT_GMP_VERSION}"
+    CT_Extract "gmp-${CT_GMP_VERSION}"
+    CT_Patch "gmp-${CT_GMP_VERSION}"
 }
 
 do_gmp() {

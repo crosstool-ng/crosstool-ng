@@ -5,7 +5,8 @@ do_debug_dmalloc_get() {
 }
 
 do_debug_dmalloc_extract() {
-    CT_ExtractAndPatch "dmalloc-${CT_DMALLOC_VERSION}"
+    CT_Extract "dmalloc-${CT_DMALLOC_VERSION}"
+    CT_Patch "dmalloc-${CT_DMALLOC_VERSION}"
 }
 
 do_debug_dmalloc_build() {

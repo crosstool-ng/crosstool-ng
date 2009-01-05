@@ -2,26 +2,23 @@
 
 do_debug_duma_get() {
     CT_GetFile "duma_${CT_DUMA_VERSION}" http://mesh.dl.sourceforge.net/sourceforge/duma/
-    # D.U.M.A. doesn't separate its name from its version with a dash,
-    # but with an underscore. Create a link so that crosstool-NG can
-    # work correctly:
-    CT_Pushd "${CT_TARBALLS_DIR}"
-    duma_ext=$(CT_GetFileExtension "duma_${CT_DUMA_VERSION}")
-    rm -f "duma-${CT_DUMA_VERSION}${duma_ext}"
-    ln -sf "duma_${CT_DUMA_VERSION}${duma_ext}" "duma-${CT_DUMA_VERSION}${duma_ext}"
     # Downloading from sourceforge leaves garbage, cleanup
-    rm -f showfiles.php\?group_id\=*
-    CT_Popd
+    CT_DoExecLog ALL rm -f "${CT_TARBALLS_DIR}/showfiles.php"*
 }
 
 do_debug_duma_extract() {
-    CT_ExtractAndPatch "duma-${CT_DUMA_VERSION}"
+    CT_Extract "duma_${CT_DUMA_VERSION}"
+    CT_Pushd "${CT_SRC_DIR}/duma_${CT_DUMA_VERSION}"
+    # Even if DUMA uses _ and not -, crosstool-NG uses the dash to split the
+    # name from the version in order to find the appropriate patches
+    # YEM: FIXME: make CT_Patch more intelligent, Eg.: CT_Patch duma _ "${CT_DUMA_VERSION}"
+    CT_Patch "duma-${CT_DUMA_VERSION}" nochdir
+    CT_Popd
 }
 
 do_debug_duma_build() {
     CT_DoStep INFO "Installing D.U.M.A."
     CT_DoLog EXTRA "Copying sources"
-    # DUMA separates its name from the version with an underscore, not a dash
     cp -a "${CT_SRC_DIR}/duma_${CT_DUMA_VERSION}" "${CT_BUILD_DIR}/build-duma"
     CT_Pushd "${CT_BUILD_DIR}/build-duma"
 

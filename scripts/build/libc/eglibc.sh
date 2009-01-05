@@ -92,14 +92,24 @@ do_libc_get() {
 
 # Extract eglibc
 do_libc_extract() {
-    CT_ExtractAndPatch "eglibc-${CT_LIBC_VERSION}"
+    CT_Extract "eglibc-${CT_LIBC_VERSION}"
+    CT_Patch "eglibc-${CT_LIBC_VERSION}"
 
     # C library addons
     for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be extracted, in any case
         [ "${addon}" = "nptl" ] && continue || true
         CT_Pushd "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
-        CT_ExtractAndPatch "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" nochdir
+        CT_Extract "eglibc-${addon}-${CT_LIBC_VERSION}" nochdir
+        # Some addons have the 'long' name, while others have the
+        # 'short' name, but patches are non-uniformly built with
+        # either the 'long' or 'short' name, whatever the addons name
+        # so we have to make symlinks from the existing to the missing
+        # Fortunately for us, [ -d foo ], when foo is a symlink to a
+        # directory, returns true!
+        [ -d "${addon}" ] || ln -s "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
+        [ -d "eglibc-${addon}-${CT_LIBC_VERSION}" ] || ln -s "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
+        CT_Patch "eglibc-${addon}-${CT_LIBC_VERSION}" nochdir
         CT_Popd
     done
 

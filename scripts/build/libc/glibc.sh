@@ -55,14 +55,24 @@ do_libc_get() {
 
 # Extract glibc
 do_libc_extract() {
-    CT_ExtractAndPatch "glibc-${CT_LIBC_VERSION}"
+    CT_Extract "glibc-${CT_LIBC_VERSION}"
+    CT_Patch "glibc-${CT_LIBC_VERSION}"
 
     # C library addons
     for addon in $(do_libc_add_ons_list " "); do
         # NPTL addon is not to be extracted, in any case
         [ "${addon}" = "nptl" ] && continue || true
         CT_Pushd "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}"
-        CT_ExtractAndPatch "glibc-${addon}-${CT_LIBC_VERSION}" nochdir
+        CT_Extract "glibc-${addon}-${CT_LIBC_VERSION}" nochdir
+        # Some addons have the 'long' name, while others have the
+        # 'short' name, but patches are non-uniformly built with
+        # either the 'long' or 'short' name, whatever the addons name
+        # so we have to make symlinks from the existing to the missing
+        # Fortunately for us, [ -d foo ], when foo is a symlink to a
+        # directory, returns true!
+        [ -d "${addon}" ] || ln -s "glibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
+        [ -d "glibc-${addon}-${CT_LIBC_VERSION}" ] || ln -s "${addon}" "glibc-${addon}-${CT_LIBC_VERSION}"
+        CT_Patch "glibc-${addon}-${CT_LIBC_VERSION}" nochdir
         CT_Popd
     done
 

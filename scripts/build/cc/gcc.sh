@@ -16,7 +16,8 @@ do_cc_get() {
 
 # Extract gcc
 do_cc_extract() {
-    CT_ExtractAndPatch "gcc-${CT_CC_VERSION}"
+    CT_Extract "gcc-${CT_CC_VERSION}"
+    CT_Patch "gcc-${CT_CC_VERSION}"
 }
 
 #------------------------------------------------------------------------------

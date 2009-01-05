@@ -554,58 +554,60 @@ CT_GetCVS() {
     CT_DoExecLog ALL rm -rf "${tmp_dir}"
 }
 
-# Extract a tarball and patch the resulting sources if necessary.
+# Extract a tarball
 # Some tarballs need to be extracted in specific places. Eg.: glibc addons
 # must be extracted in the glibc directory; uCLibc locales must be extracted
 # in the extra/locale sub-directory of uClibc. This is taken into account
 # by the caller, that did a 'cd' into the correct path before calling us
 # and sets nochdir to 'nochdir'.
-# Usage: CT_ExtractAndPatch <basename> [nochdir]
-CT_ExtractAndPatch() {
-    local file="$1"
+# Usage: CT_Extract <basename> [nochdir]
+CT_Extract() {
+    local basename="$1"
     local nochdir="$2"
-    local base_file=$(echo "${file}" |cut -d - -f 1)
-    local ver_file=$(echo "${file}" |cut -d - -f 2-)
-    local official_patch_dir
-    local custom_patch_dir
-    local ext=$(CT_GetFileExtension "${file}")
-    CT_TestAndAbort "'${file}' not found in '${CT_TARBALLS_DIR}'" -z "${ext}"
-    local full_file="${CT_TARBALLS_DIR}/${file}${ext}"
-
-    [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}"
+    local ext=$(CT_GetFileExtension "${basename}")
+    CT_TestAndAbort "'${basename}' not found in '${CT_TARBALLS_DIR}'" -z "${ext}"
+    local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
 
     # Check if already extracted
-    if [ -e "${CT_SRC_DIR}/.${file}.extracted" ]; then
-        CT_DoLog DEBUG "Already extracted '${file}'"
+    if [ -e "${CT_SRC_DIR}/.${basename}.extracted" ]; then
+        CT_DoLog DEBUG "Already extracted '${basename}'"
         return 0
     fi
 
-    CT_DoLog EXTRA "Extracting and patching '${file}'"
+    [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}"
+
+    CT_DoLog EXTRA "Extracting '${basename}'"
     case "${ext}" in
         .tar.bz2)     CT_DoExecLog ALL tar xvjf "${full_file}";;
         .tar.gz|.tgz) CT_DoExecLog ALL tar xvzf "${full_file}";;
         .tar)         CT_DoExecLog ALL tar xvf  "${full_file}";;
-        *)            CT_Abort "Don't know how to handle '${file}': unknown extension" ;;
+        *)            CT_Abort "Don't know how to handle '${basename}${ext}': unknown extension" ;;
     esac
-    touch "${CT_SRC_DIR}/.${file}.extracted"
 
-    # Snapshots might not have the version number in the extracted directory
-    # name. This is also the case for some (odd) packages, such as D.U.M.A.
-    # Overcome this issue by symlink'ing the directory.
-    if [ ! -d "${file}" ]; then
-        case "${ext}" in
-            .tar.bz2)     base=$(tar tjf "${full_file}" |head -n 1 |cut -d / -f 1 || true);;
-            .tar.gz|.tgz) base=$(tar tzf "${full_file}" |head -n 1 |cut -d / -f 1 || true);;
-            .tar)         base=$(tar tf  "${full_file}" |head -n 1 |cut -d / -f 1 || true);;
-        esac
-        CT_TestOrAbort "There was a problem when extracting '${file}'" -d "${base}" -o "${base}" != "${file}"
-        ln -s "${base}" "${file}"
+    touch "${CT_SRC_DIR}/.${basename}.extracted"
+
+    [ "${nochdir}" = "nochdir" ] || CT_Popd
+}
+
+# Patches the specified component
+# Usage: CT_Patch <basename> [nochdir]
+CT_Patch() {
+    local basename="$1"
+    local nochdir="$2"
+    local base_file="${basename%%-*}"
+    local ver_file="${basename#*-}"
+    local official_patch_dir
+    local custom_patch_dir
+
+    # Check if already patched
+    if [ -e "${CT_SRC_DIR}/.${basename}.patched" ]; then
+        CT_DoLog DEBUG "Already patched '${basename}'"
+        return 0
     fi
 
-    # Kludge: outside this function, we wouldn't know if we had just extracted
-    # a libc addon, or a plain package. Apply patches now.
+    [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}/${basename}"
 
-    [ "${nochdir}" = "nochdir" ] || cd "${file}"
+    CT_DoLog EXTRA "Patching '${basename}'"
 
     official_patch_dir=
     custom_patch_dir=
@@ -632,6 +634,8 @@ CT_ExtractAndPatch() {
             find . -type f -name "${cfg/_/.}" -exec cp -v "${!cfg}" {} \; |CT_DoLog ALL
         done
     fi
+
+    touch "${CT_SRC_DIR}/.${basename}.patched"
 
     [ "${nochdir}" = "nochdir" ] || CT_Popd
 }

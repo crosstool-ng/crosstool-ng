@@ -19,7 +19,8 @@ do_kernel_get() {
 # Extract kernel
 do_kernel_extract() {
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
-        CT_ExtractAndPatch "linux-${CT_KERNEL_VERSION}"
+        CT_Extract "linux-${CT_KERNEL_VERSION}"
+        CT_Patch "linux-${CT_KERNEL_VERSION}"
     fi
     return 0
 }

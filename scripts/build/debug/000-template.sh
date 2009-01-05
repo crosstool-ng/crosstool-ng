@@ -10,7 +10,8 @@ do_debug_foobar_get() {
 # Put your extract code here
 do_debug_foobar_extract() {
     # For example:
-    # CT_ExtractAndPatch "foobar-${CT_FOOBAR_VERSION}"
+    # CT_Extract "foobar-${CT_FOOBAR_VERSION}"
+    # CT_Patch "foobar-${CT_FOOBAR_VERSION}"
     :
 }
 

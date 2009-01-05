@@ -12,18 +12,23 @@ do_libc_get() {
     # later...
     CT_GetFile "uClibc-${CT_LIBC_VERSION}" ${libc_src}
     # uClibc locales
-    [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] && CT_GetFile "uClibc-locale-030818" ${libc_src} || true
+    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
+        CT_GetFile "uClibc-locale-030818" ${libc_src}
+    fi
 
     return 0
 }
 
 # Extract uClibc
 do_libc_extract() {
-    CT_ExtractAndPatch "uClibc-${CT_LIBC_VERSION}"
+    CT_Extract "uClibc-${CT_LIBC_VERSION}"
+    CT_Patch "uClibc-${CT_LIBC_VERSION}"
+
     # uClibc locales
     if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
-        CT_Pushd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"
-        CT_ExtractAndPatch "uClibc-locale-030818" nochdir || true
+        CT_Pushd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}/extra/locale"
+        CT_Extract "uClibc-locale-030818" nochdir
+        CT_Patch "uClibc-locale-030818" nochdir
         CT_Popd
     fi
 
