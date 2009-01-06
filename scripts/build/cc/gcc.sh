@@ -12,12 +12,24 @@ do_cc_get() {
     # subdirectory! You bastard!
     CT_GetFile "gcc-${CT_CC_VERSION}"   \
                {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/gcc-${CT_CC_VERSION}}
+    # Starting with GCC 4.3, ecj is used for Java, and will only be
+    # built if the configure script finds ecj.jar at the top of the
+    # GCC source tree, which will not be there unless we get it and
+    # put it there ourselves
+    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" ]; then
+        CT_GetFile ecj-latest .jar ftp://gcc.gnu.org/pub/java   \
+                                   ftp://sourceware.org/pub/java
+    fi
 }
 
 # Extract gcc
 do_cc_extract() {
     CT_Extract "gcc-${CT_CC_VERSION}"
     CT_Patch "gcc-${CT_CC_VERSION}"
+    # Copy ecj-latest.jar to ecj.jar at the top of the GCC source tree
+    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" ]; then
+        CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/ecj-latest.jar" "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/ecj.jar"
+    fi
 }
 
 #------------------------------------------------------------------------------

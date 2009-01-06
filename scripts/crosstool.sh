@@ -315,7 +315,7 @@ if [ -z "${CT_RESTART}" ]; then
             t="${!r}-"
         fi
 
-        for tool in ar as dlltool gcc g++ gnatbind gnatmake ld nm objcopy objdump ranlib strip windres; do
+        for tool in ar as dlltool gcc g++ gcj gnatbind gnatmake ld nm objcopy objdump ranlib strip windres; do
             # First try with prefix + suffix
             # Then try with prefix only
             # Then try with suffix only, but only for BUILD, and HOST iff REAL_BUILD == REAL_HOST
