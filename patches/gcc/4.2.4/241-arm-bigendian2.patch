@@ -1,0 +1,33 @@
+Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org> wrote:
+
+I tried to use crosstool-ng to generate a toolchain for Linux on big
+endian arm with recent versions of gcc, glibc, etc... but had a few
+problems.
+
+It appears that the gcc patch (for gcc 4.2.x)
+for big-endian arm (240-arm-bigendian.patch) lacks the change attached
+to this mail as 240-arm-bigendian2.patch.
+
+--- gcc-4.2.4/gcc/config/arm/bpabi.h~	2007-09-01 17:28:30.000000000 +0200
++++ gcc-4.2.4/gcc/config/arm/bpabi.h	2009-01-05 19:19:10.000000000 +0100
+@@ -32,9 +32,19 @@
+ #undef FPUTYPE_DEFAULT
+ #define FPUTYPE_DEFAULT FPUTYPE_VFP
+ 
++/*
++ * 'config.gcc' defines TARGET_BIG_ENDIAN_DEFAULT as 1 for arm*b-*
++ * (big endian) configurations.
++ */
++#if TARGET_BIG_ENDIAN_DEFAULT
++#define TARGET_ENDIAN_DEFAULT MASK_BIG_END
++#else
++#define TARGET_ENDIAN_DEFAULT 0
++#endif
++
+ /* EABI targets should enable interworking by default.  */
+ #undef TARGET_DEFAULT
+-#define TARGET_DEFAULT MASK_INTERWORK
++#define TARGET_DEFAULT (MASK_INTERWORK | TARGET_ENDIAN_DEFAULT)
+ 
+ /* The ARM BPABI functions return a boolean; they use no special
+    calling convention.  */
