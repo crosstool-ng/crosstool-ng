@@ -60,8 +60,6 @@ DOCDIR_set=
 MANDIR_set=
 LOCAL_set=
 
-FORCE=0
-
 do_quit=
 CONTRIB_list=
 
@@ -122,7 +120,8 @@ has_or_abort() {
         done
         echo "Either you are missing entirely the needed tool,"
         echo "or the version you have is tool old."
-        [ ${FORCE} -eq 0 ] && do_error "Bailing out..."
+        # FORCE can be set in the environment
+        [ -z "${FORCE}" ] && do_error "Bailing out..."
     fi
     IFS="${save_IFS}"
     return 0
@@ -205,9 +204,6 @@ Defaults for the options are specified in brackets.
 
 Configuration:
   -h, --help              display this help and exit
-      --force             force ./configure to complete, even if one or more
-                          tools were not found. Use at your own risk, only if
-                          you know what you are doing!
 
 Installation directories:
   --prefix=PREFIX         install files in PREFIX [${PREFIX_DEFAULT}]
@@ -273,7 +269,6 @@ while [ $# -ne 0 ]; do
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
         --local)    LOCAL_set=1; shift;;
-        --force)    FORCE=1; shift;;
         --with-contrib*)
                     set_contrib "$1" "$2" && shift || shift 2
                     [ "${do_quit}" = "1" ] && exit 0
