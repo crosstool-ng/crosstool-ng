@@ -28,9 +28,16 @@ case "${CT_SSTRIP_FROM}" in
 
     buildroot)
         do_tools_sstrip_get() {
-            # Note: the space between sstrip and .c is on purpose.
-            CT_GetFile sstrip .c    \
-                       "http://buildroot.uclibc.org/cgi-bin/viewcvs.cgi/*checkout*/trunk/buildroot/toolchain/sstrip/"
+            # We have to retrieve sstrip.c from a viewVC web interface. This
+            # is not handled by the common CT_GetFile, thus we must take all
+            # steps taken by CT_GetFile ourselves:
+
+            CT_GetLocal sstrip .c && return 0 || true
+            CT_TestAndAbort "File '${file}' not present locally, and downloads are not allowed" "${CT_FORBID_DOWNLOAD}" = "y"
+            CT_DoLog EXTRA "Retrieving 'sstrip'"
+            CT_DoGetFile "http://sources.busybox.net/index.py/trunk/buildroot/toolchain/sstrip/sstrip.c?view=co"
+            mv "sstrip.c?view=co" "${CT_TARBALLS_DIR}/sstrip.c"
+            CT_SaveLocal "${CT_TARBALLS_DIR}/sstrip.c"
         }
         do_tools_sstrip_extract() {
             # We'll let buildroot guys take care of sstrip maintenance and patching.
