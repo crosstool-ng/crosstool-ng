@@ -141,9 +141,7 @@ CT_DoLog EXTRA "Preparing working directories"
 
 # Ah! The build directory shall be eradicated, even if we restart!
 if [ -d "${CT_BUILD_DIR}" ]; then
-    mv "${CT_BUILD_DIR}" "${CT_BUILD_DIR}.$$"
-    chmod -R u+w "${CT_BUILD_DIR}.$$"
-    setsid nohup rm -rf "${CT_BUILD_DIR}.$$" >/dev/null 2>&1 &
+    CT_DoExecLog ALL rm -rf "${CT_BUILD_DIR}"
 fi
 
 # Don't eradicate directories if we need to restart
@@ -152,50 +150,40 @@ if [ -z "${CT_RESTART}" ]; then
     # We need to do that _before_ we can safely log, because the log file will
     # most probably be in the toolchain directory.
     if [ "${CT_FORCE_DOWNLOAD}" = "y" -a -d "${CT_TARBALLS_DIR}" ]; then
-        mv "${CT_TARBALLS_DIR}" "${CT_TARBALLS_DIR}.$$"
-        chmod -R u+w "${CT_TARBALLS_DIR}.$$"
-        setsid nohup rm -rf "${CT_TARBALLS_DIR}.$$" >/dev/null 2>&1 &
+        CT_DoExecLog ALL rm -rf "${CT_TARBALLS_DIR}"
     fi
     if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
-        mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.$$"
-        chmod -R u+w "${CT_SRC_DIR}.$$"
-        setsid nohup rm -rf "${CT_SRC_DIR}.$$" >/dev/null 2>&1 &
+        CT_DoExecLog ALL rm -rf "${CT_SRC_DIR}"
     fi
     if [ -d "${CT_INSTALL_DIR}" ]; then
-        mv "${CT_INSTALL_DIR}" "${CT_INSTALL_DIR}.$$"
-        chmod -R u+w "${CT_INSTALL_DIR}.$$"
-        setsid nohup rm -rf "${CT_INSTALL_DIR}.$$" >/dev/null 2>&1 &
+        CT_DoExecLog ALL rm -rf "${CT_INSTALL_DIR}"
     fi
     if [ -d "${CT_DEBUG_INSTALL_DIR}" ]; then
-        mv "${CT_DEBUG_INSTALL_DIR}" "${CT_DEBUG_INSTALL_DIR}.$$"
-        chmod -R u+w "${CT_DEBUG_INSTALL_DIR}.$$"
-        setsid nohup rm -rf "${CT_DEBUG_INSTALL_DIR}.$$" >/dev/null 2>&1 &
+        CT_DoExecLog ALL rm -rf "${CT_DEBUG_INSTALL_DIR}"
     fi
     # In case we start anew, get rid of the previously saved state directory
     if [ -d "${CT_STATE_DIR}" ]; then
-        mv "${CT_STATE_DIR}" "${CT_STATE_DIR}.$$"
-        chmod -R u+w "${CT_STATE_DIR}.$$"
-        setsid nohup rm -rf "${CT_STATE_DIR}.$$" >/dev/null 2>&1 &
+        CT_DoExecLog ALL rm -rf "${CT_STATE_DIR}"
     fi
 fi
 
 # Create the directories we'll use, even if restarting: it does no harm to
 # create already existent directories, and CT_BUILD_DIR needs to be created
 # anyway
-mkdir -p "${CT_TARBALLS_DIR}"
-mkdir -p "${CT_SRC_DIR}"
-mkdir -p "${CT_BUILD_DIR}"
-mkdir -p "${CT_INSTALL_DIR}"
-mkdir -p "${CT_PREFIX_DIR}"
-mkdir -p "${CT_DEBUG_INSTALL_DIR}"
-mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
-mkdir -p "${CT_STATE_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_TARBALLS_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_DEBUG_INSTALL_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"
 
 # Kludge: CT_INSTALL_DIR and CT_PREFIX_DIR might have grown read-only if
 # the previous build was successful. To be able to move the logfile there,
 # switch them back to read/write
-chmod -R u+w "${CT_INSTALL_DIR}" "${CT_PREFIX_DIR}"
+CT_DoExecLog ALL chmod -R u+w "${CT_INSTALL_DIR}" "${CT_PREFIX_DIR}"
 
 # Redirect log to the actual log file now we can
 # It's quite understandable that the log file will be installed in the install
@@ -250,19 +238,19 @@ if [ -z "${CT_RESTART}" ]; then
     # Prepare the 'lib' directories in sysroot, else the ../lib64 hack used by
     # 32 -> 64 bit crosscompilers won't work, and build of final gcc will fail with
     #  "ld: cannot open crti.o: No such file or directory"
-    mkdir -p "${CT_SYSROOT_DIR}/lib"
-    mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
+    CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/lib"
+    CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
 
     # Prevent gcc from installing its libraries outside of the sys-root
-    ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
+    CT_DoExecLog ALL ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
 
     # Now, in case we're 64 bits, just have lib64/ be a symlink to lib/
     # so as to have all libraries in the same directory (we can do that
     # because we are *not* multilib).
     if [ "${CT_ARCH_64}" = "y" ]; then
-        ln -sf "lib" "${CT_SYSROOT_DIR}/lib64"
-        ln -sf "lib" "${CT_SYSROOT_DIR}/usr/lib64"
-        ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib64"
+        CT_DoExecLog ALL ln -sf "lib" "${CT_SYSROOT_DIR}/lib64"
+        CT_DoExecLog ALL ln -sf "lib" "${CT_SYSROOT_DIR}/usr/lib64"
+        CT_DoExecLog ALL ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib64"
     fi
 
     # Determine build system if not set by the user
@@ -303,7 +291,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Now we have mangled our BUILD and HOST tuples, we must fake the new
     # cross-tools for those mangled tuples.
     CT_DoLog DEBUG "Making build system tools available"
-    mkdir -p "${CT_PREFIX_DIR}/bin"
+    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/bin"
     for m in BUILD HOST; do
         r="CT_REAL_${m}"
         v="CT_${m}"
@@ -341,7 +329,7 @@ if [ -z "${CT_RESTART}" ]; then
             if [ -n "${where}" ]; then
                 CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
                 printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${!v}-${tool}"
-                chmod 700 "${CT_PREFIX_DIR}/bin/${!v}-${tool}"
+                CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/${!v}-${tool}"
             else
                 # We'll at least need some of them...
                 case "${tool}" in
@@ -372,8 +360,9 @@ if [ -z "${CT_RESTART}" ]; then
     # Some makeinfo versions are a pain in [put your most sensible body part here].
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
     # never fails:
+    CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
     printf "#${BANG}/bin/sh\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/bin/makeinfo"
-    chmod 700 "${CT_PREFIX_DIR}/bin/makeinfo"
+    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/makeinfo"
 
     # Help gcc
     CT_CFLAGS_FOR_HOST=
@@ -420,8 +409,8 @@ if [ -z "${CT_RESTART}" ]; then
     if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         if [ "${CT_FORCE_EXTRACT}" = "y" ]; then
             mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.force.$$"
-            setsid nohup rm -rf "${CT_SRC_DIR}.force.$$" >/dev/null 2>&1
-            mkdir -p "${CT_SRC_DIR}"
+            CT_DoExecLog ALL rm -rf "${CT_SRC_DIR}.force.$$"
+            CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
         fi
         CT_DoStep INFO "Extracting and patching toolchain components"
         do_kernel_extract
@@ -474,14 +463,14 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     CT_DoLog DEBUG "Removing access to the build system tools"
     find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
     find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
-    rm -fv "${CT_PREFIX_DIR}/bin/makeinfo" |CT_DoLog DEBUG
+    CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/bin/makeinfo"
 
     if [ "${CT_BARE_METAL}" != "y" ]; then
         CT_DoLog EXTRA "Installing the populate helper"
         sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
             "${CT_LIB_DIR}/scripts/populate.in"           \
             >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
-        chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
+        CT_DoExecLog ALL chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
     fi
 
     # Create the aliases to the target tools
@@ -490,36 +479,33 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     for t in "${CT_TARGET}-"*; do
         if [ -n "${CT_TARGET_ALIAS}" ]; then
             _t=$(echo "$t" |sed -r -e 's/^'"${CT_TARGET}"'-/'"${CT_TARGET_ALIAS}"'-/;')
-            ln -sv "${t}" "${_t}" 2>&1
+            CT_DoExecLog ALL ln -sv "${t}" "${_t}"
         fi
         if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
             _t=$(echo "$t" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
-            ln -sv "${t}" "${_t}" 2>&1
+            CT_DoExecLog ALL ln -sv "${t}" "${_t}"
         fi
-    done |CT_DoLog ALL
+    done
     CT_Popd
 
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then
     	CT_DoLog INFO "Removing installed documentation"
-        rm -rf "${CT_PREFIX_DIR}/"{,usr/}{man,info}
-        rm -rf "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
-        rm -rf "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
+        CT_DoExecLog ALL rm -rf "${CT_PREFIX_DIR}/"{,usr/}{man,info}
+        CT_DoExecLog ALL rm -rf "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
+        CT_DoExecLog ALL rm -rf "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
     fi
 fi
 
 CT_DoEnd INFO
 
-if [ "${CT_LOG_FILE_COMPRESS}" = y ]; then
-    CT_DoLog EXTRA "Compressing log file"
-    exec >/dev/null
-    bzip2 -9 "${CT_LOG_FILE}"
-fi
+# From now-on, it can become impossible to log any time, because
+# either we're compressing the log file, or it can become RO any
+# moment... Consign all ouptut to oblivion...
+CT_DoLog INFO "Finishing installation (may take a few seconds)..."
+exec >/dev/null 2>&1
 
-if [ "${CT_INSTALL_DIR_RO}" = "y" ]; then
-    # OK, now we're done, set the toolchain read-only
-    # Don't log, the log file may become read-only any moment...
-    chmod -R a-w "${CT_INSTALL_DIR}" >/dev/null 2>&1
-fi
+[ "${CT_LOG_FILE_COMPRESS}" = y ] && bzip2 -9 "${CT_LOG_FILE}"
+[ "${CT_INSTALL_DIR_RO}" = "y"  ] && chmod -R a-w "${CT_INSTALL_DIR}"
 
 trap - EXIT
