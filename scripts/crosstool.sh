@@ -141,7 +141,7 @@ CT_DoLog EXTRA "Preparing working directories"
 
 # Ah! The build directory shall be eradicated, even if we restart!
 if [ -d "${CT_BUILD_DIR}" ]; then
-    CT_DoExecLog ALL rm -rf "${CT_BUILD_DIR}"
+    CT_DoForceRmdir "${CT_BUILD_DIR}"
 fi
 
 # Don't eradicate directories if we need to restart
@@ -150,20 +150,20 @@ if [ -z "${CT_RESTART}" ]; then
     # We need to do that _before_ we can safely log, because the log file will
     # most probably be in the toolchain directory.
     if [ "${CT_FORCE_DOWNLOAD}" = "y" -a -d "${CT_TARBALLS_DIR}" ]; then
-        CT_DoExecLog ALL rm -rf "${CT_TARBALLS_DIR}"
+        CT_DoForceRmdir "${CT_TARBALLS_DIR}"
     fi
     if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
-        CT_DoExecLog ALL rm -rf "${CT_SRC_DIR}"
+        CT_DoForceRmdir "${CT_SRC_DIR}"
     fi
     if [ -d "${CT_INSTALL_DIR}" ]; then
-        CT_DoExecLog ALL rm -rf "${CT_INSTALL_DIR}"
+        CT_DoForceRmdir "${CT_INSTALL_DIR}"
     fi
     if [ -d "${CT_DEBUG_INSTALL_DIR}" ]; then
-        CT_DoExecLog ALL rm -rf "${CT_DEBUG_INSTALL_DIR}"
+        CT_DoForceRmdir "${CT_DEBUG_INSTALL_DIR}"
     fi
     # In case we start anew, get rid of the previously saved state directory
     if [ -d "${CT_STATE_DIR}" ]; then
-        CT_DoExecLog ALL rm -rf "${CT_STATE_DIR}"
+        CT_DoForceRmdir "${CT_STATE_DIR}"
     fi
 fi
 
@@ -408,8 +408,7 @@ if [ -z "${CT_RESTART}" ]; then
 
     if [ "${CT_ONLY_DOWNLOAD}" != "y" ]; then
         if [ "${CT_FORCE_EXTRACT}" = "y" ]; then
-            mv "${CT_SRC_DIR}" "${CT_SRC_DIR}.force.$$"
-            CT_DoExecLog ALL rm -rf "${CT_SRC_DIR}.force.$$"
+            CT_DoForceRmdir "${CT_SRC_DIR}"
             CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
         fi
         CT_DoStep INFO "Extracting and patching toolchain components"
@@ -491,9 +490,9 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then
     	CT_DoLog INFO "Removing installed documentation"
-        CT_DoExecLog ALL rm -rf "${CT_PREFIX_DIR}/"{,usr/}{man,info}
-        CT_DoExecLog ALL rm -rf "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
-        CT_DoExecLog ALL rm -rf "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
+        CT_DoForceRmdir "${CT_PREFIX_DIR}/"{,usr/}{man,info}
+        CT_DoForceRmdir "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
+        CT_DoForceRmdir "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
     fi
 fi
 
