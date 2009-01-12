@@ -452,7 +452,7 @@ CT_SaveLocal() {
     local basename="${file##*/}"
 
     if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-        CT_DoLog EXTRA "Saving '${file##*/}' to local storage"
+        CT_DoLog EXTRA "Saving '${basename}' to local storage"
         # The file may already exist if downloads are forced: remove it first
         CT_DoExecLog ALL rm -f "${CT_LOCAL_TARBALLS_DIR}/${basename}"
         CT_DoExecLog ALL mv -f "${file}" "${CT_LOCAL_TARBALLS_DIR}"
@@ -490,17 +490,18 @@ CT_GetFile() {
     # Add URLs on the LAN mirror
     LAN_URLS=
     if [ "${CT_USE_MIRROR}" = "y" ]; then
-        CT_DoLog DEBUG "Trying to retrieve a copy of '${file}' from LAN mirror '${CT_MIRROR_HOSTNAME}'"
         CT_TestOrAbort "Please set the LAN mirror hostname" -n "${CT_MIRROR_HOSTNAME}"
         CT_TestOrAbort "Please tell me where to find tarballs on the LAN mirror '${CT_MIRROR_HOSTNAME}'" -n "${CT_MIRROR_BASE}"
         LAN_URLS="${LAN_URLS} ${CT_MIRROR_SCHEME}://${CT_MIRROR_HOSTNAME}/${CT_MIRROR_BASE}/${file%-*}"
         LAN_URLS="${LAN_URLS} ${CT_MIRROR_SCHEME}://${CT_MIRROR_HOSTNAME}/${CT_MIRROR_BASE}"
-    fi
 
-    if [ "${CT_PREFER_MIRROR}" = "y" ]; then
-        URLS="${LAN_URLS} ${@}"
-    else
-        URLS="${@} ${LAN_URLS}"
+        if [ "${CT_PREFER_MIRROR}" = "y" ]; then
+            CT_DoLog DEBUG "Pre-pending LAN mirror URLs"
+            URLS="${LAN_URLS} ${@}"
+        else
+            CT_DoLog DEBUG "Appending LAN mirror URLs"
+            URLS="${@} ${LAN_URLS}"
+        fi
     fi
 
     # Scan all URLs in turn, and try to grab a tarball from there
@@ -765,6 +766,7 @@ CT_DoSaveState() {
     local state_dir="${CT_STATE_DIR}/${state_name}"
 
     CT_DoLog DEBUG "Saving state to restart at step '${state_name}'..."
+
     rm -rf "${state_dir}"
     mkdir -p "${state_dir}"
 
