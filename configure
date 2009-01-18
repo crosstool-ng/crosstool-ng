@@ -11,7 +11,8 @@ DATE=$( date +%Y%m%d )
 #  - others obvious... :-/
 #
 # Format of a pattern to check for, one per line:
-#   pattern := tool_test  OR  pattern || tool_test
+#   pattern := var_name : tool_pattern  OR  tool_pattern
+#   tool_pattern := tool_test  OR  tool_pattern || tool_test
 #   tool_test := tool=regexp OR tool
 #   tool := basename of the tool  OR  absolute pathname to the tool
 #   regexp := valid grep(1) extended regular expression, $( tool --version)
@@ -22,24 +23,29 @@ DATE=$( date +%Y%m%d )
 # would parse 'foo || bar || buz' ).
 #
 # Examples:
-#    /bin/bash=^GNU bash, version 3\.
-#       will ensure that /bin/bash exists, and that $( /bin/bash --version )
+#    bash:bash=^GNU bash, version 3\.
+#     - if ${bash} is set and non-null, does nothing
+#     - else ensures that bash exists in the PATH, and that
+#         "$( "$( which bash )" --version |head -n 1 )"
 #       matches the regexp '^GNU bash, version 3\.'
+#       - if so, then sets bash="$( which bash )"
 #    autoconf=(GNU Autoconf) || autoconf2.50
-#       will ensure that:
-#         - 'autoconf' is to be found in the PATH, and that $( autoconf --version )
+#     - does not look at an existing variable
+#     - ensures that:
+#         - 'autoconf' is to be found in the PATH, and that $( autoconf --version |head -n 1 )
 #           matches the regexp '(GNU Autoconf)' (which btw is the signature of
 #           autoconf >= 2.50),
 #       OR that:
 #         - 'autoconf2.50' is to be found in the PATH
 #
 TOOLS_TO_CHECK='
-/bin/bash=^GNU bash, version 3\.
+bash:bash=^GNU bash, version 3\.
 cut
 xargs
-make=^GNU Make
+install:install=GNU coreutils
+make:make=^GNU Make
 gcc
-gawk=^GNU Awk
+awk:awk=^GNU Awk || gawk=^GNU Awk
 bison
 flex
 makeinfo
@@ -61,7 +67,6 @@ MANDIR_set=
 LOCAL_set=
 
 do_quit=
-CONTRIB_list=
 
 # Simply print the error message, and exit. Obvious, he?
 do_error() {
@@ -73,8 +78,19 @@ do_error() {
 # Usage: has_or_abort test_pattern (see top of file, TOOLS_TO_CHECK, for
 #                                   complete pattern format)
 has_or_abort() {
+    local save_IFS
+    local var_name
+    local var_value
+    local tool_pattern
+    local field
+
+    var_name="$( echo "${1}" |"${sed}" -r -e 's/^((([^=:]+):.+|[^:=]+)=.+|[^:=]+)$/\3/;' )"
+    field="${var_name:+2}"
+    field="${field:-1}"
+    tool_pattern="$( echo "${1}" |cut -d : -f ${field}- |"${sed}" -r -e 's/ *\|\| */\n/g;' )"
+
     save_IFS="${IFS}"
-    tool_pattern="$( echo "${1}" |"${sed}" -r -e 's/ *\|\| */\n/g;' )"
+    # Set IFS to \n only
     IFS='
 '
     for item in ${tool_pattern}; do
@@ -87,7 +103,15 @@ has_or_abort() {
                 regexp=
                 ;;
         esac
+
         printf "Checking for '${tool}'... "
+        if [ -n "${var_name}" ]; then
+            eval var_value='"${'"${var_name}"'}"'
+            if [ -n "${var_value}" ]; then
+                echo "${var_value} (cached)"
+                return 0
+            fi
+        fi
         where=$( which "${tool}" 2>/dev/null )
         if [ -z "${where}" ]; then
             echo "not found"
@@ -102,9 +126,8 @@ has_or_abort() {
                 continue
             fi
         fi
-        echo "${where}"
         break
-    done;
+    done
     if [ -z "${where}" ]; then
         for item in ${tool_pattern}; do
             case "${item}" in
@@ -122,6 +145,11 @@ has_or_abort() {
         echo "or the version you have is tool old."
         # FORCE can be set in the environment
         [ -z "${FORCE}" ] && do_error "Bailing out..."
+    else
+        echo "${where}"
+        if [ -n "${var_name}" ]; then
+            eval ${var_name}='"'"${where}"'"'
+        fi
     fi
     IFS="${save_IFS}"
     return 0
@@ -134,7 +162,7 @@ has_or_abort() {
 get_optval(){
     case "$1" in
         --*=?*)
-            echo "${1}" |cut -d '=' -f 2-
+            echo "${1#*=}"
             return 0
             ;;
         *)
@@ -165,38 +193,15 @@ set_mandir() {
     MANDIR_set=1
     MANDIR="$( get_optval "$1" "$2" )"
 }
-
-# The set_contrib function is different in that it will work like the others,
-# except in two cases:
-# If all => replaces all with the list of all available contribs
-# If list => just echoes the list of all available contribs, and instructs
-# caller to quit immediately by setting do_quit to non null.
-# (can't use the return code, see above).
-set_contrib() {
-    opt_val="$( get_optval "$1" "$2" )"
-    ret=$?
-    case "${opt_val}" in
-        all)
-            CONTRIB_list="$( LC_ALL=C ls -1 contrib/*.patch.lzma                \
-                                      |xargs -I {} basename {} .patch.lzma      \
-                                      |"${sed}" -r -e ':a; /$/N; s/\n/,/; ta;'  \
-                           )"
-            ;;
-        list)
-            do_quit=1
-            echo "Available contributions:"
-            LC_ALL=C ls -1 contrib/*.patch.lzma             \
-                     |xargs -I {} basename {} .patch.lzma   \
-                     |"${sed}" -r -e 's/^/  /;'
-            ;;
-        *)  CONTRIB_list="${CONTRIB_list},${opt_val}";;
-    esac
-    return $ret
+set_tool() {
+    local var_name="${1%%=*}"
+    var_name="${var_name#--with-}"
+    eval ${var_name}="\$( get_optval "$1" "$2" )"
 }
 
 do_help() {
     cat <<__EOF__
-\`configure' configures crosstool-NG ${VERSION} to adapt to many kind of systems.
+\`configure' configures crosstool-NG-${VERSION} to adapt to many kind of systems.
 
 USAGE: ./configure [OPTION]...
 
@@ -223,58 +228,29 @@ Fine tuning of the installation directories:
   --mandir=DIR            man documentation [PREFIX/share/man]
 
 Optional Features:
-  --with-contrib=XXX      Include externally contributed features found in the
-                          contrib/ sub-directory. Set to a comma-separated list
-                          of features. Use 'all' to use all contributions, and
-                          'list' to see which are available.
+  --with-install=PATH     Specify the full PATH to GNU install
+  --with-make=PATH        Specify the full PATH to GNU make
+  --with-grep=PATH        Specify the full PATH to GNU grep
+  --with-sed=PATH         Specify the full PATH to GNU sed
+  --with-awk=PATH         Specify the full PATH to GNU awk
+  --with-bash=PATH        Specify the full PATH to bash >= 3.0
 __EOF__
 }
-
-#---------------------------------------------------------------------
-# Some sanity checks, now
-
-# We check for grep and sed manually, because it is used in has_or_abort
-printf "Checking for 'grep'... "
-grep="$( which grep 2>/dev/null )"
-[ -z "${grep}" ] && do_error "not found"
-echo "${grep}"
-printf "Checking whether '${grep}' supports -E... "
-if echo 'foo' |"${grep}" -E 'foo' >/dev/null 2>&1; then
-    echo "yes"
-else
-    do_error "no"
-fi
-printf "Checking for 'sed'... "
-sed="$( which sed 2>/dev/null )"
-[ -z "${sed}" ] && do_error "not found"
-echo "${sed}"
-
-# Check the existence of absolutely required tools
-save_IFS="${IFS}"
-IFS='
-'
-for tool in ${TOOLS_TO_CHECK}; do
-    has_or_abort "${tool}"
-done
-IFS="${save_IFS}"
 
 #---------------------------------------------------------------------
 # Set user's options
 
 while [ $# -ne 0 ]; do
     case "$1" in
+        --local)    LOCAL_set=1; shift;;
         --prefix*)  set_prefix "$1" "$2" && shift || shift 2;;
         --bindir*)  set_bindir "$1" "$2" && shift || shift 2;;
         --libdir*)  set_libdir "$1" "$2" && shift || shift 2;;
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
-        --local)    LOCAL_set=1; shift;;
-        --with-contrib*)
-                    set_contrib "$1" "$2" && shift || shift 2
-                    [ "${do_quit}" = "1" ] && exit 0
-                    ;;
+        --with-*)   set_tool   "$1" "$2" && shift || shift 2;;
         --help|-h)  do_help; exit 0;;
-        *)          do_help; exit 1;;
+        *)          echo "Unrecognised option: '${1}'"; do_help; exit 1;;
     esac
 done
 
@@ -291,24 +267,50 @@ if [ "${LOCAL_set}" = "1" ]; then
 fi
 
 #---------------------------------------------------------------------
-# Apply contributed code
+# Some sanity checks, now
 
-# It's safer to change all ',' to spaces rather than setting IFS
-CONTRIB_list="$( echo "${CONTRIB_list}"                                     \
-                 |"${sed}" -r -e 's/,+/ /g; s/ +/ /g; s/^ //g; s/ $//g;'    \
-               )"
-if [ -n "${CONTRIB_list}" ]; then
-    has_or_abort 'lzcat'
-    printf "Applying contributed code: "
-    for c in ${CONTRIB_list}; do
-        printf "${c}, "
-        if [ ! -f "contrib/${c}.patch.lzma" ]; then
-            do_error "Contribution '${c}' does not exist"
-        fi
-        lzcat "contrib/${c}.patch.lzma" |patch -p1 >/dev/null 2>&1
-    done
-    echo "done"
+# We check for grep and sed manually, because they are used in has_or_abort
+printf "Checking for 'grep'... "
+if [ -n "${grep}" ]; then
+    echo "${grep} (cached)"
+else
+    grep="$( which grep 2>/dev/null )"
+    [ -z "${grep}" ] && do_error "not found"
+    echo "${grep}"
 fi
+printf "Checking whether '${grep}' supports -E... "
+if echo 'foo' |"${grep}" -E 'foo' >/dev/null 2>&1; then
+    echo "yes"
+else
+    do_error "no"
+fi
+
+printf "Checking for 'sed'... "
+if [ -n "${sed}" ]; then
+    echo "${sed} (cached)"
+else
+    sed="$( which sed 2>/dev/null )"
+    [ -z "${sed}" ] && do_error "not found"
+    echo "${sed}"
+fi
+printf "Checking wether '${sed}' supports -i and -e... "
+touch .ct-ng.sed.test
+if "${sed}" -r -i -e 's/foo/bar/' .ct-ng.sed.test >/dev/null 2>&1; then
+    rm -f .ct-ng.sed.test
+    echo "yes"
+else
+    rm -f .ct-ng.sed.test
+    do_error "no"
+fi
+
+# Check the existence of absolutely required tools
+save_IFS="${IFS}"
+IFS='
+'
+for tool in ${TOOLS_TO_CHECK}; do
+    has_or_abort "${tool}"
+done
+IFS="${save_IFS}"
 
 #---------------------------------------------------------------------
 # Compute the version string
@@ -364,12 +366,22 @@ done
 # That's all, folks!
 
 printf "Building up Makefile... "
+var_list="grep
+          sed
+          $( printf "${TOOLS_TO_CHECK}"                                 \
+             |"${sed}" -r -e 's/^((([^=:]+):.+|[^:=]+)=.+|[^:=]+)$/\3/;'
+           )"
+var_sed="$( for var_name in ${var_list}; do
+                eval echo 's,@@${var_name}@@,${'"${var_name}"'},g'
+            done 
+          )"
 "${sed}" -r -e "s,@@BINDIR@@,${BINDIR},g
                 s,@@LIBDIR@@,${LIBDIR},g
                 s,@@DOCDIR@@,${DOCDIR},g
                 s,@@MANDIR@@,${MANDIR},g
                 s,@@VERSION@@,${VERSION},g
                 s,@@DATE@@,${DATE},g
+                ${var_sed}
                 s,@@LOCAL@@,${LOCAL_set},g"  Makefile.in >Makefile
 echo "done"
 
@@ -381,7 +393,6 @@ crosstool-NG configured as follows:
   LIBDIR='${LIBDIR}'
   DOCDIR='${DOCDIR}'
   MANDIR='${MANDIR}'
-  CONTRIB='${CONTRIB_list}'
 
 Now run:
   make
