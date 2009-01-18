@@ -34,7 +34,7 @@ CT_STEPS := libc_check_config   \
             tools               \
             debug               \
 
-# Make the list available to sub-processes (scripts/crosstool.sh needs it)
+# Make the list available to sub-processes (scripts/crosstool-NG.sh needs it)
 export CT_STEPS
 
 # Print the steps list
