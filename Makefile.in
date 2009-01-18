@@ -76,7 +76,7 @@ docs/ct-ng.1.gz: docs/ct-ng.1
 
 %: %.in Makefile
 	@echo "  SED    '$@'"
-	@$(sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;'    \
+	@$(CT_sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;' \
 	        -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'       \
 	        -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'       \
 	        -e 's,@@CT_MANDIR@@,$(MANDIR),g;'       \
@@ -128,7 +128,7 @@ real-install: $(patsubst %,install-%,$(TARGETS))
 
 install-bin: $(DESTDIR)$(BINDIR)
 	@echo "  INST   'ct-ng'"
-	@$(install) -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
+	@$(CT_install) -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
 
 # If one is hacking crosstool-NG, the patch set might change between any two
 # installations of the same VERSION, thus the patches must be removed prior
@@ -143,7 +143,7 @@ install-lib-main: $(DESTDIR)$(LIBDIR)
 	 done
 	@rm -f "$(DESTDIR)$(LIBDIR)/scripts/addToolVersion.sh"
 	@echo "  INST   'steps.mk'"
-	@$(install) -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
+	@$(CT_install) -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
@@ -151,23 +151,23 @@ install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
 	@echo "  INST   'samples/'"
 	@tar cf - --exclude=.svn samples |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -)
 	@for samp_file in "$(DESTDIR)$(LIBDIR)/samples/"*"/crosstool.config"; do                    \
-	     $(sed) -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};              \
-	     $(sed) -r -i -e 's,^(CT_WORK_DIR)=.*,\1="\$${CT_TOP_DIR}/targets",;' $${samp_file};    \
+	     $(CT_sed) -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};           \
+	     $(CT_sed) -r -i -e 's,^(CT_WORK_DIR)=.*,\1="\$${CT_TOP_DIR}/targets",;' $${samp_file}; \
 	 done
 
 install-doc: $(DESTDIR)$(DOCDIR)
 	@for doc_file in docs/CREDITS docs/overview.txt; do             \
 	     echo "  INST   '$${doc_file}'";                            \
-	     $(install) -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)";    \
+	     $(CT_install) -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)"; \
 	 done
 
 install-man: $(DESTDIR)$(MANDIR)
 	@echo "  INST   'ct-ng.1.gz'"
-	@$(install) -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
+	@$(CT_install) -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
 
 $(sort $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(DOCDIR) $(DESTDIR)$(MANDIR)):
 	@echo "  MKDIR  '$@'"
-	@$(install) -m 755 -d "$@"
+	@$(CT_install) -m 755 -d "$@"
 
 
 #--------------------------------------
