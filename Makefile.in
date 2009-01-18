@@ -15,7 +15,14 @@ DOCDIR := @@DOCDIR@@
 MANDIR := @@MANDIR@@
 DATE   := @@DATE@@
 LOCAL  := @@LOCAL@@
-MAKE   := $(shell which $(MAKE) 2>/dev/null || type -p $(MAKE) 2>/dev/null || echo "ct-ng:nomake")
+
+# Paths found by ./configure
+CT_install:=@@install@@
+CT_make   :=@@make@@
+CT_bash   :=@@bash@@
+CT_grep   :=@@grep@@
+CT_awk    :=@@awk@@
+CT_sed    :=@@sed@@
 
 ###############################################################################
 # Sanity checks
@@ -24,11 +31,6 @@ MAKE   := $(shell which $(MAKE) 2>/dev/null || type -p $(MAKE) 2>/dev/null || ec
 Makefile: Makefile.in
 	@echo "$< did changed: you must re-run './configure'"
 	@false
-
-# Check we do have make
-ifeq ($(strip $(MAKE)),ct-ng:nomake)
-  $(error 'make' was not found on your system)
-endif
 
 # If installing with DESTDIR, check it's an absolute path
 ifneq ($(strip $(DESTDIR)),)
@@ -74,14 +76,19 @@ docs/ct-ng.1.gz: docs/ct-ng.1
 
 %: %.in Makefile
 	@echo "  SED    '$@'"
-	@sed -r -e 's,@@CT_MAKE@@,$(MAKE),g;'       \
-	        -e 's,@@CT_BINDIR@@,$(BINDIR),g;'   \
-	        -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'   \
-	        -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'   \
-	        -e 's,@@CT_MANDIR@@,$(MANDIR),g;'   \
-	        -e 's,@@CT_VERSION@@,$(VERSION),g;'	\
-	        -e 's,@@CT_DATE@@,$(DATE),g;'       \
-	     $@.in >$@
+	@$(sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;'    \
+	        -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'       \
+	        -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'       \
+	        -e 's,@@CT_MANDIR@@,$(MANDIR),g;'       \
+	        -e 's,@@CT_VERSION@@,$(VERSION),g;'	    \
+	        -e 's,@@CT_DATE@@,$(DATE),g;'           \
+	        -e 's,@@CT_install@@,$(CT_install),g;'  \
+	        -e 's,@@CT_make@@,$(CT_make),g;'        \
+	        -e 's,@@CT_bash@@,$(CT_bash),g;'        \
+	        -e 's,@@CT_grep@@,$(CT_grep),g;'        \
+	        -e 's,@@CT_awk@@,$(CT_awk),g;'          \
+	        -e 's,@@CT_sed@@,$(CT_sed),g;'          \
+	        $@.in >$@
 
 #--------------------------------------
 # Clean rules
@@ -121,7 +128,7 @@ real-install: $(patsubst %,install-%,$(TARGETS))
 
 install-bin: $(DESTDIR)$(BINDIR)
 	@echo "  INST   'ct-ng'"
-	@install -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
+	@$(install) -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
 
 # If one is hacking crosstool-NG, the patch set might change between any two
 # installations of the same VERSION, thus the patches must be removed prior
@@ -136,31 +143,31 @@ install-lib-main: $(DESTDIR)$(LIBDIR)
 	 done
 	@rm -f "$(DESTDIR)$(LIBDIR)/scripts/addToolVersion.sh"
 	@echo "  INST   'steps.mk'"
-	@install -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
+	@$(install) -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
 install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
 	@echo "  INST   'samples/'"
 	@tar cf - --exclude=.svn samples |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -)
-	@for samp_file in "$(DESTDIR)$(LIBDIR)/samples/"*"/crosstool.config"; do                \
-	     sed -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};             \
-	     sed -r -i -e 's,^(CT_WORK_DIR)=.*,\1="\$${CT_TOP_DIR}/targets",;' $${samp_file};   \
+	@for samp_file in "$(DESTDIR)$(LIBDIR)/samples/"*"/crosstool.config"; do                    \
+	     $(sed) -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};              \
+	     $(sed) -r -i -e 's,^(CT_WORK_DIR)=.*,\1="\$${CT_TOP_DIR}/targets",;' $${samp_file};    \
 	 done
 
 install-doc: $(DESTDIR)$(DOCDIR)
-	@for doc_file in docs/CREDITS docs/overview.txt; do         \
-	     echo "  INST   '$${doc_file}'";                        \
-	     install -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)";   \
+	@for doc_file in docs/CREDITS docs/overview.txt; do             \
+	     echo "  INST   '$${doc_file}'";                            \
+	     $(install) -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)";    \
 	 done
 
 install-man: $(DESTDIR)$(MANDIR)
 	@echo "  INST   'ct-ng.1.gz'"
-	@install -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
+	@$(install) -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
 
 $(sort $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(DOCDIR) $(DESTDIR)$(MANDIR)):
 	@echo "  MKDIR  '$@'"
-	@install -m 755 -d "$@"
+	@$(install) -m 755 -d "$@"
 
 
 #--------------------------------------
