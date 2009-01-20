@@ -242,11 +242,18 @@ CT_MktempDir() {
     return 0
 }
 
-# Removes one or more directories, even if it is read-only
+# Removes one or more directories, even if it is read-only, or its parent is
 # Usage: CT_DoForceRmdir dir [...]
 CT_DoForceRmdir() {
-    CT_DoExecLog ALL chmod -R u+w "${@}"
-    CT_DoExecLog ALL rm -rf "${@}"
+    local dir
+    local mode
+    for dir in "${@}"; do
+        [ -d "${dir}" ] || continue
+        mode="$(stat -c '%a' "${dir}")"
+        CT_DoExecLog ALL chmod -R u+w "$(dirname "${dir}")"
+        CT_DoExecLog ALL rm -rf "${dir}"
+        CT_DoExecLog ALL chmod -R ${mode} "$(dirname "${dir}")"
+    done
 }
 
 # Echoes the specified string on stdout until the pipe breaks.
