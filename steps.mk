@@ -14,7 +14,7 @@ help-env::
 # ----------------------------------------------------------
 # The steps list
 
-# Please keep the last line with a '\' and keep the folowing empy line:
+# Please keep the last line with a '\' and keep the following empy line:
 # it helps when diffing and merging.
 CT_STEPS := libc_check_config   \
             kernel_headers      \
@@ -33,6 +33,7 @@ CT_STEPS := libc_check_config   \
             binutils_target     \
             tools               \
             debug               \
+            finish              \
 
 # Make the list available to sub-processes (scripts/crosstool-NG.sh needs it)
 export CT_STEPS

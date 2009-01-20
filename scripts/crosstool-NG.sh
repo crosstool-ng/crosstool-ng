@@ -456,44 +456,6 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
         fi
         prev_step="${step}"
     done
-
-    CT_DoLog INFO "================================================================="
-
-    CT_DoLog DEBUG "Removing access to the build system tools"
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
-    CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/bin/makeinfo"
-
-    if [ "${CT_BARE_METAL}" != "y" ]; then
-        CT_DoLog EXTRA "Installing the populate helper"
-        sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
-            "${CT_LIB_DIR}/scripts/populate.in"           \
-            >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
-        CT_DoExecLog ALL chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
-    fi
-
-    # Create the aliases to the target tools
-    CT_DoLog EXTRA "Creating toolchain aliases"
-    CT_Pushd "${CT_PREFIX_DIR}/bin"
-    for t in "${CT_TARGET}-"*; do
-        if [ -n "${CT_TARGET_ALIAS}" ]; then
-            _t=$(echo "$t" |sed -r -e 's/^'"${CT_TARGET}"'-/'"${CT_TARGET_ALIAS}"'-/;')
-            CT_DoExecLog ALL ln -sv "${t}" "${_t}"
-        fi
-        if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
-            _t=$(echo "$t" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
-            CT_DoExecLog ALL ln -sv "${t}" "${_t}"
-        fi
-    done
-    CT_Popd
-
-    # Remove the generated documentation files
-    if [ "${CT_REMOVE_DOCS}" = "y" ]; then
-    	CT_DoLog INFO "Removing installed documentation"
-        CT_DoForceRmdir "${CT_PREFIX_DIR}/"{,usr/}{man,info}
-        CT_DoForceRmdir "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
-        CT_DoForceRmdir "${CT_DEBUG_INSTALL_DIR}/"{,usr/}{man,info}
-    fi
 fi
 
 CT_DoEnd INFO
