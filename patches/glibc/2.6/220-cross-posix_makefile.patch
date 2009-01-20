@@ -1,0 +1,65 @@
+On 20090111.1151+0100, Thomas Jourdan <tjourdan@neuf.fr> wrote:
+
+  I'm still working on the solaris port an I have the same issue here.
+  While trying to build the i686-nptl-linux-gnu toolchain under
+  OpenSolaris, the problems appears during the make install rule of the
+  libc function.
+
+  The problem is that solaris tries to execute ld-linux.so.2, which is an
+  elf 32 bits dyn lib, and it fails with a memory fault, not a "cannot
+  execute binary file". Hence the build stops on this error.
+
+And on 20090111.1339+0100, he replied with:
+
+  After digging a little, the problem comes from the
+  glibc-2.6.1/posix/Makefile. It has been solved starting from glibc 2.7
+  so I extracted a patch for glibc 2.6.1.
+
+--- glibc-2.6.1/posix/Makefile	2007-04-04 01:28:20.000000000 +0200
++++ glibc-2.7/posix/Makefile	2007-09-12 01:57:22.000000000 +0200
+@@ -98,7 +98,7 @@
+ endif
+ others		:= getconf
+ install-bin	:= getconf
+-install-others	:= $(inst_libexecdir)/getconf
++install-others-programs	:= $(inst_libexecdir)/getconf
+ 
+ before-compile	:= testcases.h ptestcases.h
+ 
+@@ -110,7 +110,7 @@
+ 	     tst-rxspencer-mem tst-rxspencer.mtrace tst-getconf.out \
+ 	     tst-pcre-mem tst-pcre.mtrace tst-boost-mem tst-boost.mtrace \
+ 	     bug-ga2.mtrace bug-ga2-mem bug-glob2.mtrace bug-glob2-mem \
+-	     tst-vfork3-mem tst-vfork3.mtrace
++	     tst-vfork3-mem tst-vfork3.mtrace getconf.speclist
+ 
+ include ../Rules
+ 
+@@ -291,12 +291,20 @@
+ $(objpfx)bug-glob2-mem: $(objpfx)bug-glob2.out
+ 	$(common-objpfx)malloc/mtrace $(objpfx)bug-glob2.mtrace > $@
+ 
+-$(inst_libexecdir)/getconf: $(objpfx)getconf FORCE
++$(inst_libexecdir)/getconf: $(inst_bindir)/getconf \
++			    $(objpfx)getconf.speclist FORCE
+ 	$(addprefix $(..)./scripts/mkinstalldirs ,\
+ 		    $(filter-out $(wildcard $@),$@))
+-	for spec in `LC_ALL=C GETCONF_DIR=/dev/null \
+-		     $(run-program-prefix) $< \
+-		     _POSIX_V6_WIDTH_RESTRICTED_ENVS`; do \
+-		$(INSTALL_PROGRAM) $< $@/$$spec.new; \
+-		mv -f $@/$$spec.new $@/$$spec; \
+-	done
++	while read spec; do \
++	  ln -f $< $@/$$spec.new || $(INSTALL_PROGRAM) $< $@/$$spec.new; \
++	  mv -f $@/$$spec.new $@/$$spec; \
++	done < $(objpfx)getconf.speclist
++
++$(objpfx)getconf.speclist: $(objpfx)getconf
++ifeq (no,$(cross-compiling))
++	LC_ALL=C GETCONF_DIR=/dev/null \
++	$(run-program-prefix) $< _POSIX_V6_WIDTH_RESTRICTED_ENVS > $@.new
++else
++	> $@.new
++endif
++	mv -f $@.new $@
