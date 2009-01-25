@@ -84,7 +84,7 @@ has_or_abort() {
     local tool_pattern
     local field
 
-    var_name="$( echo "${1}" |"${sed}" -r -e 's/^((([^=:]+):.+|[^:=]+)=.+|[^:=]+)$/\3/;' )"
+    var_name="$( echo "${1}" |"${sed}" -r -e 's/^(([^=:]+):.+|[^:=]+=.+|[^:=]+)$/\2/;' )"
     field="${var_name:+2}"
     field="${field:-1}"
     tool_pattern="$( echo "${1}" |cut -d : -f ${field}- |"${sed}" -r -e 's/ *\|\| */\n/g;' )"
@@ -139,10 +139,15 @@ has_or_abort() {
                     regexp=
                     ;;
             esac
-            echo "  could not find '${tool}' matching regexp '${regexp}'"
+            printf "  could not find '${tool}'"
+            [ -n "${regexp}" ] && printf " matching regexp '${regexp}'"
+            echo
         done
         echo "Either you are missing entirely the needed tool,"
         echo "or the version you have is tool old."
+        if [ -n "${var_name}" ]; then
+            echo "You can give the path to this tool using: --with-${var_name}=PATH"
+        fi
         # FORCE can be set in the environment
         [ -z "${FORCE}" ] && do_error "Bailing out..."
     else
@@ -369,7 +374,7 @@ printf "Building up Makefile... "
 var_list="grep
           sed
           $( printf "${TOOLS_TO_CHECK}"                                 \
-             |"${sed}" -r -e 's/^((([^=:]+):.+|[^:=]+)=.+|[^:=]+)$/\3/;'
+             |"${sed}" -r -e 's/^(([^=:]+):.+|[^:=]+=.+|[^:=]+)$/\2/;'
            )"
 var_sed="$( for var_name in ${var_list}; do
                 eval echo 's,@@${var_name}@@,${'"${var_name}"'},g'
