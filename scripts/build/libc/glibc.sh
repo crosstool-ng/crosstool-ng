@@ -264,8 +264,8 @@ do_libc_start_files() {
     extra_config="${extra_config} $(do_libc_min_kernel_config)"
 
     # Add some default CC args
-    glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
-    glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+    glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
+    glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
     # In case we're using a snapshot, fake a >=2.6 version.
     if [    "${CT_LIBC_V_LATEST}" = "y" \
          -o "${CT_LIBC_V_date}" = "y"   ]; then
@@ -376,8 +376,8 @@ do_libc() {
     extra_config="${extra_config} $(do_libc_min_kernel_config)"
 
     # Add some default CC args
-    glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([^\.]+)\..*/\1/')
-    glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[^\.]+\.([^.]+).*/\1/')
+    glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
+    glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
     # In case we're using a snapshot, fake a >=2.6 version.
     if [    "${CT_LIBC_V_LATEST}" = "y" \
          -o "${CT_LIBC_V_date}" = "y"   ]; then
