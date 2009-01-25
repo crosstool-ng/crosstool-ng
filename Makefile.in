@@ -17,12 +17,12 @@ DATE   := @@DATE@@
 LOCAL  := @@LOCAL@@
 
 # Paths found by ./configure
-CT_install:=@@install@@
-CT_bash   :=@@bash@@
-CT_grep   :=@@grep@@
-CT_make   :=@@make@@
-CT_awk    :=@@awk@@
-CT_sed    :=@@sed@@
+install:= @@install@@
+bash   := @@bash@@
+grep   := @@grep@@
+make   := @@make@@
+awk    := @@awk@@
+sed    := @@sed@@
 
 ###############################################################################
 # Sanity checks
@@ -64,7 +64,7 @@ uninstall: real-uninstall
 
 build-bin: ct-ng
 
-build-lib:
+build-lib: paths.mk
 
 build-doc:
 
@@ -76,19 +76,29 @@ docs/ct-ng.1.gz: docs/ct-ng.1
 
 %: %.in Makefile
 	@echo "  SED    '$@'"
-	@$(CT_sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;' \
-	        -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'       \
-	        -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'       \
-	        -e 's,@@CT_MANDIR@@,$(MANDIR),g;'       \
-	        -e 's,@@CT_VERSION@@,$(VERSION),g;'	    \
-	        -e 's,@@CT_DATE@@,$(DATE),g;'           \
-	        -e 's,@@CT_install@@,$(CT_install),g;'  \
-	        -e 's,@@CT_bash@@,$(CT_bash),g;'        \
-	        -e 's,@@CT_grep@@,$(CT_grep),g;'        \
-	        -e 's,@@CT_make@@,$(CT_make),g;'        \
-	        -e 's,@@CT_awk@@,$(CT_awk),g;'          \
-	        -e 's,@@CT_sed@@,$(CT_sed),g;'          \
-	        $@.in >$@
+	@$(sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;'    \
+	           -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'    \
+	           -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'    \
+	           -e 's,@@CT_MANDIR@@,$(MANDIR),g;'    \
+	           -e 's,@@CT_VERSION@@,$(VERSION),g;'	\
+	           -e 's,@@CT_DATE@@,$(DATE),g;'        \
+	           -e 's,@@CT_make@@,$(make),g;'        \
+	           $@.in >$@
+
+# We create a script fragment that is parseable from inside a Makefile,
+# but also from inside a shell script, hence the reason why we don't
+# use := to set varaibles, although that will incur a (very small)
+# penalty from the Makefile that includes it (due to re-evaluation at
+# each call).
+paths.mk:
+	@echo "  GEN    '$@'"
+	@(echo "export install=$(install)"; \
+	  echo "export bash=$(bash)";       \
+	  echo "export grep=$(grep)";       \
+	  echo "export make=$(make)";       \
+	  echo "export awk=$(awk)";         \
+	  echo "export sed=$(sed)";         \
+	 ) >paths.mk
 
 #--------------------------------------
 # Clean rules
@@ -128,7 +138,7 @@ real-install: $(patsubst %,install-%,$(TARGETS))
 
 install-bin: $(DESTDIR)$(BINDIR)
 	@echo "  INST   'ct-ng'"
-	@$(CT_install) -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
+	@$(install) -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
 
 # If one is hacking crosstool-NG, the patch set might change between any two
 # installations of the same VERSION, thus the patches must be removed prior
@@ -143,7 +153,9 @@ install-lib-main: $(DESTDIR)$(LIBDIR)
 	 done
 	@rm -f "$(DESTDIR)$(LIBDIR)/scripts/addToolVersion.sh"
 	@echo "  INST   'steps.mk'"
-	@$(CT_install) -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
+	@$(install) -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
+	@echo "  INST   'paths.mk'"
+	@$(install) -m 644 paths.mk "$(DESTDIR)$(LIBDIR)/paths.mk"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
@@ -151,23 +163,23 @@ install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
 	@echo "  INST   'samples/'"
 	@tar cf - --exclude=.svn samples |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -)
 	@for samp_file in "$(DESTDIR)$(LIBDIR)/samples/"*"/crosstool.config"; do                    \
-	     $(CT_sed) -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};           \
-	     $(CT_sed) -r -i -e 's,^(CT_WORK_DIR)=.*,\1="\$${CT_TOP_DIR}/targets",;' $${samp_file}; \
+	     $(sed) -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};           \
+	     $(sed) -r -i -e 's,^(CT_WORK_DIR)=.*,\1="\$${CT_TOP_DIR}/targets",;' $${samp_file}; \
 	 done
 
 install-doc: $(DESTDIR)$(DOCDIR)
 	@for doc_file in docs/CREDITS docs/overview.txt; do             \
 	     echo "  INST   '$${doc_file}'";                            \
-	     $(CT_install) -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)"; \
+	     $(install) -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)"; \
 	 done
 
 install-man: $(DESTDIR)$(MANDIR)
 	@echo "  INST   'ct-ng.1.gz'"
-	@$(CT_install) -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
+	@$(install) -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
 
 $(sort $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(DOCDIR) $(DESTDIR)$(MANDIR)):
 	@echo "  MKDIR  '$@'"
-	@$(CT_install) -m 755 -d "$@"
+	@$(install) -m 755 -d "$@"
 
 
 #--------------------------------------
