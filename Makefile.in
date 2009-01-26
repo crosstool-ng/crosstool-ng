@@ -1,7 +1,37 @@
 # Makefile.in for building crosstool-NG
 # This file serves as source for the ./configure operation
 
-MAKEFLAGS += --no-print-directory --no-builtin-rules
+# This series of test is here because GNU make 3.81 will *not* use MAKEFLAGS
+# to set additional flags in the current Makfile ( see:
+# http://savannah.gnu.org/bugs/?20501 ), although the make manual says it
+# should ( see: http://www.gnu.org/software/make/manual/make.html#Options_002fRecursion )
+# so we have to work it around by calling ourselves back if needed
+
+# So why do we need not to use the built rules and variables? Because we
+# need to generate scripts/crosstool-NG.sh from scripts/crosstool-NG.sh.in
+# and there is a built-in implicit rule '%.sh:' that has neither a pre-requisite
+# nor a command associated, and that built-in implicit rule takes precedence
+# over our non-built-in implicit rule '%: %.in', below.
+
+# CT_MAKEFLAGS will be used later, below...
+
+# Do not print directories as we descend into them
+ifeq ($(filter --no-print-directory,$(MAKEFLAGS)),)
+CT_MAKEFLAGS += --no-print-directory
+endif
+
+# Use neither builtin rules, nor builtin variables
+# Note: dual test, because if -R and -r are given on the command line
+# (who knows?), MAKEFLAGS contains 'Rr' instead of '-Rr', while adding
+# '-Rr' to MAKEFLAGS adds it literaly ( and does not add 'Rr' )
+ifeq ($(filter Rr,$(MAKEFLAGS)),)
+ifeq ($(filter -Rr,$(MAKEFLAGS)),)
+CT_MAKEFLAGS += -Rr
+endif # No -Rr
+endif # No Rr
+
+# Remove any suffix rules
+.SUFFIXES:
 
 all: Makefile build
 
@@ -42,6 +72,17 @@ endif
 ###############################################################################
 # Global make rules
 
+# If any extra MAKEFLAGS were added, re-run ourselves
+# See top of file for an explanation of why this is needed...
+ifneq ($(strip $(CT_MAKEFLAGS)),)
+
+MAKEFLAGS += $(CT_MAKEFLAGS)
+build install clean distclean uninstall:
+	@$(MAKE) $@
+
+else
+# There were no additional MAKEFLAGS to add, do the job
+
 TARGETS := bin lib doc man
 
 build: $(patsubst %,build-%,$(TARGETS))
@@ -62,7 +103,7 @@ uninstall: real-uninstall
 #--------------------------------------
 # Build rules
 
-build-bin: ct-ng
+build-bin: ct-ng scripts/crosstool-NG.sh
 
 build-lib: paths.mk
 
@@ -83,6 +124,7 @@ docs/ct-ng.1.gz: docs/ct-ng.1
 	           -e 's,@@CT_VERSION@@,$(VERSION),g;'	\
 	           -e 's,@@CT_DATE@@,$(DATE),g;'        \
 	           -e 's,@@CT_make@@,$(make),g;'        \
+	           -e 's,@@CT_bash@@,$(bash),g;'        \
 	           $@.in >$@
 
 # We create a script fragment that is parseable from inside a Makefile,
@@ -127,6 +169,8 @@ ifeq ($(strip $(LOCAL)),1)
 real-install:
 	@echo "  CHMOD  'ct-ng'"
 	@chmod a+x ct-ng
+	@echo "  CHMOD  'scripts/crosstool-NG.sh'"
+	@chmod a+x scripts/crosstool-NG.sh
 
 real-uninstall:
 	@true
@@ -206,3 +250,5 @@ uninstall-man:
 	@rm -f "$(DESTDIR)$(MANDIR)/ct-ng.1"{,.gz}
 
 endif # Not --local
+
+endif # No extra MAKEFLAGS were added

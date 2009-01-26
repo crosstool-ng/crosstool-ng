@@ -1,4 +1,4 @@
-#!/bin/bash
+#!@@CT_bash@@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package.
 
@@ -23,15 +23,35 @@
 # Parse the configuration file
 # It has some info about the logging facility, so include it early
 . .config
+# Yes! We can do full logging from now on!
 
 # Overide the locale early, in case we ever translate crosstool-NG messages
 [ -z "${CT_NO_OVERIDE_LC_MESSAGES}" ] && export LC_ALL=C
+
+# Where will we work?
+CT_WORK_DIR="${CT_WORK_DIR:-${CT_TOP_DIR}/targets}"
+
+# Create the bin-overide early
+# Contains symlinks to the tools found bu ./configure
+# Note: CT_DoLog and CT_DoExecLog do not use any of those tool, so
+# they can be safely used
+CT_BIN_OVERIDE_DIR="${CT_WORK_DIR}/bin"
+CT_DoLog DEBUG "Creating bin-overide for tools in '${CT_BIN_OVERIDE_DIR}'"
+CT_DoExecLog DEBUG mkdir -p "${CT_BIN_OVERIDE_DIR}"
+cat "${CT_LIB_DIR}/paths.mk" |while read trash line; do
+    tool="${line%%=*}"
+    path="${line#*=}"
+    CT_DoLog DEBUG "  '${tool}' -> '${path}'"
+    printf "#${BANG}/bin/sh\nexec '${path}' \"\${@}\"\n" >"${CT_BIN_OVERIDE_DIR}/${tool}"
+    CT_DoExecLog ALL chmod 700 "${CT_BIN_OVERIDE_DIR}/${tool}"
+done
+export PATH="${CT_BIN_OVERIDE_DIR}:${PATH}"
 
 # Start date. Can't be done until we know the locale
 CT_STAR_DATE=$(CT_DoDate +%s%N)
 CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 
-# Yes! We can do full logging from now on!
+# Log real begining of build, now
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 
 # renice oursleves
@@ -84,8 +104,7 @@ CT_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_TARGET_LDFLAGS}"
 CT_CC_CORE_EXTRA_CONFIG="${CT_ARCH_CC_CORE_EXTRA_CONFIG} ${CT_CC_CORE_EXTRA_CONFIG}"
 CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 
-# Where will we work?
-: "${CT_WORK_DIR:=${CT_TOP_DIR}/targets}"
+# Create the working directories
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
 CT_SRC_DIR="${CT_WORK_DIR}/src"
 CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
