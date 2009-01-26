@@ -131,7 +131,7 @@ endef
 %.dep: %.c $(CT_LIB_DIR)/kconfig/kconfig.mk
 	$(check_kconfig_dir)
 	@$(ECHO) "  DEP   $@"
-	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |sed -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
+	$(SILENT)$(HOST_CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |$(sed) -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
 
 # Build C files
 %.o: %.c $(CT_LIB_DIR)/kconfig/kconfig.mk

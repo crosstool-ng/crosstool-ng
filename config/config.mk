@@ -84,11 +84,11 @@ define build_gen_choice_in
 	  echo "";                                                          \
 	  for entry in $(5); do                                             \
 	    file="$(4)/$${entry}.in";                                       \
-	    _entry=$$(echo "$${entry}" |sed -r -s -e 's/[-.+]/_/g;');       \
+	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');       \
 	    echo "config $(3)_$${_entry}";                                  \
 	    echo "    bool";                                                \
 	    printf "    prompt \"$${entry}";                                \
-	    if grep -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
+	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
 	      echo " (EXPERIMENTAL)\"";                                     \
 	      echo "    depends on EXPERIMENTAL";                           \
 	    else                                                            \
@@ -99,7 +99,7 @@ define build_gen_choice_in
 	  echo "endchoice";                                                 \
 	  for entry in $(5); do                                             \
 	    file="$(4)/$${entry}.in";                                       \
-	    _entry=$$(echo "$${entry}" |sed -r -s -e 's/[-.+]/_/g;');       \
+	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');       \
 	    echo "";                                                        \
 	    echo "if $(3)_$${_entry}";                                      \
 	    echo "config $(3)";                                             \
@@ -127,11 +127,11 @@ define build_gen_menu_in
 	  echo "";                                                          \
 	  for entry in $(5); do                                             \
 	    file="$(4)/$${entry}.in";                                       \
-	    _entry=$$(echo "$${entry}" |sed -r -s -e 's/[-.+]/_/g;');       \
+	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');       \
 	    echo "menuconfig $(3)_$${_entry}";                              \
 	    echo "    bool";                                                \
 	    printf "    prompt \"$${entry}";                                \
-	    if grep -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
+	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
 	      echo " (EXPERIMENTAL)\"";                                     \
 	      echo "    depends on EXPERIMENTAL";                           \
 	    else                                                            \

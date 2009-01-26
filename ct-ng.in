@@ -6,12 +6,8 @@
 # Don't use built-in rules, we know what we're doing
 MAKEFLAGS += --no-print-directory --no-builtin-rules
 
-# Some distributions (eg. Ubuntu) thought it wise to point /bin/sh to
-# a truly POSIX-conforming shell, ash in this case. This is not so good
-# as we, smart (haha!) developers (as smart we ourselves think we are),
-# got used to bashisms, and are enclined to easiness... So force use of
-# bash. (Note: this is ugly, but ./configure checks for it).
-export SHELL=/bin/bash
+# Don't go parallel
+.NOTPARALLEL:
 
 # This is where ct-ng is:
 export CT_NG:=$(lastword $(MAKEFILE_LIST))
@@ -26,9 +22,17 @@ export CT_DOC_DIR:=@@CT_DOCDIR@@
 # This is crosstool-NG version string
 export CT_VERSION:=@@CT_VERSION@@
 
-# Don't go parallel
-.NOTPARALLEL:
+# Paths found by ./configure
+include $(CT_LIB_DIR)/paths.mk
 
+# Some distributions (eg. Ubuntu) thought it wise to point /bin/sh to
+# a truly POSIX-conforming shell, ash in this case. This is not so good
+# as we, smart (haha!) developers (as smart we ourselves think we are),
+# got used to bashisms, and are enclined to easiness... So force use of
+# bash.
+export SHELL=$(bash)
+
+# Make the restart/stop steps availabe to scripts/crostool-NG.sh
 export CT_STOP:=$(STOP)
 export CT_RESTART:=$(RESTART)
 
@@ -123,7 +127,7 @@ build: .config
 	$(SILENT)$(CT_LIB_DIR)/scripts/crosstool-NG.sh
 
 build.%:
-	$(SILENT)$(MAKE) -rf $(CT_NG) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
+	$(SILENT)$(MAKE) -rf $(CT_NG) $(shell echo "$(@)" |$(sed) -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
 
 PHONY += tarball
 #tarball:

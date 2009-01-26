@@ -39,7 +39,7 @@ $(patsubst %,show-%,$(CT_SAMPLES)):
 # print the list of all available samples
 PHONY += list-samples
 list-samples: .FORCE
-	@echo $(CT_SAMPLES) |sed -r -e 's/ /\n/g;' |sort
+	@echo $(CT_SAMPLES) |$(sed) -r -e 's/ /\n/g;' |sort
 
 wiki-samples:
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
@@ -76,7 +76,7 @@ $(CT_SAMPLES):
 	   echo  ;                                                                  \
 	   echo  '***********************************************************';     \
 	 )
-	$(SILENT)if grep -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then    \
+	$(SILENT)if $(grep) -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then    \
 	   echo  ;                                                                  \
 	   echo  'WARNING! This sample may enable experimental features.';          \
 	   echo  '         Please be sure to review the configuration prior';       \
@@ -97,12 +97,12 @@ $(CT_SAMPLES):
 define build_sample
 	@$(ECHO) '  CONF  $(1)'
 	$(SILENT)cp $(call sample_dir,$(1))/crosstool.config .config
-	$(SILENT)sed -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(2)":;' .config
-	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config
-	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config
-	$(SILENT)sed -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config
-	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config
-	$(SILENT)sed -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config
+	$(SILENT)$(sed) -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(2)":;' .config
+	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config
+	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config
+	$(SILENT)$(sed) -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config
+	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config
+	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config
 	$(SILENT)$(MAKE) -rf $(CT_NG) V=0 oldconfig
 	@$(ECHO) '  BUILD $(1)'
 	$(SILENT)$(MAKE) -rf $(CT_NG) V=0 build
@@ -131,5 +131,5 @@ build-all: $(patsubst %,build-%,$(CT_SAMPLES))
 
 # Build all samples, overiding the number of // jobs per sample
 build-all.%:
-	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) $(shell echo "$(@)" |sed -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) $(shell echo "$(@)" |$(sed) -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
 
