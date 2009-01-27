@@ -34,13 +34,13 @@ case "${CT_SSTRIP_FROM}" in
         }
         do_tools_sstrip_get() {
             # Note: the space between sstrip and .c is on purpose.
-            CT_GetFile sstrip .c    \
-                       "http://buildroot.uclibc.org/cgi-bin/viewcvs.cgi/*checkout*/trunk/buildroot/toolchain/sstrip/"
+            CT_GetFile sstrip '.c?view=co'  \
+                       "http://sources.busybox.net/index.py/trunk/buildroot/toolchain/sstrip/"
         }
         do_tools_sstrip_extract() {
             # We'll let buildroot guys take care of sstrip maintenance and patching.
             mkdir -p "${CT_SRC_DIR}/sstrip"
-            CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/sstrip.c" "${CT_SRC_DIR}/sstrip"
+            CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/sstrip.c?view=co" "${CT_SRC_DIR}/sstrip"
         }
         do_tools_sstrip_build() {
             CT_DoStep INFO "Installing sstrip"
