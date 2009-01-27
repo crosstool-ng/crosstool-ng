@@ -14,6 +14,11 @@ do_debug_ltrace_get() {
 
 do_debug_ltrace_extract() {
     CT_ExtractAndPatch "ltrace-${CT_LTRACE_VERSION}"
+    # ltrace uses ppc instead of powerpc for the arch name
+    # create a symlink to get it to build for powerpc
+    CT_Pushd "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}/sysdeps/linux-gnu"
+    CT_DoExecLog ALL ln -sf ppc powerpc
+    CT_Popd
 }
 
 do_debug_ltrace_build() {
