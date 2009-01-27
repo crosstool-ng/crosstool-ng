@@ -76,7 +76,7 @@ $(CT_SAMPLES):
 	   echo  ;                                                                  \
 	   echo  '***********************************************************';     \
 	 )
-	$(SILENT)if $(grep) -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then    \
+	$(SILENT)if $(grep) -E '^CT_EXPERIMENTAL=y$$' .config >/dev/null 2>&1; then \
 	   echo  ;                                                                  \
 	   echo  'WARNING! This sample may enable experimental features.';          \
 	   echo  '         Please be sure to review the configuration prior';       \

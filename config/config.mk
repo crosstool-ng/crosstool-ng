@@ -75,38 +75,38 @@ TOOLS   = $(patsubst config/tools/%.in,%,$(TOOL_CONFIG_FILES))
 # $(call build_gen_choice_in,config.gen/kernel.in,Target OS,KERNEL,config/kernel,$(KERNELS))
 define build_gen_choice_in
 	@$(ECHO) '  IN    $(1)'
-	$(SILENT)(echo "# $(2) menu";                                       \
-	  echo "# Generated file, do not edit!!!";                          \
-	  echo "";                                                          \
-	  echo "choice";                                                    \
-	  echo "    bool";                                                  \
-	  echo "    prompt \"$(2)\"";                                       \
-	  echo "";                                                          \
-	  for entry in $(5); do                                             \
-	    file="$(4)/$${entry}.in";                                       \
-	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');       \
-	    echo "config $(3)_$${_entry}";                                  \
-	    echo "    bool";                                                \
-	    printf "    prompt \"$${entry}";                                \
-	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
-	      echo " (EXPERIMENTAL)\"";                                     \
-	      echo "    depends on EXPERIMENTAL";                           \
-	    else                                                            \
-	      echo "\"";                                                    \
-	    fi;                                                             \
-	  done;                                                             \
-	  echo "";                                                          \
-	  echo "endchoice";                                                 \
-	  for entry in $(5); do                                             \
-	    file="$(4)/$${entry}.in";                                       \
-	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');       \
-	    echo "";                                                        \
-	    echo "if $(3)_$${_entry}";                                      \
-	    echo "config $(3)";                                             \
-	    echo "    default \"$${entry}\" if $(3)_$${_entry}";            \
-	    echo "source $${file}";                                         \
-	    echo "endif";                                                   \
-	  done;                                                             \
+	$(SILENT)(echo "# $(2) menu";                                           \
+	  echo "# Generated file, do not edit!!!";                              \
+	  echo "";                                                              \
+	  echo "choice";                                                        \
+	  echo "    bool";                                                      \
+	  echo "    prompt \"$(2)\"";                                           \
+	  echo "";                                                              \
+	  for entry in $(5); do                                                 \
+	    file="$(4)/$${entry}.in";                                           \
+	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
+	    echo "config $(3)_$${_entry}";                                      \
+	    echo "    bool";                                                    \
+	    printf "    prompt \"$${entry}";                                    \
+	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then   \
+	      echo " (EXPERIMENTAL)\"";                                         \
+	      echo "    depends on EXPERIMENTAL";                               \
+	    else                                                                \
+	      echo "\"";                                                        \
+	    fi;                                                                 \
+	  done;                                                                 \
+	  echo "";                                                              \
+	  echo "endchoice";                                                     \
+	  for entry in $(5); do                                                 \
+	    file="$(4)/$${entry}.in";                                           \
+	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
+	    echo "";                                                            \
+	    echo "if $(3)_$${_entry}";                                          \
+	    echo "config $(3)";                                                 \
+	    echo "    default \"$${entry}\" if $(3)_$${_entry}";                \
+	    echo "source $${file}";                                             \
+	    echo "endif";                                                       \
+	  done;                                                                 \
 	 ) >$(1)
 endef
 
@@ -122,26 +122,26 @@ endef
 # $(call build_gen_menu_in,config.gen/tools.in,Tools,TOOL,config/tools,$(TOOLS))
 define build_gen_menu_in
 	@$(ECHO) '  IN    $(1)'
-	$(SILENT)(echo "# $(2) facilities menu";                            \
-	  echo "# Generated file, do not edit!!!";                          \
-	  echo "";                                                          \
-	  for entry in $(5); do                                             \
-	    file="$(4)/$${entry}.in";                                       \
-	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');       \
-	    echo "menuconfig $(3)_$${_entry}";                              \
-	    echo "    bool";                                                \
-	    printf "    prompt \"$${entry}";                                \
-	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then  \
-	      echo " (EXPERIMENTAL)\"";                                     \
-	      echo "    depends on EXPERIMENTAL";                           \
-	    else                                                            \
-	      echo "\"";                                                    \
-	    fi;                                                             \
-	    echo "if $(3)_$${_entry}";                                      \
-	    echo "source $${file}";                                         \
-	    echo "endif";                                                   \
-	    echo "";                                                        \
-	  done;                                                             \
+	$(SILENT)(echo "# $(2) facilities menu";                                \
+	  echo "# Generated file, do not edit!!!";                              \
+	  echo "";                                                              \
+	  for entry in $(5); do                                                 \
+	    file="$(4)/$${entry}.in";                                           \
+	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
+	    echo "menuconfig $(3)_$${_entry}";                                  \
+	    echo "    bool";                                                    \
+	    printf "    prompt \"$${entry}";                                    \
+	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then   \
+	      echo " (EXPERIMENTAL)\"";                                         \
+	      echo "    depends on EXPERIMENTAL";                               \
+	    else                                                                \
+	      echo "\"";                                                        \
+	    fi;                                                                 \
+	    echo "if $(3)_$${_entry}";                                          \
+	    echo "source $${file}";                                             \
+	    echo "endif";                                                       \
+	    echo "";                                                            \
+	  done;                                                                 \
 	 ) >$(1)
 endef
 
