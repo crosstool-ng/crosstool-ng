@@ -1,0 +1,30 @@
+Original patch from: ../4.3.2/180-superh-default-multilib.patch
+
+-= BEGIN original header =-
+Original patch from gentoo: gentoo/src/patchsets/gcc/4.3.1/gentoo/53_all_gcc4-superh-default-multilib.patch
+The gcc-3.x toolchains would contain all the targets by default.  With gcc-4,
+you have to actually list out the multilibs you want or you will end up with
+just one when using targets like 'sh4-linux-gnu'.
+
+The resulting toolchain can't even build a kernel as the kernel needs to build
+with the nofpu flag to be sure that no fpu ops are generated.
+
+Here we restore the gcc-3.x behavior; the additional overhead of building all
+of these multilibs by default is negligible.
+
+http://bugs.gentoo.org/140205
+
+-= END original header =-
+
+diff -durN gcc-4.3.3.orig/gcc/config.gcc gcc-4.3.3/gcc/config.gcc
+--- gcc-4.3.3.orig/gcc/config.gcc	2008-11-20 18:09:53.000000000 +0100
++++ gcc-4.3.3/gcc/config.gcc	2009-01-27 22:19:32.000000000 +0100
+@@ -2275,7 +2275,7 @@
+ 	if test x${sh_multilibs} = x ; then
+ 		case ${target} in
+ 		sh64-superh-linux* | \
+-		sh[1234]*)	sh_multilibs=${sh_cpu_target} ;;
++		sh[1234]*)	sh_multilibs=`cd ${srcdir}/config/sh ; echo t-mlib-sh[1-4]* | sed 's:t-mlib-sh:,m:g;s: ::g'` ;;
+ 		sh64* | sh5*)	sh_multilibs=m5-32media,m5-32media-nofpu,m5-compact,m5-compact-nofpu,m5-64media,m5-64media-nofpu ;;
+ 		sh-superh-*)	sh_multilibs=m4,m4-single,m4-single-only,m4-nofpu ;;
+ 		sh*-*-linux*)	sh_multilibs=m1,m3e,m4 ;;
