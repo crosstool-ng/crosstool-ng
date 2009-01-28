@@ -11,7 +11,7 @@ do_cc_get() {
     # gcc-3.3.3 lives in releases/gcc-3.3.3, while gcc-2.95.* isn't in a
     # subdirectory! You bastard!
     CT_GetFile "gcc-${CT_CC_VERSION}"   \
-               {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/gcc-${CT_CC_VERSION}}
+               {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/gcc-${CT_CC_VERSION}}     \
                ftp://ftp.irisa.fr/pub/mirrors/gcc.gnu.org/gcc/releases/gcc-${CT_CC_VERSION}
     # Starting with GCC 4.3, ecj is used for Java, and will only be
     # built if the configure script finds ecj.jar at the top of the
