@@ -1,15 +1,20 @@
-#!/bin/bash
-
+#!@@CT_bash@@
 # This script will populate the root directory with libs from the sysroot.
 # (C) 2007 Yann E. MORIN
 # Licensed under the GPL v2
+set -e
 
 # Detect where the toolchain is:
-BIN_DIR="$(cd "$(dirname "$0")"; pwd)"
-CT_READELF="${BIN_DIR}/@@CT_TARGET@@-readelf"
-CT_SYSROOT_DIR="${BIN_DIR}/../@@CT_TARGET@@/sys-root"
+CT_PREFIX_DIR="$(cd "$(dirname "$0")/.."; pwd)"
+CT_BIN_DIR="${CT_PREFIX_DIR}/bin"
+CT_READELF="${CT_BIN_DIR}/@@CT_TARGET@@-readelf"
+CT_LIB_DIR="${CT_PREFIX_DIR}/lib"
+CT_SYSROOT_DIR="$(cd "${CT_BIN_DIR}/../@@CT_TARGET@@/sys-root"; pwd)"
 
 myname=$(basename "$0")
+
+# Parse the tools' paths configuration
+. "${CT_LIB_DIR}/paths.mk"
 
 doHelp() {
     cat <<_EOF_
@@ -63,6 +68,7 @@ CT_LIB_LIST=
 CT_LIB_FILE=
 CT_FORCE=no
 CT_ECHO=true
+OPTIND=1
 while getopts ":s:d:l:L:fvh" CT_OPT; do
     case "${CT_OPT}" in
         s)  CT_ROOT_SRC_DIR="${OPTARG}";;
@@ -110,10 +116,7 @@ if [ -n "${CT_LIB_FILE}" -a ! \( -f "${CT_LIB_FILE}" -a -r "${CT_LIB_FILE}" \) ]
 fi
 
 # Get rid of potentially older destination directory
-if [ -d "${CT_ROOT_DST_DIR}" ]; then
-    mv "${CT_ROOT_DST_DIR}" "${CT_ROOT_DST_DIR}.$$"
-    setsid nohup rm -rf "${CT_ROOT_DST_DIR}.$$" >/dev/null 2>&1 &
-fi
+rm -rf "${CT_ROOT_DST_DIR}"
 
 # Create the working copy
 mkdir -p "${CT_ROOT_DST_DIR}"
@@ -122,6 +125,7 @@ mkdir -p "${CT_ROOT_DST_DIR}"
 CT_ROOT_SRC_DIR=$(cd "${CT_ROOT_SRC_DIR}"; pwd)
 CT_ROOT_DST_DIR=$(cd "${CT_ROOT_DST_DIR}"; pwd)
 
+# Populate the destination directory with files form the source directory
 pushd "${CT_ROOT_SRC_DIR}" >/dev/null
 tar cf - . |(cd "${CT_ROOT_DST_DIR}"; tar xf -)
 popd >/dev/null
@@ -131,30 +135,42 @@ popd >/dev/null
 # returns: 0 if library was found and added, !0 otherwise
 do_add_lib() {
     local libname="$1"
-    local ret=1
     local true_libname
-    for dir in . usr; do
+    local dir
+    for dir in lib usr/lib; do
         ${CT_ECHO} -n "    trying in '${dir}'"
-        libfile="${CT_SYSROOT_DIR}/${dir}/lib/${libname}"
+        libfile="${CT_SYSROOT_DIR}/${dir}/${libname}"
         ${CT_ECHO} ": '${libfile}'"
         if [ -e "${libfile}" ]; then
-            mkdir -p "${dir}/lib"
-            true_libname=$("${CT_READELF}" -d "${libfile}" |egrep "SONAME" |sed -r -e 's,.+\[(.+)\] *$,\1,;')
-            ${CT_ECHO} "      installing as '${dir}/lib/${true_libname}'"
-            cat "${libfile}" >"${dir}/lib/${true_libname}"
-            ret=0
+            mkdir -p "${dir}"
+            true_libname=$("${CT_READELF}" -d "${libfile}"          \
+                           |"${grep}" "Library soname:"             \
+                           |"${sed}" -r -e 's,.+\[(.+)\] *$,\1,;'   \
+                          )
+            ${CT_ECHO} "      installing as '${dir}/${true_libname}'"
+            "${install}" -m 0644 "${libfile}" "${dir}/${true_libname}"
+            return 0
             break
         fi
     done
-    return ${ret}
+    return 1
 }
 
 # First of, copy the forced libraries into the working copy
 if [ -n "${CT_LIB_FILE}" ]; then
-    lib_list=$(sed -r -e ':loop; s/#.*//; s/[[:space:]]+//g; s/([^:])$/\1:/; /$/N; s/\n//; tloop;' "${CT_LIB_FILE}")
-    CT_LIB_LIST=$(echo "${CT_LIB_LIST}:${lib_list}" |sed -r -e 's/:+/:/g; s/^:+//; s/:+$//;')
+    lib_list=$("${sed}" -r -e ':loop; s/#.*//;'         \
+                           -e 's/[[:space:]]+//g;'      \
+                           -e 's/([^:])$/\1:/;'         \
+                           -e '/$/N; s/\n//; tloop;'    \
+                        "${CT_LIB_FILE}"
+              )
+    CT_LIB_LIST=$(echo "${CT_LIB_LIST}:${lib_list}"             \
+                  |"${sed}" -r -e 's/:+/:/g; s/^:+//; s/:+$//;' \
+                 )
 fi
-CT_LIB_LIST="${CT_LIB_LIST//:/ }"
+CT_LIB_LIST=$(echo "${CT_LIB_LIST}:${lib_list}"             \
+              |"${sed}" -r -e 's/^:+//; s/:+$//; s/:+/ /g;' \
+             )
 ${CT_ECHO} "Installing forced libraries..."
 pushd "${CT_ROOT_DST_DIR}" >/dev/null
 for name in ${CT_LIB_LIST}; do
@@ -180,9 +196,15 @@ still_needed=1
 while [ ${still_needed} -eq 1 ]; do
     ${CT_ECHO} "Looping..."
     still_needed=0
-    for f in $(find . -type f -exec file {} \; |egrep ': ELF [[:digit:]]+-bit .SB (executable|shared object),' |cut -d ":" -f 1); do
+    for f in $(find . -type f -exec file {} \;                                              \
+               |"${grep}" -E ': ELF [[:digit:]]+-bit (L|M)SB (executable|shared object),'   \
+               |cut -d ":" -f 1                                                             \
+              ); do
         ${CT_ECHO} "Scanning '${f}'"
-        for libname in $("${CT_READELF}" -d "${f}" |egrep '(NEEDED)' |sed -r -e 's,.+\[(.+)\] *$,\1,;'); do
+        for libname in $("${CT_READELF}" -d "${f}"                              \
+                         |"${grep}" -E '\(NEEDED\)[[:space:]]+Shared library:'  \
+                         |"${sed}" -r -e 's,.+\[(.+)\] *$,\1,;'                 \
+                        ); do
             ${CT_ECHO} "  searching for '${libname}'"
             if [    -e "lib/${libname}"     \
                  -o -e "usr/lib/${libname}" ]; then
