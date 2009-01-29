@@ -1,7 +1,11 @@
 #!/bin/sh
 # Yes, this intends to be a true POSIX script file.
+set -e
 
 myname="$0"
+
+# Parse the tools' paths configuration
+. "paths.mk"
 
 doUsage() {
   cat <<_EOF_
@@ -26,7 +30,7 @@ esac
 
 for p in "${dir}"/*.patch; do
     [ -e "${p}" ] || { echo "No such file '${p}'"; exit 1; }
-    newname="$(printf "%03d" ${cpt})-$(basename "${p}" |sed -r -e 's/^[[:digit:]]{3}-//')"
+    newname="$(printf "%03d" ${cpt})-$(basename "${p}" |"${sed}" -r -e 's/^[[:digit:]]{3}-//')"
     [ "${p}" = "${dir}/${newname}" ] || ${CMD} "${p}" "${dir}/${newname}"
     cpt=$((cpt+inc))
 done
