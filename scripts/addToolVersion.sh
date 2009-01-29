@@ -1,7 +1,11 @@
 #!/bin/sh
+set -e
 
 # Adds a new version to one of the toolchain component
 myname="$0"
+
+# Parse the tools' paths configuration
+. "paths.mk"
 
 doHelp() {
     cat <<-EOF
@@ -53,7 +57,7 @@ addToolVersion() {
     local SedExpr1 SedExpr2
 
     file="config/${tool_prefix}/${tool}.in"
-    v=$(echo "${version}" |sed -r -e 's/-/_/g; s/\./_/g;')
+    v=$(echo "${version}" |"${sed}" -r -e 's/-/_/g; s/\./_/g;')
 
     SedExpr1="${SedExpr1}config ${cat}_V_${v}\n"
     SedExpr1="${SedExpr1}    bool\n"
@@ -83,8 +87,8 @@ addToolVersion() {
         fi
     fi
     SedExpr2="    default \"${version}\" if ${cat}_V_${v}"
-    sed -r -i -e 's/^(# CT_INSERT_VERSION_ABOVE)$/'"${SedExpr1}"'\n\1/;' "${file}"
-    sed -r -i -e 's/^(# CT_INSERT_VERSION_STRING_ABOVE)$/'"${SedExpr2}"'\n\1/;' "${file}"
+    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_ABOVE)$/'"${SedExpr1}"'\n\1/;' "${file}"
+    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_STRING_ABOVE)$/'"${SedExpr2}"'\n\1/;' "${file}"
 }
 
 cat=
