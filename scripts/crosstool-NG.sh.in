@@ -350,11 +350,17 @@ if [ -z "${CT_RESTART}" ]; then
                 printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${!v}-${tool}"
                 CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/${!v}-${tool}"
             else
-                # We'll at least need some of them...
                 case "${tool}" in
+                    # We'll at least need some of them...
                     ar|as|gcc|ld|nm|objcopy|objdump|ranlib)
                         CT_Abort "Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : either needed!"
                         ;;
+                    # Some are conditionnally required
+                    # Add them in alphabetical (C locale) ordering
+                    gcj)
+                        CT_TestAndAbort "Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : either needed!" "${CT_CC_LANG_JAVA}" = "y"
+                        ;;
+                    # If any other is missing, only warn at low level
                     *)
                         # It does not deserve a WARN level.
                         CT_DoLog DEBUG "  Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : not required."
