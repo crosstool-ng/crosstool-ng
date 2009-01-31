@@ -255,8 +255,11 @@ if [ -z "${CT_RESTART}" ]; then
     fi
 
     # Prepare the 'lib' directories in sysroot, else the ../lib64 hack used by
-    # 32 -> 64 bit crosscompilers won't work, and build of final gcc will fail with
-    #  "ld: cannot open crti.o: No such file or directory"
+    # 32 -> 64 bit crosscompilers won't work, and build of final gcc will fail
+    # with: "ld: cannot open crti.o: No such file or directory"
+    # Also prepare the lib directory in the install dir, else some 64 bit archs
+    # won't build
+    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/lib"
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/lib"
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
 
@@ -267,6 +270,7 @@ if [ -z "${CT_RESTART}" ]; then
     # so as to have all libraries in the same directory (we can do that
     # because we are *not* multilib).
     if [ "${CT_ARCH_64}" = "y" ]; then
+        CT_DoExecLog ALL ln -sf "lib" "${CT_PREFIX_DIR}/lib64"
         CT_DoExecLog ALL ln -sf "lib" "${CT_SYSROOT_DIR}/lib64"
         CT_DoExecLog ALL ln -sf "lib" "${CT_SYSROOT_DIR}/usr/lib64"
         CT_DoExecLog ALL ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib64"
