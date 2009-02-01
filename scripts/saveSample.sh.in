@@ -1,4 +1,4 @@
-#!/bin/bash
+#!@@CT_bash@@
 
 # This script is responsible for saving the current configuration into a
 # sample to be used later on as a pre-configured target.
@@ -7,6 +7,9 @@
 #  - the .config file
 #  - the uClibc .config file if uClibc selected
 #  - info about who reported the sample
+
+# Parse the tools' paths configuration
+. "${CT_LIB_DIR}/paths.mk"
 
 # We'll need the stdout later, save it
 exec 7>&1
@@ -46,11 +49,11 @@ if [ ! -d "samples/${CT_TARGET}" ]; then
 fi
 
 # Save the crosstool-NG config file
-sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'       \
-       -e 's|^# CT_LOG_TO_FILE is not set$|CT_LOG_TO_FILE=y|;'              \
-       -e 's|^# CT_LOG_FILE_COMPRESS is not set$|CT_LOG_FILE_COMPRESS=y|;'  \
-       -e 's|^(CT_LOCAL_TARBALLS_DIR)=.*|\1="${HOME}/src"|;'                \
-    <.config                                                                \
+"${sed}" -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'      \
+            -e 's|^# CT_LOG_TO_FILE is not set$|CT_LOG_TO_FILE=y|;'             \
+            -e 's|^# CT_LOG_FILE_COMPRESS is not set$|CT_LOG_FILE_COMPRESS=y|;' \
+            -e 's|^(CT_LOCAL_TARBALLS_DIR)=.*|\1="${HOME}/src"|;'               \
+         <.config                                                               \
     >"samples/${CT_TARGET}/crosstool.config"
 
 # Function to copy a file to the sample directory
@@ -59,8 +62,8 @@ sed -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'       \
 CT_DoAddFileToSample() {
     source="$1"
     dest="$2"
-    inode_s=$(ls -i "${source}" |gawk '{ print $1; }')
-    inode_d=$(ls -i "${dest}" 2>/dev/null |gawk '{ print $1; }' || true)
+    inode_s=$(ls -i "${source}" |"${awk}" '{ print $1; }')
+    inode_d=$(ls -i "${dest}" 2>/dev/null |"${awk}" '{ print $1; }' || true)
     if [ "${inode_s}" != "${inode_d}" ]; then
         cp "${source}" "${dest}"
     fi
@@ -76,8 +79,8 @@ fi
 if [ -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
     # We save the file, and then point the saved sample to this file
     CT_DoAddFileToSample "${CT_LIBC_UCLIBC_CONFIG_FILE}" "samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"
-    sed -r -i -e 's|^(CT_LIBC_UCLIBC_CONFIG_FILE=).+$|\1"'"${samp_top_dir}"'/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"|;' \
-        "samples/${CT_TARGET}/crosstool.config"
+    "${sed}" -r -i -e 's|^(CT_LIBC_UCLIBC_CONFIG_FILE=).+$|\1"'"${samp_top_dir}"'/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"|;' \
+             "samples/${CT_TARGET}/crosstool.config"
 else
     # remove any dangling files
     for f in "samples/${CT_TARGET}/${CT_LIBC}-"*.config; do
