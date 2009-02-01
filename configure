@@ -280,14 +280,24 @@ if [ -n "${grep}" ]; then
     echo "${grep} (cached)"
 else
     grep="$( which grep 2>/dev/null )"
-    [ -z "${grep}" ] && do_error "not found"
-    echo "${grep}"
+    if [ -z "${grep}" ]; then
+        echo "not found"
+    else
+        echo "${grep}"
+        printf "Checking whether '${grep}' supports -E... "
+        if echo 'foo' |"${grep}" -E 'foo' >/dev/null 2>&1; then
+            echo "yes"
+        else
+            echo "no"
+            grep=
+        fi
+    fi
 fi
-printf "Checking whether '${grep}' supports -E... "
-if echo 'foo' |"${grep}" -E 'foo' >/dev/null 2>&1; then
-    echo "yes"
-else
-    do_error "no"
+if [ -z "${grep}" ]; then
+    echo "Either you are missing entirely the needed tool,"
+    echo "or the version you have is tool old."
+    echo "You can give the path to this tool using: --with-grep=PATH"
+    do_error "Bailing out..."
 fi
 
 printf "Checking for 'sed'... "
@@ -295,17 +305,26 @@ if [ -n "${sed}" ]; then
     echo "${sed} (cached)"
 else
     sed="$( which sed 2>/dev/null )"
-    [ -z "${sed}" ] && do_error "not found"
-    echo "${sed}"
+    if [ -z "${sed}" ]; then
+        echo "not found"
+    else
+        echo "${sed}"
+        printf "Checking wether '${sed}' supports -i and -e... "
+        touch .ct-ng.sed.test
+        if "${sed}" -r -i -e 's/foo/bar/' .ct-ng.sed.test >/dev/null 2>&1; then
+            echo "yes"
+        else
+            echo "no"
+            sed=
+        fi
+        rm -f .ct-ng.sed.test
+    fi
 fi
-printf "Checking wether '${sed}' supports -i and -e... "
-touch .ct-ng.sed.test
-if "${sed}" -r -i -e 's/foo/bar/' .ct-ng.sed.test >/dev/null 2>&1; then
-    rm -f .ct-ng.sed.test
-    echo "yes"
-else
-    rm -f .ct-ng.sed.test
-    do_error "no"
+if [ -z "${sed}" ]; then
+    echo "Either you are missing entirely the needed tool,"
+    echo "or the version you have is tool old."
+    echo "You can give the path to this tool using: --with-sed=PATH"
+    do_error "Bailing out..."
 fi
 
 # Check the existence of absolutely required tools
