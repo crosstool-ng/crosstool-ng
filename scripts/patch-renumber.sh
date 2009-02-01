@@ -23,14 +23,19 @@ dir="${1}"
 cpt="${2}"
 inc="${3}"
 
-case $(LC_ALL=C svnversion 2>/dev/null) in
+case "$(LC_ALL=C svnversion "${dir}" 2>/dev/null)" in
     exported)   CMD="mv -v";;
     *)          CMD="svn mv";;
 esac
 
 for p in "${dir}"/*.patch; do
     [ -e "${p}" ] || { echo "No such file '${p}'"; exit 1; }
-    newname="$(printf "%03d" ${cpt})-$(basename "${p}" |"${sed}" -r -e 's/^[[:digit:]]{3}-//')"
+    newname="$(printf "%03d-%s"                                 \
+                      "${cpt}"                                  \
+                      "$(basename "${p}"                        \
+                        |"${sed}" -r -e 's/^[[:digit:]]+[-_]//' \
+                       )"                                       \
+              )"
     [ "${p}" = "${dir}/${newname}" ] || ${CMD} "${p}" "${dir}/${newname}"
     cpt=$((cpt+inc))
 done
