@@ -1,7 +1,11 @@
-#!/bin/bash
+#!/bin/sh
+# Yes, this is supposed to be a POSIX-compliant shell script.
 
 # Parses all samples on the command line, and for each of them, prints
 # the versions of the main tools
+
+# Use tools discovered by ./configure
+. "${CT_LIB_DIR}/paths.mk"
 
 [ "$1" = "-v" ] && opt="$1" && shift
 [ "$1" = "-w" ] && opt="$1" && shift
@@ -100,8 +104,8 @@ dump_single_sample() {
         )
         sample_updated=$(date -u "+%Y%m%d"                                                  \
                               -d "$(LC_ALL=C svn info ${sample_top}/samples/${sample}       \
-                                    |GREP_OPTIONS= egrep '^Last Changed Date:'              \
-                                    |sed -r -e 's/^[^:]+: //;'                              \
+                                    |GREP_OPTIONS= "${grep}" -E '^Last Changed Date:'       \
+                                    |"${sed}" -r -e 's/^[^:]+: //;'                         \
                                             -e 's/^(.+:.. [+-][[:digit:]]{4}) \(.+\)$/\1/;' \
                                    )"                                                       \
                         )
