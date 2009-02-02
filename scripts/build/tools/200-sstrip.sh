@@ -40,7 +40,7 @@ case "${CT_SSTRIP_FROM}" in
         do_tools_sstrip_extract() {
             # We'll let buildroot guys take care of sstrip maintenance and patching.
             mkdir -p "${CT_SRC_DIR}/sstrip"
-            CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/sstrip.c?view=co" "${CT_SRC_DIR}/sstrip"
+            CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/sstrip.c?view=co" "${CT_SRC_DIR}/sstrip/sstrip.c"
         }
         do_tools_sstrip_build() {
             CT_DoStep INFO "Installing sstrip"
