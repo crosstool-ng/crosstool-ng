@@ -1,0 +1,35 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/0080_all_glibc-2.10-dns-no-gethostbyname4.patch
+
+-= BEGIN original header =-
+http://sourceware.org/bugzilla/show_bug.cgi?id=7060
+http://bugs.gentoo.org/250468
+
+The gethostbyname4() lookup method is problematic since it fires out both
+the A and AAAA DNS queries in parallel and over the same socket. This
+should work in theory, but it turns out that many cheap DSL modems and
+similar devices have buggy DNS servers - if the AAAA query arrives too
+quickly after the A query, the server will generate only a single reply
+with the A query id but returning an error for the AAAA query; we get
+stuck waiting for the second reply.
+
+For gethostbyname4() users affected, disabling IPv6 in the system might
+work around the issue, unfortunately it only helps with applications
+using AI_ADDRCONFIG (e.g. Firefox); some (notably e.g. Pidgin) neglect
+to do that.
+
+Real fix should be using separate ports for the A and AAAA queries.
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/resolv/Versions glibc-2_9/resolv/Versions
+--- glibc-2_9.orig/resolv/Versions	2008-08-01 19:15:34.000000000 +0200
++++ glibc-2_9/resolv/Versions	2009-02-02 22:00:46.000000000 +0100
+@@ -102,7 +102,7 @@
+     _nss_dns_gethostbyname_r; _nss_dns_getnetbyaddr_r;
+     _nss_dns_getnetbyname_r; _nss_dns_getcanonname_r;
+     _nss_dns_gethostbyaddr2_r;
+-    _nss_dns_gethostbyname4_r;
++#    _nss_dns_gethostbyname4_r;
+   }
+ }
+ 

@@ -1,0 +1,35 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/0050_all_glibc-_nss_dns_gethostbyaddr2_r-check-and-adjust-the-buffer-alignment.patch
+
+-= BEGIN original header =-
+http://sourceware.org/ml/libc-alpha/2009-01/msg00000.html
+
+From 8ad7030880eaa18dcabf8e284e79026301fd3fa4 Mon Sep 17 00:00:00 2001
+From: Ulrich Drepper <drepper@redhat.com>
+Date: Thu, 8 Jan 2009 00:02:38 +0000
+Subject: [PATCH] (_nss_dns_gethostbyaddr2_r): Check and adjust the buffer alignment.
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/resolv/nss_dns/dns-host.c glibc-2_9/resolv/nss_dns/dns-host.c
+--- glibc-2_9.orig/resolv/nss_dns/dns-host.c	2008-11-12 08:52:20.000000000 +0100
++++ glibc-2_9/resolv/nss_dns/dns-host.c	2009-02-02 22:00:36.000000000 +0100
+@@ -364,6 +364,19 @@
+   int n, status;
+   int olderr = errno;
+ 
++ uintptr_t pad = -(uintptr_t) buffer % __alignof__ (struct host_data);
++ buffer += pad;
++ buflen = buflen > pad ? buflen - pad : 0;
++
++ if (__builtin_expect (buflen < sizeof (struct host_data), 0))
++   {
++     *errnop = ERANGE;
++     *h_errnop = NETDB_INTERNAL;
++     return NSS_STATUS_TRYAGAIN;
++   }
++
++ host_data = (struct host_data *) buffer;
++
+   if (__res_maybe_init (&_res, 0) == -1)
+     return NSS_STATUS_UNAVAIL;
+ 

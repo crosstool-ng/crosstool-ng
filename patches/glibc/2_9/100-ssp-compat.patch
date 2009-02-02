@@ -1,0 +1,193 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/0010_all_glibc-2.7-ssp-compat.patch
+
+-= BEGIN original header =-
+Add backwards compat support for gcc-3.x ssp ... older ssp versions
+used __guard and __stack_smash_handler symbols while gcc-4.1 and newer
+uses __stack_chk_guard and __stack_chk_fail.
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/Versions.def glibc-2_9/Versions.def
+--- glibc-2_9.orig/Versions.def	2008-08-01 19:13:40.000000000 +0200
++++ glibc-2_9/Versions.def	2009-02-02 22:00:33.000000000 +0100
+@@ -113,6 +113,9 @@
+   GLIBC_2.0
+   GLIBC_2.1
+   GLIBC_2.3
++%ifdef ENABLE_OLD_SSP_COMPAT
++  GLIBC_2.3.2
++%endif
+   GLIBC_2.4
+   GLIBC_PRIVATE
+ }
+diff -durN glibc-2_9.orig/config.h.in glibc-2_9/config.h.in
+--- glibc-2_9.orig/config.h.in	2007-03-26 22:40:08.000000000 +0200
++++ glibc-2_9/config.h.in	2009-02-02 22:00:32.000000000 +0100
+@@ -42,6 +42,9 @@
+    assembler instructions per line.  Default is `;'  */
+ #undef ASM_LINE_SEP
+ 
++/* Define if we want to enable support for old ssp symbols */
++#undef	ENABLE_OLD_SSP_COMPAT
++
+ /* Define if not using ELF, but `.init' and `.fini' sections are available.  */
+ #undef	HAVE_INITFINI
+ 
+diff -durN glibc-2_9.orig/configure glibc-2_9/configure
+--- glibc-2_9.orig/configure	2008-11-11 10:50:11.000000000 +0100
++++ glibc-2_9/configure	2009-02-02 22:00:32.000000000 +0100
+@@ -1380,6 +1380,9 @@
+   --enable-kernel=VERSION compile for compatibility with kernel not older than
+                           VERSION
+   --enable-all-warnings   enable all useful warnings gcc can issue
++  --disable-old-ssp-compat
++                          enable support for older ssp symbols
++                          [default=no]
+ 
+ Optional Packages:
+   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+@@ -6470,6 +6473,20 @@
+ echo "${ECHO_T}$libc_cv_ssp" >&6; }
+ 
+ 
++# Check whether --enable-old-ssp-compat or --disable-old-ssp-compat was given.
++if test "${enable_old_ssp_compat+set}" = set; then
++  enableval="$enable_old_ssp_compat"
++  enable_old_ssp_compat=$enableval
++else
++  enable_old_ssp_compat=no
++fi;
++if test "x$enable_old_ssp_compat" = "xyes"; then
++  cat >>confdefs.h <<\_ACEOF
++#define ENABLE_OLD_SSP_COMPAT 1
++_ACEOF
++
++fi
++
+ { echo "$as_me:$LINENO: checking for -fgnu89-inline" >&5
+ echo $ECHO_N "checking for -fgnu89-inline... $ECHO_C" >&6; }
+ if test "${libc_cv_gnu89_inline+set}" = set; then
+diff -durN glibc-2_9.orig/configure.in glibc-2_9/configure.in
+--- glibc-2_9.orig/configure.in	2008-11-11 10:50:11.000000000 +0100
++++ glibc-2_9/configure.in	2009-02-02 22:00:32.000000000 +0100
+@@ -1647,6 +1647,15 @@
+ rm -f conftest*])
+ AC_SUBST(libc_cv_ssp)
+ 
++AC_ARG_ENABLE([old-ssp-compat],
++	      AC_HELP_STRING([--enable-old-ssp-compat],
++	                     [enable support for older ssp symbols @<:@default=no@:>@]),
++	      [enable_old_ssp_compat=$enableval],
++	      [enable_old_ssp_compat=no])
++if test "x$enable_old_ssp_compat" = "xyes"; then
++  AC_DEFINE(ENABLE_OLD_SSP_COMPAT)
++fi
++
+ AC_CACHE_CHECK(for -fgnu89-inline, libc_cv_gnu89_inline, [dnl
+ cat > conftest.c <<EOF
+ int foo;
+diff -durN glibc-2_9.orig/csu/Versions glibc-2_9/csu/Versions
+--- glibc-2_9.orig/csu/Versions	2006-10-28 01:11:41.000000000 +0200
++++ glibc-2_9/csu/Versions	2009-02-02 22:00:32.000000000 +0100
+@@ -17,6 +17,12 @@
+     # New special glibc functions.
+     gnu_get_libc_release; gnu_get_libc_version;
+   }
++  GLIBC_2.3.2 {
++%ifdef ENABLE_OLD_SSP_COMPAT
++    # global objects and functions for the old propolice patch in gcc
++    __guard;
++%endif
++  }
+   GLIBC_PRIVATE {
+ %if HAVE___THREAD
+     # This version is for the TLS symbol, GLIBC_2.0 is the old object symbol.
+diff -durN glibc-2_9.orig/csu/libc-start.c glibc-2_9/csu/libc-start.c
+--- glibc-2_9.orig/csu/libc-start.c	2007-08-21 00:27:50.000000000 +0200
++++ glibc-2_9/csu/libc-start.c	2009-02-02 22:00:32.000000000 +0100
+@@ -37,6 +37,9 @@
+ uintptr_t __stack_chk_guard attribute_relro;
+ # endif
+ #endif
++#ifdef ENABLE_OLD_SSP_COMPAT
++uintptr_t __guard attribute_relro;
++#endif
+ 
+ #ifdef HAVE_PTR_NTHREADS
+ /* We need atomic operations.  */
+@@ -141,6 +144,9 @@
+ 
+   /* Set up the stack checker's canary.  */
+   uintptr_t stack_chk_guard = _dl_setup_stack_chk_guard ();
++#ifdef ENABLE_OLD_SSP_COMPAT
++  __guard = stack_chk_guard;
++#endif
+ # ifdef THREAD_SET_STACK_GUARD
+   THREAD_SET_STACK_GUARD (stack_chk_guard);
+ # else
+diff -durN glibc-2_9.orig/debug/Versions glibc-2_9/debug/Versions
+--- glibc-2_9.orig/debug/Versions	2008-03-05 07:53:41.000000000 +0100
++++ glibc-2_9/debug/Versions	2009-02-02 22:00:32.000000000 +0100
+@@ -10,6 +10,12 @@
+     # These are to support some gcc features.
+     __cyg_profile_func_enter; __cyg_profile_func_exit;
+   }
++%ifdef ENABLE_OLD_SSP_COMPAT
++  GLIBC_2.3.2 {
++    # backwards ssp compat support; alias to __stack_chk_fail
++    __stack_smash_handler;
++  }
++%endif
+   GLIBC_2.3.4 {
+     __chk_fail;
+     __memcpy_chk; __memmove_chk; __mempcpy_chk; __memset_chk; __stpcpy_chk;
+diff -durN glibc-2_9.orig/debug/stack_chk_fail.c glibc-2_9/debug/stack_chk_fail.c
+--- glibc-2_9.orig/debug/stack_chk_fail.c	2007-05-25 01:47:08.000000000 +0200
++++ glibc-2_9/debug/stack_chk_fail.c	2009-02-02 22:00:32.000000000 +0100
+@@ -28,3 +28,7 @@
+ {
+   __fortify_fail ("stack smashing detected");
+ }
++
++#ifdef ENABLE_OLD_SSP_COMPAT
++strong_alias (__stack_chk_fail, __stack_smash_handler)
++#endif
+diff -durN glibc-2_9.orig/elf/Versions glibc-2_9/elf/Versions
+--- glibc-2_9.orig/elf/Versions	2008-03-08 06:42:26.000000000 +0100
++++ glibc-2_9/elf/Versions	2009-02-02 22:00:33.000000000 +0100
+@@ -43,6 +43,12 @@
+     # runtime interface to TLS
+     __tls_get_addr;
+   }
++%ifdef ENABLE_OLD_SSP_COMPAT
++  GLIBC_2.3.2 {
++    # backwards ssp compat support
++    __guard;
++  }
++%endif
+   GLIBC_2.4 {
+     # stack canary
+     __stack_chk_guard;
+diff -durN glibc-2_9.orig/elf/rtld.c glibc-2_9/elf/rtld.c
+--- glibc-2_9.orig/elf/rtld.c	2008-08-14 19:01:56.000000000 +0200
++++ glibc-2_9/elf/rtld.c	2009-02-02 22:00:32.000000000 +0100
+@@ -89,6 +89,9 @@
+    in thread local area.  */
+ uintptr_t __stack_chk_guard attribute_relro;
+ #endif
++#ifdef ENABLE_OLD_SSP_COMPAT
++uintptr_t __guard attribute_relro;
++#endif
+ 
+ /* Only exported for architectures that don't store the pointer guard
+    value in thread local area.  */
+@@ -842,6 +845,9 @@
+ {
+   /* Set up the stack checker's canary.  */
+   uintptr_t stack_chk_guard = _dl_setup_stack_chk_guard ();
++#ifdef ENABLE_OLD_SSP_COMPAT
++  __guard = stack_chk_guard;
++#endif
+ #ifdef THREAD_SET_STACK_GUARD
+   THREAD_SET_STACK_GUARD (stack_chk_guard);
+ #else

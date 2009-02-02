@@ -1,0 +1,249 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/6001_all_alpha-glibc-2.4-xstat.patch
+
+-= BEGIN original header =-
+http://sources.redhat.com/bugzilla/show_bug.cgi?id=1026
+http://sourceware.org/ml/libc-alpha/2005-02/msg00122.html
+
+2005-02-26  GOTO Masanori  <gotom@debian.or.jp>
+
+	* sysdeps/unix/sysv/linux/kernel-features.h: Define
+	__ASSUME_STAT64_SYSCALL.
+	* sysdeps/unix/sysv/linux/alpha/fxstat.c: Check
+	__ASSUME_STAT64_SYSCALL.
+	* sysdeps/unix/sysv/linux/alpha/fxstatat.c: Likewise.
+	* sysdeps/unix/sysv/linux/alpha/lxstat.c: Likewise.
+	* sysdeps/unix/sysv/linux/alpha/xstat.c: Likewise.
+	* sysdeps/unix/sysv/linux/alpha/xstatconv.c: Don't define
+	__libc_missing_axp_stat64 when it's not needed.
+	* sysdeps/unix/sysv/linux/alpha/xstatconv.h: Likewise.
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/fxstat.c glibc-2_9/sysdeps/unix/sysv/linux/alpha/fxstat.c
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/fxstat.c	2004-03-11 03:58:44.000000000 +0100
++++ glibc-2_9/sysdeps/unix/sysv/linux/alpha/fxstat.c	2009-02-02 22:01:30.000000000 +0100
+@@ -35,27 +35,39 @@
+ __fxstat (int vers, int fd, struct stat *buf)
+ {
+   INTERNAL_SYSCALL_DECL (err);
+-  int result, errno_out;
++  int result;
+   struct kernel_stat kbuf;
+ 
++#if __ASSUME_STAT64_SYSCALL > 0
++  if (vers == _STAT_VER_KERNEL64)
++    {
++      result = INTERNAL_SYSCALL (fstat64, err, 2, fd, buf);
++      if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
++	return result;
++      __set_errno (INTERNAL_SYSCALL_ERRNO (result, err));
++      return -1;
++    }
++#elif defined __NR_fstat64
+   if (vers == _STAT_VER_KERNEL64 && !__libc_missing_axp_stat64)
+     {
++      int errno_out;
+       result = INTERNAL_SYSCALL (fstat64, err, 2, fd, buf);
+       if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
+ 	return result;
+       errno_out = INTERNAL_SYSCALL_ERRNO (result, err);
+       if (errno_out != ENOSYS)
+-	goto fail;
++	{
++	  __set_errno (errno_out);
++	  return -1;
++	}
+       __libc_missing_axp_stat64 = 1;
+     }
++#endif
+ 
+   result = INTERNAL_SYSCALL (fstat, err, 2, fd, &kbuf);
+   if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
+     return __xstat_conv (vers, &kbuf, buf);
+-  errno_out = INTERNAL_SYSCALL_ERRNO (result, err);
+-  
+- fail:
+-  __set_errno (errno_out);
++  __set_errno (INTERNAL_SYSCALL_ERRNO (result, err));
+   return -1;
+ }
+ hidden_def (__fxstat)
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/fxstatat.c glibc-2_9/sysdeps/unix/sysv/linux/alpha/fxstatat.c
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/fxstatat.c	2006-02-20 23:51:48.000000000 +0100
++++ glibc-2_9/sysdeps/unix/sysv/linux/alpha/fxstatat.c	2009-02-02 22:01:30.000000000 +0100
+@@ -65,6 +65,20 @@
+   int result, errno_out;
+   struct kernel_stat kst;
+ 
++#if __ASSUME_STAT64_SYSCALL > 0
++  if (vers == _STAT_VER_KERNEL64)
++    {
++      if (flag & AT_SYMLINK_NOFOLLOW)
++	result = INTERNAL_SYSCALL (lstat64, err, 2, file, st);
++      else
++	result = INTERNAL_SYSCALL (stat64, err, 2, file, st);
++
++      if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
++	return result;
++      errno_out = INTERNAL_SYSCALL_ERRNO (result, err);
++      goto fail;
++    }
++#elif defined __NR_stat64
+   if (vers == _STAT_VER_KERNEL64 && !__libc_missing_axp_stat64)
+     {
+       if (flag & AT_SYMLINK_NOFOLLOW)
+@@ -79,6 +93,7 @@
+ 	goto fail;
+       __libc_missing_axp_stat64 = 1;
+     }
++#endif
+ 
+   if (flag & AT_SYMLINK_NOFOLLOW)
+     result = INTERNAL_SYSCALL (lstat, err, 2, file, &kst);
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/lxstat.c glibc-2_9/sysdeps/unix/sysv/linux/alpha/lxstat.c
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/lxstat.c	2004-03-11 03:58:44.000000000 +0100
++++ glibc-2_9/sysdeps/unix/sysv/linux/alpha/lxstat.c	2009-02-02 22:01:30.000000000 +0100
+@@ -35,27 +35,39 @@
+ __lxstat (int vers, const char *name, struct stat *buf)
+ {
+   INTERNAL_SYSCALL_DECL (err);
+-  int result, errno_out;
++  int result;
+   struct kernel_stat kbuf;
+ 
++#if __ASSUME_STAT64_SYSCALL > 0
++  if (vers == _STAT_VER_KERNEL64)
++    {
++      result = INTERNAL_SYSCALL (lstat64, err, 2, name, buf);
++      if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
++	return result;
++      __set_errno (INTERNAL_SYSCALL_ERRNO (result, err));
++      return -1;
++    }
++#elif defined __NR_lstat64
+   if (vers == _STAT_VER_KERNEL64 && !__libc_missing_axp_stat64)
+     {
++      int errno_out;
+       result = INTERNAL_SYSCALL (lstat64, err, 2, name, buf);
+       if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
+ 	return result;
+       errno_out = INTERNAL_SYSCALL_ERRNO (result, err);
+       if (errno_out != ENOSYS)
+-	goto fail;
++	{
++	  __set_errno (errno_out);
++	  return -1;
++	}
+       __libc_missing_axp_stat64 = 1;
+     }
++#endif
+ 
+   result = INTERNAL_SYSCALL (lstat, err, 2, name, &kbuf);
+   if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
+     return __xstat_conv (vers, &kbuf, buf);
+-  errno_out = INTERNAL_SYSCALL_ERRNO (result, err);
+-  
+- fail:
+-  __set_errno (errno_out);
++  __set_errno (INTERNAL_SYSCALL_ERRNO (result, err));
+   return -1;
+ }
+ hidden_def (__lxstat)
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/xstat.c glibc-2_9/sysdeps/unix/sysv/linux/alpha/xstat.c
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/xstat.c	2004-03-11 03:58:44.000000000 +0100
++++ glibc-2_9/sysdeps/unix/sysv/linux/alpha/xstat.c	2009-02-02 22:01:30.000000000 +0100
+@@ -35,27 +35,39 @@
+ __xstat (int vers, const char *name, struct stat *buf)
+ {
+   INTERNAL_SYSCALL_DECL (err);
+-  int result, errno_out;
++  int result;
+   struct kernel_stat kbuf;
+ 
++#if __ASSUME_STAT64_SYSCALL > 0
++  if (vers == _STAT_VER_KERNEL64)
++    {
++      result = INTERNAL_SYSCALL (stat64, err, 2, name, buf);
++      if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
++	return result;
++      __set_errno (INTERNAL_SYSCALL_ERRNO (result, err));
++      return -1;
++    }
++#elif defined __NR_stat64
+   if (vers == _STAT_VER_KERNEL64 && !__libc_missing_axp_stat64)
+     {
++      int errno_out;
+       result = INTERNAL_SYSCALL (stat64, err, 2, name, buf);
+       if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
+ 	return result;
+       errno_out = INTERNAL_SYSCALL_ERRNO (result, err);
+       if (errno_out != ENOSYS)
+-	goto fail;
++	{
++	  __set_errno (errno_out);
++	  return -1;
++	}
+       __libc_missing_axp_stat64 = 1;
+     }
++#endif
+ 
+   result = INTERNAL_SYSCALL (stat, err, 2, name, &kbuf);
+   if (__builtin_expect (!INTERNAL_SYSCALL_ERROR_P (result, err), 1))
+     return __xstat_conv (vers, &kbuf, buf);
+-  errno_out = INTERNAL_SYSCALL_ERRNO (result, err);
+-  
+- fail:
+-  __set_errno (errno_out);
++  __set_errno (INTERNAL_SYSCALL_ERRNO (result, err));
+   return -1;
+ }
+ hidden_def (__xstat)
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/xstatconv.c glibc-2_9/sysdeps/unix/sysv/linux/alpha/xstatconv.c
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/xstatconv.c	2004-03-11 03:58:44.000000000 +0100
++++ glibc-2_9/sysdeps/unix/sysv/linux/alpha/xstatconv.c	2009-02-02 22:01:30.000000000 +0100
+@@ -22,9 +22,14 @@
+ #include <sys/stat.h>
+ #include <kernel_stat.h>
+ #include <xstatconv.h>
++#include <sys/syscall.h>
+ 
+ 
++#ifdef __NR_stat64
++# if __ASSUME_STAT64_SYSCALL == 0
+ int __libc_missing_axp_stat64;
++# endif
++#endif
+ 
+ int
+ __xstat_conv (int vers, struct kernel_stat *kbuf, void *ubuf)
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/xstatconv.h glibc-2_9/sysdeps/unix/sysv/linux/alpha/xstatconv.h
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/xstatconv.h	2006-01-08 09:21:16.000000000 +0100
++++ glibc-2_9/sysdeps/unix/sysv/linux/alpha/xstatconv.h	2009-02-02 22:01:30.000000000 +0100
+@@ -18,7 +18,12 @@
+    02111-1307 USA.  */
+ 
+ #include <kernel-features.h>
++#include <sys/syscall.h>
+ 
++#ifdef __NR_stat64
++# if __ASSUME_STAT64_SYSCALL == 0
+ extern int __libc_missing_axp_stat64 attribute_hidden;
++# endif
++#endif
+ extern int __xstat_conv (int vers, struct kernel_stat *kbuf, void *ubuf)
+   attribute_hidden;
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/kernel-features.h glibc-2_9/sysdeps/unix/sysv/linux/kernel-features.h
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/kernel-features.h	2008-08-01 23:51:04.000000000 +0200
++++ glibc-2_9/sysdeps/unix/sysv/linux/kernel-features.h	2009-02-02 22:01:30.000000000 +0100
+@@ -395,6 +395,11 @@
+ # define __ASSUME_GETDENTS32_D_TYPE	1
+ #endif
+ 
++/* Starting with version 2.6.4, alpha stat64 syscalls are available.  */
++#if __LINUX_KERNEL_VERSION >= 0x020604 && defined __alpha__
++# define __ASSUME_STAT64_SYSCALL	1
++#endif
++
+ /* Starting with version 2.5.3, the initial location returned by `brk'
+    after exec is always rounded up to the next page.  */
+ #if __LINUX_KERNEL_VERSION >= 132355

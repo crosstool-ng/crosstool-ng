@@ -1,0 +1,72 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/0090_all_glibc-math-tests.patch
+
+-= BEGIN original header =-
+From: "Joseph S. Myers" <joseph at codesourcery dot com>
+To: libc-alpha at sourceware dot org
+Date: Tue, 15 Jul 2008 14:43:04 +0000 (UTC)
+Subject: expm1 ulps
+
+If you test glibc on i686 with GCC 4.3, you get a test-ildoubl failure:
+
+Failure: Test: expm1 (1) == M_El - 1.0
+Result:
+ is:          1.71828182845904523532e+00   0xd.bf0a8b14576953500000p-3
+ should be:   1.71828182845904523543e+00   0xd.bf0a8b14576953600000p-3
+ difference:  1.08420217248550443401e-19   0x8.00000000000000000000p-66
+ ulp       :  1.0000
+ max.ulp   :  0.0000
+Maximal error of `expm1'
+ is      : 1 ulp
+ accepted: 0 ulp
+
+What happens is that the inline expansion of expm1l uses __builtin_expm1l,
+and GCC 4.3 optimizes calls to __builtin_expm1l with constant argument to
+a correctly rounded result using MPFR.  The result returned is thus the
+value of e-1 rounded once to long double precision.  However, the test
+expects M_El - 1.0, and the result of rounding e to long double precision,
+then subtracting 1, differs in the last place from the result of rounding
+e-1 to long double precision (the latter has smaller exponent, and the
+last bit is 1).
+
+There are two obvious approaches possible to fixing this.  The first patch
+below changes the expectation to a decimal expansion for e-1 (taken from
+that of M_El) rather than doing arithmetic in the expected value.  This in
+turn requires ulps to be set for the out-of-line version of expm1.  It
+might also need ulps to be set for the inline version for older compilers
+if they should continue to pass the test, and possibly for other targets.
+The second patch below takes the alternative approach of keeping the
+existing expectation (which has the wrong bit in the last place) and
+setting ulps for the inline expansion of expm1, which avoids the risk of
+breaking the test for other targets.
+
+2008-07-15  Joseph Myers  <joseph@codesourcery.com>
+
+        * sysdeps/i386/fpu/libm-test-ulps: Add inline long double ulps for
+        expm1.
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/sysdeps/i386/fpu/libm-test-ulps glibc-2_9/sysdeps/i386/fpu/libm-test-ulps
+--- glibc-2_9.orig/sysdeps/i386/fpu/libm-test-ulps	2006-01-15 18:59:37.000000000 +0100
++++ glibc-2_9/sysdeps/i386/fpu/libm-test-ulps	2009-02-02 22:00:47.000000000 +0100
+@@ -453,6 +453,10 @@
+ ildouble: 8
+ ldouble: 8
+ 
++# expm1
++Test "expm1 (1) == M_El - 1.0":
++ildouble: 1
++
+ # gamma
+ Test "gamma (-0.5) == log(2*sqrt(pi))":
+ double: 1
+@@ -1134,6 +1138,9 @@
+ ildouble: 8
+ ldouble: 8
+ 
++Function: "expm1":
++ildouble: 1
++
+ Function: "gamma":
+ double: 1
+ idouble: 1

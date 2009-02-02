@@ -1,0 +1,38 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/6016_all_alpha-glibc-2.5-no-asm-elf-header.patch
+
+-= BEGIN original header =-
+2007-03-13  Mike Frysinger  <vapier@gentoo.org>
+
+	* sysdeps/unix/sysv/linux/alpha/sys/procfs.h: Copy some defines
+	from alpha's asm/elf.h
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/sys/procfs.h glibc-2_9/sysdeps/unix/sysv/linux/alpha/sys/procfs.h
+--- glibc-2_9.orig/sysdeps/unix/sysv/linux/alpha/sys/procfs.h	2001-07-06 06:56:13.000000000 +0200
++++ glibc-2_9/sysdeps/unix/sysv/linux/alpha/sys/procfs.h	2009-02-02 22:01:33.000000000 +0100
+@@ -29,10 +29,23 @@
+ #include <sys/types.h>
+ #include <sys/ucontext.h>
+ #include <sys/user.h>
+-#include <asm/elf.h>
+ 
+ __BEGIN_DECLS
+ 
++/*
++ * The OSF/1 version of <sys/procfs.h> makes gregset_t 46 entries long.
++ * I have no idea why that is so.  For now, we just leave it at 33
++ * (32 general regs + processor status word). 
++ */
++#define ELF_NGREG	33
++#define ELF_NFPREG	32
++
++typedef unsigned long elf_greg_t;
++typedef elf_greg_t elf_gregset_t[ELF_NGREG];
++
++typedef double elf_fpreg_t;
++typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
++
+ struct elf_siginfo
+   {
+     int si_signo;			/* Signal number.  */

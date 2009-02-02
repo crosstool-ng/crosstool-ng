@@ -1,0 +1,111 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/0052_all_glibc-2.9-regex-BZ9697.patch
+
+-= BEGIN original header =-
+http://sourceware.org/ml/libc-alpha/2009-01/msg00005.html
+
+From ea8ca0dfcbf2721bcf2c08ce3c01d5764b827572 Mon Sep 17 00:00:00 2001
+From: Ulrich Drepper <drepper@redhat.com>
+Date: Thu, 8 Jan 2009 00:42:28 +0000
+Subject: [PATCH] (re_compile_fastmap_iter): Rewrite COMPLEX_BRACKET handling.
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/posix/regcomp.c glibc-2_9/posix/regcomp.c
+--- glibc-2_9.orig/posix/regcomp.c	2008-05-15 05:07:21.000000000 +0200
++++ glibc-2_9/posix/regcomp.c	2009-02-02 22:00:41.000000000 +0100
+@@ -350,47 +350,67 @@
+ #ifdef RE_ENABLE_I18N
+       else if (type == COMPLEX_BRACKET)
+ 	{
+-	  int i;
+ 	  re_charset_t *cset = dfa->nodes[node].opr.mbcset;
+-	  if (cset->non_match || cset->ncoll_syms || cset->nequiv_classes
+-	      || cset->nranges || cset->nchar_classes)
+-	    {
++	  int i;
++
+ # ifdef _LIBC
+-	      if (_NL_CURRENT_WORD (LC_COLLATE, _NL_COLLATE_NRULES) != 0)
++	  /* See if we have to try all bytes which start multiple collation
++	     elements.
++	     e.g. In da_DK, we want to catch 'a' since "aa" is a valid
++		  collation element, and don't catch 'b' since 'b' is
++		  the only collation element which starts from 'b' (and
++		  it is caught by SIMPLE_BRACKET).  */
++	      if (_NL_CURRENT_WORD (LC_COLLATE, _NL_COLLATE_NRULES) != 0
++		  && (cset->ncoll_syms || cset->nranges))
+ 		{
+-		  /* In this case we want to catch the bytes which are
+-		     the first byte of any collation elements.
+-		     e.g. In da_DK, we want to catch 'a' since "aa"
+-			  is a valid collation element, and don't catch
+-			  'b' since 'b' is the only collation element
+-			  which starts from 'b'.  */
+ 		  const int32_t *table = (const int32_t *)
+ 		    _NL_CURRENT (LC_COLLATE, _NL_COLLATE_TABLEMB);
+ 		  for (i = 0; i < SBC_MAX; ++i)
+ 		    if (table[i] < 0)
+ 		      re_set_fastmap (fastmap, icase, i);
+ 		}
+-# else
+-	      if (dfa->mb_cur_max > 1)
+-		for (i = 0; i < SBC_MAX; ++i)
+-		  if (__btowc (i) == WEOF)
+-		    re_set_fastmap (fastmap, icase, i);
+-# endif /* not _LIBC */
+-	    }
+-	  for (i = 0; i < cset->nmbchars; ++i)
++# endif /* _LIBC */
++
++	  /* See if we have to start the match at all multibyte characters,
++	     i.e. where we would not find an invalid sequence.  This only
++	     applies to multibyte character sets; for single byte character
++	     sets, the SIMPLE_BRACKET again suffices.  */
++	  if (dfa->mb_cur_max > 1
++	      && (cset->nchar_classes || cset->non_match
++# ifdef _LIBC
++		  || cset->nequiv_classes
++# endif /* _LIBC */
++		 ))
+ 	    {
+-	      char buf[256];
+-	      mbstate_t state;
+-	      memset (&state, '\0', sizeof (state));
+-	      if (__wcrtomb (buf, cset->mbchars[i], &state) != (size_t) -1)
+-		re_set_fastmap (fastmap, icase, *(unsigned char *) buf);
+-	      if ((bufp->syntax & RE_ICASE) && dfa->mb_cur_max > 1)
++	      unsigned char c = 0;
++	      do
+ 		{
+-		  if (__wcrtomb (buf, towlower (cset->mbchars[i]), &state)
+-		      != (size_t) -1)
+-		    re_set_fastmap (fastmap, 0, *(unsigned char *) buf);
++		  mbstate_t mbs;
++		  memset (&mbs, 0, sizeof (mbs));
++		  if (__mbrtowc (NULL, (char *) &c, 1, &mbs) == (size_t) -2)
++		    re_set_fastmap (fastmap, false, (int) c);
+ 		}
++	      while (++c != 0);
+ 	    }
++
++	  else
++	    {
++	      /* ... Else catch all bytes which can start the mbchars.  */
++	      for (i = 0; i < cset->nmbchars; ++i)
++		{
++		  char buf[256];
++		  mbstate_t state;
++		  memset (&state, '\0', sizeof (state));
++		  if (__wcrtomb (buf, cset->mbchars[i], &state) != (size_t) -1)
++		    re_set_fastmap (fastmap, icase, *(unsigned char *) buf);
++		  if ((bufp->syntax & RE_ICASE) && dfa->mb_cur_max > 1)
++		    {
++		      if (__wcrtomb (buf, towlower (cset->mbchars[i]), &state)
++			  != (size_t) -1)
++			re_set_fastmap (fastmap, false, *(unsigned char *) buf);
++		    }
++ 		}
++ 	    }
+ 	}
+ #endif /* RE_ENABLE_I18N */
+       else if (type == OP_PERIOD

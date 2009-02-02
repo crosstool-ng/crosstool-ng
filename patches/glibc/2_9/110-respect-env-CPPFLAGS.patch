@@ -1,0 +1,30 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/0030_all_glibc-respect-env-CPPFLAGS.patch
+
+-= BEGIN original header =-
+Respect environment CPPFLAGS when we run ./configure so we can inject
+random -D things without having to set CFLAGS/ASFLAGS
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/Makeconfig glibc-2_9/Makeconfig
+--- glibc-2_9.orig/Makeconfig	2008-08-18 11:42:17.000000000 +0200
++++ glibc-2_9/Makeconfig	2009-02-02 22:00:35.000000000 +0100
+@@ -673,6 +673,7 @@
+ 	   $(foreach lib,$(libof-$(basename $(@F))) \
+ 		         $(libof-$(<F)) $(libof-$(@F)),$(CPPFLAGS-$(lib))) \
+ 	   $(CPPFLAGS-$(<F)) $(CPPFLAGS-$(@F)) $(CPPFLAGS-$(basename $(@F)))
++CPPFLAGS += $(CPPFLAGS-config)
+ override CFLAGS	= -std=gnu99 $(gnu89-inline-CFLAGS) \
+ 		  $(filter-out %frame-pointer,$(+cflags)) $(+gccwarn-c) \
+ 		  $(sysdep-CFLAGS) $(CFLAGS-$(suffix $@)) $(CFLAGS-$(<F)) \
+diff -durN glibc-2_9.orig/config.make.in glibc-2_9/config.make.in
+--- glibc-2_9.orig/config.make.in	2008-08-18 11:42:17.000000000 +0200
++++ glibc-2_9/config.make.in	2009-02-02 22:00:35.000000000 +0100
+@@ -97,6 +97,7 @@
+ CXX = @CXX@
+ BUILD_CC = @BUILD_CC@
+ CFLAGS = @CFLAGS@
++CPPFLAGS-config = @CPPFLAGS@
+ ASFLAGS-config = @ASFLAGS_config@
+ AR = @AR@
+ RANLIB = @RANLIB@

@@ -1,0 +1,198 @@
+Original patch from: gentoo/src/patchsets/glibc/2.9/3020_all_glibc-tests-sandbox-libdl-paths.patch
+
+-= BEGIN original header =-
+when glibc runs its tests, it does so by invoking the local library loader.
+in Gentoo, we build/run inside of our "sandbox" which itself is linked against
+libdl (so that it can load libraries and pull out symbols).  the trouble
+is that when you upgrade from an older glibc to the new one, often times
+internal symbols change name or abi.  this is normally OK as you cannot use
+libc.so from say version 2.3.6 but libpthread.so from say version 2.5, so
+we always say "keep all of the glibc libraries from the same build".  but
+when glibc runs its tests, it uses dynamic paths to point to its new local
+copies of libraries.  if the test doesnt use libdl, then glibc doesnt add
+its path, and when sandbox triggers the loading of libdl, glibc does so
+from the host system system.  this gets us into the case of all libraries
+are from the locally compiled version of glibc except for libdl.so.
+
+Fix by Wormo
+
+http://bugs.gentoo.org/56898
+
+-= END original header =-
+
+diff -durN glibc-2_9.orig/grp/tst_fgetgrent.sh glibc-2_9/grp/tst_fgetgrent.sh
+--- glibc-2_9.orig/grp/tst_fgetgrent.sh	2001-07-06 06:54:46.000000000 +0200
++++ glibc-2_9/grp/tst_fgetgrent.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -24,7 +24,8 @@
+ rtld_installed_name=$1; shift
+ 
+ testout=${common_objpfx}/grp/tst_fgetgrent.out
+-library_path=${common_objpfx}
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
+ 
+ result=0
+ 
+diff -durN glibc-2_9.orig/iconvdata/run-iconv-test.sh glibc-2_9/iconvdata/run-iconv-test.sh
+--- glibc-2_9.orig/iconvdata/run-iconv-test.sh	2008-05-15 03:59:44.000000000 +0200
++++ glibc-2_9/iconvdata/run-iconv-test.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -34,7 +34,7 @@
+ export GCONV_PATH
+ 
+ # We have to have some directories in the library path.
+-LIBPATH=$codir:$codir/iconvdata
++LIBPATH=$codir:$codir/iconvdata:$codir/dlfcn
+ 
+ # How the start the iconv(1) program.
+ ICONV='$codir/elf/ld.so --library-path $LIBPATH --inhibit-rpath ${from}.so \
+diff -durN glibc-2_9.orig/iconvdata/tst-table.sh glibc-2_9/iconvdata/tst-table.sh
+--- glibc-2_9.orig/iconvdata/tst-table.sh	2002-04-24 23:39:35.000000000 +0200
++++ glibc-2_9/iconvdata/tst-table.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -59,8 +59,11 @@
+   irreversible=${charset}.irreversible
+ fi
+ 
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
++
+ # iconv in one direction.
+-${common_objpfx}elf/ld.so --library-path $common_objpfx \
++${common_objpfx}elf/ld.so --library-path $library_path \
+ ${objpfx}tst-table-from ${charset} \
+   > ${objpfx}tst-${charset}.table
+ 
+diff -durN glibc-2_9.orig/intl/tst-codeset.sh glibc-2_9/intl/tst-codeset.sh
+--- glibc-2_9.orig/intl/tst-codeset.sh	2005-04-06 04:18:35.000000000 +0200
++++ glibc-2_9/intl/tst-codeset.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -37,6 +37,9 @@
+ LOCPATH=${common_objpfx}localedata
+ export LOCPATH
+ 
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
++
+ ${common_objpfx}elf/ld.so --library-path $common_objpfx \
+ ${objpfx}tst-codeset > ${objpfx}tst-codeset.out
+ 
+diff -durN glibc-2_9.orig/intl/tst-gettext.sh glibc-2_9/intl/tst-gettext.sh
+--- glibc-2_9.orig/intl/tst-gettext.sh	2004-08-15 21:28:18.000000000 +0200
++++ glibc-2_9/intl/tst-gettext.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -51,9 +51,12 @@
+ LOCPATH=${common_objpfx}localedata
+ export LOCPATH
+ 
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
++
+ # Now run the test.
+ MALLOC_TRACE=$malloc_trace LOCPATH=${objpfx}localedir:$LOCPATH \
+-${common_objpfx}elf/ld.so --library-path $common_objpfx \
++${common_objpfx}elf/ld.so --library-path $library_path \
+ ${objpfx}tst-gettext > ${objpfx}tst-gettext.out ${objpfx}domaindir
+ 
+ exit $?
+diff -durN glibc-2_9.orig/intl/tst-gettext2.sh glibc-2_9/intl/tst-gettext2.sh
+--- glibc-2_9.orig/intl/tst-gettext2.sh	2005-05-04 19:54:48.000000000 +0200
++++ glibc-2_9/intl/tst-gettext2.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -65,8 +65,11 @@
+ LOCPATH=${objpfx}domaindir
+ export LOCPATH
+ 
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
++
+ # Now run the test.
+-${common_objpfx}elf/ld.so --library-path $common_objpfx \
++${common_objpfx}elf/ld.so --library-path $library_path \
+ ${objpfx}tst-gettext2 > ${objpfx}tst-gettext2.out ${objpfx}domaindir &&
+ cmp ${objpfx}tst-gettext2.out - <<EOF
+ String1 - Lang1: 1st string
+diff -durN glibc-2_9.orig/intl/tst-translit.sh glibc-2_9/intl/tst-translit.sh
+--- glibc-2_9.orig/intl/tst-translit.sh	2005-05-04 19:56:10.000000000 +0200
++++ glibc-2_9/intl/tst-translit.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -36,7 +36,10 @@
+ LOCPATH=${common_objpfx}localedata
+ export LOCPATH
+ 
+-${common_objpfx}elf/ld.so --library-path $common_objpfx \
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
++
++${common_objpfx}elf/ld.so --library-path $library_path \
+ ${objpfx}tst-translit > ${objpfx}tst-translit.out ${objpfx}domaindir
+ 
+ exit $?
+diff -durN glibc-2_9.orig/malloc/tst-mtrace.sh glibc-2_9/malloc/tst-mtrace.sh
+--- glibc-2_9.orig/malloc/tst-mtrace.sh	2005-10-15 01:40:35.000000000 +0200
++++ glibc-2_9/malloc/tst-mtrace.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -24,9 +24,12 @@
+ status=0
+ trap "rm -f ${common_objpfx}malloc/tst-mtrace.leak; exit 1" 1 2 15
+ 
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
++
+ MALLOC_TRACE=${common_objpfx}malloc/tst-mtrace.leak \
+ LOCPATH=${common_objpfx}localedata GCONV_PATH=${common_objpfx}iconvdata \
+-${common_objpfx}elf/ld.so --library-path $common_objpfx \
++${common_objpfx}elf/ld.so --library-path $library_path \
+   ${common_objpfx}malloc/tst-mtrace || status=1
+ 
+ if test $status -eq 0 && test -f ${common_objpfx}malloc/mtrace; then
+diff -durN glibc-2_9.orig/nptl/tst-tls6.sh glibc-2_9/nptl/tst-tls6.sh
+--- glibc-2_9.orig/nptl/tst-tls6.sh	2003-09-03 00:02:59.000000000 +0200
++++ glibc-2_9/nptl/tst-tls6.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -5,8 +5,8 @@
+ rtld_installed_name=$1; shift
+ logfile=$common_objpfx/nptl/tst-tls6.out
+ 
+-# We have to find libc and nptl
+-library_path=${common_objpfx}:${common_objpfx}nptl
++# We have to find libc and nptl (also libdl in case sandbox is in use)
++library_path=${common_objpfx}:${common_objpfx}nptl:${common_objpfx}/dlfcn
+ tst_tls5="${elf_objpfx}${rtld_installed_name} --library-path ${library_path} \
+ 	  ${common_objpfx}/nptl/tst-tls5"
+ 
+diff -durN glibc-2_9.orig/posix/globtest.sh glibc-2_9/posix/globtest.sh
+--- glibc-2_9.orig/posix/globtest.sh	2007-02-14 20:52:33.000000000 +0100
++++ glibc-2_9/posix/globtest.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -18,7 +18,7 @@
+ esac
+ 
+ # We have to find the libc and the NSS modules.
+-library_path=${common_objpfx}:${common_objpfx}nss:${common_objpfx}nis:${common_objpfx}db2:${common_objpfx}hesiod
++library_path=${common_objpfx}:${common_objpfx}nss:${common_objpfx}nis:${common_objpfx}db2:${common_objpfx}hesiod:${common_objpfx}/dlfcn
+ 
+ # Since we use `sort' we must make sure to use the same locale everywhere.
+ LC_ALL=C
+diff -durN glibc-2_9.orig/posix/tst-getconf.sh glibc-2_9/posix/tst-getconf.sh
+--- glibc-2_9.orig/posix/tst-getconf.sh	2002-09-01 13:11:25.000000000 +0200
++++ glibc-2_9/posix/tst-getconf.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -10,7 +10,10 @@
+ else
+   rtld_installed_name=$1; shift
+   runit() {
+-    ${elf_objpfx}${rtld_installed_name} --library-path ${common_objpfx} "$@"
++    
++  # make sure libdl is also in path in case sandbox is in use
++  library_path=${common_objpfx}:${common_objpfx}/dlfcn
++    ${elf_objpfx}${rtld_installed_name} --library-path ${library_path} "$@"
+   }
+ fi
+ 
+diff -durN glibc-2_9.orig/posix/wordexp-tst.sh glibc-2_9/posix/wordexp-tst.sh
+--- glibc-2_9.orig/posix/wordexp-tst.sh	2000-10-20 18:23:30.000000000 +0200
++++ glibc-2_9/posix/wordexp-tst.sh	2009-02-02 22:01:23.000000000 +0100
+@@ -19,8 +19,11 @@
+ "
+ export IFS
+ 
++# make sure libdl is also in path in case sandbox is in use
++library_path=${common_objpfx}:${common_objpfx}/dlfcn
++
+ failed=0
+-${elf_objpfx}${rtld_installed_name} --library-path ${common_objpfx} \
++${elf_objpfx}${rtld_installed_name} --library-path ${library_path} \
+ ${common_objpfx}posix/wordexp-test '$*' > ${testout}1
+ cat <<"EOF" | cmp - ${testout}1 >> $logfile || failed=1
+ wordexp returned 0
