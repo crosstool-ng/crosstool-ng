@@ -52,6 +52,7 @@ EOF
 addToolVersion() {
     local version="$1"
     local file
+    local config_ver_option
     local exp_obs_prompt
     local deps v ver_M ver_m
     local SedExpr1 SedExpr2
@@ -59,7 +60,19 @@ addToolVersion() {
     file="config/${tool_prefix}/${tool}.in"
     v=$(echo "${version}" |"${sed}" -r -e 's/-/_/g; s/\./_/g;')
 
-    SedExpr1="${SedExpr1}config ${cat}_V_${v}\n"
+    config_ver_option="${cat}_V_${v}"
+
+    # Check for existing version: it can be legitimitate for an end-user
+    # to try adding a new version if the one he/she wants is not listed.
+    # But it can be the case where the version is hidden behind either one
+    # of EXPERIMENTAL or OBSOLETE, so warn if the version is already listed.
+    if (GREP_OPTIONS= grep -E "^config ${config_ver_option}$" "${file}" >/dev/null 2>&1); then
+        echo "'${tool}': version '${version}' already present:"
+        GREP_OPTIONS= grep -A3 -B0 -E "^config ${config_ver_option}$" "${file}"
+        return 0
+    fi
+
+    SedExpr1="${SedExpr1}config ${config_ver_option}\n"
     SedExpr1="${SedExpr1}    bool\n"
     SedExpr1="${SedExpr1}    prompt \"${version}"
     case "${EXP},${OBS}" in
