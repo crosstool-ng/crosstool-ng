@@ -56,6 +56,13 @@ do_mpfr() {
 
     CT_DoStep INFO "Installing MPFR"
 
+    mpfr_opt=
+    # Under Cygwin, wa can't bnuild a thread-safe library
+    case "${CT_HOST}" in
+        *-cygwin)   mpfr_opt="--disable-thread-safe";;
+        *)          mpfr_opt="--enable-thread-safe";;
+    esac
+
     CT_DoLog EXTRA "Configuring MPFR"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                      \
     CT_DoExecLog ALL                                    \
@@ -63,8 +70,9 @@ do_mpfr() {
         --build=${CT_BUILD}                             \
         --host=${CT_HOST}                               \
         --prefix="${CT_PREFIX_DIR}"                     \
-        --enable-thread-safe                            \
-        --disable-shared --enable-static                \
+        ${mpfr_opt}                                     \
+        --disable-shared                                \
+        --enable-static                                 \
         --with-gmp="${CT_PREFIX_DIR}"
 
     CT_DoLog EXTRA "Building MPFR"
@@ -89,6 +97,13 @@ do_mpfr_target() {
 
     CT_DoStep INFO "Installing MPFR for the target"
 
+    mpfr_opt=
+    # Under Cygwin, wa can't bnuild a thread-safe library
+    case "${CT_TARGET}" in
+        *-cygwin)   mpfr_opt="--disable-thread-safe";;
+        *)          mpfr_opt="--enable-thread-safe";;
+    esac
+
     CT_DoLog EXTRA "Configuring MPFR"
     CFLAGS="${CT_CFLAGS_FOR_TARGET}"                    \
     CT_DoExecLog ALL                                    \
@@ -96,8 +111,9 @@ do_mpfr_target() {
         --build=${CT_BUILD}                             \
         --host=${CT_TARGET}                             \
         --prefix=/usr                                   \
-        --enable-thread-safe                            \
-        --disable-shared --enable-static                \
+        ${mpfr_opt}                                     \
+        --disable-shared                                \
+        --enable-static                                 \
         --with-gmp="${CT_SYSROOT_DIR}/usr"
 
     CT_DoLog EXTRA "Building MPFR"
