@@ -47,7 +47,7 @@ do_libc_check_config() {
     fi
 
     CT_DoLog EXTRA "Munging uClibc configuration"
-    mungeuClibcConfig "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_BUILD_DIR}/uClibc.config"
+    mungeuClibcConfig "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_STATE_DIR}/uClibc.config"
 
     CT_EndStep
 }
@@ -64,7 +64,7 @@ do_libc_headers() {
     { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
-    cp "${CT_BUILD_DIR}/uClibc.config" .config
+    cp "${CT_STATE_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the
     # compiler tools to use.  Setting it to the empty string forces
@@ -99,7 +99,7 @@ do_libc() {
     { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
-    cp "${CT_BUILD_DIR}/uClibc.config" .config
+    cp "${CT_STATE_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the compiler
     # tools to use.  The newly built tools should be in our path, so we need
@@ -158,7 +158,7 @@ do_libc_finish() {
     { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
 
     # Retrieve the config file
-    cp "${CT_BUILD_DIR}/uClibc.config" .config
+    cp "${CT_STATE_DIR}/uClibc.config" .config
 
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog ALL               \
