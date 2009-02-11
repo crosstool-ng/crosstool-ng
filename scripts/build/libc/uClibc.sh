@@ -142,38 +142,23 @@ do_libc() {
          ${CT_LIBC_UCLIBC_VERBOSITY}    \
          install
 
+    if [ "${CT_LIBC_UCLIBC_BUILD_CROSS_LDD}" = "y" ]; then
+        CT_DoLog EXTRA "Building C library cross-ldd"
+        CT_DoExecLog ALL                    \
+        make PREFIX="${CT_SYSROOT_DIR}/"    \
+             ${CT_LIBC_UCLIBC_VERBOSITY}    \
+             -C utils hostutils
+
+        CT_DoLog EXTRA "Installing C library cross-ldd"
+        CT_DoExecLog ALL install -m 0755 utils/ldd.host "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
+    fi
+
     CT_EndStep
 }
 
 # This function is used to install those components needing the final C compiler
 do_libc_finish() {
-    # Build and install host-side ldd
-    CT_DoStep INFO "Finishing C library"
-
-    mkdir -p "${CT_BUILD_DIR}/build-libc-finish"
-    cd "${CT_BUILD_DIR}/build-libc-finish"
-
-    # Simply copy files until uClibc has the ablity to build out-of-tree
-    CT_DoLog EXTRA "Copying sources to build dir"
-    { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
-
-    # Retrieve the config file
-    cp "${CT_STATE_DIR}/uClibc.config" .config
-
-    CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |CT_DoExecLog ALL               \
-                 make CROSS=${CT_TARGET}-       \
-                 PREFIX="${CT_SYSROOT_DIR}/"    \
-                 oldconfig
-
-    CT_DoLog EXTRA "Installing C library host utils"
-    CT_DoExecLog ALL                    \
-    make PREFIX="${CT_SYSROOT_DIR}/"    \
-         ${CT_LIBC_UCLIBC_VERBOSITY}    \
-         -C utils hostutils
-    CT_DoExecLog ALL install -m 0755 utils/ldd.host "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
-
-    CT_EndStep
+    :
 }
 
 # Initialises the .config file to sensible values
