@@ -9,7 +9,7 @@ CT_DoKernelTupleValues() {
 
 # Download the kernel
 do_kernel_get() {
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" != "y" ]; then
         CT_GetFile "linux-${CT_KERNEL_VERSION}" \
                    {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
     fi
@@ -18,7 +18,7 @@ do_kernel_get() {
 
 # Extract kernel
 do_kernel_extract() {
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" != "y" ]; then
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" != "y" ]; then
         CT_Extract "linux-${CT_KERNEL_VERSION}"
         CT_Patch "linux-${CT_KERNEL_VERSION}"
     fi
@@ -29,8 +29,8 @@ do_kernel_extract() {
 do_kernel_headers() {
     CT_DoStep INFO "Installing kernel headers"
 
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_DIR}" = "y" ]; then
-        do_kernel_preinstalled
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y" ]; then
+        do_kernel_custom
     else
         do_kernel_install
     fi
@@ -74,10 +74,10 @@ do_kernel_install() {
     fi
 }
 
-# Use preinstalled headers (most probably by using make headers_install in a
+# Use custom headers (most probably by using make headers_install in a
 # modified (read: customised) kernel tree, or using pre-2.6.18 headers, such
 # as 2.4). In this case, simply copy the headers in place
-do_kernel_preinstalled() {
+do_kernel_custom() {
     local tar_opt
 
     CT_DoLog EXTRA "Installing custom kernel headers"
