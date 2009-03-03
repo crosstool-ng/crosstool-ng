@@ -78,9 +78,22 @@ do_kernel_install() {
 # modified (read: customised) kernel tree, or using pre-2.6.18 headers, such
 # as 2.4). In this case, simply copy the headers in place
 do_kernel_preinstalled() {
-    CT_DoLog EXTRA "Copying preinstalled kernel headers"
+    local tar_opt
+
+    CT_DoLog EXTRA "Installing custom kernel headers"
 
     mkdir -p "${CT_SYSROOT_DIR}/usr"
-    cd "${CT_KERNEL_LINUX_CUSTOM_DIR}"
-    CT_DoExecLog ALL cp -rv include "${CT_SYSROOT_DIR}/usr"
+    cd "${CT_SYSROOT_DIR}/usr"
+    if [ "${CT_KERNEL_LINUX_CUSTOM_IS_TARBALL}" = "y" ]; then
+        case "${CT_KERNEL_LINUX_CUSTOM_PATH}" in
+            *.tar)      ;;
+            *.tgz)      tar_opt=--gzip;;
+            *.tar.gz)   tar_opt=--gzip;;
+            *.tar.bz2)  tar_opt=--bzip2;;
+            *.tar.lzma) tar_opt=--lzma;;
+        esac
+        CT_DoExecLog ALL tar x ${tar_opt} -vf ${CT_KERNEL_LINUX_CUSTOM_PATH}
+    else
+        CT_DoExecLog ALL cp -rv "${CT_KERNEL_LINUX_CUSTOM_PATH}/include" .
+    fi
 }
