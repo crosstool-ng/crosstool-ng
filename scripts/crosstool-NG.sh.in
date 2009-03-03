@@ -32,7 +32,7 @@
 CT_WORK_DIR="${CT_WORK_DIR:-${CT_TOP_DIR}/targets}"
 
 # Create the bin-overide early
-# Contains symlinks to the tools found bu ./configure
+# Contains symlinks to the tools found by ./configure
 # Note: CT_DoLog and CT_DoExecLog do not use any of those tool, so
 # they can be safely used
 CT_BIN_OVERIDE_DIR="${CT_WORK_DIR}/bin"
@@ -108,7 +108,6 @@ CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
 CT_SRC_DIR="${CT_WORK_DIR}/src"
 CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
-CT_DEBUG_INSTALL_DIR="${CT_INSTALL_DIR}/${CT_TARGET}/debug-root"
 # Note: we'll always install the core compiler in its own directory, so as to
 # not mix the two builds: core and final.
 CT_CC_CORE_STATIC_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-static"
@@ -177,9 +176,6 @@ if [ -z "${CT_RESTART}" ]; then
     if [ -d "${CT_INSTALL_DIR}" ]; then
         CT_DoForceRmdir "${CT_INSTALL_DIR}"
     fi
-    if [ -d "${CT_DEBUG_INSTALL_DIR}" ]; then
-        CT_DoForceRmdir "${CT_DEBUG_INSTALL_DIR}"
-    fi
     # In case we start anew, get rid of the previously saved state directory
     if [ -d "${CT_STATE_DIR}" ]; then
         CT_DoForceRmdir "${CT_STATE_DIR}"
@@ -194,7 +190,6 @@ CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
-CT_DoExecLog ALL mkdir -p "${CT_DEBUG_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"
@@ -229,7 +224,8 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Arrange paths depending on wether we use sys-root or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/sys-root"
+        CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/sys-root"
+        CT_DEBUGROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/debug-root"
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/usr/include"
         BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         CC_CORE_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
@@ -253,6 +249,8 @@ if [ -z "${CT_RESTART}" ]; then
         CC_SYSROOT_ARG="--with-headers=${CT_HEADERS_DIR}"
         LIBC_SYSROOT_ARG="prefix="
     fi
+    CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}"
+    CT_DoExecLog ALL mkdir -p "${CT_DEBUGROOT_DIR}"
 
     # Prepare the 'lib' directories in sysroot, else the ../lib64 hack used by
     # 32 -> 64 bit crosscompilers won't work, and build of final gcc will fail
@@ -264,7 +262,7 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
 
     # Prevent gcc from installing its libraries outside of the sys-root
-    CT_DoExecLog ALL ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
+    CT_DoExecLog ALL ln -sf "./${CT_SYSROOT_DIR_PREFIX}/sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
 
     # Now, in case we're 64 bits, just have lib64/ be a symlink to lib/
     # so as to have all libraries in the same directory (we can do that
@@ -273,7 +271,7 @@ if [ -z "${CT_RESTART}" ]; then
         CT_DoExecLog ALL ln -sf "lib" "${CT_PREFIX_DIR}/lib64"
         CT_DoExecLog ALL ln -sf "lib" "${CT_SYSROOT_DIR}/lib64"
         CT_DoExecLog ALL ln -sf "lib" "${CT_SYSROOT_DIR}/usr/lib64"
-        CT_DoExecLog ALL ln -sf "sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib64"
+        CT_DoExecLog ALL ln -sf "lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib64"
     fi
 
     # Determine build system if not set by the user

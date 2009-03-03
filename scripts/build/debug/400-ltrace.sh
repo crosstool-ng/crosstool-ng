@@ -37,7 +37,7 @@ do_debug_ltrace_build() {
     CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing ltrace"
-    CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
+    CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install
 
     CT_Popd
     CT_EndStep

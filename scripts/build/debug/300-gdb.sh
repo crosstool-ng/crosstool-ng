@@ -215,10 +215,10 @@ do_debug_gdb_build() {
         CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing native gdb"
-        CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
+        CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install
 
         # Building a native gdb also builds a gdbserver
-        find "${CT_DEBUG_INSTALL_DIR}" -type f -name gdbserver -exec rm -fv {} \; 2>&1 |CT_DoLog ALL
+        find "${CT_DEBUGROOT_DIR}" -type f -name gdbserver -exec rm -fv {} \; 2>&1 |CT_DoLog ALL
 
         unset ac_cv_func_strncmp_works
 
@@ -269,7 +269,7 @@ do_debug_gdb_build() {
         CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing gdbserver"
-        CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" install
+        CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install
 
         CT_EndStep
     fi

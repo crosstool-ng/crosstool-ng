@@ -47,7 +47,7 @@ do_debug_dmalloc_build() {
 
     CT_DoLog EXTRA "Installing dmalloc"
     CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" installincs installlib
-    CT_DoExecLog ALL make DESTDIR="${CT_DEBUG_INSTALL_DIR}" installutil
+    CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" installutil
 
     CT_EndStep
 }

@@ -47,12 +47,12 @@ do_debug_duma_build() {
         CT_DoLog EXTRA "Installing shared library link"
         ln -vsf ${duma_so} "${CT_SYSROOT_DIR}/usr/lib/libduma.so"   2>&1 |CT_DoLog ALL
         CT_DoLog EXTRA "Installing wrapper script"
-        mkdir -p "${CT_DEBUG_INSTALL_DIR}/usr/bin"
+        mkdir -p "${CT_DEBUGROOT_DIR}/usr/bin"
         # Install a simpler, smaller, safer wrapper than the one provided by D.U.M.A.
         sed -r -e 's:^LIBDUMA_SO=.*:LIBDUMA_SO=/usr/lib/'"${duma_so}"':;'   \
             "${CT_LIB_DIR}/scripts/build/debug/duma.in"                     \
-            >"${CT_DEBUG_INSTALL_DIR}/usr/bin/duma"
-        chmod 755 "${CT_DEBUG_INSTALL_DIR}/usr/bin/duma"
+            >"${CT_DEBUGROOT_DIR}/usr/bin/duma"
+        chmod 755 "${CT_DEBUGROOT_DIR}/usr/bin/duma"
     fi
 
     CT_Popd
