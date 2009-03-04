@@ -17,16 +17,16 @@ Usage: ${myname} <tool> <[options] version [...]> ...
 
   Valid options for all tools:
     --stable, -s, +x   (default)
-      mark the version as being stable (as opposed to experimental)
+      mark the version as being stable (as opposed to experimental, below)
 
     --experimental, -x, +s
-      mark the version as being experimental (as opposed to stable)
+      mark the version as being experimental (as opposed to stable, above)
 
     --current, -c, +o   (default)
-      mark the version as being cuurent (as opposed to obsolete)
+      mark the version as being cuurent (as opposed to obsolete, below)
 
     --obsolete, -o, +c
-      mark the version as being obsolete (as opposed to current)
+      mark the version as being obsolete (as opposed to current, above)
 
   Note: setting a new tool resets to the defaults: 'stable' and 'current'.
 
