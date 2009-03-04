@@ -180,8 +180,8 @@ CT_HasOrAbort() {
 }
 
 # Search a program: wrap "which" for those system where
-# "which" verbosely says there is no match (Mdk are such
-# suckers...)
+# "which" verbosely says there is no match (Mandriva is
+# such a sucker...)
 # Usage: CT_Which <filename>
 CT_Which() {
   which "$1" 2>/dev/null || true
@@ -445,7 +445,6 @@ CT_GetLocal() {
         CT_DoLog DEBUG "Trying to retrieve an already downloaded copy of '${basename}'"
         # We'd rather have a bzip2'ed tarball, then gzipped tarball, plain tarball,
         # or, as a failover, a file without extension.
-        # Try local copy first, if it exists
         for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
             CT_DoLog DEBUG "Trying '${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}'"
             if [ -r "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" -a \
@@ -635,6 +634,9 @@ CT_Patch() {
         CT_DoLog DEBUG "Already patched '${basename}'"
         return 0
     fi
+
+    # Check if already extracted
+    CT_TestOrAbort "'${basename}' is not yet extracted while attempting to patch" -e "${CT_SRC_DIR}/.${basename}.extracted"
 
     [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}/${basename}"
 
