@@ -123,6 +123,9 @@ do_libc_headers() {
 
     extra_config="${addons_config} $(do_libc_min_kernel_config)"
 
+    # Pre-seed the configparms file with values from the config option
+    echo "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
+
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
     CT_DoLog DEBUG "Extra config passed : '${extra_config}'"
@@ -288,10 +291,8 @@ do_libc_start_files() {
     CT_DoLog DEBUG "Extra config args passed: '${extra_config}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
-    # Super-H really needs to set configparms as of gcc-3.4/glibc-2.3.2
-    # note: this is awkward, doesn't work well if you need more than one
-    # line in configparms
-    [ "${CT_ARCH_sh}" = "y" ] && echo "no-z-defs=yes" > configparms
+    # Pre-seed the configparms file with values from the config option
+    echo "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
 
     echo "libc_cv_forced_unwind=yes" > config.cache
     echo "libc_cv_c_cleanup=yes" >> config.cache
@@ -400,9 +401,8 @@ do_libc() {
     CT_DoLog DEBUG "Extra config args passed: '${extra_config}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
-    # sh3 and sh4 really need to set configparms as of gcc-3.4/glibc-2.3.2
-    # note: this is awkward, doesn't work well if you need more than one line in configparms
-    echo ${CT_LIBC_GLIBC_CONFIGPARMS} > configparms
+    # Pre-seed the configparms file with values from the config option
+    echo "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
 
     # For glibc 2.3.4 and later we need to set some autoconf cache
     # variables, because nptl/sysdeps/pthread/configure.in does not
