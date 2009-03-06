@@ -12,6 +12,7 @@ do_debug_duma_extract() {
     # Even if DUMA uses _ and not -, crosstool-NG uses the dash to split the
     # name from the version in order to find the appropriate patches
     # YEM: FIXME: make CT_Patch more intelligent, Eg.: CT_Patch duma _ "${CT_DUMA_VERSION}"
+    CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.duma-${CT_DUMA_VERSION}.extracted"
     CT_Patch "duma-${CT_DUMA_VERSION}" nochdir
     CT_Popd
 }
