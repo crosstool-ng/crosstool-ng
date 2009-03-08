@@ -1,0 +1,53 @@
+Original patch from: ../crosstool-NG/ct-ng.trunk/patches/binutils/2.19/150-warn-textrel.patch
+
+-= BEGIN original header =-
+Original patch from Gentoo:
+gentoo/src/patchsets/binutils/2.19/66_all_binutils-2.18.50.0.2-warn-textrel.patch
+
+textrels are bad for forcing copy-on-write (this affects everyone),
+and for security/runtime code generation, this affects security ppl.
+But in either case, it doesn't matter who needs textrels, it's
+the very fact that they're needed at all.
+
+-= END original header =-
+
+diff -durN binutils-2.19.1.orig/bfd/elflink.c binutils-2.19.1/bfd/elflink.c
+--- binutils-2.19.1.orig/bfd/elflink.c	2009-03-08 11:57:02.000000000 +0100
++++ binutils-2.19.1/bfd/elflink.c	2009-03-08 11:57:02.000000000 +0100
+@@ -10820,14 +10820,12 @@
+ 	goto error_return;
+ 
+       /* Check for DT_TEXTREL (late, in case the backend removes it).  */
+-      if (info->warn_shared_textrel && info->shared)
++      o = bfd_get_section_by_name (dynobj, ".dynamic");
++      if (info->warn_shared_textrel && o != NULL)
+ 	{
+ 	  bfd_byte *dyncon, *dynconend;
+ 
+ 	  /* Fix up .dynamic entries.  */
+-	  o = bfd_get_section_by_name (dynobj, ".dynamic");
+-	  BFD_ASSERT (o != NULL);
+-
+ 	  dyncon = o->contents;
+ 	  dynconend = o->contents + o->size;
+ 	  for (; dyncon < dynconend; dyncon += bed->s->sizeof_dyn)
+@@ -10839,7 +10837,7 @@
+ 	      if (dyn.d_tag == DT_TEXTREL)
+ 		{
+ 		 info->callbacks->einfo
+-		    (_("%P: warning: creating a DT_TEXTREL in a shared object.\n"));
++		    (_("%P: warning: creating a DT_TEXTREL in object.\n"));
+ 		  break;
+ 		}
+ 	    }
+diff -durN binutils-2.19.1.orig/ld/ldmain.c binutils-2.19.1/ld/ldmain.c
+--- binutils-2.19.1.orig/ld/ldmain.c	2008-08-17 05:12:50.000000000 +0200
++++ binutils-2.19.1/ld/ldmain.c	2009-03-08 11:57:02.000000000 +0100
+@@ -274,6 +274,7 @@
+   link_info.relax_pass = 1;
+   link_info.pei386_auto_import = -1;
+   link_info.spare_dynamic_tags = 5;
++  link_info.warn_shared_textrel = TRUE;
+   link_info.path_separator = ':';
+ 
+   ldfile_add_arch ("");

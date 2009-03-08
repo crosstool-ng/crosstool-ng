@@ -1,0 +1,25 @@
+Original patch from: ../crosstool-NG/ct-ng.trunk/patches/binutils/2.19/100-ppc64-pie.patch
+
+-= BEGIN original header =-
+Original patch from Gentoo:
+gentoo/src/patchsets/binutils/2.19/03_all_binutils-2.15.92.0.2-ppc64-pie.patch
+
+-= END original header =-
+
+diff -durN binutils-2.19.1.orig/bfd/elf64-ppc.c binutils-2.19.1/bfd/elf64-ppc.c
+--- binutils-2.19.1.orig/bfd/elf64-ppc.c	2008-10-09 14:18:24.000000000 +0200
++++ binutils-2.19.1/bfd/elf64-ppc.c	2009-03-08 11:56:59.000000000 +0100
+@@ -11294,7 +11294,12 @@
+ 	      else if (!SYMBOL_REFERENCES_LOCAL (info, &h->elf)
+ 		       && !is_opd
+ 		       && r_type != R_PPC64_TOC)
+-		outrel.r_info = ELF64_R_INFO (h->elf.dynindx, r_type);
++		{
++		  outrel.r_info = ELF64_R_INFO (h->elf.dynindx, r_type);
++		  if (h->elf.dynindx == -1
++		      && h->elf.root.type == bfd_link_hash_undefweak)
++		  memset (&outrel, 0, sizeof outrel);
++		}
+ 	      else
+ 		{
+ 		  /* This symbol is local, or marked to become local,

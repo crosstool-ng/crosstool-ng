@@ -1,0 +1,36 @@
+Original patch from: ../crosstool-NG/ct-ng.trunk/patches/binutils/2.19/130-check_ldrunpath_length.patch
+
+-= BEGIN original header =-
+Original patch from Gentoo:
+gentoo/src/patchsets/binutils/2.19/42_all_012_check_ldrunpath_length.patch
+
+Originaly from Debian:
+## 012_check_ldrunpath_length.dpatch by Chris Chimelis <chris@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Only generate an RPATH entry if LD_RUN_PATH is not empty, for
+## DP: cases where -rpath isn't specified. (#151024)
+
+-= END original header =-
+
+diff -durN binutils-2.19.1.orig/ld/emultempl/elf32.em binutils-2.19.1/ld/emultempl/elf32.em
+--- binutils-2.19.1.orig/ld/emultempl/elf32.em	2008-09-07 06:02:31.000000000 +0200
++++ binutils-2.19.1/ld/emultempl/elf32.em	2009-03-08 11:57:01.000000000 +0100
+@@ -1219,6 +1219,8 @@
+ 	      && command_line.rpath == NULL)
+ 	    {
+ 	      lib_path = (const char *) getenv ("LD_RUN_PATH");
++	      if ((lib_path) && (strlen (lib_path) == 0))
++		  lib_path = NULL;
+ 	      if (gld${EMULATION_NAME}_search_needed (lib_path, &n,
+ 						      force))
+ 		break;
+@@ -1404,6 +1406,8 @@
+   rpath = command_line.rpath;
+   if (rpath == NULL)
+     rpath = (const char *) getenv ("LD_RUN_PATH");
++  if ((rpath) && (strlen (rpath) == 0))
++      rpath = NULL;
+   if (! (bfd_elf_size_dynamic_sections
+ 	 (link_info.output_bfd, command_line.soname, rpath,
+ 	  command_line.filter_shlib,
