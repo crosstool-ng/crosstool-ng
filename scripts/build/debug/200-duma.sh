@@ -28,7 +28,7 @@ do_debug_duma_build() {
 
     # The shared library needs some love: some version have libduma.so.0.0,
     # while others have libduma.so.0.0.0
-    duma_so=$(make -n -p 2>&1 |egrep '^libduma.so[^:]*:' |head -n 1 |cut -d : -f 1)
+    duma_so=$(make -n -p 2>&1 |grep -E '^libduma.so[^:]*:' |head -n 1 |cut -d : -f 1)
 
     libs=
     [ "${CT_DUMA_A}" = "y" ] && libs="${libs} libduma.a"

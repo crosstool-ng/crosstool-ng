@@ -41,7 +41,7 @@ do_libc_check_config() {
 
     CT_TestOrAbort "You did not provide a uClibc config file!" -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" -a -f "${CT_LIBC_UCLIBC_CONFIG_FILE}"
 
-    if egrep '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
+    if grep -E '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
         CT_DoLog WARN "Your uClibc version refers to the kernel _sources_, which is bad."
         CT_DoLog WARN "I can't guarantee that our little hack will work. Please try to upgrade."
     fi
