@@ -28,26 +28,31 @@ do_mpfr_extract() {
     # and: http://sourceware.org/ml/crossgcc/2008-06/msg00005.html
     # This hack is not bad per se, but the MPFR guys would be better not to
     # do that in the future...
-    CT_Pushd "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}"
-    if [ ! -f .autotools.ct-ng ]; then
-        CT_DoLog DEBUG "Re-building autotools files"
-        CT_DoExecLog ALL autoreconf -fi
-        # Starting with libtool-1.9f, config.{guess,sub} are no longer
-        # installed without -i, but starting with libtool-2.2.6, they
-        # are no longer removed without -i. Sight... Just use -i with
-        # libtool >=2
-        # See: http://sourceware.org/ml/crossgcc/2008-11/msg00046.html
-        # and: http://sourceware.org/ml/crossgcc/2008-11/msg00048.html
-        libtoolize_opt=
-        case "$(libtoolize --version |head -n 1 |gawk '{ print $(NF); }')" in
-            0.*)    ;;
-            1.*)    ;;
-            *)      libtoolize_opt=-i;;
-        esac
-        CT_DoExecLog ALL libtoolize -f ${libtoolize_opt}
-        touch .autotools.ct-ng
-    fi
-    CT_Popd
+    # It seems that MPFR >= 2.4.0 do not need this...
+    case "${CT_MPFR_VERSION}" in
+        1.*|2.0.*|2.1.*|2.2.*|2.3.*)
+            CT_Pushd "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}"
+            if [ ! -f .autotools.ct-ng ]; then
+                CT_DoLog DEBUG "Re-building autotools files"
+                CT_DoExecLog ALL autoreconf -fi
+                # Starting with libtool-1.9f, config.{guess,sub} are no longer
+                # installed without -i, but starting with libtool-2.2.6, they
+                # are no longer removed without -i. Sight... Just use -i with
+                # libtool >=2
+                # See: http://sourceware.org/ml/crossgcc/2008-11/msg00046.html
+                # and: http://sourceware.org/ml/crossgcc/2008-11/msg00048.html
+                libtoolize_opt=
+                case "$(libtoolize --version |head -n 1 |gawk '{ print $(NF); }')" in
+                    0.*)    ;;
+                    1.*)    ;;
+                    *)      libtoolize_opt=-i;;
+                esac
+                CT_DoExecLog ALL libtoolize -f ${libtoolize_opt}
+                touch .autotools.ct-ng
+            fi
+            CT_Popd
+            ;;
+    esac
 }
 
 do_mpfr() {
@@ -57,13 +62,14 @@ do_mpfr() {
     CT_DoStep INFO "Installing MPFR"
 
     mpfr_opt=
-    # Under Cygwin, wa can't bnuild a thread-safe library
+    # Under Cygwin, we can't build a thread-safe library
     case "${CT_HOST}" in
         *-cygwin)   mpfr_opt="--disable-thread-safe";;
         *)          mpfr_opt="--enable-thread-safe";;
     esac
 
     CT_DoLog EXTRA "Configuring MPFR"
+    CC="${CT_HOST}-gcc"                                 \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                      \
     CT_DoExecLog ALL                                    \
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
@@ -98,13 +104,14 @@ do_mpfr_target() {
     CT_DoStep INFO "Installing MPFR for the target"
 
     mpfr_opt=
-    # Under Cygwin, wa can't bnuild a thread-safe library
+    # Under Cygwin, we can't build a thread-safe library
     case "${CT_TARGET}" in
         *-cygwin)   mpfr_opt="--disable-thread-safe";;
         *)          mpfr_opt="--enable-thread-safe";;
     esac
 
     CT_DoLog EXTRA "Configuring MPFR"
+    CC="${CT_TARGET}-gcc"                               \
     CFLAGS="${CT_CFLAGS_FOR_TARGET}"                    \
     CT_DoExecLog ALL                                    \
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
