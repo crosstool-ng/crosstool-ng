@@ -560,7 +560,7 @@ CT_GetCVS() {
     # No, it does not...
 
     # Are downloads allowed ?
-    CT_TestAndAbort "File '${file}' not present locally, and downloads are not allowed" "${CT_FORBID_DOWNLOAD}" = "y"
+    CT_TestAndAbort "File '${basename}' not present locally, and downloads are not allowed" "${CT_FORBID_DOWNLOAD}" = "y"
 
     CT_DoLog EXTRA "Retrieving '${basename}'"
 
@@ -571,6 +571,38 @@ CT_GetCVS() {
     CT_DoExecLog ALL cvs -z 9 -d "${uri}" co -P ${tag} "${module}"
     [ -n "${dirname}" ] && CT_DoExecLog ALL mv "${module}" "${dirname}"
     CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${dirname:-${module}}"
+    CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"
+
+    CT_Popd
+    CT_DoExecLog ALL rm -rf "${tmp_dir}"
+}
+
+# Check out from SVN, and build the associated tarball
+# The tarball will be called ${basename}.tar.bz2
+# Prerequisite: either the server does not require password,
+# or the user must already be logged in.
+# 'rev' is the revision to retrieve
+# Usage: CT_GetSVN <basename> <url> [rev]
+CT_GetSVN() {
+    local basename="$1"
+    local uri="$2"
+    local rev="$3"
+
+    # Does it exist localy?
+    CT_GetLocal "${basename}" && return 0 || true
+    # No, it does not...
+
+    # Are downloads allowed ?
+    CT_TestAndAbort "File '${basename}' not present locally, and downloads are not allowed" "${CT_FORBID_DOWNLOAD}" = "y"
+
+    CT_DoLog EXTRA "Retrieving '${basename}'"
+
+    CT_MktempDir tmp_dir
+    CT_Pushd "${tmp_dir}"
+
+    CT_DoSetProxy ${CT_PROXY_TYPE}
+    CT_DoExecLog ALL svn export ${rev:+-r ${rev}} "${uri}" "${basename}"
+    CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${basename}"
     CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"
 
     CT_Popd
