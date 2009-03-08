@@ -1,0 +1,359 @@
+diff -Naurd mpfr-2.4.0-a/PATCHES mpfr-2.4.0-b/PATCHES
+--- mpfr-2.4.0-a/PATCHES	2009-01-26 12:52:01.000000000 +0000
++++ mpfr-2.4.0-b/PATCHES	2009-02-20 17:27:44.000000000 +0000
+@@ -0,0 +1 @@
++printf-hh-ll
+diff -Naurd mpfr-2.4.0-a/VERSION mpfr-2.4.0-b/VERSION
+--- mpfr-2.4.0-a/VERSION	2009-01-26 12:52:01.000000000 +0000
++++ mpfr-2.4.0-b/VERSION	2009-02-20 17:27:44.000000000 +0000
+@@ -1 +1 @@
+-2.4.0
++2.4.0-p1
+diff -Naurd mpfr-2.4.0-a/acinclude.m4 mpfr-2.4.0-b/acinclude.m4
+--- mpfr-2.4.0-a/acinclude.m4	2009-01-26 12:52:01.000000000 +0000
++++ mpfr-2.4.0-b/acinclude.m4	2009-01-26 12:52:01.000000000 +0000
+@@ -722,6 +722,16 @@
+          [AC_DEFINE([NPRINTF_J], 1, [gmp_printf cannot read intmax_t])])
+ fi
+ 
++MPFR_FUNC_PRINTF_SPEC([%hhd], [char], [
++#include <gmp.h>
++         ], [gmp_],,
++         [AC_DEFINE([NPRINTF_HH], 1, [gmp_printf cannot use 'hh' length modifier])])
++
++MPFR_FUNC_PRINTF_SPEC([%lld], [long long int], [
++#include <gmp.h>
++         ], [gmp_],,
++         [AC_DEFINE([NPRINTF_LL], 1, [gmp_printf cannot read long long int])])
++
+ MPFR_FUNC_PRINTF_SPEC([%.0Lf], [long double], [
+ #include <gmp.h>
+          ], [gmp_],,
+diff -Naurd mpfr-2.4.0-a/configure mpfr-2.4.0-b/configure
+--- mpfr-2.4.0-a/configure	2009-01-26 12:54:36.000000000 +0000
++++ mpfr-2.4.0-b/configure	2009-02-20 17:38:36.000000000 +0000
+@@ -24874,6 +24874,170 @@
+ fi
+ 
+ 
++{ $as_echo "$as_me:$LINENO: checking if gmp_printf supports \"%hhd\"" >&5
++$as_echo_n "checking if gmp_printf supports \"%hhd\"... " >&6; }
++if test "$cross_compiling" = yes; then
++  { { $as_echo "$as_me:$LINENO: error: in \`$ac_pwd':" >&5
++$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
++{ { $as_echo "$as_me:$LINENO: error: cannot run test program while cross compiling
++See \`config.log' for more details." >&5
++$as_echo "$as_me: error: cannot run test program while cross compiling
++See \`config.log' for more details." >&2;}
++   { (exit 1); exit 1; }; }; }
++else
++  cat >conftest.$ac_ext <<_ACEOF
++/* confdefs.h.  */
++_ACEOF
++cat confdefs.h >>conftest.$ac_ext
++cat >>conftest.$ac_ext <<_ACEOF
++/* end confdefs.h.  */
++
++#include <stdio.h>
++
++#include <gmp.h>
++
++
++int
++main ()
++{
++
++  char s[256];
++  char a = 0;
++  return (gmp_sprintf (s, "%hhd", a) != 1) ? 1 : 0;
++
++  ;
++  return 0;
++}
++_ACEOF
++rm -f conftest$ac_exeext
++if { (ac_try="$ac_link"
++case "(($ac_try" in
++  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++  *) ac_try_echo=$ac_try;;
++esac
++eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++$as_echo "$ac_try_echo") >&5
++  (eval "$ac_link") 2>&5
++  ac_status=$?
++  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++  (exit $ac_status); } && { ac_try='./conftest$ac_exeext'
++  { (case "(($ac_try" in
++  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++  *) ac_try_echo=$ac_try;;
++esac
++eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++$as_echo "$ac_try_echo") >&5
++  (eval "$ac_try") 2>&5
++  ac_status=$?
++  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++  (exit $ac_status); }; }; then
++  { $as_echo "$as_me:$LINENO: result: yes" >&5
++$as_echo "yes" >&6; }
++
++else
++  $as_echo "$as_me: program exited with status $ac_status" >&5
++$as_echo "$as_me: failed program was:" >&5
++sed 's/^/| /' conftest.$ac_ext >&5
++
++( exit $ac_status )
++{ $as_echo "$as_me:$LINENO: result: no" >&5
++$as_echo "no" >&6; }
++
++cat >>confdefs.h <<\_ACEOF
++#define NPRINTF_HH 1
++_ACEOF
++
++fi
++rm -rf conftest.dSYM
++rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
++fi
++
++
++
++
++
++{ $as_echo "$as_me:$LINENO: checking if gmp_printf supports \"%lld\"" >&5
++$as_echo_n "checking if gmp_printf supports \"%lld\"... " >&6; }
++if test "$cross_compiling" = yes; then
++  { { $as_echo "$as_me:$LINENO: error: in \`$ac_pwd':" >&5
++$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
++{ { $as_echo "$as_me:$LINENO: error: cannot run test program while cross compiling
++See \`config.log' for more details." >&5
++$as_echo "$as_me: error: cannot run test program while cross compiling
++See \`config.log' for more details." >&2;}
++   { (exit 1); exit 1; }; }; }
++else
++  cat >conftest.$ac_ext <<_ACEOF
++/* confdefs.h.  */
++_ACEOF
++cat confdefs.h >>conftest.$ac_ext
++cat >>conftest.$ac_ext <<_ACEOF
++/* end confdefs.h.  */
++
++#include <stdio.h>
++
++#include <gmp.h>
++
++
++int
++main ()
++{
++
++  char s[256];
++  long long int a = 0;
++  return (gmp_sprintf (s, "%lld", a) != 1) ? 1 : 0;
++
++  ;
++  return 0;
++}
++_ACEOF
++rm -f conftest$ac_exeext
++if { (ac_try="$ac_link"
++case "(($ac_try" in
++  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++  *) ac_try_echo=$ac_try;;
++esac
++eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++$as_echo "$ac_try_echo") >&5
++  (eval "$ac_link") 2>&5
++  ac_status=$?
++  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++  (exit $ac_status); } && { ac_try='./conftest$ac_exeext'
++  { (case "(($ac_try" in
++  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++  *) ac_try_echo=$ac_try;;
++esac
++eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++$as_echo "$ac_try_echo") >&5
++  (eval "$ac_try") 2>&5
++  ac_status=$?
++  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++  (exit $ac_status); }; }; then
++  { $as_echo "$as_me:$LINENO: result: yes" >&5
++$as_echo "yes" >&6; }
++
++else
++  $as_echo "$as_me: program exited with status $ac_status" >&5
++$as_echo "$as_me: failed program was:" >&5
++sed 's/^/| /' conftest.$ac_ext >&5
++
++( exit $ac_status )
++{ $as_echo "$as_me:$LINENO: result: no" >&5
++$as_echo "no" >&6; }
++
++cat >>confdefs.h <<\_ACEOF
++#define NPRINTF_LL 1
++_ACEOF
++
++fi
++rm -rf conftest.dSYM
++rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
++fi
++
++
++
++
++
+ { $as_echo "$as_me:$LINENO: checking if gmp_printf supports \"%.0Lf\"" >&5
+ $as_echo_n "checking if gmp_printf supports \"%.0Lf\"... " >&6; }
+ if test "$cross_compiling" = yes; then
+diff -Naurd mpfr-2.4.0-a/mpfr.h mpfr-2.4.0-b/mpfr.h
+--- mpfr-2.4.0-a/mpfr.h	2009-01-26 12:52:01.000000000 +0000
++++ mpfr-2.4.0-b/mpfr.h	2009-02-20 17:27:44.000000000 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 2
+ #define MPFR_VERSION_MINOR 4
+ #define MPFR_VERSION_PATCHLEVEL 0
+-#define MPFR_VERSION_STRING "2.4.0"
++#define MPFR_VERSION_STRING "2.4.0-p1"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-2.4.0-a/tests/tfprintf.c mpfr-2.4.0-b/tests/tfprintf.c
+--- mpfr-2.4.0-a/tests/tfprintf.c	2009-01-26 12:52:00.000000000 +0000
++++ mpfr-2.4.0-b/tests/tfprintf.c	2009-02-20 16:31:02.000000000 +0000
+@@ -146,6 +146,7 @@
+   short sh = -1;
+   unsigned short ush = 1;
+   int i = -1;
++  int j = 1;
+   unsigned int ui = 1;
+   long lo = -1;
+   unsigned long ulo = 1;
+@@ -179,12 +180,11 @@
+ 
+   limb[0] = limb[1] = limb[2] = ~ (mp_limb_t) 0;
+ 
+-  check_vfprintf (fout, "a. %Ra, b. %hhu, c. %u, d. %lx%hhn", mpfr, uch, ui,
+-                  ulo, &uch);
+-  check_length (1, uch, 28, hhu);
+-  check_vfprintf (fout, "a. %hhi, b. %Rb, c. %u, d. %li%ln", sch, mpfr, i,
++  check_vfprintf (fout, "a. %Ra, b. %u, c. %lx%n", mpfr, ui, ulo, &j);
++  check_length (1, j, 22, d);
++  check_vfprintf (fout, "a. %c, b. %Rb, c. %u, d. %li%ln", i, mpfr, i,
+                   lo, &ulo);
+-  check_length (2, ulo, 37, lu);
++  check_length (2, ulo, 36, lu);
+   check_vfprintf (fout, "a. %hi, b. %*f, c. %Re%hn", ush, 3, f, mpfr, &ush);
+   check_length (3, ush, 29, hu);
+   check_vfprintf (fout, "a. %hi, b. %f, c. %#.2Rf%n", sh, d, mpfr, &i);
+@@ -208,13 +208,18 @@
+   check_length (9, sz, 30, zu);
+ #endif
+ 
++#ifndef NPRINTF_HH
++  check_vfprintf (fout, "a. %hhi, b.%RA, c. %hhu%hhn", sch, mpfr, uch, &uch);
++  check_length (10, uch, 21, hhu);
++#endif
++
+ #if (__GNU_MP_VERSION * 10 + __GNU_MP_VERSION_MINOR) >= 42
+   /* The 'M' specifier was added in gmp 4.2.0 */
+   check_vfprintf (fout, "a. %Mx b. %Re%Mn", limb[0], mpfr, &limb[0]);
+   if (limb[0] != 14 + BITS_PER_MP_LIMB / 4 || limb[1] != ~ (mp_limb_t) 0
+       || limb[2] != ~ (mp_limb_t) 0)
+     {
+-      printf ("Error in test #10: mpfr_vfprintf did not print %d characters"
++      printf ("Error in test #11: mpfr_vfprintf did not print %d characters"
+               " as expected\n", 14 + (int) BITS_PER_MP_LIMB / 4);
+       exit (1);
+     }
+@@ -227,13 +232,13 @@
+   if (limb[0] != 14 + 3 * BITS_PER_MP_LIMB / 4 || limb[1] != (mp_limb_t) 0
+       || limb[2] != ~ (mp_limb_t) 0)
+     {
+-      printf ("Error in test #11: mpfr_vfprintf did not print %d characters"
++      printf ("Error in test #12: mpfr_vfprintf did not print %d characters"
+               " as expected\n", 14 + (int) BITS_PER_MP_LIMB / 4);
+       exit (1);
+     }
+ #endif
+ 
+-#ifdef HAVE_LONG_LONG
++#if defined(HAVE_LONG_LONG) && !defined(NPRINTF_LL)
+   {
+     long long llo = -1;
+     unsigned long long ullo = 1;
+diff -Naurd mpfr-2.4.0-a/tests/tprintf.c mpfr-2.4.0-b/tests/tprintf.c
+--- mpfr-2.4.0-a/tests/tprintf.c	2009-01-26 12:52:00.000000000 +0000
++++ mpfr-2.4.0-b/tests/tprintf.c	2009-02-20 16:31:02.000000000 +0000
+@@ -150,6 +150,7 @@
+   short sh = -1;
+   unsigned short ush = 1;
+   int i = -1;
++  int j = 1;
+   unsigned int ui = 1;
+   long lo = -1;
+   unsigned long ulo = 1;
+@@ -178,11 +179,10 @@
+   mpfr_set_f (mpfr, mpf, GMP_RNDN);
+   prec = mpfr_get_prec (mpfr);
+ 
+-  check_vprintf ("a. %Ra, b. %hhu, c. %u, d. %lx%hhn", mpfr, uch, ui, ulo,
+-                 &uch);
+-  check_length (1, uch, 28, hhu);
+-  check_vprintf ("a. %hhi, b. %Rb, c. %u, d. %li%ln", sch, mpfr, i, lo, &ulo);
+-  check_length (2, ulo, 37, lu);
++  check_vprintf ("a. %Ra, b. %u, c. %lx%n", mpfr, ui, ulo, &j);
++  check_length (1, j, 22, d);
++  check_vprintf ("a. %c, b. %Rb, c. %u, d. %li%ln", i, mpfr, i, lo, &ulo);
++  check_length (2, ulo, 36, lu);
+   check_vprintf ("a. %hi, b. %*f, c. %Re%hn", ush, 3, f, mpfr, &ush);
+   check_length (3, ush, 29, hu);
+   check_vprintf ("a. %hi, b. %f, c. %#.2Rf%n", sh, d, mpfr, &i);
+@@ -204,7 +204,12 @@
+   check_length (9, sz, 30, zu);
+ #endif
+ 
+-#ifdef HAVE_LONG_LONG
++#ifndef NPRINTF_HH
++  check_vprintf ("a. %hhi, b. %Ra, c. %hhu%hhn", sch, mpfr, uch, &uch);
++  check_length (10, uch, 22, hhu);
++#endif
++
++#if defined(HAVE_LONG_LONG) && !defined(NPRINTF_LL)
+   {
+     long long llo = -1;
+     unsigned long long ullo = 1;
+diff -Naurd mpfr-2.4.0-a/vasprintf.c mpfr-2.4.0-b/vasprintf.c
+--- mpfr-2.4.0-a/vasprintf.c	2009-01-26 12:52:01.000000000 +0000
++++ mpfr-2.4.0-b/vasprintf.c	2009-02-20 16:31:02.000000000 +0000
+@@ -235,10 +235,14 @@
+       break;
+     case 'h':
+       if (*++format == 'h')
++#ifndef NPRINTF_HH
+         {
+           ++format;
+           specinfo->arg_type = CHAR_ARG;
+         }
++#else
++        specinfo->arg_type = UNSUPPORTED;
++#endif
+       else
+         specinfo->arg_type = SHORT_ARG;
+       break;
+@@ -246,7 +250,7 @@
+       if (*++format == 'l')
+         {
+           ++format;
+-#ifdef HAVE_LONG_LONG
++#if defined (HAVE_LONG_LONG) && !defined(NPRINTF_LL)
+           specinfo->arg_type = LONG_LONG_ARG;
+ #else
+           specinfo->arg_type = UNSUPPORTED;
+diff -Naurd mpfr-2.4.0-a/version.c mpfr-2.4.0-b/version.c
+--- mpfr-2.4.0-a/version.c	2009-01-26 12:52:01.000000000 +0000
++++ mpfr-2.4.0-b/version.c	2009-02-20 17:27:44.000000000 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "2.4.0";
++  return "2.4.0-p1";
+ }

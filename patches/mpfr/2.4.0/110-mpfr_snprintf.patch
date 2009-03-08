@@ -1,0 +1,176 @@
+diff -Naurd mpfr-2.4.0-a/PATCHES mpfr-2.4.0-b/PATCHES
+--- mpfr-2.4.0-a/PATCHES	2009-02-25 13:27:38.000000000 +0000
++++ mpfr-2.4.0-b/PATCHES	2009-02-25 13:42:26.000000000 +0000
+@@ -0,0 +1 @@
++mpfr_snprintf
+diff -Naurd mpfr-2.4.0-a/VERSION mpfr-2.4.0-b/VERSION
+--- mpfr-2.4.0-a/VERSION	2009-02-20 17:27:44.000000000 +0000
++++ mpfr-2.4.0-b/VERSION	2009-02-25 13:41:31.000000000 +0000
+@@ -1 +1 @@
+-2.4.0-p1
++2.4.0-p2
+diff -Naurd mpfr-2.4.0-a/mpfr.h mpfr-2.4.0-b/mpfr.h
+--- mpfr-2.4.0-a/mpfr.h	2009-02-20 17:27:44.000000000 +0000
++++ mpfr-2.4.0-b/mpfr.h	2009-02-25 13:41:31.000000000 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 2
+ #define MPFR_VERSION_MINOR 4
+ #define MPFR_VERSION_PATCHLEVEL 0
+-#define MPFR_VERSION_STRING "2.4.0-p1"
++#define MPFR_VERSION_STRING "2.4.0-p2"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-2.4.0-a/printf.c mpfr-2.4.0-b/printf.c
+--- mpfr-2.4.0-a/printf.c	2009-01-26 12:52:01.000000000 +0000
++++ mpfr-2.4.0-b/printf.c	2009-02-25 13:41:22.000000000 +0000
+@@ -154,16 +154,16 @@
+   int ret;
+   size_t min_size;
+ 
+-  /* C99 allows SIZE to be null */
+-  if (size == 0)
+-    return 0;
+-
+-  MPFR_ASSERTD (buf != NULL);
+-
+   GET_STR (ret, str, fmt);
+-  min_size = (size_t)ret < size ? (size_t)ret : size - 1;
+-  strncpy (buf, str, min_size);
+-  buf[min_size + 1] = '\0';
++
++  /* C99 allows SIZE to be zero */
++  if (size != 0)
++    {
++      MPFR_ASSERTN (buf != NULL);
++      min_size = (size_t)ret < size ? (size_t)ret : size - 1;
++      strncpy (buf, str, min_size);
++      buf[min_size] = '\0';
++    }
+ 
+   mpfr_free_str (str);
+   return ret;
+@@ -176,16 +176,17 @@
+   int ret;
+   int min_size;
+ 
+-  /* C99 allows SIZE to be null */
+-  if (size == 0)
+-    return 0;
++  GET_STR_VA (ret, str, fmt, ap);
+ 
+-  MPFR_ASSERTD (buf != NULL);
++  /* C99 allows SIZE to be zero */
++  if (size != 0)
++    {
++      MPFR_ASSERTN (buf != NULL);
++      min_size = (size_t)ret < size ? (size_t)ret : size - 1;
++      strncpy (buf, str, min_size);
++      buf[min_size] = '\0';
++    }
+ 
+-  GET_STR_VA (ret, str, fmt, ap);
+-  min_size = (size_t)ret < size ? (size_t)ret : size - 1;
+-  strncpy (buf, str, min_size);
+-  buf[min_size + 1] = '\0';
+   mpfr_free_str (str);
+   return ret;
+ }
+diff -Naurd mpfr-2.4.0-a/tests/tsprintf.c mpfr-2.4.0-b/tests/tsprintf.c
+--- mpfr-2.4.0-a/tests/tsprintf.c	2009-01-26 12:52:00.000000000 +0000
++++ mpfr-2.4.0-b/tests/tsprintf.c	2009-02-25 13:41:22.000000000 +0000
+@@ -72,21 +72,37 @@
+ 
+   /* test mpfr_snprintf */
+   p = (int) (randlimb () % n0);
+-  n1 = mpfr_snprintf (buffer, p, fmt, x);
+-  if ((p != 0 && n0 != n1) || (p == 0 && n1 != 0))
++  if (p == 0 && (randlimb () & 1) == 0)
++    {
++      n1 = mpfr_snprintf (NULL, 0, fmt, x);
++    }
++  else
++    {
++      buffer[p] = 17;
++      n1 = mpfr_snprintf (buffer, p, fmt, x);
++      if (buffer[p] != 17)
++        {
++          printf ("Buffer overflow in mpfr_snprintf for p = %d!\n", p);
++          exit (1);
++        }
++    }
++  if (n0 != n1)
+     {
+       printf ("Error in mpfr_snprintf (s, %d, \"%s\", x) return value\n",
+               p, fmt);
+       printf ("expected: %d\ngot:      %d\n", n0, n1);
+       exit (1);
+     }
+-  if (strncmp (expected, buffer, p) != 0)
++  if ((p > 1 && strncmp (expected, buffer, p-1) != 0)
++      || (p == 1 && buffer[0] != '\0'))
+     {
+-      printf ("Error in mpfr_snprintf (s, %d, \"%s\", x);\n", p, fmt);
+-      printf ("expected: \"%s\"\ngot:      \"%s\"\n", expected, buffer);
++      char part_expected[p];
++      strncpy (part_expected, expected, p);
++      part_expected[p-1] = '\0';
++      printf ("Error in mpfr_vsnprintf (s, %d, \"%s\", ...);\n", p, fmt);
++      printf ("expected: \"%s\"\ngot:      \"%s\"\n", part_expected, buffer);
+       exit (1);
+     }
+-
+   return n0;
+ }
+ 
+@@ -116,8 +132,21 @@
+ 
+   /* test mpfr_snprintf */
+   p = (int) (randlimb () % n0);
+-  n1 = mpfr_vsnprintf (buffer, p, fmt, ap1);
+-  if ((p != 0 && n0 != n1) || (p == 0 && n1 != 0))
++  if (p == 0 && (randlimb () & 1) == 0)
++    {
++      n1 = mpfr_vsnprintf (NULL, 0, fmt, ap1);
++    }
++  else
++    {
++      buffer[p] = 17;
++      n1 = mpfr_vsnprintf (buffer, p, fmt, ap1);
++      if (buffer[p] != 17)
++        {
++          printf ("Buffer overflow in mpfr_vsnprintf for p = %d!\n", p);
++          exit (1);
++        }
++    }
++  if (n0 != n1)
+     {
+       printf ("Error in mpfr_vsnprintf (s, %d, \"%s\", ...) return value\n",
+               p, fmt);
+@@ -126,10 +155,14 @@
+       va_end (ap1);
+       exit (1);
+     }
+-  if (strncmp (expected, buffer, p) != 0)
++  if ((p > 1 && strncmp (expected, buffer, p-1) != 0)
++      || (p == 1 && buffer[0] != '\0'))
+     {
++      char part_expected[p];
++      strncpy (part_expected, expected, p);
++      part_expected[p-1] = '\0';
+       printf ("Error in mpfr_vsnprintf (s, %d, \"%s\", ...);\n", p, fmt);
+-      printf ("expected: \"%s\"\ngot:      \"%s\"\n", expected, buffer);
++      printf ("expected: \"%s\"\ngot:      \"%s\"\n", part_expected, buffer);
+ 
+       va_end (ap1);
+       exit (1);
+diff -Naurd mpfr-2.4.0-a/version.c mpfr-2.4.0-b/version.c
+--- mpfr-2.4.0-a/version.c	2009-02-20 17:27:44.000000000 +0000
++++ mpfr-2.4.0-b/version.c	2009-02-25 13:41:31.000000000 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "2.4.0-p1";
++  return "2.4.0-p2";
+ }
