@@ -1,0 +1,219 @@
+Original patch from: mpf_eq.diff
+
+-= BEGIN original header =-
+-= END original header =-
+
+diff -durN gmp-4.2.4.orig/doc/gmp.texi gmp-4.2.4/doc/gmp.texi
+--- gmp-4.2.4.orig/doc/gmp.texi	2008-09-18 17:36:14.000000000 +0200
++++ gmp-4.2.4/doc/gmp.texi	2009-03-08 18:36:16.000000000 +0100
+@@ -4849,9 +4849,12 @@
+ equal, zero otherwise.  I.e., test if @var{op1} and @var{op2} are approximately
+ equal.
+ 
+-Caution: Currently only whole limbs are compared, and only in an exact
+-fashion.  In the future values like 1000 and 0111 may be considered the same
+-to 3 bits (on the basis that their difference is that small).
++Caution 1: All version of GMP up to version 4.2.4 compared just whole limbs,
++meaning sometimes more than @var{op3} bits, sometimes fewer.
++
++Caution 2: This function will consider XXX11...111 and XX100...000 different,
++even if ... is replaced by a semi-infinite number of bits.  Such numbers are
++really just one ulp off, and should be considered equal.
+ @end deftypefun
+ 
+ @deftypefun void mpf_reldiff (mpf_t @var{rop}, mpf_t @var{op1}, mpf_t @var{op2})
+diff -durN gmp-4.2.4.orig/mpf/eq.c gmp-4.2.4/mpf/eq.c
+--- gmp-4.2.4.orig/mpf/eq.c	2007-08-30 20:31:40.000000000 +0200
++++ gmp-4.2.4/mpf/eq.c	2009-03-08 18:36:16.000000000 +0100
+@@ -1,6 +1,6 @@
+ /* mpf_eq -- Compare two floats up to a specified bit #.
+ 
+-Copyright 1993, 1995, 1996, 2001, 2002 Free Software Foundation, Inc.
++Copyright 1993, 1995, 1996, 2001, 2002, 2008 Free Software Foundation, Inc.
+ 
+ This file is part of the GNU MP Library.
+ 
+@@ -19,6 +19,7 @@
+ 
+ #include "gmp.h"
+ #include "gmp-impl.h"
++#include "longlong.h"
+ 
+ int
+ mpf_eq (mpf_srcptr u, mpf_srcptr v, unsigned long int n_bits)
+@@ -26,6 +27,8 @@
+   mp_srcptr up, vp;
+   mp_size_t usize, vsize, size, i;
+   mp_exp_t uexp, vexp;
++  mp_limb_t diff;
++  int cnt;
+ 
+   uexp = u->_mp_exp;
+   vexp = v->_mp_exp;
+@@ -53,10 +56,8 @@
+   /* U and V have the same sign and are both non-zero.  */
+ 
+   /* 2. Are the exponents different?  */
+-  if (uexp > vexp)
+-    return 0;			/* ??? handle (uexp = vexp + 1)   */
+-  if (vexp > uexp)
+-    return 0;			/* ??? handle (vexp = uexp + 1)   */
++  if (uexp != vexp)
++    return 0;
+ 
+   usize = ABS (usize);
+   vsize = ABS (vsize);
+@@ -93,17 +94,26 @@
+       size = usize;
+     }
+ 
+-  if (size > (n_bits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS)
+-    size = (n_bits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
++  up += usize;			/* point just above most significant limb */
++  vp += vsize;			/* point just above most significant limb */
+ 
+-  up += usize - size;
+-  vp += vsize - size;
++  count_leading_zeros (cnt, up[-1]);
++  if ((vp[-1] >> (GMP_LIMB_BITS - 1 - cnt)) != 1)
++    return 0;			/* msb positions different */
+ 
+-  for (i = size - 1; i >= 0; i--)
++  n_bits += cnt - GMP_NAIL_BITS;
++
++  size = MIN (size, (n_bits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS);
++
++  up -= size;			/* point at least significant relevant limb */
++  vp -= size;			/* point at least significant relevant limb */
++
++  for (i = size - 1; i > 0; i--)
+     {
+       if (up[i] != vp[i])
+ 	return 0;
+     }
+ 
+-  return 1;
++  diff = (up[0] ^ vp[0]) >> GMP_NUMB_BITS - 1 - (n_bits - 1) % GMP_NUMB_BITS;
++  return diff == 0;
+ }
+diff -durN gmp-4.2.4.orig/tests/cxx/t-prec.cc gmp-4.2.4/tests/cxx/t-prec.cc
+--- gmp-4.2.4.orig/tests/cxx/t-prec.cc	2007-09-01 12:09:03.000000000 +0200
++++ gmp-4.2.4/tests/cxx/t-prec.cc	2009-03-08 18:36:16.000000000 +0100
+@@ -1,6 +1,6 @@
+ /* Test precision of mpf_class expressions.
+ 
+-Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
++Copyright 2001, 2002, 2003, 2008 Free Software Foundation, Inc.
+ 
+ This file is part of the GNU MP Library.
+ 
+@@ -61,7 +61,7 @@
+     g = 1 / f;
+     ASSERT_ALWAYS_PREC
+       (g, "0.11111 11111 11111 11111 11111 11111 11111 11111 11111 11111"
+-       "     11111 11111 11111 11111 11111 11", very_large_prec);
++       "     11111 11111 11111 11111 11111 111", very_large_prec);
+   }
+   {
+     mpf_class f(15.0, large_prec);
+@@ -69,7 +69,7 @@
+     g = 1 / f;
+     ASSERT_ALWAYS_PREC
+       (g, "0.06666 66666 66666 66666 66666 66666 66666 66666 66666 66666"
+-       "     66666 66666 66666 66666 66666 67", very_large_prec);
++       "     66666 66666 66666 66666 66666 667", very_large_prec);
+   }
+ 
+   // compound expressions
+@@ -94,14 +94,14 @@
+     i = f / g + h;
+     ASSERT_ALWAYS_PREC
+       (i, "15.33333 33333 33333 33333 33333 33333 33333 33333 33333 33333"
+-       "      33333 33333 33333 333", very_large_prec);
++       "      33333 33333 33333 33333 33333 3", very_large_prec);
+   }
+   {
+     mpf_class f(3.0, small_prec);
+     mpf_class g(-(1 + f) / 3, very_large_prec);
+     ASSERT_ALWAYS_PREC
+       (g, "-1.33333 33333 33333 33333 33333 33333 33333 33333 33333 33333"
+-       "      33333 33333 33333 333", very_large_prec);
++       "      33333 33333 33333 33333 33333 33", very_large_prec);
+   }
+   {
+     mpf_class f(9.0, medium_prec);
+@@ -117,7 +117,7 @@
+     g = hypot(1 + 5 / f, 1.0);
+     ASSERT_ALWAYS_PREC
+       (g, "1.66666 66666 66666 66666 66666 66666 66666 66666 66666 66666"
+-       "     66666 66666 66666 667", very_large_prec);
++       "     66666 66666 66666 66666 66666 67", very_large_prec);
+   }
+ 
+   // compound assignments
+@@ -142,7 +142,7 @@
+     mpf_class g(0.0, very_large_prec);
+     g = mpf_class(1 / f);
+     ASSERT_ALWAYS_PREC
+-      (g, "0.11111 11111 11111 11111 11111 11111 11111 111", medium_prec);
++      (g, "0.11111 11111 11111 11111 11111 11111 11111 1111", medium_prec);
+   }
+   {
+     mpf_class f(15.0, large_prec);
+@@ -150,7 +150,7 @@
+     g = mpf_class(1 / f);
+     ASSERT_ALWAYS_PREC
+       (g, "0.06666 66666 66666 66666 66666 66666 66666 66666 66666 66666"
+-       "     66666 667", large_prec);
++       "     66666 6667", large_prec);
+   }
+ 
+   {
+@@ -158,7 +158,8 @@
+     mpf_class h(0.0, very_large_prec);
+     h = mpf_class(f / g + 1, large_prec);
+     ASSERT_ALWAYS_PREC
+-      (h, "1.33333 33333 33333 33333 33333 33333 33333 33333 33333 3333",
++      (h, "1.33333 33333 33333 33333 33333 33333 33333 33333 33333 33333"
++       "     33333 333",
+        large_prec);
+   }
+ 
+@@ -170,7 +171,7 @@
+     g = f - q;
+     ASSERT_ALWAYS_PREC
+       (g, "2.66666 66666 66666 66666 66666 66666 66666 66666 66666 66666"
+-       "     66666 66666 66666 667", very_large_prec);
++       "     66666 66666 66666 66666 66666 67", very_large_prec);
+   }
+ 
+   {
+@@ -179,7 +180,8 @@
+     mpf_class g(0.0, very_large_prec);
+     g = mpf_class(f - q, large_prec);
+     ASSERT_ALWAYS_PREC
+-      (g, "2.66666 66666 66666 66666 66666 66666 66666 66666 66666 6667",
++      (g, "2.66666 66666 66666 66666 66666 66666 66666 66666 66666 66666"
++       "     66666 667",
+        large_prec);
+   }
+   {
+@@ -188,7 +190,7 @@
+     mpf_class g(0.0, very_large_prec);
+     g = mpf_class(f - q);
+     ASSERT_ALWAYS_PREC
+-      (g, "2.66666 66666 66666 66666 66666 6667", medium_prec);
++      (g, "2.66666 66666 66666 66666 66666 66666 66666 667", medium_prec);
+   }
+   {
+     mpf_class f(15.0, large_prec);
+@@ -196,7 +198,8 @@
+     mpf_class g(0.0, very_large_prec);
+     g = mpf_class(f + q);
+     ASSERT_ALWAYS_PREC
+-      (g, "15.33333 33333 33333 33333 33333 33333 33333 33333 33333 3333",
++      (g, "15.33333 33333 33333 33333 33333 33333 33333 33333 33333 33333"
++       "      33333 33",
+        large_prec);
+   }
+ }
