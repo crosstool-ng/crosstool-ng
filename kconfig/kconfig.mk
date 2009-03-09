@@ -153,5 +153,5 @@ $(obj)/conf: $(COMMON_OBJ) $(conf_OBJ)
 
 clean::
 	@$(ECHO) "  CLEAN kconfig"
-	$(SILENT)rm -f kconfig/{,m}conf $(ALL_OBJS) $(ALL_DEPS)
+	$(SILENT)rm -f kconfig/{,m}conf{,.exe} $(ALL_OBJS) $(ALL_DEPS)
 	$(SILENT)rmdir --ignore-fail-on-non-empty kconfig{/lxdialog,} 2>/dev/null || true
