@@ -94,8 +94,8 @@ define build_gen_choice_in
 	    else                                                                \
 	      echo "\"";                                                        \
 	    fi;                                                                 \
+	    echo "";                                                            \
 	  done;                                                                 \
-	  echo "";                                                              \
 	  echo "endchoice";                                                     \
 	  for entry in $(5); do                                                 \
 	    file="$(4)/$${entry}.in";                                           \
