@@ -112,7 +112,7 @@ CT_DoLog() {
 }
 
 # Execute an action, and log its messages
-# Usage: CT_DoExecLog <level> <[VAR=val...] command [parameters...]>
+# Usage: [VAR=val...] CT_DoExecLog <level> <command [parameters...]>
 CT_DoExecLog() {
     local level="$1"
     shift
@@ -399,8 +399,8 @@ CT_DoGetFileWget() {
     # Some company networks have firewalls to connect to the internet, but it's
     # not easy to detect them, and wget does not timeout by default while
     # connecting, so force a global ${CT_CONNECT_TIMEOUT}-second timeout.
-    wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 --passive-ftp "$1"    \
-    || wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 "$1"               \
+    CT_DoExecLog ALL wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 --passive-ftp "$1"    \
+    || CT_DoExecLog ALL wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 "$1"               \
     || true
 }
 
@@ -409,9 +409,9 @@ CT_DoGetFileWget() {
 CT_DoGetFileCurl() {
     # Note: comments about wget method (above) are also valid here
     # Plus: no good progress indicator is available with curl,
-    #       so output is consigned to oblivion
-    curl --ftp-pasv -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT} >/dev/null    \
-    || curl -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT} >/dev/null            \
+    #       so, be silent.
+    CT_DoExecLog ALL curl -s --ftp-pasv -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT}    \
+    || CT_DoExecLog ALL curl -s -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT}            \
     || true
 }
 
@@ -422,8 +422,8 @@ _curl=$(CT_Which curl)
 CT_DoGetFile() {
     case "${_wget},${_curl}" in
         ,)  CT_Abort "Could find neither wget nor curl";;
-        ,*) CT_DoExecLog ALL CT_DoGetFileCurl "$1" 2>&1;;
-        *)  CT_DoExecLog ALL CT_DoGetFileWget "$1" 2>&1;;
+        ,*) CT_DoGetFileCurl "$1";;
+        *)  CT_DoGetFileWget "$1";;
     esac
 }
 
