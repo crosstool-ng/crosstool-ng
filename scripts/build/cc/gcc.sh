@@ -28,7 +28,9 @@ do_cc_extract() {
     CT_Extract "gcc-${CT_CC_VERSION}"
     CT_Patch "gcc-${CT_CC_VERSION}"
     # Copy ecj-latest.jar to ecj.jar at the top of the GCC source tree
-    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" ]; then
+    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y"                     \
+         -a ! -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/ecj.jar"   \
+       ]; then
         CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/ecj-latest.jar" "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/ecj.jar"
     fi
 }
