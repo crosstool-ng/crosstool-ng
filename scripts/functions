@@ -640,11 +640,9 @@ CT_Extract() {
     esac
 
     # Some tarballs have read-only files... :-(
-    if [ "${nochdir}" = "nochdir" ]; then
-        chmod -R u+w .
-    else
-        chmod -R u+w "${basename}"
-    fi
+    # Because of nochdir, we don't know where we are, so chmod all
+    # the src tree
+    chmod -R u+w "${CT_SRC_DIR}"
 
     touch "${CT_SRC_DIR}/.${basename}.extracted"
 
@@ -666,9 +664,6 @@ CT_Patch() {
         CT_DoLog DEBUG "Already patched '${basename}'"
         return 0
     fi
-
-    # Check if already extracted
-    CT_TestOrAbort "'${basename}' is not yet extracted while attempting to patch" -e "${CT_SRC_DIR}/.${basename}.extracted"
 
     [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}/${basename}"
 
