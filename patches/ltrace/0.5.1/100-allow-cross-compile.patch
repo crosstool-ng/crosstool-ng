@@ -1,0 +1,77 @@
+diff -durN ltrace-0.5.1.orig/Makefile.in ltrace-0.5.1/Makefile.in
+--- ltrace-0.5.1.orig/Makefile.in	2008-12-10 18:43:41.000000000 +0100
++++ ltrace-0.5.1/Makefile.in	2009-03-16 17:23:26.000000000 +0100
+@@ -2,8 +2,14 @@
+ # ltrace's Makefile.in
+ #
+ 
+-#OS		:= $(shell uname -s)
+ OS		:= @HOST_OS@
++ARCH		:= $(shell echo "@HOST_ARCH@" |sed -e s/i.86/i386/      \
++						   -e s/sun4u/sparc64/  \
++						   -e s/arm.*/arm/      \
++						   -e s/sa110/arm/      \
++						   -e s/ppc64/ppc/      \
++						   -e s/s390x/s390/)
++export ARCH
+ 
+ TOPDIR		= $(shell pwd)
+ 
+diff -durN ltrace-0.5.1.orig/configure ltrace-0.5.1/configure
+--- ltrace-0.5.1.orig/configure	2008-12-10 18:43:43.000000000 +0100
++++ ltrace-0.5.1/configure	2009-03-16 17:20:10.000000000 +0100
+@@ -660,6 +660,7 @@
+ host_cpu
+ host_vendor
+ host_os
++HOST_ARCH
+ HOST_OS
+ CC
+ CFLAGS
+@@ -1823,6 +1824,7 @@
+ case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
+ 
+ 
++HOST_ARCH="$host_cpu"
+ case "$host_os" in
+   linux-gnu*) host_os=linux-gnu
+ esac
+@@ -5406,6 +5408,7 @@
+ host_cpu!$host_cpu$ac_delim
+ host_vendor!$host_vendor$ac_delim
+ host_os!$host_os$ac_delim
++HOST_ARCH!$HOST_ARCH$ac_delim
+ HOST_OS!$HOST_OS$ac_delim
+ CC!$CC$ac_delim
+ CFLAGS!$CFLAGS$ac_delim
+@@ -5426,7 +5429,7 @@
+ LTLIBOBJS!$LTLIBOBJS$ac_delim
+ _ACEOF
+ 
+-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 63; then
++  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 64; then
+     break
+   elif $ac_last_try; then
+     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
+diff -durN ltrace-0.5.1.orig/configure.ac ltrace-0.5.1/configure.ac
+--- ltrace-0.5.1.orig/configure.ac	2008-12-10 18:43:41.000000000 +0100
++++ ltrace-0.5.1/configure.ac	2009-03-16 17:21:26.000000000 +0100
+@@ -11,6 +11,8 @@
+ esac
+ HOST_OS="$host_os"
+ AC_SUBST(HOST_OS)
++HOST_ARCH="$host_cpu"
++AC_SUBST(HOST_ARCH)
+ 
+ dnl Checks for programs.
+ AC_PROG_CC
+diff -durN ltrace-0.5.1.orig/sysdeps/linux-gnu/Makefile ltrace-0.5.1/sysdeps/linux-gnu/Makefile
+--- ltrace-0.5.1.orig/sysdeps/linux-gnu/Makefile	2008-12-10 18:43:41.000000000 +0100
++++ ltrace-0.5.1/sysdeps/linux-gnu/Makefile	2009-03-16 17:21:49.000000000 +0100
+@@ -1,6 +1,3 @@
+-ARCH		:=	$(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
+-			-e s/arm.*/arm/ -e s/sa110/arm/ -e s/ppc64/ppc/ -e s/s390x/s390/)
+-
+ CPPFLAGS	+=	-I$(TOPDIR)/sysdeps/linux-gnu/$(ARCH)
+ 
+ OBJ		=	trace.o proc.o breakpoint.o
