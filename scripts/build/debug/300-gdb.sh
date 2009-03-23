@@ -134,6 +134,37 @@ do_debug_gdb_build() {
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         CT_DoStep INFO "Installing native gdb"
 
+        CT_DoStep INFO "Installing native ncurses tic"
+        CT_DoLog EXTRA "Configuring ncurses tic"
+        mkdir -p "${CT_BUILD_DIR}/build-ncurses-build-tic"
+        cd "${CT_BUILD_DIR}/build-ncurses-build-tic"
+
+        ncurses_opts=
+        [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
+        [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts="${ncurses_opts} --without-ada"
+
+        CT_DoExecLog ALL                                        \
+        "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
+            --build=${CT_BUILD}                                 \
+            --host=${CT_BUILD}                                  \
+            --prefix=/usr                                       \
+            --without-shared                                    \
+            --enable-symlinks                                   \
+            --with-build-cc=${CT_BUILD}-gcc                     \
+            --with-build-cpp=${CT_BUILD}-gcc                    \
+            --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
+            ${ncurses_opts}
+
+        CT_DoLog EXTRA "Building ncurses tic"
+        CT_DoExecLog ALL make -C "${CT_BUILD_DIR}/build-ncurses-build-tic/include"
+        CT_DoExecLog ALL make -C "${CT_BUILD_DIR}/build-ncurses-build-tic/progs" tic
+
+        CT_DoLog EXTRA "Installing ncurses tic"
+        CT_DoExecLog ALL install -d -m 0755 "${CT_PREFIX_DIR}/bin"
+        CT_DoExecLog ALL install -m 0755 "${CT_BUILD_DIR}/build-ncurses-build-tic/progs/tic" "${CT_PREFIX_DIR}/bin/tic"
+
+        CT_EndStep
+
         CT_DoStep INFO "Installing ncurses library"
         CT_DoLog EXTRA "Configuring ncurses"
         mkdir -p "${CT_BUILD_DIR}/build-ncurses"
@@ -147,8 +178,8 @@ do_debug_gdb_build() {
         "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
             --build=${CT_BUILD}                                 \
             --host=${CT_TARGET}                                 \
-            --with-build-cc=${CT_CC}                            \
-            --with-build-cpp=${CT_CC}                           \
+            --with-build-cc=${CT_BUILD}-gcc                     \
+            --with-build-cpp=${CT_BUILD}-gcc                    \
             --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
             --prefix=/usr                                       \
             --with-shared                                       \
