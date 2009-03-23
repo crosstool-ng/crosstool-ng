@@ -143,15 +143,18 @@ do_debug_gdb_build() {
         [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
         [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts="${ncurses_opts} --without-ada"
 
+        # Use build = CT_REAL_BUILD so that configure thinks it is
+        # cross-compiling, and thus will use the ${CT_BUILD}-*
+        # tools instead of searching for the native ones...
         CT_DoExecLog ALL                                        \
         "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
-            --build=${CT_BUILD}                                 \
+            --build=${CT_REAL_BUILD}                            \
             --host=${CT_BUILD}                                  \
             --prefix=/usr                                       \
             --without-shared                                    \
             --enable-symlinks                                   \
-            --with-build-cc=${CT_BUILD}-gcc                     \
-            --with-build-cpp=${CT_BUILD}-gcc                    \
+            --with-build-cc=${CT_REAL_BUILD}-gcc                \
+            --with-build-cpp=${CT_REAL_BUILD}-gcc               \
             --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
             ${ncurses_opts}
 
