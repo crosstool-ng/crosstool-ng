@@ -158,13 +158,17 @@ do_debug_gdb_build() {
             --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
             ${ncurses_opts}
 
+        # Under some operating systems (eg. Winblows), there is an
+        # extension appended to executables. Find that.
+        tic_ext=$(grep -E '^x[[:space:]]*=' progs/Makefile |sed -r -e 's/^.*=[[:space:]]*//;')
+
         CT_DoLog EXTRA "Building ncurses tic"
-        CT_DoExecLog ALL make -C "${CT_BUILD_DIR}/build-ncurses-build-tic/include"
-        CT_DoExecLog ALL make -C "${CT_BUILD_DIR}/build-ncurses-build-tic/progs" tic
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C include
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C progs "tic${tic_ext}"
 
         CT_DoLog EXTRA "Installing ncurses tic"
         CT_DoExecLog ALL install -d -m 0755 "${CT_PREFIX_DIR}/bin"
-        CT_DoExecLog ALL install -m 0755 "${CT_BUILD_DIR}/build-ncurses-build-tic/progs/tic" "${CT_PREFIX_DIR}/bin/tic"
+        CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_PREFIX_DIR}/bin"
 
         CT_EndStep
 
