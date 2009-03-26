@@ -87,12 +87,10 @@ define build_gen_choice_in
 	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
 	    echo "config $(3)_$${_entry}";                                      \
 	    echo "    bool";                                                    \
-	    printf "    prompt \"$${entry}";                                    \
-	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then   \
-	      echo " (EXPERIMENTAL)\"";                                         \
-	      echo "    depends on EXPERIMENTAL";                               \
-	    else                                                                \
-	      echo "\"";                                                        \
+	    echo "    prompt \"$${entry}\"";                                    \
+	    dep_val=$$($(grep) -E '^# depends on ' $${file} 2>/dev/null);       \
+	    if [ -n "$${dep_val}" ]; then                                       \
+	      echo "    $${dep_val#\# }";                                       \
 	    fi;                                                                 \
 	    echo "";                                                            \
 	  done;                                                                 \
@@ -134,12 +132,10 @@ define build_gen_menu_in
 	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
 	    echo "menuconfig $(3)_$${_entry}";                                  \
 	    echo "    bool";                                                    \
-	    printf "    prompt \"$${entry}";                                    \
-	    if $(grep) -E '^# +EXPERIMENTAL$$' $${file} >/dev/null 2>&1; then   \
-	      echo " (EXPERIMENTAL)\"";                                         \
-	      echo "    depends on EXPERIMENTAL";                               \
-	    else                                                                \
-	      echo "\"";                                                        \
+	    echo "    prompt \"$${entry}\"";                                    \
+	    dep_val=$$($(grep) -E '^# depends on ' $${file} 2>/dev/null);       \
+	    if [ -n "$${dep_val}" ]; then                                       \
+	      echo "    $${dep_val#\# }";                                       \
 	    fi;                                                                 \
 	    echo "if $(3)_$${_entry}";                                          \
 	    echo "source $${file}";                                             \

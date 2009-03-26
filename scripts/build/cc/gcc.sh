@@ -228,6 +228,10 @@ do_cc_core() {
     CT_DoLog EXTRA "Installing ${mode} core C compiler"
     CT_DoExecLog ALL make ${install_rules}
 
+    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
+    # to call the C compiler with the same, somewhat canonical name.
+    CT_DoExecLog ALL ln -sv "${CT_TARGET}"-gcc "${core_prefix_dir}/bin/${CT_TARGET}"-cc
+
     CT_EndStep
 }
 
