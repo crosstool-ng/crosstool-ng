@@ -4,15 +4,19 @@
 
 # Download gcc
 do_cc_get() {
+    local version="${CT_CC_VERSION}${CT_CC_GCC_4_4_snapshot_date}"
+
     # Ah! gcc folks are kind of 'different': they store the tarballs in
     # subdirectories of the same name! That's because gcc is such /crap/ that
     # it is such /big/ that it needs being splitted for distribution! Sad. :-(
     # Arrgghh! Some of those versions does not follow this convention:
     # gcc-3.3.3 lives in releases/gcc-3.3.3, while gcc-2.95.* isn't in a
     # subdirectory! You bastard!
-    CT_GetFile "gcc-${CT_CC_VERSION}"   \
-               {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/gcc-${CT_CC_VERSION}}     \
-               ftp://ftp.irisa.fr/pub/mirrors/gcc.gnu.org/gcc/releases/gcc-${CT_CC_VERSION}
+    CT_GetFile "gcc-${version}"                                                         \
+               {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/gcc-${version}}           \
+               ftp://ftp.irisa.fr/pub/mirrors/gcc.gnu.org/gcc/releases/gcc-${version}   \
+               ftp://ftp.uvsq.fr/pub/gcc/snapshots/${version}
+
     # Starting with GCC 4.3, ecj is used for Java, and will only be
     # built if the configure script finds ecj.jar at the top of the
     # GCC source tree, which will not be there unless we get it and
@@ -25,13 +29,16 @@ do_cc_get() {
 
 # Extract gcc
 do_cc_extract() {
-    CT_Extract "gcc-${CT_CC_VERSION}"
-    CT_Patch "gcc-${CT_CC_VERSION}"
+    local version="${CT_CC_VERSION}${CT_CC_GCC_4_4_snapshot_date}"
+
+    CT_Extract "gcc-${version}"
+    CT_Patch "gcc-${version}"
+
     # Copy ecj-latest.jar to ecj.jar at the top of the GCC source tree
-    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y"                     \
-         -a ! -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/ecj.jar"   \
+    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y"             \
+         -a ! -f "${CT_SRC_DIR}/gcc-${version}/ecj.jar" \
        ]; then
-        CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/ecj-latest.jar" "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/ecj.jar"
+        CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/ecj-latest.jar" "${CT_SRC_DIR}/gcc-${version}/ecj.jar"
     fi
 }
 
@@ -83,6 +90,7 @@ do_cc_core() {
     local core_prefix_dir
     local extra_config
     local lang_opt
+    local version="${CT_CC_VERSION}${CT_CC_GCC_4_4_snapshot_date}"
 
     eval $1
     eval $2
@@ -142,7 +150,7 @@ do_cc_core() {
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CT_DoExecLog ALL                                \
-    "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
+    "${CT_SRC_DIR}/gcc-${version}/configure"        \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --target=${CT_TARGET}                       \
@@ -174,7 +182,7 @@ do_cc_core() {
         # so we configure then build it.
         # Next we have to configure gcc, create libgcc.mk then edit it...
         # So much easier if we just edit the source tree, but hey...
-        if [ ! -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
+        if [ ! -f "${CT_SRC_DIR}/gcc-${version}/gcc/BASE-VER" ]; then
             CT_DoExecLog ALL make configure-libiberty
             CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
             CT_DoExecLog ALL make configure-gcc configure-libcpp
@@ -184,7 +192,7 @@ do_cc_core() {
             CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
-        if [ -d "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/libdecnumber" ]; then
+        if [ -d "${CT_SRC_DIR}/gcc-${version}/libdecnumber" ]; then
             CT_DoExecLog ALL make configure-libdecnumber
             CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
         fi
@@ -226,6 +234,8 @@ do_cc_core() {
 #------------------------------------------------------------------------------
 # Build final gcc
 do_cc() {
+    local version="${CT_CC_VERSION}${CT_CC_GCC_4_4_snapshot_date}"
+
     # If building for bare metal, nothing to be done here, the static core conpiler is enough!
     [ "${CT_BARE_METAL}" = "y" ] && return 0
 
@@ -282,7 +292,7 @@ do_cc() {
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"       \
     CT_DoExecLog ALL                                \
-    "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
+    "${CT_SRC_DIR}/gcc-${version}/configure"        \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --target=${CT_TARGET}                       \
