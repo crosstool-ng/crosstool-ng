@@ -854,6 +854,11 @@ CT_DoSaveState() {
                            /^(UID|EUID)=/d;
                            /^(FUNCNAME|GROUPS|PPID|SHELLOPTS)=/d;' >"${state_dir}/env.sh"
 
+    CT_DoLog DEBUG "  Saving CT_CONFIG_DIR='${CT_CONFIG_DIR}'"
+    CT_Pushd "${CT_CONFIG_DIR}"
+    CT_DoExecLog DEBUG tar cv${tar_opt}f "${state_dir}/config_dir.tar${tar_ext}" .
+    CT_Popd
+
     CT_DoLog DEBUG "  Saving CT_CC_CORE_STATIC_PREFIX_DIR='${CT_CC_CORE_STATIC_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
     CT_DoExecLog DEBUG tar cv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}" .
@@ -904,9 +909,8 @@ CT_DoLoadState(){
     esac
 
     CT_DoLog DEBUG "  Removing previous build directories"
-    chmod -R u+rwX "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-    rm -rf         "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-    mkdir -p       "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+    CT_DoForceRmdir             "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}" "${CT_CONFIG_DIR}"
+    CT_DoExecLog DEBUG mkdir -p "${CT_PREFIX_DIR}" "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${CT_CC_CORE_STATIC_PREFIX_DIR}" "${CT_CONFIG_DIR}"
 
     CT_DoLog DEBUG "  Restoring CT_PREFIX_DIR='${CT_PREFIX_DIR}'"
     CT_Pushd "${CT_PREFIX_DIR}"
@@ -921,6 +925,11 @@ CT_DoLoadState(){
     CT_DoLog DEBUG "  Restoring CT_CC_CORE_STATIC_PREFIX_DIR='${CT_CC_CORE_STATIC_PREFIX_DIR}'"
     CT_Pushd "${CT_CC_CORE_STATIC_PREFIX_DIR}"
     CT_DoExecLog DEBUG tar xv${tar_opt}f "${state_dir}/cc_core_static_prefix_dir.tar${tar_ext}"
+    CT_Popd
+
+    CT_DoLog DEBUG "  Restoring CT_CONFIG_DIR='${CT_CONFIG_DIR}'"
+    CT_Pushd "${CT_CONFIG_DIR}"
+    CT_DoExecLog DEBUG tar xv${tar_opt}f "${state_dir}/config_dir.tar${tar_ext}"
     CT_Popd
 
     # Restore the environment, discarding any error message
