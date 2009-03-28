@@ -1,0 +1,56 @@
+Fix memset on PowerPC 8xx, by Nye Liu:
+http://sourceware.org/ml/crossgcc/2008-10/msg00067.html
+
+Quote:
+ I am working on a powerpc 860 toolchain, but I am having problems  
+ convincing glibc to not emit code that uses the dcbz instruction (CPU15  
+ dcbX bug). The source of the problem is sysdeps/powerpc/power3/memset.S
+
+--- glibc-2.7/sysdeps/powerpc/powerpc32/memset.S	2007-03-26 13:09:07.000000000 -0700
++++ glibc-2.7/sysdeps/powerpc/powerpc32/memset.S.new	2008-10-23 20:28:52.000000000 -0700
+@@ -112,11 +112,13 @@
+ 	clrrwi.	rALIGN, rLEN, 5
+ 	mtcrf	0x01, rLEN	/* 40th instruction from .align */
+ 
++#ifndef BROKEN_PPC_8xx_CPU15
+ /* Check if we can use the special case for clearing memory using dcbz.
+    This requires that we know the correct cache line size for this
+    processor.  Getting the __cache_line_size may require establishing GOT
+    addressability, so branch out of line to set this up.  */
+ 	beq	cr1, L(checklinesize)
++#endif
+ 
+ /* Store blocks of 32-bytes (256-bits) starting on a 32-byte boundary.
+    Can't assume that rCHR is zero or that the cache line size is either
+@@ -158,6 +160,7 @@
+ 	add	rMEMP, rMEMP, rALIGN
+ 	b	L(medium_tail2)	/* 72nd instruction from .align */
+ 
++#ifndef BROKEN_PPC_8xx_CPU15
+ 	.align	5
+ 	nop
+ /* Clear cache lines of memory in 128-byte chunks.
+@@ -191,6 +194,7 @@
+ 	bdnz	L(zloop)
+ 	beqlr	cr5
+ 	b	L(medium_tail2)
++#endif /* ! BROKEN_PPC_8xx_CPU15 */
+ 
+ 	.align	5
+ L(small):
+@@ -248,6 +252,7 @@
+ 	stw	rCHR, -8(rMEMP)
+ 	blr
+ 
++#ifndef BROKEN_PPC_8xx_CPU15
+ L(checklinesize):
+ #ifdef SHARED
+ 	mflr	rTMP
+@@ -329,6 +334,7 @@
+ L(handletail32):
+ 	clrrwi.	rALIGN, rLEN, 5
+ 	b	L(nondcbz)
++#endif /* ! BROKEN_PPC_8xx_CPU15 */
+ 
+ END (BP_SYM (memset))
+ libc_hidden_builtin_def (memset)
