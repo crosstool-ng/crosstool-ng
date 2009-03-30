@@ -134,14 +134,16 @@ do_debug_gdb_build() {
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         CT_DoStep INFO "Installing native gdb"
 
-        CT_DoStep INFO "Installing native ncurses tic"
-        CT_DoLog EXTRA "Configuring ncurses tic"
-        mkdir -p "${CT_BUILD_DIR}/build-ncurses-build-tic"
-        cd "${CT_BUILD_DIR}/build-ncurses-build-tic"
+        CT_DoStep INFO "Installing ncurses library"
 
         ncurses_opts=
         [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
         [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts="${ncurses_opts} --without-ada"
+
+        CT_DoStep INFO "Installing native ncurses tic"
+        CT_DoLog EXTRA "Configuring ncurses tic"
+        mkdir -p "${CT_BUILD_DIR}/build-ncurses-build-tic"
+        cd "${CT_BUILD_DIR}/build-ncurses-build-tic"
 
         # Use build = CT_REAL_BUILD so that configure thinks it is
         # cross-compiling, and thus will use the ${CT_BUILD}-*
@@ -170,16 +172,11 @@ do_debug_gdb_build() {
         CT_DoExecLog ALL install -d -m 0755 "${CT_PREFIX_DIR}/bin"
         CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_PREFIX_DIR}/bin"
 
-        CT_EndStep
+        CT_EndStep # tic build
 
-        CT_DoStep INFO "Installing ncurses library"
         CT_DoLog EXTRA "Configuring ncurses"
         mkdir -p "${CT_BUILD_DIR}/build-ncurses"
         cd "${CT_BUILD_DIR}/build-ncurses"
-
-        ncurses_opts=
-        [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
-        [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts="${ncurses_opts} --without-ada"
 
         CT_DoExecLog ALL                                        \
         "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
@@ -202,7 +199,10 @@ do_debug_gdb_build() {
         mkdir -p "${CT_SYSROOT_DIR}/usr/bin"
         CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
 
-        CT_EndStep
+        # We no longer need the temporary tic. Remove it
+        CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/bin/tic"
+
+        CT_EndStep # ncurses build
 
         CT_DoLog EXTRA "Configuring native gdb"
 
@@ -260,7 +260,7 @@ do_debug_gdb_build() {
 
         unset ac_cv_func_strncmp_works
 
-        CT_EndStep
+        CT_EndStep # native gdb build
     fi
 
     if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
