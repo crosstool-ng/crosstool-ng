@@ -317,7 +317,7 @@ CT_DoSetProxy() {
             # Find all interfaces and build locally accessible networks
             server_ip=$(ping -c 1 -W 2 "${CT_PROXY_HOST}" |head -n 1 |sed -r -e 's/^[^\(]+\(([^\)]+)\).*$/\1/;' || true)
             CT_TestOrAbort "SOCKS proxy '${CT_PROXY_HOST}' has no IP." -n "${server_ip}"
-            /sbin/ifconfig |gawk -v server_ip="${server_ip}" '
+            /sbin/ifconfig |"${awk}" -v server_ip="${server_ip}" '
                 BEGIN {
                     split( server_ip, tmp, "\\." );
                     server_ip_num = tmp[1] * 2^24 + tmp[2] * 2^16 + tmp[3] * 2^8 + tmp[4] * 2^0;
@@ -845,7 +845,7 @@ CT_DoSaveState() {
     # We must omit shell functions, and some specific bash variables
     # that break when restoring the environment, later. We could do
     # all the processing in the gawk script, but a sed is easier...
-    set |gawk '
+    set |"${awk}" '
               BEGIN { _p = 1; }
               $0~/^[^ ]+ \(\)/ { _p = 0; }
               _p == 1
