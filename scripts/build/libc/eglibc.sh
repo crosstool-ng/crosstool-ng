@@ -14,7 +14,6 @@ do_eglibc_get() {
         *)  svn_action="export --force";;
     esac
 
-    CT_DoSetProxy ${CT_PROXY_TYPE}
     CT_DoExecLog ALL svn ${svn_action} -r "${CT_EGLIBC_REVISION:-HEAD}" "${svn_url}" . 2>&1
 
     # Compress eglibc
