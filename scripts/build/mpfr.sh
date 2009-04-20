@@ -42,7 +42,7 @@ do_mpfr_extract() {
                 # See: http://sourceware.org/ml/crossgcc/2008-11/msg00046.html
                 # and: http://sourceware.org/ml/crossgcc/2008-11/msg00048.html
                 libtoolize_opt=
-                case "$(libtoolize --version |head -n 1 |"${awk}" '{ print $(NF); }')" in
+                case "$(libtoolize --version |head -n 1 |awk '{ print $(NF); }')" in
                     0.*)    ;;
                     1.*)    ;;
                     *)      libtoolize_opt=-i;;

@@ -18,7 +18,6 @@ do_finish() {
                -e 's|@@CT_bash@@|'"${bash}"'|g;'        \
                -e 's|@@CT_grep@@|'"${grep}"'|g;'        \
                -e 's|@@CT_make@@|'"${make}"'|g;'        \
-               -e 's|@@CT_awk@@|'"${awk}"'|g;'          \
                -e 's|@@CT_sed@@|'"${sed}"'|g;'          \
                "${CT_LIB_DIR}/scripts/populate.in"      \
                >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
