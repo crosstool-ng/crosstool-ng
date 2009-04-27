@@ -1,0 +1,190 @@
+--- glibc-2.7.OLD/elf/Makefile	2009-04-22 17:08:55.000000000 +0300
++++ glibc-2.7/elf/Makefile	2009-04-22 18:09:18.000000000 +0300
+@@ -1,4 +1,4 @@
+-# Copyright (C) 1995-2004, 2005, 2006, 2007 Free Software Foundation, Inc.
++# Copyright (C) 1995-2007, 2008, 2009 Free Software Foundation, Inc.
+ # This file is part of the GNU C Library.
+ 
+ # The GNU C Library is free software; you can redistribute it and/or
+@@ -23,7 +23,7 @@
+ headers		= elf.h bits/elfclass.h link.h bits/link.h
+ routines	= $(dl-routines) dl-support dl-iteratephdr \
+ 		  dl-addr enbl-secure dl-profstub \
+-		  dl-origin dl-libc dl-sym dl-tsd
++		  dl-origin dl-libc dl-sym dl-tsd dl-sysdep
+ 
+ # The core dynamic linking functions are in libc for the static and
+ # profiled libraries.
+@@ -33,7 +33,8 @@
+ 				  execstack caller open close trampoline)
+ all-dl-routines = $(dl-routines) $(sysdep-dl-routines)
+ # But they are absent from the shared libc, because that code is in ld.so.
+-elide-routines.os = $(all-dl-routines) dl-support enbl-secure dl-origin
++elide-routines.os = $(all-dl-routines) dl-support enbl-secure dl-origin \
++		    dl-sysdep
+ shared-only-routines += dl-caller
+ 
+ # ld.so uses those routines, plus some special stuff for being the program
+@@ -120,13 +121,6 @@
+ install-bin-script = ldd
+ endif
+ 
+-ifeq (yes,$(build-static-nss))
+-nssobjdir := $(patsubst ../$(subdir),.,$(common-objpfx)nss)
+-resolvobjdir := $(patsubst ../$(subdir),.,$(common-objpfx)resolv)
+-otherlibs += $(nssobjdir)/libnss_files.a $(resolvobjdir)/libnss_dns.a \
+-	     $(resolvobjdir)/libresolv.a
+-endif
+-
+ others		= sprof sln
+ install-bin	= sprof
+ others-static   = sln
+@@ -165,14 +159,14 @@
+ endif
+ ifeq (yes,$(build-shared))
+ tests += loadtest restest1 preloadtest loadfail multiload origtest resolvfail \
+-	 constload1 order $(tests-vis-$(have-protected)) noload filter unload \
++	 constload1 order vismain noload filter unload \
+ 	 reldep reldep2 reldep3 reldep4 nodelete nodelete2 \
+ 	 nodlopen nodlopen2 neededtest neededtest2 \
+ 	 neededtest3 neededtest4 unload2 lateglobal initfirst global \
+ 	 restest2 next dblload dblunload reldep5 reldep6 reldep7 reldep8 \
+ 	 circleload1 tst-tls3 tst-tls4 tst-tls5 tst-tls6 tst-tls7 tst-tls8 \
+ 	 tst-tls10 tst-tls11 tst-tls12 tst-tls13 tst-tls14 tst-tls15 \
+-	 tst-tls-dlinfo \
++	 tst-tls16 tst-tls17 tst-tls18 tst-tls-dlinfo \
+ 	 tst-align tst-align2 $(tests-execstack-$(have-z-execstack)) \
+ 	 tst-dlmodcount tst-dlopenrpath tst-deep1 \
+ 	 tst-dlmopen1 tst-dlmopen2 tst-dlmopen3 \
+@@ -181,16 +175,17 @@
+ 	 tst-stackguard1 tst-addr1 tst-thrlock
+ #	 reldep9
+ test-srcs = tst-pathopt
+-tests-vis-yes = vismain
+ tests-execstack-yes = tst-execstack tst-execstack-needed tst-execstack-prog
+ endif
+ ifeq (yesyes,$(have-fpie)$(build-shared))
+ tests: $(objpfx)tst-pie1.out
+ endif
+ tests: $(objpfx)tst-leaks1-mem
++tlsmod17a-suffixes = 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
++tlsmod18a-suffixes = 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
+ modules-names = testobj1 testobj2 testobj3 testobj4 testobj5 testobj6 \
+ 		testobj1_1 failobj constload2 constload3 unloadmod \
+-		dep1 dep2 dep3 dep4 $(modules-vis-$(have-protected)) \
++		dep1 dep2 dep3 dep4 vismod1 vismod2 vismod3 \
+ 		nodelmod1 nodelmod2 nodelmod3 nodelmod4 \
+ 		nodel2mod1 nodel2mod2 nodel2mod3 \
+ 		nodlopenmod nodlopenmod2 filtmod1 filtmod2 \
+@@ -206,7 +201,10 @@
+ 		tst-tlsmod5 tst-tlsmod6 tst-tlsmod7 tst-tlsmod8 \
+ 		tst-tlsmod9 tst-tlsmod10 tst-tlsmod11 tst-tlsmod12 \
+ 		tst-tlsmod13 tst-tlsmod13a tst-tlsmod14a tst-tlsmod14b \
+-		tst-tlsmod15a tst-tlsmod15b \
++		tst-tlsmod15a tst-tlsmod15b tst-tlsmod16a tst-tlsmod16b \
++		$(patsubst %,tst-tlsmod17a%,$(tlsmod17a-suffixes)) \
++		tst-tlsmod17b \
++		$(patsubst %,tst-tlsmod18a%,$(tlsmod18a-suffixes)) \
+ 		circlemod1 circlemod1a circlemod2 circlemod2a \
+ 		circlemod3 circlemod3a \
+ 		reldep8mod1 reldep8mod2 reldep8mod3 \
+@@ -226,7 +224,6 @@
+ ifeq (yesyes,$(have-fpie)$(build-shared))
+ modules-names += tst-piemod1
+ endif
+-modules-vis-yes = vismod1 vismod2 vismod3
+ modules-execstack-yes = tst-execstack-mod
+ extra-test-objs += $(addsuffix .os,$(strip $(modules-names)))
+ # We need this variable to be sure the test modules get the right CPPFLAGS.
+@@ -307,7 +304,7 @@
+ 		  $(LDFLAGS-rtld) -Wl,-z,defs -Wl,--verbose 2>&1 |	\
+ 		  LC_ALL=C \
+ 		  sed -e '/^=========/,/^=========/!d;/^=========/d'	\
+-		      -e 's/\. = 0 + SIZEOF_HEADERS;/& _begin = . - SIZEOF_HEADERS;/' \
++		      -e 's/\. = .* + SIZEOF_HEADERS;/& _begin = . - SIZEOF_HEADERS;/' \
+ 		  > $@.lds
+ 	$(LINK.o) -nostdlib -nostartfiles -shared -o $@			\
+ 		  $(LDFLAGS-rtld) -Wl,-z,defs $(z-now-$(bind-now))	\
+@@ -315,7 +312,7 @@
+ 		  -Wl,-soname=$(rtld-installed-name) -T $@.lds
+ 	rm -f $@.lds
+ 	readelf -s $@ \
+-	  | awk '($$7 ~ /^UND(|EF)$$/ && $$1 != "0:" && $$4 != "REGISTER") { print; p=1 } END { exit p != 0 }'
++	  | $(AWK) '($$7 ~ /^UND(|EF)$$/ && $$1 != "0:" && $$4 != "REGISTER") { print; p=1 } END { exit p != 0 }'
+ 
+ # interp.c exists just to get this string into the libraries.
+ CFLAGS-interp.c = -D'RUNTIME_LINKER="$(slibdir)/$(rtld-installed-name)"' \
+@@ -499,6 +496,7 @@
+ tst-tlsmod14a.so-no-z-defs = yes
+ tst-tlsmod14b.so-no-z-defs = yes
+ tst-tlsmod15a.so-no-z-defs = yes
++tst-tlsmod16b.so-no-z-defs = yes
+ circlemod2.so-no-z-defs = yes
+ circlemod3.so-no-z-defs = yes
+ circlemod3a.so-no-z-defs = yes
+@@ -718,6 +716,22 @@
+ 
+ 
+ 
++$(objpfx)tst-tls16: $(libdl)
++$(objpfx)tst-tls16.out: $(objpfx)tst-tlsmod16a.so $(objpfx)tst-tlsmod16b.so
++
++$(objpfx)tst-tls17: $(libdl)
++$(objpfx)tst-tls17.out: $(objpfx)tst-tlsmod17b.so
++$(patsubst %,$(objpfx)tst-tlsmod17a%.os,$(tlsmod17a-suffixes)): $(objpfx)tst-tlsmod17a%.os : tst-tlsmod17a.c
++	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ -DN=$* -DNOT_IN_libc=1 $<
++$(patsubst %,$(objpfx)tst-tlsmod17a%.so,$(tlsmod17a-suffixes)): $(objpfx)tst-tlsmod17a%.so: $(objpfx)ld.so
++$(objpfx)tst-tlsmod17b.so: $(patsubst %,$(objpfx)tst-tlsmod17a%.so,$(tlsmod17a-suffixes))
++
++$(objpfx)tst-tls18: $(libdl)
++$(objpfx)tst-tls18.out: $(patsubst %,$(objpfx)tst-tlsmod18a%.so,$(tlsmod18a-suffixes))
++$(patsubst %,$(objpfx)tst-tlsmod18a%.os,$(tlsmod18a-suffixes)): $(objpfx)tst-tlsmod18a%.os : tst-tlsmod18a.c
++	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ -DN=$* -DNOT_IN_libc=1 $<
++$(patsubst %,$(objpfx)tst-tlsmod18a%.so,$(tlsmod18a-suffixes)): $(objpfx)tst-tlsmod18a%.so: $(objpfx)ld.so
++
+ CFLAGS-tst-align.c = $(stack-align-test-flags)
+ CFLAGS-tst-align2.c = $(stack-align-test-flags)
+ CFLAGS-tst-alignmod.c = $(stack-align-test-flags)
+@@ -804,7 +818,7 @@
+ 	cmp $@ tst-array5-static.exp > /dev/null
+ 
+ ifeq (yesyes,$(have-fpie)$(build-shared))
+-CFLAGS-tst-pie1.c += -fpie
++CFLAGS-tst-pie1.c += $(pie-ccflag)
+ 
+ $(objpfx)tst-pie1.out: $(objpfx)tst-pie1
+ 	$(elf-objpfx)$(rtld-installed-name) \
+@@ -845,10 +859,14 @@
+ $(objpfx)tst-dlmodcount.out: $(test-modules)
+ 
+ check-data := $(firstword $(wildcard \
+-	        $(patsubst %,../scripts/data/localplt-%.data,\
+-			   $(addsuffix -$(config-os),\
+-			   	       $(config-machine) $(base-machine))\
+-			   generic)))
++	        $(foreach D,$(add-ons) scripts,\
++	        	  $(patsubst %,$(..)$D/data/localplt-%.data,\
++			   	     $(abi-name) \
++			   	     $(addsuffix -$(config-os),\
++				     		 $(config-machine) \
++						 $(base-machine)) \
++			   generic))))
++
+ tests: $(objpfx)check-localplt.out
+ 
+ ifeq ($(have-thread-library),yes)
+@@ -857,9 +875,11 @@
+ 
+ $(objpfx)check-localplt.out: $(objpfx)check-localplt \
+ 			     $(common-objpfx)libc.so \
+- 		    	     $(common-objpfx)math/libm.so $(thread-dso) \
+- 		    	     $(common-objpfx)rt/librt.so \
+- 		    	     $(common-objpfx)dlfcn/libdl.so \
++		    	     $(common-objpfx)math/libm.so $(thread-dso) \
++		    	     $(common-objpfx)rt/librt.so \
++		    	     $(common-objpfx)dlfcn/libdl.so \
++			     $(common-objpfx)resolv/libresolv.so \
++			     $(common-objpfx)crypt/libcrypt.so \
+ 			     $(check-data)
+ 	$(dir $<)$(notdir $<) $(filter-out $< $(check-data),$^) | \
+ 	  LC_ALL=C sort | \
