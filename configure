@@ -1,60 +1,9 @@
 #!/bin/sh
 
+myname="${0##*/}"
+
 VERSION=$( cat .version )
 DATE=$( date +%Y%m%d )
-
-# All absolutely required tools, one per line to ease diff.
-# See function 'has_or_abort', below, for syntax
-#  - Hopefully, if gcc is present, then all associated tools will be
-#  - makeinfo for building docs, even if discarded later on
-#  - others obvious... :-/
-#
-# Format of a pattern to check for, one per line:
-#   pattern := var_name : tool_pattern  OR  tool_pattern
-#   tool_pattern := tool_test  OR  tool_pattern || tool_test
-#   tool_test := tool=regexp OR tool
-#   tool := basename of the tool  OR  absolute pathname to the tool
-#   regexp := valid grep(1) extended regular expression, $( tool --version)
-#             will be matched against this regexp.
-#
-# In case a pattern list is given (eg foo || bar || buz), then tests are performed
-# from left to right, stopping at the first matching test (like the shell
-# would parse 'foo || bar || buz' ).
-#
-# Examples:
-#    bash:bash=^GNU bash, version 3\.
-#     - if ${bash} is set and non-null, does nothing
-#     - else ensures that bash exists in the PATH, and that $( bash --version )
-#       matches the regexp '^GNU bash, version 3\.'
-#       - if so, then sets bash="$( which bash )"
-#    autoconf=(GNU Autoconf) || autoconf2.50
-#     - does not look at an existing variable
-#     - ensures that:
-#         - 'autoconf' is to be found in the PATH, and that $( autoconf --version )
-#           matches the regexp '(GNU Autoconf)' (which btw is the signature of
-#           autoconf >= 2.50),
-#       OR that:
-#         - 'autoconf2.50' is to be found in the PATH
-#
-TOOLS_TO_CHECK='
-bash:bash=^GNU bash, version [34]\.
-cut
-xargs
-install:install=GNU coreutils
-make:make=^GNU Make
-gcc
-awk
-bison
-flex
-makeinfo
-automake=\(GNU automake\) (1\.[[:digit:]]{2,}\.|[2-9][[:digit:]]*\.)
-libtool=\(GNU libtool.*\) (2[[:digit:]]*\.|1\.6[[:digit:]]*\.|1\.5\.[2-9][[:digit:]]+)
-curl || wget
-patch
-tar
-gzip
-bzip2
-'
 
 PREFIX_DEFAULT=/usr/local
 
@@ -63,99 +12,14 @@ LIBDIR_set=
 DOCDIR_set=
 MANDIR_set=
 LOCAL_set=
+FORCE=
 
 do_quit=
 
 # Simply print the error message, and exit. Obvious, he?
 do_error() {
-    echo "${@}"
+    echo "${myname}: ${@}"
     exit 1
-}
-
-# A small function to test for existence of various tools
-# Usage: has_or_abort test_pattern (see top of file, TOOLS_TO_CHECK, for
-#                                   complete pattern format)
-has_or_abort() {
-    local save_IFS
-    local var_name
-    local var_value
-    local tool_pattern
-    local field
-
-    var_name="$( echo "${1}" |"${sed}" -r -e 's/^(([^=:]+):.+|[^:=]+=.+|[^:=]+)$/\2/;' )"
-    field="${var_name:+2}"
-    field="${field:-1}"
-    tool_pattern="$( echo "${1}" |cut -d : -f ${field}- |"${sed}" -r -e 's/ *\|\| */\n/g;' )"
-
-    save_IFS="${IFS}"
-    # Set IFS to \n only
-    IFS='
-'
-    for item in ${tool_pattern}; do
-        case "${item}" in
-            *=*)
-                tool="${item%%=*}"
-                regexp="${item#*=}"
-                ;;
-            *)  tool="${item}"
-                regexp=
-                ;;
-        esac
-
-        printf "Checking for '${tool}'... "
-        if [ -n "${var_name}" ]; then
-            eval var_value='"${'"${var_name}"'}"'
-            if [ -n "${var_value}" ]; then
-                echo "${var_value} (cached)"
-                return 0
-            fi
-        fi
-        where=$( which "${tool}" 2>/dev/null )
-        if [ -z "${where}" ]; then
-            echo "not found"
-            where=
-            continue
-        elif [ -n "${regexp}" ]; then
-            tool_version=$( ${tool} --version 2>&1 )
-            str=$( echo "${tool_version}" |"${grep}" -E "${regexp}" |head -n 1 )
-            if [ -z "${str}" ]; then
-                echo "not found"
-                where=""
-                continue
-            fi
-        fi
-        break
-    done
-    if [ -z "${where}" ]; then
-        for item in ${tool_pattern}; do
-            case "${item}" in
-                *=*)
-                    tool="${item%%=*}"
-                    regexp="${item#*=}"
-                    ;;
-                *)  tool="${item}"
-                    regexp=
-                    ;;
-            esac
-            printf "  could not find '${tool}'"
-            [ -n "${regexp}" ] && printf " matching regexp '${regexp}'"
-            echo
-        done
-        echo "Either you are missing entirely the needed tool,"
-        echo "or the version you have is too old."
-        if [ -n "${var_name}" ]; then
-            echo "You can give the path to this tool using: --with-${var_name}=PATH"
-        fi
-        # FORCE can be set in the environment
-        [ -z "${FORCE}" ] && do_error "Bailing out..."
-    else
-        echo "${where}"
-        if [ -n "${var_name}" ]; then
-            eval ${var_name}='"'"${where}"'"'
-        fi
-    fi
-    IFS="${save_IFS}"
-    return 0
 }
 
 # Given an option string and the following argument,
@@ -202,6 +66,109 @@ set_tool() {
     eval ${var_name}="\$( get_optval "$1" "$2" )"
 }
 
+# var_list is a list of variables, each one holding a path to a
+# tool, either detected by ./configure, or specified by the user.
+var_list=""
+
+# This function adds a variable name to the above list of variable names.
+# $1: the name of the variable to add to the list
+add_to_var_list() {
+    var_list="${var_list} ${1}"
+}
+
+# A function to test for required tools/headers/libraries
+# $*: [prog|inc|lib]=<name[ name...]>
+#     the name(s) of tool(s) to test for
+#     mandatory
+#       eg: prog=bash   prog="curl wget"
+# $*: var=<var_name>
+#     the name of the variable to test and set
+#     optional
+#       eg: var=bash    if ${bash} is set and non-null, use that,
+#                       else check for bash and set bash=$(which bash)
+# $*: ver=<regexp>
+#     for each 'prog', test if $(prog --version) matches 'regexp'
+#     optional
+#       eg: ver='^GNU bash, version [34]\.'
+# $*: err=<error_message>
+#     the error message to print if tool is missing
+#     optional, defaults to: '${prog}: none found'
+#       eg: err="'bash' 3.x or above was not found"
+has_or_abort() {
+    local prog inc lib
+    local var ver err
+    local val
+    local item
+    local where
+    local version
+
+    for item in "${@}"; do
+        case "${item}" in
+            prog=*|inc=*|lib=*|var=*|ver=*|err=*)
+                eval ${item%%=*}="'${item#*=}'"
+                ;;
+            *)  do_error "has_or_abort: incorrect parameters: '$@'";;
+        esac
+    done
+
+    case "${prog}:${inc}:${lib}" in
+        ?*::)
+            for item in ${prog}; do
+                printf "Checking for '${item}'... "
+                if [ -n "${var}" ]; then
+                    eval val="\${${var}}"
+                    if [ -n "${val}" ]; then
+                        printf "${val} (cached)\n"
+                        return 0
+                    fi
+                fi
+                where="$( which "${item}" 2>/dev/null )"
+                if [ -z "${where}" ]; then
+                    printf "not found\n"
+                    continue
+                elif [ -n "${ver}" ]; then
+                    version=$( ${where} --version 2>&1 )
+                    str=$( echo "${version}" |grep -E "${ver}" |head -n 1 )
+                    if [ -z "${str}" ]; then
+                        printf "not found\n"
+                        unset where
+                        continue
+                    fi
+                fi
+                break
+            done
+            if [ -z "${where}" ]; then
+                printf "\n${err:-${prog}: none found}\n\n"
+                printf "Either you are missing entirely the needed tool,\n"
+                printf "or the version you have is too old.\n"
+                if [ -n "${var}" ]; then
+                    printf "You can give the path to this tool using: --with-${var}=PATH\n"
+                fi
+                # FORCE can be set in the environment
+                [ -z "${FORCE}" ] && do_error "Bailing out..."
+                printf "\n"
+                printf "<*                                          *>\n"
+                printf "<*            FORCE in action:              *>\n"
+                printf "<* Continuing despite missing pre-requisite *>\n"
+                printf "<*          Prepare for breakage            *>\n"
+                printf "<*                                          *>\n"
+                printf "\n"
+            else
+                printf "${where}"
+                if [ -n "${var}" ]; then
+                    eval ${var}='"'"${where}"'"'
+                    add_to_var_list "${var}"
+                fi
+                printf "\n"
+            fi
+            ;;
+        :?*:)
+            ;;
+        ::?*)
+            ;;
+    esac
+}
+
 do_help() {
     cat <<__EOF__
 \`configure' configures crosstool-NG-${VERSION} to adapt to many kind of systems.
@@ -212,6 +179,8 @@ Defaults for the options are specified in brackets.
 
 Configuration:
   -h, --help              display this help and exit
+      --force             force configure to continue, even in case
+                          some pre-requisites are missing
 
 Installation directories:
   --prefix=PREFIX         install files in PREFIX [${PREFIX_DEFAULT}]
@@ -232,7 +201,7 @@ Fine tuning of the installation directories:
 
 Optional Features:
   --with-install=PATH     Specify the full PATH to GNU install
-  --with-make=PATH        Specify the full PATH to GNU make
+  --with-make=PATH        Specify the full PATH to GNU make >= 3.80
   --with-grep=PATH        Specify the full PATH to GNU grep
   --with-sed=PATH         Specify the full PATH to GNU sed
   --with-bash=PATH        Specify the full PATH to bash >= 3.0
@@ -251,6 +220,7 @@ while [ $# -ne 0 ]; do
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
         --with-*)   set_tool   "$1" "$2" && shift || shift 2;;
+        --force)    FORCE=1; shift;;
         --help|-h)  do_help; exit 0;;
         *)          echo "Unrecognised option: '${1}'"; do_help; exit 1;;
     esac
@@ -296,6 +266,7 @@ if [ -z "${grep}" ]; then
     echo "You can give the path to this tool using: --with-grep=PATH"
     do_error "Bailing out..."
 fi
+add_to_var_list grep
 
 printf "Checking for 'sed'... "
 if [ -n "${sed}" ]; then
@@ -323,24 +294,49 @@ if [ -z "${sed}" ]; then
     echo "You can give the path to this tool using: --with-sed=PATH"
     do_error "Bailing out..."
 fi
+add_to_var_list sed
 
-# Check the existence of absolutely required tools
-save_IFS="${IFS}"
-IFS='
-'
-for tool in ${TOOLS_TO_CHECK}; do
-    has_or_abort "${tool}"
-done
-IFS="${save_IFS}"
+# The regular list of tools we can now easily check for
+has_or_abort prog=bash                              \
+             var=bash                               \
+             ver='^GNU bash, version [34]\.'        \
+             err="'bash' 3.x or above was not found"
+has_or_abort prog=cut
+has_or_abort prog=install var=install
+has_or_abort prog=make                                  \
+             var=make                                   \
+             ver='^GNU Make (3.[89][[:digit:]]|[4-9])'  \
+             err="GNU 'make' 3.80 or above was not found"
+has_or_abort prog=gcc
+has_or_abort prog=awk
+has_or_abort prog=bison
+has_or_abort prog=flex
+has_or_abort prog=makeinfo
+has_or_abort prog=automake                                                      \
+             ver='\(GNU automake\) (1\.[[:digit:]]{2,}\.|[2-9][[:digit:]]*\.)'  \
+             err="'automake' 1.10 or above was not found"
+has_or_abort prog=libtool                                                                           \
+             ver='\(GNU libtool.*\) (2[[:digit:]]*\.|1\.6[[:digit:]]*\.|1\.5\.[2-9][[:digit:]]+)'   \
+             err="'libtool' 1.5.26 or above was not found"
+has_or_abort prog="curl wget"
+has_or_abort prog=patch
+has_or_abort prog=tar
+has_or_abort prog=gzip
+has_or_abort prog=bzip2
+has_or_abort prog=lzma
+
+#has_or_abort inc="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h" err="'ncurses' headers files were not found"
+#has_or_abort lib="ncursesw ncurses curses" err="'ncurses' library was not found"
 
 #---------------------------------------------------------------------
 # Compute the version string
 
 # If this version is a svn snapshot, try to get the revision number
 # If we can't get the revision number, use date
-printf "Computing version string... "
 case "${VERSION}" in
     *+svn|svn)
+        has_or_abort prog=svnversion
+        printf "Computing version string... "
         REVISION="$( LC_ALL=C svnversion )"
         case "${REVISION}" in
             exported)
@@ -387,11 +383,6 @@ done
 # That's all, folks!
 
 printf "Building up Makefile... "
-var_list="grep
-          sed
-          $( printf "${TOOLS_TO_CHECK}"                                 \
-             |"${sed}" -r -e 's/^(([^=:]+):.+|[^:=]+=.+|[^:=]+)$/\2/;'
-           )"
 var_sed="$( for var_name in ${var_list}; do
                 eval echo 's,@@${var_name}@@,${'"${var_name}"'},g'
             done 
