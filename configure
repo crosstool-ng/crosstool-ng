@@ -101,6 +101,7 @@ has_or_abort() {
     local item
     local where
     local version
+    local status
 
     for item in "${@}"; do
         case "${item}" in
@@ -124,49 +125,59 @@ has_or_abort() {
                 fi
                 where="$( which "${item}" 2>/dev/null )"
                 if [ -z "${where}" ]; then
-                    printf "not found\n"
+                    printf "no\n"
                     continue
                 elif [ -n "${ver}" ]; then
                     version=$( ${where} --version 2>&1 )
                     str=$( echo "${version}" |grep -E "${ver}" |head -n 1 )
                     if [ -z "${str}" ]; then
-                        printf "not found\n"
+                        printf "no\n"
                         unset where
                         continue
                     fi
                 fi
+                status="${where}"
                 break
             done
-            if [ -z "${where}" ]; then
-                printf "\n${err:-${prog}: none found}\n\n"
-                printf "Either you are missing entirely the needed tool,\n"
-                printf "or the version you have is too old.\n"
-                if [ -n "${var}" ]; then
-                    printf "You can give the path to this tool using: --with-${var}=PATH\n"
-                fi
-                # FORCE can be set in the environment
-                [ -z "${FORCE}" ] && do_error "Bailing out..."
-                printf "\n"
-                printf "<*                                          *>\n"
-                printf "<*            FORCE in action:              *>\n"
-                printf "<* Continuing despite missing pre-requisite *>\n"
-                printf "<*          Prepare for breakage            *>\n"
-                printf "<*                                          *>\n"
-                printf "\n"
-            else
-                printf "${where}"
-                if [ -n "${var}" ]; then
-                    eval ${var}='"'"${where}"'"'
-                    add_to_var_list "${var}"
-                fi
-                printf "\n"
-            fi
             ;;
         :?*:)
+            for item in ${inc}; do
+                printf "Checking for '${item}'... "
+                if printf "#include \"${item}\"" |gcc -x c -c - -o /dev/null >/dev/null 2>&1; then
+                    where="${item}"
+                    status=yes
+                    break;
+                fi
+                printf "no\n"
+            done
             ;;
         ::?*)
             ;;
     esac
+    if [ -z "${status}" ]; then
+        printf "\n${err:-${prog}${inc}${lib}: none found}\n\n"
+        printf "Either you are missing entirely the needed tool,\n"
+        printf "or the version you have is too old.\n"
+        if [ -n "${var}" ]; then
+            printf "You can give the path to this tool using: --with-${var}=PATH\n"
+        fi
+        # FORCE can be set in the environment
+        [ -z "${FORCE}" ] && do_error "Bailing out..."
+        printf "\n"
+        printf "<*                                          *>\n"
+        printf "<*            FORCE in action:              *>\n"
+        printf "<* Continuing despite missing pre-requisite *>\n"
+        printf "<*          Prepare for breakage            *>\n"
+        printf "<*                                          *>\n"
+        printf "\n"
+    else
+        printf "${status}"
+        if [ -n "${var}" ]; then
+            eval ${var}='"'"${where}"'"'
+            add_to_var_list "${var}"
+        fi
+        printf "\n"
+    fi
 }
 
 do_help() {
@@ -325,7 +336,8 @@ has_or_abort prog=gzip
 has_or_abort prog=bzip2
 has_or_abort prog=lzma
 
-#has_or_abort inc="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h" err="'ncurses' headers files were not found"
+has_or_abort inc="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h"    \
+             err="'ncurses' headers files were not found"
 #has_or_abort lib="ncursesw ncurses curses" err="'ncurses' library was not found"
 
 #---------------------------------------------------------------------
