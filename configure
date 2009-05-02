@@ -152,6 +152,16 @@ has_or_abort() {
             done
             ;;
         ::?*)
+            for item in ${lib}; do
+                printf "Checking for '${item}'... "
+                where="$( gcc -print-file-name="${item}" )"
+                if [ "${where}" != "${item}" ]; then
+                    where="$( readlink -e "${where}" )"
+                    status=yes
+                    break;
+                fi
+                printf "no\n"
+            done
             ;;
     esac
     if [ -z "${status}" ]; then
@@ -335,10 +345,13 @@ has_or_abort prog=tar
 has_or_abort prog=gzip
 has_or_abort prog=bzip2
 has_or_abort prog=lzma
+has_or_abort prog=readlink
 
 has_or_abort inc="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h"    \
              err="'ncurses' headers files were not found"
-#has_or_abort lib="ncursesw ncurses curses" err="'ncurses' library was not found"
+
+has_or_abort lib="$( echo lib{ncursesw,ncurses,curses}.{so,a,dylib} )"  \
+             err="'ncurses' library was not found"
 
 #---------------------------------------------------------------------
 # Compute the version string
