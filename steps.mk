@@ -20,6 +20,7 @@ CT_STEPS := libc_check_config   \
             kernel_headers      \
             gmp                 \
             mpfr                \
+            ppl                 \
             binutils            \
             cc_core_pass_1      \
             libc_headers        \

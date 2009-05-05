@@ -13,7 +13,7 @@ Usage: ${myname} <tool> <[options] version [...]> ...
   'tool' in one of:
     --gcc, --binutils, --glibc, --eglibc, --uClibc, --linux,
     --gdb, --dmalloc, --duma, --strace, --ltrace, --libelf
-    --gmp, --mpfr
+    --gmp, --mpfr, --ppl
 
   Valid options for all tools:
     --stable, -s, +x   (default)
@@ -133,6 +133,7 @@ while [ $# -gt 0 ]; do
         --libelf)   EXP=; OBS=; cat=LIBELF;    tool=libelf;   tool_prefix=tools;;
         --gmp)      EXP=; OBS=; cat=GMP;       tool=gmp;      tool_prefix=companion_libs;;
         --mpfr)     EXP=; OBS=; cat=MPFR;      tool=mpfr;     tool_prefix=companion_libs;;
+        --ppl)      EXP=; OBS=; cat=PPL;       tool=ppl;      tool_prefix=companion_libs;;
 
         # Tools options:
         -x|--experimental|+s)   EXP=1;;

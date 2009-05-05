@@ -22,20 +22,32 @@ do_gmp_extract() {
 }
 
 do_gmp() {
+    local opts
+    local cflags
+
     mkdir -p "${CT_BUILD_DIR}/build-gmp"
     cd "${CT_BUILD_DIR}/build-gmp"
 
     CT_DoStep INFO "Installing GMP"
 
     CT_DoLog EXTRA "Configuring GMP"
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+
+    if [ "${CT_PPL_CLOOG}" = "y" ]; then
+        opts="--enable-cxx"
+        cflags="-fexceptions"
+    fi
+
+    CFLAGS="${CT_CFLAGS_FOR_HOST} ${cflags}"        \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --prefix="${CT_PREFIX_DIR}"                 \
-        --disable-shared --enable-static            \
-        --enable-fft --enable-mpbsd
+        --disable-shared                            \
+        --enable-static                             \
+        --enable-fft                                \
+        --enable-mpbsd                              \
+        ${opts}
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
@@ -66,8 +78,10 @@ do_gmp_target() {
         --build=${CT_BUILD}                         \
         --host=${CT_TARGET}                         \
         --prefix=/usr                               \
-        --disable-shared --enable-static            \
-        --enable-fft --enable-mpbsd
+        --disable-shared                            \
+        --enable-static                             \
+        --enable-fft                                \
+        --enable-mpbsd                              \
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
