@@ -54,6 +54,8 @@ do_libc_check_config() {
 
 # This functions installs uClibc's headers
 do_libc_headers() {
+    local install_rule
+
     CT_DoStep INFO "Installing C library headers"
 
     mkdir -p "${CT_BUILD_DIR}/build-libc-headers"
@@ -61,7 +63,7 @@ do_libc_headers() {
 
     # Simply copy files until uClibc has the ablity to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
+    tar cf - -C "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}" . |tar xf -
 
     # Retrieve the config file
     cp "${CT_CONFIG_DIR}/uClibc.config" .config
@@ -76,8 +78,14 @@ do_libc_headers() {
     CT_DoLog EXTRA "Building headers"
     CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers
 
+    if [ "${CT_LIBC_UCLIBC_0_9_30_or_later}" = "y" ]; then
+        install_rule=install_headers
+    else
+        install_rule=install_dev
+    fi
+
     CT_DoLog EXTRA "Installing headers"
-    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" install_headers
+    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" ${install_rule}"
 
     CT_EndStep
 }
@@ -96,7 +104,7 @@ do_libc() {
 
     # Simply copy files until uClibc has the ablity to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    { cd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"; tar cf - .; } |tar xf -
+    tar cf - -C "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}" . |tar xf -
 
     # Retrieve the config file
     cp "${CT_CONFIG_DIR}/uClibc.config" .config
@@ -126,14 +134,20 @@ do_libc() {
          ${CT_LIBC_UCLIBC_VERBOSITY}                    \
          all
 
-    # YEM-FIXME: we want to install libraries in $SYSROOT/lib, but we don't want
-    # to install headers in $SYSROOT/include, thus making only install_runtime.
-    # Plus, the headers were previously installed earlier with install_headers,
-    # so all should be well. Unfortunately, the install_headers target does not
-    # install crti.o and consorts... :-( So reverting to target 'install'.
-    # Note: PARALLELMFLAGS is not usefull for installation.
+    # YEM-FIXME:
+    # - we want to install 'runtime' files, eg. lib*.{a,so*}, crti.o and
+    #   such files, except the headers as they already are installed
+    # - "make install_dev" installs the headers, the crti.o... and the
+    #   static libs, but not the dynamic libs
+    # - "make install_runtime" installs the dynamic libs only
+    # - "make install" calls install_runtime and install_dev
+    # - so we're left with re-installing the headers... Sigh...
+    #
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, hence the STRIPTOOL= assignment
+    #
+    # Note: PARALLELMFLAGS is not usefull for installation.
+    #
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL                    \
     make CROSS=${CT_TARGET}-            \
