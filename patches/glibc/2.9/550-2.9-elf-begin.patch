@@ -1,0 +1,29 @@
+[ALL  ]    powerpc-860-linux-gnu-gcc       -nostdlib -nostartfiles -shared                        -Wl,-z,combreloc -Wl,-z,relro -Wl,--hash-style=both -Wl,-z,defs -Wl,--verbose 2>&1 |                    LC_ALL=C                sed -e '/^=========/,/^=========/!d;/^=========/d'                          -e 's/. = 0 + SIZEOF_HEADERS;/& _begin = . - SIZEOF_HEADERS;/'              > /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/elf/ld.so.lds
+[ALL  ]    powerpc-860-linux-gnu-gcc       -nostdlib -nostartfiles -shared -o /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/elf/ld.so                                         -Wl,-z,combreloc -Wl,-z,relro -Wl,--hash-style=both -Wl,-z,defs                         /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/elf/librtld.os -Wl,--version-script=/local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/ld.map                                  -Wl,-soname=ld.so.1 -T /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/elf/ld.so.lds
+[ALL  ]    /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/elf/librtld.os: In function `_dl_start_final':
+[ALL  ]    rtld.c:(.text+0x2fe): undefined reference to `_begin'
+[ALL  ]    /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/gcc-core-shared/lib/gcc/powerpc-860-linux-gnu/4.3.3/../../../../powerpc-860-linux-gnu/bin/ld: /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/elf/ld.so: hidden symbol `_begin' isn't defined
+[ALL  ]    /local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/gcc-core-shared/lib/gcc/powerpc-860-linux-gnu/4.3.3/../../../../powerpc-860-linux-gnu/bin/ld: final link failed: Nonrepresentable section on output
+[ALL  ]    collect2: ld returned 1 exit status
+[ERROR]    make[3]: *** [/local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc/elf/ld.so] Error 1
+[ALL  ]    make[3]: Leaving directory `/local/nyet-build/crosstool-ng-svn/targets/src/glibc-2.9/elf'
+[ERROR]    make[2]: *** [elf/subdir_lib] Error 2
+[ALL  ]    make[2]: Leaving directory `/local/nyet-build/crosstool-ng-svn/targets/src/glibc-2.9'
+[ERROR]    make[1]: *** [all] Error 2
+[ALL  ]    make[1]: Leaving directory `/local/nyet-build/crosstool-ng-svn/targets/powerpc-860-linux-gnu/build/build-libc'
+[ERROR]    Build failed in step 'Installing C library'
+[ERROR]    Error happened in '/local/nyet-build/crosstool-ng-svn/scripts/functions' in function 'CT_DoExecLog' (line unknown, sorry)
+[ERROR]          called from '/local/nyet-build/crosstool-ng-svn/scripts/build/libc/glibc.sh' at line # 504 in function 'do_libc'
+[ERROR]          called from '/local/nyet-build/crosstool-ng-svn/scripts/crosstool-NG.sh' at line # 478 in function 'main'
+
+--- glibc-2.9_orig/elf/Makefile	2009-03-26 20:26:42.000000000 -0700
++++ glibc-2.9/elf/Makefile	2009-03-26 20:14:11.000000000 -0700
+@@ -304,7 +304,7 @@
+ 		  $(LDFLAGS-rtld) -Wl,-z,defs -Wl,--verbose 2>&1 |	\
+ 		  LC_ALL=C \
+ 		  sed -e '/^=========/,/^=========/!d;/^=========/d'	\
+-		      -e 's/\. = 0 + SIZEOF_HEADERS;/& _begin = . - SIZEOF_HEADERS;/' \
++		      -e 's/\. = .* + SIZEOF_HEADERS;/& _begin = . - SIZEOF_HEADERS;/' \
+ 		  > $@.lds
+ 	$(LINK.o) -nostdlib -nostartfiles -shared -o $@			\
+ 		  $(LDFLAGS-rtld) -Wl,-z,defs $(z-now-$(bind-now))	\
