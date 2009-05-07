@@ -266,7 +266,15 @@ do_libc() {
     
     CT_DoLog EXTRA "Building C library"
 
-    CT_DoExecLog ALL make
+    # eglibc build hacks
+    # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
+    case "${CT_ARCH},${CT_ARCH_CPU}" in
+        powerpc,8??)
+            CT_DoLog DEBUG "Activating support for memset on broken ppc-8xx (CPU15 erratum)"
+            EGLIBC_BUILD_ASFLAGS="-DBROKEN_PPC_8xx_CPU15";;
+    esac
+
+    CT_DoExecLog ALL make ASFLAGS="${EGLIBC_BUILD_ASFLAGS}"
 
     CT_DoLog EXTRA "Installing C library"
 
