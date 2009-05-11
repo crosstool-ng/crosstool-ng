@@ -85,7 +85,7 @@ do_libc_headers() {
     fi
 
     CT_DoLog EXTRA "Installing headers"
-    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" ${install_rule}"
+    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" "${install_rule}"
 
     CT_EndStep
 }
