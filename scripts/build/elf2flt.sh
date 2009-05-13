@@ -5,9 +5,9 @@
 
 # Download elf2flt
 do_elf2flt_get() {
-    CT_GetCVS "elf2flt-cvs-${CT_ELF2FLT_VERSION}"                    \
-              ":pserver:anonymous@cvs.uclinux.org:/var/cvs"  \
-              "elf2flt"                                            \
+    CT_GetCVS "elf2flt-cvs-${CT_ELF2FLT_VERSION}"           \
+              ":pserver:anonymous@cvs.uclinux.org:/var/cvs" \
+              "elf2flt"                                     \
               "" \
               "elf2flt-cvs-${CT_ELF2FLT_VERSION}"
 }
