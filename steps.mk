@@ -22,6 +22,7 @@ CT_STEPS := libc_check_config   \
             mpfr                \
             ppl                 \
             binutils            \
+            elf2flt             \
             cc_core_pass_1      \
             libc_headers        \
             libc_start_files    \
