@@ -1,0 +1,30 @@
+#!@@CT_bash@@
+
+# What we need:
+#  - the .config file
+
+# Parse the tools' paths configuration
+. "${CT_LIB_DIR}/paths.mk"
+
+# We'll need the stdout later, save it
+exec 7>&1
+
+# Parse the common functions
+. "${CT_LIB_DIR}/scripts/functions"
+
+# Don't care about any log file
+exec >/dev/null
+rm -f "${tmp_log_file}"
+
+# Parse the configuration file
+. .config
+
+# Parse architecture and kernel specific functions
+. "${CT_LIB_DIR}/scripts/build/arch/${CT_ARCH}.sh"
+. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
+
+# Build CT_TARGET
+CT_DoBuildTargetTuple
+
+# All this for this single echo... :-( Sigh, I'll have to re-arrange things...
+echo "${CT_TARGET}" >&7
