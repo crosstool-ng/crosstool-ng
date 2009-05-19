@@ -1,0 +1,30 @@
+Fix bug reported by Thomas Petazzoni <thomas.petazzoni@free-electrons.com>:
+See: http://sourceware.org/ml/crossgcc/2009-05/msg00055.html
+     https://bugzilla.redhat.com/show_bug.cgi?id=436037
+
+Fix from: http://cvs.fedoraproject.org/viewvc/devel/gdb/gdb-6.8-bz436037-reg-no-longer-active.patch?revision=1.1
+
+diff -d -urpN src.0/gdb/valops.c src.1/gdb/valops.c
+--- src.0/gdb/valops.c	2008-07-27 04:00:03.000000000 +0200
++++ src.1/gdb/valops.c	2008-07-31 15:17:42.000000000 +0200
+@@ -813,10 +813,18 @@ value_assign (struct value *toval, struc
+ 	struct frame_info *frame;
+ 	int value_reg;
+ 
+-	/* Figure out which frame this is in currently.  */
+-	frame = frame_find_by_id (VALUE_FRAME_ID (toval));
+ 	value_reg = VALUE_REGNUM (toval);
+ 
++	/* Figure out which frame this is in currently.  */
++	frame = frame_find_by_id (VALUE_FRAME_ID (toval));
++	/* "set $reg+=1" should work on programs with no debug info,
++	   but frame_find_by_id returns NULL here (RH bug 436037).
++	   Use current frame, it represents CPU state in this case.
++	   If frame_find_by_id is changed to do it internally
++	   (it is contemplated there), remove this.  */
++	if (!frame)
++	  frame = get_current_frame ();
++	/* Probably never happens.  */
+ 	if (!frame)
+ 	  error (_("Value being assigned to is no longer active."));
+ 	
