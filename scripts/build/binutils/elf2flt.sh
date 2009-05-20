@@ -67,9 +67,3 @@ do_elf2flt() {
 
     CT_EndStep
 }
-
-# Now on for the target libraries
-do_elf2flt_target() {
-    exit -1
-}
-
