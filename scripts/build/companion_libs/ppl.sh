@@ -14,7 +14,8 @@ if [ "${CT_PPL_CLOOG}" = "y" ]; then
 do_ppl_get() {
     CT_GetFile "ppl-${CT_PPL_VERSION}"                                      \
         http://www.cs.unipr.it/ppl/Download/ftp/releases/${CT_PPL_VERSION}  \
-        ftp://ftp.cs.unipr.it/pub/ppl/releases/${CT_PPL_VERSION}
+        ftp://ftp.cs.unipr.it/pub/ppl/releases/${CT_PPL_VERSION}            \
+        ftp://gcc.gnu.org/pub/gcc/infrastructure
 }
 
 # Extract PPL
