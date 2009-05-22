@@ -41,9 +41,10 @@ do_libc() {
 
     CT_DoLog EXTRA "Configuring C library"
 
-    BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
-    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    # FIXME
+#    BUILD_CC="${CT_BUILD}-gcc"                                      \
+#    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
+#    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     CT_DoExecLog ALL                                                \
