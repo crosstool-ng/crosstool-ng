@@ -8,8 +8,13 @@
 
 do_libc_get() {
     libc_src="ftp://sources.redhat.com/pub/newlib"
-
+    avr32headers_src="http://dev.doredevelopment.dk/avr32-toolchain/sources"
+    
     CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
+
+    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
+        CT_GetFile "avr32headers" ${avr32headers_src}
+    fi
 
     return 0
 }
@@ -17,6 +22,10 @@ do_libc_get() {
 do_libc_extract() {
     CT_Extract "newlib-${CT_LIBC_VERSION}"
     CT_Patch "newlib-${CT_LIBC_VERSION}"
+
+    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
+        CT_Extract "avr32headers"
+    fi
 
     return 0
 }
@@ -68,5 +77,11 @@ do_libc() {
 }
 
 do_libc_finish() {
-    :
+    CT_DoStep INFO "Installing Atmel AVR32 headers"
+    
+    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
+        CT_DoExecLog ALL cp -r ${CT_SRC_DIR}/avr32headers "${CT_PREFIX_DIR}/${CT_TARGET}/include/avr32"
+    fi
+
+    CT_EndStep
 }
