@@ -34,7 +34,7 @@ do_gmp() {
 
     if [ "${CT_PPL_CLOOG}" = "y" ]; then
         opts="--enable-cxx"
-        cflags="-fexceptions"
+        cflags="-fexceptions -fPIC"
     fi
 
     CFLAGS="${CT_CFLAGS_FOR_HOST} ${cflags}"        \
@@ -43,8 +43,8 @@ do_gmp() {
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --prefix="${CT_PREFIX_DIR}"                 \
-        --disable-shared                            \
-        --enable-static                             \
+        --enable-shared                             \
+        --disable-static                            \
         --enable-fft                                \
         --enable-mpbsd                              \
         ${opts}
