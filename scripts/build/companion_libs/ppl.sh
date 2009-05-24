@@ -31,8 +31,8 @@ do_ppl() {
     CT_DoStep INFO "Installing PPL"
 
     CT_DoLog EXTRA "Configuring PPL"
-    CFLAGS="${CT_CFLAGS_FOR_HOST} -fPIC"            \
-    CXXFLAGS="${CT_CFLAGS_FOR_HOST} -fPIC"          \
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CXXFLAGS="${CT_CFLAGS_FOR_HOST}"                \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
