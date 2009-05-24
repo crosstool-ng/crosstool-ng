@@ -34,7 +34,7 @@ do_gmp() {
 
     if [ "${CT_PPL_CLOOG}" = "y" ]; then
         opts="--enable-cxx"
-        cflags="-fexceptions -fPIC"
+        cflags="-fexceptions"
     fi
 
     CFLAGS="${CT_CFLAGS_FOR_HOST} ${cflags}"        \
