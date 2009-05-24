@@ -31,7 +31,8 @@ do_ppl() {
     CT_DoStep INFO "Installing PPL"
 
     CT_DoLog EXTRA "Configuring PPL"
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CFLAGS="${CT_CFLAGS_FOR_HOST} -fPIC"            \
+    CXXFLAGS="${CT_CFLAGS_FOR_HOST} -fPIC"          \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
@@ -39,8 +40,8 @@ do_ppl() {
         --prefix="${CT_PREFIX_DIR}"                 \
         --with-libgmp-prefix="${CT_PREFIX_DIR}"     \
         --with-libgmpxx-prefix="${CT_PREFIX_DIR}"   \
-        --disable-shared                            \
-        --enable-static                             \
+        --enable-shared                             \
+        --disable-static                            \
         --disable-debugging                         \
         --disable-assertions                        \
         --disable-ppl_lcdd                          \
