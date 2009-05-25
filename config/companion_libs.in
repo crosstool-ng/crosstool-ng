@@ -20,17 +20,6 @@ config GMP_MPFR
         - gcc
         - gdb
 
-config GMP_MPFR_TARGET
-    bool
-    prompt "Build libraries for the target"
-    depends on GMP_MPFR
-    depends on ! BARE_METAL
-    default n
-    help
-      Also build libraries for the target. This can be usefull if you want
-      to later build a compiler that will run on the target, or if you want
-      to run gdb natively on the target.
-
 if GMP_MPFR
 source config/companion_libs/gmp.in
 source config/companion_libs/mpfr.in
@@ -56,5 +45,40 @@ source config/companion_libs/ppl.in
 source config/companion_libs/cloog.in
 source config/companion_libs/mpc.in
 endif
+
+comment "Common companion libraries options"
+    depends on GMP_MPFR || PPL_CLOOG_MPC
+
+config COMP_LIBS_CHECK
+    bool
+    prompt "Check the companion libraries builds (!!! READ HELP!!!)"
+    depends on GMP_MPFR || PPL_CLOOG_MPC
+    default n
+    help
+      It is highly recommended to check the newly built companion libraries.
+      Unfortunately, this is a very intensive task, and takes a loooong time.
+
+      Checking the newly built companion libraries is thus disabled by default,
+      but it is suggested that you check them at least once or your machine,
+      and if they work, disable the check on subsequent builds.
+
+      If you suspect that one (or more) of your companion libraries is the
+      cause for incorrectly generated code, you should answer 'Y' here.
+      Note however that this will take a really long time. For example,
+      building PPL on my machine takes roughly 1'40", while checking it takes
+      about 1h30"...
+
+config COMP_LIBS_TARGET
+    bool
+    prompt "Build companion libraries for the target"
+    depends on GMP_MPFR || PPL_CLOOG_MPC
+    depends on ! BARE_METAL
+    default n
+    help
+      Also build companion libraries for the target. This can be usefull if
+      you want to later build a compiler that will run on the target, or if
+      you want to run gdb natively on the target.
+      
+      Please note that for now, crosstool-NG can only build GMP and MPFR so.
 
 endmenu

@@ -46,7 +46,7 @@ do_cloog() {
     CT_DoLog EXTRA "Building CLooG/ppl"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_CLOOG_CHECK}" = "y" ]; then
+    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking CLooG/ppl"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi

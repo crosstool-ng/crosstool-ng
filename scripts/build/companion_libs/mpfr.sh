@@ -84,7 +84,7 @@ do_mpfr() {
     CT_DoLog EXTRA "Building MPFR"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_MPFR_CHECK}" = "y" ]; then
+    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPFR"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi
@@ -95,7 +95,7 @@ do_mpfr() {
     CT_EndStep
 }
 
-if [ "${CT_GMP_MPFR_TARGET}" = "y" ]; then
+if [ "${CT_COMP_LIBS_TARGET}" = "y" ]; then
 
 do_mpfr_target() {
     mkdir -p "${CT_BUILD_DIR}/build-mpfr-target"
