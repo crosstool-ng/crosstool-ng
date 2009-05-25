@@ -8,7 +8,7 @@ do_cloog() { :; }
 do_cloog_target() { :; }
 
 # Overide functions depending on configuration
-if [ "${CT_PPL_CLOOG}" = "y" ]; then
+if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
 
 # Download CLooG
 do_cloog_get() {
@@ -57,4 +57,4 @@ do_cloog() {
     CT_EndStep
 }
 
-fi # CT_PPL_CLOOG
+fi # CT_PPL_CLOOG_MPC

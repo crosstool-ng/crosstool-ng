@@ -8,7 +8,7 @@ do_ppl() { :; }
 do_ppl_target() { :; }
 
 # Overide functions depending on configuration
-if [ "${CT_PPL_CLOOG}" = "y" ]; then
+if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
 
 # Download PPL
 do_ppl_get() {
@@ -65,4 +65,4 @@ do_ppl() {
     CT_EndStep
 }
 
-fi # CT_PPL_CLOOG
+fi # CT_PPL_CLOOG_MPC
