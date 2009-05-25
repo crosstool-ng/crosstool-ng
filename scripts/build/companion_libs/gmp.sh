@@ -22,8 +22,6 @@ do_gmp_extract() {
 }
 
 do_gmp() {
-    local opts
-    local cflags
 
     mkdir -p "${CT_BUILD_DIR}/build-gmp"
     cd "${CT_BUILD_DIR}/build-gmp"
@@ -32,12 +30,7 @@ do_gmp() {
 
     CT_DoLog EXTRA "Configuring GMP"
 
-    if [ "${CT_PPL_CLOOG}" = "y" ]; then
-        opts="--enable-cxx"
-        cflags="-fexceptions"
-    fi
-
-    CFLAGS="${CT_CFLAGS_FOR_HOST} ${cflags}"        \
+    CFLAGS="${CT_CFLAGS_FOR_HOST} -fexceptions"     \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
         --build=${CT_BUILD}                         \
@@ -47,7 +40,7 @@ do_gmp() {
         --disable-static                            \
         --enable-fft                                \
         --enable-mpbsd                              \
-        ${opts}
+        --enable-cxx
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
