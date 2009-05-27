@@ -132,11 +132,19 @@ do_cc_core() {
     extra_config="${extra_config} ${CT_ARCH_WITH_TUNE}"
     extra_config="${extra_config} ${CT_ARCH_WITH_FPU}"
     extra_config="${extra_config} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_GMP_MPFR}" = "y" ] && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config="${extra_config} --enable-__cxa_atexit"
     else
         extra_config="${extra_config} --disable-__cxa_atexit"
+    fi
+    if [ "${CT_GMP_MPFR}" = "y" ]; then
+        extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR}"
+        extra_config="${extra_config} --with-mpfr=${CT_PREFIX_DIR}"
+    fi
+    if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
+        extra_config="${extra_config} --with-ppl=${CT_PREFIX_DIR}"
+        extra_config="${extra_config} --with-cloog=${CT_PREFIX_DIR}"
+        extra_config="${extra_config} --with-mpc=${CT_PREFIX_DIR}"
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
@@ -266,7 +274,6 @@ do_cc() {
     extra_config="${extra_config} ${CT_ARCH_WITH_FPU}"
     extra_config="${extra_config} ${CT_ARCH_WITH_FLOAT}"
     [ "${CT_SHARED_LIBS}" = "y" ]                   || extra_config="${extra_config} --disable-shared"
-    [ "${CT_GMP_MPFR}" = "y" ]                      && extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
     [ -n "${CT_CC_PKGVERSION}" ]                    && extra_config="${extra_config} --with-pkgversion=${CT_CC_PKGVERSION}"
     [ -n "${CT_CC_BUGURL}" ]                        && extra_config="${extra_config} --with-bugurl=${CT_CC_BUGURL}"
     [ "${CT_CC_SJLJ_EXCEPTIONS_USE}" = "y" ]        && extra_config="${extra_config} --enable-sjlj-exceptions"
@@ -275,6 +282,15 @@ do_cc() {
         extra_config="${extra_config} --enable-__cxa_atexit"
     else
         extra_config="${extra_config} --disable-__cxa_atexit"
+    fi
+    if [ "${CT_GMP_MPFR}" = "y" ]; then
+        extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR}"
+        extra_config="${extra_config} --with-mpfr=${CT_PREFIX_DIR}"
+    fi
+    if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
+        extra_config="${extra_config} --with-ppl=${CT_PREFIX_DIR}"
+        extra_config="${extra_config} --with-cloog=${CT_PREFIX_DIR}"
+        extra_config="${extra_config} --with-mpc=${CT_PREFIX_DIR}"
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
