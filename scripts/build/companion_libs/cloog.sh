@@ -39,8 +39,8 @@ do_cloog() {
         --prefix="${CT_PREFIX_DIR}"     \
         --with-gmp="${CT_PREFIX_DIR}"   \
         --with-ppl="${CT_PREFIX_DIR}"   \
-        --disable-shared                \
-        --enable-static                 \
+        --enable-shared                 \
+        --disable-static                \
         --with-bits=gmp
 
     CT_DoLog EXTRA "Building CLooG/ppl"
