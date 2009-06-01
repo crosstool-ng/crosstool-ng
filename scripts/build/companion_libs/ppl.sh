@@ -62,6 +62,9 @@ do_ppl() {
     CT_DoLog EXTRA "Installing PPL"
     CT_DoExecLog ALL make install
 
+    # Remove spuriously installed file
+    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/bin/ppl-config"
+
     CT_EndStep
 }
 

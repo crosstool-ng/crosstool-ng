@@ -54,6 +54,9 @@ do_cloog() {
     CT_DoLog EXTRA "Installing CLooG/ppl"
     CT_DoExecLog ALL make install
 
+    # Remove spuriously installed file
+    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/bin/cloog"
+
     CT_EndStep
 }
 
