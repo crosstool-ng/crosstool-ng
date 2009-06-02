@@ -4,6 +4,8 @@
 # un-wanted files, to add tuple aliases, and to add the final
 # crosstool-NG-provided files.
 do_finish() {
+    local _t
+
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
     CT_DoLog EXTRA "Removing access to the build system tools"
@@ -38,6 +40,23 @@ do_finish() {
         fi
     done
     CT_Popd
+
+    # If using the companion libraries, we need a wrapper
+    # that will set LD_LIBRARY_PATH approriately
+    if [    "${CT_GMP_MPFR}" = "y"      \
+         -o "${CT_PPL_CLOOG_MPC}" = "y" ]; then
+        CT_DoLog EXTRA "Installing toolchain wrappers"
+        CT_Pushd "${CT_PREFIX_DIR}/bin"
+        sed -r -e 's|@@CT_bash@@|'"${bash}"'|g;'    \
+            "${CT_LIB_DIR}/scripts/wrapper.in"      \
+            >".${CT_TARGET}-wrapper"
+        CT_DoExecLog ALL chmod 755 ".${CT_TARGET}-wrapper"
+        for t in "${CT_TARGET}-"*; do
+            CT_DoExecLog ALL mv "${t}" ".${t}"
+            CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${t}"
+        done
+        CT_Popd
+    fi
 
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then
