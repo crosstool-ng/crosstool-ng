@@ -47,14 +47,24 @@ do_finish() {
          -o "${CT_PPL_CLOOG_MPC}" = "y" ]; then
         CT_DoLog EXTRA "Installing toolchain wrappers"
         CT_Pushd "${CT_PREFIX_DIR}/bin"
-        sed -r -e 's|@@CT_bash@@|'"${bash}"'|g;'    \
-            "${CT_LIB_DIR}/scripts/wrapper.in"      \
-            >".${CT_TARGET}-wrapper"
-        CT_DoExecLog ALL chmod 755 ".${CT_TARGET}-wrapper"
+
+        # Copy the wrapper
+        CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/scripts/wrapper.in"   \
+                                           ".${CT_TARGET}-wrapper"
+
+        # Replace every tools with the wrapper
+        # Do it unconditionally, even for those tools that happen to be shell
+        # scripts, we don't know if they would in the end spawn a binary...
+        # Just skip symlinks
         for t in "${CT_TARGET}-"*; do
-            CT_DoExecLog ALL mv "${t}" ".${t}"
-            CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${t}"
+            if [ "$( LANG=C stat -c '%F' "${t}" )" != "symbolic link" ]; then
+                CT_DoExecLog ALL mv "${t}" ".${t}"
+                CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${t}"
+            fi
         done
+
+        # Get rid of the wrapper, we're using hardlinks
+        CT_DoExecLog DEBUG rm -f ".${CT_TARGET}-wrapper"
         CT_Popd
     fi
 
