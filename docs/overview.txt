@@ -455,6 +455,33 @@ The populate script accepts the following options:
 
 See 'your-target-tuple-populate -h' for more information on the options.
 
+Here is how populate works:
+
+  1) performs some sanity checks:
+     - src_dir and dst_dir are specified
+     - src_dir exists
+     - unless forced, dst_dir does not exist
+     - src_dir != dst_dir
+
+  2) copy src_dir to dst_dir
+
+  3) add forced libraries to dst_dir
+     - build the list from -l and -L options
+     - get forced libraries from the sysroot (see below for heuristics)
+       - abort on the first missing library, unless -f is specified
+
+  4) add all missing libraries to dst_dir
+     - scan dst_dir for every ELF files that are 'executable' or
+       'shared object'
+     - list the "NEEDED Shared library" fields
+       - check if the library is already in dst_dir/lib or dst_dir/usr/lib
+       - if not, get the library from the sysroot
+         - if it's in sysroot/lib, copy it to dst_dir/lib
+         - if it's in sysroot/usr/lib, copy it to dst_dir/usr/lib
+         - in both cases, use the SONAME of the library to create the file
+           in dst_dir
+         - if it was not found in the sysroot, this is an error.
+
 ___________________
                   /
 Toolchain types  /
