@@ -1,8 +1,8 @@
 # This file adds functions to build the Newlib C library
-# Copyright 2008 Yann E. MORIN
+# Copyright 2009 DoréDevelopment
 # Licensed under the GPL v2. See COPYING in the root of this package
 #
-# Edited by by Martin Lund <mgl@doredevelopment.dk>
+# Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
 
