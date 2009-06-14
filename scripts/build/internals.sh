@@ -56,10 +56,10 @@ do_finish() {
         # Do it unconditionally, even for those tools that happen to be shell
         # scripts, we don't know if they would in the end spawn a binary...
         # Just skip symlinks
-        for t in "${CT_TARGET}-"*; do
-            if [ "$( LANG=C stat -c '%F' "${t}" )" != "symbolic link" ]; then
-                CT_DoExecLog ALL mv "${t}" ".${t}"
-                CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${t}"
+        for _t in "${CT_TARGET}-"*; do
+            if [ "$( LANG=C stat -c '%F' "${_t}" )" != "symbolic link" ]; then
+                CT_DoExecLog ALL mv "${t}" ".${_t}"
+                CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${_t}"
             fi
         done
 
