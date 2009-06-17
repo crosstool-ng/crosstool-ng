@@ -21,6 +21,8 @@ CT_STEPS := libc_check_config   \
             gmp                 \
             mpfr                \
             ppl                 \
+            cloog               \
+            mpc                 \
             binutils            \
             elf2flt             \
             cc_core_pass_1      \

@@ -22,8 +22,6 @@ do_gmp_extract() {
 }
 
 do_gmp() {
-    local opts
-    local cflags
 
     mkdir -p "${CT_BUILD_DIR}/build-gmp"
     cd "${CT_BUILD_DIR}/build-gmp"
@@ -32,27 +30,22 @@ do_gmp() {
 
     CT_DoLog EXTRA "Configuring GMP"
 
-    if [ "${CT_PPL_CLOOG}" = "y" ]; then
-        opts="--enable-cxx"
-        cflags="-fexceptions"
-    fi
-
-    CFLAGS="${CT_CFLAGS_FOR_HOST} ${cflags}"        \
+    CFLAGS="${CT_CFLAGS_FOR_HOST} -fexceptions"     \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --prefix="${CT_PREFIX_DIR}"                 \
-        --disable-shared                            \
-        --enable-static                             \
+        --enable-shared                             \
+        --disable-static                            \
         --enable-fft                                \
         --enable-mpbsd                              \
-        ${opts}
+        --enable-cxx
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_GMP_CHECK}" = "y" ]; then
+    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking GMP"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi
@@ -63,7 +56,7 @@ do_gmp() {
     CT_EndStep
 }
 
-if [ "${CT_GMP_MPFR_TARGET}" = "y" ]; then
+if [ "${CT_COMP_LIBS_TARGET}" = "y" ]; then
 
 do_gmp_target() {
     mkdir -p "${CT_BUILD_DIR}/build-gmp-target"
