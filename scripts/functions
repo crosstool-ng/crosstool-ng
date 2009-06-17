@@ -265,6 +265,36 @@ CT_DoYes() {
     yes "$1" || true
 }
 
+# Add the specified directory to LD_LIBRARY_PATH, and export it
+# If the specified patch is already present, just export
+# $1: path to add
+# $2: add as 'first' or 'last' path, 'first' is assumed if $2 is empty
+# Usage CT_SetLibPath /some/where/lib [first|last]
+CT_SetLibPath() {
+    local path="$1"
+    local pos="$2"
+
+    case ":${LD_LIBRARY_PATH}:" in
+        *:"${path}":*)  ;;
+        *)  case "${pos}" in
+                last)
+                    CT_DoLog DEBUG "Adding '${path}' at end of LD_LIBRARY_PATH"
+                    LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+${LD_LIBRARY_PATH}:}${path}"
+                    ;;
+                first|"")
+                    CT_DoLog DEBUG "Adding '${path}' at start of LD_LIBRARY_PATH"
+                    LD_LIBRARY_PATH="${path}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+                    ;;
+                *)
+                    CT_Abort "Incorrect position '${pos}' to add '${path}' to LD_LIBRARY_PATH"
+                    ;;
+            esac
+            ;;
+    esac
+    CT_DoLog DEBUG "==> LD_LIBRARY_PATH='${LD_LIBRARY_PATH}'"
+    export LD_LIBRARY_PATH
+}
+
 # Get the file name extension of a component
 # Usage: CT_GetFileExtension <component_name-component_version> [extension]
 # If found, echoes the extension to stdout

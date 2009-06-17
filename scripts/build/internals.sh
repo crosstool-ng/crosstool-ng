@@ -4,6 +4,8 @@
 # un-wanted files, to add tuple aliases, and to add the final
 # crosstool-NG-provided files.
 do_finish() {
+    local _t
+
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
     CT_DoLog EXTRA "Removing access to the build system tools"
@@ -38,6 +40,33 @@ do_finish() {
         fi
     done
     CT_Popd
+
+    # If using the companion libraries, we need a wrapper
+    # that will set LD_LIBRARY_PATH approriately
+    if [    "${CT_GMP_MPFR}" = "y"      \
+         -o "${CT_PPL_CLOOG_MPC}" = "y" ]; then
+        CT_DoLog EXTRA "Installing toolchain wrappers"
+        CT_Pushd "${CT_PREFIX_DIR}/bin"
+
+        # Copy the wrapper
+        CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/scripts/wrapper.in"   \
+                                           ".${CT_TARGET}-wrapper"
+
+        # Replace every tools with the wrapper
+        # Do it unconditionally, even for those tools that happen to be shell
+        # scripts, we don't know if they would in the end spawn a binary...
+        # Just skip symlinks
+        for _t in "${CT_TARGET}-"*; do
+            if [ "$( LANG=C stat -c '%F' "${_t}" )" != "symbolic link" ]; then
+                CT_DoExecLog ALL mv "${t}" ".${_t}"
+                CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${_t}"
+            fi
+        done
+
+        # Get rid of the wrapper, we're using hardlinks
+        CT_DoExecLog DEBUG rm -f ".${CT_TARGET}-wrapper"
+        CT_Popd
+    fi
 
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then

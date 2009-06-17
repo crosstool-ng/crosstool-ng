@@ -20,35 +20,68 @@ config GMP_MPFR
         - gcc
         - gdb
 
-config GMP_MPFR_TARGET
-    bool
-    prompt "Build libraries for the target"
-    depends on GMP_MPFR
-    depends on ! BARE_METAL
-    default n
-    help
-      Also build libraries for the target. This can be usefull if you want
-      to later build a compiler that will run on the target, or if you want
-      to run gdb natively on the target.
-
 if GMP_MPFR
 source config/companion_libs/gmp.in
 source config/companion_libs/mpfr.in
 endif
 
-config PPL_CLOOG
+config PPL_CLOOG_MPC
     bool
-    prompt "PPL and GLooG/PPL"
+    prompt "PPL, GLooG/PPL and MPC"
     help
-      gcc-4.4.0 and above requires both PPL and CLooG/PPL to build some
-      parts of the optimiser (GRAPHITE loop optimisation, to be precise).
+      gcc-4.4.0 and above requires PPL and CLooG/PPL to build some parts
+      of the optimiser (GRAPHITE loop optimisation, to be precise).
+      
+      In addition to those, gcc-4.4 also optionally uses MPC to enable
+      additional optimisations on complex numbers. Although MPC is optional,
+      crosstool-NG requires it and uses it to build gcc >= 4.4.0.
       
       These will be automatically selected if you choose gcc>=4.4.0, but you
       can say 'Y' here, although it is unknown yet if any other component
       can use them.
 
-if PPL_CLOOG
+if PPL_CLOOG_MPC
 source config/companion_libs/ppl.in
+source config/companion_libs/cloog.in
+source config/companion_libs/mpc.in
 endif
+
+config FOO
+    bool
+
+comment "Companion libraries common options"
+    depends on GMP_MPFR || PPL_CLOOG_MPC
+
+config COMP_LIBS_CHECK
+    bool
+    prompt "|  Check the companion libraries builds (!!! READ HELP!!!)"
+    depends on GMP_MPFR || PPL_CLOOG_MPC
+    default n
+    help
+      It is highly recommended to check the newly built companion libraries.
+      Unfortunately, this is a very intensive task, and takes a loooong time.
+      
+      Checking the newly built companion libraries is thus disabled by default,
+      but it is suggested that you check them at least once on your machine,
+      and if they work, disable the check on subsequent builds.
+      
+      If you suspect that one (or more) of your companion libraries is the
+      cause for incorrectly generated code, you should answer 'Y' here.
+      Note however that this will take a really long time. For example,
+      building PPL on my machine takes roughly 1'40", while checking it takes
+      about 1h40'...
+
+config COMP_LIBS_TARGET
+    bool
+    prompt "|  Build companion libraries for the target"
+    depends on GMP_MPFR || PPL_CLOOG_MPC
+    depends on ! BARE_METAL
+    default n
+    help
+      Also build companion libraries for the target. This can be usefull if
+      you want to later build a compiler that will run on the target, or if
+      you want to run gdb natively on the target.
+      
+      Please note that for now, crosstool-NG can only build GMP and MPFR so.
 
 endmenu

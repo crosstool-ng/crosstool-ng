@@ -8,13 +8,14 @@ do_ppl() { :; }
 do_ppl_target() { :; }
 
 # Overide functions depending on configuration
-if [ "${CT_PPL_CLOOG}" = "y" ]; then
+if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
 
 # Download PPL
 do_ppl_get() {
     CT_GetFile "ppl-${CT_PPL_VERSION}"                                      \
         http://www.cs.unipr.it/ppl/Download/ftp/releases/${CT_PPL_VERSION}  \
-        ftp://ftp.cs.unipr.it/pub/ppl/releases/${CT_PPL_VERSION}
+        ftp://ftp.cs.unipr.it/pub/ppl/releases/${CT_PPL_VERSION}            \
+        ftp://gcc.gnu.org/pub/gcc/infrastructure
 }
 
 # Extract PPL
@@ -31,6 +32,7 @@ do_ppl() {
 
     CT_DoLog EXTRA "Configuring PPL"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CXXFLAGS="${CT_CFLAGS_FOR_HOST}"                \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
@@ -38,8 +40,8 @@ do_ppl() {
         --prefix="${CT_PREFIX_DIR}"                 \
         --with-libgmp-prefix="${CT_PREFIX_DIR}"     \
         --with-libgmpxx-prefix="${CT_PREFIX_DIR}"   \
-        --disable-shared                            \
-        --enable-static                             \
+        --enable-shared                             \
+        --disable-static                            \
         --disable-debugging                         \
         --disable-assertions                        \
         --disable-ppl_lcdd                          \
@@ -52,7 +54,7 @@ do_ppl() {
     CT_DoLog EXTRA "Building PPL"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_PPL_CHECK}" = "y" ]; then
+    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking PPL"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi
@@ -60,7 +62,10 @@ do_ppl() {
     CT_DoLog EXTRA "Installing PPL"
     CT_DoExecLog ALL make install
 
+    # Remove spuriously installed file
+    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/bin/ppl-config"
+
     CT_EndStep
 }
 
-fi # CT_PPL_CLOOG
+fi # CT_PPL_CLOOG_MPC
