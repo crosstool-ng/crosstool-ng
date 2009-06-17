@@ -364,23 +364,15 @@ has_or_abort lib="${ncurses_libs}"                  \
 # If this version is a svn snapshot, try to get the revision number
 # If we can't get the revision number, use date
 case "${VERSION}" in
-    *+svn|svn)
-        has_or_abort prog=svnversion
+    *+hg|hg)
+        has_or_abort prog=hg
         printf "Computing version string... "
-        REVISION="$( LC_ALL=C svnversion )"
+        REVISION="$( hg id -n 2>/dev/null )"
         case "${REVISION}" in
-            exported)
+            "")
                 VERSION="${VERSION}_unknown@$( date +%Y%m%d.%H%M%S )";;
             *)
-                URL="$( LC_ALL=C svn info 2>/dev/null   \
-                                 |egrep 'URL: '         \
-                                 |cut -d ' ' -f 2-      \
-                      )"
-                ROOT="$( LC_ALL=C svn info 2>/dev/null      \
-                         |"${grep}" '^Repository Root: '    \
-                         |cut -d ' ' -f 3-                  \
-                       )"
-                VERSION="${VERSION}${URL#${ROOT}}@${REVISION}"
+                VERSION="${VERSION}:$( hg id -b )@${REVISION%%+}:$( hg id -i )"
                 ;;
         esac
         # Arrange to have no / in the directory name, no need to create an
