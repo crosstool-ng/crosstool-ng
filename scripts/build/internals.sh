@@ -58,7 +58,7 @@ do_finish() {
         # Just skip symlinks
         for _t in "${CT_TARGET}-"*; do
             if [ "$( LANG=C stat -c '%F' "${_t}" )" != "symbolic link" ]; then
-                CT_DoExecLog ALL mv "${t}" ".${_t}"
+                CT_DoExecLog ALL mv "${_t}" ".${_t}"
                 CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${_t}"
             fi
         done
