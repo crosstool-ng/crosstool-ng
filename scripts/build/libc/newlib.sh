@@ -15,8 +15,6 @@ do_libc_get() {
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_GetFile "avr32headers" ${avr32headers_src}
     fi
-
-    return 0
 }
 
 do_libc_extract() {
@@ -26,8 +24,6 @@ do_libc_extract() {
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_Extract "avr32headers"
     fi
-
-    return 0
 }
 
 do_libc_check_config() {
