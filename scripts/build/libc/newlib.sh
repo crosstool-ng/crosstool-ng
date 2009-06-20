@@ -46,8 +46,6 @@ do_libc() {
 
     CT_DoLog EXTRA "Configuring C library"
 
-    CT_DoLog INFO "${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}"
-
 #    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
