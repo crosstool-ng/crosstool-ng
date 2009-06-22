@@ -28,6 +28,31 @@
 # Overide the locale early, in case we ever translate crosstool-NG messages
 [ -z "${CT_NO_OVERIDE_LC_MESSAGES}" ] && export LC_ALL=C
 
+# Some sanity checks in the environment and needed tools
+CT_DoLog INFO "Performing some trivial sanity checks"
+CT_TestAndAbort "Don't set LD_LIBRARY_PATH. It screws up the build." -n "${LD_LIBRARY_PATH}"
+CT_TestAndAbort "Don't set CFLAGS. It screws up the build." -n "${CFLAGS}"
+CT_TestAndAbort "Don't set CXXFLAGS. It screws up the build." -n "${CXXFLAGS}"
+CT_Test "GREP_OPTIONS screws up the build. Resetting." -n "${GREP_OPTIONS}"
+export GREP_OPTIONS=
+
+# Some sanity checks on paths content
+for d in            \
+    LOCAL_TARBALLS  \
+    WORK            \
+    PREFIX          \
+    INSTALL         \
+    ; do
+        eval dir="\${CT_${d}_DIR}"
+        case "${dir}" in
+            *" "*)
+#                CT_DoLog ERROR "'CT_${d}_DIR'='${dir}' contains a space in it."
+#                CT_Abort "Don't use spaces in paths, it breaks things."
+                CT_Abort "'CT_${d}_DIR'='${dir}' contains a space in it.\nDon't use spaces in paths, it breaks things."
+                ;;
+        esac
+done
+
 # Where will we work?
 CT_WORK_DIR="${CT_WORK_DIR:-${CT_TOP_DIR}/targets}"
 CT_DoExecLog ALL mkdir -p "${CT_WORK_DIR}"
@@ -54,6 +79,7 @@ done
 export PATH="${CT_BIN_OVERIDE_DIR}:${PATH}"
 
 # Start date. Can't be done until we know the locale
+# Also requires the bin-override tools
 CT_STAR_DATE=$(CT_DoDate +%s%N)
 CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 
@@ -67,19 +93,9 @@ CT_DoStep DEBUG "Dumping user-supplied crosstool-NG configuration"
 CT_DoExecLog DEBUG grep -E '^(# |)CT_' .config
 CT_EndStep
 
-# Some sanity checks in the environment and needed tools
-CT_DoLog INFO "Checking environment sanity"
-
 CT_DoLog DEBUG "Unsetting and unexporting MAKEFLAGS"
 unset MAKEFLAGS
 export MAKEFLAGS
-
-# Other environment sanity checks
-CT_TestAndAbort "Don't set LD_LIBRARY_PATH. It screws up the build." -n "${LD_LIBRARY_PATH}"
-CT_TestAndAbort "Don't set CFLAGS. It screws up the build." -n "${CFLAGS}"
-CT_TestAndAbort "Don't set CXXFLAGS. It screws up the build." -n "${CXXFLAGS}"
-CT_Test "GREP_OPTIONS screws up the build. Resetting." -n "${GREP_OPTIONS}"
-export GREP_OPTIONS=
 
 CT_DoLog INFO "Building environment variables"
 
@@ -115,7 +131,7 @@ CT_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_TARGET_LDFLAGS}"
 CT_CC_CORE_EXTRA_CONFIG="${CT_ARCH_CC_CORE_EXTRA_CONFIG} ${CT_CC_CORE_EXTRA_CONFIG}"
 CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 
-# Create the working directories
+# Compute the working directories names
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
 CT_SRC_DIR="${CT_WORK_DIR}/src"
 CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
@@ -145,22 +161,6 @@ if [ ! -d "${CT_LOCAL_TARBALLS_DIR}" ]; then
     CT_DoLog WARN "Directory '${CT_LOCAL_TARBALLS_DIR}' does not exist. Will not save downloaded tarballs to local storage."
     CT_SAVE_TARBALLS=
 fi
-
-# Some more sanity checks now that we have all paths set up
-for d in            \
-    LOCAL_TARBALLS  \
-    WORK            \
-    PREFIX          \
-    INSTALL         \
-    ; do
-        eval dir="\${CT_${d}_DIR}"
-        case "${dir}" in
-            *" "*)
-                CT_DoLog ERROR "'CT_${d}_DIR'='${dir}' contains a space in it."
-                CT_Abort "Don't use spaces in paths, it breaks things."
-                ;;
-        esac
-done
 
 # Check now if we can write to the destination directory:
 if [ -d "${CT_INSTALL_DIR}" ]; then
