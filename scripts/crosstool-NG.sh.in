@@ -60,6 +60,12 @@ CT_DoExecLog DEBUG touch "${CT_WORK_DIR}/foo"
 CT_TestAndAbort "Your file system in '${CT_WORK_DIR}' is *not* case-sensitive!" -f "${CT_WORK_DIR}/FOO"
 CT_DoExecLog DEBUG rm -f "${CT_WORK_DIR}/foo"
 
+# What's our shell?
+# Will be plain /bin/sh on most systems, except if we have /bin/ash and we
+# _explictly_ required using it
+CT_SHELL="/bin/sh"
+[ "${CT_CONFIG_SHELL_ASH}" = "y" -a -x "/bin/ash" ] && CT_SHELL="/bin/ash"
+
 # Create the bin-overide early
 # Contains symlinks to the tools found by ./configure
 # Note: CT_DoLog and CT_DoExecLog do not use any of those tool, so
@@ -71,7 +77,7 @@ cat "${CT_LIB_DIR}/paths.mk" |while read trash line; do
     tool="${line%%=*}"
     path="${line#*=}"
     CT_DoLog DEBUG "  '${tool}' -> '${path}'"
-    printf "#${BANG}/bin/sh\nexec '${path}' \"\${@}\"\n" >"${CT_BIN_OVERIDE_DIR}/${tool}"
+    printf "#${BANG}${CT_SHELL}\nexec '${path}' \"\${@}\"\n" >"${CT_BIN_OVERIDE_DIR}/${tool}"
     CT_DoExecLog ALL chmod 700 "${CT_BIN_OVERIDE_DIR}/${tool}"
 done
 export PATH="${CT_BIN_OVERIDE_DIR}:${PATH}"
@@ -250,12 +256,6 @@ esac
 
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
-    # What's our shell?
-    # Will be plain /bin/sh on most systems, except if we have /bin/ash and we
-    # _explictly_ required using it
-    CT_SHELL="/bin/sh"
-    [ "${CT_CONFIG_SHELL_ASH}" = "y" -a -x "/bin/ash" ] && CT_SHELL="/bin/ash"
-
     # Arrange paths depending on wether we use sys-root or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
         CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/sys-root"
@@ -425,7 +425,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
     # never fails:
     CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
-    printf "#${BANG}/bin/sh\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/bin/makeinfo"
+    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/bin/makeinfo"
     CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/makeinfo"
 
     # Help gcc
