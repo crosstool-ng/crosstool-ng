@@ -64,7 +64,8 @@ do_mpfr() {
     mpfr_opt=
     # Under Cygwin, we can't build a thread-safe library
     case "${CT_HOST}" in
-        *-cygwin)   mpfr_opt="--disable-thread-safe";;
+        *cygwin*)   mpfr_opt="--disable-thread-safe";;
+        *mingw*)    mpfr_opt="--disable-thread-safe";;
         *)          mpfr_opt="--enable-thread-safe";;
     esac
 
