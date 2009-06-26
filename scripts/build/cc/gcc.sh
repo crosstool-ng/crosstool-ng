@@ -41,6 +41,10 @@ do_cc_extract() {
 #------------------------------------------------------------------------------
 # Core gcc pass 1
 do_cc_core_pass_1() {
+    # If we're building a canadian compiler no use to build the CC
+    # core compiler, we're not using it
+    [ -n "${CT_CANADIAN}" ] && return 0
+
     # If we're building for bare metal, build the static core gcc,
     # with libgcc.
     # In case we're not bare metal, and we're NPTL, build the static core gcc.
@@ -54,6 +58,10 @@ do_cc_core_pass_1() {
 
 # Core gcc pass 2
 do_cc_core_pass_2() {
+    # If we're building a canadian compiler no use to build the CC
+    # core compiler, we're not using it
+    [ -n "${CT_CANADIAN}" ] && return 0
+
     # In case we're building for bare metal, do nothing, we already have
     # our compiler.
     # In case we're NPTL, build the shared core gcc and the target libgcc.

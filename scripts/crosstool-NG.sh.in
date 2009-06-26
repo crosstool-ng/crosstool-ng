@@ -223,8 +223,10 @@ CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_CONFIG_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
-CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
+if [ -z "${CT_CANADIAN}" ]; then
+    CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+    CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
+fi
 
 # Only create the state dir if asked for a restartable build
 [ -n "${CT_DEBUG_CT_SAVE_STEPS}" ] && CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"
@@ -319,10 +321,17 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Prepare mangling patterns to later modify BUILD and HOST (see below)
     case "${CT_TOOLCHAIN_TYPE}" in
+        canadian)
+            CT_REAL_TARGET="${CT_TARGET}"
+            build_mangle="build_"
+            host_mangle="host_"
+            install_build_tools_for="BUILD HOST TARGET"
+            ;;
         cross)
             CT_HOST="${CT_BUILD}"
             build_mangle="build_"
             host_mangle="build_"
+            install_build_tools_for="BUILD HOST"
             ;;
         *)  CT_Abort "No code for '${CT_TOOLCHAIN_TYPE}' toolchain type!"
             ;;
@@ -350,7 +359,7 @@ if [ -z "${CT_RESTART}" ]; then
     # cross-tools for those mangled tuples.
     CT_DoLog DEBUG "Making build system tools available"
     CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/buildtools"
-    for m in BUILD HOST; do
+    for m in ${install_build_tools_for}; do
         r="CT_REAL_${m}"
         v="CT_${m}"
         p="CT_${m}_PREFIX"
@@ -418,6 +427,7 @@ if [ -z "${CT_RESTART}" ]; then
     # so don't add those PATHs in this case...
     case "${CT_TOOLCHAIN_TYPE}" in
         cross)  export PATH="${CT_PREFIX_DIR}/buildtools:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        canadian) export PATH="${CT_PREFIX_DIR}/buildtools:${PATH}";;
         *)  ;;
     esac
 
