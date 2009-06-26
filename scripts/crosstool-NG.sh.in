@@ -349,7 +349,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Now we have mangled our BUILD and HOST tuples, we must fake the new
     # cross-tools for those mangled tuples.
     CT_DoLog DEBUG "Making build system tools available"
-    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/bin"
+    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/buildtools"
     for m in BUILD HOST; do
         r="CT_REAL_${m}"
         v="CT_${m}"
@@ -386,8 +386,8 @@ if [ -z "${CT_RESTART}" ]; then
             # bally needed
             if [ -n "${where}" ]; then
                 CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
-                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${!v}-${tool}"
-                CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/${!v}-${tool}"
+                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/buildtools/${!v}-${tool}"
+                CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/${!v}-${tool}"
             else
                 case "${tool}" in
                     # We'll at least need some of them...
@@ -417,7 +417,7 @@ if [ -z "${CT_RESTART}" ]; then
     # Of course, neither cross-native nor canadian can run on BUILD,
     # so don't add those PATHs in this case...
     case "${CT_TOOLCHAIN_TYPE}" in
-        cross)  export PATH="${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        cross)  export PATH="${CT_PREFIX_DIR}/buildtools:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
         *)  ;;
     esac
 
@@ -425,8 +425,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
     # never fails:
     CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
-    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/bin/makeinfo"
-    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/makeinfo"
+    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/buildtools/makeinfo"
+    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/makeinfo"
 
     # Help gcc
     CT_CFLAGS_FOR_HOST=
@@ -446,6 +446,7 @@ if [ -z "${CT_RESTART}" ]; then
     export PARALLELMFLAGS
 
     CT_DoLog EXTRA "Installing user-supplied crosstool-NG configuration"
+    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/bin"
     CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/scripts/toolchain-config.in" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
     CT_DoExecLog DEBUG sed -r -i -e 's,@@grep@@,"'"${grep}"'",;' "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
     bzip2 -c -9 .config >>"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
