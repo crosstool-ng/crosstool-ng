@@ -34,6 +34,12 @@ dump_single_sample() {
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
         echo "]"
         if [ ${verbose} -ne 0 ]; then
+            case "${CT_TOOLCHAIN_TYPE}" in
+                cross)  ;;
+                canadian)
+                    printf "    Host      : ${CT_HOST}\n"
+                    ;;
+            esac
             echo    "    OS        : ${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
             if [ "${CT_GMP_MPFR}" = "y" ]; then
                 echo    "    GMP/MPFR  : gmp-${CT_GMP_VERSION} / mpfr-${CT_MPFR_VERSION}"
@@ -64,8 +70,13 @@ dump_single_sample() {
         printf "|  "
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X"
         [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B"
-        printf '  '
-        printf "|  ''${CT_KERNEL}''  |"
+        printf '  |  '
+        case "${CT_TOOLCHAIN_TYPE}" in
+            cross)      ;;
+            canadian)   printf "${CT_HOST}";;
+            *)          ;;
+        esac
+        printf "  |  ''${CT_KERNEL}''  |"
         if [ "${CT_KERNEL}" != "bare-metal" ];then
             if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
                 printf "  //custom//  "
@@ -102,13 +113,7 @@ dump_single_sample() {
               printf "|  [[http://ymorin.is-a-geek.org/|YEM]]  "
           fi
         )
-        sample_updated=$(date -u "+%Y%m%d"                                                  \
-                              -d "$(LC_ALL=C svn info ${sample_top}/samples/${sample}       \
-                                    |GREP_OPTIONS= "${grep}" -E '^Last Changed Date:'       \
-                                    |"${sed}" -r -e 's/^[^:]+: //;'                         \
-                                            -e 's/^(.+:.. [+-][[:digit:]]{4}) \(.+\)$/\1/;' \
-                                   )"                                                       \
-                        )
+        sample_updated="$( hg log -l 1 --template '{date|shortdate}' "${sample_top}/samples/${sample}" )"
         printf "|  ${sample_updated}  "
         echo "|"
     fi
@@ -124,6 +129,7 @@ if [ "${opt}" = -w ]; then
     echo "^ @@DATE@@  ^ |||||||||||||"
     printf "^ Target "
     printf "^  Status  "
+    printf "^  Host  "
     printf "^  Kernel headers\\\\\\\\ version  ^"
     printf "^  binutils\\\\\\\\ version  "
     printf "^  C compiler\\\\\\\\ version  ^"

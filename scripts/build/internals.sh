@@ -9,9 +9,7 @@ do_finish() {
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
     CT_DoLog EXTRA "Removing access to the build system tools"
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_BUILD}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
-    find "${CT_PREFIX_DIR}/bin" -name "${CT_HOST}-"'*' -exec rm -fv {} \; |CT_DoLog DEBUG
-    CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/bin/makeinfo"
+    CT_DoExecLog DEBUG rm -rf "${CT_PREFIX_DIR}/buildtools"
 
     if [ "${CT_BARE_METAL}" != "y" ]; then
         CT_DoLog EXTRA "Installing the populate helper"

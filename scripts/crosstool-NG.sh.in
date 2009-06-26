@@ -223,8 +223,10 @@ CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_CONFIG_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
-CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
+if [ -z "${CT_CANADIAN}" ]; then
+    CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
+    CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
+fi
 
 # Only create the state dir if asked for a restartable build
 [ -n "${CT_DEBUG_CT_SAVE_STEPS}" ] && CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"
@@ -320,9 +322,18 @@ if [ -z "${CT_RESTART}" ]; then
     # Prepare mangling patterns to later modify BUILD and HOST (see below)
     case "${CT_TOOLCHAIN_TYPE}" in
         cross)
+            # A cross-compiler runs on the same machine it is built on
             CT_HOST="${CT_BUILD}"
             build_mangle="build_"
             host_mangle="build_"
+            target_mangle=""
+            install_build_tools_for="BUILD HOST"
+            ;;
+        canadian)
+            build_mangle="build_"
+            host_mangle="host_"
+            target_mangle=""
+            install_build_tools_for="BUILD HOST TARGET"
             ;;
         *)  CT_Abort "No code for '${CT_TOOLCHAIN_TYPE}' toolchain type!"
             ;;
@@ -331,11 +342,13 @@ if [ -z "${CT_RESTART}" ]; then
     # Save the real tuples to generate shell-wrappers to the real tools
     CT_REAL_BUILD="${CT_BUILD}"
     CT_REAL_HOST="${CT_HOST}"
+    CT_REAL_TARGET="${CT_TARGET}"
 
     # Canonicalise CT_BUILD and CT_HOST
     # Not only will it give us full-qualified tuples, but it will also ensure
     # that they are valid tuples (in case of typo with user-provided tuples)
     # That's way better than trying to rewrite config.sub ourselves...
+    # CT_TARGET is already made canonical in CT_DoBuildTargetTuple
     CT_BUILD=$(CT_DoConfigSub "${CT_BUILD}")
     CT_HOST=$(CT_DoConfigSub "${CT_HOST}")
 
@@ -345,12 +358,13 @@ if [ -z "${CT_RESTART}" ]; then
     #       support canadain build, later...
     CT_BUILD="${CT_BUILD/-/-${build_mangle}}"
     CT_HOST="${CT_HOST/-/-${host_mangle}}"
+    CT_TARGET="${CT_TARGET/-/-${target_mangle}}"
 
     # Now we have mangled our BUILD and HOST tuples, we must fake the new
     # cross-tools for those mangled tuples.
     CT_DoLog DEBUG "Making build system tools available"
-    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/bin"
-    for m in BUILD HOST; do
+    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/buildtools"
+    for m in ${install_build_tools_for}; do
         r="CT_REAL_${m}"
         v="CT_${m}"
         p="CT_${m}_PREFIX"
@@ -386,8 +400,8 @@ if [ -z "${CT_RESTART}" ]; then
             # bally needed
             if [ -n "${where}" ]; then
                 CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
-                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/bin/${!v}-${tool}"
-                CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/${!v}-${tool}"
+                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/buildtools/${!v}-${tool}"
+                CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/${!v}-${tool}"
             else
                 case "${tool}" in
                     # We'll at least need some of them...
@@ -417,7 +431,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Of course, neither cross-native nor canadian can run on BUILD,
     # so don't add those PATHs in this case...
     case "${CT_TOOLCHAIN_TYPE}" in
-        cross)  export PATH="${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        cross)  export PATH="${CT_PREFIX_DIR}/buildtools:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        canadian) export PATH="${CT_PREFIX_DIR}/buildtools:${PATH}";;
         *)  ;;
     esac
 
@@ -425,8 +440,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
     # never fails:
     CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
-    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/bin/makeinfo"
-    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/bin/makeinfo"
+    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/buildtools/makeinfo"
+    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/makeinfo"
 
     # Help gcc
     CT_CFLAGS_FOR_HOST=
@@ -446,6 +461,7 @@ if [ -z "${CT_RESTART}" ]; then
     export PARALLELMFLAGS
 
     CT_DoLog EXTRA "Installing user-supplied crosstool-NG configuration"
+    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/bin"
     CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/scripts/toolchain-config.in" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
     CT_DoExecLog DEBUG sed -r -i -e 's,@@grep@@,"'"${grep}"'",;' "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
     bzip2 -c -9 .config >>"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
