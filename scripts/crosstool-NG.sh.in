@@ -321,17 +321,19 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Prepare mangling patterns to later modify BUILD and HOST (see below)
     case "${CT_TOOLCHAIN_TYPE}" in
-        canadian)
-            CT_REAL_TARGET="${CT_TARGET}"
-            build_mangle="build_"
-            host_mangle="host_"
-            install_build_tools_for="BUILD HOST TARGET"
-            ;;
         cross)
+            # A cross-compiler runs on the same machine it is built on
             CT_HOST="${CT_BUILD}"
             build_mangle="build_"
             host_mangle="build_"
+            target_mangle=""
             install_build_tools_for="BUILD HOST"
+            ;;
+        canadian)
+            build_mangle="build_"
+            host_mangle="host_"
+            target_mangle=""
+            install_build_tools_for="BUILD HOST TARGET"
             ;;
         *)  CT_Abort "No code for '${CT_TOOLCHAIN_TYPE}' toolchain type!"
             ;;
@@ -340,11 +342,13 @@ if [ -z "${CT_RESTART}" ]; then
     # Save the real tuples to generate shell-wrappers to the real tools
     CT_REAL_BUILD="${CT_BUILD}"
     CT_REAL_HOST="${CT_HOST}"
+    CT_REAL_TARGET="${CT_TARGET}"
 
     # Canonicalise CT_BUILD and CT_HOST
     # Not only will it give us full-qualified tuples, but it will also ensure
     # that they are valid tuples (in case of typo with user-provided tuples)
     # That's way better than trying to rewrite config.sub ourselves...
+    # CT_TARGET is already made canonical in CT_DoBuildTargetTuple
     CT_BUILD=$(CT_DoConfigSub "${CT_BUILD}")
     CT_HOST=$(CT_DoConfigSub "${CT_HOST}")
 
@@ -354,6 +358,7 @@ if [ -z "${CT_RESTART}" ]; then
     #       support canadain build, later...
     CT_BUILD="${CT_BUILD/-/-${build_mangle}}"
     CT_HOST="${CT_HOST/-/-${host_mangle}}"
+    CT_TARGET="${CT_TARGET/-/-${target_mangle}}"
 
     # Now we have mangled our BUILD and HOST tuples, we must fake the new
     # cross-tools for those mangled tuples.
