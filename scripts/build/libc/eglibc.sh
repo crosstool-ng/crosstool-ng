@@ -41,19 +41,21 @@ do_libc_get() {
     eglibc_ports="${CT_LIBC}-ports-${CT_LIBC_VERSION}.tar.bz2"
 
     # Check if every tarballs are already present
-    if [ -f "${CT_TARBALLS_DIR}/${eglibc}" ]              && \
-       [ -f "${CT_TARBALLS_DIR}/${eglibc_linuxthreads}" ] && \
-       [ -f "${CT_TARBALLS_DIR}/${eglibc_localedef}" ]    && \
-       [ -f "${CT_TARBALLS_DIR}/${eglibc_ports}" ]; then
+    if [    -f "${CT_TARBALLS_DIR}/${eglibc}"                   \
+         -a -f "${CT_TARBALLS_DIR}/${eglibc_linuxthreads}"      \
+         -a -f "${CT_TARBALLS_DIR}/${eglibc_localedef}"         \
+         -a -f "${CT_TARBALLS_DIR}/${eglibc_ports}"             \
+       ]; then
         CT_DoLog DEBUG "Already have 'eglibc-${CT_LIBC_VERSION}'"
         return 0
     fi
 
-    if [ -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc}" ]              && \
-       [ -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_linuxthreads}" ] && \
-       [ -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_localedef}" ]    && \
-       [ -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_ports}" ]        && \
-       [ "${CT_FORCE_DOWNLOAD}" != "y" ]; then
+    if [    -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc}"                 \
+         -a -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_linuxthreads}"    \
+         -a -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_localedef}"       \
+         -a -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_ports}"           \
+         "${CT_FORCE_DOWNLOAD}" != "y"                              \
+       ]; then
         CT_DoLog DEBUG "Got 'eglibc-${CT_LIBC_VERSION}' from local storage"
         for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
             CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${CT_TARBALLS_DIR}/${file}"
