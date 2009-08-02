@@ -1,0 +1,240 @@
+--- ltrace-0.5.2.orig/TODO
++++ ltrace-0.5.2/TODO
+@@ -37,3 +37,4 @@
+ * debug: change "-d" option to be something like "-d elf,events", or "-d breakpoints"
+ * Find out if a process is sharing memory with its parent?
+ * When using -p, find out if that process is sharing memory with other procs
++* After a clone(), syscalls may be seen as sysrets in s390 (see trace.c:syscall_p())
+--- ltrace-0.5.2.orig/process_event.c
++++ ltrace-0.5.2/process_event.c
+@@ -170,7 +170,7 @@
+ 			enable_breakpoint(proc->pid, proc->breakpoint_being_enabled);
+ 			proc->breakpoint_being_enabled = NULL;
+ 		}
+-		if (proc->parent->state == STATE_ATTACHED && options.follow) {
++		if (options.follow) {
+ 			proc->state = STATE_ATTACHED;
+ 		} else {
+ 			proc->state = STATE_IGNORED;
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/ppc/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/ppc/trace.c
+@@ -50,9 +50,9 @@
+ 			*sysnum =
+ 			    (int)ptrace(PTRACE_PEEKUSER, proc->pid,
+ 					sizeof(long) * PT_R0, 0);
+-			if (proc->callstack_depth > 0
+-			    && proc->callstack[proc->callstack_depth -
+-					       1].is_syscall) {
++			if (proc->callstack_depth > 0 &&
++					proc->callstack[proc->callstack_depth - 1].is_syscall &&
++					proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+ 				return 2;
+ 			}
+ 			return 1;
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/i386/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/i386/trace.c
+@@ -32,7 +32,8 @@
+ 		*sysnum = ptrace(PTRACE_PEEKUSER, proc->pid, 4 * ORIG_EAX, 0);
+ 
+ 		if (proc->callstack_depth > 0 &&
+-		    proc->callstack[proc->callstack_depth - 1].is_syscall) {
++				proc->callstack[proc->callstack_depth - 1].is_syscall &&
++				proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+ 			return 2;
+ 		}
+ 
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/ia64/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/ia64/trace.c
+@@ -106,8 +106,8 @@
+ 		if (insn == 0x1000000000 || insn == 0x1ffffffffff) {
+ 			*sysnum = r15;
+ 			if (proc->callstack_depth > 0 &&
+-			    proc->callstack[proc->callstack_depth -
+-					    1].is_syscall) {
++				proc->callstack[proc->callstack_depth - 1].is_syscall &&
++				proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+ 				return 2;
+ 			}
+ 			return 1;
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/m68k/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/m68k/trace.c
+@@ -36,9 +36,8 @@
+ 		if (*sysnum >= 0) {
+ 			depth = proc->callstack_depth;
+ 			if (depth > 0 &&
+-			    proc->callstack[depth - 1].is_syscall &&
+-			    proc->callstack[depth - 1].c_un.syscall ==
+-			    *sysnum) {
++					proc->callstack[depth - 1].is_syscall &&
++					proc->callstack[depth - 1].c_un.syscall == *sysnum) {
+ 				return 2;
+ 			} else {
+ 				return 1;
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/alpha/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/alpha/trace.c
+@@ -36,8 +36,9 @@
+ 			return 0;
+ 		*sysnum =
+ 		    ptrace(PTRACE_PEEKUSER, proc->pid, 0 /* REG_R0 */ , 0);
+-		if (proc->callstack_depth > 0
+-		    && proc->callstack[proc->callstack_depth - 1].is_syscall) {
++		if (proc->callstack_depth > 0 &&
++		    proc->callstack[proc->callstack_depth - 1].is_syscall &&
++			proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+ 			return 2;
+ 		}
+ 		if (*sysnum >= 0 && *sysnum < 500) {
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/sparc/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/sparc/trace.c
+@@ -33,9 +33,9 @@
+ 		insn = ptrace(PTRACE_PEEKTEXT, proc->pid, ip, 0);
+ 		if ((insn & 0xc1f8007f) == 0x81d00010) {
+ 			*sysnum = ((proc_archdep *) proc->arch_ptr)->regs.r_g1;
+-			if ((proc->callstack_depth > 0)
+-			    && proc->callstack[proc->callstack_depth -
+-					       1].is_syscall) {
++			if (proc->callstack_depth > 0 &&
++					proc->callstack[proc->callstack_depth - 1].is_syscall &&
++					proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+ 				return 2;
+ 			} else if (*sysnum >= 0) {
+ 				return 1;
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/mipsel/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/mipsel/trace.c
+@@ -60,33 +60,34 @@
+ int
+ syscall_p(Process *proc, int status, int *sysnum) {
+ 	if (WIFSTOPPED(status)
+-	    && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
+-       /* get the user's pc (plus 8) */
+-       long pc = (long)get_instruction_pointer(proc);
+-       /* fetch the SWI instruction */
+-       int insn = ptrace(PTRACE_PEEKTEXT, proc->pid, pc - 4, 0);
+-       int num = ptrace(PTRACE_PEEKTEXT, proc->pid, pc - 8, 0);
+-       
+-/*
+-  On a mipsel,  syscall looks like:
+-  24040fa1    li v0, 0x0fa1   # 4001 --> _exit syscall
+-  0000000c    syscall
+- */
+-      if(insn!=0x0000000c){
+-          return 0;
+-      }
+-
+-      *sysnum = (num & 0xFFFF) - 4000;
+-      /* if it is a syscall, return 1 or 2 */
+-      if (proc->callstack_depth > 0 &&
+-          proc->callstack[proc->callstack_depth - 1].is_syscall) {
+-          return 2;
+-      }
+-      
+-      if (*sysnum >= 0) {
+-          return 1;
+-      }
+-   }
++			&& WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
++		/* get the user's pc (plus 8) */
++		long pc = (long)get_instruction_pointer(proc);
++		/* fetch the SWI instruction */
++		int insn = ptrace(PTRACE_PEEKTEXT, proc->pid, pc - 4, 0);
++		int num = ptrace(PTRACE_PEEKTEXT, proc->pid, pc - 8, 0);
++
++		/*
++		   On a mipsel,  syscall looks like:
++		   24040fa1    li v0, 0x0fa1   # 4001 --> _exit syscall
++		   0000000c    syscall
++		 */
++		if(insn!=0x0000000c){
++			return 0;
++		}
++
++		*sysnum = (num & 0xFFFF) - 4000;
++		/* if it is a syscall, return 1 or 2 */
++		if (proc->callstack_depth > 0 &&
++				proc->callstack[proc->callstack_depth - 1].is_syscall &&
++				proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
++			return 2;
++		}
++
++		if (*sysnum >= 0) {
++			return 1;
++		}
++	}
+ 	return 0;
+ }
+ /**
+@@ -119,34 +120,34 @@
+ */
+ long
+ gimme_arg(enum tof type, Process *proc, int arg_num, arg_type_info *info) {
+-    long ret;
+-    debug(2,"type %d arg %d",type,arg_num);
+-    if (type == LT_TOF_FUNCTION || type == LT_TOF_SYSCALL){
+-        if(arg_num <4){
+-            ret=ptrace(PTRACE_PEEKUSER,proc->pid,off_a0+arg_num,0);
+-            debug(2,"ret = %#lx",ret);
+-            return ret;
+-        } else {
+-            // If we need this, I think we can look at [sp+16] for arg_num==4.
+-            CP;
+-            return 0;
+-        }
+-    } 
+-    if(arg_num>=0){
+-       fprintf(stderr,"args on return?");
+-    }
+-    if(type == LT_TOF_FUNCTIONR) {
+-        return  ptrace(PTRACE_PEEKUSER,proc->pid,off_v0,0);
+-    }
+-    if (type == LT_TOF_SYSCALLR) {
+-        unsigned a3=ptrace(PTRACE_PEEKUSER, proc->pid,off_a3,0);
+-        unsigned v0=ptrace(PTRACE_PEEKUSER, proc->pid,off_v0,0);
+-        if(!a3){
+-            return v0;
+-        }
+-        return -1;
+-    }
+-    fprintf(stderr, "gimme_arg called with wrong arguments\n");
++	long ret;
++	debug(2,"type %d arg %d",type,arg_num);
++	if (type == LT_TOF_FUNCTION || type == LT_TOF_SYSCALL){
++		if(arg_num <4){
++			ret=ptrace(PTRACE_PEEKUSER,proc->pid,off_a0+arg_num,0);
++			debug(2,"ret = %#lx",ret);
++			return ret;
++		} else {
++			// If we need this, I think we can look at [sp+16] for arg_num==4.
++			CP;
++			return 0;
++		}
++	} 
++	if(arg_num>=0){
++		fprintf(stderr,"args on return?");
++	}
++	if(type == LT_TOF_FUNCTIONR) {
++		return  ptrace(PTRACE_PEEKUSER,proc->pid,off_v0,0);
++	}
++	if (type == LT_TOF_SYSCALLR) {
++		unsigned a3=ptrace(PTRACE_PEEKUSER, proc->pid,off_a3,0);
++		unsigned v0=ptrace(PTRACE_PEEKUSER, proc->pid,off_v0,0);
++		if(!a3){
++			return v0;
++		}
++		return -1;
++	}
++	fprintf(stderr, "gimme_arg called with wrong arguments\n");
+ 	return 0;
+ }
+ 
+--- ltrace-0.5.2.orig/sysdeps/linux-gnu/x86_64/trace.c
++++ ltrace-0.5.2/sysdeps/linux-gnu/x86_64/trace.c
+@@ -41,7 +41,8 @@
+ 		*sysnum = ptrace(PTRACE_PEEKUSER, proc->pid, 8 * ORIG_RAX, 0);
+ 
+ 		if (proc->callstack_depth > 0 &&
+-		    proc->callstack[proc->callstack_depth - 1].is_syscall) {
++				proc->callstack[proc->callstack_depth - 1].is_syscall &&
++				proc->callstack[proc->callstack_depth - 1].c_un.syscall == *sysnum) {
+ 			return 2;
+ 		}
+ 
