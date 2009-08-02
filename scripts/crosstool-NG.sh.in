@@ -63,8 +63,13 @@ CT_DoExecLog DEBUG rm -f "${CT_WORK_DIR}/foo"
 # What's our shell?
 # Will be plain /bin/sh on most systems, except if we have /bin/ash and we
 # _explictly_ required using it
-CT_SHELL="/bin/sh"
-[ "${CT_CONFIG_SHELL_ASH}" = "y" -a -x "/bin/ash" ] && CT_SHELL="/bin/ash"
+case "${CT_CONFIG_SHELL}" in
+    sh)     CT_SHELL="/bin/sh";;
+    ash)    CT_SHELL="/bin/ash";;
+esac
+
+# Check the user is using an existing SHELL to be used by ./configure and Makefiles
+CT_TestOrAbort "The CONFIG_SHELL '${CT_CONFIG_SHELL}' (${CT_SHELL}) is not valid" -f "${CT_SHELL}" -a -x "${CT_SHELL}"
 
 # Create the bin-overide early
 # Contains symlinks to the tools found by ./configure
@@ -452,7 +457,8 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Set the shell to be used by ./configure scripts and by Makefiles (those
     # that support it!).
-    export CONFIG_SHELL="${CT_SHELL}"
+    export CONFIG_SHELL="${CT_SHELL}"   # for ./configure
+    export SHELL="${CT_SHELL}"          # for Makefiles
 
     # And help make go faster
     PARALLELMFLAGS=
