@@ -96,7 +96,11 @@ addToolVersion() {
         ver_m=$(echo "${version}...." |cut -d . -f 2)
         if [    ${ver_M} -gt 4                          \
              -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 3 \)  ]; then
-            SedExpr1="    select CC_GCC_4_3_or_later\n"
+            SedExpr1="${SedExpr1}    select CC_GCC_4_3_or_later\n"
+        fi
+        if [    ${ver_M} -gt 4                          \
+             -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 4 \)  ]; then
+            SedExpr1="${SedExpr1}    select CC_GCC_4_4_or_later\n"
         fi
     fi
     SedExpr2="    default \"${version}\" if ${cat}_V_${v}"
