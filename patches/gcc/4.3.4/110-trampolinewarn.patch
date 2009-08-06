@@ -1,0 +1,40 @@
+Original patch from: ../4.3.2/110-trampolinewarn.patch
+
+-= BEGIN original header =-
+Original patch from gentoo: gentoo/src/patchsets/gcc/4.3.1/gentoo/00_all_gcc-trampolinewarn.patch
+	This trivial patch causes gcc to emit a warning whenever
+	it generates a trampoline.  These are otherwise hard to
+	locate.  It is rigged to default ON - to have it default
+	to OFF remove the text 'Init(1)' from the common.opt
+	patch, leaving just 'Common Var(warn_trampolines)'.
+	Kevin F. Quinn <kevquinn@gentoo.org> 17 Jan 2006
+
+-= END original header =-
+
+diff -durN gcc-4.3.3.orig/gcc/builtins.c gcc-4.3.3/gcc/builtins.c
+--- gcc-4.3.3.orig/gcc/builtins.c	2008-08-19 18:37:13.000000000 +0200
++++ gcc-4.3.3/gcc/builtins.c	2009-01-27 22:19:12.000000000 +0100
+@@ -5662,6 +5662,9 @@
+   trampolines_created = 1;
+   INITIALIZE_TRAMPOLINE (r_tramp, r_func, r_chain);
+ 
++  if (warn_trampolines)
++    warning (OPT_Wtrampolines, "generating trampoline in object (requires executable stack)");
++
+   return const0_rtx;
+ }
+ 
+diff -durN gcc-4.3.3.orig/gcc/common.opt gcc-4.3.3/gcc/common.opt
+--- gcc-4.3.3.orig/gcc/common.opt	2008-01-22 15:11:44.000000000 +0100
++++ gcc-4.3.3/gcc/common.opt	2009-01-27 22:19:12.000000000 +0100
+@@ -182,6 +182,10 @@
+ Common Var(warn_system_headers) Warning
+ Do not suppress warnings from system headers
+ 
++Wtrampolines
++Common Var(warn_trampolines) Init(1)
++Warn whenever a trampoline is generated
++
+ Wuninitialized
+ Common Var(warn_uninitialized) Warning
+ Warn about uninitialized automatic variables
