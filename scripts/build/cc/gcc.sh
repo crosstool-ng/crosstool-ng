@@ -309,6 +309,9 @@ do_cc() {
         extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
         extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
     fi
+    if [ -n "${CC_ENABLE_CXX_FLAGS}" ]; then
+        extra_config+=("--enable-cxx-flags=${CC_ENABLE_CXX_FLAGS}")
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
