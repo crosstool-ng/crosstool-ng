@@ -6,6 +6,9 @@
 do_libc_get() {
     local date
     local version
+    local -a addons_list
+
+    addons_list=($(do_libc_add_ons_list " "))
 
     if [ "${CT_LIBC_GLIBC_TARBALL}" = "y" ]; then
         # Use release tarballs
@@ -15,7 +18,7 @@ do_libc_get() {
                    ftp://gcc.gnu.org/pub/glibc/snapshots
 
         # C library addons
-        for addon in $(do_libc_add_ons_list " "); do
+        for addon in "${addons_list[@]}"; do
             # NPTL addon is not to be downloaded, in any case
             [ "${addon}" = "nptl" ] && continue || true
             CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"      \
@@ -35,7 +38,7 @@ do_libc_get() {
                   "glibc-cvs-${CT_LIBC_VERSION}"
 
         # C library addons
-        for addon in $(do_libc_add_ons_list " "); do
+        for addon in "${addons_list[@]}"; do
             # NPTL addon is not to be downloaded, in any case
             [ "${addon}" = "nptl" ] && continue || true
             CT_GetCVS "glibc-${addon}-cvs-${CT_LIBC_VERSION}"           \
@@ -54,6 +57,9 @@ do_libc_get() {
 # Extract glibc
 do_libc_extract() {
     local cvs
+    local -a addons_list
+
+    addons_list=($(do_libc_add_ons_list " "))
 
     [ "${CT_LIBC_GLIBC_CVS}" = "y" ] && cvs="cvs-"
 
@@ -63,7 +69,7 @@ do_libc_extract() {
     CT_Patch "glibc-${CT_LIBC_VERSION}" nochdir
 
     # C library addons
-    for addon in $(do_libc_add_ons_list " "); do
+    for addon in "${addons_list[@]}"; do
         # NPTL addon is not to be extracted, in any case
         [ "${addon}" = "nptl" ] && continue || true
         CT_Extract "glibc-${addon}-${cvs}${CT_LIBC_VERSION}" nochdir
@@ -82,6 +88,7 @@ do_libc_extract() {
     # The configure files may be older than the configure.in files
     # if using a snapshot (or even some tarballs). Fake them being
     # up to date.
+    sleep 2
     find . -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
 
     CT_Popd
@@ -97,6 +104,7 @@ do_libc_check_config() {
 # This function installs the glibc headers needed to build the core compiler
 do_libc_headers() {
     local cvs
+    local -a extra_config
 
     CT_DoStep INFO "Installing C library headers"
 
@@ -123,21 +131,23 @@ do_libc_headers() {
     # Override libc_cv_ppc_machine so glibc-cvs doesn't complain
     # 'a version of binutils that supports .machine "altivec" is needed'.
 
-    addons_list="$(do_libc_add_ons_list ,)"
     # We need to remove any threading addon when installing headers
-    addons_list="${addons_list//nptl/}"
-    addons_list="${addons_list//linuxthreads/}"
-    # Remove duplicate, leading and trailing separators
-    addons_config="--enable-add-ons=$(echo "${addons_list}" |sed -r -e 's/,+/,/; s/^,//; s/,$//g;')"
+    addons_list="$(do_libc_add_ons_list " "                     \
+                   |sed -r -e 's/\<(nptl|linuxthreads)\>/ /g;'  \
+                           -e 's/ +/,/g; s/^,+//; s/,+$//;'     \
+                  )"
 
-    extra_config="${addons_config} $(do_libc_min_kernel_config)"
+    extra_config+=("--enable-add-ons=${addons_list}")
+
+    extra_config+=("${addons_config}")
+    extra_config+=("$(do_libc_min_kernel_config)")
 
     # Pre-seed the configparms file with values from the config option
     echo "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
 
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
-    CT_DoLog DEBUG "Extra config passed : '${extra_config}'"
+    CT_DoLog DEBUG "Extra config passed : '${extra_config[*]}'"
 
     libc_cv_ppc_machine=yes                                     \
     CC=${cross_cc}                                              \
@@ -150,7 +160,7 @@ do_libc_headers() {
         --without-cvs                                           \
         --disable-sanity-checks                                 \
         --enable-hacker-mode                                    \
-        ${extra_config}                                         \
+        "${extra_config[@]}"                                    \
         --without-nptl
 
     CT_DoLog EXTRA "Installing C library headers"
@@ -246,6 +256,7 @@ do_libc_headers() {
 # Build and install start files
 do_libc_start_files() {
     local cvs
+    local -a extra_config
 
     # Needed only in the NPTL case. Otherwise, return.
     [ "${CT_THREADS}" = "nptl" ] || return 0
@@ -260,26 +271,25 @@ do_libc_start_files() {
     CT_DoLog EXTRA "Configuring C library"
 
     # Add some default glibc config options if not given by user.
-    extra_config=
     case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
         *-tls*) ;;
-        *) extra_config="${extra_config} --with-tls"
+        *) extra_config+=("--with-tls")
     esac
     case "${CT_SHARED_LIBS}" in
-        y) extra_config="${extra_config} --enable-shared";;
-        *) extra_config="${extra_config} --disable-shared";;
+        y) extra_config+=("--enable-shared");;
+        *) extra_config+=("--disable-shared");;
     esac
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-        y,) extra_config="${extra_config} --with-fp";;
-        ,y) extra_config="${extra_config} --without-fp";;
+        y,) extra_config+=("--with-fp");;
+        ,y) extra_config+=("--without-fp");;
     esac
     # Obviously, we want threads, as we come here only for NPTL
-    extra_config="${extra_config} --with-__thread"
+    extra_config+=("--with-__thread")
 
     addons_config="--enable-add-ons=$(do_libc_add_ons_list ,)"
-    extra_config="${extra_config} ${addons_config}"
+    extra_config+=("${addons_config}")
 
-    extra_config="${extra_config} $(do_libc_min_kernel_config)"
+    extra_config+=("$(do_libc_min_kernel_config)")
 
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
@@ -303,7 +313,7 @@ do_libc_start_files() {
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     CT_DoLog DEBUG "Using gcc for target    : '${cross_cc}'"
     CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
-    CT_DoLog DEBUG "Extra config args passed: '${extra_config}'"
+    CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     # Pre-seed the configparms file with values from the config option
@@ -330,7 +340,7 @@ do_libc_start_files() {
         --without-gd                                                \
         --with-headers="${CT_HEADERS_DIR}"                          \
         --cache-file=config.cache                                   \
-        ${extra_config}                                             \
+        "${extra_config[@]}"                                        \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
 
     #TODO: should check whether slibdir has been set in configparms to */lib64
@@ -353,6 +363,7 @@ do_libc_start_files() {
 # This function builds and install the full glibc
 do_libc() {
     local cvs
+    local -a extra_config
 
     CT_DoStep INFO "Installing C library"
 
@@ -367,34 +378,33 @@ do_libc() {
     # We don't need to be conditional on wether the user did set different
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
 
-    extra_config=
     case "${CT_THREADS}" in
-        nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
-        linuxthreads)   extra_config="${extra_config} --with-__thread --without-tls --without-nptl";;
-        none)           extra_config="${extra_config} --without-__thread --without-nptl"
+        nptl)           extra_config+=("--with-__thread" "--with-tls");;
+        linuxthreads)   extra_config+=("--with-__thread" "--without-tls" "--without-nptl");;
+        none)           extra_config+=("--without-__thread" "--without-nptl")
                         case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
                             *-tls*) ;;
-                            *) extra_config="${extra_config} --without-tls";;
+                            *) extra_config+=("--without-tls");;
                         esac
                         ;;
     esac
 
     case "${CT_SHARED_LIBS}" in
-        y) extra_config="${extra_config} --enable-shared";;
-        *) extra_config="${extra_config} --disable-shared";;
+        y) extra_config+=("--enable-shared");;
+        *) extra_config+=("--disable-shared");;
     esac
 
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-        y,) extra_config="${extra_config} --with-fp";;
-        ,y) extra_config="${extra_config} --without-fp";;
+        y,) extra_config+=("--with-fp";;
+        ,y) extra_config+=("--without-fp";;
     esac
 
     case "$(do_libc_add_ons_list ,)" in
         "") ;;
-        *)  extra_config="${extra_config} --enable-add-ons=$(do_libc_add_ons_list ,)";;
+        *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
     esac
 
-    extra_config="${extra_config} $(do_libc_min_kernel_config)"
+    extra_config+=("$(do_libc_min_kernel_config)")
 
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
@@ -463,7 +473,7 @@ do_libc() {
         --disable-sanity-checks                                     \
         --cache-file=config.cache                                   \
         --with-headers="${CT_HEADERS_DIR}"                          \
-        ${extra_config}                                             \
+        "${extra_config[@]}"                                        \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
 
     if grep -l '^install-lib-all:' "${CT_SRC_DIR}/glibc-${cvs}${CT_LIBC_VERSION}/Makerules" > /dev/null; then
