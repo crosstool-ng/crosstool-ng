@@ -92,8 +92,9 @@ do_cc_core() {
     local mode
     local build_libgcc
     local core_prefix_dir
-    local extra_config
     local lang_opt
+    local tmp
+    local -a extra_config
 
     eval $1
     eval $2
@@ -110,17 +111,21 @@ do_cc_core() {
     case "${mode}" in
         static)
             core_prefix_dir="${CT_CC_CORE_STATIC_PREFIX_DIR}"
-            extra_config="${extra_config} --with-newlib --enable-threads=no --disable-shared"
+            extra_config+=("--with-newlib")
+            extra_config+=("--enable-threads=no")
+            extra_config+=("--disable-shared")
             copy_headers=y
             ;;
         shared)
             core_prefix_dir="${CT_CC_CORE_SHARED_PREFIX_DIR}"
-            extra_config="${extra_config} --enable-shared"
+            extra_config+=("--enable-shared")
             copy_headers=y
             ;;
         baremetal)
             core_prefix_dir="${CT_PREFIX_DIR}"
-            extra_config="${extra_config} --with-newlib --enable-threads=no --disable-shared"
+            extra_config+=("--with-newlib")
+            extra_config+=("--enable-threads=no")
+            extra_config+=("--disable-shared")
             [ "${CT_CC_LANG_CXX}" = "y" ] && lang_opt="${lang_opt},c++"
             copy_headers=n
             ;;
@@ -134,28 +139,28 @@ do_cc_core() {
 
     CT_DoLog EXTRA "Configuring ${mode} core C compiler"
 
-    extra_config="${extra_config} ${CT_ARCH_WITH_ARCH}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_ABI}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_CPU}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_TUNE}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_FPU}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_FLOAT}"
+    for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
+        eval tmp="\${CT_ARCH_WITH_${tmp}}"
+        if [ -n "${tmp}" ]; then
+            extra_config+=("${tmp}")
+        fi
+    done
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
-        extra_config="${extra_config} --enable-__cxa_atexit"
+        extra_config+=("--enable-__cxa_atexit")
     else
-        extra_config="${extra_config} --disable-__cxa_atexit"
+        extra_config+=("--disable-__cxa_atexit")
     fi
     if [ "${CT_GMP_MPFR}" = "y" ]; then
-        extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR}"
-        extra_config="${extra_config} --with-mpfr=${CT_PREFIX_DIR}"
+        extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
+        extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
     fi
     if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
-        extra_config="${extra_config} --with-ppl=${CT_PREFIX_DIR}"
-        extra_config="${extra_config} --with-cloog=${CT_PREFIX_DIR}"
-        extra_config="${extra_config} --with-mpc=${CT_PREFIX_DIR}"
+        extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
+        extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
+        extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
     fi
 
-    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
+    CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
@@ -169,7 +174,7 @@ do_cc_core() {
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --disable-multilib                          \
         ${CC_CORE_SYSROOT_ARG}                      \
-        ${extra_config}                             \
+        "${extra_config[@]}"                        \
         --disable-nls                               \
         --enable-symvers=gnu                        \
         --enable-languages="${lang_opt}"            \
@@ -249,6 +254,9 @@ do_cc_core() {
 #------------------------------------------------------------------------------
 # Build final gcc
 do_cc() {
+    local -a extra_config
+    local tmp
+
     # If building for bare metal, nothing to be done here, the static core conpiler is enough!
     [ "${CT_BARE_METAL}" = "y" ] && return 0
 
@@ -273,35 +281,36 @@ do_cc() {
     CT_Test "Building ${CT_CC_LANG_OTHERS//,/ } language(s) is not yet supported. Will try..." -n "${CT_CC_LANG_OTHERS}"
     lang_opt=$(echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;')
 
-    extra_config="--enable-languages=${lang_opt}"
-    extra_config="${extra_config} --disable-multilib"
-    extra_config="${extra_config} ${CT_ARCH_WITH_ARCH}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_ABI}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_CPU}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_TUNE}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_FPU}"
-    extra_config="${extra_config} ${CT_ARCH_WITH_FLOAT}"
-    [ "${CT_SHARED_LIBS}" = "y" ]                   || extra_config="${extra_config} --disable-shared"
-    [ -n "${CT_CC_PKGVERSION}" ]                    && extra_config="${extra_config} --with-pkgversion=${CT_CC_PKGVERSION}"
-    [ -n "${CT_CC_BUGURL}" ]                        && extra_config="${extra_config} --with-bugurl=${CT_CC_BUGURL}"
-    [ "${CT_CC_SJLJ_EXCEPTIONS_USE}" = "y" ]        && extra_config="${extra_config} --enable-sjlj-exceptions"
-    [ "${CT_CC_SJLJ_EXCEPTIONS_DONT_USE}" = "y" ]   && extra_config="${extra_config} --disable-sjlj-exceptions"
+    extra_config+=("--enable-languages=${lang_opt}")
+    extra_config+=("--disable-multilib")
+    for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
+        eval tmp="\${CT_ARCH_WITH_${tmp}}"
+        if [ -n "${tmp}" ]; then
+            extra_config+=("${tmp}")
+        fi
+    done
+
+    [ "${CT_SHARED_LIBS}" = "y" ]                   || extra_config+=("--disable-shared")
+    [ -n "${CT_CC_PKGVERSION}" ]                    && extra_config+=("--with-pkgversion=${CT_CC_PKGVERSION}")
+    [ -n "${CT_CC_BUGURL}" ]                        && extra_config+=("--with-bugurl=${CT_CC_BUGURL}")
+    [ "${CT_CC_SJLJ_EXCEPTIONS_USE}" = "y" ]        && extra_config+=("--enable-sjlj-exceptions")
+    [ "${CT_CC_SJLJ_EXCEPTIONS_DONT_USE}" = "y" ]   && extra_config+=("--disable-sjlj-exceptions")
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
-        extra_config="${extra_config} --enable-__cxa_atexit"
+        extra_config+=("--enable-__cxa_atexit")
     else
-        extra_config="${extra_config} --disable-__cxa_atexit"
+        extra_config+=("--disable-__cxa_atexit")
     fi
     if [ "${CT_GMP_MPFR}" = "y" ]; then
-        extra_config="${extra_config} --with-gmp=${CT_PREFIX_DIR}"
-        extra_config="${extra_config} --with-mpfr=${CT_PREFIX_DIR}"
+        extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
+        extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
     fi
     if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
-        extra_config="${extra_config} --with-ppl=${CT_PREFIX_DIR}"
-        extra_config="${extra_config} --with-cloog=${CT_PREFIX_DIR}"
-        extra_config="${extra_config} --with-mpc=${CT_PREFIX_DIR}"
+        extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
+        extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
+        extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
     fi
 
-    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
+    CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # --enable-symvers=gnu really only needed for sh4 to work around a
     # detection problem only matters for gcc-3.2.x and later, I think.
@@ -319,7 +328,7 @@ do_cc() {
         --target=${CT_TARGET}                       \
         --prefix="${CT_PREFIX_DIR}"                 \
         ${CC_SYSROOT_ARG}                           \
-        ${extra_config}                             \
+        "${extra_config[@]}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --disable-nls                               \
         --enable-threads=posix                      \
