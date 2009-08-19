@@ -17,16 +17,18 @@ do_binutils_extract() {
 
 # Build binutils
 do_binutils() {
+    local -a extra_config
+
     mkdir -p "${CT_BUILD_DIR}/build-binutils"
     cd "${CT_BUILD_DIR}/build-binutils"
 
     CT_DoStep INFO "Installing binutils"
 
-    binutils_opts=
     # If GMP and MPFR were configured, then use that,
     # otherwise let binutils find the system-wide libraries, if they exist.
     if [ "${CT_GMP_MPFR}" = "y" ]; then
-        binutils_opts="--with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+        extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
+        extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
     fi
 
     CT_DoLog EXTRA "Configuring binutils"
@@ -40,7 +42,7 @@ do_binutils() {
         --disable-nls                                           \
         --disable-multilib                                      \
         --disable-werror                                        \
-        ${binutils_opts}                                        \
+        "${extra_config[@]}"                                    \
         ${CT_ARCH_WITH_FLOAT}                                   \
         ${CT_BINUTILS_EXTRA_CONFIG}                             \
         ${BINUTILS_SYSROOT_ARG}
@@ -70,18 +72,27 @@ do_binutils() {
 
 # Now on for the target libraries
 do_binutils_target() {
-    targets=
-    [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ] && targets="${targets} libiberty"
-    [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets="${targets} bfd"
-    targets="${targets# }"
+    local -a extra_config
+    local -a targets
+    local -a build_targets
+    local -a install_targets
+    local t
 
-    binutils_opts=
+    [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ] && targets+=("libiberty")
+    [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets+=("bfd")
+    for t in "${targets[@]}"; do
+        build_targets+=("all-${t}")
+        install_targets+=("install-${t}")
+    done
+
+
     # If GMP and MPFR were configured, then use that
     if [ "${CT_GMP_MPFR_TARGET}" = "y" ]; then
-        binutils_opts="--with-gmp=${CT_SYSROOT_DIR}/usr --with-mpfr=${CT_SYSROOT_DIR}/usr"
+        extra_config+=("--with-gmp=${CT_SYSROOT_DIR}/usr")
+        extra_config+=("--with-mpfr=${CT_SYSROOT_DIR}/usr")
     fi
 
-    if [ -n "${targets}" ]; then
+    if [ "${#targets[@]}" -ne 0 ]; then
         CT_DoStep INFO "Installing binutils for target"
         mkdir -p "${CT_BUILD_DIR}/build-binutils-for-target"
         CT_Pushd "${CT_BUILD_DIR}/build-binutils-for-target"
@@ -98,17 +109,14 @@ do_binutils_target() {
             --enable-static                                         \
             --disable-nls                                           \
             --disable-multilib                                      \
-            ${binutils_opts}                                        \
+            "${extra_config[@]}"                                    \
             ${CT_ARCH_WITH_FLOAT}                                   \
             ${CT_BINUTILS_EXTRA_CONFIG}
 
-        build_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1all-/g;')
-        install_targets=$(echo "${targets}" |sed -r -e 's/(^| +)/\1install-/g;')
-
-        CT_DoLog EXTRA "Building binutils' libraries (${targets}) for target"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} ${build_targets}
-        CT_DoLog EXTRA "Installing binutils' libraries (${targets}) for target"
-        CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" ${install_targets}
+        CT_DoLog EXTRA "Building binutils' libraries (${targets[*]}) for target"
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} "${build_targets[@]}"
+        CT_DoLog EXTRA "Installing binutils' libraries (${targets[*]}) for target"
+        CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" "${install_targets[@]}"
 
         CT_Popd
         CT_EndStep

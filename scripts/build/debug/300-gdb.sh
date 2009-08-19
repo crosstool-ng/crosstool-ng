@@ -73,29 +73,32 @@ do_debug_gdb_extract() {
 }
 
 do_debug_gdb_build() {
+    local -a extra_config
+
     gdb_src_dir="${CT_SRC_DIR}/gdb$(do_debug_gdb_suffix)"
     insight_src_dir="${CT_SRC_DIR}/insight-${CT_GDB_VERSION}"
 
-    extra_config=
     # Version 6.3 and below behave badly with gdbmi
     case "${CT_GDB_VERSION}" in
-        6.2*|6.3)   extra_config="${extra_config} --disable-gdbmi";;
+        6.2*|6.3)   extra_config+=("--disable-gdbmi");;
     esac
 
     if [ "${CT_GDB_CROSS}" = "y" ]; then
+        local -a cross_extra_config
+
         CT_DoStep INFO "Installing cross-gdb"
         CT_DoLog EXTRA "Configuring cross-gdb"
 
         mkdir -p "${CT_BUILD_DIR}/build-gdb-cross"
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
-        cross_extra_config="${extra_config}"
+        cross_extra_config=("${extra_config[@]}")
         if [ "${CT_GMP_MPFR}" = "y" ]; then
-            cross_extra_config="${cross_extra_config} --with-gmp=${CT_PREFIX_DIR} --with-mpfr=${CT_PREFIX_DIR}"
+            cross_extra_config+=("--with-gmp=${CT_PREFIX_DIR}" "--with-mpfr=${CT_PREFIX_DIR}")
         fi
         case "${CT_THREADS}" in
-            none)   cross_extra_config="${cross_extra_config} --disable-threads";;
-            *)      cross_extra_config="${cross_extra_config} --enable-threads";;
+            none)   cross_extra_config+=("--disable-threads");;
+            *)      cross_extra_config+=("--enable-threads");;
         esac
 
         CC_for_gdb=
@@ -108,7 +111,7 @@ do_debug_gdb_build() {
         gdb_cross_configure="${gdb_src_dir}/configure"
         [ "${CT_GDB_CROSS_INSIGHT}" = "y" ] && gdb_cross_configure="${insight_src_dir}/configure"
 
-        CT_DoLog DEBUG "Extra config passed: '${cross_extra_config# }'"
+        CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
@@ -120,7 +123,7 @@ do_debug_gdb_build() {
             --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
             --disable-werror                            \
-            ${cross_extra_config}
+            "${cross_extra_config[@]}"
 
         CT_DoLog EXTRA "Building cross-gdb"
         CT_DoExecLog ALL make ${PARALLELMFLAGS}
@@ -132,13 +135,15 @@ do_debug_gdb_build() {
     fi
 
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
+        local -a native_extra_config
+        local -a ncurses_opt
+
         CT_DoStep INFO "Installing native gdb"
 
         CT_DoStep INFO "Installing ncurses library"
 
-        ncurses_opts=
-        [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts="${ncurses_opts} --without-cxx --without-cxx-binding"
-        [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts="${ncurses_opts} --without-ada"
+        [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts+=("--without-cxx" "--without-cxx-binding")
+        [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts+=("--without-ada")
 
         CT_DoStep INFO "Installing native ncurses tic"
         CT_DoLog EXTRA "Configuring ncurses tic"
@@ -158,7 +163,7 @@ do_debug_gdb_build() {
             --with-build-cc=${CT_REAL_BUILD}-gcc                \
             --with-build-cpp=${CT_REAL_BUILD}-gcc               \
             --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
-            ${ncurses_opts}
+            "${ncurses_opts[@]}"
 
         # Under some operating systems (eg. Winblows), there is an
         # extension appended to executables. Find that.
@@ -190,7 +195,7 @@ do_debug_gdb_build() {
             --without-sysmouse                                  \
             --without-progs                                     \
             --enable-termcap                                    \
-            ${ncurses_opts}
+            "${ncurses_opts[@]}"
 
         CT_DoLog EXTRA "Building ncurses"
         CT_DoExecLog ALL make ${PARALLELMFLAGS}
@@ -209,13 +214,13 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
         cd "${CT_BUILD_DIR}/build-gdb-native"
 
-        native_extra_config="${extra_config}"
+        native_extra_config=("${extra_config[@]}")
         case "${CT_THREADS}" in
-            none)   native_extra_config="${native_extra_config} --disable-threads";;
-            *)      native_extra_config="${native_extra_config} --enable-threads";;
+            none)   native_extra_config+=("--disable-threads");;
+            *)      native_extra_config+=("--enable-threads");;
         esac
         if [ "${CT_GDB_NATIVE_USE_GMP_MPFR}" = "y" ]; then
-            native_extra_config="${native_extra_config} --with-gmp=${CT_SYSROOT_DIR}/usr --with-mpfr=${CT_SYSROOT_DIR}/usr"
+            native_extra_config+=("--with-gmp=${CT_SYSROOT_DIR}/usr" "--with-mpfr=${CT_SYSROOT_DIR}/usr")
         fi
 
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
@@ -228,7 +233,7 @@ do_debug_gdb_build() {
 
         export ac_cv_func_strncmp_works=yes
 
-        CT_DoLog DEBUG "Extra config passed: '${native_extra_config# }'"
+        CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
@@ -247,7 +252,7 @@ do_debug_gdb_build() {
             --disable-werror                            \
             --without-included-gettext                  \
             --without-develop                           \
-            ${native_extra_config}
+            "${native_extra_config[@]}"
 
         CT_DoLog EXTRA "Building native gdb"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
@@ -264,6 +269,8 @@ do_debug_gdb_build() {
     fi
 
     if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
+        local -a gdbserver_extra_config
+
         CT_DoStep INFO "Installing gdbserver"
         CT_DoLog EXTRA "Configuring gdbserver"
 
@@ -280,7 +287,7 @@ do_debug_gdb_build() {
             gdbserver_LDFLAGS=-static
         fi
 
-        gdbserver_extra_config="${extra_config}"
+        gdbserver_extra_config=("${extra_config[@]}")
 
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
         CT_DoExecLog ALL                                \
@@ -301,7 +308,7 @@ do_debug_gdb_build() {
             --without-included-gettext                  \
             --without-develop                           \
             --disable-werror                            \
-            ${gdbserver_extra_config}
+            "${gdbserver_extra_config[@]}"
 
         CT_DoLog EXTRA "Building gdbserver"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
