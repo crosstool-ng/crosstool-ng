@@ -201,6 +201,8 @@ do_libc_start_files() {
 
 # This function builds and install the full glibc
 do_libc() {
+    local -a extra_config
+
     CT_DoStep INFO "Installing C library"
 
     mkdir -p "${CT_BUILD_DIR}/build-libc"
@@ -212,32 +214,32 @@ do_libc() {
     # We don't need to be conditional on wether the user did set different
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
 
-    extra_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
+    extra_config+=("--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')")
 
     case "${CT_THREADS}" in
-        nptl)           extra_config="${extra_config} --with-__thread --with-tls";;
-        linuxthreads)   extra_config="${extra_config} --with-__thread --without-tls --without-nptl";;
-        none)           extra_config="${extra_config} --without-__thread --without-nptl"
+        nptl)           extra_config+=("--with-__thread" "--with-tls");;
+        linuxthreads)   extra_config+=("--with-__thread" "--without-tls" "--without-nptl");;
+        none)           extra_config+=("--without-__thread" "--without-nptl")
                         case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
                             *-tls*) ;;
-                            *) extra_config="${extra_config} --without-tls";;
+                            *) extra_config+=("--without-tls");;
                         esac
                         ;;
     esac
 
     case "${CT_SHARED_LIBS}" in
-        y) extra_config="${extra_config} --enable-shared";;
-        *) extra_config="${extra_config} --disable-shared";;
+        y) extra_config+=("--enable-shared");;
+        *) extra_config+=("--disable-shared");;
     esac
 
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-        y,) extra_config="${extra_config} --with-fp";;
-        ,y) extra_config="${extra_config} --without-fp";;
+        y,) extra_config+=("--with-fp");;
+        ,y) extra_config+=("--without-fp");;
     esac
 
     case "$(do_libc_add_ons_list ,)" in
         "") ;;
-        *)  extra_config="${extra_config} --enable-add-ons=$(do_libc_add_ons_list ,)";;
+        *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
     esac
 
     extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
@@ -246,7 +248,7 @@ do_libc() {
 
     CT_DoLog DEBUG "Using gcc for target:     '${cross_cc}'"
     CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
-    CT_DoLog DEBUG "Extra config args passed: '${extra_config}'"
+    CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     BUILD_CC="${CT_BUILD}-gcc"                                      \
@@ -263,7 +265,7 @@ do_libc() {
         --disable-profile                                           \
         --without-gd                                                \
         --without-cvs                                               \
-        ${extra_config}                                             \
+        "${extra_config[@]}"                                        \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
     
     CT_DoLog EXTRA "Building C library"
