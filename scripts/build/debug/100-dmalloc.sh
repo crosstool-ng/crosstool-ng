@@ -10,27 +10,28 @@ do_debug_dmalloc_extract() {
 }
 
 do_debug_dmalloc_build() {
+    local -a extra_config
+
     CT_DoStep INFO "Installing dmalloc"
     CT_DoLog EXTRA "Configuring dmalloc"
 
     mkdir -p "${CT_BUILD_DIR}/build-dmalloc"
     cd "${CT_BUILD_DIR}/build-dmalloc"
 
-    extra_config=
     case "${CT_CC_LANG_CXX}" in
-        y)  extra_config="${extra_config} --enable-cxx";;
-        *)  extra_config="${extra_config} --disable-cxx";;
+        y)  extra_config+=("--enable-cxx");;
+        *)  extra_config+=("--disable-cxx");;
     esac
     case "${CT_THREADS_NONE}" in
-        y)  extra_config="${extra_config} --disable-threads";;
-        *)  extra_config="${extra_config} --enable-threads";;
+        y)  extra_config+=("--disable-threads");;
+        *)  extra_config+=("--enable-threads");;
     esac
     case "${CT_SHARED_LIBS}" in
-        y)  extra_config="${extra_config} --enable-shlib";;
-        *)  extra_config="${extra_config} --disable-shlib";;
+        y)  extra_config+=("--enable-shlib");;
+        *)  extra_config+=("--disable-shlib");;
     esac
 
-    CT_DoLog DEBUG "Extra config passed: '${extra_config}'"
+    CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     LD="${CT_TARGET}-ld"                                        \
     AR="${CT_TARGET}-ar"                                        \
@@ -40,7 +41,7 @@ do_debug_dmalloc_build() {
         --prefix=/usr                                           \
         --build="${CT_BUILD}"                                   \
         --host="${CT_TARGET}"                                   \
-        ${extra_config}
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building dmalloc"
     CT_DoExecLog ALL make
