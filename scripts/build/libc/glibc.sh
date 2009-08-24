@@ -395,8 +395,8 @@ do_libc() {
     esac
 
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-        y,) extra_config+=("--with-fp";;
-        ,y) extra_config+=("--without-fp";;
+        y,) extra_config+=("--with-fp");;
+        ,y) extra_config+=("--without-fp");;
     esac
 
     case "$(do_libc_add_ons_list ,)" in
