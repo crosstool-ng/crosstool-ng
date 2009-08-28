@@ -1,8 +1,11 @@
 # Build script for D.U.M.A.
 
 do_debug_duma_get() {
-    CT_GetFile "duma_${CT_DUMA_VERSION}" http://mesh.dl.sourceforge.net/sourceforge/duma/
-    # Downloading from sourceforge leaves garbage, cleanup
+    # Downloading an non-existing file from sourceforge will give you an
+    # HTML file containing an error message, instead of returning a 404.
+    # Sigh...
+    CT_GetFile "duma_${CT_DUMA_VERSION}" .tar.gz http://mesh.dl.sourceforge.net/sourceforge/duma/
+    # Downloading from sourceforge may leave garbage, cleanup
     CT_DoExecLog ALL rm -f "${CT_TARBALLS_DIR}/showfiles.php"*
 }
 
