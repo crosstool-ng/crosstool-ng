@@ -41,8 +41,7 @@ do_finish() {
 
     # If using the companion libraries, we need a wrapper
     # that will set LD_LIBRARY_PATH approriately
-    if [    "${CT_GMP_MPFR}" = "y"      \
-         -o "${CT_PPL_CLOOG_MPC}" = "y" ]; then
+    if [ "${CT_WRAPPER_NEEDED}" = "y" ]; then
         CT_DoLog EXTRA "Installing toolchain wrappers"
         CT_Pushd "${CT_PREFIX_DIR}/bin"
 
