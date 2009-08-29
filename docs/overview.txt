@@ -25,6 +25,7 @@ Running crosstool-NG
   Testing all toolchains at once
   Overriding the number of // jobs
   Note on // jobs
+  Tools wrapper
 Using the toolchain
 Toolchain types
 Internals
@@ -381,6 +382,52 @@ The crosstool-NG script 'ct-ng' is a Makefile-script. It does *not* execute
 in parallel (there is not much to gain). When speaking of // jobs, we are
 refering to the number of // jobs when making the *components*. That is, we
 speak of the number of // jobs used to build gcc, glibc, and so on...
+
+Tools wrapper |
+--------------+
+
+Starting with gcc-4.3 come two new dependencies: GMP and MPFR. With gcc-4.4,
+come three new ones: GMP, PPL and CLooG/ppl. These are libraries that enable
+advanced features to gcc. Additionally, some of the libraries can be used by
+binutils and gdb. Unfortunately, not all systems on which crosstool-NG runs
+have all of those libraries. And for those that do, the versions of those
+libraries may be older than the version required by gcc.
+
+This is why crosstool-NG builds its own set of libraries as part of the
+toolchain.
+
+The libraries are built as shared libraries, because building them as static
+libraries has some short-comings. This poses no problem at build time, as
+crosstool-NG correctly points gcc (and binutiols and gdb) to the correct
+place where our own version of the libraries are installed. But it poses
+a problem when gcc et al. are run: the place where the libraries are is most
+probably not known to the host dynamic linker. Still worse, if the host system
+has its own versions, then ld.so would load the wrong library!
+
+So we have to force the dynamic linker to load the correct version. We do this
+by using the LD_LIBRARY_PATH variable, that informs the dynamic linker where
+to look for shared libraries prior to searching its standard places. But we
+can't impose that burden on all the system (because it'd be a nightmare to
+configure, and because two tolchains on the same system may use different
+versions of the libraries); so we have to do it on a per-toolchain basis.
+
+So we rename all binaries of the toolchain (by adding a dot '.' as their first
+character), and add a small program, the so-called "tools wrapper", that
+correctly sets LD_LIBRARY_PATH prior to running the real tool.
+
+First, the wrapper was written as a POSIX-compliant shell script. That shell
+script is very simple, if not trivial, and works great. The only drawback is
+that it does not work on host systems that lack a shell, for example the
+MingW32 environment. To solve the issue, the wrapper has been re-written in C,
+and compiled at build time. This C wrapper is much more complex than the shell
+script, and although it sems to be working, it's been only lightly tested.
+Some of the expected short-comings with this C wrapper are;
+ - multi-byte file names may not be handled correctly
+ - it's really big for what it does
+
+So, the default wrapper installed with your toolchain is the shell script.
+If you know that your system is missing a shell, then you shall use the C
+wrapper (and report back whether it works, or does not work, for you).
 
 
 _______________________

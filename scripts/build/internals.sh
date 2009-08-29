@@ -46,9 +46,25 @@ do_finish() {
         CT_DoLog EXTRA "Installing toolchain wrappers"
         CT_Pushd "${CT_PREFIX_DIR}/bin"
 
-        # Copy the wrapper
-        CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/scripts/wrapper.in"   \
-                                           ".${CT_TARGET}-wrapper"
+        # Install the wrapper
+        case "${CT_TOOLS_WRAPPER}" in
+            script)
+                CT_DoExecLog DEBUG install                              \
+                                   -m 0755                              \
+                                   "${CT_LIB_DIR}/scripts/wrapper.in"   \
+                                   ".${CT_TARGET}-wrapper"
+                ;;
+            exec)
+                _t="-s"
+                if [ "${CT_DEBUG_CT}" = "y" ]; then
+                  _t="" # If debugging crosstool-NG, don't strip the wrapper
+                fi
+                CT_DoExecLog "${HOST_CC}"                               \
+                             -Wall -Wextra -Wunreachable-code -Werror   \
+                             -O3 -static ${_t}                          \
+                             -o ".${CT_TARGET}-wrapper"
+                ;;
+        esac
 
         # Replace every tools with the wrapper
         # Do it unconditionally, even for those tools that happen to be shell
