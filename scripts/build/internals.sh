@@ -61,6 +61,7 @@ do_finish() {
                 CT_DoExecLog "${HOST_CC}"                               \
                              -Wall -Wextra -Wunreachable-code -Werror   \
                              -O3 -static ${_t}                          \
+                             "${CT_LIB_DIR}/scripts/wrapper.c"          \
                              -o ".${CT_TARGET}-wrapper"
                 ;;
         esac
