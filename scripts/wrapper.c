@@ -27,6 +27,9 @@ int main( int argc,
   size_t len;
   int execve_ret;
 
+  /* Avoid the warning-treated-as-error: "error: unused parameter 'argc'" */
+  len = argc;
+
   /* In case we have a relative or absolute pathname (ie. contains a slash),
    * then realpath wll work. But if the tool was found in the PATH, realpath
    * won't work, and we'll have to search ourselves.
