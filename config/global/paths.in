@@ -60,36 +60,54 @@ config INSTALL_DIR
 #      The reason you might also want to install elsewhere is if you are going
 #      to package your shinny new toolchain for distribution.
 
-config CUSTOM_PATCH
+choice
+    prompt "Patches origin"
     bool
-    prompt "Use custom patch directory"
-    default n
-    help
-      If you have custom patches that you want to be applied, say 'Y' here and
-      enter the path directory below.
-      
-      Note that you must ensure that the patch directory is arranged the same
-      way the official directory is.
+    default PATCH_BUNDLED
 
-config CUSTOM_PATCH_ONLY
+config PATCH_BUNDLED
     bool
-    prompt "Only use custom patches"
-    default n
-    depends on CUSTOM_PATCH
+    prompt "Bundled only"
     help
-      Don't apply patches coming with crosstool-NG, only those patches available
-      in the directory below.
-      
-      If you say 'N' here, then the patches provided with crosstool-NG will be
-      applied first, and then your patches.
+      Only apply patches bundled with crosstool-NG.
 
-config CUSTOM_PATCH_DIR
+config PATCH_LOCAL
+    bool
+    prompt "Local only"
+    select PATCH_USE_LOCAL
+    help
+      Only apply your local patches.
+
+config PATCH_BUNDLED_LOCAL
+    bool
+    prompt "Bundled, then local"
+    select PATCH_USE_LOCAL
+    help
+      Apply the patches bundled with crosstool-NG,
+      then apply your local patches.
+
+endchoice
+
+config PATCH_ORDER
     string
-    prompt "Custom patch directory"
+    default "bundled"           if PATCH_BUNDLED
+    default "local"             if PATCH_LOCAL
+    default "bundled,local"     if PATCH_BUNDLED_LOCAL
+
+config PATCH_USE_LOCAL
+    bool
+    default n
+
+config LOCAL_PATCH_DIR
+    string
+    prompt "|  Local patch directory"
     default ""
-    depends on CUSTOM_PATCH
+    depends on PATCH_USE_LOCAL
     help
       Enter the custom patch directory here.
+      
+      Note that you must ensure that the directory contianing your custom
+      patches is arranged the same way the official directory is.
 
 config REMOVE_DOCS
     bool

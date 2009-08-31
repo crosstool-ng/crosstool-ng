@@ -585,8 +585,10 @@ CT_Patch() {
     local nochdir="$2"
     local base_file="${basename%%-*}"
     local ver_file="${basename#*-}"
-    local official_patch_dir
-    local custom_patch_dir
+    local d
+    local -a patch_dirs
+    local bundled_patch_dir
+    local local_patch_dir
 
     # Check if already patched
     if [ -e "${CT_SRC_DIR}/.${basename}.patched" ]; then
@@ -609,13 +611,19 @@ CT_Patch() {
 
     CT_DoLog EXTRA "Patching '${basename}'"
 
-    official_patch_dir=
-    custom_patch_dir=
-    [ "${CT_CUSTOM_PATCH_ONLY}" = "y" ] || official_patch_dir="${CT_LIB_DIR}/patches/${base_file}/${ver_file}"
-    [ "${CT_CUSTOM_PATCH}" = "y" ] && custom_patch_dir="${CT_CUSTOM_PATCH_DIR}/${base_file}/${ver_file}"
-    for patch_dir in "${official_patch_dir}" "${custom_patch_dir}"; do
-        if [ -n "${patch_dir}" -a -d "${patch_dir}" ]; then
-            for p in "${patch_dir}"/*.patch; do
+    bundled_patch_dir="${CT_LIB_DIR}/patches/${base_file}/${ver_file}"
+    local_patch_dir="${CT_CUSTOM_PATCH_DIR}/${base_file}/${ver_file}"
+
+    case "${CT_PATCH_ORDER}" in
+        bundled)        patch_dirs=("${bundled_patch_dir}");;
+        local)          patch_dirs=("${local_patch_dir}");;
+        bundled,local)  patch_dirs=("${bundled_patch_dir}" "${local_patch_dir}");;
+    esac
+
+    for d in "${patch_dirs[@]}"; do
+        CT_DoLog DEBUG "Looking for patches in '${d}'..."
+        if [ -n "${d}" -a -d "${d}" ]; then
+            for p in "${d}"/*.patch; do
                 if [ -f "${p}" ]; then
                     CT_DoLog DEBUG "Applying patch '${p}'"
                     CT_DoExecLog ALL patch -g0 -F1 -p1 -f <"${p}"
