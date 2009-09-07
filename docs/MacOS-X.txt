@@ -1,0 +1,283 @@
+Introduction
+------------
+
+This file introduces you to building a cross-toolchain on MacOS-X.
+Apart from the crosstool-NG configuration options for the specific target,
+what is important is:
+ - what pre-requisites to install
+ - how to install them
+ - how to work around the case-insensitivity of HFS+
+
+This file was submitted by:
+  Blair Burtan <info@northernlightstactical.com>
+The original version was found at:
+  http://homepage.mac.com/macg3/TS7390-OSX-crosstool-instructions.txt
+
+
+Text
+----
+
+Compiling cross compiler for default TS-7390 debian system on Mac OS X
+
+Forewarning: It's kind of a pain. Several of OS X's packages aren't good enough
+so you need to install some GNU stuff. You might have an easier time using a
+package manager for OS X but I prefer to compile everything from source so I'm
+going to provide the instructions for that. Also there are a few little catches
+with how some of the older gcc/glibc stuff compiles on OS X.
+
+The version of glibc on the TS-7390 default file system is 2.3.6. So we need to
+make a compiler with glibc 2.3.6 or older. I guess you can pick whatever version
+of gcc you want to use. I'll pick 4.1.2, which is what is included with the 7390
+debian. But you could theoretically do something newer like 4.3.3 (or older,
+like 4.0.4) if you want, I think. All I know is the following works fine for gcc
+4.1.2 and glibc 2.3.6.
+
+First, you have to install some prerequisites. Go in a temporary folder
+somewhere and follow these directions.
+
+Some of the included OS X utilities aren't cool enough. So we need to download
+and install some GNU utilities. Luckily they compile with no trouble in
+Mac OS X! Nice work GNU people!
+
+First make sure you've installed the latest version of Xcode so you have gcc
+on your Mac.
+
+Install GNU sed into /usr/local. Note: I believe configure defaults to
+/usr/local as a prefix, but better safe than sorry.
+
+    curl -O http://ftp.gnu.org/gnu/sed/sed-4.2.1.tar.bz2
+    tar -xf sed-4.2.1.tar.bz2
+    cd sed-4.2.1
+    ./configure --prefix=/usr/local
+    make -j 2 (or 4 or whatever...# of jobs that can run in parallel...
+                        on a dual core machine I use 4)
+    sudo make install
+
+Install GNU coreutils:
+
+    curl -O http://ftp.gnu.org/gnu/coreutils/coreutils-7.4.tar.gz
+    tar -xf coreutils-7.4.tar.gz
+    cd coreutils-7.4
+    ./configure --prefix=/usr/local
+    make -j 2
+    sudo make install
+
+Install GNU libtool:
+
+    curl -O http://ftp.gnu.org/gnu/libtool/libtool-2.2.6a.tar.gz
+    tar -xf libtool-2.2.6a.tar.gz
+    cd libtool-2.2.6
+    ./configure --prefix=/usr/local
+    make -j 2
+    sudo make install
+
+Install GNU awk, needed to fix a weird error in glibc compile:
+
+    curl -O http://ftp.gnu.org/gnu/gawk/gawk-3.1.7.tar.bz2
+    tar -xf gawk-3.1.7.tar.bz2
+    cd gawk-3.1.7
+    ./configure --prefix=/usr/local
+    make -j 2
+    sudo make install
+
+Xcode doesn't come with objcopy/objdump, but you need them. Download GNU
+binutils 2.19.1 and install just objcopy and objdump. Not sure how exactly to
+do only them so I compile it all and copy them manually....there may be a
+better way.
+
+    curl -O http://ftp.gnu.org/gnu/binutils/binutils-2.19.1.tar.bz2
+    tar -xf binutils-2.19.1.tar.bz2
+    cd binutils-2.19.1
+    ./configure --prefix=/usr/local
+    make -j 2
+    sudo cp binutils/obj{dump,copy} /usr/local/bin
+
+
+Done installing prerequisites...now do the fun stuff!
+
+
+1) Create a disk image with Disk Utility (in /Utilities/Disk Utility).
+    Open it and go to File->New->Blank Disk Image.
+    Save As: Call it whatever you want.
+    Volume name: Call it CrosstoolCompile
+    Volume size: Go to custom and choose 2000 MB. This is a temporary image you
+                 can delete once you're done compiling if you wish.
+    Volume format: Choose Mac OS Extended (Case-sensitive, journaled).
+        Mac OS X's default file system does not allow you to name two files
+        the same with different cases (abcd and ABCD) but you need this for
+        crosstool. So that's why we're creating a disk image. Leave everything
+        else the default and save it wherever you want.
+
+2) Create another disk image where the final toolchain will be installed.
+    Your crosstool needs to go on a disk image for the same reason--needs a
+    case sensitive file system and regular Mac OS X HFS+ is not. So we have to
+    make another one. Follow the steps above but set the volume name to
+    Crosstool and then make the volume size something like 300MB. Just make
+    sure you leave plenty of room for any libraries you want to add to your
+    cross compiler and that kind of stuff. The resulting toolchain will be about
+    110 MB in size. Set the Volume Format to
+    Mac OS Extended (Case-sensitive, journaled).
+    Save this image somewhere handy. You'll be using it forever after this.
+
+
+3) Make sure they're both mounted.
+
+4) cd /Volumes/CrosstoolCompile
+
+5) Grab crosstool-ng:
+    curl -O http://ymorin.is-a-geek.org/download    \
+                /crosstool-ng/crosstool-ng-1.4.2.tar.bz2
+    (OS X doesn't come with wget by default)
+
+6) Expand it
+    tar -xf crosstool-ng-1.4.2.tar.bz2
+    cd crosstool-ng-1.4.2
+
+7) Build it
+    export PATH=/usr/local/bin:$PATH
+
+    Make sure you do it like this.
+        /usr/local/bin has to come in the path BEFORE anything else.
+
+    ./configure --local
+    make
+
+8) Configure crosstool
+    ./ct-ng menuconfig
+
+At this point you should have a screen up similar to the Linux kernel config.
+Now set up options. Leave options as default if I haven't mentioned them.
+
+Paths and misc options:
+    Enable Use obsolete features
+    Enable Try features marked as EXPERIMENTAL
+    Set prefix directory to:
+        /Volumes/Crosstool/${CT_TARGET}
+        (this tells it to install on the disk image you created)
+    Number of parallel jobs: Multiply the number of cores you have times 2.
+    That's what I generally do. So my dual core can do 4 jobs.
+    Makes compiling the toolchain faster.
+
+Target options:
+    Target Architecture: ARM
+    Use EABI: Do NOT check this. The default TS Debian filesystem is OABI.
+        If you are doing an EABI one, you can set this to true (but may want
+        to do a different version of gcc/glibc)
+    Architecture level: armv4t
+        armv4t is for the EP9302. other processors you would pick the
+            right architecture here.
+    Floating point: Hardware
+
+    I believe this is correct even though it's not really using an FPU because
+    the pre-EABI debian distro was compiled with hardfloat instructions so
+    whenever you do a floating point instruction the kernel is actually
+    trapping an illegal instruction error, makes for slow floating point...
+    EABI is so much better.
+
+    I know hardware is the default, but I just wanted to clarify that you need
+    to choose hardware here. I'm pretty sure anyway.
+
+Toolchain Options:
+    Tuple's vendor string: whatever you want.
+        It'll be arm-yourtuple-linux-gnu when you're finished.
+
+Operating System:
+    Target OS: linux
+    Linux kernel version: 2.6.21.7 (best match for TS kernel!)
+
+binutils:
+    version: 2.19.1
+C compiler:
+    gcc
+    version: 4.1.2
+    choose C++ below, so you can compile C++!
+C-library:
+    glibc (NOT eglibc for this)
+    glibc version: 2.3.6
+    Threading implementation to use: linuxthreads
+
+(note: nptl is better than linuxthreads, but it looks like nptl didn't support
+       ARM back in glibc 2.3.6?
+
+Exit and save config.
+
+Now we need to add a patch. Looks like the configure script for glibc does not
+like some of apple's binutils, so we need to patch it to skip the version tests
+for as and ld. Stick this patch in crosstool-ng-1.4.2/patches/glibc/2.3.6 to
+skip the version test for as and ld:
+
+http://homepage.mac.com/macg3/300-glibc-2.3.6-configure-patch-OSX.patch
+
+(or see below, at the end of this file)
+
+---------
+
+Okay, done setting up crosstool...now...
+
+./ct-ng build
+
+Sit back, relax, wait a while. Crosstool-ng will do the rest, automatically
+downloading tarballs, patching them, installing them. Could take quite a long
+time. The actual compiling took about 30 minutes on my older MacBook Pro. When
+you're done you have a cross compiler on your disk image that you named
+"Crosstool". Look in there and you're all set!
+
+So whenever you want to use the cross compiler, you need to mount this disk
+image. You could also create an actual partition on your computer that is
+Mac OS X extended case-sensitive if you wish. Then you don't need the disk
+image.
+
+You can delete the CrosstoolCompile disk image. It was just used temporarily
+while compiling everything.
+
+Note that I'm pretty sure gcc 4.1.2 has a bug in assembly generation that will
+cause Qt 4.5 to segfault. I'm fairly sure I saw this problem before with 4.1.2.
+I know for a fact that gcc 4.3.3 has the bug. This bug report:
+http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39429 has the details. I adapted the
+patch at the bottom to work with gcc 4.3.3. you might be able to apply it to
+other gcc versions. Not sure. I think 4.0.4 does not have this bug so you might
+even try compiling 4.0.4 instead of 4.1.2. Lots of options. Hope this helps,
+I've struggled with this stuff a lot but it's so convenient to have a native
+OS X toolchain!
+
+
+Patch
+-----
+
+Here is the afore-mentioned patch:
+
+---8<---
+Mac OS X fails configuring because its included binutils kind of suck.
+This patch makes the glibc 2.3.6 configure script ignore the
+installed version of as and ld. It just makes the configure
+script believe that it's as version 2.13 and ld 2.13.
+
+Made on 2009-08-08 by Doug Brown
+
+--- glibc-2.3.6/configure.orig	2009-08-08 10:40:10.000000000 -0700
++++ glibc-2.3.6/configure	2009-08-08 10:42:49.000000000 -0700
+@@ -3916,10 +3916,7 @@ else
+ echo $ECHO_N "checking version of $AS... $ECHO_C" >&6
+   ac_prog_version=`$AS -v </dev/null 2>&1 | sed -n 's/^.*GNU assembler.* \([0-9]*\.[0-9.]*\).*$/\1/p'`
+   case $ac_prog_version in
+-    '') ac_prog_version="v. ?.??, bad"; ac_verc_fail=yes;;
+-    2.1[3-9]*)
+-       ac_prog_version="$ac_prog_version, ok"; ac_verc_fail=no;;
+-    *) ac_prog_version="$ac_prog_version, bad"; ac_verc_fail=yes;;
++    *) ac_prog_version="2.13, ok"; ac_verc_fail=no;;
+ 
+   esac
+   echo "$as_me:$LINENO: result: $ac_prog_version" >&5
+@@ -3977,10 +3974,7 @@ else
+ echo $ECHO_N "checking version of $LD... $ECHO_C" >&6
+   ac_prog_version=`$LD --version 2>&1 | sed -n 's/^.*GNU ld.* \([0-9][0-9]*\.[0-9.]*\).*$/\1/p'`
+   case $ac_prog_version in
+-    '') ac_prog_version="v. ?.??, bad"; ac_verc_fail=yes;;
+-    2.1[3-9]*)
+-       ac_prog_version="$ac_prog_version, ok"; ac_verc_fail=no;;
+-    *) ac_prog_version="$ac_prog_version, bad"; ac_verc_fail=yes;;
++    *) ac_prog_version="2.13, ok"; ac_verc_fail=no;;
+ 
+   esac
+   echo "$as_me:$LINENO: result: $ac_prog_version" >&5
+---8<---
