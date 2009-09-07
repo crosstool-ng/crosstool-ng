@@ -29,6 +29,7 @@ dump_single_sample() {
     fi
     . "${sample_top}/samples/${sample}/crosstool.config"
     if [ -z "${wiki}" ]; then
+        t_width=10
         printf "    %-*s  [%s" ${width} "${sample}" "${sample_type}"
         [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf " "
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
@@ -37,15 +38,15 @@ dump_single_sample() {
             case "${CT_TOOLCHAIN_TYPE}" in
                 cross)  ;;
                 canadian)
-                    printf "    Host      : ${CT_HOST}\n"
+                    printf "    %-*s : %s\n" ${t_width} "Host" "${CT_HOST}"
                     ;;
             esac
-            echo    "    OS        : ${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
+            printf "    %-*s : %s\n" ${t_width} "OS" "${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
             if [ "${CT_GMP_MPFR}" = "y" ]; then
-                echo    "    GMP/MPFR  : gmp-${CT_GMP_VERSION} / mpfr-${CT_MPFR_VERSION}"
+                printf    "    %-*s : %s\n" ${t_width} "GMP/MPFR" "gmp-${CT_GMP_VERSION} / mpfr-${CT_MPFR_VERSION}"
             fi
-            echo    "    binutils  : binutils-${CT_BINUTILS_VERSION}"
-            printf  "    C compiler: ${CT_CC}-${CT_CC_VERSION} (C"
+            printf  "    %-*s : %s\n" ${t_width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
+            printf  "    %-*s : %s" ${t_width} "C compiler" "${CT_CC}-${CT_CC_VERSION} (C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
             [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ",Fortran"
             [ "${CT_CC_LANG_JAVA}" = "y"    ] && printf ",Java"
@@ -53,9 +54,9 @@ dump_single_sample() {
             [ "${CT_CC_LANG_OBJC}" = "y"    ] && printf ",Objective-C"
             [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ",Objective-C++"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
-            echo    ")"
-            echo    "    C library : ${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}"
-            printf  "    Tools     :"
+            printf ")\n"
+            printf  "    %-*s : %s\n" ${t_width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}"
+            printf  "    %-*s :" ${t_width} "Tools"
             [ "${CT_LIBELF}"  ] && printf " libelf-${CT_LIBELF_VERSION}"
             [ "${CT_SSTRIP}"  ] && printf " sstrip"
             [ "${CT_DMALLOC}" ] && printf " dmalloc-${CT_DMALLOC_VERSION}"
@@ -63,7 +64,7 @@ dump_single_sample() {
             [ "${CT_GDB}"     ] && printf " gdb-${CT_GDB_VERSION}"
             [ "${CT_LTRACE}"  ] && printf " ltrace-${CT_LTRACE_VERSION}"
             [ "${CT_STRACE}"  ] && printf " strace-${CT_STRACE_VERSION}"
-            echo
+            printf "\n"
         fi
     else
         printf "| ''${sample}''  "
