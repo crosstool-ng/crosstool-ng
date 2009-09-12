@@ -18,8 +18,17 @@ do_cloog_get() {
 
 # Extract CLooG
 do_cloog_extract() {
+    local _t
+
     CT_Extract "cloog-ppl-${CT_CLOOG_VERSION}"
-    CT_Pushd "${CT_SRC_DIR}/cloog-ppl"
+
+    # Version 0.15.3 has a dirname 'cloog-ppl' (with no version in it!)
+    # while versions 0.15.4 onward do have the version in the dirname.
+    case "${CT_CLOOG_VERSION}" in
+        0.15.3) _t="";;
+        *)      _t="-${CT_CLOOG_VERSION}";;
+    esac
+    CT_Pushd "${CT_SRC_DIR}/cloog-ppl${_t}"
     CT_Patch "cloog-ppl-${CT_CLOOG_VERSION}" nochdir
     CT_Popd
 }
