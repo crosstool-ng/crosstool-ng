@@ -77,13 +77,13 @@ addToolVersion() {
     SedExpr1="${SedExpr1}    prompt \"${version}"
     case "${EXP},${OBS}" in
         ,)  ;;
-        ,*) exp_obs_prompt="  (OBSOLETE)"
+        ,*) exp_obs_prompt=" (OBSOLETE)"
             deps="    depends on OBSOLETE"
             ;;
-        *,) exp_obs_prompt="  (EXPERIMENTAL)"
+        *,) exp_obs_prompt=" (EXPERIMENTAL)"
             deps="    depends on EXPERIMENTAL"
             ;;
-        *)  exp_obs_prompt="  (EXPERIMENTAL, OBSOLETE)"
+        *)  exp_obs_prompt=" (EXPERIMENTAL, OBSOLETE)"
             deps="    depends on EXPERIMENTAL \\&\\& OBSOLETE"
             ;;
     esac
