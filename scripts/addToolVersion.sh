@@ -78,34 +78,34 @@ addToolVersion() {
     case "${EXP},${OBS}" in
         ,)  ;;
         ,*) exp_obs_prompt="  (OBSOLETE)"
-            deps="    depends on OBSOLETE\n"
+            deps="    depends on OBSOLETE"
             ;;
         *,) exp_obs_prompt="  (EXPERIMENTAL)"
-            deps="    depends on EXPERIMENTAL\n"
+            deps="    depends on EXPERIMENTAL"
             ;;
         *)  exp_obs_prompt="  (EXPERIMENTAL, OBSOLETE)"
-            deps="    depends on EXPERIMENTAL && OBSOLETE\n"
+            deps="    depends on EXPERIMENTAL \\&\\& OBSOLETE"
             ;;
     esac
     [ -n "${exp_obs_prompt}" ] && SedExpr1="${SedExpr1}${exp_obs_prompt}"
-    SedExpr1="${SedExpr1}\"\n"
-    [ -n "${deps}" ] && SedExpr1="${SedExpr1}${deps}"
+    SedExpr1="${SedExpr1}\""
+    [ -n "${deps}" ] && SedExpr1="${SedExpr1}\n${deps}"
     if [ "${tool}" = "gcc" ]; then
         # Extract 'M'ajor and 'm'inor from version string
         ver_M=$(echo "${version}...." |cut -d . -f 1)
         ver_m=$(echo "${version}...." |cut -d . -f 2)
         if [    ${ver_M} -gt 4                          \
              -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 3 \)  ]; then
-            SedExpr1="${SedExpr1}    select CC_GCC_4_3_or_later\n"
+            SedExpr1="${SedExpr1}\n    select CC_GCC_4_3_or_later"
         fi
         if [    ${ver_M} -gt 4                          \
              -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 4 \)  ]; then
-            SedExpr1="${SedExpr1}    select CC_GCC_4_4_or_later\n"
+            SedExpr1="${SedExpr1}\n    select CC_GCC_4_4_or_later"
         fi
     fi
     SedExpr2="    default \"${version}\" if ${cat}_V_${v}"
-    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_ABOVE)$/'"${SedExpr1}"'\n\1/;' "${file}"
-    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_STRING_ABOVE)$/'"${SedExpr2}"'\n\1/;' "${file}"
+    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_BELOW)$/\1\n'"${SedExpr1}"'/;' "${file}"
+    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_STRING_BELOW)$/\1\n'"${SedExpr2}"'/;' "${file}"
 }
 
 cat=
