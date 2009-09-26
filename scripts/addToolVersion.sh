@@ -104,7 +104,7 @@ addToolVersion() {
         fi
     fi
     SedExpr2="    default \"${version}\" if ${cat}_V_${v}"
-    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_BELOW)$/\1\n'"${SedExpr1}"'/;' "${file}"
+    "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_BELOW)$/\1\n\n'"${SedExpr1}"'/;' "${file}"
     "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_STRING_BELOW)$/\1\n'"${SedExpr2}"'/;' "${file}"
 }
 
