@@ -47,8 +47,6 @@ do_libc_get() {
                       "glibc-${version}-branch${date:+:}${date}"        \
                       "glibc-${addon}-cvs-${CT_LIBC_VERSION}"
         done
-#    elif [ "${CT_LIBC_GLIBC_SNAPSHOT}" = "y" ]; then
-#        : # Not yet handled...
     fi
 
     return 0
