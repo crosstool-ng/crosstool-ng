@@ -67,10 +67,10 @@ static void strip(char *str)
 static void check_stdin(void)
 {
 	if (!valid_stdin) {
-		printf(_("aborted!\n\n"));
-		printf(_("Console input/output is redirected. "));
-		printf(_("Run 'make oldconfig' to update configuration.\n\n"));
-		exit(1);
+		/* For crosstool-NG, we don't care if stdin/stdout got redirected.
+		 * In this case, just printf a cariage return, for pretty output.
+		 */
+		printf("\n");
 	}
 }
 

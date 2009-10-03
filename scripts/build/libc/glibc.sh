@@ -47,8 +47,6 @@ do_libc_get() {
                       "glibc-${version}-branch${date:+:}${date}"        \
                       "glibc-${addon}-cvs-${CT_LIBC_VERSION}"
         done
-#    elif [ "${CT_LIBC_GLIBC_SNAPSHOT}" = "y" ]; then
-#        : # Not yet handled...
     fi
 
     return 0
@@ -180,7 +178,7 @@ do_libc_headers() {
 
         libc_cv_ppc_machine=yes                         \
         CT_DoExecLog ALL                                \
-        make CFLAGS="-O -DBOOTSTRAP_GCC"                \
+        make CFLAGS="-O2 -DBOOTSTRAP_GCC"               \
              OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"    \
              PARALLELMFLAGS="${PARALLELMFLAGS}"         \
              sysdeps/gnu/errlist.c
@@ -197,7 +195,7 @@ do_libc_headers() {
     CT_DoExecLog ALL                                \
     make cross-compiling=yes                        \
          install_root=${CT_SYSROOT_DIR}             \
-         CFLAGS="-O -DBOOTSTRAP_GCC"                \
+         CFLAGS="-O2 -DBOOTSTRAP_GCC"               \
          ${LIBC_SYSROOT_ARG}                        \
          OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"    \
          PARALLELMFLAGS="${PARALLELMFLAGS}"         \
@@ -294,12 +292,6 @@ do_libc_start_files() {
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
-    # In case we're using a snapshot, fake a >=2.6 version.
-    if [    "${CT_LIBC_V_LATEST}" = "y" \
-         -o "${CT_LIBC_V_date}" = "y"   ]; then
-        glibc_version_major=3
-        glibc_version_minor=0
-    fi
     if [    ${glibc_version_major} -eq 2 -a ${glibc_version_minor} -ge 6    \
          -o ${glibc_version_major} -gt 2                                    ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
@@ -325,7 +317,7 @@ do_libc_start_files() {
     # Please see the comment for the configure step in do_libc().
 
     BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O "  \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O2"  \
     CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}"      \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
@@ -409,12 +401,6 @@ do_libc() {
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
-    # In case we're using a snapshot, fake a >=2.6 version.
-    if [    "${CT_LIBC_V_LATEST}" = "y" \
-         -o "${CT_LIBC_V_date}" = "y"   ]; then
-        glibc_version_major=3
-        glibc_version_minor=0
-    fi
     if [    ${glibc_version_major} -eq 2 -a ${glibc_version_minor} -ge 6    \
          -o ${glibc_version_major} -gt 2                                    ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
@@ -457,7 +443,7 @@ do_libc() {
     # silly messages. GNU folks again, he?
 
     BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O2"  \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \

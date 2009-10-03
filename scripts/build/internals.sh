@@ -8,9 +8,6 @@ do_finish() {
 
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
-    CT_DoLog EXTRA "Removing access to the build system tools"
-    CT_DoExecLog DEBUG rm -rf "${CT_PREFIX_DIR}/buildtools"
-
     if [ "${CT_BARE_METAL}" != "y" ]; then
         CT_DoLog EXTRA "Installing the populate helper"
         sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
@@ -58,11 +55,11 @@ do_finish() {
                 if [ "${CT_DEBUG_CT}" = "y" ]; then
                   _t="" # If debugging crosstool-NG, don't strip the wrapper
                 fi
-                CT_DoExecLog "${HOST_CC}"                               \
-                             -Wall -Wextra -Wunreachable-code -Werror   \
-                             -O3 -static ${_t}                          \
-                             "${CT_LIB_DIR}/scripts/wrapper.c"          \
-                             -o ".${CT_TARGET}-wrapper"
+                CT_DoExecLog DEBUG "${CT_HOST}-gcc"                           \
+                                   -Wall -Wextra -Wunreachable-code -Werror   \
+                                   -O3 -static ${_t}                          \
+                                   "${CT_LIB_DIR}/scripts/wrapper.c"          \
+                                   -o ".${CT_TARGET}-wrapper"
                 ;;
         esac
 
@@ -81,6 +78,9 @@ do_finish() {
         CT_DoExecLog DEBUG rm -f ".${CT_TARGET}-wrapper"
         CT_Popd
     fi
+
+    CT_DoLog EXTRA "Removing access to the build system tools"
+    CT_DoExecLog DEBUG rm -rf "${CT_PREFIX_DIR}/buildtools"
 
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then
