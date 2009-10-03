@@ -292,12 +292,6 @@ do_libc_start_files() {
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
-    # In case we're using a snapshot, fake a >=2.6 version.
-    if [    "${CT_LIBC_V_LATEST}" = "y" \
-         -o "${CT_LIBC_V_date}" = "y"   ]; then
-        glibc_version_major=3
-        glibc_version_minor=0
-    fi
     if [    ${glibc_version_major} -eq 2 -a ${glibc_version_minor} -ge 6    \
          -o ${glibc_version_major} -gt 2                                    ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
@@ -407,12 +401,6 @@ do_libc() {
     # Add some default CC args
     glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
     glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
-    # In case we're using a snapshot, fake a >=2.6 version.
-    if [    "${CT_LIBC_V_LATEST}" = "y" \
-         -o "${CT_LIBC_V_date}" = "y"   ]; then
-        glibc_version_major=3
-        glibc_version_minor=0
-    fi
     if [    ${glibc_version_major} -eq 2 -a ${glibc_version_minor} -ge 6    \
          -o ${glibc_version_major} -gt 2                                    ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
