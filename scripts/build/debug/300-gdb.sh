@@ -265,6 +265,10 @@ do_debug_gdb_build() {
 
         unset ac_cv_func_strncmp_works
 
+        CT_DoLog EXTRA "Cleaning up ncurses"
+        cd "${CT_BUILD_DIR}/build-ncurses"
+        CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" uninstall
+
         CT_EndStep # native gdb build
     fi
 

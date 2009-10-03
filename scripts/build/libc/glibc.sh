@@ -178,7 +178,7 @@ do_libc_headers() {
 
         libc_cv_ppc_machine=yes                         \
         CT_DoExecLog ALL                                \
-        make CFLAGS="-O -DBOOTSTRAP_GCC"                \
+        make CFLAGS="-O2 -DBOOTSTRAP_GCC"               \
              OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"    \
              PARALLELMFLAGS="${PARALLELMFLAGS}"         \
              sysdeps/gnu/errlist.c
@@ -195,7 +195,7 @@ do_libc_headers() {
     CT_DoExecLog ALL                                \
     make cross-compiling=yes                        \
          install_root=${CT_SYSROOT_DIR}             \
-         CFLAGS="-O -DBOOTSTRAP_GCC"                \
+         CFLAGS="-O2 -DBOOTSTRAP_GCC"               \
          ${LIBC_SYSROOT_ARG}                        \
          OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"    \
          PARALLELMFLAGS="${PARALLELMFLAGS}"         \
@@ -317,7 +317,7 @@ do_libc_start_files() {
     # Please see the comment for the configure step in do_libc().
 
     BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O "  \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O2"  \
     CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}"      \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
@@ -443,7 +443,7 @@ do_libc() {
     # silly messages. GNU folks again, he?
 
     BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O2"  \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
