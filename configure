@@ -77,6 +77,8 @@ add_to_var_list() {
 }
 
 # A function to test for required tools/headers/libraries
+# Return 0 (true) if found, !0 (false) if not found
+#
 # $*: [prog|inc|lib]=<name[ name...]>
 #     the name(s) of tool(s) to test for
 #     mandatory
@@ -94,7 +96,7 @@ add_to_var_list() {
 #     the error message to print if tool is missing
 #     optional, defaults to: '${prog}: none found'
 #       eg: err="'bash' 3.x or above was not found"
-has_or_abort() {
+check_for() {
     local prog inc lib
     local var ver err
     local val
@@ -162,6 +164,7 @@ has_or_abort() {
             done
             ;;
     esac
+
     if [ -z "${status}" ]; then
         printf "\n${err:-${prog}${inc}${lib}: none found}\n\n"
         printf "Either you are missing entirely the needed tool,\n"
@@ -169,6 +172,22 @@ has_or_abort() {
         if [ -n "${var}" ]; then
             printf "You can give the path to this tool using: --with-${var}=PATH\n"
         fi
+        printf "\n"
+        return 1
+    fi
+
+    printf "${status}"
+    if [ -n "${var}" ]; then
+        eval ${var}='"'"${where}"'"'
+        add_to_var_list "${var}"
+    fi
+    printf "\n"
+}
+
+# This function checks for a tool, and aborts if not found
+# See check_for(), above, for how to call has_or_abort
+has_or_abort() {
+    if ! check_for "$@"; then
         # FORCE can be set in the environment
         [ -z "${FORCE}" ] && do_error "Bailing out..."
         printf "\n"
@@ -177,13 +196,6 @@ has_or_abort() {
         printf "<* Continuing despite missing pre-requisite *>\n"
         printf "<*          Prepare for breakage            *>\n"
         printf "<*                                          *>\n"
-        printf "\n"
-    else
-        printf "${status}"
-        if [ -n "${var}" ]; then
-            eval ${var}='"'"${where}"'"'
-            add_to_var_list "${var}"
-        fi
         printf "\n"
     fi
 }
@@ -260,7 +272,7 @@ fi
 #---------------------------------------------------------------------
 # Some sanity checks, now
 
-# We check for grep and sed manually, because they are used in has_or_abort
+# We check for grep and sed manually, because they are used in check_for()
 printf "Checking for 'grep'... "
 if [ -n "${grep}" ]; then
     printf "${grep} (cached)\n"
