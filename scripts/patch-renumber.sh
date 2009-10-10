@@ -23,9 +23,9 @@ dir="${1}"
 cpt="${2}"
 inc="${3}"
 
-case "$(LC_ALL=C svnversion "${dir}" 2>/dev/null)" in
-    exported)   CMD="mv -v";;
-    *)          CMD="svn mv";;
+case "$(LC_ALL=C hg id "${dir}" 2>/dev/null)" in
+    "") CMD="mv -v";;
+    *)  CMD="hg mv";;
 esac
 
 for p in "${dir}"/*.patch; do
