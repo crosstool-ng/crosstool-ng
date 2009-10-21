@@ -4,8 +4,6 @@ menu "C-library"
 
 config LIBC
     string
-    default "newlib" if BARE_METAL && ARCH_avr32 && EXPERIMENTAL
-    default "none" if BARE_METAL
 
 config LIBC_VERSION
     string
@@ -23,8 +21,6 @@ config LIBC_VERSION
 
 source config.gen/libc.in
 
-comment "Common C library options"
-
 config LIBC_SUPPORT_NPTL
     bool
     default n
@@ -37,7 +33,12 @@ config THREADS
     string
     default "nptl"          if THREADS_NPTL
     default "linuxthreads"  if THREADS_LINUXTHREADS
-    default "none"          if THREADS_NONE
+    default "none"          if THREADS_NONE || LIBC_none
+#                              No C library, no threads!
+
+if ! LIBC_none
+
+comment "Common C library options"
 
 choice
     bool
@@ -61,5 +62,7 @@ config THREADS_NONE
     prompt "none"
 
 endchoice
+
+endif # ! LIBC_none
 
 endmenu
