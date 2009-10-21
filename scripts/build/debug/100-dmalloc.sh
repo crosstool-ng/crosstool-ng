@@ -22,9 +22,9 @@ do_debug_dmalloc_build() {
         y)  extra_config+=("--enable-cxx");;
         *)  extra_config+=("--disable-cxx");;
     esac
-    case "${CT_THREADS_NONE}" in
-        y)  extra_config+=("--disable-threads");;
-        *)  extra_config+=("--enable-threads");;
+    case "${CT_THREADS}" in
+        none)   extra_config+=("--disable-threads");;
+        *)      extra_config+=("--enable-threads");;
     esac
     case "${CT_SHARED_LIBS}" in
         y)  extra_config+=("--enable-shlib");;
