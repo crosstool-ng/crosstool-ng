@@ -46,6 +46,11 @@ do_libc() {
 
     CT_DoLog EXTRA "Configuring C library"
 
+    # Note: newlib handles the build/host/target a little bit differently
+    # than one would expect:
+    #   build  : not used
+    #   host   : the machine building newlib
+    #   target : the machine newlib runs on
 #    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
@@ -53,8 +58,7 @@ do_libc() {
     RANLIB=${CT_TARGET}-ranlib                                      \
     CT_DoExecLog ALL                                                \
     "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure"             \
-        --build=${CT_BUILD}                                         \
-        --host=${CT_HOST}                                           \
+        --host=${CT_BUILD}                                          \
         --target=${CT_TARGET}                                       \
         --prefix=${CT_PREFIX_DIR}                                   \
         ${extra_config}                                             \
