@@ -477,7 +477,8 @@ CT_GetFile() {
 # 'tag' is the tag to retrieve. Must be specified, but can be empty.
 # If dirname is specified, then module will be renamed to dirname
 # prior to building the tarball.
-# Usage: CT_GetCVS <basename> <url> <module> <tag> [dirname]
+# Usage: CT_GetCVS <basename> <url> <module> <tag> [dirname[=subdir]]
+# Note: if '=subdir' is given, then it is used instead of 'module'.
 CT_GetCVS() {
     local basename="$1"
     local uri="$2"
@@ -499,8 +500,18 @@ CT_GetCVS() {
     CT_Pushd "${tmp_dir}"
 
     CT_DoExecLog ALL cvs -z 9 -d "${uri}" co -P ${tag} "${module}"
-    [ -n "${dirname}" ] && CT_DoExecLog ALL mv "${module}" "${dirname}"
-    CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${dirname:-${module}}"
+    if [ -n "${dirname}" ]; then
+        case "${dirname}" in
+            *=*)
+                CT_DoExecLog DEBUG mv "${dirname%%=*}" "${dirname#*=}"
+                CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${dirname#*=}"
+                ;;
+            *)
+                CT_DoExecLog ALL mv "${module}" "${dirname}"
+                CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${dirname:-${module}}"
+                ;;
+        esac
+    fi
     CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"
 
     CT_Popd
