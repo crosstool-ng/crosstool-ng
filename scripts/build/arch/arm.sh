@@ -20,4 +20,8 @@ CT_DoArchTupleValues() {
 #            CT_ARCH_TARGET_CFLAGS="-mthumb"
             ;;
     esac
+
+    if [ "${CT_ARCH_ARM_INTERWORKING}" = "y" ]; then
+        CT_ARCH_TARGET_CFLAGS+=" -mthumb-interwork"
+    fi
 }
