@@ -51,22 +51,19 @@ do_libc() {
     #   build  : not used
     #   host   : the machine building newlib
     #   target : the machine newlib runs on
-#    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
-    BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O"   \
-    AR=${CT_TARGET}-ar                                              \
-    RANLIB=${CT_TARGET}-ranlib                                      \
-    CT_DoExecLog ALL                                                \
-    "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure"             \
-        --host=${CT_BUILD}                                          \
-        --target=${CT_TARGET}                                       \
-        --prefix=${CT_PREFIX_DIR}                                   \
-        ${extra_config}                                             \
-        ${CT_LIBC_GLIBC_EXTRA_CONFIG}
+    CC_FOR_BUILD="${CT_BUILD}-gcc"                          \
+    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS} -O"              \
+    AR=${CT_TARGET}-ar                                      \
+    RANLIB=${CT_TARGET}-ranlib                              \
+    CT_DoExecLog ALL                                        \
+    "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure"     \
+        --host=${CT_BUILD}                                  \
+        --target=${CT_TARGET}                               \
+        --prefix=${CT_PREFIX_DIR}
     
     CT_DoLog EXTRA "Building C library"
 
-    CT_DoExecLog ALL make
+    CT_DoExecLog ALL make ${PARALLELMFLAGS}
     
     CT_DoLog EXTRA "Installing C library"
 
@@ -76,9 +73,10 @@ do_libc() {
 }
 
 do_libc_finish() {
-    CT_DoStep INFO "Installing Atmel AVR32 headers"
+    CT_DoStep INFO "Finishing C library"
     
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
+        CT_DoLog EXTRA "Installing Atmel's AVR32 headers"
         CT_DoExecLog ALL cp -r ${CT_SRC_DIR}/avr32headers "${CT_PREFIX_DIR}/${CT_TARGET}/include/avr32"
     fi
 
