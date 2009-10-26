@@ -10,4 +10,14 @@ CT_DoArchTupleValues() {
         uClibc,y)   CT_TARGET_SYS=uclibcgnueabi;;
         *,y)        CT_TARGET_SYS=eabi;;
     esac
+
+    # Set the default instrcution set mode
+    case "${CT_ARCH_ARM_MODE}" in
+        arm)    ;;
+        thumb)
+            CT_ARCH_CC_CORE_EXTRA_CONFIG="--with-mode=thumb"
+            CT_ARCH_CC_EXTRA_CONFIG="--with-mode=thumb"
+#            CT_ARCH_TARGET_CFLAGS="-mthumb"
+            ;;
+    esac
 }
