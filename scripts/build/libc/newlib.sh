@@ -5,12 +5,27 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
+libc_newlib_basename() {
+    if [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
+        echo "newlib-${CT_LIBC_VERSION}"
+    else
+        echo "newlib-cvs${CT_LIBC_VERSION:+-${CT_LIBC_VERSION}}"
+    fi
+}
 
 do_libc_get() {
     libc_src="ftp://sources.redhat.com/pub/newlib"
     avr32headers_src="http://dev.doredevelopment.dk/avr32-toolchain/sources"
-    
-    CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
+
+    if [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
+        CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
+    else
+        CT_GetCVS "$(libc_newlib_basename)"                         \
+                  ":pserver:anoncvs@sources.redhat.com:/cvs/src"    \
+                  "newlib"                                          \
+                  "${CT_LIBC_VERSION}"                              \
+                  "$(libc_newlib_basename)=src"
+    fi
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_GetFile "avr32headers" ${avr32headers_src}
@@ -18,8 +33,8 @@ do_libc_get() {
 }
 
 do_libc_extract() {
-    CT_Extract "newlib-${CT_LIBC_VERSION}"
-    CT_Patch "newlib-${CT_LIBC_VERSION}"
+    CT_Extract "$(libc_newlib_basename)"
+    CT_Patch "$(libc_newlib_basename)"
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_Extract "avr32headers"
@@ -51,14 +66,14 @@ do_libc() {
     #   build  : not used
     #   host   : the machine building newlib
     #   target : the machine newlib runs on
-    CC_FOR_BUILD="${CT_BUILD}-gcc"                          \
-    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS} -O"              \
-    AR=${CT_TARGET}-ar                                      \
-    RANLIB=${CT_TARGET}-ranlib                              \
-    CT_DoExecLog ALL                                        \
-    "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure"     \
-        --host=${CT_BUILD}                                  \
-        --target=${CT_TARGET}                               \
+    CC_FOR_BUILD="${CT_BUILD}-gcc"                      \
+    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS} -O"          \
+    AR=${CT_TARGET}-ar                                  \
+    RANLIB=${CT_TARGET}-ranlib                          \
+    CT_DoExecLog ALL                                    \
+    "${CT_SRC_DIR}/$(libc_newlib_basename)/configure"   \
+        --host=${CT_BUILD}                              \
+        --target=${CT_TARGET}                           \
         --prefix=${CT_PREFIX_DIR}
     
     CT_DoLog EXTRA "Building C library"
