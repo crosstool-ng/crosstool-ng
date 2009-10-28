@@ -1,0 +1,59 @@
+textrels are bad for forcing copy-on-write (this affects everyone),
+and for security/runtime code generation, this affects security ppl.
+But in either case, it doesn't matter who needs textrels, it's
+the very fact that they're needed at all.
+
+2006-06-10  Ned Ludd  <solar@gentoo.org>, Mike Frysinger <vapier@gentoo.org>
+
+	* bfd/elflink.c (bfd_elf_final_link): Check all objects for TEXTRELs.
+	* ld/ldmain.c (main): Change textrel warning default to true.
+	* ld/testsuite/lib/ld-lib.exp (default_ld_simple_link): Scrub TEXTREL
+	warnings from ld output.
+
+--- bfd/elflink.c
++++ bfd/elflink.c
+@@ -8652,14 +8652,12 @@
+ 	goto error_return;
+ 
+       /* Check for DT_TEXTREL (late, in case the backend removes it).  */
+-      if (info->warn_shared_textrel && info->shared)
++      o = bfd_get_section_by_name (dynobj, ".dynamic");
++      if (info->warn_shared_textrel && o != NULL)
+ 	{
+ 	  bfd_byte *dyncon, *dynconend;
+ 
+ 	  /* Fix up .dynamic entries.  */
+-	  o = bfd_get_section_by_name (dynobj, ".dynamic");
+-	  BFD_ASSERT (o != NULL);
+-
+ 	  dyncon = o->contents;
+ 	  dynconend = o->contents + o->size;
+ 	  for (; dyncon < dynconend; dyncon += bed->s->sizeof_dyn)
+@@ -8702,7 +8702,7 @@ bfd_elf_final_link (bfd *abfd, struct bf
+ 	      if (dyn.d_tag == DT_TEXTREL)
+ 		{
+ 		 info->callbacks->einfo
+-		    (_("%P: warning: creating a DT_TEXTREL in a shared object.\n"));
++		    (_("%P: warning: creating a DT_TEXTREL in object.\n"));
+ 		  break;
+ 		}
+ 	    }
+--- ld/ldmain.c
++++ ld/ldmain.c
+@@ -282,2 +282,3 @@ main (int argc, char **argv)
+   link_info.spare_dynamic_tags = 5;
++  link_info.warn_shared_textrel = TRUE;
+   link_info.sharable_sections = FALSE;
+--- ld/testsuite/lib/ld-lib.exp
++++ ld/testsuite/lib/ld-lib.exp
+@@ -181,6 +181,10 @@ proc default_ld_simple_link { ld target 
+     # symbol, since the default linker script might use ENTRY.
+     regsub -all "(^|\n)(\[^\n\]*: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+ 
++    # Gentoo tweak:
++    # We want to ignore TEXTREL warnings since we force enable them by default
++    regsub -all "^lt-ld-new: warning: creating a DT_TEXTREL in object\." $exec_output "\\1" exec_output
++
+     if [string match "" $exec_output] then {
+ 	return 1
+     } else {

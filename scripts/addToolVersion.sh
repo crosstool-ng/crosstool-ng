@@ -124,7 +124,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         # Tools:
         --gcc)      EXP=; OBS=; cat=CC;        tool=gcc;      tool_prefix=cc;;
-        --binutils) EXP=; OBS=; cat=BINUTILS;  tool=binutils; tool_prefix=;;
+        --binutils) EXP=; OBS=; cat=BINUTILS;  tool=binutils; tool_prefix=binutils;;
         --glibc)    EXP=; OBS=; cat=LIBC;      tool=glibc;    tool_prefix=libc;;
         --eglibc)   EXP=; OBS=; cat=LIBC;      tool=eglibc;   tool_prefix=libc;;
         --uClibc)   EXP=; OBS=; cat=LIBC;      tool=uClibc;   tool_prefix=libc;;
