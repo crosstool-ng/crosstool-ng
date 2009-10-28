@@ -1,0 +1,53 @@
+diff -durN strace-4.5.19.orig/acinclude.m4 strace-4.5.19/acinclude.m4
+--- strace-4.5.19.orig/acinclude.m4	2004-04-14 04:45:53.000000000 +0200
++++ strace-4.5.19/acinclude.m4	2009-10-28 18:47:18.000000000 +0100
+@@ -210,6 +210,26 @@
+ fi
+ ])
+ 
++dnl ### A macro to determine whether statfs64 is defined.
++AC_DEFUN([AC_STATFS64],
++[AC_MSG_CHECKING(for statfs64 in sys/(statfs|vfs).h)
++AC_CACHE_VAL(ac_cv_type_statfs64,
++[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#ifdef LINUX
++#include <linux/types.h>
++#include <sys/statfs.h>
++#else
++#include <sys/vfs.h>
++#endif]], [[struct statfs64 st;]])],[ac_cv_type_statfs64=yes],[ac_cv_type_statfs64=no])])
++AC_MSG_RESULT($ac_cv_type_statfs64)
++if test "$ac_cv_type_statfs64" = yes
++then
++	AC_DEFINE([HAVE_STATFS64], 1,
++[Define if statfs64 is available in sys/statfs.h or sys/vfs.h.])
++fi
++])
++
++
++
+ dnl ### A macro to determine if off_t is a long long
+ AC_DEFUN([AC_OFF_T_IS_LONG_LONG],
+ [AC_MSG_CHECKING(for long long off_t)
+diff -durN strace-4.5.19.orig/configure.ac strace-4.5.19/configure.ac
+--- strace-4.5.19.orig/configure.ac	2009-10-12 21:54:43.000000000 +0200
++++ strace-4.5.19/configure.ac	2009-10-28 18:47:18.000000000 +0100
+@@ -187,6 +187,7 @@
+ 		  struct stat.st_level,
+ 		  struct stat.st_rdev])
+ AC_STAT64
++AC_STATFS64
+ 
+ AC_TYPE_SIGNAL
+ AC_TYPE_UID_T
+diff -durN strace-4.5.19.orig/file.c strace-4.5.19/file.c
+--- strace-4.5.19.orig/file.c	2009-10-21 15:44:04.000000000 +0200
++++ strace-4.5.19/file.c	2009-10-28 18:47:18.000000000 +0100
+@@ -1688,7 +1688,7 @@
+ 	return 0;
+ }
+ 
+-#ifdef LINUX
++#ifdef HAVE_STATFS64
+ static void
+ printstatfs64(struct tcb *tcp, long addr)
+ {
