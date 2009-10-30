@@ -35,14 +35,12 @@ PHONY += scripts
 scripts:
 	$(SILENT)mkdir -p scripts
 
-FROCE += $(CONFIG_SUB_DEST)
-$(CONFIG_SUB_DEST): scripts
+$(CONFIG_SUB_DEST): scripts FORCE
 	@$(ECHO) '  WGET  $@'
 	$(SILENT)wget $(wget_opt) -O $@ $(CONFIG_SUB_SRC)
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
-FORCE += $(CONFIG_GUESS_DEST)
-$(CONFIG_GUESS_DEST): scripts
+$(CONFIG_GUESS_DEST): scripts FORCE
 	@$(ECHO) '  WGET  $@'
 	$(SILENT)wget $(wget_opt) -O $@ $(CONFIG_GUESS_SRC)
 	$(SILENT)chmod u+rwx,go+rx-w $@
