@@ -38,7 +38,7 @@ $(patsubst %,show-%,$(CT_SAMPLES)):
 
 # print the list of all available samples
 PHONY += list-samples
-list-samples: .FORCE
+list-samples: FORCE
 	@echo $(CT_SAMPLES) |$(sed) -r -e 's/ /\n/g;' |sort
 
 wiki-samples:
