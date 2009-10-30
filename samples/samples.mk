@@ -47,8 +47,13 @@ wiki-samples:
 # ----------------------------------------------------------
 # This part deals with saving/restoring samples
 
+PHONY += samples
+samples:
+	@$(ECHO) '  MKDIR $@'
+	$(SILENT)mkdir -p $@
+
 # Save a sample
-saveconfig:
+saveconfig: .config samples
 	$(SILENT)$(CT_LIB_DIR)/scripts/saveSample.sh
 
 # The 'sample_dir' function prints the directory in which the sample is,

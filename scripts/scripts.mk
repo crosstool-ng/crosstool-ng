@@ -33,7 +33,8 @@ endif
 
 PHONY += scripts
 scripts:
-	$(SILENT)mkdir -p scripts
+	@$(ECHO) '  MKDIR $@'
+	$(SILENT)mkdir -p $@
 
 $(CONFIG_SUB_DEST): scripts FORCE
 	@$(ECHO) '  WGET  $@'
