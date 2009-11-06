@@ -292,14 +292,23 @@ s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\nUCLIBC_PREGENERATED_LOCA
 ENDSED
     fi
 
+    # WCHAR support
+    if [ "${CT_LIBC_UCLIBC_WCHAR}" = "y" ] ; then
+       cat >>"${munge_file}" <<-ENDSED
+s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=y/
+ENDSED
+    else
+       cat >>"${munge_file}" <<-ENDSED
+s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=n/
+ENDSED
+    fi
+
     # Force on options needed for C++ if we'll be making a C++ compiler.
     # I'm not sure locales are a requirement for doing C++... Are they?
     if [ "${CT_CC_LANG_CXX}" = "y" ]; then
         cat >>"${munge_file}" <<-ENDSED
 s/^# DO_C99_MATH is not set/DO_C99_MATH=y/
 s/^# UCLIBC_CTOR_DTOR is not set/UCLIBC_CTOR_DTOR=y/
-# Add these three lines when doing C++?
-s/^# UCLIBC_HAS_WCHAR is not set/UCLIBC_HAS_WCHAR=y/
 #s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\nUCLIBC_PREGENERATED_LOCALE_DATA=y\\n\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\n\\# UCLIBC_HAS_XLOCALE is not set/
 s/^# UCLIBC_HAS_GNU_GETOPT is not set/UCLIBC_HAS_GNU_GETOPT=y/
 ENDSED
