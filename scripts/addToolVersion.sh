@@ -5,7 +5,12 @@ set -e
 myname="$0"
 
 # Parse the tools' paths configuration
-. "paths.mk"
+# It is expected that this script is only to be run from the
+# source directory of crosstool-NG, so it is trivial to find
+# paths.mk (we can't use  ". paths.mk", as POSIX states that
+# $PATH should be searched for, and $PATH most probably doe
+# not include "."), hence the "./".
+. "./paths.mk"
 
 doHelp() {
     cat <<-EOF
