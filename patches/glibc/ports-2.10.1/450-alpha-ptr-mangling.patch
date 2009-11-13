@@ -1,0 +1,111 @@
+http://bugs.gentoo.org/201910
+
+For every arch, PTR_MANGLE and PTR_DEMANGLE defines are in
+sysdeps/unix/sysv/linux/<arch>/sysdep.h. But for alpha this is not true. The
+defines are in sysdeps/unix/alpha/sysdep.h and unix/sysv/linux/alpha/sysdep.h
+includes the first.
+
+This is a patch that fixes the issue and let alpha build, at the expense of
+disabling MANGLING in the non PIC case, but googling showed that the issue is
+known, and that nobody really cares about it. 
+
+Info from: http://sourceware.org/bugzilla/show_bug.cgi?id=5216
+
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/unix/alpha/sysdep.h glibc-2.10.1/glibc-ports-2.10.1/sysdeps/unix/alpha/sysdep.h
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/unix/alpha/sysdep.h	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/unix/alpha/sysdep.h	2009-11-13 00:50:55.000000000 +0100
+@@ -397,42 +397,4 @@
+ 	_sc_ret = _sc_0, _sc_err = _sc_19;			\
+ }
+ 
+-/* Pointer mangling support.  Note that tls access is slow enough that
+-   we don't deoptimize things by placing the pointer check value there.  */
+-
+-#include <stdint.h>
+-
+-#if defined NOT_IN_libc && defined IS_IN_rtld
+-# ifdef __ASSEMBLER__
+-#  define PTR_MANGLE(dst, src, tmp)				\
+-	ldah	tmp, __pointer_chk_guard_local($29) !gprelhigh;	\
+-	ldq	tmp, __pointer_chk_guard_local(tmp) !gprellow;	\
+-	xor	src, tmp, dst
+-#  define PTR_MANGLE2(dst, src, tmp)				\
+-	xor	src, tmp, dst
+-#  define PTR_DEMANGLE(dst, tmp)   PTR_MANGLE(dst, dst, tmp)
+-#  define PTR_DEMANGLE2(dst, tmp)  PTR_MANGLE2(dst, dst, tmp)
+-# else
+-extern uintptr_t __pointer_chk_guard_local attribute_relro attribute_hidden;
+-#  define PTR_MANGLE(var)	\
+-  (var) = (__typeof (var)) ((uintptr_t) (var) ^ __pointer_chk_guard_local)
+-#  define PTR_DEMANGLE(var)  PTR_MANGLE(var)
+-# endif
+-#elif defined PIC
+-# ifdef __ASSEMBLER__
+-#  define PTR_MANGLE(dst, src, tmp)		\
+-	ldq	tmp, __pointer_chk_guard;	\
+-	xor	src, tmp, dst
+-#  define PTR_MANGLE2(dst, src, tmp)		\
+-	xor	src, tmp, dst
+-#  define PTR_DEMANGLE(dst, tmp)   PTR_MANGLE(dst, dst, tmp)
+-#  define PTR_DEMANGLE2(dst, tmp)  PTR_MANGLE2(dst, dst, tmp)
+-# else
+-extern uintptr_t __pointer_chk_guard attribute_relro;
+-#  define PTR_MANGLE(var)	\
+-	(var) = (void *) ((uintptr_t) (var) ^ __pointer_chk_guard)
+-#  define PTR_DEMANGLE(var)  PTR_MANGLE(var)
+-# endif
+-#endif
+-
+ #endif /* ASSEMBLER */
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/alpha/sysdep.h glibc-2.10.1/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/alpha/sysdep.h
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/alpha/sysdep.h	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/alpha/sysdep.h	2009-11-13 00:50:55.000000000 +0100
+@@ -98,4 +98,46 @@
+ 	INTERNAL_SYSCALL1(name, err_out, nr, args);			\
+ })
+ 
++/* Pointer mangling support.  Note that tls access is slow enough that
++   we don't deoptimize things by placing the pointer check value there.  */
++
++#if defined NOT_IN_libc && defined IS_IN_rtld
++# ifdef __ASSEMBLER__
++#  define PTR_MANGLE(dst, src, tmp)                            \
++       ldah    tmp, __pointer_chk_guard_local($29) !gprelhigh; \
++       ldq     tmp, __pointer_chk_guard_local(tmp) !gprellow;  \
++       xor     src, tmp, dst
++#  define PTR_MANGLE2(dst, src, tmp)                           \
++       xor     src, tmp, dst
++#  define PTR_DEMANGLE(dst, tmp)   PTR_MANGLE(dst, dst, tmp)
++#  define PTR_DEMANGLE2(dst, tmp)  PTR_MANGLE2(dst, dst, tmp)
++# else
++extern uintptr_t __pointer_chk_guard_local attribute_relro attribute_hidden;
++#  define PTR_MANGLE(var)      \
++  (var) = (__typeof (var)) ((uintptr_t) (var) ^ __pointer_chk_guard_local)
++#  define PTR_DEMANGLE(var)  PTR_MANGLE(var)
++# endif
++#elif defined PIC
++# ifdef __ASSEMBLER__
++#  define PTR_MANGLE(dst, src, tmp)            \
++       ldq     tmp, __pointer_chk_guard;       \
++       xor     src, tmp, dst
++#  define PTR_MANGLE2(dst, src, tmp)           \
++       xor     src, tmp, dst
++#  define PTR_DEMANGLE(dst, tmp)   PTR_MANGLE(dst, dst, tmp)
++#  define PTR_DEMANGLE2(dst, tmp)  PTR_MANGLE2(dst, dst, tmp)
++# else
++extern uintptr_t __pointer_chk_guard attribute_relro;
++#  define PTR_MANGLE(var)      \
++       (var) = (void *) ((uintptr_t) (var) ^ __pointer_chk_guard)
++#  define PTR_DEMANGLE(var)  PTR_MANGLE(var)
++# endif
++#else
++/* Pointer mangling is not yet supported for static libc on alpha.  */
++# ifndef __ASSEMBLER__
++#  define PTR_MANGLE(var)   (void) (var)
++#  define PTR_DEMANGLE(var) (void) (var)
++# endif
++#endif
++
+ #endif /* _LINUX_ALPHA_SYSDEP_H */
+diff -durN glibc-2.10.1.orig/ports/sysdeps/unix/alpha/sysdep.h glibc-2.10.1/ports/sysdeps/unix/alpha/sysdep.h
+diff -durN glibc-2.10.1.orig/ports/sysdeps/unix/sysv/linux/alpha/sysdep.h glibc-2.10.1/ports/sysdeps/unix/sysv/linux/alpha/sysdep.h

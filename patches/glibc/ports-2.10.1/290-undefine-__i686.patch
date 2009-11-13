@@ -1,0 +1,42 @@
+If gcc is configured to generate i686 code or better by default (like 
+when using the --with-arch=pentium3 configure option), then the __i686
+macro will always be defined automatically and thus screw up the
+compilation of some .S files.
+http://bugs.gentoo.org/131108
+http://sourceware.org/ml/libc-alpha/2006-04/msg00090.html
+
+2006-04-25  Mike Frysinger  <vapier@gentoo.org>
+
+	* sysdeps/i386/sysdep.h (__i686): Undefine.
+
+diff -durN glibc-2.10.1.orig/nptl/sysdeps/pthread/pt-initfini.c glibc-2.10.1/nptl/sysdeps/pthread/pt-initfini.c
+--- glibc-2.10.1.orig/nptl/sysdeps/pthread/pt-initfini.c	2007-06-17 20:02:01.000000000 +0200
++++ glibc-2.10.1/nptl/sysdeps/pthread/pt-initfini.c	2009-11-13 00:50:22.000000000 +0100
+@@ -45,6 +45,9 @@
+ /* Embed an #include to pull in the alignment and .end directives. */
+ asm ("\n#include \"defs.h\"");
+ 
++/* Embed an #include to pull in asm settings. */
++asm ("\n#ifdef __i686__\n#include <sysdep.h>\n#endif");
++
+ /* The initial common code ends here. */
+ asm ("\n/*@HEADER_ENDS*/");
+ 
+diff -durN glibc-2.10.1.orig/sysdeps/i386/sysdep.h glibc-2.10.1/sysdeps/i386/sysdep.h
+--- glibc-2.10.1.orig/sysdeps/i386/sysdep.h	2006-10-28 08:44:03.000000000 +0200
++++ glibc-2.10.1/sysdeps/i386/sysdep.h	2009-11-13 00:50:22.000000000 +0100
+@@ -18,6 +18,14 @@
+    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307 USA.  */
+ 
++/*
++ * When building for i686 targets or better, gcc automatically defines
++ * '__i686' to '1' for us which causes trouble when using section names
++ * like '__i686.get_pc_thunk.reg'.  Since we check for __i686__ in the
++ * code, killing '__i686' shouldn't be a problem.
++ */
++#undef __i686
++
+ #include <sysdeps/generic/sysdep.h>
+ 
+ #ifdef	__ASSEMBLER__

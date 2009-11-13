@@ -1,0 +1,170 @@
+ ports/sysdeps/alpha/dl-machine.h  |   12 ++++++
+ ports/sysdeps/alpha/dl-procinfo.c |   64 +++++++++++++++++++++++++++++++++++
+ ports/sysdeps/alpha/dl-procinfo.h |   68 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 144 insertions(+)
+
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/dl-machine.h glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/dl-machine.h
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/dl-machine.h	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/dl-machine.h	2009-11-13 00:51:02.000000000 +0100
+@@ -249,6 +249,18 @@
+ /* The alpha never uses Elf64_Rel relocations.  */
+ #define ELF_MACHINE_NO_REL 1
+ 
++/* We define an initialization functions.  This is called very early in
++ *    _dl_sysdep_start.  */
++#define DL_PLATFORM_INIT dl_platform_init ()
++
++static inline void __attribute__ ((unused))
++dl_platform_init (void)
++{
++	if (GLRO(dl_platform) != NULL && *GLRO(dl_platform) == '\0')
++	/* Avoid an empty string which would disturb us.  */
++		GLRO(dl_platform) = NULL;
++}
++	
+ /* Fix up the instructions of a PLT entry to invoke the function
+    rather than the dynamic linker.  */
+ static inline Elf64_Addr
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.c glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.c
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.c	1970-01-01 01:00:00.000000000 +0100
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.c	2009-11-13 00:51:02.000000000 +0100
+@@ -0,0 +1,64 @@
++/* Data for Alpha version of processor capability information.
++   Copyright (C) 2007 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++   Contributed by Aurelien Jarno <aurelien@aurel32.net>, 2007.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++/* This information must be kept in sync with the _DL_PLATFORM_COUNT 
++   definitions in procinfo.h.
++
++   If anything should be added here check whether the size of each string
++   is still ok with the given array size.
++
++   All the #ifdefs in the definitions are quite irritating but
++   necessary if we want to avoid duplicating the information.  There
++   are three different modes:
++
++   - PROCINFO_DECL is defined.  This means we are only interested in
++     declarations.
++
++   - PROCINFO_DECL is not defined:
++
++     + if SHARED is defined the file is included in an array
++       initializer.  The .element = { ... } syntax is needed.
++
++     + if SHARED is not defined a normal array initialization is
++       needed.
++  */
++
++#ifndef PROCINFO_CLASS
++#define PROCINFO_CLASS
++#endif
++
++#if !defined PROCINFO_DECL && defined SHARED
++  ._dl_alpha_platforms
++#else
++PROCINFO_CLASS const char _dl_alpha_platforms[5][5]
++#endif
++#ifndef PROCINFO_DECL
++= {
++    "ev4", "ev5", "ev56", "ev6", "ev67"
++  }
++#endif
++#if !defined SHARED || defined PROCINFO_DECL
++;
++#else
++,
++#endif
++
++#undef PROCINFO_DECL
++#undef PROCINFO_CLASS
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.h glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.h
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.h	1970-01-01 01:00:00.000000000 +0100
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/dl-procinfo.h	2009-11-13 00:51:02.000000000 +0100
+@@ -0,0 +1,68 @@
++/* Alpha version of processor capability information handling macros.
++   Copyright (C) 2007 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++   Contributed by Aurelien Jarno <aurelien@aurel32.net>, 2007.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, write to the Free
++   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
++   02111-1307 USA.  */
++
++#ifndef _DL_PROCINFO_H
++#define _DL_PROCINFO_H	1
++
++#include <ldsodefs.h>
++
++
++/* Mask to filter out platforms.  */
++#define _DL_HWCAP_PLATFORM    (-1ULL)
++
++#define _DL_PLATFORMS_COUNT   5
++
++static inline const char *
++__attribute__ ((unused))
++_dl_platform_string (int idx)
++{
++  return GLRO(dl_alpha_platforms)[idx];
++};
++
++static inline int
++__attribute__ ((unused, always_inline))
++_dl_string_platform (const char *str)
++{
++  int i;
++
++  if (str != NULL)
++    for (i = 0; i < _DL_PLATFORMS_COUNT; ++i)
++      {
++        if (strcmp (str, _dl_platform_string (i)) == 0)
++          return i;
++      }
++  return -1;
++};
++
++/* We cannot provide a general printing function.  */
++#define _dl_procinfo(word) -1
++
++/* There are no hardware capabilities defined.  */
++#define _dl_hwcap_string(idx) ""
++
++/* By default there is no important hardware capability.  */
++#define HWCAP_IMPORTANT (0)
++
++/* We don't have any hardware capabilities.  */
++#define _DL_HWCAP_COUNT	0
++
++#define _dl_string_hwcap(str) (-1)
++
++#endif /* dl-procinfo.h */
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/dl-machine.h glibc-2.10.1/ports/sysdeps/alpha/dl-machine.h
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/dl-procinfo.c glibc-2.10.1/ports/sysdeps/alpha/dl-procinfo.c
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/dl-procinfo.h glibc-2.10.1/ports/sysdeps/alpha/dl-procinfo.h

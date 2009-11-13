@@ -1,0 +1,52 @@
+A little hack for cross-compiling NPTL
+
+http://sourceware.org/ml/libc-alpha/2005-02/msg00043.html
+
+diff -durN glibc-2.10.1.orig/nptl/sysdeps/pthread/configure glibc-2.10.1/nptl/sysdeps/pthread/configure
+--- glibc-2.10.1.orig/nptl/sysdeps/pthread/configure	2009-05-17 14:19:31.000000000 +0200
++++ glibc-2.10.1/nptl/sysdeps/pthread/configure	2009-11-13 00:50:43.000000000 +0100
+@@ -78,6 +78,10 @@
+ fi
+ { echo "$as_me:$LINENO: result: $libc_cv_forced_unwind" >&5
+ echo "${ECHO_T}$libc_cv_forced_unwind" >&6; }
++if test $libc_cv_forced_unwind = no -a $build_cpu != $host_cpu; then
++  echo "$as_me:$LINENO: forcing libc_cv_forced_unwind = yes for cross-compile"
++  libc_cv_forced_unwind=yes
++fi
+ if test $libc_cv_forced_unwind = yes; then
+   cat >>confdefs.h <<\_ACEOF
+ #define HAVE_FORCED_UNWIND 1
+@@ -141,6 +145,10 @@
+ { echo "$as_me:$LINENO: result: $libc_cv_c_cleanup" >&5
+ echo "${ECHO_T}$libc_cv_c_cleanup" >&6; }
+   CFLAGS="$old_CFLAGS"
++  if test $libc_cv_c_cleanup = no -a $build_cpu != $host_cpu; then
++    echo "$as_me:$LINENO: result: forcing libc_cv_c_cleanup = yes for cross-compile"
++    libc_cv_c_cleanup=yes
++  fi
+   if test $libc_cv_c_cleanup = no; then
+     { { echo "$as_me:$LINENO: error: the compiler must support C cleanup handling" >&5
+ echo "$as_me: error: the compiler must support C cleanup handling" >&2;}
+diff -durN glibc-2.10.1.orig/nptl/sysdeps/pthread/configure.in glibc-2.10.1/nptl/sysdeps/pthread/configure.in
+--- glibc-2.10.1.orig/nptl/sysdeps/pthread/configure.in	2003-12-03 07:50:01.000000000 +0100
++++ glibc-2.10.1/nptl/sysdeps/pthread/configure.in	2009-11-13 00:50:43.000000000 +0100
+@@ -28,6 +28,9 @@
+ struct _Unwind_Context *context;
+ _Unwind_GetCFA (context)],
+ libc_cv_forced_unwind=yes, libc_cv_forced_unwind=no)])
++if test $libc_cv_forced_unwind = no -a $build_cpu != $host_cpu; then
++  libc_cv_forced_unwind=yes
++fi
+ if test $libc_cv_forced_unwind = yes; then
+   AC_DEFINE(HAVE_FORCED_UNWIND)
+ dnl Check for C cleanup handling.
+@@ -41,6 +44,9 @@
+   puts ("test")],
+ libc_cv_c_cleanup=yes, libc_cv_c_cleanup=no)])
+   CFLAGS="$old_CFLAGS"
++  if test $libc_cv_c_cleanup = no -a $build_cpu != $host_cpu; then
++    libc_cv_c_cleanup=yes
++  fi
+   if test $libc_cv_c_cleanup = no; then
+     AC_MSG_ERROR([the compiler must support C cleanup handling])
+   fi

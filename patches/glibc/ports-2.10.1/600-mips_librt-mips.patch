@@ -1,0 +1,94 @@
+we kind of screwed ourselves into a corner by having the clock symbols
+exported only with the glibc-2.0 version ... this patch fixes the
+export so all new binaries built against librt will use the correct
+glibc-2.2 symbol version
+
+one day, we'll just drop this on the floor (maybe after 2006.1)
+
+diff -durN glibc-2.10.1.orig/Versions.def glibc-2.10.1/Versions.def
+--- glibc-2.10.1.orig/Versions.def	2008-12-03 05:19:06.000000000 +0100
++++ glibc-2.10.1/Versions.def	2009-11-13 00:51:27.000000000 +0100
+@@ -98,6 +98,7 @@
+   GLIBC_PRIVATE
+ }
+ librt {
++  GLIBC_2.0
+   GLIBC_2.1
+   GLIBC_2.2
+   GLIBC_2.3
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/mips/Versions glibc-2.10.1/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/mips/Versions
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/mips/Versions	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/unix/sysv/linux/mips/Versions	2009-11-13 00:51:27.000000000 +0100
+@@ -35,3 +35,9 @@
+     _test_and_set;
+   }
+ }
++librt {
++  GLIBC_2.0 {
++    # c*
++    clock_gettime; clock_settime;
++  }
++}
+diff -durN glibc-2.10.1.orig/ports/sysdeps/unix/sysv/linux/mips/Versions glibc-2.10.1/ports/sysdeps/unix/sysv/linux/mips/Versions
+diff -durN glibc-2.10.1.orig/sysdeps/unix/clock_gettime.c glibc-2.10.1/sysdeps/unix/clock_gettime.c
+--- glibc-2.10.1.orig/sysdeps/unix/clock_gettime.c	2007-07-28 22:36:04.000000000 +0200
++++ glibc-2.10.1/sysdeps/unix/clock_gettime.c	2009-11-13 00:51:27.000000000 +0100
+@@ -23,6 +23,7 @@
+ #include <sys/time.h>
+ #include <libc-internal.h>
+ #include <ldsodefs.h>
++#include <shlib-compat.h>
+ 
+ 
+ #if HP_TIMING_AVAIL
+@@ -90,7 +91,7 @@
+ 
+ /* Get current value of CLOCK and store it in TP.  */
+ int
+-clock_gettime (clockid_t clock_id, struct timespec *tp)
++__clock_gettime (clockid_t clock_id, struct timespec *tp)
+ {
+   int retval = -1;
+ 
+@@ -133,4 +134,10 @@
+ 
+   return retval;
+ }
+-librt_hidden_def (clock_gettime)
++versioned_symbol (librt, __clock_gettime, clock_gettime, GLIBC_2_2);
++librt_hidden_ver (__clock_gettime, clock_gettime)
++
++#if defined __mips__ && defined SHARED
++strong_alias (__clock_gettime, __mips_clock_gettime)
++compat_symbol (librt, __mips_clock_gettime, clock_gettime, GLIBC_2_0);
++#endif
+diff -durN glibc-2.10.1.orig/sysdeps/unix/clock_settime.c glibc-2.10.1/sysdeps/unix/clock_settime.c
+--- glibc-2.10.1.orig/sysdeps/unix/clock_settime.c	2007-08-14 05:19:33.000000000 +0200
++++ glibc-2.10.1/sysdeps/unix/clock_settime.c	2009-11-13 00:51:27.000000000 +0100
+@@ -21,6 +21,7 @@
+ #include <sys/time.h>
+ #include <libc-internal.h>
+ #include <ldsodefs.h>
++#include <shlib-compat.h>
+ 
+ 
+ #if HP_TIMING_AVAIL && !defined HANDLED_CPUTIME
+@@ -73,7 +74,7 @@
+ 
+ /* Set CLOCK to value TP.  */
+ int
+-clock_settime (clockid_t clock_id, const struct timespec *tp)
++__clock_settime (clockid_t clock_id, const struct timespec *tp)
+ {
+   int retval;
+ 
+@@ -125,3 +126,9 @@
+ 
+   return retval;
+ }
++versioned_symbol (librt, __clock_settime, clock_settime, GLIBC_2_2);
++
++#if defined __mips__ && defined SHARED
++strong_alias (__clock_settime, __mips_clock_settime)
++compat_symbol (librt, __mips_clock_settime, clock_settime, GLIBC_2_0);
++#endif
