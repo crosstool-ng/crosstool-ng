@@ -1,0 +1,270 @@
+http://sources.redhat.com/bugzilla/show_bug.cgi?id=5350
+https://bugs.gentoo.org/264335
+
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceil.c glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceil.c
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceil.c	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceil.c	2009-11-13 00:50:59.000000000 +0100
+@@ -27,20 +27,25 @@
+ double
+ __ceil (double x)
+ {
+-  double two52 = copysign (0x1.0p52, x);
+-  double r, tmp;
+-  
+-  __asm (
++  if (isless (fabs (x), 9007199254740992.0))	/* 1 << DBL_MANT_DIG */
++    {
++      double tmp1, new_x;
++
++      new_x = -x;
++      __asm (
+ #ifdef _IEEE_FP_INEXACT
+-	 "addt/suim %2, %3, %1\n\tsubt/suim %1, %3, %0"
++	     "cvttq/svim %2,%1\n\t"
+ #else
+-	 "addt/sum %2, %3, %1\n\tsubt/sum %1, %3, %0"
++	     "cvttq/svm %2,%1\n\t"
+ #endif
+-	 : "=&f"(r), "=&f"(tmp)
+-	 : "f"(-x), "f"(-two52));
++	     "cvtqt/m %1,%0\n\t"
++	     : "=f"(new_x), "=&f"(tmp1)
++	     : "f"(new_x));
+ 
+-  /* Fix up the negation we did above, as well as handling -0 properly. */
+-  return copysign (r, x);
++      /* Fix up the negation we did above, as well as handling -0 properly. */
++      x = copysign(new_x, x);
++    }
++  return x;
+ }
+ 
+ weak_alias (__ceil, ceil)
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceilf.c glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceilf.c
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceilf.c	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_ceilf.c	2009-11-13 00:50:59.000000000 +0100
+@@ -26,20 +26,30 @@
+ float
+ __ceilf (float x)
+ {
+-  float two23 = copysignf (0x1.0p23, x);
+-  float r, tmp;
+-  
+-  __asm (
++  if (isless (fabsf (x), 16777216.0f))	/* 1 << FLT_MANT_DIG */
++    {
++      /* Note that Alpha S_Floating is stored in registers in a
++	 restricted T_Floating format, so we don't even need to
++	 convert back to S_Floating in the end.  The initial
++	 conversion to T_Floating is needed to handle denormals.  */
++
++      float tmp1, tmp2, new_x;
++
++      new_x = -x;
++      __asm ("cvtst/s %3,%2\n\t"
+ #ifdef _IEEE_FP_INEXACT
+-	 "adds/suim %2, %3, %1\n\tsubs/suim %1, %3, %0"
++	     "cvttq/svim %2,%1\n\t"
+ #else
+-	 "adds/sum %2, %3, %1\n\tsubs/sum %1, %3, %0"
++	     "cvttq/svm %2,%1\n\t"
+ #endif
+-	 : "=&f"(r), "=&f"(tmp)
+-	 : "f"(-x), "f"(-two23));
++	     "cvtqt/m %1,%0\n\t"
++	     : "=f"(new_x), "=&f"(tmp1), "=&f"(tmp2)
++	     : "f"(new_x));
+ 
+-  /* Fix up the negation we did above, as well as handling -0 properly. */
+-  return copysignf (r, x);
++      /* Fix up the negation we did above, as well as handling -0 properly. */
++      x = copysignf(new_x, x);
++    }
++  return x;
+ }
+ 
+ weak_alias (__ceilf, ceilf)
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floor.c glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floor.c
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floor.c	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floor.c	2009-11-13 00:50:59.000000000 +0100
+@@ -21,26 +21,32 @@
+ #include <math_ldbl_opt.h>
+ 
+ 
+-/* Use the -inf rounding mode conversion instructions to implement floor.  */
++/* Use the -inf rounding mode conversion instructions to implement
++   floor.  We note when the exponent is large enough that the value
++   must be integral, as this avoids unpleasant integer overflows.  */
+ 
+ double
+ __floor (double x)
+ {
+-  double two52 = copysign (0x1.0p52, x);
+-  double r, tmp;
+-  
+-  __asm (
++  if (isless (fabs (x), 9007199254740992.0))	/* 1 << DBL_MANT_DIG */
++    {
++      double tmp1, new_x;
++
++      __asm (
+ #ifdef _IEEE_FP_INEXACT
+-	 "addt/suim %2, %3, %1\n\tsubt/suim %1, %3, %0"
++	     "cvttq/svim %2,%1\n\t"
+ #else
+-	 "addt/sum %2, %3, %1\n\tsubt/sum %1, %3, %0"
++	     "cvttq/svm %2,%1\n\t"
+ #endif
+-	 : "=&f"(r), "=&f"(tmp)
+-	 : "f"(x), "f"(two52));
++	     "cvtqt/m %1,%0\n\t"
++	     : "=f"(new_x), "=&f"(tmp1)
++	     : "f"(x));
+ 
+-  /* floor(-0) == -0, and in general we'll always have the same
+-     sign as our input.  */
+-  return copysign (r, x);
++      /* floor(-0) == -0, and in general we'll always have the same
++	 sign as our input.  */
++      x = copysign(new_x, x);
++    }
++  return x;
+ }
+ 
+ weak_alias (__floor, floor)
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floorf.c glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floorf.c
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floorf.c	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_floorf.c	2009-11-13 00:50:59.000000000 +0100
+@@ -20,26 +20,37 @@
+ #include <math.h>
+ 
+ 
+-/* Use the -inf rounding mode conversion instructions to implement floor.  */
++/* Use the -inf rounding mode conversion instructions to implement
++   floor.  We note when the exponent is large enough that the value
++   must be integral, as this avoids unpleasant integer overflows.  */
+ 
+ float
+ __floorf (float x)
+ {
+-  float two23 = copysignf (0x1.0p23, x);
+-  float r, tmp;
+-  
+-  __asm (
++  if (isless (fabsf (x), 16777216.0f))	/* 1 << FLT_MANT_DIG */
++    {
++      /* Note that Alpha S_Floating is stored in registers in a
++	 restricted T_Floating format, so we don't even need to
++	 convert back to S_Floating in the end.  The initial
++	 conversion to T_Floating is needed to handle denormals.  */
++
++      float tmp1, tmp2, new_x;
++
++      __asm ("cvtst/s %3,%2\n\t"
+ #ifdef _IEEE_FP_INEXACT
+-	 "adds/suim %2, %3, %1\n\tsubs/suim %1, %3, %0"
++	     "cvttq/svim %2,%1\n\t"
+ #else
+-	 "adds/sum %2, %3, %1\n\tsubs/sum %1, %3, %0"
++	     "cvttq/svm %2,%1\n\t"
+ #endif
+-	 : "=&f"(r), "=&f"(tmp)
+-	 : "f"(x), "f"(two23));
++	     "cvtqt/m %1,%0\n\t"
++	     : "=f"(new_x), "=&f"(tmp1), "=&f"(tmp2)
++	     : "f"(x));
+ 
+-  /* floor(-0) == -0, and in general we'll always have the same
+-     sign as our input.  */
+-  return copysignf (r, x);
++      /* floor(-0) == -0, and in general we'll always have the same
++	 sign as our input.  */
++      x = copysignf(new_x, x);
++    }
++  return x;
+ }
+ 
+ weak_alias (__floorf, floorf)
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rint.c glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rint.c
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rint.c	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rint.c	2009-11-13 00:50:59.000000000 +0100
+@@ -24,15 +24,24 @@
+ double
+ __rint (double x)
+ {
+-  double two52 = copysign (0x1.0p52, x);
+-  double r;
+-  
+-  r = x + two52;
+-  r = r - two52;
++  if (isless (fabs (x), 9007199254740992.0))	/* 1 << DBL_MANT_DIG */
++    {
++      double tmp1, new_x;
++      __asm (
++#ifdef _IEEE_FP_INEXACT
++	     "cvttq/svid %2,%1\n\t"
++#else
++	     "cvttq/svd %2,%1\n\t"
++#endif
++	     "cvtqt/d %1,%0\n\t"
++	     : "=f"(new_x), "=&f"(tmp1)
++	     : "f"(x));
+ 
+-  /* rint(-0.1) == -0, and in general we'll always have the same sign
+-     as our input.  */
+-  return copysign (r, x);
++      /* rint(-0.1) == -0, and in general we'll always have the same
++	 sign as our input.  */
++      x = copysign(new_x, x);
++    }
++  return x;
+ }
+ 
+ weak_alias (__rint, rint)
+diff -durN glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rintf.c glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rintf.c
+--- glibc-2.10.1.orig/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rintf.c	2009-05-16 10:36:20.000000000 +0200
++++ glibc-2.10.1/glibc-ports-2.10.1/sysdeps/alpha/fpu/s_rintf.c	2009-11-13 00:50:59.000000000 +0100
+@@ -23,15 +23,30 @@
+ float
+ __rintf (float x)
+ {
+-  float two23 = copysignf (0x1.0p23, x);
+-  float r;
++  if (isless (fabsf (x), 16777216.0f))	/* 1 << FLT_MANT_DIG */
++    {
++      /* Note that Alpha S_Floating is stored in registers in a
++	 restricted T_Floating format, so we don't even need to
++	 convert back to S_Floating in the end.  The initial
++	 conversion to T_Floating is needed to handle denormals.  */
+ 
+-  r = x + two23;
+-  r = r - two23;
++      float tmp1, tmp2, new_x;
+ 
+-  /* rint(-0.1) == -0, and in general we'll always have the same sign
+-     as our input.  */
+-  return copysign (r, x);
++      __asm ("cvtst/s %3,%2\n\t"
++#ifdef _IEEE_FP_INEXACT
++	     "cvttq/svid %2,%1\n\t"
++#else
++	     "cvttq/svd %2,%1\n\t"
++#endif
++	     "cvtqt/d %1,%0\n\t"
++	     : "=f"(new_x), "=&f"(tmp1), "=&f"(tmp2)
++	     : "f"(x));
++
++      /* rint(-0.1) == -0, and in general we'll always have the same
++	 sign as our input.  */
++      x = copysignf(new_x, x);
++    }
++  return x;
+ }
+ 
+ weak_alias (__rintf, rintf)
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/fpu/s_ceil.c glibc-2.10.1/ports/sysdeps/alpha/fpu/s_ceil.c
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/fpu/s_ceilf.c glibc-2.10.1/ports/sysdeps/alpha/fpu/s_ceilf.c
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/fpu/s_floor.c glibc-2.10.1/ports/sysdeps/alpha/fpu/s_floor.c
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/fpu/s_floorf.c glibc-2.10.1/ports/sysdeps/alpha/fpu/s_floorf.c
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/fpu/s_rint.c glibc-2.10.1/ports/sysdeps/alpha/fpu/s_rint.c
+diff -durN glibc-2.10.1.orig/ports/sysdeps/alpha/fpu/s_rintf.c glibc-2.10.1/ports/sysdeps/alpha/fpu/s_rintf.c
