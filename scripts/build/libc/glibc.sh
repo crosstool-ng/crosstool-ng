@@ -141,7 +141,7 @@ do_libc_headers() {
     extra_config+=("$(do_libc_min_kernel_config)")
 
     # Pre-seed the configparms file with values from the config option
-    echo "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
+    printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
 
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
@@ -309,7 +309,7 @@ do_libc_start_files() {
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     # Pre-seed the configparms file with values from the config option
-    echo "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
+    printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
 
     echo "libc_cv_forced_unwind=yes" > config.cache
     echo "libc_cv_c_cleanup=yes" >> config.cache
@@ -418,7 +418,7 @@ do_libc() {
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     # Pre-seed the configparms file with values from the config option
-    echo "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
+    printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
 
     # For glibc 2.3.4 and later we need to set some autoconf cache
     # variables, because nptl/sysdeps/pthread/configure.in does not
