@@ -148,6 +148,8 @@ do_libc_headers() {
     CT_DoLog DEBUG "Extra config passed : '${extra_config[*]}'"
 
     libc_cv_ppc_machine=yes                                     \
+    libc_cv_mlong_double_128=yes                                \
+    libc_cv_mlong_double_128ibm=yes                             \
     CC=${cross_cc}                                              \
     CT_DoExecLog ALL                                            \
     "${CT_SRC_DIR}/glibc-${cvs}${CT_LIBC_VERSION}/configure"    \
