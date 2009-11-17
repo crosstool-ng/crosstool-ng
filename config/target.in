@@ -5,6 +5,9 @@ menu "Target options"
 config ARCH
     string
 
+# Note: when all archs have migrated to the 32/64 bit selection,
+# remove this option, and rename the config options in the bitness
+# choice, below.
 config ARCH_64
     bool
     default n
@@ -12,6 +15,8 @@ config ARCH_64
 # Pre-declare target optimisation variables
 config ARCH_SUPPORTS_BOTH_MMU
 config ARCH_SUPPORTS_BOTH_ENDIAN
+config ARCH_SUPPORTS_32
+config ARCH_SUPPORTS_64
 config ARCH_SUPPORT_ARCH
 config ARCH_SUPPORT_ABI
 config ARCH_SUPPORT_CPU
@@ -21,6 +26,8 @@ config ARCH_SUPPORT_FPU
 config ARCH_DEFAULT_HAS_MMU
 config ARCH_DEFAULT_BE
 config ARCH_DEFAULT_LE
+config ARCH_DEFAULT_32
+config ARCH_DEFAULT_64
 
 config ARCH_ARCH
 config ARCH_ABI
@@ -29,6 +36,8 @@ config ARCH_TUNE
 config ARCH_FPU
 config ARCH_BE
 config ARCH_LE
+config ARCH_32b
+config ARCH_64b
 config ARCH_FLOAT_HW
 config ARCH_FLOAT_SW
 config TARGET_CFLAGS
@@ -90,6 +99,42 @@ config ARCH_BE
 config ARCH_LE
     bool
     prompt "Little endian"
+
+endchoice
+
+#--------------------------------------
+config ARCH_SUPPORTS_32
+    bool
+    default n
+
+config ARCH_SUPPORTS_64
+    bool
+    default n
+
+config ARCH_DEFAULT_32
+    bool
+    default n
+
+config ARCH_DEFAULT_64
+    bool
+    default n
+
+choice
+    bool
+    prompt "Bitness:"
+    default ARCH_32b if ARCH_DEFAULT_32
+    default ARCH_64b if ARCH_DEFAULT_64
+
+config ARCH_32b
+    bool
+    prompt "32-bit"
+    depends on ARCH_SUPPORTS_32
+
+config ARCH_64b
+    bool
+    prompt "64-bit"
+    depends on ARCH_SUPPORTS_64
+    select ARCH_64
 
 endchoice
 
