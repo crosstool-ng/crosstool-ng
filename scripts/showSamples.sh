@@ -70,16 +70,20 @@ dump_single_sample() {
             printf "\n"
         fi
     else
-        printf "| ''${sample}''  "
+        case "${CT_TOOLCHAIN_TYPE}" in
+            cross)
+                printf "| ''${sample}''  | "
+                ;;
+            canadian)
+                printf "| ''"
+                printf "${sample}" |sed -r -e 's/.*,//'
+                printf "''  | ${CT_HOST}  "
+                ;;
+            *)          ;;
+        esac
         printf "|  "
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X"
         [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B"
-        printf '  |  '
-        case "${CT_TOOLCHAIN_TYPE}" in
-            cross)      ;;
-            canadian)   printf "${CT_HOST}";;
-            *)          ;;
-        esac
         printf "  |  ''${CT_KERNEL}''  |"
         if [ "${CT_KERNEL}" != "bare-metal" ];then
             if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
@@ -131,9 +135,9 @@ done
 
 if [ "${opt}" = -w ]; then
     echo "^ @@DATE@@  |||||||||||||||"
-    printf "^ Target "
+    printf "^ Target  "
+    printf "^ Host  "
     printf "^  Status  "
-    printf "^  Host  "
     printf "^  Kernel headers\\\\\\\\ version  ^"
     printf "^  binutils\\\\\\\\ version  "
     printf "^  C compiler\\\\\\\\ version  ^"
@@ -148,10 +152,10 @@ fi
 
 for sample in "${@}"; do
     ( dump_single_sample ${opt} ${width} "${sample}" )
-done
+done |LC_ALL=C sort -k2
 
 if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  | ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': sample is curently BROKEN. ||||||||||||||"
+    printf "^ Total: ${#@} samples  || ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': sample is curently BROKEN. |||||||||||||"
     echo   ""
 elif [ -z "${opt}" ]; then
     echo '      l (local)       : sample was found in current directory'
