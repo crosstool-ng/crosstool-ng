@@ -130,7 +130,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^ @@DATE@@  ^ |||||||||||||"
+    echo "^ @@DATE@@  |||||||||||||||"
     printf "^ Target "
     printf "^  Status  "
     printf "^  Host  "
@@ -151,7 +151,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  | ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': sample is curently BROKEN. |||||||||||||"
+    printf "^ Total: ${#@} samples  | ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': sample is curently BROKEN. ||||||||||||||"
     echo   ""
 elif [ -z "${opt}" ]; then
     echo '      l (local)       : sample was found in current directory'
