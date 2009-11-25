@@ -82,8 +82,8 @@ dump_single_sample() {
             *)          ;;
         esac
         printf "|  "
-        [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X"
-        [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B"
+        [ "${CT_EXPERIMENTAL}" = "y" ] && printf "**X**"
+        [ -f "${sample_top}/samples/${sample}/broken" ] && printf "**B**"
         printf "  |  ''${CT_KERNEL}''  |"
         if [ "${CT_KERNEL}" != "bare-metal" ];then
             if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
@@ -134,7 +134,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    echo "^ @@DATE@@  |||||||||||||||"
+    printf "^ %s  |||||||||||||||\n" "$( date "+%Y%m%d.%H%M %z" )"
     printf "^ Target  "
     printf "^ Host  "
     printf "^  Status  "
@@ -155,7 +155,7 @@ for sample in "${@}"; do
 done |LC_ALL=C sort -k2
 
 if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  || ''X'': sample uses features marked as being EXPERIMENTAL.\\\\\\\\ ''B'': sample is curently BROKEN. |||||||||||||"
+    printf "^ Total: ${#@} samples  || **X**: sample uses features marked as being EXPERIMENTAL.\\\\\\\\ **B**: sample is curently BROKEN. |||||||||||||"
     echo   ""
 elif [ -z "${opt}" ]; then
     echo '      l (local)       : sample was found in current directory'
