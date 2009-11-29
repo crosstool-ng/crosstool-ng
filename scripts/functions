@@ -297,8 +297,8 @@ CT_SetLibPath() {
 
 # Get the file name extension of a component
 # Usage: CT_GetFileExtension <component_name-component_version> [extension]
-# If found, echoes the extension to stdout
-# If not found, echoes nothing on stdout.
+# If found, echoes the extension to stdout, and return 0
+# If not found, echoes nothing on stdout, and return !0.
 CT_GetFileExtension() {
     local ext
     local file="$1"
@@ -311,11 +311,11 @@ CT_GetFileExtension() {
     for ext in ${first_ext} .tar.gz .tar.bz2 .tgz .tar ''; do
         if [ -f "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
             echo "${ext}"
-            break
+            exit 0
         fi
     done
 
-    return 0
+    exit 1
 }
 
 # Download an URL using wget
@@ -389,8 +389,7 @@ CT_GetLocal() {
     local ext
 
     # Do we already have it in *our* tarballs dir?
-    ext=$(CT_GetFileExtension "${basename}" ${first_ext})
-    if [ -n "${ext}" ]; then
+    if ext="$( CT_GetFileExtension "${basename}" ${first_ext} )"; then
         CT_DoLog DEBUG "Already have '${basename}'"
         return 0
     fi
@@ -571,8 +570,11 @@ CT_GetSVN() {
 CT_Extract() {
     local basename="$1"
     local nochdir="$2"
-    local ext=$(CT_GetFileExtension "${basename}")
-    CT_TestAndAbort "'${basename}' not found in '${CT_TARBALLS_DIR}'" -z "${ext}"
+    local ext
+
+    if ! ext="$(CT_GetFileExtension "${basename}")"; then
+      CT_TestAndAbort "'${basename}' not found in '${CT_TARBALLS_DIR}'" -z "${ext}"
+    fi
     local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
 
     # Check if already extracted
