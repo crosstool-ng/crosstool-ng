@@ -577,6 +577,16 @@ CT_Extract() {
     fi
     local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
 
+    # Check if previously partially extracted
+    if [ -e "${CT_SRC_DIR}/.${basename}.extracting" ]; then
+        CT_DoLog ERROR "The '${basename}' sources were partially extracted."
+        CT_DoLog ERROR "Please remove first:"
+        CT_DoLog ERROR " - the source dir for '${basename}', in '${CT_SRC_DIR}'"
+        CT_DoLog ERROR " - the file '${CT_SRC_DIR}/.${basename}.extracting'"
+        CT_Abort "I'll stop now to avoid any carnage..."
+    fi
+    CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.extracting"
+
     # Check if already extracted
     if [ -e "${CT_SRC_DIR}/.${basename}.extracted" ]; then
         CT_DoLog DEBUG "Already extracted '${basename}'"
@@ -599,6 +609,7 @@ CT_Extract() {
     CT_DoExecLog DEBUG chmod -R u+w "${CT_SRC_DIR}"
 
     CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.extracted"
+    CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${basename}.extracting"
 
     [ "${nochdir}" = "nochdir" ] || CT_Popd
 }
