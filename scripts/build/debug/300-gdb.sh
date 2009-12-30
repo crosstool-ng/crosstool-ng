@@ -47,7 +47,7 @@ do_debug_gdb_get() {
     fi
 
     if [ "${do_ncurses}" = "y" ]; then
-        CT_GetFile "ncurses-${CT_NCURSES_VERSION}"          \
+        CT_GetFile "ncurses-${CT_NCURSES_VERSION}" .tar.gz  \
                    {ftp,http}://ftp.gnu.org/pub/gnu/ncurses \
                    ftp://invisible-island.net/ncurses
     fi
