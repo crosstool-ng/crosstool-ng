@@ -1,0 +1,159 @@
+diff -ruN strace-4.5.19.orig/config.h.in strace-4.5.19/config.h.in
+--- strace-4.5.19.orig/config.h.in	2009-10-21 19:41:12.000000000 +0200
++++ strace-4.5.19/config.h.in	2010-01-01 10:39:36.000000000 +0100
+@@ -161,6 +161,9 @@
+ /* Define if stat64 is available in asm/stat.h. */
+ #undef HAVE_STAT64
+ 
++/* Define if statfs64 is available in sys/statfs.h or sys/vfs.h. */
++#undef HAVE_STATFS64
++
+ /* Define to 1 if stdbool.h conforms to C99. */
+ #undef HAVE_STDBOOL_H
+ 
+diff -ruN strace-4.5.19.orig/configure strace-4.5.19/configure
+--- strace-4.5.19.orig/configure	2010-01-01 10:38:49.000000000 +0100
++++ strace-4.5.19/configure	2010-01-01 10:39:36.000000000 +0100
+@@ -5374,6 +5374,44 @@
+ 
+ fi
+ 
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for statfs64 in sys/(statfs|vfs).h" >&5
++$as_echo_n "checking for statfs64 in sys/(statfs|vfs).h... " >&6; }
++if test "${ac_cv_type_statfs64+set}" = set; then :
++  $as_echo_n "(cached) " >&6
++else
++  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#ifdef LINUX
++#include <linux/types.h>
++#include <sys/statfs.h>
++#else
++#include <sys/vfs.h>
++#endif
++int
++main ()
++{
++struct statfs64 st;
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_c_try_compile "$LINENO"; then :
++  ac_cv_type_statfs64=yes
++else
++  ac_cv_type_statfs64=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++fi
++
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_type_statfs64" >&5
++$as_echo "$ac_cv_type_statfs64" >&6; }
++if test "$ac_cv_type_statfs64" = yes
++then
++
++$as_echo "#define HAVE_STATFS64 1" >>confdefs.h
++
++fi
++
+ 
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking return type of signal handlers" >&5
+ $as_echo_n "checking return type of signal handlers... " >&6; }
+@@ -5773,73 +5811,6 @@
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ 
+-echo "$as_me:$LINENO: checking for statfs64 in sys/(statfs|vfs).h" >&5
+-echo $ECHO_N "checking for statfs64 in sys/(statfs|vfs).h... $ECHO_C" >&6
+-if test "${ac_cv_type_statfs64+set}" = set; then
+-  echo $ECHO_N "(cached) $ECHO_C" >&6
+-else
+-  cat >conftest.$ac_ext <<_ACEOF
+-/* confdefs.h.  */
+-_ACEOF
+-cat confdefs.h >>conftest.$ac_ext
+-cat >>conftest.$ac_ext <<_ACEOF
+-/* end confdefs.h.  */
+-#ifdef LINUX
+-#include <linux/types.h>
+-#include <sys/statfs.h>
+-#else
+-#include <sys/vfs.h>
+-#endif
+-int
+-main ()
+-{
+-struct statfs64 st;
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-rm -f conftest.$ac_objext
+-if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
+-  (eval $ac_compile) 2>conftest.er1
+-  ac_status=$?
+-  grep -v '^ *+' conftest.er1 >conftest.err
+-  rm -f conftest.er1
+-  cat conftest.err >&5
+-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+-  (exit $ac_status); } &&
+-	 { ac_try='test -z "$ac_c_werror_flag"			 || test ! -s conftest.err'
+-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+-  (eval $ac_try) 2>&5
+-  ac_status=$?
+-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+-  (exit $ac_status); }; } &&
+-	 { ac_try='test -s conftest.$ac_objext'
+-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+-  (eval $ac_try) 2>&5
+-  ac_status=$?
+-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+-  (exit $ac_status); }; }; then
+-  ac_cv_type_statfs64=yes
+-else
+-  echo "$as_me: failed program was:" >&5
+-sed 's/^/| /' conftest.$ac_ext >&5
+-
+-ac_cv_type_statfs64=no
+-fi
+-rm -f conftest.err conftest.$ac_objext conftest.$ac_ext
+-fi
+-
+-echo "$as_me:$LINENO: result: $ac_cv_type_statfs64" >&5
+-echo "${ECHO_T}$ac_cv_type_statfs64" >&6
+-if test "$ac_cv_type_statfs64" = yes
+-then
+-
+-cat >>confdefs.h <<\_ACEOF
+-#define HAVE_STATFS64 1
+-_ACEOF
+-
+-fi
+-
+ 
+ int
+ main ()
+@@ -5947,7 +5918,7 @@
+ do :
+   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "#include <stddef.h>
+-#include <linux/socket.h>
++#include <sys/socket.h>
+ "
+ eval as_val=\$$as_ac_Header
+    if test "x$as_val" = x""yes; then :
+diff -ruN strace-4.5.19.orig/Makefile.in strace-4.5.19/Makefile.in
+--- strace-4.5.19.orig/Makefile.in	2009-10-21 19:41:14.000000000 +0200
++++ strace-4.5.19/Makefile.in	2010-01-01 10:39:36.000000000 +0100
+@@ -42,8 +42,9 @@
+ subdir = .
+ DIST_COMMON = README $(am__configure_deps) $(noinst_HEADERS) \
+ 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+-	$(srcdir)/config.h.in $(top_srcdir)/configure AUTHORS INSTALL \
+-	NEWS TODO config.guess config.sub depcomp install-sh missing
++	$(srcdir)/config.h.in $(top_srcdir)/configure AUTHORS \
++	ChangeLog INSTALL NEWS TODO config.guess config.sub depcomp \
++	install-sh missing
+ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+ am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
+ 	$(top_srcdir)/configure.ac
