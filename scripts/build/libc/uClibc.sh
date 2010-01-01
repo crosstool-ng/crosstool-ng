@@ -187,61 +187,66 @@ mungeuClibcConfig() {
     rm -f "${munge_file}"
     touch "${munge_file}"
 
+    # Do it all in a sub-shell, it's easier to redirect output
+    (
+
     # Hack our target in the config file.
     # Also remove stripping: its the responsibility of the
     # firmware builder to strip or not.
-    cat >>"${munge_file}" <<-ENDSED
-s/^(TARGET_.*)=y$/# \\1 is not set/
-s/^# TARGET_${CT_KERNEL_ARCH} is not set/TARGET_${CT_KERNEL_ARCH}=y/
-s/^TARGET_ARCH=".*"/TARGET_ARCH="${CT_KERNEL_ARCH}"/
-s/.*(DOSTRIP).*/# \\1 is not set/
-ENDSED
+    cat <<-ENDSED
+		s/^(TARGET_.*)=y$/# \\1 is not set/
+		s/^# TARGET_${CT_KERNEL_ARCH} is not set/TARGET_${CT_KERNEL_ARCH}=y/
+		s/^TARGET_ARCH=".*"/TARGET_ARCH="${CT_KERNEL_ARCH}"/
+		s/.*(DOSTRIP).*/# \\1 is not set/
+		ENDSED
 
     # Ah. We may one day need architecture-specific handler here...
-    # Hack the ARM {E,O}ABI into the config file
-    if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
-        cat >>"${munge_file}" <<-ENDSED
-s/.*(CONFIG_ARM_OABI).*/# \\1 is not set/
-s/.*(CONFIG_ARM_EABI).*/\\1=y/
-ENDSED
-    else
-        cat >>"${munge_file}" <<-ENDSED
-s/.*(CONFIG_ARM_OABI).*/\\1=y/
-s/.*(CONFIG_ARM_EABI).*/# \\1 is not set/
-ENDSED
+    if [ "${CT_ARCH}" = "arm" ]; then
+        # Hack the ARM {E,O}ABI into the config file
+        if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
+            cat <<-ENDSED
+				s/.*(CONFIG_ARM_OABI).*/# \\1 is not set/
+				s/.*(CONFIG_ARM_EABI).*/\\1=y/
+				ENDSED
+        else
+            cat <<-ENDSED
+				s/.*(CONFIG_ARM_OABI).*/\\1=y/
+				s/.*(CONFIG_ARM_EABI).*/# \\1 is not set/
+				ENDSED
+        fi
     fi
 
     # Accomodate for old and new uClibc versions, where the
     # way to select between big/little endian has changed
     case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) cat >>"${munge_file}" <<-ENDSED
-s/.*(ARCH_LITTLE_ENDIAN).*/# \\1 is not set/
-s/.*(ARCH_BIG_ENDIAN).*/\\1=y/
-s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/# \\1 is not set/
-s/.*(ARCH_WANTS_BIG_ENDIAN).*/\\1=y/
-ENDSED
+        y,) cat <<-ENDSED
+				s/.*(ARCH_LITTLE_ENDIAN).*/# \\1 is not set/
+				s/.*(ARCH_BIG_ENDIAN).*/\\1=y/
+				s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/# \\1 is not set/
+				s/.*(ARCH_WANTS_BIG_ENDIAN).*/\\1=y/
+				ENDSED
         ;;
-        ,y) cat >>"${munge_file}" <<-ENDSED
-s/.*(ARCH_LITTLE_ENDIAN).*/\\1=y/
-s/.*(ARCH_BIG_ENDIAN).*/# \\1 is not set/
-s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/\\1=y/
-s/.*(ARCH_WANTS_BIG_ENDIAN).*/# \\1 is not set/
-ENDSED
+        ,y) cat <<-ENDSED
+				s/.*(ARCH_LITTLE_ENDIAN).*/\\1=y/
+				s/.*(ARCH_BIG_ENDIAN).*/# \\1 is not set/
+				s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/\\1=y/
+				s/.*(ARCH_WANTS_BIG_ENDIAN).*/# \\1 is not set/
+				ENDSED
         ;;
     esac
 
     # Accomodate for old and new uClibc version, where the
     # way to select between hard/soft float has changed
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
-        y,) cat >>"${munge_file}" <<-ENDSED
-s/^[^_]*(HAS_FPU).*/\\1=y/
-s/.*(UCLIBC_HAS_FPU).*/\\1=y/
-ENDSED
+        y,) cat <<-ENDSED
+				s/^[^_]*(HAS_FPU).*/\\1=y/
+				s/.*(UCLIBC_HAS_FPU).*/\\1=y/
+				ENDSED
             ;;
-        ,y) cat >>"${munge_file}" <<-ENDSED
-s/^[^_]*(HAS_FPU).*/\\# \\1 is not set/
-s/.*(UCLIBC_HAS_FPU).*/# \\1 is not set/
-ENDSED
+        ,y) cat <<-ENDSED
+				s/^[^_]*(HAS_FPU).*/\\# \\1 is not set/
+				s/.*(UCLIBC_HAS_FPU).*/# \\1 is not set/
+				ENDSED
             ;;
     esac
 
@@ -254,28 +259,28 @@ ENDSED
     # CROSS_COMPILER_PREFIX is left as is, as the CROSS parameter is forced on the command line
     # DEVEL_PREFIX is left as '/usr/' because it is post-pended to $PREFIX, wich is the correct value of ${PREFIX}/${TARGET}
     # Some (old) versions of uClibc use KERNEL_SOURCE (which is _wrong_), and
-    # newer versions use KERNEL_HEADERS (which is right). See:
-    cat >>"${munge_file}" <<-ENDSED
-s/^DEVEL_PREFIX=".*"/DEVEL_PREFIX="\\/usr\\/"/
-s/^RUNTIME_PREFIX=".*"/RUNTIME_PREFIX="\\/"/
-s/^SHARED_LIB_LOADER_PREFIX=.*/SHARED_LIB_LOADER_PREFIX="\\/lib\\/"/
-s/^KERNEL_SOURCE=".*"/KERNEL_SOURCE="${quoted_kernel_source}"/
-s/^KERNEL_HEADERS=".*"/KERNEL_HEADERS="${quoted_headers_dir}"/
-s/^UCLIBC_DOWNLOAD_PREGENERATED_LOCALE=y/\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE is not set/
-ENDSED
+    # newer versions use KERNEL_HEADERS (which is right).
+    cat <<-ENDSED
+		s/^DEVEL_PREFIX=".*"/DEVEL_PREFIX="\\/usr\\/"/
+		s/^RUNTIME_PREFIX=".*"/RUNTIME_PREFIX="\\/"/
+		s/^SHARED_LIB_LOADER_PREFIX=.*/SHARED_LIB_LOADER_PREFIX="\\/lib\\/"/
+		s/^KERNEL_SOURCE=".*"/KERNEL_SOURCE="${quoted_kernel_source}"/
+		s/^KERNEL_HEADERS=".*"/KERNEL_HEADERS="${quoted_headers_dir}"/
+		s/^UCLIBC_DOWNLOAD_PREGENERATED_LOCALE=y/\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE is not set/
+		ENDSED
 
     if [ "${CT_USE_PIPES}" = "y" ]; then
         if grep UCLIBC_EXTRA_CFLAGS extra/Configs/Config.in >/dev/null 2>&1; then
             # Good, there is special provision for such things as -pipe!
-            cat >>"${munge_file}" <<-ENDSED
-s/^(UCLIBC_EXTRA_CFLAGS=".*)"$/\\1 -pipe"/
-ENDSED
+            cat <<-ENDSED
+				s/^(UCLIBC_EXTRA_CFLAGS=".*)"$/\\1 -pipe"/
+				ENDSED
         else
             # Hack our -pipe into WARNINGS, which will be internally incorporated to
             # CFLAGS. This a dirty hack, but yet needed
-            cat >> "${munge_file}" <<-ENDSED
-s/^(WARNINGS=".*)"$/\\1 -pipe"/
-ENDSED
+            cat <<-ENDSED
+				s/^(WARNINGS=".*)"$/\\1 -pipe"/
+				ENDSED
         fi
     fi
 
@@ -287,70 +292,76 @@ ENDSED
     # pregenerated locales is not compatible with crosstool; besides,
     # crosstool downloads them as part of getandpatch.sh.
     if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] ; then
-       cat >>"${munge_file}" <<-ENDSED
-s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\nUCLIBC_PREGENERATED_LOCALE_DATA=y\\n\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\n\\# UCLIBC_HAS_XLOCALE is not
-ENDSED
+        cat <<-ENDSED
+			s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\
+			UCLIBC_PREGENERATED_LOCALE_DATA=y\\
+			# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\
+			# UCLIBC_HAS_XLOCALE is not set/
+			ENDSED
     fi
 
     # WCHAR support
     if [ "${CT_LIBC_UCLIBC_WCHAR}" = "y" ] ; then
-       cat >>"${munge_file}" <<-ENDSED
-s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=y/
-ENDSED
+        cat <<-ENDSED
+			s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=y/
+			ENDSED
     else
-       cat >>"${munge_file}" <<-ENDSED
-s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=n/
-ENDSED
+        cat <<-ENDSED
+			s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=n/
+			ENDSED
     fi
 
     # Force on options needed for C++ if we'll be making a C++ compiler.
     # I'm not sure locales are a requirement for doing C++... Are they?
     if [ "${CT_CC_LANG_CXX}" = "y" ]; then
-        cat >>"${munge_file}" <<-ENDSED
-s/^# DO_C99_MATH is not set/DO_C99_MATH=y/
-s/^# UCLIBC_CTOR_DTOR is not set/UCLIBC_CTOR_DTOR=y/
-#s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\nUCLIBC_PREGENERATED_LOCALE_DATA=y\\n\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\n\\# UCLIBC_HAS_XLOCALE is not set/
-s/^# UCLIBC_HAS_GNU_GETOPT is not set/UCLIBC_HAS_GNU_GETOPT=y/
-ENDSED
+        cat <<-ENDSED
+			s/^# DO_C99_MATH is not set/DO_C99_MATH=y/
+			s/^# UCLIBC_CTOR_DTOR is not set/UCLIBC_CTOR_DTOR=y/
+			s/^# UCLIBC_HAS_GNU_GETOPT is not set/UCLIBC_HAS_GNU_GETOPT=y/
+			ENDSED
     fi
 
     # Always build the libpthread_db
-    cat >>"${munge_file}" <<-ENDSED
-s/^# PTHREADS_DEBUG_SUPPORT is not set.*/PTHREADS_DEBUG_SUPPORT=y/
-ENDSED
+    cat <<-ENDSED
+		s/^# PTHREADS_DEBUG_SUPPORT is not set.*/PTHREADS_DEBUG_SUPPORT=y/
+		ENDSED
 
     # Force on debug options if asked for
     case "${CT_LIBC_UCLIBC_DEBUG_LEVEL}" in
       0)
-        cat >>"${munge_file}" <<-ENDSED
-s/^DODEBUG=y/# DODEBUG is not set/
-s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
-s/^DOASSERTS=y/# DOASSERTS is not set/
-s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
-s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
-s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
-ENDSED
+        cat <<-ENDSED
+			s/^DODEBUG=y/# DODEBUG is not set/
+			s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
+			s/^DOASSERTS=y/# DOASSERTS is not set/
+			s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
+			s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
+			s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
+			ENDSED
         ;;
       1)
-        cat >>"${munge_file}" <<-ENDSED
-s/^# DODEBUG is not set.*/DODEBUG=y/
-s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
-s/^DOASSERTS=y/# DOASSERTS is not set/
-s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
-s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
-s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
-ENDSED
+        cat <<-ENDSED
+			s/^# DODEBUG is not set.*/DODEBUG=y/
+			s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
+			s/^DOASSERTS=y/# DOASSERTS is not set/
+			s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
+			s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
+			s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
+			ENDSED
         ;;
       2)
-        cat >>"${munge_file}" <<-ENDSED
-s/^# DODEBUG is not set.*/DODEBUG=y/
-s/^# DODEBUG_PT is not set.*/DODEBUG_PT=y/
-s/^# DOASSERTS is not set.*/DOASSERTS=y/
-s/^# SUPPORT_LD_DEBUG is not set.*/SUPPORT_LD_DEBUG=y/
-s/^# SUPPORT_LD_DEBUG_EARLY is not set.*/SUPPORT_LD_DEBUG_EARLY=y/
-s/^# UCLIBC_MALLOC_DEBUGGING is not set/UCLIBC_MALLOC_DEBUGGING=y/
-ENDSED
+        cat <<-ENDSED
+			s/^# DODEBUG is not set.*/DODEBUG=y/
+			s/^# DODEBUG_PT is not set.*/DODEBUG_PT=y/
+			s/^# DOASSERTS is not set.*/DOASSERTS=y/
+			s/^# SUPPORT_LD_DEBUG is not set.*/SUPPORT_LD_DEBUG=y/
+			s/^# SUPPORT_LD_DEBUG_EARLY is not set.*/SUPPORT_LD_DEBUG_EARLY=y/
+			s/^# UCLIBC_MALLOC_DEBUGGING is not set/UCLIBC_MALLOC_DEBUGGING=y/
+			ENDSED
         ;;
     esac
+
+    # And now, this is the end
+    ) >>"${munge_file}"
+
     sed -r -f "${munge_file}" "${src_config_file}" >"${dst_config_file}"
 }
