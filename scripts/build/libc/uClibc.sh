@@ -201,17 +201,19 @@ mungeuClibcConfig() {
 		ENDSED
 
     # Ah. We may one day need architecture-specific handler here...
-    # Hack the ARM {E,O}ABI into the config file
-    if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
-        cat <<-ENDSED
-			s/.*(CONFIG_ARM_OABI).*/# \\1 is not set/
-			s/.*(CONFIG_ARM_EABI).*/\\1=y/
-			ENDSED
-    else
-        cat <<-ENDSED
-			s/.*(CONFIG_ARM_OABI).*/\\1=y/
-			s/.*(CONFIG_ARM_EABI).*/# \\1 is not set/
-			ENDSED
+    if [ "${CT_ARCH}" = "arm" ]; then
+        # Hack the ARM {E,O}ABI into the config file
+        if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
+            cat <<-ENDSED
+				s/.*(CONFIG_ARM_OABI).*/# \\1 is not set/
+				s/.*(CONFIG_ARM_EABI).*/\\1=y/
+				ENDSED
+        else
+            cat <<-ENDSED
+				s/.*(CONFIG_ARM_OABI).*/\\1=y/
+				s/.*(CONFIG_ARM_EABI).*/# \\1 is not set/
+				ENDSED
+        fi
     fi
 
     # Accomodate for old and new uClibc versions, where the
