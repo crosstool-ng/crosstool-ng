@@ -12,9 +12,9 @@ case "${CT_SSTRIP_FROM}" in
         }
         do_tools_sstrip_build() {
             CT_DoStep INFO "Installing sstrip"
-            mkdir -p "${CT_BUILD_DIR}/build-strip"
+            CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}/sstrip"   \
+                                    "${CT_BUILD_DIR}/build-strip"
             cd "${CT_BUILD_DIR}/build-strip"
-            ( cd "${CT_SRC_DIR}/ELFkickers-${CT_SSTRIP_ELFKICKERS_VERSION}/sstrip"; tar cf - . ) |tar xf -
 
             CT_DoLog EXTRA "Building sstrip"
             CT_DoExecLog ALL make CC="${CT_HOST}-gcc" sstrip

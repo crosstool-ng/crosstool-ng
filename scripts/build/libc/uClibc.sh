@@ -58,15 +58,14 @@ do_libc_headers() {
 
     CT_DoStep INFO "Installing C library headers"
 
-    mkdir -p "${CT_BUILD_DIR}/build-libc-headers"
+    # Simply copy files until uClibc has the ability to build out-of-tree
+    CT_DoLog EXTRA "Copying sources to build dir"
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"   \
+                            "${CT_BUILD_DIR}/build-libc-headers"
     cd "${CT_BUILD_DIR}/build-libc-headers"
 
-    # Simply copy files until uClibc has the ablity to build out-of-tree
-    CT_DoLog EXTRA "Copying sources to build dir"
-    tar cf - -C "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}" . |tar xf -
-
     # Retrieve the config file
-    cp "${CT_CONFIG_DIR}/uClibc.config" .config
+    CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the
     # compiler tools to use.  Setting it to the empty string forces
@@ -99,15 +98,14 @@ do_libc_start_files() {
 do_libc() {
     CT_DoStep INFO "Installing C library"
 
-    mkdir -p "${CT_BUILD_DIR}/build-libc"
+    # Simply copy files until uClibc has the ability to build out-of-tree
+    CT_DoLog EXTRA "Copying sources to build dir"
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"   \
+                            "${CT_BUILD_DIR}/build-libc"
     cd "${CT_BUILD_DIR}/build-libc"
 
-    # Simply copy files until uClibc has the ablity to build out-of-tree
-    CT_DoLog EXTRA "Copying sources to build dir"
-    tar cf - -C "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}" . |tar xf -
-
     # Retrieve the config file
-    cp "${CT_CONFIG_DIR}/uClibc.config" .config
+    CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/uClibc.config" .config
 
     # uClibc uses the CROSS environment variable as a prefix to the compiler
     # tools to use.  The newly built tools should be in our path, so we need

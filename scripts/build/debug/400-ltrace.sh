@@ -20,11 +20,11 @@ do_debug_ltrace_extract() {
 
 do_debug_ltrace_build() {
     CT_DoStep INFO "Installing ltrace"
-    mkdir -p "${CT_BUILD_DIR}/build-ltrace"
-    CT_Pushd "${CT_BUILD_DIR}/build-ltrace"
 
     CT_DoLog EXTRA "Copying sources to build dir"
-    (cd "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}"; tar cf - .)| tar xvf - |CT_DoLog ALL
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}" \
+                            "${CT_BUILD_DIR}/build-ltrace"
+    CT_Pushd "${CT_BUILD_DIR}/build-ltrace"
 
     CT_DoLog EXTRA "Configuring ltrace"
     CT_DoExecLog ALL        \
