@@ -48,7 +48,7 @@ show-all: $(patsubst %,show-%,$(CT_SAMPLES))
 # print the list of all available samples
 PHONY += list-samples
 list-samples: FORCE
-	@echo $(CT_SAMPLES) |$(sed) -r -e 's/ /\n/g;'
+	@echo $(CT_SAMPLES) |$(sed) -r -e 's/ /\n/g;' |sed -r -e 's/(.*),(.*)/\2 \(host: \1\)/;'
 
 wiki-samples:
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
