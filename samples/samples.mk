@@ -41,6 +41,10 @@ PHONY += $(patsubst %,show-%,$(CT_SAMPLES))
 $(patsubst %,show-%,$(CT_SAMPLES)):
 	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
 
+# Prints the details of all samples
+PHONY += show-all
+show-all: $(patsubst %,show-%,$(CT_SAMPLES))
+
 # print the list of all available samples
 PHONY += list-samples
 list-samples: FORCE
