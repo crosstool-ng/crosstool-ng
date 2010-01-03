@@ -30,7 +30,7 @@ dump_single_sample() {
     . "${sample_top}/samples/${sample}/crosstool.config"
     if [ -z "${wiki}" ]; then
         t_width=13
-        printf "    %-*s  [%s" ${width} "${sample}" "${sample_type}"
+        printf "%-*s  [%s" ${width} "${sample}" "${sample_type}"
         [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf " "
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
         echo "]"
@@ -152,7 +152,7 @@ fi
 
 for sample in "${@}"; do
     ( dump_single_sample ${opt} ${width} "${sample}" )
-done |LC_ALL=C sort -k2
+done
 
 if [ "${opt}" = -w ]; then
     printf "^ Total: ${#@} samples  || **X**: sample uses features marked as being EXPERIMENTAL.\\\\\\\\ **B**: sample is curently BROKEN. |||||||||||||"

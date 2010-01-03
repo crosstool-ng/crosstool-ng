@@ -4,7 +4,12 @@
 # Build the list of available samples
 CT_TOP_SAMPLES := $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config))
 CT_LIB_SAMPLES := $(filter-out $(CT_TOP_SAMPLES),$(patsubst $(CT_LIB_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_LIB_DIR)/samples/*/crosstool.config)))
-CT_SAMPLES := $(sort $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES))
+CT_SAMPLES := $(shell echo $(sort $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES))  \
+                      |sed -r -e 's/ /\n/g;'                            \
+                      |sed -r -e 's/(.*),(.*)/\2,\1/;'                  \
+                      |LC_ALL=C sort                                    \
+                      |sed -r -e 's/(.*),(.*)/\2,\1/;'                  \
+               )
 
 # ----------------------------------------------------------
 # This part deals with the samples help entries
@@ -39,7 +44,7 @@ $(patsubst %,show-%,$(CT_SAMPLES)):
 # print the list of all available samples
 PHONY += list-samples
 list-samples: FORCE
-	@echo $(CT_SAMPLES) |$(sed) -r -e 's/ /\n/g;' |sort
+	@echo $(CT_SAMPLES) |$(sed) -r -e 's/ /\n/g;'
 
 wiki-samples:
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
