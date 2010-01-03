@@ -1,0 +1,48 @@
+This patch is to ensure the proper ARCH is selected when cross compiling.  Make
+sure to call the configure script with, e.g., HOST=arm ./configure to select 
+the arm sysdeps.
+
+	Joachim Nilsson <jocke@vmlinux.org>
+
+diff -ru ltrace-0.5.3.orig/configure ltrace-0.5.3/configure
+--- ltrace-0.5.3.orig/configure	2010-01-02 11:05:55.000000000 +0100
++++ ltrace-0.5.3/configure	2010-01-02 20:49:11.000000000 +0100
+@@ -110,7 +110,7 @@
+ #
+ # Makefile.in -> Makefile
+ #
+-x_subst_vars='PACKAGE_VERSION HOST_OS INSTALL CC CPPFLAGS CFLAGS LDFLAGS LIBS iquote iquoteend prefix sysconfdir mandir docdir'
++x_subst_vars='PACKAGE_VERSION HOST HOST_OS INSTALL CC CPPFLAGS CFLAGS LDFLAGS LIBS iquote iquoteend prefix sysconfdir mandir docdir'
+ 
+ for i in $x_subst_vars
+ do
+Only in ltrace-0.5.3: configure~
+diff -ru ltrace-0.5.3.orig/Makefile.in ltrace-0.5.3/Makefile.in
+--- ltrace-0.5.3.orig/Makefile.in	2010-01-02 11:05:55.000000000 +0100
++++ ltrace-0.5.3/Makefile.in	2010-01-03 01:28:41.000000000 +0100
+@@ -1,10 +1,12 @@
+ #
+ # ltrace's Makefile.in
+ #
+-
++MY_TARGET       = @HOST@
++ifdef MY_TARGET
++ARCH            = $(MY_TARGET)
++endif
+ #OS		:= $(shell uname -s)
+ OS		:= @HOST_OS@
+-
+ TOPDIR		= $(shell pwd)
+ 
+ prefix		= @prefix@
+Only in ltrace-0.5.3: Makefile.in~
+diff -ru ltrace-0.5.3.orig/sysdeps/linux-gnu/Makefile ltrace-0.5.3/sysdeps/linux-gnu/Makefile
+--- ltrace-0.5.3.orig/sysdeps/linux-gnu/Makefile	2010-01-02 11:05:55.000000000 +0100
++++ ltrace-0.5.3/sysdeps/linux-gnu/Makefile	2010-01-02 20:49:51.000000000 +0100
+@@ -1,4 +1,4 @@
+-ARCH		:=	$(shell uname -m | sed \
++ARCH		?=	$(shell uname -m | sed \
+ 				-e s/i.86/i386/ \
+ 				-e s/sun4u/sparc64/ \
+ 				-e s/sparc64/sparc/ \
+Only in ltrace-0.5.3/sysdeps/linux-gnu: Makefile~
