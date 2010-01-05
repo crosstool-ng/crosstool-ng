@@ -1,11 +1,13 @@
 # Build script for ltrace
 
 do_debug_ltrace_get() {
-    CT_GetFile "ltrace_${CT_LTRACE_VERSION}.orig" .tar.gz {ftp,http}://ftp.de.debian.org/debian/pool/main/l/ltrace/
+    CT_GetFile "ltrace_${CT_LTRACE_VERSION}.orig" .tar.gz               \
+               {ftp,http}://ftp.de.debian.org/debian/pool/main/l/ltrace/
     # Create a link so that the following steps are easier to do:
     cd "${CT_TARBALLS_DIR}"
     ltrace_ext=$(CT_GetFileExtension "ltrace_${CT_LTRACE_VERSION}.orig")
-    ln -sf "ltrace_${CT_LTRACE_VERSION}.orig${ltrace_ext}" "ltrace-${CT_LTRACE_VERSION}${ltrace_ext}"
+    ln -sf "ltrace_${CT_LTRACE_VERSION}.orig${ltrace_ext}"              \
+           "ltrace-${CT_LTRACE_VERSION}${ltrace_ext}"
 }
 
 do_debug_ltrace_extract() {
