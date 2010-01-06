@@ -18,7 +18,7 @@ Usage: ${myname} <tool> <[options] version [...]> ...
   'tool' in one of:
     --gcc, --binutils, --glibc, --eglibc, --uClibc, --linux,
     --gdb, --dmalloc, --duma, --strace, --ltrace, --libelf
-    --gmp, --mpfr, --ppl, --cloog
+    --gmp, --mpfr, --ppl, --cloog, --mpc
 
   Valid options for all tools:
     --stable, -s, +x   (default)
@@ -146,6 +146,7 @@ while [ $# -gt 0 ]; do
         --mpfr)     EXP=; OBS=; cat=MPFR;      tool=mpfr;     tool_prefix=companion_libs;;
         --ppl)      EXP=; OBS=; cat=PPL;       tool=ppl;      tool_prefix=companion_libs;;
         --cloog)    EXP=; OBS=; cat=CLOOG;     tool=cloog;    tool_prefix=companion_libs;;
+        --mpc)      EXP=; OBS=; cat=MPC;       tool=mpc;      tool_prefix=companion_libs;;
 
         # Tools options:
         -x|--experimental|+s)   EXP=1;;
