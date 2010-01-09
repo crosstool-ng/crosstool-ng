@@ -103,6 +103,7 @@ do_libc_check_config() {
 do_libc_headers() {
     local cvs
     local -a extra_config
+    local arch4hdrs
 
     CT_DoStep INFO "Installing C library headers"
 
@@ -112,6 +113,13 @@ do_libc_headers() {
     cd "${CT_BUILD_DIR}/build-libc-headers"
 
     CT_DoLog EXTRA "Configuring C library"
+
+    # The x86 arch needs special care... Bizarelly enough... :-(
+    case "${CT_KERNEL_ARCH}:${CT_ARCH_BITNESS}" in
+        x86:32) arch4hdrs="i386";;
+        x86:64) arch4hdrs="x86_64";;
+        *)      arch4hdrs="${CT_KERNEL_ARCH}";;
+    esac
 
     # The following three things have to be done to build glibc-2.3.x, but they don't hurt older versions.
     # 1. override CC to keep glibc's configure from using $TARGET-gcc. 
@@ -230,9 +238,9 @@ do_libc_headers() {
             # NOTE: for some archs, the pathes are different, but they are not
             # supported by crosstool-NG right now. See original crosstool when they are.
             pthread_h="${CT_SRC_DIR}/glibc-${cvs}${CT_LIBC_VERSION}/${CT_THREADS}/sysdeps/pthread/pthread.h"
-            pthreadtypes_h="${CT_SRC_DIR}/glibc-${cvs}${CT_LIBC_VERSION}/nptl/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/bits/pthreadtypes.h"
+            pthreadtypes_h="${CT_SRC_DIR}/glibc-${cvs}${CT_LIBC_VERSION}/nptl/sysdeps/unix/sysv/linux/${arch4hdrs}/bits/pthreadtypes.h"
             if [ ! -f "${pthreadtypes_h}" ]; then
-                pthreadtypes_h="${CT_SRC_DIR}/glibc-${cvs}${CT_LIBC_VERSION}/ports/sysdeps/unix/sysv/linux/${CT_KERNEL_ARCH}/nptl/bits/pthreadtypes.h"
+                pthreadtypes_h="${CT_SRC_DIR}/glibc-${cvs}${CT_LIBC_VERSION}/ports/sysdeps/unix/sysv/linux/${arch4hdrs}/nptl/bits/pthreadtypes.h"
             fi
             ;;
         linuxthreads)
