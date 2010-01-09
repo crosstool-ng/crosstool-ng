@@ -577,6 +577,12 @@ CT_Extract() {
     fi
     local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
 
+    # Check if already extracted
+    if [ -e "${CT_SRC_DIR}/.${basename}.extracted" ]; then
+        CT_DoLog DEBUG "Already extracted '${basename}'"
+        return 0
+    fi
+
     # Check if previously partially extracted
     if [ -e "${CT_SRC_DIR}/.${basename}.extracting" ]; then
         CT_DoLog ERROR "The '${basename}' sources were partially extracted."
@@ -586,12 +592,6 @@ CT_Extract() {
         CT_Abort "I'll stop now to avoid any carnage..."
     fi
     CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.extracting"
-
-    # Check if already extracted
-    if [ -e "${CT_SRC_DIR}/.${basename}.extracted" ]; then
-        CT_DoLog DEBUG "Already extracted '${basename}'"
-        return 0
-    fi
 
     [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}"
 
@@ -683,8 +683,8 @@ CT_Patch() {
         done
     fi
 
-    CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${basename}.patching"
     CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.patched"
+    CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${basename}.patching"
 
     [ "${nochdir}" = "nochdir" ] || CT_Popd
 }
