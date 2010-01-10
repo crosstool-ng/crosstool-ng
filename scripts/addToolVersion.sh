@@ -14,37 +14,36 @@ myname="$0"
 
 doHelp() {
     cat <<-EOF
-Usage: ${myname} <tool> <[options] version [...]> ...
-  'tool' in one of:
-    --gcc, --binutils, --glibc, --eglibc, --uClibc, --linux,
-    --gdb, --dmalloc, --duma, --strace, --ltrace, --libelf
-    --gmp, --mpfr, --ppl, --cloog, --mpc
-
-  Valid options for all tools:
-    --stable, -s, +x   (default)
-      mark the version as being stable (as opposed to experimental, below)
-
-    --experimental, -x, +s
-      mark the version as being experimental (as opposed to stable, above)
-
-    --current, -c, +o   (default)
-      mark the version as being cuurent (as opposed to obsolete, below)
-
-    --obsolete, -o, +c
-      mark the version as being obsolete (as opposed to current, above)
-
-  Note: setting a new tool resets to the defaults: 'stable' and 'current'.
-
-  'version' is a valid version for the specified tool.
-
-  Examples:
-    add stable current version 2.6.19.2 to linux kernel:
-      ${myname} --linux 2.6.19.2
-
-    add experimental obsolete version 2.3.5 and stable current versions 2.6.1
-    and 2.6.2 to glibc, add stable obsolete version 3.3.3 to gcc:
-      ${myname} --glibc -x -o 2.3.5 -s -c 2.6.1 2.6.2 --gcc -o 3.3.3
-EOF
+		Usage: ${myname} <--tool> <[options] version [...]> ...
+		  'tool' in one of:
+		    gcc, binutils, glibc, eglibc, uClibc, linux, gdb, dmalloc, duma,
+		    strace, ltrace, libelf, gmp, mpfr, ppl, cloog, mpc
+		
+		  Valid options for all tools:
+		    --stable, -s, +x   (default)
+		      mark the version as being stable (as opposed to experimental, below)
+		
+		    --experimental, -x, +s
+		      mark the version as being experimental (as opposed to stable, above)
+		
+		    --current, -c, +o   (default)
+		      mark the version as being cuurent (as opposed to obsolete, below)
+		
+		    --obsolete, -o, +c
+		      mark the version as being obsolete (as opposed to current, above)
+		
+		  Note: setting a new tool resets to the defaults: 'stable' and 'current'.
+		
+		  'version' is a valid version for the specified tool.
+		
+		  Examples:
+		    add stable current version 2.6.19.2 to linux kernel:
+		      ${myname} --linux 2.6.19.2
+		
+		    add experimental obsolete version 2.3.5 and stable current versions 2.6.1
+		    and 2.6.2 to glibc, add stable obsolete version 3.3.3 to gcc:
+		      ${myname} --glibc -x -o 2.3.5 -s -c 2.6.1 2.6.2 --gcc -o 3.3.3
+		EOF
 }
 
 # Effectively add a version to the specified tool
@@ -130,23 +129,23 @@ fi
 while [ $# -gt 0 ]; do
     case "$1" in
         # Tools:
-        --gcc)      EXP=; OBS=; cat=CC;        tool=gcc;      tool_prefix=cc;;
-        --binutils) EXP=; OBS=; cat=BINUTILS;  tool=binutils; tool_prefix=binutils;;
-        --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;    tool_prefix=libc;;
-        --eglibc)   EXP=; OBS=; cat=LIBC_EGLIBC;    tool=eglibc;   tool_prefix=libc;;
-        --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;   tool_prefix=libc;;
-        --linux)    EXP=; OBS=; cat=KERNEL;    tool=linux;    tool_prefix=kernel;;
-        --gdb)      EXP=; OBS=; cat=GDB;       tool=gdb;      tool_prefix=debug;;
-        --dmalloc)  EXP=; OBS=; cat=DMALLOC;   tool=dmalloc;  tool_prefix=debug;;
-        --duma)     EXP=; OBS=; cat=DUMA;      tool=duma;     tool_prefix=debug;;
-        --strace)   EXP=; OBS=; cat=STRACE;    tool=strace;   tool_prefix=debug;;
-        --ltrace)   EXP=; OBS=; cat=LTRACE;    tool=ltrace;   tool_prefix=debug;;
-        --libelf)   EXP=; OBS=; cat=LIBELF;    tool=libelf;   tool_prefix=tools;;
-        --gmp)      EXP=; OBS=; cat=GMP;       tool=gmp;      tool_prefix=companion_libs;;
-        --mpfr)     EXP=; OBS=; cat=MPFR;      tool=mpfr;     tool_prefix=companion_libs;;
-        --ppl)      EXP=; OBS=; cat=PPL;       tool=ppl;      tool_prefix=companion_libs;;
-        --cloog)    EXP=; OBS=; cat=CLOOG;     tool=cloog;    tool_prefix=companion_libs;;
-        --mpc)      EXP=; OBS=; cat=MPC;       tool=mpc;      tool_prefix=companion_libs;;
+        --gcc)      EXP=; OBS=; cat=CC;             tool=gcc;       tool_prefix=cc;;
+        --binutils) EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;;
+        --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;     tool_prefix=libc;;
+        --eglibc)   EXP=; OBS=; cat=LIBC_EGLIBC;    tool=eglibc;    tool_prefix=libc;;
+        --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;    tool_prefix=libc;;
+        --linux)    EXP=; OBS=; cat=KERNEL;         tool=linux;     tool_prefix=kernel;;
+        --gdb)      EXP=; OBS=; cat=GDB;            tool=gdb;       tool_prefix=debug;;
+        --dmalloc)  EXP=; OBS=; cat=DMALLOC;        tool=dmalloc;   tool_prefix=debug;;
+        --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;;
+        --strace)   EXP=; OBS=; cat=STRACE;         tool=strace;    tool_prefix=debug;;
+        --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;;
+        --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=tools;;
+        --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs;;
+        --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs;;
+        --ppl)      EXP=; OBS=; cat=PPL;            tool=ppl;       tool_prefix=companion_libs;;
+        --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs;;
+        --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs;;
 
         # Tools options:
         -x|--experimental|+s)   EXP=1;;
