@@ -110,7 +110,7 @@ addToolVersion() {
             fi
             ;;
     esac
-    SedExpr2="    default \"${version}\" if ${cat}_V_${v}"
+    SedExpr2="    default \"${version}\" if ${config_ver_option}"
     "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_BELOW)$/\1\n\n'"${SedExpr1}"'/;' "${file}"
     "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_STRING_BELOW)$/\1\n'"${SedExpr2}"'/;' "${file}"
 }
@@ -132,9 +132,9 @@ while [ $# -gt 0 ]; do
         # Tools:
         --gcc)      EXP=; OBS=; cat=CC;        tool=gcc;      tool_prefix=cc;;
         --binutils) EXP=; OBS=; cat=BINUTILS;  tool=binutils; tool_prefix=binutils;;
-        --glibc)    EXP=; OBS=; cat=LIBC;      tool=glibc;    tool_prefix=libc;;
-        --eglibc)   EXP=; OBS=; cat=LIBC;      tool=eglibc;   tool_prefix=libc;;
-        --uClibc)   EXP=; OBS=; cat=LIBC;      tool=uClibc;   tool_prefix=libc;;
+        --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;    tool_prefix=libc;;
+        --eglibc)   EXP=; OBS=; cat=LIBC_EGLIBC;    tool=eglibc;   tool_prefix=libc;;
+        --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;   tool_prefix=libc;;
         --linux)    EXP=; OBS=; cat=KERNEL;    tool=linux;    tool_prefix=kernel;;
         --gdb)      EXP=; OBS=; cat=GDB;       tool=gdb;      tool_prefix=debug;;
         --dmalloc)  EXP=; OBS=; cat=DMALLOC;   tool=dmalloc;  tool_prefix=debug;;
