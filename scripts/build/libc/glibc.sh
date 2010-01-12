@@ -268,8 +268,11 @@ do_libc_start_files() {
     extra_config+=("$(do_libc_min_kernel_config)")
 
     # Add some default CC args
-    glibc_version_major=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^([[:digit:]]+).*/\1/')
-    glibc_version_minor=$(echo ${CT_LIBC_VERSION} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
+    glibc_version="$( grep -E '\<VERSION\>' "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/version.h"  \
+                      |cut -d '"' -f 2
+                    )"
+    glibc_version_major=$(echo ${glibc_version} |sed -r -e 's/^([[:digit:]]+).*/\1/')
+    glibc_version_minor=$(echo ${glibc_version} |sed -r -e 's/^[[:digit:]]+[\.-_]([[:digit:]]+).*/\1/')
     if [    ${glibc_version_major} -eq 2 -a ${glibc_version_minor} -ge 6    \
          -o ${glibc_version_major} -gt 2                                    ]; then
         # Don't use -pipe: configure chokes on it for glibc >= 2.6.
