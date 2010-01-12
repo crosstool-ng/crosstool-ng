@@ -101,7 +101,7 @@ do_libc_extract() {
         # NPTL addon is not to be extracted, in any case
         [ "${addon}" = "nptl" ] && continue || true
         CT_Pushd "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
-        CT_Extract "eglibc-${addon}-${CT_LIBC_VERSION}" nochdir
+        CT_Extract nochdir "eglibc-${addon}-${CT_LIBC_VERSION}"
         # Some addons have the 'long' name, while others have the
         # 'short' name, but patches are non-uniformly built with
         # either the 'long' or 'short' name, whatever the addons name
@@ -110,7 +110,7 @@ do_libc_extract() {
         # directory, returns true!
         [ -d "${addon}" ] || ln -s "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
         [ -d "eglibc-${addon}-${CT_LIBC_VERSION}" ] || ln -s "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
-        CT_Patch "eglibc-${addon}-${CT_LIBC_VERSION}" nochdir
+        CT_Patch nochdir "eglibc-${addon}-${CT_LIBC_VERSION}"
         CT_Popd
     done
 

@@ -16,7 +16,7 @@ do_debug_duma_extract() {
     # name from the version in order to find the appropriate patches
     # YEM: FIXME: make CT_Patch more intelligent, Eg.: CT_Patch duma _ "${CT_DUMA_VERSION}"
     CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.duma-${CT_DUMA_VERSION}.extracted"
-    CT_Patch "duma-${CT_DUMA_VERSION}" nochdir
+    CT_Patch nochdir "duma-${CT_DUMA_VERSION}"
     CT_Popd
 }
 

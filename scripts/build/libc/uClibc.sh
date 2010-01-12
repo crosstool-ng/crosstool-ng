@@ -27,8 +27,8 @@ do_libc_extract() {
     # uClibc locales
     if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
         CT_Pushd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}/extra/locale"
-        CT_Extract "uClibc-locale-030818" nochdir
-        CT_Patch "uClibc-locale-030818" nochdir
+        CT_Extract nochdir "uClibc-locale-030818"
+        CT_Patch nochdir "uClibc-locale-030818"
         CT_Popd
     fi
 

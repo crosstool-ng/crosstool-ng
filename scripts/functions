@@ -566,11 +566,21 @@ CT_GetSVN() {
 # in the extra/locale sub-directory of uClibc. This is taken into account
 # by the caller, that did a 'cd' into the correct path before calling us
 # and sets nochdir to 'nochdir'.
-# Usage: CT_Extract <basename> [nochdir]
+# Usage: CT_Extract [nochdir] <basename>
 CT_Extract() {
-    local basename="$1"
-    local nochdir="$2"
+    local nochdir="$1"
+    local basename
     local ext
+
+    if [ "${nochdir}" = "nochdir" ]; then
+        shift
+        nochdir="$(pwd)"
+    else
+        nochdir="${CT_SRC_DIR}"
+    fi
+
+    basename="$1"
+    shift
 
     if ! ext="$(CT_GetFileExtension "${basename}")"; then
       CT_TestAndAbort "'${basename}' not found in '${CT_TARBALLS_DIR}'" -z "${ext}"
@@ -593,7 +603,7 @@ CT_Extract() {
     fi
     CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.extracting"
 
-    [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}"
+    CT_Pushd "${nochdir}"
 
     CT_DoLog EXTRA "Extracting '${basename}'"
     case "${ext}" in
@@ -611,20 +621,32 @@ CT_Extract() {
     CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.extracted"
     CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${basename}.extracting"
 
-    [ "${nochdir}" = "nochdir" ] || CT_Popd
+    CT_Popd
 }
 
 # Patches the specified component
-# Usage: CT_Patch <basename> [nochdir]
+# See CT_Extract, above, for explanations on 'nochdir'
+# Usage: CT_Patch [nochdir] <basename>
 CT_Patch() {
-    local basename="$1"
-    local nochdir="$2"
-    local base_file="${basename%%-*}"
-    local ver_file="${basename#*-}"
+    local nochdir="$1"
+    local basename
+    local base_file
+    local ver_file
     local d
     local -a patch_dirs
     local bundled_patch_dir
     local local_patch_dir
+
+    if [ "${nochdir}" = "nochdir" ]; then
+        shift
+        nochdir="$(pwd)"
+    else
+        nochdir="${CT_SRC_DIR}/${1}"
+    fi
+
+    basename="$1"
+    base_file="${basename%%-*}"
+    ver_file="${basename#*-}"
 
     # Check if already patched
     if [ -e "${CT_SRC_DIR}/.${basename}.patched" ]; then
@@ -643,7 +665,7 @@ CT_Patch() {
     fi
     touch "${CT_SRC_DIR}/.${basename}.patching"
 
-    [ "${nochdir}" = "nochdir" ] || CT_Pushd "${CT_SRC_DIR}/${basename}"
+    CT_Pushd "${nochdir}"
 
     CT_DoLog EXTRA "Patching '${basename}'"
 
@@ -686,7 +708,7 @@ CT_Patch() {
     CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.patched"
     CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${basename}.patching"
 
-    [ "${nochdir}" = "nochdir" ] || CT_Popd
+    CT_Popd
 }
 
 # Two wrappers to call config.(guess|sub) either from CT_TOP_DIR or CT_LIB_DIR.
