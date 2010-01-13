@@ -190,7 +190,7 @@ do_debug_gdb_build() {
             --with-build-cc=${CT_BUILD}-gcc                     \
             --with-build-cpp=${CT_BUILD}-gcc                    \
             --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
-            --prefix=/usr                                       \
+            --prefix="${CT_BUILD_DIR}/ncurses"                  \
             --without-shared                                    \
             --without-sysmouse                                  \
             --without-progs                                     \
@@ -201,8 +201,7 @@ do_debug_gdb_build() {
         CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
         CT_DoLog EXTRA "Installing ncurses"
-        mkdir -p "${CT_SYSROOT_DIR}/usr/bin"
-        CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
+        CT_DoExecLog ALL make install
 
         # We no longer need the temporary tic. Remove it
         CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/bin/tic"
@@ -233,10 +232,13 @@ do_debug_gdb_build() {
 
         export ac_cv_func_strncmp_works=yes
 
+        gdb_native_CFLAGS="-I${CT_BUILD_DIR}/ncurses/include -L${CT_BUILD_DIR}/ncurses/lib"
+
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
+        CFLAGS="${gdb_native_CFLAGS}"                   \
         CT_DoExecLog ALL                                \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
@@ -268,6 +270,8 @@ do_debug_gdb_build() {
         CT_DoLog EXTRA "Cleaning up ncurses"
         cd "${CT_BUILD_DIR}/build-ncurses"
         CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" uninstall
+
+        CT_DoExecLog DEBUG rm -rf "${CT_BUILD_DIR}/ncurses"
 
         CT_EndStep # native gdb build
     fi
