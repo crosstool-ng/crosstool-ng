@@ -191,7 +191,7 @@ do_debug_gdb_build() {
             --with-build-cpp=${CT_BUILD}-gcc                    \
             --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
             --prefix=/usr                                       \
-            --with-shared                                       \
+            --without-shared                                    \
             --without-sysmouse                                  \
             --without-progs                                     \
             --enable-termcap                                    \
