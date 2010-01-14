@@ -58,7 +58,7 @@ addToolVersion() {
     local file
     local config_ver_option
     local exp_obs_prompt
-    local deps v ver_M ver_m
+    local deps v ver_M ver_m ver_p
     local SedExpr1 SedExpr2
 
     file="config/${tool_prefix}/${tool}.in"
@@ -106,6 +106,17 @@ addToolVersion() {
             if [    ${ver_M} -gt 4                          \
                  -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 4 \)  ]; then
                 SedExpr1="${SedExpr1}\n    select CC_GCC_4_4_or_later"
+            fi
+            ;;
+        uClibc)
+            # uClibc-0.9.30 and above need some love
+            ver_M=$(echo "${version}...." |cut -d . -f 1)
+            ver_m=$(echo "${version}...." |cut -d . -f 2)
+            ver_p=$(echo "${version}...." |cut -d . -f 3)
+            if [    ${ver_M} -ge 1                                      \
+                 -o ${ver_M} -eq 0 -a ${ver_m} -ge 10                   \
+                 -o ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -ge 30 ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_0_9_30_or_later"
             fi
             ;;
     esac
