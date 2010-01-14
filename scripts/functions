@@ -308,8 +308,8 @@ CT_GetFileExtension() {
     # we need to also check for an empty extension for those very
     # peculiar components that don't have one (such as sstrip from
     # buildroot).
-    for ext in ${first_ext} .tar.gz .tar.bz2 .tgz .tar ''; do
-        if [ -f "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
+    for ext in ${first_ext} .tar.gz .tar.bz2 .tgz .tar /.git ''; do
+        if [ -e "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
             echo "${ext}"
             exit 0
         fi
@@ -470,6 +470,8 @@ CT_GetFile() {
     fi
 
     # Scan all URLs in turn, and try to grab a tarball from there
+    # Do *not* try git trees (ext=/.git), this is handled in a specific
+    # wrapper, below
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         # Try all urls in turn
         for url in ${URLS}; do
@@ -560,13 +562,46 @@ CT_GetSVN() {
     CT_DoExecLog ALL rm -rf "${tmp_dir}"
 }
 
+# Clone a git tree
+# Tries the given URLs in turn until one can get cloned. No tarball will be created.
+# Prerequisites: either the server does not require password,
+# or the user has already taken any action to authenticate to the server.
+# The cloned tree will *not* be stored in the local tarballs dir!
+# Usage: CT_GetGit <basename> <url [url ...]>
+CT_GetGit() {
+    local basename="$1"; shift
+    local url
+    local cloned=0
+
+    # Do we have it in our tarballs dir?
+    if [ -d "${CT_TARBALLS_DIR}/${basename}/.git" ]; then
+        CT_DoLog EXTRA "Updating git tree '${basename}'"
+        CT_Pushd "${CT_TARBALLS_DIR}/${basename}"
+        CT_DoExecLog ALL git pull
+        CT_Popd
+    else
+        CT_DoLog EXTRA "Retrieving git tree '${basename}'"
+        for url in "${@}"; do
+            CT_DoLog ALL "Trying to clone from '${url}'"
+            CT_DoForceRmdir "${CT_TARBALLS_DIR}/${basename}"
+            if git clone "${url}" "${CT_TARBALLS_DIR}/${basename}" 2>&1 |CT_DoLog ALL; then
+                cloned=1
+                break
+            fi
+        done
+        CT_TestOrAbort "Could not clone '${basename}'" ${cloned} -ne 0
+    fi
+}
+
 # Extract a tarball
 # Some tarballs need to be extracted in specific places. Eg.: glibc addons
 # must be extracted in the glibc directory; uCLibc locales must be extracted
 # in the extra/locale sub-directory of uClibc. This is taken into account
 # by the caller, that did a 'cd' into the correct path before calling us
 # and sets nochdir to 'nochdir'.
-# Usage: CT_Extract [nochdir] <basename>
+# Note also that this function handles the git trees!
+# Usage: CT_Extract <basename> [nochdir] [options]
+# where 'options' are dependent on the source (eg. git branch/tag...)
 CT_Extract() {
     local nochdir="$1"
     local basename
@@ -583,7 +618,7 @@ CT_Extract() {
     shift
 
     if ! ext="$(CT_GetFileExtension "${basename}")"; then
-      CT_TestAndAbort "'${basename}' not found in '${CT_TARBALLS_DIR}'" -z "${ext}"
+      CT_Abort "'${basename}' not found in '${CT_TARBALLS_DIR}'"
     fi
     local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
 
@@ -610,7 +645,8 @@ CT_Extract() {
         .tar.bz2)     CT_DoExecLog ALL tar xvjf "${full_file}";;
         .tar.gz|.tgz) CT_DoExecLog ALL tar xvzf "${full_file}";;
         .tar)         CT_DoExecLog ALL tar xvf  "${full_file}";;
-        *)            CT_Abort "Don't know how to handle '${basename}${ext}': unknown extension" ;;
+        /.git)        CT_ExtractGit "${basename}" "${@}";;
+        *)            CT_Abort "Don't know how to handle '${basename}${ext}': unknown extension";;
     esac
 
     # Some tarballs have read-only files... :-(
@@ -618,8 +654,54 @@ CT_Extract() {
     # the src tree
     CT_DoExecLog DEBUG chmod -R u+w "${CT_SRC_DIR}"
 
-    CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.extracted"
+    # Don't mark as being extracted for git
+    case "${ext}" in
+        /.git)  ;;
+        *)      CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.extracted";;
+    esac
     CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${basename}.extracting"
+
+    CT_Popd
+}
+
+# Create a working git clone
+# Usage: CT_ExtractGit <basename> [ref]
+# where 'ref' is the reference to use:
+#   the full name of a branch, like "remotes/origin/branch_name"
+#   a date as understandable by git, like "YYYY-MM-DD[ hh[:mm[:ss]]]"
+#   a tag name
+CT_ExtractGit() {
+    local basename="${1}"
+    local ref="${2}"
+    local clone_dir
+    local ref_type
+
+    # pushd now to be able to get git revlist in case ref is a date
+    clone_dir="${CT_TARBALLS_DIR}/${basename}"
+    CT_Pushd "${clone_dir}"
+
+    # What kind of reference is ${ref} ?
+    if [ -z "${ref}" ]; then
+        # Don't update the clone, keep as-is
+        ref_type=none
+    elif git tag |grep -E "^${ref}$" >/dev/null 2>&1; then
+        ref_type=tag
+    elif git branch -a --no-color |grep -E "^. ${ref}$" >/dev/null 2>&1; then
+        ref_type=branch
+    elif date -d "${ref}" >/dev/null 2>&1; then
+        ref_type=date
+        ref=$(git rev-list -n1 --before="${ref}")
+    else
+        CT_Abort "Reference '${ref}' is an incorrect git reference: neither tag, branch nor date"
+    fi
+
+    CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/${basename}"
+    CT_DoExecLog ALL ln -sf "${clone_dir}" "${CT_SRC_DIR}/${basename}"
+
+    case "${ref_type}" in
+        none)   ;;
+        *)      CT_DoExecLog ALL git checkout "${ref}";;
+    esac
 
     CT_Popd
 }
