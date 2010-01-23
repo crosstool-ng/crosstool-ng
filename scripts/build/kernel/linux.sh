@@ -59,7 +59,7 @@ do_kernel_install() {
     CT_DoExecLog ALL                                    \
     make -C "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}"  \
          O=$(pwd)                                       \
-         ARCH=${CT_KERNEL_ARCH}                         \
+         ARCH=${CT_ARCH}                                \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
          ${V_OPT}                                       \
          headers_install
@@ -69,7 +69,7 @@ do_kernel_install() {
         CT_DoExecLog ALL                                    \
         make -C "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}"  \
              O=$(pwd)                                       \
-             ARCH=${CT_KERNEL_ARCH}                         \
+             ARCH=${CT_ARCH}                                \
              INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
              ${V_OPT}                                       \
              headers_check
