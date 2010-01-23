@@ -115,10 +115,10 @@ do_libc_headers() {
     CT_DoLog EXTRA "Configuring C library"
 
     # The x86 arch needs special care... Bizarelly enough... :-(
-    case "${CT_KERNEL_ARCH}:${CT_ARCH_BITNESS}" in
+    case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
         x86:32) arch4hdrs="i386";;
         x86:64) arch4hdrs="x86_64";;
-        *)      arch4hdrs="${CT_KERNEL_ARCH}";;
+        *)      arch4hdrs="${CT_ARCH}";;
     esac
 
     # The following three things have to be done to build glibc-2.3.x, but they don't hurt older versions.
