@@ -193,8 +193,8 @@ mungeuClibcConfig() {
     # firmware builder to strip or not.
     cat <<-ENDSED
 		s/^(TARGET_.*)=y$/# \\1 is not set/
-		s/^# TARGET_${CT_KERNEL_ARCH} is not set/TARGET_${CT_KERNEL_ARCH}=y/
-		s/^TARGET_ARCH=".*"/TARGET_ARCH="${CT_KERNEL_ARCH}"/
+		s/^# TARGET_${CT_ARCH} is not set/TARGET_${CT_ARCH}=y/
+		s/^TARGET_ARCH=".*"/TARGET_ARCH="${CT_ARCH}"/
 		s/.*(DOSTRIP).*/# \\1 is not set/
 		ENDSED
 
