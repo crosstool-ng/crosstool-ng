@@ -1,5 +1,11 @@
 # Build script for the gdb debug facility
 
+# The version of ncurses to use. Yes, it's hard-coded.
+# It's used only internally by crosstool-NG, and is
+# not exposed outside, so we don't care about providing
+# config options for this.
+CT_DEBUG_GDB_NCURSES_VERSION="5.7"
+
 do_debug_gdb_suffix() {
     case "${CT_GDB_VERSION}" in
         snapshot)   ;;
@@ -47,7 +53,7 @@ do_debug_gdb_get() {
     fi
 
     if [ "${do_ncurses}" = "y" ]; then
-        CT_GetFile "ncurses-${CT_NCURSES_VERSION}" .tar.gz  \
+        CT_GetFile "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}" .tar.gz  \
                    {ftp,http}://ftp.gnu.org/pub/gnu/ncurses \
                    ftp://invisible-island.net/ncurses
     fi
@@ -67,8 +73,8 @@ do_debug_gdb_extract() {
     fi
 
     if [ "${do_ncurses}" = "y" ]; then
-        CT_Extract "ncurses-${CT_NCURSES_VERSION}"
-        CT_Patch "ncurses-${CT_NCURSES_VERSION}"
+        CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
+        CT_Patch "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
     fi
 }
 
@@ -153,16 +159,16 @@ do_debug_gdb_build() {
         # Use build = CT_REAL_BUILD so that configure thinks it is
         # cross-compiling, and thus will use the ${CT_BUILD}-*
         # tools instead of searching for the native ones...
-        CT_DoExecLog ALL                                        \
-        "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
-            --build=${CT_REAL_BUILD}                            \
-            --host=${CT_BUILD}                                  \
-            --prefix=/usr                                       \
-            --without-shared                                    \
-            --enable-symlinks                                   \
-            --with-build-cc=${CT_REAL_BUILD}-gcc                \
-            --with-build-cpp=${CT_REAL_BUILD}-gcc               \
-            --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
+        CT_DoExecLog ALL                                                    \
+        "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
+            --build=${CT_REAL_BUILD}                                        \
+            --host=${CT_BUILD}                                              \
+            --prefix=/usr                                                   \
+            --without-shared                                                \
+            --enable-symlinks                                               \
+            --with-build-cc=${CT_REAL_BUILD}-gcc                            \
+            --with-build-cpp=${CT_REAL_BUILD}-gcc                           \
+            --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
             "${ncurses_opts[@]}"
 
         # Under some operating systems (eg. Winblows), there is an
@@ -183,18 +189,18 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-ncurses"
         cd "${CT_BUILD_DIR}/build-ncurses"
 
-        CT_DoExecLog ALL                                        \
-        "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure" \
-            --build=${CT_BUILD}                                 \
-            --host=${CT_TARGET}                                 \
-            --with-build-cc=${CT_BUILD}-gcc                     \
-            --with-build-cpp=${CT_BUILD}-gcc                    \
-            --with-build-cflags="${CT_CFLAGS_FOR_HOST}"         \
-            --prefix="${CT_BUILD_DIR}/ncurses"                  \
-            --without-shared                                    \
-            --without-sysmouse                                  \
-            --without-progs                                     \
-            --enable-termcap                                    \
+        CT_DoExecLog ALL                                                    \
+        "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
+            --build=${CT_BUILD}                                             \
+            --host=${CT_TARGET}                                             \
+            --with-build-cc=${CT_BUILD}-gcc                                 \
+            --with-build-cpp=${CT_BUILD}-gcc                                \
+            --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
+            --prefix="${CT_BUILD_DIR}/ncurses"                              \
+            --without-shared                                                \
+            --without-sysmouse                                              \
+            --without-progs                                                 \
+            --enable-termcap                                                \
             "${ncurses_opts[@]}"
 
         CT_DoLog EXTRA "Building ncurses"
