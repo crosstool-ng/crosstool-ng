@@ -3,6 +3,13 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# Default: do nothing
+do_elf2flt_get()     { :; }
+do_elf2flt_extract() { :; }
+do_elf2flt()         { :; }
+
+if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
+
 # Download elf2flt
 do_elf2flt_get() {
     CT_GetCVS "elf2flt-cvs-${CT_ELF2FLT_VERSION}"           \
@@ -20,7 +27,6 @@ do_elf2flt_extract() {
 
 # Build elf2flt
 do_elf2flt() {
-    [ -z ${CT_KERNEL_UCLINUX_BINFMT_FLAT} ] && return 0
     mkdir -p "${CT_BUILD_DIR}/build-elf2flt"
     cd "${CT_BUILD_DIR}/build-elf2flt"
 
@@ -67,3 +73,5 @@ do_elf2flt() {
 
     CT_EndStep
 }
+
+fi # CT_ARCH_BINFMT_FLAT
