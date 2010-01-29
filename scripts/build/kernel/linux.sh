@@ -48,11 +48,6 @@ do_kernel_install() {
     mkdir -p "${CT_BUILD_DIR}/build-kernel-headers"
     cd "${CT_BUILD_DIR}/build-kernel-headers"
 
-    # Only starting with 2.6.18 does headers_install is usable. We only
-    # have 2.6 version available, so only test for sublevel.
-    k_sublevel=$(awk '/^SUBLEVEL =/ { print $3 }' "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}/Makefile")
-    [ ${k_sublevel} -ge 18 ] || CT_Abort "Kernel version >= 2.6.18 is needed to install kernel headers."
-
     V_OPT="V=${CT_KERNEL_LINUX_VERBOSE_LEVEL}"
 
     CT_DoLog EXTRA "Installing kernel headers"
