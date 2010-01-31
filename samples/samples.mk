@@ -39,7 +39,8 @@ help-env::
 # Print the details of current configuration
 PHONY += show-config
 show-config: .config
-	@$(CT_LIB_DIR)/scripts/showSamples.sh -v current
+	@export current_tuple=$(shell $(MAKE) -rf "$(CT_NG)" show-tuple );  \
+	$(CT_LIB_DIR)/scripts/showSamples.sh -v current
 
 # Prints the details of a sample
 PHONY += $(patsubst %,show-%,$(CT_SAMPLES))

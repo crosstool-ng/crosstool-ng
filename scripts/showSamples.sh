@@ -23,6 +23,8 @@ dump_single_sample() {
     case "${sample}" in
         current)
             sample_type="l"
+            sample="${current_tuple}"
+            width="${#sample}"
             . .config
             ;;
         *)  if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
