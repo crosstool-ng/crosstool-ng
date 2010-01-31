@@ -36,6 +36,11 @@ help-env::
 # ----------------------------------------------------------
 # This part deals with printing samples information
 
+# Print the details of current configuration
+PHONY += show-config
+show-config: .config
+	@$(CT_LIB_DIR)/scripts/showSamples.sh -v current
+
 # Prints the details of a sample
 PHONY += $(patsubst %,show-%,$(CT_SAMPLES))
 $(patsubst %,show-%,$(CT_SAMPLES)):

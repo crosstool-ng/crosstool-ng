@@ -20,14 +20,21 @@ dump_single_sample() {
     [ "$1" = "-w" ] && wiki=1 && shift
     local width="$1"
     local sample="$2"
-    if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
-        sample_top="${CT_TOP_DIR}"
-        sample_type="l"
-    else
-        sample_top="${CT_LIB_DIR}"
-        sample_type="g"
-    fi
-    . "${sample_top}/samples/${sample}/crosstool.config"
+    case "${sample}" in
+        current)
+            sample_type="l"
+            . .config
+            ;;
+        *)  if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
+                sample_top="${CT_TOP_DIR}"
+                sample_type="l"
+            else
+                sample_top="${CT_LIB_DIR}"
+                sample_type="g"
+            fi
+            . "${sample_top}/samples/${sample}/crosstool.config"
+            ;;
+    esac
     if [ -z "${wiki}" ]; then
         t_width=13
         printf "%-*s  [%s" ${width} "${sample}" "${sample_type}"
