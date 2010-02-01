@@ -259,6 +259,12 @@ do_libc() {
         CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
     fi
 
+    if [ "${CT_EGLIBC_OPT_SIZE}" = "y" ]; then
+        OPTIMIZE=-Os
+    else
+        OPTIMIZE=-O2
+    fi
+
     # Add some default glibc config options if not given by user.
     # We don't need to be conditional on wether the user did set different
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
@@ -301,7 +307,7 @@ do_libc() {
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
     BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} -O2"  \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"  \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
