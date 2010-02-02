@@ -75,6 +75,7 @@ do_mpfr() {
     case "${CT_HOST}" in
         *cygwin*)   mpfr_opt="--disable-thread-safe";;
         *mingw*)    mpfr_opt="--disable-thread-safe";;
+        *darwin*)   mpfr_opt="--disable-thread-safe";;
         *)          mpfr_opt="--enable-thread-safe";;
     esac
 
