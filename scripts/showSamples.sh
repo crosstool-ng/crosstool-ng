@@ -25,7 +25,7 @@ dump_single_sample() {
             sample_type="l"
             sample="${current_tuple}"
             width="${#sample}"
-            . .config
+            . $(pwd)/.config
             ;;
         *)  if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
                 sample_top="${CT_TOP_DIR}"
