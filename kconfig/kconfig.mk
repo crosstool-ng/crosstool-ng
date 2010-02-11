@@ -24,12 +24,29 @@ oldconfig: $(obj)/conf .config
 	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$< -s $(KCONFIG_TOP)
 
+# Always be silent, the stdout an be >.config
+extractconfig:
+	@awk 'BEGIN { dump=0; }                                                 \
+	      dump==1 && $$0~/^\[.....\][[:space:]]+(# |)CT_/ {                 \
+	          $$1="";                                                       \
+	          gsub("^[[:space:]]","");                                      \
+	          print;                                                        \
+	      }                                                                 \
+	      $$0~/Dumping user-supplied crosstool-NG configuration: done in/ { \
+	          dump=0;                                                       \
+	      }                                                                 \
+	      $$0~/Dumping user-supplied crosstool-NG configuration$$/ {        \
+	          dump=1;                                                       \
+	      }'
+
 #-----------------------------------------------------------
 # Help text used by make help
 
 help-config::
 	@echo  '  menuconfig         - Update current config using a menu based program'
 	@echo  '  oldconfig          - Update current config using a provided .config as base'
+	@echo  '  extractconfig      - Extract to stdout the configuration items from a'
+	@echo  '                       build.log file piped to stdin'
 
 #-----------------------------------------------------------
 # Hmmm! Cheesy build!
