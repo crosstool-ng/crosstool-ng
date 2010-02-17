@@ -100,19 +100,54 @@ config MPC
       can say 'Y' here, although it is unknown yet if any other component
       can use it.
 
-if GMP
+config GMP_TARGET
+    bool
+
+config MPFR_TARGET
+    bool
+    select GMP_TARGET
+
+config PPL_TARGET
+    bool
+    select GMP_TARGET
+    select MPFR_TARGET
+
+config CLOOG_TARGET
+    bool
+    select GMP_TARGET
+    select MPFR_TARGET
+    select PPL_TARGET
+
+config MPC_TARGET
+    bool
+    select GMP_TARGET
+    select MPFR_TARGET
+    select PPL_TARGET
+    select CLOOG_TARGET
+
+if GMP || GMP_TARGET
+comment "GMP version needed to build for target"
+    depends on !GMP
 source config/companion_libs/gmp.in
 endif
-if MPFR
+if MPFR || MPFR_TARGET
+comment "MPFR version needed to build for target"
+    depends on !MPFR
 source config/companion_libs/mpfr.in
 endif
-if PPL
+if PPL || PPL_TARGET
+comment "PPL version needed to build for target"
+    depends on !PPL
 source config/companion_libs/ppl.in
 endif
-if CLOOG
+if CLOOG || CLOOG_TARGET
+comment "CLOOG version needed to build for target"
+    depends on !CLOOG
 source config/companion_libs/cloog.in
 endif
-if MPC
+if MPC || MPC_TARGET
+comment "MPC version needed to build for target"
+    depends on !MPC
 source config/companion_libs/mpc.in
 endif
 
@@ -122,12 +157,11 @@ config FOO
 comment "Companion libraries common options"
     depends on COMPLIBS || WRAPPER_NEEDED
 
-if COMPLIBS
-
 config COMP_LIBS_CHECK
     bool
     prompt "|  Check the companion libraries builds (!!! READ HELP!!!)"
     default n
+    depends on COMPLIBS
     help
       It is highly recommended to check the newly built companion libraries.
       Unfortunately, this is a very intensive task, and takes a loooong time.
@@ -141,20 +175,6 @@ config COMP_LIBS_CHECK
       Note however that this will take a really long time. For example,
       building PPL on my machine takes roughly 1'40", while checking it takes
       about 1h40'...
-
-config COMPLIBS_TARGET
-    bool
-    prompt "|  Build companion libraries for the target"
-    depends on ! BARE_METAL
-    default n
-    help
-      Also build companion libraries for the target. This can be usefull if
-      you want to later build a compiler that will run on the target, or if
-      you want to run gdb natively on the target.
-      
-      Please note that for now, crosstool-NG can only build GMP and MPFR so.
-
-endif # COMPLIBS
 
 choice
     bool

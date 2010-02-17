@@ -8,7 +8,7 @@ do_gmp() { :; }
 do_gmp_target() { :; }
 
 # Overide functions depending on configuration
-if [ "${CT_GMP}" = "y" ]; then
+if [ "${CT_GMP}" = "y" -o "${CT_GMP_TARGET}" = "y" ]; then
 
 # Download GMP
 do_gmp_get() {
@@ -20,6 +20,8 @@ do_gmp_extract() {
     CT_Extract "gmp-${CT_GMP_VERSION}"
     CT_Patch "gmp-${CT_GMP_VERSION}"
 }
+
+if [ "${CT_GMP}" = "y" ]; then
 
 do_gmp() {
 
@@ -56,7 +58,9 @@ do_gmp() {
     CT_EndStep
 }
 
-if [ "${CT_COMPLIBS_TARGET}" = "y" ]; then
+fi # CT_GMP
+
+if [ "${CT_GMP_TARGET}" = "y" ]; then
 
 do_gmp_target() {
     mkdir -p "${CT_BUILD_DIR}/build-gmp-target"
@@ -87,6 +91,6 @@ do_gmp_target() {
     CT_EndStep
 }
 
-fi # CT_COMPLIBS_TARGET == y
+fi # CT_GMP_TARGET
 
-fi # CT_GMP == y
+fi # CT_GMP || CT_GMP_TARGET

@@ -224,7 +224,8 @@ do_debug_gdb_build() {
             *)      native_extra_config+=("--enable-threads");;
         esac
         if [ "${CT_GDB_NATIVE_USE_GMP_MPFR}" = "y" ]; then
-            native_extra_config+=("--with-gmp=${CT_SYSROOT_DIR}/usr" "--with-mpfr=${CT_SYSROOT_DIR}/usr")
+            native_extra_config+=("--with-gmp=${CT_SYSROOT_DIR}/usr")
+            native_extra_config+=("--with-mpfr=${CT_SYSROOT_DIR}/usr")
         fi
 
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then

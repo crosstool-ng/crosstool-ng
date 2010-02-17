@@ -8,7 +8,7 @@ do_mpfr() { :; }
 do_mpfr_target() { :; }
 
 # Overide function depending on configuration
-if [ "${CT_MPFR}" = "y" ]; then
+if [ "${CT_MPFR}" = "y" -o "${CT_MPFR_TARGET}" = "y" ]; then
 
 # Download MPFR
 do_mpfr_get() {
@@ -64,6 +64,8 @@ do_mpfr_extract() {
     esac
 }
 
+if [ "${CT_MPFR}" = "y" ]; then
+
 do_mpfr() {
     mkdir -p "${CT_BUILD_DIR}/build-mpfr"
     cd "${CT_BUILD_DIR}/build-mpfr"
@@ -106,7 +108,9 @@ do_mpfr() {
     CT_EndStep
 }
 
-if [ "${CT_COMPLIBS_TARGET}" = "y" ]; then
+fi # CT_MPFR
+
+if [ "${CT_MPFR_TARGET}" = "y" ]; then
 
 do_mpfr_target() {
     mkdir -p "${CT_BUILD_DIR}/build-mpfr-target"
@@ -145,6 +149,6 @@ do_mpfr_target() {
     CT_EndStep
 }
 
-fi # CT_COMPLIBS_TARGET == y
+fi # CT_MPFR_TARGET
 
-fi # CT_MPFR == y
+fi # CT_MPFR || CT_MPFR_TARGET
