@@ -8,7 +8,7 @@ do_mpc() { :; }
 do_mpc_target() { :; }
 
 # Overide functions depending on configuration
-if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
+if [ "${CT_MPC}" = "y" ]; then
 
 # Download MPC
 do_mpc_get() {
@@ -54,4 +54,4 @@ do_mpc() {
     CT_EndStep
 }
 
-fi # CT_PPL_CLOOG_MPC
+fi # CT_MPC

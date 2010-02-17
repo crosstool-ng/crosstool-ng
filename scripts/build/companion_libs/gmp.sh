@@ -8,7 +8,7 @@ do_gmp() { :; }
 do_gmp_target() { :; }
 
 # Overide functions depending on configuration
-if [ "${CT_GMP_MPFR}" = "y" ]; then
+if [ "${CT_GMP}" = "y" ]; then
 
 # Download GMP
 do_gmp_get() {
@@ -87,6 +87,6 @@ do_gmp_target() {
     CT_EndStep
 }
 
-fi # CT_GMP_MPFR_TARGET == y
+fi # CT_COMP_LIBS_TARGET == y
 
-fi # CT_GMP_MPFR == y
+fi # CT_GMP == y

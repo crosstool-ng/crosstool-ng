@@ -8,7 +8,7 @@ do_mpfr() { :; }
 do_mpfr_target() { :; }
 
 # Overide function depending on configuration
-if [ "${CT_GMP_MPFR}" = "y" ]; then
+if [ "${CT_MPFR}" = "y" ]; then
 
 # Download MPFR
 do_mpfr_get() {
@@ -145,6 +145,6 @@ do_mpfr_target() {
     CT_EndStep
 }
 
-fi # CT_GMP_MPFR_TARGET == y
+fi # CT_COMP_LIBS_TARGET == y
 
-fi # CT_GMP_MPFR == y
+fi # CT_MPFR == y

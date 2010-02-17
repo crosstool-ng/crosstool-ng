@@ -4,20 +4,22 @@
 
 menu "Companion libraries"
 
+comment "FIXME: check real dependencies!!!"
+
 config WRAPPER_NEEDED
     bool
     default n
 
-config GMP_MPFR
+config GMP
     bool
-    prompt "GMP and MPFR"
+    prompt "GMP"
     select WRAPPER_NEEDED
     help
-      gcc 4.3.0 and above requires both GMP and MPFR to build some frontends,
-      and some other components can use them as well.
+      gcc 4.3.0 and above requires GMP to build some frontends, and some
+      other components can use them as well.
       
-      These will be automatically selected if you choose gcc>=4.3.0, but you
-      can say 'Y' here if you want to build those two libraries for the other
+      This will be automatically selected if you choose gcc>=4.3.0, but you
+      can say 'Y' here if you want to build this library for the other
       components (that don't select them by default).
       
       The packages that can use GMP and MPFR are:
@@ -25,31 +27,83 @@ config GMP_MPFR
         - gcc
         - gdb
 
-if GMP_MPFR
-source config/companion_libs/gmp.in
-source config/companion_libs/mpfr.in
-endif
-
-config PPL_CLOOG_MPC
+config MPFR
     bool
-    prompt "PPL, GLooG/PPL and MPC"
-    select GMP_MPFR
+    prompt "MPFR"
+    select GMP
     select WRAPPER_NEEDED
     help
-      gcc-4.4.0 and above requires PPL and CLooG/PPL to build some parts
-      of the optimiser (GRAPHITE loop optimisation, to be precise).
+      gcc 4.3.0 and above requires MPFR to build some frontends, and some
+      other components can use them as well.
       
-      In addition to those, gcc-4.4 also optionally uses MPC to enable
-      additional optimisations on complex numbers. Although MPC is optional,
+      This will be automatically selected if you choose gcc>=4.3.0, but you
+      can say 'Y' here if you want to build this library for the other
+      components (that don't select them by default).
+      
+      The packages that can use GMP and MPFR are:
+        - binutils
+        - gcc
+        - gdb
+
+config PPL
+    bool
+    prompt "PPL"
+    select GMP
+    select MPFR
+    select WRAPPER_NEEDED
+    help
+      gcc-4.4.0 and above requires PPL to build some parts of the optimiser
+      (the GRAPHITE loop optimisation, to be precise).
+      
+      This will be automatically selected if you choose gcc>=4.4.0, but you
+      can say 'Y' here, although it is unknown yet if any other component
+      can use it.
+
+config CLOOG
+    bool
+    prompt "GLooG/PPL"
+    select GMP
+    select MPFR
+    select PPL
+    select WRAPPER_NEEDED
+    help
+      gcc-4.4.0 and above requires CLooG/PPL to build some parts of the
+      optimiser (the GRAPHITE loop optimisation, to be precise).
+      
+      This will be automatically selected if you choose gcc>=4.4.0, but you
+      can say 'Y' here, although it is unknown yet if any other component
+      can use it.
+
+config MPC
+    bool
+    prompt "MPC"
+    select GMP
+    select MPFR
+    select PPL
+    select CLOOG
+    select WRAPPER_NEEDED
+    help
+      gcc-4.4.0 and above can also optionally use MPC to enable additional
+      optimisations on complex numbers. Although MPC is optional,
       crosstool-NG requires it and uses it to build gcc >= 4.4.0.
       
-      These will be automatically selected if you choose gcc>=4.4.0, but you
+      This will be automatically selected if you choose gcc>=4.4.0, but you
       can say 'Y' here, although it is unknown yet if any other component
-      can use them.
+      can use it.
 
-if PPL_CLOOG_MPC
+if GMP
+source config/companion_libs/gmp.in
+endif
+if MPFR
+source config/companion_libs/mpfr.in
+endif
+if PPL
 source config/companion_libs/ppl.in
+endif
+if CLOOG
 source config/companion_libs/cloog.in
+endif
+if MPC
 source config/companion_libs/mpc.in
 endif
 
@@ -57,12 +111,12 @@ config FOO
     bool
 
 comment "Companion libraries common options"
-    depends on GMP_MPFR || PPL_CLOOG_MPC
+    depends on GMP || MPFR || PPL || CLOOG || MPC
 
 config COMP_LIBS_CHECK
     bool
     prompt "|  Check the companion libraries builds (!!! READ HELP!!!)"
-    depends on GMP_MPFR || PPL_CLOOG_MPC
+    depends on GMP || MPFR || PPL || CLOOG || MPC
     default n
     help
       It is highly recommended to check the newly built companion libraries.
@@ -81,7 +135,7 @@ config COMP_LIBS_CHECK
 config COMP_LIBS_TARGET
     bool
     prompt "|  Build companion libraries for the target"
-    depends on GMP_MPFR || PPL_CLOOG_MPC
+    depends on GMP || MPFR || PPL || CLOOG || MPC
     depends on ! BARE_METAL
     default n
     help

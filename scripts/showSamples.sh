@@ -16,6 +16,7 @@ export GREP_OPTIONS=
 # Dump a single sample
 dump_single_sample() {
     local verbose=0
+    local complibs
     [ "$1" = "-v" ] && verbose=1 && shift
     [ "$1" = "-w" ] && wiki=1 && shift
     local width="$1"
@@ -38,7 +39,7 @@ dump_single_sample() {
             ;;
     esac
     if [ -z "${wiki}" ]; then
-        t_width=13
+        t_width=14
         printf "%-*s  [%s" ${width} "${sample}" "${sample_type}"
         [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf " "
         [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
@@ -51,12 +52,18 @@ dump_single_sample() {
                     ;;
             esac
             printf "    %-*s : %s\n" ${t_width} "OS" "${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
-            if [ "${CT_GMP_MPFR}" = "y" ]; then
-                printf    "    %-*s : %s\n" ${t_width} "GMP/MPFR" "gmp-${CT_GMP_VERSION} / mpfr-${CT_MPFR_VERSION}"
+            if [    -n "${CT_GMP}" -o -n "${CT_MPFR}"                       \
+                 -o -n "${CT_PPL}" -o -n "${CT_CLOOG}" -o -n "${CT_MPC}"    \
+               ]; then
+                printf "    %-*s :" ${t_width} "Companion libs"
+                complibs=1
             fi
-            if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
-                printf    "    %-*s : %s\n" ${t_width} "PPL/CLOOG/MPC" "ppl-${CT_PPL_VERSION} / cloog-${CT_CLOOG_VERSION} / mpc-${CT_MPC_VERSION}"
-            fi
+            [ -z "${CT_GMP}"    ] || printf " gmp-%s"       "${CT_GMP_VERSION}"
+            [ -z "${CT_MPFR}"   ] || printf " mpfr-%s"      "${CT_MPFR_VERSION}"
+            [ -z "${CT_PPL}"    ] || printf " ppl-%s"       "${CT_PPL_VERSION}"
+            [ -z "${CT_CLOOG}"  ] || printf " cloog-ppl-%s" "${CT_CLOOG_VERSION}"
+            [ -z "${CT_MPC}"    ] || printf " mpc-%s"       "${CT_MPC_VERSION}"
+            [ -z "${complibs}"  ] || printf "\n"
             printf  "    %-*s : %s\n" ${t_width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
             printf  "    %-*s : %s" ${t_width} "C compiler" "${CT_CC}-${CT_CC_VERSION} (C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"

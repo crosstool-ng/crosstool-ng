@@ -150,15 +150,11 @@ do_cc_core() {
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
-    if [ "${CT_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
-    fi
-    if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
-        extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
-        extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
-    fi
+    [ -z "${CT_GMP}"    ] || extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
+    [ -z "${CT_MPFR}"   ] || extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
+    [ -z "${CT_PPL}"    ] || extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
+    [ -z "${CT_CLOOG}"  ] || extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
+    [ -z "${CT_MPC}"    ] || extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
@@ -300,18 +296,14 @@ do_cc() {
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
-    if [ "${CT_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
-    fi
-    if [ "${CT_PPL_CLOOG_MPC}" = "y" ]; then
-        extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
-        extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
-    fi
     if [ -n "${CC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CC_ENABLE_CXX_FLAGS}")
     fi
+    [ -z "${CT_GMP}"    ] || extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
+    [ -z "${CT_MPFR}"   ] || extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
+    [ -z "${CT_PPL}"    ] || extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
+    [ -z "${CT_CLOOG}"  ] || extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
+    [ -z "${CT_MPC}"    ] || extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
