@@ -106,7 +106,7 @@ do_mpfr() {
     CT_EndStep
 }
 
-if [ "${CT_COMP_LIBS_TARGET}" = "y" ]; then
+if [ "${CT_COMPLIBS_TARGET}" = "y" ]; then
 
 do_mpfr_target() {
     mkdir -p "${CT_BUILD_DIR}/build-mpfr-target"
@@ -145,6 +145,6 @@ do_mpfr_target() {
     CT_EndStep
 }
 
-fi # CT_COMP_LIBS_TARGET == y
+fi # CT_COMPLIBS_TARGET == y
 
 fi # CT_MPFR == y

@@ -56,7 +56,7 @@ do_gmp() {
     CT_EndStep
 }
 
-if [ "${CT_COMP_LIBS_TARGET}" = "y" ]; then
+if [ "${CT_COMPLIBS_TARGET}" = "y" ]; then
 
 do_gmp_target() {
     mkdir -p "${CT_BUILD_DIR}/build-gmp-target"
@@ -87,6 +87,6 @@ do_gmp_target() {
     CT_EndStep
 }
 
-fi # CT_COMP_LIBS_TARGET == y
+fi # CT_COMPLIBS_TARGET == y
 
 fi # CT_GMP == y

@@ -6,6 +6,10 @@ menu "Companion libraries"
 
 comment "FIXME: check real dependencies!!!"
 
+config COMPLIBS
+    bool
+    default n
+
 config WRAPPER_NEEDED
     bool
     default n
@@ -13,6 +17,7 @@ config WRAPPER_NEEDED
 config GMP
     bool
     prompt "GMP"
+    select COMPLIBS
     select WRAPPER_NEEDED
     help
       gcc 4.3.0 and above requires GMP to build some frontends, and some
@@ -31,6 +36,7 @@ config MPFR
     bool
     prompt "MPFR"
     select GMP
+    select COMPLIBS
     select WRAPPER_NEEDED
     help
       gcc 4.3.0 and above requires MPFR to build some frontends, and some
@@ -50,6 +56,7 @@ config PPL
     prompt "PPL"
     select GMP
     select MPFR
+    select COMPLIBS
     select WRAPPER_NEEDED
     help
       gcc-4.4.0 and above requires PPL to build some parts of the optimiser
@@ -65,6 +72,7 @@ config CLOOG
     select GMP
     select MPFR
     select PPL
+    select COMPLIBS
     select WRAPPER_NEEDED
     help
       gcc-4.4.0 and above requires CLooG/PPL to build some parts of the
@@ -81,6 +89,7 @@ config MPC
     select MPFR
     select PPL
     select CLOOG
+    select COMPLIBS
     select WRAPPER_NEEDED
     help
       gcc-4.4.0 and above can also optionally use MPC to enable additional
@@ -111,12 +120,13 @@ config FOO
     bool
 
 comment "Companion libraries common options"
-    depends on GMP || MPFR || PPL || CLOOG || MPC
+    depends on COMPLIBS || WRAPPER_NEEDED
+
+if COMPLIBS
 
 config COMP_LIBS_CHECK
     bool
     prompt "|  Check the companion libraries builds (!!! READ HELP!!!)"
-    depends on GMP || MPFR || PPL || CLOOG || MPC
     default n
     help
       It is highly recommended to check the newly built companion libraries.
@@ -132,10 +142,9 @@ config COMP_LIBS_CHECK
       building PPL on my machine takes roughly 1'40", while checking it takes
       about 1h40'...
 
-config COMP_LIBS_TARGET
+config COMPLIBS_TARGET
     bool
     prompt "|  Build companion libraries for the target"
-    depends on GMP || MPFR || PPL || CLOOG || MPC
     depends on ! BARE_METAL
     default n
     help
@@ -144,6 +153,8 @@ config COMP_LIBS_TARGET
       you want to run gdb natively on the target.
       
       Please note that for now, crosstool-NG can only build GMP and MPFR so.
+
+endif # COMPLIBS
 
 choice
     bool

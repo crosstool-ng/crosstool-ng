@@ -84,7 +84,7 @@ do_binutils_target() {
     done
 
     # If GMP and MPFR were configured, then use that
-    if [ "${CT_COMP_LIBS_TARGET}" = "y" ]; then
+    if [ "${CT_BINUTILS_TARGET_USE_GMP_MPFR}" = "y" ]; then
         extra_config+=("--with-gmp=${CT_SYSROOT_DIR}/usr")
         extra_config+=("--with-mpfr=${CT_SYSROOT_DIR}/usr")
     fi
