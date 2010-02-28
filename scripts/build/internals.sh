@@ -90,5 +90,8 @@ do_finish() {
         CT_DoForceRmdir "${CT_DEBUGROOT_DIR}/"{,usr/}{man,info}
     fi
 
+    # Remove headers installed by native companion libraries
+    CT_DoForceRmdir "${CT_PREFIX_DIR}/include"
+
     CT_EndStep
 }
