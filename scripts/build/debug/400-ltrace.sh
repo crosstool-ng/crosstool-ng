@@ -22,6 +22,8 @@ do_debug_ltrace_extract() {
 }
 
 do_debug_ltrace_build() {
+    local ltrace_host
+
     CT_DoStep INFO "Installing ltrace"
 
     CT_DoLog EXTRA "Copying sources to build dir"
@@ -32,9 +34,14 @@ do_debug_ltrace_build() {
     CT_DoLog EXTRA "Configuring ltrace"
     # ltrace-0.5.3, and later, don't use GNU Autotools configure script anymore
     if [ "${CT_LTRACE_0_5_3_or_later}" = "y" ]; then
-        CC=${CT_TARGET}-${CT_CC} \
-        HOST=${CT_ARCH} \
-        CFLAGS="${CT_TARGET_CFLAGS}" \
+        case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
+            x86:32) ltrace_host="i386";;
+            x86:64) ltrace_host="x86_64";;
+            *)      ltrace_host="${CT_ARCH}";;
+        esac
+        CC="${CT_TARGET}-${CT_CC}"      \
+        HOST="${ltrace_host}"           \
+        CFLAGS="${CT_TARGET_CFLAGS}"    \
         CT_DoExecLog ALL ./configure --prefix=/usr
     else
         CT_DoExecLog ALL        \
