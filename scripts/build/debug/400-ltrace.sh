@@ -14,11 +14,6 @@ do_debug_ltrace_get() {
 do_debug_ltrace_extract() {
     CT_Extract "ltrace-${CT_LTRACE_VERSION}"
     CT_Patch "ltrace-${CT_LTRACE_VERSION}"
-    # ltrace uses ppc instead of powerpc for the arch name
-    # create a symlink to get it to build for powerpc
-    CT_Pushd "${CT_SRC_DIR}/ltrace-${CT_LTRACE_VERSION}/sysdeps/linux-gnu"
-    CT_DoExecLog ALL ln -sf ppc powerpc
-    CT_Popd
 }
 
 do_debug_ltrace_build() {
@@ -35,9 +30,10 @@ do_debug_ltrace_build() {
     # ltrace-0.5.3, and later, don't use GNU Autotools configure script anymore
     if [ "${CT_LTRACE_0_5_3_or_later}" = "y" ]; then
         case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
-            x86:32) ltrace_host="i386";;
-            x86:64) ltrace_host="x86_64";;
-            *)      ltrace_host="${CT_ARCH}";;
+            x86:32)     ltrace_host="i386";;
+            x86:64)     ltrace_host="x86_64";;
+            powerpc:*)  ltrace_host="ppc";;
+            *)          ltrace_host="${CT_ARCH}";;
         esac
         CC="${CT_TARGET}-${CT_CC}"      \
         HOST="${ltrace_host}"           \
