@@ -67,13 +67,13 @@ print_intro_mail() {
 		The release can be found at the following URLs:
 		Changelog: http://ymorin.is-a-geek.org/download/crosstool-ng/crosstool-ng-${version}.changelog
 		Tarball:   http://ymorin.is-a-geek.org/download/crosstool-ng/crosstool-ng-${version}.tar.bz2
-		Patches:   http://ymorin.is-a-geek.org/download/crosstool-ng/01-fixes/${version}
+		Patches:   http://ymorin.is-a-geek.org/download/crosstool-ng/01-fixes/${version}/
 		
 		As a reminder, the home for crosstool-NG is:
 		http://ymorin.is-a-geek.org/projects/crosstool
 		
 		Crosstool-NG also has a Freshmeat page:
-		http://freshmeat.net/projects/crosstool-ng/
+		http://freshmeat.net/projects/crosstool-ng
 	_EOF_
 }
 
@@ -183,10 +183,54 @@ print_diffstat() {
     |head -n -1                             \
     |while read file line; do
         if [ ${#file} -gt 57 ]; then
-            file="...$( echo "${file}" |sed -r -e 's/^.*(.{54})$/\1/;' )"
+            file="$( echo "${file}" |sed -r -e 's/^(.{,24}).*(.{28})$/\1.....\2/;' )"
         fi
         printf "    %-57s %s\n" "${file}" "${line}"
     done
+}
+
+print_short_diffstat() {
+    printf "\nThe short diffstat follows:\n\n"
+
+    eval total=$(( $(
+        hg diff -r "${r1}:${r2}" --color=never "${i}"                               \
+        |diffstat -r 2 -p 1 -w 10                                                   \
+        |tail -n 1                                                                  \
+        |sed -r -e 's/^[[:space:]]*[[:digit:]]+ files? changed(,[[:space:]]+|$)//;' \
+                -e 's/([[:digit:]]+)[^-\+]+\((-|\+)\)/\1/g;'                        \
+                -e 's/,//g; s/ /+/; s/^$/0/;'
+    ) ))
+    printf "    %-24.24s %5d(+/-)\n" "Total" ${total}
+    others=${total}
+
+    { for i in              \
+        kconfig/            \
+        patches/            \
+        config/*/           \
+        scripts/build/*/    \
+        samples/            \
+        ; do
+        eval val=$(( $(
+            hg diff -r "${r1}:${r2}" --color=never "${i}"                               \
+            |diffstat -r 2 -p 1 -w 10                                                   \
+            |tail -n 1                                                                  \
+            |sed -r -e 's/^[[:space:]]*[[:digit:]]+ files? changed(,[[:space:]]+|$)//;' \
+                    -e 's/([[:digit:]]+)[^-\+]+\((-|\+)\)/\1/g;'                        \
+                    -e 's/,//g; s/ /+/; s/^$/0/;'
+        ) ))
+        if [ ${val} -gt $((total/100)) ]; then
+            printf "%d %s\n" $(((1000*val)/total)) "${i}"
+            others=$((others-val))
+        fi
+    done; printf "%d Others\n" $(((1000*others)/total)); }  \
+    |sort -nr                                               \
+    |{ while read v i; do
+        if [ "${i}" = "Others" ]; then
+            others=${v}
+        else
+            printf "    %-24.24s %3d.%d%%\n" "${i}" $((v/10)) $((v%10))
+        fi
+       done; printf "    %-24.24s %3d.%d%%\n" "Others" $((others/10)) $((others%10)); }
 }
 
 ver_M="$( printf "${version}" |cut -d . -f 1 )"
@@ -257,6 +301,8 @@ if [ ${ver_p} -eq 0 ]; then
     print_author_stats      >>"${prefix}.mail"
     printf ", shortlog"
     print_author_shortlog   >>"${prefix}.mail"
+    printf ", diffstat"
+    print_short_diffstat    >>"${prefix}.mail"
     printf ", done.\n"
 fi
 
@@ -296,9 +342,10 @@ printf ", done.\n"
 if [ ${ver_p} -eq 0 ]; then
     printf "\nAn editor will be launched for you to edit the mail.\n"
     read -p "Press enter when ready..." foo
-	cp "${prefix}.mail"{,.orig}
+    cp "${prefix}.mail"{,.orig}
     vi "${prefix}.mail"
-	diff -du -U 1 "${prefix}.mail"{.orig,} |patch -p0 "${prefix}.changelog" >/dev/null
+    diff -du -U 1 "${prefix}.mail"{.orig,} |patch -p0 "${prefix}.changelog" >/dev/null
+    rm -f "${prefix}".{mail,changelog}.orig
 fi
 
 printf "\nAn editor will be launched for you to review the changelog.\n"
