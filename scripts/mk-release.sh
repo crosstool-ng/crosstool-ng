@@ -1,6 +1,8 @@
 #!/bin/bash
 #set -x
 
+export LC_ALL=C
+
 my_name="$( basename "${0}" )"
 
 usage() {
