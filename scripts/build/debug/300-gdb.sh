@@ -99,8 +99,10 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=("${extra_config[@]}")
-        [ -z "${CT_GMP}"    ] || cross_extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
-        [ -z "${CT_MPFR}"   ] || cross_extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
+        if [ "${CT_GDB_CROSS_USE_GMP_MPFR}" = "y" ]; then
+            cross_extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
+            cross_extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
+        fi
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
