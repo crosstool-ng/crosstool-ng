@@ -160,7 +160,7 @@ do_debug_gdb_build() {
         # tools instead of searching for the native ones...
         CT_DoExecLog ALL                                                    \
         "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
-            --build=${CT_REAL_BUILD}                                        \
+            --build=${CT_BUILD}                                             \
             --host=${CT_BUILD}                                              \
             --prefix=/usr                                                   \
             --without-shared                                                \
