@@ -26,6 +26,7 @@ CT_STEPS := libc_check_config   \
             libelf              \
             binutils            \
             elf2flt             \
+            sstrip              \
             cc_core_pass_1      \
             libc_headers        \
             libc_start_files    \
@@ -37,7 +38,6 @@ CT_STEPS := libc_check_config   \
             mpfr_target         \
             libelf_target       \
             binutils_target     \
-            tools               \
             debug               \
             finish              \
 

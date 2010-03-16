@@ -19,14 +19,12 @@ KERNEL_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/conf
 CC_CONFIG_FILES     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/cc/*.in))
 LIBC_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/libc/*.in))
 DEBUG_CONFIG_FILES  = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/debug/*.in))
-TOOL_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/tools/*.in))
 
 # Build the list of generated config files
 GEN_CONFIG_FILES = config.gen/arch.in     \
                    config.gen/kernel.in   \
                    config.gen/cc.in       \
                    config.gen/libc.in     \
-                   config.gen/tools.in    \
                    config.gen/debug.in
 # ... and how to access them:
 # Generated files depends on config.mk (this file) because it has the
@@ -57,7 +55,6 @@ KERNELS = $(patsubst config/kernel/%.in,%,$(KERNEL_CONFIG_FILES))
 CCS     = $(patsubst config/cc/%.in,%,$(CC_CONFIG_FILES))
 LIBCS   = $(patsubst config/libc/%.in,%,$(LIBC_CONFIG_FILES))
 DEBUGS  = $(patsubst config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
-TOOLS   = $(patsubst config/tools/%.in,%,$(TOOL_CONFIG_FILES))
 
 #-----------------------------------------------------------
 # Helper functions to ease building generated config files
@@ -116,12 +113,11 @@ endef
 # the given list, source-ing the associated files conditionnaly:
 # $1 : destination file
 # $2 : name of entries family (eg. Tools, Debug...)
-# $3 : prefix for the menu entries (eg. TOOL, DEBUG)
+# $3 : prefix for the menu entries (eg. DEBUG)
 # $4 : base directory containing config files
-# $5 : list of config entries (eg. for tools: "libelf sstrip"..., and for
-#      debug: "dmalloc duma gdb"...)
-# Example to build the tools generated config file:
-# $(call build_gen_menu_in,config.gen/tools.in,Tools,TOOL,config/tools,$(TOOLS))
+# $5 : list of config entries (eg. for debug: "dmalloc duma gdb"...)
+# Example to build the generated debug config file:
+# $(call build_gen_menu_in,config.gen/debug.in,Debug,DEBUG,config/debug,$(DEBUGS))
 define build_gen_menu_in
 	@$(ECHO) '  IN    $(1)'
 	$(SILENT)(echo "# $(2) facilities menu";                                \
@@ -159,9 +155,6 @@ config.gen/cc.in: $(CC_CONFIG_FILES)
 
 config.gen/libc.in: $(LIBC_CONFIG_FILES)
 	$(call build_gen_choice_in,$@,C library,LIBC,config/libc,$(LIBCS))
-
-config.gen/tools.in: $(TOOL_CONFIG_FILES)
-	$(call build_gen_menu_in,$@,Tools,TOOL,config/tools,$(TOOLS))
 
 config.gen/debug.in: $(DEBUG_CONFIG_FILES)
 	$(call build_gen_menu_in,$@,Debug,DEBUG,config/debug,$(DEBUGS))
