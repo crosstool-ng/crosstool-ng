@@ -52,8 +52,12 @@ dump_single_sample() {
                     ;;
             esac
             printf "    %-*s : %s\n" ${t_width} "OS" "${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
-            if [    -n "${CT_GMP}" -o -n "${CT_MPFR}"                       \
-                 -o -n "${CT_PPL}" -o -n "${CT_CLOOG}" -o -n "${CT_MPC}"    \
+            if [    -n "${CT_GMP}"              \
+                 -o -n "${CT_MPFR}"             \
+                 -o -n "${CT_PPL}"              \
+                 -o -n "${CT_CLOOG}"            \
+                 -o -n "${CT_MPC}"              \
+                 -o -n "${CT_LIBELF}"           \
                ]; then
                 printf "    %-*s :" ${t_width} "Companion libs"
                 complibs=1
@@ -63,6 +67,7 @@ dump_single_sample() {
             [ -z "${CT_PPL}"    ] || printf " ppl-%s"       "${CT_PPL_VERSION}"
             [ -z "${CT_CLOOG}"  ] || printf " cloog-ppl-%s" "${CT_CLOOG_VERSION}"
             [ -z "${CT_MPC}"    ] || printf " mpc-%s"       "${CT_MPC_VERSION}"
+            [ -z "${CT_LIBELF}" ] || printf " libelf-%s"    "${CT_LIBELF_VERSION}"
             [ -z "${complibs}"  ] || printf "\n"
             printf  "    %-*s : %s\n" ${t_width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
             printf  "    %-*s : %s" ${t_width} "C compiler" "${CT_CC}-${CT_CC_VERSION} (C"
@@ -76,7 +81,6 @@ dump_single_sample() {
             printf ")\n"
             printf  "    %-*s : %s\n" ${t_width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}"
             printf  "    %-*s :" ${t_width} "Tools"
-            [ "${CT_TOOL_libelf}"   ] && printf " libelf-${CT_LIBELF_VERSION}"
             [ "${CT_TOOL_sstrip}"   ] && printf " sstrip"
             [ "${CT_DEBUG_dmalloc}" ] && printf " dmalloc-${CT_DMALLOC_VERSION}"
             [ "${CT_DEBUG_duma}"    ] && printf " duma-${CT_DUMA_VERSION}"
