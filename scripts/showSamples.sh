@@ -58,16 +58,22 @@ dump_single_sample() {
                  -o -n "${CT_CLOOG}"            \
                  -o -n "${CT_MPC}"              \
                  -o -n "${CT_LIBELF}"           \
+                 -o -n "${CT_GMP_TARGET}"       \
+                 -o -n "${CT_MPFR_TARGET}"      \
+                 -o -n "${CT_PPL_TARGET}"       \
+                 -o -n "${CT_CLOOG_TARGET}"     \
+                 -o -n "${CT_MPC_TARGET}"       \
+                 -o -n "${CT_LIBELF_TARGET}"    \
                ]; then
                 printf "    %-*s :" ${t_width} "Companion libs"
                 complibs=1
             fi
-            [ -z "${CT_GMP}"    ] || printf " gmp-%s"       "${CT_GMP_VERSION}"
-            [ -z "${CT_MPFR}"   ] || printf " mpfr-%s"      "${CT_MPFR_VERSION}"
-            [ -z "${CT_PPL}"    ] || printf " ppl-%s"       "${CT_PPL_VERSION}"
-            [ -z "${CT_CLOOG}"  ] || printf " cloog-ppl-%s" "${CT_CLOOG_VERSION}"
-            [ -z "${CT_MPC}"    ] || printf " mpc-%s"       "${CT_MPC_VERSION}"
-            [ -z "${CT_LIBELF}" ] || printf " libelf-%s"    "${CT_LIBELF_VERSION}"
+            [ -z "${CT_GMP}"    -a -z "${CT_GMP_TARGET}"    ] || printf " gmp-%s"       "${CT_GMP_VERSION}"
+            [ -z "${CT_MPFR}"   -a -z "${CT_MPFR_TARGET}"   ] || printf " mpfr-%s"      "${CT_MPFR_VERSION}"
+            [ -z "${CT_PPL}"    -a -z "${CT_PPL_TARGET}"    ] || printf " ppl-%s"       "${CT_PPL_VERSION}"
+            [ -z "${CT_CLOOG}"  -a -z "${CT_CLOOG_TARGET}"  ] || printf " cloog-ppl-%s" "${CT_CLOOG_VERSION}"
+            [ -z "${CT_MPC}"    -a -z "${CT_MPC_TARGET}"    ] || printf " mpc-%s"       "${CT_MPC_VERSION}"
+            [ -z "${CT_LIBELF}" -a -z "${CT_LIBELF_TARGET}" ] || printf " libelf-%s"    "${CT_LIBELF_VERSION}"
             [ -z "${complibs}"  ] || printf "\n"
             printf  "    %-*s : %s\n" ${t_width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
             printf  "    %-*s : %s" ${t_width} "C compiler" "${CT_CC}-${CT_CC_VERSION} (C"
