@@ -118,6 +118,13 @@ addToolVersion() {
                 SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_0_9_30_or_later"
             fi
             ;;
+        gdb)
+            # gdb-7.0 and above have special handling
+            ver_M=$(echo "${version}...." |cut -d . -f 1)
+            if [ ${ver_M} -ge 7 ]; then
+                SedExpr1="${SedExpr1}\n    select GDB_7_0_or_later"
+            fi
+            ;;
     esac
     SedExpr2="    default \"${version}\" if ${config_ver_option}"
     "${sed}" -r -i -e 's/^(# CT_INSERT_VERSION_BELOW)$/\1\n\n'"${SedExpr1}"'/;' "${file}"
