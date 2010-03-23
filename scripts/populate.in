@@ -38,6 +38,9 @@ OPTIONS
     -d dst_dir
         use 'dst_dir' as the place to put the populated root directory
 
+    -r sysroot_dir
+        use 'sysroot_dir' as the sysroot instead of the toolchain default
+
     -l name1[:name2[...]]
         Always add the specified shared library/ies name1, name2... from the
         toolchain (in the sys-root). Actual library names are searched as
@@ -71,10 +74,11 @@ CT_LIB_FILE=
 CT_FORCE=no
 CT_PRINTF=:
 OPTIND=1
-while getopts ":s:d:l:L:fvh" CT_OPT; do
+while getopts ":s:d:r:l:L:fvh" CT_OPT; do
     case "${CT_OPT}" in
         s)  CT_ROOT_SRC_DIR="${OPTARG}";;
         d)  CT_ROOT_DST_DIR="${OPTARG}";;
+        r)  CT_SYSROOT_DIR="${OPTARG}";;
         l)  CT_LIB_LIST="${CT_LIB_LIST}:${OPTARG}";;
         L)  CT_LIB_FILE="${OPTARG}";;
         f)  CT_FORCE=y;;
@@ -98,6 +102,10 @@ if [ -z "${CT_ROOT_SRC_DIR}" -o -z "${CT_ROOT_DST_DIR}" ]; then
 fi
 if [ ! -d "${CT_ROOT_SRC_DIR}" ]; then
     echo "$myname: '${CT_ROOT_SRC_DIR}': no such file or directory"
+    exit 1
+fi
+if [ ! -d "${CT_SYSROOT_DIR}" ]; then
+    echo "$myname: '${CT_SYSROOT_DIR}': no such file or directory"
     exit 1
 fi
 if [ -d "${CT_ROOT_DST_DIR}" -a "${CT_FORCE}" != "y" ]; then
