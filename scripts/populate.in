@@ -61,6 +61,18 @@ OPTIONS
 
     -f  force execution: if destination directory already exists, it will be
         removed first; if a specified library (above) was not found, continue.
+        Note: if using -m and the destination directory already exists, it
+        is *not* removed, see below.
+
+    -m  Merge the source root directory with the destination root directory.
+        If the latter does not exist, it is created, and -m is ignored.
+        If the destination droot directory exists, then the content of the
+        source root directory is copied in there, and the result is populated
+        as usual.
+        It can be usefull if constructing a rootfs incrementally from many
+        smaller source root directories, or if your destination root directory
+        is an NFS export that your target mounts as / (and you don't want to
+        re-run exportfs -av everytime). USE WITH CARE!
 
     -v  Be verbose. By default, populate is absolutely silent.
 
@@ -71,10 +83,11 @@ CT_ROOT_SRC_DIR=
 CT_ROOT_DST_DIR=
 CT_LIB_LIST=
 CT_LIB_FILE=
-CT_FORCE=no
+CT_MERGE=
+CT_FORCE=
 CT_PRINTF=:
 OPTIND=1
-while getopts ":s:d:r:l:L:fvh" CT_OPT; do
+while getopts ":s:d:r:l:L:fmvh" CT_OPT; do
     case "${CT_OPT}" in
         s)  CT_ROOT_SRC_DIR="${OPTARG}";;
         d)  CT_ROOT_DST_DIR="${OPTARG}";;
@@ -82,6 +95,7 @@ while getopts ":s:d:r:l:L:fvh" CT_OPT; do
         l)  CT_LIB_LIST="${CT_LIB_LIST}:${OPTARG}";;
         L)  CT_LIB_FILE="${OPTARG}";;
         f)  CT_FORCE=y;;
+        m)  CT_MERGE=y;;
         v)  CT_PRINTF=printf;;
         h)  doHelp
             exit 0
@@ -108,9 +122,16 @@ if [ ! -d "${CT_SYSROOT_DIR}" ]; then
     echo "$myname: '${CT_SYSROOT_DIR}': no such file or directory"
     exit 1
 fi
-if [ -d "${CT_ROOT_DST_DIR}" -a "${CT_FORCE}" != "y" ]; then
-    echo "$myname: '${CT_ROOT_DST_DIR}': already exists"
-    exit 1
+# If the dest dir does not exist, all is well
+# If merging, we accept an existing dest directory
+# If forcing and not merging, we remove an exiting dest directory
+# If not forcing and not merging, we do not accept an exiting dest directory
+if [ -d "${CT_ROOT_DST_DIR}" ]; then
+    case "${CT_FORCE}:${CT_MERGE}" in
+        *:y)    ;;
+        y:)     rm -rf "${CT_ROOT_DST_DIR}";;
+        :)      echo "$myname: '${CT_ROOT_DST_DIR}': already exists" && exit 1 ;;
+    esac
 fi
 src_inode=$(stat -c '%i' "${CT_ROOT_SRC_DIR}/.")
 dst_inode=$(stat -c '%i' "${CT_ROOT_DST_DIR}/." 2>/dev/null || true)
@@ -125,10 +146,7 @@ if [ -n "${CT_LIB_FILE}" -a ! \( -f "${CT_LIB_FILE}" -a -r "${CT_LIB_FILE}" \) ]
     exit 1
 fi
 
-# Get rid of potentially older destination directory
-rm -rf "${CT_ROOT_DST_DIR}"
-
-# Create the working copy
+# Create the working copy, no issue if already existing
 mkdir -p "${CT_ROOT_DST_DIR}"
 
 # Make all path absolute
