@@ -1,8 +1,8 @@
 # This will build and install sstrip to run on host and sstrip target files
 
-do_tools_sstrip_get() { :; }
-do_tools_sstrip_extract() { :; }
-do_tools_sstrip() { :; }
+do_sstrip_get() { :; }
+do_sstrip_extract() { :; }
+do_sstrip() { :; }
 
 if [ "${CT_SSTRIP}" = "y" ]; then
     do_sstrip_get() {
