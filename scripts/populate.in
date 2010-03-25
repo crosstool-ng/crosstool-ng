@@ -4,19 +4,31 @@
 # Licensed under the GPL v2
 set -e
 
-# Detect where the toolchain is:
-CT_PREFIX_DIR="$(cd "$(dirname "$0")/.."; pwd)"
-CT_BIN_DIR="${CT_PREFIX_DIR}/bin"
-CT_READELF="${CT_BIN_DIR}/@@CT_TARGET@@-readelf"
-CT_LIB_DIR="${CT_PREFIX_DIR}/lib"
-CT_SYSROOT_DIR="$(cd "${CT_BIN_DIR}/../@@CT_TARGET@@/sys-root"; pwd)"
-
-myname=$(basename "$0")
-
 # Use the tools discovered by crosstool-NG's ./configure:
 install="@@CT_install@@"
 grep="@@CT_grep@@"
 sed="@@CT_sed@@"
+
+# Detect where the toolchain is:
+CT_PREFIX_DIR="$(cd "$(dirname "$0")/.."; pwd)"
+CT_GCC="${0%-populate}-gcc"
+CT_READELF="${0%-populate}-readelf"
+CT_CFG_PREFIX_DIR="$("${CT_GCC}" -v 2>&1            \
+                     |tr ' ' '\n'                   \
+                     |"${grep}" -E -- '--prefix='   \
+                     |cut -d = -f 2-
+                    )"
+CT_CFG_SYSROOT_DIR="$("${CT_GCC}" -v 2>&1                   \
+                      |tr ' ' '\n'                          \
+                      |"${grep}" -E -- '--with-sysroot='    \
+                      |cut -d = -f 2-
+                     )"
+CT_SYSROOT_DIR="$(echo "${CT_CFG_SYSROOT_DIR}"                                  \
+                  |"${sed}" -r -e "s:^${CT_CFG_PREFIX_DIR}:${CT_PREFIX_DIR}:;"  \
+                  |"${sed}" -r -e 's,/+,/,g;'                                   \
+                 )"
+
+myname=$(basename "$0")
 
 doHelp() {
     cat <<_EOF_
