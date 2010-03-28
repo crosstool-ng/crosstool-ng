@@ -1,4 +1,4 @@
-#!@@CT_bash@@
+#!/bin/sh
 # This script will populate the root directory with libs from the sysroot.
 # (C) 2007 Yann E. MORIN
 # Licensed under the GPL v2
@@ -23,7 +23,7 @@ CT_CFG_SYSROOT_DIR="$("${CT_GCC}" -v 2>&1                   \
                       |"${grep}" -E -- '--with-sysroot='    \
                       |cut -d = -f 2-
                      )"
-CT_SYSROOT_DIR="$(echo "${CT_CFG_SYSROOT_DIR}"                                  \
+CT_SYSROOT_DIR="$(printf "${CT_CFG_SYSROOT_DIR}\n"                              \
                   |"${sed}" -r -e "s:^${CT_CFG_PREFIX_DIR}:${CT_PREFIX_DIR}:;"  \
                   |"${sed}" -r -e 's,/+,/,g;'                                   \
                  )"
@@ -39,19 +39,21 @@ SYNOPSIS
     $myname OPTIONS -s source_root -d destination_root
 
 DESCRIPTION
-    $myname will 'populate' your target root file system ('src_dir') with
-    libraries from the toolchain (eg. libc.so...), storing the result into
-    'dst_dir'.
+    This script will 'populate' your target root file system 'source_root'
+    with libraries from the toolchain (eg. libc.so...), storing the result
+    into 'dst_dir'.
 
 OPTIONS
     -s src_dir
-        use 'src_dir' as the un-populated (source) root directory
+        Use 'src_dir' as the un-populated (source) root directory.
 
     -d dst_dir
-        use 'dst_dir' as the place to put the populated root directory
+        Use 'dst_dir' as the place to put the populated root directory.
+        See the -f and -m options, below, on the required (non-)existence
+        of this directory.
 
     -r sysroot_dir
-        use 'sysroot_dir' as the sysroot instead of the toolchain default
+        Use 'sysroot_dir' as the sysroot instead of the toolchain default.
 
     -l name1[:name2[...]]
         Always add the specified shared library/ies name1, name2... from the
@@ -71,14 +73,14 @@ OPTIONS
         after a # is ignored until the end of the line; spaces are ignored;
         empty lines are ignored. Libraries are searched for as with -l.
 
-    -f  force execution: if destination directory already exists, it will be
+    -f  Force execution: if destination directory already exists, it will be
         removed first; if a specified library (above) was not found, continue.
         Note: if using -m and the destination directory already exists, it
         is *not* removed, see below.
 
     -m  Merge the source root directory with the destination root directory.
         If the latter does not exist, it is created, and -m is ignored.
-        If the destination droot directory exists, then the content of the
+        If the destination root directory exists, then the content of the
         source root directory is copied in there, and the result is populated
         as usual.
         It can be usefull if constructing a rootfs incrementally from many
@@ -112,10 +114,10 @@ while getopts ":s:d:r:l:L:fmvh" CT_OPT; do
         h)  doHelp
             exit 0
             ;;
-        :)  echo "$myname: '-${OPTARG}' takes exactly one argument."
+        :)  printf "$myname: '-${OPTARG}' takes exactly one argument.\n"
             exit 1
             ;;
-        ?)  echo "$myname: unknown option '-${OPTARG}'."
+        ?)  printf "$myname: unknown option '-${OPTARG}'.\n"
             exit 1
             ;;
     esac
@@ -127,11 +129,11 @@ if [ -z "${CT_ROOT_SRC_DIR}" -o -z "${CT_ROOT_DST_DIR}" ]; then
     exit 1
 fi
 if [ ! -d "${CT_ROOT_SRC_DIR}" ]; then
-    echo "$myname: '${CT_ROOT_SRC_DIR}': no such file or directory"
+    printf "$myname: '${CT_ROOT_SRC_DIR}': no such file or directory\n"
     exit 1
 fi
 if [ ! -d "${CT_SYSROOT_DIR}" ]; then
-    echo "$myname: '${CT_SYSROOT_DIR}': no such file or directory"
+    printf "$myname: '${CT_SYSROOT_DIR}': no such file or directory\n"
     exit 1
 fi
 # If the dest dir does not exist, all is well
@@ -142,19 +144,21 @@ if [ -d "${CT_ROOT_DST_DIR}" ]; then
     case "${CT_FORCE}:${CT_MERGE}" in
         *:y)    ;;
         y:)     rm -rf "${CT_ROOT_DST_DIR}";;
-        :)      echo "$myname: '${CT_ROOT_DST_DIR}': already exists" && exit 1 ;;
+        :)      printf "$myname: '${CT_ROOT_DST_DIR}': already exists\n"
+                exit 1
+                ;;
     esac
 fi
-src_inode=$(stat -c '%i' "${CT_ROOT_SRC_DIR}/.")
-dst_inode=$(stat -c '%i' "${CT_ROOT_DST_DIR}/." 2>/dev/null || true)
+src_inode=$(ls -1id "${CT_ROOT_SRC_DIR}/." |awk '{ print $1 }')
+dst_inode=$(ls -1id "${CT_ROOT_DST_DIR}/." 2>/dev/null |awk '{ print $1 }')
 if [ "${src_inode}" -eq "$((dst_inode+0))" ]; then
-    echo "$myname: source and destination are the same!"
+    printf "$myname: source and destination are the same!\n"
     exit 1
 fi
 
 # Check existence of the forced libraries file
 if [ -n "${CT_LIB_FILE}" -a ! \( -f "${CT_LIB_FILE}" -a -r "${CT_LIB_FILE}" \) ]; then
-    echo "$myname: forced libraries file '${CT_LIB_FILE}' not found!"
+    printf "$myname: forced libraries file '${CT_LIB_FILE}' not found!\n"
     exit 1
 fi
 
@@ -164,11 +168,12 @@ mkdir -p "${CT_ROOT_DST_DIR}"
 # Make all path absolute
 CT_ROOT_SRC_DIR=$(cd "${CT_ROOT_SRC_DIR}"; pwd)
 CT_ROOT_DST_DIR=$(cd "${CT_ROOT_DST_DIR}"; pwd)
+CT_SYSROOT_DIR=$(cd "${CT_SYSROOT_DIR}"; pwd)
 
 # Populate the destination directory with files from the source directory
-pushd "${CT_ROOT_SRC_DIR}" >/dev/null
+cd "${CT_ROOT_SRC_DIR}"
 cp -a . "${CT_ROOT_DST_DIR}"
-popd >/dev/null
+cd - >/dev/null
 
 # A function do search for a library
 # Usage: do_add_lib libname
@@ -196,14 +201,13 @@ do_add_lib() {
             ${CT_PRINTF} "      installing as '%s/%s', mode='%s'\n" "${dir}" "${true_libname}" "${mode}"
             "${install}" -m "${mode}" "${libfile}" "${dir}/${true_libname}"
             return 0
-            break
         fi
     done
     return 1
 }
 
 # We'll work in the copied rootfs
-pushd "${CT_ROOT_DST_DIR}" >/dev/null
+cd "${CT_ROOT_DST_DIR}"
 
 # First of, copy the forced libraries into the working copy
 lib_list=
@@ -215,7 +219,7 @@ if [ -n "${CT_LIB_FILE}" ]; then
                         "${CT_LIB_FILE}"
               )
 fi
-CT_LIB_LIST=$(echo "${CT_LIB_LIST}:${lib_list}"             \
+CT_LIB_LIST=$(printf "${CT_LIB_LIST}:${lib_list}\n"         \
               |"${sed}" -r -e 's/^:+//; s/:+$//; s/:+/ /g;' \
              )
 if [ -n "${CT_LIB_LIST}" ]; then
@@ -231,8 +235,8 @@ if [ -n "${CT_LIB_LIST}" ]; then
             fi
         done
         if [ ${found} -eq 0 ]; then
-            echo "$myname: library '${libname}' not found!"
-            [ "${CT_FORCE}" = y ] || exit 1
+            printf "$myname: library '${libname}' not found!\n"
+            [ "${CT_FORCE}" = "y" ] || exit 1
         fi
     done
 fi
@@ -260,11 +264,12 @@ while [ ${still_needed} -eq 1 ]; do
             if do_add_lib "${libname}"; then
                 still_needed=1
             else
-                echo "$myname: library '${libname}' not found!"
+                printf "$myname: library '${libname}' not found!\n"
+                [ "${CT_FORCE}" = "y" ] || exit 1
             fi
         done
     done
 done
 
 # OK, we're done. Back off.
-popd >/dev/null
+cd - >/dev/null
