@@ -158,12 +158,12 @@ while [ $# -gt 0 ]; do
         --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;;
         --strace)   EXP=; OBS=; cat=STRACE;         tool=strace;    tool_prefix=debug;;
         --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;;
-        --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=tools;;
         --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs;;
         --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs;;
         --ppl)      EXP=; OBS=; cat=PPL;            tool=ppl;       tool_prefix=companion_libs;;
         --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs;;
         --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs;;
+        --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs;;
 
         # Tools options:
         -x|--experimental|+s)   EXP=1;;
