@@ -103,12 +103,12 @@ define build_gen_choice_in
 	    echo "if $(3)_$${_entry}";                                          \
 	    echo "config $(3)";                                                 \
 	    echo "    default \"$${entry}\" if $(3)_$${_entry}";                \
-	    echo "source $${file}";                                             \
+	    echo "source \"$${file}\"";                                         \
 	    echo "endif";                                                       \
 	  done;                                                                 \
 	  echo "";                                                              \
 	  for file in $(wildcard $(4)/*.in-common); do                          \
-	    echo "source $${file}";                                             \
+	    echo "source \"$${file}\"";                                         \
 	  done;                                                                 \
 	 ) >$(1)
 endef
@@ -138,7 +138,7 @@ define build_gen_menu_in
 	      echo "    $${dep_val#\# }";                                       \
 	    fi;                                                                 \
 	    echo "if $(3)_$${_entry}";                                          \
-	    echo "source $${file}";                                             \
+	    echo "source \"$${file}\"";                                         \
 	    echo "endif";                                                       \
 	    echo "";                                                            \
 	  done;                                                                 \
