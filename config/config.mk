@@ -66,7 +66,8 @@ DEBUGS  = $(patsubst config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
 # $2 : name for the entries family (eg. Architecture, kernel...)
 # $3 : prefix for the choice entries (eg. ARCH, KERNEL...)
 # $4 : base directory containing config files
-# $5 : list of config entries (eg. for architectures: "alpha arm ia64"...,
+# $5 : generate backend conditionals if Y, don't if anything else
+# $6 : list of config entries (eg. for architectures: "alpha arm ia64"...,
 #      and for kernels: "bare-metal linux"...)
 # Example to build the kernels generated config file:
 # $(call build_gen_choice_in,config.gen/kernel.in,Target OS,KERNEL,config/kernel,$(KERNELS))
@@ -79,7 +80,7 @@ define build_gen_choice_in
 	  echo "    bool";                                                      \
 	  echo "    prompt \"$(2)\"";                                           \
 	  echo "";                                                              \
-	  for entry in $(5); do                                                 \
+	  for entry in $(6); do                                                 \
 	    file="$(4)/$${entry}.in";                                           \
 	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
 	    echo "config $(3)_$${_entry}";                                      \
@@ -89,10 +90,13 @@ define build_gen_choice_in
 	    if [ -n "$${dep_val}" ]; then                                       \
 	      echo "    $${dep_val#\# }";                                       \
 	    fi;                                                                 \
+	    if [ "$(5)" = "Y" ]; then                                           \
+	      echo "    depends on BACKEND_$(3) = \"$${_entry}\" || ! BACKEND"; \
+	    fi;                                                                 \
 	    echo "";                                                            \
 	  done;                                                                 \
 	  echo "endchoice";                                                     \
-	  for entry in $(5); do                                                 \
+	  for entry in $(6); do                                                 \
 	    file="$(4)/$${entry}.in";                                           \
 	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
 	    echo "";                                                            \
@@ -145,16 +149,16 @@ endef
 # The rules for the generated config files
 
 config.gen/arch.in: $(ARCH_CONFIG_FILES)
-	$(call build_gen_choice_in,$@,Target Architecture,ARCH,config/arch,$(ARCHS))
+	$(call build_gen_choice_in,$@,Target Architecture,ARCH,config/arch,Y,$(ARCHS))
 
 config.gen/kernel.in: $(KERNEL_CONFIG_FILES)
-	$(call build_gen_choice_in,$@,Target OS,KERNEL,config/kernel,$(KERNELS))
+	$(call build_gen_choice_in,$@,Target OS,KERNEL,config/kernel,Y,$(KERNELS))
 
 config.gen/cc.in: $(CC_CONFIG_FILES)
-	$(call build_gen_choice_in,$@,C compiler,CC,config/cc,$(CCS))
+	$(call build_gen_choice_in,$@,C compiler,CC,config/cc,,$(CCS))
 
 config.gen/libc.in: $(LIBC_CONFIG_FILES)
-	$(call build_gen_choice_in,$@,C library,LIBC,config/libc,$(LIBCS))
+	$(call build_gen_choice_in,$@,C library,LIBC,config/libc,,$(LIBCS))
 
 config.gen/debug.in: $(DEBUG_CONFIG_FILES)
 	$(call build_gen_menu_in,$@,Debug,DEBUG,config/debug,$(DEBUGS))
