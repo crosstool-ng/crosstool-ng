@@ -2,9 +2,12 @@
 
 comment "Build behavior"
 
+comment "Build options hiden"
+    depends on BACKEND
+
 config PARALLEL_JOBS
     int
-    prompt "Number of parallel jobs"
+    prompt "Number of parallel jobs" if ! BACKEND
     default 1
     help
       Number of jobs make will be allowed to run concurently.
@@ -15,7 +18,7 @@ config PARALLEL_JOBS
 
 config LOAD
     int
-    prompt "Maximum allowed load"
+    prompt "Maximum allowed load" if ! BACKEND
     default 0
     help
       Specifies that no new jobs should be started if there are others jobs
@@ -30,7 +33,7 @@ config LOAD
 
 config USE_PIPES
     bool
-    prompt "Use -pipe"
+    prompt "Use -pipe" if ! BACKEND
     default y
     help
       Use gcc's option -pipe to use pipes rather than temp files when building
@@ -40,6 +43,7 @@ choice
     bool
     prompt "Shell to use as CONFIG_SHELL"
     default CONFIG_SHELL_BASH
+    depends on ! BACKEND
 
 config CONFIG_SHELL_SH
     bool
@@ -91,12 +95,6 @@ config CONFIG_SHELL_CUSTOM
       
       See help for CONFIG_SHELL_SH, above, for more explanations.
 
-config CONFIG_SHELL_CUSTOM_PATH
-    string
-    prompt "Path to custom shell"
-    depends on CONFIG_SHELL_CUSTOM
-    default "/bin/sh"
-
 endchoice
 
 config CONFIG_SHELL
@@ -104,4 +102,10 @@ config CONFIG_SHELL
     default "sh"        if CONFIG_SHELL_SH
     default "ash"       if CONFIG_SHELL_ASH
     default "bash"      if CONFIG_SHELL_BASH
-    default "custom"    if CONFIG_SHELL_CUSTOM
+    default "custom"    if CONFIG_SHELL_CUSTOM || BACKEND
+
+config CONFIG_SHELL_CUSTOM_PATH
+    string
+    prompt "Path to custom shell" if ! BACKEND
+    depends on CONFIG_SHELL_CUSTOM || BACKEND
+    default "/bin/sh"
