@@ -1,0 +1,30 @@
+From: Mike Frysinger <vapier at gentoo dot org>
+To: libc-ports at sourceware dot org
+Subject: [PATCH] arm/fpu/setjmp.S: add missing hidden def
+Date: Thu, 25 Dec 2008 23:08:56 -0500
+
+All the other arm setjmp.S files provide a hidden alias for __sigsetjmp.
+Without this, we get a nice build failure like so:
+
+/var/tmp/cross/armv4l-unknown-linux-gnu/portage/cross-armv4l-unknown-linux-gnu/glibc-2.9_p20081201/work/build-default-armv4l-unknown-linux-gnu-nptl/libc_pic.os: In function `setjmp':
+unwind-pe.c:(.text+0x15a54): undefined reference to `__GI___sigsetjmp'
+/var/tmp/cross/armv4l-unknown-linux-gnu/portage/cross-armv4l-unknown-linux-gnu/glibc-2.9_p20081201/work/build-default-armv4l-unknown-linux-gnu-nptl/libc_pic.os: In function `__GI__setjmp':
+unwind-pe.c:(.text+0x15a64): undefined reference to `__GI___sigsetjmp'
+collect2: ld returned 1 exit status
+make[1]: *** [/var/tmp/cross/armv4l-unknown-linux-gnu/portage/cross-armv4l-unknown-linux-gnu/glibc-2.9_p20081201/work/build-default-armv4l-unknown-linux-gnu-nptl/libc.so] Error 1
+
+Signed-off-by: Mike Frysinger <vapier@gentoo.org>
+---
+ sysdeps/arm/fpu/setjmp.S |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/sysdeps/arm/fpu/setjmp.S b/sysdeps/arm/fpu/setjmp.S
+index 8432836..82a7e19 100644
+--- a/ports/sysdeps/arm/fpu/setjmp.S
++++ b/ports/sysdeps/arm/fpu/setjmp.S
+@@ -33,3 +33,5 @@ ENTRY (__sigsetjmp)
+ 	/* Make a tail call to __sigjmp_save; it takes the same args.  */
+ 	B	PLTJMP(C_SYMBOL_NAME(__sigjmp_save))
+ END (__sigsetjmp)
++
++hidden_def (__sigsetjmp)
