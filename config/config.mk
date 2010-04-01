@@ -164,7 +164,7 @@ config.gen/cc.in: $(CC_CONFIG_FILES)
 	$(call build_gen_choice_in,$@,C compiler,CC,config/cc,,$(CCS))
 
 config.gen/libc.in: $(LIBC_CONFIG_FILES)
-	$(call build_gen_choice_in,$@,C library,LIBC,config/libc,,$(LIBCS))
+	$(call build_gen_choice_in,$@,C library,LIBC,config/libc,Y,$(LIBCS))
 
 config.gen/debug.in: $(DEBUG_CONFIG_FILES)
 	$(call build_gen_menu_in,$@,Debug,DEBUG,config/debug,$(DEBUGS))
