@@ -30,10 +30,10 @@ dump_single_sample() {
             ;;
         *)  if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
                 sample_top="${CT_TOP_DIR}"
-                sample_type="l"
+                sample_type="L"
             else
                 sample_top="${CT_LIB_DIR}"
-                sample_type="g"
+                sample_type="G"
             fi
             . "${sample_top}/samples/${sample}/crosstool.config"
             ;;
@@ -174,6 +174,8 @@ if [ "${opt}" = -w ]; then
     printf "^  Initially\\\\\\\\ reported by  "
     printf "^  Last\\\\\\\\ updated  "
     echo   "^"
+elif [ -z "${opt}" ]; then
+    printf "%-*s  Status\n" ${width} "Sample name"
 fi
 
 for sample in "${@}"; do
@@ -184,8 +186,8 @@ if [ "${opt}" = -w ]; then
     printf "^ Total: ${#@} samples  || **X**: sample uses features marked as being EXPERIMENTAL.\\\\\\\\ **B**: sample is curently BROKEN. |||||||||||||"
     echo   ""
 elif [ -z "${opt}" ]; then
-    echo '      l (local)       : sample was found in current directory'
-    echo '      g (global)      : sample was installed with crosstool-NG'
+    echo '      L (Local)       : sample was found in current directory'
+    echo '      G (Global)      : sample was installed with crosstool-NG'
     echo '      X (EXPERIMENTAL): sample may use EXPERIMENTAL features'
     echo '      B (BROKEN)      : sample is currently broken'
 fi

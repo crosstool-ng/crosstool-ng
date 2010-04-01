@@ -8,8 +8,8 @@ help-build::
 	@echo  '  list-steps         - List all build steps'
 
 help-env::
-	@echo  '  STOP               - Stop the build just after this step'
-	@echo  '  RESTART            - Restart the build just before this step'
+	@echo  '  STOP=step          - Stop the build just after this step (list with list-steps)'
+	@echo  '  RESTART=step       - Restart the build just before this step (list with list-steps)'
 
 # ----------------------------------------------------------
 # The steps list

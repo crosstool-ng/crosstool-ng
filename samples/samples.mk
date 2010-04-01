@@ -19,19 +19,16 @@ help-config::
 
 help-samples::
 	@echo  '  list-samples       - prints the list of all samples (for scripting)'
-	@echo  '  show-<sample>      - show a brief overview of <sample> (list below)'
-	@echo  '  <sample>           - preconfigure crosstool-NG with <sample> (list below)'
-	@echo  '  build-all[.#]      - Build *all* samples (list below) and install in'
+	@echo  '  show-<sample>      - show a brief overview of <sample> (list with list-samples)'
+	@echo  '  <sample>           - preconfigure crosstool-NG with <sample> (list with list-samples)'
+	@echo  '  build-all[.#]      - Build *all* samples (list with list-samples) and install in'
 	@echo  '                       $${CT_PREFIX} (which you must set)'
-	@echo  '  Available samples:'
-	@$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
 help-distrib::
 	@echo  '  wiki-samples       - Print a DokuWiki table of samples'
 
 help-env::
-	@echo  '  CT_PREFIX          - directory in which to auto-install samples'
-	@echo  '                       (see action "build-all", above).'
+	@echo  '  CT_PREFIX=dir      - install samples in dir (see action "build-all", above).'
 
 # ----------------------------------------------------------
 # This part deals with printing samples information
@@ -54,7 +51,7 @@ show-all: $(patsubst %,show-%,$(CT_SAMPLES))
 # print the list of all available samples
 PHONY += list-samples
 list-samples: FORCE
-	@echo $(CT_SAMPLES) |$(sed) -r -e 's/ /\n/g;' |sed -r -e 's/(.*),(.*)/\2 \(host: \1\)/;'
+	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
 wiki-samples:
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
