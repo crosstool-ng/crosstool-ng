@@ -91,7 +91,7 @@ define build_gen_choice_in
 	      echo "    $${dep_val#\# }";                                       \
 	    fi;                                                                 \
 	    if [ "$(5)" = "Y" ]; then                                           \
-	      echo "    depends on BACKEND_$(3) = \"$${_entry}\" || ! BACKEND"; \
+	      echo "    depends on $(3)_$${_entry}_AVAILABLE";                  \
 	    fi;                                                                 \
 	    echo "";                                                            \
 	  done;                                                                 \
@@ -100,6 +100,12 @@ define build_gen_choice_in
 	    file="$(4)/$${entry}.in";                                           \
 	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
 	    echo "";                                                            \
+	    if [ "$(5)" = "Y" ]; then                                                                           \
+	      echo "config $(3)_$${_entry}_AVAILABLE";                                                          \
+	      echo "    bool";                                                                                  \
+	      echo "    default n if ! ( BACKEND_$(3) = \"$${entry}\" || BACKEND_$(3) = \"\" || ! BACKEND )";   \
+	      echo "    default y if BACKEND_$(3) = \"$${entry}\" || BACKEND_$(3) = \"\" || ! BACKEND";         \
+	    fi;                                                                                                 \
 	    echo "if $(3)_$${_entry}";                                          \
 	    echo "config $(3)";                                                 \
 	    echo "    default \"$${entry}\" if $(3)_$${_entry}";                \
