@@ -313,6 +313,15 @@ do_cc() {
         extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
     fi
 
+    if [ "${CT_THREADS}" = "none" ]; then
+        extra_config+=("--disable-threads")
+        if [ "${CT_CC_GCC_4_2_or_later}" = y ]; then
+            extra_config+=("--disable-libgomp")
+        fi
+    else
+        extra_config+=("--enable-threads=posix")
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # --enable-symvers=gnu really only needed for sh4 to work around a
@@ -334,7 +343,6 @@ do_cc() {
         "${extra_config[@]}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --disable-nls                               \
-        --enable-threads=posix                      \
         --enable-symvers=gnu                        \
         --enable-c99                                \
         --enable-long-long                          \
