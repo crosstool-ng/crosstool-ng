@@ -150,11 +150,11 @@ do_cc_core() {
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
-    if [ "${CT_GCC_USE_GMP_MPFR}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
         extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
         extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
     fi
-    if [ "${CT_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
         extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
         extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
@@ -303,11 +303,11 @@ do_cc() {
     if [ -n "${CC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CC_ENABLE_CXX_FLAGS}")
     fi
-    if [ "${CT_GCC_USE_GMP_MPFR}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
         extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
         extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
     fi
-    if [ "${CT_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
         extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
         extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
