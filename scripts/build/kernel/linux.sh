@@ -6,7 +6,12 @@ CT_DoKernelTupleValues() {
     if [ "${CT_ARCH_USE_MMU}" = "y" ]; then
         CT_TARGET_KERNEL="linux"
     else
-        CT_TARGET_KERNEL="uclinux"
+    # Sometime, noMMU linux targets have a -uclinux tuple, while
+    # sometime it's -linux. We currently have only one noMMU linux
+    # target, and it uses -linux, so let's just use that. Time
+    # to fix that later...
+    #    CT_TARGET_KERNEL="uclinux"
+        CT_TARGET_KERNEL="linux"
     fi
 }
 

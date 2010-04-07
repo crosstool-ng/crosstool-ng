@@ -190,11 +190,12 @@ mungeuClibcConfig() {
 
     # Hack our target in the config file.
     case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
-        x86:32)     arch=i386;;
-        x86:64)     arch=x86_64;;
-        sh:32)      arch="sh";;
-        sh:64)      arch="sh64";;
-        *)          arch="${CT_ARCH}";;
+        x86:32)      arch=i386;;
+        x86:64)      arch=x86_64;;
+        sh:32)       arch="sh";;
+        sh:64)       arch="sh64";;
+        blackfin:32) arch="bfin";;
+        *)           arch="${CT_ARCH}";;
     esac
     # Also remove stripping: its the responsibility of the
     # firmware builder to strip or not.
