@@ -34,7 +34,7 @@ do_mpfr_extract() {
             CT_Pushd "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}"
             if [ ! -f .autoreconf.ct-ng ]; then
                 CT_DoLog DEBUG "Running autoreconf"
-                CT_DoExecLog ALL autoreconf
+                CT_DoExecLog ALL autoreconf -fi
                 touch .autoreconf.ct-ng
             fi
             CT_Popd
