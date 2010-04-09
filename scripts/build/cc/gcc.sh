@@ -132,6 +132,10 @@ do_cc_core() {
             ;;
     esac
 
+    # Bare metal delivers the core compiler as final compiler, so add version info and bugurl
+    [ -n "${CT_CC_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_CC_BUGURL}")
+    [ -n "${CT_CC_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_CC_PKGVERSION}")
+
     if [ "${copy_headers}" = "y" ]; then
         CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
         CT_DoExecLog ALL mkdir -p "${core_prefix_dir}/${CT_TARGET}/include"
