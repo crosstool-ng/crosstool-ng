@@ -238,7 +238,19 @@ do_cc_core() {
             install_rules="install-gcc"
         fi
 
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C gcc ${libgcc_rule}
+        # On bare metal and canadian build the host-compiler is used when
+        # actually the build-system compiler is required. Choose the correct
+        # compilers for canadian build and use the defaults on other
+        # configurations.
+        if [ "${CT_BARE_METAL},${CT_CANADIAN}" = "y,y" ]; then
+            repair_cc="CC_FOR_BUILD=${CT_BUILD}-gcc \
+                       GCC_FOR_TARGET=${CT_TARGET}-gcc"
+        else
+            repair_cc=""
+        fi
+
+        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C gcc ${libgcc_rule} \
+                              ${repair_cc}
         sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
             build_rules="all-gcc"
