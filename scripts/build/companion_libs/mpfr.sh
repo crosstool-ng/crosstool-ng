@@ -97,7 +97,7 @@ do_mpfr() {
     CT_DoLog EXTRA "Building MPFR"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
+    if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPFR"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi

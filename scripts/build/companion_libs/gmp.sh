@@ -47,7 +47,7 @@ do_gmp() {
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
+    if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking GMP"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi

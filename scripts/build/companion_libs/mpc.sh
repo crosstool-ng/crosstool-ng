@@ -43,7 +43,7 @@ do_mpc() {
     CT_DoLog EXTRA "Building MPC"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
+    if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPC"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi

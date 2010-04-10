@@ -54,7 +54,7 @@ do_ppl() {
     CT_DoLog EXTRA "Building PPL"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-    if [ "${CT_COMP_LIBS_CHECK}" = "y" ]; then
+    if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking PPL"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
     fi
