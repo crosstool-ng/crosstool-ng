@@ -37,8 +37,8 @@ do_mpc() {
         --prefix="${CT_PREFIX_DIR}"                 \
         --with-gmp="${CT_PREFIX_DIR}"               \
         --with-mpfr="${CT_PREFIX_DIR}"              \
-        --enable-shared                             \
-        --disable-static                            \
+        --disable-shared                            \
+        --enable-static
 
     CT_DoLog EXTRA "Building MPC"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}

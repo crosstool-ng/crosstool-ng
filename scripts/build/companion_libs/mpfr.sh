@@ -90,8 +90,8 @@ do_mpfr() {
         --host=${CT_HOST}                               \
         --prefix="${CT_PREFIX_DIR}"                     \
         ${mpfr_opt}                                     \
-        --enable-shared                                 \
-        --disable-static                                \
+        --disable-shared                                \
+        --enable-static                                 \
         --with-gmp="${CT_PREFIX_DIR}"
 
     CT_DoLog EXTRA "Building MPFR"

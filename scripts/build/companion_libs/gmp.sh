@@ -38,8 +38,8 @@ do_gmp() {
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --prefix="${CT_PREFIX_DIR}"                 \
-        --enable-shared                             \
-        --disable-static                            \
+        --disable-shared                            \
+        --enable-static                             \
         --enable-fft                                \
         --enable-mpbsd                              \
         --enable-cxx

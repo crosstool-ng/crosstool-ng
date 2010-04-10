@@ -50,6 +50,7 @@ do_cloog() {
 
     CT_DoLog EXTRA "Configuring CLooG/ppl"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
+    LDFLAGS='-lstdc++'                          \
     CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/cloog-ppl${_t}/configure"    \
         --build=${CT_BUILD}                     \
@@ -57,8 +58,8 @@ do_cloog() {
         --prefix="${CT_PREFIX_DIR}"             \
         --with-gmp="${CT_PREFIX_DIR}"           \
         --with-ppl="${CT_PREFIX_DIR}"           \
-        --enable-shared                         \
-        --disable-static                        \
+        --disable-shared                        \
+        --enable-static                         \
         --with-bits=gmp
 
     CT_DoLog EXTRA "Building CLooG/ppl"

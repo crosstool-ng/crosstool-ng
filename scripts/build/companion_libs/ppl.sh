@@ -40,8 +40,8 @@ do_ppl() {
         --prefix="${CT_PREFIX_DIR}"                 \
         --with-libgmp-prefix="${CT_PREFIX_DIR}"     \
         --with-libgmpxx-prefix="${CT_PREFIX_DIR}"   \
-        --enable-shared                             \
-        --disable-static                            \
+        --disable-shared                            \
+        --enable-static                             \
         --disable-debugging                         \
         --disable-assertions                        \
         --disable-ppl_lcdd                          \
