@@ -30,7 +30,7 @@ do_mpfr_extract() {
     # do that in the future...
     # It seems that MPFR >= 2.4.0 do not need this...
     case "${CT_MPFR_VERSION}" in
-        2.4.1)
+        2.4.*)
             CT_Pushd "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}"
             if [ ! -f .autoreconf.ct-ng ]; then
                 CT_DoLog DEBUG "Running autoreconf"
