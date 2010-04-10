@@ -24,12 +24,21 @@ if [ "${CT_LIBELF}" = "y" ]; then
 # Uncomment when we need it for gcc-4.5
 # WARNING! This function is absolutely UNTESTED yet!
 do_libelf() {
-    : # Remove this line!
+    : # Remove this line! and uncomment the following lines
+#    local -a libelf_opts
+#
 #    CT_DoStep INFO "Installing libelf"
 #    mkdir -p "${CT_BUILD_DIR}/build-libelf"
 #    CT_Pushd "${CT_BUILD_DIR}/build-libelf"
 #
 #    CT_DoLog EXTRA "Configuring libelf"
+#
+#    if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
+#        libelf_opts+=( --enable-shared --disable-static )
+#    else
+#        libelf_opts+=( --disable-shared --enable-static )
+#    fi
+#
 #    CC="${CT_TARGET}-gcc"                                   \
 #    CT_DoExecLog ALL                                        \
 #    "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
@@ -39,9 +48,8 @@ do_libelf() {
 #        --prefix="${CT_PREFIX_DIR}"                         \
 #        --enable-compat                                     \
 #        --enable-elf64                                      \
-#        --enable-static                                     \
-#        --enable-shared                                     \
-#        --enable-extended-format
+#        --enable-extended-format                            \
+#        "${libelf_opts[@]}"
 #
 #    CT_DoLog EXTRA "Building libelf"
 #    CT_DoExecLog ALL make

@@ -95,6 +95,7 @@ do_cc_core() {
     local lang_opt
     local tmp
     local -a extra_config
+    local core_LDFLAGS
 
     eval $1
     eval $2
@@ -162,10 +163,17 @@ do_cc_core() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
+    # When companion libraries are build static (eg !shared),
+    # the libstdc++ is not pulled automatically, although it
+    # is needed. Shoe-horn it in our LDFLAGS
+    if [ -z "${CT_COMPLIBS_SHARED}" ]; then
+        core_LDFLAGS='-lstdc++'
+    fi
+
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    LDFLAGS="-lstdc++"                              \
+    LDFLAGS="${core_LDFLAGS}"                       \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
@@ -257,6 +265,7 @@ do_cc_core() {
 do_cc() {
     local -a extra_config
     local tmp
+    local final_LDFLAGS
 
     # If building for bare metal, nothing to be done here, the static core conpiler is enough!
     [ "${CT_BARE_METAL}" = "y" ] && return 0
@@ -325,13 +334,20 @@ do_cc() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
+    # When companion libraries are build static (eg !shared),
+    # the libstdc++ is not pulled automatically, although it
+    # is needed. Shoe-horn it in our LDFLAGS
+    if [ -z "${CT_COMPLIBS_SHARED}" ]; then
+        final_LDFLAGS='-lstdc++'
+    fi
+
     # --enable-symvers=gnu really only needed for sh4 to work around a
     # detection problem only matters for gcc-3.2.x and later, I think.
     # --disable-nls to work around crash bug on ppc405, but also because
     # embedded systems don't really need message catalogs...
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    LDFLAGS="-lstdc++"                              \
+    LDFLAGS="${final_LDFLAGS}"                      \
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"         \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"       \

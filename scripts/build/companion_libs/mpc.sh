@@ -23,12 +23,21 @@ do_mpc_extract() {
 }
 
 do_mpc() {
+    local -a mpc_opts
+
     mkdir -p "${CT_BUILD_DIR}/build-mpc"
     cd "${CT_BUILD_DIR}/build-mpc"
 
     CT_DoStep INFO "Installing MPC"
 
     CT_DoLog EXTRA "Configuring MPC"
+
+    if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
+        mpc_opts+=( --enable-shared --disable-static )
+    else
+        mpc_opts+=( --disable-shared --enable-static )
+    fi
+
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CT_DoExecLog ALL                                \
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
@@ -37,8 +46,7 @@ do_mpc() {
         --prefix="${CT_PREFIX_DIR}"                 \
         --with-gmp="${CT_PREFIX_DIR}"               \
         --with-mpfr="${CT_PREFIX_DIR}"              \
-        --disable-shared                            \
-        --enable-static
+        "${mpc_opts[@]}"
 
     CT_DoLog EXTRA "Building MPC"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}

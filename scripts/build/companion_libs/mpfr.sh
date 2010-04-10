@@ -67,19 +67,26 @@ do_mpfr_extract() {
 if [ "${CT_MPFR}" = "y" ]; then
 
 do_mpfr() {
+    local -a mpfr_opts
+
     mkdir -p "${CT_BUILD_DIR}/build-mpfr"
     cd "${CT_BUILD_DIR}/build-mpfr"
 
     CT_DoStep INFO "Installing MPFR"
 
-    mpfr_opt=
     # Under Cygwin, we can't build a thread-safe library
     case "${CT_HOST}" in
-        *cygwin*)   mpfr_opt="--disable-thread-safe";;
-        *mingw*)    mpfr_opt="--disable-thread-safe";;
-        *darwin*)   mpfr_opt="--disable-thread-safe";;
-        *)          mpfr_opt="--enable-thread-safe";;
+        *cygwin*)   mpfr_opts+=( --disable-thread-safe );;
+        *mingw*)    mpfr_opts+=( --disable-thread-safe );;
+        *darwin*)   mpfr_opts+=( --disable-thread-safe );;
+        *)          mpfr_opts+=( --enable-thread-safe  );;
     esac
+
+    if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
+        mpfr_opts+=( --enable-shared --disable-static )
+    else
+        mpfr_opts+=( --disable-shared --enable-static )
+    fi
 
     CT_DoLog EXTRA "Configuring MPFR"
     CC="${CT_HOST}-gcc"                                 \
@@ -89,10 +96,8 @@ do_mpfr() {
         --build=${CT_BUILD}                             \
         --host=${CT_HOST}                               \
         --prefix="${CT_PREFIX_DIR}"                     \
-        ${mpfr_opt}                                     \
-        --disable-shared                                \
-        --enable-static                                 \
-        --with-gmp="${CT_PREFIX_DIR}"
+        --with-gmp="${CT_PREFIX_DIR}"                   \
+        "${mpfr_opts[@]}"
 
     CT_DoLog EXTRA "Building MPFR"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}

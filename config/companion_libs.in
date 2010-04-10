@@ -17,7 +17,6 @@ config WRAPPER_NEEDED
 config GMP
     bool
     select COMPLIBS
-    select WRAPPER_NEEDED
     help
       gcc 4.3.0 and above requires GMP to build some frontends, and some
       other components can use them as well.
@@ -35,7 +34,6 @@ config MPFR
     bool
     select GMP
     select COMPLIBS
-    select WRAPPER_NEEDED
     help
       gcc 4.3.0 and above requires MPFR to build some frontends, and some
       other components can use them as well.
@@ -54,7 +52,6 @@ config PPL
     select GMP
     select MPFR
     select COMPLIBS
-    select WRAPPER_NEEDED
     help
       gcc-4.4.0 and above requires PPL to build some parts of the optimiser
       (the GRAPHITE loop optimisation, to be precise).
@@ -69,7 +66,6 @@ config CLOOG
     select MPFR
     select PPL
     select COMPLIBS
-    select WRAPPER_NEEDED
     help
       gcc-4.4.0 and above requires CLooG/PPL to build some parts of the
       optimiser (the GRAPHITE loop optimisation, to be precise).
@@ -85,7 +81,6 @@ config MPC
     select PPL
     select CLOOG
     select COMPLIBS
-    select WRAPPER_NEEDED
     help
       gcc-4.4.0 and above can also optionally use MPC to enable additional
       optimisations on complex numbers. Although MPC is optional,
@@ -98,7 +93,6 @@ config MPC
 config LIBELF
     bool
     select COMPLIBS
-    select WRAPPER_NEEDED
     help
       gcc-4.5.0 and above can also use libelf to enable some optimisation
       (LTO, Link-Time Optimisation, to be precise).  Although libelf is
@@ -170,14 +164,14 @@ endif
 config FOO
     bool
 
+if COMPLIBS
+
 comment "Companion libraries common options"
-    depends on COMPLIBS || WRAPPER_NEEDED
 
 config COMPLIBS_CHECK
     bool
-    prompt "|  Check the companion libraries builds (!!! READ HELP!!!)"
+    prompt "Check the companion libraries builds (!!! READ HELP!!!)"
     default n
-    depends on COMPLIBS
     help
       It is highly recommended to check the newly built companion libraries.
       Unfortunately, this is a very intensive task, and takes a loooong time.
@@ -191,6 +185,19 @@ config COMPLIBS_CHECK
       Note however that this will take a really long time. For example,
       building PPL on my machine takes roughly 1'40", while checking it takes
       about 1h40'...
+
+config COMPLIBS_SHARED
+    bool
+    prompt "Build shared companion libraries"
+    default n
+    depends on COMPLIBS
+    select WRAPPER_NEEDED
+    help
+      By default, the companion libraries will be build static. If you want to
+      build shared libraries, then you can say 'Y' here, but a wrapper will be
+      needed (see docs/overview.txt,section "Tools wrapper").
+      
+      It is highly recommended that you keep static libraries.
 
 choice
     bool
@@ -222,5 +229,7 @@ config TOOLS_WRAPPER
     string
     default "script" if TOOLS_WRAPPER_SCRIPT
     default "exec"   if TOOLS_WRAPPER_EXEC
+
+endif # COMPLIBS
 
 endmenu

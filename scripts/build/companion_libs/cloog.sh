@@ -35,6 +35,8 @@ do_cloog_extract() {
 
 do_cloog() {
     local _t
+    local cloog_LDFLAGS
+    local -a cloog_opts
 
     # Version 0.15.3 has a dirname 'cloog-ppl' (with no version in it!)
     # while versions 0.15.4 onward do have the version in the dirname.
@@ -49,8 +51,16 @@ do_cloog() {
     CT_DoStep INFO "Installing CLooG/ppl"
 
     CT_DoLog EXTRA "Configuring CLooG/ppl"
+
+    if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
+        cloog_opts+=( --enable-shared --disable-static )
+    else
+        cloog_opts+=( --disable-shared --enable-static )
+        cloog_LDFLAGS='-lstdc++'
+    fi
+
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
-    LDFLAGS='-lstdc++'                          \
+    LDFLAGS="${cloog_LDFLAGS}"                  \
     CT_DoExecLog ALL                            \
     "${CT_SRC_DIR}/cloog-ppl${_t}/configure"    \
         --build=${CT_BUILD}                     \
@@ -58,9 +68,8 @@ do_cloog() {
         --prefix="${CT_PREFIX_DIR}"             \
         --with-gmp="${CT_PREFIX_DIR}"           \
         --with-ppl="${CT_PREFIX_DIR}"           \
-        --disable-shared                        \
-        --enable-static                         \
-        --with-bits=gmp
+        --with-bits=gmp                         \
+        "${cloog_opts[@]}"
 
     CT_DoLog EXTRA "Building CLooG/ppl"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}

@@ -25,12 +25,21 @@ do_ppl_extract() {
 }
 
 do_ppl() {
+    local -a ppl_opts
+
     mkdir -p "${CT_BUILD_DIR}/build-ppl"
     cd "${CT_BUILD_DIR}/build-ppl"
 
     CT_DoStep INFO "Installing PPL"
 
     CT_DoLog EXTRA "Configuring PPL"
+
+    if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
+        ppl_opts+=( --enable-shared --disable-static )
+    else
+        ppl_opts+=( --disable-shared --enable-static )
+    fi
+
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CXXFLAGS="${CT_CFLAGS_FOR_HOST}"                \
     CT_DoExecLog ALL                                \
@@ -40,12 +49,11 @@ do_ppl() {
         --prefix="${CT_PREFIX_DIR}"                 \
         --with-libgmp-prefix="${CT_PREFIX_DIR}"     \
         --with-libgmpxx-prefix="${CT_PREFIX_DIR}"   \
-        --disable-shared                            \
-        --enable-static                             \
         --disable-debugging                         \
         --disable-assertions                        \
         --disable-ppl_lcdd                          \
-        --disable-ppl_lpsol
+        --disable-ppl_lpsol                         \
+        "${ppl_opts[@]}"
 
     # Maybe-options:
     # --enable-interfaces=...
