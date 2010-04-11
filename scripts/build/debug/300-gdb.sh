@@ -6,13 +6,6 @@
 # config options for this.
 CT_DEBUG_GDB_NCURSES_VERSION="5.7"
 
-do_debug_gdb_suffix() {
-    case "${CT_GDB_VERSION}" in
-        snapshot)   ;;
-        *)          echo "-${CT_GDB_VERSION}";;
-    esac
-}
-
 do_debug_gdb_parts() {
     do_gdb=
     do_insight=
@@ -40,9 +33,9 @@ do_debug_gdb_get() {
     do_debug_gdb_parts
 
     if [ "${do_gdb}" = "y" ]; then
-        CT_GetFile "gdb$(do_debug_gdb_suffix)"              \
-                   {ftp,http}://ftp.gnu.org/pub/gnu/gdb     \
-                   ftp://sources.redhat.com/pub/gdb/{{,old-}releases,snapshots/current}
+        CT_GetFile "gdb-${CT_GDB_VERSION}"                          \
+                   {ftp,http}://ftp.gnu.org/pub/gnu/gdb             \
+                   ftp://sources.redhat.com/pub/gdb/{,old-}releases
     fi
 
     if [ "${do_insight}" = "y" ]; then
@@ -63,8 +56,8 @@ do_debug_gdb_extract() {
     do_debug_gdb_parts
 
     if [ "${do_gdb}" = "y" ]; then
-        CT_Extract "gdb$(do_debug_gdb_suffix)"
-        CT_Patch "gdb$(do_debug_gdb_suffix)"
+        CT_Extract "gdb-${CT_GDB_VERSION}"
+        CT_Patch "gdb-${CT_GDB_VERSION}"
     fi
 
     if [ "${do_insight}" = "y" ]; then
@@ -81,7 +74,7 @@ do_debug_gdb_extract() {
 do_debug_gdb_build() {
     local -a extra_config
 
-    gdb_src_dir="${CT_SRC_DIR}/gdb$(do_debug_gdb_suffix)"
+    gdb_src_dir="${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}"
     insight_src_dir="${CT_SRC_DIR}/insight-${CT_GDB_VERSION}"
 
     # Version 6.3 and below behave badly with gdbmi
