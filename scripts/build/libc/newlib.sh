@@ -5,11 +5,11 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
-libc_newlib_basename() {
+libc_newlib_version() {
     if [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
-        echo "newlib-${CT_LIBC_VERSION}"
+        echo "${CT_LIBC_VERSION}"
     else
-        echo "newlib-cvs${CT_LIBC_VERSION:+-${CT_LIBC_VERSION}}"
+        echo "cvs${CT_LIBC_VERSION:+-${CT_LIBC_VERSION}}"
     fi
 }
 
@@ -20,11 +20,11 @@ do_libc_get() {
     if [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
         CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
     else
-        CT_GetCVS "$(libc_newlib_basename)"                         \
+        CT_GetCVS "newlib-$(libc_newlib_version)"                   \
                   ":pserver:anoncvs@sources.redhat.com:/cvs/src"    \
                   "newlib"                                          \
                   "${CT_LIBC_VERSION}"                              \
-                  "$(libc_newlib_basename)=src"
+                  "newlib-$(libc_newlib_version)=src"
     fi
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
@@ -33,8 +33,8 @@ do_libc_get() {
 }
 
 do_libc_extract() {
-    CT_Extract "$(libc_newlib_basename)"
-    CT_Patch "$(libc_newlib_basename)"
+    CT_Extract "newlib-$(libc_newlib_version)"
+    CT_Patch "newlib-$(libc_newlib_version)"
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_Extract "avr32headers"
@@ -71,7 +71,7 @@ do_libc() {
     AR=${CT_TARGET}-ar                                  \
     RANLIB=${CT_TARGET}-ranlib                          \
     CT_DoExecLog ALL                                    \
-    "${CT_SRC_DIR}/$(libc_newlib_basename)/configure"   \
+    "${CT_SRC_DIR}/newlib-$(libc_newlib_version)/configure" \
         --host=${CT_BUILD}                              \
         --target=${CT_TARGET}                           \
         --prefix=${CT_PREFIX_DIR}
