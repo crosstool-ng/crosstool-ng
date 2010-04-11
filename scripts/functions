@@ -934,6 +934,13 @@ CT_DoSaveState() {
                            /^(UID|EUID)=/d;
                            /^(FUNCNAME|GROUPS|PPID|SHELLOPTS)=/d;' >"${state_dir}/env.sh"
 
+    if [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
+        CT_DoLog DEBUG "  Saving CT_COMPLIBS_DIR='${CT_COMPLIBS_DIR}'"
+        CT_Pushd "${CT_COMPLIBS_DIR}"
+        CT_DoExecLog DEBUG tar cv${tar_opt}f "${state_dir}/complibs_dir.tar${tar_ext}" .
+        CT_Popd
+    fi
+
     CT_DoLog DEBUG "  Saving CT_CONFIG_DIR='${CT_CONFIG_DIR}'"
     CT_Pushd "${CT_CONFIG_DIR}"
     CT_DoExecLog DEBUG tar cv${tar_opt}f "${state_dir}/config_dir.tar${tar_ext}" .
@@ -1011,6 +1018,13 @@ CT_DoLoadState(){
     CT_Pushd "${CT_CONFIG_DIR}"
     CT_DoExecLog DEBUG tar xv${tar_opt}f "${state_dir}/config_dir.tar${tar_ext}"
     CT_Popd
+
+    if [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
+        CT_DoLog DEBUG "  Restoring CT_COMPLIBS_DIR='${CT_COMPLIBS_DIR}'"
+        CT_Pushd "${CT_COMPLIBS_DIR}"
+        CT_DoExecLog DEBUG tar xv${tar_opt}f "${state_dir}/complibs_dir.tar${tar_ext}"
+        CT_Popd
+    fi
 
     # Restore the environment, discarding any error message
     # (for example, read-only bash internals)
