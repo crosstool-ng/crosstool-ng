@@ -44,7 +44,7 @@ do_gmp() {
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
-        --prefix="${CT_PREFIX_DIR}"                 \
+        --prefix="${CT_COMPLIBS_DIR}"               \
         --enable-fft                                \
         --enable-mpbsd                              \
         --enable-cxx                                \

@@ -43,9 +43,9 @@ do_mpc() {
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
-        --prefix="${CT_PREFIX_DIR}"                 \
-        --with-gmp="${CT_PREFIX_DIR}"               \
-        --with-mpfr="${CT_PREFIX_DIR}"              \
+        --prefix="${CT_COMPLIBS_DIR}"               \
+        --with-gmp="${CT_COMPLIBS_DIR}"             \
+        --with-mpfr="${CT_COMPLIBS_DIR}"            \
         "${mpc_opts[@]}"
 
     CT_DoLog EXTRA "Building MPC"

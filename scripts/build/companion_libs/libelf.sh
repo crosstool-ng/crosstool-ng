@@ -45,7 +45,7 @@ do_libelf() {
 #        --build=${CT_BUILD}                                 \
 #        --host=${CT_HOST}                                   \
 #        --target=${CT_TARGET}                               \
-#        --prefix="${CT_PREFIX_DIR}"                         \
+#        --prefix="${CT_COMPLIBS_DIR}"                       \
 #        --enable-compat                                     \
 #        --enable-elf64                                      \
 #        --enable-extended-format                            \

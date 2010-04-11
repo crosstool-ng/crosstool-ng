@@ -65,9 +65,9 @@ do_cloog() {
     "${CT_SRC_DIR}/cloog-ppl${_t}/configure"    \
         --build=${CT_BUILD}                     \
         --host=${CT_HOST}                       \
-        --prefix="${CT_PREFIX_DIR}"             \
-        --with-gmp="${CT_PREFIX_DIR}"           \
-        --with-ppl="${CT_PREFIX_DIR}"           \
+        --prefix="${CT_COMPLIBS_DIR}"           \
+        --with-gmp="${CT_COMPLIBS_DIR}"         \
+        --with-ppl="${CT_COMPLIBS_DIR}"         \
         --with-bits=gmp                         \
         "${cloog_opts[@]}"
 

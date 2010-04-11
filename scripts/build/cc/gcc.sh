@@ -151,24 +151,24 @@ do_cc_core() {
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
-    if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
-    fi
-    if [ "${CT_CC_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
-        extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
-        extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
-    fi
-
-    CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # When companion libraries are build static (eg !shared),
     # the libstdc++ is not pulled automatically, although it
     # is needed. Shoe-horn it in our LDFLAGS
-    if [ -z "${CT_COMPLIBS_SHARED}" ]; then
+    if [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
         core_LDFLAGS='-lstdc++'
     fi
+    if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
+        extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
+    fi
+    if [ "${CT_CC_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
+        extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
+    fi
+
+    CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
@@ -313,14 +313,21 @@ do_cc() {
     if [ -n "${CC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CC_ENABLE_CXX_FLAGS}")
     fi
+
+    # When companion libraries are build static (eg !shared),
+    # the libstdc++ is not pulled automatically, although it
+    # is needed. Shoe-horn it in our LDFLAGS
+    if [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
+        final_LDFLAGS='-lstdc++'
+    fi
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
+        extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
     fi
     if [ "${CT_CC_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
-        extra_config+=("--with-ppl=${CT_PREFIX_DIR}")
-        extra_config+=("--with-cloog=${CT_PREFIX_DIR}")
-        extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
+        extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
     fi
 
     if [ "${CT_THREADS}" = "none" ]; then
@@ -333,13 +340,6 @@ do_cc() {
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
-
-    # When companion libraries are build static (eg !shared),
-    # the libstdc++ is not pulled automatically, although it
-    # is needed. Shoe-horn it in our LDFLAGS
-    if [ -z "${CT_COMPLIBS_SHARED}" ]; then
-        final_LDFLAGS='-lstdc++'
-    fi
 
     # --enable-symvers=gnu really only needed for sh4 to work around a
     # detection problem only matters for gcc-3.2.x and later, I think.

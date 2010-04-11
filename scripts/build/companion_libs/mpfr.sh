@@ -95,8 +95,8 @@ do_mpfr() {
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
         --build=${CT_BUILD}                             \
         --host=${CT_HOST}                               \
-        --prefix="${CT_PREFIX_DIR}"                     \
-        --with-gmp="${CT_PREFIX_DIR}"                   \
+        --prefix="${CT_COMPLIBS_DIR}"                   \
+        --with-gmp="${CT_COMPLIBS_DIR}"                 \
         "${mpfr_opts[@]}"
 
     CT_DoLog EXTRA "Building MPFR"

@@ -46,9 +46,9 @@ do_ppl() {
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
-        --prefix="${CT_PREFIX_DIR}"                 \
-        --with-libgmp-prefix="${CT_PREFIX_DIR}"     \
-        --with-libgmpxx-prefix="${CT_PREFIX_DIR}"   \
+        --prefix="${CT_COMPLIBS_DIR}"               \
+        --with-libgmp-prefix="${CT_COMPLIBS_DIR}"   \
+        --with-libgmpxx-prefix="${CT_COMPLIBS_DIR}" \
         --disable-debugging                         \
         --disable-assertions                        \
         --disable-ppl_lcdd                          \
