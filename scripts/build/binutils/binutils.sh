@@ -12,7 +12,7 @@ do_binutils_get() {
 # Extract binutils
 do_binutils_extract() {
     CT_Extract "binutils-${CT_BINUTILS_VERSION}"
-    CT_Patch "binutils-${CT_BINUTILS_VERSION}"
+    CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
 }
 
 # Build binutils

@@ -21,7 +21,7 @@ do_ppl_get() {
 # Extract PPL
 do_ppl_extract() {
     CT_Extract "ppl-${CT_PPL_VERSION}"
-    CT_Patch "ppl-${CT_PPL_VERSION}"
+    CT_Patch "ppl" "${CT_PPL_VERSION}"
 }
 
 do_ppl() {

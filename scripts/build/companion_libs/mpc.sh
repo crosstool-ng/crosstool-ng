@@ -19,7 +19,7 @@ do_mpc_get() {
 # Extract MPC
 do_mpc_extract() {
     CT_Extract "mpc-${CT_MPC_VERSION}"
-    CT_Patch "mpc-${CT_MPC_VERSION}"
+    CT_Patch "mpc" "${CT_MPC_VERSION}"
 }
 
 do_mpc() {

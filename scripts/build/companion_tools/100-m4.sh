@@ -9,7 +9,7 @@ do_companion_tools_m4_get() {
 
 do_companion_tools_m4_extract() {
     CT_Extract "m4-${CT_M4_VERSION}"
-    CT_Patch "m4-${CT_M4_VERSION}"
+    CT_Patch "m4" "${CT_M4_VERSION}"
 }
 
 do_companion_tools_m4_build() {

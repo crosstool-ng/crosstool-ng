@@ -11,7 +11,7 @@ do_debug_foobar_get() {
 do_debug_foobar_extract() {
     # For example:
     # CT_Extract "foobar-${CT_FOOBAR_VERSION}"
-    # CT_Patch "foobar-${CT_FOOBAR_VERSION}"
+    # CT_Patch "foobar" "${CT_FOOBAR_VERSION}"
     :
 }
 

@@ -34,7 +34,7 @@ do_libc_get() {
 
 do_libc_extract() {
     CT_Extract "newlib-$(libc_newlib_version)"
-    CT_Patch "newlib-$(libc_newlib_version)"
+    CT_Patch "newlib" "$(libc_newlib_version)"
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_Extract "avr32headers"

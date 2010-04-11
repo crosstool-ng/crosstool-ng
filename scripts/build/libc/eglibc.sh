@@ -94,7 +94,7 @@ do_libc_get() {
 # Extract eglibc
 do_libc_extract() {
     CT_Extract "eglibc-${CT_LIBC_VERSION}"
-    CT_Patch "eglibc-${CT_LIBC_VERSION}"
+    CT_Patch "eglibc" "${CT_LIBC_VERSION}"
 
     # C library addons
     for addon in $(do_libc_add_ons_list " "); do
@@ -110,7 +110,7 @@ do_libc_extract() {
         # directory, returns true!
         [ -d "${addon}" ] || ln -s "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
         [ -d "eglibc-${addon}-${CT_LIBC_VERSION}" ] || ln -s "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
-        CT_Patch nochdir "eglibc-${addon}-${CT_LIBC_VERSION}"
+        CT_Patch nochdir "eglibc" "${addon}-${CT_LIBC_VERSION}"
         CT_Popd
     done
 

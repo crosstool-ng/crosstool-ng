@@ -13,7 +13,7 @@ do_debug_ltrace_get() {
 
 do_debug_ltrace_extract() {
     CT_Extract "ltrace-${CT_LTRACE_VERSION}"
-    CT_Patch "ltrace-${CT_LTRACE_VERSION}"
+    CT_Patch "ltrace" "${CT_LTRACE_VERSION}"
 }
 
 do_debug_ltrace_build() {

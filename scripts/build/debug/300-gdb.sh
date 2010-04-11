@@ -57,17 +57,17 @@ do_debug_gdb_extract() {
 
     if [ "${do_gdb}" = "y" ]; then
         CT_Extract "gdb-${CT_GDB_VERSION}"
-        CT_Patch "gdb-${CT_GDB_VERSION}"
+        CT_Patch "gdb" "${CT_GDB_VERSION}"
     fi
 
     if [ "${do_insight}" = "y" ]; then
         CT_Extract "insight-${CT_GDB_VERSION}"
-        CT_Patch "insight-${CT_GDB_VERSION}"
+        CT_Patch "insight" "${CT_GDB_VERSION}"
     fi
 
     if [ "${do_ncurses}" = "y" ]; then
         CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
-        CT_Patch "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
+        CT_Patch "ncurses" "${CT_DEBUG_GDB_NCURSES_VERSION}"
     fi
 }
 

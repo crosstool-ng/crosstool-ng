@@ -708,10 +708,15 @@ CT_ExtractGit() {
 
 # Patches the specified component
 # See CT_Extract, above, for explanations on 'nochdir'
-# Usage: CT_Patch [nochdir] <basename>
+# Usage: CT_Patch [nochdir] <packagename> <packageversion>
+# If the package directory is *not* packagename-packageversion, then
+# the caller must cd into the proper directory first, and call us
+# with nochdir
 CT_Patch() {
     local nochdir="$1"
-    local basename
+    local pkgname
+    local version
+    local pkgdir
     local base_file
     local ver_file
     local d
@@ -719,40 +724,40 @@ CT_Patch() {
     local bundled_patch_dir
     local local_patch_dir
 
+    pkgname="$1"
+    version="$2"
+    pkgdir="${pkgname}-${version}"
+
     if [ "${nochdir}" = "nochdir" ]; then
         shift
         nochdir="$(pwd)"
     else
-        nochdir="${CT_SRC_DIR}/${1}"
+        nochdir="${CT_SRC_DIR}/${pkgdir}"
     fi
 
-    basename="$1"
-    base_file="${basename%%-*}"
-    ver_file="${basename#*-}"
-
     # Check if already patched
-    if [ -e "${CT_SRC_DIR}/.${basename}.patched" ]; then
-        CT_DoLog DEBUG "Already patched '${basename}'"
+    if [ -e "${CT_SRC_DIR}/.${pkgdir}.patched" ]; then
+        CT_DoLog DEBUG "Already patched '${pkgdir}'"
         return 0
     fi
 
     # Check if already partially patched
-    if [ -e "${CT_SRC_DIR}/.${basename}.patching" ]; then
-        CT_DoLog ERROR "The '${basename}' sources were partially patched."
+    if [ -e "${CT_SRC_DIR}/.${pkgdir}.patching" ]; then
+        CT_DoLog ERROR "The '${pkgdir}' sources were partially patched."
         CT_DoLog ERROR "Please remove first:"
-        CT_DoLog ERROR " - the source dir for '${basename}', in '${CT_SRC_DIR}'"
-        CT_DoLog ERROR " - the file '${CT_SRC_DIR}/.${basename}.extracted'"
-        CT_DoLog ERROR " - the file '${CT_SRC_DIR}/.${basename}.patching'"
+        CT_DoLog ERROR " - the source dir for '${pkgdir}', in '${CT_SRC_DIR}'"
+        CT_DoLog ERROR " - the file '${CT_SRC_DIR}/.${pkgdir}.extracted'"
+        CT_DoLog ERROR " - the file '${CT_SRC_DIR}/.${pkgdir}.patching'"
         CT_Abort "I'll stop now to avoid any carnage..."
     fi
-    touch "${CT_SRC_DIR}/.${basename}.patching"
+    touch "${CT_SRC_DIR}/.${pkgdir}.patching"
 
     CT_Pushd "${nochdir}"
 
-    CT_DoLog EXTRA "Patching '${basename}'"
+    CT_DoLog EXTRA "Patching '${pkgdir}'"
 
-    bundled_patch_dir="${CT_LIB_DIR}/patches/${base_file}/${ver_file}"
-    local_patch_dir="${CT_LOCAL_PATCH_DIR}/${base_file}/${ver_file}"
+    bundled_patch_dir="${CT_LIB_DIR}/patches/${pkgname}/${version}"
+    local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkgname}/${version}"
 
     case "${CT_PATCH_ORDER}" in
         bundled)        patch_dirs=("${bundled_patch_dir}");;
@@ -787,8 +792,8 @@ CT_Patch() {
         done
     fi
 
-    CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${basename}.patched"
-    CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${basename}.patching"
+    CT_DoExecLog DEBUG touch "${CT_SRC_DIR}/.${pkdir}.patched"
+    CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/.${pkdir}.patching"
 
     CT_Popd
 }

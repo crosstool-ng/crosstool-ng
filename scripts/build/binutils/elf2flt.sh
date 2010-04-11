@@ -22,7 +22,7 @@ do_elf2flt_get() {
 # Extract elf2flt
 do_elf2flt_extract() {
     CT_Extract "elf2flt-cvs-${CT_ELF2FLT_VERSION}"
-    CT_Patch "elf2flt-cvs-${CT_ELF2FLT_VERSION}"
+    CT_Patch "elf2flt-cvs" "${CT_ELF2FLT_VERSION}"
 }
 
 # Build elf2flt

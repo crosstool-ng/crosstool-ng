@@ -9,7 +9,7 @@ do_companion_tools_libtool_get() {
 
 do_companion_tools_libtool_extract() {
     CT_Extract "libtool-${CT_LIBTOOL_VERSION}"
-    CT_Patch "libtool-${CT_LIBTOOL_VERSION}"
+    CT_Patch "libtool" "${CT_LIBTOOL_VERSION}"
 }
 
 do_companion_tools_libtool_build() {

@@ -23,7 +23,7 @@ do_kernel_get() {
 do_kernel_extract() {
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" != "y" ]; then
         CT_Extract "linux-${CT_KERNEL_VERSION}"
-        CT_Patch "linux-${CT_KERNEL_VERSION}"
+        CT_Patch "linux" "${CT_KERNEL_VERSION}"
     fi
     return 0
 }

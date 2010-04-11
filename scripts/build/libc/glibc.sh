@@ -38,7 +38,7 @@ do_libc_extract() {
     CT_Extract "glibc-${CT_LIBC_VERSION}"
 
     CT_Pushd "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}"
-    CT_Patch nochdir "glibc-${CT_LIBC_VERSION}"
+    CT_Patch nochdir "glibc" "${CT_LIBC_VERSION}"
 
     # C library addons
     for addon in "${addons_list[@]}"; do
@@ -54,7 +54,7 @@ do_libc_extract() {
         # directory, returns true!
         [ -d "${addon}" ] || CT_DoExecLog ALL ln -s "glibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
         [ -d "glibc-${addon}-${CT_LIBC_VERSION}" ] || CT_DoExecLog ALL ln -s "${addon}" "glibc-${addon}-${CT_LIBC_VERSION}"
-        CT_Patch nochdir "glibc-${addon}-${CT_LIBC_VERSION}"
+        CT_Patch nochdir "glibc" "${addon}-${CT_LIBC_VERSION}"
     done
 
     # The configure files may be older than the configure.in files

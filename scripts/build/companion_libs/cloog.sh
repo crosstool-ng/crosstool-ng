@@ -29,7 +29,7 @@ do_cloog_extract() {
         *)      _t="-${CT_CLOOG_VERSION}";;
     esac
     CT_Pushd "${CT_SRC_DIR}/cloog-ppl${_t}"
-    CT_Patch nochdir "cloog-ppl-${CT_CLOOG_VERSION}"
+    CT_Patch nochdir "cloog-ppl" "${CT_CLOOG_VERSION}"
     CT_Popd
 }
 

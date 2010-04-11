@@ -18,7 +18,7 @@ do_gmp_get() {
 # Extract GMP
 do_gmp_extract() {
     CT_Extract "gmp-${CT_GMP_VERSION}"
-    CT_Patch "gmp-${CT_GMP_VERSION}"
+    CT_Patch "gmp" "${CT_GMP_VERSION}"
 }
 
 if [ "${CT_GMP}" = "y" ]; then

@@ -8,7 +8,7 @@ do_debug_strace_get() {
 
 do_debug_strace_extract() {
     CT_Extract "strace-${CT_STRACE_VERSION}"
-    CT_Patch "strace-${CT_STRACE_VERSION}"
+    CT_Patch "strace" "${CT_STRACE_VERSION}"
 }
 
 do_debug_strace_build() {

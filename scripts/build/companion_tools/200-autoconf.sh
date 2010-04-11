@@ -9,7 +9,7 @@ do_companion_tools_autoconf_get() {
 
 do_companion_tools_autoconf_extract() {
     CT_Extract "autoconf-${CT_AUTOCONF_VERSION}"
-    CT_Patch "autoconf-${CT_AUTOCONF_VERSION}"
+    CT_Patch "autoconf" "${CT_AUTOCONF_VERSION}"
 }
 
 do_companion_tools_autoconf_build() {

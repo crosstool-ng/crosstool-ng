@@ -16,7 +16,7 @@ do_libelf_get() {
 
 do_libelf_extract() {
     CT_Extract "libelf-${CT_LIBELF_VERSION}"
-    CT_Patch "libelf-${CT_LIBELF_VERSION}"
+    CT_Patch "libelf" "${CT_LIBELF_VERSION}"
 }
 
 if [ "${CT_LIBELF}" = "y" ]; then
