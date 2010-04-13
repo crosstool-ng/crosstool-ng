@@ -917,16 +917,18 @@ CT_DoTarballIfExists() {
     local tarball="$2"
     shift 2
     local -a extra_tar_opts=( "$@" )
-    local tar_opt
+    local -a compress
 
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  tar_opt=-z; tar_ext=.gz;;
-        *)  tar_opt=;   tar_ext=;;
+        y)  compress=( gzip -c -3 - ); tar_ext=.gz;;
+        *)  compress=( cat - );        tar_ext=;;
     esac
 
     if [ -d "${dir}" ]; then
         CT_DoLog DEBUG "  Saving '${dir}'"
-        CT_DoExecLog DEBUG tar c -C "${dir}" -v ${tar_opt} -f "${tarball}.tar${tar_ext}" "${extra_tar_opts[@]}" .
+        { tar c -C "${dir}" -v -f - "${extra_tar_opts[@]}" .    \
+          |"${compress[@]}" >"${tarball}.tar${tar_ext}"         ;
+        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog DEBUG
     else
         CT_DoLog DEBUG "  Not saving '${dir}': does not exist"
     fi
@@ -940,18 +942,20 @@ CT_DoExtractTarballIfExists() {
     local dir="$2"
     shift 2
     local -a extra_tar_opts=( "$@" )
-    local tar_opt
+    local -a uncompress
 
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  tar_opt=-z; tar_ext=.gz;;
-        *)  tar_opt=;   tar_ext=;;
+        y)  uncompress=( gzip -c -d ); tar_ext=.gz;;
+        *)  uncompress=( cat );        tar_ext=;;
     esac
 
     if [ -f "${tarball}.tar${tar_ext}" ]; then
         CT_DoLog DEBUG "  Restoring '${dir}'"
         CT_DoForceRmdir "${dir}"
         CT_DoExecLog DEBUG mkdir -p "${dir}"
-        CT_DoExecLog DEBUG tar x -C "${dir}" -v ${tar_opt} -f "${tarball}.tar${tar_ext}" "${extra_tar_opts[@]}"
+        { "${uncompress[@]}" "${tarball}.tar${tar_ext}"     \
+          |tar x -C "${dir}" -v -f - "${extra_tar_opts[@]}" ;
+        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog DEBUG
     else
         CT_DoLog DEBUG "  Not restoring '${dir}': does not exist"
     fi
