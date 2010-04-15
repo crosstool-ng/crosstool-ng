@@ -8,15 +8,10 @@ CT_DEBUG_GDB_NCURSES_VERSION="5.7"
 
 do_debug_gdb_parts() {
     do_gdb=
-    do_insight=
     do_ncurses=
 
     if [ "${CT_GDB_CROSS}" = y ]; then
-        if [ "${CT_GDB_CROSS_INSIGHT}" = "y" ]; then
-            do_insight=y
-        else
-            do_gdb=y
-        fi
+        do_gdb=y
     fi
 
     if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
@@ -38,13 +33,6 @@ do_debug_gdb_get() {
                    ftp://sources.redhat.com/pub/gdb/{,old-}releases
     fi
 
-    if [ "${do_insight}" = "y" ]; then
-        CT_GetFile "insight-${CT_GDB_VERSION}"                                              \
-                   ftp://sourceware.org/pub/insight/releases                                \
-                   {ftp,http}://ftp.twaren.net/Unix/Sourceware/insight/releases             \
-                   {ftp,http}://ftp.gwdg.de/pub/linux/sources.redhat.com/insight/releases
-    fi
-
     if [ "${do_ncurses}" = "y" ]; then
         CT_GetFile "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}" .tar.gz  \
                    {ftp,http}://ftp.gnu.org/pub/gnu/ncurses \
@@ -60,11 +48,6 @@ do_debug_gdb_extract() {
         CT_Patch "gdb" "${CT_GDB_VERSION}"
     fi
 
-    if [ "${do_insight}" = "y" ]; then
-        CT_Extract "insight-${CT_GDB_VERSION}"
-        CT_Patch "insight" "${CT_GDB_VERSION}"
-    fi
-
     if [ "${do_ncurses}" = "y" ]; then
         CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
         CT_Patch "ncurses" "${CT_DEBUG_GDB_NCURSES_VERSION}"
@@ -75,7 +58,6 @@ do_debug_gdb_build() {
     local -a extra_config
 
     gdb_src_dir="${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}"
-    insight_src_dir="${CT_SRC_DIR}/insight-${CT_GDB_VERSION}"
 
     # Version 6.3 and below behave badly with gdbmi
     case "${CT_GDB_VERSION}" in
@@ -112,7 +94,6 @@ do_debug_gdb_build() {
         fi
 
         gdb_cross_configure="${gdb_src_dir}/configure"
-        [ "${CT_GDB_CROSS_INSIGHT}" = "y" ] && gdb_cross_configure="${insight_src_dir}/configure"
 
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
