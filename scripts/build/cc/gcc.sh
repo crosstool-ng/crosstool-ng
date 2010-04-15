@@ -171,6 +171,9 @@ do_cc_core() {
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
     fi
+    if [ "${CT_CC_GCC_USE_LIBELF}" = "y" ]; then
+        extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
@@ -332,6 +335,9 @@ do_cc() {
         extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
+    fi
+    if [ "${CT_CC_GCC_USE_LIBELF}" = "y" ]; then
+        extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
     fi
 
     if [ "${CT_THREADS}" = "none" ]; then
