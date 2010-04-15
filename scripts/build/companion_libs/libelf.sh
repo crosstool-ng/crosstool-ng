@@ -67,8 +67,8 @@ if [ "${CT_LIBELF_TARGET}" = "y" ]; then
 
 do_libelf_target() {
     CT_DoStep INFO "Installing libelf for the target"
-    mkdir -p "${CT_BUILD_DIR}/build-libelf"
-    CT_Pushd "${CT_BUILD_DIR}/build-libelf"
+    mkdir -p "${CT_BUILD_DIR}/build-libelf-for-target"
+    CT_Pushd "${CT_BUILD_DIR}/build-libelf-for-target"
 
     CT_DoLog EXTRA "Configuring libelf"
     CC="${CT_TARGET}-gcc"                                   \
