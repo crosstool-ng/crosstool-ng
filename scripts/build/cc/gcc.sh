@@ -41,35 +41,31 @@ do_cc_extract() {
 #------------------------------------------------------------------------------
 # Core gcc pass 1
 do_cc_core_pass_1() {
-    # If we're building a canadian compiler no use to build the CC
-    # core compiler, we're not using it
-    [ -n "${CT_CANADIAN}" ] && return 0
-
     # If we're building for bare metal, build the static core gcc,
     # with libgcc.
+    # In case we're not bare metal and building a canadian compiler, do nothing
     # In case we're not bare metal, and we're NPTL, build the static core gcc.
     # In any other case, do nothing.
-    case "${CT_BARE_METAL},${CT_THREADS}" in
-        y,*)    do_cc_core mode=baremetal build_libgcc=yes;;
-        ,nptl)  do_cc_core mode=static build_libgcc=no;;
+    case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
+        y,*,*)  do_cc_core mode=baremetal build_libgcc=yes;;
+        ,y,*)   ;;
+        ,,nptl) do_cc_core mode=static build_libgcc=no;;
         *)      ;;
     esac
 }
 
 # Core gcc pass 2
 do_cc_core_pass_2() {
-    # If we're building a canadian compiler no use to build the CC
-    # core compiler, we're not using it
-    [ -n "${CT_CANADIAN}" ] && return 0
-
     # In case we're building for bare metal, do nothing, we already have
     # our compiler.
+    # In case we're not bare metal and building a canadian compiler, do nothing
     # In case we're NPTL, build the shared core gcc and the target libgcc.
     # In any other case, build the static core gcc and, if using gcc-4.3+,
     # also build the target libgcc.
-    case "${CT_BARE_METAL},${CT_THREADS}" in
-        y,*)    ;;
-        ,nptl)
+    case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
+        y,*,*)   ;;
+        ,y,*)    ;;
+        ,,nptl)
             do_cc_core mode=shared build_libgcc=yes
             ;;
         *)  if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
@@ -248,11 +244,6 @@ do_cc_core() {
             build_rules="all-gcc"
             install_rules="install-gcc"
     fi   # ! build libgcc
-
-    if [ "${CT_CANADIAN}" = "y" ]; then
-        CT_DoLog EXTRA "Building libiberty"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
-    fi
 
     CT_DoLog EXTRA "Building ${mode} core C compiler"
     CT_DoExecLog ALL make ${PARALLELMFLAGS} ${build_rules}
