@@ -262,7 +262,10 @@ do_cc_core() {
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
-    CT_DoExecLog ALL ln -sv "${CT_TARGET}"-gcc "${core_prefix_dir}/bin/${CT_TARGET}"-cc
+    # check whether compiler has an extension
+    file="$( ls -1 "${core_prefix_dir}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    [ -z "${file}" ] || ext=".${file##*.}"
+    CT_DoExecLog ALL ln -sv "${CT_TARGET}-gcc${ext}" "${core_prefix_dir}/bin/${CT_TARGET}-cc${ext}"
 
     CT_EndStep
 }
@@ -390,7 +393,10 @@ do_cc() {
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
-    CT_DoExecLog ALL ln -sv "${CT_TARGET}"-gcc "${CT_PREFIX_DIR}/bin/${CT_TARGET}"-cc
+    # check whether compiler has an extension
+    file="$( ls -1 "${CT_TARGET}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    [ -z "${file}" ] || ext=".${file##*.}"
+    CT_DoExecLog ALL ln -sv "${CT_TARGET}-gcc${ext}" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc${ext}"
 
     CT_EndStep
 }
