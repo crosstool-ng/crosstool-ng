@@ -578,7 +578,9 @@ do_libc_min_kernel_config() {
                 # version installed in "usr/include/linux/version.h" in the sys-root.
                 # Parse that instead of having two code-paths.
                 version_code_file="${CT_SYSROOT_DIR}/usr/include/linux/version.h"
-                CT_TestOrAbort "Linux version is unavailable in installed headers files" -f "${version_code_file}" -a -r "${version_code_file}"
+                if [ ! -f "${version_code_file}" -o ! -r "${version_code_file}" ]; then
+                    CT_Abort "Linux version is unavailable in installed headers files"
+                fi
                 version_code=$(grep -E LINUX_VERSION_CODE "${version_code_file}" |cut -d ' ' -f 3)
                 version=$(((version_code>>16)&0xFF))
                 patchlevel=$(((version_code>>8)&0xFF))
