@@ -19,7 +19,7 @@ CT_DoArchTupleValues () {
     esac
 
     # CFLAGS
-    case "${CT_ARCH_SH_VARIENT}" in
+    case "${CT_ARCH_SH_VARIANT}" in
         sh3)    CT_ARCH_ARCH_CFLAG=-m3;;
         sh4*)
             case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
