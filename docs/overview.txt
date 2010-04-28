@@ -447,22 +447,31 @@ Tools wrapper |
 --------------+
 
 Starting with gcc-4.3 come two new dependencies: GMP and MPFR. With gcc-4.4,
-come three new ones: GMP, PPL and CLooG/ppl. These are libraries that enable
-advanced features to gcc. Additionally, some of the libraries can be used by
-binutils and gdb. Unfortunately, not all systems on which crosstool-NG runs
-have all of those libraries. And for those that do, the versions of those
-libraries may be older than the version required by gcc.
+come three new ones: PPL, CLooG/ppl and MPC. With gcc-4.5 again comes a new
+dependency on libelf. These are libraries that enable advanced features to
+gcc. Additionally, some of those libraries can be used by binutils and gdb.
+Unfortunately, not all systems on which crosstool-NG runs have all of those
+libraries. And for those that do, the versions of those libraries may be
+older than the version required by gcc (and binutils and gdb). To date,
+Debian stable (aka Lenny) is lagging behind on some, and is missing the
+others.
 
 This is why crosstool-NG builds its own set of libraries as part of the
 toolchain.
 
-The libraries are built as shared libraries, because building them as static
-libraries has some short-comings. This poses no problem at build time, as
+The companion libraries can be built either as static libraries, or as shared
+libraries. The default is to build static libraries, and is the safe way.
+If you decide to use static companion libraries, then you can stop reading
+this section.
+
+But if you prefer to have shared libraries, then read on...
+
+Building shared companion libraries poses no problem at build time, as
 crosstool-NG correctly points gcc (and binutils and gdb) to the correct
 place where our own version of the libraries are installed. But it poses
 a problem when gcc et al. are run: the place where the libraries are is most
 probably not known to the host dynamic linker. Still worse, if the host system
-has its own versions, then ld.so would load the wrong library!
+has its own versions, then ld.so would load the wrong libraries!
 
 So we have to force the dynamic linker to load the correct version. We do this
 by using the LD_LIBRARY_PATH variable, that informs the dynamic linker where
@@ -488,6 +497,9 @@ Some of the expected short-comings with this C wrapper are;
 So, the default wrapper installed with your toolchain is the shell script.
 If you know that your system is missing a shell, then you shall use the C
 wrapper (and report back whether it works, or does not work, for you).
+
+A final word on the subject: do not build shared libraries. Build them
+static, and you'll be safe.
 
 
 _______________________
