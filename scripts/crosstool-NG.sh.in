@@ -152,6 +152,9 @@ CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
 CT_CONFIG_DIR="${CT_BUILD_DIR}/configs"
 if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
     CT_COMPLIBS_DIR="${CT_PREFIX_DIR}"
+    # Set LD_LIBRARY_PATH to point to prefix/lib so we can find our own
+    # libraries; add as first path, so we get hit first by the dynamic linker
+    CT_SetLibPath "${CT_COMPLIBS_DIR}/lib" first
 else
     CT_COMPLIBS_DIR="${CT_BUILD_DIR}/static"
 fi
@@ -160,10 +163,6 @@ fi
 # not mix the two builds: core and final.
 CT_CC_CORE_STATIC_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-static"
 CT_CC_CORE_SHARED_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-shared"
-
-# Set LD_LIBRARY_PATH to point to prefix/lib so we can find our own
-# libraries; add as first path, so we get hit first by the dynamic linker
-CT_SetLibPath "${CT_PREFIX_DIR}/lib" first
 
 # We must ensure that we can restart if asked for!
 if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
