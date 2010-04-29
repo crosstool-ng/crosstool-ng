@@ -155,7 +155,7 @@ do_debug_gdb_build() {
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -C progs "tic${tic_ext}"
 
         CT_DoExecLog ALL install -d -m 0755 "${CT_PREFIX_DIR}/bin"
-        CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_PREFIX_DIR}/bin"
+        CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_PREFIX_DIR}/buildtools"
 
         mkdir -p "${CT_BUILD_DIR}/build-ncurses"
         cd "${CT_BUILD_DIR}/build-ncurses"
