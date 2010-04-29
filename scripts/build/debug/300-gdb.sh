@@ -124,13 +124,11 @@ do_debug_gdb_build() {
 
         CT_DoStep INFO "Installing native gdb"
 
-        CT_DoStep INFO "Installing ncurses library"
+        CT_DoLog EXTRA "Building static target ncurses"
 
         [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts+=("--without-cxx" "--without-cxx-binding")
         [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts+=("--without-ada")
 
-        CT_DoStep INFO "Installing native ncurses tic"
-        CT_DoLog EXTRA "Configuring ncurses tic"
         mkdir -p "${CT_BUILD_DIR}/build-ncurses-build-tic"
         cd "${CT_BUILD_DIR}/build-ncurses-build-tic"
 
@@ -153,17 +151,12 @@ do_debug_gdb_build() {
         # extension appended to executables. Find that.
         tic_ext=$(grep -E '^x[[:space:]]*=' progs/Makefile |sed -r -e 's/^.*=[[:space:]]*//;')
 
-        CT_DoLog EXTRA "Building ncurses tic"
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -C include
         CT_DoExecLog ALL make ${PARALLELMFLAGS} -C progs "tic${tic_ext}"
 
-        CT_DoLog EXTRA "Installing ncurses tic"
         CT_DoExecLog ALL install -d -m 0755 "${CT_PREFIX_DIR}/bin"
         CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_PREFIX_DIR}/bin"
 
-        CT_EndStep # tic build
-
-        CT_DoLog EXTRA "Configuring ncurses"
         mkdir -p "${CT_BUILD_DIR}/build-ncurses"
         cd "${CT_BUILD_DIR}/build-ncurses"
 
@@ -181,16 +174,12 @@ do_debug_gdb_build() {
             --enable-termcap                                                \
             "${ncurses_opts[@]}"
 
-        CT_DoLog EXTRA "Building ncurses"
         CT_DoExecLog ALL make ${PARALLELMFLAGS}
 
-        CT_DoLog EXTRA "Installing ncurses"
         CT_DoExecLog ALL make install
 
         # We no longer need the temporary tic. Remove it
         CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/bin/tic"
-
-        CT_EndStep # ncurses build
 
         CT_DoLog EXTRA "Configuring native gdb"
 
