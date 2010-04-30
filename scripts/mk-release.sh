@@ -114,7 +114,7 @@ print_author_stats() {
                     printf( "   %4d  %s\n", nb[author], author );
                   }
                 }'                                              \
-    |sort -rn
+    |sort -s -k1nr -k2
 }
 
 print_author_shortlog() {
