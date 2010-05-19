@@ -125,6 +125,7 @@ CT_DoLog INFO "Building environment variables"
 . "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
 . "${CT_LIB_DIR}/scripts/build/cc/${CT_CC}.sh"
 . "${CT_LIB_DIR}/scripts/build/debug.sh"
+. "${CT_LIB_DIR}/scripts/build/test_suite.sh"
 
 # Target tuple: CT_TARGET needs a little love:
 CT_DoBuildTargetTuple
@@ -158,6 +159,9 @@ if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
 else
     CT_COMPLIBS_DIR="${CT_BUILD_DIR}/static"
 fi
+
+# Compute test suite install directory
+CT_TEST_SUITE_DIR=${CT_INSTALL_DIR}/test-suite
 
 # Note: we'll always install the core compiler in its own directory, so as to
 # not mix the two builds: core and final.
@@ -518,6 +522,7 @@ if [ -z "${CT_RESTART}" ]; then
         do_cc_get
         do_libc_get
         do_debug_get
+        do_test_suite_get
         CT_EndStep
     fi
 
@@ -548,6 +553,7 @@ if [ -z "${CT_RESTART}" ]; then
         do_cc_extract
         do_libc_extract
         do_debug_extract
+        do_test_suite_extract
         CT_EndStep
     fi
 fi
@@ -596,5 +602,6 @@ exec >/dev/null 2>&1
 
 [ "${CT_LOG_FILE_COMPRESS}" = y ] && bzip2 -9 "${CT_LOG_FILE}"
 [ "${CT_INSTALL_DIR_RO}" = "y"  ] && chmod -R a-w "${CT_INSTALL_DIR}"
+[ "${CT_TEST_SUITE}" = "y" ] && chmod -R a+w "${CT_TEST_SUITE_DIR}"
 
 trap - EXIT

@@ -39,6 +39,7 @@ CT_STEPS := libc_check_config   \
             libelf_target       \
             binutils_target     \
             debug               \
+            test_suite          \
             finish              \
 
 # Make the list available to sub-processes (scripts/crosstool-NG.sh needs it)
