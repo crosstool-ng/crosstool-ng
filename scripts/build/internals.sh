@@ -68,7 +68,7 @@ do_finish() {
         # scripts, we don't know if they would in the end spawn a binary...
         # Just skip symlinks
         for _t in "${CT_TARGET}-"*; do
-            if [ "$( LANG=C stat -c '%F' "${_t}" )" != "symbolic link" ]; then
+            if [ ! -L "${_t}" ]; then
                 CT_DoExecLog ALL mv "${_t}" ".${_t}"
                 CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${_t}"
             fi
