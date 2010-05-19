@@ -252,7 +252,17 @@ CT_DoForceRmdir() {
     local mode
     for dir in "${@}"; do
         [ -d "${dir}" ] || continue
-        mode="$(stat -c '%a' "$(dirname "${dir}")")"
+        case "$CT_SYS_OS" in
+            Linux)
+                mode="$(stat -c '%a' "$(dirname "${dir}")")"
+                ;;
+            Darwin|*BSD)
+                mode="$(stat -f '%Lp' "$(dirname "${dir}")")"
+                ;;
+            *)
+                CT_Abort "Unhandled host OS $CT_SYS_OS"
+                ;;
+        esac
         CT_DoExecLog ALL chmod u+w "$(dirname "${dir}")"
         CT_DoExecLog ALL chmod -R u+w "${dir}"
         CT_DoExecLog ALL rm -rf "${dir}"
