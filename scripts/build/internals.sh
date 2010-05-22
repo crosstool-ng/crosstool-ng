@@ -42,6 +42,13 @@ do_finish() {
         CT_DoLog EXTRA "Installing toolchain wrappers"
         CT_Pushd "${CT_PREFIX_DIR}/bin"
 
+        case "$CT_SYS_OS" in
+            Darwin|FreeBSD)
+                # wrapper does not work (when using readlink -m)
+                CT_DoLog WARN "Forcing usage of binary tool wrapper"
+                CT_TOOLS_WRAPPER="exec"
+                ;;
+        esac
         # Install the wrapper
         case "${CT_TOOLS_WRAPPER}" in
             script)
