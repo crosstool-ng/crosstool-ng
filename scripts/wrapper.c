@@ -7,6 +7,11 @@
 #include <unistd.h>
 #include <errno.h>
 
+#ifdef	__APPLE__
+#define LDLP "DYLD_LIBRARY_PATH"
+#else
+#define LDLP "LD_LIBRARY_PATH"
+#endif
 
 /* Needed for execve */
 extern char **environ;
@@ -106,7 +111,7 @@ int main( int argc,
 
   /* Now add the directory with our runtime libraries to the
      front of the library search path, LD_LIBRARY_PATH */
-  ldlibpath = getenv( "LD_LIBRARY_PATH" );
+  ldlibpath = getenv(LDLP);
   if( ldlibpath ) {
     basedir = (char*) realloc( basedir,   strlen( basedir )
                                         + strlen( ldlibpath )
@@ -115,7 +120,7 @@ int main( int argc,
     strcat( basedir, ldlibpath );
   }
 
-  if( setenv( "LD_LIBRARY_PATH", basedir, 1 ) ) {
+  if( setenv( LDLP, basedir, 1 ) ) {
     errno = ENOMEM;
     perror( "tool wrapper" );
     exit( 1 );
