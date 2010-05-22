@@ -14,22 +14,16 @@ do_test_suite_gcc_build() {
  
     CT_DoStep INFO "Installing GCC test suite"
 
-    CT_DoExecLog ALL mkdir -p "${CT_TEST_SUITE_DIR}/gcc-test-suite/gcc-${CT_CC_VERSION}/gcc"
-    CT_DoExecLog ALL cp "${CT_TOP_DIR}/contrib/gcc-test-suite/Makefile" \
-                        "${CT_TEST_SUITE_DIR}/gcc-test-suite"
-    CT_DoExecLog ALL cp "${CT_TOP_DIR}/contrib/gcc-test-suite/default.cfg" \
-                        "${CT_TEST_SUITE_DIR}/gcc-test-suite"
-    CT_DoExecLog ALL cp "${CT_TOP_DIR}/contrib/gcc-test-suite/README" \
-                        "${CT_TEST_SUITE_DIR}/gcc-test-suite"
-    CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/testsuite" \
-                           "${CT_TEST_SUITE_DIR}/gcc-test-suite/gcc-${CT_CC_VERSION}/gcc"
-    sed "s/DG_GCC_VERSION .*/DG_GCC_VERSION = ${CT_CC_VERSION}/g" \
-        ${CT_TEST_SUITE_DIR}/gcc-test-suite/default.cfg > \
-        ${CT_TEST_SUITE_DIR}/gcc-test-suite/default.cfg.tmp
-    sed "s/DG_TARGET .*/DG_TARGET = ${CT_TARGET}/g" \
-        ${CT_TEST_SUITE_DIR}/gcc-test-suite/default.cfg.tmp > \
-        ${CT_TEST_SUITE_DIR}/gcc-test-suite/default.cfg
-    CT_DoExecLog ALL rm -f "${CT_TEST_SUITE_DIR}/gcc-test-suite/default.cfg.tmp"
+    CT_DoExecLog ALL mkdir -p "${CT_TEST_SUITE_DIR}/gcc"
+    CT_DoExecLog ALL cp -a "${CT_LIB_DIR}/contrib/gcc-test-suite/default.cfg"               \
+                           "${CT_LIB_DIR}/contrib/gcc-test-suite/Makefile"                  \
+                           "${CT_LIB_DIR}/contrib/gcc-test-suite/README"                    \
+                           "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/testsuite"               \
+                           "${CT_TEST_SUITE_DIR}/gcc"
+
+    CT_DoExecLog ALL sed -i -r -e "s/@@DG_TARGET@@/${CT_TARGET}/g;"     \
+                         "${CT_TEST_SUITE_DIR}/gcc/Makefile"
+
     CT_EndStep
 }
 
