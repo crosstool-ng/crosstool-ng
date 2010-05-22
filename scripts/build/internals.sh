@@ -58,15 +58,15 @@ do_finish() {
                                    ".${CT_TARGET}-wrapper"
                 ;;
             exec)
-                _t="-s"
-                if [ "${CT_DEBUG_CT}" = "y" ]; then
-                  _t="" # If debugging crosstool-NG, don't strip the wrapper
-                fi
                 CT_DoExecLog DEBUG "${CT_HOST}-gcc"                           \
-                                   -Wall -Wextra -Wunreachable-code -Werror   \
-                                   -O3 -static ${_t}                          \
+                                   -Wall -Wextra -Werror                      \
+                                   -Os                                        \
                                    "${CT_LIB_DIR}/scripts/wrapper.c"          \
                                    -o ".${CT_TARGET}-wrapper"
+                if [ "${CT_DEBUG_CT}" != "y" ]; then
+                    # If not debugging crosstool-NG, strip the wrapper
+                    CT_DoExecLog DEBUG "${CT_HOST}-strip" ".${CT_TARGET}-wrapper"
+                fi
                 ;;
         esac
 
