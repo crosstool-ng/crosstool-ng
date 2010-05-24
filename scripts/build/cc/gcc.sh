@@ -171,6 +171,10 @@ do_cc_core() {
         extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
     fi
 
+    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+        extra_config+=("--enable-target-optspace")
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -190,7 +194,6 @@ do_cc_core() {
         --disable-nls                               \
         --enable-symvers=gnu                        \
         --enable-languages="${lang_opt}"            \
-        --enable-target-optspace                    \
         ${CT_CC_CORE_EXTRA_CONFIG}
 
     if [ "${build_libgcc}" = "yes" ]; then
@@ -355,6 +358,10 @@ do_cc() {
         extra_config+=("--enable-threads=posix")
     fi
 
+    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+        extra_config+=("--enable-target-optspace")
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # --enable-symvers=gnu really only needed for sh4 to work around a
@@ -380,7 +387,6 @@ do_cc() {
         --enable-symvers=gnu                        \
         --enable-c99                                \
         --enable-long-long                          \
-        --enable-target-optspace                    \
         ${CT_CC_EXTRA_CONFIG}
 
     if [ "${CT_CANADIAN}" = "y" ]; then
