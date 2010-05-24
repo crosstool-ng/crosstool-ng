@@ -65,7 +65,7 @@ check_gettext = $(CT_LIB_DIR)/kconfig/check-gettext.sh
 check_lxdialog = $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh
 
 # Build flags
-CFLAGS = 
+CFLAGS =
 LDFLAGS =
 
 # Compiler flags to use gettext
