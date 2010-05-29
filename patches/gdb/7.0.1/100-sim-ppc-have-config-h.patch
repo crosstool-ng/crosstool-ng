@@ -1,0 +1,183 @@
+Fix for canadian cross build of sim/ppc
+
+Orignal patch info see: http://sources.redhat.com/bugzilla/show_bug.cgi?id=9638
+
+diff -urN gdb-6.8-pl1/sim/ppc/Makefile.in gdb-6.8-pl2/sim/ppc/Makefile.in
+--- gdb-6.8-pl1/sim/ppc/Makefile.in	2006-05-31 17:14:45.000000000 +0200
++++ gdb-6.8-pl2/sim/ppc/Makefile.in	2008-09-30 15:56:33.000000000 +0200
+@@ -61,7 +61,7 @@
+ AR = @AR@
+ AR_FLAGS = rc
+ CC = @CC@
+-CFLAGS = @CFLAGS@
++CFLAGS = @CFLAGS@ -DHAVE_CONFIG_H
+ CC_FOR_BUILD = @CC_FOR_BUILD@
+ CFLAGS_FOR_BUILD = @CFLAGS_FOR_BUILD@
+ BISON = bison
+@@ -115,8 +115,8 @@
+   $(DEVZERO_CFLAGS)
+ SIM_FPU_CFLAGS = @sim_fpu_cflags@
+ 
+-STD_CFLAGS	= $(CFLAGS) $(INLINE_CFLAGS) $(CONFIG_CFLAGS) $(WARNING_CFLAGS) $(SIM_CFLAGS) $(HDEFINES) $(TDEFINES) $(INCLUDES) $(INTL_CFLAGS) $(SIM_FPU_CFLAGS)
+-NOWARN_CFLAGS	= $(CFLAGS) $(INLINE_CFLAGS) $(CONFIG_CFLAGS) $(SIM_CFLAGS) $(HDEFINES) $(TDEFINES) $(INCLUDES)  $(SIM_FPU_CFLAGS)
++STD_CFLAGS	= $(CFLAGS) -DHAVE_CONFIG_H $(INLINE_CFLAGS) $(CONFIG_CFLAGS) $(WARNING_CFLAGS) $(SIM_CFLAGS) $(HDEFINES) $(TDEFINES) $(INCLUDES) $(INTL_CFLAGS) $(SIM_FPU_CFLAGS)
++NOWARN_CFLAGS	= $(CFLAGS) -DHAVE_CONFIG_H $(INLINE_CFLAGS) $(CONFIG_CFLAGS) $(SIM_CFLAGS) $(HDEFINES) $(TDEFINES) $(INCLUDES)  $(SIM_FPU_CFLAGS)
+ BUILD_CFLAGS	= $(CFLAGS_FOR_BUILD) $(INCLUDES) $(WARNING_CFLAGS)
+ 
+ BUILD_LDFLAGS	=
+diff -urN gdb-6.8-orig/sim/ppc/basics.h gdb-6.8-pl1/sim/ppc/basics.h
+--- gdb-6.8-orig/sim/ppc/basics.h	1999-04-16 03:35:08.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/basics.h	2008-09-30 15:12:32.000000000 +0200
+@@ -86,7 +86,9 @@
+ 
+ /* Basic configuration */
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "ppc-config.h"
+ #include "inline.h"
+ 
+diff -urN gdb-6.8-orig/sim/ppc/debug.c gdb-6.8-pl1/sim/ppc/debug.c
+--- gdb-6.8-orig/sim/ppc/debug.c	1999-04-16 03:35:08.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/debug.c	2008-09-30 15:12:27.000000000 +0200
+@@ -22,7 +22,9 @@
+ #ifndef _DEBUG_C_
+ #define _DEBUG_C_
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "basics.h"
+ 
+ #ifdef HAVE_STDLIB_H
+diff -urN gdb-6.8-orig/sim/ppc/dgen.c gdb-6.8-pl1/sim/ppc/dgen.c
+--- gdb-6.8-orig/sim/ppc/dgen.c	1999-04-16 03:35:08.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/dgen.c	2008-09-30 15:12:22.000000000 +0200
+@@ -27,7 +27,9 @@
+ #include <ctype.h>
+ #include <stdarg.h>
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "misc.h"
+ #include "lf.h"
+ #include "table.h"
+diff -urN gdb-6.8-orig/sim/ppc/filter.c gdb-6.8-pl1/sim/ppc/filter.c
+--- gdb-6.8-orig/sim/ppc/filter.c	1999-04-16 03:35:09.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/filter.c	2008-09-30 15:12:15.000000000 +0200
+@@ -21,7 +21,9 @@
+ 
+ #include <stdio.h>
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ 
+ #ifdef HAVE_STRING_H
+ #include <string.h>
+diff -urN gdb-6.8-orig/sim/ppc/filter_filename.c gdb-6.8-pl1/sim/ppc/filter_filename.c
+--- gdb-6.8-orig/sim/ppc/filter_filename.c	1999-04-16 03:35:08.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/filter_filename.c	2008-09-30 15:12:11.000000000 +0200
+@@ -18,7 +18,9 @@
+  
+     */
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "ppc-config.h"
+ #include "filter_filename.h"
+ 
+diff -urN gdb-6.8-orig/sim/ppc/igen.c gdb-6.8-pl1/sim/ppc/igen.c
+--- gdb-6.8-orig/sim/ppc/igen.c	2003-06-20 05:59:33.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/igen.c	2008-09-30 15:12:06.000000000 +0200
+@@ -25,7 +25,9 @@
+ #include "misc.h"
+ #include "lf.h"
+ #include "table.h"
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ 
+ #include "filter.h"
+ 
+diff -urN gdb-6.8-orig/sim/ppc/inline.c gdb-6.8-pl1/sim/ppc/inline.c
+--- gdb-6.8-orig/sim/ppc/inline.c	1999-04-16 03:35:10.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/inline.c	2008-09-30 15:11:58.000000000 +0200
+@@ -22,7 +22,9 @@
+ #ifndef _INLINE_C_
+ #define _INLINE_C_
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "ppc-config.h"
+ 
+ #include "inline.h"
+diff -urN gdb-6.8-orig/sim/ppc/lf.c gdb-6.8-pl1/sim/ppc/lf.c
+--- gdb-6.8-orig/sim/ppc/lf.c	2002-05-30 17:07:06.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/lf.c	2008-09-30 15:33:35.000000000 +0200
+@@ -23,7 +23,9 @@
+ #include <stdarg.h>
+ #include <ctype.h>
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "misc.h"
+ #include "lf.h"
+ 
+diff -urN gdb-6.8-orig/sim/ppc/misc.c gdb-6.8-pl1/sim/ppc/misc.c
+--- gdb-6.8-orig/sim/ppc/misc.c	1999-04-16 03:35:11.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/misc.c	2008-09-30 15:11:54.000000000 +0200
+@@ -23,7 +23,9 @@
+ #include <stdarg.h>
+ #include <ctype.h>
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "misc.h"
+ 
+ #ifdef HAVE_STDLIB_H
+diff -urN gdb-6.8-orig/sim/ppc/misc.h gdb-6.8-pl1/sim/ppc/misc.h
+--- gdb-6.8-orig/sim/ppc/misc.h	2002-01-12 11:21:12.000000000 +0100
++++ gdb-6.8-pl1/sim/ppc/misc.h	2008-09-30 15:11:49.000000000 +0200
+@@ -21,7 +21,9 @@
+ 
+ /* Frustrating header junk */
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ 
+ #include <stdio.h>
+ #include <ctype.h>
+diff -urN gdb-6.8-orig/sim/ppc/sim-endian.c gdb-6.8-pl1/sim/ppc/sim-endian.c
+--- gdb-6.8-orig/sim/ppc/sim-endian.c	1999-04-16 03:35:11.000000000 +0200
++++ gdb-6.8-pl1/sim/ppc/sim-endian.c	2008-09-30 15:11:44.000000000 +0200
+@@ -22,7 +22,9 @@
+ #ifndef _SIM_ENDIAN_C_
+ #define _SIM_ENDIAN_C_
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "basics.h"
+ 
+ 
+diff -urN gdb-6.8-orig/sim/ppc/table.c gdb-6.8-pl1/sim/ppc/table.c
+--- gdb-6.8-orig/sim/ppc/table.c	2002-01-12 11:21:12.000000000 +0100
++++ gdb-6.8-pl1/sim/ppc/table.c	2008-09-30 15:11:38.000000000 +0200
+@@ -25,7 +25,9 @@
+ #include <fcntl.h>
+ #include <ctype.h>
+ 
++#ifdef HAVE_CONFIG_H
+ #include "config.h"
++#endif
+ #include "misc.h"
+ #include "lf.h"
+ #include "table.h"
