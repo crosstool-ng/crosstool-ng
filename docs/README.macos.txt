@@ -37,3 +37,14 @@ toolchain on MacOS as host.
                [...other configure parameters as you like...]
 
 5) proceed as described in standard documentation
+
+-----
+
+HINTS:
+- Apparently, GNU make's builtin variable .LIBPATTERNS is misconfigured
+  under MacOS: It does not include lib%.dylib.
+  This affects build of (at least) gdb-7.1
+  Put 'lib%.a lib%.so lib%.dylib' as .LIBPATTERNS into your environment
+  before executing ct-ng build.
+  See http://www.gnu.org/software/make/manual/html_node/Libraries_002fSearch.html
+  as an explanation.
