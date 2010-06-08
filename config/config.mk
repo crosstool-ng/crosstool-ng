@@ -9,16 +9,20 @@
 KCONFIG_TOP = config/config.in
 
 # Build the list of all source config files
-STATIC_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(shell find $(CT_LIB_DIR)/config -type f -name '*.in' 2>/dev/null))
+STATIC_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(shell find $(CT_LIB_DIR)/config -type f \( -name '*.in' -o -name '*.in.2' \) 2>/dev/null))
 # ... and how to access them:
 $(STATIC_CONFIG_FILES): config
 
 # Build a list of per-component-type source config files
-ARCH_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/arch/*.in))
-KERNEL_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/kernel/*.in))
-CC_CONFIG_FILES     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/cc/*.in))
-LIBC_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/libc/*.in))
-DEBUG_CONFIG_FILES  = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/debug/*.in))
+ARCH_CONFIG_FILES     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/arch/*.in))
+ARCH_CONFIG_FILES_2   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/arch/*.in.2))
+KERNEL_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/kernel/*.in))
+KERNEL_CONFIG_FILES_2 = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/kernel/*.in.2))
+CC_CONFIG_FILES       = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/cc/*.in))
+CC_CONFIG_FILES_2     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/cc/*.in.2))
+LIBC_CONFIG_FILES     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/libc/*.in))
+LIBC_CONFIG_FILES_2   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/libc/*.in.2))
+DEBUG_CONFIG_FILES    = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/debug/*.in))
 
 # Build the list of generated config files
 GEN_CONFIG_FILES = config.gen/arch.in     \
@@ -117,6 +121,20 @@ define build_gen_choice_in
 	    echo "source \"$${file}\"";                                         \
 	  done;                                                                 \
 	 ) >$(1)
+	$(SILENT)(echo "# $(2) second part options";                            \
+	  echo "# Generated file, do not edit!!!";                              \
+	  for entry in $(6); do                                                 \
+	    file="$(4)/$${entry}.in";                                           \
+	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
+	    if [ -f "$${file}.2" ]; then                                        \
+	      echo "";                                                          \
+	      echo "if $(3)_$${_entry}";                                        \
+	      echo "comment \"$${entry} other options\"";                       \
+	      echo "source \"$${file}.2\"";                                     \
+	      echo "endif";                                                     \
+	    fi;                                                                 \
+	  done;                                                                 \
+	 ) >$(1).2
 endef
 
 # The function 'build_gen_menu_in' builds a menuconfig for each component in
@@ -154,16 +172,18 @@ endef
 #-----------------------------------------------------------
 # The rules for the generated config files
 
-config.gen/arch.in: $(ARCH_CONFIG_FILES)
+# WARNING! If a .in file disapears between two runs, that will NOT be detected!
+
+config.gen/arch.in: $(ARCH_CONFIG_FILES) $(ARCH_CONFIG_FILES_2)
 	$(call build_gen_choice_in,$@,Target Architecture,ARCH,config/arch,Y,$(ARCHS))
 
-config.gen/kernel.in: $(KERNEL_CONFIG_FILES)
+config.gen/kernel.in: $(KERNEL_CONFIG_FILES) $(KERNEL_CONFIG_FILES_2)
 	$(call build_gen_choice_in,$@,Target OS,KERNEL,config/kernel,Y,$(KERNELS))
 
-config.gen/cc.in: $(CC_CONFIG_FILES)
+config.gen/cc.in: $(CC_CONFIG_FILES) $(CC_CONFIG_FILES_2)
 	$(call build_gen_choice_in,$@,C compiler,CC,config/cc,,$(CCS))
 
-config.gen/libc.in: $(LIBC_CONFIG_FILES)
+config.gen/libc.in: $(LIBC_CONFIG_FILES) $(LIBC_CONFIG_FILES_2)
 	$(call build_gen_choice_in,$@,C library,LIBC,config/libc,Y,$(LIBCS))
 
 config.gen/debug.in: $(DEBUG_CONFIG_FILES)
