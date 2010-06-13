@@ -92,6 +92,7 @@ do_cc_core() {
     local tmp
     local -a extra_config
     local core_LDFLAGS
+    local -a core_targets
 
     while [ $# -ne 0 ]; do
         eval "${1}"
@@ -233,12 +234,10 @@ do_cc_core() {
 
         if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
             libgcc_rule="libgcc.mvars"
-            build_rules="all-gcc all-target-libgcc"
-            install_rules="install-gcc install-target-libgcc"
+            core_targets=( gcc target-libgcc )
         else
             libgcc_rule="libgcc.mk"
-            build_rules="all-gcc"
-            install_rules="install-gcc"
+            core_targets=( gcc )
         fi
 
         # On bare metal and canadian build the host-compiler is used when
@@ -256,15 +255,14 @@ do_cc_core() {
                               ${repair_cc}
         sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
-            build_rules="all-gcc"
-            install_rules="install-gcc"
+        core_targets=( gcc )
     fi   # ! build libgcc
 
     CT_DoLog EXTRA "Building ${mode} core C compiler"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} ${build_rules}
+    CT_DoExecLog ALL make ${PARALLELMFLAGS} "${core_targets[@]/#/all-}"
 
     CT_DoLog EXTRA "Installing ${mode} core C compiler"
-    CT_DoExecLog ALL make ${install_rules}
+    CT_DoExecLog ALL make "${core_targets[@]/#/install-}"
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
