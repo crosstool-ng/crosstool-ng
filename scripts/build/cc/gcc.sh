@@ -134,8 +134,7 @@ do_cc_core() {
 
     if [ "${copy_headers}" = "y" ]; then
         CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
-        CT_DoExecLog ALL mkdir -p "${core_prefix_dir}/${CT_TARGET}/include"
-        CT_DoExecLog ALL cp -r "${CT_HEADERS_DIR}"/* "${core_prefix_dir}/${CT_TARGET}/include"
+        CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${core_prefix_dir}/${CT_TARGET}/include"
     fi
 
     CT_DoLog EXTRA "Configuring ${mode} core C compiler"
