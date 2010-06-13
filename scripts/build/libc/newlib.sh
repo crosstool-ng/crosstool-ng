@@ -59,10 +59,6 @@ do_libc_headers() {
 }
 
 do_libc_start_files() {
-    :
-}
-
-do_libc() {
     CT_DoStep INFO "Installing C library"
 
     mkdir -p "${CT_BUILD_DIR}/build-libc"
@@ -84,16 +80,18 @@ do_libc() {
         --host=${CT_BUILD}                              \
         --target=${CT_TARGET}                           \
         --prefix=${CT_PREFIX_DIR}
-    
+
     CT_DoLog EXTRA "Building C library"
-
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
-    
-    CT_DoLog EXTRA "Installing C library"
 
+    CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL make install install_root="${CT_SYSROOT_DIR}"
 
     CT_EndStep
+}
+
+do_libc() {
+    :
 }
 
 do_libc_finish() {
