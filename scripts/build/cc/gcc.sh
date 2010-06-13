@@ -49,7 +49,7 @@ do_cc_core_pass_1() {
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
         y,*,*)  do_cc_core mode=baremetal build_libgcc=yes;;
         ,y,*)   ;;
-        ,,nptl) do_cc_core mode=static build_libgcc=no;;
+        ,,nptl) do_cc_core mode=static;;
         *)      ;;
     esac
 }
@@ -71,7 +71,7 @@ do_cc_core_pass_2() {
         *)  if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 do_cc_core mode=static build_libgcc=yes
             else
-                do_cc_core mode=static build_libgcc=no
+                do_cc_core mode=static
             fi
             ;;
     esac
@@ -82,27 +82,21 @@ do_cc_core_pass_2() {
 # This function is used to build both the static and the shared core C conpiler,
 # with or without the target libgcc. We need to know wether:
 #  - we're building static, shared or bare metal: mode=[static|shared|baremetal]
-#  - we need to build libgcc or not             : build_libgcc=[yes|no]
+#  - we need to build libgcc or not             : build_libgcc=[yes|no]     (default: no)
 # Usage: do_cc_core_static mode=[static|shared|baremetal] build_libgcc=[yes|no]
 do_cc_core() {
     local mode
-    local build_libgcc
+    local build_libgcc=no
     local core_prefix_dir
     local lang_opt
     local tmp
     local -a extra_config
     local core_LDFLAGS
 
-    eval $1
-    eval $2
-    CT_TestOrAbort "Internal Error: 'mode' must either 'static', 'shared' or 'baremetal', not '${mode:-(empty)}'" "${mode}" = "static" -o "${mode}" = "shared" -o "${mode}" = "baremetal"
-    CT_TestOrAbort "Internal Error: 'build_libgcc' must be either 'yes' or 'no', not '${build_libgcc:-(empty)}'" "${build_libgcc}" = "yes" -o "${build_libgcc}" = "no"
-    # In normal conditions, ( "${mode}" = "shared" ) implies
-    # ( "${build_libgcc}" = "yes" ), but I won't check for that
-
-    CT_DoStep INFO "Installing ${mode} core C compiler"
-    mkdir -p "${CT_BUILD_DIR}/build-cc-core-${mode}"
-    cd "${CT_BUILD_DIR}/build-cc-core-${mode}"
+    while [ $# -ne 0 ]; do
+        eval "${1}"
+        shift
+    done
 
     lang_opt=c
     case "${mode}" in
@@ -126,7 +120,14 @@ do_cc_core() {
             [ "${CT_CC_LANG_CXX}" = "y" ] && lang_opt="${lang_opt},c++"
             copy_headers=n
             ;;
+        *)
+            CT_Abort "Internal Error: 'mode' must be one of: 'static', 'shared' or 'baremetal', not '${mode:-(empty)}'"
+            ;;
     esac
+
+    CT_DoStep INFO "Installing ${mode} core C compiler"
+    mkdir -p "${CT_BUILD_DIR}/build-cc-core-${mode}"
+    cd "${CT_BUILD_DIR}/build-cc-core-${mode}"
 
     # Bare metal delivers the core compiler as final compiler, so add version info and bugurl
     [ -n "${CT_CC_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_CC_BUGURL}")
