@@ -47,7 +47,7 @@ do_cc_core_pass_1() {
     # In case we're not bare metal, and we're NPTL, build the static core gcc.
     # In any other case, do nothing.
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
-        y,*,*)  do_cc_core mode=baremetal build_libgcc=yes;;
+        y,*,*)  do_cc_core mode=static;;
         ,y,*)   ;;
         ,,nptl) do_cc_core mode=static;;
         *)      ;;
@@ -63,8 +63,8 @@ do_cc_core_pass_2() {
     # In any other case, build the static core gcc and, if using gcc-4.3+,
     # also build the target libgcc.
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
-        y,*,*)   ;;
-        ,y,*)    ;;
+        y,*,*)  do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes;;
+        ,y,*)   ;;
         ,,nptl)
             do_cc_core mode=shared build_libgcc=yes
             ;;
@@ -83,10 +83,12 @@ do_cc_core_pass_2() {
 # with or without the target libgcc. We need to know wether:
 #  - we're building static, shared or bare metal: mode=[static|shared|baremetal]
 #  - we need to build libgcc or not             : build_libgcc=[yes|no]     (default: no)
+#  - we need to build libstdc++ or not          : build_libstdcxx=[yes|no]  (default: no)
 # Usage: do_cc_core_static mode=[static|shared|baremetal] build_libgcc=[yes|no]
 do_cc_core() {
     local mode
     local build_libgcc=no
+    local build_libstdcxx=no
     local core_prefix_dir
     local lang_opt
     local tmp
@@ -106,7 +108,8 @@ do_cc_core() {
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
-            copy_headers=y
+            copy_headers=y  # For baremetal, as there's no headers to copy,
+                            # we copy an empty directory. So, who cares?
             ;;
         shared)
             core_prefix_dir="${CT_CC_CORE_SHARED_PREFIX_DIR}"
@@ -257,6 +260,11 @@ do_cc_core() {
     else # build_libgcc
         core_targets=( gcc )
     fi   # ! build libgcc
+    if [    "${build_libstdcxx}" = "yes"    \
+         -a "${CT_CC_LANG_CXX}"  = "y"      \
+       ]; then
+        core_targets+=( target-libstdc++-v3 )
+    fi
 
     CT_DoLog EXTRA "Building ${mode} core C compiler"
     CT_DoExecLog ALL make ${PARALLELMFLAGS} "${core_targets[@]/#/all-}"
