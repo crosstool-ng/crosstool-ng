@@ -17,30 +17,28 @@ CT_DoKernelTupleValues() {
 
 # Download the kernel
 do_kernel_get() {
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" != "y" ]; then
+    if [ "${CT_KERNEL_LINUX_INSTALL}" = "y" ]; then
         CT_GetFile "linux-${CT_KERNEL_VERSION}" \
                    {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
     fi
-    return 0
 }
 
 # Extract kernel
 do_kernel_extract() {
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" != "y" ]; then
+    if [ "${CT_KERNEL_LINUX_INSTALL}" = "y" ]; then
         CT_Extract "linux-${CT_KERNEL_VERSION}"
         CT_Patch "linux" "${CT_KERNEL_VERSION}"
     fi
-    return 0
 }
 
 # Wrapper to the actual headers install method
 do_kernel_headers() {
     CT_DoStep INFO "Installing kernel headers"
 
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y" ]; then
-        do_kernel_custom
-    else
+    if [ "${CT_KERNEL_LINUX_INSTALL}" = "y" ]; then
         do_kernel_install
+    else
+        do_kernel_custom
     fi
 
     CT_EndStep
