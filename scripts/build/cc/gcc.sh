@@ -367,6 +367,9 @@ do_cc() {
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
         extra_config+=("--enable-target-optspace")
     fi
+    if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
+        extra_config+=("--disable-libstdcxx-pch")
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
