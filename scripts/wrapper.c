@@ -71,7 +71,7 @@ int main( int argc,
       if( stat( testname, &st ) == 0 ) {
         /* OK, exists. Is it a regular file, or a
          * symlink, which the current user may execute? */
-        if( S_ISREG( st.st_mode ) && ! access( testname, X_OK || R_OK ) ) {
+        if( S_ISREG( st.st_mode ) && ! access( testname, X_OK | R_OK ) ) {
           fullname = strdup( testname );
           break;
         }
