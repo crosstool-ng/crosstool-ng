@@ -195,7 +195,7 @@ else
 real-install: $(patsubst %,install-%,$(TARGETS)) install-post
 
 install-bin: $(DESTDIR)$(BINDIR)
-	@echo "  INST   'ct-ng'"
+	@echo "  INST    'ct-ng'"
 	@$(install) -m 755 ct-ng "$(DESTDIR)$(BINDIR)/ct-ng"
 
 # If one is hacking crosstool-NG, the patch set might change between any two
@@ -204,24 +204,31 @@ install-bin: $(DESTDIR)$(BINDIR)
 # is the goal of the install-lib rule to install the lib/ directory...
 install-lib: uninstall-lib $(DESTDIR)$(LIBDIR) install-lib-main install-lib-samples
 
-install-lib-main: $(DESTDIR)$(LIBDIR)
-	@for src_dir in config contrib kconfig patches scripts; do  \
-	     echo "  INST   '$${src_dir}/'";                \
-	     tar cf - --exclude='*.sh.in' $${src_dir}       \
-	     |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -);         \
-	 done
+LIB_SUB_DIR := config contrib kconfig patches scripts
+$(patsubst %,install-lib-%-copy,$(LIB_SUB_DIR)): $(DESTDIR)$(LIBDIR)
+	@echo "  INSTDIR '$(patsubst install-lib-%-copy,%,$(@))/'"
+	@tar cf - --exclude='*.sh.in' $(patsubst install-lib-%-copy,%,$(@)) \
+	 |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -)
+
+# Huh? It seems we need at least one command to make this rule kick-in.
+install-lib-%: install-lib-%-copy; @true
+
+# Huh? that one does not inherit the -opy dependency, above...
+install-lib-scripts: install-lib-scripts-copy
 	@chmod a+x $(DESTDIR)$(LIBDIR)/scripts/crosstool-NG.sh
 	@chmod a+x $(DESTDIR)$(LIBDIR)/scripts/saveSample.sh
 	@rm -f "$(DESTDIR)$(LIBDIR)/scripts/addToolVersion.sh"
-	@echo "  INST   'steps.mk'"
+
+install-lib-main: $(DESTDIR)$(LIBDIR) $(patsubst %,install-lib-%,$(LIB_SUB_DIR))
+	@echo "  INST    'steps.mk'"
 	@$(install) -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
-	@echo "  INST   'paths.mk'"
+	@echo "  INST    'paths.mk'"
 	@$(install) -m 644 paths.mk "$(DESTDIR)$(LIBDIR)/paths.mk"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
 install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
-	@echo "  INST   'samples/'"
+	@echo "  INSTDIR 'samples/'"
 	@tar cf - samples |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -)
 	@for samp_file in "$(DESTDIR)$(LIBDIR)/samples/"*"/crosstool.config"; do                    \
 	     $(sed) -r -i -e 's,\$$\{CT_TOP_DIR\},\$$\{CT_LIB_DIR\},g;' $${samp_file};           \
@@ -230,22 +237,22 @@ install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
 
 install-doc: $(DESTDIR)$(DOCDIR)
 	@for doc_file in docs/CREDITS docs/overview.txt; do             \
-	     echo "  INST   '$${doc_file}'";                            \
+	     echo "  INST    '$${doc_file}'";                           \
 	     $(install) -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)"; \
 	 done
 
 install-man: $(DESTDIR)$(MANDIR)
-	@echo "  INST   'ct-ng.1.gz'"
+	@echo "  INST    'ct-ng.1.gz'"
 	@$(install) -m 644 docs/ct-ng.1.gz "$(DESTDIR)$(MANDIR)"
 
 $(sort $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(DOCDIR) $(DESTDIR)$(MANDIR)):
-	@echo "  MKDIR  '$@'"
+	@echo "  MKDIR   '$@/'"
 	@$(install) -m 755 -d "$@"
 
 install-post:
 	@echo
-	@echo "For auto-completion, do not forget to install 'ct-ng.comp'"
-	@echo "into you 'bash_completion.d'"
+	@echo "For auto-completion, do not forget to install 'ct-ng.comp' into"
+	@echo "your bash completion directory (usually /etc/bash_completion.d)"
 
 #--------------------------------------
 # Uninstall rules
@@ -253,19 +260,19 @@ install-post:
 real-uninstall: $(patsubst %,uninstall-%,$(TARGETS))
 
 uninstall-bin:
-	@echo "  RM     '$(DESTDIR)$(BINDIR)/ct-ng'"
+	@echo "  RM      '$(DESTDIR)$(BINDIR)/ct-ng'"
 	@rm -f "$(DESTDIR)$(BINDIR)/ct-ng"
 
 uninstall-lib:
-	@echo "  RMDIR  '$(DESTDIR)$(LIBDIR)/'"
+	@echo "  RMDIR   '$(DESTDIR)$(LIBDIR)/'"
 	@rm -rf "$(DESTDIR)$(LIBDIR)"
 
 uninstall-doc:
-	@echo "  RMDIR  '$(DESTDIR)$(DOCDIR)/'"
+	@echo "  RMDIR   '$(DESTDIR)$(DOCDIR)/'"
 	@rm -rf "$(DESTDIR)$(DOCDIR)"
 
 uninstall-man:
-	@echo "  RM     '$(DESTDIR)$(MANDIR)/ct-ng.1.gz'"
+	@echo "  RM      '$(DESTDIR)$(MANDIR)/ct-ng.1.gz'"
 	@rm -f "$(DESTDIR)$(MANDIR)/ct-ng.1"{,.gz}
 
 endif # Not --local
