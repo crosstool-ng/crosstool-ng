@@ -409,6 +409,19 @@ do_libc() {
         echo libc_cv_c_cleanup=yes
     fi >config.cache
 
+    # ./configure is mislead by our tools override wrapper for bash
+    # so just tell it where the real bash is _on_the_target_!
+    # Notes:
+    # - ${ac_cv_path_BASH_SHELL} is only used to set BASH_SHELL
+    # - ${BASH_SHELL}            is only used to set BASH
+    # - ${BASH}                  is only used to set the shebang
+    #                            in two scripts to run on the target
+    # So we can safely bypass bash detection at compile time.
+    # Should this change in a future glibc release, we'd better
+    # directly mangle the generated scripts _after_ they get built,
+    # or even after they get installed... glibc is such a sucker...
+    echo "ac_cv_path_BASH_SHELL=/bin/bash" >>config.cache
+
     # Configure with --prefix the way we want it on the target...
     # There are a whole lot of settings here.  You'll probably want
     # to read up on what they all mean, and customize a bit, possibly by setting GLIBC_EXTRA_CONFIG
