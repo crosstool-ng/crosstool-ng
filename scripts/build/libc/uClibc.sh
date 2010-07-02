@@ -19,14 +19,29 @@ do_libc_get() {
     return 0
 }
 
+libc_uclibc_src_dir() {
+    if [    -z "${CT_LIBC_V_snapshot}"      \
+         -a -z "${CT_LIBC_V_specific_date}" \
+       ]; then
+        echo "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"
+    else
+        echo "${CT_SRC_DIR}/uClibc"
+    fi
+}
+
 # Extract uClibc
 do_libc_extract() {
     CT_Extract "uClibc-${CT_LIBC_VERSION}"
-    CT_Patch "uClibc" "${CT_LIBC_VERSION}"
+    # Don't patch snapshots
+    if [    -z "${CT_LIBC_V_snapshot}"      \
+         -a -z "${CT_LIBC_V_specific_date}" \
+       ]; then
+        CT_Patch "uClibc" "${CT_LIBC_VERSION}"
+    fi
 
     # uClibc locales
     if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
-        CT_Pushd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}/extra/locale"
+        CT_Pushd "$(libc_uclibc_src_dir)/extra/locale"
         CT_Extract nochdir "uClibc-locale-030818"
         CT_Patch nochdir "uClibc" "locale-030818"
         CT_Popd
@@ -60,7 +75,7 @@ do_libc_headers() {
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"   \
+    CT_DoExecLog ALL cp -av "$(libc_uclibc_src_dir)"            \
                             "${CT_BUILD_DIR}/build-libc-headers"
     cd "${CT_BUILD_DIR}/build-libc-headers"
 
@@ -100,7 +115,7 @@ do_libc() {
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"   \
+    CT_DoExecLog ALL cp -av "$(libc_uclibc_src_dir)"    \
                             "${CT_BUILD_DIR}/build-libc"
     cd "${CT_BUILD_DIR}/build-libc"
 
