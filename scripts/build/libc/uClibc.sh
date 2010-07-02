@@ -70,6 +70,7 @@ do_libc_check_config() {
 # This functions installs uClibc's headers
 do_libc_headers() {
     local install_rule
+    local cross
 
     CT_DoStep INFO "Installing C library headers"
 
@@ -86,11 +87,23 @@ do_libc_headers() {
     # compiler tools to use.  Setting it to the empty string forces
     # use of the native build host tools, which we need at this
     # stage, as we don't have target tools yet.
+    # BUT! With NPTL, we need a cross-compiler (and we have it)
+    if [ "${CT_THREADS}" = "nptl" ]; then
+        cross="${CT_TARGET}-"
+    fi
+
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |CT_DoExecLog ALL make CROSS= PREFIX="${CT_SYSROOT_DIR}/" oldconfig
+    CT_DoYes "" |CT_DoExecLog ALL               \
+                 make CROSS="${cross}"          \
+                 PREFIX="${CT_SYSROOT_DIR}/"    \
+                 oldconfig
 
     CT_DoLog EXTRA "Building headers"
-    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" headers
+    CT_DoExecLog ALL                    \
+    make ${CT_LIBC_UCLIBC_VERBOSITY}    \
+         CROSS="${cross}"               \
+         PREFIX="${CT_SYSROOT_DIR}/"    \
+         headers
 
     if [ "${CT_LIBC_UCLIBC_0_9_30_or_later}" = "y" ]; then
         install_rule=install_headers
@@ -99,7 +112,40 @@ do_libc_headers() {
     fi
 
     CT_DoLog EXTRA "Installing headers"
-    CT_DoExecLog ALL make ${CT_LIBC_UCLIBC_VERBOSITY} CROSS= PREFIX="${CT_SYSROOT_DIR}/" "${install_rule}"
+    CT_DoExecLog ALL                    \
+    make ${CT_LIBC_UCLIBC_VERBOSITY}    \
+         CROSS="${cross}"               \
+         PREFIX="${CT_SYSROOT_DIR}/"    \
+         ${install_rule}
+
+    if [ "${CT_THREADS}" = "nptl" ]; then
+        CT_DoLog EXTRA "Building start files"
+        CT_DoExecLog ALL                                    \
+        make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}  \
+             CROSS="${cross}"                               \
+             PREFIX="${CT_SYSROOT_DIR}/"                    \
+             STRIPTOOL=true                                 \
+             ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+             lib/crt1.o lib/crti.o lib/crtn.o
+
+        # From:  http://git.openembedded.org/cgit.cgi/openembedded/commit/?id=ad5668a7ac7e0436db92e55caaf3fdf782b6ba3b
+        # libm.so is needed for ppc, as libgcc is linked against libm.so
+        # No problem to create it for other archs.
+        CT_DoLog EXTRA "Building dummy shared libs"
+        CT_DoExecLog ALL "${cross}gcc" -nostdlib        \
+                                       -nostartfiles    \
+                                       -shared          \
+                                       -x c /dev/null   \
+                                       -o libdummy.so
+
+        CT_DoLog EXTRA "Installing start files"
+        CT_DoExecLog ALL install -m 0644 lib/crt1.o lib/crti.o lib/crtn.o   \
+                                         "${CT_SYSROOT_DIR}/usr/lib"
+
+        CT_DoLog EXTRA "Installing dummy shared libs"
+        CT_DoExecLog ALL install -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libc.so"
+        CT_DoExecLog ALL install -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libm.so"
+    fi # CT_THREADS == nptl
 
     CT_EndStep
 }
@@ -139,6 +185,13 @@ do_libc() {
     # asked for a debug toolchain, thus the STRIPTOOL= assignment
     # /Old/ versions can not build in //
     CT_DoLog EXTRA "Building C library"
+    CT_DoExecLog ALL                                    \
+    make -j1                                            \
+         CROSS=${CT_TARGET}-                            \
+         PREFIX="${CT_SYSROOT_DIR}/"                    \
+         STRIPTOOL=true                                 \
+         ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+         pregen
     CT_DoExecLog ALL                                    \
     make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}  \
          CROSS=${CT_TARGET}-                            \
@@ -344,13 +397,14 @@ mungeuClibcConfig() {
 
     # Push the threading model
     # Note: we take into account all of the .28, .29, .30 and .31
-    #       versions, here.
+    #       versions, here. Even snapshots with NPTL.
     case "${CT_THREADS}:${CT_LIBC_UCLIBC_LNXTHRD}" in
-        none:*)
+        none:)
             cat <<-ENDSED
 				s/^UCLIBC_HAS_THREADS=y/# UCLIBC_HAS_THREADS is not set/
 				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
 				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
+				s/^UCLIBC_HAS_THREADS_NATIVE=y/# UCLIBC_HAS_THREADS_NATIVE is not set/
 				ENDSED
             ;;
         linuxthreads:old)
@@ -358,6 +412,7 @@ mungeuClibcConfig() {
 				s/^# UCLIBC_HAS_THREADS is not set/UCLIBC_HAS_THREADS=y/
 				s/^# LINUXTHREADS_OLD is not set/LINUXTHREADS_OLD=y/
 				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
+				s/^UCLIBC_HAS_THREADS_NATIVE=y/# UCLIBC_HAS_THREADS_NATIVE is not set/
 				ENDSED
             ;;
         linuxthreads:new)
@@ -365,7 +420,20 @@ mungeuClibcConfig() {
 				s/^# UCLIBC_HAS_THREADS is not set/UCLIBC_HAS_THREADS=y/
 				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
 				s/^# LINUXTHREADS_NEW is not set/LINUXTHREADS_NEW=y/
+				s/^UCLIBC_HAS_THREADS_NATIVE=y/# UCLIBC_HAS_THREADS_NATIVE is not set/
 				ENDSED
+            ;;
+        nptl:)
+            cat <<-ENDSED
+				s/^HAS_NO_THREADS=y/# HAS_NO_THREADS is not set/
+				s/^UCLIBC_HAS_THREADS=y/# UCLIBC_HAS_THREADS is not set/
+				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
+				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
+				s/^# UCLIBC_HAS_THREADS_NATIVE is not set/UCLIBC_HAS_THREADS_NATIVE=y/
+				ENDSED
+            ;;
+        *)
+            CT_Abort "Incorrect thread settings: CT_THREADS='${CT_THREAD}' CT_LIBC_UCLIBC_LNXTHRD='${CT_LIBC_UCLIBC_LNXTHRD}'"
             ;;
     esac
 
