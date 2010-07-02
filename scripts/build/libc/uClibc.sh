@@ -333,26 +333,23 @@ mungeuClibcConfig() {
     case "${CT_THREADS}:${CT_LIBC_UCLIBC_LNXTHRD}" in
         none:*)
             cat <<-ENDSED
-				s/^# HAS_NO_THREADS is not set/HAS_NO_THREADS=y/
 				s/^UCLIBC_HAS_THREADS=y/# UCLIBC_HAS_THREADS is not set/
 				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
 				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
 				ENDSED
             ;;
-        *:old)
+        linuxthreads:old)
             cat <<-ENDSED
-				s/^HAS_NO_THREADS=y/# HAS_NO_THREADS is not set/
 				s/^# UCLIBC_HAS_THREADS is not set/UCLIBC_HAS_THREADS=y/
-				s/^# LINUXTHREADS_OLD is not set/# LINUXTHREADS_OLD=y/
+				s/^# LINUXTHREADS_OLD is not set/LINUXTHREADS_OLD=y/
 				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
 				ENDSED
             ;;
-        *:new)
+        linuxthreads:new)
             cat <<-ENDSED
-				s/^# HAS_NO_THREADS is not set/HAS_NO_THREADS=y/
 				s/^# UCLIBC_HAS_THREADS is not set/UCLIBC_HAS_THREADS=y/
 				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
-				s/^# LINUXTHREADS_NEW is not set/# LINUXTHREADS_NEW=y/
+				s/^# LINUXTHREADS_NEW is not set/LINUXTHREADS_NEW=y/
 				ENDSED
             ;;
     esac
