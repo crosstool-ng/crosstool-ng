@@ -31,7 +31,11 @@ do_finish() {
         fi
         if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
             _t=$(echo "$t" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
-            CT_DoExecLog ALL ln -sv "${t}" "${_t}"
+            if [ "${_t}" = "${t}" ]; then
+                CT_DoLog WARN "The sed expression '${CT_TARGET_ALIAS_SED_EXPR}' has no effect on '${t}'"
+            else
+                CT_DoExecLog ALL ln -sv "${t}" "${_t}"
+            fi
         fi
     done
     CT_Popd
