@@ -166,12 +166,12 @@ do_cc_core() {
         extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
     fi
-    if [ "${CT_CC_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_PPL_CLOOG}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
-        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
     fi
-    if [ "${CT_CC_GCC_USE_LIBELF}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_MPC_LIBELF}" = "y" ]; then
+        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
     fi
 
@@ -346,12 +346,12 @@ do_cc() {
         extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
     fi
-    if [ "${CT_CC_GCC_USE_PPL_CLOOG_MPC}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_PPL_CLOOG}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
-        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
     fi
-    if [ "${CT_CC_GCC_USE_LIBELF}" = "y" ]; then
+    if [ "${CT_CC_GCC_USE_MPC_LIBELF}" = "y" ]; then
+        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
     fi
 
