@@ -1,0 +1,87 @@
+--- PDCurses-3.4.orig/win32/mingwin32.mak	2009-11-02 13:50:11.000000000 +0100
++++ PDCurses-3.4/win32/mingwin32.mak	2009-11-02 13:53:43.000000000 +0100
+@@ -18,7 +18,7 @@
+
+ PDCURSES_WIN_H	= $(osdir)/pdcwin.h
+
+-CC		= gcc
++CC		= $(CROSS_COMPILE)gcc
+
+ ifeq ($(DEBUG),Y)
+ 	CFLAGS  = -g -Wall -DPDCDEBUG
+@@ -30,8 +30,8 @@
+
+ CFLAGS += -I$(PDCURSES_SRCDIR)
+
+-BASEDEF		= $(PDCURSES_SRCDIR)\exp-base.def
+-WIDEDEF		= $(PDCURSES_SRCDIR)\exp-wide.def
++BASEDEF		= $(PDCURSES_SRCDIR)/exp-base.def
++WIDEDEF		= $(PDCURSES_SRCDIR)/exp-wide.def
+
+ DEFDEPS		= $(BASEDEF)
+
+@@ -46,17 +46,17 @@
+
+ DEFFILE		= pdcurses.def
+
+-LINK		= gcc
++LINK		= $(CROSS_COMPILE)gcc
+
+ ifeq ($(DLL),Y)
+ 	CFLAGS += -DPDC_DLL_BUILD
+-	LIBEXE = gcc $(DEFFILE)
++	LIBEXE = $(CROSS_COMPILE)gcc $(DEFFILE)
+ 	LIBFLAGS = -Wl,--out-implib,pdcurses.a -shared -o
+ 	LIBCURSES = pdcurses.dll
+ 	LIBDEPS = $(LIBOBJS) $(PDCOBJS) $(DEFFILE)
+ 	CLEAN = $(LIBCURSES) *.a $(DEFFILE)
+ else
+-	LIBEXE = ar
++	LIBEXE = $(CROSS_COMPILE)ar
+ 	LIBFLAGS = rcv
+ 	LIBCURSES = pdcurses.a
+ 	LIBDEPS = $(LIBOBJS) $(PDCOBJS)
+@@ -70,24 +70,24 @@
+ libs:	$(LIBCURSES)
+
+ clean:
+-	-del *.o
+-	-del *.exe
+-	-del $(CLEAN)
++	-rm *.o
++	-rm *.exe
++	-rm $(CLEAN)
+
+ demos:	$(DEMOS)
+-	strip *.exe
++	$(CROSS_COMPILE)strip *.exe
+
+ $(DEFFILE): $(DEFDEPS)
+ 	echo LIBRARY pdcurses > $@
+ 	echo EXPORTS >> $@
+-	type $(BASEDEF) >> $@
++	cat $(BASEDEF) >> $@
+ ifeq ($(WIDE),Y)
+-	type $(WIDEDEF) >> $@
++	cat $(WIDEDEF) >> $@
+ endif
+
+ $(LIBCURSES) : $(LIBDEPS)
+ 	$(LIBEXE) $(LIBFLAGS) $@ $?
+-	-copy pdcurses.a panel.a
++	-cp pdcurses.a panel.a
+
+ $(LIBOBJS) $(PDCOBJS) : $(PDCURSES_HEADERS)
+ $(PDCOBJS) : $(PDCURSES_WIN_H)
+--- PDCurses-3.4.orig/curses.h	2009-11-03 14:12:18.000000000 +0100
++++ PDCurses-3.4./curses.h	2009-11-03 14:14:09.000000000 +0100
+@@ -82,7 +82,9 @@
+  *
+  */
+
++#ifndef __bool_true_false_are_defined
+ typedef unsigned char bool;    /* PDCurses Boolean type */
++#endif
+
+ #ifdef CHTYPE_LONG
+ # if _LP64
