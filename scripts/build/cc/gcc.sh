@@ -68,6 +68,8 @@ do_cc_core_pass_2() {
         ,,nptl)
             do_cc_core mode=shared build_libgcc=yes
             ;;
+        ,,win32) do_cc_core mode=static build_libgcc=yes
+            ;;
         *)  if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 do_cc_core mode=static build_libgcc=yes
             else
@@ -361,7 +363,12 @@ do_cc() {
             extra_config+=("--disable-libgomp")
         fi
     else
-        extra_config+=("--enable-threads=posix")
+        if [ "${CT_THREADS}" = "win32" ]; then
+            extra_config+=("--enable-threads=win32")
+            extra_config+=("--disable-win32-registry")
+        else
+            extra_config+=("--enable-threads=posix")
+        fi
     fi
 
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
