@@ -186,7 +186,7 @@ do_debug_gdb_build() {
             CT_DoExecLog ALL make install
 
             # We no longer need the temporary tic. Remove it
-            CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/bin/tic"
+            CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/buildtools/tic${tic_ext}"
         fi # do_ncurses
 
         CT_DoLog EXTRA "Configuring native gdb"
