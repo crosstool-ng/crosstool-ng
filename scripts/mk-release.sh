@@ -323,20 +323,13 @@ popd >/dev/null 2>&1
 
 printf "Creating tarball:"
 prefix="crosstool-ng-${version}"
-printf " cloning"
-hg clone "${repos}" "${prefix}" >/dev/null
-hg up -R "${prefix}" "${prefix}" >/dev/null
-date="$( hg log -R "${prefix}" -r "${prefix}" --template '{date|rfc822date}\n' )"
-printf ", purging"
-rm -rf "${prefix}/"{.hg,.hgtags,.hgignore}
-printf ", tarball"
-tar cjf "${prefix}.tar.bz2" "${prefix}"
+printf " archive"
+hg archive --cwd "${repos}" -r "${prefix}" -X '.hg*' "$(pwd)/${prefix}.tar.bz2"
+date="$( hg log -R "${repos}" -r "${prefix}" --template '{date|rfc822date}\n' )"
 printf ", sum"
 for s in md5 sha1 sha512; do
     ${s}sum "${prefix}.tar.bz2" >"${prefix}.tar.bz2.${s}"
 done
-printf ", cleaning"
-rm -rf "${prefix}"
 printf ", touch"
 touch -d "${date}" "${prefix}"*
 printf ", done.\n"
