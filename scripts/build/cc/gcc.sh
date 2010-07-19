@@ -419,7 +419,7 @@ do_cc() {
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
-    file="$( ls -1 "${CT_TARGET}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
     CT_DoExecLog ALL ln -sv "${CT_TARGET}-gcc${ext}" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc${ext}"
 
