@@ -1,0 +1,214 @@
+#!@@CT_bash@@
+
+# NON-CONFIGURABLE STUFF!
+export LC_ALL=C
+sed="@@CT_sed@@"
+grep="@@CT_grep@@"
+my_name="$( basename "${0}" )"
+prefix="${0%-ldd}"
+gcc="${prefix}-gcc"
+readelf="${prefix}-readelf"
+fake_load_addr="$((0xdeadbeef))"
+fake_load_addr_sys="$((0x8badf00d))"
+ld_library_path="/lib:/usr/lib"
+
+do_error() {
+    printf "%s: %s\n" "${my_name}" "$*" >&2
+}
+
+do_opt_error() {
+    do_error "$@"
+    printf "Try \`%s --help' for more information\n >&2"
+}
+
+show_version() {
+    # Fake a real ldd, just in case some dumb script would check
+    cat <<_EOF_
+ldd (crosstool-NG) 1.8.0
+Copyright (C) 2010 "Yann E. MORIN" <yann.morin.1998@anciens.enib.fr>
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+Licensed under the GPLv2, see the file LICENSES in the top-directory of the
+sources for this package.
+_EOF_
+}
+
+show_help() {
+    cat <<_EOF_
+Usage: ${my_name} [OPTION]... --root DIR FILE...
+      --help              print this help and exit
+      --version           print version information and exit
+      --root dir          treat dir as being the root of the target
+  -s, --show-system       mark libs from the sysroot with a trailing '[*]'
+
+_EOF_
+    cat <<_EOF_ |fmt
+${my_name} tries to mimick the behavior of a real native ldd, but can be
+used in a cross-development environment. Here is how it differs from a
+real native ldd:
+
+The LD_LIBRARY_PATH variable is not used, as it can not reliably be
+guessed except at runtime, and we can't run.
+
+${my_name} does not scan /etc/ld.so.cache, but instead uses /etc/ld.so.conf
+(it understands the include directives therein for libces that have that).
+[Note: this is missing for now...]
+
+${my_name} will search the directory specified with --root for libraries
+to resolve the NEEDED tags. If --root is not set, then ${my_name} will
+use the value in the environment variable \${CT_XLDD_ROOT}. If neither
+is set, then this is an error.
+
+If NEEDED libraries can't be found in the specified root directory, then
+${my_name} will also look in the sysroot of the toolchain to see if it
+can find them.
+
+For NEEDED libraries that were found, the output will look like:
+        libneeded.so => /path/to/libneeded.so (0xloadaddr)
+
+and for those that were not found, the output will look like:
+        libneeded.so not found
+
+The paths are relative to the specified root directory, or to the sysroot
+(eg. /lib/libneeded.so, /usr/lib/libneeded.so, and so on...).
+
+The expected load address 'loadaddr' is a faked address to match the output
+of the real ldd, but has no actual meaning (set to some constants for now,
+0x8badf00d for libraries from the sysroot, 0xdeadbeff for others).
+_EOF_
+
+# Unimplemeted yet:
+#  -d, --data-relocs       process data relocations
+#  -r, --function-relocs   process data and function relocations
+#  -u, --unused            print unused direct dependencies
+#  -v, --verbose           print all information
+
+# See also this thread:
+#  http://sourceware.org/ml/crossgcc/2008-09/msg00057.html
+}
+
+# Parse command line options
+root="${CT_XLDD_ROOT}"
+show_system=
+while true; do
+    case "${1}" in
+        --help)
+            show_help
+            exit 0
+            ;;
+        --version)
+            show_version
+            exit 0
+            ;;
+        --root)
+            root="$2"
+            shift
+            ;;
+        --root=*)
+            root="${1#--root=}"
+            ;;
+        --show-system|-s)
+            show_system=1
+            ;;
+        -*)
+            do_opt_error "unrecognized option \`${1}'"
+            exit 1
+            ;;
+        *)
+            break
+            ;;
+    esac
+    shift
+done
+
+# Sanity checks
+if [ -z "${root}" ]; then
+    do_opt_error "no root given"
+    exit 1
+fi
+if [ ! -d "${root}" ]; then
+    do_error "\`${root}': no such file or directory"
+    exit 1
+fi
+
+sysroot="$( "${gcc}" -print-sysroot )"
+
+do_report_needed_found() {
+    local needed="${1}"
+    local path="${2}"
+    local system="${3}"
+    local loadaddr
+    local sys
+
+    if [ -z "${system}" ]; then
+        loadaddr="${fake_load_addr}"
+    else
+        loadaddr="${fake_load_addr_sys}"
+        if [ -n "${show_system}" ]; then
+            sys=" [*]"
+        fi
+    fi
+
+    # 8 to fake a 32-bit load address
+    printf "%8s%s => %s (0x%0*x)%s\n"   \
+           ""                           \
+           "${needed}"                  \
+           "${path}"                    \
+           8                            \
+           "${loadaddr}"                \
+           "${sys}"
+}
+
+# Search a needed file, scanning ${lib_dir} in the root directory
+do_find_needed() {
+    local needed="${1}"
+    local found
+    local found_sysroot
+    local d
+
+    for d in "${needed_search_path[@]}"; do
+        if [ -f "${root}${d}/${needed}" ]; then
+            found="${d}/${needed}"
+        fi
+    done
+    if [ -z "${found}" ]; then
+    for d in "${needed_search_path[@]}"; do
+        if [ -f "${sysroot}${d}/${needed}" ]; then
+            found_sysroot="${d}/${needed}"
+        fi
+    done
+    fi
+
+    if [ -n "${found}" ]; then
+        do_report_needed_found "${needed}" "${found}"
+        do_process_file "${root}${found}"
+    elif [ -n "${found_sysroot}" ]; then
+        do_report_needed_found "${needed}" "${found_sysroot}" "sys"
+        do_process_file "${sysroot}${found_sysroot}"
+    else
+        printf "%8c%s not found\n" "" "${needed}"
+    fi
+}
+
+# Scan a file for all NEEDED tags
+do_process_file() {
+    local file="${1}"
+
+    "${readelf}" -d "${file}"                                           \
+    |"${grep}" -E '\(NEEDED\)'                                          \
+    |"${sed}" -r -e 's/^.*Shared library:[[:space:]]+\[(.*)\]$/\1/;'    \
+    |while read needed; do
+        do_find_needed "${needed}"
+     done
+}
+
+# Build up the full list of search directories
+declare -a needed_search_path
+ld_library_path="${ld_library_path}:"
+while [ -n "${ld_library_path}" ]; do
+    d="${ld_library_path%%:*}"
+    [ -n "${d}" ] && needed_search_path+=( "${d}" )
+    ld_library_path="${ld_library_path#*:}"
+done
+
+do_process_file "${1}"
