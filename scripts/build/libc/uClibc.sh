@@ -222,17 +222,6 @@ do_libc() {
          ${CT_LIBC_UCLIBC_VERBOSITY}    \
          install
 
-    if [ "${CT_LIBC_UCLIBC_BUILD_CROSS_LDD}" = "y" ]; then
-        CT_DoLog EXTRA "Building C library cross-ldd"
-        CT_DoExecLog ALL                    \
-        make PREFIX="${CT_SYSROOT_DIR}/"    \
-             ${CT_LIBC_UCLIBC_VERBOSITY}    \
-             -C utils hostutils
-
-        CT_DoLog EXTRA "Installing C library cross-ldd"
-        CT_DoExecLog ALL install -m 0755 utils/ldd.host "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
-    fi
-
     CT_EndStep
 }
 
