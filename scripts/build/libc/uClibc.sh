@@ -12,7 +12,7 @@ do_libc_get() {
     # later...
     CT_GetFile "uClibc-${CT_LIBC_VERSION}" ${libc_src}
     # uClibc locales
-    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
+    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
         CT_GetFile "uClibc-locale-030818" ${libc_src}
     fi
 
@@ -40,11 +40,14 @@ do_libc_extract() {
     fi
 
     # uClibc locales
-    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ]; then
+    # Extracting pregen locales ourselves is kinda
+    # broken, so just link it in place...
+    if [    "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y"           \
+         -a ! -f "${CT_SRC_DIR}/.uClibc-locales-030818.extracted"   ]; then
         CT_Pushd "$(libc_uclibc_src_dir)/extra/locale"
-        CT_Extract nochdir "uClibc-locale-030818"
-        CT_Patch nochdir "uClibc" "locale-030818"
+        CT_DoExecLog ALL ln -s "${CT_TARBALLS_DIR}/uClibc-locale-030818.tgz" .
         CT_Popd
+        touch "${CT_SRC_DIR}/.uClibc-locales-030818.extracted"
     fi
 
     return 0
@@ -354,14 +357,26 @@ mungeuClibcConfig() {
     # arrangements.  Note that having the uClibc Makefile download the
     # pregenerated locales is not compatible with crosstool; besides,
     # crosstool downloads them as part of getandpatch.sh.
-    if [ "${CT_LIBC_UCLIBC_LOCALES}" = "y" ] ; then
-        cat <<-ENDSED
-			s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\
-			UCLIBC_PREGENERATED_LOCALE_DATA=y\\
-			# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\
-			# UCLIBC_HAS_XLOCALE is not set/
-			ENDSED
-    fi
+    case "${CT_LIBC_UCLIBC_LOCALES}:${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" in
+        :*)
+            ;;
+        y:)
+            cat <<-ENDSED
+				s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\
+				# UCLIBC_PREGENERATED_LOCALE_DATA is not set\\
+				# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\
+				# UCLIBC_HAS_XLOCALE is not set/
+				ENDSED
+            ;;
+        y:y)
+            cat <<-ENDSED
+				s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\
+				UCLIBC_PREGENERATED_LOCALE_DATA=y\\
+				# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\
+				# UCLIBC_HAS_XLOCALE is not set/
+				ENDSED
+            ;;
+    esac
 
     # WCHAR support
     if [ "${CT_LIBC_UCLIBC_WCHAR}" = "y" ] ; then
