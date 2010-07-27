@@ -2,6 +2,11 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+# This is a constant because it does not change very often.
+# We're in 2010, and are still using data from 7 years ago.
+uclibc_locales_version=030818
+uclibc_local_tarball="uClibc-locales-${uclibc_locale_version}"
+
 # Download uClibc
 do_libc_get() {
     libc_src="http://www.uclibc.org/downloads
@@ -13,7 +18,7 @@ do_libc_get() {
     CT_GetFile "uClibc-${CT_LIBC_VERSION}" ${libc_src}
     # uClibc locales
     if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
-        CT_GetFile "uClibc-locale-030818" ${libc_src}
+        CT_GetFile "${uclibc_local_tarball}" ${libc_src}
     fi
 
     return 0
@@ -43,11 +48,11 @@ do_libc_extract() {
     # Extracting pregen locales ourselves is kinda
     # broken, so just link it in place...
     if [    "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y"           \
-         -a ! -f "${CT_SRC_DIR}/.uClibc-locales-030818.extracted"   ]; then
+         -a ! -f "${CT_SRC_DIR}/.${uclibc_local_tarball}.extracted" ]; then
         CT_Pushd "$(libc_uclibc_src_dir)/extra/locale"
-        CT_DoExecLog ALL ln -s "${CT_TARBALLS_DIR}/uClibc-locale-030818.tgz" .
+        CT_DoExecLog ALL ln -s "${CT_TARBALLS_DIR}/${uclibc_local_tarball}.tgz" .
         CT_Popd
-        touch "${CT_SRC_DIR}/.uClibc-locales-030818.extracted"
+        touch "${CT_SRC_DIR}/.${uclibc_local_tarball}.extracted"
     fi
 
     return 0
@@ -95,10 +100,13 @@ do_libc_headers() {
         cross="${CT_TARGET}-"
     fi
 
+    # Force the date of the pregen locale data, as the
+    # newer ones that are referenced are not available
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog ALL               \
                  make CROSS="${cross}"          \
                  PREFIX="${CT_SYSROOT_DIR}/"    \
+                 LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
 
     CT_DoLog EXTRA "Building headers"
@@ -106,6 +114,7 @@ do_libc_headers() {
     make ${CT_LIBC_UCLIBC_VERBOSITY}    \
          CROSS="${cross}"               \
          PREFIX="${CT_SYSROOT_DIR}/"    \
+         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          headers
 
     if [ "${CT_LIBC_UCLIBC_0_9_30_or_later}" = "y" ]; then
@@ -119,6 +128,7 @@ do_libc_headers() {
     make ${CT_LIBC_UCLIBC_VERBOSITY}    \
          CROSS="${cross}"               \
          PREFIX="${CT_SYSROOT_DIR}/"    \
+         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          ${install_rule}
 
     if [ "${CT_THREADS}" = "nptl" ]; then
@@ -129,6 +139,7 @@ do_libc_headers() {
              PREFIX="${CT_SYSROOT_DIR}/"                    \
              STRIPTOOL=true                                 \
              ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+             LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
              lib/crt1.o lib/crti.o lib/crtn.o
 
         # From:  http://git.openembedded.org/cgit.cgi/openembedded/commit/?id=ad5668a7ac7e0436db92e55caaf3fdf782b6ba3b
@@ -182,6 +193,7 @@ do_libc() {
     CT_DoYes "" |CT_DoExecLog ALL               \
                  make CROSS=${CT_TARGET}-       \
                  PREFIX="${CT_SYSROOT_DIR}/"    \
+                 LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
 
     # We do _not_ want to strip anything for now, in case we specifically
@@ -194,6 +206,7 @@ do_libc() {
          PREFIX="${CT_SYSROOT_DIR}/"                    \
          STRIPTOOL=true                                 \
          ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          pregen
     CT_DoExecLog ALL                                    \
     make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}  \
@@ -201,6 +214,7 @@ do_libc() {
          PREFIX="${CT_SYSROOT_DIR}/"                    \
          STRIPTOOL=true                                 \
          ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          all
 
     # YEM-FIXME:
@@ -223,6 +237,7 @@ do_libc() {
          PREFIX="${CT_SYSROOT_DIR}/"    \
          STRIPTOOL=true                 \
          ${CT_LIBC_UCLIBC_VERBOSITY}    \
+         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          install
 
     CT_EndStep
