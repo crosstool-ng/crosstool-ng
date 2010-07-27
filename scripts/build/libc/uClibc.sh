@@ -103,17 +103,17 @@ do_libc_headers() {
     # Force the date of the pregen locale data, as the
     # newer ones that are referenced are not available
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |CT_DoExecLog ALL               \
-                 make CROSS="${cross}"          \
-                 PREFIX="${CT_SYSROOT_DIR}/"    \
+    CT_DoYes "" |CT_DoExecLog ALL                                   \
+                 make CROSS="${cross}"                              \
+                 PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
 
     CT_DoLog EXTRA "Building headers"
-    CT_DoExecLog ALL                    \
-    make ${CT_LIBC_UCLIBC_VERBOSITY}    \
-         CROSS="${cross}"               \
-         PREFIX="${CT_SYSROOT_DIR}/"    \
+    CT_DoExecLog ALL                                        \
+    make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
+         CROSS="${cross}"                                   \
+         PREFIX="${CT_SYSROOT_DIR}/"                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          headers
 
@@ -124,21 +124,21 @@ do_libc_headers() {
     fi
 
     CT_DoLog EXTRA "Installing headers"
-    CT_DoExecLog ALL                    \
-    make ${CT_LIBC_UCLIBC_VERBOSITY}    \
-         CROSS="${cross}"               \
-         PREFIX="${CT_SYSROOT_DIR}/"    \
+    CT_DoExecLog ALL                                        \
+    make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
+         CROSS="${cross}"                                   \
+         PREFIX="${CT_SYSROOT_DIR}/"                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          ${install_rule}
 
     if [ "${CT_THREADS}" = "nptl" ]; then
         CT_DoLog EXTRA "Building start files"
-        CT_DoExecLog ALL                                    \
-        make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}  \
-             CROSS="${cross}"                               \
-             PREFIX="${CT_SYSROOT_DIR}/"                    \
-             STRIPTOOL=true                                 \
-             ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+        CT_DoExecLog ALL                                        \
+        make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}      \
+             CROSS="${cross}"                                   \
+             PREFIX="${CT_SYSROOT_DIR}/"                        \
+             STRIPTOOL=true                                     \
+             ${CT_LIBC_UCLIBC_VERBOSITY}                        \
              LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
              lib/crt1.o lib/crti.o lib/crtn.o
 
@@ -190,9 +190,9 @@ do_libc() {
     # to best fit the target. So it is useless and seems to be a bad thing to
     # use LIBC_EXTRA_CFLAGS here.
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |CT_DoExecLog ALL               \
-                 make CROSS=${CT_TARGET}-       \
-                 PREFIX="${CT_SYSROOT_DIR}/"    \
+    CT_DoYes "" |CT_DoExecLog ALL                                   \
+                 make CROSS=${CT_TARGET}-                           \
+                 PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
 
@@ -200,20 +200,20 @@ do_libc() {
     # asked for a debug toolchain, thus the STRIPTOOL= assignment
     # /Old/ versions can not build in //
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL                                    \
-    make -j1                                            \
-         CROSS=${CT_TARGET}-                            \
-         PREFIX="${CT_SYSROOT_DIR}/"                    \
-         STRIPTOOL=true                                 \
-         ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+    CT_DoExecLog ALL                                        \
+    make -j1                                                \
+         CROSS=${CT_TARGET}-                                \
+         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         STRIPTOOL=true                                     \
+         ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          pregen
-    CT_DoExecLog ALL                                    \
-    make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}  \
-         CROSS=${CT_TARGET}-                            \
-         PREFIX="${CT_SYSROOT_DIR}/"                    \
-         STRIPTOOL=true                                 \
-         ${CT_LIBC_UCLIBC_VERBOSITY}                    \
+    CT_DoExecLog ALL                                        \
+    make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}      \
+         CROSS=${CT_TARGET}-                                \
+         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         STRIPTOOL=true                                     \
+         ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          all
 
@@ -232,11 +232,11 @@ do_libc() {
     # Note: PARALLELMFLAGS is not usefull for installation.
     #
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL                    \
-    make CROSS=${CT_TARGET}-            \
-         PREFIX="${CT_SYSROOT_DIR}/"    \
-         STRIPTOOL=true                 \
-         ${CT_LIBC_UCLIBC_VERBOSITY}    \
+    CT_DoExecLog ALL                                        \
+    make CROSS=${CT_TARGET}-                                \
+         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         STRIPTOOL=true                                     \
+         ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          install
 
