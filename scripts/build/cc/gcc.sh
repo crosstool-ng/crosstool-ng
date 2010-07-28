@@ -327,8 +327,11 @@ do_cc() {
     [ "${CT_SHARED_LIBS}" = "y" ]                   || extra_config+=("--disable-shared")
     [ -n "${CT_CC_PKGVERSION}" ]                    && extra_config+=("--with-pkgversion=${CT_CC_PKGVERSION}")
     [ -n "${CT_CC_BUGURL}" ]                        && extra_config+=("--with-bugurl=${CT_CC_BUGURL}")
-    [ "${CT_CC_SJLJ_EXCEPTIONS_USE}" = "y" ]        && extra_config+=("--enable-sjlj-exceptions")
-    [ "${CT_CC_SJLJ_EXCEPTIONS_DONT_USE}" = "y" ]   && extra_config+=("--disable-sjlj-exceptions")
+    case "${CT_CC_GCC_SJLJ_EXCEPTIONS}" in
+        y)  extra_config+=("--enable-sjlj-exceptions");;
+        m)  ;;
+        "") extra_config+=("--disable-sjlj-exceptions");;
+    esac
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config+=("--enable-__cxa_atexit")
     else

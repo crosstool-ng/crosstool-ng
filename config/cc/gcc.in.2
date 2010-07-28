@@ -30,40 +30,24 @@ config CC_GCC_DISABLE_PCH
       need to be disabled. Please see:
         http://gcc.gnu.org/bugzilla/show_bug.cgi?id=40974
 
-choice
-    bool
+config CC_GCC_SJLJ_EXCEPTIONS
+    tristate
     prompt "Use sjlj for exceptions"
-    default CC_SJLJ_EXCEPTIONS_CONFIGURE
-    depends on ! BARE_METAL
-
-# This config option is used nowhere in the code on purpose.
-# It only serves as a choice entry to force neither using nor not using sjlj
-config CC_SJLJ_EXCEPTIONS_CONFIGURE
-    bool
-    prompt "Let configure decide"
+    default m
     help
-      Let configure decide if setjmp/longjmp should be used to handle
-      exceptions.
+      'sjlj' is short for setjmp/longjmp.
       
-      Choose that if you trust configure to detect the correct settings.
-      This is the default choice.
-
-config CC_SJLJ_EXCEPTIONS_USE
-    bool
-    prompt "Force using sjlj"
-    help
-      Do use setjmp/longjmp for exceptions.
-      This is gcc's --enable-sjlj-exceptions configure switch.
+      On some architectures, stack unwinding during exception handling
+      works perfectly well without using sjlj, while on some others,
+      use of sjlj is required for proper stack unwinding.
       
-      Choose that if you want to use setjmp/longjmp to handle exceptions.
-
-config CC_SJLJ_EXCEPTIONS_DONT_USE
-    bool
-    prompt "Force not using sjlj"
-    help
-      Do not use setjmp/longjmp for exceptions.
-      This is gcc's --disable-sjlj-exceptions configure switch.
+       Option  | sjlj use           | Associated ./configure switch
+      ---------+--------------------+--------------------------------
+         Y     | forcibly used      | --enable-sjlj-exceptions
+         M     | auto               | (none, ./configure decides)
+         N     | forcibly not used  | --disable-sjlj-exceptions
       
-      Choose that if you want to not use setjmp/longjmp to handle exceptions.
-
-endchoice
+      It should be safe to say 'M' or 'N'.
+      
+      It can happen that ./configure is wrong in some cases. Known
+      case is for ARM big endian, where you should say 'N'.
