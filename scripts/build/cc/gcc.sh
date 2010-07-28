@@ -195,6 +195,7 @@ do_cc_core() {
         --prefix="${core_prefix_dir}"               \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --disable-multilib                          \
+        --disable-libmudflap                        \
         ${CC_CORE_SYSROOT_ARG}                      \
         "${extra_config[@]}"                        \
         --disable-nls                               \
@@ -339,6 +340,11 @@ do_cc() {
     fi
     if [ -n "${CC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CC_ENABLE_CXX_FLAGS}")
+    fi
+    if [ "${CT_CC_GCC_LIBMUDFLAP}" = "y" ]; then
+        extra_config+=(--enable-libmudflap)
+    else
+        extra_config+=(--disable-libmudflap)
     fi
 
     # When companion libraries are build static (eg !shared),
