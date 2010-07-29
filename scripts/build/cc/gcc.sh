@@ -347,10 +347,16 @@ do_cc() {
         extra_config+=(--disable-libmudflap)
     fi
 
-    # When companion libraries are build static (eg !shared),
-    # the libstdc++ is not pulled automatically, although it
-    # is needed. Shoe-horn it in our LDFLAGS
-    if [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
+    if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
+        # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
+        # build script
+        # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
+        # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
+        extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm")
+    elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
+        # When companion libraries are build static (eg !shared),
+        # the libstdc++ is not pulled automatically, although it
+        # is needed. Shoe-horn it in our LDFLAGS
         final_LDFLAGS='-lstdc++'
     fi
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
