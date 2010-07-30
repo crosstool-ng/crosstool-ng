@@ -53,6 +53,13 @@ PHONY += list-samples
 list-samples: FORCE
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
 
+PHONY += list-samples-short
+list-samples-short: FORCE
+	$(SILENT)for s in $(CT_SAMPLES); do \
+	    printf "$${s}\n";               \
+	done
+
+PHONY += wiki-samples
 wiki-samples:
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
 
