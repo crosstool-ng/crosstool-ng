@@ -161,8 +161,9 @@ do_cc_core() {
     # When companion libraries are build static (eg !shared),
     # the libstdc++ is not pulled automatically, although it
     # is needed. Shoe-horn it in our LDFLAGS
+    # Ditto libm on some Fedora boxen
     if [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
-        core_LDFLAGS='-lstdc++'
+        core_LDFLAGS='-lstdc++ -lm'
     fi
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
         extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
@@ -357,7 +358,8 @@ do_cc() {
         # When companion libraries are build static (eg !shared),
         # the libstdc++ is not pulled automatically, although it
         # is needed. Shoe-horn it in our LDFLAGS
-        final_LDFLAGS='-lstdc++'
+        # Ditto libm on some Fedora boxen
+        final_LDFLAGS='-lstdc++ -lm'
     fi
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
         extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
