@@ -56,7 +56,7 @@ do_cloog() {
         cloog_opts+=( --enable-shared --disable-static )
     else
         cloog_opts+=( --disable-shared --enable-static )
-        cloog_LDFLAGS='-lstdc++'
+        cloog_LDFLAGS='-lstdc++ -lm'
     fi
 
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
