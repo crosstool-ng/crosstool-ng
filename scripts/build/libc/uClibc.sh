@@ -5,7 +5,7 @@
 # This is a constant because it does not change very often.
 # We're in 2010, and are still using data from 7 years ago.
 uclibc_locales_version=030818
-uclibc_local_tarball="uClibc-locales-${uclibc_locale_version}"
+uclibc_local_tarball="uClibc-locale-${uclibc_locales_version}"
 
 # Download uClibc
 do_libc_get() {
