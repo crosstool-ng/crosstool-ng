@@ -44,6 +44,7 @@ do_libc_headers() {
     mkdir -p "${CT_HEADERS_DIR}"
     cp -r ${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/include/* \
           ${CT_HEADERS_DIR}
+    CT_DoExecLog ALL ln -sv "usr" "${CT_SYSROOT_DIR}/mingw"
 
     CT_EndStep
 }
@@ -65,6 +66,7 @@ do_libc() {
     CT_DoExecLog ALL                                              \
     "${CT_SRC_DIR}/w32api-${CT_W32API_VERSION}-mingw32/configure" \
         --prefix=${CT_SYSROOT_DIR}                                \
+        --includedir=${CT_HEADERS_DIR}                            \
         --host=${CT_TARGET}
 
     CT_DoLog EXTRA "Building W32-API"
@@ -83,6 +85,7 @@ do_libc() {
     CT_DoExecLog ALL                                                \
     "${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/configure" \
         --prefix=${CT_SYSROOT_DIR}/                                 \
+        --includedir=${CT_HEADERS_DIR}                              \
         --host=${CT_TARGET}
 
     CT_DoLog EXTRA "Building MinGW Runtime"
@@ -95,6 +98,9 @@ do_libc() {
 }
 
 do_libc_finish() {
+    # Remove the build-symlink now it is no longer needed.
+    CT_DoExecLog ALL rm -f "${CT_SYSROOT_DIR}/mingw"
+
     CT_DoStep INFO "Installing MinGW Development libraries"
 
     CT_Pushd "${CT_SYSROOT_DIR}"
@@ -120,7 +126,7 @@ do_libc_finish() {
         CT_DoLog EXTRA "Installing PDCurses development files"
         chmod a+r ${CT_SRC_DIR}/PDCurses-${CT_MINGW_PDCURSES_VERSION}/*.h
         cp ${CT_SRC_DIR}/PDCurses-${CT_MINGW_PDCURSES_VERSION}/*.h \
-           ${CT_HEADERS_DIR}
+           ${CT_HEADERS_DIR}/
         cp pdcurses.a ${CT_SYSROOT_DIR}/lib/libpdcurses.a
         cp pdcurses.a ${CT_SYSROOT_DIR}/lib/libncurses.a
     fi
@@ -137,6 +143,7 @@ do_libc_finish() {
             --build=${CT_BUILD}           \
             --host=${CT_TARGET}           \
             --prefix=${CT_SYSROOT_DIR}    \
+            --includedir=${CT_HEADERS_DIR}  \
             --enable-shared               \
             --enable-static
 
