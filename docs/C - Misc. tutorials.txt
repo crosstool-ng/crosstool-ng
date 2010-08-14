@@ -91,3 +91,200 @@ HINTS:
   before executing ct-ng build.
   See http://www.gnu.org/software/make/manual/html_node/Libraries_002fSearch.html
   as an explanation.
+
+
+Using Mercurial to hack crosstool-NG |
+-------------------------------------+
+
+Contributed by: Titus von Boxberg
+
+PREREQUISITES:
+
+Configuring Mercurial:
+  You need mercurial with the following extensions:
+   - mq        : http://mercurial.selenic.com/wiki/MqExtension
+   - patchbomb : http://mercurial.selenic.com/wiki/PatchbombExtension
+  Usually, these two extensions are already part of the installation package.
+  The mq extension maintains a separate queue of your local changes
+  that you can change at any later time.
+  With the patchbomb extension you can email those patches directly
+  from your local repo.
+
+  Your configuration file for mercurial, e.g. ~/.hgrc should contain
+  at least the following sections (but have a look at `man hgrc`):
+  # ---
+  [email]
+  # configure sending patches directly via Mercurial
+  from = "Your Name" <your@email.address>
+  # How to send email:
+  method = smtp
+
+  [smtp]
+  # SMTP configuration (only for method=smtp)
+  host = localhost
+  tls = true
+  username =
+  password =
+
+  [extensions]
+  # The following lines enable the two extensions:
+  hgext.mq =
+  hgext.patchbomb =
+  # ----
+
+Create your local repository as a clone:
+  hg clone http://ymorin.is-a-geek.org/hg/crosstool-ng crosstool-ng
+
+Setting up the mq extension in your local copy:
+  cd crosstool-ng
+  hg qinit
+
+
+CREATING PATCHES:
+
+Recording your changes in the patch queue maintained by mq:
+  # First, create a new patch entry in the patch queue:
+  hg qnew -D -U -e short_patch_name1
+  <edit patch description as commit message (see below for an example)>
+
+  <now edit the ct-ng sources and check them>
+
+  # if you execute `hg status` here, your modifications of the working
+  # copy should show up.
+
+  # Now the following command takes your modifications from the working copy
+  # into the patch entry
+  hg qrefresh -D [-e]
+  <reedit patch description [-e] if desired>
+
+  # Now your changes are recorded, and `hg status` should show a clean
+  # working copy
+
+Repeat the above steps for all your modifications.
+The command `hg qseries` informs you about the content of your patch queue.
+
+
+CONTRIBUTING YOUR PATCHES:
+
+Once you are satisfied with your patch series, you can (you should!)
+contribute them back to upstream.
+This is easily done using the `hg email` command.
+
+`hg email` sends your new changesets to a specified list of recipients,
+each patch in its own email, all ordered in the way you entered them (oldest
+first). The command line flag --outgoing selects all changesets that are in
+your local but not yet in the upstream repository. Here, these are exactly
+the ones you entered into your local patch queue in the section above, so
+--outgoing is what you want.
+
+Each email gets the subject set to:  "[PATCH x of n] <series summary>"
+where 'x' is the serial number in the email series, and 'n' is the total number
+of patches in the series. The body of the email is the complete patch, plus
+a handful of metadata, that helps properly apply the patch, keeping the log
+message, attribution and date, tracking file changes (move, delete, modes...)
+
+`hg email` also threads all outgoing patch emails below an introductory
+message. You should use the introductory message (command line flag --intro)
+to describe the scope and motivation for the whole patch series. The subject
+for the introductory message gets set to:  "[PATCH 0 of n] <series summary>"
+and you get the chance to set the <series summary>.
+
+Here is a sample `hg email` complete command line:
+Note: replace " (at) " with "@"
+
+  hg email --outgoing --intro   \
+           --to '"Yann E. MORIN" <yann.morin.1998 (at) anciens.enib.fr>'    \
+           --cc 'crossgcc (at) sourceware.org'
+
+  # It then opens an editor and lets you enter the subject
+  # and the body for the introductory message.
+
+Use `hg email` with the additional command line switch -n to
+first have a look at the email(s) without actually sending them.
+
+
+MAINTAINING YOUR PATCHES:
+
+When the patches are refined by discussing them on the mailing list,
+you may want to finalize and resend them.
+
+The mq extension has the idiosyncrasy of imposing a stack onto the queue:
+You can always reedit/refresh only the patch on top of stack.
+The queue consists of applied and unapplied patches
+(if you reached here via the above steps, all of your patches are applied),
+where the 'stack' consists of the applied patches, and 'top of stack'
+is the latest applied patch.
+
+The following output of `hg qseries` is now used as an example:
+  0 A short_patch_name1
+  1 A short_patch_name2
+  2 A short_patch_name3
+  3 A short_patch_name4
+
+You are now able to edit patch 'short_patch_name4' (which is top of stack):
+  <Edit the sources>
+  # and execute again
+  hg qrefresh -D [-e]
+  <and optionally [-e] reedit the commit message>
+
+If you want to edit e.g. patch short_patch_name2, you have to modify
+mq's stack so this patch gets top of stack.
+For this purpose see `hg help qgoto`, `hg help qpop`, and `hg help qpush`.
+
+  hg qgoto short_patch_name2
+  # The patch queue should now look like
+  hg qseries
+    0 A short_patch_name1
+    1 A short_patch_name2
+    2 U short_patch_name3
+    3 U short_patch_name4
+  # so patch # 1 (short_patch_name2) is top of stack.
+  <now reedit the sources for short_patch_name2>
+  # and execute again
+  hg qrefresh -D [-e]
+  <and optionally [-e] reedit the commit message>
+  # the following command reapplies the now unapplied two patches:
+  hg qpush -a
+  # you can also use `hg qgoto short_patch_name4` to get there again.
+
+
+RESENDING YOUR REEDITED PATCHES:
+
+By mailing list policy, please resend your complete patch series.
+--> Go back to section "CONTRIBUTING YOUR PATCHES" and resubmit the full set.
+
+
+SYNCING WITH UPSTREAM AGAIN:
+
+You can sync your repo with upstream at any time by executing
+  # first unapply all your patches:
+  hg qpop -a
+  # next fetch new changesets from upstream
+  hg pull
+  # then update your working copy
+  hg up
+  # optionally remove already upstream integrated patches (see below)
+  hg qdelete <short_name_of_already_applied_patch>
+  # and reapply your patches if any non upstream-integrated left (but see below)
+  hg qpush -a
+
+Eventually, your patches get included into the upstream repository
+which you initially cloned.
+In this case, before executing the hg qpush -a from above
+you should manually "hg qdelete" the patches that are already integrated upstream.
+
+
+HOW TO FORMAT COMMIT MESSAGES (aka patch desciptions):
+
+Commit messages should look like (without leading pipes):
+ |component: short, one-line description
+ |
+ |optional longer description
+ |on multiple lines if needed
+
+Here is an example commit message (see revision a53a5e1d61db):
+ |comp-libs/cloog: fix building
+ |
+ |For CLooG/PPL 0.15.3, the directory name was simply cloog-ppl.
+ |For any later versions, the directory name does have the version, such as
+ |cloog-ppl-0.15.4.
