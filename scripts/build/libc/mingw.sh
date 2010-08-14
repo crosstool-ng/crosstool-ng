@@ -41,9 +41,9 @@ do_libc_headers() {
     CT_DoStep INFO "Installing C library headers"
 
     CT_DoLog EXTRA "Installing MinGW Runtime headers"
-    mkdir -p "${CT_SYSROOT_DIR}/include"
-    cp -r ${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/include \
-          ${CT_SYSROOT_DIR}
+    mkdir -p "${CT_HEADERS_DIR}"
+    cp -r ${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/include/* \
+          ${CT_HEADERS_DIR}
 
     CT_EndStep
 }
@@ -60,7 +60,7 @@ do_libc() {
     mkdir -p "${CT_BUILD_DIR}/build-w32api"
     cd "${CT_BUILD_DIR}/build-w32api"
 
-    CFLAGS="-I${CT_SYSROOT_DIR}/include"                          \
+    CFLAGS="-I${CT_HEADERS_DIR}"                                  \
     LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                             \
     CT_DoExecLog ALL                                              \
     "${CT_SRC_DIR}/w32api-${CT_W32API_VERSION}-mingw32/configure" \
@@ -78,7 +78,7 @@ do_libc() {
     mkdir -p "${CT_BUILD_DIR}/build-mingwrt"
     cd "${CT_BUILD_DIR}/build-mingwrt"
 
-    CFLAGS="-I${CT_SYSROOT_DIR}/include"                            \
+    CFLAGS="-I${CT_HEADERS_DIR}"                                    \
     LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                               \
     CT_DoExecLog ALL                                                \
     "${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/configure" \
@@ -120,7 +120,7 @@ do_libc_finish() {
         CT_DoLog EXTRA "Installing PDCurses development files"
         chmod a+r ${CT_SRC_DIR}/PDCurses-${CT_MINGW_PDCURSES_VERSION}/*.h
         cp ${CT_SRC_DIR}/PDCurses-${CT_MINGW_PDCURSES_VERSION}/*.h \
-           ${CT_SYSROOT_DIR}/include
+           ${CT_HEADERS_DIR}
         cp pdcurses.a ${CT_SYSROOT_DIR}/lib/libpdcurses.a
         cp pdcurses.a ${CT_SYSROOT_DIR}/lib/libncurses.a
     fi
