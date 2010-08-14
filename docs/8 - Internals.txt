@@ -1,0 +1,294 @@
+File.........: 8 - Internals.txt
+Copyrigth....: (C) 2010 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
+License......: Creative Commons Attribution Share Alike (CC-by-sa), v2.5
+
+
+Internals  /
+__________/
+
+
+Internally, crosstool-NG is script-based. To ease usage, the frontend is
+Makefile-based.
+
+
+Makefile front-end |
+-------------------+
+
+The entry point to crosstool-NG is the Makefile script "ct-ng". Calling this
+script with an action will act exactly as if the Makefile was in the current
+working directory and make was called with the action as rule. Thus:
+  ct-ng menuconfig
+
+is equivalent to having the Makefile in CWD, and calling:
+  make menuconfig
+
+Having ct-ng as it is avoids copying the Makefile everywhere, and acts as a
+traditional command.
+
+ct-ng loads sub- Makefiles from the library directory $(CT_LIB_DIR), as set up
+at configuration time with ./configure.
+
+ct-ng also searches for config files, sub-tools, samples, scripts and patches in
+that library directory.
+
+Because of a stupid make behavior/bug I was unable to track down, implicit make
+rules are disabled: installing with --local would triger those rules, and mconf
+was unbuildable.
+
+
+Kconfig parser |
+---------------+
+
+The kconfig language is a hacked version, vampirised from the Linux kernel
+(http://www.kernel.org/), and (heavily) adapted to my needs.
+
+The list of the most notable changes (at least the ones I remember) follows:
+- the CONFIG_ prefix has been replaced with CT_
+- a leading | in prompts is skipped, and subsequent leading spaces are not
+  trimmed; otherwise leading spaces are silently trimmed
+- removed the warning about undefined environment variable
+
+The kconfig parsers (conf and mconf) are not installed pre-built, but as
+source files. Thus you can have the directory where crosstool-NG is installed,
+exported (via NFS or whatever) and have clients with different architectures
+use the same crosstool-NG installation, and most notably, the same set of
+patches.
+
+
+Architecture-specific |
+----------------------+
+
+Note: this chapter is not really well written, and might thus be a little bit
+complex to understand. To get a better grasp of what an architecture is, the
+reader is kindly encouraged to look at the "arch/" sub-directory, and to the
+existing architectures to see how things are laid out.
+
+An architecture is defined by:
+
+ - a human-readable name, in lower case letters, with numbers as appropriate.
+   The underscore is allowed; space and special characters are not.
+     Eg.: arm, x86_64
+ - a file in "config/arch/", named after the architecture's name, and suffixed
+   with ".in".
+     Eg.: config/arch/arm.in
+ - a file in "scripts/build/arch/", named after the architecture's name, and
+   suffixed with ".sh".
+     Eg.: scripts/build/arch/arm.sh
+
+The architecture's ".in" file API:
+ > the config option "ARCH_%arch%" (where %arch% is to be replaced with the
+   actual architecture name).
+   That config option must have *neither* a type, *nor* a prompt! Also, it can
+   *not* depend on any other config option (EXPERIMENTAL is managed as above).
+     Eg.:
+       config ARCH_arm
+   + mandatory:
+       defines a (terse) help entry for this architecture:
+       Eg.:
+         config ARCH_arm
+           help
+             The ARM architecture.
+   + optional:
+       selects adequate associated config options.
+       Note: 64-bit architectures *shall* select ARCH_64
+       Eg.:
+         config ARCH_arm
+           select ARCH_SUPPORTS_BOTH_ENDIAN
+           select ARCH_DEFAULT_LE
+           help
+             The ARM architecture.
+       Eg.:
+         config ARCH_x86_64
+            select ARCH_64
+            help
+              The x86_64 architecture.
+
+ > other target-specific options, at your discretion. Note however that to
+   avoid name-clashing, such options shall be prefixed with "ARCH_%arch%",
+   where %arch% is again replaced by the actual architecture name.
+   (Note: due to historical reasons, and lack of time to clean up the code,
+    I may have left some config options that do not completely conform to
+    this, as the architecture name was written all upper case. However, the
+    prefix is unique among architectures, and does not cause harm).
+
+The architecture's ".sh" file API:
+ > the function "CT_DoArchTupleValues"
+   + parameters: none
+   + environment:
+     - all variables from the ".config" file,
+     - the two variables "target_endian_eb" and "target_endian_el" which are
+       the endianness suffixes
+   + return value: 0 upon success, !0 upon failure
+   + provides:
+     - mandatory
+     - the environment variable CT_TARGET_ARCH
+     - contains:
+       the architecture part of the target tuple.
+       Eg.: "armeb" for big endian ARM
+            "i386" for an i386
+   + provides:
+     - optional
+     - the environment variable CT_TARGET_SYS
+     - contains:
+       the sytem part of the target tuple.
+       Eg.: "gnu" for glibc on most architectures
+            "gnueabi" for glibc on an ARM EABI
+     - defaults to:
+       - for glibc-based toolchain: "gnu"
+       - for uClibc-based toolchain: "uclibc"
+   + provides:
+     - optional
+     - the environment variables to configure the cross-gcc (defaults)
+       - CT_ARCH_WITH_ARCH    : the gcc ./configure switch to select architecture level         ( "--with-arch=${CT_ARCH_ARCH}"   )
+       - CT_ARCH_WITH_ABI     : the gcc ./configure switch to select ABI level                  ( "--with-abi=${CT_ARCH_ABI}"     )
+       - CT_ARCH_WITH_CPU     : the gcc ./configure switch to select CPU instruction set        ( "--with-cpu=${CT_ARCH_CPU}"     )
+       - CT_ARCH_WITH_TUNE    : the gcc ./configure switch to select scheduling                 ( "--with-tune=${CT_ARCH_TUNE}"   )
+       - CT_ARCH_WITH_FPU     : the gcc ./configure switch to select FPU type                   ( "--with-fpu=${CT_ARCH_FPU}"     )
+       - CT_ARCH_WITH_FLOAT   : the gcc ./configure switch to select floating point arithmetics ( "--with-float=soft" or /empty/  )
+   + provides:
+     - optional
+     - the environment variables to pass to the cross-gcc to build target binaries (defaults)
+       - CT_ARCH_ARCH_CFLAG   : the gcc switch to select architecture level                     ( "-march=${CT_ARCH_ARCH}"            )
+       - CT_ARCH_ABI_CFLAG    : the gcc switch to select ABI level                              ( "-mabi=${CT_ARCH_ABI}"              )
+       - CT_ARCH_CPU_CFLAG    : the gcc switch to select CPU instruction set                    ( "-mcpu=${CT_ARCH_CPU}"              )
+       - CT_ARCH_TUNE_CFLAG   : the gcc switch to select scheduling                             ( "-mtune=${CT_ARCH_TUNE}"            )
+       - CT_ARCH_FPU_CFLAG    : the gcc switch to select FPU type                               ( "-mfpu=${CT_ARCH_FPU}"              )
+       - CT_ARCH_FLOAT_CFLAG  : the gcc switch to choose floating point arithmetics             ( "-msoft-float" or /empty/           )
+       - CT_ARCH_ENDIAN_CFLAG : the gcc switch to choose big or little endian                   ( "-mbig-endian" or "-mlittle-endian" )
+     - default to:
+       see above.
+   + provides:
+     - optional
+     - the environement variables to configure the core and final compiler, specific to this architecture:
+       - CT_ARCH_CC_CORE_EXTRA_CONFIG   : additional, architecture specific core gcc ./configure flags
+       - CT_ARCH_CC_EXTRA_CONFIG        : additional, architecture specific final gcc ./configure flags
+     - default to:
+       - all empty
+   + provides:
+     - optional
+     - the architecture-specific CFLAGS and LDFLAGS:
+       - CT_ARCH_TARGET_CLFAGS
+       - CT_ARCH_TARGET_LDFLAGS
+     - default to:
+       - all empty
+
+You can have a look at "config/arch/arm.in" and "scripts/build/arch/arm.sh" for
+a quite complete example of what an actual architecture description looks like.
+
+
+Kernel specific |
+----------------+
+
+A kernel is defined by:
+
+ - a human-readable name, in lower case letters, with numbers as appropriate.
+   The underscore is allowed; space and special characters are not (although
+   they are internally replaced with underscores.
+     Eg.: linux, bare-metal
+ - a file in "config/kernel/", named after the kernel name, and suffixed with
+   ".in".
+     Eg.: config/kernel/linux.in, config/kernel/bare-metal.in
+ - a file in "scripts/build/kernel/", named after the kernel name, and suffixed
+   with ".sh".
+     Eg.: scripts/build/kernel/linux.sh, scripts/build/kernel/bare-metal.sh
+
+The kernel's ".in" file must contain:
+ > an optional lines containing exactly "# EXPERIMENTAL", starting on the
+   first column, and without any following space or other character.
+   If this line is present, then this kernel is considered EXPERIMENTAL,
+   and correct dependency on EXPERIMENTAL will be set.
+
+ > the config option "KERNEL_%kernel_name%" (where %kernel_name% is to be
+   replaced with the actual kernel name, with all special characters and
+   spaces replaced by underscores).
+   That config option must have *neither* a type, *nor* a prompt! Also, it can
+   *not* depends on EXPERIMENTAL.
+     Eg.: KERNEL_linux, KERNEL_bare_metal
+   + mandatory:
+       defines a (terse) help entry for this kernel.
+       Eg.:
+         config KERNEL_bare_metal
+           help
+             Build a compiler for use without any kernel.
+   + optional:
+       selects adequate associated config options.
+       Eg.:
+         config KERNEL_bare_metal
+           select BARE_METAL
+           help
+             Build a compiler for use without any kernel.
+
+ > other kernel specific options, at your discretion. Note however that, to
+   avoid name-clashing, such options should be prefixed with
+   "KERNEL_%kernel_name%", where %kernel_name% is again tp be replaced with
+   the actual kernel name.
+   (Note: due to historical reasons, and lack of time to clean up the code,
+    I may have left some config options that do not completely conform to
+    this, as the kernel name was written all upper case. However, the prefix
+    is unique among kernels, and does not cause harm).
+
+The kernel's ".sh" file API:
+ > is a bash script fragment
+
+ > defines the function CT_DoKernelTupleValues
+   + see the architecture's CT_DoArchTupleValues, except for:
+   + set the environment variable CT_TARGET_KERNEL, the kernel part of the
+     target tuple
+   + return value: ignored
+
+ > defines the function "do_kernel_get":
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file.
+   + return value: 0 for success, !0 for failure.
+   + behavior: download the kernel's sources, and store the tarball into
+     "${CT_TARBALLS_DIR}". To this end, a functions is available, that
+     abstracts downloading tarballs:
+     - CT_DoGet <tarball_base_name> <URL1 [URL...]>
+       Eg.: CT_DoGet linux-2.6.26.5 ftp://ftp.kernel.org/pub/linux/kernel/v2.6
+     Note: retrieving sources from svn, cvs, git and the likes is not supported
+     by CT_DoGet. You'll have to do this by hand, as it is done for eglibc in
+     "scripts/build/libc/eglibc.sh"
+
+ > defines the function "do_kernel_extract":
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file,
+   + return value: 0 for success, !0 for failure.
+   + behavior: extract the kernel's tarball into "${CT_SRC_DIR}", and apply
+     required patches. To this end, a function is available, that abstracts
+     extracting tarballs:
+     - CT_ExtractAndPatch <tarball_base_name>
+       Eg.: CT_ExtractAndPatch linux-2.6.26.5
+
+ > defines the function "do_kernel_headers":
+   + parameters: none
+   + environment:
+      - all variables from the ".config" file,
+   + return value: 0 for success, !0 for failure.
+   + behavior: install the kernel headers (if any) in "${CT_SYSROOT_DIR}/usr/include"
+
+ > defines any kernel-specific helper functions
+   These functions, if any, must be prefixed with "do_kernel_%CT_KERNEL%_",
+   where '%CT_KERNEL%' is to be replaced with the actual kernel name, to avoid
+   any name-clashing.
+
+You can have a look at "config/kernel/linux.in" and "scripts/build/kernel/linux.sh"
+as an example of what a complex kernel description looks like.
+
+
+Adding a new version of a component |
+------------------------------------+
+
+When a new component, such as the Linux kernel, gcc or any other is released,
+adding the new version to crosstool-NG is quite easy. There is a script that
+will do all that for you:
+  scripts/addToolVersion.sh
+
+Run it with no option to get some help.
+
+
+Build scripts |
+--------------+
+
+To Be Written later...

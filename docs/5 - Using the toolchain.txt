@@ -1,0 +1,103 @@
+File.........: 5 - Using the toolchain.txt
+Copyrigth....: (C) 2010 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
+License......: Creative Commons Attribution Share Alike (CC-by-sa), v2.5
+
+
+Using the toolchain  /
+____________________/
+
+
+Using the toolchain is as simple as adding the toolchain's bin directory in
+your PATH, such as:
+  export PATH="${PATH}:/your/toolchain/path/bin"
+
+and then using the target tuple to tell the build systems to use your
+toolchain:
+  ./configure --target=your-target-tuple
+or
+  make CC=your-target-tuple-gcc
+or
+  make CROSS_COMPILE=your-target-tuple-
+and so on...
+
+It is strongly advised not to use the toolchain sys-root directory as an
+install directory for your programs/packages. If you do so, you will not be
+able to use your toolchain for another project. It is even strongly advised
+that your toolchain is chmod-ed to read-only once successfully build, so that
+you don't go polluting your toolchain with your programs/packages' files.
+
+Thus, when you build a program/package, install it in a separate directory,
+eg. /your/root. This directory is the /image/ of what would be in the root file
+system of your target, and will contain all that your programs/packages have
+installed.
+
+
+The 'populate' script |
+----------------------+
+
+When your root directory is ready, it is still missing some important bits: the
+toolchain's libraries. To populate your root directory with those libs, just
+run:
+  your-target-tuple-populate -s /your/root -d /your/root-populated
+
+This will copy /your/root into /your/root-populated, and put the needed and only
+the needed libraries there. Thus you don't polute /your/root with any cruft that
+would no longer be needed should you have to remove stuff. /your/root always
+contains only those things you install in it.
+
+You can then use /your/root-populated to build up your file system image, a
+tarball, or to NFS-mount it from your target, or whatever you need.
+
+The populate script accepts the following options:
+
+ -s src_dir
+    Use 'src_dir' as the un-populated root directory.
+
+ -d dst_dir
+    Put the populated root directory in 'dst_dir'.
+
+ -l lib1 [...]
+    Always add specified libraries.
+
+ -L file
+    Always add libraries listed in 'file'.
+
+ -f
+    Remove 'dst_dir' if it previously existed; continue even if any library
+    specified with -l or -L is missing.
+
+ -v
+    Be verbose, and tell what's going on (you can see exactly where libs are
+    coming from).
+
+ -h
+    Print the help.
+
+See 'your-target-tuple-populate -h' for more information on the options.
+
+Here is how populate works:
+
+  1) performs some sanity checks:
+     - src_dir and dst_dir are specified
+     - src_dir exists
+     - unless forced, dst_dir does not exist
+     - src_dir != dst_dir
+
+  2) copy src_dir to dst_dir
+
+  3) add forced libraries to dst_dir
+     - build the list from -l and -L options
+     - get forced libraries from the sysroot (see below for heuristics)
+       - abort on the first missing library, unless -f is specified
+
+  4) add all missing libraries to dst_dir
+     - scan dst_dir for every ELF files that are 'executable' or
+       'shared object'
+     - list the "NEEDED Shared library" fields
+       - check if the library is already in dst_dir/lib or dst_dir/usr/lib
+       - if not, get the library from the sysroot
+         - if it's in sysroot/lib, copy it to dst_dir/lib
+         - if it's in sysroot/usr/lib, copy it to dst_dir/usr/lib
+         - in both cases, use the SONAME of the library to create the file
+           in dst_dir
+         - if it was not found in the sysroot, this is an error.
