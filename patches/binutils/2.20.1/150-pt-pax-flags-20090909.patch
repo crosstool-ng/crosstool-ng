@@ -1,0 +1,248 @@
+
+
+diff -durN binutils-2.20.1.orig/bfd/elf-bfd.h binutils-2.20.1/bfd/elf-bfd.h
+--- binutils-2.20.1.orig/bfd/elf-bfd.h	2009-09-10 13:47:12.000000000 +0200
++++ binutils-2.20.1/bfd/elf-bfd.h	2010-08-17 19:32:11.000000000 +0200
+@@ -1531,6 +1531,9 @@
+   /* Segment flags for the PT_GNU_STACK segment.  */
+   unsigned int stack_flags;
+ 
++  /* Segment flags for the PT_PAX_FLAGS segment.  */
++  unsigned int pax_flags;
++
+   /* Symbol version definitions in external objects.  */
+   Elf_Internal_Verdef *verdef;
+ 
+diff -durN binutils-2.20.1.orig/bfd/elf.c binutils-2.20.1/bfd/elf.c
+--- binutils-2.20.1.orig/bfd/elf.c	2009-09-10 13:47:12.000000000 +0200
++++ binutils-2.20.1/bfd/elf.c	2010-08-17 19:32:11.000000000 +0200
+@@ -1083,6 +1083,7 @@
+     case PT_GNU_EH_FRAME: pt = "EH_FRAME"; break;
+     case PT_GNU_STACK: pt = "STACK"; break;
+     case PT_GNU_RELRO: pt = "RELRO"; break;
++    case PT_PAX_FLAGS: pt = "PAX_FLAGS"; break;
+     default: pt = NULL; break;
+     }
+   return pt;
+@@ -2396,6 +2397,9 @@
+     case PT_GNU_RELRO:
+       return _bfd_elf_make_section_from_phdr (abfd, hdr, index, "relro");
+ 
++    case PT_PAX_FLAGS:
++      return _bfd_elf_make_section_from_phdr (abfd, hdr, index, "pax_flags");
++
+     default:
+       /* Check for any processor-specific program segment types.  */
+       bed = get_elf_backend_data (abfd);
+@@ -3413,6 +3417,11 @@
+       ++segs;
+     }
+ 
++    {
++      /* We need a PT_PAX_FLAGS segment.  */
++      ++segs;
++    }
++
+   for (s = abfd->sections; s != NULL; s = s->next)
+     {
+       if ((s->flags & SEC_LOAD) != 0
+@@ -3994,6 +4003,20 @@
+ 	    }
+ 	}
+ 
++    {
++      amt = sizeof (struct elf_segment_map);
++      m = bfd_zalloc (abfd, amt);
++      if (m == NULL)
++	goto error_return;
++      m->next = NULL;
++      m->p_type = PT_PAX_FLAGS;
++      m->p_flags = elf_tdata (abfd)->pax_flags;
++      m->p_flags_valid = 1;
++
++      *pm = m;
++      pm = &m->next;
++    }
++
+       free (sections);
+       elf_tdata (abfd)->segment_map = mfirst;
+     }
+@@ -5198,7 +5221,8 @@
+        6. PT_TLS segment includes only SHF_TLS sections.
+        7. SHF_TLS sections are only in PT_TLS or PT_LOAD segments.
+        8. PT_DYNAMIC should not contain empty sections at the beginning
+-	  (with the possible exception of .dynamic).  */
++	  (with the possible exception of .dynamic).
++       9. PT_PAX_FLAGS segments do not include any sections.  */
+ #define IS_SECTION_IN_INPUT_SEGMENT(section, segment, bed)		\
+   ((((segment->p_paddr							\
+       ? IS_CONTAINED_BY_LMA (section, segment, segment->p_paddr)	\
+@@ -5206,6 +5230,7 @@
+      && (section->flags & SEC_ALLOC) != 0)				\
+     || IS_NOTE (segment, section))					\
+    && segment->p_type != PT_GNU_STACK					\
++   && segment->p_type != PT_PAX_FLAGS					\
+    && (segment->p_type != PT_TLS					\
+        || (section->flags & SEC_THREAD_LOCAL))				\
+    && (segment->p_type == PT_LOAD					\
+diff -durN binutils-2.20.1.orig/bfd/elflink.c binutils-2.20.1/bfd/elflink.c
+--- binutils-2.20.1.orig/bfd/elflink.c	2009-09-10 13:47:12.000000000 +0200
++++ binutils-2.20.1/bfd/elflink.c	2010-08-17 19:32:11.000000000 +0200
+@@ -5469,16 +5469,30 @@
+     return TRUE;
+ 
+   bed = get_elf_backend_data (output_bfd);
++
++  elf_tdata (output_bfd)->pax_flags = PF_NORANDEXEC;
++  if (info->execheap)
++    elf_tdata (output_bfd)->pax_flags |= PF_NOMPROTECT;
++  else if (info->noexecheap)
++    elf_tdata (output_bfd)->pax_flags |= PF_MPROTECT;
++
+   if (info->execstack)
+-    elf_tdata (output_bfd)->stack_flags = PF_R | PF_W | PF_X;
++    {
++      elf_tdata (output_bfd)->stack_flags = PF_R | PF_W | PF_X;
++      elf_tdata (output_bfd)->pax_flags |= PF_EMUTRAMP;
++    }
+   else if (info->noexecstack)
+-    elf_tdata (output_bfd)->stack_flags = PF_R | PF_W;
++    {
++      elf_tdata (output_bfd)->stack_flags = PF_R | PF_W;
++      elf_tdata (output_bfd)->pax_flags |= PF_NOEMUTRAMP;
++    }
+   else
+     {
+       bfd *inputobj;
+       asection *notesec = NULL;
+       int exec = 0;
+ 
++      elf_tdata (output_bfd)->pax_flags |= PF_NOEMUTRAMP;
+       for (inputobj = info->input_bfds;
+ 	   inputobj;
+ 	   inputobj = inputobj->link_next)
+@@ -5491,7 +5505,11 @@
+ 	  if (s)
+ 	    {
+ 	      if (s->flags & SEC_CODE)
+-		exec = PF_X;
++		{
++		  elf_tdata (output_bfd)->pax_flags &= ~PF_NOEMUTRAMP;
++		  elf_tdata (output_bfd)->pax_flags |= PF_EMUTRAMP;
++		  exec = PF_X;
++		}
+ 	      notesec = s;
+ 	    }
+ 	  else if (bed->default_execstack)
+diff -durN binutils-2.20.1.orig/binutils/readelf.c binutils-2.20.1/binutils/readelf.c
+--- binutils-2.20.1.orig/binutils/readelf.c	2010-01-14 11:48:23.000000000 +0100
++++ binutils-2.20.1/binutils/readelf.c	2010-08-17 19:32:11.000000000 +0200
+@@ -2569,6 +2569,7 @@
+ 			return "GNU_EH_FRAME";
+     case PT_GNU_STACK:	return "GNU_STACK";
+     case PT_GNU_RELRO:  return "GNU_RELRO";
++    case PT_PAX_FLAGS:  return "PAX_FLAGS";
+ 
+     default:
+       if ((p_type >= PT_LOPROC) && (p_type <= PT_HIPROC))
+diff -durN binutils-2.20.1.orig/include/bfdlink.h binutils-2.20.1/include/bfdlink.h
+--- binutils-2.20.1.orig/include/bfdlink.h	2009-09-10 13:47:30.000000000 +0200
++++ binutils-2.20.1/include/bfdlink.h	2010-08-17 19:32:11.000000000 +0200
+@@ -321,6 +321,14 @@
+   /* TRUE if PT_GNU_RELRO segment should be created.  */
+   unsigned int relro: 1;
+ 
++  /* TRUE if PT_PAX_FLAGS segment should be created with PF_NOMPROTECT
++     flags.  */
++  unsigned int execheap: 1;
++
++  /* TRUE if PT_PAX_FLAGS segment should be created with PF_MPROTECT
++     flags.  */
++  unsigned int noexecheap: 1;
++
+   /* TRUE if we should warn when adding a DT_TEXTREL to a shared object.  */
+   unsigned int warn_shared_textrel: 1;
+ 
+diff -durN binutils-2.20.1.orig/include/elf/common.h binutils-2.20.1/include/elf/common.h
+--- binutils-2.20.1.orig/include/elf/common.h	2009-08-09 15:42:26.000000000 +0200
++++ binutils-2.20.1/include/elf/common.h	2010-08-17 19:32:11.000000000 +0200
+@@ -422,6 +422,7 @@
+ #define PT_SUNW_EH_FRAME PT_GNU_EH_FRAME      /* Solaris uses the same value */
+ #define PT_GNU_STACK	(PT_LOOS + 0x474e551) /* Stack flags */
+ #define PT_GNU_RELRO	(PT_LOOS + 0x474e552) /* Read-only after relocation */
++#define PT_PAX_FLAGS	(PT_LOOS + 0x5041580) /* PaX flags */
+ 
+ /* Program segment permissions, in program header p_flags field.  */
+ 
+@@ -432,6 +433,21 @@
+ #define PF_MASKOS	0x0FF00000	/* New value, Oct 4, 1999 Draft */
+ #define PF_MASKPROC	0xF0000000	/* Processor-specific reserved bits */
+ 
++/* Flags to control PaX behavior.  */
++
++#define PF_PAGEEXEC	(1 << 4)	/* Enable  PAGEEXEC */
++#define PF_NOPAGEEXEC	(1 << 5)	/* Disable PAGEEXEC */
++#define PF_SEGMEXEC	(1 << 6)	/* Enable  SEGMEXEC */
++#define PF_NOSEGMEXEC	(1 << 7)	/* Disable SEGMEXEC */
++#define PF_MPROTECT	(1 << 8)	/* Enable  MPROTECT */
++#define PF_NOMPROTECT	(1 << 9)	/* Disable MPROTECT */
++#define PF_RANDEXEC	(1 << 10)	/* Enable  RANDEXEC */
++#define PF_NORANDEXEC	(1 << 11)	/* Disable RANDEXEC */
++#define PF_EMUTRAMP	(1 << 12)	/* Enable  EMUTRAMP */
++#define PF_NOEMUTRAMP	(1 << 13)	/* Disable EMUTRAMP */
++#define PF_RANDMMAP	(1 << 14)	/* Enable  RANDMMAP */
++#define PF_NORANDMMAP	(1 << 15)	/* Disable RANDMMAP */
++
+ /* Values for section header, sh_type field.  */
+ 
+ #define SHT_NULL	0		/* Section header table entry unused */
+diff -durN binutils-2.20.1.orig/ld/emultempl/elf32.em binutils-2.20.1/ld/emultempl/elf32.em
+--- binutils-2.20.1.orig/ld/emultempl/elf32.em	2010-08-17 19:32:09.000000000 +0200
++++ binutils-2.20.1/ld/emultempl/elf32.em	2010-08-17 19:32:11.000000000 +0200
+@@ -2165,6 +2165,16 @@
+ 	  link_info.noexecstack = TRUE;
+ 	  link_info.execstack = FALSE;
+ 	}
++      else if (strcmp (optarg, "execheap") == 0)
++	{
++	  link_info.execheap = TRUE;
++	  link_info.noexecheap = FALSE;
++	}
++      else if (strcmp (optarg, "noexecheap") == 0)
++	{
++	  link_info.noexecheap = TRUE;
++	  link_info.execheap = FALSE;
++	}
+ EOF
+ 
+   if test -n "$COMMONPAGESIZE"; then
+@@ -2243,6 +2253,8 @@
+   fprintf (file, _("\
+   -z execstack                Mark executable as requiring executable stack\n"));
+   fprintf (file, _("\
++  -z execheap                 Mark executable as requiring executable heap\n"));
++  fprintf (file, _("\
+   -z initfirst                Mark DSO to be initialized first at runtime\n"));
+   fprintf (file, _("\
+   -z interpose                Mark object to interpose all DSOs but executable\n"));
+@@ -2266,6 +2278,8 @@
+   -z nodump                   Mark DSO not available to dldump\n"));
+   fprintf (file, _("\
+   -z noexecstack              Mark executable as not requiring executable stack\n"));
++  fprintf (file, _("\
++  -z noexecheap               Mark executable as not requiring executable heap\n"));
+ EOF
+ 
+   if test -n "$COMMONPAGESIZE"; then
+diff -durN binutils-2.20.1.orig/ld/ldgram.y binutils-2.20.1/ld/ldgram.y
+--- binutils-2.20.1.orig/ld/ldgram.y	2009-09-02 09:25:35.000000000 +0200
++++ binutils-2.20.1/ld/ldgram.y	2010-08-17 19:32:11.000000000 +0200
+@@ -1116,6 +1116,8 @@
+ 			    $$ = exp_intop (0x6474e550);
+ 			  else if (strcmp (s, "PT_GNU_STACK") == 0)
+ 			    $$ = exp_intop (0x6474e551);
++			  else if (strcmp (s, "PT_PAX_FLAGS") == 0)
++			    $$ = exp_intop (0x65041580);
+ 			  else
+ 			    {
+ 			      einfo (_("\

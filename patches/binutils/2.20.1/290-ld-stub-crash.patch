@@ -1,0 +1,24 @@
+diff -p -c -u -r1.196 elf32-arm.c
+
+diff -durN binutils-2.20.1.orig/bfd/elf32-arm.c binutils-2.20.1/bfd/elf32-arm.c
+--- binutils-2.20.1.orig/bfd/elf32-arm.c	2010-02-22 09:06:48.000000000 +0100
++++ binutils-2.20.1/bfd/elf32-arm.c	2010-08-17 19:32:25.000000000 +0200
+@@ -3194,11 +3194,15 @@
+ 
+ 	  /* We have an extra 2-bytes reach because of
+ 	     the mode change (bit 24 (H) of BLX encoding).  */
++	  /* A stub is needed only if this call is not throught a PLT
++	     entry, because PLT stubs handle mode switching
++	     already.  */
+ 	  if (branch_offset > (ARM_MAX_FWD_BRANCH_OFFSET + 2)
+ 	      || (branch_offset < ARM_MAX_BWD_BRANCH_OFFSET)
+-	      || ((r_type == R_ARM_CALL) && !globals->use_blx)
+-	      || (r_type == R_ARM_JUMP24)
+-	      || (r_type == R_ARM_PLT32))
++	      || ( (((r_type == R_ARM_CALL) && !globals->use_blx)
++		    || (r_type == R_ARM_JUMP24)
++		    || (r_type == R_ARM_PLT32))
++		   && !use_plt))
+ 	    {
+ 	      stub_type = (info->shared | globals->pic_veneer)
+ 		/* PIC stubs.  */
