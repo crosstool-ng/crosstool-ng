@@ -137,14 +137,14 @@ do_libc_finish() {
         mkdir -p "${CT_BUILD_DIR}/build-gnurx"
         cd "${CT_BUILD_DIR}/build-gnurx"
 
-        CFLAGS="${CT_CFLAGS_FOR_TARGET}"                \
-        CT_DoExecLog ALL                                \
-        "${CT_SRC_DIR}/mingw-libgnurx-${CT_MINGW_GNURX_VERSION}/configure" \
-            --build=${CT_BUILD}           \
-            --host=${CT_TARGET}           \
-            --prefix=${CT_SYSROOT_DIR}    \
-            --includedir=${CT_HEADERS_DIR}  \
-            --enable-shared               \
+        CFLAGS="${CT_CFLAGS_FOR_TARGET}"                                    \
+        CT_DoExecLog ALL                                                    \
+        "${CT_SRC_DIR}/mingw-libgnurx-${CT_MINGW_GNURX_VERSION}/configure"  \
+            --build=${CT_BUILD}                                             \
+            --host=${CT_TARGET}                                             \
+            --prefix=${CT_SYSROOT_DIR}                                      \
+            --includedir=${CT_HEADERS_DIR}                                  \
+            --enable-shared                                                 \
             --enable-static
 
         CT_DoLog EXTRA "Building GnuRX development files"
