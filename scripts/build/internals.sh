@@ -5,20 +5,29 @@
 # crosstool-NG-provided files.
 do_finish() {
     local _t
+    local strip_args
 
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
     if [ "${CT_STRIP_ALL_TOOLCHAIN_EXECUTABLES}" = "y" ]; then
+        case "$CT_HOST" in
+            *darwin*)
+                strip_args=""
+                ;;
+            *)
+                strip_args="--strip-all -v"
+                ;;
+        esac
         CT_DoLog INFO "Stripping all toolchain executables"
         CT_Pushd "${CT_PREFIX_DIR}"
-	for t in ar as c++ c++filt cpp dlltool dllwrap g++ gcc gcc-${CT_CC_VERSION} gcov gprof ld nm objcopy objdump ranlib readelf size strings strip addr2line windmc windres; do
-            [ -x bin/${CT_TARGET}-${t}${CT_HOST_SUFFIX} ] && ${CT_HOST}-strip --strip-all -v bin/${CT_TARGET}-${t}${CT_HOST_SUFFIX}
-            [ -x ${CT_TARGET}/bin/${t}${CT_HOST_SUFFIX} ] && ${CT_HOST}-strip --strip-all -v ${CT_TARGET}/bin/${t}${CT_HOST_SUFFIX}
+        for t in ar as c++ c++filt cpp dlltool dllwrap g++ gcc gcc-${CT_CC_VERSION} gcov gprof ld nm objcopy objdump ranlib readelf size strings strip addr2line windmc windres; do
+            [ -x bin/${CT_TARGET}-${t}${CT_HOST_SUFFIX} ] && ${CT_HOST}-strip ${strip_args} bin/${CT_TARGET}-${t}${CT_HOST_SUFFIX}
+            [ -x ${CT_TARGET}/bin/${t}${CT_HOST_SUFFIX} ] && ${CT_HOST}-strip ${strip_args} ${CT_TARGET}/bin/${t}${CT_HOST_SUFFIX}
         done
         CT_Popd
         CT_Pushd "${CT_PREFIX_DIR}/libexec/gcc/${CT_TARGET}/${CT_CC_VERSION}"
-	for t in cc1 cc1plus collect2; do
-            [ -x ${t}${CT_HOST_SUFFIX} ] && ${CT_HOST}-strip --strip-all -v ${t}${CT_HOST_SUFFIX}
+        for t in cc1 cc1plus collect2; do
+            [ -x ${t}${CT_HOST_SUFFIX} ] && ${CT_HOST}-strip ${strip_args} ${t}${CT_HOST_SUFFIX}
         done
         CT_Popd
     fi
