@@ -119,8 +119,11 @@ do_debug_gdb_build() {
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
         local -a ncurses_opt
+        local -a gdb_native_CFLAGS
 
         CT_DoStep INFO "Installing native gdb"
+
+        native_extra_config=("${extra_config[@]}")
 
         # GDB on Mingw depends on PDcurses, not ncurses
         if [ "${do_ncurses}" = "y" ]; then
@@ -167,7 +170,7 @@ do_debug_gdb_build() {
                 --with-build-cc=${CT_BUILD}-gcc                                 \
                 --with-build-cpp=${CT_BUILD}-gcc                                \
                 --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
-                --prefix="${CT_BUILD_DIR}/ncurses"                              \
+                --prefix="${CT_BUILD_DIR}/static-target"                        \
                 --without-shared                                                \
                 --without-sysmouse                                              \
                 --without-progs                                                 \
@@ -180,6 +183,11 @@ do_debug_gdb_build() {
 
             # We no longer need the temporary tic. Remove it
             CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/buildtools/tic${tic_ext}"
+
+            native_extra_config+=("--with-curses")
+            # There's no better way to tell gdb where to find -lcurses... :-(
+            gdb_native_CFLAGS+=("-I${CT_BUILD_DIR}/static-target/include")
+            gdb_native_CFLAGS+=("-L${CT_BUILD_DIR}/static-target/lib")
         fi # do_ncurses
 
         CT_DoLog EXTRA "Configuring native gdb"
@@ -187,7 +195,6 @@ do_debug_gdb_build() {
         mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
         cd "${CT_BUILD_DIR}/build-gdb-native"
 
-        native_extra_config=("${extra_config[@]}")
         case "${CT_THREADS}" in
             none)   native_extra_config+=("--disable-threads");;
             *)      native_extra_config+=("--enable-threads");;
@@ -203,13 +210,11 @@ do_debug_gdb_build() {
 
         export ac_cv_func_strncmp_works=yes
 
-        gdb_native_CFLAGS="-I${CT_BUILD_DIR}/ncurses/include -L${CT_BUILD_DIR}/ncurses/lib"
-
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
-        CFLAGS="${gdb_native_CFLAGS}"                   \
+        CFLAGS="${gdb_native_CFLAGS[@]}"                \
         CT_DoExecLog ALL                                \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
