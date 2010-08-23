@@ -6,9 +6,13 @@
 # config options for this.
 CT_DEBUG_GDB_NCURSES_VERSION="5.7"
 
+# Ditto for the expat library
+CT_DEBUG_GDB_EXPAT_VERSION="2.0.1"
+
 do_debug_gdb_parts() {
     do_gdb=
     do_ncurses=
+    do_expat=
 
     if [ "${CT_GDB_CROSS}" = y ]; then
         do_gdb=y
@@ -24,6 +28,7 @@ do_debug_gdb_parts() {
         if [ "${CT_MINGW32}" != "y" ]; then
             do_ncurses=y
         fi
+        do_expat=y
     fi
 }
 
@@ -41,6 +46,11 @@ do_debug_gdb_get() {
                    {ftp,http}://ftp.gnu.org/pub/gnu/ncurses \
                    ftp://invisible-island.net/ncurses
     fi
+
+    if [ "${do_expat}" = "y" ]; then
+        CT_GetFile "expat-${CT_DEBUG_GDB_EXPAT_VERSION}" .tar.gz    \
+                   http://mesh.dl.sourceforge.net/sourceforge/expat/expat/${CT_DEBUG_GDB_EXPAT_VERSION}
+    fi
 }
 
 do_debug_gdb_extract() {
@@ -54,6 +64,11 @@ do_debug_gdb_extract() {
     if [ "${do_ncurses}" = "y" ]; then
         CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
         CT_Patch "ncurses" "${CT_DEBUG_GDB_NCURSES_VERSION}"
+    fi
+
+    if [ "${do_expat}" = "y" ]; then
+        CT_Extract "expat-${CT_DEBUG_GDB_EXPAT_VERSION}"
+        CT_Patch "expat" "${CT_DEBUG_GDB_EXPAT_VERSION}"
     fi
 }
 
@@ -189,6 +204,27 @@ do_debug_gdb_build() {
             gdb_native_CFLAGS+=("-I${CT_BUILD_DIR}/static-target/include")
             gdb_native_CFLAGS+=("-L${CT_BUILD_DIR}/static-target/lib")
         fi # do_ncurses
+
+        if [ "${do_expat}" = "y" ]; then
+            CT_DoLog EXTRA "Building static target expat"
+
+            mkdir -p "${CT_BUILD_DIR}/expat-build"
+            cd "${CT_BUILD_DIR}/expat-build"
+
+            CT_DoExecLog ALL                                                \
+            "${CT_SRC_DIR}/expat-${CT_DEBUG_GDB_EXPAT_VERSION}/configure"   \
+                --build=${CT_BUILD}                                         \
+                --host=${CT_TARGET}                                         \
+                --prefix="${CT_BUILD_DIR}/static-target"                    \
+                --enable-static                                             \
+                --disable-shared
+
+            CT_DoExecLog ALL make ${PARALLELMFLAGS}
+            CT_DoExecLog ALL make install
+
+            native_extra_config+=("--with-expat")
+            native_extra_config+=("--with-libexpat-prefix=${CT_BUILD_DIR}/static-target")
+        fi # do_expat
 
         CT_DoLog EXTRA "Configuring native gdb"
 
