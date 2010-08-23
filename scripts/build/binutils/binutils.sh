@@ -24,11 +24,6 @@ do_binutils() {
 
     CT_DoStep INFO "Installing binutils"
 
-    # If GMP and MPFR were configured, then use that,
-    # otherwise let binutils find the system-wide libraries, if they exist.
-    [ -z "${CT_GMP}"    ] || extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
-    [ -z "${CT_MPFR}"   ] || extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
-
     CT_DoLog EXTRA "Configuring binutils"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                              \
     CT_DoExecLog ALL                                            \
@@ -82,12 +77,6 @@ do_binutils_target() {
         build_targets+=("all-${t}")
         install_targets+=("install-${t}")
     done
-
-    # If GMP and MPFR were configured, then use that
-    if [ "${CT_BINUTILS_TARGET_USE_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${CT_SYSROOT_DIR}/usr")
-        extra_config+=("--with-mpfr=${CT_SYSROOT_DIR}/usr")
-    fi
 
     if [ "${#targets[@]}" -ne 0 ]; then
         CT_DoStep INFO "Installing binutils for target"
