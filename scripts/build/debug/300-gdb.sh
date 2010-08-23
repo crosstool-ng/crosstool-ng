@@ -79,13 +79,6 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=("${extra_config[@]}")
-        if [ "${CT_GDB_CROSS_USE_GMP_MPFR}" = "y" ]; then
-            cross_extra_config+=("--with-gmp=${CT_PREFIX_DIR}")
-            cross_extra_config+=("--with-mpfr=${CT_PREFIX_DIR}")
-        fi
-        if [ "${CT_GDB_CROSS_USE_MPC}" = "y" ]; then
-            cross_extra_config+=("--with-mpc=${CT_PREFIX_DIR}")
-        fi
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
@@ -199,10 +192,6 @@ do_debug_gdb_build() {
             none)   native_extra_config+=("--disable-threads");;
             *)      native_extra_config+=("--enable-threads");;
         esac
-        if [ "${CT_GDB_NATIVE_USE_GMP_MPFR}" = "y" ]; then
-            native_extra_config+=("--with-gmp=${CT_SYSROOT_DIR}/usr")
-            native_extra_config+=("--with-mpfr=${CT_SYSROOT_DIR}/usr")
-        fi
 
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
             CC_for_gdb="${CT_TARGET}-gcc -static"
