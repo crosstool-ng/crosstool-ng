@@ -5,7 +5,6 @@
 do_mpc_get() { :; }
 do_mpc_extract() { :; }
 do_mpc() { :; }
-do_mpc_target() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_MPC}" = "y" ]; then

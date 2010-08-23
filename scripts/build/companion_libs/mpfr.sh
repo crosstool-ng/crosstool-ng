@@ -5,10 +5,9 @@
 do_mpfr_get() { :; }
 do_mpfr_extract() { :; }
 do_mpfr() { :; }
-do_mpfr_target() { :; }
 
 # Overide function depending on configuration
-if [ "${CT_MPFR}" = "y" -o "${CT_MPFR_TARGET}" = "y" ]; then
+if [ "${CT_MPFR}" = "y" ]; then
 
 # Download MPFR
 do_mpfr_get() {
@@ -64,8 +63,6 @@ do_mpfr_extract() {
     esac
 }
 
-if [ "${CT_MPFR}" = "y" ]; then
-
 do_mpfr() {
     local -a mpfr_opts
 
@@ -114,46 +111,3 @@ do_mpfr() {
 }
 
 fi # CT_MPFR
-
-if [ "${CT_MPFR_TARGET}" = "y" ]; then
-
-do_mpfr_target() {
-    mkdir -p "${CT_BUILD_DIR}/build-mpfr-target"
-    cd "${CT_BUILD_DIR}/build-mpfr-target"
-
-    CT_DoStep INFO "Installing MPFR for the target"
-
-    mpfr_opt=
-    # Under Cygwin, we can't build a thread-safe library
-    case "${CT_TARGET}" in
-        *-cygwin)   mpfr_opt="--disable-thread-safe";;
-        *)          mpfr_opt="--enable-thread-safe";;
-    esac
-
-    CT_DoLog EXTRA "Configuring MPFR"
-    CC="${CT_TARGET}-gcc"                               \
-    CFLAGS="${CT_CFLAGS_FOR_TARGET}"                    \
-    CT_DoExecLog ALL                                    \
-    "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
-        --build=${CT_BUILD}                             \
-        --host=${CT_TARGET}                             \
-        --prefix=/usr                                   \
-        ${mpfr_opt}                                     \
-        --disable-shared                                \
-        --enable-static                                 \
-        --with-gmp="${CT_SYSROOT_DIR}/usr"
-
-    CT_DoLog EXTRA "Building MPFR"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
-
-    # Not possible to check MPFR while X-compiling
-
-    CT_DoLog EXTRA "Installing MPFR"
-    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
-
-    CT_EndStep
-}
-
-fi # CT_MPFR_TARGET
-
-fi # CT_MPFR || CT_MPFR_TARGET

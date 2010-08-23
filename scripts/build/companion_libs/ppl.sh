@@ -5,7 +5,6 @@
 do_ppl_get() { :; }
 do_ppl_extract() { :; }
 do_ppl() { :; }
-do_ppl_target() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_PPL}" = "y" ]; then

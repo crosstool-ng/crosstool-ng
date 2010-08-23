@@ -5,7 +5,6 @@
 do_cloog_get() { :; }
 do_cloog_extract() { :; }
 do_cloog() { :; }
-do_cloog_target() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_CLOOG}" = "y" ]; then
