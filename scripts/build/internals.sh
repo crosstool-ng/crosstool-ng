@@ -141,5 +141,25 @@ do_finish() {
     # Remove headers installed by native companion libraries
     CT_DoForceRmdir "${CT_PREFIX_DIR}/include"
 
+    # Remove the lib* symlinks, now:
+    # The symlinks are needed only during the build process.
+    # The final gcc will still search those dirs, but will also search
+    # the standard lib/ dirs, so we can get rid of the symlinks
+    for d in                            \
+        "${CT_PREFIX_DIR}"              \
+        "${CT_SYSROOT_DIR}"             \
+        "${CT_SYSROOT_DIR}/usr"         \
+        "${CT_PREFIX_DIR}/${CT_TARGET}" \
+    ; do
+        CT_DoExecLog ALL rm -f "${d}/lib32"
+        CT_DoExecLog ALL rm -f "${d}/lib64"
+    done
+
+    # Also remove the include/ and lib/ symlinks out-side of sysroot
+    if [ "${CT_USE_SYSROOT}" = "y" ]; then
+        CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
+        CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/${CT_TARGET}/include"
+    fi
+
     CT_EndStep
 }
