@@ -175,9 +175,14 @@ do_cc_core() {
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
+    elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
+        extra_config+=("--with-ppl=no")
+        extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
+    elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
+        extra_config+=("--with-libelf=no")
     fi
 
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
@@ -373,9 +378,14 @@ do_cc() {
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
+    elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
+        extra_config+=("--with-ppl=no")
+        extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
+    elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
+        extra_config+=("--with-libelf=no")
     fi
 
     if [ "${CT_THREADS}" = "none" ]; then
