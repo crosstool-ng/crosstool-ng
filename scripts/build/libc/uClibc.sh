@@ -297,6 +297,40 @@ mungeuClibcConfig() {
 					ENDSED
             fi
             ;;
+        mips)
+            case "${CT_ARCH_mips_ABI}" in
+                32)
+                    cat <<-ENDSED
+						s/.*(CONFIG_MIPS_O32_ABI).*/\\1=y/
+						s/.*(CONFIG_MIPS_N32_ABI).*/# \\1 is not set/
+						s/.*(CONFIG_MIPS_N64_ABI).*/# \\1 is not set/
+						ENDSED
+                    ;;
+                # For n32 and n64, also force the ISA
+                # Not so sure this is pertinent, so it's
+                # commented out for now. It would take a
+                # (MIPS+uClibc) expert to either remove
+                # or re-enable the overrides.
+                n32)
+                    cat <<-ENDSED
+						s/.*(CONFIG_MIPS_O32_ABI).*/# \\1 is not set/
+						s/.*(CONFIG_MIPS_N32_ABI).*/\\1=y/
+						s/.*(CONFIG_MIPS_N64_ABI).*/# \\1 is not set/
+						s/.*(CONFIG_MIPS_ISA_.*).*/# \\1 is not set/
+						s/.*(CONFIG_MIPS_ISA_3).*/\\1=y/
+						ENDSED
+                    ;;
+                64)
+                    cat <<-ENDSED
+						s/.*(CONFIG_MIPS_O32_ABI).*/# \\1 is not set/
+						s/.*(CONFIG_MIPS_N32_ABI).*/# \\1 is not set/
+						s/.*(CONFIG_MIPS_N64_ABI).*/\\1=y/
+						s/.*(CONFIG_MIPS_ISA_.*).*/# \\1 is not set/
+						s/.*(CONFIG_MIPS_ISA_MIPS64).*/\\1=y/
+						ENDSED
+                    ;;
+            esac
+            ;;
     esac
 
     # Accomodate for old and new uClibc versions, where the
