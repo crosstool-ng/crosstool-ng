@@ -14,4 +14,8 @@ CT_DoArchTupleValues() {
         y,) CT_ARCH_ENDIAN_CFLAG="-EB";;
         ,y) CT_ARCH_ENDIAN_CFLAG="-EL";;
     esac
+
+    # Override ABI flags
+    CT_ARCH_ABI_CFLAG="-mabi=${CT_ARCH_mips_ABI}"
+    CT_ARCH_WITH_ABI="--with-abi=${CT_ARCH_mips_ABI}"
 }
