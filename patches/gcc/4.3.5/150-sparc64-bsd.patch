@@ -1,0 +1,35 @@
+Original patch from: ../4.3.2/150-sparc64-bsd.patch
+
+-= BEGIN original header =-
+Original patch from gentoo: gentoo/src/patchsets/gcc/4.3.1/gentoo/14_all_gcc-sparc64-bsd.patch
+-= END original header =-
+
+diff -durN gcc-4.3.3.orig/gcc/config/sparc/freebsd.h gcc-4.3.3/gcc/config/sparc/freebsd.h
+--- gcc-4.3.3.orig/gcc/config/sparc/freebsd.h	2007-08-02 12:49:31.000000000 +0200
++++ gcc-4.3.3/gcc/config/sparc/freebsd.h	2009-01-27 22:19:20.000000000 +0100
+@@ -25,9 +25,22 @@
+ /* FreeBSD needs the platform name (sparc64) defined.
+    Emacs needs to know if the arch is 64 or 32-bits.  */
+ 
+-#undef  CPP_CPU64_DEFAULT_SPEC
+-#define CPP_CPU64_DEFAULT_SPEC \
+-  "-D__sparc64__ -D__sparc_v9__ -D__sparcv9 -D__arch64__"
++#undef  FBSD_TARGET_CPU_CPP_BUILTINS
++#define FBSD_TARGET_CPU_CPP_BUILTINS()                  \
++  do                                                    \
++    {                                                   \
++      if (TARGET_ARCH64)                                \
++        {                                               \
++          builtin_define ("__sparc64__");               \
++          builtin_define ("__sparc_v9__");              \
++          builtin_define ("__sparcv9");                 \
++        }                                               \
++      else                                              \
++        builtin_define ("__sparc");                     \
++      builtin_define ("__sparc__");                     \
++    }                                                   \
++  while (0)
++
+ 
+ #define LINK_SPEC "%(link_arch)						\
+   %{!mno-relax:%{!r:-relax}}						\
