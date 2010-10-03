@@ -73,7 +73,11 @@ INTL_CFLAGS = $(shell $(SHELL) $(check_gettext) $(HOST_CC) $(EXTRA_CFLAGS))
 
 # Compiler and linker flags to use ncurses
 NCURSES_CFLAGS = $(shell $(SHELL) $(check_lxdialog) -ccflags)
-NCURSES_LDFLAGS = $(shell $(SHELL) $(check_lxdialog) -ldflags $(HOST_CC) $(LX_FLAGS) $(EXTRA_CFLAGS))
+NCURSES_LDFLAGS = $(shell $(SHELL) $(check_lxdialog) -ldflags $(HOST_CC))
+
+# Check that we have the required ncurses stuff installed for lxdialog (menuconfig)
+dochecklxdialog:
+	$(SILENT)$(SHELL) $(check_lxdialog) -check $(HOST_CC) $(NCURSES_CFLAGS) $(NCURSES_LDFLAGS)
 
 # Common source files
 COMMON_SRC = kconfig/zconf.tab.c
@@ -113,6 +117,8 @@ ALL_DEPS = $(sort $(COMMON_DEP) $(LX_DEP) $(conf_DEP) $(mconf_DEP))
 # We must be carefull what we enclose, because we need some of the variable
 # definitions for clean (and distclean) at least.
 # Just protecting the "-include $(DEPS)" line should be sufficient.
+# And in case we want menuconfig, we have to check that lxdialog
+# can find a curses lib.
 
 ifneq ($(strip $(MAKECMDGOALS)),)
 ifneq ($(strip $(filter $(configurators),$(MAKECMDGOALS))),)
@@ -123,6 +129,9 @@ DEPS += $(conf_DEP)
 endif
 ifneq ($(strip $(filter menuconfig,$(MAKECMDGOALS))),)
 DEPS += $(mconf_DEP) $(LX_DEP)
+$(COMMON_OBJ) $(COMMON_DEP): |dochecklxdialog
+$(LX_OBJ) $(LX_DEP): |dochecklxdialog
+$(mconf_OBJ) $(mconf_DEP): |dochecklxdialog
 endif
 
 -include $(DEPS)
