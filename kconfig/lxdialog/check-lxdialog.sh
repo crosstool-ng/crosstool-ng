@@ -1,24 +1,14 @@
 #!/bin/sh
 # Check ncurses compatibility
 
-OS=`uname`
-
-# Under MACOS make sure that the macports-installed version is used.
-case "$OS" in
-	Darwin) BASEDIR="/opt/local";;
-	*)      BASEDIR="/usr";;
-esac
-
-INCLUDEPATH="${BASEDIR}/include"
-LIBPATH="${BASEDIR}/lib"
-
 # What library to link
 ldflags()
 {
 	for ext in so a dylib ; do
 		for lib in ncursesw ncurses curses ; do
-			if [ -f "${LIBPATH}/lib${lib}.${ext}" ]; then
-				echo "-L${LIBPATH} -l${lib}"
+			$cc -print-file-name=lib${lib}.${ext} | grep -q /
+			if [ $? -eq 0 ]; then
+				echo "-l${lib}"
 				exit
 			fi
 		done
@@ -29,20 +19,14 @@ ldflags()
 # Where is ncurses.h?
 ccflags()
 {
-	if [ -f "${INCLUDEPATH}/ncursesw/ncurses.h" ]; then
-		echo "-I${INCLUDEPATH} \"-DCURSES_LOC=<ncursesw/ncurses.h>\""
-	elif [ -f "${INCLUDEPATH}/ncurses/ncurses.h" ]; then
-		echo "-I${INCLUDEPATH} \"-DCURSES_LOC=<ncurses/ncurses.h>\""
-	elif [ -f "${INCLUDEPATH}/ncursesw/curses.h" ]; then
-		echo "-I${INCLUDEPATH} \"-DCURSES_LOC=<ncursesw/curses.h>\""
-	elif [ -f "${INCLUDEPATH}/ncurses/curses.h" ]; then
-		echo "-I${INCLUDEPATH} \"-DCURSES_LOC=<ncurses/curses.h>\""
-	elif [ -f "${INCLUDEPATH}/ncurses.h" ]; then
-		echo "-I${INCLUDEPATH} \"-DCURSES_LOC=<ncurses.h>\""
-	elif [ -f "${INCLUDEPATH}/curses.h" ]; then
-		echo "-I${INCLUDEPATH} \"-DCURSES_LOC=<curses.h>\""
+	if [ -f /usr/include/ncurses/ncurses.h ]; then
+		echo '-I/usr/include/ncurses -DCURSES_LOC="<ncurses.h>"'
+	elif [ -f /usr/include/ncurses/curses.h ]; then
+		echo '-I/usr/include/ncurses -DCURSES_LOC="<ncurses/curses.h>"'
+	elif [ -f /usr/include/ncurses.h ]; then
+		echo '-DCURSES_LOC="<ncurses.h>"'
 	else
-		exit 1
+		echo '-DCURSES_LOC="<curses.h>"'
 	fi
 }
 
@@ -52,8 +36,7 @@ trap "rm -f $tmp" 0 1 2 3 15
 
 # Check if we can link to ncurses
 check() {
-        IF=`echo $(ccflags) | sed -e 's/"//g'`
-        $cc $IF $(ldflags) -xc - -o $tmp 2>/dev/null <<'EOF'
+        $cc -xc - -o $tmp 2>/dev/null <<'EOF'
 #include CURSES_LOC
 main() {}
 EOF
