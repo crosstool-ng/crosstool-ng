@@ -31,6 +31,8 @@ do_check_files_at_depth() {
 }
 
 mkdir -p "${dst}"
+base="${base%%/}"
+src="$( cd "${src}"; pwd )"
 dst="$( cd "${dst}"; pwd )"
 
 # Iterate through patches
@@ -87,21 +89,14 @@ $1=="+++" && mark==1 { nextfile; }
   # contain multiple accumulated patches onto a single file.
   printf "  applying patch..."
   if ! patch -g0 -F1 -f -p${d} <"${p}" >"../patch.out" 2>&1; then
-    printf " ERROR\n"
-    # Revert the patch
+    printf " ERROR\n\n"
     popd >/dev/null 2>&1
-    printf "  restoring '${base}'..."
-    rm -f "diffstat.tmp"
-    rm -rf "${base}"
-    mv "${base}.orig" "${base}"
-    printf " done\n\n"
     printf "There was an error while applying:\n  -->  ${p}  <--\n"
     printf "'${base}' was restored to the state it was prior to applying this faulty patch.\n"
     printf "Here's the 'patch' command, and its output:\n"
     printf "  ----8<----\n"
     printf "  patch -g0 -F1 -f -p${d} <'${p}'\n"
-    cat "patch.out" |(IFS=$(printf "\n"); while read line; do printf "  ${line}\n"; done)
-    rm -f "patch.out"
+    sed -r -e 's/^/  /;' "patch.out"
     printf "  ----8<----\n"
     exit 1
   fi
@@ -136,6 +131,7 @@ $1=="+++" && mark==1 { nextfile; }
   printf "  removing temporary files/dirs..."
   rm -f "patch.out"
   rm -f "diffstat.tmp"
+  rm -f "diffstat.orig"
   rm -rf "${base}.orig"
   printf " done\n"
 done
@@ -148,6 +144,8 @@ for p in "${dst}/"*.patch; do
 
   if ! cmp "${p}.diffstat.orig" "${p}.diffstat.new" >/dev/null; then
     printf "  --> '${pname}' differ in touched files <--\n"
+  else
+    rm -f "${p}.diffstat.orig" "${p}.diffstat.new"
   fi
 done
 printf "  done.\n"
