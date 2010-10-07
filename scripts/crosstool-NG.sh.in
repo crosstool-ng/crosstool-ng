@@ -328,23 +328,22 @@ if [ -z "${CT_RESTART}" ]; then
         CT_DoExecLog ALL ln -sf "./${CT_SYSROOT_DIR_PREFIX}/sys-root/usr/include" "${CT_PREFIX_DIR}/${CT_TARGET}/include"
     fi
 
-    # Now, in case we're 64 bits, just have lib64/ be a symlink to lib/
-    # so as to have all libraries in the same directory (we can do that
-    # because we are *not* multilib).
-    # Mips64 with n32 emulation install its libs in lib32, so also prepare
-    # these symlinks
-    # Not all the symlinks are necessary, but better safe than sorry...
-    if [ "${CT_ARCH_64}" = "y" ]; then
-        for d in                            \
-            "${CT_PREFIX_DIR}"              \
-            "${CT_SYSROOT_DIR}"             \
-            "${CT_SYSROOT_DIR}/usr"         \
-            "${CT_PREFIX_DIR}/${CT_TARGET}" \
-        ; do
-            CT_DoExecLog ALL ln -sf "lib" "${d}/lib32"
-            CT_DoExecLog ALL ln -sf "lib" "${d}/lib64"
-        done
-    fi
+    # Since we're *not* multilib on the target side, we want all the
+    # libraries to end up in "lib".  We create "lib64" (for 64-bit
+    # build or host architectures) and "lib32" (for 32-bit emulation
+    # on 64-bit) as symlinks to "lib".
+    #
+    # Not all of these symlinks are necessary, but better safe than
+    # sorry. They are summarily removed by build/internals.sh:do_finish.
+    for d in                            \
+        "${CT_PREFIX_DIR}"              \
+        "${CT_SYSROOT_DIR}"             \
+        "${CT_SYSROOT_DIR}/usr"         \
+        "${CT_PREFIX_DIR}/${CT_TARGET}" \
+    ; do
+        CT_DoExecLog ALL ln -sf "lib" "${d}/lib32"
+        CT_DoExecLog ALL ln -sf "lib" "${d}/lib64"
+    done
 
     # Determine build system if not set by the user
     if [ -z "${CT_BUILD}" ]; then
