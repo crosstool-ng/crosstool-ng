@@ -181,8 +181,10 @@ do_cc_core() {
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
+        extra_config+=("--enable-lto")
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=no")
+        extra_config+=("--disable-lto")
     fi
 
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
