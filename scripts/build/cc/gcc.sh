@@ -371,6 +371,11 @@ do_cc() {
     else
         extra_config+=(--disable-libmudflap)
     fi
+    if [ "${CT_CC_GCC_LIBGOMP}" = "y" ]; then
+        extra_config+=(--enable-libgomp)
+    else
+        extra_config+=(--disable-libgomp)
+    fi
 
     if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
         # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
@@ -408,6 +413,7 @@ do_cc() {
     if [ "${CT_THREADS}" = "none" ]; then
         extra_config+=("--disable-threads")
         if [ "${CT_CC_GCC_4_2_or_later}" = y ]; then
+            CT_Test "Disabling libgomp for no-thread gcc>=4.2" "${CT_CC_GCC_LIBGOMP}" = "Y"
             extra_config+=("--disable-libgomp")
         fi
     else
