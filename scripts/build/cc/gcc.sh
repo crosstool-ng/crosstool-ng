@@ -324,6 +324,15 @@ do_cc() {
     CT_Test "Building ${CT_CC_LANG_OTHERS//,/ } language(s) is not yet supported. Will try..." -n "${CT_CC_LANG_OTHERS}"
     lang_opt=$(echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;')
 
+    # In case we build the C++ compiler, we have to tell gcc where to put the
+    # C++ headers, or else it will try to put it in prefix/tuple/include,
+    # which we make a symlink to sysroot/usr/include during the build, and
+    # that we delete (the symlink!) after the build, but gcc will not look
+    # in sysroot/usr/inlcude for C++ headers by default
+    if [ "${CT_CC_LANG_CXX}" = "y"   ]; then
+        extra_config+=("--with-gxx-include-dir=${CT_SYSROOT_DIR}/usr/include")
+    fi
+
     extra_config+=("--enable-languages=${lang_opt}")
     extra_config+=("--disable-multilib")
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
