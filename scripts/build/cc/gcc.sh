@@ -191,6 +191,12 @@ do_cc_core() {
         extra_config+=("--enable-target-optspace")
     fi
 
+    case "${CT_CC_GCC_LDBL_128}" in
+        Y)  extra_config+=("--with-long-double-128");;
+        M)  ;;
+        "") extra_config+=("--without-long-double-128");;
+    esac
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -419,6 +425,12 @@ do_cc() {
     if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
         extra_config+=("--disable-libstdcxx-pch")
     fi
+
+    case "${CT_CC_GCC_LDBL_128}" in
+        Y)  extra_config+=("--with-long-double-128");;
+        M)  ;;
+        "") extra_config+=("--without-long-double-128");;
+    esac
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
