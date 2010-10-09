@@ -376,6 +376,11 @@ do_cc() {
     else
         extra_config+=(--disable-libgomp)
     fi
+    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
+        extra_config+=(--enable-libssp)
+    else
+        extra_config+=(--disable-libssp)
+    fi
 
     if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
         # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
