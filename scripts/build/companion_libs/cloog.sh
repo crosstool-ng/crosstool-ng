@@ -71,7 +71,7 @@ do_cloog() {
         "${cloog_opts[@]}"
 
     CT_DoLog EXTRA "Building CLooG/ppl"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${PARALLELMFLAGS} libcloog.la
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking CLooG/ppl"
@@ -79,10 +79,7 @@ do_cloog() {
     fi
 
     CT_DoLog EXTRA "Installing CLooG/ppl"
-    CT_DoExecLog ALL make install
-
-    # Remove spuriously installed file
-    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/bin/cloog"
+    CT_DoExecLog ALL make install-libLTLIBRARIES install-pkgincludeHEADERS
 
     CT_EndStep
 }
