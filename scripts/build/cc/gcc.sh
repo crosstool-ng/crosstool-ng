@@ -192,8 +192,8 @@ do_cc_core() {
     fi
 
     case "${CT_CC_GCC_LDBL_128}" in
-        Y)  extra_config+=("--with-long-double-128");;
-        M)  ;;
+        y)  extra_config+=("--with-long-double-128");;
+        m)  ;;
         "") extra_config+=("--without-long-double-128");;
     esac
 
@@ -438,8 +438,8 @@ do_cc() {
     fi
 
     case "${CT_CC_GCC_LDBL_128}" in
-        Y)  extra_config+=("--with-long-double-128");;
-        M)  ;;
+        y)  extra_config+=("--with-long-double-128");;
+        m)  ;;
         "") extra_config+=("--without-long-double-128");;
     esac
 
