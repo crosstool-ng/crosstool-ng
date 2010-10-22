@@ -59,12 +59,26 @@ do_libc_headers() {
 }
 
 do_libc_start_files() {
+    local -a newlib_opts
+
     CT_DoStep INFO "Installing C library"
 
     mkdir -p "${CT_BUILD_DIR}/build-libc"
     cd "${CT_BUILD_DIR}/build-libc"
 
     CT_DoLog EXTRA "Configuring C library"
+
+    if [ "${CT_LIBC_NEWLIB_IO_FLOAT}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-io-float" )
+        if [ "${CT_LIBC_NEWLIB_IO_LDBL}" = "y" ]; then
+            newlib_opts+=( "--enable-newlib-io-long-double" )
+        else
+            newlib_opts+=( "--disable-newlib-io-long-double" )
+        fi
+    else
+        newlib_opts+=( "--disable-newlib-io-float" )
+        newlib_opts+=( "--disable-newlib-io-long-double" )
+    fi
 
     # Note: newlib handles the build/host/target a little bit differently
     # than one would expect:
@@ -79,7 +93,8 @@ do_libc_start_files() {
     "${CT_SRC_DIR}/newlib-$(libc_newlib_version)/configure" \
         --host=${CT_BUILD}                              \
         --target=${CT_TARGET}                           \
-        --prefix=${CT_PREFIX_DIR}
+        --prefix=${CT_PREFIX_DIR}                       \
+        "${newlib_opts[@]}"
 
     CT_DoLog EXTRA "Building C library"
     CT_DoExecLog ALL make ${PARALLELMFLAGS}
