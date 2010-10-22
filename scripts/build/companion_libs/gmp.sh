@@ -37,7 +37,7 @@ do_gmp() {
     fi
 
     CFLAGS="${CT_CFLAGS_FOR_HOST} -fexceptions"     \
-    CT_DoExecLog ALL                                \
+    CT_DoExecLog CFG                                \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \

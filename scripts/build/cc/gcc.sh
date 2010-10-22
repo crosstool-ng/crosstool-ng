@@ -203,7 +203,7 @@ do_cc_core() {
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     LDFLAGS="${core_LDFLAGS}"                       \
-    CT_DoExecLog ALL                                \
+    CT_DoExecLog CFG                                \
     "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
@@ -237,17 +237,17 @@ do_cc_core() {
         # Next we have to configure gcc, create libgcc.mk then edit it...
         # So much easier if we just edit the source tree, but hey...
         if [ ! -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
-            CT_DoExecLog ALL make configure-libiberty
+            CT_DoExecLog CFG make configure-libiberty
             CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
-            CT_DoExecLog ALL make configure-gcc configure-libcpp
+            CT_DoExecLog CFG make configure-gcc configure-libcpp
             CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp
         else
-            CT_DoExecLog ALL make configure-gcc configure-libcpp configure-build-libiberty
+            CT_DoExecLog CFG make configure-gcc configure-libcpp configure-build-libiberty
             CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
         if [ -d "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/libdecnumber" ]; then
-            CT_DoExecLog ALL make configure-libdecnumber
+            CT_DoExecLog CFG make configure-libdecnumber
             CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
         fi
 
@@ -455,7 +455,7 @@ do_cc() {
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"         \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"       \
-    CT_DoExecLog ALL                                \
+    CT_DoExecLog CFG                                \
     "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \

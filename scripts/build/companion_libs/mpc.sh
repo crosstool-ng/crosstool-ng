@@ -38,7 +38,7 @@ do_mpc() {
     fi
 
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    CT_DoExecLog ALL                                \
+    CT_DoExecLog CFG                                \
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \

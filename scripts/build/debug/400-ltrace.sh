@@ -38,9 +38,9 @@ do_debug_ltrace_build() {
         CC="${CT_TARGET}-${CT_CC}"      \
         HOST="${ltrace_host}"           \
         CFLAGS="${CT_TARGET_CFLAGS}"    \
-        CT_DoExecLog ALL ./configure --prefix=/usr
+        CT_DoExecLog CFG ./configure --prefix=/usr
     else
-        CT_DoExecLog ALL        \
+        CT_DoExecLog CFG        \
         ./configure             \
             --build=${CT_BUILD} \
             --host=${CT_TARGET} \

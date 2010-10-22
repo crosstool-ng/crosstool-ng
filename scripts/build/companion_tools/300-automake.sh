@@ -17,7 +17,7 @@ do_companion_tools_automake_build() {
     mkdir -p "${CT_BUILD_DIR}/build-automake"
     CT_Pushd "${CT_BUILD_DIR}/build-automake"
     
-    CT_DoExecLog ALL \
+    CT_DoExecLog CFG \
     "${CT_SRC_DIR}/automake-${CT_AUTOMAKE_VERSION}/configure" \
         --prefix="${CT_TOOLS_OVERIDE_DIR}"
     CT_DoExecLog ALL make

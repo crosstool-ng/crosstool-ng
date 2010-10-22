@@ -112,7 +112,7 @@ do_debug_gdb_build() {
 
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
-        CT_DoExecLog ALL                                \
+        CT_DoExecLog CFG                                \
         "${gdb_cross_configure}"                        \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
@@ -153,7 +153,7 @@ do_debug_gdb_build() {
             # Use build = CT_REAL_BUILD so that configure thinks it is
             # cross-compiling, and thus will use the ${CT_BUILD}-*
             # tools instead of searching for the native ones...
-            CT_DoExecLog ALL                                                    \
+            CT_DoExecLog CFG                                                    \
             "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
                 --build=${CT_BUILD}                                             \
                 --host=${CT_BUILD}                                              \
@@ -178,7 +178,7 @@ do_debug_gdb_build() {
             mkdir -p "${CT_BUILD_DIR}/build-ncurses"
             cd "${CT_BUILD_DIR}/build-ncurses"
 
-            CT_DoExecLog ALL                                                    \
+            CT_DoExecLog CFG                                                    \
             "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
                 --build=${CT_BUILD}                                             \
                 --host=${CT_TARGET}                                             \
@@ -211,7 +211,7 @@ do_debug_gdb_build() {
             mkdir -p "${CT_BUILD_DIR}/expat-build"
             cd "${CT_BUILD_DIR}/expat-build"
 
-            CT_DoExecLog ALL                                                \
+            CT_DoExecLog CFG                                                \
             "${CT_SRC_DIR}/expat-${CT_DEBUG_GDB_EXPAT_VERSION}/configure"   \
                 --build=${CT_BUILD}                                         \
                 --host=${CT_TARGET}                                         \
@@ -251,7 +251,7 @@ do_debug_gdb_build() {
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
         CFLAGS="${gdb_native_CFLAGS[@]}"                \
-        CT_DoExecLog ALL                                \
+        CT_DoExecLog CFG                                \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -313,7 +313,7 @@ do_debug_gdb_build() {
         gdbserver_extra_config=("${extra_config[@]}")
 
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
-        CT_DoExecLog ALL                                \
+        CT_DoExecLog CFG                                \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \

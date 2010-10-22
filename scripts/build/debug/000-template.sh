@@ -20,7 +20,7 @@ do_debug_foobar_build() {
     # For example:
     # mkdir -p "${CT_BUILD_DIR}/build-foobar"
     # CT_Pushd "${CT_BUILD_DIR}/build-foobar"
-    # CT_DoExecLog ALL                                        \
+    # CT_DoExecLog CFG                                        \
     # "${CT_SRC_DIR}/foobar-${CT_FOOBAR_VERSION}/configure"   \
     #     --build=${CT_BUILD}                                 \
     #     --host=${CT_TARGET}                                 \

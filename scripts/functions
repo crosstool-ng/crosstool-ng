@@ -49,8 +49,10 @@ CT_LOG_LEVEL_ERROR=0
 CT_LOG_LEVEL_WARN=1
 CT_LOG_LEVEL_INFO=2
 CT_LOG_LEVEL_EXTRA=3
-CT_LOG_LEVEL_ALL=4
-CT_LOG_LEVEL_DEBUG=5
+CT_LOG_LEVEL_CFG=4
+CT_LOG_LEVEL_FILE=5
+CT_LOG_LEVEL_ALL=6
+CT_LOG_LEVEL_DEBUG=7
 
 # Make it easy to use \n and !
 CR=$(printf "\n")
@@ -63,6 +65,8 @@ BANG='!'
 #   - INFO:    Informational messages
 #   - EXTRA:   Extra informational messages
 #   - DEBUG:   Debug messages
+#   - CFG:     Output of various "./configure"-type scripts
+#   - FILE:    File / archive unpacking.
 #   - ALL:     Component's build messages
 # Usage: CT_DoLog <level> [message]
 # If message is empty, then stdin will be logged.
@@ -671,9 +675,9 @@ CT_Extract() {
 
     CT_DoLog EXTRA "Extracting '${basename}'"
     case "${ext}" in
-        .tar.bz2)     CT_DoExecLog ALL tar xvjf "${full_file}";;
-        .tar.gz|.tgz) CT_DoExecLog ALL tar xvzf "${full_file}";;
-        .tar)         CT_DoExecLog ALL tar xvf  "${full_file}";;
+        .tar.bz2)     CT_DoExecLog FILE tar xvjf "${full_file}";;
+        .tar.gz|.tgz) CT_DoExecLog FILE tar xvzf "${full_file}";;
+        .tar)         CT_DoExecLog FILE tar xvf  "${full_file}";;
         /.git)        CT_ExtractGit "${basename}" "${@}";;
         *)            CT_Abort "Don't know how to handle '${basename}${ext}': unknown extension";;
     esac
@@ -729,7 +733,7 @@ CT_ExtractGit() {
 
     case "${ref_type}" in
         none)   ;;
-        *)      CT_DoExecLog ALL git checkout "${ref}";;
+        *)      CT_DoExecLog FILE git checkout "${ref}";;
     esac
 
     CT_Popd

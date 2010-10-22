@@ -17,7 +17,7 @@ do_companion_tools_m4_build() {
     mkdir -p "${CT_BUILD_DIR}/build-m4"
     CT_Pushd "${CT_BUILD_DIR}/build-m4"
     
-    CT_DoExecLog ALL \
+    CT_DoExecLog CFG \
     "${CT_SRC_DIR}/m4-${CT_M4_VERSION}/configure" \
         --prefix="${CT_TOOLS_OVERIDE_DIR}"
     CT_DoExecLog ALL make

@@ -60,7 +60,7 @@ do_cloog() {
 
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
     LDFLAGS="${cloog_LDFLAGS}"                  \
-    CT_DoExecLog ALL                            \
+    CT_DoExecLog CFG                            \
     "${CT_SRC_DIR}/cloog-ppl${_t}/configure"    \
         --build=${CT_BUILD}                     \
         --host=${CT_HOST}                       \

@@ -26,7 +26,7 @@ do_binutils() {
 
     CT_DoLog EXTRA "Configuring binutils"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                              \
-    CT_DoExecLog ALL                                            \
+    CT_DoExecLog CFG                                            \
     "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
         --build=${CT_BUILD}                                     \
         --host=${CT_HOST}                                       \

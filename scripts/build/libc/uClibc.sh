@@ -190,7 +190,7 @@ do_libc() {
     # to best fit the target. So it is useless and seems to be a bad thing to
     # use LIBC_EXTRA_CFLAGS here.
     CT_DoLog EXTRA "Applying configuration"
-    CT_DoYes "" |CT_DoExecLog ALL                                   \
+    CT_DoYes "" |CT_DoExecLog CFG                                   \
                  make CROSS=${CT_TARGET}-                           \
                  PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \

@@ -38,7 +38,7 @@ do_elf2flt() {
 
     CT_DoLog EXTRA "Configuring elf2flt"
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                              \
-    CT_DoExecLog ALL                                            \
+    CT_DoExecLog CFG                                            \
     "${CT_SRC_DIR}/elf2flt-cvs-${CT_ELF2FLT_VERSION}/configure" \
         --build=${CT_BUILD}                                     \
         --host=${CT_HOST}                                       \

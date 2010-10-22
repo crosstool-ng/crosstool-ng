@@ -203,7 +203,7 @@ do_libc_start_files() {
     CXX=${cross_cxx}                                    \
     AR=${cross_ar}                                      \
     RANLIB=${cross_ranlib}                              \
-    CT_DoExecLog ALL                                    \
+    CT_DoExecLog CFG                                    \
     "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure" \
         --prefix=/usr                                   \
         --with-headers="${CT_HEADERS_DIR}"              \
@@ -311,7 +311,7 @@ do_libc() {
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
-    CT_DoExecLog ALL                                                \
+    CT_DoExecLog CFG                                                \
     "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure"             \
         --prefix=/usr                                               \
         --with-headers="${CT_HEADERS_DIR}"                          \

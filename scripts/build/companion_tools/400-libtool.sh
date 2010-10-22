@@ -17,7 +17,7 @@ do_companion_tools_libtool_build() {
     mkdir -p "${CT_BUILD_DIR}/build-libtool"
     CT_Pushd "${CT_BUILD_DIR}/build-libtool"
     
-    CT_DoExecLog ALL \
+    CT_DoExecLog CFG \
     "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}/configure" \
         --prefix="${CT_TOOLS_OVERIDE_DIR}"
     CT_DoExecLog ALL make

@@ -75,7 +75,7 @@ do_libc_start_files() {
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS} -O"          \
     AR=${CT_TARGET}-ar                                  \
     RANLIB=${CT_TARGET}-ranlib                          \
-    CT_DoExecLog ALL                                    \
+    CT_DoExecLog CFG                                    \
     "${CT_SRC_DIR}/newlib-$(libc_newlib_version)/configure" \
         --host=${CT_BUILD}                              \
         --target=${CT_TARGET}                           \

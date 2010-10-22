@@ -22,7 +22,7 @@ do_companion_tools_autoconf_build() {
     # For reference see:
     # http://www.gnu.org/software/autoconf/manual/autoconf.html#CONFIG_005fSHEL
     
-    CT_DoExecLog ALL ${CONFIG_SHELL} \
+    CT_DoExecLog CFG ${CONFIG_SHELL} \
     "${CT_SRC_DIR}/autoconf-${CT_AUTOCONF_VERSION}/configure" \
         --prefix="${CT_TOOLS_OVERIDE_DIR}"
     CT_DoExecLog ALL make

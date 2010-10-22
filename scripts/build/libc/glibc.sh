@@ -130,7 +130,7 @@ do_libc_headers() {
     libc_cv_mlong_double_128=yes                                \
     libc_cv_mlong_double_128ibm=yes                             \
     CC=${cross_cc}                                              \
-    CT_DoExecLog ALL                                            \
+    CT_DoExecLog CFG                                            \
     "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/configure"          \
         --build="${CT_BUILD}"                                   \
         --host="${CT_TARGET}"                                   \
@@ -302,7 +302,7 @@ do_libc_start_files() {
     CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}"      \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
-    CT_DoExecLog ALL                                                \
+    CT_DoExecLog CFG                                                \
     "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/configure"              \
         --prefix=/usr                                               \
         --build="${CT_BUILD}"                                       \
@@ -441,7 +441,7 @@ do_libc() {
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
-    CT_DoExecLog ALL                                                \
+    CT_DoExecLog CFG                                                \
     "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/configure"              \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
