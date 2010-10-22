@@ -1,4 +1,4 @@
-# This file contains some usefull common functions
+# This file contains some usefull common functions -*- sh -*-
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
@@ -51,8 +51,9 @@ CT_LOG_LEVEL_INFO=2
 CT_LOG_LEVEL_EXTRA=3
 CT_LOG_LEVEL_CFG=4
 CT_LOG_LEVEL_FILE=5
-CT_LOG_LEVEL_ALL=6
-CT_LOG_LEVEL_DEBUG=7
+CT_LOG_LEVEL_STATE=6
+CT_LOG_LEVEL_ALL=7
+CT_LOG_LEVEL_DEBUG=8
 
 # Make it easy to use \n and !
 CR=$(printf "\n")
@@ -64,10 +65,11 @@ BANG='!'
 #   - WARN:    A non fatal, non serious error occurred, take your responsbility with the generated build
 #   - INFO:    Informational messages
 #   - EXTRA:   Extra informational messages
-#   - DEBUG:   Debug messages
 #   - CFG:     Output of various "./configure"-type scripts
 #   - FILE:    File / archive unpacking.
+#   - STATE:   State save & restore
 #   - ALL:     Component's build messages
+#   - DEBUG:   Internal debug messages
 # Usage: CT_DoLog <level> [message]
 # If message is empty, then stdin will be logged.
 CT_DoLog() {
@@ -961,15 +963,15 @@ CT_DoTarballIfExists() {
         CT_DoLog DEBUG "  Saving '${dir}'"
         { tar c -C "${dir}" -v -f - "${extra_tar_opts[@]}" .    \
           |"${compress[@]}" >"${tarball}.tar${tar_ext}"         ;
-        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog DEBUG
+        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog STATE
     else
-        CT_DoLog DEBUG "  Not saving '${dir}': does not exist"
+        CT_DoLog STATE "  Not saving '${dir}': does not exist"
     fi
 }
 
 # This function extracts a tarball to the specified directory, but
 # only if the tarball exists
-# Usage: CT_DoTarballIfExists <tarball_basename> <dir> [extra_tar_options [...]]
+# Usage: CT_DoExtractTarballIfExists <tarball_basename> <dir> [extra_tar_options [...]]
 CT_DoExtractTarballIfExists() {
     local tarball="$1"
     local dir="$2"
@@ -988,9 +990,9 @@ CT_DoExtractTarballIfExists() {
         CT_DoExecLog DEBUG mkdir -p "${dir}"
         { "${uncompress[@]}" "${tarball}.tar${tar_ext}"     \
           |tar x -C "${dir}" -v -f - "${extra_tar_opts[@]}" ;
-        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog DEBUG
+        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog STATE
     else
-        CT_DoLog DEBUG "  Not restoring '${dir}': does not exist"
+        CT_DoLog STATE "  Not restoring '${dir}': does not exist"
     fi
 }
 
@@ -1008,7 +1010,7 @@ CT_DoSaveState() {
     rm -rf "${state_dir}"
     mkdir -p "${state_dir}"
 
-    CT_DoLog DEBUG "  Saving environment and aliases"
+    CT_DoLog STATE "  Saving environment and aliases"
     # We must omit shell functions, and some specific bash variables
     # that break when restoring the environment, later. We could do
     # all the processing in the awk script, but a sed is easier...
@@ -1030,7 +1032,7 @@ CT_DoSaveState() {
     CT_DoTarballIfExists "${CT_PREFIX_DIR}" "${state_dir}/prefix_dir" --exclude '*.log'
 
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-        CT_DoLog DEBUG "  Saving log file"
+        CT_DoLog STATE "  Saving log file"
         exec >/dev/null
         case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
             y)  gzip -3 -c "${CT_LOG_FILE}"  >"${state_dir}/log.gz";;
@@ -1068,7 +1070,7 @@ CT_DoLoadState(){
 
     # Restore the environment, discarding any error message
     # (for example, read-only bash internals)
-    CT_DoLog DEBUG "  Restoring environment"
+    CT_DoLog STATE "  Restoring environment"
     . "${state_dir}/env.sh" >/dev/null 2>&1 || true
 
     # Restore the new RESTART and STOP steps
@@ -1077,7 +1079,7 @@ CT_DoLoadState(){
     unset old_stop old_restart
 
     if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-        CT_DoLog DEBUG "  Restoring log file"
+        CT_DoLog STATE "  Restoring log file"
         exec >/dev/null
         case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
             y)  zcat "${state_dir}/log.gz" >"${CT_LOG_FILE}";;
