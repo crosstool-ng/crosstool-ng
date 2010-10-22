@@ -68,6 +68,11 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Configuring C library"
 
+    if [ "${CT_LIBC_NEWLIB_IO_LL}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-io-long-long" )
+    else
+        newlib_opts+=( "--disable-newlib-io-long-long" )
+    fi
     if [ "${CT_LIBC_NEWLIB_IO_FLOAT}" = "y" ]; then
         newlib_opts+=( "--enable-newlib-io-float" )
         if [ "${CT_LIBC_NEWLIB_IO_LDBL}" = "y" ]; then
