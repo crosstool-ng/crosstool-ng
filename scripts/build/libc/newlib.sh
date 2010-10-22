@@ -68,6 +68,11 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Configuring C library"
 
+    if [ "${CT_LIBC_NEWLIB_IO_C99FMT}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-io-c99-formats" )
+    else
+        newlib_opts+=( "--disable-newlib-io-c99-formats" )
+    fi
     if [ "${CT_LIBC_NEWLIB_IO_LL}" = "y" ]; then
         newlib_opts+=( "--enable-newlib-io-long-long" )
     else
