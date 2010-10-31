@@ -155,10 +155,9 @@ do_finish() {
         CT_DoExecLog ALL rm -f "${d}/lib64"
     done
 
-    # Also remove the include/ and lib/ symlinks out-side of sysroot
+    # Also remove the lib/ symlink out-side of sysroot
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
         CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
-        CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/${CT_TARGET}/include"
     fi
 
     CT_EndStep
