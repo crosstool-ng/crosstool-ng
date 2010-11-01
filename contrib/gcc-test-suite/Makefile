@@ -45,16 +45,16 @@ $(LOGDIR):
 
 $(LOGDIR)/site.exp: $(TOPDIR)/default.cfg $(LOGDIR)
 	@{ echo 'lappend boards_dir "$(LOGDIR)"'; \
-	  echo "set target_alias $(TARGET)"; } > $@
+	   echo 'set target_alias $(TARGET)';     } > $@
 
 $(LOGDIR)/board.exp: $(TOPDIR)/default.cfg $(LOGDIR)
-	@{ echo -e "load_generic_config \"unix\""; \
-	echo -e "process_multilib_options \"\"" ; \
-	echo "set_board_info bmk,use_alarm 1" ; \
-	echo "set_board_info rsh_prog ssh" ; \
-	echo "set_board_info rcp_prog scp" ; \
-	echo "set_board_info hostname $(DG_TARGET_HOSTNAME)"; \
-	echo "set_board_info username $(DG_TARGET_USERNAME)"; } > $@
+	@{ echo 'load_generic_config "unix"';                    \
+	   echo 'process_multilib_options ""';                   \
+	   echo 'set_board_info bmk,use_alarm 1';                \
+	   echo 'set_board_info rsh_prog ssh';                   \
+	   echo 'set_board_info rcp_prog scp';                   \
+	   echo 'set_board_info hostname $(DG_TARGET_HOSTNAME)'; \
+	   echo 'set_board_info username $(DG_TARGET_USERNAME)'; } > $@
 
 # As Martin puts it:
 #  > The thing is that when you run 50k+ test cases the odds are that at
