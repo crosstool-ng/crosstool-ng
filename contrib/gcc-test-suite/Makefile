@@ -70,7 +70,7 @@ test: $(LOGDIR)/board.exp $(LOGDIR)/site.exp $(LOGDIR)
 	         --target $(TARGET)             \
 	         --target_board board           \
 	         $(DG_TESTS)                    \
-	         GXX_UNDER_TEST=$(DG_TARGET)-g++ || true
+	         GXX_UNDER_TEST=$(TARGET)-g++   || true
 	@printf "Result files available in '%s'\n" "$(LOGDIR)"
 
 clean:
