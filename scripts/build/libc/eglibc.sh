@@ -14,7 +14,7 @@ do_eglibc_get() {
         *)  svn_action="export --force";;
     esac
 
-    CT_DoExecLog ALL svn ${svn_action} -r "${CT_EGLIBC_REVISION:-HEAD}" "${svn_url}" . 2>&1
+    CT_DoExecLog ALL svn ${svn_action} -r "${CT_EGLIBC_REVISION:-HEAD}" "${svn_url}" "$(pwd)"
 
     # Compress eglibc
     CT_DoExecLog ALL mv libc "eglibc-${CT_LIBC_VERSION}"
