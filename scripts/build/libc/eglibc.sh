@@ -292,6 +292,10 @@ do_libc() {
         ,y) extra_config+=("--without-fp");;
     esac
 
+    if [ "${CT_LIBC_DISABLE_VERSIONING}" = "y" ]; then
+        extra_config+=("--disable-versioning")
+    fi
+
     case "$(do_libc_add_ons_list ,)" in
         "") ;;
         *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
