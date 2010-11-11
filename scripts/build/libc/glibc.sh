@@ -373,6 +373,10 @@ do_libc() {
         extra_config+=("--disable-versioning")
     fi
 
+    if [ "${CT_LIBC_OLDEST_ABI}" != "" ]; then
+        extra_config+=("--enable-oldest-abi=${CT_LIBC_OLDEST_ABI}")
+    fi
+
     case "$(do_libc_add_ons_list ,)" in
         "") ;;
         *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
