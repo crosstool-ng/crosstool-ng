@@ -16,13 +16,9 @@ libc_newlib_version() {
 do_libc_get() {
     local libc_src
     local avr32headers_src
-    local save_chunks
 
     libc_src="ftp://sources.redhat.com/pub/newlib"
     avr32headers_src="http://dev.doredevelopment.dk/avr32-toolchain/sources"
-
-    save_chunks="${CT_DOWNLOAD_MAX_CHUNKS}"
-    CT_DOWNLOAD_MAX_CHUNKS=1
 
     if [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
         CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
@@ -37,8 +33,6 @@ do_libc_get() {
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_GetFile "avr32headers" ${avr32headers_src}
     fi
-
-    CT_DOWNLOAD_MAX_CHUNKS="${save_chunks}"
 }
 
 do_libc_extract() {

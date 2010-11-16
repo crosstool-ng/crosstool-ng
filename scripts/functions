@@ -383,31 +383,16 @@ CT_DoGetFileCurl() {
     || rm -f "${1##*/}"
 }
 
-# Download using aria2
-# Usage: CT_DoGetFileAria2 <URL>
-CT_DoGetFileAria2() {
-    # Note: comments about curl method (above) are also valid here
-    # Plus: default progress indicator is a single line, so use verbose log
-    #       so that the CT-NG's ouput is 'live'.
-    CT_DoExecLog ALL aria2c --summary-interval=1 -s ${CT_DOWNLOAD_MAX_CHUNKS} -m 3 -t ${CT_CONNECT_TIMEOUT} -p "$1" \
-    || CT_DoExecLog ALL aria2c --summary-interval=1 -s ${CT_DOWNLOAD_MAX_CHUNKS} -m 3 -t ${CT_CONNECT_TIMEOUT} "$1" \
-    || rm -f "${1##*/}"
-}
-
 # OK, just look if we have them...
-_aria2c=$(CT_Which aria2c)
 _wget=$(CT_Which wget)
 _curl=$(CT_Which curl)
 
 # Wrapper function to call one of, in order of preference:
-#   aria2
 #   curl
 #   wget
 # Usage: CT_DoGetFile <URL>
 CT_DoGetFile() {
-    if   [ -n "${_aria2c}" -a ${CT_DOWNLOAD_MAX_CHUNKS} -gt 1 ]; then
-        CT_DoGetFileAria2 "$1"
-    elif [ -n "${_curl}" ]; then
+    if   [ -n "${_curl}" ]; then
         CT_DoGetFileCurl "$1"
     elif [ -n "${_wget}" ]; then
         CT_DoGetFileWget "$1"
