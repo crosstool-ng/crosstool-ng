@@ -353,52 +353,35 @@ CT_GetFileExtension() {
     exit 1
 }
 
-# Download an URL using wget
-# Usage: CT_DoGetFileWget <URL>
-CT_DoGetFileWget() {
-    # Need to return true because it is legitimate to not find the tarball at
-    # some of the provided URLs (think about snapshots, different layouts for
-    # different gcc versions, etc...)
+# Try to retrieve the specified URL (HTTP or FTP)
+# Usage: CT_DoGetFile <URL>
+# This functions always returns true (0), as it can be legitimate not
+# to find the requested URL (think about snapshots, different layouts
+# for different gcc versions, etc...).
+CT_DoGetFile() {
+    # OK, just look if we have them...
+    # We are sure at least one is available, ./configure checked for it.
+    local _curl=$(CT_Which curl)
+    local _wget=$(CT_Which wget)
+    _curl="${_curl:-false}"
+    _wget="${_wget:-false}"
+
     # Some (very old!) FTP server might not support the passive mode, thus
-    # retry without
-    # With automated download as we are doing, it can be very dangerous to use
-    # -c to continue the downloads. It's far better to simply overwrite the
-    # destination file
+    # retry without.
+    # We also retry a few times, in case there is a transient error (eg. behind
+    # a dynamic IP that changes during the transfer...)
+    # With automated download as we are doing, it can be very dangerous to
+    # continue the downloads. It's far better to simply overwrite the
+    # destination file.
     # Some company networks have firewalls to connect to the internet, but it's
     # not easy to detect them, and wget does not timeout by default while
     # connecting, so force a global ${CT_CONNECT_TIMEOUT}-second timeout.
-    CT_DoExecLog ALL wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 --passive-ftp "$1"    \
-    || CT_DoExecLog ALL wget -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary --tries=3 "$1"               \
+    # For curl, no good progress indicator is available. So, be silent.
+       CT_DoExecLog ALL "${_curl}" --ftp-pasv    --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -O "$1" \
+    || CT_DoExecLog ALL "${_curl}"               --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -O "$1" \
+    || CT_DoExecLog ALL "${_wget}" --passive-ftp --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary  "$1" \
+    || CT_DoExecLog ALL "${_wget}"               --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary  "$1" \
     || rm -f "${1##*/}"
-}
-
-# Download an URL using curl
-# Usage: CT_DoGetFileCurl <URL>
-CT_DoGetFileCurl() {
-    # Note: comments about wget method (above) are also valid here
-    # Plus: no good progress indicator is available with curl,
-    #       so, be silent.
-    CT_DoExecLog ALL curl -s --ftp-pasv -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f  \
-    || CT_DoExecLog ALL curl -s -O --retry 3 "$1" --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f          \
-    || rm -f "${1##*/}"
-}
-
-# OK, just look if we have them...
-_wget=$(CT_Which wget)
-_curl=$(CT_Which curl)
-
-# Wrapper function to call one of, in order of preference:
-#   curl
-#   wget
-# Usage: CT_DoGetFile <URL>
-CT_DoGetFile() {
-    if   [ -n "${_curl}" ]; then
-        CT_DoGetFileCurl "$1"
-    elif [ -n "${_wget}" ]; then
-        CT_DoGetFileWget "$1"
-    else
-        CT_Abort "Could find neither wget nor curl"
-    fi
 }
 
 # This function tries to retrieve a tarball form a local directory
