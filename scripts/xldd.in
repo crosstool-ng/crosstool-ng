@@ -24,6 +24,16 @@ do_opt_error() {
     printf "Try \`%s --help' for more information\n" >&2
 }
 
+do_trace() {
+    local depth=0
+
+    [ -z "${CT_XLDD_VERBOSE}" ] && return 0
+
+    for((depth=0; "${#FUNCNAME[$((depth+1))]}" != 0; depth++)); do :; done
+    printf "%*s" $((4*(depth-1))) "" >&2
+    printf -- "$@" >&2
+}
+
 show_version() {
     # Fake a real ldd, just in case some dumb script would check
     cat <<_EOF_
@@ -49,6 +59,10 @@ _EOF_
 ${my_name} tries to mimick the behavior of a real native ldd, but can be
 used in a cross-development environment. Here is how it differs from a
 real native ldd:
+
+If the CT_XLDD_DEBUG variable is set and non-empty, then ${myname} will
+print a lot of debug messages, explaining how it builds the library
+search path, and how each library was found and why.
 
 The LD_LIBRARY_PATH variable is not used, as it can not reliably be
 guessed except at runtime, and we can't run.
@@ -175,16 +189,22 @@ do_find_needed() {
     local found_sysroot
     local d
 
+    do_trace "Searching for '${needed}'\n"
+
     for d in "${needed_search_path[@]}"; do
+        do_trace "-> looking in '${d}'\n"
         if [ -f "${root}${d}/${needed}" ]; then
             found="${d}/${needed}"
+            do_trace "---> found\n"
             break
         fi
     done
     if [ -z "${found}" ]; then
     for d in "${needed_search_path[@]}"; do
+        do_trace "-> looking in '${d}' (sysroot)\n"
         if [ -f "${sysroot}${d}/${needed}" ]; then
             found_sysroot="${d}/${needed}"
+            do_trace "---> found\n"
             break
         fi
     done
@@ -205,6 +225,8 @@ do_find_needed() {
 do_process_file() {
     local file="${1}"
 
+    do_trace "Parsing file '${file}'\n"
+
     "${readelf}" -d "${file}"                                           \
     |"${grep}" -E '\(NEEDED\)'                                          \
     |"${sed}" -r -e 's/^.*Shared library:[[:space:]]+\[(.*)\]$/\1/;'    \
@@ -220,11 +242,13 @@ do_scan_etc_ldsoconf() {
     local f
 
     [ -f "${ldsoconf}" ] || return 0
+    do_trace "Parsing ld.so.conf: '${ldsoconf}'\n"
 
     while read line; do
         case "${line}" in
             include\ *)
                 g="${root}${line#include }"
+                do_trace "-> handling include directive '${g}'\n"
                 for f in ${g}; do
                     do_scan_etc_ldsoconf "${f}"
                 done
@@ -232,6 +256,7 @@ do_scan_etc_ldsoconf() {
             \#*|"")
                 ;;
             *)
+                do_trace "-> adding search dir '${line}'\n"
                 needed_search_path+=( "${line}" )
                 ;;
         esac
@@ -240,12 +265,22 @@ do_scan_etc_ldsoconf() {
 
 # Build up the full list of search directories
 declare -a needed_search_path
+do_trace "Adding basic lib dirs\n"
 ld_library_path="${ld_library_path}:"
 while [ -n "${ld_library_path}" ]; do
     d="${ld_library_path%%:*}"
-    [ -n "${d}" ] && needed_search_path+=( "${d}" )
+    if [ -n "${d}" ]; then
+        do_trace "-> adding search dir '${d}'\n"
+        needed_search_path+=( "${d}" )
+    fi
     ld_library_path="${ld_library_path#*:}"
 done
+do_trace "Scanning '/etc/ld.so.conf'\n"
 do_scan_etc_ldsoconf "${root}/etc/ld.so.conf"
+do_trace "Search path:\n"
+for p in "${needed_search_path[@]}"; do
+    do_trace "-> '${p}'\n"
+done
 
+do_trace "Scanning file '${1}'\n"
 do_process_file "${1}"
