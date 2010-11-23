@@ -48,13 +48,13 @@ do_finish() {
     if [ "${CT_LIBC_XLDD}" = "y" ]; then
         CT_DoLog EXTRA "Installing a cross-ldd helper"
         sed -r -e 's|@@CT_VERSION@@|'"${CT_VERSION}"'|g;'   \
-               -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
-               -e 's|@@CT_install@@|'"${install}"'|g;'  \
-               -e 's|@@CT_bash@@|'"${bash}"'|g;'        \
-               -e 's|@@CT_grep@@|'"${grep}"'|g;'        \
-               -e 's|@@CT_make@@|'"${make}"'|g;'        \
-               -e 's|@@CT_sed@@|'"${sed}"'|g;'          \
-               "${CT_LIB_DIR}/scripts/xldd.in"          \
+               -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;'     \
+               -e 's|@@CT_install@@|'"${install}"'|g;'      \
+               -e 's|@@CT_bash@@|'"${bash}"'|g;'            \
+               -e 's|@@CT_grep@@|'"${grep}"'|g;'            \
+               -e 's|@@CT_make@@|'"${make}"'|g;'            \
+               -e 's|@@CT_sed@@|'"${sed}"'|g;'              \
+               "${CT_LIB_DIR}/scripts/xldd.in"              \
                >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
         CT_DoExecLog ALL chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
     fi
