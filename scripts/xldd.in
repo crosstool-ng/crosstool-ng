@@ -134,7 +134,15 @@ if [ ! -d "${root}" ]; then
     exit 1
 fi
 
-sysroot="$( "${gcc}" -print-sysroot )"
+sysroot="$( "${gcc}" -print-sysroot 2>/dev/null )"
+if [ -z "${sysroot}" ]; then
+    sysroot="$( "${gcc}" -print-file-name=libc.so 2>/dev/null   \
+                |sed -r -e 's:/usr/lib/libc.so$::;'             \
+              )"
+fi
+if [ -z "${sysroot}" ]; then
+    do_error "unable to find sysroot for \`${gcc}'"
+fi
 
 do_report_needed_found() {
     local needed="${1}"
