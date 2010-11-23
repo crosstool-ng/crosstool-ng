@@ -55,7 +55,6 @@ guessed except at runtime, and we can't run.
 
 ${my_name} does not scan /etc/ld.so.cache, but instead uses /etc/ld.so.conf
 (it understands the include directives therein for libces that have that).
-[Note: this is missing for now...]
 
 ${my_name} will search the directory specified with --root for libraries
 to resolve the NEEDED tags. If --root is not set, then ${my_name} will
@@ -214,6 +213,31 @@ do_process_file() {
      done
 }
 
+# Recursively scan a /etc/ld.so.conf file
+do_scan_etc_ldsoconf() {
+    local ldsoconf="${1}"
+    local g
+    local f
+
+    [ -f "${ldsoconf}" ] || return 0
+
+    while read line; do
+        case "${line}" in
+            include\ *)
+                g="${root}${line#include }"
+                for f in ${g}; do
+                    do_scan_etc_ldsoconf "${f}"
+                done
+                ;;
+            \#*|"")
+                ;;
+            *)
+                needed_search_path+=( "${line}" )
+                ;;
+        esac
+    done <"${ldsoconf}"
+}
+
 # Build up the full list of search directories
 declare -a needed_search_path
 ld_library_path="${ld_library_path}:"
@@ -222,5 +246,6 @@ while [ -n "${ld_library_path}" ]; do
     [ -n "${d}" ] && needed_search_path+=( "${d}" )
     ld_library_path="${ld_library_path#*:}"
 done
+do_scan_etc_ldsoconf "${root}/etc/ld.so.conf"
 
 do_process_file "${1}"
