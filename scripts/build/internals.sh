@@ -49,6 +49,7 @@ do_finish() {
         CT_DoLog EXTRA "Installing a cross-ldd helper"
         sed -r -e 's|@@CT_VERSION@@|'"${CT_VERSION}"'|g;'   \
                -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;'     \
+               -e 's|@@CT_BITS@@|'"${CT_ARCH_BITNESS}"'|g;' \
                -e 's|@@CT_install@@|'"${install}"'|g;'      \
                -e 's|@@CT_bash@@|'"${bash}"'|g;'            \
                -e 's|@@CT_grep@@|'"${grep}"'|g;'            \
