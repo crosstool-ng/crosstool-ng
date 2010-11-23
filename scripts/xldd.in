@@ -11,8 +11,8 @@ my_name="$( basename "${0}" )"
 prefix="${0%-ldd}"
 gcc="${prefix}-gcc"
 readelf="${prefix}-readelf"
-fake_load_addr="$((0xdeadbeef))"
-fake_load_addr_sys="$((0x8badf00d))"
+fake_load_addr_root="$((0xdeadbeef))"
+fake_load_addr_sysroot="$((0x8badf00d))"
 ld_library_path="/lib:/usr/lib"
 
 do_error() {
@@ -160,18 +160,21 @@ fi
 do_report_needed_found() {
     local needed="${1}"
     local path="${2}"
-    local system="${3}"
+    local origin="${3}"
     local loadaddr
     local sys
 
-    if [ -z "${system}" ]; then
-        loadaddr="${fake_load_addr}"
-    else
-        loadaddr="${fake_load_addr_sys}"
-        if [ -n "${show_system}" ]; then
-            sys=" [*]"
-        fi
-    fi
+    case "${origin}" in
+        root)
+            loadaddr="${fake_load_addr_root}"
+            ;;
+        sysroot)
+            loadaddr="${fake_load_addr_sysroot}"
+            if [ -n "${show_system}" ]; then
+                sys=" [*]"
+            fi
+            ;;
+    esac
 
     printf "%8s%s => %s (0x%0*x)%s\n"   \
            ""                           \
@@ -185,39 +188,37 @@ do_report_needed_found() {
 # Search a needed file, scanning ${lib_dir} in the root directory
 do_find_needed() {
     local needed="${1}"
+    local -a list
     local found
-    local found_sysroot
-    local d
+    local where
+    local base
+    local d i
 
     do_trace "Searching for '${needed}'\n"
 
-    for d in "${needed_search_path[@]}"; do
-        do_trace "-> looking in '${d}'\n"
-        if [ -f "${root}${d}/${needed}" ]; then
-            found="${d}/${needed}"
-            do_trace "---> found\n"
-            break
-        fi
+    list=(                      \
+        "root:${root}"          \
+        "sysroot:${sysroot}"    \
+    )
+
+    for i in "${list[@]}"; do
+        where="${i%%:*}"
+        base="${i#*:}"
+        for d in "${needed_search_path[@]}"; do
+            do_trace "-> looking in '${d}' (${where})\n"
+            if [ -f "${base}${d}/${needed}" ]; then
+                found="${d}/${needed}"
+                do_trace "---> found\n"
+                break 2
+            fi
+        done
     done
-    if [ -z "${found}" ]; then
-    for d in "${needed_search_path[@]}"; do
-        do_trace "-> looking in '${d}' (sysroot)\n"
-        if [ -f "${sysroot}${d}/${needed}" ]; then
-            found_sysroot="${d}/${needed}"
-            do_trace "---> found\n"
-            break
-        fi
-    done
-    fi
 
     if [ -n "${found}" ]; then
-        do_report_needed_found "${needed}" "${found}"
-        do_process_file "${root}${found}"
-    elif [ -n "${found_sysroot}" ]; then
-        do_report_needed_found "${needed}" "${found_sysroot}" "sys"
-        do_process_file "${sysroot}${found_sysroot}"
+        do_report_needed_found "${needed}" "${found}" "${where}"
+        do_process_file "${base}${found}"
     else
-        printf "%8c%s not found\n" "" "${needed}"
+        printf "%8s%s not found\n" "" "${needed}"
     fi
 }
 
