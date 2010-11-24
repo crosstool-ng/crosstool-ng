@@ -224,14 +224,26 @@ do_find_needed() {
 # Scan a file for all NEEDED tags
 do_process_file() {
     local file="${1}"
+    local n m
+    local found
 
     do_trace "Parsing file '${file}'\n"
 
-    "${readelf}" -d "${file}"                                           \
-    |"${grep}" -E '\(NEEDED\)'                                          \
-    |"${sed}" -r -e 's/^.*Shared library:[[:space:]]+\[(.*)\]$/\1/;'    \
-    |while read needed; do
-        do_find_needed "${needed}"
+    for n in $( "${readelf}" -d "${file}"                                           \
+                |"${grep}" -E '\(NEEDED\)'                                          \
+                |"${sed}" -r -e 's/^.*Shared library:[[:space:]]+\[(.*)\]$/\1/;'    \
+              ); do
+        found=0
+        for m in "${needed_list[@]}"; do
+            [ "${n}" = "${m}" ] && found=1 && break
+        done
+        if [ ${found} -ne 0 ]; then
+            do_trace "-> skipping already known dependency '${n}'\n"
+            continue
+        fi
+        do_trace "-> handling new dependency '${n}'\n"
+        needed_list+=( "${n}" )
+        do_find_needed "${n}"
      done
 }
 
@@ -283,4 +295,5 @@ for p in "${needed_search_path[@]}"; do
 done
 
 do_trace "Scanning file '${1}'\n"
+declare -a needed_list
 do_process_file "${1}"
