@@ -12,6 +12,7 @@ prefix="${0%-ldd}"
 gcc="${prefix}-gcc"
 readelf="${prefix}-readelf"
 fake_load_addr_root="$((0xdeadbeef))"
+fake_load_addr_rpath="$((0xdeadc0de))"
 fake_load_addr_sysroot="$((0x8badf00d))"
 ld_library_path="/lib:/usr/lib"
 
@@ -53,6 +54,7 @@ Usage: ${my_name} [OPTION]... --root DIR FILE...
       --version           print version information and exit
       --root dir          treat dir as being the root of the target
   -s, --show-system       mark libs from the sysroot with a trailing '[*]'
+                          and libs found via RPATH with a trailing '[+]'
 
 _EOF_
     cat <<_EOF_ |fmt
@@ -69,6 +71,12 @@ guessed except at runtime, and we can't run.
 
 ${my_name} does not scan /etc/ld.so.cache, but instead uses /etc/ld.so.conf
 (it understands the include directives therein for libces that have that).
+
+${my_name} also interprets (tries to!) the RPATH/RUNPATH records found in
+the dynamic ELF section. Such paths are searched for only relative to
+the specified root, not from the sysroot (see below). Also, those paths
+are searched for not only for the file they appear in, but also for its
+dependencies.
 
 ${my_name} will search the directory specified with --root for libraries
 to resolve the NEEDED tags. If --root is not set, then ${my_name} will
@@ -90,7 +98,8 @@ The paths are relative to the specified root directory, or to the sysroot
 
 The expected load address 'loadaddr' is a faked address to match the output
 of the real ldd, but has no actual meaning (set to some constants for now,
-0x8badf00d for libraries from the sysroot, 0xdeadbeef for others).
+0x8badf00d for libraries from the sysroot, 0xdeadc0de for those found via
+the RPATH/RUNPATH records, and 0xdeadbeef for others).
 _EOF_
 
 # Unimplemeted yet:
@@ -168,6 +177,12 @@ do_report_needed_found() {
         root)
             loadaddr="${fake_load_addr_root}"
             ;;
+        rpath)
+            loadaddr="${fake_load_addr_rpath}"
+            if [ -n "${show_system}" ]; then
+                sys=" [+]"
+            fi
+            ;;
         sysroot)
             loadaddr="${fake_load_addr_sysroot}"
             if [ -n "${show_system}" ]; then
@@ -189,6 +204,7 @@ do_report_needed_found() {
 do_find_needed() {
     local needed="${1}"
     local -a list
+    local -a dirs
     local found
     local where
     local base
@@ -196,7 +212,9 @@ do_find_needed() {
 
     do_trace "Searching for '${needed}'\n"
 
+    # rpath shall come first!
     list=(                      \
+        "rpath:${root}"         \
         "root:${root}"          \
         "sysroot:${sysroot}"    \
     )
@@ -204,7 +222,12 @@ do_find_needed() {
     for i in "${list[@]}"; do
         where="${i%%:*}"
         base="${i#*:}"
-        for d in "${needed_search_path[@]}"; do
+        if [ "${where}" = "rpath" ]; then
+            dirs=( "${search_rpath[@]}" )
+        else
+            dirs=( "${needed_search_path[@]}" )
+        fi
+        for d in "${dirs[@]}"; do
             do_trace "-> looking in '${d}' (${where})\n"
             if [ -f "${base}${d}/${needed}" ]; then
                 found="${d}/${needed}"
@@ -225,10 +248,24 @@ do_find_needed() {
 # Scan a file for all NEEDED tags
 do_process_file() {
     local file="${1}"
+    local -a save_search_rpath
     local n m
     local found
 
     do_trace "Parsing file '${file}'\n"
+
+    save_search_rpath=( "${search_rpath[@]}" )
+    for n in $( "${readelf}" -d "${file}"                                           \
+                |"${grep}" -E '\((RPATH|RUNPATH)\)'                                 \
+                |"${sed}" -r -e 's/^.*Library r(|un)path:[[:space:]]+\[(.*)\]$/\2/;'\
+              ); do
+        do_trace "-> adding rpath '${n}'\n"
+        search_rpath+=( "${n}" )
+    done
+    do_trace ": search path:\n"
+    for n in "${search_rpath[@]}" "${needed_search_path[@]}"; do
+        do_trace ": - '${n}'\n"
+    done
 
     for n in $( "${readelf}" -d "${file}"                                           \
                 |"${grep}" -E '\(NEEDED\)'                                          \
@@ -245,7 +282,9 @@ do_process_file() {
         do_trace "-> handling new dependency '${n}'\n"
         needed_list+=( "${n}" )
         do_find_needed "${n}"
-     done
+    done
+
+    search_rpath=( "${save_search_rpath[@]}" )
 }
 
 # Recursively scan a /etc/ld.so.conf file
@@ -297,4 +336,5 @@ done
 
 do_trace "Scanning file '${1}'\n"
 declare -a needed_list
+declare -a search_rpath
 do_process_file "${1}"
