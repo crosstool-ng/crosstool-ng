@@ -359,12 +359,17 @@ CT_GetFileExtension() {
 # to find the requested URL (think about snapshots, different layouts
 # for different gcc versions, etc...).
 CT_DoGetFile() {
+    local dest="${1##*/}"
+    local tmp="${dest}.tmp-dl"
     # OK, just look if we have them...
     # We are sure at least one is available, ./configure checked for it.
     local _curl=$(CT_Which curl)
     local _wget=$(CT_Which wget)
     _curl="${_curl:-false}"
     _wget="${_wget:-false}"
+
+    # Remove potential left-over from a previous run
+    rm -f "${tmp}"
 
     # Some (very old!) FTP server might not support the passive mode, thus
     # retry without.
@@ -377,11 +382,17 @@ CT_DoGetFile() {
     # not easy to detect them, and wget does not timeout by default while
     # connecting, so force a global ${CT_CONNECT_TIMEOUT}-second timeout.
     # For curl, no good progress indicator is available. So, be silent.
-       CT_DoExecLog ALL "${_curl}" --ftp-pasv    --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -O "$1" \
-    || CT_DoExecLog ALL "${_curl}"               --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -O "$1" \
-    || CT_DoExecLog ALL "${_wget}" --passive-ftp --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary  "$1" \
-    || CT_DoExecLog ALL "${_wget}"               --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary  "$1" \
-    || rm -f "${1##*/}"
+    if CT_DoExecLog ALL "${_curl}" --ftp-pasv    --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "$1"  \
+    || CT_DoExecLog ALL "${_curl}"               --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "$1"  \
+    || CT_DoExecLog ALL "${_wget}" --passive-ftp --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "$1"  \
+    || CT_DoExecLog ALL "${_wget}"               --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "$1"  \
+    ; then
+        # One of them succeeded, good!
+        mv "${tmp}" "${dest}"
+    else
+        # Woops...
+        rm -f "${tmp}"
+    fi
 }
 
 # This function tries to retrieve a tarball form a local directory
