@@ -36,6 +36,7 @@ do_libelf() {
         libelf_opts+=( --disable-shared --enable-static )
     fi
 
+    CC="${CT_HOST}-gcc"                                     \
     CT_DoExecLog CFG                                        \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
