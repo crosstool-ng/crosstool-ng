@@ -305,8 +305,8 @@ do_cc_core() {
 # Build final gcc
 do_cc() {
     local -a extra_config
+    local -a final_LDFLAGS
     local tmp
-    local final_LDFLAGS
 
     # If building for bare metal, nothing to be done here, the static core conpiler is enough!
     [ "${CT_BARE_METAL}" = "y" ] && return 0
@@ -373,19 +373,32 @@ do_cc() {
         extra_config+=(--disable-libssp)
     fi
 
-    if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
-        # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
-        # build script
-        # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
-        # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
-        extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm")
-    elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
-        # When companion libraries are build static (eg !shared),
+    if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+        final_LDFLAGS+=("-static")
+        extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++ -lm")
+        # Companion libraries are build static (eg !shared), so
         # the libstdc++ is not pulled automatically, although it
         # is needed. Shoe-horn it in our LDFLAGS
         # Ditto libm on some Fedora boxen
-        final_LDFLAGS='-lstdc++ -lm'
+        final_LDFLAGS+=("-lstdc++")
+        final_LDFLAGS+=("-lm")
+    else
+        if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
+            # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
+            # build script
+            # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
+            # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
+            extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm")
+        elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
+            # When companion libraries are build static (eg !shared),
+            # the libstdc++ is not pulled automatically, although it
+            # is needed. Shoe-horn it in our LDFLAGS
+            # Ditto libm on some Fedora boxen
+            final_LDFLAGS+=("-lstdc++")
+            final_LDFLAGS+=("-lm")
+        fi
     fi
+
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
         extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
@@ -442,7 +455,7 @@ do_cc() {
     # embedded systems don't really need message catalogs...
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    LDFLAGS="${final_LDFLAGS}"                      \
+    LDFLAGS="${final_LDFLAGS[*]}"                   \
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"         \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"       \
