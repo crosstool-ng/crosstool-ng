@@ -18,6 +18,7 @@ do_binutils_extract() {
 # Build binutils
 do_binutils() {
     local -a extra_config
+    local -a extra_make_flags
 
     mkdir -p "${CT_BUILD_DIR}/build-binutils"
     cd "${CT_BUILD_DIR}/build-binutils"
@@ -40,8 +41,14 @@ do_binutils() {
         ${CT_BINUTILS_EXTRA_CONFIG}                             \
         ${BINUTILS_SYSROOT_ARG}
 
+    if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+        extra_make_flags+=("LDFLAGS=-all-static")
+        CT_DoLog EXTRA "Prepare binutils for static build"
+        CT_DoExecLog ALL make configure-host
+    fi
+
     CT_DoLog EXTRA "Building binutils"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make "${extra_make_flags[@]}" ${PARALLELMFLAGS}
 
     CT_DoLog EXTRA "Installing binutils"
     CT_DoExecLog ALL make install
