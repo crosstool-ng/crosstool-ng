@@ -63,12 +63,19 @@ do_cc_core_pass_2() {
     # In any other case, build the static core gcc and, if using gcc-4.3+,
     # also build the target libgcc.
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
-        y,*,*)  do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes;;
+        y,*,*)
+            if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes build_staticlinked=yes
+            else
+                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes
+            fi
+            ;;
         ,y,*)   ;;
         ,,nptl)
             do_cc_core mode=shared build_libgcc=yes
             ;;
-        ,,win32) do_cc_core mode=static build_libgcc=yes
+        ,,win32)
+            do_cc_core mode=static build_libgcc=yes
             ;;
         *)  if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 do_cc_core mode=static build_libgcc=yes
@@ -84,18 +91,20 @@ do_cc_core_pass_2() {
 # This function is used to build both the static and the shared core C conpiler,
 # with or without the target libgcc. We need to know wether:
 #  - we're building static, shared or bare metal: mode=[static|shared|baremetal]
-#  - we need to build libgcc or not             : build_libgcc=[yes|no]     (default: no)
-#  - we need to build libstdc++ or not          : build_libstdcxx=[yes|no]  (default: no)
-# Usage: do_cc_core_static mode=[static|shared|baremetal] build_libgcc=[yes|no]
+#  - we need to build libgcc or not             : build_libgcc=[yes|no]       (default: no)
+#  - we need to build libstdc++ or not          : build_libstdcxx=[yes|no]    (default: no)
+#  - we need to build statically linked or not  : build_staticlinked=[yes|no] (default: no)
+# Usage: do_cc_core mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_cc_core() {
     local mode
     local build_libgcc=no
     local build_libstdcxx=no
+    local build_staticlinked=no
     local core_prefix_dir
     local lang_opt
     local tmp
     local -a extra_config
-    local core_LDFLAGS
+    local -a core_LDFLAGS
     local -a core_targets
 
     while [ $# -ne 0 ]; do
@@ -158,13 +167,35 @@ do_cc_core() {
         extra_config+=("--disable-__cxa_atexit")
     fi
 
-    # When companion libraries are build static (eg !shared),
-    # the libstdc++ is not pulled automatically, although it
-    # is needed. Shoe-horn it in our LDFLAGS
-    # Ditto libm on some Fedora boxen
-    if [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
-        core_LDFLAGS='-lstdc++ -lm'
+    # *** WARNING ! ***
+    # Keep this full if-else-if-elif-fi-fi block in sync
+    # with the same block in do_cc, below.
+    if [ "${build_staticlinked}" = "yes" ]; then
+        core_LDFLAGS+=("-static")
+        extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++ -lm")
+        # Companion libraries are build static (eg !shared), so
+        # the libstdc++ is not pulled automatically, although it
+        # is needed. Shoe-horn it in our LDFLAGS
+        # Ditto libm on some Fedora boxen
+        final_LDFLAGS+=("-lstdc++")
+        final_LDFLAGS+=("-lm")
+    else
+        if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
+            # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
+            # build script
+            # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
+            # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
+            extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm")
+        elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
+            # When companion libraries are build static (eg !shared),
+            # the libstdc++ is not pulled automatically, although it
+            # is needed. Shoe-horn it in our LDFLAGS
+            # Ditto libm on some Fedora boxen
+            core_LDFLAGS+=("-lstdc++")
+            core_LDFLAGS+=("-lm")
+        fi
     fi
+
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
         extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
         extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
@@ -202,7 +233,7 @@ do_cc_core() {
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    LDFLAGS="${core_LDFLAGS}"                       \
+    LDFLAGS="${core_LDFLAGS[*]}"                    \
     CT_DoExecLog CFG                                \
     "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
@@ -373,6 +404,9 @@ do_cc() {
         extra_config+=(--disable-libssp)
     fi
 
+    # *** WARNING ! ***
+    # Keep this full if-else-if-elif-fi-fi block in sync
+    # with the same block in do_cc_core, above.
     if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
         final_LDFLAGS+=("-static")
         extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++ -lm")
