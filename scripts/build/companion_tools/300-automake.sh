@@ -19,7 +19,7 @@ do_companion_tools_automake_build() {
     
     CT_DoExecLog CFG \
     "${CT_SRC_DIR}/automake-${CT_AUTOMAKE_VERSION}/configure" \
-        --prefix="${CT_TOOLS_OVERIDE_DIR}"
+        --prefix="${CT_BUILDTOOLS_PREFIX_DIR}"
     CT_DoExecLog ALL make
     CT_DoExecLog ALL make install
     CT_Popd

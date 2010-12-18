@@ -20,11 +20,11 @@ do_companion_tools_autoconf_build() {
     # Ensure configure gets run using the CONFIG_SHELL as configure seems to
     # have trouble when CONFIG_SHELL is set and /bin/sh isn't bash
     # For reference see:
-    # http://www.gnu.org/software/autoconf/manual/autoconf.html#CONFIG_005fSHEL
+    # http://www.gnu.org/software/autoconf/manual/autoconf.html#CONFIG_005fSHELL
     
     CT_DoExecLog CFG ${CONFIG_SHELL} \
     "${CT_SRC_DIR}/autoconf-${CT_AUTOCONF_VERSION}/configure" \
-        --prefix="${CT_TOOLS_OVERIDE_DIR}"
+        --prefix="${CT_BUILDTOOLS_PREFIX_DIR}"
     CT_DoExecLog ALL make
     CT_DoExecLog ALL make install
     CT_Popd

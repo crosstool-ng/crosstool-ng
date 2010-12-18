@@ -18,7 +18,7 @@ do_companion_tools_make_build() {
     CT_Pushd "${CT_BUILD_DIR}/build-make"
 
     CT_DoExecLog CFG "${CT_SRC_DIR}/make-${CT_MAKE_VERSION}/configure" \
-                     --prefix="${CT_TOOLS_OVERIDE_DIR}"
+                     --prefix="${CT_BUILDTOOLS_PREFIX_DIR}"
     CT_DoExecLog ALL make
     CT_DoExecLog ALL make install
     CT_Popd
