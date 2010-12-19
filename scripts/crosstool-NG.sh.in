@@ -155,7 +155,7 @@ CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
 CT_SRC_DIR="${CT_WORK_DIR}/src"
 CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
-CT_BUILDTOOLS_DIR="${CT_WORK_DIR}/${CT_TARGET}/buildtools"
+CT_BUILDTOOLS_PREFIX_DIR="${CT_WORK_DIR}/${CT_TARGET}/buildtools"
 CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
 CT_CONFIG_DIR="${CT_BUILD_DIR}/configs"
 if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
@@ -242,10 +242,10 @@ fi
 # Create the directories we'll use, even if restarting: it does no harm to
 # create already existent directories, and CT_BUILD_DIR needs to be created
 # anyway
-CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_DIR}/bin"
 CT_DoExecLog ALL mkdir -p "${CT_TARBALLS_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
 CT_DoExecLog ALL mkdir -p "${CT_CONFIG_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
@@ -443,8 +443,8 @@ if [ -z "${CT_RESTART}" ]; then
             # bally needed
             if [ -n "${where}" ]; then
                 CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
-                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_BUILDTOOLS_DIR}/bin/${!v}-${tool}"
-                CT_DoExecLog ALL chmod 700 "${CT_BUILDTOOLS_DIR}/bin/${!v}-${tool}"
+                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_BUILDTOOLS_PREFIX_DIR}/bin/${!v}-${tool}"
+                CT_DoExecLog ALL chmod 700 "${CT_BUILDTOOLS_PREFIX_DIR}/bin/${!v}-${tool}"
             else
                 case "${tool}" in
                     # We'll at least need some of them...
@@ -477,8 +477,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
     # never fails:
     CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
-    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_BUILDTOOLS_DIR}/bin/makeinfo"
-    CT_DoExecLog ALL chmod 700 "${CT_BUILDTOOLS_DIR}/bin/makeinfo"
+    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_BUILDTOOLS_PREFIX_DIR}/bin/makeinfo"
+    CT_DoExecLog ALL chmod 700 "${CT_BUILDTOOLS_PREFIX_DIR}/bin/makeinfo"
 
     # Carefully add paths in the order we want them:
     #  - first try in ${CT_PREFIX_DIR}/bin
@@ -488,8 +488,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Of course, neither cross-native nor canadian can run on BUILD,
     # so don't add those PATHs in this case...
     case "${CT_TOOLCHAIN_TYPE}" in
-        cross)  export PATH="${CT_BUILDTOOLS_DIR}/bin:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
-        canadian) export PATH="${CT_BUILDTOOLS_DIR}/bin:${PATH}";;
+        cross)  export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        canadian) export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}";;
         *)  ;;
     esac
 
