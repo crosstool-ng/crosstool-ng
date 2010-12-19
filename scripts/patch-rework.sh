@@ -9,31 +9,74 @@ shift 3
 # The remainder is for diff
 diff="$@"
 
+do_help() {
+    cat <<-_EOF_
+		${0##*/}: transform a patchset of non-p1 patches into -p1 patches
+		
+		Usage:
+		    ${0##*/} <basedir> <src> <dst> [diffopts ...]
+		
+		Where:
+		    basedir
+		        points to the directory of the component to patch
+		
+		    src
+		        points to the directory containing the existing patchset
+		        to transform
+		
+		    dst
+		        points to the directory where to put transformed patches
+		
+		    diffopts
+		        optional options to pass to diff, for debug purposes. You
+		        should not need it
+		
+		Example:
+		    Transform Gentoo patches against gcc-4.4.2 (some of which are
+		    -p0, -p1 or even -p2 patches) into all -p1 patches:
+		
+		        tar xjf gcc-4.4.2.tar.bz2
+		        patch-rework.sh gcc-4.4.2                   \\
+		                        /path/to/gentoo/gcc/patches \\
+		                        gcc-4.4.2.patches
+		_EOF_
+}
+
+# Sanity checks
+if [    -z "${base}"                    \
+     -o ! -d "${base}"                  \
+     -o ! -d "${src}"                   \
+     -o -e "${dst}" -a ! -d "${dst}"    \
+   ]; then
+	do_help
+	exit 1
+fi
+
+mkdir -p "${dst}"
+base="${base%%/}"
+src="$( cd "${src}"; pwd )"
+dst="$( cd "${dst}"; pwd )"
+
 # This function checks that the files listed in the file in "$1"
 # do exist, at the given depth-stripping level (aka diff -p#)
 do_check_files_at_depth() {
   local flist="$1"
   local depth="$2"
-  local ok=0  # 0: OK,  !0: KO
+  local ret=0   # 0: OK,  !0: KO
 
   exec 6<&0
   exec 7<"${flist}"
 
   while read -u7 f; do
     f="$( echo "${f}" |sed -r -e "s:^([^/]+/){${depth}}::;" )"
-    [ -f "${f}" ] || ok=1
+    [ -f "${f}" ] || ret=1
   done
 
   exec 7<&-
   exec <&6
 
-  return ${ok}
+  return ${ret}
 }
-
-mkdir -p "${dst}"
-base="${base%%/}"
-src="$( cd "${src}"; pwd )"
-dst="$( cd "${dst}"; pwd )"
 
 # Iterate through patches
 for p in "${src}/"*.patch; do
