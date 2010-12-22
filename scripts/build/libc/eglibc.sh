@@ -314,6 +314,19 @@ do_libc() {
     CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
+    # ./configure is mislead by our tools override wrapper for bash
+    # so just tell it where the real bash is _on_the_target_!
+    # Notes:
+    # - ${ac_cv_path_BASH_SHELL} is only used to set BASH_SHELL
+    # - ${BASH_SHELL}            is only used to set BASH
+    # - ${BASH}                  is only used to set the shebang
+    #                            in two scripts to run on the target
+    # So we can safely bypass bash detection at compile time.
+    # Should this change in a future eglibc release, we'd better
+    # directly mangle the generated scripts _after_ they get built,
+    # or even after they get installed... eglibc is such a sucker...
+    echo "ac_cv_path_BASH_SHELL=/bin/bash" >config.cache
+
     BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"  \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
@@ -328,6 +341,7 @@ do_libc() {
         --disable-profile                                           \
         --without-gd                                                \
         --without-cvs                                               \
+        --cache-file=config.cache                                   \
         "${extra_config[@]}"                                        \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
     
