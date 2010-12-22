@@ -112,8 +112,16 @@ do_kernel_install() {
              INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
              ${V_OPT}                                       \
              headers_check
-        find "${CT_SYSROOT_DIR}" -type f -name '.check*' -exec rm {} \;
     fi
+
+    # Cleanup
+    find "${CT_SYSROOT_DIR}" -type f                        \
+                             \(    -name '.install'         \
+                                -o -name '..install.cmd'    \
+                                -o -name '.check'           \
+                                -o -name '..check.cmd'      \
+                             \)                             \
+                             -exec rm {} \;
 }
 
 # Use custom headers (most probably by using make headers_install in a
