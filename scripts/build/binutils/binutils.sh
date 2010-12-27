@@ -26,6 +26,26 @@ do_binutils() {
     CT_DoStep INFO "Installing binutils"
 
     CT_DoLog EXTRA "Configuring binutils"
+
+    if [ "${CT_BINUTILS_HAS_GOLD}" = "y" ]; then
+        case "${CT_BINUTILS_LINKERS_LIST}" in
+            ld)
+                extra_config+=( --enable-ld=yes --enable-gold=no )
+                ;;
+            gold)
+                extra_config+=( --enable-ld=no --enable-gold=yes )
+                ;;
+            ld,gold)
+                extra_config+=( --enable-ld=default --enable-gold=yes )
+                ;;
+            gold,ld)
+                extra_config+=( --enable-ld=yes --enable-gold=default )
+                ;;
+        esac
+    fi
+
+    CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
+
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                              \
     CT_DoExecLog CFG                                            \
     "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \

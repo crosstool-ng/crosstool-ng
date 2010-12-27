@@ -61,6 +61,72 @@ config BINUTILS_VERSION
 
 config BINUTILS_2_21_or_later
     bool
+    select BINUTILS_HAS_GOLD
+
+config BINUTILS_HAS_GOLD
+    bool
+
+if BINUTILS_HAS_GOLD
+
+choice
+    bool
+    prompt "Linkers to enable"
+
+config BINUTILS_LINKER_LD
+    bool
+    prompt "ld"
+    help
+      The historical, bfd linker.
+
+config BINUTILS_LINKER_GOLD
+    bool
+    prompt "gold"
+    depends on BINUTILS_HAS_GOLD
+    depends on EXPERIMENTAL
+    select BINUTILS_GOLD_INSTALLED
+    help
+      gold is a new, optimised, multi-threaded linker with support
+      for plugins. Designed to be a drop-in replacement for the
+      original linker, ld, it can be much faster, with a 5:1 or
+      bigger ratio being not uncommon, YMMV.
+
+config BINUTILS_LINKER_LD_GOLD
+    bool
+    prompt "ld, gold"
+    depends on BINUTILS_HAS_GOLD
+    depends on EXPERIMENTAL
+    select BINUTILS_GOLD_INSTALLED
+    help
+      Both the historical ld and the new gold linkers will be
+      installed, with ld being the default linker used.
+      
+      See help for gold, above.
+
+config BINUTILS_LINKER_GOLD_LD
+    bool
+    prompt "gold, ld"
+    depends on BINUTILS_HAS_GOLD
+    depends on EXPERIMENTAL
+    select BINUTILS_GOLD_INSTALLED
+    help
+      Both the historical ld and the new gold linkers will be
+      installed, with gold being the default linker used.
+      
+      See help for gold, above.
+
+endchoice # Enable linkers
+
+config BINUTILS_GOLD_INSTALLED
+    bool
+
+config BINUTILS_LINKERS_LIST
+    string
+    default "ld"        if BINUTILS_LINKER_LD
+    default "gold"      if BINUTILS_LINKER_GOLD
+    default "ld,gold"   if BINUTILS_LINKER_LD_GOLD
+    default "gold,ld"   if BINUTILS_LINKER_GOLD_LD
+
+endif # BINUTILS_HAS_GOLD
 
 config BINUTILS_EXTRA_CONFIG
     string
