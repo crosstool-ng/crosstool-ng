@@ -141,9 +141,9 @@ do_finish() {
     # Remove the generated documentation files
     if [ "${CT_REMOVE_DOCS}" = "y" ]; then
         CT_DoLog EXTRA "Removing installed documentation"
-        CT_DoForceRmdir "${CT_PREFIX_DIR}/"{,usr/}{man,info}
-        CT_DoForceRmdir "${CT_SYSROOT_DIR}/"{,usr/}{man,info}
-        CT_DoForceRmdir "${CT_DEBUGROOT_DIR}/"{,usr/}{man,info}
+        CT_DoForceRmdir "${CT_PREFIX_DIR}/"{,usr/}{,share/}{man,info}
+        CT_DoForceRmdir "${CT_SYSROOT_DIR}/"{,usr/}{,share/}{man,info}
+        CT_DoForceRmdir "${CT_DEBUGROOT_DIR}/"{,usr/}{,share/}{man,info}
     fi
 
     # Remove headers installed by native companion libraries
