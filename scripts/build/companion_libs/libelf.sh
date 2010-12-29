@@ -37,6 +37,7 @@ do_libelf() {
     fi
 
     CC="${CT_HOST}-gcc"                                     \
+    CFLAGS="-fPIC"                                          \
     CT_DoExecLog CFG                                        \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
@@ -69,6 +70,7 @@ do_libelf_target() {
 
     CT_DoLog EXTRA "Configuring libelf"
     CC="${CT_TARGET}-gcc"                                   \
+    CFLAGS="-fPIC"                                          \
     CT_DoExecLog ALL                                        \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
