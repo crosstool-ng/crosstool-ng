@@ -19,6 +19,7 @@ do_binutils_extract() {
 do_binutils() {
     local -a extra_config
     local -a extra_make_flags
+    local -a binutils_tools
 
     mkdir -p "${CT_BUILD_DIR}/build-binutils"
     cd "${CT_BUILD_DIR}/build-binutils"
@@ -27,19 +28,24 @@ do_binutils() {
 
     CT_DoLog EXTRA "Configuring binutils"
 
+    binutils_tools=( ar as ld strip )
     if [ "${CT_BINUTILS_HAS_GOLD}" = "y" ]; then
         case "${CT_BINUTILS_LINKERS_LIST}" in
             ld)
                 extra_config+=( --enable-ld=yes --enable-gold=no )
+                binutils_tools+=( ld.bfd )
                 ;;
             gold)
                 extra_config+=( --enable-ld=no --enable-gold=yes )
+                binutils_tools+=( ld.gold )
                 ;;
             ld,gold)
                 extra_config+=( --enable-ld=default --enable-gold=yes )
+                binutils_tools+=( ld.bfd ld.gold )
                 ;;
             gold,ld)
                 extra_config+=( --enable-ld=yes --enable-gold=default )
+                binutils_tools+=( ld.bfd ld.gold )
                 ;;
         esac
         if [ "${CT_BINUTILS_GOLD_THREADED}" = "y" ]; then
@@ -79,6 +85,16 @@ do_binutils() {
     CT_DoLog EXTRA "Installing binutils"
     CT_DoExecLog ALL make install
 
+    # Install the wrapper if needed
+    if [ "${CT_BINUTILS_LD_WRAPPER}" = "y" ]; then
+        CT_DoLog EXTRA "Installing ld wrapper"
+        rm -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"
+        sed -r -e "s/@@DEFAULT_LD@@/${CT_BINUTILS_LINKER_DEFAULT}/" \
+            "${CT_LIB_DIR}/scripts/build/binutils/binutils-ld.in"   \
+            >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"
+        chmod +x "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"
+    fi
+
     # Make those new tools available to the core C compilers to come.
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
     # well. Create that.
@@ -86,7 +102,7 @@ do_binutils() {
     mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin"
     mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin"
     mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin"
-    for t in ar as ld strip; do
+    for t in "${binutils_tools[@]}"; do
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
         ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin/${t}"

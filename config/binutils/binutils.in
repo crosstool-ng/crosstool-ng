@@ -100,6 +100,7 @@ config BINUTILS_LINKER_LD_GOLD
     depends on BINUTILS_HAS_GOLD
     depends on EXPERIMENTAL
     select BINUTILS_GOLD_INSTALLED
+    select BINUTILS_LINKER_BOTH
     help
       Both the historical ld and the new gold linkers will be
       installed, with ld being the default linker used.
@@ -112,6 +113,7 @@ config BINUTILS_LINKER_GOLD_LD
     depends on BINUTILS_HAS_GOLD
     depends on EXPERIMENTAL
     select BINUTILS_GOLD_INSTALLED
+    select BINUTILS_LINKER_BOTH
     help
       Both the historical ld and the new gold linkers will be
       installed, with gold being the default linker used.
@@ -131,12 +133,34 @@ config BINUTILS_GOLD_THREADS
       When configured with threads, gold can link in parallel,
       possibly cooperating with a make jobserver.
 
+config BINUTILS_LINKER_BOTH
+    bool
+
 config BINUTILS_LINKERS_LIST
     string
     default "ld"        if BINUTILS_LINKER_LD
     default "gold"      if BINUTILS_LINKER_GOLD
     default "ld,gold"   if BINUTILS_LINKER_LD_GOLD
     default "gold,ld"   if BINUTILS_LINKER_GOLD_LD
+
+config BINUTILS_LD_WRAPPER
+    bool
+    prompt "|  Add ld wrapper"
+    depends on BINUTILS_LINKER_BOTH
+    help
+      Add an ld wrapper that calls to either gold or ld.
+      
+      By default, the wrapper will call to the default wrapper,
+      but if you set the environment variable CTNG_LD_IS, you
+      can change which linker will get called:
+        CTNG_LD_IS=gold     will unconditionally call the gold linker
+        CTNG_LD_IS=bfd      will unconditionally call the old bfd ld linker
+
+config BINUTILS_LINKER_DEFAULT
+    string
+    depends on BINUTILS_LD_WRAPPER
+    default "bfd"   if BINUTILS_LINKER_LD_GOLD
+    default "gold"  if BINUTILS_LINKER_GOLD_LD
 
 endif # BINUTILS_HAS_GOLD
 
