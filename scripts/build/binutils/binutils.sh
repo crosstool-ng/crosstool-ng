@@ -43,6 +43,9 @@ do_binutils() {
                 ;;
         esac
     fi
+    if [ "${CT_BINUTILS_PLUGINS}" = "y" ]; then
+        extra_config+=( --enable-plugins )
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
