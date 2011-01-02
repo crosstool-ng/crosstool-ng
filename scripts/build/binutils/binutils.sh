@@ -42,6 +42,9 @@ do_binutils() {
                 extra_config+=( --enable-ld=yes --enable-gold=default )
                 ;;
         esac
+        if [ "${CT_BINUTILS_GOLD_THREADED}" = "y" ]; then
+            extra_config+=( --enable-threads )
+        fi
     fi
     if [ "${CT_BINUTILS_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugins )
