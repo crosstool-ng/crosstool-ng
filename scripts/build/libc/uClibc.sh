@@ -25,8 +25,8 @@ do_libc_get() {
 }
 
 libc_uclibc_src_dir() {
-    if [    -z "${CT_LIBC_V_snapshot}"      \
-         -a -z "${CT_LIBC_V_specific_date}" \
+    if [    -z "${CT_LIBC_UCLIBC_V_snapshot}"      \
+         -a -z "${CT_LIBC_UCLIBC_V_specific_date}" \
        ]; then
         echo "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"
     else
@@ -38,8 +38,8 @@ libc_uclibc_src_dir() {
 do_libc_extract() {
     CT_Extract "uClibc-${CT_LIBC_VERSION}"
     # Don't patch snapshots
-    if [    -z "${CT_LIBC_V_snapshot}"      \
-         -a -z "${CT_LIBC_V_specific_date}" \
+    if [    -z "${CT_LIBC_UCLIBC_V_snapshot}"      \
+         -a -z "${CT_LIBC_UCLIBC_V_specific_date}" \
        ]; then
         CT_Patch "uClibc" "${CT_LIBC_VERSION}"
     fi
