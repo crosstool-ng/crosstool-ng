@@ -144,33 +144,6 @@ do_libc_headers() {
 
     CT_DoLog EXTRA "Installing C library headers"
 
-    if grep -q GLIBC_2.3 "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/ChangeLog"; then
-        # glibc-2.3.x passes cross options to $(CC) when generating errlist-compat.c,
-        # which fails without a real cross-compiler.
-        # Fortunately, we don't need errlist-compat.c, since we just need .h
-        # files, so work around this by creating a fake errlist-compat.c and
-        # satisfying its dependencies.
-        # Another workaround might be to tell configure to not use any cross
-        # options to $(CC).
-        # The real fix would be to get install-headers to not generate
-        # errlist-compat.c.
-        # Note: BOOTSTRAP_GCC is used by:
-        # patches/glibc-2.3.5/glibc-mips-bootstrap-gcc-header-install.patch
-
-        libc_cv_ppc_machine=yes                         \
-        CT_DoExecLog ALL                                \
-        make CFLAGS="-O2 -DBOOTSTRAP_GCC"               \
-             OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"    \
-             PARALLELMFLAGS="${PARALLELMFLAGS}"         \
-             sysdeps/gnu/errlist.c
-        mkdir -p stdio-common
-
-        # sleep for 2 seconds for benefit of filesystems with lousy time
-        # resolution, like FAT, so make knows for sure errlist-compat.c doesn't
-        # need generating
-        sleep 2
-        CT_DoExecLog ALL touch stdio-common/errlist-compat.c
-    fi
     # Note: BOOTSTRAP_GCC (see above)
     libc_cv_ppc_machine=yes                         \
     CT_DoExecLog ALL                                \
@@ -464,29 +437,6 @@ do_libc() {
         "${extra_config[@]}"                                        \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
 
-    if grep -l '^install-lib-all:' "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/Makerules" > /dev/null; then
-        # nptl-era glibc.
-        # If the install-lib-all target (which is added by our make-install-lib-all.patch)
-        # is present, it means we're building glibc-2.3.3 or later, and we can't
-        # build programs yet, as they require libeh, which won't be installed
-        # until full build of gcc
-        # YEM-FIXME: This comment is misleading: latest glibc-s do not have the
-        #            make-install-lib-all.patch applied, so do not pass through this
-        #            part of the if statement; nonetheless, they do build, and
-        #            the result is useable (maybe the dual-pass core gcc is
-        #            responsible for this).
-        GLIBC_INITIAL_BUILD_RULE=lib
-        GLIBC_INITIAL_INSTALL_RULE="install-lib-all install-headers"
-        GLIBC_INSTALL_APPS_LATER=yes
-    else
-        # classic glibc.  
-        # We can build and install everything with the bootstrap compiler.
-        # YEM-FIXME: See the above FIXME as well.
-        GLIBC_INITIAL_BUILD_RULE=all
-        GLIBC_INITIAL_INSTALL_RULE=install
-        GLIBC_INSTALL_APPS_LATER=no
-    fi
-
     # glibc initial build hacks
     # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
     case "${CT_ARCH},${CT_ARCH_CPU}" in
@@ -506,14 +456,14 @@ do_libc() {
                           OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
                           ASFLAGS="${GLIBC_INITIAL_BUILD_ASFLAGS}"  \
                           PARALLELMFLAGS="${PARALLELMFLAGS}"        \
-                          ${GLIBC_INITIAL_BUILD_RULE}
+                          all
 
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"          \
                           ${LIBC_SYSROOT_ARG}                       \
                           OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
                           PARALLELMFLAGS="${PARALLELMFLAGS}"        \
-                          ${GLIBC_INITIAL_INSTALL_RULE}
+                          install
 
     # This doesn't seem to work when building a crosscompiler,
     # as it tries to execute localedef using the just-built ld.so!?
@@ -544,34 +494,7 @@ do_libc() {
 
 # This function finishes the glibc install
 do_libc_finish() {
-    # Finally, build and install glibc programs, now that libeh (if any) is installed
-    # Don't do this unless needed, 'cause it causes glibc-2.{1.3,2.2} to fail here with
-    # .../gcc-3.4.1-glibc-2.1.3/build-glibc/libc.so.6: undefined reference to `__deregister_frame_info'
-    # .../gcc-3.4.1-glibc-2.1.3/build-glibc/libc.so.6: undefined reference to `__register_frame_info'
-    [ "${GLIBC_INSTALL_APPS_LATER}" = "yes" ] || return 0
-
-    CT_DoStep INFO "Finishing C library"
-
-    cd "${CT_BUILD_DIR}/build-libc"
-
-    CT_DoLog EXTRA "Re-building C library"
-    CT_DoExecLog ALL make LD=${CT_TARGET}-ld                        \
-                          RANLIB=${CT_TARGET}-ranlib                \
-                          OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
-                          ASFLAGS="${GLIBC_INITIAL_BUILD_ASFLAGS}"  \
-                          PARALLELMFLAGS="${PARALLELMFLAGS}"
-
-    CT_DoLog EXTRA "Installing missing C library components"
-    # note: should do full install and then fix linker scripts, but this is faster
-    for t in bin rootsbin sbin data others; do
-        CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"          \
-                              ${LIBC_SYSROOT_ARG}                       \
-                              OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
-                              PARALLELMFLAGS="${PARALLELMFLAGS}"        \
-                              install-${t}
-    done
-
-    CT_EndStep
+    :
 }
 
 # Build up the addons list, separated with $1
