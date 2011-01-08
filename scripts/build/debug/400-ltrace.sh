@@ -33,6 +33,7 @@ do_debug_ltrace_build() {
             x86:32)     ltrace_host="i386";;
             x86:64)     ltrace_host="x86_64";;
             powerpc:*)  ltrace_host="ppc";;
+            mips:*)     ltrace_host="mipsel";;
             *)          ltrace_host="${CT_ARCH}";;
         esac
         CC="${CT_TARGET}-${CT_CC}"      \
