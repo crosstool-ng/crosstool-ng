@@ -29,6 +29,9 @@ do_cloog_extract() {
     esac
     CT_Pushd "${CT_SRC_DIR}/cloog-ppl${_t}"
     CT_Patch nochdir "cloog-ppl" "${CT_CLOOG_VERSION}"
+    if [ "${CT_CLOOG_VERSION}" = "0.15.10" ]; then
+        ./autogen.sh
+    fi
     CT_Popd
 }
 
