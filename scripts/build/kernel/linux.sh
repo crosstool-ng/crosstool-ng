@@ -17,11 +17,21 @@ CT_DoKernelTupleValues() {
 
 # Download the kernel
 do_kernel_get() {
+    local k_ver
     if [    "${CT_KERNEL_LINUX_INSTALL}" = "y"  \
          -a "${CT_KERNEL_LINUX_CUSTOM}" != "y"  \
        ]; then
+        case "${CT_KERNEL_VERSION}" in
+            ?*.?*.?*.?*)
+                # 4-part version, we need only first three digits
+                k_ver="${CT_KERNEL_VERSION%.*}"
+                ;;
+            *)  # 3-part version, use all of it
+                k_ver="${CT_KERNEL_VERSION}"
+                ;;
+        esac
         CT_GetFile "linux-${CT_KERNEL_VERSION}" \
-                   {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing},4,2}
+                   {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing,/longterm/v${k_ver}},4,2}
     fi
 }
 
