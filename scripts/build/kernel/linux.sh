@@ -30,8 +30,9 @@ do_kernel_get() {
                 k_ver="${CT_KERNEL_VERSION}"
                 ;;
         esac
-        CT_GetFile "linux-${CT_KERNEL_VERSION}" \
-                   {ftp,http}://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.{6{,/testing,/longterm/v${k_ver}},4,2}
+        CT_GetFile "linux-${CT_KERNEL_VERSION}"                             \
+                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6    \
+                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6/longterm/v${k_ver}
     fi
 }
 
