@@ -8,6 +8,8 @@ do_libc_headers() {
 
 # Build and install headers and start files
 do_libc_start_files() {
+    local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
+
     CT_DoStep INFO "Installing C library headers / start files"
 
     mkdir -p "${CT_BUILD_DIR}/build-libc-startfiles"
@@ -15,15 +17,19 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Configuring C library"
 
-    if [ "${CT_EGLIBC_CUSTOM_CONFIG}" = "y" ]; then
-        CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
-    fi
+    case "${CT_LIBC}" in
+        eglibc)
+            if [ "${CT_EGLIBC_CUSTOM_CONFIG}" = "y" ]; then
+                CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
+            fi
+            ;;
+    esac
 
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     cross_cxx=$(CT_Which "${CT_TARGET}-g++")
     cross_ar=$(CT_Which "${CT_TARGET}-ar")
     cross_ranlib=$(CT_Which "${CT_TARGET}-ranlib")
-    
+
     CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
     CT_DoLog DEBUG "Using g++ for target: '${cross_cxx}'"
     CT_DoLog DEBUG "Using ar for target: '${cross_ar}'"
@@ -35,7 +41,7 @@ do_libc_start_files() {
     AR=${cross_ar}                                      \
     RANLIB=${cross_ranlib}                              \
     CT_DoExecLog CFG                                    \
-    "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure" \
+    "${src_dir}/configure"                              \
         --prefix=/usr                                   \
         --with-headers="${CT_HEADERS_DIR}"              \
         --build="${CT_BUILD}"                           \
@@ -49,7 +55,6 @@ do_libc_start_files() {
 
     # use the 'install-headers' makefile target to install the
     # headers
-
     CT_DoExecLog ALL                    \
     make install-headers                \
          install_root=${CT_SYSROOT_DIR} \
@@ -59,25 +64,29 @@ do_libc_start_files() {
 
     # there are a few object files needed to link shared libraries,
     # which we build and install by hand
-
-    CT_DoExecLog ALL mkdir -p ${CT_SYSROOT_DIR}/usr/lib
+    CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
     CT_DoExecLog ALL make csu/subdir_lib
     CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
-        ${CT_SYSROOT_DIR}/usr/lib
+                        "${CT_SYSROOT_DIR}/usr/lib"
 
-    # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.  
-    # However, since we will never actually execute its code, 
-    # it doesn't matter what it contains.  So, treating '/dev/null' 
+    # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
+    # However, since we will never actually execute its code,
+    # it doesn't matter what it contains.  So, treating '/dev/null'
     # as a C source file, we produce a dummy 'libc.so' in one step
-
-    CT_DoExecLog ALL ${cross_cc} -nostdlib -nostartfiles -shared -x c /dev/null -o ${CT_SYSROOT_DIR}/usr/lib/libc.so
+    CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
+                                   -nostartfiles    \
+                                   -shared          \
+                                   -x c /dev/null   \
+                                   -o "${CT_SYSROOT_DIR}/usr/lib/libc.so"
 
     CT_EndStep
 }
 
 # This function builds and install the full C library
 do_libc() {
+    local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local -a extra_config
+    local -a extra_make_args
 
     CT_DoStep INFO "Installing C library"
 
@@ -86,15 +95,18 @@ do_libc() {
 
     CT_DoLog EXTRA "Configuring C library"
 
-    if [ "${CT_EGLIBC_CUSTOM_CONFIG}" = "y" ]; then
-        CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
-    fi
-
-    if [ "${CT_EGLIBC_OPT_SIZE}" = "y" ]; then
-        OPTIMIZE=-Os
-    else
-        OPTIMIZE=-O2
-    fi
+    case "${CT_LIBC}" in
+        eglibc)
+            if [ "${CT_EGLIBC_CUSTOM_CONFIG}" = "y" ]; then
+                CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
+            fi
+            if [ "${CT_EGLIBC_OPT_SIZE}" = "y" ]; then
+                OPTIMIZE=-Os
+            else
+                OPTIMIZE=-O2
+            fi
+            ;;
+    esac
 
     # Add some default glibc config options if not given by user.
     # We don't need to be conditional on wether the user did set different
@@ -164,7 +176,7 @@ do_libc() {
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     CT_DoExecLog CFG                                                \
-    "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure"             \
+    "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --with-headers="${CT_HEADERS_DIR}"                          \
         --build=${CT_BUILD}                                         \
@@ -179,18 +191,23 @@ do_libc() {
     CT_DoLog EXTRA "Building C library"
 
     # eglibc build hacks
-    # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
-    case "${CT_ARCH},${CT_ARCH_CPU}" in
-        powerpc,8??)
-            CT_DoLog DEBUG "Activating support for memset on broken ppc-8xx (CPU15 erratum)"
-            EGLIBC_BUILD_ASFLAGS="-DBROKEN_PPC_8xx_CPU15";;
+    case "${CT_LIBC}" in
+        eglibc)
+            case "${CT_ARCH},${CT_ARCH_CPU}" in
+                powerpc,8??)
+                    # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
+                    CT_DoLog DEBUG "Activating support for memset on broken ppc-8xx (CPU15 erratum)"
+                    extra_make_args+=( ASFLAGS="-DBROKEN_PPC_8xx_CPU15" )
+                    ;;
+            esac
+            ;;
     esac
 
-    CT_DoExecLog ALL make ASFLAGS="${EGLIBC_BUILD_ASFLAGS}"
+    CT_DoExecLog ALL make -j${CT_PARALLEL_JOBS} "${extra_make_args[@]}"
 
     CT_DoLog EXTRA "Installing C library"
 
-    CT_DoExecLog ALL make install install_root="${CT_SYSROOT_DIR}"
+    CT_DoExecLog ALL make install "${extra_make_args[@]}" install_root="${CT_SYSROOT_DIR}"
 
     CT_EndStep
 }
