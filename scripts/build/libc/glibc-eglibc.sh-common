@@ -1,0 +1,215 @@
+# This file contains the functions common to glibc and eglibc
+
+# Build and install headers file
+# This is a no-op
+do_libc_headers() {
+    :
+}
+
+# Build and install headers and start files
+do_libc_start_files() {
+    CT_DoStep INFO "Installing C library headers / start files"
+
+    mkdir -p "${CT_BUILD_DIR}/build-libc-startfiles"
+    cd "${CT_BUILD_DIR}/build-libc-startfiles"
+
+    CT_DoLog EXTRA "Configuring C library"
+
+    if [ "${CT_EGLIBC_CUSTOM_CONFIG}" = "y" ]; then
+        CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
+    fi
+
+    cross_cc=$(CT_Which "${CT_TARGET}-gcc")
+    cross_cxx=$(CT_Which "${CT_TARGET}-g++")
+    cross_ar=$(CT_Which "${CT_TARGET}-ar")
+    cross_ranlib=$(CT_Which "${CT_TARGET}-ranlib")
+    
+    CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
+    CT_DoLog DEBUG "Using g++ for target: '${cross_cxx}'"
+    CT_DoLog DEBUG "Using ar for target: '${cross_ar}'"
+    CT_DoLog DEBUG "Using ranlib for target: '${cross_ranlib}'"
+
+    BUILD_CC="${CT_BUILD}-gcc"                          \
+    CC=${cross_cc}                                      \
+    CXX=${cross_cxx}                                    \
+    AR=${cross_ar}                                      \
+    RANLIB=${cross_ranlib}                              \
+    CT_DoExecLog CFG                                    \
+    "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure" \
+        --prefix=/usr                                   \
+        --with-headers="${CT_HEADERS_DIR}"              \
+        --build="${CT_BUILD}"                           \
+        --host="${CT_TARGET}"                           \
+        --disable-profile                               \
+        --without-gd                                    \
+        --without-cvs                                   \
+        --enable-add-ons
+
+    CT_DoLog EXTRA "Installing C library headers"
+
+    # use the 'install-headers' makefile target to install the
+    # headers
+
+    CT_DoExecLog ALL                    \
+    make install-headers                \
+         install_root=${CT_SYSROOT_DIR} \
+         install-bootstrap-headers=yes
+
+    CT_DoLog EXTRA "Installing C library start files"
+
+    # there are a few object files needed to link shared libraries,
+    # which we build and install by hand
+
+    CT_DoExecLog ALL mkdir -p ${CT_SYSROOT_DIR}/usr/lib
+    CT_DoExecLog ALL make csu/subdir_lib
+    CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
+        ${CT_SYSROOT_DIR}/usr/lib
+
+    # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.  
+    # However, since we will never actually execute its code, 
+    # it doesn't matter what it contains.  So, treating '/dev/null' 
+    # as a C source file, we produce a dummy 'libc.so' in one step
+
+    CT_DoExecLog ALL ${cross_cc} -nostdlib -nostartfiles -shared -x c /dev/null -o ${CT_SYSROOT_DIR}/usr/lib/libc.so
+
+    CT_EndStep
+}
+
+# This function builds and install the full C library
+do_libc() {
+    local -a extra_config
+
+    CT_DoStep INFO "Installing C library"
+
+    mkdir -p "${CT_BUILD_DIR}/build-libc"
+    cd "${CT_BUILD_DIR}/build-libc"
+
+    CT_DoLog EXTRA "Configuring C library"
+
+    if [ "${CT_EGLIBC_CUSTOM_CONFIG}" = "y" ]; then
+        CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
+    fi
+
+    if [ "${CT_EGLIBC_OPT_SIZE}" = "y" ]; then
+        OPTIMIZE=-Os
+    else
+        OPTIMIZE=-O2
+    fi
+
+    # Add some default glibc config options if not given by user.
+    # We don't need to be conditional on wether the user did set different
+    # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
+
+    extra_config+=("--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')")
+
+    case "${CT_THREADS}" in
+        nptl)           extra_config+=("--with-__thread" "--with-tls");;
+        linuxthreads)   extra_config+=("--with-__thread" "--without-tls" "--without-nptl");;
+        none)           extra_config+=("--without-__thread" "--without-nptl")
+                        case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
+                            *-tls*) ;;
+                            *) extra_config+=("--without-tls");;
+                        esac
+                        ;;
+    esac
+
+    case "${CT_SHARED_LIBS}" in
+        y) extra_config+=("--enable-shared");;
+        *) extra_config+=("--disable-shared");;
+    esac
+
+    case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
+        y,) extra_config+=("--with-fp");;
+        ,y) extra_config+=("--without-fp");;
+    esac
+
+    if [ "${CT_LIBC_DISABLE_VERSIONING}" = "y" ]; then
+        extra_config+=("--disable-versioning")
+    fi
+
+    if [ "${CT_LIBC_OLDEST_ABI}" != "" ]; then
+        extra_config+=("--enable-oldest-abi=${CT_LIBC_OLDEST_ABI}")
+    fi
+
+    case "$(do_libc_add_ons_list ,)" in
+        "") ;;
+        *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
+    esac
+
+    extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
+
+    cross_cc=$(CT_Which "${CT_TARGET}-gcc")    
+
+    CT_DoLog DEBUG "Using gcc for target:     '${cross_cc}'"
+    CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
+    CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
+    CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
+
+    # ./configure is mislead by our tools override wrapper for bash
+    # so just tell it where the real bash is _on_the_target_!
+    # Notes:
+    # - ${ac_cv_path_BASH_SHELL} is only used to set BASH_SHELL
+    # - ${BASH_SHELL}            is only used to set BASH
+    # - ${BASH}                  is only used to set the shebang
+    #                            in two scripts to run on the target
+    # So we can safely bypass bash detection at compile time.
+    # Should this change in a future eglibc release, we'd better
+    # directly mangle the generated scripts _after_ they get built,
+    # or even after they get installed... eglibc is such a sucker...
+    echo "ac_cv_path_BASH_SHELL=/bin/bash" >config.cache
+
+    BUILD_CC="${CT_BUILD}-gcc"                                      \
+    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"  \
+    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    AR=${CT_TARGET}-ar                                              \
+    RANLIB=${CT_TARGET}-ranlib                                      \
+    CT_DoExecLog CFG                                                \
+    "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}/configure"             \
+        --prefix=/usr                                               \
+        --with-headers="${CT_HEADERS_DIR}"                          \
+        --build=${CT_BUILD}                                         \
+        --host=${CT_TARGET}                                         \
+        --disable-profile                                           \
+        --without-gd                                                \
+        --without-cvs                                               \
+        --cache-file=config.cache                                   \
+        "${extra_config[@]}"                                        \
+        ${CT_LIBC_GLIBC_EXTRA_CONFIG}
+    
+    CT_DoLog EXTRA "Building C library"
+
+    # eglibc build hacks
+    # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
+    case "${CT_ARCH},${CT_ARCH_CPU}" in
+        powerpc,8??)
+            CT_DoLog DEBUG "Activating support for memset on broken ppc-8xx (CPU15 erratum)"
+            EGLIBC_BUILD_ASFLAGS="-DBROKEN_PPC_8xx_CPU15";;
+    esac
+
+    CT_DoExecLog ALL make ASFLAGS="${EGLIBC_BUILD_ASFLAGS}"
+
+    CT_DoLog EXTRA "Installing C library"
+
+    CT_DoExecLog ALL make install install_root="${CT_SYSROOT_DIR}"
+
+    CT_EndStep
+}
+
+# This function finishes the C library install
+# This is a no-op
+do_libc_finish() {
+    :
+}
+
+# Build up the addons list, separated with $1
+do_libc_add_ons_list() {
+    local sep="$1"
+    local addons_list=$(echo "${CT_LIBC_ADDONS_LIST//,/${sep}}" |tr -s ,)
+    case "${CT_THREADS}" in
+        none)   ;;
+        *)      addons_list="${addons_list}${sep}${CT_THREADS}";;
+    esac
+    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
+    addons_list="${addons_list%%${sep}}"
+    echo "${addons_list##${sep}}"
+}
