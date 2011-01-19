@@ -10,7 +10,7 @@ do_libc_headers() {
 do_libc_start_files() {
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
 
-    CT_DoStep INFO "Installing C library headers / start files"
+    CT_DoStep INFO "Installing C library headers & start files"
 
     mkdir -p "${CT_BUILD_DIR}/build-libc-startfiles"
     cd "${CT_BUILD_DIR}/build-libc-startfiles"
@@ -55,10 +55,10 @@ do_libc_start_files() {
 
     # use the 'install-headers' makefile target to install the
     # headers
-    CT_DoExecLog ALL                    \
-    make install-headers                \
-         install_root=${CT_SYSROOT_DIR} \
-         install-bootstrap-headers=yes
+    CT_DoExecLog ALL make ${JOBSFLAGS}              \
+                     install_root=${CT_SYSROOT_DIR} \
+                     install-bootstrap-headers=yes  \
+                     install-headers
 
     # For glibc, a few headers need to be manually installed
     if [ "${CT_LIBC}" = "glibc" ]; then
@@ -87,7 +87,7 @@ do_libc_start_files() {
     # there are a few object files needed to link shared libraries,
     # which we build and install by hand
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
-    CT_DoExecLog ALL make csu/subdir_lib
+    CT_DoExecLog ALL make ${JOBSFLAGS} csu/subdir_lib
     CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
                         "${CT_SYSROOT_DIR}/usr/lib"
 
@@ -238,12 +238,12 @@ do_libc() {
     esac
 
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL make -j${CT_PARALLEL_JOBS}             \
+    CT_DoExecLog ALL make ${JOBSFLAGS}                      \
                           "${extra_make_args[@]}"           \
                           all
 
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL make -j${CT_PARALLEL_JOBS}             \
+    CT_DoExecLog ALL make ${JOBSFLAGS}                      \
                           "${extra_make_args[@]}"           \
                           install_root="${CT_SYSROOT_DIR}"  \
                           install

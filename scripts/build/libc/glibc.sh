@@ -5,6 +5,10 @@
 # Add the definitions common to glibc and eglibc
 #   do_libc_headers
 #   do_libc_start_files
+#   do_libc
+#   do_libc_finish
+#   do_libc_add_ons_list
+#   do_libc_min_kernel_config
 . "${CT_LIB_DIR}/scripts/build/libc/glibc-eglibc.sh-common"
 
 # Download glibc
