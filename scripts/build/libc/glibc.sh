@@ -3,7 +3,6 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 # Add the definitions common to glibc and eglibc
-#   do_libc_headers
 #   do_libc_start_files
 #   do_libc
 #   do_libc_finish

@@ -75,10 +75,6 @@ do_libc_check_config() {
     CT_EndStep
 }
 
-do_libc_headers() {
-    :
-}
-
 # Build and install headers and start files
 do_libc_start_files() {
     local install_rule

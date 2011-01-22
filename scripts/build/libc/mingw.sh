@@ -37,10 +37,6 @@ do_libc_check_config() {
     :
 }
 
-do_libc_headers() {
-    :
-}
-
 do_libc_start_files() {
     CT_DoStep INFO "Installing C library headers"
 

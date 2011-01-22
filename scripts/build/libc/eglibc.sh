@@ -1,7 +1,6 @@
 # eglibc build functions (initially by Thomas JOURDAN).
 
 # Add the definitions common to glibc and eglibc
-#   do_libc_headers
 #   do_libc_start_files
 #   do_libc
 #   do_libc_finish
