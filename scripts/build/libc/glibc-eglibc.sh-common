@@ -60,6 +60,28 @@ do_libc_start_files() {
          install_root=${CT_SYSROOT_DIR} \
          install-bootstrap-headers=yes
 
+    # For glibc, a few headers need to be manually installed
+    if [ "${CT_LIBC}" = "glibc" ]; then
+        # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
+        # so do them by hand.  We can tolerate an empty stubs.h for the moment.
+        # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
+        mkdir -p "${CT_HEADERS_DIR}/gnu"
+        CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
+        CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/include/features.h"  \
+                               "${CT_HEADERS_DIR}/features.h"
+
+        # Building the bootstrap gcc requires either setting inhibit_libc, or
+        # having a copy of stdio_lim.h... see
+        # http://sources.redhat.com/ml/libc-alpha/2003-11/msg00045.html
+        CT_DoExecLog ALL cp -v bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
+
+        # Following error building gcc-4.0.0's gcj:
+        #  error: bits/syscall.h: No such file or directory
+        # solved by following copy; see http://sourceware.org/ml/crossgcc/2005-05/msg00168.html
+        # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
+        [ "${CT_ARCH}" != "arm" ] && CT_DoExecLog ALL cp -v misc/syscall-list.h "${CT_HEADERS_DIR}/bits/syscall.h" || true
+    fi
+
     CT_DoLog EXTRA "Installing C library start files"
 
     # there are a few object files needed to link shared libraries,
