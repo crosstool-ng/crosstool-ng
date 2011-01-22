@@ -263,16 +263,3 @@ do_libc() {
 
     CT_EndStep
 }
-
-# Build up the addons list, separated with $1
-do_libc_add_ons_list() {
-    local sep="$1"
-    local addons_list=$(echo "${CT_LIBC_ADDONS_LIST}" |sed -r -e "s/[ ,]/${sep}/g;")
-    case "${CT_THREADS}" in
-        none)   ;;
-        *)      addons_list="${addons_list}${sep}${CT_THREADS}";;
-    esac
-    [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
-    # Remove duplicate, leading and trailing separators
-    echo "${addons_list}" |sed -r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
-}

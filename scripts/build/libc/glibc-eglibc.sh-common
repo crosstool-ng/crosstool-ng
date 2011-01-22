@@ -243,14 +243,16 @@ do_libc_finish() {
 # Build up the addons list, separated with $1
 do_libc_add_ons_list() {
     local sep="$1"
-    local addons_list=$(echo "${CT_LIBC_ADDONS_LIST//,/${sep}}" |tr -s ,)
+    local addons_list="$( echo "${CT_LIBC_ADDONS_LIST}"         \
+                          |sed -r -e "s/[[:space:],]/${sep}/g;" \
+                        )"
     case "${CT_THREADS}" in
         none)   ;;
         *)      addons_list="${addons_list}${sep}${CT_THREADS}";;
     esac
     [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
-    addons_list="${addons_list%%${sep}}"
-    echo "${addons_list##${sep}}"
+    # Remove duplicate, leading and trailing separators
+    echo "${addons_list}" |sed -r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
 }
 
 # Compute up the minimum supported Linux kernel version
