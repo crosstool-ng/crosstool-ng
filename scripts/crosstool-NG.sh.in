@@ -472,6 +472,13 @@ if [ -z "${CT_RESTART}" ]; then
         done
     done
 
+    # Some makeinfo versions are a pain in [put your most sensible body part here].
+    # Go ahead with those, by creating a wrapper that keeps partial files, and that
+    # never fails:
+    CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
+    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/buildtools/makeinfo"
+    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/makeinfo"
+
     # Carefully add paths in the order we want them:
     #  - first try in ${CT_PREFIX_DIR}/bin
     #  - then try in ${CT_CC_CORE_SHARED_PREFIX_DIR}/bin
@@ -484,13 +491,6 @@ if [ -z "${CT_RESTART}" ]; then
         canadian) export PATH="${CT_PREFIX_DIR}/buildtools:${PATH}";;
         *)  ;;
     esac
-
-    # Some makeinfo versions are a pain in [put your most sensible body part here].
-    # Go ahead with those, by creating a wrapper that keeps partial files, and that
-    # never fails:
-    CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
-    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/buildtools/makeinfo"
-    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/makeinfo"
 
     # Help gcc
     CT_CFLAGS_FOR_HOST=
