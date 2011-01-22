@@ -38,6 +38,10 @@ do_libc_check_config() {
 }
 
 do_libc_headers() {
+    :
+}
+
+do_libc_start_files() {
     CT_DoStep INFO "Installing C library headers"
 
     CT_DoLog EXTRA "Installing MinGW Runtime headers"
@@ -47,10 +51,6 @@ do_libc_headers() {
     CT_DoExecLog ALL ln -sv "usr" "${CT_SYSROOT_DIR}/mingw"
 
     CT_EndStep
-}
-
-do_libc_start_files() {
-    :
 }
 
 do_libc() {
