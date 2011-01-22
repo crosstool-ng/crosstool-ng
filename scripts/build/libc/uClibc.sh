@@ -75,8 +75,12 @@ do_libc_check_config() {
     CT_EndStep
 }
 
-# This functions installs uClibc's headers
 do_libc_headers() {
+    :
+}
+
+# Build and install headers and start files
+do_libc_start_files() {
     local install_rule
     local cross
 
@@ -162,11 +166,6 @@ do_libc_headers() {
     fi # CT_THREADS == nptl
 
     CT_EndStep
-}
-
-# Build and install start files
-do_libc_start_files() {
-    :
 }
 
 # This function build and install the full uClibc
