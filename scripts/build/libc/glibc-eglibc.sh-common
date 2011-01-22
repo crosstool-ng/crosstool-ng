@@ -107,6 +107,7 @@ do_libc_start_files() {
 # This function builds and install the full C library
 do_libc() {
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
+    local extra_cc_args
     local -a extra_config
     local -a extra_make_args
 
@@ -127,6 +128,12 @@ do_libc() {
             else
                 OPTIMIZE=-O2
             fi
+            ;;
+        glibc)
+            # glibc can't be built without -O2 (reference needed!)
+            OPTIMIZE=-O2
+            # Also, if those two are missing, iconv build breaks
+            extra_config+=( --disable-debug --disable-sanity-checks )
             ;;
     esac
 
@@ -172,6 +179,9 @@ do_libc() {
 
     extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
 
+    # Pre-seed the configparms file with values from the config option
+    printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
+
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")    
 
     CT_DoLog DEBUG "Using gcc for target:     '${cross_cc}'"
@@ -192,6 +202,14 @@ do_libc() {
     # or even after they get installed... eglibc is such a sucker...
     echo "ac_cv_path_BASH_SHELL=/bin/bash" >config.cache
 
+    # Configure with --prefix the way we want it on the target...
+    # There are a whole lot of settings here.  You'll probably want
+    # to read up on what they all mean, and customize a bit, possibly by setting GLIBC_EXTRA_CONFIG
+    # Compare these options with the ones used when installing the glibc headers above - they're different.
+    # Adding "--without-gd" option to avoid error "memusagestat.c:36:16: gd.h: No such file or directory"
+    # See also http://sources.redhat.com/ml/libc-alpha/2000-07/msg00024.html.
+    # Set BUILD_CC, or we won't be able to build datafiles
+
     BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"  \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
@@ -200,36 +218,35 @@ do_libc() {
     CT_DoExecLog CFG                                                \
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
-        --with-headers="${CT_HEADERS_DIR}"                          \
         --build=${CT_BUILD}                                         \
         --host=${CT_TARGET}                                         \
+        --without-cvs                                               \
         --disable-profile                                           \
         --without-gd                                                \
-        --without-cvs                                               \
         --cache-file=config.cache                                   \
+        --with-headers="${CT_HEADERS_DIR}"                          \
         "${extra_config[@]}"                                        \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
     
-    CT_DoLog EXTRA "Building C library"
-
-    # eglibc build hacks
-    case "${CT_LIBC}" in
-        eglibc)
-            case "${CT_ARCH},${CT_ARCH_CPU}" in
-                powerpc,8??)
-                    # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
-                    CT_DoLog DEBUG "Activating support for memset on broken ppc-8xx (CPU15 erratum)"
-                    extra_make_args+=( ASFLAGS="-DBROKEN_PPC_8xx_CPU15" )
-                    ;;
-            esac
+    # build hacks
+    case "${CT_ARCH},${CT_ARCH_CPU}" in
+        powerpc,8??)
+            # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
+            CT_DoLog DEBUG "Activating support for memset on broken ppc-8xx (CPU15 erratum)"
+            extra_make_args+=( ASFLAGS="-DBROKEN_PPC_8xx_CPU15" )
             ;;
     esac
 
-    CT_DoExecLog ALL make -j${CT_PARALLEL_JOBS} "${extra_make_args[@]}"
+    CT_DoLog EXTRA "Building C library"
+    CT_DoExecLog ALL make -j${CT_PARALLEL_JOBS}             \
+                          "${extra_make_args[@]}"           \
+                          all
 
     CT_DoLog EXTRA "Installing C library"
-
-    CT_DoExecLog ALL make install "${extra_make_args[@]}" install_root="${CT_SYSROOT_DIR}"
+    CT_DoExecLog ALL make -j${CT_PARALLEL_JOBS}             \
+                          "${extra_make_args[@]}"           \
+                          install_root="${CT_SYSROOT_DIR}"  \
+                          install
 
     CT_EndStep
 }
@@ -280,8 +297,8 @@ do_libc_min_kernel_config() {
                 min_kernel_config="${version}.${patchlevel}.${sublevel}"
             elif [ "${CT_LIBC_GLIBC_KERNEL_VERSION_CHOSEN}" = "y" ]; then
                 # Trim the fourth part of the linux version, keeping only the first three numbers
-                min_kernel_config="$( echo "${CT_LIBC_GLIBC_MIN_KERNEL_VERSION}"                \
-                                      |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"   \
+                min_kernel_config="$( echo "${CT_LIBC_GLIBC_MIN_KERNEL_VERSION}"            \
+                                      |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;' \
                                     )"
             fi
             echo "--enable-kernel=${min_kernel_config}"
