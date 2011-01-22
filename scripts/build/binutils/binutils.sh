@@ -80,7 +80,7 @@ do_binutils() {
     fi
 
     CT_DoLog EXTRA "Building binutils"
-    CT_DoExecLog ALL make "${extra_make_flags[@]}" ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make "${extra_make_flags[@]}" ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing binutils"
     CT_DoExecLog ALL make install
@@ -149,7 +149,7 @@ do_binutils_target() {
             ${CT_BINUTILS_EXTRA_CONFIG}
 
         CT_DoLog EXTRA "Building binutils' libraries (${targets[*]}) for target"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} "${build_targets[@]}"
+        CT_DoExecLog ALL make ${JOBSFLAGS} "${build_targets[@]}"
         CT_DoLog EXTRA "Installing binutils' libraries (${targets[*]}) for target"
         CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" "${install_targets[@]}"
 

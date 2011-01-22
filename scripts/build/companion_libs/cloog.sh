@@ -75,11 +75,11 @@ do_cloog() {
         "${cloog_opts[@]}"
 
     CT_DoLog EXTRA "Building CLooG/ppl"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} libcloog.la
+    CT_DoExecLog ALL make ${JOBSFLAGS} libcloog.la
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking CLooG/ppl"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
+        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing CLooG/ppl"

@@ -70,7 +70,7 @@ do_libc() {
         --host=${CT_TARGET}
 
     CT_DoLog EXTRA "Building W32-API"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing W32-API"
     CT_DoExecLog ALL make install
@@ -89,7 +89,7 @@ do_libc() {
         --host=${CT_TARGET}
 
     CT_DoLog EXTRA "Building MinGW Runtime"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing MinGW Runtime"
     CT_DoExecLog ALL make install
@@ -148,7 +148,7 @@ do_libc_finish() {
             --enable-static
 
         CT_DoLog EXTRA "Building GnuRX development files"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS}
+        CT_DoExecLog ALL make ${JOBSFLAGS}
 
         CT_DoLog EXTRA "Installing GnuRX development files"
         CT_DoExecLog ALL make install-dev

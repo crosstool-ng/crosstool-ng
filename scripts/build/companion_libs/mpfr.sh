@@ -97,11 +97,11 @@ do_mpfr() {
         "${mpfr_opts[@]}"
 
     CT_DoLog EXTRA "Building MPFR"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPFR"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
+        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing MPFR"

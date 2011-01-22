@@ -101,7 +101,7 @@ do_libc_start_files() {
         "${newlib_opts[@]}"
 
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL make install install_root="${CT_SYSROOT_DIR}"

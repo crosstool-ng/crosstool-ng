@@ -269,17 +269,17 @@ do_cc_core() {
         # So much easier if we just edit the source tree, but hey...
         if [ ! -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
             CT_DoExecLog CFG make configure-libiberty
-            CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libiberty libiberty.a
+            CT_DoExecLog ALL make ${JOBSFLAGS} -C libiberty libiberty.a
             CT_DoExecLog CFG make configure-gcc configure-libcpp
-            CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp
+            CT_DoExecLog ALL make ${JOBSFLAGS} all-libcpp
         else
             CT_DoExecLog CFG make configure-gcc configure-libcpp configure-build-libiberty
-            CT_DoExecLog ALL make ${PARALLELMFLAGS} all-libcpp all-build-libiberty
+            CT_DoExecLog ALL make ${JOBSFLAGS} all-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
         if [ -d "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/libdecnumber" ]; then
             CT_DoExecLog CFG make configure-libdecnumber
-            CT_DoExecLog ALL make ${PARALLELMFLAGS} -C libdecnumber libdecnumber.a
+            CT_DoExecLog ALL make ${JOBSFLAGS} -C libdecnumber libdecnumber.a
         fi
 
         # Starting with GCC 4.3, libgcc.mk is no longer built,
@@ -304,7 +304,7 @@ do_cc_core() {
             repair_cc=""
         fi
 
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -C gcc ${libgcc_rule} \
+        CT_DoExecLog ALL make ${JOBSFLAGS} -C gcc ${libgcc_rule} \
                               ${repair_cc}
         sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
@@ -317,7 +317,7 @@ do_cc_core() {
     fi
 
     CT_DoLog EXTRA "Building ${mode} core C compiler"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} "${core_targets[@]/#/all-}"
+    CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/all-}"
 
     CT_DoLog EXTRA "Installing ${mode} core C compiler"
     CT_DoExecLog ALL make "${core_targets[@]/#/install-}"
@@ -520,11 +520,11 @@ do_cc() {
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} all-build-libiberty
+        CT_DoExecLog ALL make ${JOBSFLAGS} all-build-libiberty
     fi
 
     CT_DoLog EXTRA "Building final compiler"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS} all
+    CT_DoExecLog ALL make ${JOBSFLAGS} all
 
     CT_DoLog EXTRA "Installing final compiler"
     CT_DoExecLog ALL make install

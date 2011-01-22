@@ -48,11 +48,11 @@ do_mpc() {
         "${mpc_opts[@]}"
 
     CT_DoLog EXTRA "Building MPC"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPC"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
+        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing MPC"

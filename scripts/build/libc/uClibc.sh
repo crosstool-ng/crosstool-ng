@@ -138,7 +138,7 @@ do_libc_start_files() {
     if [ "${CT_THREADS}" = "nptl" ]; then
         CT_DoLog EXTRA "Building start files"
         CT_DoExecLog ALL                                        \
-        make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}      \
+        make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
              CROSS="${cross}"                                   \
              PREFIX="${CT_SYSROOT_DIR}/"                        \
              STRIPTOOL=true                                     \
@@ -208,7 +208,7 @@ do_libc() {
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          pregen
     CT_DoExecLog ALL                                        \
-    make ${CT_LIBC_UCLIBC_PARALLEL:+${PARALLELMFLAGS}}      \
+    make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
          CROSS=${CT_TARGET}-                                \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \
@@ -228,7 +228,7 @@ do_libc() {
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, hence the STRIPTOOL= assignment
     #
-    # Note: PARALLELMFLAGS is not usefull for installation.
+    # Note: JOBSFLAGS is not usefull for installation.
     #
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL                                        \

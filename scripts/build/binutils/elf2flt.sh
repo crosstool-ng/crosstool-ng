@@ -52,7 +52,7 @@ do_elf2flt() {
         ${CT_ELF2FLT_EXTRA_CONFIG}			
 
     CT_DoLog EXTRA "Building elf2flt"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing elf2flt"
     CT_DoExecLog ALL make install

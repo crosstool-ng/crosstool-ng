@@ -123,7 +123,7 @@ do_debug_gdb_build() {
             "${cross_extra_config[@]}"
 
         CT_DoLog EXTRA "Building cross-gdb"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS}
+        CT_DoExecLog ALL make ${JOBSFLAGS}
 
         CT_DoLog EXTRA "Installing cross-gdb"
         CT_DoExecLog ALL make install
@@ -169,8 +169,8 @@ do_debug_gdb_build() {
             # extension appended to executables. Find that.
             tic_ext=$(grep -E '^x[[:space:]]*=' progs/Makefile |sed -r -e 's/^.*=[[:space:]]*//;')
 
-            CT_DoExecLog ALL make ${PARALLELMFLAGS} -C include
-            CT_DoExecLog ALL make ${PARALLELMFLAGS} -C progs "tic${tic_ext}"
+            CT_DoExecLog ALL make ${JOBSFLAGS} -C include
+            CT_DoExecLog ALL make ${JOBSFLAGS} -C progs "tic${tic_ext}"
 
             CT_DoExecLog ALL install -d -m 0755 "${CT_PREFIX_DIR}/buildtools"
             CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_PREFIX_DIR}/buildtools"
@@ -192,7 +192,7 @@ do_debug_gdb_build() {
                 --enable-termcap                                                \
                 "${ncurses_opts[@]}"
 
-            CT_DoExecLog ALL make ${PARALLELMFLAGS}
+            CT_DoExecLog ALL make ${JOBSFLAGS}
 
             CT_DoExecLog ALL make install
 
@@ -219,7 +219,7 @@ do_debug_gdb_build() {
                 --enable-static                                             \
                 --disable-shared
 
-            CT_DoExecLog ALL make ${PARALLELMFLAGS}
+            CT_DoExecLog ALL make ${JOBSFLAGS}
             CT_DoExecLog ALL make install
 
             native_extra_config+=("--with-expat")
@@ -269,7 +269,7 @@ do_debug_gdb_build() {
             "${native_extra_config[@]}"
 
         CT_DoLog EXTRA "Building native gdb"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
+        CT_DoExecLog ALL make ${JOBSFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing native gdb"
         CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install
@@ -334,7 +334,7 @@ do_debug_gdb_build() {
             "${gdbserver_extra_config[@]}"
 
         CT_DoLog EXTRA "Building gdbserver"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} CC=${CT_TARGET}-${CT_CC}
+        CT_DoExecLog ALL make ${JOBSFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing gdbserver"
         CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install

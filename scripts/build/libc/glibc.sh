@@ -227,14 +227,12 @@ do_libc() {
                           RANLIB=${CT_TARGET}-ranlib                \
                           OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
                           ASFLAGS="${GLIBC_INITIAL_BUILD_ASFLAGS}"  \
-                          PARALLELMFLAGS="${PARALLELMFLAGS}"        \
                           all
 
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL make install_root="${CT_SYSROOT_DIR}"          \
                           ${LIBC_SYSROOT_ARG}                       \
                           OBJDUMP_FOR_HOST="${CT_TARGET}-objdump"   \
-                          PARALLELMFLAGS="${PARALLELMFLAGS}"        \
                           install
 
     # This doesn't seem to work when building a crosscompiler,

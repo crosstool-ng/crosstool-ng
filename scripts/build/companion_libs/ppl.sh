@@ -59,11 +59,11 @@ do_ppl() {
     # --enable-optimization=speed  or sspeed (yes, with 2 's')
 
     CT_DoLog EXTRA "Building PPL"
-    CT_DoExecLog ALL make ${PARALLELMFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking PPL"
-        CT_DoExecLog ALL make ${PARALLELMFLAGS} -s check
+        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing PPL"
