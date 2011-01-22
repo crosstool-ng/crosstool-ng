@@ -276,32 +276,3 @@ do_libc_add_ons_list() {
     # Remove duplicate, leading and trailing separators
     echo "${addons_list}" |sed -r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
 }
-
-# Builds up the minimum supported Linux kernel version
-do_libc_min_kernel_config() {
-    local min_kernel_config=
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG}" in
-        *enable-kernel*) ;;
-        *)  if [ "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" ]; then
-                # We can't rely on the kernel version from the configuration,
-                # because it might not be available if the user uses pre-installed
-                # headers. On the other hand, both method will have the kernel
-                # version installed in "usr/include/linux/version.h" in the sys-root.
-                # Parse that instead of having two code-paths.
-                version_code_file="${CT_SYSROOT_DIR}/usr/include/linux/version.h"
-                if [ ! -f "${version_code_file}" -o ! -r "${version_code_file}" ]; then
-                    CT_Abort "Linux version is unavailable in installed headers files"
-                fi
-                version_code=$(grep -E LINUX_VERSION_CODE "${version_code_file}" |cut -d ' ' -f 3)
-                version=$(((version_code>>16)&0xFF))
-                patchlevel=$(((version_code>>8)&0xFF))
-                sublevel=$((version_code&0xFF))
-                min_kernel_config="--enable-kernel=${version}.${patchlevel}.${sublevel}"
-            elif [ "${CT_LIBC_GLIBC_KERNEL_VERSION_CHOSEN}" = "y" ]; then
-                # Trim the fourth part of the linux version, keeping only the first three numbers
-                min_kernel_config="--enable-kernel=$(echo ${CT_LIBC_GLIBC_MIN_KERNEL_VERSION} |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;')"
-            fi
-            ;;
-    esac
-    echo "${min_kernel_config}"
-}
