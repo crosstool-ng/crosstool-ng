@@ -17,7 +17,6 @@ help-env::
 # Please keep the last line with a '\' and keep the following empy line:
 # it helps when diffing and merging.
 CT_STEPS := libc_check_config   \
-            kernel_headers      \
             gmp                 \
             mpfr                \
             ppl                 \
@@ -28,6 +27,7 @@ CT_STEPS := libc_check_config   \
             elf2flt             \
             sstrip              \
             cc_core_pass_1      \
+            kernel_headers      \
             libc_start_files    \
             cc_core_pass_2      \
             libc                \
