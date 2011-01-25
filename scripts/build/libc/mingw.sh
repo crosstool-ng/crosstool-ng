@@ -44,6 +44,10 @@ do_libc_start_files() {
     mkdir -p "${CT_HEADERS_DIR}"
     cp -r ${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/include/* \
           ${CT_HEADERS_DIR}
+
+    # It seems mingw is strangely set up to look into /mingw instead of
+    # /usr (notably when looking for the headers). This symlink is
+    # here to workaround this, and seems to be here to last... :-/
     CT_DoExecLog ALL ln -sv "usr" "${CT_SYSROOT_DIR}/mingw"
 
     CT_EndStep
@@ -94,9 +98,6 @@ do_libc() {
 }
 
 do_libc_finish() {
-    # Remove the build-symlink now it is no longer needed.
-    CT_DoExecLog ALL rm -f "${CT_SYSROOT_DIR}/mingw"
-
     CT_DoStep INFO "Installing MinGW Development libraries"
 
     CT_Pushd "${CT_SYSROOT_DIR}"
