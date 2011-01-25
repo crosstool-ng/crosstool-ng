@@ -283,9 +283,16 @@ esac
 
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
-    # Arrange paths depending on wether we use sys-root or not.
+    case "${CT_SYSROOT_NAME}" in
+        "")     CT_SYSROOT_NAME="sysroot";;
+        .)      CT_Abort "Sysroot name is set to '.' which is forbidden";;
+        *' '*)  CT_Abort "Sysroot name contains forbidden space(s): '${CT_SYSROOT_NAME}'";;
+        */*)    CT_Abort "Sysroot name contains forbidden slash(es): '${CT_SYSROOT_NAME}'";;
+    esac
+
+    # Arrange paths depending on wether we use sysroot or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/sys-root"
+        CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/${CT_SYSROOT_NAME}"
         CT_DEBUGROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/debug-root"
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/usr/include"
         BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
@@ -325,8 +332,8 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/include"
 
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        # Prevent gcc from installing its libraries outside of the sys-root
-        CT_DoExecLog ALL ln -sf "./${CT_SYSROOT_DIR_PREFIX}/sys-root/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
+        # Prevent gcc from installing its libraries outside of the sysroot
+        CT_DoExecLog ALL ln -sf "./${CT_SYSROOT_DIR_PREFIX}/${CT_SYSROOT_NAME}/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
     fi
 
     # Since we're *not* multilib on the target side, we want all the
