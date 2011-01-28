@@ -164,9 +164,31 @@ config CC_GCC_HAS_GRAPHITE
     bool
     default n
 
+# The way LTO works is a bit twisted.
+# See: http://gcc.gnu.org/wiki/LinkTimeOptimization#Requirements
+# Basically:
+#   - if binutils has plugins: LTO is handled by ld/gold by loading
+#     the plugin when linking
+#   - if binutils does not have plugins: LTO is handled by collect2
+# In any case, LTO support does not depend on plugins, but takes
+# advantage of it
 config CC_GCC_HAS_LTO
     bool
     default n
+
+# Only enable gcc's support for plugins if binutils has it as well
+# They are usefull only when doing LTO, but it does no harm enabling
+# them even without LTO.
+config CC_GCC_ENABLE_PLUGINS
+    bool
+    depends on BINUTILS_PLUGINS
+    default y
+
+# If binutils installs gold, enable support for gold in gcc
+config CC_GCC_GOLD
+    bool
+    depends on BINUTILS_GOLD_INSTALLED
+    default y
 
 config CC_GCC_USE_GMP_MPFR
     bool

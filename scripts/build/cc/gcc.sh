@@ -481,13 +481,10 @@ do_cc() {
         "") extra_config+=("--without-long-double-128");;
     esac
 
-    # If LTO is selected and binutils has gold, then enable
-    # building the lto plugin with the --enable-gold option,
-    # but only if gold has support for plugins.
-    if [    "${CT_BINUTILS_GOLD_INSTALLED}" = "y"   \
-         -a "${CT_BINUTILS_GOLD_PLUGINS}" = "y"     \
-         -a "${CT_CC_GCC_USE_LTO}" = "y"            \
-       ]; then
+    if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
+        extra_config+=( --enable-plugin )
+    fi
+    if [ "${CT_CC_GCC_GOLD}" = "y" ]; then
         extra_config+=( --enable-gold )
     fi
 
