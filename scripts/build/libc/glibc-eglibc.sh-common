@@ -29,6 +29,15 @@ do_libc_start_files() {
     CT_DoLog DEBUG "Using ar for target: '${cross_ar}'"
     CT_DoLog DEBUG "Using ranlib for target: '${cross_ranlib}'"
 
+    touch config.cache
+    if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
+        echo "libc_cv_forced_unwind=yes" >>config.cache
+        echo "libc_cv_c_cleanup=yes" >>config.cache
+    fi
+
+    # Pre-seed the configparms file with values from the config option
+    printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
+
     BUILD_CC="${CT_BUILD}-gcc"                          \
     CC=${cross_cc}                                      \
     CXX=${cross_cxx}                                    \
@@ -40,6 +49,7 @@ do_libc_start_files() {
         --with-headers="${CT_HEADERS_DIR}"              \
         --build="${CT_BUILD}"                           \
         --host="${CT_TARGET}"                           \
+        --cache-file="$(pwd)/config.cache"              \
         --disable-profile                               \
         --without-gd                                    \
         --without-cvs                                   \
@@ -173,6 +183,12 @@ do_libc() {
 
     extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
 
+    touch config.cache
+    if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
+        echo "libc_cv_forced_unwind=yes" >>config.cache
+        echo "libc_cv_c_cleanup=yes" >>config.cache
+    fi
+
     # Pre-seed the configparms file with values from the config option
     printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
 
@@ -194,7 +210,7 @@ do_libc() {
     # Should this change in a future eglibc release, we'd better
     # directly mangle the generated scripts _after_ they get built,
     # or even after they get installed... eglibc is such a sucker...
-    echo "ac_cv_path_BASH_SHELL=/bin/bash" >config.cache
+    echo "ac_cv_path_BASH_SHELL=/bin/bash" >>config.cache
 
     # Configure with --prefix the way we want it on the target...
     # There are a whole lot of settings here.  You'll probably want
@@ -214,10 +230,10 @@ do_libc() {
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
         --host=${CT_TARGET}                                         \
+        --cache-file="$(pwd)/config.cache"                          \
         --without-cvs                                               \
         --disable-profile                                           \
         --without-gd                                                \
-        --cache-file=config.cache                                   \
         --with-headers="${CT_HEADERS_DIR}"                          \
         "${extra_config[@]}"                                        \
         ${CT_LIBC_GLIBC_EXTRA_CONFIG}
