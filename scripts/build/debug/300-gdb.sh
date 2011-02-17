@@ -33,12 +33,25 @@ do_debug_gdb_parts() {
 }
 
 do_debug_gdb_get() {
+    local linaro_version
+    local linaro_series
+    local linaro_base_url="http://launchpad.net/gdb-linaro"
+
+    # Account for the Linaro versioning
+    linaro_version="$( echo "${CT_GDB_VERSION}"      \
+                       |sed -r -e 's/^linaro-//;'   \
+                     )"
+    linaro_series="$( echo "${linaro_version}"      \
+                      |sed -r -e 's/-.*//;'         \
+                    )"
+
     do_debug_gdb_parts
 
     if [ "${do_gdb}" = "y" ]; then
         CT_GetFile "gdb-${CT_GDB_VERSION}"                          \
                    {ftp,http}://ftp.gnu.org/pub/gnu/gdb             \
-                   ftp://sources.redhat.com/pub/gdb/{,old-}releases
+                   ftp://sources.redhat.com/pub/gdb/{,old-}releases \
+                   "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
     fi
 
     if [ "${do_ncurses}" = "y" ]; then
