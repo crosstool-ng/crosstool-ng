@@ -7,6 +7,7 @@ do_finish() {
     local _t
     local _type
     local strip_args
+    local gcc_version
 
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
@@ -21,10 +22,11 @@ do_finish() {
         esac
         CT_DoLog INFO "Stripping all toolchain executables"
         CT_Pushd "${CT_PREFIX_DIR}"
-        for _t in "bin/${CT_TARGET}-"*                                          \
-                  "${CT_TARGET}/bin/"*                                          \
-                  "libexec/gcc/${CT_TARGET}/${CT_CC_VERSION}/"*                 \
-                  "libexec/gcc/${CT_TARGET}/${CT_CC_VERSION}/install-tools/"*   \
+        gcc_version=$( "./bin/${CT_TARGET}-gcc" -dumpversion )
+        for _t in "bin/${CT_TARGET}-"*                                      \
+                  "${CT_TARGET}/bin/"*                                      \
+                  "libexec/gcc/${CT_TARGET}/${gcc_version}/"*               \
+                  "libexec/gcc/${CT_TARGET}/${gcc_version}/install-tools/"* \
         ; do
             _type="$( file "${_t}" |cut -d ' ' -f 2- )"
             case "${_type}" in
