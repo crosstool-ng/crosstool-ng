@@ -152,6 +152,7 @@ CT_CC_CORE_EXTRA_CONFIG="${CT_ARCH_CC_CORE_EXTRA_CONFIG} ${CT_CC_CORE_EXTRA_CONF
 CT_CC_EXTRA_CONFIG="${CT_ARCH_CC_EXTRA_CONFIG} ${CT_CC_EXTRA_CONFIG}"
 
 # Compute the working directories names
+CT_BUILDTOOLS_DIR="${CT_PREFIX_DIR}/buildtools"
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
 CT_SRC_DIR="${CT_WORK_DIR}/src"
 CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
@@ -241,6 +242,7 @@ fi
 # Create the directories we'll use, even if restarting: it does no harm to
 # create already existent directories, and CT_BUILD_DIR needs to be created
 # anyway
+CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_TARBALLS_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
@@ -405,7 +407,6 @@ if [ -z "${CT_RESTART}" ]; then
     # Now we have mangled our BUILD and HOST tuples, we must fake the new
     # cross-tools for those mangled tuples.
     CT_DoLog DEBUG "Making build system tools available"
-    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/buildtools"
     for m in ${install_build_tools_for}; do
         r="CT_REAL_${m}"
         v="CT_${m}"
@@ -442,8 +443,8 @@ if [ -z "${CT_RESTART}" ]; then
             # bally needed
             if [ -n "${where}" ]; then
                 CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
-                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_PREFIX_DIR}/buildtools/${!v}-${tool}"
-                CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/${!v}-${tool}"
+                printf "#${BANG}${CT_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_BUILDTOOLS_DIR}/${!v}-${tool}"
+                CT_DoExecLog ALL chmod 700 "${CT_BUILDTOOLS_DIR}/${!v}-${tool}"
             else
                 case "${tool}" in
                     # We'll at least need some of them...
@@ -476,8 +477,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
     # never fails:
     CT_DoLog DEBUG "  'makeinfo' -> '$(CT_Which makeinfo)'"
-    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_PREFIX_DIR}/buildtools/makeinfo"
-    CT_DoExecLog ALL chmod 700 "${CT_PREFIX_DIR}/buildtools/makeinfo"
+    printf "#${BANG}${CT_SHELL}\n$(CT_Which makeinfo) --force \"\${@}\"\ntrue\n" >"${CT_BUILDTOOLS_DIR}/makeinfo"
+    CT_DoExecLog ALL chmod 700 "${CT_BUILDTOOLS_DIR}/makeinfo"
 
     # Carefully add paths in the order we want them:
     #  - first try in ${CT_PREFIX_DIR}/bin
@@ -487,8 +488,8 @@ if [ -z "${CT_RESTART}" ]; then
     # Of course, neither cross-native nor canadian can run on BUILD,
     # so don't add those PATHs in this case...
     case "${CT_TOOLCHAIN_TYPE}" in
-        cross)  export PATH="${CT_PREFIX_DIR}/buildtools:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
-        canadian) export PATH="${CT_PREFIX_DIR}/buildtools:${PATH}";;
+        cross)  export PATH="${CT_BUILDTOOLS_DIR}:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        canadian) export PATH="${CT_BUILDTOOLS_DIR}:${PATH}";;
         *)  ;;
     esac
 
