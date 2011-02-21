@@ -157,8 +157,6 @@ do_finish() {
     # the standard lib/ dirs, so we can get rid of the symlinks
     for d in                            \
         "${CT_PREFIX_DIR}"              \
-        "${CT_SYSROOT_DIR}"             \
-        "${CT_SYSROOT_DIR}/usr"         \
         "${CT_PREFIX_DIR}/${CT_TARGET}" \
     ; do
         CT_DoExecLog ALL rm -f "${d}/lib32"
