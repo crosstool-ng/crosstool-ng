@@ -114,6 +114,7 @@ do_libc() {
     local extra_cc_args
     local -a extra_config
     local -a extra_make_args
+    local glibc_cflags
 
     CT_DoStep INFO "Installing C library"
 
@@ -199,6 +200,12 @@ do_libc() {
     CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
 
+    glibc_cflags="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"
+    case "${CT_LIBC_ENABLE_FORTIFIED_BUILD}" in
+        y)  ;;
+        *)  glibc_cflags+=" -U_FORTIFY_SOURCE";;
+    esac
+
     # ./configure is mislead by our tools override wrapper for bash
     # so just tell it where the real bash is _on_the_target_!
     # Notes:
@@ -221,7 +228,7 @@ do_libc() {
     # Set BUILD_CC, or we won't be able to build datafiles
 
     BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"  \
+    CFLAGS="${glibc_cflags}"                                        \
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
