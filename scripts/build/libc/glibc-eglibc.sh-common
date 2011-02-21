@@ -86,24 +86,26 @@ do_libc_start_files() {
         [ "${CT_ARCH}" != "arm" ] && CT_DoExecLog ALL cp -v misc/syscall-list.h "${CT_HEADERS_DIR}/bits/syscall.h" || true
     fi
 
-    CT_DoLog EXTRA "Installing C library start files"
+    if [ "${CT_THREADS}" = "nptl" ]; then
+        CT_DoLog EXTRA "Installing C library start files"
 
-    # there are a few object files needed to link shared libraries,
-    # which we build and install by hand
-    CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
-    CT_DoExecLog ALL make ${JOBSFLAGS} csu/subdir_lib
-    CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
-                        "${CT_SYSROOT_DIR}/usr/lib"
+        # there are a few object files needed to link shared libraries,
+        # which we build and install by hand
+        CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
+        CT_DoExecLog ALL make ${JOBSFLAGS} csu/subdir_lib
+        CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
+                            "${CT_SYSROOT_DIR}/usr/lib"
 
-    # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
-    # However, since we will never actually execute its code,
-    # it doesn't matter what it contains.  So, treating '/dev/null'
-    # as a C source file, we produce a dummy 'libc.so' in one step
-    CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
-                                   -nostartfiles    \
-                                   -shared          \
-                                   -x c /dev/null   \
-                                   -o "${CT_SYSROOT_DIR}/usr/lib/libc.so"
+        # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
+        # However, since we will never actually execute its code,
+        # it doesn't matter what it contains.  So, treating '/dev/null'
+        # as a C source file, we produce a dummy 'libc.so' in one step
+        CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
+                                       -nostartfiles    \
+                                       -shared          \
+                                       -x c /dev/null   \
+                                       -o "${CT_SYSROOT_DIR}/usr/lib/libc.so"
+    fi # threads == nptl
 
     CT_EndStep
 }
