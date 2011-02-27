@@ -20,12 +20,17 @@ if [ "${CT_SSTRIP}" = "y" ]; then
     }
 
     do_sstrip() {
+        local sstrip_cflags
         CT_DoStep INFO "Installing sstrip"
         mkdir -p "${CT_BUILD_DIR}/build-sstrip"
         cd "${CT_BUILD_DIR}/build-sstrip"
 
+        if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+            sstrip_cflags="-static"
+        fi
+
         CT_DoLog EXTRA "Building sstrip"
-        CT_DoExecLog ALL "${CT_HOST}-gcc" -Wall -o sstrip "${CT_SRC_DIR}/sstrip/sstrip.c"
+        CT_DoExecLog ALL "${CT_HOST}-gcc" -Wall ${sstrip_cflags} -o sstrip "${CT_SRC_DIR}/sstrip/sstrip.c"
 
         CT_DoLog EXTRA "Installing sstrip"
         CT_DoExecLog ALL install -m 755 sstrip "${CT_PREFIX_DIR}/bin/${CT_TARGET}-sstrip"
