@@ -9,6 +9,7 @@ do_companion_tools_make_get() {
 
 do_companion_tools_make_extract() {
     CT_Extract "make-${CT_MAKE_VERSION}"
+    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/make-${CT_MAKE_VERSION}"
     CT_Patch "make" "${CT_MAKE_VERSION}"
 }
 
