@@ -9,6 +9,7 @@ do_companion_tools_automake_get() {
 
 do_companion_tools_automake_extract() {
     CT_Extract "automake-${CT_AUTOMAKE_VERSION}"
+    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/automake-${CT_AUTOMAKE_VERSION}"
     CT_Patch "automake" "${CT_AUTOMAKE_VERSION}"
 }
 
