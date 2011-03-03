@@ -133,7 +133,7 @@ do_binutils_target() {
         CT_Pushd "${CT_BUILD_DIR}/build-binutils-for-target"
 
         CT_DoLog EXTRA "Configuring binutils for target"
-        CT_DoExecLog ALL                                            \
+        CT_DoExecLog CFG                                            \
         "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
             --build=${CT_BUILD}                                     \
             --host=${CT_TARGET}                                     \
