@@ -9,6 +9,7 @@ do_companion_tools_autoconf_get() {
 
 do_companion_tools_autoconf_extract() {
     CT_Extract "autoconf-${CT_AUTOCONF_VERSION}"
+    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/autoconf-${CT_AUTOCONF_VERSION}"
     CT_Patch "autoconf" "${CT_AUTOCONF_VERSION}"
 }
 
