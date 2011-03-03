@@ -9,6 +9,7 @@ do_companion_tools_libtool_get() {
 
 do_companion_tools_libtool_extract() {
     CT_Extract "libtool-${CT_LIBTOOL_VERSION}"
+    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}"
     CT_Patch "libtool" "${CT_LIBTOOL_VERSION}"
 }
 
