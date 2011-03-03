@@ -76,6 +76,7 @@ do_debug_gdb_extract() {
 
     if [ "${do_ncurses}" = "y" ]; then
         CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
+        CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
         CT_Patch "ncurses" "${CT_DEBUG_GDB_NCURSES_VERSION}"
     fi
 
