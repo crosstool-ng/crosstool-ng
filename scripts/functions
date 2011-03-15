@@ -119,12 +119,26 @@ CT_DoLog() {
 }
 
 # Execute an action, and log its messages
-# Usage: [VAR=val...] CT_DoExecLog <level> <command [parameters...]>
+# It is possible to even log local variable assignments (a-la: var=val ./cmd opts)
+# Usage: CT_DoExecLog <level> [VAR=val...] <command> [parameters...]
 CT_DoExecLog() {
     local level="$1"
     shift
-    CT_DoLog DEBUG "==> Executing: '${*}'"
+    (
+    for i in "$@"; do
+        tmp_log+="'${i}' "
+    done
+    while true; do
+        case "${1}" in
+            *=*)    eval export "'${1}'"; shift;;
+            *)      break;;
+        esac
+    done
+    CT_DoLog DEBUG "==> Executing: ${tmp_log}"
     "${@}" 2>&1 |CT_DoLog "${level}"
+    )
+    # Catch failure of the sub-shell
+    [ $? -eq 0 ]
 }
 
 # Tail message to be logged whatever happens
