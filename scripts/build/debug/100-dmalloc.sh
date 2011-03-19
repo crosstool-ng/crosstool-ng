@@ -33,10 +33,10 @@ do_debug_dmalloc_build() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
+    CT_DoExecLog CFG                                            \
     LD="${CT_TARGET}-ld"                                        \
     AR="${CT_TARGET}-ar"                                        \
     CFLAGS=-fPIC                                                \
-    CT_DoExecLog CFG                                            \
     "${CT_SRC_DIR}/dmalloc-${CT_DMALLOC_VERSION}/configure"     \
         --prefix=/usr                                           \
         --build="${CT_BUILD}"                                   \
