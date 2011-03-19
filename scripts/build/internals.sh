@@ -30,7 +30,7 @@ do_finish() {
         ; do
             _type="$( file "${_t}" |cut -d ' ' -f 2- )"
             case "${_type}" in
-                *"script text executable")
+                *script*executable)
                     ;;
                 *executable*)
                     CT_DoExecLog ALL ${CT_HOST}-strip ${strip_args} "${_t}"
