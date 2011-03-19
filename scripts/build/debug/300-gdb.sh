@@ -124,9 +124,9 @@ do_debug_gdb_build() {
 
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
+        CT_DoExecLog CFG                                \
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
-        CT_DoExecLog CFG                                \
         "${gdb_cross_configure}"                        \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
@@ -262,10 +262,10 @@ do_debug_gdb_build() {
 
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
+        CT_DoExecLog CFG                                \
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
-        CFLAGS="${gdb_native_CFLAGS[@]}"                \
-        CT_DoExecLog CFG                                \
+        CFLAGS="${gdb_native_CFLAGS[*]}"                \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -326,8 +326,8 @@ do_debug_gdb_build() {
 
         gdbserver_extra_config=("${extra_config[@]}")
 
-        LDFLAGS="${gdbserver_LDFLAGS}"                  \
         CT_DoExecLog CFG                                \
+        LDFLAGS="${gdbserver_LDFLAGS}"                  \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
