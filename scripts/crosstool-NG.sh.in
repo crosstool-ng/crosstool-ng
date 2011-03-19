@@ -222,8 +222,6 @@ fi
 # Don't eradicate directories if we need to restart
 if [ -z "${CT_RESTART}" ]; then
     # Get rid of pre-existing installed toolchain and previous build directories.
-    # We need to do that _before_ we can safely log, because the log file will
-    # most probably be in the toolchain directory.
     if [ "${CT_FORCE_DOWNLOAD}" = "y" -a -d "${CT_TARBALLS_DIR}" ]; then
         CT_DoForceRmdir "${CT_TARBALLS_DIR}"
     fi
@@ -264,24 +262,8 @@ CT_TestAndAbort "Your file system in '${CT_PREFIX_DIR}' is *not* case-sensitive!
 CT_DoExecLog DEBUG rm -f "${CT_PREFIX_DIR}/foo"
 
 # Kludge: CT_INSTALL_DIR and CT_PREFIX_DIR might have grown read-only if
-# the previous build was successful. To be able to move the logfile there,
-# switch them back to read/write
+# the previous build was successful.
 CT_DoExecLog ALL chmod -R u+w "${CT_INSTALL_DIR}" "${CT_PREFIX_DIR}"
-
-# Redirect log to the actual log file now we can
-# It's quite understandable that the log file will be installed in the install
-# directory, so we must first ensure it exists and is writeable (above) before
-# we can log there
-exec >/dev/null
-case "${CT_LOG_TO_FILE}" in
-    y)  CT_LOG_FILE="${CT_PREFIX_DIR}/build.log"
-        cat "${tmp_log_file}" >>"${CT_LOG_FILE}"
-        rm -f "${tmp_log_file}"
-        exec >>"${CT_LOG_FILE}"
-        ;;
-    *)  rm -f "${tmp_log_file}"
-        ;;
-esac
 
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
@@ -624,7 +606,12 @@ CT_DoEnd INFO
 CT_DoLog INFO "Finishing installation (may take a few seconds)..."
 exec >/dev/null 2>&1
 
-[ "${CT_LOG_FILE_COMPRESS}" = y ] && bzip2 -9 "${CT_LOG_FILE}"
+if [ "${CT_LOG_TO_FILE}" = "y" ]; then
+    cp "${tmp_log_file}" "${CT_PREFIX_DIR}/build.log"
+    if [ "${CT_LOG_FILE_COMPRESS}" = y ]; then
+        bzip2 -9 "${CT_PREFIX_DIR}/build.log"
+    fi
+fi
 [ "${CT_INSTALL_DIR_RO}" = "y"  ] && chmod -R a-w "${CT_INSTALL_DIR}"
 [ "${CT_TEST_SUITE}" = "y" ] && chmod -R u+w "${CT_TEST_SUITE_DIR}"
 

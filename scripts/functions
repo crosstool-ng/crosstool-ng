@@ -15,7 +15,7 @@ CT_OnError() {
     for((depth=2; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
         CT_DoLog ERROR "      called from '${BASH_SOURCE[${depth}]}' at line # ${BASH_LINENO[${depth}-1]} in function '${FUNCNAME[${depth}]}'"
     done
-    [ "${CT_LOG_TO_FILE}" = "y" ] && CT_DoLog ERROR "Look at '${CT_LOG_FILE}' for more info on this error."
+    [ "${CT_LOG_TO_FILE}" = "y" ] && CT_DoLog ERROR "Look at '${tmp_log_file}' for more info on this error."
     CT_STEP_COUNT=1
     CT_DoEnd ERROR
     exit $ret
@@ -40,8 +40,9 @@ set +o hashall
 # Log policy:
 #  - first of all, save stdout so we can see the live logs: fd #6
 exec 6>&1
-#  - then point stdout to the log file (temporary for now)
-tmp_log_file="${CT_TOP_DIR}/log.$$"
+#  - then point stdout to the log file
+tmp_log_file="${CT_TOP_DIR}/build.log"
+rm -f "${tmp_log_file}"
 exec >>"${tmp_log_file}"
 
 # The different log levels:
@@ -1024,15 +1025,13 @@ CT_DoSaveState() {
     CT_DoTarballIfExists "${CT_CC_CORE_SHARED_PREFIX_DIR}" "${state_dir}/cc_core_shared_prefix_dir"
     CT_DoTarballIfExists "${CT_PREFIX_DIR}" "${state_dir}/prefix_dir" --exclude '*.log'
 
-    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-        CT_DoLog STATE "  Saving log file"
-        exec >/dev/null
-        case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-            y)  gzip -3 -c "${CT_LOG_FILE}"  >"${state_dir}/log.gz";;
-            *)  cat "${CT_LOG_FILE}" >"${state_dir}/log";;
-        esac
-        exec >>"${CT_LOG_FILE}"
-    fi
+    CT_DoLog STATE "  Saving log file"
+    exec >/dev/null
+    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
+        y)  gzip -3 -c "${tmp_log_file}"  >"${state_dir}/log.gz";;
+        *)  cat "${tmp_log_file}" >"${state_dir}/log";;
+    esac
+    exec >>"${tmp_log_file}"
 }
 
 # This function restores a previously saved state
@@ -1072,15 +1071,13 @@ CT_DoLoadState(){
     CT_STOP="${old_STOP}"
     unset old_stop old_restart
 
-    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-        CT_DoLog STATE "  Restoring log file"
-        exec >/dev/null
-        case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-            y)  zcat "${state_dir}/log.gz" >"${CT_LOG_FILE}";;
-            *)  cat "${state_dir}/log" >"${CT_LOG_FILE}";;
-        esac
-        cat "${state_dir}/tail.log" >>"${CT_LOG_FILE}"
-        exec >>"${CT_LOG_FILE}"
-        rm -f "${state_dir}/tail.log"
-    fi
+    CT_DoLog STATE "  Restoring log file"
+    exec >/dev/null
+    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
+        y)  zcat "${state_dir}/log.gz" >"${tmp_log_file}";;
+        *)  cat "${state_dir}/log" >"${tmp_log_file}";;
+    esac
+    cat "${state_dir}/tail.log" >>"${tmp_log_file}"
+    exec >>"${tmp_log_file}"
+    rm -f "${state_dir}/tail.log"
 }
