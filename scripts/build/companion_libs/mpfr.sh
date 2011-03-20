@@ -86,9 +86,9 @@ do_mpfr() {
     fi
 
     CT_DoLog EXTRA "Configuring MPFR"
+    CT_DoExecLog CFG                                    \
     CC="${CT_HOST}-gcc"                                 \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                      \
-    CT_DoExecLog CFG                                    \
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
         --build=${CT_BUILD}                             \
         --host=${CT_HOST}                               \
