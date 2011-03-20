@@ -36,10 +36,11 @@ do_debug_ltrace_build() {
             mips:*)     ltrace_host="mipsel";;
             *)          ltrace_host="${CT_ARCH}";;
         esac
+        CT_DoExecLog CFG                \
         CC="${CT_TARGET}-${CT_CC}"      \
         HOST="${ltrace_host}"           \
         CFLAGS="${CT_TARGET_CFLAGS}"    \
-        CT_DoExecLog CFG ./configure --prefix=/usr
+        ./configure --prefix=/usr
     else
         CT_DoExecLog CFG        \
         ./configure             \
