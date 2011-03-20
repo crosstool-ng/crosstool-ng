@@ -39,9 +39,9 @@ do_ppl() {
         ppl_opts+=( --disable-shared --enable-static )
     fi
 
+    CT_DoExecLog CFG                                \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CXXFLAGS="${CT_CFLAGS_FOR_HOST}"                \
-    CT_DoExecLog CFG                                \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
