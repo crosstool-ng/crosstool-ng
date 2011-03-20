@@ -36,9 +36,9 @@ do_libelf() {
         libelf_opts+=( --disable-shared --enable-static )
     fi
 
+    CT_DoExecLog CFG                                        \
     CC="${CT_HOST}-gcc"                                     \
     CFLAGS="-fPIC"                                          \
-    CT_DoExecLog CFG                                        \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_HOST}                                   \
@@ -69,9 +69,9 @@ do_libelf_target() {
     CT_Pushd "${CT_BUILD_DIR}/build-libelf-for-target"
 
     CT_DoLog EXTRA "Configuring libelf"
+    CT_DoExecLog CFG                                        \
     CC="${CT_TARGET}-gcc"                                   \
     CFLAGS="-fPIC"                                          \
-    CT_DoExecLog CFG                                        \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_TARGET}                                 \
