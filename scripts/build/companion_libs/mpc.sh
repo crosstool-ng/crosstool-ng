@@ -37,8 +37,8 @@ do_mpc() {
         mpc_opts+=( --disable-shared --enable-static )
     fi
 
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     CT_DoExecLog CFG                                \
+    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
