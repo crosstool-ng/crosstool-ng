@@ -61,9 +61,9 @@ do_libc() {
     mkdir -p "${CT_BUILD_DIR}/build-w32api"
     cd "${CT_BUILD_DIR}/build-w32api"
 
+    CT_DoExecLog CFG                                              \
     CFLAGS="-I${CT_HEADERS_DIR}"                                  \
     LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                             \
-    CT_DoExecLog CFG                                              \
     "${CT_SRC_DIR}/w32api-${CT_W32API_VERSION}-mingw32/configure" \
         --prefix=${CT_SYSROOT_DIR}                                \
         --includedir=${CT_HEADERS_DIR}                            \
@@ -80,9 +80,9 @@ do_libc() {
     mkdir -p "${CT_BUILD_DIR}/build-mingwrt"
     cd "${CT_BUILD_DIR}/build-mingwrt"
 
+    CT_DoExecLog CFG                                                \
     CFLAGS="-I${CT_HEADERS_DIR}"                                    \
     LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                               \
-    CT_DoExecLog CFG                                                \
     "${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/configure" \
         --prefix=${CT_SYSROOT_DIR}/                                 \
         --includedir=${CT_HEADERS_DIR}                              \
@@ -134,8 +134,8 @@ do_libc_finish() {
         mkdir -p "${CT_BUILD_DIR}/build-gnurx"
         cd "${CT_BUILD_DIR}/build-gnurx"
 
-        CFLAGS="${CT_CFLAGS_FOR_TARGET}"                                    \
         CT_DoExecLog CFG                                                    \
+        CFLAGS="${CT_CFLAGS_FOR_TARGET}"                                    \
         "${CT_SRC_DIR}/mingw-libgnurx-${CT_MINGW_GNURX_VERSION}/configure"  \
             --build=${CT_BUILD}                                             \
             --host=${CT_TARGET}                                             \
