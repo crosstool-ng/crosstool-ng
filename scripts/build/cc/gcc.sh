@@ -191,8 +191,8 @@ do_cc_core() {
         # the libstdc++ is not pulled automatically, although it
         # is needed. Shoe-horn it in our LDFLAGS
         # Ditto libm on some Fedora boxen
-        final_LDFLAGS+=("-lstdc++")
-        final_LDFLAGS+=("-lm")
+        core_LDFLAGS+=("-lstdc++")
+        core_LDFLAGS+=("-lm")
     else
         if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
             # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
