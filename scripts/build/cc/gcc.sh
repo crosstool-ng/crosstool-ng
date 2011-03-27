@@ -117,6 +117,7 @@ do_cc_core() {
     local core_prefix_dir
     local lang_opt
     local tmp
+    local -a host_libstdcxx_flags
     local -a extra_config
     local -a core_LDFLAGS
     local -a core_targets
@@ -186,7 +187,9 @@ do_cc_core() {
     # with the same block in do_cc, below.
     if [ "${build_staticlinked}" = "yes" ]; then
         core_LDFLAGS+=("-static")
-        extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++ -lm")
+        host_libstdcxx_flags+=("-static-libgcc")
+        host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++")
+        host_libstdcxx_flags+=("-lm")
         # Companion libraries are build static (eg !shared), so
         # the libstdc++ is not pulled automatically, although it
         # is needed. Shoe-horn it in our LDFLAGS
@@ -199,7 +202,9 @@ do_cc_core() {
             # build script
             # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
             # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
-            extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm")
+            host_libstdcxx_flags+=("-static-libgcc")
+            host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
+            host_libstdcxx_flags+=("-lm")
         elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
             # When companion libraries are build static (eg !shared),
             # the libstdc++ is not pulled automatically, although it
@@ -219,6 +224,11 @@ do_cc_core() {
     fi
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
+        # With PPL 0.11+, also pull libpwl if needed
+        if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
+            host_libstdcxx_flags+=("-L${CT_COMPLIBS_DIR}/lib")
+            host_libstdcxx_flags+=("-lpwl")
+        fi
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=no")
@@ -230,6 +240,10 @@ do_cc_core() {
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=no")
         extra_config+=("--disable-lto")
+    fi
+
+    if [ ${#host_libstdcxx_flags[@]} -ne 0 ]; then
+        extra_config+=("--with-host-libstdcxx=${host_libstdcxx_flags[*]}")
     fi
 
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
@@ -349,6 +363,7 @@ do_cc_core() {
 #------------------------------------------------------------------------------
 # Build final gcc
 do_cc() {
+    local -a host_libstdcxx_flags
     local -a extra_config
     local -a final_LDFLAGS
     local tmp
@@ -423,7 +438,9 @@ do_cc() {
     # with the same block in do_cc_core, above.
     if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
         final_LDFLAGS+=("-static")
-        extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++ -lm")
+        host_libstdcxx_flags+=("-static-libgcc")
+        host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++")
+        host_libstdcxx_flags+=("-lm")
         # Companion libraries are build static (eg !shared), so
         # the libstdc++ is not pulled automatically, although it
         # is needed. Shoe-horn it in our LDFLAGS
@@ -436,7 +453,9 @@ do_cc() {
             # build script
             # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
             # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
-            extra_config+=("--with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm")
+            host_libstdcxx_flags+=("-static-libgcc")
+            host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
+            host_libstdcxx_flags+=("-lm")
         elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
             # When companion libraries are build static (eg !shared),
             # the libstdc++ is not pulled automatically, although it
@@ -456,6 +475,11 @@ do_cc() {
     fi
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
+        # With PPL 0.11+, also pull libpwl if needed
+        if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
+            host_libstdcxx_flags+=("-L${CT_COMPLIBS_DIR}/lib")
+            host_libstdcxx_flags+=("-lpwl")
+        fi
         extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=no")
@@ -465,6 +489,10 @@ do_cc() {
         extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=no")
+    fi
+
+    if [ ${#host_libstdcxx_flags[@]} -ne 0 ]; then
+        extra_config+=("--with-host-libstdcxx=${host_libstdcxx_flags[*]}")
     fi
 
     if [ "${CT_THREADS}" = "none" ]; then
