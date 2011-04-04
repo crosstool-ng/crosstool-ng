@@ -80,6 +80,12 @@ config ARCH_arm
 config ARCH_x86
     select BINUTILS_GOLD_SUPPORTS_ARCH
 
+# Force using the BFD linker if needed
+# This is the case for some C libraries (eg. glibc and
+# eglibc at least) and affected components can select this
+config BINUTILS_FORCE_LD_BFD
+    bool
+
 choice
     bool
     prompt "Linkers to enable"
@@ -95,6 +101,7 @@ config BINUTILS_LINKER_GOLD
     prompt "gold"
     depends on BINUTILS_HAS_GOLD
     depends on BINUTILS_GOLD_SUPPORTS_ARCH
+    depends on ! BINUTILS_FORCE_LD_BFD
     depends on EXPERIMENTAL
     select BINUTILS_GOLD_INSTALLED
     help
@@ -125,6 +132,7 @@ config BINUTILS_LINKER_GOLD_LD
     depends on EXPERIMENTAL
     select BINUTILS_GOLD_INSTALLED
     select BINUTILS_LINKER_BOTH
+    select BINUTILS_LD_WRAPPER if BINUTILS_FORCE_LD_BFD
     help
       Both the historical ld and the new gold linkers will be
       installed, with gold being the default linker used.

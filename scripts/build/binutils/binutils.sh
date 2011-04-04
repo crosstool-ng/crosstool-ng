@@ -96,6 +96,11 @@ do_binutils() {
         chmod +x "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"
         cp -a "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"    \
               "${CT_PREFIX_DIR}/${CT_TARGET}/bin/ld"
+
+        # If needed, force using ld.bfd during the toolchain build
+        if [ "${CT_BINUTILS_FORCE_LD_BFD}" = "y" ]; then
+            export CTNG_LD_IS=bfd
+        fi
     fi
 
     # Make those new tools available to the core C compilers to come.
