@@ -89,10 +89,13 @@ do_binutils() {
     if [ "${CT_BINUTILS_LD_WRAPPER}" = "y" ]; then
         CT_DoLog EXTRA "Installing ld wrapper"
         rm -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"
+        rm -f "${CT_PREFIX_DIR}/${CT_TARGET}/bin/ld"
         sed -r -e "s/@@DEFAULT_LD@@/${CT_BINUTILS_LINKER_DEFAULT}/" \
             "${CT_LIB_DIR}/scripts/build/binutils/binutils-ld.in"   \
             >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"
         chmod +x "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"
+        cp -a "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ld"    \
+              "${CT_PREFIX_DIR}/${CT_TARGET}/bin/ld"
     fi
 
     # Make those new tools available to the core C compilers to come.
