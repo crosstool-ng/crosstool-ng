@@ -21,20 +21,12 @@ do_gmp_extract() {
 }
 
 do_gmp() {
-    local -a gmp_opts
-
     mkdir -p "${CT_BUILD_DIR}/build-gmp"
     cd "${CT_BUILD_DIR}/build-gmp"
 
     CT_DoStep INFO "Installing GMP"
 
     CT_DoLog EXTRA "Configuring GMP"
-
-    if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
-        gmp_opts+=( --enable-shared --disable-static )
-    else
-        gmp_opts+=( --disable-shared --enable-static )
-    fi
 
     CT_DoExecLog CFG                                \
     CFLAGS="${CT_CFLAGS_FOR_HOST} -fexceptions"     \
@@ -45,7 +37,8 @@ do_gmp() {
         --enable-fft                                \
         --enable-mpbsd                              \
         --enable-cxx                                \
-        "${gmp_opts[@]}"
+        --disable-shared                            \
+        --enable-static
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${JOBSFLAGS}

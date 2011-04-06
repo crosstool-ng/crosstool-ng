@@ -87,56 +87,6 @@ do_finish() {
     done
     CT_Popd
 
-    # If using the companion libraries, we need a wrapper
-    # that will set LD_LIBRARY_PATH approriately
-    if [ "${CT_WRAPPER_NEEDED}" = "y" ]; then
-        CT_DoLog EXTRA "Installing toolchain wrappers"
-        CT_Pushd "${CT_PREFIX_DIR}/bin"
-
-        case "$CT_SYS_OS" in
-            Darwin|FreeBSD)
-                # wrapper does not work (when using readlink -m)
-                CT_DoLog WARN "Forcing usage of binary tool wrapper"
-                CT_TOOLS_WRAPPER="exec"
-                ;;
-        esac
-        # Install the wrapper
-        case "${CT_TOOLS_WRAPPER}" in
-            script)
-                CT_DoExecLog DEBUG install                              \
-                                   -m 0755                              \
-                                   "${CT_LIB_DIR}/scripts/wrapper.in"   \
-                                   ".${CT_TARGET}-wrapper"
-                ;;
-            exec)
-                CT_DoExecLog DEBUG "${CT_HOST}-gcc"                           \
-                                   -Wall -Wextra -Werror                      \
-                                   -Os                                        \
-                                   "${CT_LIB_DIR}/scripts/wrapper.c"          \
-                                   -o ".${CT_TARGET}-wrapper"
-                if [ "${CT_DEBUG_CT}" != "y" ]; then
-                    # If not debugging crosstool-NG, strip the wrapper
-                    CT_DoExecLog DEBUG "${CT_HOST}-strip" ".${CT_TARGET}-wrapper"
-                fi
-                ;;
-        esac
-
-        # Replace every tools with the wrapper
-        # Do it unconditionally, even for those tools that happen to be shell
-        # scripts, we don't know if they would in the end spawn a binary...
-        # Just skip symlinks
-        for _t in "${CT_TARGET}-"*; do
-            if [ ! -L "${_t}" ]; then
-                CT_DoExecLog ALL mv "${_t}" ".${_t}"
-                CT_DoExecLog ALL ln ".${CT_TARGET}-wrapper" "${_t}"
-            fi
-        done
-
-        # Get rid of the wrapper, we're using hardlinks
-        CT_DoExecLog DEBUG rm -f ".${CT_TARGET}-wrapper"
-        CT_Popd
-    fi
-
     CT_DoLog EXTRA "Removing access to the build system tools"
     CT_DoExecLog DEBUG rm -rf "${CT_PREFIX_DIR}/buildtools"
 

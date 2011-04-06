@@ -22,19 +22,11 @@ do_libelf_extract() {
 if [ "${CT_LIBELF}" = "y" ]; then
 
 do_libelf() {
-    local -a libelf_opts
-
     CT_DoStep INFO "Installing libelf"
     mkdir -p "${CT_BUILD_DIR}/build-libelf"
     CT_Pushd "${CT_BUILD_DIR}/build-libelf"
 
     CT_DoLog EXTRA "Configuring libelf"
-
-    if [ "${CT_COMPLIBS_SHARED}" = "y" ]; then
-        libelf_opts+=( --enable-shared --disable-static )
-    else
-        libelf_opts+=( --disable-shared --enable-static )
-    fi
 
     CT_DoExecLog CFG                                        \
     CC="${CT_HOST}-gcc"                                     \
@@ -47,7 +39,8 @@ do_libelf() {
         --enable-compat                                     \
         --enable-elf64                                      \
         --enable-extended-format                            \
-        "${libelf_opts[@]}"
+        --disable-shared                                    \
+        --enable-static
 
     CT_DoLog EXTRA "Building libelf"
     CT_DoExecLog ALL make
