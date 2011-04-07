@@ -4,19 +4,53 @@
 
 # Prepare the fault handler
 CT_OnError() {
-    ret=$?
+    local ret=$?
+    local intro
+    local file
+    local line
+    local func
+    local step_depth
+
     # Bail out early in subshell, the upper level shell will act accordingly.
     [ ${BASH_SUBSHELL} -eq 0 ] || exit $ret
+
+    # Print steps backtrace
+    step_depth=${CT_STEP_COUNT}
+    CT_STEP_COUNT=2
+    CT_DoLog ERROR ""
+    intro="Build failed"
+    for((step=step_depth; step>1; step--)); do
+        CT_DoLog ERROR ">>  ${intro} in step '${CT_STEP_MESSAGE[${step}]}'"
+        intro="      called"
+    done
+
+    # Print functions backtrace
+    intro="Error happened in"
+    offset=1
+    CT_DoLog ERROR ">>"
+    for((depth=1; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
+        file="${BASH_SOURCE[${depth}]#${CT_LIB_DIR}/}"
+        case "${depth}" in
+            1)  line="";;
+            *)  line="@${BASH_LINENO[${depth}-1]}"
+        esac
+        func="${FUNCNAME[${depth}]}"
+        CT_DoLog ERROR ">>  ${intro}: ${func}[${file}${line}]"
+        intro="      called from"
+    done
+
+    # Help diagnose the error
+    CT_DoLog ERROR ">>"
+    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
+        CT_DoLog ERROR ">>  For more info on this error, look at the file: '${tmp_log_file#${CT_TOP_DIR}/}'"
+    fi
+    CT_DoLog ERROR ">>  There is a list of known issues, some with workarounds, in:"
+    CT_DoLog ERROR ">>      '${CT_DOC_DIR#${CT_TOP_DIR}/}/B - Known issues.txt'"
+
+    CT_DoLog ERROR ""
     CT_DoLog ERROR "Build failed in step '${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}'"
-    for((step=(CT_STEP_COUNT-1); step>1; step--)); do
-        CT_DoLog ERROR "      called in step '${CT_STEP_MESSAGE[${step}]}'"
-    done
-    CT_DoLog ERROR "Error happened in '${BASH_SOURCE[1]}' in function '${FUNCNAME[1]}' (line unknown, sorry)"
-    for((depth=2; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
-        CT_DoLog ERROR "      called from '${BASH_SOURCE[${depth}]}' at line # ${BASH_LINENO[${depth}-1]} in function '${FUNCNAME[${depth}]}'"
-    done
-    [ "${CT_LOG_TO_FILE}" = "y" ] && CT_DoLog ERROR "Look at '${tmp_log_file}' for more info on this error."
-    CT_STEP_COUNT=1
+
+    CT_DoLog ERROR ""
     CT_DoEnd ERROR
     exit $ret
 }
