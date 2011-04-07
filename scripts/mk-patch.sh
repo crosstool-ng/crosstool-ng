@@ -34,7 +34,7 @@ hg -R "${repos}" log -b "${branch}" -r "${r1}:tip" --template '{rev}\n'    \
         continue
     fi
     plog=$( hg -R "${repos}" log -r ${rev} --template '{desc|firstline}\n'  \
-            |sed -r -e 's,[/:,[:space:]],_,g; s/_+/_/g;'                    \
+            |sed -r -e 's,[^[:alnum:]],_,g; s/_+/_/g;'                      \
           )
     pname="${p}-${plog}.patch"
     printf "Revision '%d' --> '%s'\n" ${rev} "${pname}"
