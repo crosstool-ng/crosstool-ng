@@ -285,6 +285,9 @@ do_cc_core() {
             ;; # ARCH is mips
     esac
 
+    extra_config+=(--disable-libgomp)
+    extra_config+=(--disable-libmudflap)
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
