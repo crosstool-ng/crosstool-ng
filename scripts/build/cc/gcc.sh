@@ -123,7 +123,7 @@ do_cc_core() {
     local -a core_targets
 
     while [ $# -ne 0 ]; do
-        eval "${1}"
+        eval "${1// /\\ }"
         shift
     done
 
