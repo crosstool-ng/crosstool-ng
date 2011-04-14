@@ -114,18 +114,8 @@ do_finish() {
     # The symlinks are needed only during the build process.
     # The final gcc will still search those dirs, but will also search
     # the standard lib/ dirs, so we can get rid of the symlinks
-    for d in                            \
-        "${CT_PREFIX_DIR}"              \
-        "${CT_PREFIX_DIR}/${CT_TARGET}" \
-    ; do
-        CT_DoExecLog ALL rm -f "${d}/lib32"
-        CT_DoExecLog ALL rm -f "${d}/lib64"
-    done
-
-    # Also remove the lib/ symlink out-side of sysroot
-    if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
-    fi
+    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/lib32"
+    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/lib64"
 
     CT_EndStep
 }
