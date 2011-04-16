@@ -1,0 +1,94 @@
+diff -durN gcc-4.4.5.orig/gcc/config/freebsd-spec.h gcc-4.4.5/gcc/config/freebsd-spec.h
+--- gcc-4.4.5.orig/gcc/config/freebsd-spec.h	2009-04-10 01:23:07.000000000 +0200
++++ gcc-4.4.5/gcc/config/freebsd-spec.h	2010-10-09 23:09:53.000000000 +0200
+@@ -61,6 +61,8 @@
+ 	builtin_assert ("system=unix");					\
+ 	builtin_assert ("system=bsd");					\
+ 	builtin_assert ("system=FreeBSD");				\
++	if(!(flag_iso && (c_dialect_cxx () ? cxx_dialect == cxx98 : !flag_isoc99)))	\
++		builtin_define("_LONGLONG");				\
+ 	FBSD_TARGET_CPU_CPP_BUILTINS();					\
+     }									\
+   while (0)
+diff -durN gcc-4.4.5.orig/gcc/config/t-freebsd-eh gcc-4.4.5/gcc/config/t-freebsd-eh
+--- gcc-4.4.5.orig/gcc/config/t-freebsd-eh	1970-01-01 01:00:00.000000000 +0100
++++ gcc-4.4.5/gcc/config/t-freebsd-eh	2010-10-09 23:09:53.000000000 +0200
+@@ -0,0 +1,4 @@
++# Use unwind-dw2-fde-glibc
++LIB2ADDEH = $(srcdir)/unwind-dw2.c $(srcdir)/unwind-dw2-fde-glibc.c \
++  $(srcdir)/unwind-sjlj.c $(srcdir)/gthr-gnat.c $(srcdir)/unwind-c.c
++LIB2ADDEHDEP = unwind.inc unwind-dw2-fde.h unwind-dw2-fde.c
+diff -durN gcc-4.4.5.orig/gcc/config.gcc gcc-4.4.5/gcc/config.gcc
+--- gcc-4.4.5.orig/gcc/config.gcc	2010-10-09 23:02:56.000000000 +0200
++++ gcc-4.4.5/gcc/config.gcc	2010-10-09 23:09:53.000000000 +0200
+@@ -456,7 +456,7 @@
+   # pleases around the provided core setting.
+   gas=yes
+   gnu_ld=yes
+-  extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o"
++  extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o"
+   fbsd_major=`echo ${target} | sed -e 's/.*freebsd//g' | sed -e 's/\..*//g'`
+   tm_defines="${tm_defines} FBSD_MAJOR=${fbsd_major}"
+   tmake_file="t-slibgcc-elf-ver t-freebsd"
+@@ -1048,6 +1048,10 @@
+ 	;;
+ i[34567]86-*-freebsd*)
+ 	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h ${fbsd_tm_file} i386/freebsd.h"
++	fbsd_major=`echo ${target} | sed -e 's/.*freebsd//g' | sed -e 's/\..*//g'`
++	if test ${fbsd_major} -ge 7; then
++		tmake_file="${tmake_file} t-freebsd-eh"
++	fi
+ 	;;
+ x86_64-*-freebsd*)
+ 	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h ${fbsd_tm_file} i386/x86-64.h i386/freebsd.h i386/freebsd64.h"
+diff -durN gcc-4.4.5.orig/gcc/crtstuff.c gcc-4.4.5/gcc/crtstuff.c
+--- gcc-4.4.5.orig/gcc/crtstuff.c	2009-04-10 01:23:07.000000000 +0200
++++ gcc-4.4.5/gcc/crtstuff.c	2010-10-09 23:09:53.000000000 +0200
+@@ -85,13 +85,15 @@
+     && !defined(OBJECT_FORMAT_FLAT) \
+     && defined(HAVE_LD_EH_FRAME_HDR) \
+     && !defined(inhibit_libc) && !defined(CRTSTUFFT_O) \
+-    && defined(__GLIBC__) && __GLIBC__ >= 2
++    && ((defined(__GLIBC__) && __GLIBC__ >= 2) \
++    || (defined(__FreeBSD_version) && __FreeBSD_version >= 700022))
+ #include <link.h>
+ /* uClibc pretends to be glibc 2.2 and DT_CONFIG is defined in its link.h.
+    But it doesn't use PT_GNU_EH_FRAME ELF segment currently.  */
+ # if !defined(__UCLIBC__) \
+-     && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2) \
+-     || (__GLIBC__ == 2 && __GLIBC_MINOR__ == 2 && defined(DT_CONFIG)))
++     || (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2) \
++     || (__GLIBC__ == 2 && __GLIBC_MINOR__ == 2 && defined(DT_CONFIG))) \
++     || (__FreeBSD_version >= 700022)
+ #  define USE_PT_GNU_EH_FRAME
+ # endif
+ #endif
+diff -durN gcc-4.4.5.orig/gcc/unwind-dw2-fde-glibc.c gcc-4.4.5/gcc/unwind-dw2-fde-glibc.c
+--- gcc-4.4.5.orig/gcc/unwind-dw2-fde-glibc.c	2009-04-10 01:23:07.000000000 +0200
++++ gcc-4.4.5/gcc/unwind-dw2-fde-glibc.c	2010-10-09 23:09:53.000000000 +0200
+@@ -46,8 +46,9 @@
+ #include "gthr.h"
+ 
+ #if !defined(inhibit_libc) && defined(HAVE_LD_EH_FRAME_HDR) \
+-    && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2) \
+-	|| (__GLIBC__ == 2 && __GLIBC_MINOR__ == 2 && defined(DT_CONFIG)))
++    && ((__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ > 2) \
++	|| (__GLIBC__ == 2 && __GLIBC_MINOR__ == 2 && defined(DT_CONFIG))) \
++    || (__FreeBSD_version >= 700022 ))
+ 
+ #ifndef __RELOC_POINTER
+ # define __RELOC_POINTER(ptr, base) ((ptr) + (base))
+@@ -63,6 +64,13 @@
+ #define PT_GNU_EH_FRAME (PT_LOOS + 0x474e550)
+ #endif
+ 
++/* Support FreeBSD */
++#ifndef ElfW
++# ifdef __ElfN
++#  define ElfW __ElfN
++# endif
++#endif
++
+ struct unw_eh_callback_data
+ {
+   _Unwind_Ptr pc;
