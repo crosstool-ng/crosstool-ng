@@ -347,6 +347,19 @@ mungeuClibcConfig() {
         ;;
     esac
 
+    # Accomodate for old and new uClibc versions, where the
+    # MMU settings has different config knobs
+    if [ "${CT_ARCH_USE_MMU}" = "y" ]; then
+        cat <<-ENDSED
+			s/.*(ARCH_HAS_MMU).*/\\1=y\nARCH_USE_MMU=y/
+			ENDSED
+    else
+        cat <<-ENDSED
+			s/.*(ARCH_HAS_MMU).*/# \\1 is not set/
+			/.*(ARCH_USE_MMU).*/d
+			ENDSED
+    fi
+
     # Accomodate for old and new uClibc version, where the
     # way to select between hard/soft float has changed
     case "${CT_ARCH_FLOAT_HW},${CT_ARCH_FLOAT_SW}" in
