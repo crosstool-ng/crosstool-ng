@@ -1,13 +1,73 @@
-# Misc library-related options
+# gcc configuration options
 
-config CC_GCC_ENABLE_TARGET_OPTSPACE
-    bool
-    prompt "Optimize gcc libs for size"
-    default y
+config CC_PKGVERSION
+    string
+    prompt "gcc ID string"
+    depends on CC_GCC_4_3_or_later
+    default "crosstool-NG-${CT_VERSION}"
     help
-      Pass --enable-target-optspace to crossgcc's configure.
+      Specify a string that identifies your package. You may wish to include
+      a build number or build date. This version string will be included in
+      the output of gcc --version.
+
+      This is passed to the configure flag --with-pkgversion.
+
+config CC_BUGURL
+    string
+    prompt "gcc bug URL"
+    depends on CC_GCC_4_3_or_later
+    default ""
+    help
+      Specify the URL that users should visit if they wish to report a bug.
+
+config CC_ENABLE_CXX_FLAGS
+    string
+    prompt "Flags to pass to --enable-cxx-flags"
+    default ""
+    help
+      Enter here the value of the gcc's ./configure option --enable-cxx-flags.
+      Leave empty if you don't know better.
       
-      This will compile crossgcc's libs with -Os.
+      Note: just pass in the option _value_, that is only the part that goes
+      after the '=' sign.
+
+config CC_CORE_EXTRA_CONFIG
+    string
+    prompt "Core gcc extra config"
+    default ""
+    help
+      Extra flags to pass onto ./configure when configuring the core gcc.
+      
+      The core gcc is a stripped down, C-only compiler needed to build
+      the C library. Kinda bootstrap gcc, if you wish.
+
+config CC_EXTRA_CONFIG
+    string
+    prompt "gcc extra config"
+    default ""
+    depends on ! BARE_METAL
+    help
+      Extra flags to pass onto ./configure when configuring gcc.
+
+config STATIC_TOOLCHAIN
+    select CC_STATIC_LIBSTDCXX if CC_GCC_4_4_or_later
+
+config CC_STATIC_LIBSTDCXX
+    bool
+    prompt "Link libstdc++ statically into the gcc binary"
+    default y
+    depends on CC_GCC_4_4_or_later
+    help
+      Newer gcc versions use the PPL library which is C++ code.  Statically
+      linking libstdc++ increases the likeliness that the gcc binary will
+      run on machines other than the one which it was built on, without
+      having to worry about distributing the matching version of libstdc++
+      along with it.
+
+#-----------------------------------------------------------------------------
+# Optimisation features
+
+comment "Optimisation features"
 
 config CC_GCC_USE_GRAPHITE
     bool
@@ -46,20 +106,17 @@ config CC_GCC_USE_LTO
       This will require the libelf companion library, and it
       wil be build automatically for you.
 
-config STATIC_TOOLCHAIN
-    select CC_STATIC_LIBSTDCXX if CC_GCC_4_4_or_later
+#-----------------------------------------------------------------------------
+comment "Settings for libraries running on target"
 
-config CC_STATIC_LIBSTDCXX
+config CC_GCC_ENABLE_TARGET_OPTSPACE
     bool
-    prompt "Link libstdc++ statically into the gcc binary"
+    prompt "Optimize gcc libs for size"
     default y
-    depends on CC_GCC_4_4_or_later
     help
-      Newer gcc versions use the PPL library which is C++ code.  Statically
-      linking libstdc++ increases the likeliness that the gcc binary will
-      run on machines other than the one which it was built on, without
-      having to worry about distributing the matching version of libstdc++
-      along with it.
+      Pass --enable-target-optspace to crossgcc's configure.
+      
+      This will compile crossgcc's libs with -Os.
 
 config CC_GCC_LIBMUDFLAP
     bool
