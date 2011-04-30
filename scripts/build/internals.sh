@@ -22,7 +22,7 @@ do_finish() {
         esac
         CT_DoLog INFO "Stripping all toolchain executables"
         CT_Pushd "${CT_PREFIX_DIR}"
-        gcc_version=$( "./bin/${CT_TARGET}-gcc" -dumpversion )
+        gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_GCC_VERSION}/gcc/BASE-VER" )
         for _t in "bin/${CT_TARGET}-"*                                      \
                   "${CT_TARGET}/bin/"*                                      \
                   "libexec/gcc/${CT_TARGET}/${gcc_version}/"*               \
