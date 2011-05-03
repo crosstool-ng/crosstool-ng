@@ -397,6 +397,14 @@ CT_SetLibPath() {
     export LD_LIBRARY_PATH
 }
 
+# Build up the list of allowed tarball extensions
+# Add them in the prefered order; most preferred comes first
+CT_DoListTarballExt() {
+    printf ".tar.bz2\n"
+    printf ".tar.gz\n.tgz\n"
+    printf ".tar\n"
+}
+
 # Get the file name extension of a component
 # Usage: CT_GetFileExtension <component_name-component_version> [extension]
 # If found, echoes the extension to stdout, and return 0
@@ -410,7 +418,7 @@ CT_GetFileExtension() {
     # we need to also check for an empty extension for those very
     # peculiar components that don't have one (such as sstrip from
     # buildroot).
-    for ext in ${first_ext} .tar.gz .tar.bz2 .tgz .tar /.git ''; do
+    for ext in ${first_ext} $(CT_DoListTarballExt) /.git ''; do
         if [ -e "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
             echo "${ext}"
             exit 0
@@ -480,7 +488,7 @@ CT_GetLocal() {
         CT_DoLog DEBUG "Trying to retrieve an already downloaded copy of '${basename}'"
         # We'd rather have a bzip2'ed tarball, then gzipped tarball, plain tarball,
         # or, as a failover, a file without extension.
-        for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
+        for ext in ${first_ext} $(CT_DoListTarballExt) ''; do
             CT_DoLog DEBUG "Trying '${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}'"
             if [ -r "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" -a \
                  "${CT_FORCE_DOWNLOAD}" != "y" ]; then
@@ -549,7 +557,7 @@ CT_GetFile() {
     # Scan all URLs in turn, and try to grab a tarball from there
     # Do *not* try git trees (ext=/.git), this is handled in a specific
     # wrapper, below
-    for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
+    for ext in ${first_ext} $(CT_DoListTarballExt) ''; do
         # Try all urls in turn
         for url in "${URLS[@]}"; do
             [ -n "${url}" ] || continue
@@ -745,9 +753,9 @@ CT_Extract() {
     tar_opts+=( "-C" "${basename}" )
     tar_opts+=( "-xv" )
     case "${ext}" in
-        .tar.bz2)     CT_DoExecLog FILE tar "${tar_opts[@]}" -j "${full_file}";;
-        .tar.gz|.tgz) CT_DoExecLog FILE tar "${tar_opts[@]}" -z "${full_file}";;
-        .tar)         CT_DoExecLog FILE tar "${tar_opts[@]}" "${full_file}";;
+        .tar.bz2)     CT_DoExecLog FILE tar "${tar_opts[@]}" -j -f "${full_file}";;
+        .tar.gz|.tgz) CT_DoExecLog FILE tar "${tar_opts[@]}" -z -f "${full_file}";;
+        .tar)         CT_DoExecLog FILE tar "${tar_opts[@]}" -f "${full_file}";;
         /.git)        CT_ExtractGit "${basename}" "${@}";;
         *)            CT_DoLog WARN "Don't know how to handle '${basename}${ext}': unknown extension"
                       return 1
