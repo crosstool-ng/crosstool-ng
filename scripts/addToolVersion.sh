@@ -102,15 +102,16 @@ addToolVersion() {
             # Extract 'M'ajor and 'm'inor from version string
             ver_M=$(echo "${version}...." |cut -d . -f 1)
             ver_m=$(echo "${version}...." |cut -d . -f 2)
-            if [    ${ver_M} -gt 4                          \
-                 -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 5 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select CC_GCC_4_5_or_later"
-            elif [    ${ver_M} -gt 4                          \
-                   -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 4 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select CC_GCC_4_4_or_later"
-            elif [    ${ver_M} -gt 4                          \
-                   -o \( ${ver_M} -eq 4 -a ${ver_m} -ge 3 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select CC_GCC_4_3_or_later"
+            if [   \( ${ver_M} -eq 4 -a ${ver_m} -eq 6 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select CC_GCC_4_6"
+            elif [ \( ${ver_M} -eq 4 -a ${ver_m} -eq 5 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select CC_GCC_4_5"
+            elif [ \( ${ver_M} -eq 4 -a ${ver_m} -eq 4 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select CC_GCC_4_4"
+            elif [ \( ${ver_M} -eq 4 -a ${ver_m} -eq 3 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select CC_GCC_4_3"
+            elif [ \( ${ver_M} -eq 4 -a ${ver_m} -eq 2 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select CC_GCC_4_2"
             fi
             ;;
         uClibc)
