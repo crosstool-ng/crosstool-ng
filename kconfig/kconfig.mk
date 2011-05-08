@@ -22,7 +22,7 @@ menuconfig: $(obj)/mconf
 
 oldconfig: $(obj)/conf .config
 	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
-	$(SILENT)$< -s $(KCONFIG_TOP)
+	$(SILENT)$< --silent$@ $(KCONFIG_TOP)
 
 # Always be silent, the stdout an be >.config
 extractconfig:
@@ -61,11 +61,11 @@ HOST_CC ?= gcc -funsigned-char
 HOST_LD ?= gcc
 
 # Helpers
-check_gettext = $(CT_LIB_DIR)/kconfig/check-gettext.sh
+check_gettext = $(CT_LIB_DIR)/kconfig/check.sh
 check_lxdialog = $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh
 
 # Build flags
-CFLAGS =
+CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE=\"crosstool-NG\"
 LDFLAGS =
 
 # Compiler flags to use gettext

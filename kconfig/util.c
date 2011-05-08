@@ -12,15 +12,18 @@
 struct file *file_lookup(const char *name)
 {
 	struct file *file;
+	const char *file_name = sym_expand_string_value(name);
 
 	for (file = file_list; file; file = file->next) {
-		if (!strcmp(name, file->name))
+		if (!strcmp(name, file->name)) {
+			free((void *)file_name);
 			return file;
+		}
 	}
 
 	file = malloc(sizeof(*file));
 	memset(file, 0, sizeof(*file));
-	file->name = strdup(name);
+	file->name = file_name;
 	file->next = file_list;
 	file_list = file;
 	return file;
@@ -46,8 +49,8 @@ int file_write_dep(const char *name)
 		else
 			fprintf(out, "\t%s\n", file->name);
 	}
-	fprintf(out, "\ninclude/config/auto.conf: \\\n"
-		     "\t$(deps_config)\n\n");
+	fprintf(out, "\n%s: \\\n"
+		     "\t$(deps_config)\n\n", conf_get_autoconfig_name());
 
 	expr_list_for_each_sym(sym_env_list, e, sym) {
 		struct property *prop;
@@ -61,7 +64,7 @@ int file_write_dep(const char *name)
 		if (!value)
 			value = "";
 		fprintf(out, "ifneq \"$(%s)\" \"%s\"\n", env_sym->name, value);
-		fprintf(out, "include/config/auto.conf: FORCE\n");
+		fprintf(out, "%s: FORCE\n", conf_get_autoconfig_name());
 		fprintf(out, "endif\n");
 	}
 
@@ -72,12 +75,13 @@ int file_write_dep(const char *name)
 }
 
 
-/* Allocate initial growable sting */
+/* Allocate initial growable string */
 struct gstr str_new(void)
 {
 	struct gstr gs;
 	gs.s = malloc(sizeof(char) * 64);
 	gs.len = 64;
+	gs.max_width = 0;
 	strcpy(gs.s, "\0");
 	return gs;
 }
@@ -88,6 +92,7 @@ struct gstr str_assign(const char *s)
 	struct gstr gs;
 	gs.s = strdup(s);
 	gs.len = strlen(s) + 1;
+	gs.max_width = 0;
 	return gs;
 }
 
