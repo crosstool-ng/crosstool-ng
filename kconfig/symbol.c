@@ -1255,6 +1255,4 @@ static void prop_add_env(const char *env)
 	p = getenv(env);
 	if (p)
 		sym_add_default(sym, p);
-	else
-		menu_warn(current_entry, "environment variable %s undefined", env);
 }
