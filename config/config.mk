@@ -80,7 +80,7 @@ define build_gen_choice_in
 	$(SILENT)(echo "# $(2) menu";                                           \
 	  echo "# Generated file, do not edit!!!";                              \
 	  echo "";                                                              \
-	  echo "choice";                                                        \
+	  echo "choice GEN_CHOICE_$(3)";                                        \
 	  echo "    bool";                                                      \
 	  echo "    prompt \"$(2)\"";                                           \
 	  echo "";                                                              \
@@ -90,13 +90,13 @@ define build_gen_choice_in
 	    echo "config $(3)_$${_entry}";                                      \
 	    echo "    bool";                                                    \
 	    echo "    prompt \"$${entry}\"";                                    \
-	    dep_val=$$($(grep) -E '^# depends on ' $${file} 2>/dev/null);       \
-	    if [ -n "$${dep_val}" ]; then                                       \
-	      echo "    $${dep_val#\# }";                                       \
-	    fi;                                                                 \
 	    if [ "$(5)" = "Y" ]; then                                           \
 	      echo "    depends on $(3)_$${_entry}_AVAILABLE";                  \
 	    fi;                                                                 \
+	    sed -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;\
+	    sed -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;    \
+		echo "    help";                                                    \
+	    sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null; \
 	    echo "";                                                            \
 	  done;                                                                 \
 	  echo "endchoice";                                                     \
@@ -157,10 +157,11 @@ define build_gen_menu_in
 	    echo "menuconfig $(3)_$${_entry}";                                  \
 	    echo "    bool";                                                    \
 	    echo "    prompt \"$${entry}\"";                                    \
-	    dep_val=$$($(grep) -E '^# depends on ' $${file} 2>/dev/null);       \
-	    if [ -n "$${dep_val}" ]; then                                       \
-	      echo "    $${dep_val#\# }";                                       \
-	    fi;                                                                 \
+	    sed -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;\
+	    sed -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;    \
+		echo "    help";                                                    \
+	    sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null; \
+	    echo "";                                                            \
 	    echo "if $(3)_$${_entry}";                                          \
 	    echo "source \"$${file}\"";                                         \
 	    echo "endif";                                                       \
