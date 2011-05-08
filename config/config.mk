@@ -95,8 +95,10 @@ define build_gen_choice_in
 	    fi;                                                                 \
 	    sed -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;\
 	    sed -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;    \
-		echo "    help";                                                    \
-	    sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null; \
+	    if grep -E '^## help' $${file} >/dev/null 2>&1; then                        \
+	      echo "    help";                                                          \
+	      sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null;   \
+	    fi;                                                                         \
 	    echo "";                                                            \
 	  done;                                                                 \
 	  echo "endchoice";                                                     \
@@ -159,8 +161,10 @@ define build_gen_menu_in
 	    echo "    prompt \"$${entry}\"";                                    \
 	    sed -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;\
 	    sed -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;    \
-		echo "    help";                                                    \
-	    sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null; \
+	    if grep -E '^## help' $${file} >/dev/null 2>&1; then                        \
+	      echo "    help";                                                          \
+	      sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null;   \
+	    fi;                                                                         \
 	    echo "";                                                            \
 	    echo "if $(3)_$${_entry}";                                          \
 	    echo "source \"$${file}\"";                                         \
