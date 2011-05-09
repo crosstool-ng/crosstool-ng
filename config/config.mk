@@ -118,10 +118,6 @@ define build_gen_choice_in
 	    echo "source \"$${file}\"";                                         \
 	    echo "endif";                                                       \
 	  done;                                                                 \
-	  echo "";                                                              \
-	  for file in $(wildcard $(4)/*.in-common); do                          \
-	    echo "source \"$${file}\"";                                         \
-	  done;                                                                 \
 	 ) >$(1)
 	$(SILENT)(echo "# $(2) second part options";                            \
 	  echo "# Generated file, do not edit!!!";                              \
