@@ -285,6 +285,11 @@ void menu_finalize(struct menu *parent)
 					}
 				}
 			}
+			if (parent->prompt &&
+			    !expr_is_yes(parent->prompt->visible.expr)) {
+				parent->visibility = expr_alloc_and (parent->visibility,
+								     parent->prompt->visible.expr);
+			}
 			/* set the type of the remaining choice values */
 			for (menu = parent->list; menu; menu = menu->next) {
 				current_entry = menu;
