@@ -846,10 +846,6 @@ int main(int ac, char **av)
 			return 1;
 		}
 	case -1:
-		printf(_("\n\n"
-			"*** End of the configuration.\n"
-			"*** Execute 'make' to start the build or try 'make help'."
-			"\n\n"));
 		break;
 	default:
 		fprintf(stderr, _("\n\n"

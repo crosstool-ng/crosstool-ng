@@ -510,8 +510,8 @@ int main(int ac, char **av)
 			fprintf(stderr, _("***\n"
 				"*** Configuration file \"%s\" not found!\n"
 				"***\n"
-				"*** Please run some configurator (e.g. \"make oldconfig\" or\n"
-				"*** \"make menuconfig\" or \"make xconfig\").\n"
+				"*** Please configure with \"menuconfig\", or use a\n"
+				"*** pre-existing sample (see list with \"list-samples\").\n"
 				"***\n"), name);
 			exit(1);
 		}
