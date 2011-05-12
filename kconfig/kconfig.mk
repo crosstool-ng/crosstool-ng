@@ -11,12 +11,16 @@ obj = kconfig
 #-----------------------------------------------------------
 # The configurators rules
 
-configurators = menuconfig oldconfig
+configurators = menuconfig nconfig oldconfig
 PHONY += $(configurators)
 
 $(configurators): config_files
 
 menuconfig: $(obj)/mconf
+	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
+	$(SILENT)$< $(KCONFIG_TOP)
+
+nconfig: $(obj)/nconf
 	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$< $(KCONFIG_TOP)
 
@@ -103,13 +107,24 @@ mconf_OBJ = $(patsubst %.c,%.o,$(mconf_SRC))
 mconf_DEP = $(patsubst %.c,%.dep,$(mconf_SRC))
 $(mconf_OBJ) $(mconf_DEP): CFLAGS += $(NCURSES_CFLAGS) $(INTL_CFLAGS)
 $(obj)/mconf: LDFLAGS += $(NCURSES_LDFLAGS)
+
+# What's needed to build 'nconf'
+nconf_SRC = kconfig/nconf.c kconfig/nconf.gui.c
+nconf_OBJ = $(patsubst %.c,%.o,$(nconf_SRC))
+nconf_DEP = $(patsubst %.c,%.dep,$(nconf_SRC))
+$(nconf_OBJ) $(nconf_DEP): CFLAGS += $(INTL_CFLAGS)
+$(obj)/nconf: LDFLAGS += -lmenu -lpanel -lncurses
+
+# Under Cygwin, we need to auto-import some libs (which ones, exactly?)
+# for mconf and nconf to lin properly.
 ifeq ($(shell uname -o 2>/dev/null || echo unknown),Cygwin)
 $(obj)/mconf: LDFLAGS += -Wl,--enable-auto-import
+$(obj)/nconf: LDFLAGS += -Wl,--enable-auto-import
 endif
 
 # These are generated files:
-ALL_OBJS = $(sort $(COMMON_OBJ) $(LX_OBJ) $(conf_OBJ) $(mconf_OBJ))
-ALL_DEPS = $(sort $(COMMON_DEP) $(LX_DEP) $(conf_DEP) $(mconf_DEP))
+ALL_OBJS = $(sort $(COMMON_OBJ) $(LX_OBJ) $(conf_OBJ) $(mconf_OBJ) $(nconf_OBJ))
+ALL_DEPS = $(sort $(COMMON_DEP) $(LX_DEP) $(conf_DEP) $(mconf_DEP) $(nconf_DEP))
 
 # Cheesy auto-dependencies
 # Only parse the following if a configurator was called, to avoid building
@@ -132,6 +147,9 @@ DEPS += $(mconf_DEP) $(LX_DEP)
 $(COMMON_OBJ) $(COMMON_DEP): |dochecklxdialog
 $(LX_OBJ) $(LX_DEP): |dochecklxdialog
 $(mconf_OBJ) $(mconf_DEP): |dochecklxdialog
+endif
+ifneq ($(strip $(filter nconfig,$(MAKECMDGOALS))),)
+DEPS += $(nconf_DEP)
 endif
 
 -include $(DEPS)
@@ -170,6 +188,10 @@ $(obj)/mconf: $(COMMON_OBJ) $(LX_OBJ) $(mconf_OBJ)
 	@$(ECHO) '  LD    $@'
 	$(SILENT)$(HOST_LD) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
+$(obj)/nconf: $(COMMON_OBJ) $(nconf_OBJ)
+	@$(ECHO) '  LD    $@'
+	$(SILENT)$(HOST_LD) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
+
 $(obj)/conf: $(COMMON_OBJ) $(conf_OBJ)
 	@$(ECHO) '  LD    $@'
 	$(SILENT)$(HOST_LD) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
@@ -179,5 +201,5 @@ $(obj)/conf: $(COMMON_OBJ) $(conf_OBJ)
 
 clean::
 	@$(ECHO) "  CLEAN kconfig"
-	$(SILENT)rm -f kconfig/{,m}conf{,.exe} $(ALL_OBJS) $(ALL_DEPS)
+	$(SILENT)rm -f kconfig/{,m,n}conf{,.exe} $(ALL_OBJS) $(ALL_DEPS)
 	$(SILENT)rmdir --ignore-fail-on-non-empty kconfig{/lxdialog,} 2>/dev/null || true
