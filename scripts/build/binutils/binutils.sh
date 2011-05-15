@@ -70,8 +70,8 @@ do_binutils() {
         --disable-werror                                        \
         "${extra_config[@]}"                                    \
         ${CT_ARCH_WITH_FLOAT}                                   \
-        ${CT_BINUTILS_EXTRA_CONFIG}                             \
-        ${BINUTILS_SYSROOT_ARG}
+        ${BINUTILS_SYSROOT_ARG}                                 \
+        "${CT_BINUTILS_EXTRA_CONFIG[@]}"
 
     if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
         extra_make_flags+=("LDFLAGS=-all-static")
@@ -154,7 +154,7 @@ do_binutils_target() {
             --disable-multilib                                      \
             "${extra_config[@]}"                                    \
             ${CT_ARCH_WITH_FLOAT}                                   \
-            ${CT_BINUTILS_EXTRA_CONFIG}
+            "${CT_BINUTILS_EXTRA_CONFIG[@]}"
 
         CT_DoLog EXTRA "Building binutils' libraries (${targets[*]}) for target"
         CT_DoExecLog ALL make ${JOBSFLAGS} "${build_targets[@]}"
