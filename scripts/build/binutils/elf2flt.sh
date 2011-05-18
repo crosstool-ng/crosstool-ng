@@ -49,7 +49,7 @@ do_elf2flt() {
         --with-libbfd=${binutils_bld}/bfd/libbfd.a              \
         --with-libiberty=${binutils_bld}/libiberty/libiberty.a  \
         ${elf2flt_opts}                                         \
-        "${CT_ELF2FLT_EXTRA_CONFIG[@]}"
+        "${CT_ELF2FLT_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building elf2flt"
     CT_DoExecLog ALL make ${JOBSFLAGS}

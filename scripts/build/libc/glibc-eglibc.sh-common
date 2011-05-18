@@ -151,7 +151,8 @@ do_libc() {
 
     # Add some default glibc config options if not given by user.
     # We don't need to be conditional on wether the user did set different
-    # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG is passed after extra_config
+    # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG_ARRAY is passed after
+    # extra_config
 
     extra_config+=("$(do_libc_min_kernel_config)")
 
@@ -159,7 +160,7 @@ do_libc() {
         nptl)           extra_config+=("--with-__thread" "--with-tls");;
         linuxthreads)   extra_config+=("--with-__thread" "--without-tls" "--without-nptl");;
         none)           extra_config+=("--without-__thread" "--without-nptl")
-                        case "${CT_LIBC_GLIBC_EXTRA_CONFIG[*]}" in
+                        case "${CT_LIBC_GLIBC_EXTRA_CONFIG_ARRAY[*]}" in
                             *-tls*) ;;
                             *) extra_config+=("--without-tls");;
                         esac
@@ -228,7 +229,7 @@ do_libc() {
 
     # Configure with --prefix the way we want it on the target...
     # There are a whole lot of settings here.  You'll probably want
-    # to read up on what they all mean, and customize a bit, possibly by setting GLIBC_EXTRA_CONFIG
+    # to read up on what they all mean, and customize a bit, possibly by setting GLIBC_EXTRA_CONFIG_ARRAY
     # Compare these options with the ones used when installing the glibc headers above - they're different.
     # Adding "--without-gd" option to avoid error "memusagestat.c:36:16: gd.h: No such file or directory"
     # See also http://sources.redhat.com/ml/libc-alpha/2000-07/msg00024.html.
@@ -250,7 +251,7 @@ do_libc() {
         --without-gd                                                \
         --with-headers="${CT_HEADERS_DIR}"                          \
         "${extra_config[@]}"                                        \
-        "${CT_LIBC_GLIBC_EXTRA_CONFIG[@]}"
+        "${CT_LIBC_GLIBC_EXTRA_CONFIG_ARRAY[@]}"
     
     # build hacks
     case "${CT_ARCH},${CT_ARCH_CPU}" in
@@ -300,7 +301,7 @@ do_libc_add_ons_list() {
 do_libc_min_kernel_config() {
     local min_kernel_config
 
-    case "${CT_LIBC_GLIBC_EXTRA_CONFIG[*]}" in
+    case "${CT_LIBC_GLIBC_EXTRA_CONFIG_ARRAY[*]}" in
         *--enable-kernel*) ;;
         *)  if [ "${CT_LIBC_GLIBC_KERNEL_VERSION_AS_HEADERS}" = "y" ]; then
                 # We can't rely on the kernel version from the configuration,

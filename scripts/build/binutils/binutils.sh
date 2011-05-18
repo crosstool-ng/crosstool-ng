@@ -71,7 +71,7 @@ do_binutils() {
         "${extra_config[@]}"                                    \
         ${CT_ARCH_WITH_FLOAT}                                   \
         ${BINUTILS_SYSROOT_ARG}                                 \
-        "${CT_BINUTILS_EXTRA_CONFIG[@]}"
+        "${CT_BINUTILS_EXTRA_CONFIG_ARRAY[@]}"
 
     if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
         extra_make_flags+=("LDFLAGS=-all-static")

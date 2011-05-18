@@ -276,7 +276,7 @@ do_cc_core() {
         --disable-nls                               \
         --enable-symvers=gnu                        \
         --enable-languages="${lang_opt}"            \
-        "${CT_CC_CORE_EXTRA_CONFIG[@]}"
+        "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}"
 
     if [ "${build_libgcc}" = "yes" ]; then
         # HACK: we need to override SHLIB_LC from gcc/config/t-slibgcc-elf-ver or
@@ -555,7 +555,7 @@ do_cc() {
         --enable-symvers=gnu                        \
         --enable-c99                                \
         --enable-long-long                          \
-        "${CT_CC_EXTRA_CONFIG[@]}"
+        "${CT_CC_EXTRA_CONFIG_ARRAY[@]}"
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
