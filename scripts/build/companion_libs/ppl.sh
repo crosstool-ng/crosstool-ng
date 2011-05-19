@@ -48,10 +48,10 @@ do_ppl() {
         --disable-ppl_lcdd                          \
         --disable-ppl_lpsol                         \
         --disable-shared                            \
+        --enable-interfaces='c c++'                 \
         --enable-static
 
     # Maybe-options:
-    # --enable-interfaces=...
     # --enable-optimization=speed  or sspeed (yes, with 2 's')
 
     CT_DoLog EXTRA "Building PPL"
