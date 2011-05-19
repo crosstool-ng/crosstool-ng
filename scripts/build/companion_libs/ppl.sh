@@ -42,7 +42,6 @@ do_ppl() {
         --with-libgmp-prefix="${CT_COMPLIBS_DIR}"   \
         --with-libgmpxx-prefix="${CT_COMPLIBS_DIR}" \
         --with-gmp-prefix="${CT_COMPLIBS_DIR}"      \
-        --enable-cxx                                \
         --enable-watchdog                           \
         --disable-debugging                         \
         --disable-assertions                        \
