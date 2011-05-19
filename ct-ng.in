@@ -135,11 +135,16 @@ help-env::
 	@echo "or configure an existing sample."
 	@false
 
-show-tuple: .config
+.config.2: .config
+	$(SILENT)$(sed) -r -e 's/^([^=]+_ARRAY)="(.*)"$$/\1=( \2 )/;'   \
+	                   -e '/^[^=]+_ARRAY=/s/\\(.)/\1/g;'            \
+	                $< >$@
+
+show-tuple: .config.2
 	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showTuple.sh
 
 # Actual build
-build: .config
+build: .config.2
 	$(SILENT)$(CT_LIB_DIR)/scripts/crosstool-NG.sh
 
 build.%:

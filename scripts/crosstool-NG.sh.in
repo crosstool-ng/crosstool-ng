@@ -22,7 +22,7 @@
 
 # Parse the configuration file
 # It has some info about the logging facility, so include it early
-. .config
+. .config.2
 # Yes! We can do full logging from now on!
 
 # Overide the locale early, in case we ever translate crosstool-NG messages
@@ -103,6 +103,8 @@ CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 # Log real begining of build, now
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 
+# We really need to extract from ,config and not .config.2, as we
+# do want the kconfig's values, not our mangled config with arrays.
 CT_DoStep DEBUG "Dumping user-supplied crosstool-NG configuration"
 CT_DoExecLog DEBUG grep -E '^(# |)CT_' .config
 CT_EndStep
@@ -138,7 +140,7 @@ CT_DoBuildTargetTuple
 
 # Kludge: If any of the configured options needs CT_TARGET,
 # then rescan the options file now:
-. .config
+. .config.2
 
 # Sanity check some directories
 CT_TestAndAbort "'CT_PREFIX_DIR' is not set: where should I install?" -z "${CT_PREFIX_DIR}"
@@ -485,6 +487,8 @@ if [ -z "${CT_RESTART}" ]; then
     [ ${CT_PARALLEL_JOBS} -ne 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
     [ ${CT_LOAD} -ne 0 ] && JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"
 
+    # We need to save the real .config with kconfig's value,
+    # not our mangled .config.2 with arrays.
     CT_DoLog EXTRA "Installing user-supplied crosstool-NG configuration"
     CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/bin"
     CT_DoExecLog DEBUG install -m 0755 "${CT_LIB_DIR}/scripts/toolchain-config.in" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"

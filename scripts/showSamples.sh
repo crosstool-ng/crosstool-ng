@@ -14,6 +14,7 @@
 export GREP_OPTIONS=
 
 # Dump a single sample
+# Note: we can quite safely used the non-mangled .config.2
 dump_single_sample() {
     local verbose=0
     local complibs
