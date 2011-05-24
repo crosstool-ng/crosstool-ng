@@ -414,8 +414,8 @@ do_cc() {
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
-    if [ -n "${CC_ENABLE_CXX_FLAGS}" ]; then
-        extra_config+=("--enable-cxx-flags=${CC_ENABLE_CXX_FLAGS}")
+    if [ -n "${CT_CC_ENABLE_CXX_FLAGS}" ]; then
+        extra_config+=("--enable-cxx-flags=${CT_CC_ENABLE_CXX_FLAGS}")
     fi
     if [ "${CT_CC_GCC_LIBMUDFLAP}" = "y" ]; then
         extra_config+=(--enable-libmudflap)
