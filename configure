@@ -69,11 +69,23 @@ set_tool() {
 # var_list is a list of variables, each one holding a path to a
 # tool, either detected by ./configure, or specified by the user.
 var_list=""
+kconfig_list=""
 
 # This function adds a variable name to the above list of variable names.
 # $1: the name of the variable to add to the list
 add_to_var_list() {
+    local v
+    for v in ${var_list}; do
+        [ "${v}" = "${1}" ] && return 0
+    done
     var_list="${var_list} ${1}"
+}
+add_to_kconfig_list() {
+    local k
+    for k in ${kconfig_list}; do
+        [ "${k}" = "${1}" ] && return 0
+    done
+    kconfig_list="${kconfig_list} ${1}"
 }
 
 # A function to test for required tools/headers/libraries
@@ -97,22 +109,31 @@ add_to_var_list() {
 #     optional, defaults to: '${prog}: none found'
 #       eg: err="'bash' 3.x or above was not found"
 #     Note: err may be printed by caller, not us
+# $*: kconfig=<var_name>
+#     the name of a variable to pass down to kconfig if
+#     the prog/inc/lib was found
+#     optional, defaults to none
+#       eg: kconfig=has_libncurses
 check_for() {
     local val
     local item
     local where
     local status
 
-    # Note: prog/inc/lib and var/ver/err are set here,
+    # Note: prog/inc/lib and var/kconfig/ver/err are set here,
     # but declared by the caller (because it needs it)
     for item in "${@}"; do
         case "${item}" in
-            prog=*|inc=*|lib=*|var=*|ver=*|err=*)
+            prog=*|inc=*|lib=*|var=*|ver=*|err=*|kconfig=*)
                 eval ${item%%=*}="'${item#*=}'"
                 ;;
             *)  do_error "has_or_abort: incorrect parameters: '$@'";;
         esac
     done
+
+    if [ -n "${kconfig}" ]; then
+        add_to_kconfig_list "${kconfig}"
+    fi
 
     case "${prog}:${inc}:${lib}" in
         ?*::)
@@ -179,6 +200,9 @@ check_for() {
         eval ${var}='"'"${where}"'"'
         add_to_var_list "${var}"
     fi
+    if [ -n "${kconfig}" ]; then
+        eval ${kconfig}=y
+    fi
     printf "\n"
 }
 
@@ -188,7 +212,7 @@ has_or_abort() {
     # We declare these 6 variables here, although they are
     # set in check_for(), called below
     local prog inc lib
-    local var ver err
+    local var ver err kconfig
 
     if ! check_for "$@"; then
         printf "\n${err:-${prog}${inc}${lib}: none found}\n\n"
@@ -216,7 +240,7 @@ has_or_warn() {
     # We declare these 6 variables here, although they are
     # set in check_for(), called below
     local prog inc lib
-    local var ver err
+    local var ver err kconfig
 
     if ! check_for "$@"; then
         printf "${err:+${err}\n}"
@@ -460,16 +484,23 @@ done
 printf "Building up Makefile... "
 var_sed="$( for var_name in ${var_list}; do
                 eval echo 's,@@${var_name}@@,${'"${var_name}"'},g'
-            done 
+            done
           )"
-"${sed}" -r -e "s,@@BINDIR@@,${BINDIR},g
-                s,@@LIBDIR@@,${LIBDIR},g
-                s,@@DOCDIR@@,${DOCDIR},g
-                s,@@MANDIR@@,${MANDIR},g
-                s,@@VERSION@@,${VERSION},g
-                s,@@DATE@@,${DATE},g
-                ${var_sed}
-                s,@@LOCAL@@,${LOCAL_set},g"  Makefile.in >Makefile
+kconfig_sed="s/@@KCONFIG@@/$( for k_name in ${kconfig_list}; do
+                                  eval printf \"${k_name}=\${${k_name}} \"
+                              done
+                            )/"
+"${sed}" -r -e "s,@@BINDIR@@,${BINDIR},g"       \
+            -e "s,@@LIBDIR@@,${LIBDIR},g"       \
+            -e "s,@@DOCDIR@@,${DOCDIR},g"       \
+            -e "s,@@MANDIR@@,${MANDIR},g"       \
+            -e "s,@@VERSION@@,${VERSION},g"     \
+            -e "s,@@DATE@@,${DATE},g"           \
+            -e "s,@@LOCAL@@,${LOCAL_set},g"     \
+            -e "${var_sed}"                     \
+            -e "${kconfig_sed}"                 \
+         Makefile.in                            \
+         >Makefile
 echo "done"
 
 cat <<__EOF__

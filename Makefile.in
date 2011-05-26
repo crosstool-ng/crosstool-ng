@@ -58,6 +58,9 @@ objdump:= @@objdump@@
 readelf:= @@readelf@@
 patch  := @@patch@@
 
+# config options to push down to kconfig
+KCONFIG:= @@KCONFIG@@
+
 ###############################################################################
 # Non-configure variables
 MAN_SECTION := 1
@@ -115,7 +118,7 @@ uninstall: real-uninstall
 build-bin: ct-ng scripts/crosstool-NG.sh scripts/saveSample.sh scripts/showTuple.sh
 	@chmod 755 $^
 
-build-lib: paths.mk
+build-lib: paths.mk config/configure.in
 
 build-doc:
 
@@ -142,7 +145,7 @@ docs/ct-ng.1.gz: docs/ct-ng.1
 # use := to set variables, although that will incur a (very small)
 # penalty from the Makefile that includes it (due to re-evaluation at
 # each call).
-paths.mk:
+paths.mk: FORCE
 	@echo "  GEN    '$@'"
 	@(echo "export install=$(install)"; \
 	  echo "export bash=$(bash)";       \
@@ -155,6 +158,22 @@ paths.mk:
 	  echo "export readelf=$(readelf)"; \
 	  echo "export patch=$(patch)";     \
 	 ) >paths.mk
+
+config/configure.in: FORCE
+	@echo "  GEN    '$@'"
+	@{  printf "# Generated file, do not edit\n";            \
+	    printf "# Default values as found by ./configure\n"; \
+	    for var in $(KCONFIG); do                            \
+	        printf "\n";                                     \
+	        printf "config CONFIGURE_$${var%%=*}\n";         \
+	        printf "    bool\n";                             \
+	        if [ "$${var#*=}" = "y" ]; then                  \
+	            printf "    default y\n";                    \
+	        fi;                                              \
+	    done;                                                \
+	 } >$@
+
+FORCE:
 
 #--------------------------------------
 # Clean rules
@@ -172,6 +191,8 @@ clean-bin:
 clean-lib:
 	@echo "  RM     'paths.mk'"
 	@rm -f paths.mk
+	@echo "  RM     'config/configure.in'"
+	@rm -f config/configure.in
 
 clean-doc:
 
