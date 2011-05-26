@@ -97,13 +97,13 @@ add_to_var_list() {
 #     optional, defaults to: '${prog}: none found'
 #       eg: err="'bash' 3.x or above was not found"
 check_for() {
-    local prog inc lib
-    local var ver err
     local val
     local item
     local where
     local status
 
+    # Note: prog/inc/lib and var/ver/err are set here,
+    # but declared by the caller (because it needs it)
     for item in "${@}"; do
         case "${item}" in
             prog=*|inc=*|lib=*|var=*|ver=*|err=*)
@@ -170,13 +170,6 @@ check_for() {
     esac
 
     if [ -z "${status}" ]; then
-        printf "\n${err:-${prog}${inc}${lib}: none found}\n\n"
-        printf "Either you are missing entirely the needed tool,\n"
-        printf "or the version you have is too old.\n"
-        if [ -n "${var}" ]; then
-            printf "You can give the path to this tool using: --with-${var}=PATH\n"
-        fi
-        printf "\n"
         return 1
     fi
 
@@ -191,10 +184,21 @@ check_for() {
 # This function checks for a tool, and aborts if not found
 # See check_for(), above, for how to call has_or_abort
 has_or_abort() {
+    # We declare these 6 variables here, although they are
+    # set in check_for(), called below
+    local prog inc lib
+    local var ver err
+
     if ! check_for "$@"; then
-        # FORCE can be set in the environment
-        [ -z "${FORCE}" ] && do_error "Bailing out..."
+        printf "\n${err:-${prog}${inc}${lib}: none found}\n\n"
+        printf "Either you are missing entirely the needed tool,\n"
+        printf "or the version you have is too old.\n"
+        if [ -n "${var}" ]; then
+            printf "You can give the path to this tool using: --with-${var}=PATH\n"
+        fi
         printf "\n"
+        # Bail out if --force is not specified
+        [ -z "${FORCE}" ] && do_error "Bailing out..."
         printf "<*                                          *>\n"
         printf "<*            FORCE in action:              *>\n"
         printf "<* Continuing despite missing pre-requisite *>\n"
