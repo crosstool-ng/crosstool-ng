@@ -96,6 +96,7 @@ add_to_var_list() {
 #     the error message to print if tool is missing
 #     optional, defaults to: '${prog}: none found'
 #       eg: err="'bash' 3.x or above was not found"
+#     Note: err may be printed by caller, not us
 check_for() {
     local val
     local item
@@ -205,6 +206,23 @@ has_or_abort() {
         printf "<*          Prepare for breakage            *>\n"
         printf "<*                                          *>\n"
         printf "\n"
+    fi
+}
+
+# This function checks for a tool, and warns if not found
+# See check_for(), above, for how to call has_or_abort
+# Note: if err is not set, then no error message is printed
+has_or_warn() {
+    # We declare these 6 variables here, although they are
+    # set in check_for(), called below
+    local prog inc lib
+    local var ver err
+
+    if ! check_for "$@"; then
+        printf "${err:+${err}\n}"
+        if [ -n "${var}" ]; then
+            printf -- "--> You can give the path to this tool using: --with-${var}=PATH\n"
+        fi
     fi
 }
 
