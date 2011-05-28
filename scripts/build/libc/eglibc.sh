@@ -109,15 +109,26 @@ do_libc_extract() {
         [ "${addon}" = "nptl" ] && continue || true
         CT_Pushd "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
         CT_Extract nochdir "eglibc-${addon}-${CT_LIBC_VERSION}"
+
+        CT_TestAndAbort "Error in add-on '${addon}': both short and long names in tarball" \
+            -d "${addon}" -a -d "eglibc-${addon}-${CT_LIBC_VERSION}"
+
         # Some addons have the 'long' name, while others have the
         # 'short' name, but patches are non-uniformly built with
         # either the 'long' or 'short' name, whatever the addons name
-        # so we have to make symlinks from the existing to the missing
-        # Fortunately for us, [ -d foo ], when foo is a symlink to a
-        # directory, returns true!
-        [ -d "${addon}" ] || ln -s "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
-        [ -d "eglibc-${addon}-${CT_LIBC_VERSION}" ] || ln -s "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
+        # but we prefer the 'short' name and avoid duplicates.
+        if [ -d "eglibc-${addon}-${CT_LIBC_VERSION}" ]; then
+            mv "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
+        fi
+
+        ln -s "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
+
         CT_Patch nochdir "eglibc" "${addon}-${CT_LIBC_VERSION}"
+
+        # Remove the long name since it can confuse configure scripts to run
+        # the same source twice.
+        rm "eglibc-${addon}-${CT_LIBC_VERSION}"
+
         CT_Popd
     done
 

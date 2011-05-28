@@ -54,15 +54,24 @@ do_libc_extract() {
         [ "${addon}" = "nptl" ] && continue || true
         CT_Extract nochdir "glibc-${addon}-${CT_LIBC_VERSION}"
 
+        CT_TestAndAbort "Error in add-on '${addon}': both short and long names in tarball" \
+            -d "${addon}" -a -d "glibc-${addon}-${CT_LIBC_VERSION}"
+
         # Some addons have the 'long' name, while others have the
         # 'short' name, but patches are non-uniformly built with
         # either the 'long' or 'short' name, whatever the addons name
-        # so we have to make symlinks from the existing to the missing
-        # Fortunately for us, [ -d foo ], when foo is a symlink to a
-        # directory, returns true!
-        [ -d "${addon}" ] || CT_DoExecLog ALL ln -s "glibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
-        [ -d "glibc-${addon}-${CT_LIBC_VERSION}" ] || CT_DoExecLog ALL ln -s "${addon}" "glibc-${addon}-${CT_LIBC_VERSION}"
+        # but we prefer the 'short' name and avoid duplicates.
+        if [ -d "glibc-${addon}-${CT_LIBC_VERSION}" ]; then
+            mv "glibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
+        fi
+
+        ln -s "${addon}" "glibc-${addon}-${CT_LIBC_VERSION}"
+
         CT_Patch nochdir "glibc" "${addon}-${CT_LIBC_VERSION}"
+
+        # Remove the long name since it can confuse configure scripts to run
+        # the same source twice.
+        rm "glibc-${addon}-${CT_LIBC_VERSION}"
     done
 
     # The configure files may be older than the configure.in files
