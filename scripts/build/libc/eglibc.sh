@@ -1,10 +1,12 @@
 # eglibc build functions (initially by Thomas JOURDAN).
 
 # Add the definitions common to glibc and eglibc
+#   do_libc_extract
 #   do_libc_start_files
 #   do_libc
 #   do_libc_finish
 #   do_libc_add_ons_list
+#   do_libc_min_kernel_config
 . "${CT_LIB_DIR}/scripts/build/libc/glibc-eglibc.sh-common"
 
 # Download eglibc repository
@@ -94,48 +96,6 @@ do_libc_get() {
             CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${CT_TARBALLS_DIR}/${file}"
         done
     fi
-
-    return 0
-}
-
-# Extract eglibc
-do_libc_extract() {
-    CT_Extract "eglibc-${CT_LIBC_VERSION}"
-    CT_Patch "eglibc" "${CT_LIBC_VERSION}"
-
-    # C library addons
-    for addon in $(do_libc_add_ons_list " "); do
-        # NPTL addon is not to be extracted, in any case
-        [ "${addon}" = "nptl" ] && continue || true
-        CT_Pushd "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
-        CT_Extract nochdir "eglibc-${addon}-${CT_LIBC_VERSION}"
-
-        CT_TestAndAbort "Error in add-on '${addon}': both short and long names in tarball" \
-            -d "${addon}" -a -d "eglibc-${addon}-${CT_LIBC_VERSION}"
-
-        # Some addons have the 'long' name, while others have the
-        # 'short' name, but patches are non-uniformly built with
-        # either the 'long' or 'short' name, whatever the addons name
-        # but we prefer the 'short' name and avoid duplicates.
-        if [ -d "eglibc-${addon}-${CT_LIBC_VERSION}" ]; then
-            mv "eglibc-${addon}-${CT_LIBC_VERSION}" "${addon}"
-        fi
-
-        ln -s "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
-
-        CT_Patch nochdir "eglibc" "${addon}-${CT_LIBC_VERSION}"
-
-        # Remove the long name since it can confuse configure scripts to run
-        # the same source twice.
-        rm "eglibc-${addon}-${CT_LIBC_VERSION}"
-
-        CT_Popd
-    done
-
-    # The configure files may be older than the configure.in files
-    # if using a snapshot (or even some tarballs). Fake them being
-    # up to date.
-    find "${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}" -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
 
     return 0
 }

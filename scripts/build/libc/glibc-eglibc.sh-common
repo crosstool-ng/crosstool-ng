@@ -1,5 +1,49 @@
 # This file contains the functions common to glibc and eglibc
 
+# Extract the C library tarball(s)
+do_libc_extract() {
+    local addon
+
+    # Extract the main tarball
+    CT_Extract "${CT_LIBC}-${CT_LIBC_VERSION}"
+    CT_Pushd "${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
+    CT_Patch nochdir "${CT_LIBC}" "${CT_LIBC_VERSION}"
+
+    # Extract the add-opns
+    for addon in $(do_libc_add_ons_list " "); do
+        # NPTL addon is not to be extracted, in any case
+        [ "${addon}" = "nptl" ] && continue || true
+
+        CT_Extract nochdir "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+
+        CT_TestAndAbort "Error in add-on '${addon}': both short and long names in tarball" \
+            -d "${addon}" -a -d "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+
+        # Some addons have the 'long' name, while others have the
+        # 'short' name, but patches are non-uniformly built with
+        # either the 'long' or 'short' name, whatever the addons name
+        # but we prefer the 'short' name and avoid duplicates.
+        if [ -d "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ]; then
+            mv "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" "${addon}"
+        fi
+
+        ln -s "${addon}" "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+
+        CT_Patch nochdir "${CT_LIBC}" "${addon}-${CT_LIBC_VERSION}"
+
+        # Remove the long name since it can confuse configure scripts to run
+        # the same source twice.
+        rm "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+    done
+
+    # The configure files may be older than the configure.in files
+    # if using a snapshot (or even some tarballs). Fake them being
+    # up to date.
+    find . -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
+
+    CT_Popd
+}
+
 # Build and install headers and start files
 do_libc_start_files() {
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
