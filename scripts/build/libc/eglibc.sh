@@ -9,95 +9,27 @@
 #   do_libc_min_kernel_config
 . "${CT_LIB_DIR}/scripts/build/libc/glibc-eglibc.sh-common"
 
-# Download eglibc repository
-do_eglibc_get() {
-    CT_HasOrAbort svn
+# Download glibc
+# eglibc is only available through subversion, there are no
+# snapshots available.
+do_libc_get() {
+    local addon
+    local svn_base="svn://svn.eglibc.org"
 
     case "${CT_LIBC_VERSION}" in
-        trunk)  svn_url="svn://svn.eglibc.org/trunk";;
-        *)      svn_url="svn://svn.eglibc.org/branches/eglibc-${CT_LIBC_VERSION}";;
+        trunk)  svn_base+="/trunk";;
+        *)      svn_base+="/branches/eglibc-${CT_LIBC_VERSION}";;
     esac
 
-    case "${CT_EGLIBC_CHECKOUT}" in
-        y)  svn_action="checkout";;
-        *)  svn_action="export --force";;
-    esac
+    CT_GetSVN "eglibc-${CT_LIBC_VERSION}"   \
+              "${svn_base}/libc"            \
+              "${CT_EGLIBC_REVISION:-HEAD}"
 
-    CT_DoExecLog ALL svn ${svn_action} -r "${CT_EGLIBC_REVISION:-HEAD}" "${svn_url}" "$(pwd)"
-
-    # Compress eglibc
-    CT_DoExecLog ALL mv libc "eglibc-${CT_LIBC_VERSION}"
-    CT_DoExecLog ALL tar cjf "eglibc-${CT_LIBC_VERSION}.tar.bz2" "eglibc-${CT_LIBC_VERSION}"
-
-    # Compress linuxthreads, localedef and ports
-    # Assign them the name the way ct-ng like it
-    for addon in linuxthreads localedef ports; do
-        CT_DoExecLog ALL mv "${addon}" "eglibc-${addon}-${CT_LIBC_VERSION}"
-        CT_DoExecLog ALL tar cjf "eglibc-${addon}-${CT_LIBC_VERSION}.tar.bz2" "eglibc-${addon}-${CT_LIBC_VERSION}"
+    for addon in $(do_libc_add_ons_list " "); do
+        CT_GetSVN "eglibc-${addon}-${CT_LIBC_VERSION}"  \
+                  "${svn_base}/${addon}"                \
+                  "${CT_EGLIBC_REVISION:-HEAD}"
     done
-}
-
-# Download glibc
-do_libc_get() {
-    # eglibc is only available through subversion, there are no
-    # snapshots available. Moreover, addons will be downloaded
-    # simultaneously.
-
-    # build filename
-    eglibc="eglibc-${CT_LIBC_VERSION}.tar.bz2"
-    eglibc_linuxthreads="${CT_LIBC}-linuxthreads-${CT_LIBC_VERSION}.tar.bz2"
-    eglibc_localedef="${CT_LIBC}-localedef-${CT_LIBC_VERSION}.tar.bz2"
-    eglibc_ports="${CT_LIBC}-ports-${CT_LIBC_VERSION}.tar.bz2"
-
-    # Check if every tarballs are already present
-    if [    -f "${CT_TARBALLS_DIR}/${eglibc}"                   \
-         -a -f "${CT_TARBALLS_DIR}/${eglibc_linuxthreads}"      \
-         -a -f "${CT_TARBALLS_DIR}/${eglibc_localedef}"         \
-         -a -f "${CT_TARBALLS_DIR}/${eglibc_ports}"             \
-       ]; then
-        CT_DoLog DEBUG "Already have 'eglibc-${CT_LIBC_VERSION}'"
-        return 0
-    fi
-
-    if [    -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc}"                 \
-         -a -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_linuxthreads}"    \
-         -a -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_localedef}"       \
-         -a -f "${CT_LOCAL_TARBALLS_DIR}/${eglibc_ports}"           \
-         -a "${CT_FORCE_DOWNLOAD}" != "y"                           \
-       ]; then
-        CT_DoLog DEBUG "Got 'eglibc-${CT_LIBC_VERSION}' from local storage"
-        for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
-            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${CT_TARBALLS_DIR}/${file}"
-        done
-        return 0
-    fi
-
-    # Not found locally, try from the network
-    CT_DoLog EXTRA "Retrieving 'eglibc-${CT_LIBC_VERSION}'"
-
-    CT_MktempDir tmp_dir
-    CT_Pushd "${tmp_dir}"
-
-    do_eglibc_get
-    CT_DoLog DEBUG "Moving 'eglibc-${CT_LIBC_VERSION}' to tarball directory"
-    for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
-        CT_DoExecLog ALL mv -f "${file}" "${CT_TARBALLS_DIR}"
-    done
-
-    CT_Popd
-
-    # Remove source files
-    CT_DoExecLog ALL rm -rf "${tmp_dir}"
-
-    if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
-        CT_DoLog EXTRA "Saving 'eglibc-${CT_LIBC_VERSION}' to local storage"
-        for file in ${eglibc} ${eglibc_linuxthreads} ${eglibc_localedef} ${eglibc_ports}; do
-            CT_DoExecLog ALL mv -f "${CT_TARBALLS_DIR}/${file}" "${CT_LOCAL_TARBALLS_DIR}"
-            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}" "${CT_TARBALLS_DIR}/${file}"
-        done
-    fi
-
-    return 0
 }
 
 # Copy user provided eglibc configuration file if provided
