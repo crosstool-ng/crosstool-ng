@@ -700,7 +700,8 @@ CT_Extract() {
     shift
 
     if ! ext="$(CT_GetFileExtension "${basename}")"; then
-      CT_Abort "'${basename}' not found in '${CT_TARBALLS_DIR}'"
+        CT_DoLog WARN "'${basename}' not found in '${CT_TARBALLS_DIR}'"
+        return 1
     fi
     local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
 
@@ -728,7 +729,9 @@ CT_Extract() {
         .tar.gz|.tgz) CT_DoExecLog FILE tar xvzf "${full_file}";;
         .tar)         CT_DoExecLog FILE tar xvf  "${full_file}";;
         /.git)        CT_ExtractGit "${basename}" "${@}";;
-        *)            CT_Abort "Don't know how to handle '${basename}${ext}': unknown extension";;
+        *)            CT_DoLog WARN "Don't know how to handle '${basename}${ext}': unknown extension"
+                      return 1
+                      ;;
     esac
 
     # Don't mark as being extracted for git
