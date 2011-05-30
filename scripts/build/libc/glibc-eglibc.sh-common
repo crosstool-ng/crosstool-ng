@@ -11,8 +11,13 @@ do_libc_extract() {
 
     # Extract the add-opns
     for addon in $(do_libc_add_ons_list " "); do
-        # NPTL addon is not to be extracted, in any case
-        [ "${addon}" = "nptl" ] && continue || true
+        # If the addon was bundled with the main archive, we do not
+        # need to extract it. Worse, if we were to try to extract
+        # it, we'd get an error.
+        if [ -d "${addon}" ]; then
+            CT_DoLog DEBUG "Add-on already present, spkipping extraction"
+            continue
+        fi
 
         CT_Extract nochdir "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
 

@@ -26,9 +26,17 @@ do_libc_get() {
               "${CT_EGLIBC_REVISION:-HEAD}"
 
     for addon in $(do_libc_add_ons_list " "); do
-        CT_GetSVN "eglibc-${addon}-${CT_LIBC_VERSION}"  \
-                  "${svn_base}/${addon}"                \
-                  "${CT_EGLIBC_REVISION:-HEAD}"
+        # NPTL addon is not to be downloaded, in any case
+        [ "${addon}" = "nptl" ] && continue || true
+        if ! CT_GetSVN "eglibc-${addon}-${CT_LIBC_VERSION}" \
+                       "${svn_base}/${addon}"               \
+                       "${CT_EGLIBC_REVISION:-HEAD}"
+        then
+            # Some add-ons are bundled with the main sources
+            # so failure to download them is expected
+            CT_DoLog DEBUG "Addon '${addon}' could not be downloaded."
+            CT_DoLog DEBUG "We'll see later if we can find it in the source tree"
+        fi
     done
 }
 
