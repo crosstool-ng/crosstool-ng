@@ -426,7 +426,7 @@ CT_GetFileExtension() {
 # to find the requested URL (think about snapshots, different layouts
 # for different gcc versions, etc...).
 CT_DoGetFile() {
-    local dest="${1##*/}"
+    local dest="${1}"
     local tmp="${dest}.tmp-dl"
     # OK, just look if we have them...
     # We are sure at least one is available, ./configure checked for it.
@@ -530,7 +530,6 @@ CT_GetFile() {
 
     # Try to retrieve the file
     CT_DoLog EXTRA "Retrieving '${file}'"
-    CT_Pushd "${CT_TARBALLS_DIR}"
 
     URLS="$@"
 
@@ -558,16 +557,18 @@ CT_GetFile() {
         for url in ${URLS}; do
             CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
             CT_DoGetFile "${url}/${file}${ext}"
-            if [ -f "${file}${ext}" ]; then
+            if [ -f "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
                 CT_DoLog DEBUG "Got '${file}' from the Internet"
                 CT_SaveLocal "${CT_TARBALLS_DIR}/${file}${ext}"
                 return 0
             fi
         done
     done
-    CT_Popd
 
-    CT_Abort "Could not retrieve '${file}'."
+    # Just warn, someone may want to catch and handle the error
+    # (eg. glibc/eglibc add-ons can be missing).
+    CT_DoLog WARN "Could not retrieve '${file}'."
+    return 1
 }
 
 # Checkout from CVS, and build the associated tarball
