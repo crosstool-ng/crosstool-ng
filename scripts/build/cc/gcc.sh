@@ -202,8 +202,8 @@ do_cc_core() {
         if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
             # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
             # build script
-            # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
-            # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
+            # INFO: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
+            #       see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
             host_libstdcxx_flags+=("-static-libgcc")
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
@@ -455,8 +455,8 @@ do_cc() {
         if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
             # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
             # build script
-            # FIXME: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
-            # see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
+            # INFO: if the host gcc is gcc-4.5 then presumably we could use -static-libstdc++,
+            #       see http://gcc.gnu.org/ml/gcc-patches/2009-06/msg01635.html
             host_libstdcxx_flags+=("-static-libgcc")
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
