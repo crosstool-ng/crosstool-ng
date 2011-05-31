@@ -106,12 +106,11 @@ define build_gen_choice_in
 	    file="$(4)/$${entry}.in";                                           \
 	    _entry=$$(echo "$${entry}" |$(sed) -r -s -e 's/[-.+]/_/g;');        \
 	    echo "";                                                            \
-	    if [ "$(5)" = "Y" ]; then                                                                           \
-	      echo "config $(3)_$${_entry}_AVAILABLE";                                                          \
-	      echo "    bool";                                                                                  \
-	      echo "    default n if ! ( BACKEND_$(3) = \"$${entry}\" || BACKEND_$(3) = \"\" || ! BACKEND )";   \
-	      echo "    default y if BACKEND_$(3) = \"$${entry}\" || BACKEND_$(3) = \"\" || ! BACKEND";         \
-	    fi;                                                                                                 \
+	    if [ "$(5)" = "Y" ]; then                                                                     \
+	      echo "config $(3)_$${_entry}_AVAILABLE";                                                    \
+	      echo "    bool";                                                                            \
+	      echo "    default y if BACKEND_$(3) = \"$${entry}\" || BACKEND_$(3) = \"\" || ! BACKEND";   \
+	    fi;                                                                                           \
 	    echo "if $(3)_$${_entry}";                                          \
 	    echo "config $(3)";                                                 \
 	    echo "    default \"$${entry}\" if $(3)_$${_entry}";                \
