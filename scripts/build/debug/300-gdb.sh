@@ -98,6 +98,11 @@ do_debug_gdb_build() {
         6.2*|6.3)   extra_config+=("--disable-gdbmi");;
     esac
 
+    if [ "${CT_GDB_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+        [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+    fi
+
     if [ "${CT_GDB_CROSS}" = "y" ]; then
         local -a cross_extra_config
 
