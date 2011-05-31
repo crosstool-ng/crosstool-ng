@@ -234,6 +234,11 @@ do_libc() {
         *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
     esac
 
+    if [ "${CT_LIBC_EGLIBC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+        [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+    fi
+
     extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
 
     touch config.cache
@@ -245,7 +250,7 @@ do_libc() {
     # Pre-seed the configparms file with values from the config option
     printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
 
-    cross_cc=$(CT_Which "${CT_TARGET}-gcc")    
+    cross_cc=$(CT_Which "${CT_TARGET}-gcc")
 
     CT_DoLog DEBUG "Using gcc for target:     '${cross_cc}'"
     CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
@@ -296,7 +301,7 @@ do_libc() {
         --with-headers="${CT_HEADERS_DIR}"                          \
         "${extra_config[@]}"                                        \
         "${CT_LIBC_GLIBC_EXTRA_CONFIG_ARRAY[@]}"
-    
+
     # build hacks
     case "${CT_ARCH},${CT_ARCH_CPU}" in
         powerpc,8??)

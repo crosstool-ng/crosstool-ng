@@ -137,6 +137,22 @@ addToolVersion() {
                 SedExpr1="${SedExpr1}\n    select BINUTILS_2_18_or_later"
             fi
             ;;
+        eglibc)
+            # Extract 'M'ajor and 'm'inor from version string
+            ver_M=$(getVersionField "${version}" . 1)
+            ver_m=$(getVersionField "${version}" . 2)
+            if [   \( ${ver_M} -eq 2 -a ${ver_m} -eq 13 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_EGLIBC_2_13_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 12 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_EGLIBC_2_12_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 11 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_EGLIBC_2_11_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 10 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_EGLIBC_2_10_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 9 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_EGLIBC_2_9_or_later"
+            fi
+            ;;
         uClibc)
             # uClibc-0.9.30 and above need some love
             ver_M=$(getVersionField "${version}" . 1)
