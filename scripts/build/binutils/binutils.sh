@@ -55,6 +55,10 @@ do_binutils() {
     if [ "${CT_BINUTILS_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugins )
     fi
+    if [ "${CT_BINUTILS_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+        [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
@@ -141,6 +145,12 @@ do_binutils_target() {
         CT_Pushd "${CT_BUILD_DIR}/build-binutils-for-target"
 
         CT_DoLog EXTRA "Configuring binutils for target"
+
+        if [ "${CT_BINUTILS_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+            [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
+            [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+        fi
+
         CT_DoExecLog CFG                                            \
         "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
             --build=${CT_BUILD}                                     \

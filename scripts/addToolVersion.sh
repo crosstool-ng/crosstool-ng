@@ -123,6 +123,20 @@ addToolVersion() {
                 SedExpr1="${SedExpr1}\n    select CC_GCC_4_2"
             fi
             ;;
+        binutils)
+            # Extract 'M'ajor and 'm'inor from version string
+            ver_M=$(getVersionField "${version}" . 1)
+            ver_m=$(getVersionField "${version}" . 2)
+            if [   \( ${ver_M} -eq 2 -a ${ver_m} -eq 21 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_21_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 20 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_20_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 19 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_19_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 18 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_18_or_later"
+            fi
+            ;;
         uClibc)
             # uClibc-0.9.30 and above need some love
             ver_M=$(getVersionField "${version}" . 1)
