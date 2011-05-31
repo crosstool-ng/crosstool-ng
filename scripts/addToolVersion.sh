@@ -46,6 +46,15 @@ doHelp() {
 		EOF
 }
 
+# Extract field $3 from version $1 with separator $2
+getVersionField() {
+    local version="$1"
+    local sep="$2"
+    local field="$3"
+
+    echo "${version}${sep}${sep}${sep}${sep}" |cut -d ${sep} -f ${field}
+}
+
 # Effectively add a version to the specified tool
 # $cat          : tool category
 # $tool         : tool name
@@ -100,8 +109,8 @@ addToolVersion() {
     case "${tool}" in
         gcc)
             # Extract 'M'ajor and 'm'inor from version string
-            ver_M=$(echo "${version}...." |cut -d . -f 1)
-            ver_m=$(echo "${version}...." |cut -d . -f 2)
+            ver_M=$(getVersionField "${version}" . 1)
+            ver_m=$(getVersionField "${version}" . 2)
             if [   \( ${ver_M} -eq 4 -a ${ver_m} -eq 6 \)  ]; then
                 SedExpr1="${SedExpr1}\n    select CC_GCC_4_6"
             elif [ \( ${ver_M} -eq 4 -a ${ver_m} -eq 5 \)  ]; then
@@ -116,9 +125,9 @@ addToolVersion() {
             ;;
         uClibc)
             # uClibc-0.9.30 and above need some love
-            ver_M=$(echo "${version}...." |cut -d . -f 1)
-            ver_m=$(echo "${version}...." |cut -d . -f 2)
-            ver_p=$(echo "${version}...." |cut -d . -f 3)
+            ver_M=$(getVersionField "${version}" . 1)
+            ver_m=$(getVersionField "${version}" . 2)
+            ver_p=$(getVersionField "${version}" . 3)
             if [    ${ver_M} -ge 1                                      \
                  -o ${ver_M} -eq 0 -a ${ver_m} -ge 10                   \
                  -o ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -ge 30 ]; then
@@ -127,7 +136,7 @@ addToolVersion() {
             ;;
         gdb)
             # gdb-7.0 and above have special handling
-            ver_M=$(echo "${version}...." |cut -d . -f 1)
+            ver_M=$(getVersionField "${version}" . 1)
             if [ ${ver_M} -ge 7 ]; then
                 SedExpr1="${SedExpr1}\n    select GDB_7_0_or_later"
             fi
