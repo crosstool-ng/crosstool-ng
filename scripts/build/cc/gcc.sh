@@ -159,9 +159,11 @@ do_cc_core() {
     mkdir -p "${CT_BUILD_DIR}/build-cc-core-${mode}"
     cd "${CT_BUILD_DIR}/build-cc-core-${mode}"
 
-    # Bare metal delivers the core compiler as final compiler, so add version info and bugurl
-    [ -n "${CT_CC_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_CC_BUGURL}")
-    [ -n "${CT_CC_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_CC_PKGVERSION}")
+    if [ "${CT_CC_GCC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+        # Bare metal delivers the core compiler as final compiler, so add version info and bugurl
+        [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+    fi
 
     if [ "${copy_headers}" = "y" ]; then
         CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
@@ -401,9 +403,11 @@ do_cc() {
         fi
     done
 
-    [ "${CT_SHARED_LIBS}" = "y" ]                   || extra_config+=("--disable-shared")
-    [ -n "${CT_CC_PKGVERSION}" ]                    && extra_config+=("--with-pkgversion=${CT_CC_PKGVERSION}")
-    [ -n "${CT_CC_BUGURL}" ]                        && extra_config+=("--with-bugurl=${CT_CC_BUGURL}")
+    [ "${CT_SHARED_LIBS}" = "y" ] || extra_config+=("--disable-shared")
+    if [ "${CT_CC_GCC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+        [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+    fi
     case "${CT_CC_GCC_SJLJ_EXCEPTIONS}" in
         y)  extra_config+=("--enable-sjlj-exceptions");;
         m)  ;;
