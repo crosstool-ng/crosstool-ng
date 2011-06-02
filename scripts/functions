@@ -426,7 +426,8 @@ CT_GetFileExtension() {
 # to find the requested URL (think about snapshots, different layouts
 # for different gcc versions, etc...).
 CT_DoGetFile() {
-    local dest="${1}"
+    local url="${1}"
+    local dest="${CT_TARBALLS_DIR}/${url##*/}"
     local tmp="${dest}.tmp-dl"
     # OK, just look if we have them...
     # We are sure at least one is available, ./configure checked for it.
@@ -449,10 +450,10 @@ CT_DoGetFile() {
     # not easy to detect them, and wget does not timeout by default while
     # connecting, so force a global ${CT_CONNECT_TIMEOUT}-second timeout.
     # For curl, no good progress indicator is available. So, be silent.
-    if CT_DoExecLog ALL "${_curl}" --ftp-pasv    --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "$1"  \
-    || CT_DoExecLog ALL "${_curl}"               --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "$1"  \
-    || CT_DoExecLog ALL "${_wget}" --passive-ftp --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "$1"  \
-    || CT_DoExecLog ALL "${_wget}"               --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "$1"  \
+    if CT_DoExecLog ALL "${_curl}" --ftp-pasv    --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "${url}"  \
+    || CT_DoExecLog ALL "${_curl}"               --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "${url}"  \
+    || CT_DoExecLog ALL "${_wget}" --passive-ftp --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "${url}"  \
+    || CT_DoExecLog ALL "${_wget}"               --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "${url}"  \
     ; then
         # One of them succeeded, good!
         mv "${tmp}" "${dest}"
