@@ -161,8 +161,8 @@ do_cc_core() {
 
     if [ "${CT_CC_GCC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
         # Bare metal delivers the core compiler as final compiler, so add version info and bugurl
-        [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
-        [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+        extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
     fi
 
     if [ "${copy_headers}" = "y" ]; then
@@ -405,8 +405,8 @@ do_cc() {
 
     [ "${CT_SHARED_LIBS}" = "y" ] || extra_config+=("--disable-shared")
     if [ "${CT_CC_GCC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
-        [ -n "${CT_TOOLCHAIN_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_TOOLCHAIN_PKGVERSION}")
-        [ -n "${CT_TOOLCHAIN_BUGURL}" ]     && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+        extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
     fi
     case "${CT_CC_GCC_SJLJ_EXCEPTIONS}" in
         y)  extra_config+=("--enable-sjlj-exceptions");;
