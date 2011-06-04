@@ -27,6 +27,12 @@ do_libc_get() {
 
     # C library addons
     for addon in "${addons_list[@]}"; do
+        # Never ever try to download these add-ons,
+        # they've always been internal
+        case "${addon}" in
+            nptl)   continue;;
+        esac
+
         if ! CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"     \
                         {ftp,http}://ftp.gnu.org/gnu/glibc      \
                         ftp://gcc.gnu.org/pub/glibc/releases    \

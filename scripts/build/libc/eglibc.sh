@@ -26,8 +26,12 @@ do_libc_get() {
               "${CT_EGLIBC_REVISION:-HEAD}"
 
     for addon in $(do_libc_add_ons_list " "); do
-        # NPTL addon is not to be downloaded, in any case
-        [ "${addon}" = "nptl" ] && continue || true
+        # Never ever try to download these add-ons,
+        # they've always been internal
+        case "${addon}" in
+            nptl)   continue;;
+        esac
+
         if ! CT_GetSVN "eglibc-${addon}-${CT_LIBC_VERSION}" \
                        "${svn_base}/${addon}"               \
                        "${CT_EGLIBC_REVISION:-HEAD}"
