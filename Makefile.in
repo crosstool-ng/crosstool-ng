@@ -88,6 +88,17 @@ endif
 # See top of file for an explanation of why this is needed...
 ifneq ($(strip $(CT_MAKEFLAGS)),)
 
+# Somehow, the new auto-completion for make in the recent distributions
+# trigger a behavior where our Makefile calls itself recursively, in a
+# never-ending loop (except on lack of ressources, swap, PIDs...)
+# Avoid this situation by cutting the recursion short at the first
+# level.
+# This has the side effect of only showing the real targets, and hiding our
+# internal ones. :-)
+ifneq ($(MAKELEVEL),0)
+$(error Recursion detected, bailing out...)
+endif
+
 MAKEFLAGS += $(CT_MAKEFLAGS)
 build install clean distclean uninstall:
 	@$(MAKE) $@
