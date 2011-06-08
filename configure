@@ -127,75 +127,94 @@ check_for() {
             prog=*|inc=*|lib=*|var=*|ver=*|err=*|kconfig=*)
                 eval ${item%%=*}=\"${item#*=}\"
                 ;;
-            *)  do_error "has_or_abort: incorrect parameters: '$@'";;
+            *)  do_error "check_for: incorrect parameters: '$@'";;
         esac
     done
+
+    case "${prog}:${inc}:${lib}" in
+        ?*:?*:|?*::?*|:?*:?*|?*:?*:?*)
+            if [ -n "${var}" ]; then
+                do_error "check_for: the use of var is not compatible with passing several of [prog|inc|lib] at once"
+            fi
+            ;;
+        ::) do_error "check_for: [prog|inc|lib] is mandatory";;
+    esac
 
     if [ -n "${kconfig}" ]; then
         add_to_kconfig_list "${kconfig}"
     fi
 
-    case "${prog}:${inc}:${lib}" in
-        ?*::)
-            for item in ${prog}; do
-                printf "Checking for '${item}'... "
-                if [ -n "${var}" ]; then
-                    eval val="\${${var}}"
-                    if [ -n "${val}" ]; then
-                        printf "${val} (cached)\n"
-                        add_to_var_list "${var}"
-                        return 0
-                    fi
+    if [ -n "${prog}" ]; then
+        for item in ${prog}; do
+            printf "Checking for '${item}'... "
+            if [ -n "${var}" ]; then
+                eval val="\${${var}}"
+                if [ -n "${val}" ]; then
+                    printf "${val} (cached)\n"
+                    add_to_var_list "${var}"
+                    return 0
                 fi
-                where="$( which "${item}" 2>/dev/null )"
-                if [ -z "${where}" ]; then
+            fi
+            where="$( which "${item}" 2>/dev/null )"
+            if [ -z "${where}" ]; then
+                printf "no\n"
+                continue
+            elif [ -n "${ver}" ]; then
+                str=$( LC_ALL=C "${where}" --version 2>&1   \
+                       |grep -E "${ver}"                    \
+                       |head -n 1
+                     )
+                if [ -z "${str}" ]; then
                     printf "no\n"
+                    unset where
                     continue
-                elif [ -n "${ver}" ]; then
-                    str=$( LC_ALL=C "${where}" --version 2>&1   \
-                           |grep -E "${ver}"                    \
-                           |head -n 1
-                         )
-                    if [ -z "${str}" ]; then
-                        printf "no\n"
-                        unset where
-                        continue
-                    fi
                 fi
-                status="${where}"
-                break
-            done
-            ;;
-        :?*:)
-            for item in ${inc}; do
-                printf "Checking for '${item}'... "
-                if printf "#include \"${item}\"" |gcc -x c -c - -o /dev/null >/dev/null 2>&1; then
-                    where="${item}"
-                    status=yes
-                    break;
-                fi
-                printf "no\n"
-            done
-            ;;
-        ::?*)
-            for item in ${lib}; do
-                printf "Checking for '${item}'... "
-                where="$( gcc -print-file-name="${item}" )"
-                if [ "${where}" != "${item}" ]; then
-                    where="$( readlink "${where}" )"
-                    status=yes
-                    break;
-                fi
-                printf "no\n"
-            done
-            ;;
-    esac
-
-    if [ -z "${status}" ]; then
-        return 1
+            fi
+            status="${where}"
+            break
+        done
+        if [ -z "${status}" ]; then
+            return 1
+        fi
+        printf "${status}\n"
+        unset status
     fi
 
-    printf "${status}"
+    if [ -n "${inc}" ]; then
+        for item in ${inc}; do
+            printf "Checking for '${item}'... "
+            if printf "#include \"${item}\"" |gcc -x c -c - -o /dev/null >/dev/null 2>&1; then
+                where="${item}"
+                status=yes
+                break;
+            fi
+            printf "no\n"
+        done
+        if [ -z "${status}" ]; then
+            return 1
+        fi
+        printf "${status}\n"
+        unset status
+    fi
+
+    if [ -n "${lib}" ]; then
+        for item in ${lib}; do
+            printf "Checking for '${item}'... "
+            where="$( gcc -print-file-name="${item}" )"
+            if [ "${where}" != "${item}" ]; then
+                where="$( readlink "${where}" )"
+                status=yes
+                break;
+            fi
+            printf "no\n"
+        done
+        if [ -z "${status}" ]; then
+            return 1
+        fi
+        printf "${status}\n"
+        unset status
+    fi
+
     if [ -n "${var}" ]; then
         eval ${var}='"'"${where}"'"'
         add_to_var_list "${var}"
@@ -203,7 +222,6 @@ check_for() {
     if [ -n "${kconfig}" ]; then
         eval ${kconfig}=y
     fi
-    printf "\n"
 }
 
 # This function checks for a tool, and aborts if not found
