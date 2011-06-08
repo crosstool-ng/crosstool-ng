@@ -139,6 +139,7 @@ do_debug_gdb_build() {
             --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
             --with-sysroot="${CT_SYSROOT_DIR}"          \
+            --with-expat=yes                            \
             --disable-werror                            \
             "${cross_extra_config[@]}"
 

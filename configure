@@ -462,6 +462,34 @@ has_or_warn  lib="libstdc++.a" \
              err="static 'libstdc++' is needed to statically link the toolchain's executables" \
              kconfig=has_static_libstdcxx
 
+expat_libs="$( for x in so dylib a; do \
+                   printf "libexpat.$x "; \
+               done \
+             )"
+has_or_warn  inc="expat.h" \
+             lib="${expat_libs}" \
+             err="The 'expat' header file and library are needed to link cross-gdb's executables" \
+             kconfig=has_expat
+
+# Yes, we may be checking twice for libexpat.a
+# The first is because we need one instance of libexpat (shared or static)
+# because it is needed for cross-gdb; the second is because the static version
+# is required for static-linking, and if missing, the option is removed.
+has_or_warn  lib="libexpat.a" \
+             err="static 'expat' is needed to statically link cross-gdb's executables" \
+             kconfig=has_static_expat
+
+for v in 7 6 5 4; do
+    python_incs="${python_incs}$( printf "python2.$v/Python.h " )"
+    python_libs="${python_libs}$( for x in so dylib a; do \
+                                      printf "libpython2.$v.$x "; \
+                                  done \
+                                )"
+done
+has_or_warn  inc="${python_incs}" \
+             lib="${python_libs}" \
+             err="The 'python' header file and library are needed for some features of cross-gdb"
+
 #---------------------------------------------------------------------
 # Compute the version string
 

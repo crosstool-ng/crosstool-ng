@@ -3,10 +3,18 @@
 config STATIC_TOOLCHAIN
     select GDB_CROSS_STATIC if GDB_CROSS
 
+comment "Cross-gdb - disabled (requires expat; re-run ./configure to enable)"
+    depends on !CONFIGURE_has_expat
+
+comment "Static cross-gdb - disabled (requires static expat; re-run ./configure to enable)"
+    depends on STATIC_TOOLCHAIN && !CONFIGURE_has_static_expat
+
 config GDB_CROSS
     bool
     prompt "Cross-gdb"
     default y
+    depends on CONFIGURE_has_expat
+    depends on !STATIC_TOOLCHAIN || CONFIGURE_has_static_expat
     select GDB_GDBSERVER if ! BARE_METAL
     help
       Build and install a cross-gdb for the target, to run on host.
@@ -16,6 +24,7 @@ if GDB_CROSS
 config GDB_CROSS_STATIC
     bool
     prompt "Build a static cross gdb"
+    depends on CONFIGURE_has_static_expat
     help
       A static cross gdb can be usefull if you debug on a machine that is
       not the one that is used to compile the toolchain.
