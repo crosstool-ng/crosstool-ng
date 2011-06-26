@@ -51,131 +51,38 @@ do_libc_extract() {
 
 # Build and install headers and start files
 do_libc_start_files() {
-    local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
-
-    CT_DoStep INFO "Installing C library headers & start files"
-
-    mkdir -p "${CT_BUILD_DIR}/build-libc-startfiles"
-    cd "${CT_BUILD_DIR}/build-libc-startfiles"
-
-    CT_DoLog EXTRA "Configuring C library"
-
-    case "${CT_LIBC}" in
-        eglibc)
-            if [ "${CT_EGLIBC_CUSTOM_CONFIG}" = "y" ]; then
-                CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/eglibc.config" option-groups.config
-            fi
-            ;;
-    esac
-
-    cross_cc=$(CT_Which "${CT_TARGET}-gcc")
-    cross_cxx=$(CT_Which "${CT_TARGET}-g++")
-    cross_ar=$(CT_Which "${CT_TARGET}-ar")
-    cross_ranlib=$(CT_Which "${CT_TARGET}-ranlib")
-
-    CT_DoLog DEBUG "Using gcc for target: '${cross_cc}'"
-    CT_DoLog DEBUG "Using g++ for target: '${cross_cxx}'"
-    CT_DoLog DEBUG "Using ar for target: '${cross_ar}'"
-    CT_DoLog DEBUG "Using ranlib for target: '${cross_ranlib}'"
-
-    touch config.cache
-    if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
-        echo "libc_cv_forced_unwind=yes" >>config.cache
-        echo "libc_cv_c_cleanup=yes" >>config.cache
-    fi
-
-    # Pre-seed the configparms file with values from the config option
-    printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
-
-    CT_DoExecLog CFG                                    \
-    BUILD_CC="${CT_BUILD}-gcc"                          \
-    CC=${cross_cc}                                      \
-    CXX=${cross_cxx}                                    \
-    AR=${cross_ar}                                      \
-    RANLIB=${cross_ranlib}                              \
-    "${src_dir}/configure"                              \
-        --prefix=/usr                                   \
-        --with-headers="${CT_HEADERS_DIR}"              \
-        --build="${CT_BUILD}"                           \
-        --host="${CT_TARGET}"                           \
-        --cache-file="$(pwd)/config.cache"              \
-        --disable-profile                               \
-        --without-gd                                    \
-        --without-cvs                                   \
-        --enable-add-ons
-
-    CT_DoLog EXTRA "Installing C library headers"
-
-    # use the 'install-headers' makefile target to install the
-    # headers
-    CT_DoExecLog ALL make ${JOBSFLAGS}              \
-                     install_root=${CT_SYSROOT_DIR} \
-                     install-bootstrap-headers=yes  \
-                     install-headers
-
-    # For glibc, a few headers need to be manually installed
-    if [ "${CT_LIBC}" = "glibc" ]; then
-        # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
-        # so do them by hand.  We can tolerate an empty stubs.h for the moment.
-        # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
-        mkdir -p "${CT_HEADERS_DIR}/gnu"
-        CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
-        CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/include/features.h"  \
-                               "${CT_HEADERS_DIR}/features.h"
-
-        # Building the bootstrap gcc requires either setting inhibit_libc, or
-        # having a copy of stdio_lim.h... see
-        # http://sources.redhat.com/ml/libc-alpha/2003-11/msg00045.html
-        CT_DoExecLog ALL cp -v bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
-
-        # Following error building gcc-4.0.0's gcj:
-        #  error: bits/syscall.h: No such file or directory
-        # solved by following copy; see http://sourceware.org/ml/crossgcc/2005-05/msg00168.html
-        # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
-        case "${CT_ARCH}" in
-            arm)    ;;
-            *)  CT_DoExecLog ALL cp -v "misc/syscall-list.h"            \
-                                       "${CT_HEADERS_DIR}/bits/syscall.h"
-                ;;
-        esac
-    fi
-
-    if [ "${CT_THREADS}" = "nptl" ]; then
-        CT_DoLog EXTRA "Installing C library start files"
-
-        # there are a few object files needed to link shared libraries,
-        # which we build and install by hand
-        CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
-        CT_DoExecLog ALL make ${JOBSFLAGS} csu/subdir_lib
-        CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
-                            "${CT_SYSROOT_DIR}/usr/lib"
-
-        # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
-        # However, since we will never actually execute its code,
-        # it doesn't matter what it contains.  So, treating '/dev/null'
-        # as a C source file, we produce a dummy 'libc.so' in one step
-        CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
-                                       -nostartfiles    \
-                                       -shared          \
-                                       -x c /dev/null   \
-                                       -o "${CT_SYSROOT_DIR}/usr/lib/libc.so"
-    fi # threads == nptl
-
-    CT_EndStep
+    # Start files and Headers should be configured the same way as the
+    # final libc, but built and installed differently.
+    do_libc_backend libc_mode=startfiles
 }
 
 # This function builds and install the full C library
 do_libc() {
+    do_libc_backend libc_mode=final
+}
+
+do_libc_backend() {
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
+    local libc_mode=final
     local extra_cc_args
     local -a extra_config
     local -a extra_make_args
     local glibc_cflags
 
-    CT_DoStep INFO "Installing C library"
+    while [ $# -ne 0 ]; do
+        eval "${1}"
+        shift
+    done
 
-    mkdir -p "${CT_BUILD_DIR}/build-libc"
-    cd "${CT_BUILD_DIR}/build-libc"
+    if [ "${libc_mode}" = "startfiles" ]; then
+        CT_DoStep INFO "Installing C library headers & start files"
+        mkdir -p "${CT_BUILD_DIR}/build-libc-start-files"
+        cd "${CT_BUILD_DIR}/build-libc-start-files"
+    else # libc_mode = final
+        CT_DoStep INFO "Installing C library"
+        mkdir -p "${CT_BUILD_DIR}/build-libc"
+        cd "${CT_BUILD_DIR}/build-libc"
+    fi
 
     CT_DoLog EXTRA "Configuring C library"
 
@@ -316,16 +223,78 @@ do_libc() {
             ;;
     esac
 
-    CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL make ${JOBSFLAGS}                      \
-                          "${extra_make_args[@]}"           \
-                          all
+    if [ "${libc_mode}" = "startfiles" ]; then
+        CT_DoLog EXTRA "Installing C library headers"
 
-    CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL make ${JOBSFLAGS}                      \
-                          "${extra_make_args[@]}"           \
-                          install_root="${CT_SYSROOT_DIR}"  \
-                          install
+        # use the 'install-headers' makefile target to install the
+        # headers
+        CT_DoExecLog ALL make ${JOBSFLAGS}              \
+                         install_root=${CT_SYSROOT_DIR} \
+                         install-bootstrap-headers=yes  \
+                         "${extra_make_args[@]}"        \
+                         install-headers
+
+        # For glibc, a few headers need to be manually installed
+        if [ "${CT_LIBC}" = "glibc" ]; then
+            # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
+            # so do them by hand.  We can tolerate an empty stubs.h for the moment.
+            # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
+            mkdir -p "${CT_HEADERS_DIR}/gnu"
+            CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
+            CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}/include/features.h"  \
+                                   "${CT_HEADERS_DIR}/features.h"
+
+            # Building the bootstrap gcc requires either setting inhibit_libc, or
+            # having a copy of stdio_lim.h... see
+            # http://sources.redhat.com/ml/libc-alpha/2003-11/msg00045.html
+            CT_DoExecLog ALL cp -v bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
+
+            # Following error building gcc-4.0.0's gcj:
+            #  error: bits/syscall.h: No such file or directory
+            # solved by following copy; see http://sourceware.org/ml/crossgcc/2005-05/msg00168.html
+            # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
+            case "${CT_ARCH}" in
+                arm)    ;;
+                *)  CT_DoExecLog ALL cp -v "misc/syscall-list.h"            \
+                                           "${CT_HEADERS_DIR}/bits/syscall.h"
+                    ;;
+            esac
+        fi
+
+        if [ "${CT_THREADS}" = "nptl" ]; then
+            CT_DoLog EXTRA "Installing C library start files"
+
+            # there are a few object files needed to link shared libraries,
+            # which we build and install by hand
+            CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
+            CT_DoExecLog ALL make ${JOBSFLAGS}  \
+                        "${extra_make_args[@]}" \
+                        csu/subdir_lib
+            CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
+                                "${CT_SYSROOT_DIR}/usr/lib"
+
+            # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
+            # However, since we will never actually execute its code,
+            # it doesn't matter what it contains.  So, treating '/dev/null'
+            # as a C source file, we produce a dummy 'libc.so' in one step
+            CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
+                                           -nostartfiles    \
+                                           -shared          \
+                                           -x c /dev/null   \
+                                           -o "${CT_SYSROOT_DIR}/usr/lib/libc.so"
+        fi # threads == nptl
+    else # libc_mode = final
+        CT_DoLog EXTRA "Building C library"
+        CT_DoExecLog ALL make ${JOBSFLAGS}                      \
+                              "${extra_make_args[@]}"           \
+                              all
+
+        CT_DoLog EXTRA "Installing C library"
+        CT_DoExecLog ALL make ${JOBSFLAGS}                      \
+                              "${extra_make_args[@]}"           \
+                              install_root="${CT_SYSROOT_DIR}"  \
+                              install
+    fi
 
     CT_EndStep
 }
