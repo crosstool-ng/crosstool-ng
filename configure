@@ -449,6 +449,30 @@ case "${host}" in
         ;;
 esac
 
+printf "Checking if static linking is possible... "
+static_link_ok=""
+case "${host}" in
+    Darwin) ;;
+    *)  tmp=.static.tmp
+        if gcc -xc - -static -o "${tmp}" >/dev/null 2>&1<<-_EOF_
+				int main() { return 0; }
+			_EOF_
+        then
+            static_link_ok="y"
+        fi
+        rm -f "${tmp}"
+        ;;
+esac
+if [ "${static_link_ok}" = "y" ]; then
+    printf "yes\n"
+else
+    printf "no\n"
+    printf " * An optional host feature is missing, some features will be disabled:\n"
+    printf " * - It will not be possible to statically link toolchain's binaries\n"
+fi
+add_to_kconfig_list static_link_ok
+
+# Library checks
 ncurses_hdrs="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h"
 ncurses_libs="$( for l in ncursesw ncurses curses; do   \
                      for x in so a dylib; do            \
