@@ -104,6 +104,10 @@ add_to_kconfig_list() {
 #     for each 'prog', test if $(prog --version) matches 'regexp'
 #     optional
 #       eg: ver='^GNU bash, version [34]\.'
+# $*: lib_exts=<extension[ extension...]>
+#     the list of allowed library extension
+#     mandatory
+#       eg: lib_exts="so dylib"     lib_exts="so dylib a"
 # $*: err=<error_message>
 #     the error message to print if tool is missing
 #     optional, defaults to: '${prog}: none found'
@@ -115,19 +119,21 @@ add_to_kconfig_list() {
 #     optional, defaults to none
 #       eg: kconfig=has_libncurses
 check_for() {
+    local lib_exts
     local val
     local item
     local where
     local status
+    local ext
 
     # Note: prog/inc/lib and var/kconfig/ver/err are set here,
     # but declared by the caller (because it needs it)
     for item in "${@}"; do
         case "${item}" in
-            prog=*|inc=*|lib=*|var=*|ver=*|err=*|kconfig=*)
+            prog=*|inc=*|lib=*|var=*|ver=*|err=*|kconfig=*|lib_exts=*)
                 eval ${item%%=*}=\"${item#*=}\"
                 ;;
-            *)  do_error "check_for: incorrect parameters: '$@'";;
+            *)  do_error "check_for: incorrect parameters: '${item}'";;
         esac
     done
 
@@ -198,15 +204,20 @@ check_for() {
     fi
 
     if [ -n "${lib}" ]; then
+        if [ -z "${lib_exts}" ]; then
+            do_error "check_for: no library extension specified for '${lib}'"
+        fi
         for item in ${lib}; do
-            printf "Checking for '${item}'... "
-            where="$( gcc -print-file-name="${item}" )"
-            if [ "${where}" != "${item}" ]; then
-                where="$( readlink "${where}" )"
-                status=yes
-                break;
-            fi
-            printf "no\n"
+            for ext in ${lib_exts}; do
+                printf "Checking for '${item}.${ext}'... "
+                where="$( gcc -print-file-name="${item}.${ext}" )"
+                if [ "${where}" != "${item}.${ext}" ]; then
+                    where="$( readlink "${where}" )"
+                    status=yes
+                    break 2;
+                fi
+                printf "no\n"
+            done
         done
         if [ -z "${status}" ]; then
             return 1
@@ -473,38 +484,31 @@ fi
 add_to_kconfig_list static_link_ok
 
 # Library checks
+libs_exts="so dylib a"
+
 ncurses_hdrs="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h"
-ncurses_libs="$( for l in ncursesw ncurses curses; do   \
-                     for x in so a dylib; do            \
-                         printf "lib$l.$x ";            \
-                     done;                              \
-                 done                                   \
-               )"
+ncurses_libs="libncursesw libncurses libcurses"
 has_or_abort lib="${ncurses_libs}"                                          \
+             lib_exts="${libs_exts}"                                        \
              inc="${ncurses_hdrs}"                                          \
              err="The 'ncurses' library is needed fo the menuconfig frontend"
 
-stdcxx_libs="$( for x in so dylib a; do \
-                   printf "libstdc++.$x "; \
-               done \
-             )"
-has_or_abort lib="${stdcxx_libs}" \
+has_or_abort lib="libstdc++"            \
+             lib_exts="${libs_exts}"    \
              err="The 'libstdc++' library is needed to build gcc"
 
 # Yes, we may be checking twice for libstdc++.a
 # The first is because we need one instance of libstdc++ (shared or static)
 # because it is needed for PPL; the second is because the static version is
 # required for static-linking, and if missing, the option is removed.
-has_or_warn  lib="libstdc++.a" \
+has_or_warn  lib="libstdc++"    \
+             lib_exts="a"       \
              err="static 'libstdc++' is needed to statically link the toolchain's executables" \
              kconfig=has_static_libstdcxx
 
-expat_libs="$( for x in so dylib a; do \
-                   printf "libexpat.$x "; \
-               done \
-             )"
-has_or_warn  inc="expat.h" \
-             lib="${expat_libs}" \
+has_or_warn  inc="expat.h"              \
+             lib="libexpat"             \
+             lib_exts="${libs_exts}"    \
              err="The 'expat' header file and library are needed to link cross-gdb's executables" \
              kconfig=has_expat
 
@@ -512,19 +516,18 @@ has_or_warn  inc="expat.h" \
 # The first is because we need one instance of libexpat (shared or static)
 # because it is needed for cross-gdb; the second is because the static version
 # is required for static-linking, and if missing, the option is removed.
-has_or_warn  lib="libexpat.a" \
+has_or_warn  lib="libexpat" \
+             lib_exts="a"   \
              err="static 'expat' is needed to statically link cross-gdb's executables" \
              kconfig=has_static_expat
 
 for v in 7 6 5 4; do
-    python_incs="${python_incs}$( printf "python2.$v/Python.h " )"
-    python_libs="${python_libs}$( for x in so dylib a; do \
-                                      printf "libpython2.$v.$x "; \
-                                  done \
-                                )"
+    python_incs="${python_incs} python2.${v}/Python.h"
+    python_libs="${python_libs} libpython2.${v}"
 done
-has_or_warn  inc="${python_incs}" \
-             lib="${python_libs}" \
+has_or_warn  inc="${python_incs}"       \
+             lib="${python_libs}"       \
+             lib_exts="${libs_exts}"    \
              err="The 'python' header file and library are needed for some features of cross-gdb"
 
 #---------------------------------------------------------------------
