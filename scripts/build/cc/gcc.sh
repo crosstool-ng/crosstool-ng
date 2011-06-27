@@ -262,6 +262,11 @@ do_cc_core() {
         extra_config+=( --enable-linker-build-id )
     fi
 
+    case "${CT_CC_GCC_LNK_HASH_STYLE}" in
+        "") ;;
+        *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
+    esac
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -533,6 +538,11 @@ do_cc() {
     if [ "${CT_CC_GCC_BUILD_ID}" = "y" ]; then
         extra_config+=( --enable-linker-build-id )
     fi
+
+    case "${CT_CC_GCC_LNK_HASH_STYLE}" in
+        "") ;;
+        *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
+    esac
 
     if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugin )
