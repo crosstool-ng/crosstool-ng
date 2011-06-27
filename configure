@@ -118,8 +118,15 @@ add_to_kconfig_list() {
 #     the prog/inc/lib was found
 #     optional, defaults to none
 #       eg: kconfig=has_libncurses
+# $*: skip=[y|n|]
+#     if set to 'y', skip the test, but still register the
+#     kconfig and var variables; if 'n' or empty, do the
+#     test.
+#     optional, default to 'n'
+#       eg: skip="${static_link_ko}"
 check_for() {
     local lib_exts
+    local skip
     local val
     local item
     local where
@@ -130,7 +137,7 @@ check_for() {
     # but declared by the caller (because it needs it)
     for item in "${@}"; do
         case "${item}" in
-            prog=*|inc=*|lib=*|var=*|ver=*|err=*|kconfig=*|lib_exts=*)
+            prog=*|inc=*|lib=*|var=*|ver=*|err=*|kconfig=*|lib_exts=*|skip=*)
                 eval ${item%%=*}=\"${item#*=}\"
                 ;;
             *)  do_error "check_for: incorrect parameters: '${item}'";;
@@ -146,8 +153,15 @@ check_for() {
         ::) do_error "check_for: [prog|inc|lib] is mandatory";;
     esac
 
+    if [ -n "${var}" ]; then
+        add_to_var_list "${var}"
+    fi
     if [ -n "${kconfig}" ]; then
         add_to_kconfig_list "${kconfig}"
+    fi
+
+    if [ "${skip}" = "y" ]; then
+        return 0
     fi
 
     if [ -n "${prog}" ]; then
@@ -156,9 +170,8 @@ check_for() {
             if [ -n "${var}" ]; then
                 eval val="\${${var}}"
                 if [ -n "${val}" ]; then
-                    printf "${val} (cached)\n"
-                    add_to_var_list "${var}"
-                    return 0
+                    status="${val} (cached)\n"
+                    break
                 fi
             fi
             where="$( which "${item}" 2>/dev/null )"
@@ -228,7 +241,6 @@ check_for() {
 
     if [ -n "${var}" ]; then
         eval ${var}='"'"${where}"'"'
-        add_to_var_list "${var}"
     fi
     if [ -n "${kconfig}" ]; then
         eval ${kconfig}=y
@@ -475,8 +487,10 @@ case "${host}" in
         ;;
 esac
 if [ "${static_link_ok}" = "y" ]; then
+    static_link_ko=""
     printf "yes\n"
 else
+    static_link_ko="y"
     printf "no\n"
     printf " * An optional host feature is missing, some features will be disabled:\n"
     printf " * - It will not be possible to statically link toolchain's binaries\n"
@@ -484,7 +498,10 @@ fi
 add_to_kconfig_list static_link_ok
 
 # Library checks
-libs_exts="so dylib a"
+libs_exts="so dylib"
+if [ "${static_link_ok}" = "y" ]; then
+    libs_exts+=" a"
+fi
 
 ncurses_hdrs="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h"
 ncurses_libs="libncursesw libncurses libcurses"
@@ -501,10 +518,11 @@ has_or_abort lib="libstdc++"            \
 # The first is because we need one instance of libstdc++ (shared or static)
 # because it is needed for PPL; the second is because the static version is
 # required for static-linking, and if missing, the option is removed.
-has_or_warn  lib="libstdc++"    \
-             lib_exts="a"       \
+has_or_warn  lib="libstdc++"                \
+             lib_exts="a"                   \
              err="static 'libstdc++' is needed to statically link the toolchain's executables" \
-             kconfig=has_static_libstdcxx
+             kconfig=has_static_libstdcxx   \
+             skip="${static_link_ko}"
 
 has_or_warn  inc="expat.h"              \
              lib="libexpat"             \
@@ -516,10 +534,11 @@ has_or_warn  inc="expat.h"              \
 # The first is because we need one instance of libexpat (shared or static)
 # because it is needed for cross-gdb; the second is because the static version
 # is required for static-linking, and if missing, the option is removed.
-has_or_warn  lib="libexpat" \
-             lib_exts="a"   \
+has_or_warn  lib="libexpat"             \
+             lib_exts="a"               \
              err="static 'expat' is needed to statically link cross-gdb's executables" \
-             kconfig=has_static_expat
+             kconfig=has_static_expat   \
+             skip="${static_link_ko}"
 
 for v in 7 6 5 4; do
     python_incs="${python_incs} python2.${v}/Python.h"
