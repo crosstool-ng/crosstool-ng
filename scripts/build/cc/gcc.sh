@@ -267,6 +267,22 @@ do_cc_core() {
         *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
     esac
 
+    case "${CT_CC_GCC_mips_llsc}" in
+        y)  extra_config+=( --with-llsc );;
+        m)  ;;
+        *)  extra_config+=( --without-llsc );;
+    esac
+
+    case "${CT_CC_GCC_mips_synci}" in
+        y)  extra_config+=( --with-synci );;
+        m)  ;;
+        *)  extra_config+=( --without-synci );;
+    esac
+
+    if [ "${CT_CC_GCC_mips_plt}" ]; then
+        extra_config+=( --with-mips-plt )
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -543,6 +559,22 @@ do_cc() {
         "") ;;
         *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
     esac
+
+    case "${CT_CC_GCC_mips_llsc}" in
+        y)  extra_config+=( --with-llsc );;
+        m)  ;;
+        *)  extra_config+=( --without-llsc );;
+    esac
+
+    case "${CT_CC_GCC_mips_synci}" in
+        y)  extra_config+=( --with-synci );;
+        m)  ;;
+        *)  extra_config+=( --without-synci );;
+    esac
+
+    if [ "${CT_CC_GCC_mips_plt}" ]; then
+        extra_config+=( --with-mips-plt )
+    fi
 
     if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugin )
