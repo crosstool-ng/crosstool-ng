@@ -258,6 +258,10 @@ do_cc_core() {
         "") extra_config+=("--without-long-double-128");;
     esac
 
+    if [ "${CT_CC_GCC_BUILD_ID}" = "y" ]; then
+        extra_config+=( --enable-linker-build-id )
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -525,6 +529,10 @@ do_cc() {
         m)  ;;
         "") extra_config+=("--without-long-double-128");;
     esac
+
+    if [ "${CT_CC_GCC_BUILD_ID}" = "y" ]; then
+        extra_config+=( --enable-linker-build-id )
+    fi
 
     if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugin )
