@@ -276,7 +276,6 @@ do_cc_core() {
         ${CC_CORE_SYSROOT_ARG}                      \
         "${extra_config[@]}"                        \
         --disable-nls                               \
-        --enable-symvers=gnu                        \
         --enable-languages="${lang_opt}"            \
         "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}"
 
@@ -536,8 +535,6 @@ do_cc() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
-    # --enable-symvers=gnu really only needed for sh4 to work around a
-    # detection problem only matters for gcc-3.2.x and later, I think.
     # --disable-nls to work around crash bug on ppc405, but also because
     # embedded systems don't really need message catalogs...
     CT_DoExecLog CFG                                \
@@ -556,7 +553,6 @@ do_cc() {
         "${extra_config[@]}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --disable-nls                               \
-        --enable-symvers=gnu                        \
         --enable-c99                                \
         --enable-long-long                          \
         "${CT_CC_EXTRA_CONFIG_ARRAY[@]}"
