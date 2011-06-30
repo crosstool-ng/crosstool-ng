@@ -14,7 +14,13 @@
 # snapshots available.
 do_libc_get() {
     local addon
-    local svn_base="svn://svn.eglibc.org"
+    local svn_base
+
+    if [ "${CT_EGLIBC_HTTP}" = "y" ]; then
+        svn_base="http://www.eglibc.org/svn"
+    else
+        svn_base="svn://svn.eglibc.org"
+    fi
 
     case "${CT_LIBC_VERSION}" in
         trunk)  svn_base+="/trunk";;
