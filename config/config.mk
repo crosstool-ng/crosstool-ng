@@ -93,11 +93,11 @@ define build_gen_choice_in
 	    if [ "$(5)" = "Y" ]; then                                           \
 	      echo "    depends on $(3)_$${_entry}_AVAILABLE";                  \
 	    fi;                                                                 \
-	    sed -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;\
-	    sed -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;    \
+	    $(sed) -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;     \
+	    $(sed) -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;         \
 	    if grep -E '^## help' $${file} >/dev/null 2>&1; then                        \
 	      echo "    help";                                                          \
-	      sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null;   \
+	      $(sed) -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null;\
 	    fi;                                                                         \
 	    echo "";                                                            \
 	  done;                                                                 \
@@ -154,11 +154,11 @@ define build_gen_menu_in
 	    echo "menuconfig $(3)_$${_entry}";                                  \
 	    echo "    bool";                                                    \
 	    echo "    prompt \"$${entry}\"";                                    \
-	    sed -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;\
-	    sed -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;    \
+	    $(sed) -r -e '/^## depends on /!d; s/^## /    /;' $${file} 2>/dev/null;     \
+	    $(sed) -r -e '/^## select /!d; s/^## /    /;' $${file} 2>/dev/null;         \
 	    if grep -E '^## help' $${file} >/dev/null 2>&1; then                        \
 	      echo "    help";                                                          \
-	      sed -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null;   \
+	      $(sed) -r -e '/^## help ?/!d; s/^## help ?/      /;' $${file} 2>/dev/null;\
 	    fi;                                                                         \
 	    echo "";                                                            \
 	    echo "if $(3)_$${_entry}";                                          \
