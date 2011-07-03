@@ -267,21 +267,23 @@ do_cc_core() {
         *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
     esac
 
-    case "${CT_CC_GCC_mips_llsc}" in
-        y)  extra_config+=( --with-llsc );;
-        m)  ;;
-        *)  extra_config+=( --without-llsc );;
+    case "${CT_ARCH}" in
+        mips)
+            case "${CT_CC_GCC_mips_llsc}" in
+                y)  extra_config+=( --with-llsc );;
+                m)  ;;
+                *)  extra_config+=( --without-llsc );;
+            esac
+            case "${CT_CC_GCC_mips_synci}" in
+                y)  extra_config+=( --with-synci );;
+                m)  ;;
+                *)  extra_config+=( --without-synci );;
+            esac
+            if [ "${CT_CC_GCC_mips_plt}" ]; then
+                extra_config+=( --with-mips-plt )
+            fi
+            ;; # ARCH is mips
     esac
-
-    case "${CT_CC_GCC_mips_synci}" in
-        y)  extra_config+=( --with-synci );;
-        m)  ;;
-        *)  extra_config+=( --without-synci );;
-    esac
-
-    if [ "${CT_CC_GCC_mips_plt}" ]; then
-        extra_config+=( --with-mips-plt )
-    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
@@ -560,28 +562,30 @@ do_cc() {
         *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
     esac
 
-    case "${CT_CC_GCC_mips_llsc}" in
-        y)  extra_config+=( --with-llsc );;
-        m)  ;;
-        *)  extra_config+=( --without-llsc );;
-    esac
-
-    case "${CT_CC_GCC_mips_synci}" in
-        y)  extra_config+=( --with-synci );;
-        m)  ;;
-        *)  extra_config+=( --without-synci );;
-    esac
-
-    if [ "${CT_CC_GCC_mips_plt}" ]; then
-        extra_config+=( --with-mips-plt )
-    fi
-
     if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugin )
     fi
     if [ "${CT_CC_GCC_GOLD}" = "y" ]; then
         extra_config+=( --enable-gold )
     fi
+
+    case "${CT_ARCH}" in
+        mips)
+            case "${CT_CC_GCC_mips_llsc}" in
+                y)  extra_config+=( --with-llsc );;
+                m)  ;;
+                *)  extra_config+=( --without-llsc );;
+            esac
+            case "${CT_CC_GCC_mips_synci}" in
+                y)  extra_config+=( --with-synci );;
+                m)  ;;
+                *)  extra_config+=( --without-synci );;
+            esac
+            if [ "${CT_CC_GCC_mips_plt}" ]; then
+                extra_config+=( --with-mips-plt )
+            fi
+            ;; # ARCH is mips
+    esac
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
