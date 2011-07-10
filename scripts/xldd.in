@@ -243,6 +243,8 @@ do_find_needed() {
     else
         printf "%8s%s not found\n" "" "${needed}"
     fi
+
+    do_trace "Done searching for '${needed}'\n"
 }
 
 # Scan a file for all NEEDED tags
@@ -266,6 +268,7 @@ do_process_file() {
     for n in "${search_rpath[@]}" "${needed_search_path[@]}"; do
         do_trace ": - '${n}'\n"
     done
+    do_trace ": end search path"
 
     for n in $( "${readelf}" -d "${file}"                                           \
                 |"${grep}" -E '\(NEEDED\)'                                          \
@@ -282,9 +285,12 @@ do_process_file() {
         do_trace "-> handling new dependency '${n}'\n"
         needed_list+=( "${n}" )
         do_find_needed "${n}"
+        do_trace "-> done handling dependency '${n}'\n"
     done
 
     search_rpath=( "${save_search_rpath[@]}" )
+
+    do_trace "Finished parsing file '${file}'\n"
 }
 
 # Recursively scan a /etc/ld.so.conf file
@@ -304,6 +310,7 @@ do_scan_etc_ldsoconf() {
                 for f in ${g}; do
                     do_scan_etc_ldsoconf "${f}"
                 done
+                do_trace "-> finished handling include directive '${g}'\n"
                 ;;
             \#*|"")
                 ;;
@@ -313,6 +320,8 @@ do_scan_etc_ldsoconf() {
                 ;;
         esac
     done <"${ldsoconf}"
+
+    do_trace "Finished parsing ld.so.conf: '${ldsoconf}'\n"
 }
 
 # Build up the full list of search directories
@@ -327,14 +336,17 @@ while [ -n "${ld_library_path}" ]; do
     fi
     ld_library_path="${ld_library_path#*:}"
 done
+do_trace "Done adding basic lib dirs\n"
 do_trace "Scanning '/etc/ld.so.conf'\n"
 do_scan_etc_ldsoconf "${root}/etc/ld.so.conf"
+do_trace "Done scanning '/etc/ld.so.conf'\n"
 do_trace "Search path:\n"
 for p in "${needed_search_path[@]}"; do
     do_trace "-> '${p}'\n"
 done
 
-do_trace "Scanning file '${1}'\n"
 declare -a needed_list
 declare -a search_rpath
+do_trace "Scanning file '${1}'\n"
 do_process_file "${1}"
+do_trace "Done scanning file '${1}'\n"
