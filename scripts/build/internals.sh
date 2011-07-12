@@ -86,14 +86,14 @@ do_finish() {
     for t in "${CT_TARGET}-"*; do
         if [ -n "${CT_TARGET_ALIAS}" ]; then
             _t=$(echo "$t" |sed -r -e 's/^'"${CT_TARGET}"'-/'"${CT_TARGET_ALIAS}"'-/;')
-            CT_DoExecLog ALL ln -sv "${t}" "${_t}"
+            CT_DoExecLog ALL ln -sfv "${t}" "${_t}"
         fi
         if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
             _t=$(echo "$t" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
             if [ "${_t}" = "${t}" ]; then
                 CT_DoLog WARN "The sed expression '${CT_TARGET_ALIAS_SED_EXPR}' has no effect on '${t}'"
             else
-                CT_DoExecLog ALL ln -sv "${t}" "${_t}"
+                CT_DoExecLog ALL ln -sfv "${t}" "${_t}"
             fi
         fi
     done
