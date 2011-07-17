@@ -55,21 +55,39 @@ do_cc_extract() {
 #------------------------------------------------------------------------------
 # Core gcc pass 1
 do_cc_core_pass_1() {
+    local -a core_opts
+    local do_core
+
     # If we're building for bare metal, build the static core gcc,
     # with libgcc.
     # In case we're not bare metal and building a canadian compiler, do nothing
     # In case we're not bare metal, and we're NPTL, build the static core gcc.
     # In any other case, do nothing.
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
-        y,*,*)  do_cc_core mode=static;;
-        ,y,*)   ;;
-        ,,nptl) do_cc_core mode=static;;
-        *)      ;;
+        y,*,*)
+            do_core=y
+            core_opts+=( "mode=static" )
+            ;;
+        ,y,*)
+            ;;
+        ,,nptl)
+            do_core=y
+            core_opts+=( "mode=static" )
+            ;;
+        *)
+            ;;
     esac
+
+    if [ "${do_core}" = "y" ]; then
+        do_cc_core "${core_opts[@]}"
+    fi
 }
 
 # Core gcc pass 2
 do_cc_core_pass_2() {
+    local -a core_opts
+    local do_core
+
     # In case we're building for bare metal, do nothing, we already have
     # our compiler.
     # In case we're not bare metal and building a canadian compiler, do nothing
@@ -78,31 +96,43 @@ do_cc_core_pass_2() {
     # also build the target libgcc.
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
         y,*,*)
+            do_core=y
+            core_opts+=( "mode=baremetal" )
+            core_opts+=( "build_libgcc=yes" )
+            core_opts+=( "build_libstdcxx=yes" )
             if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
-                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes build_staticlinked=yes build_manuals=yes
-            else
-                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes build_manuals=yes
+                core_opts+=( "build_staticlinked=yes" )
             fi
+            core_opts+=( "build_manuals=yes" )
             ;;
         ,y,*)   ;;
         ,,nptl)
-            do_cc_core mode=shared build_libgcc=yes
+            do_core=y
+            core_opts+=( "mode=shared" )
+            core_opts+=( "build_libgcc=yes" )
             ;;
         ,,win32)
-            do_cc_core mode=static build_libgcc=yes
+            do_core=y
+            core_opts+=( "mode=static" )
+            core_opts+=( "build_libgcc=yes" )
             ;;
-        *)  if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
-                do_cc_core mode=static build_libgcc=yes
-            else
-                do_cc_core mode=static
+        *)
+            do_core=y
+            core_opts+=( "mode=static" )
+            if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
+                core_opts+=( "build_libgcc=yes" )
             fi
             ;;
     esac
+
+    if [ "${do_core}" = "y" ]; then
+        do_cc_core "${core_opts[@]}"
+    fi
 }
 
 #------------------------------------------------------------------------------
 # Build core gcc
-# This function is used to build both the static and the shared core C conpiler,
+# This function is used to build both the static and the shared core C compiler,
 # with or without the target libgcc. We need to know wether:
 #  - we're building static, shared or bare metal: mode=[static|shared|baremetal]
 #  - we need to build libgcc or not             : build_libgcc=[yes|no]       (default: no)
