@@ -68,6 +68,7 @@ do_cc_core_pass_1() {
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             ;;
         ,y,*)
             ;;
@@ -75,6 +76,7 @@ do_cc_core_pass_1() {
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             ;;
         *)
             ;;
@@ -103,6 +105,7 @@ do_cc_core_pass_2() {
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "build_libstdcxx=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+            core_opts+=( "prefix=${CT_PREFIX_DIR}" )
             if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
                 core_opts+=( "build_staticlinked=yes" )
             fi
@@ -114,17 +117,20 @@ do_cc_core_pass_2() {
             core_opts+=( "mode=shared" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+            core_opts+=( "prefix=${CT_CC_CORE_SHARED_PREFIX_DIR}" )
             ;;
         ,,win32)
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             ;;
         *)
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 core_opts+=( "build_libgcc=yes" )
             fi
@@ -145,6 +151,7 @@ do_cc_core_pass_2() {
 #  - we need to build libstdc++ or not          : build_libstdcxx=[yes|no]    (default: no)
 #  - we need to build statically linked or not  : build_staticlinked=[yes|no] (default: no)
 #  - where to find the companion libs (prefix)  : complibs=<prefix_dir>       (no default value)
+#  - the prefix to install into (directory)     : prefix=<directory>          (no default value)
 # Usage: do_cc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_cc_core_backend() {
     local mode
@@ -152,7 +159,7 @@ do_cc_core_backend() {
     local build_libstdcxx=no
     local build_staticlinked=no
     local build_manuals=no
-    local core_prefix_dir
+    local prefix
     local complibs
     local lang_opt
     local tmp
@@ -169,7 +176,6 @@ do_cc_core_backend() {
     lang_opt=c
     case "${mode}" in
         static)
-            core_prefix_dir="${CT_CC_CORE_STATIC_PREFIX_DIR}"
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
@@ -177,12 +183,10 @@ do_cc_core_backend() {
                             # we copy an empty directory. So, who cares?
             ;;
         shared)
-            core_prefix_dir="${CT_CC_CORE_SHARED_PREFIX_DIR}"
             extra_config+=("--enable-shared")
             copy_headers=y
             ;;
         baremetal)
-            core_prefix_dir="${CT_PREFIX_DIR}"
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
@@ -206,7 +210,7 @@ do_cc_core_backend() {
 
     if [ "${copy_headers}" = "y" ]; then
         CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
-        CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${core_prefix_dir}/${CT_TARGET}/include"
+        CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
     fi
 
     CT_DoLog EXTRA "Configuring ${mode} core C compiler"
@@ -352,7 +356,7 @@ do_cc_core_backend() {
         --build=${CT_BUILD}                         \
         --host=${CT_HOST}                           \
         --target=${CT_TARGET}                       \
-        --prefix="${core_prefix_dir}"               \
+        --prefix="${prefix}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --disable-libmudflap                        \
         ${CC_CORE_SYSROOT_ARG}                      \
@@ -442,9 +446,9 @@ do_cc_core_backend() {
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
-    file="$( ls -1 "${core_prefix_dir}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    file="$( ls -1 "${prefix}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
-    CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${core_prefix_dir}/bin/${CT_TARGET}-cc${ext}"
+    CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
 
     if [ "${CT_MULTILIB}" = "y" ]; then
         multilibs=( $( "${core_prefix_dir}/bin/${CT_TARGET}-gcc" -print-multi-lib   \
