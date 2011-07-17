@@ -123,7 +123,7 @@ $1=="+++" && mark==1 { nextfile; }
     read -p "  --> enter patch depth (or Ctrl-C to abort): " d
   fi
 
-  # Store the original list of fiels touched by the patch,
+  # Store the original list of files touched by the patch,
   # removing the $d leading components
   sed -r -e "s:^([^/]+/){${d}}::;" "../diffstat.orig" >"${dst}/${pname}.diffstat.orig"
 

@@ -129,7 +129,7 @@ ALL_DEPS = $(sort $(COMMON_DEP) $(LX_DEP) $(conf_DEP) $(mconf_DEP) $(nconf_DEP))
 # Cheesy auto-dependencies
 # Only parse the following if a configurator was called, to avoid building
 # dependencies when not needed (eg. list-steps, list-samples...)
-# We must be carefull what we enclose, because we need some of the variable
+# We must be careful what we enclose, because we need some of the variable
 # definitions for clean (and distclean) at least.
 # Just protecting the "-include $(DEPS)" line should be sufficient.
 # And in case we want menuconfig, we have to check that lxdialog
@@ -159,7 +159,7 @@ endif # MAKECMDGOALS != ""
 
 # Each .o or .dep *can not* directly depend on kconfig/, because kconfig can
 # be touched during the build (who's touching it, btw?) so each .o or .dep
-# would be re-built when it sould not be.
+# would be re-built when it should not be.
 # So manually check for presence of $(obj) (ie. kconfig), and only mkdir
 # if needed. After all, that's not so bad...
 # mkdir $(obj)/lxdialog, because we need it, and incidentally, that

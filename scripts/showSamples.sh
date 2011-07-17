@@ -184,7 +184,7 @@ for sample in "${@}"; do
 done
 
 if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  || **X**: sample uses features marked as being EXPERIMENTAL.\\\\\\\\ **B**: sample is curently BROKEN. |||||||||||||"
+    printf "^ Total: ${#@} samples  || **X**: sample uses features marked as being EXPERIMENTAL.\\\\\\\\ **B**: sample is currently BROKEN. |||||||||||||"
     echo   ""
 elif [ -z "${opt}" ]; then
     echo '      L (Local)       : sample was found in current directory'
