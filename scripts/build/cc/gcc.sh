@@ -105,17 +105,11 @@ do_cc_core_pass_2() {
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
         y,*,*)
             do_core=y
-            core_opts+=( "mode=baremetal" )
             core_opts+=( "host=${CT_HOST}" )
-            core_opts+=( "build_libgcc=yes" )
-            core_opts+=( "build_libstdcxx=yes" )
+            core_opts+=( "mode=static" )
+            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "prefix=${CT_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
-            if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
-                core_opts+=( "build_staticlinked=yes" )
-            fi
-            core_opts+=( "build_manuals=yes" )
             ;;
         ,y,*)   ;;
         ,,nptl)
@@ -488,13 +482,26 @@ do_cc_core_backend() {
 # Build final gcc
 do_cc() {
     local -a final_opts
+    local final_backend
 
     final_opts+=( "host=${CT_HOST}" )
     final_opts+=( "prefix=${CT_PREFIX_DIR}" )
     final_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
     final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    if [ "${CT_BARE_METAL}" = "y" ]; then
+        final_opts+=( "mode=baremetal" )
+        final_opts+=( "build_libgcc=yes" )
+        final_opts+=( "build_libstdcxx=yes" )
+        if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+            final_opts+=( "build_staticlinked=yes" )
+        fi
+        final_opts+=( "build_manuals=yes" )
+        final_backend=do_cc_core_backend
+    else
+        final_backend=do_cc_backend
+    fi
 
-    do_cc_backend "${final_opts[@]}"
+    "${final_backend}" "${final_opts[@]}"
 }
 
 #------------------------------------------------------------------------------
