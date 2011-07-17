@@ -67,6 +67,7 @@ do_cc_core_pass_1() {
         y,*,*)
             do_core=y
             core_opts+=( "mode=static" )
+            core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             ;;
@@ -75,6 +76,7 @@ do_cc_core_pass_1() {
         ,,nptl)
             do_core=y
             core_opts+=( "mode=static" )
+            core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             ;;
@@ -102,6 +104,7 @@ do_cc_core_pass_2() {
         y,*,*)
             do_core=y
             core_opts+=( "mode=baremetal" )
+            core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "build_libstdcxx=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
@@ -115,6 +118,7 @@ do_cc_core_pass_2() {
         ,,nptl)
             do_core=y
             core_opts+=( "mode=shared" )
+            core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "prefix=${CT_CC_CORE_SHARED_PREFIX_DIR}" )
@@ -122,6 +126,7 @@ do_cc_core_pass_2() {
         ,,win32)
             do_core=y
             core_opts+=( "mode=static" )
+            core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
@@ -129,6 +134,7 @@ do_cc_core_pass_2() {
         *)
             do_core=y
             core_opts+=( "mode=static" )
+            core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
@@ -152,6 +158,7 @@ do_cc_core_pass_2() {
 #  - we need to build statically linked or not  : build_staticlinked=[yes|no] (default: no)
 #  - where to find the companion libs (prefix)  : complibs=<prefix_dir>       (no default value)
 #  - the prefix to install into (directory)     : prefix=<directory>          (no default value)
+#  - the machine we will run on (tuple)         : host=<tuple>                (no default tuple)
 # Usage: do_cc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_cc_core_backend() {
     local mode
@@ -159,6 +166,7 @@ do_cc_core_backend() {
     local build_libstdcxx=no
     local build_staticlinked=no
     local build_manuals=no
+    local host
     local prefix
     local complibs
     local lang_opt
@@ -354,7 +362,7 @@ do_cc_core_backend() {
     LDFLAGS="${core_LDFLAGS[*]}"                    \
     "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
-        --host=${CT_HOST}                           \
+        --host=${host}                              \
         --target=${CT_TARGET}                       \
         --prefix="${prefix}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
