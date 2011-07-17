@@ -487,15 +487,44 @@ do_cc_core_backend() {
 #------------------------------------------------------------------------------
 # Build final gcc
 do_cc() {
+    local -a final_opts
+
+    final_opts+=( "host=${CT_HOST}" )
+    final_opts+=( "prefix=${CT_PREFIX_DIR}" )
+    final_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+    final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+
+    do_cc_backend "${final_opts[@]}"
+}
+
+#------------------------------------------------------------------------------
+# Build final gcc
+# Usage: do_cc_backend param=value ...
+# and so on for other parameters:
+#   Parameter     : Definition                          : Type      : Default
+#   host          : the host we run onto                : tuple     : (none)
+#   prefix        : the runtime prefix                  : dir       : (none)
+#   complibs      : the companion libraries prefix      : dir       : (none)
+#   cflags        : the host CFLAGS                     : string    : (empty)
+do_cc_backend() {
+    local host
+    local prefix
+    local complibs
+    local cflags
     local -a host_libstdcxx_flags
     local -a extra_config
     local -a final_LDFLAGS
     local tmp
+    local arg
 
     # If building for bare metal, nothing to be done here, the static core conpiler is enough!
     [ "${CT_BARE_METAL}" = "y" ] && return 0
 
     CT_DoStep INFO "Installing final compiler"
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
 
     mkdir -p "${CT_BUILD_DIR}/build-cc"
     cd "${CT_BUILD_DIR}/build-cc"
@@ -592,26 +621,26 @@ do_cc() {
     fi
 
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
-        extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-gmp=${complibs}")
+        extra_config+=("--with-mpfr=${complibs}")
     fi
     if [ "${CT_CC_GCC_USE_MPC}" = "y" ]; then
-        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-mpc=${complibs}")
     fi
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
-        extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-ppl=${complibs}")
         # With PPL 0.11+, also pull libpwl if needed
         if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
-            host_libstdcxx_flags+=("-L${CT_COMPLIBS_DIR}/lib")
+            host_libstdcxx_flags+=("-L${complibs}/lib")
             host_libstdcxx_flags+=("-lpwl")
         fi
-        extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-cloog=${complibs}")
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=no")
         extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
-        extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-libelf=${complibs}")
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=no")
     fi
@@ -698,16 +727,16 @@ do_cc() {
 
     CT_DoExecLog CFG                                \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CFLAGS="${cflags}"                              \
     LDFLAGS="${final_LDFLAGS[*]}"                   \
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"         \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"       \
     "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
-        --host=${CT_HOST}                           \
+        --host=${host}                              \
         --target=${CT_TARGET}                       \
-        --prefix="${CT_PREFIX_DIR}"                 \
+        --prefix="${prefix}"                        \
         ${CC_SYSROOT_ARG}                           \
         "${extra_config[@]}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
