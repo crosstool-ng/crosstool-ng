@@ -4,9 +4,9 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 # Default: do nothing
-do_elf2flt_get()     { :; }
-do_elf2flt_extract() { :; }
-do_elf2flt()         { :; }
+do_elf2flt_get()        { :; }
+do_elf2flt_extract()    { :; }
+do_elf2flt_for_host()   { :; }
 
 if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
 
@@ -25,25 +25,74 @@ do_elf2flt_extract() {
     CT_Patch "elf2flt-cvs" "${CT_ELF2FLT_VERSION}"
 }
 
-# Build elf2flt
-do_elf2flt() {
-    mkdir -p "${CT_BUILD_DIR}/build-elf2flt"
-    cd "${CT_BUILD_DIR}/build-elf2flt"
+# Build elf2flt for host -> target
+do_elf2flt_for_host() {
+    local -a elf2flt_opts
 
-    CT_DoStep INFO "Installing elf2flt"
+    CT_DoStep INFO "Installing elf2flt for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-elf2flt-host-${CT_HOST}"
+
+    elf2flt_opts+=( "host=${CT_HOST}" )
+    elf2flt_opts+=( "prefix=${CT_PREFIX_DIR}" )
+    elf2flt_opts+=( "static_build=${CT_STATIC_TOOLCHAIN}" )
+    elf2flt_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+
+    do_elf2flt_backend "${elf2flt_opts[@]}"
+
+    # Make those new tools available to the core C compilers to come.
+    # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
+    # well. Create that.
+    # Don't do it for canadian or cross-native, because the binutils
+    # are not executable on the build machine.
+    case "${CT_TOOLCHAIN_TYPE}" in
+        cross|native)
+            mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin"
+            mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
+            for t in elf2flt flthdr; do
+                CT_DoExecLog ALL ln -sv                                         \
+                                    "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}"    \
+                                    "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
+                CT_DoExecLog ALL ln -sv                                         \
+                                    "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}"    \
+                                    "${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
+            done
+            ;;
+        *)  ;;
+    esac
+
+    CT_Popd
+    CT_EndStep
+}
+
+# Build elf2flt for X -> target
+#     Parameter     : description               : type      : default
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     static_build  : build statcially          : bool      : no
+#     cflags        : host cflags to use        : string    : (empty)
+do_elf2flt_backend() {
+    local host
+    local prefix
+    local static_build
+    local cflags
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
 
     elf2flt_opts=
-    binutils_bld=${CT_BUILD_DIR}/build-binutils
-    binutils_src=${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}
+    binutils_bld="${CT_BUILD_DIR}/build-binutils-host-${CT_HOST}"
+    binutils_src="${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}"
 
     CT_DoLog EXTRA "Configuring elf2flt"
     CT_DoExecLog CFG                                            \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                              \
+    CFLAGS="${host_cflags}"                                     \
     "${CT_SRC_DIR}/elf2flt-cvs-${CT_ELF2FLT_VERSION}/configure" \
         --build=${CT_BUILD}                                     \
-        --host=${CT_HOST}                                       \
+        --host=${host}                                          \
         --target=${CT_TARGET}                                   \
-        --prefix=${CT_PREFIX_DIR}                               \
+        --prefix=${prefix}                                      \
         --with-bfd-include-dir=${binutils_bld}/bfd              \
         --with-binutils-include-dir=${binutils_src}/include     \
         --with-libbfd=${binutils_bld}/bfd/libbfd.a              \
@@ -56,25 +105,6 @@ do_elf2flt() {
 
     CT_DoLog EXTRA "Installing elf2flt"
     CT_DoExecLog ALL make install
-
-    # Make those new tools available to the core C compilers to come.
-    # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
-    # well. Create that.
-    # Don't do it for canadian or cross-native, because the binutils
-    # are not executable on the build machine.
-    case "${CT_TOOLCHAIN_TYPE}" in
-        cross|native)
-            mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin"
-            mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
-            for t in elf2flt flthdr; do
-                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
-                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
-            done 2>&1 |CT_DoLog ALL
-            ;;
-        *)  ;;
-    esac
-
-    CT_EndStep
 }
 
 fi # CT_ARCH_BINFMT_FLAT

@@ -23,9 +23,9 @@ CT_STEPS := libc_check_config   \
             cloog               \
             mpc                 \
             libelf              \
-            binutils            \
-            elf2flt             \
-            sstrip              \
+            binutils_for_host   \
+            elf2flt_for_host    \
+            sstrip_for_host     \
             cc_core_pass_1      \
             kernel_headers      \
             libc_start_files    \
