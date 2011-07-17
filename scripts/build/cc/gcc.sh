@@ -67,12 +67,14 @@ do_cc_core_pass_1() {
         y,*,*)
             do_core=y
             core_opts+=( "mode=static" )
+            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             ;;
         ,y,*)
             ;;
         ,,nptl)
             do_core=y
             core_opts+=( "mode=static" )
+            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             ;;
         *)
             ;;
@@ -100,6 +102,7 @@ do_cc_core_pass_2() {
             core_opts+=( "mode=baremetal" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "build_libstdcxx=yes" )
+            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
                 core_opts+=( "build_staticlinked=yes" )
             fi
@@ -110,15 +113,18 @@ do_cc_core_pass_2() {
             do_core=y
             core_opts+=( "mode=shared" )
             core_opts+=( "build_libgcc=yes" )
+            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             ;;
         ,,win32)
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "build_libgcc=yes" )
+            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             ;;
         *)
             do_core=y
             core_opts+=( "mode=static" )
+            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 core_opts+=( "build_libgcc=yes" )
             fi
@@ -138,6 +144,7 @@ do_cc_core_pass_2() {
 #  - we need to build libgcc or not             : build_libgcc=[yes|no]       (default: no)
 #  - we need to build libstdc++ or not          : build_libstdcxx=[yes|no]    (default: no)
 #  - we need to build statically linked or not  : build_staticlinked=[yes|no] (default: no)
+#  - where to find the companion libs (prefix)  : complibs=<prefix_dir>       (no default value)
 # Usage: do_cc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_cc_core_backend() {
     local mode
@@ -146,6 +153,7 @@ do_cc_core_backend() {
     local build_staticlinked=no
     local build_manuals=no
     local core_prefix_dir
+    local complibs
     local lang_opt
     local tmp
     local -a host_libstdcxx_flags
@@ -249,26 +257,26 @@ do_cc_core_backend() {
     fi
 
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${CT_COMPLIBS_DIR}")
-        extra_config+=("--with-mpfr=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-gmp=${complibs}")
+        extra_config+=("--with-mpfr=${complibs}")
     fi
     if [ "${CT_CC_GCC_USE_MPC}" = "y" ]; then
-        extra_config+=("--with-mpc=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-mpc=${complibs}")
     fi
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
-        extra_config+=("--with-ppl=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-ppl=${complibs}")
         # With PPL 0.11+, also pull libpwl if needed
         if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
-            host_libstdcxx_flags+=("-L${CT_COMPLIBS_DIR}/lib")
+            host_libstdcxx_flags+=("-L${complibs}/lib")
             host_libstdcxx_flags+=("-lpwl")
         fi
-        extra_config+=("--with-cloog=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-cloog=${complibs}")
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=no")
         extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
-        extra_config+=("--with-libelf=${CT_COMPLIBS_DIR}")
+        extra_config+=("--with-libelf=${complibs}")
         extra_config+=("--enable-lto")
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=no")
