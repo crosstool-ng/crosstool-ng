@@ -69,7 +69,7 @@ do_cc_core_pass_1() {
         ,,nptl)
             do_core=y
             core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_HOST}" )
+            core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
@@ -104,7 +104,7 @@ do_cc_core_pass_2() {
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
         y,*,*)
             do_core=y
-            core_opts+=( "host=${CT_HOST}" )
+            core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "mode=static" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
@@ -113,7 +113,7 @@ do_cc_core_pass_2() {
         ,,nptl)
             do_core=y
             core_opts+=( "mode=shared" )
-            core_opts+=( "host=${CT_HOST}" )
+            core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
@@ -121,7 +121,7 @@ do_cc_core_pass_2() {
         ,,win32)
             do_core=y
             core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_HOST}" )
+            core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
@@ -129,7 +129,7 @@ do_cc_core_pass_2() {
         *)
             do_core=y
             core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_HOST}" )
+            core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
