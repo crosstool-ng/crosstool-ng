@@ -49,6 +49,10 @@ do_libc_check_config() {
 }
 
 do_libc_start_files() {
+    :
+}
+
+do_libc() {
     local -a newlib_opts
 
     CT_DoStep INFO "Installing C library"
@@ -126,10 +130,6 @@ do_libc_start_files() {
     fi
 
     CT_EndStep
-}
-
-do_libc() {
-    :
 }
 
 do_libc_finish() {
