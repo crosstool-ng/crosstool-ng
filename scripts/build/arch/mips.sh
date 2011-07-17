@@ -1,4 +1,4 @@
-# Compute IA-64-specific values
+# Compute MIPS-specific values
 
 CT_DoArchTupleValues() {
     # The architecture part of the tuple, override only for 64-bit

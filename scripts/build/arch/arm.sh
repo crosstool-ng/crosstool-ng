@@ -11,7 +11,7 @@ CT_DoArchTupleValues() {
         *,y)        CT_TARGET_SYS=eabi;;
     esac
 
-    # Set the default instrcution set mode
+    # Set the default instruction set mode
     case "${CT_ARCH_ARM_MODE}" in
         arm)    ;;
         thumb)
