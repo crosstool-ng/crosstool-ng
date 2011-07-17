@@ -2,7 +2,7 @@
 
 do_libelf_get() { :; }
 do_libelf_extract() { :; }
-do_libelf() { :; }
+do_libelf_for_host() { :; }
 do_libelf_for_target() { :; }
 
 if [ "${CT_LIBELF}" = "y" -o "${CT_LIBELF_TARGET}" = "y" ]; then
@@ -21,32 +21,17 @@ do_libelf_extract() {
 
 if [ "${CT_LIBELF}" = "y" ]; then
 
-do_libelf() {
-    CT_DoStep INFO "Installing libelf"
-    mkdir -p "${CT_BUILD_DIR}/build-libelf"
-    CT_Pushd "${CT_BUILD_DIR}/build-libelf"
+# Build libelf for running on host
+do_libelf_for_host() {
+    local -a libelf_opts
 
-    CT_DoLog EXTRA "Configuring libelf"
+    CT_DoStep INFO "Installing libelf for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libelf-host-${CT_HOST}"
 
-    CT_DoExecLog CFG                                        \
-    CC="${CT_HOST}-gcc"                                     \
-    CFLAGS="-fPIC"                                          \
-    "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
-        --build=${CT_BUILD}                                 \
-        --host=${CT_HOST}                                   \
-        --target=${CT_TARGET}                               \
-        --prefix="${CT_COMPLIBS_DIR}"                       \
-        --enable-compat                                     \
-        --enable-elf64                                      \
-        --enable-extended-format                            \
-        --disable-shared                                    \
-        --enable-static
-
-    CT_DoLog EXTRA "Building libelf"
-    CT_DoExecLog ALL make
-
-    CT_DoLog EXTRA "Installing libelf"
-    CT_DoExecLog ALL make install
+    libelf_opts+=( "host=${CT_HOST}" )
+    libelf_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    libelf_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    do_libelf_backend "${libelf_opts[@]}"
 
     CT_Popd
     CT_EndStep
@@ -57,36 +42,71 @@ fi # CT_LIBELF
 if [ "${CT_LIBELF_TARGET}" = "y" ]; then
 
 do_libelf_for_target() {
+    local -a libelf_opts
+
     CT_DoStep INFO "Installing libelf for the target"
-    mkdir -p "${CT_BUILD_DIR}/build-libelf-for-target"
-    CT_Pushd "${CT_BUILD_DIR}/build-libelf-for-target"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libelf-target-${CT_TARGET}"
 
-    CT_DoLog EXTRA "Configuring libelf"
-    CT_DoExecLog CFG                                        \
-    CC="${CT_TARGET}-gcc"                                   \
-    CFLAGS="-fPIC"                                          \
-    RANLIB="${CT_TARGET}-ranlib"                            \
-    "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
-        --build=${CT_BUILD}                                 \
-        --host=${CT_TARGET}                                 \
-        --target=${CT_TARGET}                               \
-        --prefix=/usr                                       \
-        --enable-compat                                     \
-        --enable-elf64                                      \
-        --enable-shared                                     \
-        --enable-extended-format                            \
-        --enable-static
-
-    CT_DoLog EXTRA "Building libelf"
-    CT_DoExecLog ALL make
-
-    CT_DoLog EXTRA "Installing libelf"
-    CT_DoExecLog ALL make instroot="${CT_SYSROOT_DIR}" install
+    libelf_opts+=( "destdir=${CT_SYSROOT_DIR}" )
+    libelf_opts+=( "host=${CT_TARGET}" )
+    libelf_opts+=( "prefix=/usr" )
+    libelf_opts+=( "shared=y" )
+    do_libelf_backend "${libelf_opts[@]}"
 
     CT_Popd
     CT_EndStep
 }
 
 fi # CT_LIBELF_TARGET
+
+# Build libelf
+#     Parameter     : description               : type      : default
+#     destdir       : out-of-tree install dir   : string    : /
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     cflags        : host cflags to use        : string    : (empty)
+#     shared        : also buils shared lib     : bool      : n
+do_libelf_backend() {
+    local destdir="/"
+    local host
+    local prefix
+    local cflags
+    local shared
+    local -a extra_config
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoLog EXTRA "Configuring libelf"
+
+    if [ "${shared}" = "y" ]; then
+        extra_config+=( --enable-shared )
+    else
+        extra_config+=( --disable-shared )
+    fi
+
+    CT_DoExecLog CFG                                        \
+    CC="${host}-gcc"                                        \
+    RANLIB="${host}-ranlib"                                 \
+    CFLAGS="${cflags} -fPIC"                                \
+    "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
+        --build=${CT_BUILD}                                 \
+        --host=${host}                                      \
+        --target=${CT_TARGET}                               \
+        --prefix="${prefix}"                                \
+        --enable-compat                                     \
+        --enable-elf64                                      \
+        --enable-extended-format                            \
+        --enable-static                                     \
+        "${extra_config[@]}"
+
+    CT_DoLog EXTRA "Building libelf"
+    CT_DoExecLog ALL make
+
+    CT_DoLog EXTRA "Installing libelf"
+    CT_DoExecLog ALL make instroot="${destdir}" install
+}
 
 fi # CT_LIBELF || CT_LIBELF_TARGET

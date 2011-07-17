@@ -4,7 +4,7 @@
 
 do_gmp_get() { :; }
 do_gmp_extract() { :; }
-do_gmp() { :; }
+do_gmp_for_host() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_GMP}" = "y" ]; then
@@ -20,20 +20,45 @@ do_gmp_extract() {
     CT_Patch "gmp" "${CT_GMP_VERSION}"
 }
 
-do_gmp() {
-    mkdir -p "${CT_BUILD_DIR}/build-gmp"
-    cd "${CT_BUILD_DIR}/build-gmp"
+# Build GMP for running on host
+do_gmp_for_host() {
+    local -a gmp_opts
 
-    CT_DoStep INFO "Installing GMP"
+    CT_DoStep INFO "Installing GMP for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-gmp-host-${CT_HOST}"
+
+    gmp_opts+=( "host=${CT_HOST}" )
+    gmp_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    gmp_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    do_gmp_backend "${gmp_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+
+# Build GMP
+#     Parameter     : description               : type      : default
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     cflags        : host cflags to use        : string    : (empty)
+do_gmp_backend() {
+    local host
+    local prefix
+    local cflags
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
 
     CT_DoLog EXTRA "Configuring GMP"
 
     CT_DoExecLog CFG                                \
-    CFLAGS="${CT_CFLAGS_FOR_HOST} -fexceptions"     \
+    CFLAGS="${cflags} -fexceptions"                 \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
         --build=${CT_BUILD}                         \
-        --host=${CT_HOST}                           \
-        --prefix="${CT_COMPLIBS_DIR}"               \
+        --host=${host}                              \
+        --prefix="${prefix}"                        \
         --enable-fft                                \
         --enable-mpbsd                              \
         --enable-cxx                                \
@@ -50,8 +75,6 @@ do_gmp() {
 
     CT_DoLog EXTRA "Installing GMP"
     CT_DoExecLog ALL make install
-
-    CT_EndStep
 }
 
 fi # CT_GMP

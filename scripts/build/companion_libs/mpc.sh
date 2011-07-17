@@ -4,7 +4,7 @@
 
 do_mpc_get() { :; }
 do_mpc_extract() { :; }
-do_mpc() { :; }
+do_mpc_for_host() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_MPC}" = "y" ]; then
@@ -21,22 +21,47 @@ do_mpc_extract() {
     CT_Patch "mpc" "${CT_MPC_VERSION}"
 }
 
-do_mpc() {
-    mkdir -p "${CT_BUILD_DIR}/build-mpc"
-    cd "${CT_BUILD_DIR}/build-mpc"
+# Build MPC for running on host
+do_mpc_for_host() {
+    local -a mpc_opts
 
-    CT_DoStep INFO "Installing MPC"
+    CT_DoStep INFO "Installing MPC for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-mpc-host-${CT_HOST}"
+
+    mpc_opts+=( "host=${CT_HOST}" )
+    mpc_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    mpc_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    do_mpc_backend "${mpc_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+
+# Build MPC
+#     Parameter     : description               : type      : default
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     cflags        : host cflags to use        : string    : (empty)
+do_mpc_backend() {
+    local host
+    local prefix
+    local cflags
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
 
     CT_DoLog EXTRA "Configuring MPC"
 
     CT_DoExecLog CFG                                \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
+    CFLAGS="${cflags}"                              \
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
         --build=${CT_BUILD}                         \
-        --host=${CT_HOST}                           \
-        --prefix="${CT_COMPLIBS_DIR}"               \
-        --with-gmp="${CT_COMPLIBS_DIR}"             \
-        --with-mpfr="${CT_COMPLIBS_DIR}"            \
+        --host=${host}                              \
+        --prefix="${prefix}"                        \
+        --with-gmp="${prefix}"                      \
+        --with-mpfr="${prefix}"                     \
         --disable-shared                            \
         --enable-static
 
@@ -50,8 +75,6 @@ do_mpc() {
 
     CT_DoLog EXTRA "Installing MPC"
     CT_DoExecLog ALL make install
-
-    CT_EndStep
 }
 
 fi # CT_MPC

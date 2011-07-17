@@ -4,7 +4,7 @@
 
 do_ppl_get() { :; }
 do_ppl_extract() { :; }
-do_ppl() { :; }
+do_ppl_for_host() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_PPL}" = "y" ]; then
@@ -23,25 +23,49 @@ do_ppl_extract() {
     CT_Patch "ppl" "${CT_PPL_VERSION}"
 }
 
-do_ppl() {
-    mkdir -p "${CT_BUILD_DIR}/build-ppl"
-    cd "${CT_BUILD_DIR}/build-ppl"
+# Build PPL for running on host
+do_ppl_for_host() {
+    local -a ppl_opts
 
-    CT_DoStep INFO "Installing PPL"
+    CT_DoStep INFO "Installing PPL for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-ppl-host-${CT_HOST}"
+
+    ppl_opts+=( "host=${CT_HOST}" )
+    ppl_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    ppl_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    do_ppl_backend "${ppl_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+
+# Build PPL
+#     Parameter     : description               : type      : default
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     cflags        : host cflags to use        : string    : (empty)
+do_ppl_backend() {
+    local host
+    local prefix
+    local cflags
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
 
     CT_DoLog EXTRA "Configuring PPL"
 
-
     CT_DoExecLog CFG                                \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
-    CXXFLAGS="${CT_CFLAGS_FOR_HOST}"                \
+    CFLAGS="${cflags}"                              \
+    CXXFLAGS="${cflags}"                            \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
-        --host=${CT_HOST}                           \
-        --prefix="${CT_COMPLIBS_DIR}"               \
-        --with-libgmp-prefix="${CT_COMPLIBS_DIR}"   \
-        --with-libgmpxx-prefix="${CT_COMPLIBS_DIR}" \
-        --with-gmp-prefix="${CT_COMPLIBS_DIR}"      \
+        --host=${host}                              \
+        --prefix="${prefix}"                        \
+        --with-libgmp-prefix="${prefix}"            \
+        --with-libgmpxx-prefix="${prefix}"          \
+        --with-gmp-prefix="${prefix}"               \
         --enable-watchdog                           \
         --disable-debugging                         \
         --disable-assertions                        \
@@ -66,9 +90,7 @@ do_ppl() {
     CT_DoExecLog ALL make install
 
     # Remove spuriously installed file
-    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/bin/ppl-config"
-
-    CT_EndStep
+    CT_DoExecLog ALL rm -f "${prefix}/bin/ppl-config"
 }
 
 fi # CT_PPL

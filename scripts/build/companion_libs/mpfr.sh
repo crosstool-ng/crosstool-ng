@@ -4,7 +4,7 @@
 
 do_mpfr_get() { :; }
 do_mpfr_extract() { :; }
-do_mpfr() { :; }
+do_mpfr_for_host() { :; }
 
 # Overide function depending on configuration
 if [ "${CT_MPFR}" = "y" ]; then
@@ -63,11 +63,36 @@ do_mpfr_extract() {
     esac
 }
 
-do_mpfr() {
-    mkdir -p "${CT_BUILD_DIR}/build-mpfr"
-    cd "${CT_BUILD_DIR}/build-mpfr"
+# Build MPFR for running on host
+do_mpfr_for_host() {
+    local -a mpfr_opts
 
-    CT_DoStep INFO "Installing MPFR"
+    CT_DoStep INFO "Installing MPFR for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-mpfr-host-${CT_HOST}"
+
+    mpfr_opts+=( "host=${CT_HOST}" )
+    mpfr_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    mpfr_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    do_mpfr_backend "${mpfr_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+
+# Build MPFR
+#     Parameter     : description               : type      : default
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     cflags        : host cflags to use        : string    : (empty)
+do_mpfr_backend() {
+    local host
+    local prefix
+    local cflags
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
 
     # Under Cygwin, we can't build a thread-safe library
     case "${CT_HOST}" in
@@ -77,16 +102,15 @@ do_mpfr() {
         *)          mpfr_opts+=( --enable-thread-safe  );;
     esac
 
-
     CT_DoLog EXTRA "Configuring MPFR"
     CT_DoExecLog CFG                                    \
-    CC="${CT_HOST}-gcc"                                 \
+    CC="${host}-gcc"                                    \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                      \
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
         --build=${CT_BUILD}                             \
-        --host=${CT_HOST}                               \
-        --prefix="${CT_COMPLIBS_DIR}"                   \
-        --with-gmp="${CT_COMPLIBS_DIR}"                 \
+        --host=${host}                                  \
+        --prefix="${prefix}"                            \
+        --with-gmp="${prefix}"                          \
         --disable-shared                                \
         --enable-static
 
@@ -100,8 +124,6 @@ do_mpfr() {
 
     CT_DoLog EXTRA "Installing MPFR"
     CT_DoExecLog ALL make install
-
-    CT_EndStep
 }
 
 fi # CT_MPFR

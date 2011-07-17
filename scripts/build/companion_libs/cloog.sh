@@ -4,7 +4,7 @@
 
 do_cloog_get() { :; }
 do_cloog_extract() { :; }
-do_cloog() { :; }
+do_cloog_for_host() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_CLOOG}" = "y" ]; then
@@ -33,25 +33,49 @@ do_cloog_extract() {
     fi
 }
 
-do_cloog() {
+# Build CLooG/PPL for running on host
+do_cloog_for_host() {
+    local -a cloog_opts
+
+    CT_DoStep INFO "Installing CLooG/PPL for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cloog-ppl-host-${CT_HOST}"
+
+    cloog_opts+=( "host=${CT_HOST}" )
+    cloog_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    cloog_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    do_cloog_backend "${cloog_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+
+# Build ClooG/PPL
+#     Parameter     : description               : type      : default
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     cflags        : host cflags to use        : string    : (empty)
+do_cloog_backend() {
+    local host
+    local prefix
+    local cflags
     local cloog_src_dir="${CT_SRC_DIR}/cloog-ppl-${CT_CLOOG_VERSION}"
+    local arg
 
-    mkdir -p "${CT_BUILD_DIR}/build-cloog-ppl"
-    cd "${CT_BUILD_DIR}/build-cloog-ppl"
-
-    CT_DoStep INFO "Installing CLooG/ppl"
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
 
     CT_DoLog EXTRA "Configuring CLooG/ppl"
 
     CT_DoExecLog CFG                            \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
+    CFLAGS="${cflags}"                          \
     LIBS="-lm"                                  \
     "${cloog_src_dir}/configure"                \
         --build=${CT_BUILD}                     \
-        --host=${CT_HOST}                       \
-        --prefix="${CT_COMPLIBS_DIR}"           \
-        --with-gmp="${CT_COMPLIBS_DIR}"         \
-        --with-ppl="${CT_COMPLIBS_DIR}"         \
+        --host=${host}                          \
+        --prefix="${prefix}"                    \
+        --with-gmp="${prefix}"                  \
+        --with-ppl="${prefix}"                  \
         --with-bits=gmp                         \
         --with-host-libstdcxx='-lstdc++'        \
         --disable-shared                        \
@@ -67,8 +91,6 @@ do_cloog() {
 
     CT_DoLog EXTRA "Installing CLooG/ppl"
     CT_DoExecLog ALL make install-libLTLIBRARIES install-pkgincludeHEADERS
-
-    CT_EndStep
 }
 
 fi # CT_CLOOG

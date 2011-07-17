@@ -17,12 +17,12 @@ help-env::
 # Please keep the last line with a '\' and keep the following empy line:
 # it helps when diffing and merging.
 CT_STEPS := libc_check_config   \
-            gmp                 \
-            mpfr                \
-            ppl                 \
-            cloog               \
-            mpc                 \
-            libelf              \
+            gmp_for_host        \
+            mpfr_for_host       \
+            ppl_for_host        \
+            cloog_for_host      \
+            mpc_for_host        \
+            libelf_for_host     \
             binutils_for_host   \
             elf2flt_for_host    \
             sstrip_for_host     \
