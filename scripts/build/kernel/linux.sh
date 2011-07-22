@@ -22,17 +22,23 @@ do_kernel_get() {
          -a "${CT_KERNEL_LINUX_CUSTOM}" != "y"  \
        ]; then
         case "${CT_KERNEL_VERSION}" in
-            ?*.?*.?*.?*)
-                # 4-part version, we need only first three digits
+            2.6.*.*|3.*.*)
+                # 4-part versions (for 2.6 stables and long-terms), and
+                # 3-part versions (for 3.x.y stables and long-terms),
+                # we need to trash the last digit
                 k_ver="${CT_KERNEL_VERSION%.*}"
                 ;;
-            *)  # 3-part version, use all of it
+            2.6.*|3.*)
+                # 3-part version (for 2.6.x initial releases), and 2-part
+                # versions (for 3.x initial releases), use all of it
                 k_ver="${CT_KERNEL_VERSION}"
                 ;;
         esac
-        CT_GetFile "linux-${CT_KERNEL_VERSION}"                             \
-                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6    \
-                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6/longterm/v${k_ver}
+        CT_GetFile "linux-${CT_KERNEL_VERSION}"                                             \
+                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6                    \
+                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v3.0                    \
+                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6/longterm/v${k_ver} \
+                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v3.0/longterm/v${k_ver}
     fi
 }
 
