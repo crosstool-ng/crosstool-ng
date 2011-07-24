@@ -64,14 +64,6 @@ do_cc_core_pass_1() {
     # In case we're not bare metal, and we're NPTL, build the static core gcc.
     # In any other case, do nothing.
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
-        y,*,*)
-            do_core=y
-            core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_HOST}" )
-            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
-            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
-            ;;
         ,y,*)
             ;;
         ,,nptl)
@@ -527,9 +519,6 @@ do_cc_backend() {
     local -a final_LDFLAGS
     local tmp
     local arg
-
-    # If building for bare metal, nothing to be done here, the static core conpiler is enough!
-    [ "${CT_BARE_METAL}" = "y" ] && return 0
 
     CT_DoStep INFO "Installing final compiler"
 
