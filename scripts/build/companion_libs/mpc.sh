@@ -4,6 +4,7 @@
 
 do_mpc_get() { :; }
 do_mpc_extract() { :; }
+do_mpc_for_build() { :; }
 do_mpc_for_host() { :; }
 
 # Overide functions depending on configuration
@@ -19,6 +20,28 @@ do_mpc_get() {
 do_mpc_extract() {
     CT_Extract "mpc-${CT_MPC_VERSION}"
     CT_Patch "mpc" "${CT_MPC_VERSION}"
+}
+
+# Build MPC for running on build
+# - always build statically
+# - we do not have build-specific CFLAGS
+# - install in build-tools prefix
+do_mpc_for_build() {
+    local -a mpc_opts
+
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing MPC for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-mpc-build-${CT_BUILD}"
+
+    mpc_opts+=( "host=${CT_BUILD}" )
+    mpc_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    do_mpc_backend "${mpc_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
 }
 
 # Build MPC for running on host

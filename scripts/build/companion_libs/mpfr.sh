@@ -4,6 +4,7 @@
 
 do_mpfr_get() { :; }
 do_mpfr_extract() { :; }
+do_mpfr_for_build() { :; }
 do_mpfr_for_host() { :; }
 
 # Overide function depending on configuration
@@ -61,6 +62,28 @@ do_mpfr_extract() {
             CT_Popd
             ;;
     esac
+}
+
+# Build MPFR for running on build
+# - always build statically
+# - we do not have build-specific CFLAGS
+# - install in build-tools prefix
+do_mpfr_for_build() {
+    local -a mpfr_opts
+
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing MPFR for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-mpfr-build-${CT_BUILD}"
+
+    mpfr_opts+=( "host=${CT_BUILD}" )
+    mpfr_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    do_mpfr_backend "${mpfr_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
 }
 
 # Build MPFR for running on host

@@ -4,6 +4,7 @@
 
 do_ppl_get() { :; }
 do_ppl_extract() { :; }
+do_ppl_for_build() { :; }
 do_ppl_for_host() { :; }
 
 # Overide functions depending on configuration
@@ -21,6 +22,28 @@ do_ppl_get() {
 do_ppl_extract() {
     CT_Extract "ppl-${CT_PPL_VERSION}"
     CT_Patch "ppl" "${CT_PPL_VERSION}"
+}
+
+# Build PPL for running on build
+# - always build statically
+# - we do not have build-specific CFLAGS
+# - install in build-tools prefix
+do_ppl_for_build() {
+    local -a ppl_opts
+
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing PPL for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-ppl-build-${CT_BUILD}"
+
+    ppl_opts+=( "host=${CT_BUILD}" )
+    ppl_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    do_ppl_backend "${ppl_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
 }
 
 # Build PPL for running on host

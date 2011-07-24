@@ -2,6 +2,7 @@
 
 do_libelf_get() { :; }
 do_libelf_extract() { :; }
+do_libelf_for_build() { :; }
 do_libelf_for_host() { :; }
 do_libelf_for_target() { :; }
 
@@ -20,6 +21,28 @@ do_libelf_extract() {
 }
 
 if [ "${CT_LIBELF}" = "y" ]; then
+
+# Build libelf for running on build
+# - always build statically
+# - we do not have build-specific CFLAGS
+# - install in build-tools prefix
+do_libelf_for_build() {
+    local -a libelf_opts
+
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing libelf for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libelf-build-${CT_BUILD}"
+
+    libelf_opts+=( "host=${CT_BUILD}" )
+    libelf_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    do_libelf_backend "${libelf_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
 
 # Build libelf for running on host
 do_libelf_for_host() {

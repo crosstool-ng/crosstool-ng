@@ -4,6 +4,7 @@
 
 do_gmp_get() { :; }
 do_gmp_extract() { :; }
+do_gmp_for_build() { :; }
 do_gmp_for_host() { :; }
 
 # Overide functions depending on configuration
@@ -18,6 +19,28 @@ do_gmp_get() {
 do_gmp_extract() {
     CT_Extract "gmp-${CT_GMP_VERSION}"
     CT_Patch "gmp" "${CT_GMP_VERSION}"
+}
+
+# Build GMP for running on build
+# - always build statically
+# - we do not have build-specific CFLAGS
+# - install in build-tools prefix
+do_gmp_for_build() {
+    local -a gmp_opts
+
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing GMP for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-gmp-build-${CT_BUILD}"
+
+    gmp_opts+=( "host=${CT_BUILD}" )
+    gmp_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    do_gmp_backend "${gmp_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
 }
 
 # Build GMP for running on host

@@ -4,6 +4,7 @@
 
 do_cloog_get() { :; }
 do_cloog_extract() { :; }
+do_cloog_for_build() { :; }
 do_cloog_for_host() { :; }
 
 # Overide functions depending on configuration
@@ -31,6 +32,28 @@ do_cloog_extract() {
         CT_DoExecLog CFG ./autogen.sh
         CT_Popd
     fi
+}
+
+# Build CLooG/PPL for running on build
+# - always build statically
+# - we do not have build-specific CFLAGS
+# - install in build-tools prefix
+do_cloog_for_build() {
+    local -a cloog_opts
+
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing CLooG/PPL for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cloog-ppl-build-${CT_BUILD}"
+
+    cloog_opts+=( "host=${CT_BUILD}" )
+    cloog_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    do_cloog_backend "${cloog_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
 }
 
 # Build CLooG/PPL for running on host
