@@ -79,7 +79,13 @@ do_cc_core_pass_1() {
     esac
 
     if [ "${do_core}" = "y" ]; then
+        CT_DoStep INFO "Installing pass-1 core C compiler"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-core-pass-1"
+
         do_cc_core_backend "${core_opts[@]}"
+
+        CT_Popd
+        CT_EndStep
     fi
 }
 
@@ -136,7 +142,13 @@ do_cc_core_pass_2() {
     esac
 
     if [ "${do_core}" = "y" ]; then
+        CT_DoStep INFO "Installing pass-2 core C compiler"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-core-pass-2"
+
         do_cc_core_backend "${core_opts[@]}"
+
+        CT_Popd
+        CT_EndStep
     fi
 }
 
@@ -177,6 +189,8 @@ do_cc_core_backend() {
         eval "${arg// /\\ }"
     done
 
+    CT_DoLog EXTRA "Configuring core C compiler"
+
     lang_opt=c
     case "${mode}" in
         static)
@@ -202,10 +216,6 @@ do_cc_core_backend() {
             ;;
     esac
 
-    CT_DoStep INFO "Installing ${mode} core C compiler"
-    mkdir -p "${CT_BUILD_DIR}/build-cc-core-${mode}"
-    cd "${CT_BUILD_DIR}/build-cc-core-${mode}"
-
     if [ "${CT_CC_GCC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
         # Bare metal delivers the core compiler as final compiler, so add version info and bugurl
         extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
@@ -216,8 +226,6 @@ do_cc_core_backend() {
         CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
         CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
     fi
-
-    CT_DoLog EXTRA "Configuring ${mode} core C compiler"
 
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
@@ -434,10 +442,10 @@ do_cc_core_backend() {
         core_targets+=( target-libstdc++-v3 )
     fi
 
-    CT_DoLog EXTRA "Building ${mode} core C compiler"
+    CT_DoLog EXTRA "Building core C compiler"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/all-}"
 
-    CT_DoLog EXTRA "Installing ${mode} core C compiler"
+    CT_DoLog EXTRA "Installing core C compiler"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/install-}"
 
     if [ "${build_manuals}" = "yes" ]; then
@@ -468,8 +476,6 @@ do_cc_core_backend() {
             CT_DoLog WARN "gcc configured for multilib, but none available"
         fi
     fi
-
-    CT_EndStep
 }
 
 #------------------------------------------------------------------------------
@@ -497,7 +503,13 @@ do_cc() {
         final_backend=do_cc_backend
     fi
 
+    CT_DoStep INFO "Installing final compiler"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-final"
+
     "${final_backend}" "${final_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
 }
 
 #------------------------------------------------------------------------------
@@ -521,14 +533,9 @@ do_cc_backend() {
     local tmp
     local arg
 
-    CT_DoStep INFO "Installing final compiler"
-
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
-
-    mkdir -p "${CT_BUILD_DIR}/build-cc"
-    cd "${CT_BUILD_DIR}/build-cc"
 
     CT_DoLog EXTRA "Configuring final compiler"
 
@@ -784,6 +791,4 @@ do_cc_backend() {
             CT_DoLog WARN "gcc configured for multilib, but none available"
         fi
     fi
-
-    CT_EndStep
 }
