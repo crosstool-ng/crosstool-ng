@@ -105,6 +105,7 @@ do_debug_gdb_build() {
 
     if [ "${CT_GDB_CROSS}" = "y" ]; then
         local -a cross_extra_config
+        local gcc_version
 
         CT_DoStep INFO "Installing cross-gdb"
         CT_DoLog EXTRA "Configuring cross-gdb"
@@ -148,6 +149,21 @@ do_debug_gdb_build() {
 
         CT_DoLog EXTRA "Installing cross-gdb"
         CT_DoExecLog ALL make install
+
+        CT_DoLog EXTRA "Install '.gdbinit' template"
+        # See in scripts/build/internals.sh for why we do this
+        if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
+            gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" )
+        else
+            gcc_version=$( sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;' \
+                               "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/version.c"   \
+                         )
+        fi
+        ${sed} -r                                               \
+               -e "s:@@PREFIX@@:${CT_PREFIX_DIR}:;"             \
+               -e "s:@@VERSION@@:${gcc_version}:;"              \
+               "${CT_LIB_DIR}/scripts/build/debug/gdbinit.in"   \
+               >"${CT_PREFIX_DIR}/share/gdb/gdbinit"
 
         CT_EndStep
     fi
