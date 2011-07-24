@@ -15,6 +15,26 @@ do_binutils_extract() {
     CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
 }
 
+# Build binutils for build -> target
+do_binutils_for_build() {
+    local -a binutils_opts
+
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing binutils for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-binutils-build-${CT_BUILD}"
+
+    binutils_opts+=( "host=${CT_BUILD}" )
+    binutils_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+
+    do_binutils_backend "${binutils_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+
 # Build binutils for host -> target
 do_binutils_for_host() {
     local -a binutils_tools
