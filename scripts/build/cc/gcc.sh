@@ -142,16 +142,18 @@ do_cc_core_pass_2() {
 
 #------------------------------------------------------------------------------
 # Build core gcc
-# This function is used to build both the static and the shared core C compiler,
-# with or without the target libgcc. We need to know wether:
-#  - we're building static, shared or bare metal: mode=[static|shared|baremetal]
-#  - we need to build libgcc or not             : build_libgcc=[yes|no]       (default: no)
-#  - we need to build libstdc++ or not          : build_libstdcxx=[yes|no]    (default: no)
-#  - we need to build statically linked or not  : build_staticlinked=[yes|no] (default: no)
-#  - where to find the companion libs (prefix)  : complibs=<prefix_dir>       (no default value)
-#  - the prefix to install into (directory)     : prefix=<directory>          (no default value)
-#  - the machine we will run on (tuple)         : host=<tuple>                (no default tuple)
-#  - the CFLAGS to use                          : cflags=<CFLAGS>             (empty)
+# This function is used to build the core C compiler.
+# Usage: do_cc_core_backend param=value [...]
+#   Parameter           : Definition                                : Type      : Default
+#   mode                : build a 'static', 'shared' or 'baremetal' : string    : (none)
+#   host                : the machine the core will run on          : tuple     : (none)
+#   prefix              : dir prefix to install into                : dir       : (none)
+#   complibs            : dir where complibs are isntalled          : dir       : (none)
+#   build_libgcc        : build libgcc or not                       : bool      : no
+#   build_libstdcxx     : build libstdc++ or not                    : bool      : no
+#   build_staticlinked  : build statically linked or not            : bool      : no
+#   build_manuals       : whether to build manuals or not           : bool      : no
+#   cflags              : host CFLAGS to use                        : string    : (empty)
 # Usage: do_cc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_cc_core_backend() {
     local mode
@@ -499,9 +501,8 @@ do_cc() {
 }
 
 #------------------------------------------------------------------------------
-# Build final gcc
-# Usage: do_cc_backend param=value ...
-# and so on for other parameters:
+# Build the final gcc
+# Usage: do_cc_backend param=value [...]
 #   Parameter     : Definition                          : Type      : Default
 #   host          : the host we run onto                : tuple     : (none)
 #   prefix        : the runtime prefix                  : dir       : (none)
