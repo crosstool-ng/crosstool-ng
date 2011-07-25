@@ -52,7 +52,7 @@ do_mpc_for_host() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-mpc-host-${CT_HOST}"
 
     mpc_opts+=( "host=${CT_HOST}" )
-    mpc_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    mpc_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     mpc_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     do_mpc_backend "${mpc_opts[@]}"
 

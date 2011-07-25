@@ -54,7 +54,7 @@ do_ppl_for_host() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-ppl-host-${CT_HOST}"
 
     ppl_opts+=( "host=${CT_HOST}" )
-    ppl_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    ppl_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     ppl_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     do_ppl_backend "${ppl_opts[@]}"
 

@@ -52,7 +52,7 @@ do_libelf_for_host() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libelf-host-${CT_HOST}"
 
     libelf_opts+=( "host=${CT_HOST}" )
-    libelf_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    libelf_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     libelf_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     do_libelf_backend "${libelf_opts[@]}"
 

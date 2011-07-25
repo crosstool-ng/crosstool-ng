@@ -64,7 +64,7 @@ do_cloog_for_host() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cloog-ppl-host-${CT_HOST}"
 
     cloog_opts+=( "host=${CT_HOST}" )
-    cloog_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    cloog_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     cloog_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     do_cloog_backend "${cloog_opts[@]}"
 

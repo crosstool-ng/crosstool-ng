@@ -51,7 +51,7 @@ do_gmp_for_host() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-gmp-host-${CT_HOST}"
 
     gmp_opts+=( "host=${CT_HOST}" )
-    gmp_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    gmp_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     gmp_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     do_gmp_backend "${gmp_opts[@]}"
 

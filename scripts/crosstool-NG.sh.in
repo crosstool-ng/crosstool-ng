@@ -157,7 +157,18 @@ CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
 CT_BUILDTOOLS_PREFIX_DIR="${CT_WORK_DIR}/${CT_TARGET}/buildtools"
 CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
 CT_CONFIG_DIR="${CT_BUILD_DIR}/configs"
-CT_COMPLIBS_DIR="${CT_BUILD_DIR}/static"
+# Note about HOST_COMPLIBS_DIR: it's always gonna be in the buildtools dir, or a
+# sub-dir. So we won't have to save/restore it, not even create it.
+# In case of cross or native, host-complibs are used for build-complibs;
+# in case of canadian or cross-native, host-complibs are specific
+case "${CT_TOOLCHAIN_TYPE}" in
+    native|cross)
+        CT_HOST_COMPLIBS_DIR="${CT_BUILDTOOLS_PREFIX_DIR}"
+        ;;
+    canadian|cross-native)
+        CT_HOST_COMPLIBS_DIR="${CT_BUILDTOOLS_PREFIX_DIR}/complibs-host"
+        ;;
+esac
 
 # Compute test suite install directory
 CT_TEST_SUITE_DIR=${CT_INSTALL_DIR}/test-suite
@@ -233,7 +244,7 @@ CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
 CT_DoExecLog ALL mkdir -p "${CT_CONFIG_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
-CT_DoExecLog ALL mkdir -p "${CT_COMPLIBS_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_HOST_COMPLIBS_DIR}"
 
 # Only create the state dir if asked for a restartable build
 [ -n "${CT_DEBUG_CT_SAVE_STEPS}" ] && CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"

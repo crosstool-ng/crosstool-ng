@@ -94,7 +94,7 @@ do_mpfr_for_host() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-mpfr-host-${CT_HOST}"
 
     mpfr_opts+=( "host=${CT_HOST}" )
-    mpfr_opts+=( "prefix=${CT_COMPLIBS_DIR}" )
+    mpfr_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     mpfr_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     do_mpfr_backend "${mpfr_opts[@]}"
 

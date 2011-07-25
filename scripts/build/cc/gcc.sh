@@ -68,7 +68,7 @@ do_cc_core_pass_1() {
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "host=${CT_BUILD}" )
-            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+            core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
             core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             ;;
@@ -93,7 +93,7 @@ do_cc_core_pass_2() {
     # Common options:
     core_opts+=( "host=${CT_BUILD}" )
     core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
-    core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+    core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
     core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
 
     # Do nothing for canadian-crosses, we already have a target compiler.
@@ -469,7 +469,7 @@ do_cc() {
 
     final_opts+=( "host=${CT_HOST}" )
     final_opts+=( "prefix=${CT_PREFIX_DIR}" )
-    final_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+    final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
     final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     if [ "${CT_BUILD_MANUALS}" = "y" ]; then
         final_opts+=( "build_manuals=yes" )
