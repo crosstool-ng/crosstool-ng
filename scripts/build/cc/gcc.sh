@@ -58,23 +58,19 @@ do_cc_core_pass_1() {
     local -a core_opts
     local do_core
 
-    # If we're building for bare metal, build the static core gcc,
-    # with libgcc.
-    # In case we're not bare metal and building a canadian compiler, do nothing
-    # In case we're not bare metal, and we're NPTL, build the static core gcc.
-    # In any other case, do nothing.
-    case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
-        ,y,*)
+    # Do nothing for canadian-crosses, we already have a target compiler.
+    # We only need a pass-1 core gcc if the threading model is NPTL.
+    # For all other cases, it is not used.
+    case "${CT_CANADIAN},${CT_THREADS}" in
+        y,*)
             ;;
-        ,,nptl)
+        ,nptl)
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
-            ;;
-        *)
             ;;
     esac
 
@@ -94,44 +90,34 @@ do_cc_core_pass_2() {
     local -a core_opts
     local do_core
 
-    # In case we're building for bare metal, do nothing, we already have
-    # our compiler.
-    # In case we're not bare metal and building a canadian compiler, do nothing
-    # In case we're NPTL, build the shared core gcc and the target libgcc.
-    # In any other case, build the static core gcc and, if using gcc-4.3+,
-    # also build the target libgcc.
+    # Common options:
+    core_opts+=( "host=${CT_BUILD}" )
     core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
-    case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
-        y,*,*)
-            do_core=y
-            core_opts+=( "host=${CT_BUILD}" )
-            core_opts+=( "mode=static" )
-            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
+    core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+
+    # Do nothing for canadian-crosses, we already have a target compiler.
+    # Different conditions are at stake here:
+    #   - In case the threading model is NPTL, we need a shared-capable core
+    #     gcc; in all other cases, we need a static-only core gcc.
+    #   - In case the threading model is NPTL or win32, or gcc is 4.3 or
+    #     later, we need to build libgcc
+    case "${CT_CANADIAN},${CT_THREADS}" in
+        y,*)
             ;;
-        ,y,*)   ;;
-        ,,nptl)
+        ,nptl)
             do_core=y
             core_opts+=( "mode=shared" )
-            core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "build_libgcc=yes" )
-            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             ;;
-        ,,win32)
+        ,win32)
             do_core=y
             core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "build_libgcc=yes" )
-            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             ;;
         *)
             do_core=y
             core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_BUILD}" )
-            core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 core_opts+=( "build_libgcc=yes" )
             fi
