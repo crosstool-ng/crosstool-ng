@@ -14,6 +14,7 @@
 # snapshots available.
 do_libc_get() {
     local addon
+    local -a extra_addons
     local svn_base
 
     if [ "${CT_EGLIBC_HTTP}" = "y" ]; then
@@ -31,7 +32,11 @@ do_libc_get() {
               "${svn_base}/libc"            \
               "${CT_EGLIBC_REVISION:-HEAD}"
 
-    for addon in $(do_libc_add_ons_list " "); do
+    if [ "${CT_LIBC_LOCALES}" = "y" ]; then
+        extra_addons+=("localedef")
+    fi
+
+    for addon in $(do_libc_add_ons_list " ") "${extra_addons[@]}"; do
         # Never ever try to download these add-ons,
         # they've always been internal
         case "${addon}" in
@@ -94,4 +99,72 @@ do_libc_check_config() {
     fi
 
     CT_EndStep
+}
+
+# Extract the files required for the libc locales
+do_libc_locales_extract() {
+    CT_Extract "eglibc-localedef-${CT_LIBC_VERSION}"
+    CT_Patch "eglibc" "localedef-${CT_LIBC_VERSION}"
+}
+
+# Build and install the libc locales
+do_libc_locales() {
+    local libc_src_dir="${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
+    local src_dir="${CT_SRC_DIR}/eglibc-localedef-${CT_LIBC_VERSION}"
+    local -a extra_config
+    local -a localedef_opts
+
+    mkdir -p "${CT_BUILD_DIR}/build-localedef"
+    cd "${CT_BUILD_DIR}/build-localedef"
+
+    CT_DoLog EXTRA "Configuring C library localedef"
+
+    if [ "${CT_LIBC_EGLIBC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+        extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+    fi
+
+    CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
+
+    # ./configure is misled by our tools override wrapper for bash
+    # so just tell it where the real bash is _on_the_target_!
+    # Notes:
+    # - ${ac_cv_path_BASH_SHELL} is only used to set BASH_SHELL
+    # - ${BASH_SHELL}            is only used to set BASH
+    # - ${BASH}                  is only used to set the shebang
+    #                            in two scripts to run on the target
+    # So we can safely bypass bash detection at compile time.
+    # Should this change in a future eglibc release, we'd better
+    # directly mangle the generated scripts _after_ they get built,
+    # or even after they get installed... eglibc is such a sucker...
+    echo "ac_cv_path_BASH_SHELL=/bin/bash" >>config.cache
+
+    # Configure with --prefix the way we want it on the target...
+
+    CT_DoExecLog CFG                                                \
+    "${src_dir}/configure"                                          \
+        --prefix=/usr                                               \
+        --cache-file="$(pwd)/config.cache"                          \
+        --with-glibc="${libc_src_dir}"                              \
+        "${extra_config[@]}"
+
+    CT_DoLog EXTRA "Building C library localedef"
+    CT_DoExecLog ALL make ${JOBSFLAGS}
+
+    # Set the localedef endianness option
+    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
+        y,) localedef_opts+=(--big-endian);;
+        ,y) localedef_opts+=(--little-endian);;
+    esac
+
+    # Set the localedef option for the target's uint32_t alignment in bytes.
+    # This is target-specific, but for now, 32-bit alignment should work for all
+    # supported targets, even 64-bit ones.
+    localedef_opts+=(--uint32-align=4)
+
+    CT_DoLog EXTRA "Installing C library locales"
+    CT_DoExecLog ALL make ${JOBSFLAGS}                              \
+                          "LOCALEDEF_OPTS=${localedef_opts[*]}"     \
+                          install_root="${CT_SYSROOT_DIR}"          \
+                          install-locales
 }
