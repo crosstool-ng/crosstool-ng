@@ -24,16 +24,6 @@ do_libc_get() {
     return 0
 }
 
-libc_uclibc_src_dir() {
-    if [    -z "${CT_LIBC_UCLIBC_V_snapshot}"      \
-         -a -z "${CT_LIBC_UCLIBC_V_specific_date}" \
-       ]; then
-        echo "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"
-    else
-        echo "${CT_SRC_DIR}/uClibc"
-    fi
-}
-
 # Extract uClibc
 do_libc_extract() {
     CT_Extract "uClibc-${CT_LIBC_VERSION}"
@@ -49,7 +39,7 @@ do_libc_extract() {
     # broken, so just link it in place...
     if [    "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y"           \
          -a ! -f "${CT_SRC_DIR}/.${uclibc_local_tarball}.extracted" ]; then
-        CT_Pushd "$(libc_uclibc_src_dir)/extra/locale"
+        CT_Pushd "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}/extra/locale"
         CT_DoExecLog ALL ln -s "${CT_TARBALLS_DIR}/${uclibc_local_tarball}.tgz" .
         CT_Popd
         touch "${CT_SRC_DIR}/.${uclibc_local_tarball}.extracted"
@@ -84,7 +74,7 @@ do_libc_start_files() {
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "$(libc_uclibc_src_dir)"            \
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"   \
                             "${CT_BUILD_DIR}/build-libc-headers"
     cd "${CT_BUILD_DIR}/build-libc-headers"
 
@@ -170,7 +160,7 @@ do_libc() {
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "$(libc_uclibc_src_dir)"    \
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}"   \
                             "${CT_BUILD_DIR}/build-libc"
     cd "${CT_BUILD_DIR}/build-libc"
 
