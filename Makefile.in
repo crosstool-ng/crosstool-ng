@@ -266,12 +266,19 @@ install-lib-main: $(DESTDIR)$(LIBDIR) $(patsubst %,install-lib-%,$(LIB_SUB_DIR))
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
 install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
 	@echo "  INSTDIR 'samples/'"
-	@for samp_file in samples/*/crosstool.config; do                        \
-	     mkdir -p "$(DESTDIR)$(LIBDIR)/$${samp_file%/*}";                   \
+	@for samp_dir in samples/*/; do                                         \
+	     mkdir -p "$(DESTDIR)$(LIBDIR)/$${samp_dir}";                       \
 	     $(sed) -r -e 's:\$$\{CT_TOP_DIR\}:\$$\{CT_LIB_DIR\}:;'             \
 	               -e 's:^(CT_WORK_DIR)=.*:\1="\$${CT_TOP_DIR}/.build":;'   \
-	            $${samp_file}                                               \
-	            >"$(DESTDIR)$(LIBDIR)/$${samp_file}";                       \
+	            $${samp_dir}/crosstool.config                               \
+	            >"$(DESTDIR)$(LIBDIR)/$${samp_dir}/crosstool.config";       \
+	     $(install) -m 644 "$${samp_dir}/reported.by"                       \
+	                       "$(DESTDIR)$(LIBDIR)/$${samp_dir}";              \
+	     for libc_cfg in "$${samp_dir}/"*libc*.config; do                   \
+	         [ -f "$${libc_cfg}" ] || continue;                             \
+	         $(install) -m 644 "$${libc_cfg}"                               \
+	                           "$(DESTDIR)$(LIBDIR)/$${samp_dir}";          \
+	     done;                                                              \
 	 done
 	@$(install) -m 644 samples/samples.mk "$(DESTDIR)$(LIBDIR)/samples/samples.mk"
 
