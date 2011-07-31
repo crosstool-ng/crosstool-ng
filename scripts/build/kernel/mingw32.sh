@@ -20,7 +20,7 @@ do_kernel_headers() {
     CT_DoStep INFO "Installing kernel headers"
 
     mkdir -p "${CT_HEADERS_DIR}"
-    cp -r ${CT_SRC_DIR}/w32api-${CT_W32API_VERSION}-mingw32/include/* \
+    cp -r ${CT_SRC_DIR}/w32api-${CT_W32API_VERSION}-mingw32-src/include/*   \
           ${CT_HEADERS_DIR}
 
     CT_EndStep

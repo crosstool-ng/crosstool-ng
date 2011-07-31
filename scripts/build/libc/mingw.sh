@@ -29,7 +29,7 @@ do_libc_extract() {
     fi
     if [ -n "${CT_MINGW_GNURX}" ]; then
         CT_Extract "mingw-libgnurx-${CT_MINGW_GNURX_VERSION}-src"
-        CT_Patch "mingw-libgnurx" "${CT_MINGW_GNURX_VERSION}"
+        CT_Patch "mingw-libgnurx" "${CT_MINGW_GNURX_VERSION}-src"
     fi
 }
 
@@ -42,7 +42,7 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Installing MinGW Runtime headers"
     mkdir -p "${CT_HEADERS_DIR}"
-    cp -r ${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/include/* \
+    cp -r ${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32-src/include/* \
           ${CT_HEADERS_DIR}
 
     # It seems mingw is strangely set up to look into /mingw instead of
@@ -61,12 +61,12 @@ do_libc() {
     mkdir -p "${CT_BUILD_DIR}/build-w32api"
     cd "${CT_BUILD_DIR}/build-w32api"
 
-    CT_DoExecLog CFG                                              \
-    CFLAGS="-I${CT_HEADERS_DIR}"                                  \
-    LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                             \
-    "${CT_SRC_DIR}/w32api-${CT_W32API_VERSION}-mingw32/configure" \
-        --prefix=${CT_SYSROOT_DIR}                                \
-        --includedir=${CT_HEADERS_DIR}                            \
+    CT_DoExecLog CFG                                                  \
+    CFLAGS="-I${CT_HEADERS_DIR}"                                      \
+    LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                                 \
+    "${CT_SRC_DIR}/w32api-${CT_W32API_VERSION}-mingw32-src/configure" \
+        --prefix=${CT_SYSROOT_DIR}                                    \
+        --includedir=${CT_HEADERS_DIR}                                \
         --host=${CT_TARGET}
 
     CT_DoLog EXTRA "Building W32-API"
@@ -80,12 +80,12 @@ do_libc() {
     mkdir -p "${CT_BUILD_DIR}/build-mingwrt"
     cd "${CT_BUILD_DIR}/build-mingwrt"
 
-    CT_DoExecLog CFG                                                \
-    CFLAGS="-I${CT_HEADERS_DIR}"                                    \
-    LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                               \
-    "${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32/configure" \
-        --prefix=${CT_SYSROOT_DIR}/                                 \
-        --includedir=${CT_HEADERS_DIR}                              \
+    CT_DoExecLog CFG                                                    \
+    CFLAGS="-I${CT_HEADERS_DIR}"                                        \
+    LDFLAGS="-L${CT_SYSROOT_DIR}/lib"                                   \
+    "${CT_SRC_DIR}/mingwrt-${CT_MINGWRT_VERSION}-mingw32-src/configure" \
+        --prefix=${CT_SYSROOT_DIR}/                                     \
+        --includedir=${CT_HEADERS_DIR}                                  \
         --host=${CT_TARGET}
 
     CT_DoLog EXTRA "Building MinGW Runtime"
@@ -134,14 +134,14 @@ do_libc_finish() {
         mkdir -p "${CT_BUILD_DIR}/build-gnurx"
         cd "${CT_BUILD_DIR}/build-gnurx"
 
-        CT_DoExecLog CFG                                                    \
-        CFLAGS="${CT_CFLAGS_FOR_TARGET}"                                    \
-        "${CT_SRC_DIR}/mingw-libgnurx-${CT_MINGW_GNURX_VERSION}/configure"  \
-            --build=${CT_BUILD}                                             \
-            --host=${CT_TARGET}                                             \
-            --prefix=${CT_SYSROOT_DIR}                                      \
-            --includedir=${CT_HEADERS_DIR}                                  \
-            --enable-shared                                                 \
+        CT_DoExecLog CFG                                                        \
+        CFLAGS="${CT_CFLAGS_FOR_TARGET}"                                        \
+        "${CT_SRC_DIR}/mingw-libgnurx-${CT_MINGW_GNURX_VERSION}-src/configure"  \
+            --build=${CT_BUILD}                                                 \
+            --host=${CT_TARGET}                                                 \
+            --prefix=${CT_SYSROOT_DIR}                                          \
+            --includedir=${CT_HEADERS_DIR}                                      \
+            --enable-shared                                                     \
             --enable-static
 
         CT_DoLog EXTRA "Building GnuRX development files"
