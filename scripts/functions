@@ -540,7 +540,9 @@ CT_GetFile() {
         URLS+=( "${CT_MIRROR_BASE_URL}" )
     fi
 
-    URLS+=( "${@}" )
+    if [ "${CT_FORBID_DOWNLOAD}" != "y" ]; then
+        URLS+=( "${@}" )
+    fi
 
     # Scan all URLs in turn, and try to grab a tarball from there
     # Do *not* try git trees (ext=/.git), this is handled in a specific
@@ -588,6 +590,11 @@ CT_GetCVS() {
         return 0
     fi
 
+    if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
+        CT_DoLog WARN "Downloads forbidden, not trying cvs retrieval"
+        return 1
+    fi
+
     CT_MktempDir tmp_dir
     CT_Pushd "${tmp_dir}"
 
@@ -627,6 +634,11 @@ CT_GetSVN() {
         return 0
     fi
 
+    if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
+        CT_DoLog WARN "Downloads forbidden, not trying svn retrieval"
+        return 1
+    fi
+
     CT_MktempDir tmp_dir
     CT_Pushd "${tmp_dir}"
 
@@ -651,6 +663,11 @@ CT_GetGit() {
     local basename="$1"; shift
     local url
     local cloned=0
+
+    if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
+        CT_DoLog WARN "Downloads forbidden, not trying git retrieval"
+        return 1
+    fi
 
     # Do we have it in our tarballs dir?
     if [ -d "${CT_TARBALLS_DIR}/${basename}/.git" ]; then
