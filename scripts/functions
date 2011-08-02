@@ -513,7 +513,8 @@ CT_SaveLocal() {
 # Usage: CT_GetFile <basename> [.extension] <url> [url ...]
 CT_GetFile() {
     local ext
-    local url URLS
+    local -a URLS
+    local url
     local file="$1"
     local first_ext
     shift
@@ -535,17 +536,18 @@ CT_GetFile() {
     # Add URLs on the LAN mirror
     if [ "${CT_USE_MIRROR}" = "y" ]; then
         CT_TestOrAbort "Please set the mirror base URL" -n "${CT_MIRROR_BASE_URL}"
-        URLS="${CT_MIRROR_BASE_URL}/${file%-*} ${CT_MIRROR_BASE_URL}"
+        URLS+=( "${CT_MIRROR_BASE_URL}/${file%-*}" )
+        URLS+=( "${CT_MIRROR_BASE_URL}" )
     fi
 
-    URLS+="${URLS:+ }${*}"
+    URLS+=( "${@}" )
 
     # Scan all URLs in turn, and try to grab a tarball from there
     # Do *not* try git trees (ext=/.git), this is handled in a specific
     # wrapper, below
     for ext in ${first_ext} .tar.bz2 .tar.gz .tgz .tar ''; do
         # Try all urls in turn
-        for url in ${URLS}; do
+        for url in "${URLS[@]}"; do
             [ -n "${url}" ] || continue
             CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
             CT_DoGetFile "${url}/${file}${ext}"
