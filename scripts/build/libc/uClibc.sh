@@ -365,6 +365,11 @@ mungeuClibcConfig() {
             ;;
     esac
 
+    # We always want ctor/dtor
+    cat <<-ENDSED
+		s/^# (UCLIBC_CTOR_DTOR) is not set/\\1=y/
+		ENDSED
+
     # Change paths to work with crosstool-NG
     # From http://www.uclibc.org/cgi-bin/viewcvs.cgi?rev=16846&view=rev
     #  " we just want the kernel headers, not the whole kernel source ...
@@ -443,7 +448,6 @@ mungeuClibcConfig() {
     if [ "${CT_CC_LANG_CXX}" = "y" ]; then
         cat <<-ENDSED
 			s/^# DO_C99_MATH is not set/DO_C99_MATH=y/
-			s/^# UCLIBC_CTOR_DTOR is not set/UCLIBC_CTOR_DTOR=y/
 			s/^# UCLIBC_HAS_GNU_GETOPT is not set/UCLIBC_HAS_GNU_GETOPT=y/
 			ENDSED
     fi
