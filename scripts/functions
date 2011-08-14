@@ -400,6 +400,9 @@ CT_SetLibPath() {
 # Build up the list of allowed tarball extensions
 # Add them in the prefered order; most preferred comes first
 CT_DoListTarballExt() {
+    if [ "${CT_CONFIGURE_has_xzutils}" = "y" ]; then
+        printf ".tar.xz\n"
+    fi
     printf ".tar.bz2\n"
     printf ".tar.gz\n.tgz\n"
     printf ".tar\n"
@@ -753,6 +756,7 @@ CT_Extract() {
     tar_opts+=( "-C" "${basename}" )
     tar_opts+=( "-xv" )
     case "${ext}" in
+        .tar.xz)      CT_DoExecLog FILE tar "${tar_opts[@]}" --use-compress-program=xz -f "${full_file}";;
         .tar.bz2)     CT_DoExecLog FILE tar "${tar_opts[@]}" -j -f "${full_file}";;
         .tar.gz|.tgz) CT_DoExecLog FILE tar "${tar_opts[@]}" -z -f "${full_file}";;
         .tar)         CT_DoExecLog FILE tar "${tar_opts[@]}" -f "${full_file}";;
