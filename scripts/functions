@@ -703,6 +703,7 @@ CT_Extract() {
     local nochdir="$1"
     local basename
     local ext
+    local -a tar_opts
 
     if [ "${nochdir}" = "nochdir" ]; then
         shift
@@ -740,10 +741,13 @@ CT_Extract() {
 
     CT_DoLog EXTRA "Extracting '${basename}'"
     CT_DoExecLog FILE mkdir -p "${basename}"
+    tar_opts=( "--strip-components=1" )
+    tar_opts+=( "-C" "${basename}" )
+    tar_opts+=( "-xv" )
     case "${ext}" in
-        .tar.bz2)     CT_DoExecLog FILE tar --strip-components=1 -C "${basename}" -xvjf "${full_file}";;
-        .tar.gz|.tgz) CT_DoExecLog FILE tar --strip-components=1 -C "${basename}" -xvzf "${full_file}";;
-        .tar)         CT_DoExecLog FILE tar --strip-components=1 -C "${basename}" -xvf "${full_file}";;
+        .tar.bz2)     CT_DoExecLog FILE tar "${tar_opts[@]}" -j "${full_file}";;
+        .tar.gz|.tgz) CT_DoExecLog FILE tar "${tar_opts[@]}" -z "${full_file}";;
+        .tar)         CT_DoExecLog FILE tar "${tar_opts[@]}" "${full_file}";;
         /.git)        CT_ExtractGit "${basename}" "${@}";;
         *)            CT_DoLog WARN "Don't know how to handle '${basename}${ext}': unknown extension"
                       return 1
