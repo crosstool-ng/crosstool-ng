@@ -89,6 +89,7 @@ do_cc_core_pass_1() {
             core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
             core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+            core_opts+=( "lang_list=c" )
             ;;
     esac
 
@@ -113,6 +114,7 @@ do_cc_core_pass_2() {
     core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
     core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    core_opts+=( "lang_list=c" )
 
     # Do nothing for canadian-crosses, we already have a target compiler.
     # Different conditions are at stake here:
@@ -162,6 +164,7 @@ do_cc_core_pass_2() {
 #   host                : the machine the core will run on          : tuple     : (none)
 #   prefix              : dir prefix to install into                : dir       : (none)
 #   complibs            : dir where complibs are isntalled          : dir       : (none)
+#   lang_list           : the list of languages to build            : string    : (empty)
 #   build_libgcc        : build libgcc or not                       : bool      : no
 #   build_libstdcxx     : build libstdc++ or not                    : bool      : no
 #   build_staticlinked  : build statically linked or not            : bool      : no
@@ -177,7 +180,7 @@ do_cc_core_backend() {
     local host
     local prefix
     local complibs
-    local lang_opt
+    local lang_list
     local cflags
     local tmp
     local -a host_libstdcxx_flags
@@ -192,7 +195,6 @@ do_cc_core_backend() {
 
     CT_DoLog EXTRA "Configuring core C compiler"
 
-    lang_opt=c
     case "${mode}" in
         static)
             extra_config+=("--with-newlib")
@@ -209,7 +211,6 @@ do_cc_core_backend() {
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
-            [ "${CT_CC_LANG_CXX}" = "y" ] && lang_opt="${lang_opt},c++"
             copy_headers=n
             ;;
         *)
@@ -374,7 +375,7 @@ do_cc_core_backend() {
         --disable-libmudflap                        \
         ${CC_CORE_SYSROOT_ARG}                      \
         "${extra_config[@]}"                        \
-        --enable-languages="${lang_opt}"            \
+        --enable-languages="${lang_list}"           \
         "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}"
 
     if [ "${build_libgcc}" = "yes" ]; then
@@ -496,6 +497,7 @@ do_cc() {
         final_opts+=( "mode=baremetal" )
         final_opts+=( "build_libgcc=yes" )
         final_opts+=( "build_libstdcxx=yes" )
+        final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
         fi
