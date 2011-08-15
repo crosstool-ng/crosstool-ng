@@ -53,6 +53,24 @@ do_cc_extract() {
 }
 
 #------------------------------------------------------------------------------
+# This function builds up the set of languages to enable
+# No argument expected, returns the comma-separated language list on stdout
+cc_gcc_lang_list() {
+    local lang_list
+
+    lang_list="c"
+    [ "${CT_CC_LANG_CXX}" = "y"      ] && lang_list+=",c++"
+    [ "${CT_CC_LANG_FORTRAN}" = "y"  ] && lang_list+=",fortran"
+    [ "${CT_CC_LANG_ADA}" = "y"      ] && lang_list+=",ada"
+    [ "${CT_CC_LANG_JAVA}" = "y"     ] && lang_list+=",java"
+    [ "${CT_CC_LANG_OBJC}" = "y"     ] && lang_list+=",objc"
+    [ "${CT_CC_LANG_OBJCXX}" = "y"   ] && lang_list+=",obj-c++"
+    lang_list+="${CT_CC_LANG_OTHERS:+,${CT_CC_LANG_OTHERS}}"
+
+    printf "%s" "${lang_list}"
+}
+
+#------------------------------------------------------------------------------
 # Core gcc pass 1
 do_cc_core_pass_1() {
     local -a core_opts
@@ -523,20 +541,8 @@ do_cc_backend() {
     CT_DoLog EXTRA "Configuring final compiler"
 
     # Enable selected languages
-    lang_opt="c"
-    [ "${CT_CC_LANG_CXX}" = "y"      ] && lang_opt="${lang_opt},c++"
-    [ "${CT_CC_LANG_FORTRAN}" = "y"  ] && lang_opt="${lang_opt},fortran"
-    [ "${CT_CC_LANG_ADA}" = "y"      ] && lang_opt="${lang_opt},ada"
-    [ "${CT_CC_LANG_JAVA}" = "y"     ] && lang_opt="${lang_opt},java"
-    [ "${CT_CC_LANG_OBJC}" = "y"     ] && lang_opt="${lang_opt},objc"
-    [ "${CT_CC_LANG_OBJCXX}" = "y"   ] && lang_opt="${lang_opt},obj-c++"
-    CT_Test "Building ADA language is not yet supported. Will try..." "${CT_CC_LANG_ADA}" = "y"
-    CT_Test "Building Objective-C language is not yet supported. Will try..." "${CT_CC_LANG_OBJC}" = "y"
-    CT_Test "Building Objective-C++ language is not yet supported. Will try..." "${CT_CC_LANG_OBJCXX}" = "y"
-    CT_Test "Building ${CT_CC_LANG_OTHERS//,/ } language(s) is not yet supported. Will try..." -n "${CT_CC_LANG_OTHERS}"
-    lang_opt=$(echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;')
+    extra_config+=("--enable-languages=$( cc_gcc_lang_list )")
 
-    extra_config+=("--enable-languages=${lang_opt}")
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
         if [ -n "${tmp}" ]; then
