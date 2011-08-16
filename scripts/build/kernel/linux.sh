@@ -35,7 +35,7 @@ do_kernel_get() {
             *)  CT_Abort "Unknown extension for custom linux tarball '${CT_KERNEL_LINUX_CUSTOM_TARBALL}'";;
         esac
         CT_DoExecLog DEBUG ln -sf "${CT_KERNEL_LINUX_CUSTOM_TARBALL}"  \
-                                  "${CT_SRC_DIR}/${custom_name}"
+                                  "${CT_TARBALLS_DIR}/${custom_name}"
     else # Not a custom tarball
         case "${CT_KERNEL_VERSION}" in
             2.6.*.*|3.*.*)
