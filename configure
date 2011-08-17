@@ -11,6 +11,7 @@ BINDIR_set=
 LIBDIR_set=
 DOCDIR_set=
 MANDIR_set=
+PROG_PFX=
 LOCAL_set=
 FORCE=
 
@@ -59,6 +60,9 @@ set_docdir() {
 set_mandir() {
     MANDIR_set=1
     MANDIR="$( get_optval "$1" "$2" )"
+}
+set_program_prefix() {
+    PROG_PFX="$( get_optval "$1" "$2" )"
 }
 set_tool() {
     local var_name="${1%%=*}"
@@ -330,7 +334,6 @@ Fine tuning of the installation directories:
 
 Program names:
   --program-prefix=PREFIX            prepend PREFIX to installed program names
-                                     (ignored)
 
 System types:
   --build=BUILD     configure for building on BUILD [guessed] (ignored)
@@ -362,14 +365,15 @@ while [ $# -ne 0 ]; do
         --docdir*)  set_docdir "$1" "$2" && shift || shift 2;;
         --mandir*)  set_mandir "$1" "$2" && shift || shift 2;;
         --with-*)   set_tool   "$1" "$2" && shift || shift 2;;
+        --program-prefix=*|--program-prefix)
+                    set_program_prefix "$1" "$2" && shift || shift 2
+                    ;;
         --force)    FORCE=1; shift;;
         --help|-h)  do_help; exit 0;;
         # Skip, auto-stuff compatibility
         --build=*|--host=*|--infodir=*|--datadir=*|--sysconfdir=*|--localstatedir=*) shift;;
         --build|--host|--infodir|--datadir|--sysconfdir|--localstatedir)             shift 2;;
         --enable-shared|--disable-shared|--enable-static|--disable-static)           shift;;
-        --program-prefix=*)                                                          shift;;
-        --program-prefix)                                                            shift 2;;
         *)          printf "Unrecognised option: '${1}'\n"; do_help; exit 1;;
     esac
 done
@@ -384,6 +388,7 @@ if [ "${LOCAL_set}" = "y" ]; then
     set_libdir "" "$( pwd )"
     set_docdir "" "$( pwd )/docs"
     set_mandir "" "$( pwd )/docs"
+    set_program_prefix "" ""
 fi
 
 #---------------------------------------------------------------------
@@ -624,9 +629,12 @@ for p in BIN LIB DOC MAN; do
     eval v='"${'"${var}"'}"'
     case "${v}" in
         /*) ;;
-        *)  do_error "'${var}' is not an absolute path: '${v}'"
+        *)  do_error "'${var}' is not an absolute path: '${v}'";;
     esac
 done
+case "${PROG_PFX}" in
+    */*)    do_error "program prefix '${PROG_PFX}' contains a '/'";;
+esac
 
 #---------------------------------------------------------------------
 # That's all, folks!
@@ -644,6 +652,7 @@ kconfig_sed="s/@@KCONFIG@@/$( for k_name in ${kconfig_list}; do
             -e "s,@@LIBDIR@@,${LIBDIR},g"       \
             -e "s,@@DOCDIR@@,${DOCDIR},g"       \
             -e "s,@@MANDIR@@,${MANDIR},g"       \
+            -e "s,@@PROG_PFX@@,${PROG_PFX},g"   \
             -e "s,@@VERSION@@,${VERSION},g"     \
             -e "s,@@DATE@@,${DATE},g"           \
             -e "s,@@LOCAL@@,${LOCAL_set},g"     \
@@ -661,6 +670,7 @@ crosstool-NG configured as follows:
   LIBDIR='${LIBDIR}'
   DOCDIR='${DOCDIR}'
   MANDIR='${MANDIR}'
+  PROG_PFX='${PROG_PFX}'
 
 Now run:
   make

@@ -43,6 +43,7 @@ BINDIR := @@BINDIR@@
 LIBDIR := @@LIBDIR@@
 DOCDIR := @@DOCDIR@@
 MANDIR := @@MANDIR@@
+PROG_PFX:=@@PROG_PFX@@
 DATE   := @@DATE@@
 LOCAL  := @@LOCAL@@
 
@@ -66,7 +67,7 @@ KCONFIG:= @@KCONFIG@@
 MAN_SECTION := 1
 MAN_SUBDIR := /man$(MAN_SECTION)
 
-PROG_NAME := ct-ng
+PROG_NAME := $(PROG_PFX)ct-ng
 
 ###############################################################################
 # Sanity checks
@@ -141,17 +142,26 @@ docs/$(PROG_NAME).1.gz: docs/$(PROG_NAME).1
 	@echo "  GZIP   '$@'"
 	@gzip -c9 $< >$@
 
-%: %.in Makefile
+define sed_it
 	@echo "  SED    '$@'"
-	@$(sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;'    \
-	           -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'    \
-	           -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'    \
-	           -e 's,@@CT_MANDIR@@,$(MANDIR),g;'    \
-	           -e 's,@@CT_VERSION@@,$(VERSION),g;'	\
-	           -e 's,@@CT_DATE@@,$(DATE),g;'        \
-	           -e 's,@@CT_make@@,$(make),g;'        \
-	           -e 's,@@CT_bash@@,$(bash),g;'        \
-	           $@.in >$@
+	@$(sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;'        \
+	           -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'        \
+	           -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'        \
+	           -e 's,@@CT_MANDIR@@,$(MANDIR),g;'        \
+	           -e 's,@@CT_PROG_PFX@@,$(PROG_PFX),g;'    \
+	           -e 's,@@CT_PROG_NAME@@,$(PROG_NAME),g;'  \
+	           -e 's,@@CT_VERSION@@,$(VERSION),g;'	    \
+	           -e 's,@@CT_DATE@@,$(DATE),g;'            \
+	           -e 's,@@CT_make@@,$(make),g;'            \
+	           -e 's,@@CT_bash@@,$(bash),g;'            \
+	           $< >$@
+endef
+
+$(PROG_PFX)%: %.in Makefile
+	$(call sed_it)
+
+%: %.in Makefile
+	$(call sed_it)
 
 # We create a script fragment that is parseable from inside a Makefile,
 # but also from inside a shell script, hence the reason why we don't
