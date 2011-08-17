@@ -197,12 +197,15 @@ do_debug_gdb_build() {
                 --build=${CT_BUILD}                                             \
                 --host=${CT_BUILD}                                              \
                 --prefix=/usr                                                   \
-                --without-shared                                                \
                 --enable-symlinks                                               \
                 --with-build-cc=${CT_REAL_BUILD}-gcc                            \
                 --with-build-cpp=${CT_REAL_BUILD}-gcc                           \
                 --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
                 "${ncurses_opts[@]}"
+
+            # ncurses insists on linking tic statically. It does not work
+            # on some OSes (eg. MacOS-X/Darwin/whatever-you-call-it).
+            CT_DoExecLog DEBUG sed -r -i -e 's/-static//g;' "progs/Makefile"
 
             # Under some operating systems (eg. Winblows), there is an
             # extension appended to executables. Find that.
