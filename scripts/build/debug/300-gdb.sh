@@ -4,7 +4,7 @@
 # It's used only internally by crosstool-NG, and is
 # not exposed outside, so we don't care about providing
 # config options for this.
-CT_DEBUG_GDB_NCURSES_VERSION="5.7"
+CT_DEBUG_GDB_NCURSES_VERSION="5.9"
 
 # Ditto for the expat library
 CT_DEBUG_GDB_EXPAT_VERSION="2.0.1"
