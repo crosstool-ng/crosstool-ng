@@ -12,6 +12,7 @@ LIBDIR_set=
 DOCDIR_set=
 MANDIR_set=
 PROG_PFX=
+PROG_SFX=
 LOCAL_set=
 FORCE=
 
@@ -63,6 +64,9 @@ set_mandir() {
 }
 set_program_prefix() {
     PROG_PFX="$( get_optval "$1" "$2" )"
+}
+set_program_suffix() {
+    PROG_SFX="$( get_optval "$1" "$2" )"
 }
 set_tool() {
     local var_name="${1%%=*}"
@@ -334,6 +338,7 @@ Fine tuning of the installation directories:
 
 Program names:
   --program-prefix=PREFIX            prepend PREFIX to installed program names
+  --program-suffix=SUFFIX            append SUFFIX to installed program names
 
 System types:
   --build=BUILD     configure for building on BUILD [guessed] (ignored)
@@ -368,6 +373,9 @@ while [ $# -ne 0 ]; do
         --program-prefix=*|--program-prefix)
                     set_program_prefix "$1" "$2" && shift || shift 2
                     ;;
+        --program-suffix=*|--program-suffix)
+                    set_program_suffix "$1" "$2" && shift || shift 2
+                    ;;
         --force)    FORCE=1; shift;;
         --help|-h)  do_help; exit 0;;
         # Skip, auto-stuff compatibility
@@ -389,6 +397,7 @@ if [ "${LOCAL_set}" = "y" ]; then
     set_docdir "" "$( pwd )/docs"
     set_mandir "" "$( pwd )/docs"
     set_program_prefix "" ""
+    set_program_suffix "" ""
 fi
 
 #---------------------------------------------------------------------
@@ -635,6 +644,9 @@ done
 case "${PROG_PFX}" in
     */*)    do_error "program prefix '${PROG_PFX}' contains a '/'";;
 esac
+case "${PROG_SFX}" in
+    */*)    do_error "program suffix '${PROG_SFX}' contains a '/'";;
+esac
 
 #---------------------------------------------------------------------
 # That's all, folks!
@@ -653,6 +665,7 @@ kconfig_sed="s/@@KCONFIG@@/$( for k_name in ${kconfig_list}; do
             -e "s,@@DOCDIR@@,${DOCDIR},g"       \
             -e "s,@@MANDIR@@,${MANDIR},g"       \
             -e "s,@@PROG_PFX@@,${PROG_PFX},g"   \
+            -e "s,@@PROG_SFX@@,${PROG_SFX},g"   \
             -e "s,@@VERSION@@,${VERSION},g"     \
             -e "s,@@DATE@@,${DATE},g"           \
             -e "s,@@LOCAL@@,${LOCAL_set},g"     \
@@ -671,6 +684,7 @@ crosstool-NG configured as follows:
   DOCDIR='${DOCDIR}'
   MANDIR='${MANDIR}'
   PROG_PFX='${PROG_PFX}'
+  PROG_SFX='${PROG_SFX}'
 
 Now run:
   make
