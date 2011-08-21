@@ -13,6 +13,7 @@ DOCDIR_set=
 MANDIR_set=
 PROG_PFX=
 PROG_SFX=
+PROG_SED=
 LOCAL_set=
 FORCE=
 
@@ -67,6 +68,9 @@ set_program_prefix() {
 }
 set_program_suffix() {
     PROG_SFX="$( get_optval "$1" "$2" )"
+}
+set_program_transform_name() {
+    PROG_SED="$( get_optval "$1" "$2" )"
 }
 set_tool() {
     local var_name="${1%%=*}"
@@ -339,6 +343,7 @@ Fine tuning of the installation directories:
 Program names:
   --program-prefix=PREFIX            prepend PREFIX to installed program names
   --program-suffix=SUFFIX            append SUFFIX to installed program names
+  --program-transform-name=PROGRAM   run sed PROGRAM on installed program names
 
 System types:
   --build=BUILD     configure for building on BUILD [guessed] (ignored)
@@ -376,6 +381,9 @@ while [ $# -ne 0 ]; do
         --program-suffix=*|--program-suffix)
                     set_program_suffix "$1" "$2" && shift || shift 2
                     ;;
+        --program-transform-name=*|--program-transform-name)
+                    set_program_transform_name "$1" "$2" && shift || shift 2
+                    ;;
         --force)    FORCE=1; shift;;
         --help|-h)  do_help; exit 0;;
         # Skip, auto-stuff compatibility
@@ -398,6 +406,7 @@ if [ "${LOCAL_set}" = "y" ]; then
     set_mandir "" "$( pwd )/docs"
     set_program_prefix "" ""
     set_program_suffix "" ""
+    set_program_transform_name "" ""
 fi
 
 #---------------------------------------------------------------------
@@ -666,6 +675,7 @@ kconfig_sed="s/@@KCONFIG@@/$( for k_name in ${kconfig_list}; do
             -e "s,@@MANDIR@@,${MANDIR},g"       \
             -e "s,@@PROG_PFX@@,${PROG_PFX},g"   \
             -e "s,@@PROG_SFX@@,${PROG_SFX},g"   \
+            -e "s,@@PROG_SED@@,${PROG_SED},g"   \
             -e "s,@@VERSION@@,${VERSION},g"     \
             -e "s,@@DATE@@,${DATE},g"           \
             -e "s,@@LOCAL@@,${LOCAL_set},g"     \
@@ -685,6 +695,7 @@ crosstool-NG configured as follows:
   MANDIR='${MANDIR}'
   PROG_PFX='${PROG_PFX}'
   PROG_SFX='${PROG_SFX}'
+  PROG_SED='${PROG_SED}'
 
 Now run:
   make

@@ -45,6 +45,7 @@ DOCDIR := @@DOCDIR@@
 MANDIR := @@MANDIR@@
 PROG_PFX:=@@PROG_PFX@@
 PROG_SFX:=@@PROG_SFX@@
+PROG_SED:=@@PROG_SED@@
 DATE   := @@DATE@@
 LOCAL  := @@LOCAL@@
 
@@ -68,7 +69,7 @@ KCONFIG:= @@KCONFIG@@
 MAN_SECTION := 1
 MAN_SUBDIR := /man$(MAN_SECTION)
 
-PROG_NAME := $(PROG_PFX)ct-ng$(PROG_SFX)
+PROG_NAME := $(shell echo '$(PROG_PFX)ct-ng$(PROG_SFX)' |sed -e '$(PROG_SED)' )
 
 ###############################################################################
 # Sanity checks
@@ -151,6 +152,7 @@ define sed_it
 	           -e 's,@@CT_MANDIR@@,$(MANDIR),g;'        \
 	           -e 's,@@CT_PROG_PFX@@,$(PROG_PFX),g;'    \
 	           -e 's,@@CT_PROG_SFX@@,$(PROG_SFX),g;'    \
+	           -e 's,@@CT_PROG_SED@@,$(PROG_SED),g;'    \
 	           -e 's,@@CT_PROG_NAME@@,$(PROG_NAME),g;'  \
 	           -e 's,@@CT_VERSION@@,$(VERSION),g;'	    \
 	           -e 's,@@CT_DATE@@,$(DATE),g;'            \
@@ -162,7 +164,7 @@ endef
 docs/$(PROG_NAME).1: docs/ct-ng.1.in Makefile
 	$(call sed_it)
 
-$(PROG_PFX)%$(PROG_SFX): %.in Makefile
+$(PROG_NAME): ct-ng.in Makefile
 	$(call sed_it)
 
 %: %.in Makefile
