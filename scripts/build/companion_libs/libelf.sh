@@ -65,6 +65,7 @@ do_libelf_target() {
     CT_DoExecLog CFG                                        \
     CC="${CT_TARGET}-gcc"                                   \
     CFLAGS="-fPIC"                                          \
+    RANLIB="${CT_TARGET}-ranlib"                            \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_TARGET}                                 \
