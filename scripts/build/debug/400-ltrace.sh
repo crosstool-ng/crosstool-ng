@@ -38,7 +38,9 @@ do_debug_ltrace_build() {
         esac
         CT_DoExecLog CFG                \
         CC="${CT_TARGET}-${CT_CC}"      \
+        AR="${CT_TARGET}-ar"            \
         HOST="${ltrace_host}"           \
+        HOST_OS="${CT_TARGET_KERNEL}"   \
         CFLAGS="${CT_TARGET_CFLAGS}"    \
         ./configure --prefix=/usr
     else
