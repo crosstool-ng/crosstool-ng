@@ -79,6 +79,11 @@ do_libc_start_files() {
         newlib_opts+=( "--disable-newlib-io-float" )
         newlib_opts+=( "--disable-newlib-io-long-double" )
     fi
+    if [ "${CT_LIBC_NEWLIB_DISABLE_SUPPLIED_SYSCALLS}" = "y" ]; then
+        newlib_opts+=( "--disable-newlib-supplied-syscalls" )
+    else
+        newlib_opts+=( "--enable-newlib-supplied-syscalls" )
+    fi
 
     # Note: newlib handles the build/host/target a little bit differently
     # than one would expect:
