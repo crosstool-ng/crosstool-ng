@@ -2,9 +2,6 @@
 # crosstool-NG configuration targets
 # These targets are used from top-level makefile
 
-# Derive the project version from, well, the project version:
-export PROJECTVERSION=$(CT_VERSION)
-
 # The place where the kconfig stuff lies
 obj = kconfig
 
@@ -69,7 +66,7 @@ check_gettext = $(CT_LIB_DIR)/kconfig/check.sh
 check_lxdialog = $(CT_LIB_DIR)/kconfig/lxdialog/check-lxdialog.sh
 
 # Build flags
-CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE=\"crosstool-NG\"
+CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(CT_VERSION)\""
 LDFLAGS =
 
 # Compiler flags to use gettext
