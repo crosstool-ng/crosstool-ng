@@ -1,0 +1,66 @@
+Original patch from: ../4.3.2/200-pr24170.patch
+
+-= BEGIN original header =-
+Original patch from gentoo: gentoo/src/patchsets/gcc/4.3.1/gentoo/61_all_gcc43-pr24170.patch
+http://gcc.gnu.org/PR24170
+
+2008-02-20  Tom Tromey  <tromey@redhat.com>
+
+	PR libgcj/24170:
+	* java/io/natFilePosix.cc (File::performList): Don't use
+	readdir_r.
+	* configure, include/config.h.in: Rebuilt.
+	* configure.ac: Don't check for readdir_r.
+
+-= END original header =-
+
+diff -durN gcc-4.3.3.orig/libjava/configure.ac gcc-4.3.3/libjava/configure.ac
+--- gcc-4.3.3.orig/libjava/configure.ac	2009-01-27 22:19:16.000000000 +0100
++++ gcc-4.3.3/libjava/configure.ac	2009-01-27 22:19:36.000000000 +0100
+@@ -1030,7 +1030,7 @@
+    PLATFORMNET=NoNet
+ else
+    AC_CHECK_FUNCS([strerror_r select fstat open fsync sleep opendir \
+-                   localtime_r readdir_r getpwuid_r getcwd \
++                   localtime_r getpwuid_r getcwd \
+ 		   access stat lstat mkdir rename rmdir unlink utime chmod readlink \
+ 		   nl_langinfo setlocale \
+ 		   inet_pton uname inet_ntoa \
+diff -durN gcc-4.3.3.orig/libjava/include/config.h.in gcc-4.3.3/libjava/include/config.h.in
+--- gcc-4.3.3.orig/libjava/include/config.h.in	2007-07-31 18:17:21.000000000 +0200
++++ gcc-4.3.3/libjava/include/config.h.in	2009-01-27 22:19:36.000000000 +0100
+@@ -214,9 +214,6 @@
+ /* Define to 1 if you have the <pwd.h> header file. */
+ #undef HAVE_PWD_H
+ 
+-/* Define to 1 if you have the `readdir_r' function. */
+-#undef HAVE_READDIR_R
+-
+ /* Define to 1 if you have the `readlink' function. */
+ #undef HAVE_READLINK
+ 
+diff -durN gcc-4.3.3.orig/libjava/java/io/natFilePosix.cc gcc-4.3.3/libjava/java/io/natFilePosix.cc
+--- gcc-4.3.3.orig/libjava/java/io/natFilePosix.cc	2007-08-04 23:50:01.000000000 +0200
++++ gcc-4.3.3/libjava/java/io/natFilePosix.cc	2009-01-27 22:19:36.000000000 +0100
+@@ -1,6 +1,6 @@
+ // natFile.cc - Native part of File class for POSIX.
+ 
+-/* Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2006
++/* Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2006, 2008
+    Free Software Foundation
+ 
+    This file is part of libgcj.
+@@ -292,13 +292,7 @@
+ 
+   java::util::ArrayList *list = new java::util::ArrayList ();
+   struct dirent *d;
+-#if defined(HAVE_READDIR_R) && defined(_POSIX_PTHREAD_SEMANTICS)
+-  int name_max = pathconf (buf, _PC_NAME_MAX);
+-  char dbuf[sizeof (struct dirent) + name_max + 1];
+-  while (readdir_r (dir, (struct dirent *) dbuf, &d) == 0 && d != NULL)
+-#else /* HAVE_READDIR_R */
+   while ((d = readdir (dir)) != NULL)
+-#endif /* HAVE_READDIR_R */
+     {
+       // Omit "." and "..".
+       if (d->d_name[0] == '.'

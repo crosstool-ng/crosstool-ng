@@ -1,0 +1,90 @@
+Original patch from: ../4.3.2/340-make-mno-spe-work-as-expected.patch
+
+-= BEGIN original header =-
+2008-04-03  Nathan Froyd  <froydnj@codesourcery.com>
+            Nathan Sidwell  <nathan@codesourcery.com>
+
+        * config/rs6000/rs6000.opt (mspe): Remove Var property.
+        (misel): Likewise.
+        * config/rs6000/rs6000.h (rs6000_spe): Declare.
+        (rs6000_isel): Likewise.
+        * config/rs6000/rs6000.c (rs6000_spe): New variable.
+        (rs6000_isel): New variable.
+        (rs6000_handle_option): Handle OPT_mspe and OPT_misel.                                                                                         
+
+-= END original header =-
+
+diff -durN gcc-4.3.3.orig/gcc/config/rs6000/rs6000.c gcc-4.3.3/gcc/config/rs6000/rs6000.c
+--- gcc-4.3.3.orig/gcc/config/rs6000/rs6000.c	2008-11-18 23:07:58.000000000 +0100
++++ gcc-4.3.3/gcc/config/rs6000/rs6000.c	2009-01-27 22:28:55.000000000 +0100
+@@ -174,9 +174,15 @@
+ /* Nonzero to use AltiVec ABI.  */
+ int rs6000_altivec_abi;
+ 
++/* Nonzero if we want SPE SIMD instructions.  */
++int rs6000_spe;
++
+ /* Nonzero if we want SPE ABI extensions.  */
+ int rs6000_spe_abi;
+ 
++/* Nonzero to use isel instructions.  */
++int rs6000_isel;
++
+ /* Nonzero if floating point operations are done in the GPRs.  */
+ int rs6000_float_gprs = 0;
+ 
+@@ -2144,11 +2150,21 @@
+       rs6000_parse_yes_no_option ("vrsave", arg, &(TARGET_ALTIVEC_VRSAVE));
+       break;
+ 
++    case OPT_misel:
++      rs6000_explicit_options.isel = true;
++      rs6000_isel = value;
++      break;
++
+     case OPT_misel_:
+       rs6000_explicit_options.isel = true;
+       rs6000_parse_yes_no_option ("isel", arg, &(rs6000_isel));
+       break;
+ 
++    case OPT_mspe:
++      rs6000_explicit_options.spe = true;
++      rs6000_spe = value;
++      break;
++
+     case OPT_mspe_:
+       rs6000_explicit_options.spe = true;
+       rs6000_parse_yes_no_option ("spe", arg, &(rs6000_spe));
+diff -durN gcc-4.3.3.orig/gcc/config/rs6000/rs6000.h gcc-4.3.3/gcc/config/rs6000/rs6000.h
+--- gcc-4.3.3.orig/gcc/config/rs6000/rs6000.h	2008-01-26 18:18:35.000000000 +0100
++++ gcc-4.3.3/gcc/config/rs6000/rs6000.h	2009-01-27 22:28:55.000000000 +0100
+@@ -349,6 +349,8 @@
+ extern int rs6000_ieeequad;
+ extern int rs6000_altivec_abi;
+ extern int rs6000_spe_abi;
++extern int rs6000_spe;
++extern int rs6000_isel;
+ extern int rs6000_float_gprs;
+ extern int rs6000_alignment_flags;
+ extern const char *rs6000_sched_insert_nops_str;
+diff -durN gcc-4.3.3.orig/gcc/config/rs6000/rs6000.opt gcc-4.3.3/gcc/config/rs6000/rs6000.opt
+--- gcc-4.3.3.orig/gcc/config/rs6000/rs6000.opt	2007-10-31 08:56:01.000000000 +0100
++++ gcc-4.3.3/gcc/config/rs6000/rs6000.opt	2009-01-27 22:28:55.000000000 +0100
+@@ -190,7 +190,7 @@
+ -mvrsave=yes/no	Deprecated option.  Use -mvrsave/-mno-vrsave instead
+ 
+ misel
+-Target Var(rs6000_isel)
++Target
+ Generate isel instructions
+ 
+ misel=
+@@ -198,7 +198,7 @@
+ -misel=yes/no	Deprecated option.  Use -misel/-mno-isel instead
+ 
+ mspe
+-Target Var(rs6000_spe)
++Target
+ Generate SPE SIMD instructions on E500
+ 
+ mpaired

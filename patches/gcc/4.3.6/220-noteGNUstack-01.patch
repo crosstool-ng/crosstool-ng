@@ -1,0 +1,203 @@
+Original patch from: ../4.3.2/220-noteGNUstack-01.patch
+
+-= BEGIN original header =-
+Original patch from gentoo: gentoo/src/patchsets/gcc/4.3.1/gentoo/62_all_gcc4-noteGNUstack.patch
+2005-02-08  Jakub Jelinek  <jakub@redhat.com>
+
+	* src/alpha/osf.S: Add .note.GNU-stack on Linux.
+	* src/s390/sysv.S: Likewise.
+	* src/powerpc/linux64.S: Likewise.
+	* src/powerpc/linux64_closure.S: Likewise.
+	* src/powerpc/ppc_closure.S: Likewise.
+	* src/powerpc/sysv.S: Likewise.
+	* src/x86/unix64.S: Likewise.
+	* src/x86/sysv.S: Likewise.
+	* src/sparc/v8.S: Likewise.
+	* src/sparc/v9.S: Likewise.
+	* src/m68k/sysv.S: Likewise.
+	* src/ia64/unix.S: Likewise.
+	* src/arm/sysv.S: Likewise.
+
+	* ia64_save_regs_in_stack.s: Moved to...
+	* ia64_save_regs_in_stack.S: ... this.  Add .note.GNU-stack
+	on Linux.
+
+-= END original header =-
+
+diff -durN gcc-4.3.3.orig/boehm-gc/ia64_save_regs_in_stack.S gcc-4.3.3/boehm-gc/ia64_save_regs_in_stack.S
+--- gcc-4.3.3.orig/boehm-gc/ia64_save_regs_in_stack.S	1970-01-01 01:00:00.000000000 +0100
++++ gcc-4.3.3/boehm-gc/ia64_save_regs_in_stack.S	2009-01-27 22:25:27.000000000 +0100
+@@ -0,0 +1,15 @@
++        .text
++        .align 16
++        .global GC_save_regs_in_stack
++        .proc GC_save_regs_in_stack
++GC_save_regs_in_stack:
++        .bodyfoo.mpg
++        flushrs
++        ;;
++        mov r8=ar.bsp
++        br.ret.sptk.few rp
++        .endp GC_save_regs_in_stack
++
++#ifdef __linux__
++	.section .note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/boehm-gc/ia64_save_regs_in_stack.s gcc-4.3.3/boehm-gc/ia64_save_regs_in_stack.s
+--- gcc-4.3.3.orig/boehm-gc/ia64_save_regs_in_stack.s	2001-10-15 06:57:59.000000000 +0200
++++ gcc-4.3.3/boehm-gc/ia64_save_regs_in_stack.s	1970-01-01 01:00:00.000000000 +0100
+@@ -1,12 +0,0 @@
+-        .text
+-        .align 16
+-        .global GC_save_regs_in_stack
+-        .proc GC_save_regs_in_stack
+-GC_save_regs_in_stack:
+-        .body
+-        flushrs
+-        ;;
+-        mov r8=ar.bsp
+-        br.ret.sptk.few rp
+-        .endp GC_save_regs_in_stack
+-
+diff -durN gcc-4.3.3.orig/libffi/src/alpha/osf.S gcc-4.3.3/libffi/src/alpha/osf.S
+--- gcc-4.3.3.orig/libffi/src/alpha/osf.S	2007-04-06 18:24:16.000000000 +0200
++++ gcc-4.3.3/libffi/src/alpha/osf.S	2009-01-27 22:25:27.000000000 +0100
+@@ -358,4 +358,8 @@
+ 	.byte	16		# uleb128 offset 16*-8
+ 	.align 3
+ $LEFDE3:
++
++#ifdef __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+ #endif
+diff -durN gcc-4.3.3.orig/libffi/src/arm/sysv.S gcc-4.3.3/libffi/src/arm/sysv.S
+--- gcc-4.3.3.orig/libffi/src/arm/sysv.S	2007-09-04 19:52:45.000000000 +0200
++++ gcc-4.3.3/libffi/src/arm/sysv.S	2009-01-27 22:25:27.000000000 +0100
+@@ -293,3 +293,6 @@
+ 	UNWIND .fnend
+         .size    CNAME(ffi_closure_SYSV),.ffi_closure_SYSV_end-CNAME(ffi_closure_SYSV)
+ 
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",%progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/ia64/unix.S gcc-4.3.3/libffi/src/ia64/unix.S
+--- gcc-4.3.3.orig/libffi/src/ia64/unix.S	2005-03-30 23:49:19.000000000 +0200
++++ gcc-4.3.3/libffi/src/ia64/unix.S	2009-01-27 22:25:27.000000000 +0100
+@@ -553,3 +553,7 @@
+ 	data8	@pcrel(.Lld_hfa_float)		// FFI_IA64_TYPE_HFA_FLOAT
+ 	data8	@pcrel(.Lld_hfa_double)		// FFI_IA64_TYPE_HFA_DOUBLE
+ 	data8	@pcrel(.Lld_hfa_ldouble)	// FFI_IA64_TYPE_HFA_LDOUBLE
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/m68k/sysv.S gcc-4.3.3/libffi/src/m68k/sysv.S
+--- gcc-4.3.3.orig/libffi/src/m68k/sysv.S	2007-05-10 23:29:04.000000000 +0200
++++ gcc-4.3.3/libffi/src/m68k/sysv.S	2009-01-27 22:25:27.000000000 +0100
+@@ -207,3 +207,7 @@
+ 	rts
+ 	CFI_ENDPROC()
+ 	.size	ffi_closure_struct_SYSV,.-ffi_closure_struct_SYSV
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/powerpc/linux64.S gcc-4.3.3/libffi/src/powerpc/linux64.S
+--- gcc-4.3.3.orig/libffi/src/powerpc/linux64.S	2007-11-17 00:24:53.000000000 +0100
++++ gcc-4.3.3/libffi/src/powerpc/linux64.S	2009-01-27 22:25:27.000000000 +0100
+@@ -179,3 +179,7 @@
+ 	.align 3
+ .LEFDE1:
+ #endif
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/powerpc/linux64_closure.S gcc-4.3.3/libffi/src/powerpc/linux64_closure.S
+--- gcc-4.3.3.orig/libffi/src/powerpc/linux64_closure.S	2005-08-11 23:18:24.000000000 +0200
++++ gcc-4.3.3/libffi/src/powerpc/linux64_closure.S	2009-01-27 22:25:27.000000000 +0100
+@@ -204,3 +204,7 @@
+ 	.align 3
+ .LEFDE1:
+ #endif
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/powerpc/ppc_closure.S gcc-4.3.3/libffi/src/powerpc/ppc_closure.S
+--- gcc-4.3.3.orig/libffi/src/powerpc/ppc_closure.S	2007-12-01 22:00:04.000000000 +0100
++++ gcc-4.3.3/libffi/src/powerpc/ppc_closure.S	2009-01-27 22:25:27.000000000 +0100
+@@ -295,3 +295,7 @@
+ .LEFDE1:
+ 
+ #endif
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/powerpc/sysv.S gcc-4.3.3/libffi/src/powerpc/sysv.S
+--- gcc-4.3.3.orig/libffi/src/powerpc/sysv.S	2007-12-01 22:00:04.000000000 +0100
++++ gcc-4.3.3/libffi/src/powerpc/sysv.S	2009-01-27 22:25:27.000000000 +0100
+@@ -223,3 +223,7 @@
+       .align 2
+ .LEFDE1:
+ #endif
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/s390/sysv.S gcc-4.3.3/libffi/src/s390/sysv.S
+--- gcc-4.3.3.orig/libffi/src/s390/sysv.S	2003-10-21 21:01:58.000000000 +0200
++++ gcc-4.3.3/libffi/src/s390/sysv.S	2009-01-27 22:25:27.000000000 +0100
+@@ -427,3 +427,6 @@
+ 
+ #endif
+ 
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/sparc/v8.S gcc-4.3.3/libffi/src/sparc/v8.S
+--- gcc-4.3.3.orig/libffi/src/sparc/v8.S	2008-11-21 23:13:13.000000000 +0100
++++ gcc-4.3.3/libffi/src/sparc/v8.S	2009-01-27 22:25:27.000000000 +0100
+@@ -306,3 +306,7 @@
+ 	.byte	0x1f	! uleb128 0x1f
+ 	.align	WS
+ .LLEFDE2:
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/sparc/v9.S gcc-4.3.3/libffi/src/sparc/v9.S
+--- gcc-4.3.3.orig/libffi/src/sparc/v9.S	2004-01-25 07:58:33.000000000 +0100
++++ gcc-4.3.3/libffi/src/sparc/v9.S	2009-01-27 22:25:27.000000000 +0100
+@@ -300,3 +300,7 @@
+ 	.align 8
+ .LLEFDE2:
+ #endif
++
++#ifdef __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/x86/sysv.S gcc-4.3.3/libffi/src/x86/sysv.S
+--- gcc-4.3.3.orig/libffi/src/x86/sysv.S	2008-01-30 15:36:58.000000000 +0100
++++ gcc-4.3.3/libffi/src/x86/sysv.S	2009-01-27 22:25:27.000000000 +0100
+@@ -430,3 +430,7 @@
+ #endif
+ 
+ #endif /* ifndef __x86_64__ */
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif
+diff -durN gcc-4.3.3.orig/libffi/src/x86/unix64.S gcc-4.3.3/libffi/src/x86/unix64.S
+--- gcc-4.3.3.orig/libffi/src/x86/unix64.S	2005-05-05 06:06:38.000000000 +0200
++++ gcc-4.3.3/libffi/src/x86/unix64.S	2009-01-27 22:25:27.000000000 +0100
+@@ -410,3 +410,7 @@
+ .LEFDE3:
+ 
+ #endif /* __x86_64__ */
++
++#if defined __ELF__ && defined __linux__
++	.section	.note.GNU-stack,"",@progbits
++#endif

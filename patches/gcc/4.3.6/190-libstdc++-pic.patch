@@ -1,0 +1,61 @@
+Original patch from: ../4.3.2/190-libstdc++-pic.patch
+
+-= BEGIN original header =-
+Original patch from gentoo: gentoo/src/patchsets/gcc/4.3.1/gentoo/54_all_300-libstdc++-pic.patch
+install libstdc++_pic.a if we have pic objs
+
+-= END original header =-
+
+diff -durN gcc-4.3.5.orig/libstdc++-v3/src/Makefile.am gcc-4.3.5/libstdc++-v3/src/Makefile.am
+--- gcc-4.3.5.orig/libstdc++-v3/src/Makefile.am	2008-02-29 19:26:50.000000000 +0100
++++ gcc-4.3.5/libstdc++-v3/src/Makefile.am	2010-09-19 18:58:40.000000000 +0200
+@@ -289,6 +289,13 @@
+ 	  $(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
+ 
+ 
++install-exec-local:
++	pic_objs=`sed -n "s:'::g;s:^pic_object=::p" *.lo | grep -v '^none$$'`; \
++	if [ x"$$pic_objs" != x ]; then \
++		$(AR) cru libstdc++_pic.a $$pic_objs $(top_builddir)/libsupc++/*.o || exit 1; \
++		$(INSTALL_DATA) libstdc++_pic.a $(DESTDIR)$(toolexeclibdir) || exit 1; \
++	fi
++
+ # Added bits to build debug library.
+ if GLIBCXX_BUILD_DEBUG
+ all-local: build_debug
+diff -durN gcc-4.3.5.orig/libstdc++-v3/src/Makefile.in gcc-4.3.5/libstdc++-v3/src/Makefile.in
+--- gcc-4.3.5.orig/libstdc++-v3/src/Makefile.in	2010-05-06 19:19:46.000000000 +0200
++++ gcc-4.3.5/libstdc++-v3/src/Makefile.in	2010-09-19 19:01:43.000000000 +0200
+@@ -646,7 +646,7 @@
+ 
+ install-data-am: install-data-local
+ 
+-install-exec-am: install-toolexeclibLTLIBRARIES
++install-exec-am: install-toolexeclibLTLIBRARIES install-exec-local
+ 
+ install-info: install-info-am
+ 
+@@ -685,7 +685,7 @@
+ 	mostlyclean mostlyclean-compile mostlyclean-generic \
+ 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
+ 	uninstall-am uninstall-info-am \
+-	uninstall-toolexeclibLTLIBRARIES
++	uninstall-toolexeclibLTLIBRARIES install-exec-local
+ 
+ 
+ # Symbol versioning for shared libraries.
+@@ -811,6 +811,14 @@
+ install_debug:
+ 	(cd ${debugdir} && $(MAKE) \
+ 	toolexeclibdir=$(glibcxx_toolexeclibdir)/debug install)
++
++install-exec-local:
++	pic_objs=`sed -n "s:'::g;s:^pic_object=::p" *.lo | grep -v '^none$$'`; \
++	if [ x"$$pic_objs" != x ]; then \
++		$(AR) cru libstdc++_pic.a $$pic_objs $(top_builddir)/libsupc++/*.o || exit 1; \
++		$(INSTALL_DATA) libstdc++_pic.a $(DESTDIR)$(toolexeclibdir) || exit 1; \
++	fi
++
+ # Tell versions [3.59,3.63) of GNU make to not export all variables.
+ # Otherwise a system limit (for SysV at least) may be exceeded.
+ .NOEXPORT:

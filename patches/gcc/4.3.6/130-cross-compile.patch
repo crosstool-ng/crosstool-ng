@@ -1,0 +1,49 @@
+Original patch from: ../4.3.2/130-cross-compile.patch
+
+-= BEGIN original header =-
+Original patch from gentoo: gentoo/src/patchsets/gcc/4.3.1/gentoo/08_all_gcc-4.1-cross-compile.patch
+Some notes on the 'bootstrap with or without libc headers' debate:
+http://linuxfromscratch.org/pipermail/lfs-dev/2005-July/052409.html
+http://gcc.gnu.org/ml/gcc/2005-07/msg01195.html
+
+-= END original header =-
+
+diff -durN gcc-4.3.3.orig/gcc/configure gcc-4.3.3/gcc/configure
+--- gcc-4.3.3.orig/gcc/configure	2008-08-01 11:51:03.000000000 +0200
++++ gcc-4.3.3/gcc/configure	2009-01-27 22:19:16.000000000 +0100
+@@ -13442,7 +13442,7 @@
+ 	    | powerpc*-*-*,powerpc64*-*-*)
+ 		CROSS="$CROSS -DNATIVE_CROSS" ;;
+ 	esac
+-elif test "x$TARGET_SYSTEM_ROOT" != x; then
++elif test "x$TARGET_SYSTEM_ROOT" != x -o $build != $host; then
+         SYSTEM_HEADER_DIR=$build_system_header_dir
+ fi
+ 
+diff -durN gcc-4.3.3.orig/gcc/configure.ac gcc-4.3.3/gcc/configure.ac
+--- gcc-4.3.3.orig/gcc/configure.ac	2008-08-01 11:51:03.000000000 +0200
++++ gcc-4.3.3/gcc/configure.ac	2009-01-27 22:19:16.000000000 +0100
+@@ -1749,7 +1749,7 @@
+ 	    | powerpc*-*-*,powerpc64*-*-*)
+ 		CROSS="$CROSS -DNATIVE_CROSS" ;;
+ 	esac
+-elif test "x$TARGET_SYSTEM_ROOT" != x; then
++elif test "x$TARGET_SYSTEM_ROOT" != x -o $build != $host; then
+         SYSTEM_HEADER_DIR=$build_system_header_dir 
+ fi
+ 
+diff -durN gcc-4.3.3.orig/gcc/unwind-dw2.c gcc-4.3.3/gcc/unwind-dw2.c
+--- gcc-4.3.3.orig/gcc/unwind-dw2.c	2008-09-25 00:44:28.000000000 +0200
++++ gcc-4.3.3/gcc/unwind-dw2.c	2009-01-27 22:19:16.000000000 +0100
+@@ -334,9 +334,11 @@
+ }
+ #endif
+ 
++#ifndef inhibit_libc
+ #ifdef MD_UNWIND_SUPPORT
+ #include MD_UNWIND_SUPPORT
+ #endif
++#endif
+ 
+ /* Extract any interesting information from the CIE for the translation
+    unit F belongs to.  Return a pointer to the byte after the augmentation,
