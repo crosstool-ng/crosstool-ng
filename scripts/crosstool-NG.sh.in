@@ -273,7 +273,7 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Arrange paths depending on wether we use sysroot or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        CT_SYSROOT_REL_DIR="${CT_SYSROOT_DIR_PREFIX}/${CT_SYSROOT_NAME}"
+        CT_SYSROOT_REL_DIR="${CT_SYSROOT_DIR_PREFIX:+${CT_SYSROOT_DIR_PREFIX}/}${CT_SYSROOT_NAME}"
         CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_REL_DIR}"
         CT_DEBUGROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/debug-root"
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/usr/include"
@@ -317,7 +317,9 @@ if [ -z "${CT_RESTART}" ]; then
 
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
         # Prevent gcc from installing its libraries outside of the sysroot
-        CT_DoExecLog ALL ln -sf ".${CT_SYSROOT_REL_DIR}/lib" "${CT_PREFIX_DIR}/${CT_TARGET}/lib"
+        CT_Pushd "${CT_PREFIX_DIR}/${CT_TARGET}"
+        CT_DoExecLog ALL ln -sf "${CT_SYSROOT_REL_DIR}/lib" "lib"
+        CT_Popd
     fi
 
     # Since we're *not* multilib on the target side, we want all the
