@@ -448,8 +448,6 @@ CT_DoGetFile() {
     # Remove potential left-over from a previous run
     rm -f "${tmp}"
 
-    # Some (very old!) FTP server might not support the passive mode, thus
-    # retry without.
     # We also retry a few times, in case there is a transient error (eg. behind
     # a dynamic IP that changes during the transfer...)
     # With automated download as we are doing, it can be very dangerous to
@@ -459,10 +457,14 @@ CT_DoGetFile() {
     # not easy to detect them, so force a global ${CT_CONNECT_TIMEOUT}-second
     # timeout.
     # For curl, no good progress indicator is available. So, be silent.
-    if CT_DoExecLog ALL curl --ftp-pasv --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}" "${url}"  \
-    || CT_DoExecLog ALL curl            --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}" "${url}"  \
-    ; then
-        # One of them succeeded, good!
+    if CT_DoExecLog ALL curl --ftp-pasv                                 \
+                             --retry 3                                  \
+                             --connect-timeout ${CT_CONNECT_TIMEOUT}    \
+                             --location --fail --silent                 \
+                             --output "${tmp}"                          \
+                             "${url}"
+    then
+        # Success, we got it, good!
         mv "${tmp}" "${dest}"
     else
         # Woops...
