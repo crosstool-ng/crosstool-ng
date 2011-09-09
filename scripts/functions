@@ -444,12 +444,6 @@ CT_DoGetFile() {
     local url="${1}"
     local dest="${CT_TARBALLS_DIR}/${url##*/}"
     local tmp="${dest}.tmp-dl"
-    # OK, just look if we have them...
-    # We are sure at least one is available, ./configure checked for it.
-    local _curl=$(CT_Which curl)
-    local _wget=$(CT_Which wget)
-    _curl="${_curl:-false}"
-    _wget="${_wget:-false}"
 
     # Remove potential left-over from a previous run
     rm -f "${tmp}"
@@ -462,13 +456,11 @@ CT_DoGetFile() {
     # continue the downloads. It's far better to simply overwrite the
     # destination file.
     # Some company networks have firewalls to connect to the internet, but it's
-    # not easy to detect them, and wget does not timeout by default while
-    # connecting, so force a global ${CT_CONNECT_TIMEOUT}-second timeout.
+    # not easy to detect them, so force a global ${CT_CONNECT_TIMEOUT}-second
+    # timeout.
     # For curl, no good progress indicator is available. So, be silent.
-    if CT_DoExecLog ALL "${_curl}" --ftp-pasv    --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "${url}"  \
-    || CT_DoExecLog ALL "${_curl}"               --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}"   "${url}"  \
-    || CT_DoExecLog ALL "${_wget}" --passive-ftp --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "${url}"  \
-    || CT_DoExecLog ALL "${_wget}"               --tries=3 -T ${CT_CONNECT_TIMEOUT} -nc --progress=dot:binary -O "${tmp}" "${url}"  \
+    if CT_DoExecLog ALL curl --ftp-pasv --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}" "${url}"  \
+    || CT_DoExecLog ALL curl            --retry 3 --connect-timeout ${CT_CONNECT_TIMEOUT} -L -f -s -o "${tmp}" "${url}"  \
     ; then
         # One of them succeeded, good!
         mv "${tmp}" "${dest}"
