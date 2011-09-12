@@ -158,10 +158,11 @@ addToolVersion() {
             ver_M=$(getVersionField "${version}" . 1)
             ver_m=$(getVersionField "${version}" . 2)
             ver_p=$(getVersionField "${version}" . 3)
-            if [    ${ver_M} -ge 1                                      \
-                 -o ${ver_M} -eq 0 -a ${ver_m} -ge 10                   \
-                 -o ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -ge 30 ]; then
+            if [    ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -eq 30 \
+                 -o ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -eq 31 ]; then
                 SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_0_9_30_or_later"
+            elif [  ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -eq 32 ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_0_9_32_or_later"
             fi
             ;;
         gdb)
