@@ -327,17 +327,17 @@ do_cc_core() {
         # Next we have to configure gcc, create libgcc.mk then edit it...
         # So much easier if we just edit the source tree, but hey...
         if [ ! -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
-            CT_DoExecLog CFG make configure-libiberty
+            CT_DoExecLog CFG make ${JOBSFLAGS} configure-libiberty
             CT_DoExecLog ALL make ${JOBSFLAGS} -C libiberty libiberty.a
-            CT_DoExecLog CFG make configure-gcc configure-libcpp
+            CT_DoExecLog CFG make ${JOBSFLAGS} configure-gcc configure-libcpp
             CT_DoExecLog ALL make ${JOBSFLAGS} all-libcpp
         else
-            CT_DoExecLog CFG make configure-gcc configure-libcpp configure-build-libiberty
+            CT_DoExecLog CFG make ${JOBSFLAGS} configure-gcc configure-libcpp configure-build-libiberty
             CT_DoExecLog ALL make ${JOBSFLAGS} all-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
         if [ -d "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/libdecnumber" ]; then
-            CT_DoExecLog CFG make configure-libdecnumber
+            CT_DoExecLog CFG make ${JOBSFLAGS} configure-libdecnumber
             CT_DoExecLog ALL make ${JOBSFLAGS} -C libdecnumber libdecnumber.a
         fi
 
@@ -379,7 +379,7 @@ do_cc_core() {
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/all-}"
 
     CT_DoLog EXTRA "Installing ${mode} core C compiler"
-    CT_DoExecLog ALL make "${core_targets[@]/#/install-}"
+    CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/install-}"
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
@@ -623,7 +623,7 @@ do_cc() {
     CT_DoExecLog ALL make ${JOBSFLAGS} all
 
     CT_DoLog EXTRA "Installing final compiler"
-    CT_DoExecLog ALL make install
+    CT_DoExecLog ALL make ${JOBSFLAGS} install
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
