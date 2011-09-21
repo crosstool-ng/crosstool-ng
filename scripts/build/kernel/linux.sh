@@ -54,7 +54,11 @@ do_kernel_get() {
                    http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6                    \
                    http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v3.0                    \
                    http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6/longterm/v${k_ver} \
-                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v3.0/longterm/v${k_ver}
+                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v3.0/longterm/v${k_ver} \
+                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v2.6             \
+                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v3.0             \
+                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v2.6/longterm/v${k_ver}  \
+                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v3.0/longterm/v${k_ver}
     fi
 }
 
