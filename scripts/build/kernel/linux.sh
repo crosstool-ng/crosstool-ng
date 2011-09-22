@@ -25,17 +25,23 @@ do_kernel_get() {
     fi
 
     if [ "${CT_KERNEL_LINUX_CUSTOM}" = "y" ]; then
-        # Wee need to know the custom tarball extension,
-        # so we can cerate a properly-named symlink, which
-        # we use later on in 'extract'
-        case "${CT_KERNEL_LINUX_CUSTOM_TARBALL}" in
-            *.tar.bz2)      custom_name="linux-custom.tar.bz2";;
-            *.tar.gz|*.tgz) custom_name="linux-custom.tar.gz";;
-            *.tar)          custom_name="linux-custom.tar";;
-            *)  CT_Abort "Unknown extension for custom linux tarball '${CT_KERNEL_LINUX_CUSTOM_TARBALL}'";;
-        esac
-        CT_DoExecLog DEBUG ln -sf "${CT_KERNEL_LINUX_CUSTOM_TARBALL}"  \
-                                  "${CT_TARBALLS_DIR}/${custom_name}"
+        if [ ! -d "${CT_KERNEL_LINUX_CUSTOM_LOCATION}" ]; then
+            # Wee need to know the custom tarball extension,
+            # so we can create a properly-named symlink, which
+            # we use later on in 'extract'
+            case "${CT_KERNEL_LINUX_CUSTOM_LOCATION}" in
+                *.tar.bz2)      custom_name="linux-custom.tar.bz2";;
+                *.tar.gz|*.tgz) custom_name="linux-custom.tar.gz";;
+                *.tar)          custom_name="linux-custom.tar";;
+                *)  CT_Abort "Unknown extension for custom linux tarball '${CT_KERNEL_LINUX_CUSTOM_LOCATION}'";;
+            esac
+            CT_DoExecLog DEBUG ln -sf "${CT_KERNEL_LINUX_CUSTOM_LOCATION}"  \
+                                      "${CT_TARBALLS_DIR}/${custom_name}"
+        else
+            custom_name="linux-custom"
+            CT_DoExecLog DEBUG ln -s "${CT_KERNEL_LINUX_CUSTOM_LOCATION}"  \
+                                      "${CT_SRC_DIR}/${custom_name}"
+        fi
     else # Not a custom tarball
         case "${CT_KERNEL_VERSION}" in
             2.6.*.*|3.*.*)
@@ -64,9 +70,11 @@ do_kernel_get() {
 
 # Extract kernel
 do_kernel_extract() {
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y"  ]; then
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y" \
+         -o -d "${CT_KERNEL_LINUX_CUSTOM_LOCATION}" ]; then
         return 0
     fi
+   
     # This also handles the custom tarball
     CT_Extract "linux-${CT_KERNEL_VERSION}"
     CT_Patch "linux" "${CT_KERNEL_VERSION}"
