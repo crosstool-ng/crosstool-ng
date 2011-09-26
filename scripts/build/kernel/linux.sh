@@ -19,6 +19,8 @@ CT_DoKernelTupleValues() {
 do_kernel_get() {
     local k_ver
     local custom_name
+    local rel_dir
+    local korg_base mirror_base
 
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y"  ]; then
         return 0
@@ -56,15 +58,15 @@ do_kernel_get() {
                 k_ver="${CT_KERNEL_VERSION}"
                 ;;
         esac
-        CT_GetFile "linux-${CT_KERNEL_VERSION}"                                             \
-                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6                    \
-                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v3.0                    \
-                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v2.6/longterm/v${k_ver} \
-                   http://ftp.{de.,eu.,}kernel.org/pub/linux/kernel/v3.0/longterm/v${k_ver} \
-                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v2.6             \
-                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v3.0             \
-                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v2.6/longterm/v${k_ver}  \
-                   http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/v3.0/longterm/v${k_ver}
+        case "${CT_KERNEL_VERSION}" in
+            2.6.*)  rel_dir=v2.6;;
+            3.*)    rel_dir=v3.x;;
+        esac
+        korg_base="http://ftp.kernel.org/pub/linux/kernel/${rel_dir}"
+        mirror_base="http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/${rel_dir}"
+        CT_GetFile "linux-${CT_KERNEL_VERSION}"                         \
+                   "${korg_base}" "${korg_base}/longterm/v${k_ver}"     \
+                   "${mirror_base}" "${mirror_base}/longterm/v${k_ver}"
     fi
 }
 
