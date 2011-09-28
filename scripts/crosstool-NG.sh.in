@@ -488,7 +488,11 @@ if [ -z "${CT_RESTART}" ]; then
 
     # And help make go faster
     JOBSFLAGS=
-    [ ${CT_PARALLEL_JOBS} -ne 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
+    # Use the number of processors+1 when automatically setting the number of
+    # parallel jobs.  Fall back to 1 if the host doesn't use GLIBC.
+    AUTO_JOBS=$((`getconf _NPROCESSORS_ONLN 2> /dev/null || echo 0` + 1))
+    [ ${CT_PARALLEL_JOBS} -eq -1 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
+    [ ${CT_PARALLEL_JOBS} -gt 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
     [ ${CT_LOAD} -ne 0 ] && JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"
 
     # We need to save the real .config with kconfig's value,
