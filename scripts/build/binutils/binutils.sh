@@ -64,6 +64,7 @@ do_binutils() {
 
     CT_DoExecLog CFG                                            \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                              \
+    CXXFLAGS="${CT_CFLAGS_FOR_HOST}"                            \
     "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
         --build=${CT_BUILD}                                     \
         --host=${CT_HOST}                                       \
