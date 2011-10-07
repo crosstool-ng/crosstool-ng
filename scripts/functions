@@ -787,26 +787,27 @@ CT_Extract() {
     CT_Popd
 }
 
-# Create a working git clone
+# Create a working git clone of a local git repository
 # Usage: CT_ExtractGit <basename> [ref]
 # where 'ref' is the reference to use:
 #   the full name of a branch, like "remotes/origin/branch_name"
 #   a date as understandable by git, like "YYYY-MM-DD[ hh[:mm[:ss]]]"
 #   a tag name
+# If 'ref' is not given, the current repository HEAD will be used
 CT_ExtractGit() {
     local basename="${1}"
     local ref="${2}"
-    local clone_dir
+    local repo
     local ref_type
 
     # pushd now to be able to get git revlist in case ref is a date
-    clone_dir="${CT_TARBALLS_DIR}/${basename}"
-    CT_Pushd "${clone_dir}"
+    repo="${CT_TARBALLS_DIR}/${basename}"
+    CT_Pushd "${repo}"
 
     # What kind of reference is ${ref} ?
     if [ -z "${ref}" ]; then
-        # Don't update the clone, keep as-is
-        ref_type=none
+        ref_type=head
+        ref=$(git rev-list -n1 HEAD)
     elif git tag |grep -E "^${ref}$" >/dev/null 2>&1; then
         ref_type=tag
     elif git branch -a --no-color |grep -E "^. ${ref}$" >/dev/null 2>&1; then
@@ -818,15 +819,17 @@ CT_ExtractGit() {
         CT_Abort "Reference '${ref}' is an incorrect git reference: neither tag, branch nor date"
     fi
 
-    CT_DoExecLog DEBUG rm -f "${CT_SRC_DIR}/${basename}"
-    CT_DoExecLog ALL ln -sf "${clone_dir}" "${CT_SRC_DIR}/${basename}"
-
-    case "${ref_type}" in
-        none)   ;;
-        *)      CT_DoExecLog FILE git checkout "${ref}";;
-    esac
-
     CT_Popd
+
+    CT_DoExecLog FILE rmdir "${basename}"
+    case "${ref_type}" in
+        branch) CT_DoExecLog FILE git clone -b "${ref}" "${repo}" "${basename}" ;;
+        *)      CT_DoExecLog FILE git clone "${repo}" "${basename}"
+                CT_Pushd "${basename}"
+                CT_DoExecLog FILE git checkout "${ref}"
+                CT_Popd
+                ;;
+    esac
 }
 
 # Patches the specified component
