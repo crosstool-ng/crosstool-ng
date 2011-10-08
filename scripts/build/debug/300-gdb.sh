@@ -118,6 +118,11 @@ do_debug_gdb_build() {
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
         esac
+        if [ "${CT_GDB_CROSS_PYTHON}" = "y" ]; then
+            cross_extra_config+=( "--with-python=yes" )
+        else
+            cross_extra_config+=( "--with-python=no" )
+        fi
 
         CC_for_gdb=
         LD_for_gdb=
