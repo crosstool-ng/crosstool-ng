@@ -79,9 +79,9 @@ do_binutils() {
         "${CT_BINUTILS_EXTRA_CONFIG_ARRAY[@]}"
 
     if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
-        extra_make_flags+=("LDFLAGS=-all-static")
+        extra_make_flags+=("LDFLAGS=-static -all-static")
         CT_DoLog EXTRA "Prepare binutils for static build"
-        CT_DoExecLog ALL make configure-host
+        CT_DoExecLog ALL make ${JOBSFLAGS} configure-host
     fi
 
     CT_DoLog EXTRA "Building binutils"
