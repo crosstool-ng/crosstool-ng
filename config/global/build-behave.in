@@ -78,6 +78,10 @@ config CONFIG_SHELL_SH
       
       The default is to use bash, as some components (eg. GMP) will fail
       to build with anything else than bash.
+      
+      Unless you have a very strong reason not to (eg. you are debugging
+      the bashisms in a ./configure script), you should use the default,
+      and use bash.
 
 config CONFIG_SHELL_ASH
     bool
@@ -109,15 +113,20 @@ config CONFIG_SHELL_CUSTOM
 
 endchoice
 
-config CONFIG_SHELL
-    string
-    default "sh"        if CONFIG_SHELL_SH
-    default "ash"       if CONFIG_SHELL_ASH
-    default "bash"      if CONFIG_SHELL_BASH
-    default "custom"    if CONFIG_SHELL_CUSTOM || BACKEND
-
+# Do not put this into the choice above, because the choice
+# is not available in BACKEND-mode, while we do want this to
+# be set even in BACKEND-mode.
 config CONFIG_SHELL_CUSTOM_PATH
     string
     prompt "Path to custom shell" if ! BACKEND
     depends on CONFIG_SHELL_CUSTOM || BACKEND
     default "/bin/sh"
+
+# Ditto.
+# And we must use the ./configured bash...
+config CONFIG_SHELL
+    string
+    default "/bin/sh"                   if CONFIG_SHELL_SH
+    default "/bin/ash"                  if CONFIG_SHELL_ASH
+    default "${bash}"                   if CONFIG_SHELL_BASH
+    default CONFIG_SHELL_CUSTOM_PATH    if CONFIG_SHELL_CUSTOM || BACKEND
