@@ -199,6 +199,8 @@ do_libc_backend() {
     # Adding "--without-gd" option to avoid error "memusagestat.c:36:16: gd.h: No such file or directory"
     # See also http://sources.redhat.com/ml/libc-alpha/2000-07/msg00024.html.
     # Set BUILD_CC, or we won't be able to build datafiles
+    # Run explicitly through CONFIG_SHELL, or the build breaks badly (loop-of-death)
+    # when the shell is not bash... Sigh... :-(
 
     CT_DoExecLog CFG                                                \
     BUILD_CC="${CT_BUILD}-gcc"                                      \
@@ -206,6 +208,7 @@ do_libc_backend() {
     CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
+    "${CONFIG_SHELL}"                                               \
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
