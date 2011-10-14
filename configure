@@ -534,36 +534,8 @@ case "${host}" in
         ;;
 esac
 
-printf "Checking if static linking is possible... "
-static_link_ok=""
-case "${host}" in
-    Darwin) ;;
-    *)  tmp=.static.tmp
-        if gcc -xc - -static -o "${tmp}" >/dev/null 2>&1 <<-_EOF_
-				int main() { return 0; }
-			_EOF_
-        then
-            static_link_ok="y"
-        fi
-        rm -f "${tmp}"
-        ;;
-esac
-if [ "${static_link_ok}" = "y" ]; then
-    static_link_ko=""
-    printf "yes\n"
-else
-    static_link_ko="y"
-    printf "no\n"
-    printf " * An optional host feature is missing, some features will be disabled:\n"
-    printf " * - It will not be possible to statically link toolchain's binaries\n"
-fi
-add_to_kconfig_list static_link_ok
-
 # Library checks
-libs_exts="so dylib"
-if [ "${static_link_ok}" = "y" ]; then
-    libs_exts="${libs_exts} a"
-fi
+libs_exts="so dylib a"
 
 ncurses_hdrs="ncurses/ncurses.h ncurses/curses.h ncurses.h curses.h"
 ncurses_libs="libncursesw libncurses libcurses"
@@ -571,46 +543,6 @@ has_or_abort lib="${ncurses_libs}"                                          \
              lib_exts="${libs_exts}"                                        \
              inc="${ncurses_hdrs}"                                          \
              err="The 'ncurses' library is needed fo the menuconfig frontend"
-
-has_or_abort lib="libstdc++"            \
-             lib_exts="${libs_exts}"    \
-             err="The 'libstdc++' library is needed to build gcc"
-
-# Yes, we may be checking twice for libstdc++.a
-# The first is because we need one instance of libstdc++ (shared or static)
-# because it is needed for PPL; the second is because the static version is
-# required for static-linking, and if missing, the option is removed.
-has_or_warn  lib="libstdc++"                \
-             lib_exts="a"                   \
-             err="static 'libstdc++' is needed to statically link the toolchain's executables" \
-             kconfig=has_static_libstdcxx   \
-             skip="${static_link_ko}"
-
-has_or_warn  inc="expat.h"              \
-             lib="libexpat"             \
-             lib_exts="${libs_exts}"    \
-             err="The 'expat' header file and library are needed to link cross-gdb's executables" \
-             kconfig=has_expat
-
-# Yes, we may be checking twice for libexpat.a
-# The first is because we need one instance of libexpat (shared or static)
-# because it is needed for cross-gdb; the second is because the static version
-# is required for static-linking, and if missing, the option is removed.
-has_or_warn  lib="libexpat"             \
-             lib_exts="a"               \
-             err="static 'expat' is needed to statically link cross-gdb's executables" \
-             kconfig=has_static_expat   \
-             skip="${static_link_ko}"
-
-for v in 7 6 5 4; do
-    python_incs="${python_incs} python2.${v}/Python.h"
-    python_libs="${python_libs} libpython2.${v}"
-done
-has_or_warn  inc="${python_incs}"       \
-             lib="${python_libs}"       \
-             lib_exts="${libs_exts}"    \
-             kconfig=has_python         \
-             err="The 'python' header file and library are needed for some features of cross-gdb"
 
 #---------------------------------------------------------------------
 # Compute the version string
