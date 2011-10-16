@@ -469,9 +469,6 @@ if [ -z "${CT_RESTART}" ]; then
     [ "${CT_USE_PIPES}" = "y" ] && CT_CFLAGS_FOR_HOST+=" -pipe"
     CT_CFLAGS_FOR_HOST+="${CT_EXTRA_FLAGS_FOR_HOST}"
 
-    # Override the configured jobs with what's been given on the command line
-    [ -n "${CT_JOBS}" ] && CT_PARALLEL_JOBS="${CT_JOBS}"
-
     # Set the shell to be used by ./configure scripts and by Makefiles (those
     # that support it!).
     export CONFIG_SHELL="${CT_CONFIG_SHELL}"    # for ./configure
@@ -479,10 +476,12 @@ if [ -z "${CT_RESTART}" ]; then
 
     # And help make go faster
     JOBSFLAGS=
+    # Override the configured jobs with what's been given on the command line
+    [ -n "${CT_JOBS}" ] && CT_PARALLEL_JOBS="${CT_JOBS}"
     # Use the number of processors+1 when automatically setting the number of
     # parallel jobs.  Fall back to 1 if the host doesn't use GLIBC.
     AUTO_JOBS=$((`getconf _NPROCESSORS_ONLN 2> /dev/null || echo 0` + 1))
-    [ ${CT_PARALLEL_JOBS} -eq -1 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
+    [ ${CT_PARALLEL_JOBS} -eq 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
     [ ${CT_PARALLEL_JOBS} -gt 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
     [ ${CT_LOAD} -ne 0 ] && JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"
 
