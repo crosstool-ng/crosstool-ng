@@ -6,14 +6,17 @@ CT_DoArchTupleValues () {
         CT_TARGET_ARCH="powerpc64"
     fi
 
-    CT_TARGET_SYS="gnu"
+    # Only override values when ABI is not the default
     case "${CT_ARCH_powerpc_ABI}" in
-        "") ;;
-        eabi) CT_TARGET_SYS="eabi";;
+        eabi)
+            # EABI is only for bare-metal, so libc ∈ [none,newlib]
+            CT_TARGET_SYS="eabi"
+            ;;
         spe)
             case "${CT_LIBC}" in
-                glibc|eglibc) CT_TARGET_SYS="gnuspe";;
-                *)            CT_TARGET_SYS="spe";
+                none|newlib)    CT_TARGET_SYS="spe";;
+                *glibc)         CT_TARGET_SYS="gnuspe";;
+                uClibc)         CT_TARGET_SYS="uclibcgnuspe";;
             esac
             ;;
     esac
