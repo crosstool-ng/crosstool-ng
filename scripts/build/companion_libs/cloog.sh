@@ -26,7 +26,7 @@ do_cloog_extract() {
     CT_Extract "cloog-ppl-${CT_CLOOG_VERSION}"
     CT_Patch "cloog-ppl" "${CT_CLOOG_VERSION}"
 
-    if [ "${CT_CLOOG_VERSION}" = "0.15.10" ]; then
+    if [ "${CT_CLOOG_NEEDS_AUTORECONF}" = "y" ]; then
         CT_Pushd "${CT_SRC_DIR}/cloog-ppl-${CT_CLOOG_VERSION}"
         CT_DoExecLog CFG ./autogen.sh
         CT_Popd
