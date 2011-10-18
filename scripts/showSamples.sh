@@ -145,7 +145,7 @@ dump_single_sample() {
                   printf "|  ${reporter_name}  "
               fi
           else
-              printf "|  [[http://ymorin.is-a-geek.org/|YEM]]  "
+              printf "|  (//unknown//)  "
           fi
         )
         sample_updated="$( hg log -l 1 --template '{date|shortdate}' "${sample_top}/samples/${sample}" )"

@@ -90,8 +90,8 @@ $(CT_SAMPLES):
 	@echo  '***********************************************************'
 	@echo
 	$(SILENT)( . $(call sample_dir,$@)/reported.by;                             \
-	   echo "Initially reported by: $${reporter_name:-Yann E. MORIN}";          \
-	   echo "URL: $${reporter_url:-http://ymorin.is-a-geek.org/}";              \
+	   echo "Initially reported by: $${reporter_name}";                         \
+	   echo "URL: $${reporter_url}";                                            \
 	   if [ -n "$${reporter_comment}" ]; then                                   \
 	     echo  ;                                                                \
 	     echo  "Comment:";                                                      \

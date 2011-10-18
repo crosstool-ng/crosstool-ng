@@ -67,12 +67,12 @@ print_intro_mail() {
 		are most welcome!
 		
 		The release can be found at the following URLs:
-		Changelog: http://ymorin.is-a-geek.org/download/crosstool-ng/crosstool-ng-${version}.changelog
-		Tarball:   http://ymorin.is-a-geek.org/download/crosstool-ng/crosstool-ng-${version}.tar.bz2
-		Patches:   http://ymorin.is-a-geek.org/download/crosstool-ng/01-fixes/${version}/
+		Changelog: http://crosstool-ng.org/download/crosstool-ng/crosstool-ng-${version}.changelog
+		Tarball:   http://crosstool-ng.org/download/crosstool-ng/crosstool-ng-${version}.tar.bz2
+		Patches:   http://crosstool-ng.org/download/crosstool-ng/01-fixes/${version}/
 		
 		As a reminder, the home for crosstool-NG is:
-		http://ymorin.is-a-geek.org/projects/crosstool
+		http://crosstool-ng.org/
 		
 		Crosstool-NG also has a Freshmeat page:
 		http://freshmeat.net/projects/crosstool-ng
