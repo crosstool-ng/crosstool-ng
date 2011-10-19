@@ -15,6 +15,7 @@ config ARCH_SUPPORT_ABI
 config ARCH_SUPPORT_CPU
 config ARCH_SUPPORT_TUNE
 config ARCH_SUPPORT_FPU
+config ARCH_SUPPORT_SOFTFP
 
 config ARCH_DEFAULT_HAS_MMU
 config ARCH_DEFAULT_BE
@@ -144,6 +145,9 @@ config ARCH_SUPPORT_TUNE
 config ARCH_SUPPORT_FPU
     bool
 
+config ARCH_SUPPORT_SOFTFP
+    bool
+
 config ARCH_ARCH
     string
     prompt "Architecture level"
@@ -271,6 +275,22 @@ config ARCH_FLOAT_SW
       If your processor has no FPU, then you most probably want this, as it
       is faster than emulating the FPU in the kernel.
 
+config ARCH_FLOAT_SOFTFP
+    bool
+    prompt "softfp"
+    depends on ARCH_SUPPORT_SOFTFP
+    help
+      Emit hardware floating point opcodes but use the software
+      floating point calling convention.
+
+      Architectures such as ARM use different registers for passing
+      floating point values depending on if they're in software mode
+      or hardware mode.  softfp emits FPU instructions but uses the
+      software FP calling convention allowing softfp code to
+      interoperate with legacy software only code.
+
+      If in doubt, use 'software' or 'hardware' mode instead.
+
 endchoice
 
 config TARGET_CFLAGS
@@ -300,6 +320,7 @@ config ARCH_FLOAT
     string
     default "hard"   if ARCH_FLOAT_HW
     default "soft"   if ARCH_FLOAT_SW
+    default "softfp" if ARCH_FLOAT_SOFTFP
 
 source "config.gen/arch.in.2"
 
