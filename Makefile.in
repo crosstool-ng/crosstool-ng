@@ -38,39 +38,40 @@ all: Makefile build
 ###############################################################################
 # Configuration variables
 
-VERSION:= @@VERSION@@
-BINDIR := @@BINDIR@@
-LIBDIR := @@LIBDIR@@
-DOCDIR := @@DOCDIR@@
-MANDIR := @@MANDIR@@
-PROG_PFX:=@@PROG_PFX@@
-PROG_SFX:=@@PROG_SFX@@
-PROG_SED:=@@PROG_SED@@
-DATE   := @@DATE@@
-LOCAL  := @@LOCAL@@
-
-# Paths found by ./configure
-install   := @@install@@
-bash      := @@bash@@
-grep      := @@grep@@
-make      := @@make@@
-sed       := @@sed@@
-libtool   := @@libtool@@
-libtoolize:= @@libtoolize@@
-objcopy   := @@objcopy@@
-objdump   := @@objdump@@
-readelf   := @@readelf@@
-patch     := @@patch@@
+# Stuff found by ./configure
+DATE            := @DATE@
+LOCAL           := @enable_local@
+PROG_SED        := @program_transform_name@
+PACKAGE_TARNAME := @PACKAGE_TARNAME@
+VERSION         := @PACKAGE_VERSION@
+prefix          := @prefix@
+exec_prefix     := @exec_prefix@
+bindir          := @bindir@
+libdir          := @libdir@@sublibdir@
+docdir          := @docdir@@subdocdir@
+datarootdir     := @datarootdir@
+mandir          := @mandir@
+install         := @INSTALL@
+bash            := @_BASH@
+grep            := @EGREP@
+make            := @MAKE@
+sed             := @SED@
+libtool         := @LIBTOOL@
+libtoolize      := @LIBTOOLIZE@
+objcopy         := @OBJCOPY@
+objdump         := @OBJDUMP@
+readelf         := @READELF@
+patch           := @PATCH@
 
 # config options to push down to kconfig
-KCONFIG:= @@KCONFIG@@
+KCONFIG:= @kconfig_options@
 
 ###############################################################################
 # Non-configure variables
 MAN_SECTION := 1
 MAN_SUBDIR := /man$(MAN_SECTION)
 
-PROG_NAME := $(shell echo '$(PROG_PFX)ct-ng$(PROG_SFX)' |sed -e '$(PROG_SED)' )
+PROG_NAME := $(shell echo 'ct-ng' |$(sed) -r -e '$(PROG_SED)' )
 
 ###############################################################################
 # Sanity checks
@@ -106,7 +107,7 @@ $(error Recursion detected, bailing out...)
 endif
 
 MAKEFLAGS += $(CT_MAKEFLAGS)
-build install clean distclean uninstall:
+build install clean distclean mrproper uninstall:
 	@$(MAKE) $@
 
 else
@@ -123,6 +124,10 @@ clean: $(patsubst %,clean-%,$(TARGETS))
 distclean: clean
 	@echo "  RM     'Makefile'"
 	@rm -f Makefile
+
+mrproper: distclean
+	@echo "  RM     'autostuff'"
+	@ rm -rf autom4te.cache config.log config.status configure
 
 uninstall: real-uninstall
 
@@ -147,13 +152,10 @@ docs/$(PROG_NAME).1.gz: docs/$(PROG_NAME).1
 
 define sed_it
 	@echo "  SED    '$@'"
-	@$(sed) -r -e 's,@@CT_BINDIR@@,$(BINDIR),g;'        \
-	           -e 's,@@CT_LIBDIR@@,$(LIBDIR),g;'        \
-	           -e 's,@@CT_DOCDIR@@,$(DOCDIR),g;'        \
-	           -e 's,@@CT_MANDIR@@,$(MANDIR),g;'        \
-	           -e 's,@@CT_PROG_PFX@@,$(PROG_PFX),g;'    \
-	           -e 's,@@CT_PROG_SFX@@,$(PROG_SFX),g;'    \
-	           -e 's,@@CT_PROG_SED@@,$(PROG_SED),g;'    \
+	@$(sed) -r -e 's,@@CT_BINDIR@@,$(bindir),g;'        \
+	           -e 's,@@CT_LIBDIR@@,$(libdir),g;'        \
+	           -e 's,@@CT_DOCDIR@@,$(docdir),g;'        \
+	           -e 's,@@CT_MANDIR@@,$(mandir),g;'        \
 	           -e 's,@@CT_PROG_NAME@@,$(PROG_NAME),g;'  \
 	           -e 's,@@CT_VERSION@@,$(VERSION),g;'	    \
 	           -e 's,@@CT_DATE@@,$(DATE),g;'            \
@@ -238,7 +240,7 @@ clean-man:
 #--------------------------------------
 # Check for --local setup
 
-ifeq ($(strip $(LOCAL)),y)
+ifeq ($(strip $(LOCAL)),yes)
 
 real-install:
 	@true
@@ -253,68 +255,68 @@ else
 
 real-install: $(patsubst %,install-%,$(TARGETS)) install-post
 
-install-bin: $(DESTDIR)$(BINDIR)
+install-bin: $(DESTDIR)$(bindir)
 	@echo "  INST    '$(PROG_NAME)'"
-	@$(install) -m 755 $(PROG_NAME) "$(DESTDIR)$(BINDIR)/$(PROG_NAME)"
+	@$(install) -m 755 $(PROG_NAME) "$(DESTDIR)$(bindir)/$(PROG_NAME)"
 
 # If one is hacking crosstool-NG, the patch set might change between any two
 # installations of the same VERSION, thus the patches must be removed prior
 # to being installed. It is simpler to remove the whole lib/ directory, as it
 # is the goal of the install-lib rule to install the lib/ directory...
-install-lib: uninstall-lib $(DESTDIR)$(LIBDIR) install-lib-main install-lib-samples
+install-lib: uninstall-lib $(DESTDIR)$(libdir) install-lib-main install-lib-samples
 
 LIB_SUB_DIR := config contrib kconfig patches scripts
-$(patsubst %,install-lib-%-copy,$(LIB_SUB_DIR)): $(DESTDIR)$(LIBDIR)
+$(patsubst %,install-lib-%-copy,$(LIB_SUB_DIR)): $(DESTDIR)$(libdir)
 	@echo "  INSTDIR '$(patsubst install-lib-%-copy,%,$(@))/'"
 	@tar cf - --exclude='*.sh.in' $(patsubst install-lib-%-copy,%,$(@)) \
-	 |(cd "$(DESTDIR)$(LIBDIR)"; tar xf -)
+	 |(cd "$(DESTDIR)$(libdir)"; tar xf -)
 
 # Huh? It seems we need at least one command to make this rule kick-in.
 install-lib-%: install-lib-%-copy; @true
 
 # Huh? that one does not inherit the -opy dependency, above...
 install-lib-scripts: install-lib-scripts-copy
-	@chmod a+x $(DESTDIR)$(LIBDIR)/scripts/crosstool-NG.sh
-	@chmod a+x $(DESTDIR)$(LIBDIR)/scripts/saveSample.sh
-	@rm -f "$(DESTDIR)$(LIBDIR)/scripts/addToolVersion.sh"
+	@chmod a+x $(DESTDIR)$(libdir)/scripts/crosstool-NG.sh
+	@chmod a+x $(DESTDIR)$(libdir)/scripts/saveSample.sh
+	@rm -f "$(DESTDIR)$(libdir)/scripts/addToolVersion.sh"
 
-install-lib-main: $(DESTDIR)$(LIBDIR) $(patsubst %,install-lib-%,$(LIB_SUB_DIR))
+install-lib-main: $(DESTDIR)$(libdir) $(patsubst %,install-lib-%,$(LIB_SUB_DIR))
 	@echo "  INST    'steps.mk'"
-	@$(install) -m 644 steps.mk "$(DESTDIR)$(LIBDIR)/steps.mk"
+	@$(install) -m 644 steps.mk "$(DESTDIR)$(libdir)/steps.mk"
 	@echo "  INST    'paths.mk'"
-	@$(install) -m 644 paths.mk "$(DESTDIR)$(LIBDIR)/paths.mk"
+	@$(install) -m 644 paths.mk "$(DESTDIR)$(libdir)/paths.mk"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
-install-lib-samples: $(DESTDIR)$(LIBDIR) install-lib-main
+install-lib-samples: $(DESTDIR)$(libdir) install-lib-main
 	@echo "  INSTDIR 'samples/'"
 	@for samp_dir in samples/*/; do                                         \
-	     mkdir -p "$(DESTDIR)$(LIBDIR)/$${samp_dir}";                       \
+	     mkdir -p "$(DESTDIR)$(libdir)/$${samp_dir}";                       \
 	     $(sed) -r -e 's:\$$\{CT_TOP_DIR\}:\$$\{CT_LIB_DIR\}:;'             \
 	               -e 's:^(CT_WORK_DIR)=.*:\1="\$${CT_TOP_DIR}/.build":;'   \
 	            $${samp_dir}/crosstool.config                               \
-	            >"$(DESTDIR)$(LIBDIR)/$${samp_dir}/crosstool.config";       \
+	            >"$(DESTDIR)$(libdir)/$${samp_dir}/crosstool.config";       \
 	     $(install) -m 644 "$${samp_dir}/reported.by"                       \
-	                       "$(DESTDIR)$(LIBDIR)/$${samp_dir}";              \
+	                       "$(DESTDIR)$(libdir)/$${samp_dir}";              \
 	     for libc_cfg in "$${samp_dir}/"*libc*.config; do                   \
 	         [ -f "$${libc_cfg}" ] || continue;                             \
 	         $(install) -m 644 "$${libc_cfg}"                               \
-	                           "$(DESTDIR)$(LIBDIR)/$${samp_dir}";          \
+	                           "$(DESTDIR)$(libdir)/$${samp_dir}";          \
 	     done;                                                              \
 	 done
-	@$(install) -m 644 samples/samples.mk "$(DESTDIR)$(LIBDIR)/samples/samples.mk"
+	@$(install) -m 644 samples/samples.mk "$(DESTDIR)$(libdir)/samples/samples.mk"
 
-install-doc: $(DESTDIR)$(DOCDIR)
+install-doc: $(DESTDIR)$(docdir)
 	@echo "  INST    'docs/*.txt'"
 	@for doc_file in docs/*.txt; do                              \
-	     $(install) -m 644 "$${doc_file}" "$(DESTDIR)$(DOCDIR)"; \
+	     $(install) -m 644 "$${doc_file}" "$(DESTDIR)$(docdir)"; \
 	 done
 
-install-man: $(DESTDIR)$(MANDIR)$(MAN_SUBDIR)
+install-man: $(DESTDIR)$(mandir)$(MAN_SUBDIR)
 	@echo "  INST    '$(PROG_NAME).1.gz'"
-	@$(install) -m 644 docs/$(PROG_NAME).1.gz "$(DESTDIR)$(MANDIR)$(MAN_SUBDIR)"
+	@$(install) -m 644 docs/$(PROG_NAME).1.gz "$(DESTDIR)$(mandir)$(MAN_SUBDIR)"
 
-$(sort $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(DOCDIR) $(DESTDIR)$(MANDIR)$(MAN_SUBDIR)):
+$(sort $(DESTDIR)$(bindir) $(DESTDIR)$(libdir) $(DESTDIR)$(docdir) $(DESTDIR)$(mandir)$(MAN_SUBDIR)):
 	@echo "  MKDIR   '$@/'"
 	@$(install) -m 755 -d "$@"
 
@@ -329,20 +331,20 @@ install-post:
 real-uninstall: $(patsubst %,uninstall-%,$(TARGETS))
 
 uninstall-bin:
-	@echo "  RM      '$(DESTDIR)$(BINDIR)/$(PROG_NAME)'"
-	@rm -f "$(DESTDIR)$(BINDIR)/$(PROG_NAME)"
+	@echo "  RM      '$(DESTDIR)$(bindir)/$(PROG_NAME)'"
+	@rm -f "$(DESTDIR)$(bindir)/$(PROG_NAME)"
 
 uninstall-lib:
-	@echo "  RMDIR   '$(DESTDIR)$(LIBDIR)/'"
-	@rm -rf "$(DESTDIR)$(LIBDIR)"
+	@echo "  RMDIR   '$(DESTDIR)$(libdir)/'"
+	@rm -rf "$(DESTDIR)$(libdir)"
 
 uninstall-doc:
-	@echo "  RMDIR   '$(DESTDIR)$(DOCDIR)/'"
-	@rm -rf "$(DESTDIR)$(DOCDIR)"
+	@echo "  RMDIR   '$(DESTDIR)$(docdir)/'"
+	@rm -rf "$(DESTDIR)$(docdir)"
 
 uninstall-man:
-	@echo "  RM      '$(DESTDIR)$(MANDIR)$(MAN_SUBDIR)/$(PROG_NAME).1.gz'"
-	@rm -f "$(DESTDIR)$(MANDIR)$(MAN_SUBDIR)/$(PROG_NAME).1"{,.gz}
+	@echo "  RM      '$(DESTDIR)$(mandir)$(MAN_SUBDIR)/$(PROG_NAME).1.gz'"
+	@rm -f "$(DESTDIR)$(mandir)$(MAN_SUBDIR)/$(PROG_NAME).1"{,.gz}
 
 endif # Not --local
 
