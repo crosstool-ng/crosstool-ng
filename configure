@@ -550,20 +550,18 @@ if [ -n "${V}" ]; then
 else
     case "${VERSION}" in
         *+hg|hg)
-            REVISION="$( hg id -n 2>/dev/null || true )"
-            case "${REVISION}" in
-                "")
-                    VERSION="${VERSION}_unknown@$( date +%Y%m%d.%H%M%S )";;
-                *)
-                    VERSION="${VERSION}_$( hg id -b )@${REVISION%%+}_$( hg id -i )"
-                    ;;
-            esac
-            # Arrange to have no / in the directory name, no need to create an
-            # arbitrarily deep directory structure
-            VERSION="$( printf "${VERSION}\n" |"${sed}" -r -e 's|/+|_|g;' )"
+            rev_id="$( hg log -r . --template '{branch}:{node|short}\n' \
+                              2>/dev/null                               \
+                       || true                                          \
+                     )"
+            VERSION="${VERSION}@${rev_id:-unknown:$( date +%Y%m%d.%H%M%S )}"
             ;;
     esac
 fi
+
+# Arrange to have no / in the directory name, no need to create an
+# arbitrarily deep directory structure
+VERSION="$( printf "${VERSION}" |"${sed}" -r -e 's:/+:_:g;' )"
 
 printf "${VERSION}\n"
 
