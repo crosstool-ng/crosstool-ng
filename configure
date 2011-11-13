@@ -536,21 +536,35 @@ has_or_abort lib="${ncurses_libs}"                                          \
 # If this version is n hg clone, try to get the revision number
 # If we can't get the revision number, use date
 printf "\nComputing version string... "
-case "${VERSION}" in
-    *+hg|hg)
-        REVISION="$( hg id -n 2>/dev/null || true )"
-        case "${REVISION}" in
-            "")
-                VERSION="${VERSION}_unknown@$( date +%Y%m%d.%H%M%S )";;
-            *)
-                VERSION="${VERSION}_$( hg id -b )@${REVISION%%+}_$( hg id -i )"
-                ;;
-        esac
-        # Arrange to have no / in the directory name, no need to create an
-        # arbitrarily deep directory structure
-        VERSION="$( printf "${VERSION}\n" |"${sed}" -r -e 's|/+|_|g;' )"
-        ;;
-esac
+
+# Pass the version to the version helper script, if present, to compute
+# a local version string, if needed.
+if [ -f version.sh -a -x version.sh ]; then
+    V="$( ./version.sh "${VERSION}" 2>/dev/null |head -n 1 )"
+fi
+
+# If the script returns an empty string, revert to using the version
+# we just computed, above.
+if [ -n "${V}" ]; then
+    VERSION="${V}"
+else
+    case "${VERSION}" in
+        *+hg|hg)
+            REVISION="$( hg id -n 2>/dev/null || true )"
+            case "${REVISION}" in
+                "")
+                    VERSION="${VERSION}_unknown@$( date +%Y%m%d.%H%M%S )";;
+                *)
+                    VERSION="${VERSION}_$( hg id -b )@${REVISION%%+}_$( hg id -i )"
+                    ;;
+            esac
+            # Arrange to have no / in the directory name, no need to create an
+            # arbitrarily deep directory structure
+            VERSION="$( printf "${VERSION}\n" |"${sed}" -r -e 's|/+|_|g;' )"
+            ;;
+    esac
+fi
+
 printf "${VERSION}\n"
 
 #---------------------------------------------------------------------
