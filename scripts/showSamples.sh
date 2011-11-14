@@ -127,7 +127,7 @@ dump_single_sample() {
             printf "  ${CT_LIBC_VERSION}  "
         fi
         printf "|  ${CT_THREADS:-none}  "
-        printf "|  ${CT_ARCH_FLOAT_HW:+hard}${CT_ARCH_FLOAT_SW:+soft}  "
+        printf "|  ${CT_ARCH_FLOAT}  "
         printf "|  C"
         [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ", C++"
         [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ", Fortran"
