@@ -219,13 +219,14 @@ do_debug_gdb_build() {
             CT_DoExecLog ALL make ${JOBSFLAGS} -C include
             CT_DoExecLog ALL make ${JOBSFLAGS} -C progs "tic${tic_ext}"
 
-            CT_DoExecLog ALL install -d -m 0755 "${CT_PREFIX_DIR}/buildtools"
-            CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_PREFIX_DIR}/buildtools"
+            CT_DoExecLog ALL install -d -m 0755 "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
+            CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
 
             mkdir -p "${CT_BUILD_DIR}/build-ncurses"
             cd "${CT_BUILD_DIR}/build-ncurses"
 
             CT_DoExecLog CFG                                                    \
+            TIC_PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin/tic${tic_ext}"            \
             "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
                 --build=${CT_BUILD}                                             \
                 --host=${CT_TARGET}                                             \
@@ -242,9 +243,6 @@ do_debug_gdb_build() {
             CT_DoExecLog ALL make ${JOBSFLAGS}
 
             CT_DoExecLog ALL make install
-
-            # We no longer need the temporary tic. Remove it
-            CT_DoExecLog DEBUG rm -fv "${CT_PREFIX_DIR}/buildtools/tic${tic_ext}"
 
             native_extra_config+=("--with-curses")
             # There's no better way to tell gdb where to find -lcurses... :-(
