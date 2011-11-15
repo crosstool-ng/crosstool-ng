@@ -20,6 +20,8 @@ do_binutils() {
     local -a extra_config
     local -a extra_make_flags
     local -a binutils_tools
+    local -a manuals_for
+    local -a manuals_install
 
     mkdir -p "${CT_BUILD_DIR}/build-binutils"
     cd "${CT_BUILD_DIR}/build-binutils"
@@ -89,6 +91,18 @@ do_binutils() {
 
     CT_DoLog EXTRA "Installing binutils"
     CT_DoExecLog ALL make install
+
+    if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+        CT_DoLog EXTRA "Building and installing the binutils manuals"
+        manuals_for=( gas binutils ld gprof )
+        if [ "${CT_BINUTILS_LINKER_GOLD}" = "y" ]; then
+            manuals_for+=( gold )
+        fi
+        manuals_install=( "${manuals_for[@]/#/install-pdf-}" )
+        manuals_install+=( "${manuals_for[@]/#/install-html-}" )
+        CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
+        CT_DoExecLog ALL make "${manuals_install[@]}"
+    fi
 
     # Install the wrapper if needed
     if [ "${CT_BINUTILS_LD_WRAPPER}" = "y" ]; then

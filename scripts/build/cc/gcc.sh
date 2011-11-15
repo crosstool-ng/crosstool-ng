@@ -79,9 +79,9 @@ do_cc_core_pass_2() {
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
         y,*,*)
             if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
-                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes build_staticlinked=yes
+                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes build_staticlinked=yes build_manuals=yes
             else
-                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes
+                do_cc_core mode=baremetal build_libgcc=yes build_libstdcxx=yes build_manuals=yes
             fi
             ;;
         ,y,*)   ;;
@@ -114,6 +114,7 @@ do_cc_core() {
     local build_libgcc=no
     local build_libstdcxx=no
     local build_staticlinked=no
+    local build_manuals=no
     local core_prefix_dir
     local lang_opt
     local tmp
@@ -381,6 +382,13 @@ do_cc_core() {
     CT_DoLog EXTRA "Installing ${mode} core C compiler"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/install-}"
 
+    if [ "${CT_BUILD_MANUALS}" = "y" -a "${build_manuals}" = "yes" ]; then
+        CT_DoLog EXTRA "Building the GCC manuals"
+        CT_DoExecLog ALL make pdf html
+        CT_DoLog EXTRA "Installing the GCC manuals"
+        CT_DoExecLog ALL make install-{pdf,html}-gcc
+    fi
+
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
@@ -624,6 +632,13 @@ do_cc() {
 
     CT_DoLog EXTRA "Installing final compiler"
     CT_DoExecLog ALL make ${JOBSFLAGS} install
+
+    if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+        CT_DoLog EXTRA "Building the GCC manuals"
+        CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
+        CT_DoLog EXTRA "Installing the GCC manuals"
+        CT_DoExecLog ALL make install-{pdf,html}-gcc
+    fi
 
     # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
     # to call the C compiler with the same, somewhat canonical name.

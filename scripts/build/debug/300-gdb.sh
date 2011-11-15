@@ -155,6 +155,12 @@ do_debug_gdb_build() {
         CT_DoLog EXTRA "Installing cross-gdb"
         CT_DoExecLog ALL make install
 
+        if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+            CT_DoLog EXTRA "Building and installing the cross-GDB manuals"
+            CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
+            CT_DoExecLog ALL make install-{pdf,html}-gdb
+        fi
+
         if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
             CT_DoLog EXTRA "Install '.gdbinit' template"
             # See in scripts/build/internals.sh for why we do this

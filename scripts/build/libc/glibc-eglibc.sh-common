@@ -303,6 +303,18 @@ do_libc_backend() {
                               install_root="${CT_SYSROOT_DIR}"  \
                               install
 
+        if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+            CT_DoLog EXTRA "Building and installing the C library manual"
+            # Omit JOBSFLAGS as GLIBC has problems building the
+            # manuals in parallel
+            CT_DoExecLog ALL make pdf html
+            # EGLIBC doesn't have a install-{pdf.html} and leaves the manuals
+            # in the source directory
+            CT_DoExecLog ALL mkdir -p ${CT_PREFIX_DIR}/share/doc
+            CT_DoExecLog ALL cp -av ${src_dir}/manual/*.pdf ${src_dir}/manual/libc \
+                ${CT_PREFIX_DIR}/share/doc
+        fi
+
         if [ "${CT_LIBC_LOCALES}" = "y" ]; then
             do_libc_locales
         fi
