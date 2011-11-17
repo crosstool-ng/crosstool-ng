@@ -62,6 +62,8 @@ do_binutils() {
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
     fi
 
+    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     CT_DoExecLog CFG                                            \
@@ -72,7 +74,6 @@ do_binutils() {
         --host=${CT_HOST}                                       \
         --target=${CT_TARGET}                                   \
         --prefix=${CT_PREFIX_DIR}                               \
-        --disable-nls                                           \
         --disable-multilib                                      \
         --disable-werror                                        \
         "${extra_config[@]}"                                    \
@@ -166,6 +167,8 @@ do_binutils_target() {
             [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
         fi
 
+        [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+
         CT_DoExecLog CFG                                            \
         "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
             --build=${CT_BUILD}                                     \
@@ -175,7 +178,6 @@ do_binutils_target() {
             --disable-werror                                        \
             --enable-shared                                         \
             --enable-static                                         \
-            --disable-nls                                           \
             --disable-multilib                                      \
             "${extra_config[@]}"                                    \
             ${CT_ARCH_WITH_FLOAT}                                   \
