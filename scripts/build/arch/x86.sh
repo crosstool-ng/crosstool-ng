@@ -16,6 +16,7 @@ CT_DoArchTupleValues() {
             winchip*)                     CT_TARGET_ARCH=i486;;
             pentium|pentium-mmx|c3*)      CT_TARGET_ARCH=i586;;
             pentiumpro|pentium*|athlon*)  CT_TARGET_ARCH=i686;;
+            prescott)                     CT_TARGET_ARCH=i686;;
             *)                            CT_TARGET_ARCH=i586;;
         esac
     fi
