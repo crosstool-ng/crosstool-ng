@@ -289,6 +289,8 @@ do_cc_core() {
     extra_config+=(--disable-libgomp)
     extra_config+=(--disable-libmudflap)
 
+    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -306,7 +308,6 @@ do_cc_core() {
         --disable-libmudflap                        \
         ${CC_CORE_SYSROOT_ARG}                      \
         "${extra_config[@]}"                        \
-        --disable-nls                               \
         --enable-languages="${lang_opt}"            \
         "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}"
 
@@ -598,10 +599,10 @@ do_cc() {
             ;; # ARCH is mips
     esac
 
+    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
-    # --disable-nls to work around crash bug on ppc405, but also because
-    # embedded systems don't really need message catalogs...
     CT_DoExecLog CFG                                \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                  \
@@ -617,7 +618,6 @@ do_cc() {
         ${CC_SYSROOT_ARG}                           \
         "${extra_config[@]}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
-        --disable-nls                               \
         --enable-c99                                \
         --enable-long-long                          \
         "${CT_CC_EXTRA_CONFIG_ARRAY[@]}"
