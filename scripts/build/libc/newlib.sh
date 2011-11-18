@@ -99,7 +99,8 @@ do_libc_start_files() {
         --host=${CT_BUILD}                              \
         --target=${CT_TARGET}                           \
         --prefix=${CT_PREFIX_DIR}                       \
-        "${newlib_opts[@]}"
+        "${newlib_opts[@]}"                             \
+        "${CT_LIBC_NEWLIB_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building C library"
     CT_DoExecLog ALL make ${JOBSFLAGS}
