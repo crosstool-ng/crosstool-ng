@@ -123,6 +123,11 @@ do_debug_gdb_build() {
         else
             cross_extra_config+=( "--with-python=no" )
         fi
+        if [ "${CT_GDB_CROSS_SIM}" = "y" ]; then
+            cross_extra_config+=( "--enable-sim" )
+        else
+            cross_extra_config+=( "--disable-sim" )
+        fi
 
         CC_for_gdb=
         LD_for_gdb=
