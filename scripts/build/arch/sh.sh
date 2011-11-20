@@ -13,9 +13,9 @@ CT_DoArchTupleValues () {
     CT_ARCH_WITH_FLOAT=
 
     # Endianness stuff
-    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) CT_ARCH_ENDIAN_CFLAG=-mb;;
-        ,y) CT_ARCH_ENDIAN_CFLAG=-ml;;
+    case "${CT_ARCH_ENDIAN}" in
+        big)    CT_ARCH_ENDIAN_CFLAG=-mb;;
+        little) CT_ARCH_ENDIAN_CFLAG=-ml;;
     esac
 
     # CFLAGS
