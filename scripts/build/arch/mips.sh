@@ -10,9 +10,9 @@ CT_DoArchTupleValues() {
     fi
 
     # Override CFLAGS for endianness:
-    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) CT_ARCH_ENDIAN_CFLAG="-EB";;
-        ,y) CT_ARCH_ENDIAN_CFLAG="-EL";;
+    case "${CT_ARCH_ENDIAN}" in
+        big)    CT_ARCH_ENDIAN_CFLAG="-EB";;
+        little) CT_ARCH_ENDIAN_CFLAG="-EL";;
     esac
 
     # Override ABI flags
