@@ -152,9 +152,9 @@ do_libc_locales() {
     CT_DoExecLog ALL make ${JOBSFLAGS}
 
     # Set the localedef endianness option
-    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) localedef_opts+=(--big-endian);;
-        ,y) localedef_opts+=(--little-endian);;
+    case "${CT_ARCH_ENDIAN}" in
+        big)    localedef_opts+=(--big-endian);;
+        little) localedef_opts+=(--little-endian);;
     esac
 
     # Set the localedef option for the target's uint32_t alignment in bytes.
