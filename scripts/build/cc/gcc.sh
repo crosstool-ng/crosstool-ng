@@ -79,7 +79,7 @@ do_cc_core_pass_1() {
     esac
 
     if [ "${do_core}" = "y" ]; then
-        do_cc_core "${core_opts[@]}"
+        do_cc_core_backend "${core_opts[@]}"
     fi
 }
 
@@ -126,7 +126,7 @@ do_cc_core_pass_2() {
     esac
 
     if [ "${do_core}" = "y" ]; then
-        do_cc_core "${core_opts[@]}"
+        do_cc_core_backend "${core_opts[@]}"
     fi
 }
 
@@ -138,8 +138,8 @@ do_cc_core_pass_2() {
 #  - we need to build libgcc or not             : build_libgcc=[yes|no]       (default: no)
 #  - we need to build libstdc++ or not          : build_libstdcxx=[yes|no]    (default: no)
 #  - we need to build statically linked or not  : build_staticlinked=[yes|no] (default: no)
-# Usage: do_cc_core mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
-do_cc_core() {
+# Usage: do_cc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
+do_cc_core_backend() {
     local mode
     local build_libgcc=no
     local build_libstdcxx=no
