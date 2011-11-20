@@ -320,15 +320,17 @@ mungeuClibcConfig() {
 
     # Accomodate for old and new uClibc versions, where the
     # way to select between big/little endian has changed
-    case "${CT_ARCH_BE},${CT_ARCH_LE}" in
-        y,) cat <<-ENDSED
+    case "${CT_ARCH_ENDIAN}" in
+        big)
+            cat <<-ENDSED
 				s/.*(ARCH_LITTLE_ENDIAN).*/# \\1 is not set/
 				s/.*(ARCH_BIG_ENDIAN).*/\\1=y/
 				s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/# \\1 is not set/
 				s/.*(ARCH_WANTS_BIG_ENDIAN).*/\\1=y/
 				ENDSED
         ;;
-        ,y) cat <<-ENDSED
+        little)
+            cat <<-ENDSED
 				s/.*(ARCH_LITTLE_ENDIAN).*/\\1=y/
 				s/.*(ARCH_BIG_ENDIAN).*/# \\1 is not set/
 				s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/\\1=y/
