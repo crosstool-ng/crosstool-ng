@@ -69,9 +69,11 @@ do_libc() {
 #   Parameter           : Definition                            : Type      : Default
 #   libc_mode           : 'startfiles' or 'final'               : string    : (none)
 #   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
+#   extra_dir           : Extra subdir for multilib             : string    : (empty)
 do_libc_backend() {
     local libc_mode
     local extra_flags
+    local extra_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local extra_cc_args
     local -a extra_config
@@ -90,8 +92,8 @@ do_libc_backend() {
         final)      CT_DoStep INFO "Installing C library";;
         *)          CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
     esac
-    mkdir -p "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    cd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
+    mkdir -p "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
+    cd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
 
     CT_DoLog EXTRA "Configuring C library"
 
@@ -269,7 +271,7 @@ do_libc_backend() {
         # use the 'install-headers' makefile target to install the
         # headers
         CT_DoExecLog ALL make ${JOBSFLAGS}              \
-                         install_root=${CT_SYSROOT_DIR} \
+                         install_root=${CT_SYSROOT_DIR}${extra_dir} \
                          install-bootstrap-headers=yes  \
                          "${extra_make_args[@]}"        \
                          install-headers
@@ -306,12 +308,12 @@ do_libc_backend() {
 
             # there are a few object files needed to link shared libraries,
             # which we build and install by hand
-            CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
+            CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}${extra_dir}/usr/lib"
             CT_DoExecLog ALL make ${JOBSFLAGS}  \
                         "${extra_make_args[@]}" \
                         csu/subdir_lib
             CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o \
-                                "${CT_SYSROOT_DIR}/usr/lib"
+                                "${CT_SYSROOT_DIR}${extra_dir}/usr/lib"
 
             # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
             # However, since we will never actually execute its code,
@@ -321,7 +323,7 @@ do_libc_backend() {
                                            -nostartfiles    \
                                            -shared          \
                                            -x c /dev/null   \
-                                           -o "${CT_SYSROOT_DIR}/usr/lib/libc.so"
+                                           -o "${CT_SYSROOT_DIR}${extra_dir}/usr/lib/libc.so"
         fi # threads == nptl
     else # libc_mode = final
         CT_DoLog EXTRA "Building C library"
@@ -332,7 +334,7 @@ do_libc_backend() {
         CT_DoLog EXTRA "Installing C library"
         CT_DoExecLog ALL make ${JOBSFLAGS}                      \
                               "${extra_make_args[@]}"           \
-                              install_root="${CT_SYSROOT_DIR}"  \
+                              install_root="${CT_SYSROOT_DIR}${extra_dir}"  \
                               install
 
         if [ "${CT_BUILD_MANUALS}" = "y" ]; then
