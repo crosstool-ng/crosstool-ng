@@ -78,6 +78,7 @@ do_libc_backend() {
     local -a extra_make_args
     local glibc_cflags
     local float_extra
+    local endian_extra
 
     while [ $# -ne 0 ]; do
         eval "${1// /\\ }"
@@ -169,7 +170,23 @@ do_libc_backend() {
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
     fi
 
-    extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
+    # Extract the endianness options if any
+    # This should cover all possible endianness options
+    # in gcc, but it is prone to bit-rot... :-(
+    endian_extra="$( echo "${extra_flags}"      \
+                     |${sed} -r -e '/^(.*[[:space:]])?-(E[BL]|m((big|little)(-endian)?|e?[bl]))([[:space:]].*)?$/!d;' \
+                                -e 's//\2/;'    \
+                   )"
+    case "${endian_extra}" in
+        EB|mbig-endian|mbig|meb|mb)
+            extra_cc_args="${extra_cc_args} ${endian_extra}"
+            ;;
+        EL|mlittle-endian|mlittle|mel|ml)
+            extra_cc_args="${extra_cc_args} ${endian_extra}"
+            ;;
+        "") extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
+            ;;
+    esac
 
     touch config.cache
     if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
