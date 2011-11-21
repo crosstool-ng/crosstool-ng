@@ -68,8 +68,10 @@ do_libc() {
 # Usage: do_libc_backend param=value [...]
 #   Parameter           : Definition                            : Type      : Default
 #   libc_mode           : 'startfiles' or 'final'               : string    : (none)
+#   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
 do_libc_backend() {
     local libc_mode
+    local extra_flags
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local extra_cc_args
     local -a extra_config
@@ -169,11 +171,13 @@ do_libc_backend() {
     printf "${CT_LIBC_GLIBC_CONFIGPARMS}\n" > configparms
 
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
+    extra_cc_args+=" ${extra_flags}"
 
     CT_DoLog DEBUG "Using gcc for target:     '${cross_cc}'"
     CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
     CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
+    CT_DoLog DEBUG "Extra flags (multilib)  : '${extra_flags}'"
 
     glibc_cflags="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"
     case "${CT_LIBC_ENABLE_FORTIFIED_BUILD}" in
