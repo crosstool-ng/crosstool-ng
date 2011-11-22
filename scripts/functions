@@ -760,15 +760,15 @@ CT_Extract() {
     # - so, if we get an lzma tarball, and either 'xz' or 'lzma' is
     #   missing, we can assume the other is available
     if [ "${CT_CONFIGURE_has_lzma}" = "y" ]; then
-        lzma_prog=lzma
+        lzma_prog="lzma -fdc"
     else
-        lzma_prog=xz
+        lzma_prog="xz -fdc"
     fi
     case "${ext}" in
-        .tar.xz)      CT_DoExecLog FILE tar "${tar_opts[@]}" --use-compress-program=xz -f "${full_file}";;
-        .tar.lzma)    CT_DoExecLog FILE tar "${tar_opts[@]}" --use-compress-program="${lzma_prog}" -f "${full_file}";;
-        .tar.bz2)     CT_DoExecLog FILE tar "${tar_opts[@]}" -j -f "${full_file}";;
-        .tar.gz|.tgz) CT_DoExecLog FILE tar "${tar_opts[@]}" -z -f "${full_file}";;
+        .tar.xz)      xz -fdc "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
+        .tar.lzma)    ${lzma_prog} "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
+        .tar.bz2)     bzip2 -dc "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
+        .tar.gz|.tgz) gzip -dc "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
         .tar)         CT_DoExecLog FILE tar "${tar_opts[@]}" -f "${full_file}";;
         /.git)        CT_ExtractGit "${basename}" "${@}";;
         *)            CT_DoLog WARN "Don't know how to handle '${basename}${ext}': unknown extension"
