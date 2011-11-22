@@ -85,6 +85,8 @@ do_libc_start_files() {
         newlib_opts+=( "--enable-newlib-supplied-syscalls" )
     fi
 
+    [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
+
     # Note: newlib handles the build/host/target a little bit differently
     # than one would expect:
     #   build  : not used
