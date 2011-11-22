@@ -65,12 +65,105 @@ do_libc() {
     do_libc_backend libc_mode=final
 }
 
+# This backend builds the C library once for each multilib
+# variant the compiler gives us
 # Usage: do_libc_backend param=value [...]
+#   Parameter           : Definition                            : Type      : Default
+#   libc_mode           : 'startfiles' or 'final'               : string    : (none)
+do_libc_backend() {
+    local libc_mode
+    local -a multilibs
+    local multilib
+    local multi_dir
+    local multi_flags
+    local extra_dir
+    local arg f fn ln pre
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    case "${libc_mode}" in
+        startfiles) CT_DoStep INFO "Installing C library headers & start files";;
+        final)      CT_DoStep INFO "Installing C library";;
+        *)          CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
+    esac
+
+    # If gcc is not configured for multilib, it still prints
+    # a single line for the default settings
+    multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
+    for multilib in "${multilibs[@]}"; do
+        multi_dir="${multilib%%;*}"
+        if [ "${multi_dir}" != "." ]; then
+            CT_DoStep INFO "Building for multilib subdir='${multi_dir}'"
+
+            extra_flags="$( echo "${multilib#*;}"       \
+                            |${sed} -r -e 's/@/ -/g;'   \
+                          )"
+            extra_dir="/${multi_dir}"
+
+            # glibc install its files in ${extra_dir}/{usr/,}lib
+            # while gcc expects them in {,usr/}lib/${extra_dir}.
+            # Prepare some symlinks so glibc installs in fact in
+            # the proper place
+            # We do it in the start-files step, so it is not needed
+            # to do it in the final step, as the symlinks will
+            # already exist
+            if [ "${libc_mode}" = "startfiles" ]; then
+                CT_Pushd "${CT_SYSROOT_DIR}"
+                CT_DoExecLog ALL mkdir -p "lib/${multi_dir}"        \
+                                          "usr/lib/${multi_dir}"    \
+                                          "${multi_dir}"            \
+                                          "${multi_dir}/usr"
+                CT_DoExecLog ALL ln -sf "../lib/${multi_dir}" "${multi_dir}/lib"
+                CT_DoExecLog ALL ln -sf "../../usr/lib/${multi_dir}" "${multi_dir}/usr/lib"
+                CT_Popd
+            fi
+        else
+            extra_dir=
+            extra_flags=
+        fi
+
+        mkdir -p "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
+        CT_Pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
+
+        do_libc_backend_once extra_dir="${extra_dir}"      \
+                             extra_flags="${extra_flags}"   \
+                             "$@"
+
+        CT_Popd
+
+        if [ "${multi_dir}" != "." ]; then
+            if [ "${libc_mode}" = "final" ]; then
+                CT_DoLog EXTRA "Fixing up multilib location"
+
+                # rewrite the library multiplexers
+                for d in "lib/${multi_dir}" "usr/lib/${multi_dir}"; do
+                    for l in libc libpthread libgcc_s; do
+                        if [    -f "${CT_SYSROOT_DIR}/${d}/${l}.so"    \
+                             -a ! -L ${CT_SYSROOT_DIR}/${d}/${l}.so    ]
+                        then
+                            CT_DoExecLog DEBUG ${sed} -r -i                                 \
+                                                      -e "s:/lib/:/lib/${multi_dir}/:g;"    \
+                                                      "${CT_SYSROOT_DIR}/${d}/${l}.so"
+                        fi
+                    done
+                done
+            fi # libc_mode == final
+            CT_EndStep
+        fi
+    done
+
+    CT_EndStep
+}
+
+# This backend builds the C library once
+# Usage: do_libc_backend_once param=value [...]
 #   Parameter           : Definition                            : Type      : Default
 #   libc_mode           : 'startfiles' or 'final'               : string    : (none)
 #   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
 #   extra_dir           : Extra subdir for multilib             : string    : (empty)
-do_libc_backend() {
+do_libc_backend_once() {
     local libc_mode
     local extra_flags
     local extra_dir
@@ -86,14 +179,6 @@ do_libc_backend() {
         eval "${1// /\\ }"
         shift
     done
-
-    case "${libc_mode}" in
-        startfiles) CT_DoStep INFO "Installing C library headers & start files";;
-        final)      CT_DoStep INFO "Installing C library";;
-        *)          CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
-    esac
-    mkdir -p "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
-    cd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
 
     CT_DoLog EXTRA "Configuring C library"
 
@@ -353,8 +438,6 @@ do_libc_backend() {
             do_libc_locales
         fi
     fi
-
-    CT_EndStep
 }
 
 # This function finishes the C library install
