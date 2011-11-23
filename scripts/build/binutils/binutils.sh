@@ -61,6 +61,11 @@ do_binutils() {
         extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
     fi
+    if [ "${CT_MULTILIB}" = "y" ]; then
+        extra_config+=("--enable-multilib")
+    else
+        extra_config+=("--disable-multilib")
+    fi
 
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
@@ -74,7 +79,6 @@ do_binutils() {
         --host=${CT_HOST}                                       \
         --target=${CT_TARGET}                                   \
         --prefix=${CT_PREFIX_DIR}                               \
-        --disable-multilib                                      \
         --disable-werror                                        \
         "${extra_config[@]}"                                    \
         ${CT_ARCH_WITH_FLOAT}                                   \
@@ -166,6 +170,11 @@ do_binutils_target() {
             extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
             [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
         fi
+        if [ "${CT_MULTILIB}" = "y" ]; then
+            extra_config+=("--enable-multilib")
+        else
+            extra_config+=("--disable-multilib")
+        fi
 
         [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
@@ -178,7 +187,6 @@ do_binutils_target() {
             --disable-werror                                        \
             --enable-shared                                         \
             --enable-static                                         \
-            --disable-multilib                                      \
             "${extra_config[@]}"                                    \
             ${CT_ARCH_WITH_FLOAT}                                   \
             "${CT_BINUTILS_EXTRA_CONFIG_ARRAY[@]}"
