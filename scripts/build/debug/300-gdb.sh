@@ -147,7 +147,8 @@ do_debug_gdb_build() {
             --with-sysroot="${CT_SYSROOT_DIR}"          \
             --with-expat=yes                            \
             --disable-werror                            \
-            "${cross_extra_config[@]}"
+            "${cross_extra_config[@]}"                  \
+            "${CT_GDB_CROSS_EXTRA_CONFIG_ARRAY[@]}"
 
         CT_DoLog EXTRA "Building cross-gdb"
         CT_DoExecLog ALL make ${JOBSFLAGS}
