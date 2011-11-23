@@ -297,6 +297,12 @@ do_cc_core() {
         extra_config+=("--with-system-zlib")
     fi
 
+    if [ "${CT_MULTILIB}" = "y" ]; then
+        extra_config+=("--enable-multilib")
+    else
+        extra_config+=("--disable-multilib")
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -310,7 +316,6 @@ do_cc_core() {
         --target=${CT_TARGET}                       \
         --prefix="${core_prefix_dir}"               \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
-        --disable-multilib                          \
         --disable-libmudflap                        \
         ${CC_CORE_SYSROOT_ARG}                      \
         "${extra_config[@]}"                        \
@@ -439,7 +444,6 @@ do_cc() {
     lang_opt=$(echo "${lang_opt},${CT_CC_LANG_OTHERS}" |sed -r -e 's/,+/,/g; s/,*$//;')
 
     extra_config+=("--enable-languages=${lang_opt}")
-    extra_config+=("--disable-multilib")
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
         if [ -n "${tmp}" ]; then
@@ -609,6 +613,12 @@ do_cc() {
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
+    fi
+
+    if [ "${CT_MULTILIB}" = "y" ]; then
+        extra_config+=("--enable-multilib")
+    else
+        extra_config+=("--disable-multilib")
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
