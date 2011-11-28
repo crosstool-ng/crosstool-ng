@@ -127,7 +127,9 @@ addToolVersion() {
             # Extract 'M'ajor and 'm'inor from version string
             ver_M=$(getVersionField "${version}" . 1)
             ver_m=$(getVersionField "${version}" . 2)
-            if [   \( ${ver_M} -eq 2 -a ${ver_m} -eq 21 \)  ]; then
+            if [   \( ${ver_M} -eq 2 -a ${ver_m} -eq 22 \)  ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_22_or_later"
+            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 21 \)  ]; then
                 SedExpr1="${SedExpr1}\n    select BINUTILS_2_21_or_later"
             elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 20 \)  ]; then
                 SedExpr1="${SedExpr1}\n    select BINUTILS_2_20_or_later"
