@@ -94,7 +94,7 @@ do_libc_start_files() {
     #   target : the machine newlib runs on
     CT_DoExecLog CFG                                    \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                      \
-    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS} -O"          \
+    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"             \
     AR=${CT_TARGET}-ar                                  \
     RANLIB=${CT_TARGET}-ranlib                          \
     "${CT_SRC_DIR}/newlib-$(libc_newlib_version)/configure" \
