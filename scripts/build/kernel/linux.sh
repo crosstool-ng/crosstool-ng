@@ -63,10 +63,10 @@ do_kernel_get() {
             3.*)    rel_dir=v3.x;;
         esac
         korg_base="http://ftp.kernel.org/pub/linux/kernel/${rel_dir}"
-        mirror_base="http://ftp.free.fr/mirrors/ftp.kernel.org//linux/kernel/${rel_dir}"
-        CT_GetFile "linux-${CT_KERNEL_VERSION}"                         \
-                   "${korg_base}" "${korg_base}/longterm/v${k_ver}"     \
-                   "${mirror_base}" "${mirror_base}/longterm/v${k_ver}"
+        CT_GetFile "linux-${CT_KERNEL_VERSION}"         \
+                   "${korg_base}"                       \
+                   "${korg_base}/longterm/v${k_ver}"    \
+                   "${korg_base}/longterm
     fi
 }
 
