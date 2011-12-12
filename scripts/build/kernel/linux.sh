@@ -66,7 +66,7 @@ do_kernel_get() {
         CT_GetFile "linux-${CT_KERNEL_VERSION}"         \
                    "${korg_base}"                       \
                    "${korg_base}/longterm/v${k_ver}"    \
-                   "${korg_base}/longterm
+                   "${korg_base}/longterm"
     fi
 }
 
