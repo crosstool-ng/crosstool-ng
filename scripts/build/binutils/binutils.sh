@@ -181,7 +181,7 @@ do_binutils_target() {
             --disable-multilib                                      \
             "${extra_config[@]}"                                    \
             ${CT_ARCH_WITH_FLOAT}                                   \
-            "${CT_BINUTILS_EXTRA_CONFIG[@]}"
+            "${CT_BINUTILS_EXTRA_CONFIG_ARRAY[@]}"
 
         CT_DoLog EXTRA "Building binutils' libraries (${targets[*]}) for target"
         CT_DoExecLog ALL make ${JOBSFLAGS} "${build_targets[@]}"
