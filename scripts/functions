@@ -6,52 +6,52 @@
 CT_OnError() {
     local ret=$?
     local intro
-    local file
-    local line
-    local func
-    local step_depth
+    local file line func
+    local step step_depth
 
-    # Bail out early in subshell, the upper level shell will act accordingly.
-    [ ${BASH_SUBSHELL} -eq 0 ] || exit $ret
+    # To avoid printing the backtace for each sub-shell
+    # up to the top-level, just remember we've dumped it
+    if [ ! -f "${CT_BUILD_DIR}/backtrace" ]; then
+        touch "${CT_BUILD_DIR}/backtrace"
 
-    # Print steps backtrace
-    step_depth=${CT_STEP_COUNT}
-    CT_STEP_COUNT=2
-    CT_DoLog ERROR ""
-    intro="Build failed"
-    for((step=step_depth; step>1; step--)); do
-        CT_DoLog ERROR ">>  ${intro} in step '${CT_STEP_MESSAGE[${step}]}'"
-        intro="      called"
-    done
+        # Print steps backtrace
+        step_depth=${CT_STEP_COUNT}
+        CT_STEP_COUNT=1     # To have a zero-indentation
+        CT_DoLog ERROR ""
+        CT_DoLog ERROR ">>"
+        intro="Build failed"
+        for((step=step_depth; step>0; step--)); do
+            CT_DoLog ERROR ">>  ${intro} in step '${CT_STEP_MESSAGE[${step}]}'"
+            intro="      called"
+        done
 
-    # Print functions backtrace
-    intro="Error happened in"
-    offset=1
-    CT_DoLog ERROR ">>"
-    for((depth=1; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
-        file="${BASH_SOURCE[${depth}]#${CT_LIB_DIR}/}"
-        case "${depth}" in
-            1)  line="";;
-            *)  line="@${BASH_LINENO[${depth}-1]}"
-        esac
-        func="${FUNCNAME[${depth}]}"
-        CT_DoLog ERROR ">>  ${intro}: ${func}[${file}${line}]"
-        intro="      called from"
-    done
-
-    # Help diagnose the error
-    CT_DoLog ERROR ">>"
-    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-        CT_DoLog ERROR ">>  For more info on this error, look at the file: '${tmp_log_file#${CT_TOP_DIR}/}'"
+        # Print functions backtrace
+        intro="Error happened in"
+        CT_DoLog ERROR ">>"
+        for((depth=1; ${BASH_LINENO[$((${depth}-1))]}>0; depth++)); do
+            file="${BASH_SOURCE[${depth}]#${CT_LIB_DIR}/}"
+            func="${FUNCNAME[${depth}]}"
+            line="@${BASH_LINENO[${depth}-1]:-?}"
+            CT_DoLog ERROR ">>  ${intro}: ${func}[${file}${line}]"
+            intro="      called from"
+        done
     fi
-    CT_DoLog ERROR ">>  There is a list of known issues, some with workarounds, in:"
-    CT_DoLog ERROR ">>      '${CT_DOC_DIR#${CT_TOP_DIR}/}/B - Known issues.txt'"
 
-    CT_DoLog ERROR ""
-    CT_DoLog ERROR "Build failed in step '${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}'"
+    # And finally, in top-level shell, print some hints
+    if [ ${BASH_SUBSHELL} -eq 0 ]; then
+        # Help diagnose the error
+        CT_STEP_COUNT=1     # To have a zero-indentation
+        CT_DoLog ERROR ">>"
+        if [ "${CT_LOG_TO_FILE}" = "y" ]; then
+            CT_DoLog ERROR ">>  For more info on this error, look at the file: '${tmp_log_file#${CT_TOP_DIR}/}'"
+        fi
+        CT_DoLog ERROR ">>  There is a list of known issues, some with workarounds, in:"
+        CT_DoLog ERROR ">>      '${CT_DOC_DIR#${CT_TOP_DIR}/}/B - Known issues.txt'"
 
-    CT_DoLog ERROR ""
-    CT_DoEnd ERROR
+        CT_DoLog ERROR ""
+        CT_DoEnd ERROR
+        rm -f "${CT_BUILD_DIR}/backtrace"
+    fi
     exit $ret
 }
 
@@ -288,7 +288,7 @@ CT_DoDate() {
 }
 
 CT_STEP_COUNT=1
-CT_STEP_MESSAGE[${CT_STEP_COUNT}]="<none>"
+CT_STEP_MESSAGE[${CT_STEP_COUNT}]="(top-level)"
 # Memorise a step being done so that any error is caught
 # Usage: CT_DoStep <loglevel> <message>
 CT_DoStep() {
