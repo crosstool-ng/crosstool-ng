@@ -142,6 +142,7 @@ do_libc_locales() {
     # Configure with --prefix the way we want it on the target...
 
     CT_DoExecLog CFG                                                \
+    CPPFLAGS="-DNOT_IN_libc"                                        \
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --cache-file="$(pwd)/config.cache"                          \
