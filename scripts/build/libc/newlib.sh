@@ -110,6 +110,21 @@ do_libc_start_files() {
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL make install install_root="${CT_SYSROOT_DIR}"
 
+    if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+        local -a doc_dir="${CT_BUILD_DIR}/build-libc/${CT_TARGET}"
+
+        CT_DoLog EXTRA "Building and installing the C library manual"
+        CT_DoExecLog ALL make pdf html
+
+        # NEWLIB install-{pdf.html} fail for some versions
+        CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/share/doc/newlib"
+        CT_DoExecLog ALL cp -av "${doc_dir}/newlib/libc/libc.pdf"   \
+                                "${doc_dir}/newlib/libm/libm.pdf"   \
+                                "${doc_dir}/newlib/libc/libc.html"  \
+                                "${doc_dir}/newlib/libm/libm.html"  \
+                                "${CT_PREFIX_DIR}/share/doc/newlib"
+    fi
+
     CT_EndStep
 }
 
