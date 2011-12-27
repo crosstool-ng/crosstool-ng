@@ -77,16 +77,28 @@ do_libc_backend() {
     local multi_dir
     local multi_flags
     local extra_dir
-    local arg f fn ln pre
+    local libc_headers libc_startfiles libc_full
+    local hdr
+    local arg
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
     case "${libc_mode}" in
-        startfiles) CT_DoStep INFO "Installing C library headers & start files";;
-        final)      CT_DoStep INFO "Installing C library";;
-        *)          CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
+        startfiles)
+            CT_DoStep INFO "Installing C library headers & start files"
+            hdr=y
+            libc_startfiles=y
+            libc_full=
+            ;;
+        final)
+            CT_DoStep INFO "Installing C library"
+            hdr=
+            libc_startfiles=
+            libc_full=y
+            ;;
+        *)  CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
     esac
 
     # If gcc is not configured for multilib, it still prints
@@ -119,17 +131,21 @@ do_libc_backend() {
                 CT_DoExecLog ALL ln -sf "../../usr/lib/${multi_dir}" "${multi_dir}/usr/lib"
                 CT_Popd
             fi
+            libc_headers=
         else
             extra_dir=
             extra_flags=
+            libc_headers="${hdr}"
         fi
 
         mkdir -p "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
         CT_Pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
 
-        do_libc_backend_once extra_dir="${extra_dir}"      \
-                             extra_flags="${extra_flags}"   \
-                             "$@"
+        do_libc_backend_once extra_dir="${extra_dir}"               \
+                             extra_flags="${extra_flags}"           \
+                             libc_headers="${libc_headers}"         \
+                             libc_startfiles="${libc_startfiles}"   \
+                             libc_full="${libc_full}"
 
         CT_Popd
 
@@ -160,11 +176,15 @@ do_libc_backend() {
 # This backend builds the C library once
 # Usage: do_libc_backend_once param=value [...]
 #   Parameter           : Definition                            : Type      : Default
-#   libc_mode           : 'startfiles' or 'final'               : string    : (none)
+#   libc_headers        : Build libc headers                    : bool      : n
+#   libc_startfiles     : Build libc start-files                : bool      : n
+#   libc_full           : Build full libc                       : bool      : n
 #   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
 #   extra_dir           : Extra subdir for multilib             : string    : (empty)
 do_libc_backend_once() {
-    local libc_mode
+    local libc_headers
+    local libc_startfiles
+    local libc_full
     local extra_flags
     local extra_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
@@ -350,7 +370,7 @@ do_libc_backend_once() {
             ;;
     esac
 
-    if [ "${libc_mode}" = "startfiles" ]; then
+    if [ "${libc_headers}" = "y" ]; then
         CT_DoLog EXTRA "Installing C library headers"
 
         # use the 'install-headers' makefile target to install the
@@ -387,7 +407,9 @@ do_libc_backend_once() {
                     ;;
             esac
         fi
+    fi # libc_headers == y
 
+    if [ "${libc_startfiles}" = "y" ]; then
         if [ "${CT_THREADS}" = "nptl" ]; then
             CT_DoLog EXTRA "Installing C library start files"
 
@@ -410,7 +432,9 @@ do_libc_backend_once() {
                                            -x c /dev/null   \
                                            -o "${CT_SYSROOT_DIR}${extra_dir}/usr/lib/libc.so"
         fi # threads == nptl
-    else # libc_mode = final
+    fi # libc_headers == y
+
+    if [ "${libc_full}" = "y" ]; then
         CT_DoLog EXTRA "Building C library"
         CT_DoExecLog ALL make ${JOBSFLAGS}              \
                               "${extra_make_args[@]}"   \
@@ -437,7 +461,7 @@ do_libc_backend_once() {
         if [ "${CT_LIBC_LOCALES}" = "y" ]; then
             do_libc_locales
         fi
-    fi
+    fi # libc_full == y
 }
 
 # This function finishes the C library install
