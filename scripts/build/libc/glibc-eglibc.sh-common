@@ -310,17 +310,11 @@ do_libc_backend_once() {
     cross_cc=$(CT_Which "${CT_TARGET}-gcc")
     extra_cc_args+=" ${extra_flags}"
 
-    CT_DoLog DEBUG "Using gcc for target    : '${cross_cc}'"
-    CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
-    CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
-    CT_DoLog DEBUG "Extra CC args passed    : '${extra_cc_args}'"
-    CT_DoLog DEBUG "Extra flags (multilib)  : '${extra_flags}'"
-
-    glibc_cflags="${CT_TARGET_CFLAGS} ${CT_LIBC_GLIBC_EXTRA_CFLAGS} ${OPTIMIZE}"
     case "${CT_LIBC_ENABLE_FORTIFIED_BUILD}" in
         y)  ;;
         *)  glibc_cflags+=" -U_FORTIFY_SOURCE";;
     esac
+    glibc_cflags+=" ${CT_TARGET_CFLAGS} ${OPTIMIZE} ${CT_LIBC_GLIBC_EXTRA_CFLAGS}"
 
     # ./configure is mislead by our tools override wrapper for bash
     # so just tell it where the real bash is _on_the_target_!
@@ -344,6 +338,12 @@ do_libc_backend_once() {
     # Set BUILD_CC, or we won't be able to build datafiles
     # Run explicitly through CONFIG_SHELL, or the build breaks badly (loop-of-death)
     # when the shell is not bash... Sigh... :-(
+
+    CT_DoLog DEBUG "Using gcc for target    : '${cross_cc}'"
+    CT_DoLog DEBUG "Configuring with addons : '$(do_libc_add_ons_list ,)'"
+    CT_DoLog DEBUG "Extra config args passed: '${extra_config[*]}'"
+    CT_DoLog DEBUG "Extra CC args passed    : '${glibc_cflags}'"
+    CT_DoLog DEBUG "Extra flags (multilib)  : '${extra_flags}'"
 
     CT_DoExecLog CFG                                                \
     BUILD_CC="${CT_BUILD}-gcc"                                      \
