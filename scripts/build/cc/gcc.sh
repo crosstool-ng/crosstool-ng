@@ -408,6 +408,21 @@ do_cc_core() {
     [ -z "${file}" ] || ext=".${file##*.}"
     CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${core_prefix_dir}/bin/${CT_TARGET}-cc${ext}"
 
+    if [ "${CT_MULTILIB}" = "y" ]; then
+        multilibs=( $( "${core_prefix_dir}/bin/${CT_TARGET}-gcc" -print-multi-lib   \
+                       |tail -n +2 ) )
+        if [ ${#multilibs[@]} -ne 0 ]; then
+            CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
+            for i in "${multilibs[@]}"; do
+                dir="${i%%;*}"
+                flags="${i#*;}"
+                CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
+            done
+        else
+            CT_DoLog WARN "gcc configured for multilib, but none available"
+        fi
+    fi
+
     CT_EndStep
 }
 
@@ -666,6 +681,21 @@ do_cc() {
     file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
     CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc${ext}"
+
+    if [ "${CT_MULTILIB}" = "y" ]; then
+        multilibs=( $( "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc" -print-multi-lib \
+                       |tail -n +2 ) )
+        if [ ${#multilibs[@]} -ne 0 ]; then
+            CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
+            for i in "${multilibs[@]}"; do
+                dir="${i%%;*}"
+                flags="${i#*;}"
+                CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
+            done
+        else
+            CT_DoLog WARN "gcc configured for multilib, but none available"
+        fi
+    fi
 
     CT_EndStep
 }
