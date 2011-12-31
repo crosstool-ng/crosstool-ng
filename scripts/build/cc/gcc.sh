@@ -293,6 +293,10 @@ do_cc_core() {
 
     [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ] && extra_config+=("--disable-libstdcxx-pch")
 
+    if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
+        extra_config+=("--with-system-zlib")
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -602,6 +606,10 @@ do_cc() {
     esac
 
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+
+    if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
+        extra_config+=("--with-system-zlib")
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
