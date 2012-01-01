@@ -71,7 +71,7 @@ do_cc_core_pass_1() {
             core_opts+=( "mode=static" )
             core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
+            core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             ;;
         *)
@@ -100,12 +100,12 @@ do_cc_core_pass_2() {
     # In case we're NPTL, build the shared core gcc and the target libgcc.
     # In any other case, build the static core gcc and, if using gcc-4.3+,
     # also build the target libgcc.
+    core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     case "${CT_BARE_METAL},${CT_CANADIAN},${CT_THREADS}" in
         y,*,*)
             do_core=y
             core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "mode=static" )
-            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             ;;
@@ -116,7 +116,6 @@ do_cc_core_pass_2() {
             core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "prefix=${CT_CC_CORE_SHARED_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             ;;
         ,,win32)
@@ -125,7 +124,6 @@ do_cc_core_pass_2() {
             core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "build_libgcc=yes" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             ;;
         *)
@@ -133,7 +131,6 @@ do_cc_core_pass_2() {
             core_opts+=( "mode=static" )
             core_opts+=( "host=${CT_HOST}" )
             core_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
-            core_opts+=( "prefix=${CT_CC_CORE_STATIC_PREFIX_DIR}" )
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 core_opts+=( "build_libgcc=yes" )

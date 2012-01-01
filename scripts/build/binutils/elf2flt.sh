@@ -64,15 +64,11 @@ do_elf2flt() {
     # are not executable on the build machine.
     case "${CT_TOOLCHAIN_TYPE}" in
         cross|native)
-            mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin"
-            mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin"
-            mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin"
-            mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin"
+            mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin"
+            mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
             for t in elf2flt flthdr; do
-                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
-                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
-                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
-                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
+                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
+                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
             done 2>&1 |CT_DoLog ALL
             ;;
         *)  ;;

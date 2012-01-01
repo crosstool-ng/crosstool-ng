@@ -162,11 +162,6 @@ CT_COMPLIBS_DIR="${CT_BUILD_DIR}/static"
 # Compute test suite install directory
 CT_TEST_SUITE_DIR=${CT_INSTALL_DIR}/test-suite
 
-# Note: we'll always install the core compiler in its own directory, so as to
-# not mix the two builds: core and final.
-CT_CC_CORE_STATIC_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-static"
-CT_CC_CORE_SHARED_PREFIX_DIR="${CT_BUILD_DIR}/${CT_CC}-core-shared"
-
 # We must ensure that we can restart if asked for!
 if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
     CT_DoLog ERROR "You asked to restart a non-restartable build"
@@ -239,10 +234,6 @@ CT_DoExecLog ALL mkdir -p "${CT_CONFIG_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_COMPLIBS_DIR}"
-if [ -z "${CT_CANADIAN}" ]; then
-    CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}"
-    CT_DoExecLog ALL mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}"
-fi
 
 # Only create the state dir if asked for a restartable build
 [ -n "${CT_DEBUG_CT_SAVE_STEPS}" ] && CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"
@@ -457,13 +448,12 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Carefully add paths in the order we want them:
     #  - first try in ${CT_PREFIX_DIR}/bin
-    #  - then try in ${CT_CC_CORE_SHARED_PREFIX_DIR}/bin
-    #  - then try in ${CT_CC_CORE_STATIC_PREFIX_DIR}/bin
+    #  - then try the buildtools dir
     #  - fall back to searching user's PATH
     # Of course, neither cross-native nor canadian can run on BUILD,
     # so don't add those PATHs in this case...
     case "${CT_TOOLCHAIN_TYPE}" in
-        cross)  export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${CT_PREFIX_DIR}/bin:${CT_CC_CORE_SHARED_PREFIX_DIR}/bin:${CT_CC_CORE_STATIC_PREFIX_DIR}/bin:${PATH}";;
+        cross)  export PATH="${CT_PREFIX_DIR}/bin:${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}";;
         canadian) export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}";;
         *)  ;;
     esac
