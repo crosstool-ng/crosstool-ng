@@ -130,16 +130,23 @@ do_binutils() {
     # Make those new tools available to the core C compilers to come.
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
     # well. Create that.
-    mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin"
-    mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin"
-    mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin"
-    mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin"
-    for t in "${binutils_tools[@]}"; do
-        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
-        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
-        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
-        ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
-    done 2>&1 |CT_DoLog ALL
+    # Don't do it for canadian or cross-native, because the binutils
+    # are not executable on the build machine.
+    case "${CT_TOOLCHAIN_TYPE}" in
+        cross|native)
+            mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin"
+            mkdir -p "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin"
+            mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin"
+            mkdir -p "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin"
+            for t in "${binutils_tools[@]}"; do
+                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
+                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_STATIC_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
+                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
+                ln -sv "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}" "${CT_CC_CORE_SHARED_PREFIX_DIR}/bin/${CT_TARGET}-${t}"
+            done 2>&1 |CT_DoLog ALL
+            ;;
+        *)  ;;
+    esac
 
     CT_EndStep
 }
