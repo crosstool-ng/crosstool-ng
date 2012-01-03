@@ -33,7 +33,7 @@ CT_STEPS := libc_check_config   \
             libc                \
             cc                  \
             libc_finish         \
-            libelf_target       \
+            libelf_for_target   \
             binutils_target     \
             debug               \
             test_suite          \

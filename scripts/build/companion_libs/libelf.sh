@@ -3,7 +3,7 @@
 do_libelf_get() { :; }
 do_libelf_extract() { :; }
 do_libelf() { :; }
-do_libelf_target() { :; }
+do_libelf_for_target() { :; }
 
 if [ "${CT_LIBELF}" = "y" -o "${CT_LIBELF_TARGET}" = "y" ]; then
 
@@ -56,7 +56,7 @@ fi # CT_LIBELF
 
 if [ "${CT_LIBELF_TARGET}" = "y" ]; then
 
-do_libelf_target() {
+do_libelf_for_target() {
     CT_DoStep INFO "Installing libelf for the target"
     mkdir -p "${CT_BUILD_DIR}/build-libelf-for-target"
     CT_Pushd "${CT_BUILD_DIR}/build-libelf-for-target"
