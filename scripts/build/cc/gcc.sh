@@ -76,13 +76,10 @@ do_cc_core_pass_1() {
     local -a core_opts
     local do_core
 
-    # Do nothing for canadian-crosses, we already have a target compiler.
     # We only need a pass-1 core gcc if the threading model is NPTL.
     # For all other cases, it is not used.
-    case "${CT_CANADIAN},${CT_THREADS}" in
-        y,*)
-            ;;
-        ,nptl)
+    case "${CT_THREADS}" in
+        nptl)
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "host=${CT_BUILD}" )
@@ -116,21 +113,18 @@ do_cc_core_pass_2() {
     core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     core_opts+=( "lang_list=c" )
 
-    # Do nothing for canadian-crosses, we already have a target compiler.
     # Different conditions are at stake here:
     #   - In case the threading model is NPTL, we need a shared-capable core
     #     gcc; in all other cases, we need a static-only core gcc.
     #   - In case the threading model is NPTL or win32, or gcc is 4.3 or
     #     later, we need to build libgcc
-    case "${CT_CANADIAN},${CT_THREADS}" in
-        y,*)
-            ;;
-        ,nptl)
+    case "${CT_THREADS}" in
+        nptl)
             do_core=y
             core_opts+=( "mode=shared" )
             core_opts+=( "build_libgcc=yes" )
             ;;
-        ,win32)
+        win32)
             do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "build_libgcc=yes" )

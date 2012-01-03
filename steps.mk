@@ -14,9 +14,19 @@ help-env::
 # ----------------------------------------------------------
 # The steps list
 
+# The _for_build steps are noop for native and cross,
+# but are actual steps for canadian and cross-native.
 # Please keep the last line with a '\' and keep the following empy line:
 # it helps when diffing and merging.
 CT_STEPS := libc_check_config   \
+            gmp_for_build       \
+            mpfr_for_build      \
+            ppl_for_build       \
+            cloog_for_build     \
+            mpc_for_build       \
+            libelf_for_build    \
+            binutils_for_build  \
+            elf2flt_for_build   \
             gmp_for_host        \
             mpfr_for_host       \
             ppl_for_host        \
@@ -31,6 +41,7 @@ CT_STEPS := libc_check_config   \
             libc_start_files    \
             cc_core_pass_2      \
             libc                \
+            cc_for_build        \
             cc_for_host         \
             libc_finish         \
             libelf_for_target   \
@@ -38,6 +49,9 @@ CT_STEPS := libc_check_config   \
             debug               \
             test_suite          \
             finish              \
+
+# Keep an empty line above this comment, so the last
+# back-slash terminated line works as expected.
 
 # Make the list available to sub-processes (scripts/crosstool-NG.sh needs it)
 export CT_STEPS
