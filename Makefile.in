@@ -39,29 +39,37 @@ all: Makefile build
 # Configuration variables
 
 # Stuff found by ./configure
-DATE            := @DATE@
-LOCAL           := @enable_local@
-PROG_SED        := @program_transform_name@
-PACKAGE_TARNAME := @PACKAGE_TARNAME@
-VERSION         := @PACKAGE_VERSION@
-prefix          := @prefix@
-exec_prefix     := @exec_prefix@
-bindir          := @bindir@
-libdir          := @libdir@@sublibdir@
-docdir          := @docdir@@subdocdir@
-datarootdir     := @datarootdir@
-mandir          := @mandir@
-install         := @INSTALL@
-bash            := @_BASH@
-grep            := @EGREP@
-make            := @MAKE@
-sed             := @SED@
-libtool         := @LIBTOOL@
-libtoolize      := @LIBTOOLIZE@
-objcopy         := @OBJCOPY@
-objdump         := @OBJDUMP@
-readelf         := @READELF@
-patch           := @PATCH@
+export DATE            := @DATE@
+export LOCAL           := @enable_local@
+export PROG_SED        := @program_transform_name@
+export PACKAGE_TARNAME := @PACKAGE_TARNAME@
+export VERSION         := @PACKAGE_VERSION@
+export prefix          := @prefix@
+export exec_prefix     := @exec_prefix@
+export bindir          := @bindir@
+export libdir          := @libdir@@sublibdir@
+export docdir          := @docdir@@subdocdir@
+export mandir          := @mandir@
+export datarootdir     := @datarootdir@
+export install         := @INSTALL@
+export bash            := @_BASH@
+export grep            := @EGREP@
+export make            := @MAKE@
+export sed             := @SED@
+export libtool         := @LIBTOOL@
+export libtoolize      := @LIBTOOLIZE@
+export objcopy         := @OBJCOPY@
+export objdump         := @OBJDUMP@
+export readelf         := @READELF@
+export patch           := @PATCH@
+export CC              := @CC@
+export CPP             := @CPP@
+export CPPFLAGS        := @CPPFLAGS@
+export CFLAGS          := @CFLAGS@
+export LDFLAGS         := @LDFLAGS@
+export LIBS            := @LIBS@
+export curses_hdr      := @ac_ct_curses_hdr@
+export gettext         := @gettext@
 
 # config options to push down to kconfig
 KCONFIG:= @kconfig_options@
@@ -113,7 +121,7 @@ build install clean distclean mrproper uninstall:
 else
 # There were no additional MAKEFLAGS to add, do the job
 
-TARGETS := bin lib doc man
+TARGETS := bin lib lib-kconfig doc man
 
 build: $(patsubst %,build-%,$(TARGETS))
 
@@ -137,10 +145,17 @@ uninstall: real-uninstall
 #--------------------------------------
 # Build rules
 
-build-bin: $(PROG_NAME) scripts/crosstool-NG.sh scripts/saveSample.sh scripts/showTuple.sh
+build-bin: $(PROG_NAME)             \
+           scripts/crosstool-NG.sh  \
+           scripts/saveSample.sh    \
+           scripts/showTuple.sh
 	@chmod 755 $^
 
-build-lib: paths.mk config/configure.in
+build-lib: paths.mk             \
+           config/configure.in
+
+build-lib-kconfig:
+	@$(MAKE) -C kconfig
 
 build-doc:
 
@@ -229,6 +244,9 @@ clean-lib:
 	@echo "  RM     'config/configure.in'"
 	@rm -f config/configure.in
 
+clean-lib-kconfig:
+	@$(MAKE) -C kconfig clean
+
 clean-doc:
 
 clean-man:
@@ -263,9 +281,12 @@ install-bin: $(DESTDIR)$(bindir)
 # installations of the same VERSION, thus the patches must be removed prior
 # to being installed. It is simpler to remove the whole lib/ directory, as it
 # is the goal of the install-lib rule to install the lib/ directory...
-install-lib: uninstall-lib $(DESTDIR)$(libdir) install-lib-main install-lib-samples
+install-lib: uninstall-lib          \
+             $(DESTDIR)$(libdir)    \
+             install-lib-main       \
+             install-lib-samples
 
-LIB_SUB_DIR := config contrib kconfig patches scripts
+LIB_SUB_DIR := config contrib patches scripts
 $(patsubst %,install-lib-%-copy,$(LIB_SUB_DIR)): $(DESTDIR)$(libdir)
 	@echo "  INSTDIR '$(patsubst install-lib-%-copy,%,$(@))/'"
 	@tar cf - --exclude='*.sh.in' $(patsubst install-lib-%-copy,%,$(@)) \
@@ -305,6 +326,13 @@ install-lib-samples: $(DESTDIR)$(libdir) install-lib-main
 	     done;                                                              \
 	 done
 	@$(install) -m 644 samples/samples.mk "$(DESTDIR)$(libdir)/samples/samples.mk"
+
+KCONFIG_FILES := conf mconf nconf kconfig.mk
+install-lib-kconfig: $(DESTDIR)$(libdir) install-lib-main
+	@echo "  INST    'kconfig/'"
+	@for f in $(KCONFIG_FILES); do                                      \
+	    install -D "kconfig/$${f}" "$(DESTDIR)$(libdir)/kconfig/$${f}"; \
+	 done
 
 install-doc: $(DESTDIR)$(docdir)
 	@echo "  INST    'docs/*.txt'"

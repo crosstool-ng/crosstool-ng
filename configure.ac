@@ -251,11 +251,27 @@ AC_HEADER_STDC
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_ALLOCA
+
+#----------------------------------------
+# Check for gettext, for the kconfig frontends
+AC_SUBST([gettext])
+AC_CHECK_HEADERS(
+    [libintl.h],
+    [ac_ct_gettext_hdr=$ac_header; break])
+AS_IF(
+    [test -n "$ac_ct_gettext_hdr"],
+    [AC_CHECK_DECL(
+        [gettext],gettext=y,,
+        [#include <$ac_ct_gettext_hdr>])])
+
+#----------------------------------------
+# Check for ncurses, for the kconfig frontends
+AC_SUBST([ac_ct_curses_hdr])
 AC_CHECK_HEADERS(
     [ncurses/ncurses.h ncurses/curses.h ncursesw/curses.h ncurses.h curses.h],
-    [ac_ct_curses_hdr_found=yes; break])
+    [ac_ct_curses_hdr=$ac_header; break])
 AS_IF(
-    [test -z "$ac_ct_curses_hdr_found"],
+    [test -z "$ac_ct_curses_hdr"],
     [AC_MSG_ERROR([could not find curses header, required for the kconfig frontends])])
 AC_SEARCH_LIBS(
     [initscr],
