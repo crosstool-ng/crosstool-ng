@@ -124,6 +124,7 @@ ACX_PATH_TOOL_REQ([READELF], [readelf])
 
 ACX_CHECK_PROGS_REQ([bison], [bison])
 ACX_CHECK_PROGS_REQ([flex], [flex])
+ACX_CHECK_PROGS_REQ([gperf], [gperf])
 ACX_CHECK_PROGS_REQ([awk], [gawk mawk nawk awk])
 ACX_CHECK_PROGS_REQ([makeinfo], [makeinfo])
 ACX_CHECK_PROGS_REQ([cut], [cut])

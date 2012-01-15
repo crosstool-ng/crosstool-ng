@@ -22,7 +22,7 @@ NCURSES_LDFLAGS = $(LIBS)
 COMMON_SRC = zconf.tab.c
 COMMON_OBJ = $(patsubst %.c,%.o,$(COMMON_SRC))
 COMMON_DEP = $(patsubst %.o,%.dep,$(COMMON_OBJ))
-$(COMMON_OBJ) $(COMMON_DEP): CFLAGS += $(INTL_CFLAGS)
+$(COMMON_OBJ) $(COMMON_DEP): CFLAGS += $(INTL_CFLAGS) -I.
 
 # lxdialog source files
 LX_SRC = $(wildcard lxdialog/*.c)
@@ -73,6 +73,23 @@ DEPS += $(nconf_DEP)
 	@echo "  DEP    '$@'"
 	@$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |$(sed) -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
 
+# Generate the grammar parser
+zconf.tab.o: zconf.tab.c zconf.hash.c lex.zconf.c
+zconf.tab.dep: zconf.tab.c zconf.hash.c lex.zconf.c
+
+.PRECIOUS: zconf.tab.c
+zconf.tab.c: zconf.y
+	@echo "  BISON  '$@'"
+	@bison -l -b zconf -p zconf $<
+
+zconf.hash.c: zconf.gperf
+	@echo "  GPERF  '$@'"
+	@gperf < $< > $@
+
+lex.zconf.c: zconf.l
+	@echo "  LEX    '$@'"
+	@flex -L -P zconf -o $@ $<
+
 # Build C files
 %.o: %.c
 	@echo "  CC     '$@'"
@@ -97,3 +114,4 @@ conf: $(COMMON_OBJ) $(conf_OBJ)
 clean:
 	@echo "  RM     'kconfig'"
 	@rm -f conf mconf nconf $(ALL_OBJS) $(ALL_DEPS)
+	@rm -f rm -f zconf.tab.c zconf.hash.c lex.zconf.c lex.backup
