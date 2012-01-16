@@ -5,7 +5,7 @@
 # the versions of the main tools
 
 # Use tools discovered by ./configure
-. "${CT_LIB_DIR}/paths.mk"
+. "${CT_LIB_DIR}/paths.sh"
 
 [ "$1" = "-v" ] && opt="$1" && shift
 [ "$1" = "-w" ] && opt="$1" && shift

@@ -151,8 +151,9 @@ build-bin: $(PROG_NAME)             \
            scripts/showTuple.sh
 	@chmod 755 $^
 
-build-lib: paths.mk             \
-           config/configure.in
+build-lib: config/configure.in  \
+           paths.mk             \
+           paths.sh
 
 build-lib-kconfig:
 	@$(MAKE) -C kconfig
@@ -189,24 +190,36 @@ $(PROG_NAME): ct-ng.in Makefile
 	$(call sed_it)
 
 # We create a script fragment that is parseable from inside a Makefile,
-# but also from inside a shell script, hence the reason why we don't
-# use := to set variables, although that will incur a (very small)
-# penalty from the Makefile that includes it (due to re-evaluation at
-# each call).
+# and one from inside a shell script
 paths.mk: FORCE
 	@echo "  GEN    '$@'"
-	@(echo "export install=$(install)"; \
-	  echo "export bash=$(bash)";       \
-	  echo "export grep=$(grep)";       \
-	  echo "export make=$(make)";       \
-	  echo "export sed=$(sed)";         \
-	  echo "export libtool=$(libtool)"; \
-	  echo "export libtoolize=$(libtoolize)"; \
-	  echo "export objcopy=$(objcopy)"; \
-	  echo "export objdump=$(objdump)"; \
-	  echo "export readelf=$(readelf)"; \
-	  echo "export patch=$(patch)";     \
-	 ) >paths.mk
+	@(echo 'export install=$(install)';         \
+	  echo 'export bash=$(bash)';               \
+	  echo 'export grep=$(grep)';               \
+	  echo 'export make=$(make)';               \
+	  echo 'export sed=$(sed)';                 \
+	  echo 'export libtool=$(libtool)';         \
+	  echo 'export libtoolize=$(libtoolize)';   \
+	  echo 'export objcopy=$(objcopy)';         \
+	  echo 'export objdump=$(objdump)';         \
+	  echo 'export readelf=$(readelf)';         \
+	  echo 'export patch=$(patch)';             \
+	 ) >$@
+
+paths.sh: FORCE
+	@echo "  GEN    '$@'"
+	@(echo 'export install="$(install)"';       \
+	  echo 'export bash="$(bash)"';             \
+	  echo 'export grep="$(grep)"';             \
+	  echo 'export make="$(make)"';             \
+	  echo 'export sed="$(sed)"';               \
+	  echo 'export libtool="$(libtool)"';       \
+	  echo 'export libtoolize="$(libtoolize)"'; \
+	  echo 'export objcopy="$(objcopy)"';       \
+	  echo 'export objdump="$(objdump)"';       \
+	  echo 'export readelf="$(readelf)"';       \
+	  echo 'export patch="$(patch)"';           \
+	 ) >$@
 
 config/configure.in: FORCE
 	@echo "  GEN    '$@'"
@@ -239,8 +252,8 @@ clean-bin:
 	@rm -f scripts/showTuple.sh
 
 clean-lib:
-	@echo "  RM     'paths.mk'"
-	@rm -f paths.mk
+	@echo "  RM     'paths'"
+	@rm -f paths.mk paths.sh
 	@echo "  RM     'config/configure.in'"
 	@rm -f config/configure.in
 
@@ -304,8 +317,8 @@ install-lib-scripts: install-lib-scripts-copy
 install-lib-main: $(DESTDIR)$(libdir) $(patsubst %,install-lib-%,$(LIB_SUB_DIR))
 	@echo "  INST    'steps.mk'"
 	@$(install) -m 644 steps.mk "$(DESTDIR)$(libdir)/steps.mk"
-	@echo "  INST    'paths.mk'"
-	@$(install) -m 644 paths.mk "$(DESTDIR)$(libdir)/paths.mk"
+	@echo "  INST    'paths'"
+	@$(install) -m 644 paths.mk paths.sh "$(DESTDIR)$(libdir)"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
