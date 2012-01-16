@@ -52,8 +52,8 @@ AC_DEFUN(
     [ACX_SET_KCONFIG_OPTION],
     [AS_IF(
         [test -n "$$1"],
-        [kconfig_options="$kconfig_options $1=y"],
-        [kconfig_options="$kconfig_options $1"])
+        [kconfig_options="$kconfig_options has_$1=y"],
+        [kconfig_options="$kconfig_options has_$1"])
     ])
 
 #--------------------------------------------------------------------
