@@ -91,7 +91,11 @@ AC_ARG_PROGRAM
 # just what I seem to experience...)
 #---------------------------------------------------------------------
 AC_PROG_INSTALL
+AC_PROG_GREP
 AC_PROG_EGREP
+AS_IF(
+    [test ! "$EGREP" = "$GREP -E"],
+    [AC_MSG_ERROR([egrep is not $GREP -E])])
 AC_CACHE_VAL([ac_cv_path_SED],
     [AC_ARG_WITH([sed],
         AS_HELP_STRING([--with-sed=PATH],
