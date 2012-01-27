@@ -45,7 +45,7 @@ do_cloog() {
 
     CT_DoExecLog CFG                            \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"              \
-    LDFLAGS="-lm"                               \
+    LIBS="-lm"                                  \
     "${cloog_src_dir}/configure"                \
         --build=${CT_BUILD}                     \
         --host=${CT_HOST}                       \
