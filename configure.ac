@@ -203,7 +203,7 @@ AC_CACHE_VAL([ac_cv_path_LIBTOOLIZE],
                        [Specify the full PATH to GNU libtoolize >= 1.5.26]),
         [ac_cv_path_LIBTOOLIZE=$withval])])
 AC_CACHE_CHECK([for GNU libtoolize >= 1.5.26], [ac_cv_path_LIBTOOLIZE],
-    [AC_PATH_PROGS_FEATURE_CHECK([LIBTOOLIZE], [libtool],
+    [AC_PATH_PROGS_FEATURE_CHECK([LIBTOOLIZE], [libtoolize],
         [[LIBTOOLIZE_ver=$($ac_path_LIBTOOLIZE --version 2>&1 \
                         |$EGREP '\(GNU libtool.*\) (2[[:digit:]]*\.|1\.6[[:digit:]]*\.|1\.5\.[2-9][[:digit:]]+)')
           test -n "$LIBTOOLIZE_ver" && ac_cv_path_LIBTOOLIZE=$ac_path_LIBTOOLIZE ac_path_LIBTOOLIZE_found=:]],
