@@ -19,8 +19,12 @@ version="${2}"
 [ -d "${repos}"   ] || { printf "${my_name}: ${repos}: no such file or directory\n"; exit 1; }
 [ -n "${version}" ] || { usage; exit 1; }
 
+_hg() {
+    HGPLAIN=1 hg --config progress.disabled=true "$@"
+}
+
 gen_bound_revs() {
-    r1=$( hg log    \
+    r1=$( _hg log   \
           |awk 'BEGIN {
                   found=0;
                 }
@@ -33,7 +37,7 @@ gen_bound_revs() {
                 }'
         )
 
-    r2=$( hg log -b "${branch}" \
+    r2=$( _hg log -b "${branch}" \
           |awk '$1=="changeset:" {
                   split($2,a,":");
                   printf( "%d\n", a[1] );
@@ -103,7 +107,7 @@ print_author_stats() {
     printf "\nMany thanks to the people who contributed to this release:\n\n"
     prev_author=""
     template='{author|person}\n'
-    hg log -b "${branch}" -r "${r1_log}:${r2}"                  \
+    _hg log -b "${branch}" -r "${r1_log}:${r2}"                 \
            --template "${template}"                             \
     |sed -r -e 's/"//g;'                                        \
     |awk -F '' '{
@@ -121,7 +125,7 @@ print_author_shortlog() {
     printf "\nHere is the per-author shortlog:\n"
     prev_author=""
     template='{author|person}|{rev}|{branches}|{desc|firstline}\n'
-    hg log -b "${branch}" -r "${r1_log}:${r2}"              \
+    _hg log -b "${branch}" -r "${r1_log}:${r2}"             \
            --template "${template}"                         \
     |awk -F '' '{
                   n=split( $0,a,"|" );
@@ -175,12 +179,12 @@ print_author_shortlog() {
 
 print_diffstat() {
     printf "\nThe diffstat follows:\n\n"
-    hg diff -r "${r1}:${r2}" --color=never  \
+    _hg diff -r "${r1}:${r2}" --color=never \
     |diffstat -r 2 -p 1 -w 10               \
     |tail -n 1                              \
     |sed -r -e 's/^ */    /;'
 
-    hg diff -r "${r1}:${r2}" --color=never  \
+    _hg diff -r "${r1}:${r2}" --color=never \
     |diffstat -f 1 -r 2 -p 1 -w 10          \
     |head -n -1                             \
     |while read file line; do
@@ -195,7 +199,7 @@ print_short_diffstat() {
     printf "\nThe short diffstat follows:\n\n"
 
     eval total=$(( $(
-        hg diff -r "${r1}:${r2}" --color=never "${i}"                               \
+        _hg diff -r "${r1}:${r2}" --color=never "${i}"                              \
         |diffstat -r 2 -p 1 -w 10                                                   \
         |tail -n 1                                                                  \
         |sed -r -e 's/^[[:space:]]*[[:digit:]]+ files? changed(,[[:space:]]+|$)//;' \
@@ -213,7 +217,7 @@ print_short_diffstat() {
         samples/            \
         ; do
         eval val=$(( $(
-            hg diff -r "${r1}:${r2}" --color=never "${i}"                               \
+            _hg diff -r "${r1}:${r2}" --color=never "${i}"                              \
             |diffstat -r 2 -p 1 -w 10                                                   \
             |tail -n 1                                                                  \
             |sed -r -e 's/^[[:space:]]*[[:digit:]]+ files? changed(,[[:space:]]+|$)//;' \
@@ -243,7 +247,7 @@ prefix="$(pwd)/crosstool-ng-${version}"
 pushd "${repos}" >/dev/null 2>&1
 
 printf "Checking for existing tag: "
-if hg tags |grep -E '^'"crosstool-ng-${version}"'\>' >/dev/null; then
+if _hg tags |grep -E '^'"crosstool-ng-${version}"'\>' >/dev/null; then
     printf "already tagged\n"
     exit 1
 fi
@@ -270,27 +274,27 @@ gen_bound_revs
 printf " %d:%d\n" ${r1} ${r2}
 
 printf "Tagging release:"
-hg up "${branch}" >/dev/null
+_hg up "${branch}" >/dev/null
 if [ ${ver_p} -eq 0 ]; then
     printf " update version"
-    hg branch "${ver_M}.${ver_m}" >/dev/null
+    _hg branch "${ver_M}.${ver_m}" >/dev/null
     echo "${version}" >".version"
-    hg ci -m "${ver_M}.${ver_m}: create maintenance branch, update version to ${version}"
+    _hg ci -m "${ver_M}.${ver_m}: create maintenance branch, update version to ${version}"
 else
     printf " update version"
     echo "${version}" >".version"
-    hg ci -m "${ver_M}.${ver_m}: update version to ${version}"
+    _hg ci -m "${ver_M}.${ver_m}: update version to ${version}"
 fi
 
 printf ", tag"
-hg tag -m "Tagging release ${version}" crosstool-ng-${version}
+_hg tag -m "Tagging release ${version}" crosstool-ng-${version}
 
 printf ", update version"
 echo "${version}+hg" >".version"
-hg ci -m "${ver_M}.${ver_m}: update version to ${version}+hg"
+_hg ci -m "${ver_M}.${ver_m}: update version to ${version}+hg"
 
 printf ", date"
-date="$( hg log -r crosstool-ng-${version} --template '{date|isodate}\n'    \
+date="$( _hg log -r crosstool-ng-${version} --template '{date|isodate}\n'    \
          |sed -r -e 's/-|://g; s/ /./; s/ //;'                              \
        )"
 printf ", done.\n"
@@ -324,8 +328,8 @@ popd >/dev/null 2>&1
 printf "Creating tarball:"
 prefix="crosstool-ng-${version}"
 printf " archive"
-hg archive --cwd "${repos}" -r "${prefix}" -X '.hg*' "$(pwd)/${prefix}.tar.bz2"
-date="$( hg log -R "${repos}" -r "${prefix}" --template '{date|rfc822date}\n' )"
+_hg archive --cwd "${repos}" -r "${prefix}" -X '.hg*' "$(pwd)/${prefix}.tar.bz2"
+date="$( _hg log -R "${repos}" -r "${prefix}" --template '{date|rfc822date}\n' )"
 printf ", sum"
 for s in md5 sha1 sha512; do
     ${s}sum "${prefix}.tar.bz2" >"${prefix}.tar.bz2.${s}"
