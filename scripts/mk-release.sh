@@ -327,9 +327,17 @@ popd >/dev/null 2>&1
 
 printf "Creating tarball:"
 prefix="crosstool-ng-${version}"
-printf " archive"
-_hg archive --cwd "${repos}" -r "${prefix}" -X '.hg*' "$(pwd)/${prefix}.tar.bz2"
+printf " extract"
 date="$( _hg log -R "${repos}" -r "${prefix}" --template '{date|rfc822date}\n' )"
+tmpdir="$( mktemp -d --tmpdir XXXXXX )"
+_hg archive --cwd "${repos}" -r "${prefix}" -X '.hg*' --type files "${tmpdir}/${prefix}"
+printf ", bootstrap"
+pushd "${tmpdir}/${prefix}" >/dev/null 2>&1
+./bootstrap >/dev/null
+popd >/dev/null 2>&1
+printf ", tarball"
+tar cjf "$(pwd)/${prefix}.tar.bz2" -C "${tmpdir}" "$prefix}"
+rm -rf "${tmpdir}"
 printf ", sum"
 for s in md5 sha1 sha512; do
     ${s}sum "${prefix}.tar.bz2" >"${prefix}.tar.bz2.${s}"
