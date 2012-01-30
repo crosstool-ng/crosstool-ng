@@ -307,7 +307,7 @@ AS_IF(
         [rev_id="$( hg log -r . --template '{branch}-{node|short}\n' \
                            2>/dev/null                               \
                     || true                                          )"
-         PACKAGE_VERSION="${PACKAGE_VERSION}@${rev_id:-unknown-$( date +%Y%m%d.%H%M%S )}"
+         PACKAGE_VERSION="${PACKAGE_VERSION}+${rev_id:-unknown-$( date +%Y%m%d.%H%M%S )}"
         ])])
 # Arrange to have no / in the directory name, no need to create an
 # arbitrarily deep directory structure
