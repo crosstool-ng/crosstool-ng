@@ -334,9 +334,10 @@ _hg archive --cwd "${repos}" -r "${prefix}" -X '.hg*' --type files "${tmpdir}/${
 printf ", bootstrap"
 pushd "${tmpdir}/${prefix}" >/dev/null 2>&1
 ./bootstrap >/dev/null
+rm -rf autom4te.cache
 popd >/dev/null 2>&1
 printf ", tarball"
-tar cjf "$(pwd)/${prefix}.tar.bz2" -C "${tmpdir}" "$prefix}"
+tar cjf "$(pwd)/${prefix}.tar.bz2" -C "${tmpdir}" "${prefix}"
 rm -rf "${tmpdir}"
 printf ", sum"
 for s in md5 sha1 sha512; do
