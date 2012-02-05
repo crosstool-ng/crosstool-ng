@@ -1,7 +1,7 @@
 # Build script for strace
 
 do_debug_strace_get() {
-    CT_GetFile "strace-${CT_STRACE_VERSION}" http://mesh.dl.sourceforge.net/sourceforge/strace/
+    CT_GetFile "strace-${CT_STRACE_VERSION}" http://kent.dl.sourceforge.net/sourceforge/strace/
     # Downloading from sourceforge leaves garbage, cleanup
     CT_DoExecLog ALL rm -f "${CT_TARBALLS_DIR}/showfiles.php"*
 }
