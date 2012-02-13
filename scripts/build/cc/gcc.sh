@@ -446,7 +446,7 @@ do_cc_core_backend() {
     CT_DoLog EXTRA "Installing ${mode} core C compiler"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/install-}"
 
-    if [ "${CT_BUILD_MANUALS}" = "y" -a "${build_manuals}" = "yes" ]; then
+    if [ "${build_manuals}" = "yes" ]; then
         CT_DoLog EXTRA "Building the GCC manuals"
         CT_DoExecLog ALL make pdf html
         CT_DoLog EXTRA "Installing the GCC manuals"
@@ -488,6 +488,9 @@ do_cc() {
     final_opts+=( "prefix=${CT_PREFIX_DIR}" )
     final_opts+=( "complibs=${CT_COMPLIBS_DIR}" )
     final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+        final_opts+=( "build_manuals=yes" )
+    fi
     if [ "${CT_BARE_METAL}" = "y" ]; then
         final_opts+=( "mode=baremetal" )
         final_opts+=( "build_libgcc=yes" )
@@ -495,7 +498,6 @@ do_cc() {
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
         fi
-        final_opts+=( "build_manuals=yes" )
         final_backend=do_cc_core_backend
     else
         final_backend=do_cc_backend
@@ -513,11 +515,13 @@ do_cc() {
 #   prefix        : the runtime prefix                  : dir       : (none)
 #   complibs      : the companion libraries prefix      : dir       : (none)
 #   cflags        : the host CFLAGS                     : string    : (empty)
+#   build_manuals : whether to build manuals or not     : bool      : no
 do_cc_backend() {
     local host
     local prefix
     local complibs
     local cflags
+    local build_manuals
     local -a host_libstdcxx_flags
     local -a extra_config
     local -a final_LDFLAGS
@@ -762,7 +766,7 @@ do_cc_backend() {
     CT_DoLog EXTRA "Installing final compiler"
     CT_DoExecLog ALL make ${JOBSFLAGS} install
 
-    if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+    if [ "${build_manuals}" = "yes" ]; then
         CT_DoLog EXTRA "Building the GCC manuals"
         CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
         CT_DoLog EXTRA "Installing the GCC manuals"
