@@ -122,10 +122,10 @@ do_cc_core() {
     local -a extra_config
     local -a core_LDFLAGS
     local -a core_targets
+    local arg
 
-    while [ $# -ne 0 ]; do
-        eval "${1// /\\ }"
-        shift
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
     done
 
     lang_opt=c
