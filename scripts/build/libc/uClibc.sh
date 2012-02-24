@@ -528,6 +528,16 @@ mungeuClibcConfig() {
       2)
         cat <<-ENDSED
 			s/^# DODEBUG is not set.*/DODEBUG=y/
+			s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
+			s/^# DOASSERTS is not set.*/DOASSERTS=y/
+			s/^# SUPPORT_LD_DEBUG is not set.*/SUPPORT_LD_DEBUG=y/
+			s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
+			s/^# UCLIBC_MALLOC_DEBUGGING is not set/UCLIBC_MALLOC_DEBUGGING=y/
+			ENDSED
+        ;;
+      3)
+        cat <<-ENDSED
+			s/^# DODEBUG is not set.*/DODEBUG=y/
 			s/^# DODEBUG_PT is not set.*/DODEBUG_PT=y/
 			s/^# DOASSERTS is not set.*/DOASSERTS=y/
 			s/^# SUPPORT_LD_DEBUG is not set.*/SUPPORT_LD_DEBUG=y/
