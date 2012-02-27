@@ -463,7 +463,7 @@ do_cc_core_backend() {
     CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
 
     if [ "${CT_MULTILIB}" = "y" ]; then
-        multilibs=( $( "${core_prefix_dir}/bin/${CT_TARGET}-gcc" -print-multi-lib   \
+        multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib   \
                        |tail -n +2 ) )
         if [ ${#multilibs[@]} -ne 0 ]; then
             CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
