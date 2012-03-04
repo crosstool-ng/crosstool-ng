@@ -145,7 +145,7 @@ do_binutils() {
 }
 
 # Now on for the target libraries
-do_binutils_target() {
+do_binutils_for_target() {
     local -a extra_config
     local -a targets
     local -a build_targets
