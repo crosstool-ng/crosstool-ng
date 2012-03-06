@@ -1,5 +1,5 @@
 # Makefile for each steps
-# Copyright 2006 Yann E. MORIN <yann.morin.1998@anciens.enib.fr>
+# Copyright 2006 Yann E. MORIN <yann.morin.1998@free.fr>
 
 # ----------------------------------------------------------
 # This is the steps help entry
