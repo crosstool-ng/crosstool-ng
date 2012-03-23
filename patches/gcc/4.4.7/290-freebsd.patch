@@ -1,0 +1,64 @@
+diff -durN gcc-4.4.5.orig/gcc/config/freebsd-spec.h gcc-4.4.5/gcc/config/freebsd-spec.h
+--- gcc-4.4.5.orig/gcc/config/freebsd-spec.h	2010-10-09 23:09:53.000000000 +0200
++++ gcc-4.4.5/gcc/config/freebsd-spec.h	2010-10-09 23:10:02.000000000 +0200
+@@ -86,9 +86,10 @@
+ #define FBSD_STARTFILE_SPEC \
+   "%{!shared: \
+      %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} \
+-		       %{!p:%{profile:gcrt1.o%s} \
+-			 %{!profile:crt1.o%s}}}} \
+-   crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
++	%{!p:%{profile:gcrt1.o%s} \
++	 %{!profile:crt1.o%s}}}} \
++   crti.o%s \
++   %{static:crtbeginT.o%s;shared:crtbeginS.o%s;:crtbegin.o%s}"
+ 
+ /* Provide a ENDFILE_SPEC appropriate for FreeBSD.  Here we tack on
+    the magical crtend.o file (see crtstuff.c) which provides part of 
+@@ -126,7 +127,8 @@
+     %{pg:  -lc_p}							\
+   }"
+ #else
+-#if FBSD_MAJOR < 5
++#include <sys/param.h>
++#if __FreeBSD_version < 500016
+ #define FBSD_LIB_SPEC "							\
+   %{!shared:								\
+     %{!pg:								\
+@@ -136,17 +138,34 @@
+       %{!pthread:-lc_p}							\
+       %{pthread:-lc_r_p}}						\
+   }"
+-#else
++#elif __FreeBSD_version < 700022
+ #define FBSD_LIB_SPEC "							\
+   %{!shared:								\
+     %{!pg: %{pthread:-lpthread} -lc}					\
+     %{pg:  %{pthread:-lpthread_p} -lc_p}				\
+   }"
++#else
++#define FBSD_LIB_SPEC "							\
++  %{!shared:								\
++    %{!pg: %{pthread:-lpthread} -lc}					\
++    %{pg:  %{pthread:-lpthread_p} -lc_p}}				\
++  %{shared:								\
++    %{pthread:-lpthread} -lc}						\
++  "
+ #endif
+ #endif
+ 
+-#if FBSD_MAJOR < 6
++#if FBSD_MAJOR < 5
+ #define FBSD_DYNAMIC_LINKER "/usr/libexec/ld-elf.so.1"
+ #else
+ #define FBSD_DYNAMIC_LINKER "/libexec/ld-elf.so.1"
+ #endif
++
++#if defined(HAVE_LD_EH_FRAME_HDR)
++#define LINK_EH_SPEC "%{!static:--eh-frame-hdr} "
++#endif
++
++/* Use --as-needed -lgcc_s for eh support.  */
++#ifdef HAVE_LD_AS_NEEDED
++#define USE_LD_AS_NEEDED 1
++#endif

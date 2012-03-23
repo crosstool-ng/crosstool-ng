@@ -1,0 +1,53 @@
+diff -durN gcc-4.4.5.orig/libstdc++-v3/src/Makefile.am gcc-4.4.5/libstdc++-v3/src/Makefile.am
+--- gcc-4.4.5.orig/libstdc++-v3/src/Makefile.am	2009-08-26 21:04:11.000000000 +0200
++++ gcc-4.4.5/libstdc++-v3/src/Makefile.am	2010-10-09 23:03:26.000000000 +0200
+@@ -356,6 +356,13 @@
+ 	  $(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LTLDFLAGS) -o $@
+ 
+ 
++install-exec-local:
++	pic_objs=`sed -n "s:'::g;s:^pic_object=::p" *.lo | grep -v '^none$$'`; \
++	if [ x"$$pic_objs" != x ]; then \
++		$(AR) cru libstdc++_pic.a $$pic_objs $(top_builddir)/libsupc++/*.o || exit 1; \
++		$(INSTALL_DATA) libstdc++_pic.a $(DESTDIR)$(toolexeclibdir) || exit 1; \
++	fi
++
+ # Added bits to build debug library.
+ if GLIBCXX_BUILD_DEBUG
+ all-local: build_debug
+diff -durN gcc-4.4.5.orig/libstdc++-v3/src/Makefile.in gcc-4.4.5/libstdc++-v3/src/Makefile.in
+--- gcc-4.4.5.orig/libstdc++-v3/src/Makefile.in	2009-08-26 21:04:11.000000000 +0200
++++ gcc-4.4.5/libstdc++-v3/src/Makefile.in	2010-10-09 23:03:26.000000000 +0200
+@@ -726,7 +726,7 @@
+ 
+ install-data-am: install-data-local
+ 
+-install-exec-am: install-toolexeclibLTLIBRARIES
++install-exec-am: install-toolexeclibLTLIBRARIES install-exec-local
+ 
+ install-info: install-info-am
+ 
+@@ -765,7 +765,7 @@
+ 	maintainer-clean-generic mostlyclean mostlyclean-compile \
+ 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+ 	tags uninstall uninstall-am uninstall-info-am \
+-	uninstall-toolexeclibLTLIBRARIES
++	uninstall-toolexeclibLTLIBRARIES install-exec-local
+ 
+ 
+ # Symbol versioning for shared libraries.
+@@ -947,6 +947,14 @@
+ install_debug:
+ 	(cd ${debugdir} && $(MAKE) \
+ 	toolexeclibdir=$(glibcxx_toolexeclibdir)/debug install)
++
++install-exec-local:
++	pic_objs=`sed -n "s:'::g;s:^pic_object=::p" *.lo | grep -v '^none$$'`; \
++	if [ x"$$pic_objs" != x ]; then \
++		$(AR) cru libstdc++_pic.a $$pic_objs $(top_builddir)/libsupc++/*.o || exit 1; \
++		$(INSTALL_DATA) libstdc++_pic.a $(DESTDIR)$(toolexeclibdir) || exit 1; \
++	fi
++
+ # Tell versions [3.59,3.63) of GNU make to not export all variables.
+ # Otherwise a system limit (for SysV at least) may be exceeded.
+ .NOEXPORT:
