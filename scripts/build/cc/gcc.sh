@@ -490,6 +490,7 @@ do_cc() {
     final_opts+=( "prefix=${CT_PREFIX_DIR}" )
     final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
     final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
     if [ "${CT_BUILD_MANUALS}" = "y" ]; then
         final_opts+=( "build_manuals=yes" )
     fi
@@ -497,7 +498,6 @@ do_cc() {
         final_opts+=( "mode=baremetal" )
         final_opts+=( "build_libgcc=yes" )
         final_opts+=( "build_libstdcxx=yes" )
-        final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
         fi
@@ -523,12 +523,14 @@ do_cc() {
 #   prefix        : the runtime prefix                  : dir       : (none)
 #   complibs      : the companion libraries prefix      : dir       : (none)
 #   cflags        : the host CFLAGS                     : string    : (empty)
+#   lang_list     : the list of languages to build      : string    : (empty)
 #   build_manuals : whether to build manuals or not     : bool      : no
 do_cc_backend() {
     local host
     local prefix
     local complibs
     local cflags
+    local lang_list
     local build_manuals
     local -a host_libstdcxx_flags
     local -a extra_config
@@ -543,7 +545,7 @@ do_cc_backend() {
     CT_DoLog EXTRA "Configuring final compiler"
 
     # Enable selected languages
-    extra_config+=("--enable-languages=$( cc_gcc_lang_list )")
+    extra_config+=("--enable-languages=${lang_list}")
 
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
