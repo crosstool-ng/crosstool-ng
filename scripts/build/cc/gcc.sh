@@ -481,8 +481,48 @@ do_cc_core_backend() {
 }
 
 #------------------------------------------------------------------------------
-# Build final gcc
-do_cc() {
+# Build complete gcc to run on build
+do_cc_for_build() {
+    local -a build_final_opts
+    local build_final_backend
+
+    # In case we're canadian or cross-native, it seems that a
+    # real, complete compiler is needed?!? WTF? Sigh...
+    # Otherwise, there is nothing to do.
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    build_final_opts+=( "host=${CT_BUILD}" )
+    build_final_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    build_final_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    build_final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
+    if [ "${CT_BARE_METAL}" = "y" ]; then
+        # In the tests I've done, bare-metal was not impacted by the
+        # lack of such a compiler, but better safe than sorry...
+        build_final_opts+=( "mode=baremetal" )
+        build_final_opts+=( "build_libgcc=yes" )
+        build_final_opts+=( "build_libstdcxx=yes" )
+        if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+            build_final_opts+=( "build_staticlinked=yes" )
+        fi
+        build_final_backend=do_cc_core_backend
+    else
+        build_final_backend=do_cc_backend
+    fi
+
+    CT_DoStep INFO "Installing final compiler for build"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-final-build-${CT_BUILD}"
+
+    "${build_final_backend}" "${build_final_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+
+#------------------------------------------------------------------------------
+# Build final gcc to run on host
+do_cc_for_host() {
     local -a final_opts
     local final_backend
 

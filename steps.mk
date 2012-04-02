@@ -31,7 +31,7 @@ CT_STEPS := libc_check_config   \
             libc_start_files    \
             cc_core_pass_2      \
             libc                \
-            cc                  \
+            cc_for_host         \
             libc_finish         \
             libelf_for_target   \
             binutils_for_target \
