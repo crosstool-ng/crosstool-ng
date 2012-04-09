@@ -121,14 +121,18 @@ exec >&7
 [ -f "${samp_dir}/reported.by" ] && . "${samp_dir}/reported.by"
 old_name="${reporter_name}"
 old_url="${reporter_url}"
+old_comment="${reporter_comment}"
 read -p "Reporter name [${reporter_name}]: " reporter_name
 read -p "Reporter URL [${reporter_url}]: " reporter_url
 if [ -n "${reporter_comment}" ]; then
-  echo "Old comment if you need to copy-paste:"
-  printf "${reporter_comment}\n"
+  echo "Old comment:"
+  printf "${reporter_comment}\n" |sed -r -e 's/^/  > /;'
 fi
-echo "Reporter comment (Ctrl-D to finish):"
+echo "Reporter comment (Ctrl-D to finish, '.' to use previous):"
 reporter_comment=$(cat)
+if [ "${reporter_comment}" = "." ]; then
+  reporter_comment="${old_comment}"
+fi
 
 ( echo "reporter_name=\"${reporter_name:=${old_name}}\""
   echo "reporter_url=\"${reporter_url:=${old_url}}\""
