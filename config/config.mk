@@ -6,7 +6,8 @@
 # List all config files, wether sourced or generated
 
 # The top-level config file to be used be configurators
-KCONFIG_TOP = config/config.in
+# We need it to savedefconfig in scripts/saveSample.sh
+export KCONFIG_TOP = config/config.in
 
 # Build the list of all source config files
 STATIC_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(shell find $(CT_LIB_DIR)/config -type f \( -name '*.in' -o -name '*.in.2' \) 2>/dev/null))

@@ -72,15 +72,16 @@ esac
 samp_dir="samples/${samp_name}"
 mkdir -p "${samp_dir}"
 
-# Save the crosstool-NG config file
-# We need to save the real .config with kconfig's values,
-# not our mangled .config.2 with arrays
+# Tweak the .config file
+# We need to be based on the real .config with kconfig's values,
+# not our mangled .config.2 with shell arrays
+cp .config .defconfig
 "${sed}" -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'      \
             -e 's|^# CT_LOG_TO_FILE is not set$|CT_LOG_TO_FILE=y|;'             \
             -e 's|^# CT_LOG_FILE_COMPRESS is not set$|CT_LOG_FILE_COMPRESS=y|;' \
             -e 's|^(CT_LOCAL_TARBALLS_DIR)=.*|\1="${HOME}/src"|;'               \
          <.config                                                               \
-    >"${samp_dir}/crosstool.config"
+         >.defconfig
 
 # Function to copy a file to the sample directory
 # Needed in case the file is already there (think of a previously available sample)
@@ -106,13 +107,18 @@ if [ -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
     # We save the file, and then point the saved sample to this file
     CT_DoAddFileToSample "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${samp_dir}/${CT_LIBC}-${CT_LIBC_VERSION}.config"
     "${sed}" -r -i -e 's|^(CT_LIBC_UCLIBC_CONFIG_FILE)=.+$|\1="'"${samp_top_dir}"'/samples/${CT_TARGET}/${CT_LIBC}-${CT_LIBC_VERSION}.config"|;' \
-             "${samp_dir}/crosstool.config"
+             .defconfig
 else
     # remove any dangling files
     for f in "${samp_dir}/${CT_LIBC}-"*.config; do
         if [ -f "${f}" ]; then rm -f "${f}"; fi
     done
 fi
+
+# Now, actually save the defconfig
+export KCONFIG_CONFIG="$(pwd)/.defconfig"
+${CONF} --savedefconfig="${samp_dir}/crosstool.config" "${KCONFIG_TOP}"
+rm -f .defconfig
 
 # Restore stdout now, to be interactive
 exec >&7

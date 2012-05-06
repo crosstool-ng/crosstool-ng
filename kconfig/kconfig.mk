@@ -10,7 +10,8 @@ PHONY += $(configurators)
 
 $(configurators): config_files
 
-CONF  := $(CT_LIB_DIR)/kconfig/conf
+# We need CONF for savedefconfig in scripts/saveSample.sh
+export CONF  := $(CT_LIB_DIR)/kconfig/conf
 MCONF := $(CT_LIB_DIR)/kconfig/mconf
 NCONF := $(CT_LIB_DIR)/kconfig/nconf
 
