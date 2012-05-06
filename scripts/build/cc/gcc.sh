@@ -621,6 +621,15 @@ do_cc_backend() {
     else
         extra_config+=(--disable-libssp)
     fi
+    if [ "${CT_CC_GCC_HAS_LIBQUADMATH}" = "y" ]; then
+        if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
+            extra_config+=(--enable-libquadmath)
+            extra_config+=(--enable-libquadmath-support)
+        else
+            extra_config+=(--disable-libquadmath)
+            extra_config+=(--disable-libquadmath-support)
+        fi
+    fi
 
     # *** WARNING ! ***
     # Keep this full if-else-if-elif-fi-fi block in sync
