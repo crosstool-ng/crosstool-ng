@@ -36,13 +36,18 @@ help-env::
 # Print the details of current configuration
 PHONY += show-config
 show-config: .config
-	@export current_tuple=$(shell $(MAKE) -rf "$(CT_NG)" show-tuple );  \
-	$(CT_LIB_DIR)/scripts/showSamples.sh -v current
+	@cp .config .config.sample
+	@$(CT_LIB_DIR)/scripts/showSamples.sh -v current
+	@rm -f .config.sample
 
 # Prints the details of a sample
 PHONY += $(patsubst %,show-%,$(CT_SAMPLES))
-$(patsubst %,show-%,$(CT_SAMPLES)):
+$(patsubst %,show-%,$(CT_SAMPLES)): config_files
+	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
+	    $(CONF) --defconfig=$(call sample_dir,$(patsubst show-%,%,$(@)))/crosstool.config \
+	            $(KCONFIG_TOP) >/dev/null
 	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
+	@rm -f .config.sample
 
 # Prints the details of all samples
 PHONY += show-all

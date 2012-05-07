@@ -14,7 +14,7 @@
 export GREP_OPTIONS=
 
 # Dump a single sample
-# Note: we can quite safely used the non-mangled .config.2
+# Note: we use the specific .config.sample config file
 dump_single_sample() {
     local verbose=0
     local complibs
@@ -25,9 +25,8 @@ dump_single_sample() {
     case "${sample}" in
         current)
             sample_type="l"
-            sample="${current_tuple}"
+            sample="$( ${CT_NG} show-tuple )"
             width="${#sample}"
-            . $(pwd)/.config
             ;;
         *)  if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
                 sample_top="${CT_TOP_DIR}"
@@ -36,9 +35,9 @@ dump_single_sample() {
                 sample_top="${CT_LIB_DIR}"
                 sample_type="G"
             fi
-            . "${sample_top}/samples/${sample}/crosstool.config"
             ;;
     esac
+    . $(pwd)/.config.sample
     if [ -z "${wiki}" ]; then
         t_width=14
         printf "%-*s  [%s" ${width} "${sample}" "${sample_type}"
