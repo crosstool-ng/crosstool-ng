@@ -243,6 +243,7 @@ ver_M="$( printf "${version}" |cut -d . -f 1 )"
 ver_m="$( printf "${version}" |cut -d . -f 2 )"
 ver_p="$( printf "${version}" |cut -d . -f 3 )"
 
+sob_line="$( printf "Signed-off-by: "; _hg debugconfig ui.username )"
 prefix="$(pwd)/crosstool-ng-${version}"
 pushd "${repos}" >/dev/null 2>&1
 
@@ -279,19 +280,29 @@ if [ ${ver_p} -eq 0 ]; then
     printf " update version"
     _hg branch "${ver_M}.${ver_m}" >/dev/null
     echo "${version}" >".version"
-    _hg ci -m "${ver_M}.${ver_m}: create maintenance branch, update version to ${version}"
+    _msg="$( printf "%s.%s: create maintenance branch, update version to %s\n\n%s" \
+                    "${ver_M}" "${ver_m}" "${version}" "${sob_line}"
+           )"
+    _hg ci -m "${_msg}"
 else
     printf " update version"
     echo "${version}" >".version"
-    _hg ci -m "${ver_M}.${ver_m}: update version to ${version}"
+    _msg="$( printf "%s.%s: update version to %s\n\n%s" \
+                    "${ver_M}" "${ver_m}" "${version}" "${sob_line}"
+           )"
+    _hg ci -m "${_msg}"
 fi
 
 printf ", tag"
-_hg tag -m "Tagging release ${version}" crosstool-ng-${version}
+_msg="$( printf "Tagging release %s\n\n%s" "${version}" "${sob_line}" )"
+_hg tag -m "${_msg}" crosstool-ng-${version}
 
 printf ", update version"
 echo "${version}+hg" >".version"
-_hg ci -m "${ver_M}.${ver_m}: update version to ${version}+hg"
+_msg="$( printf "%s.%s: update version to %s+hg\n\n%s" \
+                "${ver_M}" "${ver_m}" "${version}" "${sob_line}"
+       )"
+_hg ci -m "${_msg}"
 
 printf ", date"
 date="$( _hg log -r crosstool-ng-${version} --template '{date|isodate}\n'    \
