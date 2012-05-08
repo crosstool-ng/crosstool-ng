@@ -266,8 +266,10 @@ AC_CHECK_HEADERS(
 AS_IF(
     [test -n "$ac_ct_gettext_hdr"],
     [AC_CHECK_DECL(
-        [gettext],gettext=y,,
-        [#include <$ac_ct_gettext_hdr>])])
+        [gettext],
+        [gettext=y],,
+        [AC_INCLUDES_DEFAULT()
+         #include <$ac_ct_gettext_hdr>])])
 
 #----------------------------------------
 # Check for ncurses, for the kconfig frontends
