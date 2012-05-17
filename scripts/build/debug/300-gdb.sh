@@ -369,6 +369,14 @@ do_debug_gdb_build() {
 
         gdbserver_extra_config=("${extra_config[@]}")
 
+        if [ "${CT_GDB_GDBSERVER_HAS_IPA_LIB}" = "y" ]; then
+            if [ "${CT_GDB_GDBSERVER_BUILD_IPA_LIB}" = "y" ]; then
+                gdbserver_extra_config+=( --enable-inprocess-agent )
+            else
+                gdbserver_extra_config+=( --disable-inprocess-agent )
+            fi
+        fi
+
         CT_DoExecLog CFG                                \
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
