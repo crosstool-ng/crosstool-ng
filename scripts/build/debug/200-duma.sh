@@ -1,10 +1,15 @@
 # Build script for D.U.M.A.
 
 do_debug_duma_get() {
+    local dl_base
+
+    dl_base="http://dfn.dl.sourceforge.net/project/duma/duma"
+    dl_base+="/${CT_DUMA_VERSION//_/.}"
+
     # Downloading an non-existing file from sourceforge will give you an
     # HTML file containing an error message, instead of returning a 404.
     # Sigh...
-    CT_GetFile "duma_${CT_DUMA_VERSION}" .tar.gz http://kent.dl.sourceforge.net/sourceforge/duma/
+    CT_GetFile "duma_${CT_DUMA_VERSION}" .tar.gz "${dl_base}"
     # Downloading from sourceforge may leave garbage, cleanup
     CT_DoExecLog ALL rm -f "${CT_TARBALLS_DIR}/showfiles.php"*
 }
