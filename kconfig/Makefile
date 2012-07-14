@@ -88,7 +88,7 @@ zconf.hash.c: zconf.gperf
 
 lex.zconf.c: zconf.l
 	@echo "  LEX    '$@'"
-	@flex -L -P zconf -o $@ $<
+	@flex -L -Pzconf -o$@ $<
 
 # Build C files
 %.o: %.c
