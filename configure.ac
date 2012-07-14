@@ -99,7 +99,7 @@ AS_IF(
 AC_CACHE_VAL([ac_cv_path_SED],
     [AC_ARG_WITH([sed],
         AS_HELP_STRING([--with-sed=PATH],
-                       [Specify the full PATH to sed]),
+                       [Specify the full PATH to GNU sed]),
         [ac_cv_path_SED=$withval])])
 AC_PROG_SED
 AC_MSG_CHECKING([whether sed understands -r -i -e])
@@ -129,7 +129,6 @@ ACX_PATH_TOOL_REQ([READELF], [readelf])
 ACX_CHECK_PROGS_REQ([bison], [bison])
 ACX_CHECK_PROGS_REQ([flex], [flex])
 ACX_CHECK_PROGS_REQ([gperf], [gperf])
-ACX_CHECK_PROGS_REQ([awk], [gawk mawk nawk awk])
 ACX_CHECK_PROGS_REQ([makeinfo], [makeinfo])
 ACX_CHECK_PROGS_REQ([cut], [cut])
 ACX_CHECK_PROGS_REQ([stat], [stat])
@@ -151,7 +150,7 @@ ACX_PATH_PROGS_REQ([PATCH], [patch])
 AC_CACHE_VAL([ac_cv_path__BASH],
     [AC_ARG_WITH([bash],
         AS_HELP_STRING([--with-bash=PATH],
-                       [Specify the full PATH to bash >= 3.1]),
+                       [Specify the full PATH to GNU bash >= 3.1]),
         [ac_cv_path__BASH=$withval])])
 AC_CACHE_CHECK([for bash >= 3.1], [ac_cv_path__BASH],
     [AC_PATH_PROGS_FEATURE_CHECK([_BASH], [bash],
@@ -161,6 +160,21 @@ AC_CACHE_CHECK([for bash >= 3.1], [ac_cv_path__BASH],
         [AC_MSG_RESULT([no])
          AC_MSG_ERROR([could not find bash >= 3.1])])])
 AC_SUBST([_BASH], [$ac_cv_path__BASH])
+
+# We need a awk that *is* GNU awk
+AC_CACHE_VAL([ac_cv_path__AWK],
+    [AC_ARG_WITH([awk],
+        AS_HELP_STRING([--with-awk=PATH],
+                       [Specify the full PATH to GNU awk]),
+        [ac_cv_path__AWK=$withval])])
+AC_CACHE_CHECK([for GNU awk], [ac_cv_path__AWK],
+    [AC_PATH_PROGS_FEATURE_CHECK([_AWK], [awk gawk],
+        [[_AWK_ver=$($ac_path__AWK --version 2>&1 \
+                     |$EGREP '^GNU Awk ')
+          test -n "$_AWK_ver" && ac_cv_path__AWK=$ac_path__AWK ac_path__AWK_found=:]],
+        [AC_MSG_RESULT([no])
+         AC_MSG_ERROR([could not find GNU awk])])])
+AC_SUBST([_AWK], [$ac_cv_path__AWK])
 
 #----------------------------------------
 # Check for GNU make 3.80 or above
