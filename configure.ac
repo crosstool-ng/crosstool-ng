@@ -90,6 +90,10 @@ AC_ARG_PROGRAM
 # Initial checks that are usually done first (I don't know why, that's
 # just what I seem to experience...)
 #---------------------------------------------------------------------
+AC_ARG_WITH([install],
+    AS_HELP_STRING([--with-install=PATH],
+                   [Specify the full PATH to a BSD-compatible install]),
+    [INSTALL=$withval])
 AC_PROG_INSTALL
 AC_PROG_GREP
 AC_PROG_EGREP
