@@ -121,6 +121,25 @@ AC_PROG_CC
 AS_IF([test -z "$CC"],
       [AC_MSG_ERROR([no suitable compiler found])])
 AC_PROG_CPP
+
+# But we still need a way to specify the PATH to GNU versions (Damn MacOS)
+AC_ARG_WITH([objcopy],
+    AS_HELP_STRING([--with-objcopy=PATH],
+                   [Specify the full PATH to GNU objcopy]),
+    [OBJCOPY=$withval])
+AC_ARG_WITH([objdump],
+    AS_HELP_STRING([--with-objdump=PATH],
+                   [Specify the full PATH to GNU objdump]),
+    [OBJDUMP=$withval])
+AC_ARG_WITH([ranlib],
+    AS_HELP_STRING([--with-ranlib=PATH],
+                   [Specify the full PATH to GNU ranlib]),
+    [RANLIB=$withval])
+AC_ARG_WITH([readelf],
+    AS_HELP_STRING([--with-readelf=PATH],
+                   [Specify the full PATH to GNU readelf]),
+    [READELF=$withval])
+
 AC_PROG_RANLIB
 ACX_PATH_TOOL_REQ([OBJCOPY], [objcopy])
 ACX_PATH_TOOL_REQ([OBJDUMP], [objdump])
