@@ -44,7 +44,7 @@ show-config: .config
 PHONY += $(patsubst %,show-%,$(CT_SAMPLES))
 $(patsubst %,show-%,$(CT_SAMPLES)): config_files
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
-	    $(CONF) --defconfig=$(call sample_dir,$(patsubst show-%,%,$(@)))/crosstool.config \
+	    $(CONF) --defconfig=$(call sample_dir,$(patsubst show-%,%,$(@)))/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
 	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
 	@rm -f .config.sample
@@ -55,18 +55,45 @@ show-all: $(patsubst %,show-%,$(CT_SAMPLES))
 
 # print the list of all available samples
 PHONY += list-samples
-list-samples: FORCE
-	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh $(CT_SAMPLES)
+list-samples: list-samples-pre $(patsubst %,list-%,$(CT_SAMPLES))
+	@echo ' L (Local)       : sample was found in current directory'
+	@echo ' G (Global)      : sample was installed with crosstool-NG'
+	@echo ' X (EXPERIMENTAL): sample may use EXPERIMENTAL features'
+	@echo ' B (BROKEN)      : sample is currently broken'
+
+PHONY += list-samples-pre
+list-samples-pre: FORCE
+	@echo 'Status  Sample name'
+
+PHONY += $(patsubst %,list-%,$(CT_SAMPLES))
+$(patsubst %,list-%,$(CT_SAMPLES)): config_files
+	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
+	    $(CONF) --defconfig=$(call sample_dir,$(patsubst list-%,%,$(@)))/crosstool.config   \
+	            $(KCONFIG_TOP) >/dev/null
+	@$(CT_LIB_DIR)/scripts/showSamples.sh $(patsubst list-%,%,$(@))
+	@rm -f .config.sample
 
 PHONY += list-samples-short
 list-samples-short: FORCE
 	$(SILENT)for s in $(CT_SAMPLES); do \
-	    printf "$${s}\n";               \
+	    printf "%s\n" "$${s}";          \
 	done
 
 PHONY += wiki-samples
-wiki-samples:
-	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(CT_SAMPLES)
+wiki-samples: wiki-samples-pre $(patsubst %,wiki-%,$(CT_SAMPLES)) wiki-samples-post
+
+wiki-samples-pre: FORCE
+	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w
+
+wiki-samples-post: FORCE
+	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -W $(CT_SAMPLES)
+
+$(patsubst %,wiki-%,$(CT_SAMPLES)): config_files
+	$(SILENT)KCONFIG_CONFIG=$$(pwd)/.config.sample	\
+	    $(CONF) --defconfig=$(call sample_dir,$(patsubst wiki-%,%,$(@)))/crosstool.config   \
+	            $(KCONFIG_TOP) >/dev/null
+	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(patsubst wiki-%,%,$(@))
+	$(SILENT)rm -f .config.sample
 
 # ----------------------------------------------------------
 # This part deals with saving/restoring samples

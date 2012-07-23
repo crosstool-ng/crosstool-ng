@@ -9,6 +9,7 @@
 
 [ "$1" = "-v" ] && opt="$1" && shift
 [ "$1" = "-w" ] && opt="$1" && shift
+[ "$1" = "-W" ] && opt="$1" && shift
 
 # GREP_OPTIONS screws things up.
 export GREP_OPTIONS=
@@ -17,16 +18,15 @@ export GREP_OPTIONS=
 # Note: we use the specific .config.sample config file
 dump_single_sample() {
     local verbose=0
+    local wiki=0
     local complibs
     [ "$1" = "-v" ] && verbose=1 && shift
     [ "$1" = "-w" ] && wiki=1 && shift
-    local width="$1"
-    local sample="$2"
+    local sample="$1"
     case "${sample}" in
         current)
             sample_type="l"
             sample="$( ${CT_NG} show-tuple )"
-            width="${#sample}"
             ;;
         *)  if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
                 sample_top="${CT_TOP_DIR}"
@@ -38,20 +38,20 @@ dump_single_sample() {
             ;;
     esac
     . $(pwd)/.config.sample
-    if [ -z "${wiki}" ]; then
-        t_width=14
-        printf "%-*s  [%s" ${width} "${sample}" "${sample_type}"
-        [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf " "
-        [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf " "
-        echo "]"
+    if [ ${wiki} -eq 0 ]; then
+        width=14
+        printf "[%s" "${sample_type}"
+        [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf "."
+        [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf "."
+        printf "]   %s\n" "${sample}"
         if [ ${verbose} -ne 0 ]; then
             case "${CT_TOOLCHAIN_TYPE}" in
                 cross)  ;;
                 canadian)
-                    printf "    %-*s : %s\n" ${t_width} "Host" "${CT_HOST}"
+                    printf "    %-*s : %s\n" ${width} "Host" "${CT_HOST}"
                     ;;
             esac
-            printf "    %-*s : %s\n" ${t_width} "OS" "${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
+            printf "    %-*s : %s\n" ${width} "OS" "${CT_KERNEL}${CT_KERNEL_VERSION:+-}${CT_KERNEL_VERSION}"
             if [    -n "${CT_GMP}"              \
                  -o -n "${CT_MPFR}"             \
                  -o -n "${CT_PPL}"              \
@@ -65,7 +65,7 @@ dump_single_sample() {
                  -o -n "${CT_MPC_TARGET}"       \
                  -o -n "${CT_LIBELF_TARGET}"    \
                ]; then
-                printf "    %-*s :" ${t_width} "Companion libs"
+                printf "    %-*s :" ${width} "Companion libs"
                 complibs=1
             fi
             [ -z "${CT_GMP}"    -a -z "${CT_GMP_TARGET}"    ] || printf " gmp-%s"       "${CT_GMP_VERSION}"
@@ -75,8 +75,8 @@ dump_single_sample() {
             [ -z "${CT_MPC}"    -a -z "${CT_MPC_TARGET}"    ] || printf " mpc-%s"       "${CT_MPC_VERSION}"
             [ -z "${CT_LIBELF}" -a -z "${CT_LIBELF_TARGET}" ] || printf " libelf-%s"    "${CT_LIBELF_VERSION}"
             [ -z "${complibs}"  ] || printf "\n"
-            printf  "    %-*s : %s\n" ${t_width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
-            printf  "    %-*s : %s" ${t_width} "C compiler" "${CT_CC}-${CT_CC_VERSION} (C"
+            printf  "    %-*s : %s\n" ${width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
+            printf  "    %-*s : %s" ${width} "C compiler" "${CT_CC}-${CT_CC_VERSION} (C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
             [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ",Fortran"
             [ "${CT_CC_LANG_JAVA}" = "y"    ] && printf ",Java"
@@ -85,8 +85,8 @@ dump_single_sample() {
             [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ",Objective-C++"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
             printf ")\n"
-            printf  "    %-*s : %s\n" ${t_width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}"
-            printf  "    %-*s :" ${t_width} "Tools"
+            printf  "    %-*s : %s\n" ${width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}"
+            printf  "    %-*s :" ${width} "Tools"
             [ "${CT_TOOL_sstrip}"   ] && printf " sstrip"
             [ "${CT_DEBUG_dmalloc}" ] && printf " dmalloc-${CT_DMALLOC_VERSION}"
             [ "${CT_DEBUG_duma}"    ] && printf " duma-${CT_DUMA_VERSION}"
@@ -153,13 +153,7 @@ dump_single_sample() {
     fi
 }
 
-# Get largest sample width
-width=0
-for sample in "${@}"; do
-    [ ${#sample} -gt ${width} ] && width=${#sample}
-done
-
-if [ "${opt}" = -w ]; then
+if [ "${opt}" = "-w" -a ${#} -eq 0 ]; then
     printf "^ %s  |||||||||||||||\n" "$( date "+%Y%m%d.%H%M %z" )"
     printf "^ Target  "
     printf "^ Host  "
@@ -174,20 +168,13 @@ if [ "${opt}" = -w ]; then
     printf "^  Initially\\\\\\\\ reported by  "
     printf "^  Last\\\\\\\\ updated  "
     echo   "^"
-elif [ -z "${opt}" ]; then
-    printf "%-*s  Status\n" ${width} "Sample name"
+    exit 0
+elif [ "${opt}" = "-W" ]; then
+    printf "^ Total: ${#} samples  || **X**: sample uses features marked as being EXPERIMENTAL.\\\\\\\\ **B**: sample is currently BROKEN. |||||||||||||"
+    echo   ""
+    exit 0
 fi
 
 for sample in "${@}"; do
-    ( dump_single_sample ${opt} ${width} "${sample}" )
+    ( dump_single_sample ${opt} "${sample}" )
 done
-
-if [ "${opt}" = -w ]; then
-    printf "^ Total: ${#@} samples  || **X**: sample uses features marked as being EXPERIMENTAL.\\\\\\\\ **B**: sample is currently BROKEN. |||||||||||||"
-    echo   ""
-elif [ -z "${opt}" ]; then
-    echo '      L (Local)       : sample was found in current directory'
-    echo '      G (Global)      : sample was installed with crosstool-NG'
-    echo '      X (EXPERIMENTAL): sample may use EXPERIMENTAL features'
-    echo '      B (BROKEN)      : sample is currently broken'
-fi
