@@ -47,7 +47,7 @@ mconf: LDFLAGS += $(NCURSES_LDFLAGS)
 nconf_SRC = nconf.c nconf.gui.c
 nconf_OBJ = $(patsubst %.c,%.o,$(nconf_SRC))
 nconf_DEP = $(patsubst %.c,%.dep,$(nconf_SRC))
-$(nconf_OBJ) $(nconf_DEP): CFLAGS += $(INTL_CFLAGS)
+$(nconf_OBJ) $(nconf_DEP): CFLAGS += $(INTL_CFLAGS) -I/usr/include/ncurses
 nconf: LDFLAGS += -lmenu -lpanel -lncurses
 
 # Under Cygwin, we need to auto-import some libs (which ones, exactly?)
