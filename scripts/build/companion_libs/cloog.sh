@@ -27,6 +27,9 @@ do_cloog_extract() {
     CT_Extract "cloog-ppl-${CT_CLOOG_VERSION}"
     CT_Patch "cloog-ppl" "${CT_CLOOG_VERSION}"
 
+    # Help the autostuff in case it thinks there are things to regenerate...
+    CT_DoExecLog DEBUG mkdir -p "${CT_SRC_DIR}/cloog-ppl-${CT_CLOOG_VERSION}/m4"
+
     if [ "${CT_CLOOG_NEEDS_AUTORECONF}" = "y" ]; then
         CT_Pushd "${CT_SRC_DIR}/cloog-ppl-${CT_CLOOG_VERSION}"
         CT_DoExecLog CFG ./autogen.sh
