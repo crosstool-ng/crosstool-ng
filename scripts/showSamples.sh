@@ -85,7 +85,7 @@ dump_single_sample() {
             [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ",Objective-C++"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
             printf ")\n"
-            printf  "    %-*s : %s\n" ${width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}"
+            printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}" "${CT_THREADS}"
             printf  "    %-*s :" ${width} "Tools"
             [ "${CT_TOOL_sstrip}"   ] && printf " sstrip"
             [ "${CT_DEBUG_dmalloc}" ] && printf " dmalloc-${CT_DMALLOC_VERSION}"
