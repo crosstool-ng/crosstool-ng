@@ -74,13 +74,11 @@ cc_gcc_lang_list() {
 # Core gcc pass 1
 do_cc_core_pass_1() {
     local -a core_opts
-    local do_core
 
     # We only need a pass-1 core gcc if the threading model is NPTL.
     # For all other cases, it is not used.
     case "${CT_THREADS}" in
         nptl)
-            do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
@@ -89,7 +87,6 @@ do_cc_core_pass_1() {
             core_opts+=( "lang_list=c" )
             ;;
         *)
-            do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "host=${CT_BUILD}" )
             core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
@@ -99,21 +96,18 @@ do_cc_core_pass_1() {
             ;;
     esac
 
-    if [ "${do_core}" = "y" ]; then
-        CT_DoStep INFO "Installing pass-1 core C compiler"
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-core-pass-1"
+    CT_DoStep INFO "Installing pass-1 core C compiler"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-core-pass-1"
 
-        do_cc_core_backend "${core_opts[@]}"
+    do_cc_core_backend "${core_opts[@]}"
 
-        CT_Popd
-        CT_EndStep
-    fi
+    CT_Popd
+    CT_EndStep
 }
 
 # Core gcc pass 2
 do_cc_core_pass_2() {
     local -a core_opts
-    local do_core
 
     # Common options:
     core_opts+=( "host=${CT_BUILD}" )
@@ -129,17 +123,14 @@ do_cc_core_pass_2() {
     #     later, we need to build libgcc
     case "${CT_THREADS}" in
         nptl)
-            do_core=y
             core_opts+=( "mode=shared" )
             core_opts+=( "build_libgcc=yes" )
             ;;
         win32)
-            do_core=y
             core_opts+=( "mode=static" )
             core_opts+=( "build_libgcc=yes" )
             ;;
         *)
-            do_core=y
             core_opts+=( "mode=static" )
             if [ "${CT_CC_GCC_4_3_or_later}" = "y" ]; then
                 core_opts+=( "build_libgcc=yes" )
@@ -147,15 +138,13 @@ do_cc_core_pass_2() {
             ;;
     esac
 
-    if [ "${do_core}" = "y" ]; then
-        CT_DoStep INFO "Installing pass-2 core C compiler"
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-core-pass-2"
+    CT_DoStep INFO "Installing pass-2 core C compiler"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-core-pass-2"
 
-        do_cc_core_backend "${core_opts[@]}"
+    do_cc_core_backend "${core_opts[@]}"
 
-        CT_Popd
-        CT_EndStep
-    fi
+    CT_Popd
+    CT_EndStep
 }
 
 #------------------------------------------------------------------------------
