@@ -88,6 +88,15 @@ do_cc_core_pass_1() {
             core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
             core_opts+=( "lang_list=c" )
             ;;
+        *)
+            do_core=y
+            core_opts+=( "mode=static" )
+            core_opts+=( "host=${CT_BUILD}" )
+            core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
+            core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+            core_opts+=( "lang_list=c" )
+            ;;
     esac
 
     if [ "${do_core}" = "y" ]; then
