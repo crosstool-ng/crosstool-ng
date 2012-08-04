@@ -75,26 +75,12 @@ cc_gcc_lang_list() {
 do_cc_core_pass_1() {
     local -a core_opts
 
-    # We only need a pass-1 core gcc if the threading model is NPTL.
-    # For all other cases, it is not used.
-    case "${CT_THREADS}" in
-        nptl)
-            core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_BUILD}" )
-            core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
-            core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
-            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
-            core_opts+=( "lang_list=c" )
-            ;;
-        *)
-            core_opts+=( "mode=static" )
-            core_opts+=( "host=${CT_BUILD}" )
-            core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
-            core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
-            core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
-            core_opts+=( "lang_list=c" )
-            ;;
-    esac
+    core_opts+=( "mode=static" )
+    core_opts+=( "host=${CT_BUILD}" )
+    core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    core_opts+=( "lang_list=c" )
 
     CT_DoStep INFO "Installing pass-1 core C compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-core-pass-1"
