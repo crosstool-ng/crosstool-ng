@@ -123,7 +123,7 @@ do_binutils_backend() {
                 extra_config+=( --enable-ld=yes --enable-gold=default )
                 ;;
         esac
-        if [ "${CT_BINUTILS_GOLD_THREADED}" = "y" ]; then
+        if [ "${CT_BINUTILS_GOLD_THREADS}" = "y" ]; then
             extra_config+=( --enable-threads )
         fi
     fi
