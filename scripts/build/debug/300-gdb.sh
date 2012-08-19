@@ -7,7 +7,7 @@
 CT_DEBUG_GDB_NCURSES_VERSION="5.9"
 
 # Ditto for the expat library
-CT_DEBUG_GDB_EXPAT_VERSION="2.0.1"
+CT_DEBUG_GDB_EXPAT_VERSION="2.1.0"
 
 do_debug_gdb_parts() {
     do_gdb=
