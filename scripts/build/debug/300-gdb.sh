@@ -62,7 +62,7 @@ do_debug_gdb_get() {
 
     if [ "${do_expat}" = "y" ]; then
         CT_GetFile "expat-${CT_DEBUG_GDB_EXPAT_VERSION}" .tar.gz    \
-                   http://kent.dl.sourceforge.net/project/expat/expat/${CT_DEBUG_GDB_EXPAT_VERSION}
+                   http://downloads.sourceforge.net/project/expat/expat/${CT_DEBUG_GDB_EXPAT_VERSION}
     fi
 }
 
