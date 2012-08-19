@@ -3,7 +3,7 @@
 do_debug_duma_get() {
     local dl_base
 
-    dl_base="http://dfn.dl.sourceforge.net/project/duma/duma"
+    dl_base="http://downloads.sourceforge.net/project/duma/duma"
     dl_base+="/${CT_DUMA_VERSION//_/.}"
 
     # Downloading an non-existing file from sourceforge will give you an

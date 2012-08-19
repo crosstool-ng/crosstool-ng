@@ -1,7 +1,7 @@
 # Build script for strace
 
 do_debug_strace_get() {
-    local base_url="http://kent.dl.sourceforge.net/project/strace/strace"
+    local base_url="http://downloads.sourceforge.net/project/strace/strace"
     CT_GetFile "strace-${CT_STRACE_VERSION}" "${base_url}/${CT_STRACE_VERSION}"
     # Downloading from sourceforge leaves garbage, cleanup
     CT_DoExecLog ALL rm -f "${CT_TARBALLS_DIR}/showfiles.php"*
