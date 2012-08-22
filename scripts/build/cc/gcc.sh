@@ -18,11 +18,10 @@ do_cc_get() {
                     )"
 
     # Ah! gcc folks are kind of 'different': they store the tarballs in
-    # subdirectories of the same name! That's because gcc is such /crap/ that
-    # it is such /big/ that it needs being splitted for distribution! Sad. :-(
+    # subdirectories of the same name!
     # Arrgghh! Some of those versions does not follow this convention:
     # gcc-3.3.3 lives in releases/gcc-3.3.3, while gcc-2.95.* isn't in a
-    # subdirectory! You bastard!
+    # subdirectory!
     CT_GetFile "gcc-${CT_CC_VERSION}"                                                       \
                {ftp,http}://ftp.gnu.org/gnu/gcc{,{,/releases}/gcc-${CT_CC_VERSION}}         \
                ftp://ftp.irisa.fr/pub/mirrors/gcc.gnu.org/gcc/releases/gcc-${CT_CC_VERSION} \
