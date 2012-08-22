@@ -33,6 +33,14 @@ config CC_GCC_SHOW_LINARO
 choice
     bool
     prompt "gcc version"
+
+config CC_V_SVN
+    bool
+    prompt "gcc from svn"
+    depends on EXPERIMENTAL
+    depends on CONFIGURE_has_svn
+    select CC_GCC_latest
+
 # Don't remove next line
 # CT_INSERT_VERSION_BELOW
 
@@ -228,6 +236,62 @@ config CC_V_3_4_6
 
 endchoice
 
+if CC_V_SVN
+
+config GCC_BRANCH
+    string
+    prompt "Branch or tag to use"
+    default "trunk"
+    help
+      Enter the branch of gcc to use. Default is trunk
+      
+      A few examples might be:
+      * trunk
+      * branches/gcc-4_7-branch
+      * branches/gcc-4_4-branch
+      * branches/gccgo
+      * branches/google
+      * tags/gcc_4_7_1_release
+      * tags/microblaze-4.4.2
+
+config GCC_REVISION
+    string
+    prompt "Revision to use"
+    default "HEAD"
+    help
+      Enter the revision of you want to use. Default is HEAD
+      
+      A revision argument can be one of:
+          NUMBER       revision number
+          '{' DATE '}' revision at start of the date (*)
+          'HEAD'       latest in repository
+      
+      (*) If you want to use a date, please use ISO-8601 formats if
+      at all possible.
+
+config GCC_HTTP
+    bool
+    prompt "use http:// instead of svn://"
+    help
+      By default, when gcc is downloaded it is checked out using
+      svn://gcc.gnu.org/svn/gcc. This option allows you to download gcc
+      from http://gcc.gnu.org/svn/gcc, if you are behind a proxy or firewall.
+      If you are behind a proxy, don't forget to update your
+      .subversion/servers file with your proxy info in [global].
+
+config GCC_CHECKOUT
+    bool
+    prompt "checkout instead of export"
+    help
+      By default, the gcc download will be an export of the subversion
+      repository. If you say 'y' here, then the repository will instead be
+      checked-out, so that you can update it later.
+      
+      Note that crosstool-NG will *not* update your working copy, you will
+      have to do that yourself.
+
+endif
+
 config CC_GCC_4_2
     bool
     select CC_GCC_4_2_or_later
@@ -301,6 +365,18 @@ config CC_GCC_4_7_or_later
     bool
     select CC_GCC_4_6_or_later
 
+config CC_GCC_latest
+    bool
+    select CC_GCC_4_7_or_later
+    select CC_GCC_USE_GMP_MPFR
+    select CC_GCC_USE_MPC
+    select CC_GCC_HAS_GRAPHITE
+    select CC_GCC_HAS_LTO
+    select CC_GCC_HAS_PKGVERSION_BUGURL
+    select CC_GCC_HAS_BUILD_ID
+    select CC_GCC_HAS_LNK_HASH_STYLE
+    select CC_GCC_HAS_LIBQUADMATH
+
 config CC_GCC_HAS_GRAPHITE
     bool
 
@@ -362,6 +438,7 @@ config CC_GCC_HAS_LIBQUADMATH
 
 config CC_VERSION
     string
+    default "SVN" if CC_V_SVN
 # Don't remove next line
 # CT_INSERT_VERSION_STRING_BELOW
     default "linaro-4.7-2012.08" if CC_V_linaro_4_7_2012_08
