@@ -22,6 +22,12 @@ do_finish() {
         esac
         CT_DoLog INFO "Stripping all toolchain executables"
         CT_Pushd "${CT_PREFIX_DIR}"
+
+        # Strip gdbserver
+        if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
+           CT_DoExecLog ALL bin/${CT_TARGET}-strip ${strip_args}    \
+                            ${CT_TARGET}/debug-root/usr/bin/gdbserver
+        fi
         # We can not use the version in CT_CC_VERSION because
         # of the Linaro stuff. So, harvest the version string
         # directly from the gcc sources...
