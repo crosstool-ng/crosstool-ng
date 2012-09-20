@@ -25,8 +25,8 @@ do_finish() {
 
         # Strip gdbserver
         if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
-           CT_DoExecLog ALL bin/${CT_TARGET}-strip ${strip_args}    \
-                            ${CT_TARGET}/debug-root/usr/bin/gdbserver
+            CT_DoExecLog ALL "${CT_TARGET}-strip" ${strip_args}         \
+                             "${CT_TARGET}/debug-root/usr/bin/gdbserver"
         fi
         # We can not use the version in CT_CC_VERSION because
         # of the Linaro stuff. So, harvest the version string
