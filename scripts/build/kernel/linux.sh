@@ -41,7 +41,7 @@ do_kernel_get() {
                                       "${CT_TARBALLS_DIR}/${custom_name}"
         else
             custom_name="linux-custom"
-            CT_DoExecLog DEBUG ln -s "${CT_KERNEL_LINUX_CUSTOM_LOCATION}"  \
+            CT_DoExecLog DEBUG ln -sf "${CT_KERNEL_LINUX_CUSTOM_LOCATION}"  \
                                       "${CT_SRC_DIR}/${custom_name}"
         fi
     else # Not a custom tarball
