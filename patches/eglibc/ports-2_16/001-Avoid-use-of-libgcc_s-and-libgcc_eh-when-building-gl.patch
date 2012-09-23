@@ -1,0 +1,40 @@
+Upstream-Status: Backport
+Signed-off-by: Khem Raj <raj.khem@gmail.com>
+
+From 95f5a9a866695da4e038aa4e6ccbbfd5d9cf63b7 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Tue, 3 Jul 2012 19:14:59 +0000
+Subject: [PATCH] Avoid use of libgcc_s and libgcc_eh when building glibc.
+
+---
+ ChangeLog                  |   47 ++++++++++++++++++++++++++++++
+ Makeconfig                 |   68 ++++++++++++++++++++++++++++++++++++++------
+ Rules                      |   45 ++++++++++++++++++++++-------
+ elf/Makefile               |    6 +++-
+ elf/static-stubs.c         |   46 ++++++++++++++++++++++++++++++
+ ports/ChangeLog.arm        |    7 +++++
+ ports/sysdeps/arm/Makefile |    8 ++++++
+ 7 files changed, 206 insertions(+), 21 deletions(-)
+ create mode 100644 elf/static-stubs.c
+
+-Index: a/ports/sysdeps/arm/Makefile
+===================================================================
+--- a/ports/sysdeps/arm/Makefile       2012-07-04 18:25:41.000000000 -0700
++++ b/ports/sysdeps/arm/Makefile       2012-08-14 20:16:10.201093638 -0700
+@@ -1,8 +1,16 @@
++gnulib-arch = $(elfobjdir)/libgcc-stubs.a
++static-gnulib-arch = $(elfobjdir)/libgcc-stubs.a
++
+ ifeq ($(subdir),elf)
+ sysdep-dl-routines += tlsdesc dl-tlsdesc
+ sysdep_routines += aeabi_unwind_cpp_pr1 find_exidx tlsdesc dl-tlsdesc
+ sysdep-rtld-routines += aeabi_unwind_cpp_pr1 tlsdesc dl-tlsdesc
+ shared-only-routines += aeabi_unwind_cpp_pr1
++
++$(objpfx)libgcc-stubs.a: $(objpfx)aeabi_unwind_cpp_pr1.os
++	$(build-extra-lib)
++
++lib-noranlib: $(objpfx)libgcc-stubs.a
+ endif
+
+ ifeq ($(subdir),csu)

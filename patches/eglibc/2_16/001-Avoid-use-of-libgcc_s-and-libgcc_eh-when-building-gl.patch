@@ -17,10 +17,10 @@ Subject: [PATCH] Avoid use of libgcc_s and libgcc_eh when building glibc.
  7 files changed, 206 insertions(+), 21 deletions(-)
  create mode 100644 elf/static-stubs.c
 
-Index: a/libc/Makeconfig
+Index: a/Makeconfig
 ===================================================================
---- a/libc/Makeconfig	2012-07-04 18:26:22.000000000 -0700
-+++ b/libc/Makeconfig	2012-08-14 20:16:10.197093639 -0700
+--- a/Makeconfig	2012-07-04 18:26:22.000000000 -0700
++++ b/Makeconfig	2012-08-14 20:16:10.197093639 -0700
 @@ -415,9 +415,9 @@
  LDFLAGS-rtld += $(hashstyle-LDFLAGS)
  endif
@@ -150,10 +150,10 @@ Index: a/libc/Makeconfig
  libc.so-gnulib := -lgcc
  endif
  +preinit = $(addprefix $(csu-objpfx),crti.o)
-Index: a/libc/Rules
+Index: a/Rules
 ===================================================================
---- a/libc/Rules	2012-07-04 18:25:47.000000000 -0700
-+++ b/libc/Rules	2012-08-14 20:16:10.197093639 -0700
+--- a/Rules	2012-07-04 18:25:47.000000000 -0700
++++ b/Rules	2012-08-14 20:16:10.197093639 -0700
 @@ -1,5 +1,4 @@
 -# Copyright (C) 1991-2000,2002,2003,2004,2005,2006,2011
 -#	Free Software Foundation, Inc.
@@ -238,10 +238,10 @@ Index: a/libc/Rules
  ifeq ($(build-bounded),yes)
  binaries-bounded = $(addsuffix -bp,$(tests) $(xtests) $(test-srcs))
  $(addprefix $(objpfx),$(binaries-bounded)): %-bp: %.ob \
-Index: a/libc/elf/Makefile
+Index: a/elf/Makefile
 ===================================================================
---- a/libc/elf/Makefile	2012-07-04 18:26:34.000000000 -0700
-+++ b/libc/elf/Makefile	2012-08-14 20:16:10.197093639 -0700
+--- a/elf/Makefile	2012-07-04 18:26:34.000000000 -0700
++++ b/elf/Makefile	2012-08-14 20:16:10.197093639 -0700
 @@ -71,6 +71,8 @@
  install-bin	= sprof pldd
  others-static   = sln
@@ -269,10 +269,10 @@ Index: a/libc/elf/Makefile
  $(objpfx)ldconfig: $(ldconfig-modules:%=$(objpfx)%.o)
  
  $(objpfx)pldd: $(pldd-modules:%=$(objpfx)%.o)
-Index: a/libc/elf/static-stubs.c
+Index: a/elf/static-stubs.c
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ a/libc/elf/static-stubs.c	2012-08-14 20:16:10.197093639 -0700
++++ a/elf/static-stubs.c	2012-08-14 20:16:10.197093639 -0700
 @@ -0,0 +1,46 @@
 +/* Stub implementations of functions to link into statically linked
 +   programs without needing libgcc_eh.
@@ -320,24 +320,3 @@ Index: a/libc/elf/static-stubs.c
 +{
 +  abort ();
 +}
-Index: a/ports/sysdeps/arm/Makefile
-===================================================================
---- a/ports/sysdeps/arm/Makefile	2012-07-04 18:25:41.000000000 -0700
-+++ b/ports/sysdeps/arm/Makefile	2012-08-14 20:16:10.201093638 -0700
-@@ -1,8 +1,16 @@
-+gnulib-arch = $(elfobjdir)/libgcc-stubs.a
-+static-gnulib-arch = $(elfobjdir)/libgcc-stubs.a
-+
- ifeq ($(subdir),elf)
- sysdep-dl-routines += tlsdesc dl-tlsdesc
- sysdep_routines += aeabi_unwind_cpp_pr1 find_exidx tlsdesc dl-tlsdesc
- sysdep-rtld-routines += aeabi_unwind_cpp_pr1 tlsdesc dl-tlsdesc
- shared-only-routines += aeabi_unwind_cpp_pr1
-+
-+$(objpfx)libgcc-stubs.a: $(objpfx)aeabi_unwind_cpp_pr1.os
-+	$(build-extra-lib)
-+
-+lib-noranlib: $(objpfx)libgcc-stubs.a
- endif
- 
- ifeq ($(subdir),csu)
