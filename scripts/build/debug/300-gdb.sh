@@ -143,6 +143,9 @@ do_debug_gdb_build() {
             cross_extra_config+=("--with-expat=no")
         fi
 
+        [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] &&    \
+        cross_extra_config+=("--disable-nls")
+
         gdb_cross_configure="${gdb_src_dir}/configure"
 
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
@@ -298,6 +301,9 @@ do_debug_gdb_build() {
             none)   native_extra_config+=("--disable-threads");;
             *)      native_extra_config+=("--enable-threads");;
         esac
+
+        [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] &&    \
+        native_extra_config+=("--disable-nls")
 
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
             CC_for_gdb="${CT_TARGET}-gcc -static"
