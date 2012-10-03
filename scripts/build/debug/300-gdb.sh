@@ -136,6 +136,13 @@ do_debug_gdb_build() {
             LD_for_gdb="ld -static"
         fi
 
+        if [ "${do_expat}" = "y" ]; then
+            cross_extra_config+=("--with-expat=yes")
+        else
+            cross_extra_config+=("--disable-expat")
+            cross_extra_config+=("--with-expat=no")
+        fi
+
         gdb_cross_configure="${gdb_src_dir}/configure"
 
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
@@ -150,7 +157,6 @@ do_debug_gdb_build() {
             --prefix="${CT_PREFIX_DIR}"                 \
             --with-build-sysroot="${CT_SYSROOT_DIR}"    \
             --with-sysroot="${CT_SYSROOT_DIR}"          \
-            --with-expat=yes                            \
             --disable-werror                            \
             "${cross_extra_config[@]}"                  \
             "${CT_GDB_CROSS_EXTRA_CONFIG_ARRAY[@]}"
