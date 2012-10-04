@@ -461,17 +461,22 @@ do_cc_core_backend() {
     CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
 
     if [ "${CT_MULTILIB}" = "y" ]; then
-        multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib   \
-                       |tail -n +2 ) )
-        if [ ${#multilibs[@]} -ne 0 ]; then
-            CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
-            for i in "${multilibs[@]}"; do
-                dir="${i%%;*}"
-                flags="${i#*;}"
-                CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
-            done
+        if [ "${CT_CANADIAN}" = "y" -a "${mode}" = "baremetal" \
+             -a "${host}" = "${CT_HOST}" ]; then
+            CT_DoLog WARN "Canadian Cross unable to confirm multilibs configured correctly"
         else
-            CT_DoLog WARN "gcc configured for multilib, but none available"
+            multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib   \
+                           |tail -n +2 ) )
+            if [ ${#multilibs[@]} -ne 0 ]; then
+                CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
+                for i in "${multilibs[@]}"; do
+                    dir="${i%%;*}"
+                    flags="${i#*;}"
+                    CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
+                done
+            else
+                CT_DoLog WARN "gcc configured for multilib, but none available"
+           fi
         fi
     fi
 }
