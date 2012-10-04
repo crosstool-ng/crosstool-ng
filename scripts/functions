@@ -516,6 +516,41 @@ CT_GetLocal() {
     return 1
 }
 
+# This function gets the custom source from either a tarball or directory
+# Usage: CT_GetCustom <component> <custom_version> <custom_location>
+CT_GetCustom() {
+    local custom_component="$1"
+    local custom_version="$2"
+    local custom_location="$3"
+    local custom_name="${custom_component}-${custom_version}"
+
+    CT_TestAndAbort "${custom_name}: CT_CUSTOM_LOCATION_ROOT_DIR or ${custom_component}'s CUSTOM_LOCATION must be set." \
+                    -z "${CT_CUSTOM_LOCATION_ROOT_DIR}" -a -z "${custom_location}"
+
+    if [ -n "${CT_CUSTOM_LOCATION_ROOT_DIR}" \
+         -a -z "${custom_location}"          ]; then
+        custom_location="${CT_CUSTOM_LOCATION_ROOT_DIR}/${custom_component}"
+    fi
+
+    CT_DoLog EXTRA "Using '${custom_name}' from custom location"
+    if [ ! -d "${custom_location}" ]; then
+        # We need to know the custom tarball extension,
+        # so we can create a properly-named symlink, which
+        # we use later on in 'extract'
+        case "${custom_location}" in
+            *.tar.bz2)      custom_name="${custom_name}.tar.bz2";;
+            *.tar.gz|*.tgz) custom_name="${custom_name}.tar.gz";;
+            *.tar)          custom_name="${custom_name}.tar";;
+            *)  CT_Abort "Unknown extension for custom tarball '${custom_location}'";;
+        esac
+        CT_DoExecLog DEBUG ln -sf "${custom_location}"  \
+                                  "${CT_TARBALLS_DIR}/${custom_name}"
+    else
+        CT_DoExecLog DEBUG ln -snf "${custom_location}" \
+                                   "${CT_SRC_DIR}/${custom_name}"
+    fi
+}
+
 # This function saves the specified to local storage if possible,
 # and if so, symlinks it for later usage
 # Usage: CT_SaveLocal </full/path/file.name>
