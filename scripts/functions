@@ -5,6 +5,8 @@
 # Prepare the fault handler
 CT_OnError() {
     local ret=$?
+    local result
+    local old_trap
     local intro
     local file line func
     local step step_depth
@@ -35,6 +37,62 @@ CT_OnError() {
             CT_DoLog ERROR ">>  ${intro}: ${func}[${file}${line}]"
             intro="      called from"
         done
+
+        # If the user asked for interactive debugging, dump him/her to a shell
+        if [ "${CT_DEBUG_INTERACTIVE}" = "y" ]; then
+            # We do not want this sub-shell exit status to be caught, because
+            # it is absolutely legit that it exits with non-zero.
+            # Save the trap handler to restore it after our debug-shell
+            old_trap="$(trap -p ERR)"
+            trap -- ERR
+            (
+                exec >&6
+                printf "\r         \n\nCurrent command"
+                if [ -n "${cur_cmd}" ]; then
+                    printf ":\n  %s\n" "${cur_cmd}"
+                else
+                    printf " (unknown), "
+                fi
+                printf "exited with error code: %d\n" ${ret}
+                printf "Please fix it up and finish by exiting the shell with one of these values:\n"
+                printf "    1  fixed, continue with next build command\n"
+                if [ -n "${cur_cmd}" ]; then
+                    printf "    2  repeat this build command\n"
+                fi
+                printf "    3  abort build\n\n"
+                while true; do
+                    ${bash} --rcfile <(printf "PS1='ct-ng:\w> '\nPROMPT_COMMAND=''\n") -i
+                    result=$?
+                    case $result in
+                        1)  printf "\nContinuing past the failed command.\n\n"
+                            break
+                            ;;
+                        2)  if [ -n "${cur_cmd}" ]; then
+                                printf "\nRe-trying last command.\n\n"
+                                break
+                            fi
+                            ;;&
+                        3)  break;;
+                        *)  printf "\nPlease exit with one of these values:\n"
+                            printf "    1  fixed, continue with next build command\n"
+                            if [ -n "${cur_cmd}" ]; then
+                                printf "    2  repeat this build command\n"
+                            fi
+                            printf "    3  abort build\n"
+                            ;;
+                    esac
+                done
+                exit $result
+            )
+            result=$?
+            # Restore the trap handler
+            eval "${old_trap}"
+            case "${result}" in
+                1)  rm -f "${CT_WORK_DIR}/backtrace"; return;;
+                2)  rm -f "${CT_WORK_DIR}/backtrace"; touch "${CT_BUILD_DIR}/repeat"; return;;
+                # 3 is an abort, continue...
+            esac
+        fi
     fi
 
     # And finally, in top-level shell, print some hints
@@ -157,10 +215,11 @@ CT_DoLog() {
 # Usage: CT_DoExecLog <level> [VAR=val...] <command> [parameters...]
 CT_DoExecLog() {
     local level="$1"
+    local cur_cmd
     shift
     (
     for i in "$@"; do
-        tmp_log+="'${i}' "
+        cur_cmd+="'${i}' "
     done
     while true; do
         case "${1}" in
@@ -168,8 +227,39 @@ CT_DoExecLog() {
             *)      break;;
         esac
     done
-    CT_DoLog DEBUG "==> Executing: ${tmp_log}"
-    "${@}" 2>&1 |CT_DoLog "${level}"
+    # This while-loop goes hand-in-hand with the ERR trap handler:
+    # - if the command terminates successfully, then we hit the break
+    #   statement, and we exit the loop
+    # - if the command terminates in error, then the ERR handler kicks
+    #   in, then:
+    #     - if the user did *not* ask for interactive debugging, the ERR
+    #       handler exits, and we hit the end of the sub-shell
+    #     - if the user did ask for interactive debugging, the ERR handler
+    #       spawns a shell. Upon termination of this shell, the ERR handler
+    #       examines the exit status of the shell:
+    #         - if 1, the ERR handler returns; then we hit the else statement,
+    #           then the break, and we exit the 'while' loop, to continue the
+    #           build;
+    #         - if 2, the ERR handler touches the repeat file, and returns;
+    #           then we hit the if statement, and we loop for one more
+    #           iteration;
+    #         - if 3, the ERR handler exits with the command's exit status,
+    #           and we're dead;
+    #         - for any other exit status of the shell, the ERR handler
+    #           prints an informational message, and respawns the shell
+    #
+    # This allows a user to get an interactive shell that has the same
+    # environment (PATH and so on) that the failed command was ran with.
+    while true; do
+        rm -f "${CT_BUILD_DIR}/repeat"
+        CT_DoLog DEBUG "==> Executing: ${cur_cmd}"
+        "${@}" 2>&1 |CT_DoLog "${level}"
+        if [ -f "${CT_BUILD_DIR}/repeat" ]; then
+            continue
+        else
+            break
+        fi
+    done
     )
     # Catch failure of the sub-shell
     [ $? -eq 0 ]

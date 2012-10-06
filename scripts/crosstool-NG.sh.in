@@ -25,6 +25,14 @@
 . .config.2
 # Yes! We can do full logging from now on!
 
+# If we want an interactive debug-shell, we must ensure these FDs
+# are indeed connected to a terminal (and not redirected in any way).
+if [ "${CT_DEBUG_INTERACTIVE}" = "y" -a ! \( -t 0 -a -t 6 -a -t 2 \) ]; then
+    CT_DoLog ERROR "Can't spawn interactive debug-shell,"
+    CT_DoLog ERROR "because stdout/stderr has been redirected."
+    exit 1
+fi
+
 # Override the locale early, in case we ever translate crosstool-NG messages
 if [ -z "${CT_NO_OVERIDE_LC_MESSAGES}" ]; then
     export LC_ALL=C
