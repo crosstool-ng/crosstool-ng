@@ -375,32 +375,3 @@ AS_IF(
 #--------------------------------------------------------------------
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
-
-
-
-# AC_CONFIG_SRCDIR([kconfig/menu.c])
-# AC_CONFIG_HEADERS([config.h])
-# 
-# # Checks for programs.
-# 
-# # Checks for libraries.
-# 
-# # Checks for header files.
-# AC_CHECK_HEADERS([fcntl.h inttypes.h libintl.h limits.h locale.h malloc.h stddef.h stdlib.h string.h sys/time.h unistd.h])
-# 
-# # Checks for typedefs, structures, and compiler characteristics.
-# AC_HEADER_STDBOOL
-# AC_TYPE_INT16_T
-# AC_TYPE_INT32_T
-# AC_TYPE_INT8_T
-# AC_TYPE_SIZE_T
-# AC_TYPE_UINT16_T
-# AC_TYPE_UINT32_T
-# AC_TYPE_UINT8_T
-# 
-# # Checks for library functions.
-# AC_FUNC_MALLOC
-# AC_FUNC_REALLOC
-# AC_CHECK_FUNCS([bzero gettimeofday memmove memset mkdir regcomp setlocale strcasecmp strchr strcspn strdup strncasecmp strpbrk strrchr strspn strtol uname])
-# 
-# AC_OUTPUT
