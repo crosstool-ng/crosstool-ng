@@ -4,13 +4,24 @@
 
 # Download binutils
 do_binutils_get() {
-    CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
-               {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils   \
-               ftp://gcc.gnu.org/pub/binutils/{releases,snapshots}
+    if [ "${CT_BINUTILS_CUSTOM}" = "y" ]; then
+        CT_GetCustom "binutils" "${CT_BINUTILS_VERSION}" \
+                     "${CT_BINUTILS_CUSTOM_LOCATION}"
+    else
+        CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
+                   {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils   \
+                   ftp://gcc.gnu.org/pub/binutils/{releases,snapshots}
+    fi
 }
 
 # Extract binutils
 do_binutils_extract() {
+    # If using custom directory location, nothing to do
+    if [ "${CT_BINUTILS_CUSTOM}" = "y" \
+         -a -d "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}" ]; then
+        return 0
+    fi
+
     CT_Extract "binutils-${CT_BINUTILS_VERSION}"
     CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
 }
