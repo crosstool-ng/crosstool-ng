@@ -13,17 +13,27 @@ if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
 
 # Download elf2flt
 do_elf2flt_get() {
-    CT_GetCVS "elf2flt-cvs-${CT_ELF2FLT_VERSION}"           \
-              ":pserver:anonymous@cvs.uclinux.org:/var/cvs" \
-              "elf2flt"                                     \
-              "" \
-              "elf2flt-cvs-${CT_ELF2FLT_VERSION}"
+    if [ "${CT_ELF2FLT_CUSTOM}" = "y" ]; then
+        CT_GetCustom "elf2flt" "${ELF2FLT_VERSION}" \
+                     "${CT_ELF2FLT_CUSTOM_LOCATION}"
+    else
+        CT_GetCVS "elf2flt-${CT_ELF2FLT_VERSION}"               \
+                  ":pserver:anonymous@cvs.uclinux.org:/var/cvs" \
+                  "elf2flt"                                     \
+                  "" \
+                  "elf2flt-${CT_ELF2FLT_VERSION}"
+    fi
 }
 
 # Extract elf2flt
 do_elf2flt_extract() {
-    CT_Extract "elf2flt-cvs-${CT_ELF2FLT_VERSION}"
-    CT_Patch "elf2flt-cvs" "${CT_ELF2FLT_VERSION}"
+    # If using custom directory location, nothing to do
+    if [    "${CT_ELF2FLT_CUSTOM}" = "y" \
+         -a -d "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}" ]; then
+        return 0
+    fi
+    CT_Extract "elf2flt-${CT_ELF2FLT_VERSION}"
+    CT_Patch "elf2flt" "${CT_ELF2FLT_VERSION}"
 }
 
 # Build elf2flt for build -> target
@@ -111,7 +121,7 @@ do_elf2flt_backend() {
     CT_DoLog EXTRA "Configuring elf2flt"
     CT_DoExecLog CFG                                            \
     CFLAGS="${host_cflags}"                                     \
-    "${CT_SRC_DIR}/elf2flt-cvs-${CT_ELF2FLT_VERSION}/configure" \
+    "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
         --target=${CT_TARGET}                                   \
