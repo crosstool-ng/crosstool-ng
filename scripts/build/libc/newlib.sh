@@ -20,7 +20,10 @@ do_libc_get() {
     libc_src="ftp://sources.redhat.com/pub/newlib"
     avr32headers_src="http://dev.doredevelopment.dk/avr32-toolchain/sources"
 
-    if [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
+    if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
+        CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \
+                     "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
+    elif [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
         CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
     else
         CT_GetCVS "newlib-$(libc_newlib_version)"                   \
@@ -36,6 +39,12 @@ do_libc_get() {
 }
 
 do_libc_extract() {
+    # If using custom directory location, nothing to do
+    if [    "${CT_LIBC_NEWLIB_CUSTOM}" != "y"                \
+         -a -d "${CT_SRC_DIR}/newlib-$(libc_newlib_version)" ]; then
+        return 0
+    fi
+
     CT_Extract "newlib-$(libc_newlib_version)"
     CT_Patch "newlib" "$(libc_newlib_version)"
 
