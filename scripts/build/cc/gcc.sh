@@ -4,7 +4,9 @@
 
 # Download gcc
 do_cc_get() {
-    if [ -n "${CT_CC_V_SVN}" ]; then
+    if [ "${CT_CC_CUSTOM}" = "y" ]; then
+        CT_GetCustom "gcc" "${CT_CC_VERSION}" "${CT_CC_CUSTOM_LOCATION}"
+    elif [ -n "${CT_CC_V_SVN}" ]; then
         # Get gcc from SVN!
         local svn_base
 
@@ -59,6 +61,12 @@ do_cc_get() {
 
 # Extract gcc
 do_cc_extract() {
+    # If using custom directory location, nothing to do
+    if [ "${CT_CC_CUSTOM}" = "y"                    \
+         -a -d "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}" ]; then
+        return 0
+    fi
+
     CT_Extract "gcc-${CT_CC_VERSION}"
     CT_Patch "gcc" "${CT_CC_VERSION}"
 
