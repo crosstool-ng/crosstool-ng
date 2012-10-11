@@ -48,10 +48,14 @@ do_debug_gdb_get() {
     do_debug_gdb_parts
 
     if [ "${do_gdb}" = "y" ]; then
-        CT_GetFile "gdb-${CT_GDB_VERSION}"                          \
-                   {ftp,http}://ftp.gnu.org/pub/gnu/gdb             \
-                   ftp://sources.redhat.com/pub/gdb/{,old-}releases \
-                   "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
+        if [ "${CT_GDB_CUSTOM}" = "y" ]; then
+            CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
+        else
+            CT_GetFile "gdb-${CT_GDB_VERSION}"                          \
+                       {ftp,http}://ftp.gnu.org/pub/gnu/gdb             \
+                       ftp://sources.redhat.com/pub/gdb/{,old-}releases \
+                       "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
+        fi
     fi
 
     if [ "${do_ncurses}" = "y" ]; then
@@ -70,6 +74,11 @@ do_debug_gdb_extract() {
     do_debug_gdb_parts
 
     if [ "${do_gdb}" = "y" ]; then
+        # If using custom directory location, nothing to do
+        if [    "${CT_GDB_CUSTOM}" = "y" \
+             -a -d "${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}" ]; then
+            return 0
+        fi
         CT_Extract "gdb-${CT_GDB_VERSION}"
         CT_Patch "gdb" "${CT_GDB_VERSION}"
     fi
