@@ -15,7 +15,12 @@ do_libc_get() {
     # For uClibc, we have almost every thing: releases, and snapshots
     # for the last month or so. We'll have to deal with svn revisions
     # later...
-    CT_GetFile "uClibc-${CT_LIBC_VERSION}" ${libc_src}
+    if [ "${CT_LIBC_UCLIBC_CUSTOM}" = "y" ]; then
+        CT_GetCustom "uClibc" "${CT_LIBC_VERSION}" \
+                     "${CT_LIBC_UCLIBC_CUSTOM_LOCATION}"
+    else
+        CT_GetFile "uClibc-${CT_LIBC_VERSION}" ${libc_src}
+    fi
     # uClibc locales
     if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
         CT_GetFile "${uclibc_local_tarball}" ${libc_src}
@@ -26,6 +31,11 @@ do_libc_get() {
 
 # Extract uClibc
 do_libc_extract() {
+    # If using custom directory location, nothing to do
+    if [ "${CT_LIBC_UCLIBC_CUSTOM}" = "y" \
+         -a -d "${CT_SRC_DIR}/uClibc-${CT_LIBC_VERSION}" ]; then
+        return 0
+    fi
     CT_Extract "uClibc-${CT_LIBC_VERSION}"
     # Don't patch snapshots
     if [    -z "${CT_LIBC_UCLIBC_V_snapshot}"      \
