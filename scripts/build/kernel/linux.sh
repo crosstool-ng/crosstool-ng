@@ -59,13 +59,25 @@ do_kernel_get() {
 
 # Extract kernel
 do_kernel_extract() {
-    # If using custom headers, or custom directory location, nothing to do
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y"    \
-         -o -d "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}" ]; then
+    # If using a custom headers tree, nothing to do
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y" ]
         return 0
     fi
-   
+
+    # If using a custom directory location, nothing to do
+    if [ "${CT_KERNEL_LINUX_CUSTOM}" = "y"    \
+         -a -d "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}" ]; then
+        return 0
+    fi
+
+    # Otherwise, we're using either a mainstream tarball, or a custom
+    # tarball; in either case, we need to extract
     CT_Extract "linux-${CT_KERNEL_VERSION}"
+
+    # If using a custom tarball, no need to patch
+    if [ "${CT_KERNEL_LINUX_CUSTOM}" = "y" ]; then
+        return 0
+    fi
     CT_Patch "linux" "${CT_KERNEL_VERSION}"
 }
 
