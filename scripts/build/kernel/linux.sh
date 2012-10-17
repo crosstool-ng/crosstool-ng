@@ -60,7 +60,7 @@ do_kernel_get() {
 # Extract kernel
 do_kernel_extract() {
     # If using a custom headers tree, nothing to do
-    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y" ]
+    if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y" ]; then
         return 0
     fi
 
