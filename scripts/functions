@@ -216,6 +216,7 @@ CT_DoLog() {
 CT_DoExecLog() {
     local level="$1"
     local cur_cmd
+    local ret
     shift
     (
     for i in "$@"; do
@@ -254,12 +255,14 @@ CT_DoExecLog() {
         rm -f "${CT_BUILD_DIR}/repeat"
         CT_DoLog DEBUG "==> Executing: ${cur_cmd}"
         "${@}" 2>&1 |CT_DoLog "${level}"
+        ret="${?}"
         if [ -f "${CT_BUILD_DIR}/repeat" ]; then
             continue
         else
             break
         fi
     done
+    exit ${ret}
     )
     # Catch failure of the sub-shell
     [ $? -eq 0 ]
@@ -570,9 +573,11 @@ CT_DoGetFile() {
     then
         # Success, we got it, good!
         mv "${tmp}" "${dest}"
+        CT_DoLog DEBUG "Got it from: \"${url}\""
     else
         # Woops...
         rm -f "${tmp}"
+        CT_DoLog DEBUG "Not at this location: \"${url}\""
     fi
 }
 
