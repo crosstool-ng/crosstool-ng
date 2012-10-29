@@ -4,31 +4,13 @@
 
 # Download gcc
 do_cc_get() {
+    local linaro_version
+    local linaro_series
+    local linaro_base_url="http://launchpad.net/gcc-linaro"
+
     if [ "${CT_CC_CUSTOM}" = "y" ]; then
         CT_GetCustom "gcc" "${CT_CC_VERSION}" "${CT_CC_CUSTOM_LOCATION}"
-    elif [ -n "${CT_CC_V_SVN}" ]; then
-        # Get gcc from SVN!
-        local svn_base
-
-        if [ "${CT_GCC_HTTP}" = "y" ]; then
-            svn_base="http://gcc.gnu.org/svn/gcc"
-        else
-            svn_base="svn://gcc.gnu.org/svn/gcc"
-        fi
- 
-        svn_base+="/${CT_GCC_BRANCH:-trunk}"
-
-        CT_CC_VERSION="${CT_GCC_BRANCH//\//_}"
-
-        CT_GetSVN "gcc-${CT_CC_VERSION}" \
-            "${svn_base}/" \
-            "${CT_GCC_REVISION:-HEAD}"
     else
-        local linaro_version
-        local linaro_series
-        local linaro_base_url="http://launchpad.net/gcc-linaro"
-
-
         # Account for the Linaro versioning
         linaro_version="$( echo "${CT_CC_VERSION}"      \
                            |sed -r -e 's/^linaro-//;'   \
@@ -48,7 +30,7 @@ do_cc_get() {
                    ftp://ftp.uvsq.fr/pub/gcc/snapshots/${CT_CC_VERSION}                         \
                    "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
 
-    fi # -n ${CT_CC_V_SVN}
+    fi # ! custom location
     # Starting with GCC 4.3, ecj is used for Java, and will only be
     # built if the configure script finds ecj.jar at the top of the
     # GCC source tree, which will not be there unless we get it and
