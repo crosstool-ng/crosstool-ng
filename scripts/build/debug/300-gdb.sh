@@ -357,15 +357,6 @@ do_debug_gdb_build() {
 
         unset ac_cv_func_strncmp_works
 
-        # GDB on Mingw depends on PDcurses, not ncurses
-        if [ "${CT_MINGW32}" != "y" ]; then
-            CT_DoLog EXTRA "Cleaning up ncurses"
-            cd "${CT_BUILD_DIR}/build-ncurses"
-            CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" uninstall
-
-            CT_DoExecLog DEBUG rm -rf "${CT_BUILD_DIR}/ncurses"
-        fi
-
         CT_EndStep # native gdb build
     fi
 
