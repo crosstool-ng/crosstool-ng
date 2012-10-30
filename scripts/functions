@@ -46,7 +46,7 @@ CT_OnError() {
             old_trap="$(trap -p ERR)"
             trap -- ERR
             (
-                exec >&6
+                exec >&6 2>&7 <&8
                 printf "\r         \n\nCurrent command"
                 if [ -n "${cur_cmd}" ]; then
                     printf ":\n  %s\n" "${cur_cmd}"
@@ -131,7 +131,8 @@ set +o hashall
 
 # Log policy:
 #  - first of all, save stdout so we can see the live logs: fd #6
-exec 6>&1
+# (also save stdin and stderr for use by CT_DEBUG_INTERACTIVE)
+exec 6>&1 7>&2 8<&0
 #  - then point stdout to the log file
 tmp_log_file="${CT_TOP_DIR}/build.log"
 rm -f "${tmp_log_file}"
