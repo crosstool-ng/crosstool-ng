@@ -5,14 +5,6 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
-libc_newlib_version() {
-    if [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
-        echo "${CT_LIBC_VERSION}"
-    else
-        echo "cvs${CT_LIBC_VERSION:+-${CT_LIBC_VERSION}}"
-    fi
-}
-
 do_libc_get() {
     local libc_src
     local avr32headers_src
@@ -23,15 +15,9 @@ do_libc_get() {
     if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
         CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \
                      "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
-    elif [ -z "${CT_LIBC_NEWLIB_CVS}" ]; then
+    else # ! custom location
         CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
-    else
-        CT_GetCVS "newlib-$(libc_newlib_version)"                   \
-                  ":pserver:anoncvs@sources.redhat.com:/cvs/src"    \
-                  "newlib"                                          \
-                  "${CT_LIBC_VERSION}"                              \
-                  "newlib-$(libc_newlib_version)=src"
-    fi
+    fi # ! custom location
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_GetFile "avr32headers" ${avr32headers_src}
@@ -40,13 +26,13 @@ do_libc_get() {
 
 do_libc_extract() {
     # If using custom directory location, nothing to do
-    if [    "${CT_LIBC_NEWLIB_CUSTOM}" != "y"                \
-         -a -d "${CT_SRC_DIR}/newlib-$(libc_newlib_version)" ]; then
+    if [    "${CT_LIBC_NEWLIB_CUSTOM}" != "y"            \
+         -a -d "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}" ]; then
         return 0
     fi
 
-    CT_Extract "newlib-$(libc_newlib_version)"
-    CT_Patch "newlib" "$(libc_newlib_version)"
+    CT_Extract "newlib-${CT_LIBC_VERSION}"
+    CT_Patch "newlib" "${CT_LIBC_VERSION}"
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         CT_Extract "avr32headers"
@@ -110,7 +96,7 @@ do_libc() {
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"             \
     AR=${CT_TARGET}-ar                                  \
     RANLIB=${CT_TARGET}-ranlib                          \
-    "${CT_SRC_DIR}/newlib-$(libc_newlib_version)/configure" \
+    "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure" \
         --host=${CT_BUILD}                              \
         --target=${CT_TARGET}                           \
         --prefix=${CT_PREFIX_DIR}                       \
