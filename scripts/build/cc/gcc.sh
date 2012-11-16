@@ -88,6 +88,7 @@ do_cc_core_pass_1() {
     core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
     core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    core_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     core_opts+=( "lang_list=c" )
 
     CT_DoStep INFO "Installing pass-1 core C compiler"
@@ -108,6 +109,7 @@ do_cc_core_pass_2() {
     core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
     core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    core_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     core_opts+=( "lang_list=c" )
 
     # Different conditions are at stake here:
@@ -155,7 +157,8 @@ do_cc_core_pass_2() {
 #   build_libstdcxx     : build libstdc++ or not                    : bool      : no
 #   build_staticlinked  : build statically linked or not            : bool      : no
 #   build_manuals       : whether to build manuals or not           : bool      : no
-#   cflags              : host CFLAGS to use                        : string    : (empty)
+#   cflags              : cflags to use                             : string    : (empty)
+#   ldflags             : ldflags to use                            : string    : (empty)
 # Usage: do_cc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_cc_core_backend() {
     local mode
@@ -168,6 +171,7 @@ do_cc_core_backend() {
     local complibs
     local lang_list
     local cflags
+    local ldflags
     local tmp
     local -a host_libstdcxx_flags
     local -a extra_config
@@ -226,6 +230,8 @@ do_cc_core_backend() {
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
+
+    core_LDFLAGS+=("${ldflags}")
 
     # *** WARNING ! ***
     # Keep this full if-else-if-elif-fi-fi block in sync
@@ -521,6 +527,7 @@ do_cc_for_host() {
     final_opts+=( "prefix=${CT_PREFIX_DIR}" )
     final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
     final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
     if [ "${CT_BUILD_MANUALS}" = "y" ]; then
         final_opts+=( "build_manuals=yes" )
@@ -553,7 +560,8 @@ do_cc_for_host() {
 #   host          : the host we run onto                : tuple     : (none)
 #   prefix        : the runtime prefix                  : dir       : (none)
 #   complibs      : the companion libraries prefix      : dir       : (none)
-#   cflags        : the host CFLAGS                     : string    : (empty)
+#   cflags        : cflags to use                       : string    : (empty)
+#   ldflags       : ldflags to use                      : string    : (empty)
 #   lang_list     : the list of languages to build      : string    : (empty)
 #   build_manuals : whether to build manuals or not     : bool      : no
 do_cc_backend() {
@@ -561,6 +569,7 @@ do_cc_backend() {
     local prefix
     local complibs
     local cflags
+    local ldflags
     local lang_list
     local build_manuals
     local -a host_libstdcxx_flags
@@ -627,6 +636,8 @@ do_cc_backend() {
             extra_config+=(--disable-libquadmath-support)
         fi
     fi
+
+    final_LDFLAGS+=("${ldflags}")
 
     # *** WARNING ! ***
     # Keep this full if-else-if-elif-fi-fi block in sync

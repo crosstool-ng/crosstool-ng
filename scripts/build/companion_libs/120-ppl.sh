@@ -40,6 +40,8 @@ do_ppl_for_build() {
 
     ppl_opts+=( "host=${CT_BUILD}" )
     ppl_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    ppl_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
+    ppl_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_ppl_backend "${ppl_opts[@]}"
 
     CT_Popd
@@ -56,6 +58,7 @@ do_ppl_for_host() {
     ppl_opts+=( "host=${CT_HOST}" )
     ppl_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     ppl_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    ppl_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_ppl_backend "${ppl_opts[@]}"
 
     CT_Popd
@@ -66,11 +69,13 @@ do_ppl_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
-#     cflags        : host cflags to use        : string    : (empty)
+#     cflags        : cflags to use             : string    : (empty)
+#     ldflags       : ldflags to use            : string    : (empty)
 do_ppl_backend() {
     local host
     local prefix
     local cflags
+    local ldflags
     local arg
 
     for arg in "$@"; do
@@ -82,6 +87,7 @@ do_ppl_backend() {
     CT_DoExecLog CFG                                \
     CFLAGS="${cflags}"                              \
     CXXFLAGS="${cflags}"                            \
+    LDFLAGS="${ldflags}"                            \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${host}                              \

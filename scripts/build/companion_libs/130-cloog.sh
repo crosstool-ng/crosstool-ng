@@ -53,6 +53,8 @@ do_cloog_for_build() {
 
     cloog_opts+=( "host=${CT_BUILD}" )
     cloog_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    cloog_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
+    cloog_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_cloog_backend "${cloog_opts[@]}"
 
     CT_Popd
@@ -69,6 +71,7 @@ do_cloog_for_host() {
     cloog_opts+=( "host=${CT_HOST}" )
     cloog_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     cloog_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    cloog_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_cloog_backend "${cloog_opts[@]}"
 
     CT_Popd
@@ -79,11 +82,13 @@ do_cloog_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
-#     cflags        : host cflags to use        : string    : (empty)
+#     cflags        : cflags to use             : string    : (empty)
+#     ldflags       : ldflags to use            : string    : (empty)
 do_cloog_backend() {
     local host
     local prefix
     local cflags
+    local ldflags
     local cloog_src_dir="${CT_SRC_DIR}/cloog-ppl-${CT_CLOOG_VERSION}"
     local arg
 
@@ -95,6 +100,7 @@ do_cloog_backend() {
 
     CT_DoExecLog CFG                            \
     CFLAGS="${cflags}"                          \
+    LDFLAGS="${ldflags}"                        \
     LIBS="-lm"                                  \
     "${cloog_src_dir}/configure"                \
         --build=${CT_BUILD}                     \

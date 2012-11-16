@@ -80,6 +80,8 @@ do_mpfr_for_build() {
 
     mpfr_opts+=( "host=${CT_BUILD}" )
     mpfr_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    mpfr_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
+    mpfr_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_mpfr_backend "${mpfr_opts[@]}"
 
     CT_Popd
@@ -96,6 +98,7 @@ do_mpfr_for_host() {
     mpfr_opts+=( "host=${CT_HOST}" )
     mpfr_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     mpfr_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    mpfr_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_mpfr_backend "${mpfr_opts[@]}"
 
     CT_Popd
@@ -106,11 +109,13 @@ do_mpfr_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
-#     cflags        : host cflags to use        : string    : (empty)
+#     cflags        : cflags to use             : string    : (empty)
+#     ldflags       : ldflags to use            : string    : (empty)
 do_mpfr_backend() {
     local host
     local prefix
     local cflags
+    local ldflags
     local arg
 
     for arg in "$@"; do
@@ -128,7 +133,8 @@ do_mpfr_backend() {
     CT_DoLog EXTRA "Configuring MPFR"
     CT_DoExecLog CFG                                    \
     CC="${host}-gcc"                                    \
-    CFLAGS="${CT_CFLAGS_FOR_HOST}"                      \
+    CFLAGS="${cflags}"                                  \
+    LDFLAGS="${ldflags}"                                \
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
         --build=${CT_BUILD}                             \
         --host=${host}                                  \

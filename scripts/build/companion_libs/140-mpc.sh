@@ -38,6 +38,8 @@ do_mpc_for_build() {
 
     mpc_opts+=( "host=${CT_BUILD}" )
     mpc_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    mpc_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
+    mpc_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_mpc_backend "${mpc_opts[@]}"
 
     CT_Popd
@@ -54,6 +56,7 @@ do_mpc_for_host() {
     mpc_opts+=( "host=${CT_HOST}" )
     mpc_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     mpc_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    mpc_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_mpc_backend "${mpc_opts[@]}"
 
     CT_Popd
@@ -64,11 +67,13 @@ do_mpc_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
-#     cflags        : host cflags to use        : string    : (empty)
+#     cflags        : cflags to use             : string    : (empty)
+#     ldflags       : ldflags to use            : string    : (empty)
 do_mpc_backend() {
     local host
     local prefix
     local cflags
+    local ldflags
     local arg
 
     for arg in "$@"; do
@@ -79,6 +84,7 @@ do_mpc_backend() {
 
     CT_DoExecLog CFG                                \
     CFLAGS="${cflags}"                              \
+    LDFLAGS="${ldflags}"                            \
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${host}                              \

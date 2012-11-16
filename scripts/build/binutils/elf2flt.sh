@@ -49,6 +49,8 @@ do_elf2flt_for_build() {
 
     elf2flt_opts+=( "host=${CT_BUILD}" )
     elf2flt_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    elf2flt_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
+    elf2flt_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     elf2flt_opts+=( "binutils_bld=${CT_BUILD_DIR}/build-binutils-build-${CT_HOST}" )
 
     do_elf2flt_backend "${elf2flt_opts[@]}"
@@ -68,6 +70,7 @@ do_elf2flt_for_host() {
     elf2flt_opts+=( "prefix=${CT_PREFIX_DIR}" )
     elf2flt_opts+=( "static_build=${CT_STATIC_TOOLCHAIN}" )
     elf2flt_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    elf2flt_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     elf2flt_opts+=( "binutils_bld=${CT_BUILD_DIR}/build-binutils-host-${CT_HOST}" )
 
     do_elf2flt_backend "${elf2flt_opts[@]}"
@@ -102,12 +105,14 @@ do_elf2flt_for_host() {
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
 #     static_build  : build statcially          : bool      : no
-#     cflags        : host cflags to use        : string    : (empty)
+#     cflags        : cflags to use             : string    : (empty)
+#     ldflags       : ldflags to use            : string    : (empty)
 do_elf2flt_backend() {
     local host
     local prefix
     local static_build
     local cflags
+    local ldflags
     local binutils_bld
     local binutils_src
     local arg
@@ -120,7 +125,8 @@ do_elf2flt_backend() {
 
     CT_DoLog EXTRA "Configuring elf2flt"
     CT_DoExecLog CFG                                            \
-    CFLAGS="${host_cflags}"                                     \
+    CFLAGS="${cflags}"                                          \
+    LDFLAGS="${ldflags}"                                        \
     "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \

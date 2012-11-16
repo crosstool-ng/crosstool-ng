@@ -37,6 +37,8 @@ do_gmp_for_build() {
 
     gmp_opts+=( "host=${CT_BUILD}" )
     gmp_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    gmp_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
+    gmp_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_gmp_backend "${gmp_opts[@]}"
 
     CT_Popd
@@ -53,6 +55,7 @@ do_gmp_for_host() {
     gmp_opts+=( "host=${CT_HOST}" )
     gmp_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     gmp_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    gmp_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_gmp_backend "${gmp_opts[@]}"
 
     CT_Popd
@@ -63,11 +66,13 @@ do_gmp_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
-#     cflags        : host cflags to use        : string    : (empty)
+#     cflags        : cflags to use             : string    : (empty)
+#     ldflags       : ldflags to use            : string    : (empty)
 do_gmp_backend() {
     local host
     local prefix
     local cflags
+    local ldflags
     local arg
 
     for arg in "$@"; do
@@ -78,6 +83,7 @@ do_gmp_backend() {
 
     CT_DoExecLog CFG                                \
     CFLAGS="${cflags} -fexceptions"                 \
+    LDFLAGS="${ldflags}"                            \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${host}                              \
