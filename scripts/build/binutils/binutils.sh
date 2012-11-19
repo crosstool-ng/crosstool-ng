@@ -12,6 +12,14 @@ do_binutils_get() {
                    {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils   \
                    ftp://gcc.gnu.org/pub/binutils/{releases,snapshots}
     fi
+
+    if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
+        CT_GetCVS "elf2flt-${CT_ELF2FLT_VERSION}"               \
+                  ":pserver:anonymous@cvs.uclinux.org:/var/cvs" \
+                  "elf2flt"                                     \
+                  ""                                            \
+                  "elf2flt-${CT_ELF2FLT_VERSION}"
+    fi
 }
 
 # Extract binutils
@@ -24,6 +32,11 @@ do_binutils_extract() {
 
     CT_Extract "binutils-${CT_BINUTILS_VERSION}"
     CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
+
+    if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
+        CT_Extract "elf2flt-${CT_ELF2FLT_VERSION}"
+        CT_Patch "elf2flt" "${CT_ELF2FLT_VERSION}"
+    fi
 }
 
 # Build binutils for build -> target
@@ -45,6 +58,19 @@ do_binutils_for_build() {
     do_binutils_backend "${binutils_opts[@]}"
 
     CT_Popd
+
+    if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
+        # We re-use binutils' options, plus our owns
+        binutils_opts+=( "binutils_src=${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}" )
+        binutils_opts+=( "binutils_bld=${CT_BUILD_DIR}/build-binutils-build-${CT_BUILD}" )
+
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-elf2flt-build-${CT_BUILD}"
+
+        do_elf2flt_backend "${binutils_opts[@]}"
+
+        CT_Popd
+    fi
+
     CT_EndStep
 }
 
@@ -65,6 +91,20 @@ do_binutils_for_host() {
 
     do_binutils_backend "${binutils_opts[@]}"
 
+    CT_Popd
+
+    if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
+        # We re-use binutils' options, plus our owns
+        binutils_opts+=( "binutils_src=${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}" )
+        binutils_opts+=( "binutils_bld=${CT_BUILD_DIR}/build-binutils-host-${CT_HOST}" )
+
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-elf2flt-host-${CT_HOST}"
+
+        do_elf2flt_backend "${binutils_opts[@]}"
+
+        CT_Popd
+    fi
+
     # Make those new tools available to the core C compilers to come.
     # Note: some components want the ${TARGET}-{ar,as,ld,strip} commands as
     # well. Create that.
@@ -73,6 +113,9 @@ do_binutils_for_host() {
     case "${CT_TOOLCHAIN_TYPE}" in
         cross|native)
             binutils_tools=( ar as ld strip )
+            if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
+                binutils_tools+=( elf2flt flthdr )
+            fi
             case "${CT_BINUTILS_LINKERS_LIST}" in
                 ld)         binutils_tools+=( ld.bfd ) ;;
                 gold)       binutils_tools+=( ld.gold ) ;;
@@ -93,7 +136,6 @@ do_binutils_for_host() {
         *)  ;;
     esac
 
-    CT_Popd
     CT_EndStep
 }
 
@@ -216,6 +258,54 @@ do_binutils_backend() {
             export CTNG_LD_IS=bfd
         fi
     fi
+}
+
+# Build elf2flt for X -> target
+#     Parameter     : description               : type      : default
+#     host          : machine to run on         : tuple     : (none)
+#     prefix        : prefix to install into    : dir       : (none)
+#     static_build  : build statcially          : bool      : no
+#     cflags        : cflags to use             : string    : (empty)
+#     ldflags       : ldflags to use            : string    : (empty)
+#     binutils_src  : source dir of binutils    : dir       : (none)
+#     binutils_bld  : build dir of binutils     : dir       : (none)
+#     build_manuals : whether to build manuals  : bool      : no
+do_elf2flt_backend() {
+    local host
+    local prefix
+    local static_build
+    local cflags
+    local ldflags
+    local binutils_bld
+    local binutils_src
+    local build_manuals
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoLog EXTRA "Configuring elf2flt"
+    CT_DoExecLog CFG                                            \
+    CFLAGS="${cflags}"                                          \
+    LDFLAGS="${ldflags}"                                        \
+    "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
+        --build=${CT_BUILD}                                     \
+        --host=${host}                                          \
+        --target=${CT_TARGET}                                   \
+        --prefix=${prefix}                                      \
+        --with-bfd-include-dir=${binutils_bld}/bfd              \
+        --with-binutils-include-dir=${binutils_src}/include     \
+        --with-libbfd=${binutils_bld}/bfd/libbfd.a              \
+        --with-libiberty=${binutils_bld}/libiberty/libiberty.a  \
+        ${elf2flt_opts}                                         \
+        "${CT_ELF2FLT_EXTRA_CONFIG_ARRAY[@]}"
+
+    CT_DoLog EXTRA "Building elf2flt"
+    CT_DoExecLog ALL make ${JOBSFLAGS}
+
+    CT_DoLog EXTRA "Installing elf2flt"
+    CT_DoExecLog ALL make install
 }
 
 # Now on for the target libraries
