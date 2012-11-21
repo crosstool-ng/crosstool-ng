@@ -423,8 +423,7 @@ if [ -z "${CT_RESTART}" ]; then
                 where=$(CT_Which "${tool}")
             fi
 
-            # Not all tools are available for all platforms, but some are really,
-            # bally needed
+            # Not all tools are available for all platforms, but some are required.
             if [ -n "${where}" ]; then
                 CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
                 printf "#${BANG}${CT_CONFIG_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_BUILDTOOLS_PREFIX_DIR}/bin/${!v}-${tool}"
@@ -476,19 +475,6 @@ if [ -z "${CT_RESTART}" ]; then
         *)  ;;
     esac
 
-    # Now we know our host and where to find the host tools, we can check
-    # if static link was requested, but only if it was requested
-    if [ "${CT_WANTS_STATIC_LINK}" = "y" ]; then
-        tmp="${CT_BUILD_DIR}/.static-test"
-        if ! "${CT_HOST}-gcc" -xc - -static -o "${tmp}" >/dev/null 2>&1 <<-_EOF_
-				int main() { return 0; }
-			_EOF_
-        then
-            CT_Abort "Static linking impossible on the host system '${CT_HOST}'"
-        fi
-        rm -f "${tmp}"
-    fi
-
     # Help build gcc
     # Explicitly optimise, else the lines below will overide the
     # package's default optimisation flags
@@ -505,6 +491,8 @@ if [ -z "${CT_RESTART}" ]; then
     CT_CFLAGS_FOR_HOST+=" ${CT_EXTRA_CFLAGS_FOR_HOST}"
     CT_LDFLAGS_FOR_HOST=
     CT_LDFLAGS_FOR_HOST+=" ${CT_EXTRA_LDFLAGS_FOR_HOST}"
+    CT_DoLog DEBUG "CFLAGS for host compiler: '${CT_CFLAGS_FOR_HOST}'"
+    CT_DoLog DEBUG "LDFLAGS for host compiler: '${CT_LDFLAGS_FOR_HOST}'"
 
     # Set the shell to be used by ./configure scripts and by Makefiles (those
     # that support it!).
@@ -521,6 +509,39 @@ if [ -z "${CT_RESTART}" ]; then
     [ ${CT_PARALLEL_JOBS} -eq 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
     [ ${CT_PARALLEL_JOBS} -gt 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
     [ ${CT_LOAD} -ne 0 ] && JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"
+
+    # Now that we've set up $PATH and $CT_CFLAGS_FOR_HOST, sanity test that gcc
+    # is runnable so that the user can troubleshoot problems if not.
+    CT_DoStep DEBUG "Checking that we can run gcc -v"
+    CT_DoExecLog DEBUG "${CT_HOST}-gcc" -v
+    CT_EndStep
+
+    # Create a simple C program for testing.
+    testc="${CT_BUILD_DIR}/test.c"
+    printf "int main() { return 0; }\n" >"${testc}"
+    gccout="${CT_BUILD_DIR}/.gccout"
+
+    CT_DoStep DEBUG "Checking that gcc can compile a trivial program"
+    CT_DoExecLog DEBUG "${CT_HOST}-gcc" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -o "${gccout}"
+    rm -f "${gccout}"
+    CT_EndStep
+
+    if [ "${CT_WANTS_STATIC_LINK}" = "y" ]; then
+        CT_DoStep DEBUG "Checking that gcc can compile a trivial statically linked program (CT_WANTS_STATIC_LINK)"
+        CT_DoLog DEBUG "You may need to ensure that static libraries such as libc.a are installed on your system"
+        CT_DoExecLog DEBUG "${CT_HOST}-gcc" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -static -o "${gccout}"
+        rm -f "${gccout}"
+        CT_EndStep
+    fi
+
+    if [ "${CT_CC_STATIC_LIBSTDCXX}" = "y" ]; then
+        CT_DoStep DEBUG "Checking that gcc can statically link libstdc++ (CT_CC_STATIC_LIBSTDCXX)"
+        CT_DoLog DEBUG "You may need to ensure that libstdc++.a is installed on your system"
+        CT_DoExecLog DEBUG "${CT_HOST}-gcc" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -static -lstdc++ -o "${gccout}"
+        rm -f "${gccout}"
+        CT_EndStep
+    fi
+    rm -f "${testc}"
 
     # We need to save the real .config with kconfig's value,
     # not our mangled .config.2 with arrays.
