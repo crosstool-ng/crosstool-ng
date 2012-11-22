@@ -83,6 +83,10 @@ cc_gcc_lang_list() {
 do_cc_core_pass_1() {
     local -a core_opts
 
+    if [ "${CT_CC_CORE_PASSES_NEEDED}" != "y" ]; then
+        return 0
+    fi
+
     core_opts+=( "mode=static" )
     core_opts+=( "host=${CT_BUILD}" )
     core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
@@ -103,6 +107,10 @@ do_cc_core_pass_1() {
 # Core gcc pass 2
 do_cc_core_pass_2() {
     local -a core_opts
+
+    if [ "${CT_CC_CORE_PASSES_NEEDED}" != "y" ]; then
+        return 0
+    fi
 
     # Common options:
     core_opts+=( "host=${CT_BUILD}" )
