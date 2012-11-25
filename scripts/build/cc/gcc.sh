@@ -191,7 +191,7 @@ do_cc_core_backend() {
         eval "${arg// /\\ }"
     done
 
-    CT_DoLog EXTRA "Configuring core C compiler"
+    CT_DoLog EXTRA "Configuring gcc"
 
     case "${mode}" in
         static)
@@ -444,10 +444,10 @@ do_cc_core_backend() {
         core_targets+=( target-libstdc++-v3 )
     fi
 
-    CT_DoLog EXTRA "Building core C compiler"
+    CT_DoLog EXTRA "Building gcc"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/all-}"
 
-    CT_DoLog EXTRA "Installing core C compiler"
+    CT_DoLog EXTRA "Installing gcc"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/install-}"
 
     if [ "${build_manuals}" = "yes" ]; then
@@ -590,7 +590,7 @@ do_cc_backend() {
         eval "${arg// /\\ }"
     done
 
-    CT_DoLog EXTRA "Configuring final compiler"
+    CT_DoLog EXTRA "Configuring gcc"
 
     # Enable selected languages
     extra_config+=("--enable-languages=${lang_list}")
@@ -809,10 +809,10 @@ do_cc_backend() {
         CT_DoExecLog ALL make ${JOBSFLAGS} all-build-libiberty
     fi
 
-    CT_DoLog EXTRA "Building final compiler"
+    CT_DoLog EXTRA "Building gcc"
     CT_DoExecLog ALL make ${JOBSFLAGS} all
 
-    CT_DoLog EXTRA "Installing final compiler"
+    CT_DoLog EXTRA "Installing gcc"
     CT_DoExecLog ALL make ${JOBSFLAGS} install
 
     if [ "${build_manuals}" = "yes" ]; then
