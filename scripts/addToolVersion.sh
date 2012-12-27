@@ -189,6 +189,7 @@ while [ $# -gt 0 ]; do
         # Tools:
         --gcc)      EXP=; OBS=; cat=CC;             tool=gcc;       tool_prefix=cc;             dot2suffix=;;
         --binutils) EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;       dot2suffix=;;
+        --elf2flt)  EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;       dot2suffix=.2;;
         --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;     tool_prefix=libc;           dot2suffix=;;
         --eglibc)   EXP=; OBS=; cat=LIBC_EGLIBC;    tool=eglibc;    tool_prefix=libc;           dot2suffix=;;
         --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;    tool_prefix=libc;           dot2suffix=;;
