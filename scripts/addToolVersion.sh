@@ -187,24 +187,24 @@ fi
 while [ $# -gt 0 ]; do
     case "$1" in
         # Tools:
-        --gcc)      EXP=; OBS=; cat=CC;             tool=gcc;       tool_prefix=cc;;
-        --binutils) EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;;
-        --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;     tool_prefix=libc;;
-        --eglibc)   EXP=; OBS=; cat=LIBC_EGLIBC;    tool=eglibc;    tool_prefix=libc;;
-        --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;    tool_prefix=libc;;
-        --newlib)   EXP=; OBS=; cat=LIBC_NEWLIB;    tool=newlib;    tool_prefix=libc;;
-        --linux)    EXP=; OBS=; cat=KERNEL;         tool=linux;     tool_prefix=kernel;;
-        --gdb)      EXP=; OBS=; cat=GDB;            tool=gdb;       tool_prefix=debug;;
-        --dmalloc)  EXP=; OBS=; cat=DMALLOC;        tool=dmalloc;   tool_prefix=debug;;
-        --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;;
-        --strace)   EXP=; OBS=; cat=STRACE;         tool=strace;    tool_prefix=debug;;
-        --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;;
-        --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs;;
-        --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs;;
-        --ppl)      EXP=; OBS=; cat=PPL;            tool=ppl;       tool_prefix=companion_libs;;
-        --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs;;
-        --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs;;
-        --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs;;
+        --gcc)      EXP=; OBS=; cat=CC;             tool=gcc;       tool_prefix=cc;             dot2suffix=;;
+        --binutils) EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;       dot2suffix=;;
+        --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;     tool_prefix=libc;           dot2suffix=;;
+        --eglibc)   EXP=; OBS=; cat=LIBC_EGLIBC;    tool=eglibc;    tool_prefix=libc;           dot2suffix=;;
+        --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;    tool_prefix=libc;           dot2suffix=;;
+        --newlib)   EXP=; OBS=; cat=LIBC_NEWLIB;    tool=newlib;    tool_prefix=libc;           dot2suffix=;;
+        --linux)    EXP=; OBS=; cat=KERNEL;         tool=linux;     tool_prefix=kernel;         dot2suffix=;;
+        --gdb)      EXP=; OBS=; cat=GDB;            tool=gdb;       tool_prefix=debug;          dot2suffix=;;
+        --dmalloc)  EXP=; OBS=; cat=DMALLOC;        tool=dmalloc;   tool_prefix=debug;          dot2suffix=;;
+        --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;          dot2suffix=;;
+        --strace)   EXP=; OBS=; cat=STRACE;         tool=strace;    tool_prefix=debug;          dot2suffix=;;
+        --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;          dot2suffix=;;
+        --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs; dot2suffix=;;
+        --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs; dot2suffix=;;
+        --ppl)      EXP=; OBS=; cat=PPL;            tool=ppl;       tool_prefix=companion_libs; dot2suffix=;;
+        --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs; dot2suffix=;;
+        --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs; dot2suffix=;;
+        --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs; dot2suffix=;;
 
         # Tools options:
         -x|--experimental|+s)   EXP=1;;
@@ -219,10 +219,7 @@ while [ $# -gt 0 ]; do
         # Version string:
         *)  [ -n "${tool}" ] || { doHelp; exit 1; }
             file_base="config/${tool_prefix}/${tool}.in"
-            # Components have their version selection either
-            # in the .in or the .in.2 file. Handle both.
-            addToolVersion "$1" "${file_base}"
-            addToolVersion "$1" "${file_base}.2"
+            addToolVersion "$1" "${file_base}${dot2suffix}"
             ;;
     esac
     shift
