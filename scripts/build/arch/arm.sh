@@ -24,4 +24,8 @@ CT_DoArchTupleValues() {
     if [ "${CT_ARCH_ARM_INTERWORKING}" = "y" ]; then
         CT_ARCH_TARGET_CFLAGS+=" -mthumb-interwork"
     fi
+
+    if [ "${CT_ARCH_ARM_TUPLE_USE_EABIHF}" = "y" ]; then
+        CT_TARGET_SYS="${CT_TARGET_SYS}hf"
+    fi
 }
