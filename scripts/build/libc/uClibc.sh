@@ -232,11 +232,6 @@ do_libc() {
     CT_EndStep
 }
 
-# This function is used to install those components needing the final C compiler
-do_libc_finish() {
-    :
-}
-
 # Initialises the .config file to sensible values
 # $1: original file
 # $2: munged file

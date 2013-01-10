@@ -21,7 +21,3 @@ do_libc_start_files() {
 do_libc() {
     :
 }
-
-do_libc_finish() {
-    :
-}
