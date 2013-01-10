@@ -44,7 +44,16 @@ do_libc_check_config() {
 }
 
 do_libc_start_files() {
-    :
+    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
+        CT_DoStep INFO "Installing C library headers & start files"
+
+        CT_DoLog EXTRA "Installing Atmel's AVR32 headers"
+        CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/${CT_TARGET}/include"
+        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/avr32headers"     \
+                               "${CT_PREFIX_DIR}/${CT_TARGET}/include/avr32"
+
+        CT_EndStep
+    fi
 }
 
 do_libc() {
@@ -128,12 +137,5 @@ do_libc() {
 }
 
 do_libc_finish() {
-    CT_DoStep INFO "Finishing C library"
-    
-    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        CT_DoLog EXTRA "Installing Atmel's AVR32 headers"
-        CT_DoExecLog ALL cp -r ${CT_SRC_DIR}/avr32headers "${CT_PREFIX_DIR}/${CT_TARGET}/include/avr32"
-    fi
-
-    CT_EndStep
+    :
 }
