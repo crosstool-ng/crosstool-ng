@@ -2,7 +2,7 @@
 
 CT_DoArchTupleValues () {
     # The architecture part of the tuple:
-    CT_TARGET_ARCH="${CT_ARCH}${target_endian_el}"
+    CT_TARGET_ARCH="${CT_ARCH}${CT_ARCH_SUFFIX:-${target_endian_el}}"
 
     # gcc ./configure flags
     CT_ARCH_WITH_ARCH=

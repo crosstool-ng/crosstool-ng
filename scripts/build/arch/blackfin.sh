@@ -2,7 +2,7 @@
 
 CT_DoArchTupleValues() {
     # The architecture part of the tuple:
-    CT_TARGET_ARCH="bfin"
+    CT_TARGET_ARCH="bfin${CT_ARCH_SUFFIX}"
 
     # gcc ./configure flags
     CT_ARCH_WITH_ARCH=

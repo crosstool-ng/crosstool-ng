@@ -3,7 +3,6 @@
 # This one really needs a little love! :-(
 
 CT_DoArchTupleValues() {
-
     # Override the architecture part of the tuple:
     if [ "${CT_ARCH_64}" = "y" ]; then
         CT_TARGET_ARCH=x86_64
@@ -20,4 +19,5 @@ CT_DoArchTupleValues() {
             *)                            CT_TARGET_ARCH=i586;;
         esac
     fi
+    CT_TARGET_ARCH="${CT_TARGET_ARCH}${CT_ARCH_SUFFIX}"
 }

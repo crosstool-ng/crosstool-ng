@@ -3,7 +3,7 @@
 CT_DoArchTupleValues () {
     # The architecture part of the tuple, override only for 64-bit
     if [ "${CT_ARCH_64}" = "y" ]; then
-        CT_TARGET_ARCH="powerpc64"
+        CT_TARGET_ARCH="powerpc64${CT_ARCH_SUFFIX}"
     fi
 
     # Only override values when ABI is not the default

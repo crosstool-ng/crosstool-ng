@@ -1,9 +1,6 @@
 # Compute AVR32-specific values
 
 CT_DoArchTupleValues() {
-    # The architecture part of the tuple:
-    CT_TARGET_ARCH="${CT_ARCH}"
-
     # gcc ./configure flags
     CT_ARCH_WITH_ARCH=
     CT_ARCH_WITH_ABI=

@@ -2,7 +2,7 @@
 
 CT_DoArchTupleValues() {
     # The architecture part of the tuple:
-    CT_TARGET_ARCH="${CT_ARCH}${target_endian_eb}"
+    CT_TARGET_ARCH="${CT_ARCH}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
 
     # The system part of the tuple:
     case "${CT_LIBC},${CT_ARCH_ARM_EABI}" in
