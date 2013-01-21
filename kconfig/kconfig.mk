@@ -5,7 +5,7 @@
 #-----------------------------------------------------------
 # The configurators rules
 
-configurators = menuconfig nconfig oldconfig defconfig olddefconfig
+configurators = menuconfig nconfig oldconfig savedefconfig defconfig
 PHONY += $(configurators)
 
 $(configurators): config_files
@@ -27,11 +27,11 @@ oldconfig: .config
 	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
 
-defconfig: .config
+savedefconfig: .config
 	@$(ECHO) '  GEN   $@'
 	$(SILENT)$(CONF) --savedefconfig=$${CONFIG-defconfig} $(KCONFIG_TOP)
 
-olddefconfig:
+defconfig:
 	@$(ECHO) '  CONF  $@'
 	$(SILENT)$(CONF) --defconfig=$${CONFIG-defconfig} $(KCONFIG_TOP)
 
