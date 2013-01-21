@@ -79,6 +79,22 @@ list-samples-short: FORCE
 	    printf "%s\n" "$${s}";          \
 	done
 
+# Check one sample
+PHONY += $(patsubst %,check-%,$(CT_SAMPLES))
+$(patsubst %,check-%,$(CT_SAMPLES)): config_files
+	@export KCONFIG_CONFIG=$$(pwd)/.config.sample;                                  \
+	 CT_NG_SAMPLE=$(call sample_dir,$(patsubst check-%,%,$(@)))/crosstool.config;   \
+	 $(CONF) --defconfig=$${CT_NG_SAMPLE} $(KCONFIG_TOP) >/dev/null;                \
+	 $(CONF) --savedefconfig=$$(pwd)/.defconfig $(KCONFIG_TOP) >/dev/null;          \
+	 old_sha1=$$( sha1sum "$${CT_NG_SAMPLE}" |cut -d ' ' -f 1 );                    \
+	 new_sha1=$$( sha1sum .defconfig |cut -d ' ' -f 1 );                            \
+	 if [ $${old_sha1} != $${new_sha1} ]; then                                      \
+	    echo "$(patsubst check-%,%,$(@)) needs update";                             \
+	 fi
+	@rm -f .config.sample* .defconfig
+
+check-samples: $(patsubst %,check-%,$(CT_SAMPLES))
+
 PHONY += wiki-samples
 wiki-samples: wiki-samples-pre $(patsubst %,wiki-%,$(CT_SAMPLES)) wiki-samples-post
 
