@@ -89,7 +89,8 @@ $(patsubst %,check-%,$(CT_SAMPLES)): config_files
 	 old_sha1=$$( sha1sum "$${CT_NG_SAMPLE}" |cut -d ' ' -f 1 );                    \
 	 new_sha1=$$( sha1sum .defconfig |cut -d ' ' -f 1 );                            \
 	 if [ $${old_sha1} != $${new_sha1} ]; then                                      \
-	    echo "$(patsubst check-%,%,$(@)) needs update";                             \
+	    echo "$(patsubst check-%,%,$(@)) needs update:";                            \
+	    diff -du0 "$${CT_NG_SAMPLE}" .defconfig |tail -n +4;                        \
 	 fi
 	@rm -f .config.sample* .defconfig
 
