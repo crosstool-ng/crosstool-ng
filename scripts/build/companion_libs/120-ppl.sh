@@ -12,10 +12,8 @@ if [ "${CT_PPL}" = "y" ]; then
 
 # Download PPL
 do_ppl_get() {
-    CT_GetFile "ppl-${CT_PPL_VERSION}"                                      \
-        http://www.cs.unipr.it/ppl/Download/ftp/releases/${CT_PPL_VERSION}  \
-        ftp://ftp.cs.unipr.it/pub/ppl/releases/${CT_PPL_VERSION}            \
-        ftp://gcc.gnu.org/pub/gcc/infrastructure
+    CT_GetFile "ppl-${CT_PPL_VERSION}"  \
+        http://bugseng.com/products/ppl/download/ftp/releases/${CT_PPL_VERSION}
 }
 
 # Extract PPL
