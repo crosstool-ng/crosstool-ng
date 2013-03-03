@@ -280,26 +280,16 @@ do_debug_gdb_build() {
             gdb_native_CFLAGS+=("-L${CT_BUILD_DIR}/static-target/lib")
         fi # need_ncurses_src
 
-        if [ "${need_expat_src}" = "y" ]; then
-            CT_DoLog EXTRA "Building static target expat"
-
-            mkdir -p "${CT_BUILD_DIR}/expat-build"
-            cd "${CT_BUILD_DIR}/expat-build"
-
-            CT_DoExecLog CFG                                                \
-            "${CT_SRC_DIR}/expat-${CT_DEBUG_GDB_EXPAT_VERSION}/configure"   \
-                --build=${CT_BUILD}                                         \
-                --host=${CT_TARGET}                                         \
-                --prefix="${CT_BUILD_DIR}/static-target"                    \
-                --enable-static                                             \
-                --disable-shared
-
-            CT_DoExecLog ALL make ${JOBSFLAGS}
-            CT_DoExecLog ALL make install
-
-            native_extra_config+=("--with-expat")
-            native_extra_config+=("--with-libexpat-prefix=${CT_BUILD_DIR}/static-target")
-        fi # need_expat_src
+        # Build libexpat
+        CT_DoLog EXTRA "Building static target expat"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-expat-target-${CT_TARGET}"
+        do_expat_backend host="${CT_TARGET}"                    \
+                         prefix="${CT_BUILD_DIR}/static-target" \
+                         cflags=""                              \
+                         ldflags=""
+        CT_Popd
+        native_extra_config+=("--with-expat")
+        native_extra_config+=("--with-libexpat-prefix=${CT_BUILD_DIR}/static-target")
 
         CT_DoLog EXTRA "Configuring native gdb"
 
@@ -418,4 +408,33 @@ do_debug_gdb_build() {
 
         CT_EndStep
     fi
+}
+
+# Build libexpat
+#   Parameter     : description               : type      : default
+#   host          : machine to run on         : tuple     : (none)
+#   prefix        : prefix to install into    : dir       : (none)
+#   cflags        : cflags to use             : string    : (empty)
+#   ldflags       : ldflags to use            : string    : (empty)
+do_gdb_expat_backend() {
+    local host
+    local prefix
+    local cflags
+    local ldflags
+    local arg
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoExecLog CFG                                                \
+    "${CT_SRC_DIR}/expat-${CT_DEBUG_GDB_EXPAT_VERSION}/configure"   \
+        --build=${CT_BUILD}                                         \
+        --host=${host}                                              \
+        --prefix="${prefix}"                                        \
+        --enable-static                                             \
+        --disable-shared
+
+    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL make install
 }
