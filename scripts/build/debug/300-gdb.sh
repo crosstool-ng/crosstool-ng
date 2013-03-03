@@ -148,8 +148,9 @@ do_debug_gdb_build() {
         cross_extra_config+=("--enable-expat")
         cross_extra_config+=("--with-expat=yes")
 
-        [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] &&    \
-        cross_extra_config+=("--disable-nls")
+        if [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ]; then
+            cross_extra_config+=("--disable-nls")
+        fi
 
         gdb_cross_configure="${gdb_src_dir}/configure"
 
