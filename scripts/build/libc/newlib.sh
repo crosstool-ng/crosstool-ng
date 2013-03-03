@@ -9,7 +9,7 @@ do_libc_get() {
     local libc_src
     local avr32headers_src
 
-    libc_src="ftp://sources.redhat.com/pub/newlib"
+    libc_src="ftp://sourceware.org/pub/newlib"
     avr32headers_src="http://dev.doredevelopment.dk/avr32-toolchain/sources"
 
     if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
