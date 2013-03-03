@@ -123,6 +123,8 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=("${extra_config[@]}")
+        cross_extra_config+=("--enable-expat")
+        cross_extra_config+=("--with-expat=yes")
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
@@ -137,6 +139,9 @@ do_debug_gdb_build() {
         else
             cross_extra_config+=( "--disable-sim" )
         fi
+        if [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ]; then
+            cross_extra_config+=("--disable-nls")
+        fi
 
         CC_for_gdb=
         LD_for_gdb=
@@ -145,21 +150,12 @@ do_debug_gdb_build() {
             LD_for_gdb="ld -static"
         fi
 
-        cross_extra_config+=("--enable-expat")
-        cross_extra_config+=("--with-expat=yes")
-
-        if [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ]; then
-            cross_extra_config+=("--disable-nls")
-        fi
-
-        gdb_cross_configure="${gdb_src_dir}/configure"
-
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
         CC="${CC_for_gdb}"                              \
         LD="${LD_for_gdb}"                              \
-        "${gdb_cross_configure}"                        \
+        "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
             --target=${CT_TARGET}                       \
@@ -183,7 +179,7 @@ do_debug_gdb_build() {
         fi
 
         if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
-            CT_DoLog EXTRA "Install '.gdbinit' template"
+            CT_DoLog EXTRA "Installing '.gdbinit' template"
             # See in scripts/build/internals.sh for why we do this
             if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
                 gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" )
