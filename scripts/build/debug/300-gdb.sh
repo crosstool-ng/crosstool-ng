@@ -215,7 +215,7 @@ do_debug_gdb_build() {
         native_extra_config=("${extra_config[@]}")
 
         # GDB on Mingw depends on PDcurses, not ncurses
-        if [ "${need_ncurses_src}" = "y" ]; then
+        if [ "${CT_MINGW32}" != "y" ]; then
             CT_DoLog EXTRA "Building static target ncurses"
 
             [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts+=("--without-cxx" "--without-cxx-binding")
