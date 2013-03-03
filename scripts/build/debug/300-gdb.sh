@@ -145,12 +145,8 @@ do_debug_gdb_build() {
             LD_for_gdb="ld -static"
         fi
 
-        if [ "${need_expat_src}" = "y" ]; then
-            cross_extra_config+=("--with-expat=yes")
-        else
-            cross_extra_config+=("--disable-expat")
-            cross_extra_config+=("--with-expat=no")
-        fi
+        cross_extra_config+=("--enable-expat")
+        cross_extra_config+=("--with-expat=yes")
 
         [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] &&    \
         cross_extra_config+=("--disable-nls")
@@ -283,10 +279,10 @@ do_debug_gdb_build() {
         # Build libexpat
         CT_DoLog EXTRA "Building static target expat"
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-expat-target-${CT_TARGET}"
-        do_expat_backend host="${CT_TARGET}"                    \
-                         prefix="${CT_BUILD_DIR}/static-target" \
-                         cflags=""                              \
-                         ldflags=""
+        do_gdb_expat_backend host="${CT_TARGET}"                    \
+                             prefix="${CT_BUILD_DIR}/static-target" \
+                             cflags=""                              \
+                             ldflags=""
         CT_Popd
         native_extra_config+=("--with-expat")
         native_extra_config+=("--with-libexpat-prefix=${CT_BUILD_DIR}/static-target")
