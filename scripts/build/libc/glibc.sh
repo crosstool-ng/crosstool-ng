@@ -19,9 +19,14 @@ do_libc_get() {
     addons_list=($(do_libc_add_ons_list " "))
 
     # Main source
-    CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
+    if [ "${CT_LIBC_CUSTOM}" = "y" ]; then
+        CT_GetCustom "glibc" "${CT_LIBC_VERSION}" "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
+        CT_LIBC_CUSTOM_LOCATION="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}"
+    else
+        CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
                {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
                ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
+    fi
 
     # C library addons
     for addon in "${addons_list[@]}"; do
