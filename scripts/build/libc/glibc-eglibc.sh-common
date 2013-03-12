@@ -4,10 +4,16 @@
 do_libc_extract() {
     local addon
 
-    # Extract the main tarball
-    CT_Extract "${CT_LIBC}-${CT_LIBC_VERSION}"
+    # Attempt CT_EXTRACT only if NOT custom, or CUSTOM_LOCATION is not a directory
+    if [ "${CT_LIBC_CUSTOM}" != "y" \
+         -o ! -d "${CT_LIBC_CUSTOM_LOCATION}" ]; then
+        CT_Extract "${CT_LIBC}-${CT_LIBC_VERSION}"
+    fi
     CT_Pushd "${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
-    CT_Patch nochdir "${CT_LIBC}" "${CT_LIBC_VERSION}"
+    # Attempt CT_PATCH only if NOT custom
+    if [ "${CT_LIBC_CUSTOM}" != "y" ]; then
+        CT_Patch nochdir "${CT_LIBC}" "${CT_LIBC_VERSION}"
+    fi
 
     # Extract the add-opns
     for addon in $(do_libc_add_ons_list " "); do
