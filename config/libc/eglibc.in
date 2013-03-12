@@ -79,6 +79,13 @@ config LIBC_EGLIBC_V_TRUNK
     help
       Selecting this will export the trunk of the eglibc subversion repository.
 
+config LIBC_EGLIBC_CUSTOM
+    bool
+    prompt "Custom eglibc"
+    depends on EXPERIMENTAL
+    select LIBC_EGLIBC_2_16_or_later
+    select LIBC_CUSTOM
+
 endchoice
 
 config LIBC_VERSION
@@ -96,9 +103,26 @@ config LIBC_VERSION
     default "2_10" if LIBC_EGLIBC_V_2_10
     default "2_9" if LIBC_EGLIBC_V_2_9
     default "trunk" if LIBC_EGLIBC_V_TRUNK
+    default "custom" if LIBC_EGLIBC_CUSTOM
 
 config LIBC_EGLIBC_2_16_or_later
     bool
+
+config LIBC_CUSTOM
+    bool
+
+if LIBC_EGLIBC_CUSTOM
+
+config LIBC_EGLIBC_CUSTOM_LOCATION
+    string
+    prompt "Full path to custom eglibc source"
+    default ""
+    help
+      Enter the path to the directory (or tarball) of your source for eglibc,
+      or leave blank to use default CT_CUSTOM_LOCATION_ROOT_DIR/eglibc
+
+endif # LIBC_EGLIBC_CUSTOM
+if ! LIBC_EGLIBC_CUSTOM
 
 if CONFIGURE_has_svn
 
@@ -149,6 +173,7 @@ comment "|  - or have a LAN mirror with a pre-downloaded tarball"
 comment "otherwise you won't be able to download eglibc"
 
 endif # ! CONFIGURE_has_svn
+endif # ! LIBC_EGLIBC_CUSTOM
 
 config EGLIBC_OPT_SIZE
     bool
