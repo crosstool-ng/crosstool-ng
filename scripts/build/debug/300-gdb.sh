@@ -323,6 +323,9 @@ do_debug_gdb_build() {
         fi
 
         CT_DoExecLog CFG                                \
+        CC="${CT_TARGET}-gcc"                           \
+        CPP="${CT_TARGET}-cpp"                          \
+        LD="${CT_TARGET}-ld"                            \
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
             --build=${CT_BUILD}                         \
