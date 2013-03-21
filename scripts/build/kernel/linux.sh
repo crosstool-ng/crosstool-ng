@@ -154,6 +154,7 @@ do_kernel_custom() {
             *.tgz)      tar_opt=--gzip;;
             *.tar.gz)   tar_opt=--gzip;;
             *.tar.bz2)  tar_opt=--bzip2;;
+            *.tar.xz)   tar_opt=--xz;;
         esac
         CT_DoExecLog ALL tar x ${tar_opt} -vf ${CT_KERNEL_LINUX_CUSTOM_PATH}
     else
