@@ -6,11 +6,10 @@
 #
 
 do_libc_get() {
-    local libc_src
-    local avr32headers_src
-
-    libc_src="ftp://sourceware.org/pub/newlib"
-    avr32headers_src="http://dev.doredevelopment.dk/avr32-toolchain/sources"
+    local libc_src="ftp://sourceware.org/pub/newlib"
+    local avr32headers_src="http://www.atmel.com/Images"
+          avr32headers_base="avr-headers-3.2.3.970"    # used below
+    local avr32headers_ext=".zip"
 
     if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
         CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \
@@ -20,7 +19,7 @@ do_libc_get() {
     fi # ! custom location
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        CT_GetFile "avr32headers" ${avr32headers_src}
+        CT_GetFile ${avr32headers_base} ${avr32headers_ext} ${avr32headers_src}
     fi
 }
 
@@ -35,7 +34,9 @@ do_libc_extract() {
     CT_Patch "newlib" "${CT_LIBC_VERSION}"
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        CT_Extract "avr32headers"
+        # The avr32header zip file extracts to avr32/*.h
+        # Put that in its directory, the same as normal tarballs
+        CT_Extract ${avr32headers_base} -d ${CT_SRC_DIR}/${avr32headers_base}
     fi
 }
 
@@ -49,8 +50,8 @@ do_libc_start_files() {
 
         CT_DoLog EXTRA "Installing Atmel's AVR32 headers"
         CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/${CT_TARGET}/include"
-        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/avr32headers"     \
-                               "${CT_PREFIX_DIR}/${CT_TARGET}/include/avr32"
+        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/${avr32headers_base}/avr32"     \
+                               "${CT_PREFIX_DIR}/${CT_TARGET}/include/"
 
         CT_EndStep
     fi
