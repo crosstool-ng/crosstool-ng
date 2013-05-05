@@ -282,15 +282,21 @@ do_cc_core_backend() {
         extra_config+=("--with-mpc=${complibs}")
     fi
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
-        extra_config+=("--with-ppl=${complibs}")
-        # With PPL 0.11+, also pull libpwl if needed
-        if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
-            host_libstdcxx_flags+=("-L${complibs}/lib")
-            host_libstdcxx_flags+=("-lpwl")
+        if [ "${CT_PPL}" = "y" ]; then
+            extra_config+=("--with-ppl=${complibs}")
+            # With PPL 0.11+, also pull libpwl if needed
+            if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
+                host_libstdcxx_flags+=("-L${complibs}/lib")
+                host_libstdcxx_flags+=("-lpwl")
+            fi
+        fi
+        if [ "${CT_ISL}" = "y" ]; then
+            extra_config+=("--with-isl=${complibs}")
         fi
         extra_config+=("--with-cloog=${complibs}")
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=no")
+        extra_config+=("--with-isl=no")
         extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
@@ -694,15 +700,21 @@ do_cc_backend() {
         extra_config+=("--with-mpc=${complibs}")
     fi
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
-        extra_config+=("--with-ppl=${complibs}")
-        # With PPL 0.11+, also pull libpwl if needed
-        if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
-            host_libstdcxx_flags+=("-L${complibs}/lib")
-            host_libstdcxx_flags+=("-lpwl")
+        if [ "${CT_PPL}" = "y" ]; then
+            extra_config+=("--with-ppl=${complibs}")
+            # With PPL 0.11+, also pull libpwl if needed
+            if [ "${CT_PPL_NEEDS_LIBPWL}" = "y" ]; then
+                host_libstdcxx_flags+=("-L${complibs}/lib")
+                host_libstdcxx_flags+=("-lpwl")
+            fi
+        fi
+        if [ "${CT_ISL}" = "y" ]; then
+            extra_config+=("--with-isl=${complibs}")
         fi
         extra_config+=("--with-cloog=${complibs}")
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-ppl=no")
+        extra_config+=("--with-isl=no")
         extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then

@@ -316,9 +316,25 @@ config CC_GCC_4_7_or_later
     bool
     select CC_GCC_4_6_or_later
 
-config CC_GCC_latest
+config CC_GCC_4_8
+    bool
+    select CC_GCC_4_8_or_later
+    select CC_GCC_USE_GMP_MPFR
+    select CC_GCC_USE_MPC
+    select CC_GCC_HAS_GRAPHITE
+    select CC_GCC_HAS_LTO
+    select CC_GCC_HAS_PKGVERSION_BUGURL
+    select CC_GCC_HAS_BUILD_ID
+    select CC_GCC_HAS_LNK_HASH_STYLE
+    select CC_GCC_HAS_LIBQUADMATH
+
+config CC_GCC_4_8_or_later
     bool
     select CC_GCC_4_7_or_later
+
+config CC_GCC_latest
+    bool
+    select CC_GCC_4_8_or_later
     select CC_GCC_USE_GMP_MPFR
     select CC_GCC_USE_MPC
     select CC_GCC_HAS_GRAPHITE
@@ -331,6 +347,22 @@ config CC_GCC_latest
 config CC_GCC_HAS_GRAPHITE
     bool
 
+# For graphite: gcc 4.4..4.7 need ppl, while 4.8.. need isl
+# Prompt in config/cc/gcc.in.2
+config CC_GCC_USE_GRAPHITE
+    bool
+    default y
+    depends on CC_GCC_HAS_GRAPHITE
+    select CLOOG_NEEDED
+    select PPL_NEEDED if !CC_GCC_4_8_or_later
+    select ISL_NEEDED if CC_GCC_4_8_or_later
+    help
+      Enable the GRAPHITE loop optimsations.
+      
+      On some systems (eg. Cygwin), PPL and/or CLooG (required to enable
+      GRAPHITE) may not build properly (yet), so you'll have to say 'N'
+      here (or help debug the issues)
+
 # The way LTO works is a bit twisted.
 # See: http://gcc.gnu.org/wiki/LinkTimeOptimization#Requirements
 # Basically:
@@ -341,6 +373,15 @@ config CC_GCC_HAS_GRAPHITE
 # advantage of it
 config CC_GCC_HAS_LTO
     bool
+
+# Prompt in config/cc/gcc.in.2
+config CC_GCC_USE_LTO
+    bool
+    default y
+    depends on CC_GCC_HAS_LTO
+    select CC_GCC_USE_LIBELF if CC_GCC_4_5
+    help
+      Enable the Link Time Optimisations.
 
 config CC_GCC_HAS_PKGVERSION_BUGURL
     bool
@@ -371,9 +412,6 @@ config CC_GCC_USE_GMP_MPFR
     select GMP_NEEDED
     select MPFR_NEEDED
 
-config CC_GCC_USE_PPL_CLOOG
-    bool
-    select PPL_NEEDED
     select CLOOG_NEEDED
 
 config CC_GCC_USE_MPC
