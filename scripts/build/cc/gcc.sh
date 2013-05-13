@@ -432,6 +432,7 @@ do_cc_core_backend() {
         # configurations.
         if [ "${CT_BARE_METAL},${CT_CANADIAN}" = "y,y" ]; then
             repair_cc="CC_FOR_BUILD=${CT_BUILD}-gcc \
+                       CXX_FOR_BUILD=${CT_BUILD}-g++ \
                        GCC_FOR_TARGET=${CT_TARGET}-gcc"
         else
             repair_cc=""
