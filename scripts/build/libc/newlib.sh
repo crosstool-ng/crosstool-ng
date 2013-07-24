@@ -38,6 +38,10 @@ do_libc_extract() {
 
     CT_Extract "newlib-${CT_LIBC_VERSION}"
     CT_Patch "newlib" "${CT_LIBC_VERSION}"
+
+    if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
+        CT_ConfigureXtensa "newlib" "${CT_LIBC_VERSION}"
+    fi
 }
 
 do_libc_check_config() {
@@ -48,6 +52,11 @@ do_libc_start_files() {
     CT_DoStep INFO "Installing C library headers & start files"
     CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/newlib/libc/include/." \
     "${CT_HEADERS_DIR}"
+    if [ "${CT_ARCH_xtensa}" = "y" ]; then
+        CT_DoLog EXTRA "Installing Xtensa headers"
+        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/newlib/libc/sys/xtensa/include/."   \
+                               "${CT_HEADERS_DIR}"
+    fi
     CT_EndStep
 }
 

@@ -63,6 +63,10 @@ do_gcc_extract() {
        ]; then
         CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/ecj-latest.jar" "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/ecj.jar"
     fi
+
+    if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
+        CT_ConfigureXtensa "gcc" "${CT_CC_GCC_VERSION}"
+    fi
 }
 
 #------------------------------------------------------------------------------

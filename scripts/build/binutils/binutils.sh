@@ -46,6 +46,10 @@ do_binutils_extract() {
             CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
         fi
     fi
+
+    if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
+        CT_ConfigureXtensa "binutils" "${CT_BINUTILS_VERSION}"
+    fi
 }
 
 # Build binutils for build -> target
