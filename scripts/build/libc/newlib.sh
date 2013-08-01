@@ -15,7 +15,8 @@ do_libc_get() {
         CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \
                      "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
     else # ! custom location
-        CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src}
+        CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src} \
+            http://mirrors.kernel.org/sources.redhat.com/newlib
     fi # ! custom location
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
