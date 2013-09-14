@@ -143,15 +143,19 @@ AC_ARG_WITH([readelf],
     AS_HELP_STRING([--with-readelf=PATH],
                    [Specify the full PATH to GNU readelf]),
     [READELF=$withval])
+AC_ARG_WITH([gperf],
+    AS_HELP_STRING([--with-gperf=PATH],
+                   [Specify the full PATH to GNU gperf]),
+    [GPERF=$withval])
 
 AC_PROG_RANLIB
 ACX_PATH_TOOL_REQ([OBJCOPY], [objcopy])
 ACX_PATH_TOOL_REQ([OBJDUMP], [objdump])
 ACX_PATH_TOOL_REQ([READELF], [readelf])
+ACX_PATH_TOOL_REQ([GPERF], [gperf])
 
 ACX_CHECK_PROGS_REQ([bison], [bison])
 ACX_CHECK_PROGS_REQ([flex], [flex])
-ACX_CHECK_PROGS_REQ([gperf], [gperf])
 ACX_CHECK_PROGS_REQ([makeinfo], [makeinfo])
 ACX_CHECK_PROGS_REQ([cut], [cut])
 ACX_CHECK_PROGS_REQ([stat], [stat])

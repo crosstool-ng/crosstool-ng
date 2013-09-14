@@ -84,7 +84,7 @@ zconf.tab.c: zconf.y
 
 zconf.hash.c: zconf.gperf
 	@echo "  GPERF  '$@'"
-	@gperf < $< > $@
+	@$(gperf) < $< > $@
 
 lex.zconf.c: zconf.l
 	@echo "  LEX    '$@'"
