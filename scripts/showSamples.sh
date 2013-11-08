@@ -83,6 +83,7 @@ dump_single_sample() {
             [ "${CT_CC_LANG_ADA}" = "y"     ] && printf ",ADA"
             [ "${CT_CC_LANG_OBJC}" = "y"    ] && printf ",Objective-C"
             [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ",Objective-C++"
+            [ "${CT_CC_LANG_GOLANG}" = "y"  ] && printf ",Go"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
             printf ")\n"
             printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}" "${CT_THREADS}"
