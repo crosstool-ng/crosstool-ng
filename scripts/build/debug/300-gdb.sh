@@ -146,8 +146,8 @@ do_debug_gdb_build() {
         CC_for_gdb=
         LD_for_gdb=
         if [ "${CT_GDB_CROSS_STATIC}" = "y" ]; then
-            CC_for_gdb="gcc -static"
-            LD_for_gdb="ld -static"
+            CC_for_gdb="${CT_HOST}-gcc -static"
+            LD_for_gdb="${CT_HOST}-ld -static"
         fi
 
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
