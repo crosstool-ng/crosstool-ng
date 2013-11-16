@@ -32,6 +32,11 @@ do_libc_get() {
             nptl)   continue;;
         esac
 
+        case "${CT_LIBC_GLIBC_PORTS_EXTERNAL}" in
+            y)   ;;
+            *)   continue;;
+        esac
+
         if ! CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"     \
                         {ftp,http}://ftp.gnu.org/gnu/glibc      \
                         ftp://gcc.gnu.org/pub/glibc/releases    \

@@ -42,6 +42,11 @@ do_libc_get() {
             nptl)   continue;;
         esac
 
+        case "${CT_LIBC_GLIBC_PORTS_EXTERNAL}" in
+            y)   ;;
+            *)   continue;;
+        esac
+
         if ! CT_GetSVN "eglibc-${addon}-${CT_LIBC_VERSION}" \
                        "${svn_base}/${addon}"               \
                        "${CT_EGLIBC_REVISION:-HEAD}"
