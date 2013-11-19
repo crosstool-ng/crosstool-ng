@@ -164,6 +164,7 @@ do_cc_core_pass_2() {
 #   lang_list           : the list of languages to build            : string    : (empty)
 #   build_libgcc        : build libgcc or not                       : bool      : no
 #   build_libstdcxx     : build libstdc++ or not                    : bool      : no
+#   build_libgfortran   : build libgfortran or not                  : bool      : no
 #   build_staticlinked  : build statically linked or not            : bool      : no
 #   build_manuals       : whether to build manuals or not           : bool      : no
 #   cflags              : cflags to use                             : string    : (empty)
@@ -173,6 +174,7 @@ do_cc_core_backend() {
     local mode
     local build_libgcc=no
     local build_libstdcxx=no
+    local build_libgfortran=no
     local build_staticlinked=no
     local build_manuals=no
     local host
@@ -457,6 +459,12 @@ do_cc_core_backend() {
         core_targets+=( target-libstdc++-v3 )
     fi
 
+    if [    "${build_libgfortran}" = "yes"    \
+         -a "${CT_CC_LANG_FORTRAN}"  = "y"    \
+       ]; then
+        core_targets+=( target-libgfortran )
+    fi
+
     CT_DoLog EXTRA "Building gcc"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/all-}"
 
@@ -521,6 +529,7 @@ do_cc_for_build() {
         build_final_opts+=( "mode=baremetal" )
         build_final_opts+=( "build_libgcc=yes" )
         build_final_opts+=( "build_libstdcxx=yes" )
+        build_final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             build_final_opts+=( "build_staticlinked=yes" )
         fi
@@ -557,6 +566,7 @@ do_cc_for_host() {
         final_opts+=( "mode=baremetal" )
         final_opts+=( "build_libgcc=yes" )
         final_opts+=( "build_libstdcxx=yes" )
+        final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
         fi
