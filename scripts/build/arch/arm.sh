@@ -2,7 +2,16 @@
 
 CT_DoArchTupleValues() {
     # The architecture part of the tuple:
-    CT_TARGET_ARCH="${CT_ARCH}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
+    case "${CT_ARCH_BITNESS}" in
+        32)
+            CT_TARGET_ARCH="${CT_ARCH}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
+            ;;
+        64)
+            # ARM 64 (aka AArch64) is special
+            [ "${CT_ARCH_BE}" = "y" ] && target_endian_eb="_be"
+            CT_TARGET_ARCH="aarch64${CT_ARCH_SUFFIX:-${target_endian_eb}}"
+            ;;
+    esac
 
     # The system part of the tuple:
     case "${CT_LIBC},${CT_ARCH_ARM_EABI}" in

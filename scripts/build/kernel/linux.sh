@@ -110,6 +110,10 @@ do_kernel_install() {
     V_OPT="V=${CT_KERNEL_LINUX_VERBOSE_LEVEL}"
 
     kernel_arch="${CT_ARCH}"
+    case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
+        # ARM 64 (aka AArch64) is special
+        arm:64) kernel_arch="arm64";;
+    esac
 
     CT_DoLog EXTRA "Installing kernel headers"
     CT_DoExecLog ALL                                    \
