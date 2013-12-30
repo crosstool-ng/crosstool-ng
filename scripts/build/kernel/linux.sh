@@ -97,6 +97,7 @@ do_kernel_headers() {
 # Install kernel headers using headers_install from kernel sources.
 do_kernel_install() {
     local kernel_path
+    local arch
 
     CT_DoLog DEBUG "Using kernel's headers_install"
 
@@ -108,11 +109,13 @@ do_kernel_install() {
     fi
     V_OPT="V=${CT_KERNEL_LINUX_VERBOSE_LEVEL}"
 
+    kernel_arch="${CT_ARCH}"
+
     CT_DoLog EXTRA "Installing kernel headers"
     CT_DoExecLog ALL                                    \
     make -C "${kernel_path}"                            \
          O="${CT_BUILD_DIR}/build-kernel-headers"       \
-         ARCH=${CT_ARCH}                                \
+         ARCH=${arch}                                   \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
          ${V_OPT}                                       \
          headers_install
@@ -122,7 +125,7 @@ do_kernel_install() {
         CT_DoExecLog ALL                                    \
         make -C "${kernel_path}"                            \
              O="${CT_BUILD_DIR}/build-kernel-headers"       \
-             ARCH=${CT_ARCH}                                \
+             ARCH=${arch}                                   \
              INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
              ${V_OPT}                                       \
              headers_check
