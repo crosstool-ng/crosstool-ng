@@ -5,11 +5,12 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
+LIBC_NEWLIB_AVR_HDRS_URI="http://www.atmel.com/Images"
+LIBC_NEWLIB_AVR_HDRS_BASE="avr-headers-3.2.3.970"
+LIBC_NEWLIB_AVR_HDRS_EXT=".zip"
+
 do_libc_get() {
     local libc_src="ftp://sourceware.org/pub/newlib"
-    local avr32headers_src="http://www.atmel.com/Images"
-          avr32headers_base="avr-headers-3.2.3.970"    # used below
-    local avr32headers_ext=".zip"
 
     if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
         CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \
@@ -20,7 +21,9 @@ do_libc_get() {
     fi # ! custom location
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        CT_GetFile ${avr32headers_base} ${avr32headers_ext} ${avr32headers_src}
+        CT_GetFile ${LIBC_NEWLIB_AVR_HDRS_BASE} \
+                   ${LIBC_NEWLIB_AVR_HDRS_EXT}  \
+                   ${LIBC_NEWLIB_AVR_HDRS_URI}
     fi
 }
 
@@ -37,7 +40,8 @@ do_libc_extract() {
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
         # The avr32header zip file extracts to avr32/*.h
         # Put that in its directory, the same as normal tarballs
-        CT_Extract ${avr32headers_base} -d ${CT_SRC_DIR}/${avr32headers_base}
+        CT_Extract ${LIBC_NEWLIB_AVR_HDRS_BASE}     \
+                   -d ${CT_SRC_DIR}/${LIBC_NEWLIB_AVR_HDRS_BASE}
     fi
 }
 
@@ -51,7 +55,7 @@ do_libc_start_files() {
 
         CT_DoLog EXTRA "Installing Atmel's AVR32 headers"
         CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/${CT_TARGET}/include"
-        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/${avr32headers_base}/avr32"     \
+        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/${LIBC_NEWLIB_AVR_HDRS_BASE}/avr32"   \
                                "${CT_PREFIX_DIR}/${CT_TARGET}/include/"
 
         CT_EndStep
