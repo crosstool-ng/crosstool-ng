@@ -42,9 +42,9 @@ do_libc_get() {
             nptl)   continue;;
         esac
 
-        case "${CT_LIBC_GLIBC_PORTS_EXTERNAL}" in
-            y)   ;;
-            *)   continue;;
+        case "${addon}:${CT_LIBC_GLIBC_PORTS_EXTERNAL}" in
+            ports:y)    ;;
+            ports:*)    continue;;
         esac
 
         if ! CT_GetSVN "eglibc-${addon}-${CT_LIBC_VERSION}" \
