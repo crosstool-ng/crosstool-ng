@@ -643,6 +643,11 @@ do_cc_backend() {
     if [ -n "${CT_CC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CT_CC_ENABLE_CXX_FLAGS}")
     fi
+    if [ "${CT_CC_GCC_4_8_or_later}" = "y" ]; then
+        if [ "${CT_THREADS}" = "none" ]; then
+            extra_config+=(--disable-libatomic)
+        fi
+    fi
     if [ "${CT_CC_GCC_LIBMUDFLAP}" = "y" ]; then
         extra_config+=(--enable-libmudflap)
     else
