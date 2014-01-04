@@ -315,13 +315,6 @@ mungeuClibcConfig() {
                     ;;
             esac
             ;;
-        x86)
-            if [ "${CT_ARCH_BITNESS}" = "32" ]; then
-                 cat <<-ENDSED
-					s/.*(UCLIBC_HAS_FENV).*/\\1=y/
-					ENDSED
-            fi
-            ;;
     esac
 
     # Accomodate for old and new uClibc versions, where the
@@ -374,6 +367,11 @@ mungeuClibcConfig() {
 				ENDSED
             ;;
     esac
+    if [ "${CT_LIBC_UCLIBC_FENV}" = "y" ]; then
+        cat <<-ENDSED
+			s/.*(UCLIBC_HAS_FENV).*/\\1=y/
+			ENDSED
+    fi
 
     # We always want ctor/dtor
     cat <<-ENDSED
