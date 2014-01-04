@@ -647,6 +647,9 @@ do_cc_backend() {
         if [ "${CT_THREADS}" = "none" ]; then
             extra_config+=(--disable-libatomic)
         fi
+        if [ "${CT_THREADS}" != "nptl" ]; then
+            extra_config+=(--disable-libsanitizer)
+        fi
     fi
     if [ "${CT_CC_GCC_LIBMUDFLAP}" = "y" ]; then
         extra_config+=(--enable-libmudflap)
