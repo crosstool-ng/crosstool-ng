@@ -315,6 +315,13 @@ mungeuClibcConfig() {
                     ;;
             esac
             ;;
+        x86)
+            if [ "${CT_ARCH_BITNESS}" = "32" ]; then
+                 cat <<-ENDSED
+					s/.*(UCLIBC_HAS_FENV).*/\\1=y/
+					ENDSED
+            fi
+            ;;
     esac
 
     # Accomodate for old and new uClibc versions, where the
