@@ -333,6 +333,11 @@ do_cc_core_backend() {
         *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
     esac
 
+    case "${CT_CC_GCC_DEC_FLOATS}" in
+        "") ;;
+        *)  extra_config+=( "--enable-decimal-float=${CT_CC_GCC_DEC_FLOATS}" );;
+    esac
+
     case "${CT_ARCH}" in
         mips)
             case "${CT_CC_GCC_mips_llsc}" in
@@ -782,6 +787,11 @@ do_cc_backend() {
     case "${CT_CC_GCC_LNK_HASH_STYLE}" in
         "") ;;
         *)  extra_config+=( "--with-linker-hash-style=${CT_CC_GCC_LNK_HASH_STYLE}" );;
+    esac
+
+    case "${CT_CC_GCC_DEC_FLOATS}" in
+        "") ;;
+        *)  extra_config+=( "--enable-decimal-float=${CT_CC_GCC_DEC_FLOATS}" );;
     esac
 
     if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
