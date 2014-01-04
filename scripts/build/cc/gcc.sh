@@ -374,6 +374,7 @@ do_cc_core_backend() {
     CT_DoExecLog CFG                                \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${cflags}"                              \
+    CXXFLAGS="${cflags}"                            \
     LDFLAGS="${core_LDFLAGS[*]}"                    \
     "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/configure"  \
         --build=${CT_BUILD}                         \
@@ -825,6 +826,7 @@ do_cc_backend() {
     CT_DoExecLog CFG                                \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
     CFLAGS="${cflags}"                              \
+    CXXFLAGS="${cflags}"                            \
     LDFLAGS="${final_LDFLAGS[*]}"                   \
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"         \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
