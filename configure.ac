@@ -62,7 +62,7 @@ AC_ARG_ENABLE(
     [local],
     [AS_HELP_STRING(
         [--enable-local],
-        [don't install, and use current directory])])
+        [do not install, and use current directory])])
 AC_SUBST([enable_local], [${enable_local:-no}])
 AC_ARG_ENABLE(
     [shared],
