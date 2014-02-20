@@ -220,6 +220,20 @@ AC_CACHE_CHECK([for GNU make >= 3.80], [ac_cv_path_MAKE],
 AC_SUBST([MAKE], [$ac_cv_path_MAKE])
 AC_PROG_MAKE_SET
 
+# Check for GNU make 3.81 exactly, otherwise
+# it will be built as a companion tool.
+AC_MSG_CHECKING([for make 3.81])
+AS_IF(
+      [test "$MAKE_ver" = "GNU Make 3.81"],
+      [make381="y"
+       AC_MSG_RESULT([yes])
+      ],
+      [make381=
+       AC_MSG_RESULT([no])
+      ]
+     )
+ACX_SET_KCONFIG_OPTION([make381])
+
 #----------------------------------------
 # Check for libtool >= 1.5.26
 AC_CACHE_VAL([ac_cv_path_LIBTOOL],
