@@ -29,7 +29,7 @@ do_libc_get() {
 
 do_libc_extract() {
     # If using custom directory location, nothing to do
-    if [    "${CT_LIBC_NEWLIB_CUSTOM}" != "y"            \
+    if [    "${CT_LIBC_NEWLIB_CUSTOM}" = "y"             \
          -a -d "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}" ]; then
         return 0
     fi
