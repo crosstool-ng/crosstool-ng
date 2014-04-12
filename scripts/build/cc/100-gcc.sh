@@ -201,6 +201,9 @@ do_gcc_core_backend() {
     local -a core_targets_install
     local -a extra_user_config
     local arg
+    local dir
+    local flags
+    local osdir
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -560,23 +563,30 @@ do_gcc_core_backend() {
         CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    if [ "${CT_MULTILIB}" = "y" ]; then
-        if [ "${CT_CANADIAN}" = "y" -a "${mode}" = "baremetal" \
-             -a "${host}" = "${CT_HOST}" ]; then
-            CT_DoLog WARN "Canadian Cross unable to confirm multilibs configured correctly"
+    if [ "${CT_CANADIAN}" = "y" -a "${mode}" = "baremetal" \
+         -a "${host}" = "${CT_HOST}" ]; then
+        CT_DoLog EXTRA "Canadian Cross unable to confirm multilibs configured correctly"
+    else
+        multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib ) )
+        if [ ${#multilibs[@]} -ne 0 ]; then
+            CT_DoLog EXTRA "gcc configured with these multilibs (including the default):"
+            for i in "${multilibs[@]}"; do
+                dir="${i%%;*}"
+                flags="${i#*;}"
+                flags=${flags//@/ -}
+                osdir=$( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-os-directory ${flags} )
+                CT_DoLog EXTRA "   '${flags}' -->  lib/${dir}/ (gcc)   lib/${osdir} (os)"
+                # When building core GCC, create the necessary directories for libc & friends.
+                case "${build_step}" in
+                    core1|core2)
+                        CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/lib/${osdir}"
+                        CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/lib/${osdir}"
+                        CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib/${osdir}"
+                        ;;
+                esac
+            done
         else
-            multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib \
-                           |tail -n +2 ) )
-            if [ ${#multilibs[@]} -ne 0 ]; then
-                CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
-                for i in "${multilibs[@]}"; do
-                    dir="${i%%;*}"
-                    flags="${i#*;}"
-                    CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
-                done
-            else
-                CT_DoLog WARN "gcc configured for multilib, but none available"
-            fi
+            CT_DoLog WARN "no multilib configuration: GCC unusable?"
         fi
     fi
 }
@@ -685,6 +695,9 @@ do_gcc_backend() {
     local -a final_LDFLAGS
     local tmp
     local arg
+    local dir
+    local flags
+    local osdir
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -968,22 +981,21 @@ do_gcc_backend() {
         CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    if [ "${CT_MULTILIB}" = "y" ]; then
-        if [ "${CT_CANADIAN}" = "y" ]; then
-            CT_DoLog WARN "Canadian Cross unable to confirm multilibs configured correctly"
+    if [ "${CT_CANADIAN}" = "y" ]; then
+        CT_DoLog EXTRA "Canadian Cross unable to confirm multilibs configured correctly"
+    else
+        multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib ) )
+        if [ ${#multilibs[@]} -ne 0 ]; then
+            CT_DoLog EXTRA "gcc configured with these multilibs (including the default):"
+            for i in "${multilibs[@]}"; do
+                dir="${i%%;*}"
+                flags="${i#*;}"
+                flags=${flags//@/ -}
+                osdir=$( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-os-directory $flags )
+                CT_DoLog EXTRA "   '${flags}' -->  lib/${dir}/ (gcc)   lib/${osdir} (os)"
+            done
         else
-            multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib \
-                           |tail -n +2 ) )
-            if [ ${#multilibs[@]} -ne 0 ]; then
-                CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
-                for i in "${multilibs[@]}"; do
-                    dir="${i%%;*}"
-                    flags="${i#*;}"
-                    CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
-                done
-            else
-                CT_DoLog WARN "gcc configured for multilib, but none available"
-            fi
+            CT_DoLog WARN "no multilib configuration: GCC unusable?"
         fi
     fi
 }
