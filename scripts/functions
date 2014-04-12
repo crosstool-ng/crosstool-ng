@@ -1305,6 +1305,24 @@ CT_DoBuildTargetTuple() {
     CT_ARCH_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_ARCH_ENDIAN_LDFLAG}"
 }
 
+# This function determines the target tuple for a given set of compiler
+# flags, using either GCC's multiarch feature (if supported) or using
+# fallback architecture-specific functions.
+CT_DoMultilibTarget() {
+    local multi_flags="$1"
+    local target="$2"
+    local gcc_multiarch
+
+    gcc_multiarch=$("${CT_TARGET}-gcc" -print-multiarch ${multi_flags})
+    if [ -n "${gcc_multiarch}" ]; then
+        echo "${gcc_multiarch}"
+        return
+    fi
+
+    # Fall back to arch-specific guesswork
+    CT_DoArchMultilibTarget "${multi_flags}" "${target}"
+}
+
 # This function does pause the build until the user strikes "Return"
 # Usage: CT_DoPause [optional_message]
 CT_DoPause() {
