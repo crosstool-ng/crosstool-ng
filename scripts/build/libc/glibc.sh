@@ -72,6 +72,7 @@ do_libc_backend() {
     local multilib
     local multi_dir
     local multi_flags
+    local multi_last
     local target
     local extra_dir
     local target
@@ -102,7 +103,14 @@ do_libc_backend() {
     # If gcc is not configured for multilib, it still prints
     # a single line for the default settings
     multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
+    last_multi=
     for multilib in "${multilibs[@]}"; do
+        last_multi=$(( ${#multilibs[@]} - 1 ))
+        if [ "${multilib%%;*}" = "${multilibs[last_multi]%%;*}" ]; then
+            # This is the last multilib build or multilib is '.'
+            # (default target, not multilib)
+            multi_last=y
+        fi
         multi_dir="${multilib%%;*}"
         if [ "${multi_dir}" != "." ]; then
             CT_DoStep INFO "Building for multilib subdir='${multi_dir}'"
@@ -167,7 +175,8 @@ do_libc_backend() {
                              libc_headers="${libc_headers}"         \
                              libc_startfiles="${libc_startfiles}"   \
                              libc_full="${libc_full}"               \
-                             libc_target="${target}"
+                             libc_target="${target}"                \
+                             multi_last="${multi_last}"
 
         CT_Popd
         if [ "${multi_dir}" != "." ]; then
@@ -188,6 +197,7 @@ do_libc_backend() {
 #   libc_full           : Build full libc                       : bool      : n
 #   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
 #   extra_dir           : Extra subdir for multilib             : string    : (empty)
+#   multi_last          : The last multilib target              : bool      : n
 do_libc_backend_once() {
     local libc_headers
     local libc_startfiles
@@ -205,6 +215,7 @@ do_libc_backend_once() {
     local float_extra
     local endian_extra
     local libc_target="${CT_TARGET}"
+    local multi_last
     local arg
 
     for arg in "$@"; do
@@ -499,7 +510,10 @@ do_libc_backend_once() {
                               install_root="${install_root}"  \
                               install
 
-        if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+        if [ "${CT_BUILD_MANUALS}" = "y" -a "${multi_last}" = "y" ]; then
+            # We only need to build the manuals once. Only build them on the
+            # last multilib target. If it's not multilib, it will happen on the
+            # only target.
             CT_DoLog EXTRA "Building and installing the C library manual"
             # Omit JOBSFLAGS as GLIBC has problems building the
             # manuals in parallel
@@ -510,7 +524,7 @@ do_libc_backend_once() {
                                     ${CT_PREFIX_DIR}/share/doc
         fi
 
-        if [ "${CT_LIBC_LOCALES}" = "y" ]; then
+        if [ "${CT_LIBC_LOCALES}" = "y" -a "${multi_last}" = "y" ]; then
             do_libc_locales
         fi
     fi # libc_full == y
