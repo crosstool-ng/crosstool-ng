@@ -150,11 +150,14 @@ do_libc_backend() {
 
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
 
+        target=$(CT_DoArchMultilibTarget "${extra_flags}" ${CT_TARGET})
+
         do_libc_backend_once extra_dir="${extra_dir}"               \
                              extra_flags="${extra_flags}"           \
                              libc_headers="${libc_headers}"         \
                              libc_startfiles="${libc_startfiles}"   \
-                             libc_full="${libc_full}"
+                             libc_full="${libc_full}"               \
+                             target="${target}"
 
         CT_Popd
 
@@ -193,6 +196,7 @@ do_libc_backend() {
 #   libc_full           : Build full libc                       : bool      : n
 #   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
 #   extra_dir           : Extra subdir for multilib             : string    : (empty)
+#   target              : Build libc using this target (for multilib) : string : ${CT_TARGET}
 do_libc_backend_once() {
     local libc_headers
     local libc_startfiles
@@ -207,10 +211,15 @@ do_libc_backend_once() {
     local float_extra
     local endian_extra
     local arg
+    local target
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
+
+    if [ "${target}" = "" ]; then
+        target="${CT_TARGET}"
+    fi
 
     CT_DoLog EXTRA "Configuring C library"
 
@@ -355,7 +364,7 @@ do_libc_backend_once() {
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
-        --host=${CT_TARGET}                                         \
+        --host=${target}                                            \
         --cache-file="$(pwd)/config.cache"                          \
         --without-cvs                                               \
         --disable-profile                                           \
