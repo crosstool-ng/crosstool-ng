@@ -325,40 +325,14 @@ if [ -z "${CT_RESTART}" ]; then
     fi
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}"
     CT_DoExecLog ALL mkdir -p "${CT_DEBUGROOT_DIR}"
+    CT_DoExecLog ALL mkdir -p "${CT_HEADERS_DIR}"
 
-    # Prepare the 'lib' directories in sysroot, else the ../lib64 hack used by
-    # 32 -> 64 bit crosscompilers won't work, and build of final gcc will fail
-    # with: "ld: cannot open crti.o: No such file or directory"
-    # Also prepare the lib directory in the install dir, else some 64 bit archs
-    # won't build
+    # Need the non-multilib directories: GCC's multi-os-directory is based off them, so
+    # even if the /lib is not used for any of the multilibs, it must be present so that
+    # the paths like 'lib/../lib64' still work.
     CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/lib"
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/lib"
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
-    CT_DoExecLog ALL mkdir -p "${CT_HEADERS_DIR}"
-
-    if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        # Prevent gcc from installing its libraries outside of the sysroot
-        CT_Pushd "${CT_PREFIX_DIR}/${CT_TARGET}"
-        CT_DoExecLog ALL ln -sf "${CT_SYSROOT_REL_DIR}/lib" "lib"
-        CT_Popd
-    fi
-
-    # Since we're *not* multilib on the target side, we want all the
-    # libraries to end up in "lib".  We create "lib64" (for 64-bit
-    # build or host architectures) and "lib32" (for 32-bit emulation
-    # on 64-bit) as symlinks to "lib".
-    #
-    # Not all of these symlinks are necessary, but better safe than
-    # sorry. They are summarily removed by build/internals.sh:do_finish.
-    for d in                            \
-        "${CT_PREFIX_DIR}"              \
-        "${CT_SYSROOT_DIR}"             \
-        "${CT_SYSROOT_DIR}/usr"         \
-        "${CT_PREFIX_DIR}/${CT_TARGET}" \
-    ; do
-        CT_DoExecLog ALL ln -sf "lib" "${d}/lib32"
-        CT_DoExecLog ALL ln -sf "lib" "${d}/lib64"
-    done
 
     # Determine build system if not set by the user
     if [ -z "${CT_BUILD}" ]; then
