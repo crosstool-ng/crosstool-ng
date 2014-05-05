@@ -149,9 +149,9 @@ AC_ARG_WITH([gperf],
     [GPERF=$withval])
 
 AC_PROG_RANLIB
-ACX_PATH_TOOL_REQ([OBJCOPY], [objcopy])
-ACX_PATH_TOOL_REQ([OBJDUMP], [objdump])
-ACX_PATH_TOOL_REQ([READELF], [readelf])
+ACX_PATH_TOOL_REQ([OBJCOPY], [gobjcopy objcopy])
+ACX_PATH_TOOL_REQ([OBJDUMP], [gobjdump objdump])
+ACX_PATH_TOOL_REQ([READELF], [greadelf readelf])
 ACX_PATH_TOOL_REQ([GPERF], [gperf])
 
 ACX_CHECK_PROGS_REQ([bison], [bison])
