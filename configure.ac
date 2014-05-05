@@ -195,7 +195,7 @@ AC_CACHE_VAL([ac_cv_path__AWK],
                        [Specify the full PATH to GNU awk]),
         [ac_cv_path__AWK=$withval])])
 AC_CACHE_CHECK([for GNU awk], [ac_cv_path__AWK],
-    [AC_PATH_PROGS_FEATURE_CHECK([_AWK], [awk gawk],
+    [AC_PATH_PROGS_FEATURE_CHECK([_AWK], [gawk awk],
         [[_AWK_ver=$($ac_path__AWK --version 2>&1 \
                      |$EGREP '^GNU Awk ')
           test -n "$_AWK_ver" && ac_cv_path__AWK=$ac_path__AWK ac_path__AWK_found=:]],
@@ -211,7 +211,7 @@ AC_CACHE_VAL([ac_cv_path_MAKE],
                        [Specify the full PATH to GNU make >= 3.80]),
         [ac_cv_path_MAKE=$withval])])
 AC_CACHE_CHECK([for GNU make >= 3.80], [ac_cv_path_MAKE],
-    [AC_PATH_PROGS_FEATURE_CHECK([MAKE], [make gmake],
+    [AC_PATH_PROGS_FEATURE_CHECK([MAKE], [gmake make],
         [[MAKE_ver=$($ac_path_MAKE --version 2>&1 \
                      |$EGREP '^GNU Make (3.[89][[:digit:]]|[4-9])')
           test -n "$MAKE_ver" && ac_cv_path_MAKE=$ac_path_MAKE ac_path_MAKE_found=:]],
