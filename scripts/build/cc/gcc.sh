@@ -84,7 +84,7 @@ cc_gcc_lang_list() {
 do_cc_core_pass_1() {
     local -a core_opts
 
-    if [ "${CT_CC_CORE_PASSES_NEEDED}" != "y" ]; then
+    if [ "${CT_CC_CORE_PASS_1_NEEDED}" != "y" ]; then
         return 0
     fi
 
@@ -109,7 +109,7 @@ do_cc_core_pass_1() {
 do_cc_core_pass_2() {
     local -a core_opts
 
-    if [ "${CT_CC_CORE_PASSES_NEEDED}" != "y" ]; then
+    if [ "${CT_CC_CORE_PASS_2_NEEDED}" != "y" ]; then
         return 0
     fi
 
