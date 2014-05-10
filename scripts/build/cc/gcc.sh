@@ -367,9 +367,9 @@ do_cc_core_backend() {
         extra_config+=("--with-system-zlib")
     fi
 
-    if [ "${CT_MULTILIB}" = "y" ]; then
-        extra_config+=("--enable-multilib")
-    else
+    # Some versions of gcc have a deffective --enable-multilib.
+    # Since that's the default, only pass --disable-multilib.
+    if [ "${CT_MULTILIB}" != "y" ]; then
         extra_config+=("--disable-multilib")
     fi
 
