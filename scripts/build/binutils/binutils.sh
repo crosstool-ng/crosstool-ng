@@ -14,11 +14,7 @@ do_binutils_get() {
     fi
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        CT_GetCVS "elf2flt-${CT_ELF2FLT_VERSION}"               \
-                  ":pserver:anonymous@cvs.uclinux.org:/var/cvs" \
-                  "elf2flt"                                     \
-                  ""                                            \
-                  "elf2flt-${CT_ELF2FLT_VERSION}"
+        CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" git://wh0rd.org/elf2flt.git
     fi
 }
 
@@ -34,8 +30,8 @@ do_binutils_extract() {
     CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        CT_Extract "elf2flt-${CT_ELF2FLT_VERSION}"
-        CT_Patch "elf2flt" "${CT_ELF2FLT_VERSION}"
+        CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
+        CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
     fi
 }
 
