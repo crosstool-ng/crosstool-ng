@@ -1,13 +1,8 @@
 # Compute MIPS-specific values
 
 CT_DoArchTupleValues() {
-    local _64
-
     # The architecture part of the tuple
-    if [ "${CT_ARCH_64}" = "y" ]; then
-        _64="64"
-    fi
-    CT_TARGET_ARCH="${CT_ARCH}${_64}${CT_ARCH_SUFFIX:-${target_endian_el}}"
+    CT_TARGET_ARCH="${CT_ARCH}${target_bits_64}${CT_ARCH_SUFFIX:-${target_endian_el}}"
 
     # Override CFLAGS for endianness:
     case "${CT_ARCH_ENDIAN}" in
