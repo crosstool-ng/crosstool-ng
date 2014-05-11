@@ -21,13 +21,11 @@ do_binutils_get() {
 # Extract binutils
 do_binutils_extract() {
     # If using custom directory location, nothing to do
-    if [ "${CT_BINUTILS_CUSTOM}" = "y" \
+    if ! [ "${CT_BINUTILS_CUSTOM}" = "y" \
          -a -d "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}" ]; then
-        return 0
+        CT_Extract "binutils-${CT_BINUTILS_VERSION}"
+        CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
     fi
-
-    CT_Extract "binutils-${CT_BINUTILS_VERSION}"
-    CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
         CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
