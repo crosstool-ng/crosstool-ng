@@ -14,7 +14,12 @@ do_binutils_get() {
     fi
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" git://wh0rd.org/elf2flt.git
+        if [ "${CT_ELF2FLT_CUSTOM}" = "y" ]; then
+            CT_GetCustom "elf2flt" "${CT_ELF2FLT_VERSION}"  \
+                         "${CT_ELF2FLT_CUSTOM_LOCATION}"
+        else
+            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" git://wh0rd.org/elf2flt.git
+        fi
     fi
 }
 
@@ -28,8 +33,11 @@ do_binutils_extract() {
     fi
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
-        CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
+        if ! [ "${CT_ELF2FLT_CUSTOM}" = "y" \
+             -a -d "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}" ]; then
+            CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
+            CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
+        fi
     fi
 }
 
