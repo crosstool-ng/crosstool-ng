@@ -830,34 +830,56 @@ CT_GetSVN() {
 # Prerequisites: either the server does not require password,
 # or the user has already taken any action to authenticate to the server.
 # The cloned tree will *not* be stored in the local tarballs dir!
-# Usage: CT_GetGit <basename> <url [url ...]>
+# Usage: CT_GetGit <basename> <cset> <url>
 CT_GetGit() {
-    local basename="$1"; shift
-    local url
-    local cloned=0
+    local basename="${1}"
+    local cset="${2}"
+    local url="${3}"
+    local file="${basename}-${cset}.tar.gz"
+    local dir="${CT_TARBALLS_DIR}/${basename}-${cset}.git"
+    local dest="${CT_TARBALLS_DIR}/${file}"
+    local tmp="${CT_TARBALLS_DIR}/${file}.tmp-dl"
+
+    # Do we alreadyhave it?
+    if CT_GetLocal "${file}"; then
+        return 0
+    fi
+    # Nope...
 
     if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
         CT_DoLog WARN "Downloads forbidden, not trying git retrieval"
         return 1
     fi
 
-    # Do we have it in our tarballs dir?
-    if [ -d "${CT_TARBALLS_DIR}/${basename}/.git" ]; then
-        CT_DoLog EXTRA "Updating git tree '${basename}'"
-        CT_Pushd "${CT_TARBALLS_DIR}/${basename}"
-        CT_DoExecLog ALL git pull
+    # Add URLs on the LAN mirror
+    # We subvert the normal download method, just to look for
+    # looking at the local mirror
+    if CT_GetFile "${basename}-${cset}" .tar.gz; then
+        return 0
+    fi
+
+    CT_DoLog EXTRA "Retrieving '${basename}-${cset}' (git)"
+
+    # Remove potential left-over from a previous run
+    CT_DoExecLog ALL rm -rf "${tmp}.tar.gz" "${tmp}.tar" "${tmp}" "${dir}"
+
+    if CT_DoExecLog ALL git clone "${url}" "${dir}"; then
+        # Yep, cloned OK
+        CT_Pushd "${dir}"
+        CT_DoExecLog ALL git archive --format=tar                       \
+                                     --prefix="${basename}-${cset}/"    \
+                                     -o "${tmp}.tar"                    \
+                                     "${cset}"
+        CT_DoExecLog ALL gzip -9 "${tmp}.tar"
+        CT_DoExecLog ALL mv -f "${tmp}.tar.gz" "${dest}"
+        CT_SaveLocal "${dest}"
+        CT_DoExecLog ALL rm -rf "${tmp}.tar.gz" "${tmp}.tar" "${tmp}" "${dir}"
         CT_Popd
     else
-        CT_DoLog EXTRA "Retrieving git tree '${basename}'"
-        for url in "${@}"; do
-            CT_DoLog ALL "Trying to clone from '${url}'"
-            CT_DoForceRmdir "${CT_TARBALLS_DIR}/${basename}"
-            if git clone "${url}" "${CT_TARBALLS_DIR}/${basename}" 2>&1 |CT_DoLog ALL; then
-                cloned=1
-                break
-            fi
-        done
-        CT_TestOrAbort "Could not clone '${basename}'" ${cloned} -ne 0
+        # Woops...
+        CT_DoExecLog ALL rm -rf "${dir}"
+        CT_DoLog Debug "Could not clone '${basename}'"
+        return 1
     fi
 }
 
