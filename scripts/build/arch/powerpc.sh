@@ -1,10 +1,8 @@
 # Compute powerpc-specific values
 
 CT_DoArchTupleValues () {
-    # The architecture part of the tuple, override only for 64-bit
-    if [ "${CT_ARCH_64}" = "y" ]; then
-        CT_TARGET_ARCH="powerpc64${CT_ARCH_SUFFIX}"
-    fi
+    # The architecture part of the tuple
+    CT_TARGET_ARCH="powerpc${target_bits_64}${target_endian_le}${CT_ARCH_SUFFIX}"
 
     # Only override values when ABI is not the default
     case "${CT_ARCH_powerpc_ABI}" in
