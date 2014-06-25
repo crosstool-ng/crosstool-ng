@@ -25,7 +25,7 @@ COMMON_DEP = $(patsubst %.o,%.dep,$(COMMON_OBJ))
 $(COMMON_OBJ) $(COMMON_DEP): CFLAGS += $(INTL_CFLAGS) -I.
 
 # lxdialog source files
-LX_SRC = $(wildcard lxdialog/*.c)
+LX_SRC = $(sort $(wildcard lxdialog/*.c))
 LX_OBJ = $(patsubst %.c,%.o,$(LX_SRC))
 LX_DEP = $(patsubst %.o,%.dep,$(LX_OBJ))
 $(LX_OBJ) $(LX_DEP): CFLAGS += $(NCURSES_CFLAGS) $(INTL_CFLAGS)

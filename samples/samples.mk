@@ -2,8 +2,8 @@
 
 # ----------------------------------------------------------
 # Build the list of available samples
-CT_TOP_SAMPLES := $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config))
-CT_LIB_SAMPLES := $(filter-out $(CT_TOP_SAMPLES),$(patsubst $(CT_LIB_DIR)/samples/%/crosstool.config,%,$(wildcard $(CT_LIB_DIR)/samples/*/crosstool.config)))
+CT_TOP_SAMPLES := $(patsubst $(CT_TOP_DIR)/samples/%/crosstool.config,%,$(sort $(wildcard $(CT_TOP_DIR)/samples/*/crosstool.config)))
+CT_LIB_SAMPLES := $(filter-out $(CT_TOP_SAMPLES),$(patsubst $(CT_LIB_DIR)/samples/%/crosstool.config,%,$(sort $(wildcard $(CT_LIB_DIR)/samples/*/crosstool.config))))
 CT_SAMPLES := $(shell echo $(sort $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES))  \
                       |$(sed) -r -e 's/ /\n/g;'                         \
                       |$(sed) -r -e 's/(.*),(.*)/\2,\1/;'               \

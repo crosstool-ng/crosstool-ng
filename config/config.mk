@@ -15,17 +15,17 @@ STATIC_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(shell find $(CT_LIB_DIR)/co
 $(STATIC_CONFIG_FILES): config
 
 # Build a list of per-component-type source config files
-ARCH_CONFIG_FILES       = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/arch/*.in))
-ARCH_CONFIG_FILES_2     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/arch/*.in.2))
-KERNEL_CONFIG_FILES     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/kernel/*.in))
-KERNEL_CONFIG_FILES_2   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/kernel/*.in.2))
-CC_CONFIG_FILES         = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/cc/*.in))
-CC_CONFIG_FILES_2       = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/cc/*.in.2))
-BINUTILS_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/binutils/*.in))
-BINUTILS_CONFIG_FILES_2 = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/binutils/*.in.2))
-LIBC_CONFIG_FILES       = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/libc/*.in))
-LIBC_CONFIG_FILES_2     = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/libc/*.in.2))
-DEBUG_CONFIG_FILES      = $(patsubst $(CT_LIB_DIR)/%,%,$(wildcard $(CT_LIB_DIR)/config/debug/*.in))
+ARCH_CONFIG_FILES       = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/arch/*.in)))
+ARCH_CONFIG_FILES_2     = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/arch/*.in.2)))
+KERNEL_CONFIG_FILES     = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/kernel/*.in)))
+KERNEL_CONFIG_FILES_2   = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/kernel/*.in.2)))
+CC_CONFIG_FILES         = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/cc/*.in)))
+CC_CONFIG_FILES_2       = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/cc/*.in.2)))
+BINUTILS_CONFIG_FILES   = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/binutils/*.in)))
+BINUTILS_CONFIG_FILES_2 = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/binutils/*.in.2)))
+LIBC_CONFIG_FILES       = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/libc/*.in)))
+LIBC_CONFIG_FILES_2     = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/libc/*.in.2)))
+DEBUG_CONFIG_FILES      = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/debug/*.in)))
 
 # Build the list of generated config files
 GEN_CONFIG_FILES = config.gen/arch.in     \
