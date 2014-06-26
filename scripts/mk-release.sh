@@ -1,5 +1,7 @@
 #!/bin/bash
-#set -x
+
+echo "Broken, fix hg->git conversion first" >&2
+exit 1
 
 export LC_ALL=C
 

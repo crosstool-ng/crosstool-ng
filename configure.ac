@@ -2,7 +2,6 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.67])
-#AC_INIT([crosstool-NG], [hg], [crossgcc@sourceware.org])
 AC_INIT([crosstool-NG], [m4_esyscmd_s([cat .version])], [crossgcc@sourceware.org])
 AC_CONFIG_AUX_DIR([scripts])
 
@@ -360,10 +359,8 @@ AS_IF(
     [PACKAGE_VERSION="${V}"],
     [AS_CASE(
         [${PACKAGE_VERSION}],
-        [hg|*+hg],
-        [rev_id="$( hg log -r . --template '{branch}-{node|short}\n' \
-                           2>/dev/null                               \
-                    || true                                          )"
+        [git|*+git],
+        [rev_id="$( git describe --tags 2>/dev/null )"
          PACKAGE_VERSION="${PACKAGE_VERSION}+${rev_id:-unknown-$( date +%Y%m%d.%H%M%S )}"
         ])])
 # Arrange to have no / in the directory name, no need to create an

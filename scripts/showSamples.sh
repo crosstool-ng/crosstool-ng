@@ -1,6 +1,9 @@
 #!/bin/sh
 # Yes, this is supposed to be a POSIX-compliant shell script.
 
+echo "Broken, fix hg->git conversion first" >&2
+exit 1
+
 # Parses all samples on the command line, and for each of them, prints
 # the versions of the main tools
 

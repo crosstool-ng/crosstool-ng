@@ -1,5 +1,8 @@
 #!/bin/sh
 
+echo "Broken, fix hg->git conversion first" >&2
+exit 1
+
 repos="$1"
 pdir="$2"
 if [ -z "${repos}" -o ! -d "${repos}" -o -z "${pdir}" -o ! -d "${pdir}" ];then
