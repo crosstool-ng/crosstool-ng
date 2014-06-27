@@ -360,7 +360,8 @@ AS_IF(
     [AS_CASE(
         [${PACKAGE_VERSION}],
         [git|*+git],
-        [rev_id="$( git describe --tags 2>/dev/null )"
+        [rev_id="$( git rev-parse --short HEAD )"
+         git diff-index --quiet HEAD || rev_id="${rev_id}-dirty"
          PACKAGE_VERSION="${PACKAGE_VERSION}+${rev_id:-unknown-$( date +%Y%m%d.%H%M%S )}"
         ])])
 # Arrange to have no / in the directory name, no need to create an
