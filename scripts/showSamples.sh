@@ -1,9 +1,6 @@
 #!/bin/sh
 # Yes, this is supposed to be a POSIX-compliant shell script.
 
-echo "Broken, fix hg->git conversion first" >&2
-exit 1
-
 # Parses all samples on the command line, and for each of them, prints
 # the versions of the main tools
 
@@ -151,7 +148,8 @@ dump_single_sample() {
               printf "|  (//unknown//)  "
           fi
         )
-        sample_updated="$( hg log -l 1 --template '{date|shortdate}' "${sample_top}/samples/${sample}" )"
+        sample_updated="$( git log -n1 --pretty=format:'%ci' "${sample_top}/samples/${sample}" \
+                           |awk '{ print $1; }' )"
         printf "|  ${sample_updated}  "
         echo "|"
     fi
