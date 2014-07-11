@@ -414,6 +414,10 @@ do_gcc_core_backend() {
     # Since that's the default, only pass --disable-multilib.
     if [ "${CT_MULTILIB}" != "y" ]; then
         extra_config+=("--disable-multilib")
+    else
+        if [ -n "${CT_CC_GCC_MULTILIB_LIST}" ]; then
+            extra_config+=("--with-multilib-list=${CT_CC_GCC_MULTILIB_LIST}")
+        fi
     fi
 
     if [ "x${CT_CC_GCC_EXTRA_ENV_ARRAY}" != "x" ]; then
@@ -908,6 +912,10 @@ do_gcc_backend() {
     # Since that's the default, only pass --disable-multilib.
     if [ "${CT_MULTILIB}" != "y" ]; then
         extra_config+=("--disable-multilib")
+    else
+        if [ -n "${CT_CC_GCC_MULTILIB_LIST}" ]; then
+            extra_config+=("--with-multilib-list=${CT_CC_GCC_MULTILIB_LIST}")
+        fi
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
