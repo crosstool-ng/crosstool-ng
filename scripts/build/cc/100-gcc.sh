@@ -409,6 +409,9 @@ do_gcc_core_backend() {
         extra_config+=("--disable-multilib")
     else
         extra_config+=("--enable-multiarch")
+        if [ -n "${CT_CC_GCC_MULTILIB_LIST}" ]; then
+            extra_config+=("--with-multilib-list=${CT_CC_GCC_MULTILIB_LIST}")
+        fi
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
@@ -888,6 +891,9 @@ do_gcc_backend() {
         extra_config+=("--disable-multilib")
     else
         extra_config+=("--enable-multiarch")
+        if [ -n "${CT_CC_GCC_MULTILIB_LIST}" ]; then
+            extra_config+=("--with-multilib-list=${CT_CC_GCC_MULTILIB_LIST}")
+        fi
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
