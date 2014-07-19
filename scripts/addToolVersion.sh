@@ -167,7 +167,11 @@ addToolVersion() {
             # gdb-7.0 and above have special handling
             ver_M=$(getVersionField "${version}" . 1)
             if [ ${ver_M} -ge 7 ]; then
-                SedExpr1="${SedExpr1}\n    select GDB_7_0_or_later"
+                if [ ${ver_m} -ge 2 ]; then
+                    SedExpr1="${SedExpr1}\n    select GDB_7_2_or_later"
+                else
+                    SedExpr1="${SedExpr1}\n    select GDB_7_0_or_later"
+                fi
             fi
             ;;
     esac
