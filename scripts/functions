@@ -1034,6 +1034,8 @@ CT_Patch() {
     local -a patch_dirs
     local bundled_patch_dir
     local local_patch_dir
+    local bundled_exp_patch_dir
+    local local_exp_patch_dir
 
     if [ "${nochdir}" = "nochdir" ]; then
         shift
@@ -1072,11 +1074,17 @@ CT_Patch() {
     bundled_patch_dir="${CT_LIB_DIR}/patches/${pkgname}/${version}"
     local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkgname}/${version}"
 
+    # Check for experimental patches, if enabled.
+    if [ "${CT_EXPERIMENTAL_PATCHES}" = "y" ]; then
+        bundled_exp_patch_dir="${CT_LIB_DIR}/patches/experimental/${pkgname}/${version}"
+        local_exp_patch_dir="${CT_LOCAL_PATCH_DIR}/experimental/${pkgname}/${version}"
+    fi
+
     case "${CT_PATCH_ORDER}" in
-        bundled)        patch_dirs=("${bundled_patch_dir}");;
-        local)          patch_dirs=("${local_patch_dir}");;
-        bundled,local)  patch_dirs=("${bundled_patch_dir}" "${local_patch_dir}");;
-        local,bundled)  patch_dirs=("${local_patch_dir}" "${bundled_patch_dir}");;
+        bundled)        patch_dirs=("${bundled_patch_dir}" "${bundled_exp_patch_dir}");;
+        local)          patch_dirs=("${local_patch_dir}" "${local_exp_patch_dir}");;
+        bundled,local)  patch_dirs=("${bundled_patch_dir}" "${bundled_exp_patch_dir}" "${local_patch_dir}" "${local_exp_patch_dir}");;
+        local,bundled)  patch_dirs=("${local_patch_dir}" "${local_exp_patch_dir}" "${bundled_patch_dir}" "${bundled_exp_patch_dir}");;
         none)           patch_dirs=;;
     esac
 
