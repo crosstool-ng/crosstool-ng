@@ -1,0 +1,88 @@
+From 2d8cc92a7cb4a3256ed07d86843388ffd8a882b1 Mon Sep 17 00:00:00 2001
+From: Rich Felker <dalias@aerifal.cx>
+Date: Mon, 30 Jun 2014 05:18:14 +0000
+Subject: fix regression in mips dynamic linker
+
+this issue caused the address of functions in shared libraries to
+resolve to their PLT thunks in the main program rather than their
+correct addresses. it was observed causing crashes, though the
+mechanism of the crash was not thoroughly investigated. since the
+issue is very subtle, it calls for some explanation:
+
+on all well-behaved archs, GOT entries that belong to the PLT use a
+special relocation type, typically called JMP_SLOT, so that the
+dynamic linker can avoid having the jump destinations for the PLT
+resolve to PLT thunks themselves (they also provide a definition for
+the symbol, which must be used whenever the address of the function is
+taken so that all DSOs see the same address).
+
+however, the traditional mips PIC ABI lacked such a JMP_SLOT
+relocation type, presumably because, due to the way PIC works, the
+address of the PLT thunk was never needed and could always be ignored.
+
+prior to commit adf94c19666e687a728bbf398f9a88ea4ea19996, the mips
+version of reloc.h contained a hack that caused all symbol lookups to
+be treated like JMP_SLOT, inhibiting undefined symbols from ever being
+used to resolve symbolic relocations. this hack goes all the way back
+to commit babf820180368f00742ec65b2050a82380d7c542, when the mips
+dynamic linker was first made usable.
+
+during the recent refactoring to eliminate arch-specific relocation
+processing (commit adf94c19666e687a728bbf398f9a88ea4ea19996), this
+hack was overlooked and no equivalent functionality was provided in
+the new code.
+
+fixing the problem is not as simple as adding back an equivalent hack,
+since there is now also a "non-PIC ABI" that can be used for the main
+executable, which actually does use a PLT. the closest thing to
+official documentation I could find for this ABI is nonpic.txt,
+attached to Message-ID: 20080701202236.GA1534@caradoc.them.org, which
+can be found in the gcc mailing list archives and elsewhere. per this
+document, undefined symbols corresponding to PLT thunks have the
+STO_MIPS_PLT bit set in the symbol's st_other field. thus, I have
+added an arch-specific rule for mips, applied at the find_sym level
+rather than the relocation level, to reject undefined symbols with the
+STO_MIPS_PLT bit clear.
+
+the previous hack of treating all mips relocations as JMP_SLOT-like,
+rather than rejecting the unwanted symbols in find_sym, probably also
+caused dlsym to wrongly return PLT thunks in place of the correct
+address of a function under at least some conditions. this should now
+be fixed, at least for global-scope symbol lookups.
+---
+diff --git a/arch/mips/reloc.h b/arch/mips/reloc.h
+index 91fa097..4b81d32 100644
+--- a/arch/mips/reloc.h
++++ b/arch/mips/reloc.h
+@@ -86,3 +86,4 @@ static void do_arch_relocs(struct dso *this, struct dso *head)
+ 
+ #define NEED_ARCH_RELOCS 1
+ #define DYNAMIC_IS_RO 1
++#define ARCH_SYM_REJECT_UND(s) (!((s)->st_other & STO_MIPS_PLT))
+diff --git a/src/ldso/dynlink.c b/src/ldso/dynlink.c
+index a08300d..55124ff 100644
+--- a/src/ldso/dynlink.c
++++ b/src/ldso/dynlink.c
+@@ -233,6 +233,10 @@ static Sym *gnu_lookup(const char *s, uint32_t h1, struct dso *dso)
+ #define OK_TYPES (1<<STT_NOTYPE | 1<<STT_OBJECT | 1<<STT_FUNC | 1<<STT_COMMON | 1<<STT_TLS)
+ #define OK_BINDS (1<<STB_GLOBAL | 1<<STB_WEAK | 1<<STB_GNU_UNIQUE)
+ 
++#ifndef ARCH_SYM_REJECT_UND
++#define ARCH_SYM_REJECT_UND(s) 0
++#endif
++
+ static struct symdef find_sym(struct dso *dso, const char *s, int need_def)
+ {
+ 	uint32_t h = 0, gh = 0;
+@@ -249,7 +253,8 @@ static struct symdef find_sym(struct dso *dso, const char *s, int need_def)
+ 		}
+ 		if (!sym) continue;
+ 		if (!sym->st_shndx)
+-			if (need_def || (sym->st_info&0xf) == STT_TLS)
++			if (need_def || (sym->st_info&0xf) == STT_TLS
++			    || ARCH_SYM_REJECT_UND(sym))
+ 				continue;
+ 		if (!sym->st_value)
+ 			if ((sym->st_info&0xf) != STT_TLS)
+--
+cgit v0.9.0.3-65-g4555

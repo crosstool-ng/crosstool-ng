@@ -17,6 +17,7 @@ CT_DoArchTupleValues() {
     case "${CT_LIBC},${CT_ARCH_ARM_EABI}" in
         *glibc,y)   CT_TARGET_SYS=gnueabi;;
         uClibc,y)   CT_TARGET_SYS=uclibcgnueabi;;
+        musl,y)     CT_TARGET_SYS=musleabi;;
         *,y)        CT_TARGET_SYS=eabi;;
     esac
 

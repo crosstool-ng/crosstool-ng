@@ -1,0 +1,64 @@
+From 9a4ad02214a859e93d2c980e4535378a6a74e3a6 Mon Sep 17 00:00:00 2001
+From: Rich Felker <dalias@aerifal.cx>
+Date: Mon, 30 Jun 2014 01:52:54 +0000
+Subject: fix regression in dynamic linker error reporting
+
+due to a mistake when refactoring the error printing for the dynamic
+linker (commit 7c73cacd09a51a87484db5689864743e4984a84d), all messages
+were suppressed and replaced by blank lines.
+---
+diff --git a/src/ldso/dynlink.c b/src/ldso/dynlink.c
+index bc4f2f6..a08300d 100644
+--- a/src/ldso/dynlink.c
++++ b/src/ldso/dynlink.c
+@@ -290,8 +290,7 @@ static void do_relocs(struct dso *dso, size_t *rel, size_t rel_size, size_t stri
+ 		if (!astype) continue;
+ 		type = remap_rel(astype);
+ 		if (!type) {
+-			error(errbuf, sizeof errbuf,
+-				"Error relocating %s: unsupported relocation type %d",
++			error("Error relocating %s: unsupported relocation type %d",
+ 				dso->name, astype);
+ 			continue;
+ 		}
+@@ -304,8 +303,7 @@ static void do_relocs(struct dso *dso, size_t *rel, size_t rel_size, size_t stri
+ 			def = find_sym(ctx, name, type==REL_PLT);
+ 			if (!def.sym && (sym->st_shndx != SHN_UNDEF
+ 			    || sym->st_info>>4 != STB_WEAK)) {
+-				error(errbuf, sizeof errbuf,
+-					"Error relocating %s: %s: symbol not found",
++				error("Error relocating %s: %s: symbol not found",
+ 					dso->name, name);
+ 				continue;
+ 			}
+@@ -366,7 +364,7 @@ static void do_relocs(struct dso *dso, size_t *rel, size_t rel_size, size_t stri
+ 			if (stride<3) addend = reloc_addr[1];
+ 			if (runtime && def.dso->tls_id >= static_tls_cnt) {
+ 				struct td_index *new = malloc(sizeof *new);
+-				if (!new) error(errbuf, sizeof errbuf,
++				if (!new) error(
+ 					"Error relocating %s: cannot allocate TLSDESC for %s",
+ 					dso->name, sym ? name : "(local)" );
+ 				new->next = dso->td_index;
+@@ -839,8 +837,7 @@ static void load_deps(struct dso *p)
+ 			if (p->dynv[i] != DT_NEEDED) continue;
+ 			dep = load_library(p->strings + p->dynv[i+1], p);
+ 			if (!dep) {
+-				error(errbuf, sizeof errbuf,
+-					"Error loading shared library %s: %m (needed by %s)",
++				error("Error loading shared library %s: %m (needed by %s)",
+ 					p->strings + p->dynv[i+1], p->name);
+ 				continue;
+ 			}
+@@ -890,8 +887,7 @@ static void reloc_all(struct dso *p)
+ 
+ 		if (p->relro_start != p->relro_end &&
+ 		    mprotect(p->base+p->relro_start, p->relro_end-p->relro_start, PROT_READ) < 0) {
+-			error(errbuf, sizeof errbuf,
+-				"Error relocating %s: RELRO protection failed: %m",
++			error("Error relocating %s: RELRO protection failed: %m",
+ 				p->name);
+ 		}
+ 
+--
+cgit v0.9.0.3-65-g4555
