@@ -317,7 +317,7 @@ CT_SanitiseVarDir() {
     for var in "$@"; do
         eval "old_dir=\"\${${var}}\""
         new_dir="$( printf "${old_dir}"     \
-                    |sed -r -e 's:/+:/:g;'  \
+                    |${sed} -r -e 's:/+:/:g;'  \
                   )"
         eval "${var}=\"${new_dir}\""
         CT_DoLog DEBUG "Sanitised '${var}': '${old_dir}' -> '${new_dir}'"
@@ -381,7 +381,7 @@ CT_Which() {
 # to the highest entire second
 # Usage: CT_DoDate <fmt>
 CT_DoDate() {
-    date "$1" |sed -r -e 's/%?N$/000000000/;'
+    date "$1" |${sed} -r -e 's/%?N$/000000000/;'
 }
 
 CT_STEP_COUNT=1
@@ -403,7 +403,9 @@ CT_DoStep() {
 # Usage: CT_EndStep
 CT_EndStep() {
     local stop=$(CT_DoDate +%s%N)
-    local duration=$(printf "%032d" $((stop-${CT_STEP_START[${CT_STEP_COUNT}]})) |sed -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;')
+    local duration=$(printf "%032d" $((stop-${CT_STEP_START[${CT_STEP_COUNT}]})) \
+                     |${sed} -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;'
+                    )
     local elapsed=$(printf "%02d:%02d" $((SECONDS/60)) $((SECONDS%60)))
     local level="${CT_STEP_LEVEL[${CT_STEP_COUNT}]}"
     local message="${CT_STEP_MESSAGE[${CT_STEP_COUNT}]}"
@@ -1226,7 +1228,7 @@ CT_DoBuildTargetTuple() {
     # Sanity checks
     __sed_alias=""
     if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
-        __sed_alias=$(echo "${CT_TARGET}" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
+        __sed_alias=$(echo "${CT_TARGET}" |${sed} -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
     fi
     case ":${CT_TARGET_VENDOR}:${CT_TARGET_ALIAS}:${__sed_alias}:" in
       :*" "*:*:*:) CT_Abort "Don't use spaces in the vendor string, it breaks things.";;
@@ -1279,7 +1281,7 @@ CT_DoTarballIfExists() {
         CT_DoLog DEBUG "  Saving '${dir}'"
         { tar c -C "${dir}" -v -f - "${extra_tar_opts[@]}" .    \
           |"${compress[@]}" >"${tarball}.tar${tar_ext}"         ;
-        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog STATE
+        } 2>&1 |${sed} -r -e 's/^/    /;' |CT_DoLog STATE
     else
         CT_DoLog STATE "  Not saving '${dir}': does not exist"
     fi
@@ -1306,7 +1308,7 @@ CT_DoExtractTarballIfExists() {
         CT_DoExecLog DEBUG mkdir -p "${dir}"
         { "${uncompress[@]}" "${tarball}.tar${tar_ext}"     \
           |tar x -C "${dir}" -v -f - "${extra_tar_opts[@]}" ;
-        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog STATE
+        } 2>&1 |${sed} -r -e 's/^/    /;' |CT_DoLog STATE
     else
         CT_DoLog STATE "  Not restoring '${dir}': does not exist"
     fi
@@ -1335,7 +1337,7 @@ CT_DoSaveState() {
               $0~/^[^ ]+ \(\)/ { _p = 0; }
               _p == 1
               $0 == "}" { _p = 1; }
-              ' |sed -r -e '/^BASH_(ARGC|ARGV|LINENO|SOURCE|VERSINFO)=/d;
+              ' |${sed} -r -e '/^BASH_(ARGC|ARGV|LINENO|SOURCE|VERSINFO)=/d;
                            /^(UID|EUID)=/d;
                            /^(FUNCNAME|GROUPS|PPID|SHELLOPTS)=/d;' >"${state_dir}/env.sh"
 
