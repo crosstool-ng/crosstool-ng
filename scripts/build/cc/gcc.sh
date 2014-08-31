@@ -657,9 +657,6 @@ do_cc_backend() {
         if [ "${CT_THREADS}" = "none" ]; then
             extra_config+=(--disable-libatomic)
         fi
-        if [ "${CT_THREADS}" != "nptl" ]; then
-            extra_config+=(--disable-libsanitizer)
-        fi
     fi
     if [ "${CT_CC_GCC_LIBMUDFLAP}" = "y" ]; then
         extra_config+=(--enable-libmudflap)
@@ -683,6 +680,13 @@ do_cc_backend() {
         else
             extra_config+=(--disable-libquadmath)
             extra_config+=(--disable-libquadmath-support)
+        fi
+    fi
+    if [ "${CT_CC_GCC_HAS_LIBSANITIZER}" = "y" ]; then
+        if [ "${CT_CC_GCC_LIBSANITIZER}" = "y" ]; then
+            extra_config+=(--enable-libsanitizer)
+        else
+            extra_config+=(--disable-libsanitizer)
         fi
     fi
 
