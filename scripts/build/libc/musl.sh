@@ -50,6 +50,10 @@ do_libc_configure() {
         extra_config+=("--enable-debug")
     fi
 
+    if [ "${CT_LIBC_MUSL_WARNINGS}" = "y" ]; then
+        extra_config+=("--enable-warnings")
+    fi
+
     extra_config+=( "--enable-optimize=${CT_LIBC_MUSL_OPTIMIZE}" )
 
     # NOTE: musl handles the build/host/target a little bit differently
