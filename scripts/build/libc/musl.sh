@@ -37,6 +37,7 @@ do_libc_check_config() {
 do_libc_configure() {
     CT_DoLog EXTRA "Configuring C library"
     local -a extra_cflags
+    local -a extra_config
 
     # From buildroot:
     # gcc constant folding bug with weak aliases workaround
@@ -44,6 +45,8 @@ do_libc_configure() {
     if [ "${CT_CC_GCC_4_9_or_later}" = "y" ]; then
         extra_cflags+=("-fno-toplevel-reorder")
     fi
+
+    extra_config+=( "--enable-optimize=${CT_LIBC_MUSL_OPTIMIZE}" )
 
     # NOTE: musl handles the build/host/target a little bit differently
     # then one would expect:
@@ -57,7 +60,8 @@ do_libc_configure() {
         --host="${CT_TARGET}"       \
         --target="${CT_TARGET}"     \
         --prefix="/usr"             \
-        --disable-gcc-wrapper
+        --disable-gcc-wrapper       \
+        "${extra_config[@]}"
 }
 
 do_libc_start_files() {
