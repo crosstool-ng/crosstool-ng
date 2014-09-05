@@ -46,6 +46,10 @@ do_libc_configure() {
         extra_cflags+=("-fno-toplevel-reorder")
     fi
 
+    if [ "${CT_LIBC_MUSL_DEBUG}" = "y" ]; then
+        extra_config+=("--enable-debug")
+    fi
+
     extra_config+=( "--enable-optimize=${CT_LIBC_MUSL_OPTIMIZE}" )
 
     # NOTE: musl handles the build/host/target a little bit differently
