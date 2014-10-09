@@ -1,0 +1,44 @@
+From 9dd1a0668e5ab10a5943fdd1aee2e1616d7fc7ed Mon Sep 17 00:00:00 2001
+From: michaelh <michaelh@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date: Thu, 26 Apr 2012 04:33:08 +0000
+Subject: [PATCH] 2012-04-26  Michael Hope  <michael.hope@linaro.org> 	   
+ Richard Earnshaw  <rearnsha@arm.com>
+
+	* config/arm/linux-eabi.h (GLIBC_DYNAMIC_LINKER_SOFT_FLOAT): Define.
+	(GLIBC_DYNAMIC_LINKER_HARD_FLOAT): Define.
+	(GLIBC_DYNAMIC_LINKER_DEFAULT): Define.
+	(GLIBC_DYNAMIC_LINKER):	Redefine to use the hard float path.
+
+
+
+git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@186859 138bc75d-0d04-0410-961f-82ee72b054a4
+---
+ gcc/config/arm/linux-eabi.h | 12 +++++++++++-
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/gcc/config/arm/linux-eabi.h b/gcc/config/arm/linux-eabi.h
+index 80bd825..2ace6f0 100644
+--- a/gcc/config/arm/linux-eabi.h
++++ b/gcc/config/arm/linux-eabi.h
+@@ -62,7 +62,17 @@
+ /* Use ld-linux.so.3 so that it will be possible to run "classic"
+    GNU/Linux binaries on an EABI system.  */
+ #undef  GLIBC_DYNAMIC_LINKER
+-#define GLIBC_DYNAMIC_LINKER "/lib/ld-linux.so.3"
++#define GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "/lib/ld-linux.so.3"
++#define GLIBC_DYNAMIC_LINKER_HARD_FLOAT "/lib/ld-linux-armhf.so.3"
++#if TARGET_DEFAULT_FLOAT_ABI == ARM_FLOAT_ABI_HARD
++#define GLIBC_DYNAMIC_LINKER_DEFAULT GLIBC_DYNAMIC_LINKER_HARD_FLOAT
++#else
++#define GLIBC_DYNAMIC_LINKER_DEFAULT GLIBC_DYNAMIC_LINKER_SOFT_FLOAT
++#endif
++#define GLIBC_DYNAMIC_LINKER \
++   "%{mfloat-abi=hard:" GLIBC_DYNAMIC_LINKER_HARD_FLOAT "} \
++    %{mfloat-abi=soft*:" GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "} \
++    %{!mfloat-abi=*:" GLIBC_DYNAMIC_LINKER_DEFAULT "}"
+ 
+ /* At this point, bpabi.h will have clobbered LINK_SPEC.  We want to
+    use the GNU/Linux version, not the generic BPABI version.  */
+-- 
+2.1.0
+
