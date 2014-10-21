@@ -38,7 +38,7 @@ defconfig:
 # Always be silent, the stdout an be >.config
 extractconfig:
 	@$(awk) 'BEGIN { dump=0; }                                                  \
-	         dump==1 && $$0~/^\[.....\][[:space:]]+(# |)CT_/ {                  \
+	         dump==1 && $$0~/^\[.....\][[:space:]]+(# )?CT_/ {                  \
 	             $$1="";                                                        \
 	             gsub("^[[:space:]]","");                                       \
 	             print;                                                         \
