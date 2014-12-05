@@ -291,6 +291,7 @@ do_elf2flt_backend() {
     CT_DoExecLog CFG                                            \
     CFLAGS="${cflags}"                                          \
     LDFLAGS="${ldflags}"                                        \
+    LIBS="-ldl"                                                 \
     "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
