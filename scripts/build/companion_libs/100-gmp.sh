@@ -12,7 +12,9 @@ if [ "${CT_GMP}" = "y" ]; then
 
 # Download GMP
 do_gmp_get() {
-    CT_GetFile "gmp-${CT_GMP_VERSION}" {ftp,http}://{ftp.sunet.se/pub,ftp.gnu.org}/gnu/gmp
+    CT_GetFile "gmp-${CT_GMP_VERSION}"         \
+        https://gmplib.org/download/gmp        \
+        {http,ftp,https}://ftp.gnu.org/gnu/gmp
 }
 
 # Extract GMP

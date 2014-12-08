@@ -3,8 +3,8 @@
 CT_MAKE_VERSION=3.81
 
 do_companion_tools_make_get() {
-    CT_GetFile "make-${CT_MAKE_VERSION}" \
-               {http,ftp}://ftp.gnu.org/gnu/make
+    CT_GetFile "make-${CT_MAKE_VERSION}"        \
+        {http,ftp,https}://ftp.gnu.org/gnu/make
 }
 
 do_companion_tools_make_extract() {

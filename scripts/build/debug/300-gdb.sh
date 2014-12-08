@@ -51,16 +51,20 @@ do_debug_gdb_get() {
         if [ "${CT_GDB_CUSTOM}" = "y" ]; then
             CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
         else
-            CT_GetFile "gdb-${CT_GDB_VERSION}"                          \
-                       {ftp,http}://ftp.gnu.org/pub/gnu/gdb             \
-                       ftp://sources.redhat.com/pub/gdb/{,old-}releases \
-                       "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
+            if [ x"${linaro_release}" = x"" ]; then
+                CT_GetFile "gdb-${CT_GDB_VERSION}"                      \
+                    ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases \
+                    {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
+            else
+                CT_GetFile "gdb-${CT_GDB_VERSION}"                                    \
+                    "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
+            fi
         fi
     fi
 
     if [ "${need_ncurses_src}" = "y" ]; then
         CT_GetFile "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}" .tar.gz  \
-                   {ftp,http}://ftp.gnu.org/pub/gnu/ncurses \
+                   {http,ftp,https}://ftp.gnu.org/pub/gnu/ncurses     \
                    ftp://invisible-island.net/ncurses
     fi
 

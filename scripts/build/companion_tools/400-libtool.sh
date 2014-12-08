@@ -3,8 +3,8 @@
 CT_LIBTOOL_VERSION=2.2.6b
 
 do_companion_tools_libtool_get() {
-    CT_GetFile "libtool-${CT_LIBTOOL_VERSION}" \
-               {ftp,http}://ftp.gnu.org/gnu/libtool
+    CT_GetFile "libtool-${CT_LIBTOOL_VERSION}"     \
+        {http,ftp,https}://ftp.gnu.org/gnu/libtool
 }
 
 do_companion_tools_libtool_extract() {

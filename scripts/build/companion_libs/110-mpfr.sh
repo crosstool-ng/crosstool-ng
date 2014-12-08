@@ -12,8 +12,9 @@ if [ "${CT_MPFR}" = "y" ]; then
 
 # Download MPFR
 do_mpfr_get() {
-    CT_GetFile "mpfr-${CT_MPFR_VERSION}" http://www.mpfr.org/mpfr-current/  \
-                                 http://www.mpfr.org/mpfr-${CT_MPFR_VERSION}/
+    CT_GetFile "mpfr-${CT_MPFR_VERSION}"            \
+        http://www.mpfr.org/mpfr-${CT_MPFR_VERSION} \
+        {http,ftp,https}://ftp.gnu.org/gnu/mpfr
 }
 
 # Extract MPFR

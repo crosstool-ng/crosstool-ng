@@ -9,8 +9,8 @@ do_binutils_get() {
                      "${CT_BINUTILS_CUSTOM_LOCATION}"
     else
         CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
-                   {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils   \
-                   ftp://gcc.gnu.org/pub/binutils/{releases,snapshots}
+                   ftp://{sourceware.org,gcc.gnu.org}/pub/binutils/{releases,snapshots}     \
+                   {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils
     fi
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then

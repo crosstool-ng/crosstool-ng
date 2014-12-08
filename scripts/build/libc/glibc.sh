@@ -19,10 +19,9 @@ do_libc_get() {
     addons_list=($(do_libc_add_ons_list " "))
 
     # Main source
-    CT_GetFile "glibc-${CT_LIBC_VERSION}"               \
-               {ftp,http}://ftp.gnu.org/gnu/glibc       \
-               ftp://gcc.gnu.org/pub/glibc/releases     \
-               ftp://gcc.gnu.org/pub/glibc/snapshots
+    CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
+               {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
+               ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
 
     # C library addons
     for addon in "${addons_list[@]}"; do
@@ -37,10 +36,9 @@ do_libc_get() {
             ports:*)    continue;;
         esac
 
-        if ! CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"     \
-                        {ftp,http}://ftp.gnu.org/gnu/glibc      \
-                        ftp://gcc.gnu.org/pub/glibc/releases    \
-                        ftp://gcc.gnu.org/pub/glibc/snapshots
+        if ! CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"                      \
+               {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
+               ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
         then
             # Some add-ons are bundled with glibc, others are
             # bundled in their own tarball. Eg. NPTL is internal,
