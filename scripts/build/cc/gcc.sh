@@ -22,10 +22,11 @@ do_cc_get() {
 	# The official gcc hosts put gcc under a gcc/release/ directory,
 	# whereas the mirrors put it in the gcc/ directory.
 	# Also, Split out linaro mirrors, so that downloads happen faster.
+	CT_DoLog EXTRA "linaro_version: ${linaro_version} CT_CC_VERSION: ${CT_CC_VERSION}"
         if [ x"${linaro_version}" = x"${CT_CC_VERSION}" ]; then
             CT_GetFile "gcc-${CT_CC_VERSION}"                                                \
                 ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_VERSION}     \
-                {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_VERSION}                  \
+                {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_VERSION}
         else
             CT_GetFile "gcc-${CT_CC_VERSION}"                                                \
                    "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"

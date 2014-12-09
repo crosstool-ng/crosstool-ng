@@ -54,7 +54,7 @@ do_debug_gdb_get() {
             if [ x"${linaro_release}" = x"${CT_GDB_VERSION}" ]; then
                 CT_GetFile "gdb-${CT_GDB_VERSION}"                      \
                     ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases \
-                    {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
+                    {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb
             else
                 CT_GetFile "gdb-${CT_GDB_VERSION}"                                    \
                     "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
