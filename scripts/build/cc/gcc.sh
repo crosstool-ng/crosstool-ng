@@ -4,8 +4,8 @@
 
 # Download gcc
 do_cc_get() {
-    local linaro_version
-    local linaro_series
+    local linaro_version=""
+    local linaro_series=""
     local linaro_base_url="http://launchpad.net/gcc-linaro"
 
     if [ "${CT_CC_CUSTOM}" = "y" ]; then
