@@ -11,22 +11,21 @@ do_cc_get() {
     if [ "${CT_CC_CUSTOM}" = "y" ]; then
         CT_GetCustom "gcc" "${CT_CC_VERSION}" "${CT_CC_CUSTOM_LOCATION}"
     else
-        # Account for the Linaro versioning
-        linaro_version="$( echo "${CT_CC_VERSION}"      \
-                           |sed -r -e 's/^linaro-//;'   \
-                         )"
-        linaro_series="$( echo "${linaro_version}"      \
-                          |sed -r -e 's/-.*//;'         \
-                        )"
-
 	# The official gcc hosts put gcc under a gcc/release/ directory,
 	# whereas the mirrors put it in the gcc/ directory.
 	# Also, Split out linaro mirrors, so that downloads happen faster.
-        if [ x"${linaro_version}" = x"" ]; then
+        if [[ ! x"${CT_CC_VERSION}" =~ ^xlinaro- ]]; then
             CT_GetFile "gcc-${CT_CC_VERSION}"                                                \
                 ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_VERSION}     \
-                {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_VERSION}                  \
+                {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_VERSION}
         else
+            # Account for the Linaro versioning
+            linaro_version="$( echo "${CT_CC_VERSION}"      \
+                               |sed -r -e 's/^linaro-//;'   \
+                             )"
+            linaro_series="$( echo "${linaro_version}"      \
+                              |sed -r -e 's/-.*//;'         \
+                            )"
             CT_GetFile "gcc-${CT_CC_VERSION}"                                                \
                    "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
         fi
