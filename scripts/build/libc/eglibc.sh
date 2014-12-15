@@ -27,9 +27,14 @@ do_libc_get() {
         *)      svn_base+="/branches/eglibc-${CT_LIBC_VERSION}";;
     esac
 
-    CT_GetSVN "eglibc-${CT_LIBC_VERSION}"   \
-              "${svn_base}/libc"            \
-              "${CT_EGLIBC_REVISION:-HEAD}"
+    if [ "${CT_LIBC_CUSTOM}" = "y" ]; then
+        CT_GetCustom "eglibc" "${CT_LIBC_VERSION}" "${CT_LIBC_EGLIBC_CUSTOM_LOCATION}"
+        CT_LIBC_CUSTOM_LOCATION="${CT_SRC_DIR}/eglibc-${CT_LIBC_VERSION}"
+    else
+        CT_GetSVN "eglibc-${CT_LIBC_VERSION}"   \
+                  "${svn_base}/libc"            \
+                  "${CT_EGLIBC_REVISION:-HEAD}"
+    fi
 
     if [ "${CT_LIBC_LOCALES}" = "y" ]; then
         extra_addons+=("localedef")
