@@ -76,12 +76,17 @@ do_gmp_backend() {
     local cflags
     local ldflags
     local arg
+    local -a extra_config
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
     CT_DoLog EXTRA "Configuring GMP"
+
+    if [ ! "${CT_GMP_5_0_2_or_later}" = "y" ]; then
+        extra_config+=("--enable-mpbsd")
+    fi
 
     CT_DoExecLog CFG                                \
     CFLAGS="${cflags} -fexceptions"                 \
@@ -91,10 +96,10 @@ do_gmp_backend() {
         --host=${host}                              \
         --prefix="${prefix}"                        \
         --enable-fft                                \
-        --enable-mpbsd                              \
         --enable-cxx                                \
         --disable-shared                            \
-        --enable-static
+        --enable-static                             \
+        "${extra_config}"
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${JOBSFLAGS}
