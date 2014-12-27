@@ -67,10 +67,10 @@ do_check_files_at_depth() {
   exec 6<&0
   exec 7<"${flist}"
 
-  while read -u7 f; do
+  while read f; do
     f="$( echo "${f}" |sed -r -e "s:^([^/]+/){${depth}}::;" )"
     [ -f "${f}" ] || ret=1
-  done
+  done </dev/fd/7
 
   exec 7<&-
   exec <&6
@@ -106,16 +106,18 @@ $1=="+++" && mark==1 { nextfile; }
   >"diffstat.orig"
   printf " done\n"
 
-  pushd "${base}" >/dev/null 2>&1
+  cd "${base}"
 
   # Check all files exist, up to depth 3
   printf "  checking depth:"
-  for((d=0;d<4;d++)); do
+  d=0
+  while [ $d -lt 4 ]; do
     printf " ${d}"
     if do_check_files_at_depth "../diffstat.orig" ${d}; then
       printf " ok, using depth '${d}'\n"
       break
     fi
+    d=$((d + 1))
   done
   if [ ${d} -ge 4 ]; then
     printf "\n"
@@ -133,7 +135,7 @@ $1=="+++" && mark==1 { nextfile; }
   printf "  applying patch..."
   if ! patch -g0 -F1 -f -p${d} <"${p}" >"../patch.out" 2>&1; then
     printf " ERROR\n\n"
-    popd >/dev/null 2>&1
+    cd - >/dev/null
     printf "There was an error while applying:\n  -->  ${p}  <--\n"
     printf "'${base}' was restored to the state it was prior to applying this faulty patch.\n"
     printf "Here's the 'patch' command, and its output:\n"
@@ -149,7 +151,7 @@ $1=="+++" && mark==1 { nextfile; }
   find . -type f -name '*.orig' -exec rm -f {} +
   printf " done\n"
 
-  popd >/dev/null 2>&1
+  cd - >/dev/null
 
   printf "  re-diffing the patch..."
   printf "%s\n\n" "${comment}" >"${dst}/${pname}"
