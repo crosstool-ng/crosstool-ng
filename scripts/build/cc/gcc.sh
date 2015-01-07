@@ -205,20 +205,16 @@ do_cc_core_backend() {
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
             extra_user_config=( "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
-            copy_headers=y  # For baremetal, as there's no headers to copy,
-                            # we copy an empty directory. So, who cares?
             ;;
         shared)
             extra_config+=("--enable-shared")
             extra_user_config=( "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
-            copy_headers=y
             ;;
         baremetal)
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
             extra_user_config=( "${CT_CC_EXTRA_CONFIG_ARRAY[@]}" )
-            copy_headers=n
             ;;
         *)
             CT_Abort "Internal Error: 'mode' must be one of: 'static', 'shared' or 'baremetal', not '${mode:-(empty)}'"
@@ -231,10 +227,8 @@ do_cc_core_backend() {
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
     fi
 
-    if [ "${copy_headers}" = "y" ]; then
-        CT_DoLog DEBUG "Copying headers to install area of bootstrap gcc, so it can build libgcc2"
-        CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
-    fi
+    CT_DoLog DEBUG "Copying headers to install area of core C compiler"
+    CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
 
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"

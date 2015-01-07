@@ -50,16 +50,16 @@ do_libc_check_config() {
 }
 
 do_libc_start_files() {
+    CT_DoStep INFO "Installing C library headers & start files"
+    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/newlib/libc/include/." \
+    "${CT_HEADERS_DIR}"
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        CT_DoStep INFO "Installing C library headers & start files"
-
         CT_DoLog EXTRA "Installing Atmel's AVR32 headers"
         CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/${CT_TARGET}/include"
         CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/${LIBC_NEWLIB_AVR_HDRS_BASE}/avr32"   \
                                "${CT_PREFIX_DIR}/${CT_TARGET}/include/"
-
-        CT_EndStep
     fi
+    CT_EndStep
 }
 
 do_libc() {
