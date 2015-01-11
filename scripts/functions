@@ -832,18 +832,43 @@ CT_GetSVN() {
 # Prerequisites: either the server does not require password,
 # or the user has already taken any action to authenticate to the server.
 # The cloned tree will *not* be stored in the local tarballs dir!
-# Usage: CT_GetGit <basename> <cset> <url>
+# cset_or_ref can be a branch or tag, if specified as 'ref=name'
+# In this case, 'git ls-remote' is used to get the sha1 and can also
+# be used to get a list valid refs (e.g. HEAD, refs/heads/master, refs/tags/v3.3.0)
+# Usage: CT_GetGit <basename> <cset_or_ref> <url> <out_cset>
 CT_GetGit() {
     local basename="${1}"
-    local cset="${2}"
+    local cset_or_ref="${2}"
     local url="${3}"
-    local file="${basename}-${cset}.tar.gz"
+    local _out_cset="${4}"
+
+    local ref=$(echo "${cset_or_ref}" | sed -n 's/^ref=\(.*\)/\1/p')
+    if [ -n "$ref" ]; then
+        local matches=$(git ls-remote --exit-code "$url" --refs "${ref}")
+        local result=$?
+        CT_TestAndAbort "Failed to find git ref ${ref} at ${url}" "${result}" != "0"
+        if [ $( echo "$matches" | wc -l) -gt 1 ]; then
+            CT_DoLog WARN "Ambiguous ref ${ref} at ${url}, using first"
+        fi
+        local cset=$(echo "$matches" | head -n1 | cut -c1-6)
+        CT_DoLog INFO "ref ${ref} at ${url} has cset of ${cset}"
+    else
+        local cset=${cset_or_ref}
+        CT_DoLog INFO "cset ${cset}"
+    fi
+
+    if [ -n "${_out_cset}" ]; then
+        eval ${_out_cset}=\${cset}
+    fi
+
     local dir="${CT_TARBALLS_DIR}/${basename}-${cset}.git"
+    local file="${basename}-${cset}.tar.gz"
     local dest="${CT_TARBALLS_DIR}/${file}"
     local tmp="${CT_TARBALLS_DIR}/${file}.tmp-dl"
 
-    # Do we alreadyhave it?
+    # Do we already have it?
     if CT_GetLocal "${file}"; then
+        echo ${cset}
         return 0
     fi
     # Nope...
@@ -877,6 +902,8 @@ CT_GetGit() {
         CT_SaveLocal "${dest}"
         CT_DoExecLog ALL rm -rf "${tmp}.tar.gz" "${tmp}.tar" "${tmp}" "${dir}"
         CT_Popd
+        echo ${cset}
+        return 0
     else
         # Woops...
         CT_DoExecLog ALL rm -rf "${dir}"
