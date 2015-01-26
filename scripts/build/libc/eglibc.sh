@@ -16,6 +16,15 @@ do_libc_get() {
     local -a extra_addons
     local svn_base
 
+    if echo ${CT_LIBC_VERSION} |grep -q linaro; then
+        # Linaro eglibc releases come from regular downloads...
+        YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+        CT_GetFile "eglibc-${CT_LIBC_VERSION}" \
+                   https://releases.linaro.org/${YYMM}/components/toolchain/eglibc-linaro \
+                   http://cbuild.validation.linaro.org/snapshots
+        return
+    fi
+
     if [ "${CT_EGLIBC_HTTP}" = "y" ]; then
         svn_base="http://www.eglibc.org/svn"
     else

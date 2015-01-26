@@ -16,8 +16,15 @@ do_libc_get() {
         CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \
                      "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
     else # ! custom location
-        CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src} \
-            http://mirrors.kernel.org/sources.redhat.com/newlib
+        if echo ${CT_LIBC_VERSION} |grep -q linaro; then
+            YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+            CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src} \
+                       https://releases.linaro.org/${YYMM}/components/toolchain/newlib-linaro \
+                       http://cbuild.validation.linaro.org/snapshots
+        else
+            CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src} \
+                       http://mirrors.kernel.org/sources.redhat.com/newlib
+        fi
     fi # ! custom location
 
     if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then

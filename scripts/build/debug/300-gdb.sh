@@ -35,15 +35,6 @@ do_debug_gdb_parts() {
 do_debug_gdb_get() {
     local linaro_version=""
     local linaro_series=""
-    local linaro_base_url="http://launchpad.net/gdb-linaro"
-
-    # Account for the Linaro versioning
-    linaro_version="$( echo "${CT_GDB_VERSION}"      \
-                       |sed -r -e 's/^linaro-//;'   \
-                     )"
-    linaro_series="$( echo "${linaro_version}"      \
-                      |sed -r -e 's/-.*//;'         \
-                    )"
 
     do_debug_gdb_parts
 
@@ -51,13 +42,24 @@ do_debug_gdb_get() {
         if [ "${CT_GDB_CUSTOM}" = "y" ]; then
             CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
         else
+            # Account for the Linaro versioning
+            linaro_version="$( echo "${CT_GDB_VERSION}"      \
+                               |${sed} -r -e 's/^linaro-//;'   \
+                             )"
+            linaro_series="$( echo "${linaro_version}"      \
+                              |${sed} -r -e 's/-.*//;'         \
+                            )"
+
             if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
-                CT_GetFile "gdb-${CT_GDB_VERSION}"                      \
-                    ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases \
-                    {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb
+                CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
+                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases \
+                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb
             else
-                CT_GetFile "gdb-${CT_GDB_VERSION}"                                    \
-                    "${linaro_base_url}/${linaro_series}/${linaro_version}/+download"
+                YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+                CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
+                           "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
+                           https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
+                           http://cbuild.validation.linaro.org/snapshots
             fi
         fi
     fi

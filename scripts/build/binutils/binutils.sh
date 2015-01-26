@@ -8,9 +8,16 @@ do_binutils_get() {
         CT_GetCustom "binutils" "${CT_BINUTILS_VERSION}" \
                      "${CT_BINUTILS_CUSTOM_LOCATION}"
     else
-        CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
-                   ftp://{sourceware.org,gcc.gnu.org}/pub/binutils/{releases,snapshots}     \
-                   {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils
+        if echo ${CT_BINUTILS_VERSION} |grep -q linaro; then
+            YYMM=`echo ${CT_BINUTILS_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+            CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
+                       https://releases.linaro.org/${YYMM}/components/toolchain/binutils-linaro \
+                       http://cbuild.validation.linaro.org/snapshots
+        else
+            CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
+                       ftp://{sourceware.org,gcc.gnu.org}/pub/binutils/{releases,snapshots}     \
+                       {ftp,http}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils
+        fi
     fi
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
