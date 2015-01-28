@@ -603,8 +603,13 @@ do_libc_locales() {
 
     CT_DoLog EXTRA "Configuring C library localedef"
 
-    if [ "${CT_LIBC_GLIBC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+    # Versions that don't support --with-pkgversion or --with-bugurl will cause
+    # a harmless: `configure: WARNING: unrecognized options: --with-bugurl...`
+    # If it's set, use it, if is a recognized option.
+    if [ ! "${CT_TOOLCHAIN_PKGVERSION}" = "" ]; then
         extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+    fi
+    if [ ! "${CT_TOOLCHAIN_BUGURL}" = "" ]; then
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
     fi
 
