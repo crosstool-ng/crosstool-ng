@@ -23,8 +23,8 @@ do_cc_get() {
         # Also, Split out linaro mirrors, so that downloads happen faster.
         if [ x"${linaro_version}" = x"${CT_CC_VERSION}" ]; then
             CT_GetFile "gcc-${CT_CC_VERSION}"                                                   \
-                       ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_VERSION} \
-                       {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_VERSION}
+                       {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_VERSION}              \
+                       ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_VERSION}
         else
             YYMM=`echo ${CT_CC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
             CT_GetFile "gcc-${CT_CC_VERSION}"                                                               \
@@ -39,7 +39,9 @@ do_cc_get() {
     # GCC source tree, which will not be there unless we get it and
     # put it there ourselves
     if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" ]; then
-        CT_GetFile ecj-latest .jar ftp://gcc.gnu.org/pub/java   \
+        CT_GetFile ecj-latest .jar http://mirrors.kernel.org/sourceware/java/ \
+                                   http://crosstool-ng.org/pub/java           \
+                                   ftp://gcc.gnu.org/pub/java                 \
                                    ftp://sourceware.org/pub/java
     fi
 }

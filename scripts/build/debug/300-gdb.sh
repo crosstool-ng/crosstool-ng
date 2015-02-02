@@ -52,8 +52,9 @@ do_debug_gdb_get() {
 
             if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
                 CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
-                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases \
-                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb
+                           http://mirrors.kernel.org/sourceware/gdb            \
+                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
+                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
             else
                 YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
                 CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
