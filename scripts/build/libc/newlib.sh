@@ -10,7 +10,8 @@ LIBC_NEWLIB_AVR_HDRS_BASE="avr-headers-3.2.3.970"
 LIBC_NEWLIB_AVR_HDRS_EXT=".zip"
 
 do_libc_get() {
-    local libc_src="ftp://sourceware.org/pub/newlib"
+    local libc_src="{http://mirrors.kernel.org/sourceware/newlib,
+                     ftp://sourceware.org/pub/newlib}"
 
     if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
         CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \

@@ -50,6 +50,7 @@ do_libc_get() {
         esac
 
         if ! CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"                      \
+               http://mirrors.kernel.org/sourceware/glibc                        \
                {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
                ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
         then
