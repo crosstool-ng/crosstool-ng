@@ -115,13 +115,13 @@ do_binutils_for_host() {
     fi
 
     # Make those new tools available to the core C compilers to come.
-    # Note: some components want the ${TARGET}-{ar,as,ld,ranlib,strip} commands
+    # Note: some components want the ${TARGET}-{ar,as,ld,ranlib,strip,objcopy,objdump} commands
     # as well. Create that.
     # Don't do it for canadian or cross-native, because the binutils
     # are not executable on the build machine.
     case "${CT_TOOLCHAIN_TYPE}" in
         cross|native)
-            binutils_tools=( ar as ld ranlib strip )
+            binutils_tools=( ar as ld ranlib strip objcopy objdump )
             if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
                 binutils_tools+=( elf2flt flthdr )
             fi
