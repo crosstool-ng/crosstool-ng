@@ -89,6 +89,7 @@ do_libc() {
     do_set_mingw_install_prefix
     CT_DoExecLog CFG                                                        \
     "${CT_SRC_DIR}/mingw-w64-v${CT_WINAPI_VERSION}/mingw-w64-crt/configure" \
+        --with-sysroot=${CT_SYSROOT_DIR}                                    \
         --prefix=${MINGW_INSTALL_PREFIX}                                    \
         --build=${CT_BUILD}                                                 \
         --host=${CT_TARGET}                                                 \
