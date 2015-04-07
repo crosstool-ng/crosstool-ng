@@ -492,7 +492,9 @@ do_cc_core_backend() {
     # check whether compiler has an extension
     file="$( ls -1 "${prefix}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
-    CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
+    if [ -f "${prefix}/bin/${CT_TARGET}-gcc${ext}" ]; then
+        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
+    fi
 
     if [ "${CT_MULTILIB}" = "y" ]; then
         if [ "${CT_CANADIAN}" = "y" -a "${mode}" = "baremetal" \
@@ -884,7 +886,9 @@ do_cc_backend() {
     # check whether compiler has an extension
     file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
-    CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc${ext}"
+    if [ -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc${ext}" ]; then
+        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc${ext}"
+    fi
 
     if [ "${CT_MULTILIB}" = "y" ]; then
         if [ "${CT_CANADIAN}" = "y" ]; then
