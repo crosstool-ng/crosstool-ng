@@ -17,6 +17,13 @@ do_libc_check_config() {
     :
 }
 
+do_set_mingw_install_prefix(){
+    MINGW_INSTALL_PREFIX=/usr/${CT_TARGET}
+    if [[ ${CT_WINAPI_VERSION} == 2* ]]; then
+        MINGW_INSTALL_PREFIX=/usr
+    fi
+}
+
 do_libc_start_files() {
     local -a sdk_opts
 
@@ -33,11 +40,12 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Configuring Headers"
 
+    do_set_mingw_install_prefix
     CT_DoExecLog CFG        \
     "${CT_SRC_DIR}/mingw-w64-v${CT_WINAPI_VERSION}/mingw-w64-headers/configure" \
         --build=${CT_BUILD} \
         --host=${CT_TARGET} \
-        --prefix=/usr       \
+        --prefix=${MINGW_INSTALL_PREFIX} \
         "${sdk_opts[@]}"
 
     CT_DoLog EXTRA "Compile Headers"
@@ -45,7 +53,7 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Installing Headers"
     CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
-    
+
     CT_Popd
 
     # It seems mingw is strangely set up to look into /mingw instead of
@@ -56,16 +64,33 @@ do_libc_start_files() {
     CT_EndStep
 }
 
+do_check_mingw_vendor_tuple()
+{
+    if [[ ${CT_WINAPI_VERSION} == 4* ]]; then
+       CT_DoStep INFO "Checking vendor tuple configured in crosstool-ng .config"
+       if [[ ${CT_TARGET_VENDOR} == w64 ]]; then
+           CT_DoLog EXTRA "The tuple is set to '${CT_TARGET_VENDOR}', as recommended by mingw-64 team."
+       else
+           CT_DoLog WARN "WARNING! The tuple '${CT_TARGET_VENDOR}', is not equal to w64 and might break the toolchain! WARNING!"
+       fi
+       CT_EndStep
+    fi
+}
+
 do_libc() {
+    do_check_mingw_vendor_tuple
+
     CT_DoStep INFO "Building mingw-w64 files"
 
     CT_DoLog EXTRA "Configuring mingw-w64-crt"
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-crt"
 
+    do_set_mingw_install_prefix
     CT_DoExecLog CFG                                                        \
     "${CT_SRC_DIR}/mingw-w64-v${CT_WINAPI_VERSION}/mingw-w64-crt/configure" \
-        --prefix=/usr                                                       \
+        --with-sysroot=${CT_SYSROOT_DIR}                                    \
+        --prefix=${MINGW_INSTALL_PREFIX}                                    \
         --build=${CT_BUILD}                                                 \
         --host=${CT_TARGET}                                                 \
 
