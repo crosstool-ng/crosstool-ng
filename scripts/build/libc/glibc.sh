@@ -371,6 +371,10 @@ do_libc_backend_once() {
             ;;
     esac
 
+    CT_CFLAGS_FOR_BUILD+=" ${CT_EXTRA_CFLAGS_FOR_BUILD}"
+    CT_LDFLAGS_FOR_BUILD+=" ${CT_EXTRA_LDFLAGS_FOR_BUILD}"
+    extra_make_args+=( "BUILD_CFLAGS=${CT_CFLAGS_FOR_BUILD}" "BUILD_LDFLAGS=${CT_LDFLAGS_FOR_BUILD}" )
+
     if [ "${libc_headers}" = "y" ]; then
         CT_DoLog EXTRA "Installing C library headers"
 
