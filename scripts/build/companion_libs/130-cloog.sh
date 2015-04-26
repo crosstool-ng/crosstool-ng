@@ -24,7 +24,8 @@ if [ "${CT_CLOOG}" = "y" ]; then
 # Download CLooG
 do_cloog_get() {
     CT_GetFile "$(cloog_basename_version)"          \
-        http://www.bastoul.net/cloog/pages/download
+        http://www.bastoul.net/cloog/pages/download \
+        ftp://gcc.gnu.org/pub/gcc/infrastructure
 }
 
 # Extract CLooG
