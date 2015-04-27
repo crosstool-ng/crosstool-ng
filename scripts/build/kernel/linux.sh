@@ -33,21 +33,22 @@ do_kernel_get() {
                      "${CT_KERNEL_LINUX_CUSTOM_LOCATION}"
     else # Not a custom tarball
         case "${CT_KERNEL_VERSION}" in
-            2.6.*.*|3.*.*)
+            2.6.*.*|3.*.*|4.*.*)
                 # 4-part versions (for 2.6 stables and long-terms), and
-                # 3-part versions (for 3.x.y stables and long-terms),
+                # 3-part versions (for 3.x.y and 4.x.y stables and long-terms),
                 # we need to trash the last digit
                 k_ver="${CT_KERNEL_VERSION%.*}"
                 ;;
-            2.6.*|3.*)
+            2.6.*|3.*|4.*)
                 # 3-part version (for 2.6.x initial releases), and 2-part
-                # versions (for 3.x initial releases), use all of it
+                # versions (for 3.x and 4.x initial releases), use all of it
                 k_ver="${CT_KERNEL_VERSION}"
                 ;;
         esac
         case "${CT_KERNEL_VERSION}" in
             2.6.*)  rel_dir=v2.6;;
             3.*)    rel_dir=v3.x;;
+            4.*)    rel_dir=v4.x;;
         esac
         korg_base="http://www.kernel.org/pub/linux/kernel/${rel_dir}"
         CT_GetFile "linux-${CT_KERNEL_VERSION}"         \
