@@ -13,7 +13,8 @@ if [ "${CT_MPC}" = "y" ]; then
 # Download MPC
 do_mpc_get() {
     CT_GetFile "mpc-${CT_MPC_VERSION}" .tar.gz      \
-        {http,ftp,https}://ftp.gnu.org/gnu/mpc
+        {http,ftp,https}://ftp.gnu.org/gnu/mpc      \
+        http://www.multiprecision.org/mpc/download
 }
 
 # Extract MPC
