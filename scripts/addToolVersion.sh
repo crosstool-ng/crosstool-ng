@@ -80,9 +80,9 @@ addToolVersion() {
     # to try adding a new version if the one he/she wants is not listed.
     # But it can be the case where the version is hidden behind either one
     # of EXPERIMENTAL or OBSOLETE, so warn if the version is already listed.
-    if grep -E "^config ${config_ver_option}$" "${file}" >/dev/null 2>&1; then
+    if ${grep} -E "^config ${config_ver_option}$" "${file}" >/dev/null 2>&1; then
         echo "'${tool}': version '${version}' already present:"
-        grep -A1 -B0 -n                                                     \
+        ${grep} -A1 -B0 -n                                                     \
              -E "^(config ${config_ver_option}| {4}prompt \"${version}\")$" \
              "${file}" /dev/null
         return 0
