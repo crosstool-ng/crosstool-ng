@@ -103,7 +103,7 @@ dump_single_sample() {
                 ;;
             canadian)
                 printf "| ''"
-                printf "${sample}" |sed -r -e 's/.*,//'
+                printf "${sample}" |${sed} -r -e 's/.*,//'
                 printf "''  | ${CT_HOST}  "
                 ;;
             *)          ;;
@@ -149,7 +149,7 @@ dump_single_sample() {
           fi
         )
         sample_updated="$( git log -n1 --pretty=format:'%ci' "${sample_top}/samples/${sample}" \
-                           |awk '{ print $1; }' )"
+                           |${awk} '{ print $1; }' )"
         printf "|  ${sample_updated}  "
         echo "|"
     fi
