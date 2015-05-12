@@ -1,15 +1,25 @@
 # Copyright 2012 Yann Diorcet
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_libc_get() { 
-    CT_GetFile "mingw-w64-v${CT_WINAPI_VERSION}" \
-        http://downloads.sourceforge.net/sourceforge/mingw-w64
+CT_WINAPI_VERSION_DOWNLOADED=
+
+do_libc_get() {
+    CT_DoStep INFO "Fetching mingw-w64 source for ${CT_WINAPI_VERSION}"
+    if [ "${CT_WINAPI_VERSION}" = "devel" ]; then
+        CT_GetGit "mingw-w64" "ref=HEAD" "git://git.code.sf.net/p/mingw-w64/mingw-w64" CT_WINAPI_VERSION_DOWNLOADED
+        CT_DoLog EXTRA "Fetched as ${CT_WINAPI_VERSION_DOWNLOADED}"
+    else
+        CT_GetFile "mingw-w64-v${CT_WINAPI_VERSION}" \
+            http://downloads.sourceforge.net/sourceforge/mingw-w64
+        CT_WINAPI_VERSION_DOWNLOADED=v${CT_WINAPI_VERSION}
+    fi
+    CT_EndStep
 }
 
 do_libc_extract() {
-    CT_Extract "mingw-w64-v${CT_WINAPI_VERSION}"
-    CT_Pushd "${CT_SRC_DIR}/mingw-w64-v${CT_WINAPI_VERSION}/"
-    CT_Patch nochdir mingw-w64 "${CT_WINAPI_VERSION}"
+    CT_Extract "mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}"
+    CT_Pushd "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/"
+    CT_Patch nochdir mingw-w64 "${CT_WINAPI_VERSION_DOWNLOADED}"
     CT_Popd
 }
 
@@ -42,7 +52,7 @@ do_libc_start_files() {
 
     do_set_mingw_install_prefix
     CT_DoExecLog CFG        \
-    "${CT_SRC_DIR}/mingw-w64-v${CT_WINAPI_VERSION}/mingw-w64-headers/configure" \
+    "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-headers/configure" \
         --build=${CT_BUILD} \
         --host=${CT_TARGET} \
         --prefix=${MINGW_INSTALL_PREFIX} \
@@ -87,12 +97,12 @@ do_libc() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-crt"
 
     do_set_mingw_install_prefix
-    CT_DoExecLog CFG                                                        \
-    "${CT_SRC_DIR}/mingw-w64-v${CT_WINAPI_VERSION}/mingw-w64-crt/configure" \
-        --with-sysroot=${CT_SYSROOT_DIR}                                    \
-        --prefix=${MINGW_INSTALL_PREFIX}                                    \
-        --build=${CT_BUILD}                                                 \
-        --host=${CT_TARGET}                                                 \
+    CT_DoExecLog CFG                                                                  \
+    "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-crt/configure" \
+        --with-sysroot=${CT_SYSROOT_DIR}                                              \
+        --prefix=${MINGW_INSTALL_PREFIX}                                              \
+        --build=${CT_BUILD}                                                           \
+        --host=${CT_TARGET}                                                           \
 
     CT_DoLog EXTRA "Building mingw-w64-crt"
     CT_DoExecLog ALL make ${JOBSFLAGS}
