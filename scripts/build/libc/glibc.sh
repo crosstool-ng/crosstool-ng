@@ -296,6 +296,15 @@ do_libc_backend_once() {
             ;;
     esac
 
+    glibc_target="${CT_TARGET}"
+    case "${extra_flags}" in
+        *-m32*)
+            if [ -n "${CT_TARGET_32}" ]; then
+                glibc_target="${CT_TARGET_32}"
+            fi
+            ;;
+    esac
+
     touch config.cache
     if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
         echo "libc_cv_forced_unwind=yes" >>config.cache
@@ -353,7 +362,7 @@ do_libc_backend_once() {
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
-        --host=${CT_TARGET}                                         \
+        --host=${glibc_target}                                      \
         --cache-file="$(pwd)/config.cache"                          \
         --without-cvs                                               \
         --disable-profile                                           \
