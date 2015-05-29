@@ -188,11 +188,11 @@ do_debug_gdb_build() {
         if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
             CT_DoLog EXTRA "Installing '.gdbinit' template"
             # See in scripts/build/internals.sh for why we do this
-            if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" ]; then
-                gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/BASE-VER" )
+            if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" ]; then
+                gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" )
             else
-                gcc_version=$( sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;' \
-                                   "${CT_SRC_DIR}/gcc-${CT_CC_VERSION}/gcc/version.c"   \
+                gcc_version=$( sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'     \
+                                   "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/version.c"   \
                              )
             fi
             ${sed} -r                                               \
