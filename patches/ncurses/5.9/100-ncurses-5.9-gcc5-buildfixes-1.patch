@@ -1,0 +1,39 @@
+Submitted By:			Douglas R. Reno <renodr2002@gmail.com>
+Date:				2015-04-15
+Initial Package Version:	5.9
+Upstream Status: 		Unknown
+Origin:				ftp://invisible-island.net/ncurses/5.9/ncurses-5.9-20141206.patch.gz
+Description:			Fixes a compilation issue with GCC 5.1. Note that this patch was trimmed from the above patch.
+
+Index: ncurses-5.9/ncurses/base/MKlib_gen.sh
+===========================================================================================
+
+--- ncurses-5.9-20141129+/ncurses/base/MKlib_gen.sh	2011-06-04 19:14:08.000000000 +0000
++++ ncurses-5.9-20141206/ncurses/base/MKlib_gen.sh	2014-12-06 18:56:25.000000000 +0000
+@@ -474,11 +474,22 @@
+ 	-e 's/gen_$//' \
+ 	-e 's/  / /g' >>$TMP
+ 
++cat >$ED1 <<EOF
++s/  / /g
++s/^ //
++s/ $//
++s/P_NCURSES_BOOL/NCURSES_BOOL/g
++EOF
++
++# A patch discussed here:
++#	https://gcc.gnu.org/ml/gcc-patches/2014-06/msg02185.html
++# introduces spurious #line markers.  Work around that by ignoring the system's
++# attempt to define "bool" and using our own symbol here.
++sed -e 's/bool/P_NCURSES_BOOL/g' $TMP > $ED2
++cat $ED2 >$TMP
++
+ $preprocessor $TMP 2>/dev/null \
+-| sed \
+-	-e 's/  / /g' \
+-	-e 's/^ //' \
+-	-e 's/_Bool/NCURSES_BOOL/g' \
++| sed -f $ED1 \
+ | $AWK -f $AW2 \
+ | sed -f $ED3 \
+ | sed \
