@@ -76,7 +76,15 @@ dump_single_sample() {
             [ -z "${CT_LIBELF}" -a -z "${CT_LIBELF_TARGET}" ] || printf " libelf-%s"    "${CT_LIBELF_VERSION}"
             [ -z "${complibs}"  ] || printf "\n"
             printf  "    %-*s : %s\n" ${width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
-            printf  "    %-*s : %s" ${width} "C compiler" "${CT_CC}-${CT_CC_VERSION} (C"
+            printf  "    %-*s :" ${width} "C compilers"
+            for cc in $(env | ${sed} -n 's/^CT_CC_\(.*\)_VERSION.*/\1/p'); do
+                cc_variable=CT_CC_${cc}_VERSION
+                version=${!cc_variable}
+                compiler=$(echo $cc | ${awk} '{print tolower($0)}')
+                printf " $compiler-$version"
+            done
+            printf "\n"
+            printf  "    %-*s : %s" ${width} "Languages" "C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
             [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ",Fortran"
             [ "${CT_CC_LANG_JAVA}" = "y"    ] && printf ",Java"
@@ -85,7 +93,7 @@ dump_single_sample() {
             [ "${CT_CC_LANG_OBJCXX}" = "y"  ] && printf ",Objective-C++"
             [ "${CT_CC_LANG_GOLANG}" = "y"  ] && printf ",Go"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
-            printf ")\n"
+            printf "\n"
             printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}" "${CT_THREADS}"
             printf  "    %-*s :" ${width} "Tools"
             [ "${CT_TOOL_sstrip}"   ] && printf " sstrip"
@@ -120,8 +128,14 @@ dump_single_sample() {
             fi
         fi
         printf "|  ${CT_BINUTILS_VERSION}  "
-        printf "|  ''${CT_CC}''  "
-        printf "|  ${CT_CC_VERSION}  "
+        printf "| "
+        for cc in $(env | ${sed} -n 's/^CT_CC_\(.*\)_VERSION.*/\1/p'); do
+            cc_variable=CT_CC_${cc}_VERSION
+            version=${!cc_variable}
+            compiler=$(echo $cc | ${awk} '{print tolower($0)}')
+            printf " $compiler-$version"
+         done
+        printf "  "
         printf "|  ''${CT_LIBC}''  |"
         if [ "${CT_LIBC}" != "none" ]; then
             printf "  ${CT_LIBC_VERSION}  "

@@ -138,6 +138,9 @@ gen_menu() {
         _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
         printf 'menuconfig %s_%s\n' "${cfg_prefix}" "${_entry}"
         printf '    bool\n'
+        if "${grep}" -E '^## default' ${file} >/dev/null 2>&1; then
+            "${sed}" -r -e '/^## default ?/!d; s/^## default ?/    default /;' ${file} 2>/dev/null
+        fi
         printf '    prompt "%s"\n' "${entry}"
         "${sed}" -r -e '/^## depends on /!d; s/^## /    /;' ${file} 2>/dev/null
         "${sed}" -r -e '/^## select /!d; s/^## /    /;' ${file} 2>/dev/null
