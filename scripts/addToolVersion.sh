@@ -175,7 +175,7 @@ fi
 while [ $# -gt 0 ]; do
     case "$1" in
         # Tools:
-        --gcc)      EXP=; OBS=; cat=CC;             tool=gcc;       tool_prefix=cc;             dot2suffix=;;
+        --gcc)      EXP=; OBS=; cat=CC_GCC;         tool=gcc;       tool_prefix=cc;             dot2suffix=;;
         --binutils) EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;       dot2suffix=;;
         --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;     tool_prefix=libc;           dot2suffix=;;
         --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;    tool_prefix=libc;           dot2suffix=;;
