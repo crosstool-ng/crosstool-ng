@@ -859,7 +859,6 @@ do_gcc_backend() {
         ${CC_SYSROOT_ARG}                           \
         "${extra_config[@]}"                        \
         --with-local-prefix="${CT_SYSROOT_DIR}"     \
-        --enable-c99                                \
         --enable-long-long                          \
         "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}"
 
