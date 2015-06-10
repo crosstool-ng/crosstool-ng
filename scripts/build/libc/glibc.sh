@@ -355,7 +355,7 @@ do_libc_backend_once() {
     CT_DoExecLog CFG                                                \
     BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${glibc_cflags}"                                        \
-    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CONFIG_SHELL}"                                               \
@@ -450,7 +450,9 @@ do_libc_backend_once() {
             # However, since we will never actually execute its code,
             # it doesn't matter what it contains.  So, treating '/dev/null'
             # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
+            CT_DoExecLog ALL "${cross_cc}" ${CT_LIBC_EXTRA_CC_ARGS} \
+                                           ${extra_cc_args} \
+                                           -nostdlib        \
                                            -nostartfiles    \
                                            -shared          \
                                            -x c /dev/null   \
