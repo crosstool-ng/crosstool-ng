@@ -45,6 +45,7 @@ $(LOGDIR):
 
 $(LOGDIR)/site.exp: $(TOPDIR)/default.cfg $(LOGDIR)
 	@{ echo 'lappend boards_dir "$(LOGDIR)"'; \
+	   echo 'set tmpdir "$(TOPDIR)"'; \
 	   echo 'set target_alias $(TARGET)';     } > $@
 
 $(LOGDIR)/board.exp: $(TOPDIR)/default.cfg $(LOGDIR)
