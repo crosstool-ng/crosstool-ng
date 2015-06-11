@@ -339,21 +339,26 @@ if [ -z "${CT_RESTART}" ]; then
         CT_Popd
     fi
 
-    # Since we're *not* multilib on the target side, we want all the
-    # libraries to end up in "lib".  We create "lib64" (for 64-bit
+    # For multilib on the target side, create "lib64" (for 64-bit
     # build or host architectures) and "lib32" (for 32-bit emulation
-    # on 64-bit) as symlinks to "lib".
+    # on 64-bit) as symlinks to "lib" and "lib/32", respectively.
     #
     # Not all of these symlinks are necessary, but better safe than
-    # sorry. They are summarily removed by build/internals.sh:do_finish.
+    # sorry. The ones in ${CT_PREFIX_DIR} are summarily removed by
+    # build/internals.sh:do_finish.
     for d in                            \
         "${CT_PREFIX_DIR}"              \
         "${CT_SYSROOT_DIR}"             \
         "${CT_SYSROOT_DIR}/usr"         \
         "${CT_PREFIX_DIR}/${CT_TARGET}" \
     ; do
-        CT_DoExecLog ALL ln -sf "lib" "${d}/lib32"
-        CT_DoExecLog ALL ln -sf "lib" "${d}/lib64"
+        if [ "${CT_ARCH_BITNESS}" = "64" ]; then
+            CT_DoExecLog ALL ln -sf "lib" "${d}/lib64"
+            CT_DoExecLog ALL ln -sf "lib/32" "${d}/lib32"
+        else
+            CT_DoExecLog ALL ln -sf "lib" "${d}/lib32"
+            CT_DoExecLog ALL ln -sf "lib/64" "${d}/lib64"
+        fi
     done
 
     # Determine build system if not set by the user
