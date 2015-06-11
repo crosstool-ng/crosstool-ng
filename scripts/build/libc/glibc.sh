@@ -172,6 +172,11 @@ do_libc_backend() {
                         fi
                     done
                 done
+                # Copy the gnu/{lib-names,stubs}-${multi_dir} headers needed by gnu/{lib-names,stubs}.h
+                CT_DoExecLog ALL cp -v "${CT_SYSROOT_DIR}/${multi_dir}/usr/include/gnu/lib-names-${multi_dir}.h" \
+                                       "${CT_HEADERS_DIR}/gnu/lib-names-${multi_dir}.h"
+                CT_DoExecLog ALL cp -v "${CT_SYSROOT_DIR}/${multi_dir}/usr/include/gnu/stubs-${multi_dir}.h" \
+                                       "${CT_HEADERS_DIR}/gnu/stubs-${multi_dir}.h"
                 # Remove the multi_dir now it is no longer useful
                 CT_DoExecLog DEBUG rm -rf "${CT_SYSROOT_DIR}/${multi_dir}"
             fi # libc_mode == final
