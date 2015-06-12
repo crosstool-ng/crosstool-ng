@@ -8,6 +8,8 @@ CT_DoArchTupleValues() {
         CT_TARGET_ARCH=x86_64
     else
         arch="${CT_ARCH_ARCH}"
+	# Check if this is a multilib target variant
+        [ -z "${arch}" -a "${CT_TARGET_ARCH}" = "x86_64" ] && arch=i686
         [ -z "${arch}" ] && arch="${CT_ARCH_TUNE}"
         case "${arch}" in
             "")                           CT_TARGET_ARCH=i386;;
