@@ -391,8 +391,8 @@ AS_IF(
      subdocdir=""
      datarootdir="$prefix"
      mandir="$docdir"],
-    [sublibdir="/ct-ng.\${VERSION}"
-     subdocdir="/ct-ng.\${VERSION}"])
+    [sublibdir="/\${VERSION}"
+     subdocdir="/\${VERSION}"])
 
 #--------------------------------------------------------------------
 # Finally, generate the output file(s)
