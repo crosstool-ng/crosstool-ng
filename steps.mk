@@ -30,6 +30,7 @@ CT_STEPS := libc_check_config        \
             libc                     \
             cc_for_build             \
             cc_for_host              \
+            libc_post_cc             \
             libelf_for_target        \
             binutils_for_target      \
             debug                    \
