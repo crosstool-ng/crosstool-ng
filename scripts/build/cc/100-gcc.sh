@@ -440,6 +440,10 @@ do_gcc_core_backend() {
         extra_user_env=( "${CT_CC_GCC_EXTRA_ENV_ARRAY[@]}" )
     fi
 
+    if [ "${CT_TOOLCHAIN_TYPE}" = "native" -a "${CT_BOOTSTRAP_COMPILER}" != "y" ]; then
+        extra_config+=("--disable-bootstrap")
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -941,6 +945,11 @@ do_gcc_backend() {
     # Since that's the default, only pass --disable-multilib.
     if [ "${CT_MULTILIB}" != "y" ]; then
         extra_config+=("--disable-multilib")
+    fi
+
+
+    if [ "${CT_TOOLCHAIN_TYPE}" = "native" -a "${CT_BOOTSTRAP_COMPILER}" != "y" ]; then
+        extra_config+=("--disable-bootstrap")
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
