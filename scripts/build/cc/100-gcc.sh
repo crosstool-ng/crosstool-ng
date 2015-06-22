@@ -93,6 +93,14 @@ do_gcc_core_pass_1() {
         return 0
     fi
 
+    if [ "${CT_TOOLCHAIN_TYPE}" = "cross-native" ]; then
+        return 0
+    fi
+
+    if [ "${CT_TOOLCHAIN_TYPE}" = "native" ]; then
+         return 0
+    fi
+
     core_opts+=( "mode=static" )
     core_opts+=( "host=${CT_BUILD}" )
     core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
@@ -117,6 +125,14 @@ do_gcc_core_pass_2() {
 
     if [ "${CT_CC_CORE_PASS_2_NEEDED}" != "y" ]; then
         return 0
+    fi
+
+    if [ "${CT_TOOLCHAIN_TYPE}" = "cross-native" ]; then
+        return 0
+    fi
+
+    if [ "${CT_TOOLCHAIN_TYPE}" = "native" ]; then
+         return 0
     fi
 
     # Common options:
