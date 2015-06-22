@@ -88,6 +88,14 @@ do_binutils_for_host() {
     local -a binutils_tools
     local -a binutils_opts
 
+    if [ "${CT_TOOLCHAIN_TYPE}" = "cross-native" -a "${CT_INSTALL_BINUTILS}" != "y" ]; then
+         return 0
+    fi
+
+    if [ "${CT_TOOLCHAIN_TYPE}" = "native" ]; then
+         return 0
+    fi
+
     CT_DoStep INFO "Installing binutils for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-binutils-host-${CT_HOST}"
 
