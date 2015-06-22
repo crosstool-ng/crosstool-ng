@@ -582,7 +582,7 @@ do_gcc_for_build() {
     # real, complete compiler is needed?!? WTF? Sigh...
     # Otherwise, there is nothing to do.
     case "${CT_TOOLCHAIN_TYPE}" in
-        native|cross)   return 0;;
+        native|cross|cross-native)   return 0;;
     esac
 
     build_final_opts+=( "host=${CT_BUILD}" )
