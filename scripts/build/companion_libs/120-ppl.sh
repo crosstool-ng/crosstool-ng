@@ -33,7 +33,7 @@ do_ppl_for_build() {
     local ppl_cxxflags
 
     case "${CT_TOOLCHAIN_TYPE}" in
-        native|cross)   return 0;;
+        native|cross|cross-native)   return 0;;
     esac
 
     CT_DoStep INFO "Installing PPL for build"

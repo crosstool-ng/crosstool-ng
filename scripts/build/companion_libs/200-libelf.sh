@@ -30,7 +30,7 @@ do_libelf_for_build() {
     local -a libelf_opts
 
     case "${CT_TOOLCHAIN_TYPE}" in
-        native|cross)   return 0;;
+        native|cross|cross-native)   return 0;;
     esac
 
     CT_DoStep INFO "Installing libelf for build"

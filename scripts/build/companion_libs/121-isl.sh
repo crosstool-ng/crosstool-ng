@@ -32,7 +32,7 @@ do_isl_for_build() {
     local isl_cxxflags
 
     case "${CT_TOOLCHAIN_TYPE}" in
-        native|cross)   return 0;;
+        native|cross|cross-native)   return 0;;
     esac
 
     CT_DoStep INFO "Installing ISL for build"
