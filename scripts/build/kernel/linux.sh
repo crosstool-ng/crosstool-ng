@@ -84,6 +84,14 @@ do_kernel_extract() {
 
 # Wrapper to the actual headers install method
 do_kernel_headers() {
+    if [ "${CT_TOOLCHAIN_TYPE}" = "cross-native" ]; then
+        return 0
+    fi
+
+    if [ "${CT_TOOLCHAIN_TYPE}" = "native" ]; then
+         return 0
+    fi
+
     CT_DoStep INFO "Installing kernel headers"
 
     if [ "${CT_KERNEL_LINUX_USE_CUSTOM_HEADERS}" = "y" ]; then
