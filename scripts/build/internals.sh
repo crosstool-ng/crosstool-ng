@@ -8,6 +8,7 @@ do_finish() {
     local _type
     local strip_args
     local gcc_version
+    local target_files
 
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
@@ -42,8 +43,14 @@ do_finish() {
                                    "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/version.c"   \
                              )
             fi
+
+            target_files=""
+            if [ -e "${CT_TARGET}/bin/" ]; then
+                target_files="${CT_TARGET}/bin/"*
+            fi
+
             for _t in "bin/${CT_TARGET}-"*                                      \
-                      "${CT_TARGET}/bin/"*                                      \
+                      $target_files                                             \
                       "libexec/gcc/${CT_TARGET}/${gcc_version}/"*               \
                       "libexec/gcc/${CT_TARGET}/${gcc_version}/install-tools/"* \
             ; do
