@@ -109,6 +109,7 @@ do_gcc_core_pass_1() {
     core_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     core_opts+=( "lang_list=c" )
     core_opts+=( "build_step=core1" )
+    core_opts+=( "sysroot=${CC_CORE_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" )
 
     CT_DoStep INFO "Installing pass-1 core C gcc compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core-pass-1"
@@ -168,6 +169,7 @@ do_gcc_core_pass_2() {
 
     CT_DoStep INFO "Installing pass-2 core C gcc compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core-pass-2"
+    core_opts+=( "sysroot=${CC_CORE_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" )
 
     do_gcc_core_backend "${core_opts[@]}"
 
@@ -194,6 +196,7 @@ do_gcc_core_pass_2() {
 #   ldflags             : ldflags to use                            : string    : (empty)
 #   build_step          : build step 'core1', 'core2', 'gcc_build'
 #                         or 'gcc_host'                             : string    : (none)
+#   sysroot             : sysroot arguments                         : string    : (empty)
 # Usage: do_gcc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_gcc_core_backend() {
     local mode
@@ -217,6 +220,7 @@ do_gcc_core_backend() {
     local -a core_targets
     local -a core_targets_all
     local -a core_targets_install
+    local sysroot
     local -a extra_user_config
     local -a extra_user_env
     local arg
@@ -449,8 +453,7 @@ do_gcc_core_backend() {
         --host=${host}                                 \
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
-        --with-local-prefix="${CT_SYSROOT_DIR}"        \
-        ${CC_CORE_SYSROOT_ARG}                         \
+        ${sysroot}                                     \
         "${extra_config[@]}"                           \
         --enable-languages="${lang_list}"              \
         "${extra_user_config[@]}"
@@ -616,8 +619,10 @@ do_gcc_for_build() {
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             build_final_opts+=( "build_staticlinked=yes" )
         fi
+        build_final_opts+=( "sysroot=${CC_CORE_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" )
         build_final_backend=do_gcc_core_backend
     else
+        build_final_opts+=( "sysroot=${CC_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" )
         build_final_backend=do_gcc_backend
     fi
 
@@ -654,8 +659,28 @@ do_gcc_for_host() {
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
         fi
+        case "${CT_TOOLCHAIN_TYPE}" in
+            canadian|cross)
+                final_opts+=( "sysroot=${CC_CORE_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" )
+                ;;
+            *)
+                case "${CT_HOST}" in
+                    *mingw*)    final_opts+=( "sysroot=${CC_CORE_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" );;
+                esac
+                ;;
+        esac
         final_backend=do_gcc_core_backend
     else
+        case "${CT_TOOLCHAIN_TYPE}" in
+            canadian|cross)
+                final_opts+=( "sysroot=${CC_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" )
+                ;;
+            *)
+                case "${CT_HOST}" in
+                    *mingw*)    final_opts+=( "sysroot=${CC_CORE_SYSROOT_ARG} --with-local-prefix=\"${CT_SYSROOT_DIR}\"" );;
+                esac
+                ;;
+        esac
         final_backend=do_gcc_backend
     fi
 
@@ -679,6 +704,7 @@ do_gcc_for_host() {
 #   ldflags       : ldflags to use                      : string    : (empty)
 #   lang_list     : the list of languages to build      : string    : (empty)
 #   build_manuals : whether to build manuals or not     : bool      : no
+#   sysroot       : sysroot arguments                   : string    : (empty)
 do_gcc_backend() {
     local host
     local prefix
@@ -691,6 +717,7 @@ do_gcc_backend() {
     local -a extra_config
     local -a final_LDFLAGS
     local tmp
+    local sysroot
     local arg
 
     for arg in "$@"; do
@@ -931,9 +958,8 @@ do_gcc_backend() {
         --host=${host}                              \
         --target=${CT_TARGET}                       \
         --prefix="${prefix}"                        \
-        ${CC_SYSROOT_ARG}                           \
+        ${sysroot}                                  \
         "${extra_config[@]}"                        \
-        --with-local-prefix="${CT_SYSROOT_DIR}"     \
         --enable-long-long                          \
         "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}"
 
