@@ -21,3 +21,7 @@ do_libc_start_files() {
 do_libc() {
     :
 }
+
+do_libc_post_cc() {
+    :
+}

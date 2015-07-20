@@ -665,3 +665,7 @@ do_libc_locales() {
                           install_root="${CT_SYSROOT_DIR}"          \
                           localedata/install-locales
 }
+
+do_libc_post_cc() {
+    :
+}

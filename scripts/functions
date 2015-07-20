@@ -1101,13 +1101,14 @@ CT_Patch() {
     CT_DoLog EXTRA "Patching '${pkgdir}'"
 
     bundled_patch_dir="${CT_LIB_DIR}/patches/${pkgname}/${version}"
+    bundled_patch_arch_dir="${bundled_patch_dir}/${CT_ARCH}"
     local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkgname}/${version}"
 
     case "${CT_PATCH_ORDER}" in
-        bundled)        patch_dirs=("${bundled_patch_dir}");;
+        bundled)        patch_dirs=("${bundled_patch_dir}" "${bundled_patch_arch_dir}");;
         local)          patch_dirs=("${local_patch_dir}");;
-        bundled,local)  patch_dirs=("${bundled_patch_dir}" "${local_patch_dir}");;
-        local,bundled)  patch_dirs=("${local_patch_dir}" "${bundled_patch_dir}");;
+        bundled,local)  patch_dirs=("${bundled_patch_dir}" "${bundled_patch_arch_dir}" "${local_patch_dir}");;
+        local,bundled)  patch_dirs=("${local_patch_dir}" "${bundled_patch_dir}" "${bundled_patch_arch_dir}");;
         none)           patch_dirs=;;
     esac
 
@@ -1131,7 +1132,9 @@ CT_Patch() {
             eval ${cfg}="${CT_LIB_DIR}/scripts/${cfg/_/.}"
             [ -e "${CT_TOP_DIR}/scripts/${cfg/_/.}" ] && eval ${cfg}="${CT_TOP_DIR}/scripts/${cfg/_/.}"
             # Can't use CT_DoExecLog because of the '{} \;' to be passed un-mangled to find
-            find . -type f -name "${cfg/_/.}" -exec cp -v "${!cfg}" {} \; |CT_DoLog ALL
+            find . -type f -name "${cfg/_/.}" \
+                -exec chmod -v u+w {} \; \
+                -exec cp -v "${!cfg}" {} \; |CT_DoLog ALL
         done
     fi
 
@@ -1206,6 +1209,11 @@ CT_DoBuildTargetTuple() {
         *glibc) CT_TARGET_SYS=gnu;;
         uClibc) CT_TARGET_SYS=uclibc;;
         musl)   CT_TARGET_SYS=musl;;
+        avr-libc)
+            # avr-libc only seems to work with the non-canonical "avr" target.
+            CT_TARGET_SKIP_CONFIG_SUB=y
+            CT_TARGET_SYS= # CT_TARGET_SYS must be empty too
+        ;;
         *)      CT_TARGET_SYS=elf;;
     esac
 
@@ -1259,7 +1267,10 @@ CT_DoBuildTargetTuple() {
     esac
 
     # Canonicalise it
-    CT_TARGET=$(CT_DoConfigSub "${CT_TARGET}")
+    if [ "${CT_TARGET_SKIP_CONFIG_SUB}" != "y" ]; then
+        CT_TARGET=$(CT_DoConfigSub "${CT_TARGET}")
+    fi
+
     # Prepare the target CFLAGS
     CT_ARCH_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_ARCH_ENDIAN_CFLAG}"
     CT_ARCH_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_ARCH_ARCH_CFLAG}"

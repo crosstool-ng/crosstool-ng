@@ -554,3 +554,7 @@ mungeuClibcConfig() {
 
     sed -r -f "${munge_file}" "${src_config_file}" >"${dst_config_file}"
 }
+
+do_libc_post_cc() {
+    :
+}

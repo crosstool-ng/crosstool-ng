@@ -113,3 +113,7 @@ do_libc() {
 
     CT_EndStep
 }
+
+do_libc_post_cc() {
+    :
+}
