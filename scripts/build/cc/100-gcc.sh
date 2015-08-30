@@ -207,17 +207,17 @@ do_gcc_core_backend() {
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
-            extra_user_config=( "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
+            extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
             ;;
         shared)
             extra_config+=("--enable-shared")
-            extra_user_config=( "${CT_CC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
+            extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
             ;;
         baremetal)
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
-            extra_user_config=( "${CT_CC_EXTRA_CONFIG_ARRAY[@]}" )
+            extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
             ;;
         *)
             CT_Abort "Internal Error: 'mode' must be one of: 'static', 'shared' or 'baremetal', not '${mode:-(empty)}'"
