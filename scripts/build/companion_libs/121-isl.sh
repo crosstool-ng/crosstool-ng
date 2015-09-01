@@ -87,6 +87,7 @@ do_isl_backend() {
     local cflags
     local cxxflags
     local ldflags
+    local -a extra_config
     local arg
 
     for arg in "$@"; do
@@ -94,6 +95,15 @@ do_isl_backend() {
     done
 
     CT_DoLog EXTRA "Configuring ISL"
+
+    if [ "${CT_ISL_V_0_12_or_later}" != "y" ]; then
+        extra_config+=("--with-libgmp-prefix=${prefix}")
+        extra_config+=("--with-libgmpxx-prefix=${prefix}")
+    fi
+
+    if [ "${CT_ISL_V_0_14_or_later}" != "y" ]; then
+        extra_config+=("--with-piplib=no")
+    fi
 
     CT_DoExecLog CFG                                \
     CFLAGS="${cflags}"                              \
@@ -103,14 +113,11 @@ do_isl_backend() {
         --build=${CT_BUILD}                         \
         --host=${host}                              \
         --prefix="${prefix}"                        \
-        --with-libgmp-prefix="${prefix}"            \
-        --with-libgmpxx-prefix="${prefix}"          \
-        --with-gmp-prefix="${prefix}"               \
+        "${extra_config[@]}"                        \
         --disable-shared                            \
         --enable-static                             \
         --with-gmp=system                           \
         --with-gmp-prefix="${prefix}"               \
-        --with-piplib=no                            \
         --with-clang=no
 
     CT_DoLog EXTRA "Building ISL"
