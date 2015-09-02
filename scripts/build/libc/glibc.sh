@@ -17,37 +17,39 @@ do_libc_extract() {
         CT_Patch nochdir "${CT_LIBC}" "${CT_LIBC_VERSION}"
     fi
 
-    # Extract the add-opns
-    for addon in $(do_libc_add_ons_list " "); do
-        # If the addon was bundled with the main archive, we do not
-        # need to extract it. Worse, if we were to try to extract
-        # it, we'd get an error.
-        if [ -d "${addon}" ]; then
-            CT_DoLog DEBUG "Add-on '${addon}' already present, skipping extraction"
-            continue
-        fi
+    # Extract the add-opns if => 2.17
+    if [ "${CT_LIBC_GLIBC_2_17_or_later}" != "y" ]; then
+        for addon in $(do_libc_add_ons_list " "); do
+            # If the addon was bundled with the main archive, we do not
+            # need to extract it. Worse, if we were to try to extract
+            # it, we'd get an error.
+            if [ -d "${addon}" ]; then
+                CT_DoLog DEBUG "Add-on '${addon}' already present, skipping extraction"
+                continue
+            fi
 
-        CT_Extract nochdir "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+            CT_Extract nochdir "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
 
-        CT_TestAndAbort "Error in add-on '${addon}': both short and long names in tarball" \
-            -d "${addon}" -a -d "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+            CT_TestAndAbort "Error in add-on '${addon}': both short and long names in tarball" \
+                -d "${addon}" -a -d "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
 
-        # Some addons have the 'long' name, while others have the
-        # 'short' name, but patches are non-uniformly built with
-        # either the 'long' or 'short' name, whatever the addons name
-        # but we prefer the 'short' name and avoid duplicates.
-        if [ -d "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ]; then
-            CT_DoExecLog FILE mv "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" "${addon}"
-        fi
+            # Some addons have the 'long' name, while others have the
+            # 'short' name, but patches are non-uniformly built with
+            # either the 'long' or 'short' name, whatever the addons name
+            # but we prefer the 'short' name and avoid duplicates.
+            if [ -d "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" ]; then
+                CT_DoExecLog FILE mv "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}" "${addon}"
+            fi
 
-        CT_DoExecLog FILE ln -s "${addon}" "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+            CT_DoExecLog FILE ln -s "${addon}" "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
 
-        CT_Patch nochdir "${CT_LIBC}" "${addon}-${CT_LIBC_VERSION}"
+            CT_Patch nochdir "${CT_LIBC}" "${addon}-${CT_LIBC_VERSION}"
 
-        # Remove the long name since it can confuse configure scripts to run
-        # the same source twice.
-        rm "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
-    done
+            # Remove the long name since it can confuse configure scripts to run
+            # the same source twice.
+            rm "${CT_LIBC}-${addon}-${CT_LIBC_VERSION}"
+        done
+    fi
 
     # The configure files may be older than the configure.in files
     # if using a snapshot (or even some tarballs). Fake them being
