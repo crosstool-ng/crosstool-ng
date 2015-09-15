@@ -72,6 +72,7 @@ do_libc_start_files() {
 
 do_libc() {
     local -a newlib_opts
+    local cflags_for_target
 
     CT_DoStep INFO "Installing C library"
 
@@ -109,6 +110,8 @@ do_libc() {
 
     [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
 
+    cflags_for_target="${CT_TARGET_CFLAGS} ${CT_LIBC_NEWLIB_TARGET_CFLAGS}"
+
     # Note: newlib handles the build/host/target a little bit differently
     # than one would expect:
     #   build  : not used
@@ -116,7 +119,7 @@ do_libc() {
     #   target : the machine newlib runs on
     CT_DoExecLog CFG                                    \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                      \
-    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"             \
+    CFLAGS_FOR_TARGET="${cflags_for_target}"            \
     AR=${CT_TARGET}-ar                                  \
     RANLIB=${CT_TARGET}-ranlib                          \
     "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure" \
