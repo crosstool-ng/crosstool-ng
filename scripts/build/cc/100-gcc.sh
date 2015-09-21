@@ -362,6 +362,21 @@ do_gcc_core_backend() {
     extra_config+=(--disable-libgomp)
     extra_config+=(--disable-libmudflap)
 
+    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
+        extra_config+=(--enable-libssp)
+    else
+        extra_config+=(--disable-libssp)
+    fi
+    if [ "${CT_CC_GCC_HAS_LIBQUADMATH}" = "y" ]; then
+        if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
+            extra_config+=(--enable-libquadmath)
+            extra_config+=(--enable-libquadmath-support)
+        else
+            extra_config+=(--disable-libquadmath)
+            extra_config+=(--disable-libquadmath-support)
+        fi
+    fi
+
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
     [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ] && extra_config+=("--disable-libstdcxx-pch")
