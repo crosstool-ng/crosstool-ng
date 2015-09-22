@@ -390,7 +390,6 @@ do_gcc_core_backend() {
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \
-        --disable-libmudflap                           \
         ${CC_CORE_SYSROOT_ARG}                         \
         "${extra_config[@]}"                           \
         --enable-languages="${lang_list}"              \
