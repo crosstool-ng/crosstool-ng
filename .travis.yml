@@ -1,0 +1,49 @@
+# Using container-based infrastructure
+sudo: false
+
+# Using C GCC compiler only
+language: c
+compiler: gcc
+
+# Only build the master branch
+branches:
+    only:
+        - master
+
+# Caching the downloaded src packages between several builds
+cache:
+    directories:
+        - $HOME/src
+
+# Installing needed dependencies
+addons:
+    apt:
+        packages:
+            - bison
+            - flex
+            - gperf
+            - libncurses5-dev
+            - texinfo
+
+# Building crosstool-NG core
+install:
+    - ./bootstrap
+    - ./configure --enable-local
+    - make
+
+# Here is the list of all the standard samples tracked
+# by the continuous integration system
+env:
+    - CT_SAMPLE=arm-unknown-eabi
+    - CT_SAMPLE=armeb-unknown-eabi
+    - CT_SAMPLE=arm-unknown-linux-gnueabi
+    - CT_SAMPLE=armeb-unknown-linux-gnueabi
+
+# Building the standard samples
+script:
+    - ./ct-ng $CT_SAMPLE
+    - CT_LOG_DEBUG=y CT_LOG_LEVEL_MAX="DEBUG" ./ct-ng build.2
+
+# On failure displaying the last lines of the log file
+after_failure:
+    - tail -n 200 build.log
