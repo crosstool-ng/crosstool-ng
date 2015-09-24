@@ -752,8 +752,10 @@ do_gcc_backend() {
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=${complibs}")
+        extra_config+=("--enable-lto")
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
         extra_config+=("--with-libelf=no")
+        extra_config+=("--disable-lto")
     fi
 
     if [ ${#host_libstdcxx_flags[@]} -ne 0 ]; then
