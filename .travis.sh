@@ -16,7 +16,7 @@ ct-ng_travis_build()
 		.config
 
 	# Build the sample
-	ct-ng build &
+	ct-ng build.2 &
 	local build_pid=$!
 
 	# Start a runner task to print a "still running" line every 5 minutes
