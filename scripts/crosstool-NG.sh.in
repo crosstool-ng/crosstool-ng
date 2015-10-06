@@ -216,6 +216,13 @@ if [ -d "${CT_INSTALL_DIR}" ]; then
     CT_TestAndAbort "Destination directory '${CT_INSTALL_DIR}' is not removable" ! -w $(dirname "${CT_INSTALL_DIR}")
 fi
 
+# Use the autotools mechanism - using CC and CXX variables - to select which
+# compilers we want to use for BUILD and HOST. Once done, we have to unset
+# these variables to not interfer with the other configure scripts.
+CT_CC="${CC:-gcc}"
+CT_CXX="${CXX:-g++}"
+unset CC CXX
+
 # Good, now grab a bit of informations on the system we're being run on,
 # just in case something goes awok, and it's not our fault:
 CT_SYS_USER=$(id -un)
@@ -227,7 +234,8 @@ CT_SYS_REVISION=$(uname -r)
 CT_SYS_OS=$(uname -s)
 CT_SYS_MACHINE=$(uname -m)
 CT_SYS_PROCESSOR=$(uname -p)
-CT_SYS_GCC=$(gcc -dumpversion)
+CT_SYS_CC=$("${CT_CC}" -dumpversion)
+CT_SYS_CXX=$("${CT_CXX}" -dumpversion)
 CT_SYS_TARGET=$(CT_DoConfigGuess)
 CT_TOOLCHAIN_ID="crosstool-${CT_VERSION} build ${CT_STAR_DATE_HUMAN} by ${CT_SYS_USER}@${CT_SYS_HOSTNAME}"
 
@@ -416,7 +424,7 @@ if [ -z "${CT_RESTART}" ]; then
             t="${!r}-"
         fi
 
-        for tool in ar as dlltool gcc g++ gcj gnatbind gnatmake ld nm objcopy objdump ranlib strip windres; do
+        for tool in ar as dlltool "${CT_CC}" "${CT_CXX}" gcj gnatbind gnatmake ld nm objcopy objdump ranlib strip windres; do
             # First try with prefix + suffix
             # Then try with prefix only
             # Then try with suffix only, but only for BUILD, and HOST iff REAL_BUILD == REAL_HOST
@@ -445,12 +453,12 @@ if [ -z "${CT_RESTART}" ]; then
             else
                 case "${tool}" in
                     # We'll at least need some of them...
-                    ar|as|gcc|ld|nm|objcopy|objdump|ranlib)
+                    ar|as|"${CT_CC}"|ld|nm|objcopy|objdump|ranlib)
                         CT_Abort "Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : either needed!"
                         ;;
                     # Some are conditionnally required
                     # Add them in alphabetical (C locale) ordering
-                    g++)
+                    "${CT_CXX}")
                         # g++ (needed for companion lib), only needed for HOST
                         CT_TestAndAbort "Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : either needed!" "${m}" = "HOST"
                         ;;
@@ -469,6 +477,22 @@ if [ -z "${CT_RESTART}" ]; then
             fi
         done
     done
+
+    # Now we can expand the compilers to their full name.
+    CT_BUILD_CC="${CT_BUILD}-${CT_CC}"
+    CT_BUILD_CXX="${CT_BUILD}-${CT_CXX}"
+    CT_HOST_CC="${CT_HOST}-${CT_CC}"
+    CT_HOST_CXX="${CT_HOST}-${CT_CXX}"
+    if [ "${CT_CC_gcc}" = "y" ]; then
+        CT_TARGET_CC="${CT_TARGET}-gcc"
+        [ "${CT_CC_LANG_CXX}" = "y" ] && CT_TARGET_CXX="${CT_TARGET}-g++"
+    fi
+    CT_DoLog DEBUG "  'CT_BUILD_CC'   -> '${CT_BUILD_CC}'"
+    CT_DoLog DEBUG "  'CT_BUILD_CXX'  -> '${CT_BUILD_CXX}'"
+    CT_DoLog DEBUG "  'CT_HOST_CC'    -> '${CT_HOST_CC}'"
+    CT_DoLog DEBUG "  'CT_HOST_CXX'   -> '${CT_HOST_CXX}'"
+    CT_DoLog DEBUG "  'CT_TARGET_CC'  -> '${CT_TARGET_CC}'"
+    CT_DoLog DEBUG "  'CT_TARGET_CXX' -> '${CT_TARGET_CXX}'"
 
     # Some makeinfo versions are a pain in [put your most sensible body part here].
     # Go ahead with those, by creating a wrapper that keeps partial files, and that
@@ -526,8 +550,8 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Now that we've set up $PATH and $CT_CFLAGS_FOR_HOST, sanity test that gcc
     # is runnable so that the user can troubleshoot problems if not.
-    CT_DoStep DEBUG "Checking that we can run gcc -v"
-    CT_DoExecLog DEBUG "${CT_HOST}-gcc" -v
+    CT_DoStep DEBUG "Checking that we can run ${CT_HOST_CC} -v"
+    CT_DoExecLog DEBUG "${CT_HOST_CC}" -v
     CT_EndStep
 
     # Create a simple C program for testing.
@@ -535,23 +559,23 @@ if [ -z "${CT_RESTART}" ]; then
     printf "int main() { return 0; }\n" >"${testc}"
     gccout="${CT_BUILD_DIR}/.gccout"
 
-    CT_DoStep DEBUG "Checking that gcc can compile a trivial program"
-    CT_DoExecLog DEBUG "${CT_HOST}-gcc" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -o "${gccout}"
+    CT_DoStep DEBUG "Checking that ${CT_HOST_CC} can compile a trivial program"
+    CT_DoExecLog DEBUG "${CT_HOST_CC}" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -o "${gccout}"
     rm -f "${gccout}"
     CT_EndStep
 
     if [ "${CT_WANTS_STATIC_LINK}" = "y" ]; then
-        CT_DoStep DEBUG "Checking that gcc can compile a trivial statically linked program (CT_WANTS_STATIC_LINK)"
+        CT_DoStep DEBUG "Checking that ${CT_HOST_CC} can compile a trivial statically linked program (CT_WANTS_STATIC_LINK)"
         CT_DoLog DEBUG "You may need to ensure that static libraries such as libc.a are installed on your system"
-        CT_DoExecLog DEBUG "${CT_HOST}-gcc" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -static -o "${gccout}"
+        CT_DoExecLog DEBUG "${CT_HOST_CC}" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -static -o "${gccout}"
         rm -f "${gccout}"
         CT_EndStep
     fi
 
     if [ "${CT_CC_GCC_STATIC_LIBSTDCXX}" = "y" ]; then
-        CT_DoStep DEBUG "Checking that gcc can statically link libstdc++ (CT_CC_GCC_STATIC_LIBSTDCXX)"
+        CT_DoStep DEBUG "Checking that ${CT_HOST_CC} can statically link libstdc++ (CT_CC_GCC_STATIC_LIBSTDCXX)"
         CT_DoLog DEBUG "You may need to ensure that libstdc++.a is installed on your system"
-        CT_DoExecLog DEBUG "${CT_HOST}-gcc" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -static -lstdc++ -o "${gccout}"
+        CT_DoExecLog DEBUG "${CT_HOST_CC}" ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST} "${testc}" -static -lstdc++ -o "${gccout}"
         rm -f "${gccout}"
         CT_EndStep
     fi
