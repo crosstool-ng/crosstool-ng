@@ -99,20 +99,20 @@ do_gmp_backend() {
     env+=( "LDFLAGS=${ldflags}" )
 
     if [ ! "${CT_GMP_5_0_2_or_later}" = "y" ]; then
-        extra_config+=("--enable-mpbsd")
+        extra_config+=( "--enable-mpbsd" )
     fi
 
     CT_DoExecLog CFG                                \
     "${env[@]}"                                     \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
+        --build="${CT_BUILD}"                       \
+        --host="${host}"                            \
         --prefix="${prefix}"                        \
         --enable-fft                                \
         --enable-cxx                                \
         --disable-shared                            \
         --enable-static                             \
-        "${extra_config}"
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${JOBSFLAGS}
