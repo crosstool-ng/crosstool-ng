@@ -127,6 +127,7 @@ do_mpfr_backend() {
     local ldflags
     local arg
     local -a env
+    local -a extra_config
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -140,22 +141,23 @@ do_mpfr_backend() {
     env+=( "LDFLAGS=${ldflags}" )
 
     # Under Cygwin, we can't build a thread-safe library
-    case "${CT_HOST}" in
-        *cygwin*)   mpfr_opts+=( --disable-thread-safe );;
-        *mingw*)    mpfr_opts+=( --disable-thread-safe );;
-        *darwin*)   mpfr_opts+=( --disable-thread-safe );;
-        *)          mpfr_opts+=( --enable-thread-safe  );;
+    case "${host}" in
+        *cygwin*)   extra_config+=( "--disable-thread-safe" ) ;;
+        *mingw*)    extra_config+=( "--disable-thread-safe" ) ;;
+        *darwin*)   extra_config+=( "--disable-thread-safe" ) ;;
+        *)          extra_config+=( "--enable-thread-safe" ) ;;
     esac
 
     CT_DoExecLog CFG                                    \
     "${env[@]}"                                         \
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
-        --build=${CT_BUILD}                             \
-        --host=${host}                                  \
+        --build="${CT_BUILD}"                           \
+        --host="${host}"                                \
         --prefix="${prefix}"                            \
         --with-gmp="${prefix}"                          \
         --disable-shared                                \
-        --enable-static
+        --enable-static                                 \
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building MPFR"
     CT_DoExecLog ALL make ${JOBSFLAGS}
