@@ -67,16 +67,6 @@ AC_ARG_ENABLE(
         [do not install, and use current directory])])
 AC_SUBST([enable_local], [${enable_local:-no}])
 AC_ARG_ENABLE(
-    [automated],
-    [AS_HELP_STRING(
-        [--enable-automated],
-        [Tell ct-ng that this is an automated build])],
-        [if test "x$automated" = "x" -o "x$automated" = "xyes"; then
-             automated=y
-         fi])
-AC_SUBST([enable_automated], [${enable_automated:-no}])
-ACX_SET_KCONFIG_OPTION([automated])
-AC_ARG_ENABLE(
     [shared],
     [AS_HELP_STRING(
         [--enable-shared],
