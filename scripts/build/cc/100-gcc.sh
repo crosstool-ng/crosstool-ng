@@ -194,6 +194,7 @@ do_gcc_core_backend() {
     local -a core_LDFLAGS
     local -a core_targets
     local -a extra_user_config
+    local -a extra_user_env
     local arg
 
     for arg in "$@"; do
@@ -391,6 +392,10 @@ do_gcc_core_backend() {
         extra_config+=("--disable-multilib")
     fi
 
+    if [ "x${CT_CC_GCC_EXTRA_ENV_ARRAY}" != "x" ]; then
+        extra_user_env=( "${CT_CC_GCC_EXTRA_ENV_ARRAY[@]}" )
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
@@ -470,7 +475,7 @@ do_gcc_core_backend() {
             repair_cc=""
         fi
 
-        CT_DoExecLog ALL make ${JOBSFLAGS} -C gcc ${libgcc_rule} \
+        CT_DoExecLog ALL make ${JOBSFLAGS} ${extra_user_env} -C gcc ${libgcc_rule} \
                               ${repair_cc}
         sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
@@ -489,7 +494,7 @@ do_gcc_core_backend() {
     fi
 
     CT_DoLog EXTRA "Building gcc"
-    CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/all-}"
+    CT_DoExecLog ALL make ${JOBSFLAGS} ${extra_user_env} "${core_targets[@]/#/all-}"
 
     CT_DoLog EXTRA "Installing gcc"
     CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/install-}"
