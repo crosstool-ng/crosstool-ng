@@ -47,6 +47,8 @@ do_ppl_for_build() {
 
     ppl_opts+=( "host=${CT_BUILD}" )
     ppl_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    ppl_opts+=( "cc=${CT_BUILD_CC}" )
+    ppl_opts+=( "cxx=${CT_BUILD_CXX}" )
     ppl_opts+=( "cflags=${ppl_cflags}" )
     ppl_opts+=( "cxxflags=${ppl_cxxflags}" )
     ppl_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
@@ -73,6 +75,8 @@ do_ppl_for_host() {
 
     ppl_opts+=( "host=${CT_HOST}" )
     ppl_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
+    ppl_opts+=( "cc=${CT_HOST_CC}" )
+    ppl_opts+=( "cxx=${CT_HOST_CXX}" )
     ppl_opts+=( "cflags=${ppl_cflags}" )
     ppl_opts+=( "cxxflags=${ppl_cxxflags}" )
     ppl_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
@@ -86,15 +90,20 @@ do_ppl_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 do_ppl_backend() {
     local host
     local prefix
+    local cc
+    local cxx
     local cflags
     local cxxflags
     local ldflags
     local arg
+    local -a env
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -102,10 +111,14 @@ do_ppl_backend() {
 
     CT_DoLog EXTRA "Configuring PPL"
 
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "CFLAGS=${cflags}" )
+    env+=( "CXXFLAGS=${cxxflags}" )
+    env+=( "LDFLAGS=${ldflags}" )
+
     CT_DoExecLog CFG                                \
-    CFLAGS="${cflags}"                              \
-    CXXFLAGS="${cxxflags}"                          \
-    LDFLAGS="${ldflags}"                            \
+    "${env[@]}"                                     \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
         --build=${CT_BUILD}                         \
         --host=${host}                              \
