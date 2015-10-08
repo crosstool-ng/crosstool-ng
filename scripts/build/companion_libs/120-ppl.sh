@@ -120,8 +120,8 @@ do_ppl_backend() {
     CT_DoExecLog CFG                                \
     "${env[@]}"                                     \
     "${CT_SRC_DIR}/ppl-${CT_PPL_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
+        --build="${CT_BUILD}"                       \
+        --host="${host}"                            \
         --prefix="${prefix}"                        \
         --with-libgmp-prefix="${prefix}"            \
         --with-libgmpxx-prefix="${prefix}"          \
@@ -132,7 +132,7 @@ do_ppl_backend() {
         --disable-ppl_lcdd                          \
         --disable-ppl_lpsol                         \
         --disable-shared                            \
-        --enable-interfaces='c c++'                 \
+        --enable-interfaces="c c++"                 \
         --enable-static
 
     # Maybe-options:
