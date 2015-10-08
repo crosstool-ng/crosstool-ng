@@ -95,9 +95,9 @@ do_isl_backend() {
     local cflags
     local cxxflags
     local ldflags
-    local -a extra_config
     local arg
     local -a env
+    local -a extra_config
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -112,26 +112,26 @@ do_isl_backend() {
     env+=( "LDFLAGS=${ldflags}" )
 
     if [ "${CT_ISL_V_0_12_or_later}" != "y" ]; then
-        extra_config+=("--with-libgmp-prefix=${prefix}")
-        extra_config+=("--with-libgmpxx-prefix=${prefix}")
+        extra_config+=( "--with-libgmp-prefix=${prefix}" )
+        extra_config+=( "--with-libgmpxx-prefix=${prefix}" )
     fi
 
     if [ "${CT_ISL_V_0_14_or_later}" != "y" ]; then
-        extra_config+=("--with-piplib=no")
+        extra_config+=( "--with-piplib=no" )
     fi
 
     CT_DoExecLog CFG                                \
     "${env[@]}"                                     \
     "${CT_SRC_DIR}/isl-${CT_ISL_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
+        --build="${CT_BUILD}"                       \
+        --host="${host}"                            \
         --prefix="${prefix}"                        \
-        "${extra_config[@]}"                        \
         --disable-shared                            \
         --enable-static                             \
         --with-gmp=system                           \
         --with-gmp-prefix="${prefix}"               \
-        --with-clang=no
+        --with-clang=no                             \
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building ISL"
     CT_DoExecLog ALL make ${JOBSFLAGS}
