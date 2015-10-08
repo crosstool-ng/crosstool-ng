@@ -109,29 +109,15 @@ do_cloog_backend() {
     local cxx
     local cflags
     local ldflags
-    local cloog_src_dir="${CT_SRC_DIR}/$(cloog_basename_version)"
     local arg
     local -a env
-    local -a cloog_opts
-    local -a cloog_targets
-    local -a cloog_install_targets
+    local -a extra_config
+    local -a targets
+    local -a install_targets
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
-
-    if [ "${CT_CLOOG_0_18_or_later}" = y ]; then
-            cloog_opts+=( --with-gmp=system --with-gmp-prefix="${prefix}" )
-            cloog_opts+=( --with-isl=system --with-isl-prefix="${prefix}" )
-            cloog_opts+=( --without-osl )
-            cloog_targets=( all )
-            cloog_install_targets=( install )
-    else
-            cloog_opts+=( --with-gmp="${prefix}" )
-            cloog_opts+=( --with-ppl="${prefix}" )
-            cloog_targets=( libcloog.la )
-            cloog_install_targets=( install-libLTLIBRARIES install-pkgincludeHEADERS )
-    fi
 
     CT_DoLog EXTRA "Configuring CLooG"
 
@@ -141,20 +127,36 @@ do_cloog_backend() {
     env+=( "LDFLAGS=${ldflags}" )
     env+=( "LIBS=-lm" )
 
-    CT_DoExecLog CFG                            \
-    "${env[@]}"                                 \
-    "${cloog_src_dir}/configure"                \
-        --build=${CT_BUILD}                     \
-        --host=${host}                          \
-        --prefix="${prefix}"                    \
-        --with-bits=gmp                         \
-        --with-host-libstdcxx='-lstdc++'        \
-        --disable-shared                        \
-        --enable-static                         \
-        "${cloog_opts[@]}"
+    if [ "${CT_CLOOG_0_18_or_later}" = y ]; then
+            extra_config+=( "--with-gmp=system" )
+            extra_config+=( "--with-gmp-prefix=${prefix}" )
+            extra_config+=( "--with-isl=system" )
+            extra_config+=( "--with-isl-prefix=${prefix}" )
+            extra_config+=( "--without-osl" )
+            targets+=( "all" )
+            install_targets+=( "install" )
+    else
+            extra_config+=( "--with-gmp=${prefix}" )
+            extra_config+=( "--with-ppl=${prefix}" )
+            targets+=( "libcloog.la" )
+            install_targets+=( "install-libLTLIBRARIES" )
+            install_targets+=( "install-pkgincludeHEADERS" )
+    fi
+
+    CT_DoExecLog CFG                                    \
+    "${env[@]}"                                         \
+    "${CT_SRC_DIR}/$(cloog_basename_version)/configure" \
+        --build="${CT_BUILD}"                           \
+        --host="${host}"                                \
+        --prefix="${prefix}"                            \
+        --with-bits=gmp                                 \
+        --with-host-libstdcxx="-lstdc++"                \
+        --disable-shared                                \
+        --enable-static                                 \
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building CLooG"
-    CT_DoExecLog ALL make ${JOBSFLAGS} "${cloog_targets[@]}"
+    CT_DoExecLog ALL make ${JOBSFLAGS} "${targets[@]}"
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking CLooG"
@@ -162,7 +164,7 @@ do_cloog_backend() {
     fi
 
     CT_DoLog EXTRA "Installing CLooG"
-    CT_DoExecLog ALL make "${cloog_install_targets[@]}"
+    CT_DoExecLog ALL make "${install_targets[@]}"
 }
 
 fi # CT_CLOOG
