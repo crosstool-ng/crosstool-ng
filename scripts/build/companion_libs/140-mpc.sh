@@ -100,8 +100,8 @@ do_mpc_backend() {
     CT_DoExecLog CFG                                \
     "${env[@]}"                                     \
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
+        --build="${CT_BUILD}"                       \
+        --host="${host}"                            \
         --prefix="${prefix}"                        \
         --with-gmp="${prefix}"                      \
         --with-mpfr="${prefix}"                     \
