@@ -38,6 +38,8 @@ do_libelf_for_build() {
 
     libelf_opts+=( "host=${CT_BUILD}" )
     libelf_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    libelf_opts+=( "cc=${CT_BUILD_CC}" )
+    libelf_opts+=( "cxx=${CT_BUILD_CXX}" )
     libelf_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     libelf_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_libelf_backend "${libelf_opts[@]}"
@@ -55,6 +57,8 @@ do_libelf_for_host() {
 
     libelf_opts+=( "host=${CT_HOST}" )
     libelf_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
+    libelf_opts+=( "cc=${CT_HOST_CC}" )
+    libelf_opts+=( "cxx=${CT_HOST_CXX}" )
     libelf_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     libelf_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_libelf_backend "${libelf_opts[@]}"
@@ -76,6 +80,8 @@ do_libelf_for_target() {
     libelf_opts+=( "destdir=${CT_SYSROOT_DIR}" )
     libelf_opts+=( "host=${CT_TARGET}" )
     libelf_opts+=( "prefix=/usr" )
+    libelf_opts+=( "cc=${CT_TARGET_CC}" )
+    libelf_opts+=( "cxx=${CT_TARGET_CXX}" )
     libelf_opts+=( "shared=y" )
     do_libelf_backend "${libelf_opts[@]}"
 
@@ -90,6 +96,8 @@ fi # CT_LIBELF_TARGET
 #     destdir       : out-of-tree install dir   : string    : /
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 #     shared        : also buils shared lib     : bool      : n
@@ -97,17 +105,26 @@ do_libelf_backend() {
     local destdir="/"
     local host
     local prefix
+    local cc
+    local cxx
     local cflags
     local ldflags
     local shared
     local -a extra_config
     local arg
+    local -a env
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
     CT_DoLog EXTRA "Configuring libelf"
+
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "RANLIB=${host}-ranlib" )
+    env+=( "CFLAGS=${cflags} -fPIC" )
+    env+=( "LDFLAGS=${ldflags}" )
 
     if [ "${shared}" = "y" ]; then
         extra_config+=( --enable-shared )
@@ -116,10 +133,7 @@ do_libelf_backend() {
     fi
 
     CT_DoExecLog CFG                                        \
-    CC="${host}-gcc"                                        \
-    RANLIB="${host}-ranlib"                                 \
-    CFLAGS="${cflags} -fPIC"                                \
-    LDFLAGS="${ldflags}"                                    \
+    "${env[@]}"                                             \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${host}                                      \
