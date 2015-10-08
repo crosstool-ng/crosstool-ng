@@ -61,6 +61,8 @@ do_binutils_for_build() {
 
     binutils_opts+=( "host=${CT_BUILD}" )
     binutils_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    binutils_opts+=( "cc=${CT_BUILD_CC}" )
+    binutils_opts+=( "cxx=${CT_BUILD_CXX}" )
     binutils_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     binutils_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
 
@@ -94,6 +96,8 @@ do_binutils_for_host() {
     binutils_opts+=( "host=${CT_HOST}" )
     binutils_opts+=( "prefix=${CT_PREFIX_DIR}" )
     binutils_opts+=( "static_build=${CT_STATIC_TOOLCHAIN}" )
+    binutils_opts+=( "cc=${CT_HOST_CC}" )
+    binutils_opts+=( "cxx=${CT_HOST_CXX}" )
     binutils_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     binutils_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     binutils_opts+=( "build_manuals=${CT_BUILD_MANUALS}" )
@@ -153,6 +157,8 @@ do_binutils_for_host() {
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
 #     static_build  : build statcially          : bool      : no
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 #     build_manuals : whether to build manuals  : bool      : no
@@ -160,6 +166,8 @@ do_binutils_backend() {
     local host
     local prefix
     local static_build
+    local cc
+    local cxx
     local cflags
     local ldflags
     local build_manuals=no
@@ -168,12 +176,19 @@ do_binutils_backend() {
     local -a manuals_for
     local -a manuals_install
     local arg
+    local -a env
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
     CT_DoLog EXTRA "Configuring binutils"
+
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "CFLAGS=${cflags}" )
+    env+=( "CXXFLAGS=${cflags}" )
+    env+=( "LDFLAGS=${ldflags}" )
 
     if [ "${CT_BINUTILS_HAS_GOLD}" = "y" ]; then
         case "${CT_BINUTILS_LINKERS_LIST}" in
@@ -212,9 +227,7 @@ do_binutils_backend() {
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     CT_DoExecLog CFG                                            \
-    CFLAGS="${cflags}"                                          \
-    CXXFLAGS="${cflags}"                                        \
-    LDFLAGS="${ldflags}"                                        \
+    "${env[@]}"                                                 \
     "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
@@ -274,6 +287,8 @@ do_binutils_backend() {
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
 #     static_build  : build statcially          : bool      : no
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 #     binutils_src  : source dir of binutils    : dir       : (none)
@@ -283,22 +298,30 @@ do_elf2flt_backend() {
     local host
     local prefix
     local static_build
+    local cc
+    local cxx
     local cflags
     local ldflags
     local binutils_bld
     local binutils_src
     local build_manuals
     local arg
+    local -a env
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
     CT_DoLog EXTRA "Configuring elf2flt"
+
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "CFLAGS=${cflags}" )
+    env+=( "LDFLAGS=${ldflags}" )
+    env+=( "LIBS=-ldl" )
+
     CT_DoExecLog CFG                                            \
-    CFLAGS="${cflags}"                                          \
-    LDFLAGS="${ldflags}"                                        \
-    LIBS="-ldl"                                                 \
+    "${env[@]}"                                                 \
     "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
