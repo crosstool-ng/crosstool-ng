@@ -110,9 +110,9 @@ do_libelf_backend() {
     local cflags
     local ldflags
     local shared
-    local -a extra_config
     local arg
     local -a env
+    local -a extra_config
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -127,17 +127,17 @@ do_libelf_backend() {
     env+=( "LDFLAGS=${ldflags}" )
 
     if [ "${shared}" = "y" ]; then
-        extra_config+=( --enable-shared )
+        extra_config+=( "--enable-shared" )
     else
-        extra_config+=( --disable-shared )
+        extra_config+=( "--disable-shared" )
     fi
 
     CT_DoExecLog CFG                                        \
     "${env[@]}"                                             \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
-        --build=${CT_BUILD}                                 \
-        --host=${host}                                      \
-        --target=${CT_TARGET}                               \
+        --build="${CT_BUILD}"                               \
+        --host="${host}"                                    \
+        --target="${CT_TARGET}"                             \
         --prefix="${prefix}"                                \
         --enable-compat                                     \
         --enable-elf64                                      \
