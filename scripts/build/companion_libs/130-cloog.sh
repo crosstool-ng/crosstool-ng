@@ -65,6 +65,8 @@ do_cloog_for_build() {
 
     cloog_opts+=( "host=${CT_BUILD}" )
     cloog_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    cloog_opts+=( "cc=${CT_BUILD_CC}" )
+    cloog_opts+=( "cxx=${CT_BUILD_CXX}" )
     cloog_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     cloog_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_cloog_backend "${cloog_opts[@]}"
@@ -82,6 +84,8 @@ do_cloog_for_host() {
 
     cloog_opts+=( "host=${CT_HOST}" )
     cloog_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
+    cloog_opts+=( "cc=${CT_HOST_CC}" )
+    cloog_opts+=( "cxx=${CT_HOST_CXX}" )
     cloog_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     cloog_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_cloog_backend "${cloog_opts[@]}"
@@ -94,15 +98,20 @@ do_cloog_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 do_cloog_backend() {
     local host
     local prefix
+    local cc
+    local cxx
     local cflags
     local ldflags
     local cloog_src_dir="${CT_SRC_DIR}/$(cloog_basename_version)"
     local arg
+    local -a env
     local -a cloog_opts
     local -a cloog_targets
     local -a cloog_install_targets
@@ -126,10 +135,14 @@ do_cloog_backend() {
 
     CT_DoLog EXTRA "Configuring CLooG"
 
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "CFLAGS=${cflags}" )
+    env+=( "LDFLAGS=${ldflags}" )
+    env+=( "LIBS=-lm" )
+
     CT_DoExecLog CFG                            \
-    CFLAGS="${cflags}"                          \
-    LDFLAGS="${ldflags}"                        \
-    LIBS="-lm"                                  \
+    "${env[@]}"                                 \
     "${cloog_src_dir}/configure"                \
         --build=${CT_BUILD}                     \
         --host=${host}                          \
