@@ -100,6 +100,7 @@ do_gcc_core_pass_1() {
     core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     core_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     core_opts+=( "lang_list=c" )
+    core_opts+=( "build_step=core1" )
 
     CT_DoStep INFO "Installing pass-1 core C gcc compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core-pass-1"
@@ -125,6 +126,7 @@ do_gcc_core_pass_2() {
     core_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     core_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     core_opts+=( "lang_list=c" )
+    core_opts+=( "build_step=core2" )
 
     # Different conditions are at stake here:
     #   - In case the threading model is NPTL, we need a shared-capable core
@@ -165,7 +167,7 @@ do_gcc_core_pass_2() {
 #   mode                : build a 'static', 'shared' or 'baremetal' : string    : (none)
 #   host                : the machine the core will run on          : tuple     : (none)
 #   prefix              : dir prefix to install into                : dir       : (none)
-#   complibs            : dir where complibs are isntalled          : dir       : (none)
+#   complibs            : dir where complibs are installed          : dir       : (none)
 #   lang_list           : the list of languages to build            : string    : (empty)
 #   build_libgcc        : build libgcc or not                       : bool      : no
 #   build_libstdcxx     : build libstdc++ or not                    : bool      : no
@@ -174,6 +176,8 @@ do_gcc_core_pass_2() {
 #   build_manuals       : whether to build manuals or not           : bool      : no
 #   cflags              : cflags to use                             : string    : (empty)
 #   ldflags             : ldflags to use                            : string    : (empty)
+#   build_step          : build step 'core1', 'core2', 'gcc_build'
+#                         or 'gcc_host'                             : string    : (none)
 # Usage: do_gcc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_gcc_core_backend() {
     local mode
@@ -188,11 +192,15 @@ do_gcc_core_backend() {
     local lang_list
     local cflags
     local ldflags
+    local build_step
+    local log_txt
     local tmp
     local -a host_libstdcxx_flags
     local -a extra_config
     local -a core_LDFLAGS
     local -a core_targets
+    local -a core_targets_all
+    local -a core_targets_install
     local -a extra_user_config
     local -a extra_user_env
     local arg
@@ -201,24 +209,40 @@ do_gcc_core_backend() {
         eval "${arg// /\\ }"
     done
 
-    CT_DoLog EXTRA "Configuring core C gcc compiler"
+    # This function gets called in case of a bare metal compiler for the final gcc, too.
+    case "${build_step}" in
+        core1|core2)
+            CT_DoLog EXTRA "Configuring core C gcc compiler"
+            log_txt="gcc"
+            extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
+            ;;
+        gcc_build|gcc_host)
+            CT_DoLog EXTRA "Configuring final gcc compiler"
+            extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
+            log_txt="final gcc compiler"
+            if [ "${CT_CC_GCC_TARGET_FINAL}" = "y" ]; then
+                # to inhibit the libiberty and libgcc tricks later on
+                build_libgcc=no
+            fi
+            ;;
+        *)
+            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build' or 'gcc_host', not '${build_step:-(empty)}'"
+            ;;
+    esac
 
     case "${mode}" in
         static)
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
-            extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
             ;;
         shared)
             extra_config+=("--enable-shared")
-            extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
             ;;
         baremetal)
             extra_config+=("--with-newlib")
             extra_config+=("--enable-threads=no")
             extra_config+=("--disable-shared")
-            extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
             ;;
         *)
             CT_Abort "Internal Error: 'mode' must be one of: 'static', 'shared' or 'baremetal', not '${mode:-(empty)}'"
@@ -493,11 +517,23 @@ do_gcc_core_backend() {
         core_targets+=( target-libgfortran )
     fi
 
-    CT_DoLog EXTRA "Building gcc"
-    CT_DoExecLog ALL make ${JOBSFLAGS} ${extra_user_env} "${core_targets[@]/#/all-}"
+    core_targets_all="${core_targets[@]/#/all-}"
+    core_targets_install="${core_targets[@]/#/install-}"
 
-    CT_DoLog EXTRA "Installing gcc"
-    CT_DoExecLog ALL make ${JOBSFLAGS} "${core_targets[@]/#/install-}"
+    case "${build_step}" in
+        gcc_build|gcc_host)
+            if [ "${CT_CC_GCC_TARGET_FINAL}" = "y" ]; then
+                core_targets_all=all
+                core_targets_install=install
+            fi
+            ;;
+    esac
+
+    CT_DoLog EXTRA "Building ${log_txt}"
+    CT_DoExecLog ALL make ${JOBSFLAGS} ${extra_user_env} ${core_targets_all}
+
+    CT_DoLog EXTRA "Installing ${log_txt}"
+    CT_DoExecLog ALL make ${JOBSFLAGS} ${extra_user_env} ${core_targets_install}
 
     if [ "${build_manuals}" = "yes" ]; then
         CT_DoLog EXTRA "Building the GCC manuals"
@@ -553,6 +589,7 @@ do_gcc_for_build() {
     build_final_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     build_final_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
     build_final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
+    build_final_opts+=( "build_step=gcc_build" )
     if [ "${CT_BARE_METAL}" = "y" ]; then
         # In the tests I've done, bare-metal was not impacted by the
         # lack of such a compiler, but better safe than sorry...
@@ -589,6 +626,7 @@ do_gcc_for_host() {
     final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
+    final_opts+=( "build_step=gcc_host" )
     if [ "${CT_BUILD_MANUALS}" = "y" ]; then
         final_opts+=( "build_manuals=yes" )
     fi
