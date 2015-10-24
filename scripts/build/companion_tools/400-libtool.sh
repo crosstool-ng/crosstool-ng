@@ -1,6 +1,6 @@
 # Build script for libtool
 
-CT_LIBTOOL_VERSION=2.2.6b
+CT_LIBTOOL_VERSION=2.4.6
 
 do_companion_tools_libtool_get() {
     CT_GetFile "libtool-${CT_LIBTOOL_VERSION}"     \
