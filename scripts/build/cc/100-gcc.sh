@@ -535,6 +535,16 @@ do_gcc_core_backend() {
     CT_DoLog EXTRA "Installing ${log_txt}"
     CT_DoExecLog ALL make ${JOBSFLAGS} ${extra_user_env} ${core_targets_install}
 
+    # Remove the libtool "pseudo-libraries": having them in the installed
+    # tree makes the libtoolized utilities that are built next assume
+    # that, for example, libsupc++ is an "accessory library", and not include
+    # -lsupc++ to the link flags. That breaks ltrace, for example.
+    CT_DoLog EXTRA "Housekeeping for final gcc compiler"
+    CT_Pushd "${prefix}"
+    find . -type f -name "*.la" -exec rm {} \; |CT_DoLog ALL
+    CT_Popd
+
+
     if [ "${build_manuals}" = "yes" ]; then
         CT_DoLog EXTRA "Building the GCC manuals"
         CT_DoExecLog ALL make pdf html
@@ -931,6 +941,15 @@ do_gcc_backend() {
 
     CT_DoLog EXTRA "Installing final gcc compiler"
     CT_DoExecLog ALL make ${JOBSFLAGS} install
+
+    # Remove the libtool "pseudo-libraries": having them in the installed
+    # tree makes the libtoolized utilities that are built next assume
+    # that, for example, libsupc++ is an "accessory library", and not include
+    # -lsupc++ to the link flags. That breaks ltrace, for example.
+    CT_DoLog EXTRA "Housekeeping for final gcc compiler"
+    CT_Pushd "${prefix}"
+    find . -type f -name "*.la" -exec rm {} \; |CT_DoLog ALL
+    CT_Popd
 
     if [ "${build_manuals}" = "yes" ]; then
         CT_DoLog EXTRA "Building the GCC manuals"
