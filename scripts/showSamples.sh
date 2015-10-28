@@ -23,10 +23,16 @@ dump_single_sample() {
     [ "$1" = "-v" ] && verbose=1 && shift
     [ "$1" = "-w" ] && wiki=1 && shift
     local sample="$1"
+    . $(pwd)/.config.sample
     case "${sample}" in
         current)
             sample_type="l"
             sample="$( ${CT_NG} show-tuple )"
+            case "${CT_TOOLCHAIN_TYPE}" in
+                canadian)
+                    sample="${CT_HOST},$sample"
+                    ;;
+            esac
             ;;
         *)  if [ -f "${CT_TOP_DIR}/samples/${sample}/crosstool.config" ]; then
                 sample_top="${CT_TOP_DIR}"
@@ -37,7 +43,6 @@ dump_single_sample() {
             fi
             ;;
     esac
-    . $(pwd)/.config.sample
     if [ ${wiki} -eq 0 ]; then
         width=14
         printf "[%s" "${sample_type}"
