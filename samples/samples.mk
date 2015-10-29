@@ -164,13 +164,20 @@ $(CT_SAMPLES): config_files
 # ----------------------------------------------------------
 # Some helper functions
 
+# Construct a CT_PREFIX_DIR path from the sample name. Sample names use
+# comma as a separator between host and target triplets in canadian cross
+# configurations, but ct-ng does not allow commas in the path. Substitute
+# with = (equal sign).
+# $1: sample
+__comma = ,
+prefix_dir = $(CT_PREFIX)/$(subst $(__comma),=,$(1))
+
 # Create the rule to build a sample
-# $1: sample tuple
-# $2: prefix
+# $1: sample name (target tuple, or host/target tuples separated by a comma)
 define build_sample
 	@$(ECHO) '  CONF  $(1)'
 	$(SILENT)$(CONF) -s --defconfig=$(call sample_dir,$(1))/crosstool.config $(KCONFIG_TOP)
-	$(SILENT)$(sed) -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(2)":;' .config
+	$(SILENT)$(sed) -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(call prefix_dir,$(1))":;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config
 	$(SILENT)$(sed) -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config
@@ -197,8 +204,8 @@ endif # MAKECMDGOALS contains a build sample rule
 endif # MAKECMDGOALS != ""
 
 # Build a single sample
-$(patsubst %,build-%,$(CT_SAMPLES)): config_files
-	$(call build_sample,$(patsubst build-%,%,$@),$(CT_PREFIX)/$(patsubst build-%,%,$@))
+$(patsubst %,build-%,$(CT_SAMPLES)): build-%: config_files
+	$(call build_sample,$*)
 
 # Build al samples
 build-all: $(patsubst %,build-%,$(CT_SAMPLES))
