@@ -171,6 +171,7 @@ $(CT_SAMPLES): config_files
 # $1: sample
 __comma = ,
 prefix_dir = $(CT_PREFIX)/$(subst $(__comma),=,$(1))
+host_triplet = $(if $(findstring $(__comma),$(1)),$(firstword $(subst $(__comma), ,$(1))))
 
 # Create the rule to build a sample
 # $1: sample name (target tuple, or host/target tuples separated by a comma)
@@ -185,7 +186,10 @@ define build_sample
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config
 	$(SILENT)$(CONF) -s --oldconfig $(KCONFIG_TOP)
 	@$(ECHO) '  BUILD $(1)'
-	$(SILENT)$(MAKE) -rf $(CT_NG) V=0 build
+	$(SILENT)if [ ! -z "$(call host_triplet,$(1))" -a -d "$(call prefix_dir,$(call host_triplet,$(1)))" ]; then \
+		PATH="$$PATH:$(call prefix_dir,$(call host_triplet,$(1)))/bin"; \
+	fi; \
+	$(MAKE) -rf $(CT_NG) V=0 build
 	@printf '\r'
 endef
 
@@ -207,8 +211,14 @@ endif # MAKECMDGOALS != ""
 $(patsubst %,build-%,$(CT_SAMPLES)): build-%: config_files
 	$(call build_sample,$*)
 
-# Build al samples
-build-all: $(patsubst %,build-%,$(CT_SAMPLES))
+# Cross samples (build==host)
+CT_SAMPLES_CROSS = $(strip $(foreach s,$(CT_SAMPLES),$(if $(findstring $(__comma),$(s)),, $(s))))
+# Canadian cross (build!=host)
+CT_SAMPLES_CANADIAN = $(strip $(foreach s,$(CT_SAMPLES),$(if $(findstring $(__comma),$(s)), $(s),)))
+
+# Build all samples; first, build simple cross as canadian configurations may depend on
+# build-to-host cross being pre-built.
+build-all: $(patsubst %,build-%,$(CT_SAMPLES_CROSS) $(CT_SAMPLES_CANADIAN))
 
 # Build all samples, overiding the number of // jobs per sample
 build-all.%:
