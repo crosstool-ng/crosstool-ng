@@ -189,8 +189,16 @@ define build_sample
 	$(SILENT)if [ ! -z "$(call host_triplet,$(1))" -a -d "$(call prefix_dir,$(call host_triplet,$(1)))" ]; then \
 		PATH="$$PATH:$(call prefix_dir,$(call host_triplet,$(1)))/bin"; \
 	fi; \
-	$(MAKE) -rf $(CT_NG) V=0 build
-	@printf '\r'
+	if $(MAKE) -rf $(CT_NG) V=0 build; then \
+		status=PASS; \
+	elif [ -e $(call sample_dir,$(1))/broken ]; then \
+		status=XFAIL; \
+	else \
+		status=FAIL; \
+	fi; \
+	printf '\r  %-5s %s\n' $$status '$(1)'; \
+	mkdir -p .build-all/$$status/$(1); \
+	bzip2 < build.log > .build-all/$$status/$(1)/build.log.bz2
 endef
 
 # ----------------------------------------------------------
@@ -218,7 +226,27 @@ CT_SAMPLES_CANADIAN = $(strip $(foreach s,$(CT_SAMPLES),$(if $(findstring $(__co
 
 # Build all samples; first, build simple cross as canadian configurations may depend on
 # build-to-host cross being pre-built.
-build-all: $(patsubst %,build-%,$(CT_SAMPLES_CROSS) $(CT_SAMPLES_CANADIAN))
+build-all: build-all-pre $(patsubst %,build-%,$(CT_SAMPLES_CROSS) $(CT_SAMPLES_CANADIAN))
+	@echo
+	@if [ -d .build-all/PASS ]; then \
+		echo 'Success:'; \
+		(cd .build-all/PASS && ls | sed 's/^/  - /'); \
+		echo; \
+	fi
+	@if [ -d .build-all/XFAIL ]; then \
+		echo 'Expected failure:'; \
+		(cd .build-all/XFAIL && ls | sed 's/^/  - /'); \
+		echo; \
+	fi
+	@if [ -d .build-all/FAIL ]; then \
+		echo 'Failure:'; \
+		(cd .build-all/FAIL && ls | sed 's/^/  - /'); \
+		echo; \
+	fi
+	@[ ! -d .build-all/FAIL ]
+
+build-all-pre:
+	@rm -rf .build-all
 
 # Build all samples, overiding the number of // jobs per sample
 build-all.%:
