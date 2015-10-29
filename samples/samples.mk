@@ -169,16 +169,17 @@ $(CT_SAMPLES): config_files
 # $2: prefix
 define build_sample
 	@$(ECHO) '  CONF  $(1)'
-	$(SILENT)cp $(call sample_dir,$(1))/crosstool.config .config
+	$(SILENT)$(CONF) -s --defconfig=$(call sample_dir,$(1))/crosstool.config $(KCONFIG_TOP)
 	$(SILENT)$(sed) -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(2)":;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_ERROR).*$$:\1=y:;' .config
 	$(SILENT)$(sed) -i -r -e 's:^(CT_LOG_LEVEL_MAX)=.*$$:\1="ERROR":;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config
-	$(SILENT)$(MAKE) -rf $(CT_NG) V=0 oldconfig
+	$(SILENT)$(CONF) -s --oldconfig $(KCONFIG_TOP)
 	@$(ECHO) '  BUILD $(1)'
 	$(SILENT)$(MAKE) -rf $(CT_NG) V=0 build
+	@printf '\r'
 endef
 
 # ----------------------------------------------------------
@@ -196,7 +197,7 @@ endif # MAKECMDGOALS contains a build sample rule
 endif # MAKECMDGOALS != ""
 
 # Build a single sample
-$(patsubst %,build-%,$(CT_SAMPLES)):
+$(patsubst %,build-%,$(CT_SAMPLES)): config_files
 	$(call build_sample,$(patsubst build-%,%,$@),$(CT_PREFIX)/$(patsubst build-%,%,$@))
 
 # Build al samples
