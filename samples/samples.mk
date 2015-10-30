@@ -117,7 +117,7 @@ $(patsubst %,wiki-%,$(CT_SAMPLES)): config_files
 
 PHONY += samples
 samples:
-	@$(ECHO) '  MKDIR $@'
+	@$(CT_ECHO) '  MKDIR $@'
 	$(SILENT)mkdir -p $@
 
 # Save a sample
@@ -133,7 +133,7 @@ endef
 # How we do recall one sample
 PHONY += $(CT_SAMPLES)
 $(CT_SAMPLES): config_files
-	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
+	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$(CONF) --defconfig=$(call sample_dir,$@)/crosstool.config $(KCONFIG_TOP)
 	@echo
 	@echo  '***********************************************************'
@@ -176,7 +176,7 @@ host_triplet = $(if $(findstring $(__comma),$(1)),$(firstword $(subst $(__comma)
 # Create the rule to build a sample
 # $1: sample name (target tuple, or host/target tuples separated by a comma)
 define build_sample
-	@$(ECHO) '  CONF  $(1)'
+	@$(CT_ECHO) '  CONF  $(1)'
 	$(SILENT)$(CONF) -s --defconfig=$(call sample_dir,$(1))/crosstool.config $(KCONFIG_TOP)
 	$(SILENT)$(sed) -i -r -e 's:^(CT_PREFIX_DIR=).*$$:\1"$(call prefix_dir,$(1))":;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_(WARN|INFO|EXTRA|DEBUG|ALL)).*$$:# \1 is not set:;' .config
@@ -185,7 +185,7 @@ define build_sample
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_TO_FILE).*$$:\1=y:;' .config
 	$(SILENT)$(sed) -i -r -e 's:^.*(CT_LOG_PROGRESS_BAR).*$$:\1=y:;' .config
 	$(SILENT)$(CONF) -s --oldconfig $(KCONFIG_TOP)
-	@$(ECHO) '  BUILD $(1)'
+	@$(CT_ECHO) '  BUILD $(1)'
 	$(SILENT)if [ ! -z "$(call host_triplet,$(1))" -a -d "$(call prefix_dir,$(call host_triplet,$(1)))" ]; then \
 		PATH="$$PATH:$(call prefix_dir,$(call host_triplet,$(1)))/bin"; \
 	fi; \

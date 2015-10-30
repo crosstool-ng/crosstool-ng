@@ -21,23 +21,23 @@ MCONF := $(CT_LIB_DIR)/kconfig/mconf
 NCONF := $(CT_LIB_DIR)/kconfig/nconf
 
 menuconfig:
-	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
+	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$(MCONF) $(KCONFIG_TOP)
 
 nconfig:
-	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
+	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$(NCONF) $(KCONFIG_TOP)
 
 oldconfig: .config
-	@$(ECHO) "  CONF  $(KCONFIG_TOP)"
+	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
 	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
 
 savedefconfig: .config
-	@$(ECHO) '  GEN   $@'
+	@$(CT_ECHO) '  GEN   $@'
 	$(SILENT)$(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
 
 defconfig:
-	@$(ECHO) '  CONF  $@'
+	@$(CT_ECHO) '  CONF  $@'
 	$(SILENT)$(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
 
 # Always be silent, the stdout an be >.config
