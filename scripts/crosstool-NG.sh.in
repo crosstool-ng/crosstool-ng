@@ -203,6 +203,17 @@ if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
     CT_Abort "I will stop here to avoid any carnage"
 fi
 
+# Also, if we are actually able to restart but are not we should not simply
+# overwrite the existing states.
+if [ -z "${CT_RESTART}" -a -d "${CT_STATE_DIR}" ]; then
+    CT_DoLog ERROR "There are saved states from previous build runs."
+    CT_DoLog ERROR "They would be overwritten by this run and you would not"
+    CT_DoLog ERROR "be able to restart at these previous states. Delete"
+    CT_DoLog ERROR "'${CT_STATE_DIR}'"
+    CT_DoLog ERROR "manually if you do not want to keep the states."
+    CT_Abort "I will stop here to avoid any carnage"
+fi
+
 # If the local tarball directory does not exist, say so, and don't try to save there!
 if [    "${CT_SAVE_TARBALLS}" = "y"     \
      -a ! -d "${CT_LOCAL_TARBALLS_DIR}" ]; then
