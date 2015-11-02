@@ -27,12 +27,6 @@ do_libc_get() {
                        http://mirrors.kernel.org/sources.redhat.com/newlib
         fi
     fi # ! custom location
-
-    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        CT_GetFile ${LIBC_NEWLIB_AVR_HDRS_BASE} \
-                   ${LIBC_NEWLIB_AVR_HDRS_EXT}  \
-                   ${LIBC_NEWLIB_AVR_HDRS_URI}
-    fi
 }
 
 do_libc_extract() {
@@ -44,13 +38,6 @@ do_libc_extract() {
 
     CT_Extract "newlib-${CT_LIBC_VERSION}"
     CT_Patch "newlib" "${CT_LIBC_VERSION}"
-
-    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        # The avr32header zip file extracts to avr32/*.h
-        # Put that in its directory, the same as normal tarballs
-        CT_Extract ${LIBC_NEWLIB_AVR_HDRS_BASE}     \
-                   -d ${CT_SRC_DIR}/${LIBC_NEWLIB_AVR_HDRS_BASE}
-    fi
 }
 
 do_libc_check_config() {
@@ -61,12 +48,6 @@ do_libc_start_files() {
     CT_DoStep INFO "Installing C library headers & start files"
     CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/newlib/libc/include/." \
     "${CT_HEADERS_DIR}"
-    if [ "${CT_ATMEL_AVR32_HEADERS}" = "y" ]; then
-        CT_DoLog EXTRA "Installing Atmel's AVR32 headers"
-        CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/${CT_TARGET}/include"
-        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/${LIBC_NEWLIB_AVR_HDRS_BASE}/avr32"   \
-                               "${CT_PREFIX_DIR}/${CT_TARGET}/include/"
-    fi
     CT_EndStep
 }
 
