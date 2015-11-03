@@ -119,6 +119,7 @@ do_kernel_install() {
     CT_DoLog EXTRA "Installing kernel headers"
     CT_DoExecLog ALL                                    \
     make -C "${kernel_path}"                            \
+         CROSS_COMPILE="${CT_TARGET}-"                  \
          O="${CT_BUILD_DIR}/build-kernel-headers"       \
          ARCH=${kernel_arch}                            \
          INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
@@ -129,6 +130,7 @@ do_kernel_install() {
         CT_DoLog EXTRA "Checking installed headers"
         CT_DoExecLog ALL                                    \
         make -C "${kernel_path}"                            \
+             CROSS_COMPILE="${CT_TARGET}-"                  \
              O="${CT_BUILD_DIR}/build-kernel-headers"       \
              ARCH=${kernel_arch}                            \
              INSTALL_HDR_PATH="${CT_SYSROOT_DIR}/usr"       \
