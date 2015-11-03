@@ -98,7 +98,7 @@ do_libc_start_files() {
     # newer ones that are referenced are not available
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog ALL                                   \
-                 make CROSS="${cross}"                              \
+                 make CROSS_COMPILE="${cross}"                      \
                  PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
@@ -106,7 +106,7 @@ do_libc_start_files() {
     CT_DoLog EXTRA "Building headers"
     CT_DoExecLog ALL                                        \
     make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
-         CROSS="${cross}"                                   \
+         CROSS_COMPILE="${cross}"                           \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          headers
@@ -120,7 +120,7 @@ do_libc_start_files() {
     CT_DoLog EXTRA "Installing headers"
     CT_DoExecLog ALL                                        \
     make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
-         CROSS="${cross}"                                   \
+         CROSS_COMPILE="${cross}"                           \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          ${install_rule}
@@ -129,7 +129,7 @@ do_libc_start_files() {
         CT_DoLog EXTRA "Building start files"
         CT_DoExecLog ALL                                        \
         make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
-             CROSS="${cross}"                                   \
+             CROSS_COMPILE="${cross}"                           \
              PREFIX="${CT_SYSROOT_DIR}/"                        \
              STRIPTOOL=true                                     \
              ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -180,7 +180,7 @@ do_libc() {
     # use LIBC_EXTRA_CFLAGS here.
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog CFG                                   \
-                 make CROSS=${CT_TARGET}-                           \
+                 make CROSS_COMPILE=${CT_TARGET}-                   \
                  PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
@@ -191,7 +191,7 @@ do_libc() {
     CT_DoLog EXTRA "Building C library"
     CT_DoExecLog ALL                                        \
     make -j1                                                \
-         CROSS=${CT_TARGET}-                                \
+         CROSS_COMPILE=${CT_TARGET}-                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -199,7 +199,7 @@ do_libc() {
          pregen
     CT_DoExecLog ALL                                        \
     make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
-         CROSS=${CT_TARGET}-                                \
+         CROSS_COMPILE=${CT_TARGET}-                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -222,7 +222,7 @@ do_libc() {
     #
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL                                        \
-    make CROSS=${CT_TARGET}-                                \
+    make CROSS_COMPILE=${CT_TARGET}-                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -384,7 +384,7 @@ mungeuClibcConfig() {
     #  " so people may need to update their paths slightly
     quoted_kernel_source=$(echo "${CT_HEADERS_DIR}" | sed -r -e 's,/include/?$,,; s,/,\\/,g;')
     quoted_headers_dir=$(echo "${CT_HEADERS_DIR}" | sed -r -e 's,/,\\/,g;')
-    # CROSS_COMPILER_PREFIX is left as is, as the CROSS parameter is forced on the command line
+    # CROSS_COMPILER_PREFIX is left as is, as the CROSS_COMPILE parameter is forced on the command line
     # DEVEL_PREFIX is left as '/usr/' because it is post-pended to $PREFIX, wich is the correct value of ${PREFIX}/${TARGET}
     # Some (old) versions of uClibc use KERNEL_SOURCE (which is _wrong_), and
     # newer versions use KERNEL_HEADERS (which is right).
