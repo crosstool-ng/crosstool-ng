@@ -204,5 +204,5 @@ build-all: $(patsubst %,build-%,$(CT_SAMPLES))
 
 # Build all samples, overiding the number of // jobs per sample
 build-all.%:
-	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) $(shell echo "$(@)" |$(sed) -r -e 's|^([^.]+)\.([[:digit:]]+)$$|\1 CT_JOBS=\2|;')
+	$(SILENT)$(MAKE) -rf $(CT_NG) build-all CT_JOBS=$*
 

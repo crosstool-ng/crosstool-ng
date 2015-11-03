@@ -516,13 +516,21 @@ if [ -z "${CT_RESTART}" ]; then
     # And help make go faster
     JOBSFLAGS=
     # Override the configured jobs with what's been given on the command line
-    [ -n "${CT_JOBS}" ] && CT_PARALLEL_JOBS="${CT_JOBS}"
+    if [ -n "${CT_JOBS}" ]; then
+        if [ ! -z "`echo "${CT_JOBS}" | sed 's/[0-9]//g'`" ]; then
+            CT_Abort "Number of parallel jobs must be integer."
+        fi
+        CT_PARALLEL_JOBS="${CT_JOBS}"
+    fi
     # Use the number of processors+1 when automatically setting the number of
     # parallel jobs.  Fall back to 1 if the host doesn't use GLIBC.
     AUTO_JOBS=$((`getconf _NPROCESSORS_ONLN 2> /dev/null || echo 0` + 1))
     [ ${CT_PARALLEL_JOBS} -eq 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
     [ ${CT_PARALLEL_JOBS} -gt 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
     JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"
+
+    # Override 'download only' option
+    [ -n "${CT_SOURCE}" ] && CT_ONLY_DOWNLOAD=y
 
     # Now that we've set up $PATH and $CT_CFLAGS_FOR_HOST, sanity test that gcc
     # is runnable so that the user can troubleshoot problems if not.
