@@ -41,24 +41,24 @@ export CT_STOP:=$(STOP)
 export CT_RESTART:=$(RESTART)
 
 SILENT=@
-ECHO=echo
+CT_ECHO=echo
 ifeq ($(strip $(origin V)),command line)
   ifeq ($(strip $(V)),0)
     SILENT=@
-    ECHO=:
+    CT_ECHO=:
   else
     ifeq ($(strip $(V)),1)
       SILENT=
-      ECHO=:
+      CT_ECHO=:
     else
       ifeq ($(strip $(V)),2)
         SILENT=
-        ECHO=echo
+        CT_ECHO=echo
       endif # V == 2
     endif # V== 1
   endif # V == 0
 endif # origin V
-export V SILENT ECHO
+export V SILENT CT_ECHO
 
 all: help
 
@@ -123,7 +123,8 @@ help-config::
 help-distrib::
 
 help-env::
-	@echo  '  V=0|1|2            - 0 => show only human-readable messages (default)'
+	@echo  '  V=0|1|2|<unset>    - <unset> show only human-readable messages (default)'
+	@echo  '                       0 => do not show commands or human-readable message'
 	@echo  '                       1 => show only the commands being executed'
 	@echo  '                       2 => show both'
 
@@ -165,14 +166,14 @@ version:
 
 PHONY += clean
 clean::
-	@$(ECHO) "  CLEAN log"
+	@$(CT_ECHO) "  CLEAN log"
 	$(SILENT)rm -f build.log
-	@$(ECHO) "  CLEAN build dir"
+	@$(CT_ECHO) "  CLEAN build dir"
 	$(SILENT)[ ! -d targets ] || chmod -R u+w targets
 	$(SILENT)[ ! -d .build  ] || chmod -R u+w .build
-	$(SILENT)rm -rf targets .build
+	$(SILENT)rm -rf targets .build .build-all
 
 PHONY += distclean
 distclean:: clean
-	@$(ECHO) "  CLEAN .config"
+	@$(CT_ECHO) "  CLEAN .config"
 	$(SILENT)rm -f .config .config.* ..config*

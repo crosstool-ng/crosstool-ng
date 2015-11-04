@@ -33,16 +33,16 @@ endif
 
 PHONY += scripts
 scripts:
-	@$(ECHO) '  MKDIR $@'
+	@$(CT_ECHO) '  MKDIR $@'
 	$(SILENT)mkdir -p $@
 
 $(CONFIG_SUB_DEST): scripts FORCE
-	@$(ECHO) '  WGET  $@'
+	@$(CT_ECHO) '  WGET  $@'
 	$(SILENT)wget $(wget_opt) -O $@ $(CONFIG_SUB_SRC)
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
 $(CONFIG_GUESS_DEST): scripts FORCE
-	@$(ECHO) '  WGET  $@'
+	@$(CT_ECHO) '  WGET  $@'
 	$(SILENT)wget $(wget_opt) -O $@ $(CONFIG_GUESS_SRC)
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
@@ -50,5 +50,5 @@ $(CONFIG_GUESS_DEST): scripts FORCE
 # Clean up the mess
 
 distclean::
-	@$(ECHO) "  CLEAN scripts"
+	@$(CT_ECHO) "  CLEAN scripts"
 	$(SILENT)[ $(CT_TOP_DIR) = $(CT_LIB_DIR) ] || rm -rf $(CT_TOP_DIR)/scripts

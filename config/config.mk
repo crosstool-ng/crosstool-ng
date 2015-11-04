@@ -50,12 +50,12 @@ config_files: $(STATIC_CONFIG_FILES) $(GEN_CONFIG_FILES)
 
 # Where to access to the source config files from
 config:
-	@$(ECHO) "  LN    config"
+	@$(CT_ECHO) "  LN    config"
 	$(SILENT)ln -s $(CT_LIB_DIR)/config config
 
 # Where to store the generated config files into
 config.gen:
-	@$(ECHO) "  MKDIR config.gen"
+	@$(CT_ECHO) "  MKDIR config.gen"
 	$(SILENT)mkdir -p config.gen
 
 #-----------------------------------------------------------
@@ -74,34 +74,34 @@ DEBUGS    = $(patsubst config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
 # WARNING! If a .in file disapears between two runs, that will NOT be detected!
 
 config.gen/arch.in: $(ARCH_CONFIG_FILES) $(ARCH_CONFIG_FILES_2)
-	@$(ECHO) '  IN    $(@)'
+	@$(CT_ECHO) '  IN    $(@)'
 	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh choice "$@" "Target Architecture" "ARCH" "config/arch" "Y" $(ARCHS)
 
 config.gen/kernel.in: $(KERNEL_CONFIG_FILES) $(KERNEL_CONFIG_FILES_2)
-	@$(ECHO) '  IN    $(@)'
+	@$(CT_ECHO) '  IN    $(@)'
 	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh choice "$@" "Target OS" "KERNEL" "config/kernel" "Y" $(KERNELS)
 
 config.gen/cc.in: $(CC_CONFIG_FILES) $(CC_CONFIG_FILES_2)
-	@$(ECHO) '  IN    $(@)'
+	@$(CT_ECHO) '  IN    $(@)'
 	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh choice "$@" "C compiler" "CC" "config/cc" "N" $(CCS)
 
 config.gen/binutils.in: $(CC_BINUTILS_FILES) $(CC_BINUTILS_FILES_2)
-	@$(ECHO) '  IN    $(@)'
+	@$(CT_ECHO) '  IN    $(@)'
 	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh choice "$@" "Binutils" "BINUTILS" "config/binutils" "N" $(BINUTILSS)
 
 config.gen/libc.in: $(LIBC_CONFIG_FILES) $(LIBC_CONFIG_FILES_2)
-	@$(ECHO) '  IN    $(@)'
+	@$(CT_ECHO) '  IN    $(@)'
 	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh choice "$@" "C library" "LIBC" "config/libc" "Y" $(LIBCS)
 
 config.gen/debug.in: $(DEBUG_CONFIG_FILES)
-	@$(ECHO) '  IN    $(@)'
+	@$(CT_ECHO) '  IN    $(@)'
 	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh menu "$@" "Debug facilities" "DEBUG" "config/debug" $(DEBUGS)
 
 #-----------------------------------------------------------
 # Cleaning up the mess...
 
 clean::
-	@$(ECHO) "  CLEAN config"
+	@$(CT_ECHO) "  CLEAN config"
 	$(SILENT)rm -f config 2>/dev/null || true
-	@$(ECHO) "  CLEAN config.gen"
+	@$(CT_ECHO) "  CLEAN config.gen"
 	$(SILENT)rm -rf config.gen
