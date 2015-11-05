@@ -6,6 +6,7 @@ do_mpfr_get() { :; }
 do_mpfr_extract() { :; }
 do_mpfr_for_build() { :; }
 do_mpfr_for_host() { :; }
+do_mpfr_for_target() { :; }
 
 # Overide function depending on configuration
 if [ "${CT_MPFR}" = "y" ]; then

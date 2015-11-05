@@ -6,6 +6,7 @@ do_gmp_get() { :; }
 do_gmp_extract() { :; }
 do_gmp_for_build() { :; }
 do_gmp_for_host() { :; }
+do_gmp_for_target() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_GMP}" = "y" ]; then
