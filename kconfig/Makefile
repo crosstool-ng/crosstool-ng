@@ -7,7 +7,7 @@ all: conf mconf nconf
 
 # Build flags
 CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\""
-LDFLAGS =
+LDFLAGS = $(INTL_LIBS)
 
 # Compiler flags to use gettext
 ifeq ($(gettext),)
@@ -49,13 +49,6 @@ nconf_OBJ = $(patsubst %.c,%.o,$(nconf_SRC))
 nconf_DEP = $(patsubst %.c,%.dep,$(nconf_SRC))
 $(nconf_OBJ) $(nconf_DEP): CFLAGS += $(INTL_CFLAGS) -I/usr/include/ncurses
 nconf: LDFLAGS += -lmenu -lpanel -lncurses
-
-# Under Cygwin, we need to auto-import some libs (which ones, exactly?)
-# for mconf and nconf to lin properly.
-ifeq ($(shell uname -o 2>/dev/null || echo unknown),Cygwin)
-mconf: LDFLAGS += -Wl,--enable-auto-import
-nconf: LDFLAGS += -Wl,--enable-auto-import
-endif
 
 # These are generated files:
 ALL_OBJS = $(sort $(COMMON_OBJ) $(LX_OBJ) $(conf_OBJ) $(mconf_OBJ) $(nconf_OBJ))
