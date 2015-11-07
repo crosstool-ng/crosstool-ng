@@ -6,13 +6,9 @@
 # config options for this.
 CT_DEBUG_GDB_NCURSES_VERSION="5.9"
 
-# Ditto for the expat library
-CT_DEBUG_GDB_EXPAT_VERSION="2.1.0"
-
 do_debug_gdb_parts() {
     need_gdb_src=
     need_ncurses_src=
-    need_expat_src=
 
     if [ "${CT_GDB_CROSS}" = y ]; then
         need_gdb_src=y
@@ -28,7 +24,6 @@ do_debug_gdb_parts() {
         if [ "${CT_MINGW32}" != "y" ]; then
             need_ncurses_src=y
         fi
-        need_expat_src=y
     fi
 }
 
@@ -70,11 +65,6 @@ do_debug_gdb_get() {
                    {http,ftp,https}://ftp.gnu.org/pub/gnu/ncurses     \
                    ftp://invisible-island.net/ncurses
     fi
-
-    if [ "${need_expat_src}" = "y" ]; then
-        CT_GetFile "expat-${CT_DEBUG_GDB_EXPAT_VERSION}" .tar.gz    \
-                   http://downloads.sourceforge.net/project/expat/expat/${CT_DEBUG_GDB_EXPAT_VERSION}
-    fi
 }
 
 do_debug_gdb_extract() {
@@ -94,11 +84,6 @@ do_debug_gdb_extract() {
         CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
         CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
         CT_Patch "ncurses" "${CT_DEBUG_GDB_NCURSES_VERSION}"
-    fi
-
-    if [ "${need_expat_src}" = "y" ]; then
-        CT_Extract "expat-${CT_DEBUG_GDB_EXPAT_VERSION}"
-        CT_Patch "expat" "${CT_DEBUG_GDB_EXPAT_VERSION}"
     fi
 
     if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
@@ -234,16 +219,7 @@ do_debug_gdb_build() {
             gdb_native_CFLAGS+=("-L${CT_BUILD_DIR}/static-target/lib")
         fi # need_ncurses_src
 
-        # Build libexpat
-        CT_DoLog EXTRA "Building static target expat"
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-expat-target-${CT_TARGET}"
-        do_gdb_expat_backend host="${CT_TARGET}"                    \
-                             prefix="${CT_BUILD_DIR}/static-target" \
-                             cflags=""                              \
-                             ldflags=""
-        CT_Popd
         native_extra_config+=("--with-expat")
-        native_extra_config+=("--with-libexpat-prefix=${CT_BUILD_DIR}/static-target")
 
         CT_DoLog EXTRA "Configuring native gdb"
 
@@ -441,33 +417,4 @@ do_gdb_ncurses_backend() {
     CT_DoExecLog ALL make install
 
     CT_Popd
-}
-
-# Build libexpat
-#   Parameter     : description               : type      : default
-#   host          : machine to run on         : tuple     : (none)
-#   prefix        : prefix to install into    : dir       : (none)
-#   cflags        : cflags to use             : string    : (empty)
-#   ldflags       : ldflags to use            : string    : (empty)
-do_gdb_expat_backend() {
-    local host
-    local prefix
-    local cflags
-    local ldflags
-    local arg
-
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    CT_DoExecLog CFG                                                \
-    "${CT_SRC_DIR}/expat-${CT_DEBUG_GDB_EXPAT_VERSION}/configure"   \
-        --build=${CT_BUILD}                                         \
-        --host=${host}                                              \
-        --prefix="${prefix}"                                        \
-        --enable-static                                             \
-        --disable-shared
-
-    CT_DoExecLog ALL make ${JOBSFLAGS}
-    CT_DoExecLog ALL make install
 }
