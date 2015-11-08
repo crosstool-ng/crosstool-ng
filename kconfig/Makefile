@@ -51,7 +51,7 @@ $(nconf_OBJ) $(nconf_DEP): CFLAGS += $(INTL_CFLAGS) -I/usr/include/ncurses
 nconf: LDFLAGS += -lmenu -lpanel -lncurses
 
 # Under Cygwin, we need to auto-import libintl
-# for conf, mconf and nconf to lin properly.
+# for conf, mconf and nconf to link properly.
 ifeq ($(shell uname -o 2>/dev/null || echo unknown),Cygwin)
 conf: LDFLAGS += -lintl
 mconf: LDFLAGS += -lintl
