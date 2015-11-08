@@ -1,14 +1,7 @@
 # Build script for the gdb debug facility
 
-# The version of ncurses to use. Yes, it's hard-coded.
-# It's used only internally by crosstool-NG, and is
-# not exposed outside, so we don't care about providing
-# config options for this.
-CT_DEBUG_GDB_NCURSES_VERSION="5.9"
-
 do_debug_gdb_parts() {
     need_gdb_src=
-    need_ncurses_src=
 
     if [ "${CT_GDB_CROSS}" = y ]; then
         need_gdb_src=y
@@ -20,10 +13,6 @@ do_debug_gdb_parts() {
 
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         need_gdb_src=y
-        # GDB on Mingw depends on PDcurses, not ncurses
-        if [ "${CT_MINGW32}" != "y" ]; then
-            need_ncurses_src=y
-        fi
     fi
 }
 
@@ -59,12 +48,6 @@ do_debug_gdb_get() {
             fi
         fi
     fi
-
-    if [ "${need_ncurses_src}" = "y" ]; then
-        CT_GetFile "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}" .tar.gz  \
-                   {http,ftp,https}://ftp.gnu.org/pub/gnu/ncurses     \
-                   ftp://invisible-island.net/ncurses
-    fi
 }
 
 do_debug_gdb_extract() {
@@ -78,12 +61,6 @@ do_debug_gdb_extract() {
         fi
         CT_Extract "gdb-${CT_GDB_VERSION}"
         CT_Patch "gdb" "${CT_GDB_VERSION}"
-    fi
-
-    if [ "${need_ncurses_src}" = "y" ]; then
-        CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
-        CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
-        CT_Patch "ncurses" "${CT_DEBUG_GDB_NCURSES_VERSION}"
     fi
 
     if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
@@ -196,7 +173,6 @@ do_debug_gdb_build() {
 
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
-        local -a ncurses_opt
         local -a gdb_native_CFLAGS
 
         CT_DoStep INFO "Installing native gdb"
@@ -205,19 +181,8 @@ do_debug_gdb_build() {
 
         # GDB on Mingw depends on PDcurses, not ncurses
         if [ "${CT_MINGW32}" != "y" ]; then
-            CT_DoLog EXTRA "Building static target ncurses"
-
-            CT_mkdir_pushd "${CT_BUILD_DIR}/build-ncurses-target-${CT_TARGET}"
-            do_gdb_ncurses_backend host="${CT_TARGET}"                      \
-                                   prefix="${CT_BUILD_DIR}/static-target"   \
-                                   cflags="${CT_CFLAGS_FOR_HOST}"           \
-                                   ldflags=""
-            CT_Popd
             native_extra_config+=("--with-curses")
-            # There's no better way to tell gdb where to find -lcurses... :-(
-            gdb_native_CFLAGS+=("-I${CT_BUILD_DIR}/static-target/include")
-            gdb_native_CFLAGS+=("-L${CT_BUILD_DIR}/static-target/lib")
-        fi # need_ncurses_src
+        fi
 
         native_extra_config+=("--with-expat")
 
@@ -341,80 +306,4 @@ do_debug_gdb_build() {
 
         CT_EndStep
     fi
-}
-
-# Build libncurses
-#   Parameter     : description               : type      : default
-#   host          : machine to run on         : tuple     : (none)
-#   prefix        : prefix to install into    : dir       : (none)
-#   cflags        : cflags to use             : string    : (empty)
-#   ldflags       : ldflags to use            : string    : (empty)
-do_gdb_ncurses_backend() {
-    local host
-    local prefix
-    local cflags
-    local ldflags
-    local arg
-
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts+=("--without-cxx" "--without-cxx-binding")
-    [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts+=("--without-ada")
-
-    CT_mkdir_pushd "build-tic"
-
-    # We need a tic that runs on build, not on host nor on target
-    # Use build = CT_REAL_BUILD so that configure thinks it is
-    # cross-compiling, and thus will use the ${CT_BUILD}-*
-    # tools instead of searching for the native ones...
-    CT_DoExecLog CFG                                                    \
-    "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
-        --build=${CT_BUILD}                                             \
-        --host=${CT_BUILD}                                              \
-        --prefix=/usr                                                   \
-        --enable-symlinks                                               \
-        --with-build-cc=${CT_REAL_BUILD}-gcc                            \
-        --with-build-cpp=${CT_REAL_BUILD}-gcc                           \
-        --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
-        "${ncurses_opts[@]}"
-
-    # ncurses insists on linking tic statically. It does not work
-    # on some OSes (eg. MacOS-X/Darwin/whatever-you-call-it).
-    CT_DoExecLog DEBUG sed -r -i -e 's/-static//g;' "progs/Makefile"
-
-    # Under some operating systems (eg. Winblows), there is an
-    # extension appended to executables. Find that.
-    tic_ext=$(grep -E '^x[[:space:]]*=' progs/Makefile |sed -r -e 's/^.*=[[:space:]]*//;')
-
-    CT_DoExecLog ALL make ${JOBSFLAGS} -C include
-    CT_DoExecLog ALL make ${JOBSFLAGS} -C progs "tic${tic_ext}"
-
-    CT_DoExecLog ALL install -d -m 0755 "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
-    CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
-
-    CT_Popd
-
-    CT_mkdir_pushd "ncurses"
-
-    CT_DoExecLog CFG                                                    \
-    TIC_PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin/tic${tic_ext}"            \
-    "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
-        --build=${CT_BUILD}                                             \
-        --host=${host}                                                  \
-        --with-build-cc=${CT_BUILD}-gcc                                 \
-        --with-build-cpp=${CT_BUILD}-gcc                                \
-        --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
-        --prefix="${prefix}"                                            \
-        --without-shared                                                \
-        --without-sysmouse                                              \
-        --without-progs                                                 \
-        --enable-termcap                                                \
-        "${ncurses_opts[@]}"
-
-    CT_DoExecLog ALL make ${JOBSFLAGS}
-    CT_DoExecLog ALL make install
-
-    CT_Popd
 }
