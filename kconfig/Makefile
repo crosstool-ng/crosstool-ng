@@ -50,11 +50,12 @@ nconf_DEP = $(patsubst %.c,%.dep,$(nconf_SRC))
 $(nconf_OBJ) $(nconf_DEP): CFLAGS += $(INTL_CFLAGS) -I/usr/include/ncurses
 nconf: LDFLAGS += -lmenu -lpanel -lncurses
 
-# Under Cygwin, we need to auto-import some libs (which ones, exactly?)
-# for mconf and nconf to lin properly.
+# Under Cygwin, we need to auto-import libintl
+# for conf, mconf and nconf to link properly.
 ifeq ($(shell uname -o 2>/dev/null || echo unknown),Cygwin)
-mconf: LDFLAGS += -Wl,--enable-auto-import
-nconf: LDFLAGS += -Wl,--enable-auto-import
+conf: LDFLAGS += -lintl
+mconf: LDFLAGS += -lintl
+nconf: LDFLAGS += -lintl
 endif
 
 # These are generated files:
