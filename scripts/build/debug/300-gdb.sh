@@ -96,8 +96,8 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=("${extra_config[@]}")
-        cross_extra_config+=("--enable-expat")
-        cross_extra_config+=("--with-expat=yes")
+        cross_extra_config+=("--with-expat")
+        cross_extra_config+=("--with-libexpat-prefix=${CT_HOST_COMPLIBS_DIR}")
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;

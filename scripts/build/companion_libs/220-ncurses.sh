@@ -23,6 +23,7 @@ do_ncurses_extract() {
 # We need tic that runs on the build when building ncurses for host/target
 do_ncurses_for_build() {
     local -a opts
+
     CT_DoStep INFO "Installing ncurses for build"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-ncurses-build-${CT_BUILD}"
     opts=("--enable-symlinks" \
@@ -37,6 +38,33 @@ do_ncurses_for_build() {
     CT_Popd
     CT_EndStep
 }
+
+if [ "${CT_NCURSES}" = "y" ]; then
+do_ncurses_for_host() {
+    local -a opts
+
+    # Unlike other companion libs, we skip host build if build==host
+    # (i.e. in simple cross or native): ncurses may not be needed for
+    # host, but we still need them on build to produce 'tic'.
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
+    esac
+
+    CT_DoStep INFO "Installing ncurses for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-ncurses-host-${CT_HOST}"
+    opts=("--enable-symlinks" \
+          "--without-manpages" \
+          "--without-tests" \
+          "--without-cxx" \
+          "--without-cxx-binding" \
+          "--without-ada")
+    do_ncurses_backend host="${CT_HOST}" \
+                       prefix="${CT_HOST_COMPLIBS_DIR}" \
+                       "${opts[@]}"
+    CT_Popd
+    CT_EndStep
+}
+fi
 
 if [ "${CT_NCURSES_TARGET}" = "y" ]; then
 do_ncurses_for_target() {
@@ -80,6 +108,15 @@ do_ncurses_backend() {
                 ;;
         esac
     done
+
+    case "$host" in
+        *-*-mingw*)
+            # Needed to build for mingw, see
+            # http://lists.gnu.org/archive/html/info-gnu/2011-02/msg00020.html
+            ncurses_opts+=("--enable-term-driver")
+            ncurses_opts+=("--enable-sp-funcs")
+            ;;
+    esac
 
     CT_DoLog EXTRA "Configuring ncurses"
     CT_DoExecLog CFG                                                    \

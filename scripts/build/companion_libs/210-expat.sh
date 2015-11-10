@@ -18,6 +18,21 @@ do_expat_extract() {
     CT_Patch "expat" "${CT_EXPAT_VERSION}"
 }
 
+if [ "${CT_EXPAT}" = "y" ]; then
+# Do not need expat for build at this time.
+
+do_expat_for_host() {
+    CT_DoStep INFO "Installing expat for host"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-expat-host-${CT_HOST}"
+
+    do_expat_backend host="${CT_HOST}" \
+                     prefix="${CT_HOST_COMPLIBS_DIR}"
+
+    CT_Popd
+    CT_EndStep
+}
+fi
+
 if [ "${CT_EXPAT_TARGET}" = "y" ]; then
 do_expat_for_target() {
     CT_DoStep INFO "Installing expat for target"
