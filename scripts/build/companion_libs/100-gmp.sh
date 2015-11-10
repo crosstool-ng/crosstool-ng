@@ -39,6 +39,8 @@ do_gmp_for_build() {
 
     gmp_opts+=( "host=${CT_BUILD}" )
     gmp_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    gmp_opts+=( "cc=${CT_BUILD_CC}" )
+    gmp_opts+=( "cxx=${CT_BUILD_CXX}" )
     gmp_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     gmp_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_gmp_backend "${gmp_opts[@]}"
@@ -56,6 +58,8 @@ do_gmp_for_host() {
 
     gmp_opts+=( "host=${CT_HOST}" )
     gmp_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
+    gmp_opts+=( "cc=${CT_HOST_CC}" )
+    gmp_opts+=( "cxx=${CT_HOST_CXX}" )
     gmp_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     gmp_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_gmp_backend "${gmp_opts[@]}"
@@ -68,14 +72,19 @@ do_gmp_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 do_gmp_backend() {
     local host
     local prefix
+    local cc
+    local cxx
     local cflags
     local ldflags
     local arg
+    local -a env
     local -a extra_config
 
     for arg in "$@"; do
@@ -84,22 +93,26 @@ do_gmp_backend() {
 
     CT_DoLog EXTRA "Configuring GMP"
 
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "CFLAGS=${cflags} -fexceptions" )
+    env+=( "LDFLAGS=${ldflags}" )
+
     if [ ! "${CT_GMP_5_0_2_or_later}" = "y" ]; then
-        extra_config+=("--enable-mpbsd")
+        extra_config+=( "--enable-mpbsd" )
     fi
 
     CT_DoExecLog CFG                                \
-    CFLAGS="${cflags} -fexceptions"                 \
-    LDFLAGS="${ldflags}"                            \
+    "${env[@]}"                                     \
     "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
+        --build="${CT_BUILD}"                       \
+        --host="${host}"                            \
         --prefix="${prefix}"                        \
         --enable-fft                                \
         --enable-cxx                                \
         --disable-shared                            \
         --enable-static                             \
-        "${extra_config}"
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${JOBSFLAGS}

@@ -39,6 +39,8 @@ do_mpc_for_build() {
 
     mpc_opts+=( "host=${CT_BUILD}" )
     mpc_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    mpc_opts+=( "cc=${CT_BUILD_CC}" )
+    mpc_opts+=( "cxx=${CT_BUILD_CXX}" )
     mpc_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     mpc_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_mpc_backend "${mpc_opts[@]}"
@@ -56,6 +58,8 @@ do_mpc_for_host() {
 
     mpc_opts+=( "host=${CT_HOST}" )
     mpc_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
+    mpc_opts+=( "cc=${CT_HOST_CC}" )
+    mpc_opts+=( "cxx=${CT_HOST_CXX}" )
     mpc_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     mpc_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_mpc_backend "${mpc_opts[@]}"
@@ -68,14 +72,19 @@ do_mpc_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 do_mpc_backend() {
     local host
     local prefix
+    local cc
+    local cxx
     local cflags
     local ldflags
     local arg
+    local -a env
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -83,12 +92,16 @@ do_mpc_backend() {
 
     CT_DoLog EXTRA "Configuring MPC"
 
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "CFLAGS=${cflags}" )
+    env+=( "LDFLAGS=${ldflags}" )
+
     CT_DoExecLog CFG                                \
-    CFLAGS="${cflags}"                              \
-    LDFLAGS="${ldflags}"                            \
+    "${env[@]}"                                     \
     "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
+        --build="${CT_BUILD}"                       \
+        --host="${host}"                            \
         --prefix="${prefix}"                        \
         --with-gmp="${prefix}"                      \
         --with-mpfr="${prefix}"                     \

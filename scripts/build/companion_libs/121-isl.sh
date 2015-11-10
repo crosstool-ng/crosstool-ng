@@ -43,6 +43,8 @@ do_isl_for_build() {
 
     isl_opts+=( "host=${CT_BUILD}" )
     isl_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    isl_opts+=( "cc=${CT_BUILD_CC}" )
+    isl_opts+=( "cxx=${CT_BUILD_CXX}" )
     isl_opts+=( "cflags=${isl_cflags}" )
     isl_opts+=( "cxxflags=${isl_cxxflags}" )
     isl_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
@@ -66,6 +68,8 @@ do_isl_for_host() {
 
     isl_opts+=( "host=${CT_HOST}" )
     isl_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
+    isl_opts+=( "cc=${CT_HOST_CC}" )
+    isl_opts+=( "cxx=${CT_HOST_CXX}" )
     isl_opts+=( "cflags=${isl_cflags}" )
     isl_opts+=( "cxxflags=${isl_cxxflags}" )
     isl_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
@@ -79,16 +83,21 @@ do_isl_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
+#     cc            : c compiler to use         : string    : (empty)
+#     cxx           : c++ compiler to use       : string    : (empty)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
 do_isl_backend() {
     local host
     local prefix
+    local cc
+    local cxx
     local cflags
     local cxxflags
     local ldflags
-    local -a extra_config
     local arg
+    local -a env
+    local -a extra_config
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -96,29 +105,33 @@ do_isl_backend() {
 
     CT_DoLog EXTRA "Configuring ISL"
 
+    [ -n "${cc}" ] && env+=( "CC=${cc}" )
+    [ -n "${cxx}" ] && env+=( "CXX=${cxx}" )
+    env+=( "CFLAGS=${cflags}" )
+    env+=( "CXXFLAGS=${cxxflags}" )
+    env+=( "LDFLAGS=${ldflags}" )
+
     if [ "${CT_ISL_V_0_12_or_later}" != "y" ]; then
-        extra_config+=("--with-libgmp-prefix=${prefix}")
-        extra_config+=("--with-libgmpxx-prefix=${prefix}")
+        extra_config+=( "--with-libgmp-prefix=${prefix}" )
+        extra_config+=( "--with-libgmpxx-prefix=${prefix}" )
     fi
 
     if [ "${CT_ISL_V_0_14_or_later}" != "y" ]; then
-        extra_config+=("--with-piplib=no")
+        extra_config+=( "--with-piplib=no" )
     fi
 
     CT_DoExecLog CFG                                \
-    CFLAGS="${cflags}"                              \
-    CXXFLAGS="${cxxflags}"                          \
-    LDFLAGS="${ldflags}"                            \
+    "${env[@]}"                                     \
     "${CT_SRC_DIR}/isl-${CT_ISL_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
+        --build="${CT_BUILD}"                       \
+        --host="${host}"                            \
         --prefix="${prefix}"                        \
-        "${extra_config[@]}"                        \
         --disable-shared                            \
         --enable-static                             \
         --with-gmp=system                           \
         --with-gmp-prefix="${prefix}"               \
-        --with-clang=no
+        --with-clang=no                             \
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building ISL"
     CT_DoExecLog ALL make ${JOBSFLAGS}
