@@ -26,7 +26,9 @@ do_expat_for_host() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-expat-host-${CT_HOST}"
 
     do_expat_backend host="${CT_HOST}" \
-                     prefix="${CT_HOST_COMPLIBS_DIR}"
+                     prefix="${CT_HOST_COMPLIBS_DIR}" \
+                     cflags="${CT_CFLAGS_FOR_HOST}" \
+                     ldflags="${CT_LDFLAGS_FOR_HOST}"
 
     CT_Popd
     CT_EndStep
@@ -66,6 +68,8 @@ do_expat_backend() {
     CT_DoLog EXTRA "Configuring expat"
 
     CT_DoExecLog CFG                                                \
+    CFLAGS="${cflags}"                                              \
+    LDFLAGS="${ldflags}"                                            \
     "${CT_SRC_DIR}/expat-${CT_EXPAT_VERSION}/configure"             \
         --build=${CT_BUILD}                                         \
         --host=${host}                                              \

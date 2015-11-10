@@ -34,6 +34,8 @@ do_ncurses_for_build() {
           "--without-ada")
     do_ncurses_backend host="${CT_BUILD}" \
                        destdir="${CT_BUILDTOOLS_PREFIX_DIR}" \
+                       cflags="${CT_CFLAGS_FOR_BUILD}" \
+                       ldflags="${CT_LDFLAGS_FOR_BUILD}" \
                        "${opts[@]}"
     CT_Popd
     CT_EndStep
@@ -60,6 +62,8 @@ do_ncurses_for_host() {
           "--without-ada")
     do_ncurses_backend host="${CT_HOST}" \
                        prefix="${CT_HOST_COMPLIBS_DIR}" \
+                       cflags="${CT_CFLAGS_FOR_HOST}" \
+                       ldflags="${CT_LDFLAGS_FOR_HOST}" \
                        "${opts[@]}"
     CT_Popd
     CT_EndStep
@@ -120,6 +124,8 @@ do_ncurses_backend() {
 
     CT_DoLog EXTRA "Configuring ncurses"
     CT_DoExecLog CFG                                                    \
+    CFLAGS="${cflags}"                                                  \
+    LDFLAGS="${ldflags}"                                                \
     "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure"             \
         --build=${CT_BUILD}                                             \
         --host=${host}                                                  \
