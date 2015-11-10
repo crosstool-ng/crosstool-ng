@@ -11,7 +11,7 @@ do_finish() {
 
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
-    if [ "${CT_STRIP_ALL_TOOLCHAIN_EXECUTABLES}" = "y" ]; then
+    if [ "${CT_STRIP_HOST_TOOLCHAIN_EXECUTABLES}" = "y" ]; then
         case "$CT_HOST" in
             *darwin*)
                 strip_args=""

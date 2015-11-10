@@ -940,7 +940,11 @@ do_gcc_backend() {
     CT_DoExecLog ALL make ${JOBSFLAGS} all
 
     CT_DoLog EXTRA "Installing final gcc compiler"
-    CT_DoExecLog ALL make ${JOBSFLAGS} install
+    if [ "${CT_STRIP_TARGET_TOOLCHAIN_EXECUTABLES}" = "y" ]; then
+        CT_DoExecLog ALL make ${JOBSFLAGS} install-strip
+    else
+        CT_DoExecLog ALL make ${JOBSFLAGS} install
+    fi
 
     # Remove the libtool "pseudo-libraries": having them in the installed
     # tree makes the libtoolized utilities that are built next assume
