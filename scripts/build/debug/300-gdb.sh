@@ -1,67 +1,46 @@
 # Build script for the gdb debug facility
 
-do_debug_gdb_parts() {
-    need_gdb_src=
-
-    if [ "${CT_GDB_CROSS}" = y ]; then
-        need_gdb_src=y
-    fi
-
-    if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
-        need_gdb_src=y
-    fi
-
-    if [ "${CT_GDB_NATIVE}" = "y" ]; then
-        need_gdb_src=y
-    fi
-}
+if [ "${CT_GDB_CROSS}" = y -o "${CT_GDB_GDBSERVER}" = "y" -o "${CT_GDB_NATIVE}" = "y" ]; then
 
 do_debug_gdb_get() {
     local linaro_version=""
     local linaro_series=""
 
-    do_debug_gdb_parts
+    if [ "${CT_GDB_CUSTOM}" = "y" ]; then
+        CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
+    else
+        # Account for the Linaro versioning
+        linaro_version="$( echo "${CT_GDB_VERSION}"      \
+                           |${sed} -r -e 's/^linaro-//;'   \
+                         )"
+        linaro_series="$( echo "${linaro_version}"      \
+                          |${sed} -r -e 's/-.*//;'         \
+                        )"
 
-    if [ "${need_gdb_src}" = "y" ]; then
-        if [ "${CT_GDB_CUSTOM}" = "y" ]; then
-            CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
+        if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
+            CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
+                       http://mirrors.kernel.org/sourceware/gdb            \
+                       {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
+                       ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
         else
-            # Account for the Linaro versioning
-            linaro_version="$( echo "${CT_GDB_VERSION}"      \
-                               |${sed} -r -e 's/^linaro-//;'   \
-                             )"
-            linaro_series="$( echo "${linaro_version}"      \
-                              |${sed} -r -e 's/-.*//;'         \
-                            )"
-
-            if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
-                CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
-                           http://mirrors.kernel.org/sourceware/gdb            \
-                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
-                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
-            else
-                YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
-                CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
-                           "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
-                           https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
-                           http://cbuild.validation.linaro.org/snapshots
-            fi
+            YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+            CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
+                       "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
+                       https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
+                       http://cbuild.validation.linaro.org/snapshots
         fi
     fi
 }
 
 do_debug_gdb_extract() {
-    do_debug_gdb_parts
-
-    if [ "${need_gdb_src}" = "y" ]; then
-        # If using custom directory location, nothing to do
-        if [    "${CT_GDB_CUSTOM}" = "y" \
-             -a -d "${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}" ]; then
-            return 0
-        fi
-        CT_Extract "gdb-${CT_GDB_VERSION}"
-        CT_Patch "gdb" "${CT_GDB_VERSION}"
+    # If using custom directory location, nothing to do
+    if [    "${CT_GDB_CUSTOM}" = "y" \
+         -a -d "${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}" ]; then
+        return 0
     fi
+
+    CT_Extract "gdb-${CT_GDB_VERSION}"
+    CT_Patch "gdb" "${CT_GDB_VERSION}"
 
     if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
         CT_ConfigureXtensa "gdb" "${CT_GDB_VERSION}"
@@ -70,8 +49,6 @@ do_debug_gdb_extract() {
 
 do_debug_gdb_build() {
     local -a extra_config
-
-    do_debug_gdb_parts
 
     gdb_src_dir="${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}"
 
@@ -307,3 +284,5 @@ do_debug_gdb_build() {
         CT_EndStep
     fi
 }
+
+fi
