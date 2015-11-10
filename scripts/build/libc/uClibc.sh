@@ -71,7 +71,6 @@ do_libc_check_config() {
 
 # Build and install headers and start files
 do_libc_start_files() {
-    local install_rule
     local cross
 
     CT_DoStep INFO "Installing C library headers"
@@ -111,19 +110,13 @@ do_libc_start_files() {
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          headers
 
-    if [ "${CT_LIBC_UCLIBC_0_9_30_or_later}" = "y" ]; then
-        install_rule=install_headers
-    else
-        install_rule=install_dev
-    fi
-
     CT_DoLog EXTRA "Installing headers"
     CT_DoExecLog ALL                                        \
     make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          CROSS_COMPILE="${cross}"                           \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
-         ${install_rule}
+         install_headers
 
     if [ "${CT_THREADS}" = "nptl" ]; then
         CT_DoLog EXTRA "Building start files"
