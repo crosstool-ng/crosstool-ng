@@ -63,7 +63,10 @@ do_libc_extract() {
 do_libc_check_config() {
     CT_DoStep INFO "Checking C library configuration"
 
-    CT_TestOrAbort "You did not provide a uClibc config file!" -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" -a -f "${CT_LIBC_UCLIBC_CONFIG_FILE}"
+    # Use the default config if the user did not provide one.
+    if [ -z "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
+        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/contrib/uClibc-defconfigs/${uclibc_name}.config"
+    fi
 
     if ${grep} -E '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
         CT_DoLog WARN "Your uClibc version refers to the kernel _sources_, which is bad."
