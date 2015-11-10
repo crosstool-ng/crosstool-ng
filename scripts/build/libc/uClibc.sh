@@ -58,13 +58,13 @@ do_libc_check_config() {
 
     CT_TestOrAbort "You did not provide a uClibc config file!" -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" -a -f "${CT_LIBC_UCLIBC_CONFIG_FILE}"
 
-    if grep -E '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
+    if ${grep} -E '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
         CT_DoLog WARN "Your uClibc version refers to the kernel _sources_, which is bad."
         CT_DoLog WARN "I can't guarantee that our little hack will work. Please try to upgrade."
     fi
 
-    CT_DoLog EXTRA "Munging uClibc configuration"
-    mungeuClibcConfig "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_CONFIG_DIR}/uClibc.config"
+    CT_DoLog EXTRA "Manage uClibc configuration"
+    manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_CONFIG_DIR}/uClibc.config"
 
     CT_EndStep
 }
@@ -98,6 +98,7 @@ do_libc_start_files() {
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog ALL                                   \
                  make CROSS_COMPILE="${cross}"                      \
+                 UCLIBC_EXTRA_CFLAGS="-pipe"                        \
                  PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
@@ -106,6 +107,7 @@ do_libc_start_files() {
     CT_DoExecLog ALL                                        \
     make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          CROSS_COMPILE="${cross}"                           \
+         UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          headers
@@ -114,6 +116,7 @@ do_libc_start_files() {
     CT_DoExecLog ALL                                        \
     make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          CROSS_COMPILE="${cross}"                           \
+         UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          install_headers
@@ -123,6 +126,7 @@ do_libc_start_files() {
         CT_DoExecLog ALL                                        \
         make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
              CROSS_COMPILE="${cross}"                           \
+             UCLIBC_EXTRA_CFLAGS="-pipe"                        \
              PREFIX="${CT_SYSROOT_DIR}/"                        \
              STRIPTOOL=true                                     \
              ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -174,6 +178,7 @@ do_libc() {
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog CFG                                   \
                  make CROSS_COMPILE=${CT_TARGET}-                   \
+                 UCLIBC_EXTRA_CFLAGS="-pipe"                        \
                  PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
@@ -185,6 +190,7 @@ do_libc() {
     CT_DoExecLog ALL                                        \
     make -j1                                                \
          CROSS_COMPILE=${CT_TARGET}-                        \
+         UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -193,6 +199,7 @@ do_libc() {
     CT_DoExecLog ALL                                        \
     make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
          CROSS_COMPILE=${CT_TARGET}-                        \
+         UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -216,6 +223,7 @@ do_libc() {
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL                                        \
     make CROSS_COMPILE=${CT_TARGET}-                        \
+         UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
@@ -227,18 +235,15 @@ do_libc() {
 
 # Initialises the .config file to sensible values
 # $1: original file
-# $2: munged file
-mungeuClibcConfig() {
-    src_config_file="$1"
-    dst_config_file="$2"
-    munge_file="${CT_BUILD_DIR}/munge-uClibc-config.sed"
+# $2: modified file
+manage_uClibc_config() {
+    src="$1"
+    dst="$2"
 
-    # Start with a fresh file
-    rm -f "${munge_file}"
-    touch "${munge_file}"
-
-    # Do it all in a sub-shell, it's easier to redirect output
-    (
+    # Start with fresh files
+    CT_DoExecLog ALL rm -f "${dst}"
+    CT_DoExecLog ALL mkdir -p "$(dirname ${dst})"
+    CT_DoExecLog ALL cp "${src}" "${dst}"
 
     # Hack our target in the config file.
     case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
@@ -250,62 +255,78 @@ mungeuClibcConfig() {
     esac
     # Also remove stripping: its the responsibility of the
     # firmware builder to strip or not.
-    cat <<-ENDSED
-		s/^(TARGET_.*)=y$/# \\1 is not set/
-		s/^# TARGET_${arch} is not set/TARGET_${arch}=y/
-		s/^TARGET_ARCH=".*"/TARGET_ARCH="${arch}"/
-		s/.*(DOSTRIP).*/# \\1 is not set/
-		ENDSED
+    ${sed} -i -r -e '/^TARGET_.*/d' "${dst}"
+    CT_KconfigEnableOption "TARGET_${arch}" "${dst}"
+    CT_KconfigSetOption "TARGET_ARCH" "${arch}" "${dst}"
+    CT_KconfigDisableOption "DOSTRIP" "${dst}"
 
     # Ah. We may one day need architecture-specific handler here...
-    case "${CT_ARCH}" in
-        arm)
-            # Hack the ARM {E,O}ABI into the config file
+    case "${arch}" in
+        arm*)
             if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
-                cat <<-ENDSED
-					s/.*(CONFIG_ARM_OABI).*/# \\1 is not set/
-					s/.*(CONFIG_ARM_EABI).*/\\1=y/
-					ENDSED
+                CT_KconfigDisableOption "CONFIG_ARM_OABI" "${dst}"
+                CT_KconfigEnableOption "CONFIG_ARM_EABI" "${dst}"
             else
-                cat <<-ENDSED
-					s/.*(CONFIG_ARM_OABI).*/\\1=y/
-					s/.*(CONFIG_ARM_EABI).*/# \\1 is not set/
-					ENDSED
+                CT_KconfigDisableOption "CONFIG_ARM_EABI" "${dst}"
+                CT_KconfigEnableOption "CONFIG_ARM_OABI" "${dst}"
             fi
             ;;
-        mips)
-            case "${CT_ARCH_mips_ABI}" in
-                32)
-                    cat <<-ENDSED
-						s/.*(CONFIG_MIPS_O32_ABI).*/\\1=y/
-						s/.*(CONFIG_MIPS_N32_ABI).*/# \\1 is not set/
-						s/.*(CONFIG_MIPS_N64_ABI).*/# \\1 is not set/
-						ENDSED
+        i386)
+            # FIXME This doesn't cover all cases of x86_32...
+            case ${CT_TARGET_ARCH} in
+                i386)
+                    CT_KconfigEnableOption "CONFIG_386" "${dst}"
                     ;;
-                # For n32 and n64, also force the ISA
-                # Not so sure this is pertinent, so it's
-                # commented out for now. It would take a
-                # (MIPS+uClibc) expert to either remove
-                # or re-enable the overrides.
-                n32)
-                    cat <<-ENDSED
-						s/.*(CONFIG_MIPS_O32_ABI).*/# \\1 is not set/
-						s/.*(CONFIG_MIPS_N32_ABI).*/\\1=y/
-						s/.*(CONFIG_MIPS_N64_ABI).*/# \\1 is not set/
-						s/.*(CONFIG_MIPS_ISA_.*).*/# \\1 is not set/
-						s/.*(CONFIG_MIPS_ISA_3).*/\\1=y/
-						ENDSED
+                i486)
+                    CT_KconfigEnableOption "CONFIG_486" "${dst}"
                     ;;
-                64)
-                    cat <<-ENDSED
-						s/.*(CONFIG_MIPS_O32_ABI).*/# \\1 is not set/
-						s/.*(CONFIG_MIPS_N32_ABI).*/# \\1 is not set/
-						s/.*(CONFIG_MIPS_N64_ABI).*/\\1=y/
-						s/.*(CONFIG_MIPS_ISA_.*).*/# \\1 is not set/
-						s/.*(CONFIG_MIPS_ISA_MIPS64).*/\\1=y/
-						ENDSED
+                i586)
+                    CT_KconfigEnableOption "CONFIG_586" "${dst}"
+                    ;;
+                i686)
+                    CT_KconfigEnableOption "CONFIG_686" "${dst}"
                     ;;
             esac
+            ;;
+        mips*)
+            CT_KconfigDisableOption "CONFIG_MIPS_O32_ABI" "${dst}"
+            CT_KconfigDisableOption "CONFIG_MIPS_N32_ABI" "${dst}"
+            CT_KconfigDisableOption "CONFIG_MIPS_N64_ABI" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_1" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_2" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_3" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_4" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS32" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS32R2" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS64" "${dst}"
+            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS64R2" "${dst}"
+            case "${CT_ARCH_mips_ABI}" in
+                32)
+                    CT_KconfigEnableOption "CONFIG_MIPS_O32_ABI" "${dst}"
+                    ;;
+                n32)
+                    CT_KconfigEnableOption "CONFIG_MIPS_N32_ABI" "${dst}"
+                    ;;
+                64)
+                    CT_KconfigEnableOption "CONFIG_MIPS_N64_ABI" "${dst}"
+                    ;;
+            esac
+            ;;
+        powerpc*)
+            CT_KconfigDisableOption "CONFIG_E500" "${dst}"
+            CT_KconfigDisableOption "CONFIG_CLASSIC" "${dst}"
+            CT_KconfigDeleteOption "TARGET_SUBARCH" "${dst}"
+            if [ "${CT_ARCH_powerpc_ABI}" = "spe" ]; then
+                CT_KconfigEnableOption "CONFIG_E500" "${dst}"
+                CT_KconfigSetOption "TARGET_SUBARCH" "e500" "${dst}"
+            else
+                CT_KconfigEnableOption "CONFIG_CLASSIC" "${dst}"
+                CT_KconfigSetOption "TARGET_SUBARCH" "classic" "${dst}"
+            fi
+            ;;
+        sh)
+            # all we really support right now is sh4:32
+            CT_KconfigEnableOption "CONFIG_SH4" "${dst}"
             ;;
     esac
 
@@ -313,96 +334,55 @@ mungeuClibcConfig() {
     # way to select between big/little endian has changed
     case "${CT_ARCH_ENDIAN}" in
         big)
-            cat <<-ENDSED
-				s/.*(ARCH_LITTLE_ENDIAN).*/# \\1 is not set/
-				s/.*(ARCH_BIG_ENDIAN).*/\\1=y/
-				s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/# \\1 is not set/
-				s/.*(ARCH_WANTS_BIG_ENDIAN).*/\\1=y/
-				ENDSED
-        ;;
+            CT_KconfigDisableOption "ARCH_LITTLE_ENDIAN" "${dst}"
+            CT_KconfigDisableOption "ARCH_WANTS_LITTLE_ENDIAN" "${dst}"
+            CT_KconfigEnableOption "ARCH_BIG_ENDIAN" "${dst}"
+            CT_KconfigEnableOption "ARCH_WANTS_BIG_ENDIAN" "${dst}"
+            ;;
         little)
-            cat <<-ENDSED
-				s/.*(ARCH_LITTLE_ENDIAN).*/\\1=y/
-				s/.*(ARCH_BIG_ENDIAN).*/# \\1 is not set/
-				s/.*(ARCH_WANTS_LITTLE_ENDIAN).*/\\1=y/
-				s/.*(ARCH_WANTS_BIG_ENDIAN).*/# \\1 is not set/
-				ENDSED
-        ;;
+            CT_KconfigDisableOption "ARCH_BIG_ENDIAN" "${dst}"
+            CT_KconfigDisableOption "ARCH_WANTS_BIG_ENDIAN" "${dst}"
+            CT_KconfigEnableOption "ARCH_LITTLE_ENDIAN" "${dst}"
+            CT_KconfigEnableOption "ARCH_WANTS_LITTLE_ENDIAN" "${dst}"
+            ;;
     esac
 
     # Accomodate for old and new uClibc versions, where the
     # MMU settings has different config knobs
     if [ "${CT_ARCH_USE_MMU}" = "y" ]; then
-        cat <<-ENDSED
-			s/.*(ARCH_HAS_MMU).*/\\1=y\nARCH_USE_MMU=y/
-			ENDSED
+        CT_KconfigEnableOption "ARCH_USE_MMU" "${dst}"
     else
-        cat <<-ENDSED
-			s/.*(ARCH_HAS_MMU).*/# \\1 is not set/
-			/.*(ARCH_USE_MMU).*/d
-			ENDSED
+        CT_KconfigDisableOption "ARCH_USE_MMU" "${dst}"
     fi
 
     # Accomodate for old and new uClibc version, where the
     # way to select between hard/soft float has changed
     case "${CT_ARCH_FLOAT}" in
         hard|softfp)
-            cat <<-ENDSED
-				s/^[^_]*(HAS_FPU).*/\\1=y/
-				s/.*(UCLIBC_HAS_FPU).*/\\1=y/
-				ENDSED
+            CT_KconfigEnableOption "UCLIBC_HAS_FPU" "${dst}"
+            CT_KconfigEnableOption "UCLIBC_HAS_FLOATS" "${dst}"
             ;;
         soft)
-            cat <<-ENDSED
-				s/^[^_]*(HAS_FPU).*/\\# \\1 is not set/
-				s/.*(UCLIBC_HAS_FPU).*/# \\1 is not set/
-				ENDSED
+            CT_KconfigDisableOption "UCLIBC_HAS_FPU" "${dst}"
+            CT_KconfigEnableOption "UCLIBC_HAS_FLOATS" "${dst}"
+            CT_KconfigEnableOption "DO_C99_MATH" "${dst}"
             ;;
     esac
     if [ "${CT_LIBC_UCLIBC_FENV}" = "y" ]; then
-        cat <<-ENDSED
-			s/.*(UCLIBC_HAS_FENV).*/\\1=y/
-			ENDSED
+        CT_KconfigEnableOption "UCLIBC_HAS_FENV" "${dst}"
     fi
 
     # We always want ctor/dtor
-    cat <<-ENDSED
-		s/^# (UCLIBC_CTOR_DTOR) is not set/\\1=y/
-		ENDSED
+    CT_KconfigEnableOption "UCLIBC_CTOR_DTOR" "${dst}"
 
     # Change paths to work with crosstool-NG
-    # From http://www.uclibc.org/cgi-bin/viewcvs.cgi?rev=16846&view=rev
-    #  " we just want the kernel headers, not the whole kernel source ...
-    #  " so people may need to update their paths slightly
-    quoted_kernel_source=$(echo "${CT_HEADERS_DIR}" | sed -r -e 's,/include/?$,,; s,/,\\/,g;')
-    quoted_headers_dir=$(echo "${CT_HEADERS_DIR}" | sed -r -e 's,/,\\/,g;')
-    # CROSS_COMPILER_PREFIX is left as is, as the CROSS_COMPILE parameter is forced on the command line
-    # DEVEL_PREFIX is left as '/usr/' because it is post-pended to $PREFIX, wich is the correct value of ${PREFIX}/${TARGET}
-    # Some (old) versions of uClibc use KERNEL_SOURCE (which is _wrong_), and
-    # newer versions use KERNEL_HEADERS (which is right).
-    cat <<-ENDSED
-		s/^DEVEL_PREFIX=".*"/DEVEL_PREFIX="\\/usr\\/"/
-		s/^RUNTIME_PREFIX=".*"/RUNTIME_PREFIX="\\/"/
-		s/^SHARED_LIB_LOADER_PREFIX=.*/SHARED_LIB_LOADER_PREFIX="\\/lib\\/"/
-		s/^KERNEL_SOURCE=".*"/KERNEL_SOURCE="${quoted_kernel_source}"/
-		s/^KERNEL_HEADERS=".*"/KERNEL_HEADERS="${quoted_headers_dir}"/
-		s/^UCLIBC_DOWNLOAD_PREGENERATED_LOCALE=y/\\# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE is not set/
-		ENDSED
-
-    if [ "${CT_USE_PIPES}" = "y" ]; then
-        if grep UCLIBC_EXTRA_CFLAGS extra/Configs/Config.in >/dev/null 2>&1; then
-            # Good, there is special provision for such things as -pipe!
-            cat <<-ENDSED
-				s/^(UCLIBC_EXTRA_CFLAGS=".*)"$/\\1 -pipe"/
-				ENDSED
-        else
-            # Hack our -pipe into WARNINGS, which will be internally incorporated to
-            # CFLAGS. This a dirty hack, but yet needed
-            cat <<-ENDSED
-				s/^(WARNINGS=".*)"$/\\1 -pipe"/
-				ENDSED
-        fi
-    fi
+    #
+    # DEVEL_PREFIX is left as '/usr/' because it is post-pended to $PREFIX,
+    # which is the correct value of ${PREFIX}/${TARGET}.
+    CT_KconfigSetOption "DEVEL_PREFIX" "\"/usr/\"" "${dst}"
+    CT_KconfigSetOption "RUNTIME_PREFIX" "\"/\"" "${dst}"
+    CT_KconfigSetOption "SHARED_LIB_LOADER_PREFIX" "\"/lib/\"" "${dst}"
+    CT_KconfigSetOption "KERNEL_HEADERS" "\"${CT_HEADERS_DIR}\"" "${dst}"
 
     # Locales support
     # Note that the two PREGEN_LOCALE and the XLOCALE lines may be missing
@@ -411,81 +391,74 @@ mungeuClibcConfig() {
     # arrangements.  Note that having the uClibc Makefile download the
     # pregenerated locales is not compatible with crosstool; besides,
     # crosstool downloads them as part of getandpatch.sh.
+    CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE" "${dst}"
     case "${CT_LIBC_UCLIBC_LOCALES}:${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" in
         :*)
             ;;
         y:)
-            cat <<-ENDSED
-				s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\
-				# UCLIBC_PREGENERATED_LOCALE_DATA is not set\\
-				# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\
-				# UCLIBC_HAS_XLOCALE is not set/
-				ENDSED
+            CT_KconfigEnableOption "UCLIBC_HAS_LOCALE" "${dst}"
+            CT_KconfigDeleteOption "UCLIBC_PREGENERATED_LOCALE_DATA" "${dst}"
+            CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" \
+                "${dst}"
+            CT_KconfigDeleteOption "UCLIBC_HAS_XLOCALE" "${dst}"
             ;;
         y:y)
-            cat <<-ENDSED
-				s/^# UCLIBC_HAS_LOCALE is not set/UCLIBC_HAS_LOCALE=y\\
-				UCLIBC_PREGENERATED_LOCALE_DATA=y\\
-				# UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA is not set\\
-				# UCLIBC_HAS_XLOCALE is not set/
-				ENDSED
+            CT_KconfigEnableOption "UCLIBC_HAS_LOCALE" "${dst}"
+            CT_KconfigEnableOption "UCLIBC_PREGENERATED_LOCALE_DATA" "${dst}"
+            CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" \
+                "${dst}"
+            CT_KconfigDeleteOption "UCLIBC_HAS_XLOCALE" "${dst}"
             ;;
     esac
 
     # WCHAR support
-    if [ "${CT_LIBC_UCLIBC_WCHAR}" = "y" ] ; then
-        cat <<-ENDSED
-			s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=y/
-			ENDSED
+    if [ "${CT_LIBC_UCLIBC_WCHAR}" = "y" ]; then
+        CT_KconfigEnableOption "UCLIBC_HAS_WCHAR" "${dst}"
     else
-        cat <<-ENDSED
-			s/^.*UCLIBC_HAS_WCHAR.*/UCLIBC_HAS_WCHAR=n/
-			ENDSED
+        CT_KconfigDisableOption "UCLIBC_HAS_WCHAR" "${dst}"
     fi
 
     # Force on options needed for C++ if we'll be making a C++ compiler.
     # I'm not sure locales are a requirement for doing C++... Are they?
     if [ "${CT_CC_LANG_CXX}" = "y" ]; then
-        cat <<-ENDSED
-			s/^# DO_C99_MATH is not set/DO_C99_MATH=y/
-			s/^# UCLIBC_HAS_GNU_GETOPT is not set/UCLIBC_HAS_GNU_GETOPT=y/
-			ENDSED
+        CT_KconfigEnableOption "DO_C99_MATH" "${dst}"
+        CT_KconfigEnableOption "UCLIBC_HAS_GNU_GETOPT" "${dst}"
+    fi
+
+    # Stack Smash Protection (SSP)
+    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
+        CT_KconfigEnableOption "UCLIBC_HAS_SSP" "${dst}"
+        CT_KconfigEnableOption "UCLIBC_BUILD_SSP" "${dst}"
+    else
+        CT_KconfigDisableOption "UCLIBC_HAS_SSP" "${dst}"
+        CT_KconfigDisableOption "UCLIBC_BUILD_SSP" "${dst}"
     fi
 
     # Push the threading model
     case "${CT_THREADS}:${CT_LIBC_UCLIBC_LNXTHRD}" in
         none:)
-            cat <<-ENDSED
-				s/^UCLIBC_HAS_THREADS=y/# UCLIBC_HAS_THREADS is not set/
-				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
-				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
-				s/^UCLIBC_HAS_THREADS_NATIVE=y/# UCLIBC_HAS_THREADS_NATIVE is not set/
-				ENDSED
+            CT_KconfigDisableOption "UCLIBC_HAS_THREADS" "${dst}"
+            CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
+            CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
+            CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         linuxthreads:old)
-            cat <<-ENDSED
-				s/^# UCLIBC_HAS_THREADS is not set/UCLIBC_HAS_THREADS=y/
-				s/^# LINUXTHREADS_OLD is not set/LINUXTHREADS_OLD=y/
-				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
-				s/^UCLIBC_HAS_THREADS_NATIVE=y/# UCLIBC_HAS_THREADS_NATIVE is not set/
-				ENDSED
+            CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
+            CT_KconfigEnableOption "LINUXTHREADS_OLD" "${dst}"
+            CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
+            CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         linuxthreads:new)
-            cat <<-ENDSED
-				s/^# UCLIBC_HAS_THREADS is not set/UCLIBC_HAS_THREADS=y/
-				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
-				s/^# LINUXTHREADS_NEW is not set/LINUXTHREADS_NEW=y/
-				s/^UCLIBC_HAS_THREADS_NATIVE=y/# UCLIBC_HAS_THREADS_NATIVE is not set/
-				ENDSED
+            CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
+            CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
+            CT_KconfigEnableOption "LINUXTHREADS_NEW" "${dst}"
+            CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         nptl:)
-            cat <<-ENDSED
-				s/^HAS_NO_THREADS=y/# HAS_NO_THREADS is not set/
-				s/^UCLIBC_HAS_THREADS=y/# UCLIBC_HAS_THREADS is not set/
-				s/^LINUXTHREADS_OLD=y/# LINUXTHREADS_OLD is not set/
-				s/^LINUXTHREADS_NEW=y/# LINUXTHREADS_NEW is not set/
-				s/^# UCLIBC_HAS_THREADS_NATIVE is not set/UCLIBC_HAS_THREADS_NATIVE=y/
-				ENDSED
+            CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
+            CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
+            CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
+            CT_KconfigEnableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         *)
             CT_Abort "Incorrect thread settings: CT_THREADS='${CT_THREAD}' CT_LIBC_UCLIBC_LNXTHRD='${CT_LIBC_UCLIBC_LNXTHRD}'"
@@ -493,58 +466,43 @@ mungeuClibcConfig() {
     esac
 
     # Always build the libpthread_db
-    cat <<-ENDSED
-		s/^# PTHREADS_DEBUG_SUPPORT is not set.*/PTHREADS_DEBUG_SUPPORT=y/
-		ENDSED
+    CT_KconfigEnableOption "PTHREADS_DEBUG_SUPPORT" "${dst}"
 
     # Force on debug options if asked for
     case "${CT_LIBC_UCLIBC_DEBUG_LEVEL}" in
-      0)
-        cat <<-ENDSED
-			s/^DODEBUG=y/# DODEBUG is not set/
-			s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
-			s/^DOASSERTS=y/# DOASSERTS is not set/
-			s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
-			s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
-			s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
-			ENDSED
-        ;;
-      1)
-        cat <<-ENDSED
-			s/^# DODEBUG is not set.*/DODEBUG=y/
-			s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
-			s/^DOASSERTS=y/# DOASSERTS is not set/
-			s/^SUPPORT_LD_DEBUG=y/# SUPPORT_LD_DEBUG is not set/
-			s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
-			s/^UCLIBC_MALLOC_DEBUGGING=y/# UCLIBC_MALLOC_DEBUGGING is not set/
-			ENDSED
-        ;;
-      2)
-        cat <<-ENDSED
-			s/^# DODEBUG is not set.*/DODEBUG=y/
-			s/^DODEBUG_PT=y/# DODEBUG_PT is not set/
-			s/^# DOASSERTS is not set.*/DOASSERTS=y/
-			s/^# SUPPORT_LD_DEBUG is not set.*/SUPPORT_LD_DEBUG=y/
-			s/^SUPPORT_LD_DEBUG_EARLY=y/# SUPPORT_LD_DEBUG_EARLY is not set/
-			s/^# UCLIBC_MALLOC_DEBUGGING is not set/UCLIBC_MALLOC_DEBUGGING=y/
-			ENDSED
-        ;;
-      3)
-        cat <<-ENDSED
-			s/^# DODEBUG is not set.*/DODEBUG=y/
-			s/^# DODEBUG_PT is not set.*/DODEBUG_PT=y/
-			s/^# DOASSERTS is not set.*/DOASSERTS=y/
-			s/^# SUPPORT_LD_DEBUG is not set.*/SUPPORT_LD_DEBUG=y/
-			s/^# SUPPORT_LD_DEBUG_EARLY is not set.*/SUPPORT_LD_DEBUG_EARLY=y/
-			s/^# UCLIBC_MALLOC_DEBUGGING is not set/UCLIBC_MALLOC_DEBUGGING=y/
-			ENDSED
-        ;;
+        0)
+            CT_KconfigDisableOption "DODEBUG" "${dst}"
+            CT_KconfigDisableOption "DODEBUG_PT" "${dst}"
+            CT_KconfigDisableOption "DOASSERTS" "${dst}"
+            CT_KconfigDisableOption "SUPPORT_LD_DEBUG" "${dst}"
+            CT_KconfigDisableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
+            CT_KconfigDisableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
+            ;;
+        1)
+            CT_KconfigEnableOption "DODEBUG" "${dst}"
+            CT_KconfigDisableOption "DODEBUG_PT" "${dst}"
+            CT_KconfigDisableOption "DOASSERTS" "${dst}"
+            CT_KconfigDisableOption "SUPPORT_LD_DEBUG" "${dst}"
+            CT_KconfigDisableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
+            CT_KconfigDisableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
+            ;;
+        2)
+            CT_KconfigEnableOption "DODEBUG" "${dst}"
+            CT_KconfigDisableOption "DODEBUG_PT" "${dst}"
+            CT_KconfigEnableOption "DOASSERTS" "${dst}"
+            CT_KconfigEnableOption "SUPPORT_LD_DEBUG" "${dst}"
+            CT_KconfigDisableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
+            CT_KconfigEnableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
+            ;;
+        3)
+            CT_KconfigEnableOption "DODEBUG" "${dst}"
+            CT_KconfigEnableOption "DODEBUG_PT" "${dst}"
+            CT_KconfigEnableOption "DOASSERTS" "${dst}"
+            CT_KconfigEnableOption "SUPPORT_LD_DEBUG" "${dst}"
+            CT_KconfigEnableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
+            CT_KconfigEnableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
+            ;;
     esac
-
-    # And now, this is the end
-    ) >>"${munge_file}"
-
-    sed -r -f "${munge_file}" "${src_config_file}" >"${dst_config_file}"
 }
 
 do_libc_post_cc() {
