@@ -403,10 +403,12 @@ do_gcc_core_backend() {
         extra_config+=("--with-system-zlib")
     fi
 
-    # Some versions of gcc have a deffective --enable-multilib.
+    # Some versions of gcc have a defective --enable-multilib.
     # Since that's the default, only pass --disable-multilib.
     if [ "${CT_MULTILIB}" != "y" ]; then
         extra_config+=("--disable-multilib")
+    else
+        extra_config+=("--enable-multiarch")
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
@@ -880,10 +882,12 @@ do_gcc_backend() {
         extra_config+=("--with-system-zlib")
     fi
 
-    # Some versions of gcc have a deffective --enable-multilib.
+    # Some versions of gcc have a defective --enable-multilib.
     # Since that's the default, only pass --disable-multilib.
     if [ "${CT_MULTILIB}" != "y" ]; then
         extra_config+=("--disable-multilib")
+    else
+        extra_config+=("--enable-multiarch")
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
