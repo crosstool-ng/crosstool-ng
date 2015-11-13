@@ -313,3 +313,49 @@ Here is an example commit message (see revision 8bb5151c5b01):
  I missed refreshing the patch before pushing. :-(
 
  Signed-off-by: "Yann E. MORIN" <yann.morin.1998@free.fr>
+
+Using crosstool-NG on Windows |
+------------------------------+
+
+Contributed by: Ray Donnelly
+
+Prerequisites and instructions for using crosstool-NG for building a cross
+toolchain on Windows (Cygwin) as build and, optionally Windows (hereafter)
+MinGW-w64 as host.
+
+0. Use Cygwin64 if you can. DLL base-address problems are lessened that
+   way and if you bought a 64-bit CPU, you may as well use it.
+
+1. You must enable Case Sensitivity in the Windows Kernel (this is only really
+   necessary for Linux targets, but at present, crosstool-ng refuses to operate
+   on case insensitive filesystems). The registry key for this is:
+   HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel\obcaseinsensitive
+   Read more at:
+   https://cygwin.com/cygwin-ug-net/using-specialnames.html
+
+2. Using setup{,-x86_64}.exe, install the default packages and also the
+   following ones: (tested versions in brackets, please test newer versions
+   and report successes via pull requests changing this list and failures to:
+   https://github.com/crosstool-ng/crosstool-ng/issues
+   autoconf (13-1), make (4.1-1), gcc-g++ (4.9.3-1), gperf (3.0.4-2),
+   bison (3.0.4-1), flex (2.5.39-1), texinfo (6.0-1), wget (1.16.3-1),
+   patch (2.7.4-1), libtool (2.4.6-2), automake (9-1), diffutils (3.3-3),
+   libncurses-devel (6.0-1.20151017), help2man (1.44.1-1)
+   mingw64-i686-gcc-g++* (4.9.2-2), mingw64-x86_64-gcc-g++* (4.9.2-2)
+   Leave "Select required packages (RECOMMENDED)" ticked.
+   Notes:
+   2.1 The packages marked with * are only needed if your host is MinGW-w64.
+   2.2 Unfortunately, wget pulls in an awful lot of dependencies, including
+       Python 2.7, Ruby, glib and Tcl.
+
+3. Although nativestrict symlinks seem like the best idea, extracting glibc fails
+   when they are enabled, so just don't set anything here. If your host is MinGW-w64
+   then these 'Cygwin-special' symlinks won't work, but you can dereference them by
+   using tar options --dereference and --hard-dereference when making a final tarball.
+   I plan to investigate and fix or at least work around the extraction problem.
+   Read more at:
+   https://cygwin.com/cygwin-ug-net/using-cygwinenv.html
+
+4. collect2.exe will attempt to run ld which is a shell script that runs either
+   ld.exe or gold.exe so you need to make sure that a working shell is in your path.
+   Eventually I will replace this with a native program for MinGW-w64 host.

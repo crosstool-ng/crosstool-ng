@@ -171,6 +171,7 @@ ACX_CHECK_PROGS_REQ([wget], [wget])
 ACX_CHECK_PROGS_REQ([tar], [tar])
 ACX_CHECK_PROGS_REQ([gzip], [gzip])
 ACX_CHECK_PROGS_REQ([bzip2], [bzip2])
+ACX_CHECK_PROGS_REQ([help2man], [help2man])
 
 #--------------------------------------------------------------------
 # Still boring, but remember the path, now...
@@ -320,7 +321,7 @@ AC_FUNC_REALLOC
 AC_FUNC_ALLOCA
 
 #----------------------------------------
-# Check for gettext, for the kconfig frontends
+# Check for gettext and libintl for the kconfig frontends
 AC_SUBST([gettext])
 AC_CHECK_HEADERS(
     [libintl.h],
@@ -332,6 +333,10 @@ AS_IF(
         [gettext=y],,
         [AC_INCLUDES_DEFAULT()
          #include <$ac_ct_gettext_hdr>])])
+SAVE_LIBS=$LIBS
+AC_SEARCH_LIBS(bindtextdomain, intl, [test "$ac_res" = "none required" || INTL_LIBS="${ac_res}"])
+LIBS=$SAVE_LIBS
+AC_SUBST([INTL_LIBS])
 
 #----------------------------------------
 # Check for ncurses, for the kconfig frontends
