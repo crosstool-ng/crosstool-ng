@@ -4,6 +4,7 @@ do_libiconv_get() { :; }
 do_libiconv_extract() { :; }
 do_libiconv_for_build() { :; }
 do_libiconv_for_host() { :; }
+do_libiconv_for_target() { :; }
 
 if [ "${CT_LIBICONV}" = "y" ]; then
 

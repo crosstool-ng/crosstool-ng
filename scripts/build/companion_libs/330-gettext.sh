@@ -4,6 +4,7 @@ do_gettext_get() { :; }
 do_gettext_extract() { :; }
 do_gettext_for_build() { :; }
 do_gettext_for_host() { :; }
+do_gettext_for_target() { :; }
 
 if [ "${CT_GETTEXT}" = "y" ]; then
 
