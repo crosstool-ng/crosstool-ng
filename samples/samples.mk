@@ -46,11 +46,11 @@ show-config: .config
 
 # Prints the details of a sample
 PHONY += $(patsubst %,show-%,$(CT_SAMPLES))
-$(patsubst %,show-%,$(CT_SAMPLES)): config_files
+$(patsubst %,show-%,$(CT_SAMPLES)): show-%: config_files
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
-	    $(CONF) --defconfig=$(call sample_dir,$(patsubst show-%,%,$(@)))/crosstool.config   \
+	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $(patsubst show-%,%,$(@))
+	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $*
 	@rm -f .config.sample
 
 # Prints the details of all samples
@@ -70,11 +70,11 @@ list-samples-pre: FORCE
 	@echo 'Status  Sample name'
 
 PHONY += $(patsubst %,list-%,$(CT_SAMPLES))
-$(patsubst %,list-%,$(CT_SAMPLES)): config_files
+$(patsubst %,list-%,$(CT_SAMPLES)): list-%: config_files
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
-	    $(CONF) --defconfig=$(call sample_dir,$(patsubst list-%,%,$(@)))/crosstool.config   \
+	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(CT_LIB_DIR)/scripts/showSamples.sh $(patsubst list-%,%,$(@))
+	@$(CT_LIB_DIR)/scripts/showSamples.sh $*
 	@rm -f .config.sample
 
 PHONY += list-samples-short
@@ -117,11 +117,11 @@ wiki-samples-pre: FORCE
 wiki-samples-post: FORCE
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -W $(CT_SAMPLES)
 
-$(patsubst %,wiki-%,$(CT_SAMPLES)): config_files
+$(patsubst %,wiki-%,$(CT_SAMPLES)): wiki-%: config_files
 	$(SILENT)KCONFIG_CONFIG=$$(pwd)/.config.sample	\
-	    $(CONF) --defconfig=$(call sample_dir,$(patsubst wiki-%,%,$(@)))/crosstool.config   \
+	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $(patsubst wiki-%,%,$(@))
+	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $*
 	$(SILENT)rm -f .config.sample
 
 # ----------------------------------------------------------
