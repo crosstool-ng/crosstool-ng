@@ -11,6 +11,10 @@ CT_SAMPLES := $(shell echo $(sort $(CT_TOP_SAMPLES) $(CT_LIB_SAMPLES))  \
                       |$(sed) -r -e 's/(.*),(.*)/\2,\1/;'               \
                )
 
+# If set to yes on command line, updates the sample configuration
+# instead of just dumping the diff.
+CT_UPDATE_SAMPLES := no
+
 # ----------------------------------------------------------
 # This part deals with the samples help entries
 
@@ -81,20 +85,28 @@ list-samples-short: FORCE
 
 # Check one sample
 PHONY += $(patsubst %,check-%,$(CT_SAMPLES))
-$(patsubst %,check-%,$(CT_SAMPLES)): config_files
+$(patsubst %,check-%,$(CT_SAMPLES)): check-%: config_files
 	@export KCONFIG_CONFIG=$$(pwd)/.config.sample;                                  \
-	 CT_NG_SAMPLE=$(call sample_dir,$(patsubst check-%,%,$(@)))/crosstool.config;   \
-	 $(CONF) --defconfig=$${CT_NG_SAMPLE} $(KCONFIG_TOP) >/dev/null;                \
-	 $(CONF) --savedefconfig=$$(pwd)/.defconfig $(KCONFIG_TOP) >/dev/null;          \
+	 CT_NG_SAMPLE=$(call sample_dir,$*)/crosstool.config;                           \
+	 $(CONF) -s --defconfig=$${CT_NG_SAMPLE} $(KCONFIG_TOP) &>/dev/null;            \
+	 $(CONF) -s --savedefconfig=$$(pwd)/.defconfig $(KCONFIG_TOP) &>/dev/null;      \
 	 old_sha1=$$( sha1sum "$${CT_NG_SAMPLE}" |cut -d ' ' -f 1 );                    \
 	 new_sha1=$$( sha1sum .defconfig |cut -d ' ' -f 1 );                            \
 	 if [ $${old_sha1} != $${new_sha1} ]; then                                      \
-	    echo "$(patsubst check-%,%,$(@)) needs update:";                            \
-	    diff -du0 "$${CT_NG_SAMPLE}" .defconfig |tail -n +4;                        \
+	    if [ $(CT_UPDATE_SAMPLES) = yes ]; then                                     \
+	        echo "Updating $*";                                                     \
+		mv .defconfig "$${CT_NG_SAMPLE}";                                       \
+	    else                                                                        \
+		echo "$* needs update:";                                                \
+		diff -du0 "$${CT_NG_SAMPLE}" .defconfig |tail -n +4;                    \
+	    fi;                                                                         \
 	 fi
 	@rm -f .config.sample* .defconfig
 
 check-samples: $(patsubst %,check-%,$(CT_SAMPLES))
+
+update-samples:
+	$(SILENT)$(MAKE) -rf $(CT_NG) check-samples CT_UPDATE_SAMPLES=yes
 
 PHONY += wiki-samples
 wiki-samples: wiki-samples-pre $(patsubst %,wiki-%,$(CT_SAMPLES)) wiki-samples-post
