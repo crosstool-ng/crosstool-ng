@@ -339,6 +339,15 @@ LIBS=$SAVE_LIBS
 AC_SUBST([INTL_LIBS])
 
 #----------------------------------------
+# Check for tinfo, for the kconfig frontends
+AC_SEARCH_LIBS(
+    [tigetnum],
+    [tinfo],
+    [ac_ct_tinfo_lib_found=yes; break])
+AS_IF(
+    [test -z "$ac_ct_tinfo_lib_found"],
+    [AC_MSG_ERROR([could not find tinfo library, required for the kconfig frontends])])
+
 # Check for ncurses, for the kconfig frontends
 AC_SUBST([ac_ct_curses_hdr])
 AC_CHECK_HEADERS(
