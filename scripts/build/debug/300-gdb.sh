@@ -1,105 +1,46 @@
 # Build script for the gdb debug facility
 
-# The version of ncurses to use. Yes, it's hard-coded.
-# It's used only internally by crosstool-NG, and is
-# not exposed outside, so we don't care about providing
-# config options for this.
-CT_DEBUG_GDB_NCURSES_VERSION="5.9"
-
-# Ditto for the expat library
-CT_DEBUG_GDB_EXPAT_VERSION="2.1.0"
-
-do_debug_gdb_parts() {
-    need_gdb_src=
-    need_ncurses_src=
-    need_expat_src=
-
-    if [ "${CT_GDB_CROSS}" = y ]; then
-        need_gdb_src=y
-    fi
-
-    if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
-        need_gdb_src=y
-    fi
-
-    if [ "${CT_GDB_NATIVE}" = "y" ]; then
-        need_gdb_src=y
-        # GDB on Mingw depends on PDcurses, not ncurses
-        if [ "${CT_MINGW32}" != "y" ]; then
-            need_ncurses_src=y
-        fi
-        need_expat_src=y
-    fi
-}
+if [ "${CT_GDB_CROSS}" = y -o "${CT_GDB_GDBSERVER}" = "y" -o "${CT_GDB_NATIVE}" = "y" ]; then
 
 do_debug_gdb_get() {
     local linaro_version=""
     local linaro_series=""
 
-    do_debug_gdb_parts
+    if [ "${CT_GDB_CUSTOM}" = "y" ]; then
+        CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
+    else
+        # Account for the Linaro versioning
+        linaro_version="$( echo "${CT_GDB_VERSION}"      \
+                           |${sed} -r -e 's/^linaro-//;'   \
+                         )"
+        linaro_series="$( echo "${linaro_version}"      \
+                          |${sed} -r -e 's/-.*//;'         \
+                        )"
 
-    if [ "${need_gdb_src}" = "y" ]; then
-        if [ "${CT_GDB_CUSTOM}" = "y" ]; then
-            CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
+        if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
+            CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
+                       http://mirrors.kernel.org/sourceware/gdb            \
+                       {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
+                       ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
         else
-            # Account for the Linaro versioning
-            linaro_version="$( echo "${CT_GDB_VERSION}"      \
-                               |${sed} -r -e 's/^linaro-//;'   \
-                             )"
-            linaro_series="$( echo "${linaro_version}"      \
-                              |${sed} -r -e 's/-.*//;'         \
-                            )"
-
-            if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
-                CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
-                           http://mirrors.kernel.org/sourceware/gdb            \
-                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
-                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
-            else
-                YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
-                CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
-                           "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
-                           https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
-                           http://cbuild.validation.linaro.org/snapshots
-            fi
+            YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+            CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
+                       "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
+                       https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
+                       http://cbuild.validation.linaro.org/snapshots
         fi
-    fi
-
-    if [ "${need_ncurses_src}" = "y" ]; then
-        CT_GetFile "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}" .tar.gz  \
-                   {http,ftp,https}://ftp.gnu.org/pub/gnu/ncurses     \
-                   ftp://invisible-island.net/ncurses
-    fi
-
-    if [ "${need_expat_src}" = "y" ]; then
-        CT_GetFile "expat-${CT_DEBUG_GDB_EXPAT_VERSION}" .tar.gz    \
-                   http://downloads.sourceforge.net/project/expat/expat/${CT_DEBUG_GDB_EXPAT_VERSION}
     fi
 }
 
 do_debug_gdb_extract() {
-    do_debug_gdb_parts
-
-    if [ "${need_gdb_src}" = "y" ]; then
-        # If using custom directory location, nothing to do
-        if [    "${CT_GDB_CUSTOM}" = "y" \
-             -a -d "${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}" ]; then
-            return 0
-        fi
-        CT_Extract "gdb-${CT_GDB_VERSION}"
-        CT_Patch "gdb" "${CT_GDB_VERSION}"
+    # If using custom directory location, nothing to do
+    if [    "${CT_GDB_CUSTOM}" = "y" \
+         -a -d "${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}" ]; then
+        return 0
     fi
 
-    if [ "${need_ncurses_src}" = "y" ]; then
-        CT_Extract "ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
-        CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}"
-        CT_Patch "ncurses" "${CT_DEBUG_GDB_NCURSES_VERSION}"
-    fi
-
-    if [ "${need_expat_src}" = "y" ]; then
-        CT_Extract "expat-${CT_DEBUG_GDB_EXPAT_VERSION}"
-        CT_Patch "expat" "${CT_DEBUG_GDB_EXPAT_VERSION}"
-    fi
+    CT_Extract "gdb-${CT_GDB_VERSION}"
+    CT_Patch "gdb" "${CT_GDB_VERSION}"
 
     if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
         CT_ConfigureXtensa "gdb" "${CT_GDB_VERSION}"
@@ -108,8 +49,6 @@ do_debug_gdb_extract() {
 
 do_debug_gdb_build() {
     local -a extra_config
-
-    do_debug_gdb_parts
 
     gdb_src_dir="${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}"
 
@@ -134,8 +73,8 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=("${extra_config[@]}")
-        cross_extra_config+=("--enable-expat")
-        cross_extra_config+=("--with-expat=yes")
+        cross_extra_config+=("--with-expat")
+        cross_extra_config+=("--with-libexpat-prefix=${CT_HOST_COMPLIBS_DIR}")
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
@@ -211,7 +150,6 @@ do_debug_gdb_build() {
 
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
-        local -a ncurses_opt
         local -a gdb_native_CFLAGS
 
         CT_DoStep INFO "Installing native gdb"
@@ -220,30 +158,10 @@ do_debug_gdb_build() {
 
         # GDB on Mingw depends on PDcurses, not ncurses
         if [ "${CT_MINGW32}" != "y" ]; then
-            CT_DoLog EXTRA "Building static target ncurses"
-
-            CT_mkdir_pushd "${CT_BUILD_DIR}/build-ncurses-target-${CT_TARGET}"
-            do_gdb_ncurses_backend host="${CT_TARGET}"                      \
-                                   prefix="${CT_BUILD_DIR}/static-target"   \
-                                   cflags="${CT_CFLAGS_FOR_HOST}"           \
-                                   ldflags=""
-            CT_Popd
             native_extra_config+=("--with-curses")
-            # There's no better way to tell gdb where to find -lcurses... :-(
-            gdb_native_CFLAGS+=("-I${CT_BUILD_DIR}/static-target/include")
-            gdb_native_CFLAGS+=("-L${CT_BUILD_DIR}/static-target/lib")
-        fi # need_ncurses_src
+        fi
 
-        # Build libexpat
-        CT_DoLog EXTRA "Building static target expat"
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-expat-target-${CT_TARGET}"
-        do_gdb_expat_backend host="${CT_TARGET}"                    \
-                             prefix="${CT_BUILD_DIR}/static-target" \
-                             cflags=""                              \
-                             ldflags=""
-        CT_Popd
         native_extra_config+=("--with-expat")
-        native_extra_config+=("--with-libexpat-prefix=${CT_BUILD_DIR}/static-target")
 
         CT_DoLog EXTRA "Configuring native gdb"
 
@@ -367,107 +285,4 @@ do_debug_gdb_build() {
     fi
 }
 
-# Build libncurses
-#   Parameter     : description               : type      : default
-#   host          : machine to run on         : tuple     : (none)
-#   prefix        : prefix to install into    : dir       : (none)
-#   cflags        : cflags to use             : string    : (empty)
-#   ldflags       : ldflags to use            : string    : (empty)
-do_gdb_ncurses_backend() {
-    local host
-    local prefix
-    local cflags
-    local ldflags
-    local arg
-
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    [ "${CT_CC_LANG_CXX}" = "y" ] || ncurses_opts+=("--without-cxx" "--without-cxx-binding")
-    [ "${CT_CC_LANG_ADA}" = "y" ] || ncurses_opts+=("--without-ada")
-
-    CT_mkdir_pushd "build-tic"
-
-    # We need a tic that runs on build, not on host nor on target
-    # Use build = CT_REAL_BUILD so that configure thinks it is
-    # cross-compiling, and thus will use the ${CT_BUILD}-*
-    # tools instead of searching for the native ones...
-    CT_DoExecLog CFG                                                    \
-    "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
-        --build=${CT_BUILD}                                             \
-        --host=${CT_BUILD}                                              \
-        --prefix=/usr                                                   \
-        --enable-symlinks                                               \
-        --with-build-cc=${CT_REAL_BUILD}-gcc                            \
-        --with-build-cpp=${CT_REAL_BUILD}-gcc                           \
-        --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
-        "${ncurses_opts[@]}"
-
-    # ncurses insists on linking tic statically. It does not work
-    # on some OSes (eg. MacOS-X/Darwin/whatever-you-call-it).
-    CT_DoExecLog DEBUG sed -r -i -e 's/-static//g;' "progs/Makefile"
-
-    # Under some operating systems (eg. Winblows), there is an
-    # extension appended to executables. Find that.
-    tic_ext=$(grep -E '^x[[:space:]]*=' progs/Makefile |sed -r -e 's/^.*=[[:space:]]*//;')
-
-    CT_DoExecLog ALL make ${JOBSFLAGS} -C include
-    CT_DoExecLog ALL make ${JOBSFLAGS} -C progs "tic${tic_ext}"
-
-    CT_DoExecLog ALL install -d -m 0755 "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
-    CT_DoExecLog ALL install -m 0755 "progs/tic${tic_ext}" "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
-
-    CT_Popd
-
-    CT_mkdir_pushd "ncurses"
-
-    CT_DoExecLog CFG                                                    \
-    TIC_PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin/tic${tic_ext}"            \
-    "${CT_SRC_DIR}/ncurses-${CT_DEBUG_GDB_NCURSES_VERSION}/configure"   \
-        --build=${CT_BUILD}                                             \
-        --host=${host}                                                  \
-        --with-build-cc=${CT_BUILD}-gcc                                 \
-        --with-build-cpp=${CT_BUILD}-gcc                                \
-        --with-build-cflags="${CT_CFLAGS_FOR_HOST}"                     \
-        --prefix="${prefix}"                                            \
-        --without-shared                                                \
-        --without-sysmouse                                              \
-        --without-progs                                                 \
-        --enable-termcap                                                \
-        "${ncurses_opts[@]}"
-
-    CT_DoExecLog ALL make ${JOBSFLAGS}
-    CT_DoExecLog ALL make install
-
-    CT_Popd
-}
-
-# Build libexpat
-#   Parameter     : description               : type      : default
-#   host          : machine to run on         : tuple     : (none)
-#   prefix        : prefix to install into    : dir       : (none)
-#   cflags        : cflags to use             : string    : (empty)
-#   ldflags       : ldflags to use            : string    : (empty)
-do_gdb_expat_backend() {
-    local host
-    local prefix
-    local cflags
-    local ldflags
-    local arg
-
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    CT_DoExecLog CFG                                                \
-    "${CT_SRC_DIR}/expat-${CT_DEBUG_GDB_EXPAT_VERSION}/configure"   \
-        --build=${CT_BUILD}                                         \
-        --host=${host}                                              \
-        --prefix="${prefix}"                                        \
-        --enable-static                                             \
-        --disable-shared
-
-    CT_DoExecLog ALL make ${JOBSFLAGS}
-    CT_DoExecLog ALL make install
-}
+fi

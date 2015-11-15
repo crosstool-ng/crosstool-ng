@@ -18,7 +18,7 @@ doHelp() {
 		  'tool' in one of:
 		    gcc, binutils, glibc, uClibc, newlib, linux, gdb, dmalloc,
 		    duma, strace, ltrace, libelf, gmp, mpfr, ppl, cloog, mpc,
-		    mingw-w64
+		    mingw-w64, expat, ncurses
 		
 		  Valid options for all tools:
 		    --stable, -s, +x   (default)
@@ -191,6 +191,8 @@ while [ $# -gt 0 ]; do
         --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs; dot2suffix=;;
         --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs; dot2suffix=;;
         --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs; dot2suffix=;;
+        --expat)    EXP=; OBS=; cat=EXPAT;          tool=expat;     tool_prefix=companion_libs; dot2suffix=;;
+        --ncurses)  EXP=; OBS=; cat=NCURSES;        tool=ncurses;   tool_prefix=companion_libs; dot2suffix=;;
 
         # Tools options:
         -x|--experimental|+s)   EXP=1;;

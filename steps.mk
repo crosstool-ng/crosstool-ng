@@ -18,24 +18,24 @@ help-env::
 # but are actual steps for canadian and cross-native.
 # Please keep the last line with a '\' and keep the following empy line:
 # it helps when diffing and merging.
-CT_STEPS := libc_check_config        \
-            companion_libs_for_build \
-            binutils_for_build       \
-            companion_libs_for_host  \
-            binutils_for_host        \
-            cc_core_pass_1           \
-            kernel_headers           \
-            libc_start_files         \
-            cc_core_pass_2           \
-            libc                     \
-            cc_for_build             \
-            cc_for_host              \
-            libc_post_cc             \
-            libelf_for_target        \
-            binutils_for_target      \
-            debug                    \
-            test_suite               \
-            finish                   \
+CT_STEPS := libc_check_config          \
+            companion_libs_for_build   \
+            binutils_for_build         \
+            companion_libs_for_host    \
+            binutils_for_host          \
+            cc_core_pass_1             \
+            kernel_headers             \
+            libc_start_files           \
+            cc_core_pass_2             \
+            libc                       \
+            cc_for_build               \
+            cc_for_host                \
+            libc_post_cc               \
+            companion_libs_for_target  \
+            binutils_for_target        \
+            debug                      \
+            test_suite                 \
+            finish                     \
 
 # Keep an empty line above this comment, so the last
 # back-slash terminated line works as expected.

@@ -6,6 +6,7 @@ do_isl_get() { :; }
 do_isl_extract() { :; }
 do_isl_for_build() { :; }
 do_isl_for_host() { :; }
+do_isl_for_target() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_ISL}" = "y" ]; then

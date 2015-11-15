@@ -6,6 +6,7 @@ do_mpc_get() { :; }
 do_mpc_extract() { :; }
 do_mpc_for_build() { :; }
 do_mpc_for_host() { :; }
+do_mpc_for_target() { :; }
 
 # Overide functions depending on configuration
 if [ "${CT_MPC}" = "y" ]; then
