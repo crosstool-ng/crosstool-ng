@@ -176,7 +176,7 @@ ACX_CHECK_PROGS_REQ([help2man], [help2man])
 #--------------------------------------------------------------------
 # Still boring, but remember the path, now...
 #--------------------------------------------------------------------
-ACX_PATH_PROGS_REQ([PATCH], [patch])
+ACX_PATH_TOOL_REQ([PATCH], [gpatch patch])
 
 #--------------------------------------------------------------------
 # And a bunch of less boring tests...
