@@ -188,24 +188,25 @@ do_debug_gdb_build() {
 
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
-        CT_DoExecLog CFG                                \
-        CC="${CC_for_gdb}"                              \
-        LD="${LD_for_gdb}"                              \
-        CFLAGS="${gdb_native_CFLAGS[*]}"                \
-        "${gdb_src_dir}/configure"                      \
-            --build=${CT_BUILD}                         \
-            --host=${CT_TARGET}                         \
-            --target=${CT_TARGET}                       \
-            --prefix=/usr                               \
-            --with-build-sysroot="${CT_SYSROOT_DIR}"    \
-            --without-uiout                             \
-            --disable-tui                               \
-            --disable-gdbtk                             \
-            --without-x                                 \
-            --disable-sim                               \
-            --disable-werror                            \
-            --without-included-gettext                  \
-            --without-develop                           \
+        CT_DoExecLog CFG                                    \
+        CC="${CC_for_gdb}"                                  \
+        LD="${LD_for_gdb}"                                  \
+        CFLAGS="${gdb_native_CFLAGS[*]}"                    \
+        "${gdb_src_dir}/configure"                          \
+            --build=${CT_BUILD}                             \
+            --host=${CT_TARGET}                             \
+            --target=${CT_TARGET}                           \
+            --prefix=/usr                                   \
+            --with-build-sysroot="${CT_SYSROOT_DIR}"        \
+            --with-libexpat-prefix="${CT_SYSROOT_DIR}/usr"  \
+            --without-uiout                                 \
+            --disable-tui                                   \
+            --disable-gdbtk                                 \
+            --without-x                                     \
+            --disable-sim                                   \
+            --disable-werror                                \
+            --without-included-gettext                      \
+            --without-develop                               \
             "${native_extra_config[@]}"
 
         CT_DoLog EXTRA "Building native gdb"
