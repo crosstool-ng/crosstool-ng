@@ -113,6 +113,10 @@ do_ncurses_backend() {
         esac
     done
 
+    if [ "${CT_NCURSES_NEW_ABI}" != "y" ]; then
+        ncurses_opts+=("--with-abi-version=5")
+    fi
+
     case "$host" in
         *-*-mingw*)
             # Needed to build for mingw, see
