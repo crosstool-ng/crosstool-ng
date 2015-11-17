@@ -88,12 +88,10 @@ dump_single_sample() {
             [ -z "${complibs}"  ] || printf "\n"
             printf  "    %-*s : %s\n" ${width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
             printf  "    %-*s :" ${width} "C compilers"
-            for cc in $(env | ${sed} -n 's/^CT_CC_\(.*\)_VERSION.*/\1/p'); do
-                cc_variable=CT_CC_${cc}_VERSION
-                version=${!cc_variable}
-                compiler=$(echo $cc | ${awk} '{print tolower($0)}')
-                printf " $compiler-$version"
-            done
+            cc=$(echo ${CT_CC} | ${awk} '{ print toupper($0)}')
+            version=$(eval echo \${CT_CC_${cc}_VERSION})
+            compiler=$(echo $cc | ${awk} '{print tolower($0)}')
+            printf " $compiler  |  $version"
             printf "\n"
             printf  "    %-*s : %s" ${width} "Languages" "C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
@@ -140,12 +138,10 @@ dump_single_sample() {
         fi
         printf "|  ${CT_BINUTILS_VERSION}  "
         printf "| "
-        for cc in $(env | ${sed} -n 's/^CT_CC_\(.*\)_VERSION.*/\1/p'); do
-            cc_variable=CT_CC_${cc}_VERSION
-            version=${!cc_variable}
-            compiler=$(echo $cc | ${awk} '{print tolower($0)}')
-            printf " $compiler-$version"
-         done
+        cc=$(echo ${CT_CC} | ${awk} '{ print toupper($0)}')
+        version=$(eval echo \${CT_CC_${cc}_VERSION})
+        compiler=$(echo $cc | ${awk} '{print tolower($0)}')
+        printf " $compiler  |  $version"
         printf "  "
         printf "|  ''${CT_LIBC}''  |"
         if [ "${CT_LIBC}" != "none" ]; then
