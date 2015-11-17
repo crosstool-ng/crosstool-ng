@@ -396,7 +396,7 @@ do_libc_backend_once() {
 
         # use the 'install-headers' makefile target to install the
         # headers
-        CT_DoExecLog ALL make ${JOBSFLAGS}                          \
+        CT_DoExecLog ALL ${make} ${JOBSFLAGS}                       \
                          install_root=${CT_SYSROOT_DIR}${extra_dir} \
                          install-bootstrap-headers=yes              \
                          "${extra_make_args[@]}"                    \
@@ -447,8 +447,8 @@ do_libc_backend_once() {
             # there are a few object files needed to link shared libraries,
             # which we build and install by hand
             CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}${extra_dir}/usr/lib"
-            CT_DoExecLog ALL make ${JOBSFLAGS}  \
-                        "${extra_make_args[@]}" \
+            CT_DoExecLog ALL ${make} ${JOBSFLAGS} \
+                        "${extra_make_args[@]}"   \
                         csu/subdir_lib
             CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o    \
                                 "${CT_SYSROOT_DIR}${extra_dir}/usr/lib"
@@ -467,12 +467,12 @@ do_libc_backend_once() {
 
     if [ "${libc_full}" = "y" ]; then
         CT_DoLog EXTRA "Building C library"
-        CT_DoExecLog ALL make ${JOBSFLAGS}              \
-                              "${extra_make_args[@]}"   \
+        CT_DoExecLog ALL ${make} ${JOBSFLAGS}         \
+                              "${extra_make_args[@]}" \
                               all
 
         CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL make ${JOBSFLAGS}                                  \
+        CT_DoExecLog ALL ${make} ${JOBSFLAGS}                               \
                               "${extra_make_args[@]}"                       \
                               install_root="${CT_SYSROOT_DIR}${extra_dir}"  \
                               install
@@ -481,7 +481,7 @@ do_libc_backend_once() {
             CT_DoLog EXTRA "Building and installing the C library manual"
             # Omit JOBSFLAGS as GLIBC has problems building the
             # manuals in parallel
-            CT_DoExecLog ALL make pdf html
+            CT_DoExecLog ALL ${make} pdf html
             CT_DoExecLog ALL mkdir -p ${CT_PREFIX_DIR}/share/doc
             CT_DoExecLog ALL cp -av ${src_dir}/manual/*.pdf    \
                                     ${src_dir}/manual/libc     \
@@ -497,8 +497,8 @@ do_libc_backend_once() {
 # Build up the addons list, separated with $1
 do_libc_add_ons_list() {
     local sep="$1"
-    local addons_list="$( echo "${CT_LIBC_ADDONS_LIST}"         \
-                          |sed -r -e "s/[[:space:],]/${sep}/g;" \
+    local addons_list="$( echo "${CT_LIBC_ADDONS_LIST}"            \
+                          |${sed} -r -e "s/[[:space:],]/${sep}/g;" \
                         )"
     if [ "${CT_LIBC_GLIBC_2_20_or_later}" != "y" ]; then
         case "${CT_THREADS}" in
@@ -508,7 +508,7 @@ do_libc_add_ons_list() {
     fi
     [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
     # Remove duplicate, leading and trailing separators
-    echo "${addons_list}" |sed -r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
+    echo "${addons_list}" |${sed} -r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
 }
 
 # Compute up the minimum supported Linux kernel version
@@ -527,8 +527,8 @@ do_libc_min_kernel_config() {
                 if [ ! -f "${version_code_file}" -o ! -r "${version_code_file}" ]; then
                     CT_Abort "Linux version is unavailable in installed headers files"
                 fi
-                version_code="$( grep -E LINUX_VERSION_CODE "${version_code_file}"  \
-                                 |cut -d ' ' -f 3                                   \
+                version_code="$(${grep} -E LINUX_VERSION_CODE "${version_code_file}"  \
+                                 |cut -d' ' -f 3                                      \
                                )"
                 version=$(((version_code>>16)&0xFF))
                 patchlevel=$(((version_code>>8)&0xFF))
@@ -536,8 +536,8 @@ do_libc_min_kernel_config() {
                 min_kernel_config="${version}.${patchlevel}.${sublevel}"
             elif [ "${CT_LIBC_GLIBC_KERNEL_VERSION_CHOSEN}" = "y" ]; then
                 # Trim the fourth part of the linux version, keeping only the first three numbers
-                min_kernel_config="$( echo "${CT_LIBC_GLIBC_MIN_KERNEL_VERSION}"            \
-                                      |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;' \
+                min_kernel_config="$( echo "${CT_LIBC_GLIBC_MIN_KERNEL_VERSION}"               \
+                                      |${sed} -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;' \
                                     )"
             fi
             echo "--enable-kernel=${min_kernel_config}"
@@ -558,7 +558,7 @@ do_libc_get() {
         CT_GetCustom "glibc" "${CT_LIBC_VERSION}" "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
         CT_LIBC_CUSTOM_LOCATION="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}"
     else
-        if echo ${CT_LIBC_VERSION} |grep -q linaro; then
+        if echo ${CT_LIBC_VERSION} |${grep} -q linaro; then
             # Linaro glibc releases come from regular downloads...
             YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
             CT_GetFile "glibc-${CT_LIBC_VERSION}" \
@@ -657,19 +657,19 @@ do_libc_locales() {
 
     # Configure with --prefix the way we want it on the target...
 
-    CT_DoExecLog CFG                                                \
-    CFLAGS="${glibc_cflags}"                                        \
-    "${src_dir}/configure"                                          \
-        --prefix=/usr                                               \
-        --cache-file="$(pwd)/config.cache"                          \
-        --without-cvs                                               \
-        --disable-profile                                           \
-        --without-gd                                                \
-        --disable-debug                                             \
+    CT_DoExecLog CFG                       \
+    CFLAGS="${glibc_cflags}"               \
+    "${src_dir}/configure"                 \
+        --prefix=/usr                      \
+        --cache-file="$(pwd)/config.cache" \
+        --without-cvs                      \
+        --disable-profile                  \
+        --without-gd                       \
+        --disable-debug                    \
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building C library localedef"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
 
     # The target's endianness and uint32_t alignment should be passed as options
     # to localedef, but glibc's localedef does not support these options, which
@@ -677,8 +677,8 @@ do_libc_locales() {
     # only if it has the same endianness and uint32_t alignment as the host's.
 
     CT_DoLog EXTRA "Installing C library locales"
-    CT_DoExecLog ALL make ${JOBSFLAGS}                              \
-                          install_root="${CT_SYSROOT_DIR}"          \
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS}                  \
+                          install_root="${CT_SYSROOT_DIR}" \
                           localedata/install-locales
 }
 

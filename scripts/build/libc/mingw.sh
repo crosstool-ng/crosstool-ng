@@ -59,10 +59,10 @@ do_libc_start_files() {
         "${sdk_opts[@]}"
 
     CT_DoLog EXTRA "Compile Headers"
-    CT_DoExecLog ALL make
+    CT_DoExecLog ALL ${make}
 
     CT_DoLog EXTRA "Installing Headers"
-    CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
+    CT_DoExecLog ALL ${make} install DESTDIR=${CT_SYSROOT_DIR}
 
     CT_Popd
 
@@ -108,10 +108,10 @@ do_libc() {
     # parallel build. See https://github.com/crosstool-ng/crosstool-ng/issues/246
     # Do not pass ${JOBSFLAGS} - build serially.
     CT_DoLog EXTRA "Building mingw-w64-crt"
-    CT_DoExecLog ALL make
+    CT_DoExecLog ALL ${make}
 
     CT_DoLog EXTRA "Installing mingw-w64-crt"
-    CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
+    CT_DoExecLog ALL ${make} install DESTDIR=${CT_SYSROOT_DIR}
 
     CT_EndStep
 }

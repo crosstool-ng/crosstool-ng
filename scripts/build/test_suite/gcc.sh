@@ -21,7 +21,7 @@ do_test_suite_gcc_build() {
                             "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/testsuite"  \
                             "${CT_TEST_SUITE_DIR}/gcc"
 
-    CT_DoExecLog ALL sed -i -r -e "s/@@DG_TARGET@@/${CT_TARGET}/g;"     \
+    CT_DoExecLog ALL ${sed} -i -r -e "s/@@DG_TARGET@@/${CT_TARGET}/g;"     \
                          "${CT_TEST_SUITE_DIR}/gcc/Makefile"
 
     CT_EndStep
