@@ -8,6 +8,7 @@ set -e
 install="@@CT_install@@"
 grep="@@CT_grep@@"
 sed="@@CT_sed@@"
+awk="@@CT_awk@@"
 
 # Detect where the toolchain is:
 CT_PREFIX_DIR="$(cd "$(dirname "$0")/.."; pwd)"
@@ -149,8 +150,8 @@ if [ -d "${CT_ROOT_DST_DIR}" ]; then
                 ;;
     esac
 fi
-src_inode=$(ls -1id "${CT_ROOT_SRC_DIR}/." |awk '{ print $1 }')
-dst_inode=$(ls -1id "${CT_ROOT_DST_DIR}/." 2>/dev/null |awk '{ print $1 }')
+src_inode=$(ls -1id "${CT_ROOT_SRC_DIR}/." |${awk} '{ print $1 }')
+dst_inode=$(ls -1id "${CT_ROOT_DST_DIR}/." 2>/dev/null |${awk} '{ print $1 }')
 if [ "${src_inode}" -eq "$((dst_inode+0))" ]; then
     printf "$myname: source and destination are the same!\n"
     exit 1
@@ -273,7 +274,7 @@ fi
 # Create a temporary place where to store... temp files.
 rand="$( dd if=/dev/urandom bs=1024 count=1 2>/dev/null \
          |md5sum                                        \
-         |awk '{ print $1; }'
+         |${awk} '{ print $1; }'
        )"
 CT_TMP_DIR="${TMPDIR:-/tmp}/populate-${rand}-${$}"
 ( umask 0077; mkdir "${CT_TMP_DIR}" ) || { printf "Could not create temporary directory\n"; exit 1; }

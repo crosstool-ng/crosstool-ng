@@ -84,9 +84,9 @@ do_libc_start_files() {
     do_libc_configure
 
     CT_DoLog EXTRA "Installing headers"
-    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install-headers
+    CT_DoExecLog ALL ${make} DESTDIR="${CT_SYSROOT_DIR}" install-headers
 
-    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" \
+    CT_DoExecLog ALL ${make} DESTDIR="${CT_SYSROOT_DIR}" \
         crt/crt1.o crt/crti.o crt/crtn.o
     CT_DoExecLog ALL cp -av crt/crt*.o "${CT_SYSROOT_DIR}/usr/lib"
     CT_DoExecLog ALL ${CT_TARGET}-gcc -nostdlib \
@@ -106,10 +106,10 @@ do_libc() {
     do_libc_configure
 
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" install
+    CT_DoExecLog ALL ${make} DESTDIR="${CT_SYSROOT_DIR}" install
 
     CT_EndStep
 }

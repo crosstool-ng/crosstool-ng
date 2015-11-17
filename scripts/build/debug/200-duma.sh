@@ -32,7 +32,7 @@ do_debug_duma_build() {
 
     # The shared library needs some love: some version have libduma.so.0.0,
     # while others have libduma.so.0.0.0
-    duma_so=$(make -n -p 2>&1 |grep -E '^libduma.so[^:]*:' |head -n 1 |cut -d : -f 1)
+    duma_so=$(${make} -n -p 2>&1 |${grep} -E '^libduma.so[^:]*:' |head -n 1 |cut -d : -f 1)
 
     libs=
     [ "${CT_DUMA_A}" = "y" ] && libs="${libs} libduma.a"
@@ -40,22 +40,22 @@ do_debug_duma_build() {
     libs="${libs# }"
     CT_DoLog EXTRA "Building libraries '${libs}'"
     CT_DoExecLog ALL                    \
-    make HOSTCC="${CT_BUILD}-gcc"       \
+    ${make} HOSTCC="${CT_BUILD}-gcc"    \
          CC="${CT_TARGET}-gcc"          \
          CXX="${CT_TARGET}-gcc"         \
          RANLIB="${CT_TARGET}-ranlib"   \
          DUMA_CPP="${DUMA_CPP}"         \
          ${libs}
     CT_DoLog EXTRA "Installing libraries '${libs}'"
-    CT_DoExecLog ALL install -m 644 ${libs} "${CT_SYSROOT_DIR}/usr/lib"
+    CT_DoExecLog ALL ${install} -m 644 ${libs} "${CT_SYSROOT_DIR}/usr/lib"
     if [ "${CT_DUMA_SO}" = "y" ]; then
         CT_DoLog EXTRA "Installing shared library link"
         ln -vsf ${duma_so} "${CT_SYSROOT_DIR}/usr/lib/libduma.so"   2>&1 |CT_DoLog ALL
         CT_DoLog EXTRA "Installing wrapper script"
         mkdir -p "${CT_DEBUGROOT_DIR}/usr/bin"
         # Install a simpler, smaller, safer wrapper than the one provided by D.U.M.A.
-        sed -r -e 's:^LIBDUMA_SO=.*:LIBDUMA_SO=/usr/lib/'"${duma_so}"':;'   \
-            "${CT_LIB_DIR}/scripts/build/debug/duma.in"                     \
+        ${sed} -r -e 's:^LIBDUMA_SO=.*:LIBDUMA_SO=/usr/lib/'"${duma_so}"':;'   \
+            "${CT_LIB_DIR}/scripts/build/debug/duma.in"                        \
             >"${CT_DEBUGROOT_DIR}/usr/bin/duma"
         chmod 755 "${CT_DEBUGROOT_DIR}/usr/bin/duma"
     fi

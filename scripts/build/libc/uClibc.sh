@@ -107,7 +107,7 @@ do_libc_start_files() {
     # newer ones that are referenced are not available
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog ALL                                   \
-                 make CROSS_COMPILE="${cross}"                      \
+                 ${make} CROSS_COMPILE="${cross}"                   \
                  UCLIBC_EXTRA_CFLAGS="-pipe"                        \
                  PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
@@ -115,7 +115,7 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Building headers"
     CT_DoExecLog ALL                                        \
-    make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
+    ${make} ${CT_LIBC_UCLIBC_VERBOSITY}                     \
          CROSS_COMPILE="${cross}"                           \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
@@ -124,7 +124,7 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Installing headers"
     CT_DoExecLog ALL                                        \
-    make ${CT_LIBC_UCLIBC_VERBOSITY}                        \
+    ${make} ${CT_LIBC_UCLIBC_VERBOSITY}                     \
          CROSS_COMPILE="${cross}"                           \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
@@ -134,7 +134,7 @@ do_libc_start_files() {
     if [ "${CT_THREADS}" = "nptl" ]; then
         CT_DoLog EXTRA "Building start files"
         CT_DoExecLog ALL                                        \
-        make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
+        ${make} ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}        \
              CROSS_COMPILE="${cross}"                           \
              UCLIBC_EXTRA_CFLAGS="-pipe"                        \
              PREFIX="${CT_SYSROOT_DIR}/"                        \
@@ -154,12 +154,12 @@ do_libc_start_files() {
                                        -o libdummy.so
 
         CT_DoLog EXTRA "Installing start files"
-        CT_DoExecLog ALL install -m 0644 lib/crt1.o lib/crti.o lib/crtn.o   \
+        CT_DoExecLog ALL ${install} -m 0644 lib/crt1.o lib/crti.o lib/crtn.o   \
                                          "${CT_SYSROOT_DIR}/usr/lib"
 
         CT_DoLog EXTRA "Installing dummy shared libs"
-        CT_DoExecLog ALL install -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libc.so"
-        CT_DoExecLog ALL install -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libm.so"
+        CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libc.so"
+        CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libm.so"
     fi # CT_THREADS == nptl
 
     CT_EndStep
@@ -187,7 +187,7 @@ do_libc() {
     # use LIBC_EXTRA_CFLAGS here.
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog CFG                                   \
-                 make CROSS_COMPILE=${CT_TARGET}-                   \
+                 ${make} CROSS_COMPILE=${CT_TARGET}-                \
                  UCLIBC_EXTRA_CFLAGS="-pipe"                        \
                  PREFIX="${CT_SYSROOT_DIR}/"                        \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
@@ -198,7 +198,7 @@ do_libc() {
     # /Old/ versions can not build in //
     CT_DoLog EXTRA "Building C library"
     CT_DoExecLog ALL                                        \
-    make -j1                                                \
+    ${make} -j1                                             \
          CROSS_COMPILE=${CT_TARGET}-                        \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
@@ -207,7 +207,7 @@ do_libc() {
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          pregen
     CT_DoExecLog ALL                                        \
-    make ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}           \
+    ${make} ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}        \
          CROSS_COMPILE=${CT_TARGET}-                        \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
@@ -232,7 +232,7 @@ do_libc() {
     #
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL                                        \
-    make CROSS_COMPILE=${CT_TARGET}-                        \
+    ${make} CROSS_COMPILE=${CT_TARGET}-                     \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${CT_SYSROOT_DIR}/"                        \
          STRIPTOOL=true                                     \

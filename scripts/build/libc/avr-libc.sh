@@ -62,10 +62,10 @@ do_libc_post_cc() {
     do_libc_configure
 
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL make install
+    CT_DoExecLog ALL ${make} install
 
     CT_EndStep
 }
