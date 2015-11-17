@@ -24,6 +24,16 @@ dump_single_sample() {
     [ "$1" = "-w" ] && wiki=1 && shift
     local sample="$1"
     . $(pwd)/.config.sample
+
+    # libc needs some love
+    local libc_name="${CT_LIBC}"
+    local libc_ver="${CT_LIBC_VERSION}"
+    if [ "${CT_LIBC}" = "uClibc" -a "${CT_LIBC_UCLIBC_NG}" = "y" ]; then
+        libc_name="uClibc-ng"
+    elif [ "${CT_LIBC}" = "mingw" ]; then
+        libc_ver="${CT_WINAPI_VERSION}"
+    fi
+
     case "${sample}" in
         current)
             sample_type="l"
@@ -103,7 +113,7 @@ dump_single_sample() {
             [ "${CT_CC_LANG_GOLANG}" = "y"  ] && printf ",Go"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
             printf "\n"
-            printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${CT_LIBC}${CT_LIBC_VERSION:+-}${CT_LIBC_VERSION}" "${CT_THREADS}"
+            printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${libc_name}${libc_ver:+-}${libc_ver}" "${CT_THREADS}"
             printf  "    %-*s :" ${width} "Tools"
             [ "${CT_TOOL_sstrip}"   ] && printf " sstrip"
             [ "${CT_DEBUG_dmalloc}" ] && printf " dmalloc-${CT_DMALLOC_VERSION}"
@@ -143,9 +153,9 @@ dump_single_sample() {
         compiler=$(echo $cc | ${awk} '{print tolower($0)}')
         printf " $compiler  |  $version"
         printf "  "
-        printf "|  ''${CT_LIBC}''  |"
-        if [ "${CT_LIBC}" != "none" ]; then
-            printf "  ${CT_LIBC_VERSION}  "
+        printf "|  ''${libc_name}''  |"
+        if [ "${libc_name}" != "none" ]; then
+            printf "  ${libc_ver}  "
         fi
         printf "|  ${CT_THREADS:-none}  "
         printf "|  ${CT_ARCH_FLOAT}  "
