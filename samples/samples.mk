@@ -29,6 +29,8 @@ help-samples::
 	@echo  '                       $${CT_PREFIX} (which you must set)'
 
 help-distrib::
+	@echo  '  check-samples      - Verify if samples need updates due to Kconfig changes'
+	@echo  '  update-samples     - Regenerate sample configurations using the current Kconfig'
 	@echo  '  wiki-samples       - Print a DokuWiki table of samples'
 
 help-env::
