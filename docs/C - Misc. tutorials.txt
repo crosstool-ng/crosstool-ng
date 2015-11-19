@@ -359,3 +359,45 @@ MinGW-w64 as host.
 4. collect2.exe will attempt to run ld which is a shell script that runs either
    ld.exe or gold.exe so you need to make sure that a working shell is in your path.
    Eventually I will replace this with a native program for MinGW-w64 host.
+
+Using crosstool-NG to build Xtensa toolchains |
+----------------------------------------------+
+
+Contributed by: Max Filippov
+
+Xtensa cores are highly configurable: endianness, instruction set, register set
+of a core is chosen at processor configuration time. New registers and
+instructions may be added by designers, making each core configuration unique.
+Toolchain components cannot know about features of each individual core and
+need to be configured in order to be compatible with particular architecture
+variant. This configuration includes:
+- definitions of instruction formats, names and properties for assembler,
+  disassembler and debugger;
+- definitions of register names and properties for assembler, disassembler and
+  debugger;
+- selection of predefined features, such as endianness, presence of certain
+  processor options or instructions for compiler, debugger C library and OS
+  kernels;
+- macros with instruction sequences for saving and restoring special, user or
+  coprocessor registers for OS kernels.
+
+This configuration is provided in form of source files, that must replace
+corresponding files in binutils, gcc, gdb or newlib source trees or be added
+to OS kernel source tree. This set of files is usually distributed as archive
+known as Xtensa configuration overlay.
+
+Tensilica provides such an overlay as part of the processor download, however,
+it needs to be reformatted to match the specific format required by the
+crosstool-NG. For a script to convert the overlay file, and additional
+information, please see
+  http://wiki.linux-xtensa.org/index.php/Toolchain_Overlay_File
+
+The current version of crosstool-NG requires that the overlay file name has the
+format xtensa_<CORE_NAME>.tar, where CORE_NAME can be any user selected name.
+To make crosstool-NG use overlay file located at <PATH>/xtensa_<CORE_NAME>.tar
+select XTENSA_CUSTOM, set config parameter CT_ARCH_XTENSA_CUSTOM_NAME to
+CORE_NAME and CT_ARCH_XTENSA_CUSTOM_OVERLAY_LOCATION to PATH.
+
+The fsf target architecture variant is the configuration provided by toolchain
+components by default. It is present only for build-testing toolchain
+components and is in no way special or universal.
