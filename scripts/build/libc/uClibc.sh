@@ -260,7 +260,6 @@ manage_uClibc_config() {
         x86:32)      arch=i386;;
         x86:64)      arch=x86_64;;
         sh:32)       arch="sh";;
-        sh:64)       arch="sh64";;
         *)           arch="${CT_ARCH}";;
     esac
     # Also remove stripping: its the responsibility of the
