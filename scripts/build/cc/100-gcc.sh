@@ -426,6 +426,12 @@ do_gcc_core_backend() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
+    # Clang's default bracket-depth is 256, and building GCC
+    # requires somewhere between 257 and 512.
+    if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
+        cflags="$cflags "-fbracket-depth=512
+    fi
+
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CT_DoExecLog CFG                                   \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
@@ -915,6 +921,13 @@ do_gcc_backend() {
     fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
+
+    # https://gcc.gnu.org/ml/gcc/2014-05/msg00014.html
+    # "gcc 4.9.0 do not build on OSX" .. because Clang's default
+    # bracket-depth is 256
+    if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
+        cflags="$cflags "-fbracket-depth=512
+    fi
 
     CT_DoExecLog CFG                                \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
