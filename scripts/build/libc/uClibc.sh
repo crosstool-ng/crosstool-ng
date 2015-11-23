@@ -427,6 +427,13 @@ manage_uClibc_config() {
         CT_KconfigDisableOption "UCLIBC_HAS_WCHAR" "${dst}"
     fi
 
+    # IPv6 support
+    if [ "${CT_LIBC_UCLIBC_IPV6}" = "y" ]; then
+        CT_KconfigEnableOption "UCLIBC_HAS_IPV6" "${dst}"
+    else
+        CT_KconfigDisableOption "UCLIBC_HAS_IPV6" "${dst}"
+    fi
+
     # Force on options needed for C++ if we'll be making a C++ compiler.
     # I'm not sure locales are a requirement for doing C++... Are they?
     if [ "${CT_CC_LANG_CXX}" = "y" ]; then
