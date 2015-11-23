@@ -318,7 +318,9 @@ do_gcc_core_backend() {
         if [ "${CT_ISL}" = "y" ]; then
             extra_config+=("--with-isl=${complibs}")
         fi
-        extra_config+=("--with-cloog=${complibs}")
+	if [ "${CT_CLOOG}" = "y" ]; then
+	    extra_config+=("--with-cloog=${complibs}")
+	fi
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-isl=no")
         extra_config+=("--with-cloog=no")
@@ -793,7 +795,9 @@ do_gcc_backend() {
         if [ "${CT_ISL}" = "y" ]; then
             extra_config+=("--with-isl=${complibs}")
         fi
-        extra_config+=("--with-cloog=${complibs}")
+	if [ "${CT_CLOOG}" = "y" ]; then
+	    extra_config+=("--with-cloog=${complibs}")
+	fi
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-isl=no")
         extra_config+=("--with-cloog=no")
