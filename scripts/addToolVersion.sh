@@ -17,7 +17,7 @@ doHelp() {
 		Usage: ${myname} <--tool> <[options] version [...]> ...
 		  'tool' in one of:
 		    gcc, binutils, glibc, uClibc, newlib, linux, gdb, dmalloc,
-		    duma, strace, ltrace, libelf, gmp, mpfr, ppl, cloog, mpc,
+		    duma, strace, ltrace, libelf, gmp, mpfr, isl, cloog, mpc,
 		    mingw-w64, expat, ncurses
 		
 		  Valid options for all tools:
@@ -187,7 +187,7 @@ while [ $# -gt 0 ]; do
         --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;          dot2suffix=;;
         --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs; dot2suffix=;;
         --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs; dot2suffix=;;
-        --ppl)      EXP=; OBS=; cat=PPL;            tool=ppl;       tool_prefix=companion_libs; dot2suffix=;;
+	--isl)      EXP=; OBS=; cat=ISL;            tool=isl;       tool_prefix=companion_libs; dot2suffix=;;
         --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs; dot2suffix=;;
         --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs; dot2suffix=;;
         --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs; dot2suffix=;;
