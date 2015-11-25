@@ -211,6 +211,10 @@ do_binutils_backend() {
         extra_config+=("--disable-multilib")
     fi
 
+    # Disable gdb when building from the binutils-gdb repository.
+    extra_config+=("--disable-sim")
+    extra_config+=("--disable-gdb")
+
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
