@@ -22,13 +22,7 @@ CT_ConfigureXtensa() {
         custom_overlay="xtensa-overlay.tar"
     fi
 
-    if [ -n "${CT_CUSTOM_LOCATION_ROOT_DIR}" \
-         -a -z "${custom_location}" ]; then
-             custom_location="${CT_CUSTOM_LOCATION_ROOT_DIR}"
-    fi
-
-    CT_TestAndAbort "${custom_overlay}: CT_CUSTOM_LOCATION_ROOT_DIR or CT_ARCH_XTENSA_CUSTOM_OVERLAY_LOCATION must be set." \
-        -z "${CT_CUSTOM_LOCATION_ROOT_DIR}" -a -z "${custom_location}"
+    CT_TestAndAbort "${custom_overlay}: CT_ARCH_XTENSA_CUSTOM_OVERLAY_LOCATION must be set." -z "${custom_location}"
 
     local full_file="${custom_location}/${custom_overlay}"
     local basename="${component}-${version}"
