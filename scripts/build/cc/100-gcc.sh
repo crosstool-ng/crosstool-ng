@@ -8,7 +8,8 @@ do_gcc_get() {
     local linaro_series=""
 
     if [ "${CT_CC_GCC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "gcc" "${CT_CC_GCC_VERSION}" "${CT_CC_GCC_CUSTOM_LOCATION}"
+        CT_GetCustom "gcc" "${CT_CC_GCC_CUSTOM_VERSION}" \
+            "${CT_CC_GCC_CUSTOM_LOCATION}"
     else
         # Account for the Linaro versioning
         linaro_version="$( echo "${CT_CC_GCC_VERSION}"  \
@@ -48,12 +49,6 @@ do_gcc_get() {
 
 # Extract gcc
 do_gcc_extract() {
-    # If using custom directory location, nothing to do
-    if [ "${CT_CC_GCC_CUSTOM}" = "y"                    \
-         -a -d "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}" ]; then
-        return 0
-    fi
-
     CT_Extract "gcc-${CT_CC_GCC_VERSION}"
     CT_Patch "gcc" "${CT_CC_GCC_VERSION}"
 

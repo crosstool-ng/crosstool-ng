@@ -6,16 +6,10 @@
 do_libc_extract() {
     local addon
 
-    # Attempt CT_EXTRACT only if NOT custom, or CUSTOM_LOCATION is not a directory
-    if [ "${CT_LIBC_CUSTOM}" != "y" \
-         -o ! -d "${CT_LIBC_CUSTOM_LOCATION}" ]; then
-        CT_Extract "${CT_LIBC}-${CT_LIBC_VERSION}"
-    fi
+    CT_Extract "${CT_LIBC}-${CT_LIBC_VERSION}"
     CT_Pushd "${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     # Attempt CT_PATCH only if NOT custom
-    if [ "${CT_LIBC_CUSTOM}" != "y" ]; then
-        CT_Patch nochdir "${CT_LIBC}" "${CT_LIBC_VERSION}"
-    fi
+    CT_Patch nochdir "${CT_LIBC}" "${CT_LIBC_VERSION}"
 
     # Extract the add-opns if => 2.17
     if [ "${CT_LIBC_GLIBC_2_17_or_later}" != "y" ]; then
@@ -554,9 +548,9 @@ do_libc_get() {
     addons_list=($(do_libc_add_ons_list " "))
 
     # Main source
-    if [ "${CT_LIBC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "glibc" "${CT_LIBC_VERSION}" "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
-        CT_LIBC_CUSTOM_LOCATION="${CT_SRC_DIR}/glibc-${CT_LIBC_VERSION}"
+    if [ "${CT_LIBC_GLIBC_CUSTOM}" = "y" ]; then
+        CT_GetCustom "glibc" "${CT_LIBC_GLIBC_CUSTOM_VERSION}" \
+            "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
     else
         if echo ${CT_LIBC_VERSION} |${grep} -q linaro; then
             # Linaro glibc releases come from regular downloads...

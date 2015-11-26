@@ -19,8 +19,8 @@ fi
 # Download uClibc
 do_libc_get() {
     if [ "${CT_LIBC_UCLIBC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "${uclibc_name}" "${CT_LIBC_VERSION}" \
-                     "${CT_LIBC_UCLIBC_CUSTOM_LOCATION}"
+        CT_GetCustom "${uclibc_name}" "${CT_LIBC_UCLIBC_CUSTOM_VERSION}" \
+            "${CT_LIBC_UCLIBC_CUSTOM_LOCATION}"
     else
         CT_GetFile "${uclibc_name}-${CT_LIBC_VERSION}" ${libc_src}
     fi
@@ -34,16 +34,8 @@ do_libc_get() {
 
 # Extract uClibc
 do_libc_extract() {
-    # If not using custom directory location, extract and patch
-    # Note: we do the inverse test we do in other components,
-    # because here we still need to extract the locales, even for
-    # custom location directory. Just use negate the whole test,
-    # to keep it the same as for other components.
-    if ! [ "${CT_LIBC_UCLIBC_CUSTOM}" = "y" \
-         -a -d "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}" ]; then
-        CT_Extract "${uclibc_name}-${CT_LIBC_VERSION}"
-        CT_Patch "${uclibc_name}" "${CT_LIBC_VERSION}"
-    fi
+    CT_Extract "${uclibc_name}-${CT_LIBC_VERSION}"
+    CT_Patch "${uclibc_name}" "${CT_LIBC_VERSION}"
 
     # uClibc locales
     # Extracting pregen locales ourselves is kinda

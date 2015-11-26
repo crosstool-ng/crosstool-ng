@@ -8,24 +8,14 @@ do_libc_get() {
     libc_src="http://www.musl-libc.org/releases"
 
     if [ "${CT_LIBC_MUSL_CUSTOM}" = "y" ]; then
-        CT_GetCustom "musl" "${CT_LIBC_VERSION}"      \
-                     "${CT_LIBC_MUSL_CUSTOM_LOCATION}"
+        CT_GetCustom "musl" "${CT_LIBC_MUSL_CUSTOM_VERSION}" \
+            "${CT_LIBC_MUSL_CUSTOM_LOCATION}"
     else # ! custom location
         CT_GetFile "musl-${CT_LIBC_VERSION}" "${libc_src}"
     fi # ! custom location
 }
 
 do_libc_extract() {
-    # If using custom directory location, nothing to do.
-    if [ "${CT_LIBC_MUSL_CUSTOM}" = "y" ]; then
-        # Abort if the custom directory is not found.
-        if ! [ -d "${CT_SRC_DIR}/musl-${CT_LIBC_VERSION}" ]; then
-            CT_Abort "Directory not found: ${CT_SRC_DIR}/musl-${CT_LIBC_VERSION}"
-        fi
-
-        return 0
-    fi
-
     CT_Extract "musl-${CT_LIBC_VERSION}"
     CT_Patch "musl" "${CT_LIBC_VERSION}"
 }

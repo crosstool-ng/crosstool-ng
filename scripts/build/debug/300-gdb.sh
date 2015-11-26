@@ -7,7 +7,8 @@ do_debug_gdb_get() {
     local linaro_series=""
 
     if [ "${CT_GDB_CUSTOM}" = "y" ]; then
-        CT_GetCustom "gdb" "${CT_GDB_VERSION}" "${CT_GDB_CUSTOM_LOCATION}"
+        CT_GetCustom "gdb" "${CT_GDB_CUSTOM_VERSION}" \
+            "${CT_GDB_CUSTOM_LOCATION}"
     else
         # Account for the Linaro versioning
         linaro_version="$( echo "${CT_GDB_VERSION}"      \
@@ -33,12 +34,6 @@ do_debug_gdb_get() {
 }
 
 do_debug_gdb_extract() {
-    # If using custom directory location, nothing to do
-    if [    "${CT_GDB_CUSTOM}" = "y" \
-         -a -d "${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}" ]; then
-        return 0
-    fi
-
     CT_Extract "gdb-${CT_GDB_VERSION}"
     CT_Patch "gdb" "${CT_GDB_VERSION}"
 

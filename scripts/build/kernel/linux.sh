@@ -24,8 +24,8 @@ do_kernel_get() {
     local korg_base mirror_base
 
     if [ "${CT_KERNEL_LINUX_CUSTOM}" = "y" ]; then
-        CT_GetCustom "linux" "${CT_KERNEL_VERSION}"     \
-                     "${CT_KERNEL_LINUX_CUSTOM_LOCATION}"
+        CT_GetCustom "linux" "${CT_KERNEL_LINUX_CUSTOM_VERSION}" \
+            "${CT_KERNEL_LINUX_CUSTOM_LOCATION}"
     else # Not a custom tarball
         case "${CT_KERNEL_VERSION}" in
             2.6.*.*|3.*.*|4.*.*)
@@ -82,9 +82,6 @@ do_kernel_headers() {
     mkdir -p "${CT_BUILD_DIR}/build-kernel-headers"
 
     kernel_path="${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}"
-    if [ "${CT_KERNEL_LINUX_CUSTOM}" = "y" ]; then
-        kernel_path="${CT_SRC_DIR}/linux-custom"
-    fi
     V_OPT="V=${CT_KERNEL_LINUX_VERBOSE_LEVEL}"
 
     kernel_arch="${CT_ARCH}"
