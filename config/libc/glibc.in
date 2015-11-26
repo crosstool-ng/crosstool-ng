@@ -12,6 +12,42 @@
 config THREADS
     default "nptl"
 
+config LIBC_GLIBC_CUSTOM
+    bool
+    prompt "Custom glibc"
+    depends on EXPERIMENTAL
+    select LIBC_CUSTOM
+    select LIBC_GLIBC_2_20_or_later
+    help
+      The choosen glibc version shall be not downloaded. Instead use
+      a custom location to get the source.
+
+if LIBC_GLIBC_CUSTOM
+
+config LIBC_GLIBC_CUSTOM_LOCATION
+    string
+    prompt "Full path to custom glibc source"
+    help
+      Enter the path to the directory or tarball of your source for glibc.
+
+      If the path is a tarball, it should extract to: <name>-<version>/
+      where the name is this component, glibc, and the version is set
+      below in the custom version string.
+
+config LIBC_GLIBC_CUSTOM_VERSION
+    string
+    prompt "Custom GLIBC version"
+    help
+      Enter the version number for your custom glibc.
+
+config LIBC_VERSION
+    string
+    default LIBC_GLIBC_CUSTOM_VERSION
+
+endif # LIBC_GLIBC_CUSTOM
+
+if ! LIBC_GLIBC_CUSTOM
+
 config CC_GLIBC_SHOW_LINARO
     bool
     prompt "Show Linaro versions"
@@ -132,14 +168,9 @@ config LIBC_GLIBC_V_2_8
     prompt "2.8"
     select LIBC_GLIBC_PORTS_EXTERNAL
 
-config LIBC_GLIBC_CUSTOM
-    bool
-    prompt "Custom glibc"
-    depends on EXPERIMENTAL
-    select LIBC_CUSTOM
-    select LIBC_GLIBC_2_20_or_later
-
 endchoice
+
+endif # ! LIBC_GLIBC_CUSTOM
 
 config LIBC_GLIBC_2_20_or_later
     bool
@@ -149,20 +180,7 @@ config LIBC_GLIBC_2_20_or_later
 config LIBC_GLIBC_2_17_or_later
     bool
 
-config LIBC_CUSTOM
-    bool
-
-if LIBC_GLIBC_CUSTOM
-
-config LIBC_GLIBC_CUSTOM_LOCATION
-    string
-    prompt "Full path to custom glibc source"
-    default ""
-    help
-      Enter the path to the directory (or tarball) of your source for glibc,
-      or leave blank to use default CT_CUSTOM_LOCATION_ROOT_DIR/glibc
-
-endif # LIBC_GLIBC_CUSTOM
+if ! LIBC_GLIBC_CUSTOM
 
 config LIBC_VERSION
     string
@@ -187,4 +205,5 @@ config LIBC_VERSION
     default "2.10.1" if LIBC_GLIBC_V_2_10_1
     default "2.9" if LIBC_GLIBC_V_2_9
     default "2.8" if LIBC_GLIBC_V_2_8
-    default "custom" if LIBC_GLIBC_CUSTOM
+
+endif # ! LIBC_GLIBC_CUSTOM
