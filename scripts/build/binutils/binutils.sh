@@ -252,8 +252,8 @@ do_binutils_backend() {
         if [ "${CT_BINUTILS_LINKER_GOLD}" = "y" ]; then
             manuals_for+=( gold )
         fi
-        manuals_install=( "${manuals_for[@]/\#/install-pdf-}" )
-        manuals_install+=( "${manuals_for[@]/\#/install-html-}" )
+        manuals_install=( "${manuals_for[@]/#/install-pdf-}" )
+        manuals_install+=( "${manuals_for[@]/#/install-html-}" )
         CT_DoExecLog ALL ${make} ${JOBSFLAGS} pdf html
         CT_DoExecLog ALL ${make} "${manuals_install[@]}"
     fi
