@@ -11,43 +11,20 @@ do_cloog_for_target() { :; }
 # Overide functions depending on configuration
 if [ "${CT_CLOOG}" = "y" ]; then
 
-cloog_basename() {
-    printf "cloog"
-    if [ "${CT_PPL}" = "y" ]; then
-        printf -- "-ppl"
-    fi
-}
-cloog_basename_version() {
-    cloog_basename
-    printf -- "-${CT_CLOOG_VERSION}"
-}
-
 # Download CLooG
 do_cloog_get() {
-    CT_GetFile "$(cloog_basename_version)"          \
+    CT_GetFile "cloog-${CT_CLOOG_VERSION}"          \
         http://www.bastoul.net/cloog/pages/download \
         ftp://gcc.gnu.org/pub/gcc/infrastructure
 }
 
 # Extract CLooG
 do_cloog_extract() {
-    local _t
-
-    # Version 0.15.3 has a dirname 'cloog-ppl' (with no version in it!)
-    # while versions 0.15.4 onward do have the version in the dirname.
-    # But, because the infrastructure properly creates the extracted
-    # directories (with tar's --strip-components), we can live safely...
-    CT_Extract "$(cloog_basename_version)"
-    CT_Patch "$(cloog_basename)" "${CT_CLOOG_VERSION}"
+    CT_Extract "cloog-${CT_CLOOG_VERSION}"
+    CT_Patch "cloog" "${CT_CLOOG_VERSION}"
 
     # Help the autostuff in case it thinks there are things to regenerate...
-    CT_DoExecLog DEBUG mkdir -p "${CT_SRC_DIR}/$(cloog_basename_version)/m4"
-
-    if [ "${CT_CLOOG_NEEDS_AUTORECONF}" = "y" ]; then
-        CT_Pushd "${CT_SRC_DIR}/$(cloog_basename_version)"
-        CT_DoExecLog CFG ./autogen.sh
-        CT_Popd
-    fi
+    CT_DoExecLog DEBUG mkdir -p "${CT_SRC_DIR}/cloog-${CT_CLOOG_VERSION}/m4"
 }
 
 # Build CLooG for running on build
@@ -102,47 +79,37 @@ do_cloog_backend() {
     local prefix
     local cflags
     local ldflags
-    local cloog_src_dir="${CT_SRC_DIR}/$(cloog_basename_version)"
     local arg
     local -a cloog_opts
-    local -a cloog_targets
-    local -a cloog_install_targets
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
     if [ "${CT_CLOOG_0_18_or_later}" = y ]; then
-            cloog_opts+=( --with-gmp=system --with-gmp-prefix="${prefix}" )
-            cloog_opts+=( --with-isl=system --with-isl-prefix="${prefix}" )
-            cloog_opts+=( --without-osl )
-            cloog_targets=( all )
-            cloog_install_targets=( install )
-    else
-            cloog_opts+=( --with-gmp="${prefix}" )
-            cloog_opts+=( --with-ppl="${prefix}" )
-            cloog_targets=( libcloog.la )
-            cloog_install_targets=( install-libLTLIBRARIES install-pkgincludeHEADERS )
+	cloog_opts+=( --with-gmp=system --with-gmp-prefix="${prefix}" )
+	cloog_opts+=( --with-isl=system --with-isl-prefix="${prefix}" )
+	cloog_opts+=( --without-osl )
     fi
 
     CT_DoLog EXTRA "Configuring CLooG"
 
-    CT_DoExecLog CFG                            \
-    CFLAGS="${cflags}"                          \
-    LDFLAGS="${ldflags}"                        \
-    LIBS="-lm"                                  \
-    "${cloog_src_dir}/configure"                \
-        --build=${CT_BUILD}                     \
-        --host=${host}                          \
-        --prefix="${prefix}"                    \
-        --with-bits=gmp                         \
-        --with-host-libstdcxx='-lstdc++'        \
-        --disable-shared                        \
-        --enable-static                         \
+    CT_DoExecLog CFG                                    \
+    CFLAGS="${cflags}"                                  \
+    LDFLAGS="${ldflags}"                                \
+    LIBS="-lm"                                          \
+    "${CT_SRC_DIR}/cloog-${CT_CLOOG_VERSION}/configure" \
+	--build=${CT_BUILD}                             \
+	--host=${host}                                  \
+	--prefix="${prefix}"                            \
+	--with-bits=gmp                                 \
+	--with-host-libstdcxx='-lstdc++'                \
+	--disable-shared                                \
+	--enable-static                                 \
         "${cloog_opts[@]}"
 
     CT_DoLog EXTRA "Building CLooG"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS} "${cloog_targets[@]}"
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking CLooG"
@@ -150,7 +117,7 @@ do_cloog_backend() {
     fi
 
     CT_DoLog EXTRA "Installing CLooG"
-    CT_DoExecLog ALL ${make} "${cloog_install_targets[@]}"
+    CT_DoExecLog ALL ${make} install
 }
 
 fi # CT_CLOOG
