@@ -95,10 +95,10 @@ do_debug_gdb_build() {
             LD_for_gdb="${CT_HOST}-ld -static"
         fi
 
-	# Disable binutils options when building from the binutils-gdb repo.
-	cross_extra_config+=("--disable-binutils")
-	cross_extra_config+=("--disable-ld")
-	cross_extra_config+=("--disable-gas")
+    # Disable binutils options when building from the binutils-gdb repo.
+    cross_extra_config+=("--disable-binutils")
+    cross_extra_config+=("--disable-ld")
+    cross_extra_config+=("--disable-gas")
 
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
@@ -186,10 +186,10 @@ do_debug_gdb_build() {
 
         export ac_cv_func_strncmp_works=yes
 
-	# Disable binutils options when building from the binutils-gdb repo.
-	native_extra_config+=("--disable-binutils")
-	native_extra_config+=("--disable-ld")
-	native_extra_config+=("--disable-gas")
+        # Disable binutils options when building from the binutils-gdb repo.
+        native_extra_config+=("--disable-binutils")
+        native_extra_config+=("--disable-ld")
+        native_extra_config+=("--disable-gas")
 
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
@@ -256,10 +256,10 @@ do_debug_gdb_build() {
             fi
         fi
 
-	# Disable binutils options when building from the binutils-gdb repo.
-	gdbserver_extra_config+=("--disable-binutils")
-	gdbserver_extra_config+=("--disable-ld")
-	gdbserver_extra_config+=("--disable-gas")
+        # Disable binutils options when building from the binutils-gdb repo.
+        gdbserver_extra_config+=("--disable-binutils")
+        gdbserver_extra_config+=("--disable-ld")
+        gdbserver_extra_config+=("--disable-gas")
 
         CT_DoExecLog CFG                                \
         CC="${CT_TARGET}-gcc"                           \

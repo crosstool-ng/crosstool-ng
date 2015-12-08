@@ -11,35 +11,35 @@ diff="$@"
 
 do_help() {
     cat <<-_EOF_
-		${0##*/}: transform a patchset of non-p1 patches into -p1 patches
-		
-		Usage:
-		    ${0##*/} <basedir> <src> <dst> [diffopts ...]
-		
-		Where:
-		    basedir
-		        points to the directory of the component to patch
-		
-		    src
-		        points to the directory containing the existing patchset
-		        to transform
-		
-		    dst
-		        points to the directory where to put transformed patches
-		
-		    diffopts
-		        optional options to pass to diff, for debug purposes. You
-		        should not need it
-		
-		Example:
-		    Transform Gentoo patches against gcc-4.4.2 (some of which are
-		    -p0, -p1 or even -p2 patches) into all -p1 patches:
-		
-		        tar xjf gcc-4.4.2.tar.bz2
-		        patch-rework.sh gcc-4.4.2                   \\
-		                        /path/to/gentoo/gcc/patches \\
-		                        gcc-4.4.2.patches
-		_EOF_
+        ${0##*/}: transform a patchset of non-p1 patches into -p1 patches
+        
+        Usage:
+            ${0##*/} <basedir> <src> <dst> [diffopts ...]
+        
+        Where:
+            basedir
+                points to the directory of the component to patch
+        
+            src
+                points to the directory containing the existing patchset
+                to transform
+        
+            dst
+                points to the directory where to put transformed patches
+        
+            diffopts
+                optional options to pass to diff, for debug purposes. You
+                should not need it
+        
+        Example:
+            Transform Gentoo patches against gcc-4.4.2 (some of which are
+            -p0, -p1 or even -p2 patches) into all -p1 patches:
+        
+                tar xjf gcc-4.4.2.tar.bz2
+                patch-rework.sh gcc-4.4.2                   \\
+                                /path/to/gentoo/gcc/patches \\
+                                gcc-4.4.2.patches
+        _EOF_
 }
 
 # Sanity checks
@@ -48,8 +48,8 @@ if [    -z "${base}"                    \
      -o ! -d "${src}"                   \
      -o -e "${dst}" -a ! -d "${dst}"    \
    ]; then
-	do_help
-	exit 1
+    do_help
+    exit 1
 fi
 
 mkdir -p "${dst}"

@@ -143,7 +143,7 @@ do_gcc_core_pass_2() {
             ;;
         *)
             core_opts+=( "mode=static" )
-	    core_opts+=( "build_libgcc=yes" )
+            core_opts+=( "build_libgcc=yes" )
             ;;
     esac
 
@@ -313,9 +313,9 @@ do_gcc_core_backend() {
         if [ "${CT_ISL}" = "y" ]; then
             extra_config+=("--with-isl=${complibs}")
         fi
-	if [ "${CT_CLOOG}" = "y" ]; then
-	    extra_config+=("--with-cloog=${complibs}")
-	fi
+        if [ "${CT_CLOOG}" = "y" ]; then
+            extra_config+=("--with-cloog=${complibs}")
+        fi
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-isl=no")
         extra_config+=("--with-cloog=no")
@@ -472,8 +472,8 @@ do_gcc_core_backend() {
             CT_DoExecLog ALL ${make} ${JOBSFLAGS} -C libbacktrace
         fi
 
-	libgcc_rule="libgcc.mvars"
-	core_targets=( gcc target-libgcc )
+        libgcc_rule="libgcc.mvars"
+        core_targets=( gcc target-libgcc )
 
         # On bare metal and canadian build the host-compiler is used when
         # actually the build-system compiler is required. Choose the correct
@@ -710,7 +710,7 @@ do_gcc_backend() {
         extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
     fi
     if [ "${CT_THREADS}" = "none" ]; then
-	extra_config+=(--disable-libatomic)
+        extra_config+=(--disable-libatomic)
     fi
     if [ "${CT_CC_GCC_LIBMUDFLAP}" = "y" ]; then
         extra_config+=(--enable-libmudflap)
@@ -790,9 +790,9 @@ do_gcc_backend() {
         if [ "${CT_ISL}" = "y" ]; then
             extra_config+=("--with-isl=${complibs}")
         fi
-	if [ "${CT_CLOOG}" = "y" ]; then
-	    extra_config+=("--with-cloog=${complibs}")
-	fi
+        if [ "${CT_CLOOG}" = "y" ]; then
+            extra_config+=("--with-cloog=${complibs}")
+        fi
     elif [ "${CT_CC_GCC_HAS_GRAPHITE}" = "y" ]; then
         extra_config+=("--with-isl=no")
         extra_config+=("--with-cloog=no")

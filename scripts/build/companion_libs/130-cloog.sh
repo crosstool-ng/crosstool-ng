@@ -87,9 +87,9 @@ do_cloog_backend() {
     done
 
     if [ "${CT_CLOOG_0_18_or_later}" = y ]; then
-	cloog_opts+=( --with-gmp=system --with-gmp-prefix="${prefix}" )
-	cloog_opts+=( --with-isl=system --with-isl-prefix="${prefix}" )
-	cloog_opts+=( --without-osl )
+        cloog_opts+=( --with-gmp=system --with-gmp-prefix="${prefix}" )
+        cloog_opts+=( --with-isl=system --with-isl-prefix="${prefix}" )
+        cloog_opts+=( --without-osl )
     fi
 
     CT_DoLog EXTRA "Configuring CLooG"
@@ -99,13 +99,13 @@ do_cloog_backend() {
     LDFLAGS="${ldflags}"                                \
     LIBS="-lm"                                          \
     "${CT_SRC_DIR}/cloog-${CT_CLOOG_VERSION}/configure" \
-	--build=${CT_BUILD}                             \
-	--host=${host}                                  \
-	--prefix="${prefix}"                            \
-	--with-bits=gmp                                 \
-	--with-host-libstdcxx='-lstdc++'                \
-	--disable-shared                                \
-	--enable-static                                 \
+        --build=${CT_BUILD}                             \
+        --host=${host}                                  \
+        --prefix="${prefix}"                            \
+        --with-bits=gmp                                 \
+        --with-host-libstdcxx='-lstdc++'                \
+        --disable-shared                                \
+        --enable-static                                 \
         "${cloog_opts[@]}"
 
     CT_DoLog EXTRA "Building CLooG"
