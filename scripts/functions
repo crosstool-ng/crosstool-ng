@@ -1,4 +1,6 @@
-# This file contains some usefull common functions -*- sh -*-
+# -*- mode: sh; tab-width: 4 -*-
+# vi: ts=4:sw=4:sts=4:et
+# This file contains some usefull common functions
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
@@ -625,39 +627,58 @@ CT_GetLocal() {
 }
 
 # This function gets the custom source from either a tarball or directory
-# Usage: CT_GetCustom <component> <custom_version> <custom_location>
+# Usage: CT_GetCustom <name> <version> <location>
 CT_GetCustom() {
-    local custom_component="$1"
-    local custom_version="$2"
-    local custom_location="$3"
-    local custom_name="${custom_component}-${custom_version}"
+    local component_name="$1"
+    local component_version="$2"
+    local component_location="$3"
 
-    CT_TestAndAbort "${custom_name}: CT_CUSTOM_LOCATION_ROOT_DIR or ${custom_component}'s CUSTOM_LOCATION must be set." \
-                    -z "${CT_CUSTOM_LOCATION_ROOT_DIR}" -a -z "${custom_location}"
+    # Some local variables we use to help us figure out what to do
+    local component_location_type="dir" # str: 'file' or 'dir'
+    local component_location_filename="" # filename... if it's a file
 
-    if [ -n "${CT_CUSTOM_LOCATION_ROOT_DIR}" \
-         -a -z "${custom_location}"          ]; then
-        custom_location="${CT_CUSTOM_LOCATION_ROOT_DIR}/${custom_component}"
+    CT_TestAndAbort \
+        "${component_name}: Custom location setting is empty" \
+        -z "${component_location}"
+
+    CT_TestAndAbort \
+        "${component_name}: Custom version setting is empty" \
+        -z "${component_version}"
+
+    if [ -f "${component_location}" ]; then
+        component_location_type="file"
+        component_location_filename="$(basename ${component_location})"
+    elif [ -d "${component_location}" ]; then
+        # Yes, it's the default, but it rules out the else case in the `if'.
+        component_location_type="dir"
+        # as -d and -f say: it's a <directory|file> and is readable!
+    else
+        CT_Abort "${component_name}: Unable to read ${component_location}, make sure the setting is correct and double check the permissions!"
     fi
 
-    CT_DoLog EXTRA "Using '${custom_name}' from custom location"
-    if [ ! -d "${custom_location}" ]; then
+    if [ "${component_location_type}" = "file" ]; then
+        CT_DoLog EXTRA "Got '${component_location}' from custom location"
         # We need to know the custom tarball extension,
         # so we can create a properly-named symlink, which
         # we use later on in 'extract'
-        case "${custom_location}" in
-            *.tar.xz)       custom_name="${custom_name}.tar.xz";;
-            *.tar.bz2)      custom_name="${custom_name}.tar.bz2";;
-            *.tar.gz|*.tgz) custom_name="${custom_name}.tar.gz";;
-            *.tar)          custom_name="${custom_name}.tar";;
-            *)  CT_Abort "Unknown extension for custom tarball '${custom_location}'";;
+        case "${component_location}" in
+            *.tar.xz|*.tar.bz2|*.tar.lzma|*.tar.gz|*.tgz|*.tar|*.zip) ;;
+            *) CT_Abort "Unknown extension for custom tarball '${component_location}'" ;;
         esac
-        CT_DoExecLog DEBUG ln -sf "${custom_location}"  \
-                                  "${CT_TARBALLS_DIR}/${custom_name}"
-    else
-        CT_DoExecLog DEBUG ln -snf "${custom_location}" \
-                                   "${CT_SRC_DIR}/${custom_name}"
+        [ ! -L "${CT_TARBALLS_DIR}/${component_location_filename}" ] && \
+            CT_DoExecLog DEBUG ln -sf "${component_location}" \
+            "${CT_TARBALLS_DIR}/${component_location_filename}"
+    elif [ "${component_location_type}" = "dir" ]; then
+        CT_DoLog EXTRA "Got '${component_location}' from custom location"
+        [ ! -d "${CT_SRC_DIR}/${component_name}-${component_version}" ] && \
+            CT_DoExecLog DEBUG cp -al "${component_location}" \
+            "${CT_SRC_DIR}/${component_name}-${component_version}"
+
+        # Don't try to extract from source directory, it's extracted!
+        touch "${CT_SRC_DIR}/.${component_name}-${component_version}.extracted"
     fi
+    # Don't patch a custom source, it's custom!
+    touch "${CT_SRC_DIR}/.${component_name}-${component_version}.patched"
 }
 
 # This function saves the specified to local storage if possible,
@@ -938,17 +959,17 @@ CT_Extract() {
     basename="$1"
     shift
 
-    if ! ext="$(CT_GetFileExtension "${basename}")"; then
-        CT_DoLog WARN "'${basename}' not found in '${CT_TARBALLS_DIR}'"
-        return 1
-    fi
-    local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
-
     # Check if already extracted
     if [ -e "${CT_SRC_DIR}/.${basename}.extracted" ]; then
         CT_DoLog DEBUG "Already extracted '${basename}'"
         return 0
     fi
+
+    if ! ext="$(CT_GetFileExtension "${basename}")"; then
+	CT_DoLog WARN "'${basename}' not found in '${CT_TARBALLS_DIR}'"
+	return 1
+    fi
+    local full_file="${CT_TARBALLS_DIR}/${basename}${ext}"
 
     # Check if previously partially extracted
     if [ -e "${CT_SRC_DIR}/.${basename}.extracting" ]; then

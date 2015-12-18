@@ -14,8 +14,8 @@ do_libc_get() {
                      ftp://sourceware.org/pub/newlib}"
 
     if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
-        CT_GetCustom "newlib" "${CT_LIBC_VERSION}"      \
-                     "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
+        CT_GetCustom "newlib" "${CT_LIBC_NEWLIB_CUSTOM_VERSION}" \
+            "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
     else # ! custom location
         if echo ${CT_LIBC_VERSION} |${grep} -q linaro; then
             YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
@@ -30,12 +30,6 @@ do_libc_get() {
 }
 
 do_libc_extract() {
-    # If using custom directory location, nothing to do
-    if [    "${CT_LIBC_NEWLIB_CUSTOM}" = "y"             \
-         -a -d "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}" ]; then
-        return 0
-    fi
-
     CT_Extract "newlib-${CT_LIBC_VERSION}"
     CT_Patch "newlib" "${CT_LIBC_VERSION}"
 

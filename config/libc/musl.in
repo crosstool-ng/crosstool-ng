@@ -12,6 +12,40 @@
 config THREADS
     default "musl"
 
+config LIBC_MUSL_CUSTOM
+    bool
+    prompt "Custom musl"
+    depends on EXPERIMENTAL
+    help
+      The choosen musl-libc version shall be not downloaded. Instead use
+      a custom location to get the source.
+
+if LIBC_MUSL_CUSTOM
+
+config LIBC_MUSL_CUSTOM_LOCATION
+    string
+    prompt "Full path to custom musl-libc source"
+    help
+      Enter the path to the directory or tarball of your source for musl.
+
+      If the path is a tarball, it should extract to: <name>-<version>/
+      where the name is this component, musl, and the version is set
+      below in the custom version string.
+
+config LIBC_MUSL_CUSTOM_VERSION
+    string
+    prompt "Custom MUSL version"
+    help
+      Enter the version number for your custom musl-libc.
+
+config LIBC_VERSION
+    string
+    default LIBC_MUSL_CUSTOM_VERSION
+
+endif # LIBC_MUSL_CUSTOM
+
+if ! LIBC_MUSL_CUSTOM
+
 choice
     bool
     prompt "musl version"
@@ -27,11 +61,6 @@ config LIBC_MUSL_V_1_0
     bool
     prompt "1.0.5 (Stable)"
 
-config LIBC_MUSL_V_CUSTOM
-    bool
-    prompt "Custom musl"
-    depends on EXPERIMENTAL
-
 endchoice
 
 config LIBC_VERSION
@@ -40,4 +69,5 @@ config LIBC_VERSION
 # CT_INSERT_VERSION_STRING_BELOW
     default "1.1.12" if LIBC_MUSL_V_1_1
     default "1.0.5" if LIBC_MUSL_V_1_0
-    default "custom" if LIBC_MUSL_V_CUSTOM
+
+endif # ! LIBC_MUSL_CUSTOM

@@ -14,37 +14,37 @@ myname="$0"
 
 doHelp() {
     cat <<-EOF
-		Usage: ${myname} <--tool> <[options] version [...]> ...
-		  'tool' in one of:
-		    gcc, binutils, glibc, uClibc, newlib, linux, gdb, dmalloc,
-		    duma, strace, ltrace, libelf, gmp, mpfr, isl, cloog, mpc,
-		    mingw-w64, expat, ncurses
-		
-		  Valid options for all tools:
-		    --stable, -s, +x   (default)
-		      mark the version as being stable (as opposed to experimental, below)
-		
-		    --experimental, -x, +s
-		      mark the version as being experimental (as opposed to stable, above)
-		
-		    --current, -c, +o   (default)
-		      mark the version as being cuurent (as opposed to obsolete, below)
-		
-		    --obsolete, -o, +c
-		      mark the version as being obsolete (as opposed to current, above)
-		
-		  Note: setting a new tool resets to the defaults: 'stable' and 'current'.
-		
-		  'version' is a valid version for the specified tool.
-		
-		  Examples:
-		    add stable current version 2.6.19.2 to linux kernel:
-		      ${myname} --linux 2.6.19.2
-		
-		    add experimental obsolete version 2.3.5 and stable current versions 2.6.1
-		    and 2.6.2 to glibc, add stable obsolete version 3.3.3 to gcc:
-		      ${myname} --glibc -x -o 2.3.5 -s -c 2.6.1 2.6.2 --gcc -o 3.3.3
-		EOF
+        Usage: ${myname} <--tool> <[options] version [...]> ...
+          'tool' in one of:
+            gcc, binutils, glibc, uClibc, newlib, linux, gdb, dmalloc,
+            duma, strace, ltrace, libelf, gmp, mpfr, isl, cloog, mpc,
+            mingw-w64, expat, ncurses
+
+          Valid options for all tools:
+            --stable, -s, +x   (default)
+              mark the version as being stable (as opposed to experimental, below)
+
+            --experimental, -x, +s
+              mark the version as being experimental (as opposed to stable, above)
+
+            --current, -c, +o   (default)
+              mark the version as being cuurent (as opposed to obsolete, below)
+
+            --obsolete, -o, +c
+              mark the version as being obsolete (as opposed to current, above)
+
+          Note: setting a new tool resets to the defaults: 'stable' and 'current'.
+
+          'version' is a valid version for the specified tool.
+
+          Examples:
+            add stable current version 2.6.19.2 to linux kernel:
+              ${myname} --linux 2.6.19.2
+
+            add experimental obsolete version 2.3.5 and stable current versions 2.6.1
+            and 2.6.2 to glibc, add stable obsolete version 3.3.3 to gcc:
+              ${myname} --glibc -x -o 2.3.5 -s -c 2.6.1 2.6.2 --gcc -o 3.3.3
+        EOF
 }
 
 # Extract field $3 from version $1 with separator $2
@@ -187,7 +187,7 @@ while [ $# -gt 0 ]; do
         --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;          dot2suffix=;;
         --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs; dot2suffix=;;
         --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs; dot2suffix=;;
-	--isl)      EXP=; OBS=; cat=ISL;            tool=isl;       tool_prefix=companion_libs; dot2suffix=;;
+        --isl)      EXP=; OBS=; cat=ISL;            tool=isl;       tool_prefix=companion_libs; dot2suffix=;;
         --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs; dot2suffix=;;
         --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs; dot2suffix=;;
         --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs; dot2suffix=;;

@@ -6,24 +6,14 @@ do_libc_get() {
     libc_src="http://download.savannah.gnu.org/releases/avr-libc"
 
     if [ "${CT_LIBC_AVR_LIBC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "avr-libc" "${CT_LIBC_VERSION}"      \
-                     "${CT_LIBC_AVR_LIBC_CUSTOM_LOCATION}"
+        CT_GetCustom "avr-libc" "${CT_LIBC_AVR_LIBC_CUSTOM_VERSION}" \
+            "${CT_LIBC_AVR_LIBC_CUSTOM_LOCATION}"
     else # ! custom location
         CT_GetFile "avr-libc-${CT_LIBC_VERSION}" "${libc_src}"
     fi # ! custom location
 }
 
 do_libc_extract() {
-    # If using custom directory location, nothing to do.
-    if [ "${CT_LIBC_AVR_LIBC_CUSTOM}" = "y" ]; then
-        # Abort if the custom directory is not found.
-        if ! [ -d "${CT_SRC_DIR}/avr-libc-${CT_LIBC_VERSION}" ]; then
-            CT_Abort "Directory not found: ${CT_SRC_DIR}/avr-libc-${CT_LIBC_VERSION}"
-        fi
-
-        return 0
-    fi
-
     CT_Extract "avr-libc-${CT_LIBC_VERSION}"
     CT_Patch "avr-libc" "${CT_LIBC_VERSION}"
 }

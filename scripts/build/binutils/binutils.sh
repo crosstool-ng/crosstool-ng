@@ -5,8 +5,8 @@
 # Download binutils
 do_binutils_get() {
     if [ "${CT_BINUTILS_CUSTOM}" = "y" ]; then
-        CT_GetCustom "binutils" "${CT_BINUTILS_VERSION}" \
-                     "${CT_BINUTILS_CUSTOM_LOCATION}"
+        CT_GetCustom "binutils" "${CT_BINUTILS_CUSTOM_VERSION}" \
+            "${CT_BINUTILS_CUSTOM_LOCATION}"
     else
         if echo ${CT_BINUTILS_VERSION} |${grep} -q linaro; then
             YYMM=`echo ${CT_BINUTILS_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
@@ -22,8 +22,8 @@ do_binutils_get() {
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
         if [ "${CT_ELF2FLT_CUSTOM}" = "y" ]; then
-            CT_GetCustom "elf2flt" "${CT_ELF2FLT_VERSION}"  \
-                         "${CT_ELF2FLT_CUSTOM_LOCATION}"
+            CT_GetCustom "elf2flt" "${CT_ELF2FLT_CUSTOM_VERSION}" \
+                "${CT_ELF2FLT_CUSTOM_LOCATION}"
         else
             CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" git://wh0rd.org/elf2flt.git
         fi
@@ -32,19 +32,12 @@ do_binutils_get() {
 
 # Extract binutils
 do_binutils_extract() {
-    # If using custom directory location, nothing to do
-    if ! [ "${CT_BINUTILS_CUSTOM}" = "y" \
-         -a -d "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}" ]; then
-        CT_Extract "binutils-${CT_BINUTILS_VERSION}"
-        CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
-    fi
+    CT_Extract "binutils-${CT_BINUTILS_VERSION}"
+    CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        if ! [ "${CT_ELF2FLT_CUSTOM}" = "y" \
-             -a -d "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}" ]; then
-            CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
-            CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
-        fi
+        CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
+        CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
     fi
 
     if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then

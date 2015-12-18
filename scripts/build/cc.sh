@@ -38,21 +38,21 @@ do_cc_core_pass_1() {
 
 # Core pass 2 the cc facilities
 do_cc_core_pass_2() {
-	for f in ${CT_CC_FACILITY_LIST}; do
+    for f in ${CT_CC_FACILITY_LIST}; do
         do_${f}_core_pass_2
     done
 }
 
 # Build for build the cc facilities
 do_cc_for_build() {
-	for f in ${CT_CC_FACILITY_LIST}; do
+    for f in ${CT_CC_FACILITY_LIST}; do
         do_${f}_for_build
     done
 }
 
 # Build for host the cc facilities
 do_cc_for_host() {
-	for f in ${CT_CC_FACILITY_LIST}; do
+    for f in ${CT_CC_FACILITY_LIST}; do
         do_${f}_for_host
     done
 }

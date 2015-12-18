@@ -10,6 +10,41 @@ if GDB_CROSS || GDB_NATIVE || GDB_GDBSERVER
 
 comment "gdb version"
 
+config GDB_CUSTOM
+    bool
+    prompt "Custom gdb"
+    depends on EXPERIMENTAL
+    select GDB_7_2_or_later
+    help
+      The choosen gdb version shall be not downloaded. Instead use
+      a custom location to get the source.
+
+if GDB_CUSTOM
+
+config GDB_CUSTOM_LOCATION
+    string
+    prompt "Full path to custom gdb source"
+    help
+      Enter the path to the directory or tarball of your source for gcc.
+
+      If the path is a tarball, it should extract to: <name>-<version>/
+      where the name is this component, gcc, and the version is set
+      below in the custom version string.
+
+config GDB_CUSTOM_VERSION
+    string
+    prompt "Custom GDB version"
+    help
+      Enter the version number for your custom gdb.
+
+config GDB_VERSION
+    string
+    default GDB_CUSTOM_VERSION
+
+endif # GDB_CUSTOM
+
+if ! GDB_CUSTOM
+
 config DEBUG_GDB_SHOW_LINARO
     bool
     prompt "Show Linaro versions"
@@ -166,13 +201,7 @@ config GDB_V_6_8a
 
 endchoice
 
-config GDB_CUSTOM
-    bool
-    prompt "Custom gdb"
-    depends on EXPERIMENTAL
-    help
-    The choosen gdb version shall be not downloaded. Instead use
-    a custom location to get the source.
+endif # ! GDB_CUSTOM
 
 config GDB_7_2_or_later
     bool
@@ -192,6 +221,8 @@ config GDB_HAS_PYTHON
 
 config GDB_INSTALL_GDBINIT
     bool
+
+if ! GDB_CUSTOM
 
 config GDB_VERSION
     string
@@ -223,17 +254,7 @@ config GDB_VERSION
     default "7.0a" if GDB_V_7_0a
     default "6.8a" if GDB_V_6_8a
 
-if GDB_CUSTOM
+endif # ! GDB_CUSTOM
 
-config GDB_CUSTOM_LOCATION
-    string
-    prompt "Full path to custom gdb source"
-    default ""
-    help
-      Enter the path to the directory (or tarball) of your source for gdb,
-      or leave blank to use default CT_CUSTOM_LOCATION_ROOT_DIR/gdb
-
-endif # GDB_CUSTOM
-
-endif
+endif # GDB_CROSS || GDB_NATIVE || GDB_GDBSERVER
 
