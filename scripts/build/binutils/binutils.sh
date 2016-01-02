@@ -351,6 +351,10 @@ do_binutils_for_target() {
             extra_config+=("--disable-multilib")
         fi
 
+        if [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ]; then
+            extra_config+=("--enable-install-libiberty")
+        fi
+
         [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
         CT_DoExecLog CFG                                            \
