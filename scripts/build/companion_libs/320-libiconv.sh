@@ -102,6 +102,7 @@ do_libiconv_backend() {
         --build=${CT_BUILD}                                   \
         --host="${host}"                                      \
         --prefix="${prefix}"                                  \
+        --disable-nls                                         \
         "${extra_config[@]}"                                  \
 
     CT_DoLog EXTRA "Building libiconv"

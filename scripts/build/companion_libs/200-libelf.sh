@@ -135,6 +135,13 @@ do_libelf_backend() {
     CT_DoExecLog ALL ${make}
 
     CT_DoLog EXTRA "Installing libelf"
+
+    # Guard against $destdir$prefix == //
+    # which is a UNC path on Cygwin/MSYS2
+    if [[ ${destdir} == / ]] && [[ ${prefix} == /* ]]; then
+        destdir=
+    fi
+
     CT_DoExecLog ALL ${make} instroot="${destdir}" install
 }
 
