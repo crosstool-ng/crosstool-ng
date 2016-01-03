@@ -28,9 +28,10 @@ do_gcc_get() {
                        ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_GCC_VERSION}
         else
             YYMM=`echo ${CT_CC_GCC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
-            CT_GetFile "gcc-${CT_CC_GCC_VERSION}"                                                               \
-                       "http://launchpad.net/gcc-linaro/${linaro_series}/${linaro_version}/+download"       \
-                       https://releases.linaro.org/${YYMM}/components/toolchain/gcc-linaro/${linaro_series} \
+            CT_GetFile "gcc-${CT_CC_GCC_VERSION}"                                                             \
+                       "https://releases.linaro.org/components/toolchain/gcc-linaro/${linaro_version}"        \
+                       "https://releases.linaro.org/${YYMM}/components/toolchain/gcc-linaro/${linaro_series}" \
+                       "http://launchpad.net/gcc-linaro/${linaro_series}/${linaro_version}/+download"         \
                        http://cbuild.validation.linaro.org/snapshots
         fi
 
