@@ -117,19 +117,19 @@ addToolVersion() {
             fi
             ;;
         binutils)
-            # Extract 'M'ajor and 'm'inor from version string
+            # Extract 'M'ajor, 'm'inor, sometimes 'p'atch from version string
+            # TODO: Rework this
             ver_M=$(getVersionField "${version}" . 1)
             ver_m=$(getVersionField "${version}" . 2)
-            if [   \( ${ver_M} -eq 2 -a ${ver_m} -eq 22 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select BINUTILS_2_22_or_later"
-            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 21 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select BINUTILS_2_21_or_later"
-            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 20 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select BINUTILS_2_20_or_later"
-            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 19 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select BINUTILS_2_19_or_later"
-            elif [ \( ${ver_M} -eq 2 -a ${ver_m} -eq 18 \)  ]; then
-                SedExpr1="${SedExpr1}\n    select BINUTILS_2_18_or_later"
+            ver_p=$(getVersionField "${version}" . 3)
+            if [ ${ver_M} -eq 2 -a ${ver_m} -eq 25 -a ${ver_p} -eq 1 ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_25_1_or_later"
+            elif [ ${ver_M} -eq 2 -a ${ver_m} -eq 25 -a -z ${ver_p} ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_25_or_later"
+            elif [ ${ver_M} -eq 2 -a ${ver_m} -eq 24 ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_24_or_later"
+            elif [ ${ver_M} -eq 2 -a ${ver_m} -eq 23 -a ${ver_p} -eq 2 ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_23_2_or_later"
             fi
             ;;
         uClibc)
