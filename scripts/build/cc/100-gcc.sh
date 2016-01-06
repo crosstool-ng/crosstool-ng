@@ -247,12 +247,6 @@ do_gcc_core_backend() {
             ;;
     esac
 
-    if [ "${CT_CC_GCC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
-        # Bare metal delivers the core compiler as final compiler, so add version info and bugurl
-        extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
-        [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
-    fi
-
     CT_DoLog DEBUG "Copying headers to install area of core C compiler"
     CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
 
@@ -262,17 +256,40 @@ do_gcc_core_backend() {
             extra_config+=("${tmp}")
         fi
     done
+
+    if [ "${CT_CC_GCC_HAS_PKGVERSION_BUGURL}" = "y" ]; then
+        extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+        [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+    fi
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
         extra_config+=("--enable-__cxa_atexit")
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
 
+    extra_config+=(--disable-libgomp)
+    extra_config+=(--disable-libmudflap)
+
+    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
+        extra_config+=(--enable-libssp)
+    else
+        extra_config+=(--disable-libssp)
+    fi
+    if [ "${CT_CC_GCC_HAS_LIBQUADMATH}" = "y" ]; then
+        if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
+            extra_config+=(--enable-libquadmath)
+            extra_config+=(--enable-libquadmath-support)
+        else
+            extra_config+=(--disable-libquadmath)
+            extra_config+=(--disable-libquadmath-support)
+        fi
+    fi
+
     core_LDFLAGS+=("${ldflags}")
 
     # *** WARNING ! ***
     # Keep this full if-else-if-elif-fi-fi block in sync
-    # with the same block in do_gcc, below.
+    # with the same block in do_gcc_backend, below.
     if [ "${build_staticlinked}" = "yes" ]; then
         core_LDFLAGS+=("-static")
         host_libstdcxx_flags+=("-static-libgcc")
@@ -336,6 +353,9 @@ do_gcc_core_backend() {
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
         extra_config+=("--enable-target-optspace")
     fi
+    if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
+        extra_config+=("--disable-libstdcxx-pch")
+    fi
 
     case "${CT_CC_GCC_LDBL_128}" in
         y)  extra_config+=("--with-long-double-128");;
@@ -375,27 +395,7 @@ do_gcc_core_backend() {
             ;; # ARCH is mips
     esac
 
-    extra_config+=(--disable-libgomp)
-    extra_config+=(--disable-libmudflap)
-
-    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
-        extra_config+=(--enable-libssp)
-    else
-        extra_config+=(--disable-libssp)
-    fi
-    if [ "${CT_CC_GCC_HAS_LIBQUADMATH}" = "y" ]; then
-        if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
-            extra_config+=(--enable-libquadmath)
-            extra_config+=(--enable-libquadmath-support)
-        else
-            extra_config+=(--disable-libquadmath)
-            extra_config+=(--disable-libquadmath-support)
-        fi
-    fi
-
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
-
-    [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ] && extra_config+=("--disable-libstdcxx-pch")
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
@@ -533,7 +533,6 @@ do_gcc_core_backend() {
     find . -type f -name "*.la" -exec rm {} \; |CT_DoLog ALL
     CT_Popd
 
-
     if [ "${build_manuals}" = "yes" ]; then
         CT_DoLog EXTRA "Building the GCC manuals"
         CT_DoExecLog ALL ${make} pdf html
@@ -555,7 +554,7 @@ do_gcc_core_backend() {
              -a "${host}" = "${CT_HOST}" ]; then
             CT_DoLog WARN "Canadian Cross unable to confirm multilibs configured correctly"
         else
-            multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib   \
+            multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib \
                            |tail -n +2 ) )
             if [ ${#multilibs[@]} -ne 0 ]; then
                 CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
@@ -566,7 +565,7 @@ do_gcc_core_backend() {
                 done
             else
                 CT_DoLog WARN "gcc configured for multilib, but none available"
-           fi
+            fi
         fi
     fi
 }
@@ -666,9 +665,9 @@ do_gcc_backend() {
     local host
     local prefix
     local complibs
+    local lang_list
     local cflags
     local ldflags
-    local lang_list
     local build_manuals
     local -a host_libstdcxx_flags
     local -a extra_config
@@ -707,6 +706,7 @@ do_gcc_backend() {
     else
         extra_config+=("--disable-__cxa_atexit")
     fi
+
     if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
     fi
@@ -737,6 +737,7 @@ do_gcc_backend() {
             extra_config+=(--disable-libquadmath-support)
         fi
     fi
+
     if [ "${CT_CC_GCC_HAS_LIBSANITIZER}" = "y" ]; then
         if [ "${CT_CC_GCC_LIBSANITIZER}" = "y" ]; then
             extra_config+=(--enable-libsanitizer)
@@ -749,7 +750,7 @@ do_gcc_backend() {
 
     # *** WARNING ! ***
     # Keep this full if-else-if-elif-fi-fi block in sync
-    # with the same block in do_gcc_core, above.
+    # with the same block in do_gcc_core_backend, above.
     if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
         final_LDFLAGS+=("-static")
         host_libstdcxx_flags+=("-static-libgcc")
@@ -879,7 +880,6 @@ do_gcc_backend() {
         extra_config+=("--with-system-zlib")
     fi
 
-
     # Some versions of gcc have a deffective --enable-multilib.
     # Since that's the default, only pass --disable-multilib.
     if [ "${CT_MULTILIB}" != "y" ]; then
@@ -888,9 +888,8 @@ do_gcc_backend() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
-    # https://gcc.gnu.org/ml/gcc/2014-05/msg00014.html
-    # "gcc 4.9.0 do not build on OSX" .. because Clang's default
-    # bracket-depth is 256
+    # Clang's default bracket-depth is 256, and building GCC
+    # requires somewhere between 257 and 512.
     if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
         cflags="$cflags "-fbracket-depth=512
     fi
