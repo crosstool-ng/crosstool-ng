@@ -266,6 +266,11 @@ do_gcc_core_backend() {
         extra_config+=("--disable-__cxa_atexit")
     fi
 
+    if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}"
+            -a "${mode}" = "baremetal" ]; then
+        extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
+    fi
+
     extra_config+=(--disable-libgomp)
     extra_config+=(--disable-libmudflap)
 
@@ -705,6 +710,7 @@ do_gcc_backend() {
     if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
     fi
+
     if [ "${CT_THREADS}" = "none" ]; then
         extra_config+=(--disable-libatomic)
     fi
