@@ -200,7 +200,6 @@ do_gcc_core_backend() {
     local -a core_targets_all
     local -a core_targets_install
     local -a extra_user_config
-    local -a extra_user_env
     local arg
 
     for arg in "$@"; do
@@ -407,10 +406,6 @@ do_gcc_core_backend() {
         extra_config+=("--disable-multilib")
     fi
 
-    if [ "x${CT_CC_GCC_EXTRA_ENV_ARRAY}" != "x" ]; then
-        extra_user_env=( "${CT_CC_GCC_EXTRA_ENV_ARRAY[@]}" )
-    fi
-
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Clang's default bracket-depth is 256, and building GCC
@@ -488,7 +483,7 @@ do_gcc_core_backend() {
             repair_cc=""
         fi
 
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS} ${extra_user_env} -C gcc ${libgcc_rule} \
+        CT_DoExecLog ALL ${make} ${JOBSFLAGS} -C gcc ${libgcc_rule} \
                               ${repair_cc}
         ${sed} -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
@@ -519,10 +514,10 @@ do_gcc_core_backend() {
     esac
 
     CT_DoLog EXTRA "Building ${log_txt}"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS} ${extra_user_env} ${core_targets_all}
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS} ${core_targets_all}
 
     CT_DoLog EXTRA "Installing ${log_txt}"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS} ${extra_user_env} ${core_targets_install}
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS} ${core_targets_install}
 
     # Remove the libtool "pseudo-libraries": having them in the installed
     # tree makes the libtoolized utilities that are built next assume
