@@ -266,7 +266,7 @@ do_gcc_core_backend() {
         extra_config+=("--disable-__cxa_atexit")
     fi
 
-    if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}"
+    if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}" \
             -a "${mode}" = "baremetal" ]; then
         extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
     fi
