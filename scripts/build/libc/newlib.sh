@@ -65,6 +65,11 @@ do_libc() {
 
     CT_DoLog EXTRA "Configuring C library"
 
+    # Multilib is the default, so if it is not enabled, disable it.
+    if [ "${CT_MULTILIB}" != "y" ]; then
+        extra_config+=("--disable-multilib")
+    fi
+
     if [ "${CT_LIBC_NEWLIB_IO_C99FMT}" = "y" ]; then
         newlib_opts+=( "--enable-newlib-io-c99-formats" )
     else
