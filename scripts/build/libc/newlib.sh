@@ -96,6 +96,9 @@ do_libc() {
     else
         newlib_opts+=( "--enable-newlib-supplied-syscalls" )
     fi
+    if [ "${CT_LIBC_NEWLIB_NANO_MALLOC}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-nano-malloc" )
+    fi
 
     [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
 
