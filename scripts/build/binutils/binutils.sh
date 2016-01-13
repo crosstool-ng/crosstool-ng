@@ -25,7 +25,7 @@ do_binutils_get() {
             CT_GetCustom "elf2flt" "${CT_ELF2FLT_CUSTOM_VERSION}" \
                 "${CT_ELF2FLT_CUSTOM_LOCATION}"
         else
-            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" git://wh0rd.org/elf2flt.git
+            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" http://cgit.openadk.org/cgi/cgit/elf2flt.git
         fi
     fi
 }
