@@ -99,6 +99,9 @@ do_libc() {
     if [ "${CT_LIBC_NEWLIB_NANO_MALLOC}" = "y" ]; then
         newlib_opts+=( "--enable-newlib-nano-malloc" )
     fi
+    if [ "${CT_LIBC_NEWLIB_NANO_FORMATTED_IO}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-nano-formatted-io" )
+    fi
 
     [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
 
