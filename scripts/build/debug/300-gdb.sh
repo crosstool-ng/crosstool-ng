@@ -162,6 +162,7 @@ do_debug_gdb_build() {
         fi
 
         native_extra_config+=("--with-expat")
+        native_extra_config+=("--with-libexpat-prefix=${CT_SYSROOT_DIR}/usr")
 
         CT_DoLog EXTRA "Configuring native gdb"
 
