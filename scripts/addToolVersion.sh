@@ -122,6 +122,8 @@ addToolVersion() {
             ver_M=$(getVersionField "${version}" . 1)
             ver_m=$(getVersionField "${version}" . 2)
             ver_p=$(getVersionField "${version}" . 3)
+            if [ ${ver_M} -eq 2 -a ${ver_m} -eq 26 ]; then
+                SedExpr1="${SedExpr1}\n    select BINUTILS_2_26_or_later"
             if [ ${ver_M} -eq 2 -a ${ver_m} -eq 25 -a ${ver_p} -eq 1 ]; then
                 SedExpr1="${SedExpr1}\n    select BINUTILS_2_25_1_or_later"
             elif [ ${ver_M} -eq 2 -a ${ver_m} -eq 25 -a -z ${ver_p} ]; then
