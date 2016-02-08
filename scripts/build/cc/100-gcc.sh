@@ -343,10 +343,8 @@ do_gcc_core_backend() {
         extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
-        extra_config+=("--with-libelf=${complibs}")
         extra_config+=("--enable-lto")
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
-        extra_config+=("--with-libelf=no")
         extra_config+=("--disable-lto")
     fi
 
@@ -801,10 +799,8 @@ do_gcc_backend() {
         extra_config+=("--with-cloog=no")
     fi
     if [ "${CT_CC_GCC_USE_LTO}" = "y" ]; then
-        extra_config+=("--with-libelf=${complibs}")
         extra_config+=("--enable-lto")
     elif [ "${CT_CC_GCC_HAS_LTO}" = "y" ]; then
-        extra_config+=("--with-libelf=no")
         extra_config+=("--disable-lto")
     fi
 
