@@ -36,5 +36,7 @@ Aloha!
 
 [travis-status]: https://travis-ci.org/crosstool-ng/crosstool-ng.svg
 [travis]: https://travis-ci.org/crosstool-ng/crosstool-ng
+
 irc: irc.freenode.net #crosstool-ng
+
 [mailing list](mailto:crossgcc@sourceware.org)
