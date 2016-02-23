@@ -2,7 +2,62 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-# Extract the C library tarball(s)
+do_libc_get() {
+    local date
+    local version
+    local -a addons_list
+
+    addons_list=($(do_libc_add_ons_list " "))
+
+    # Main source
+    if [ "${CT_LIBC_GLIBC_CUSTOM}" = "y" ]; then
+        CT_GetCustom "glibc" "${CT_LIBC_GLIBC_CUSTOM_VERSION}" \
+            "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
+    else
+        if echo ${CT_LIBC_VERSION} |${grep} -q linaro; then
+            # Linaro glibc releases come from regular downloads...
+            YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+            CT_GetFile "glibc-${CT_LIBC_VERSION}" \
+                       https://releases.linaro.org/${YYMM}/components/toolchain/glibc-linaro \
+                       http://cbuild.validation.linaro.org/snapshots
+        else
+            CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
+                       {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
+                       ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
+        fi
+    fi
+
+    # C library addons
+    for addon in "${addons_list[@]}"; do
+        # Never ever try to download these add-ons,
+        # they've always been internal
+        case "${addon}" in
+            nptl)   continue;;
+        esac
+
+        case "${addon}:${CT_LIBC_GLIBC_PORTS_EXTERNAL}" in
+            ports:y)    ;;
+            ports:*)    continue;;
+        esac
+
+        if ! CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"                      \
+               http://mirrors.kernel.org/sourceware/glibc                        \
+               {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
+               ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
+        then
+            # Some add-ons are bundled with glibc, others are
+            # bundled in their own tarball. Eg. NPTL is internal,
+            # while LinuxThreads was external. Also, for old
+            # versions of glibc, the libidn add-on was external,
+            # but with version >=2.10, it is internal.
+            CT_DoLog DEBUG "Addon '${addon}' could not be downloaded."
+            CT_DoLog DEBUG "We'll see later if we can find it in the source tree"
+        fi
+    done
+
+    return 0
+}
+
 do_libc_extract() {
     local addon
 
@@ -57,6 +112,10 @@ do_libc_extract() {
     fi
 }
 
+do_libc_check_config() {
+    :
+}
+
 # Build and install headers and start files
 do_libc_start_files() {
     # Start files and Headers should be configured the same way as the
@@ -67,6 +126,10 @@ do_libc_start_files() {
 # This function builds and install the full C library
 do_libc() {
     do_libc_backend libc_mode=final
+}
+
+do_libc_post_cc() {
+    :
 }
 
 # This backend builds the C library once for each multilib
@@ -539,68 +602,6 @@ do_libc_min_kernel_config() {
     esac
 }
 
-# Download glibc
-do_libc_get() {
-    local date
-    local version
-    local -a addons_list
-
-    addons_list=($(do_libc_add_ons_list " "))
-
-    # Main source
-    if [ "${CT_LIBC_GLIBC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "glibc" "${CT_LIBC_GLIBC_CUSTOM_VERSION}" \
-            "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
-    else
-        if echo ${CT_LIBC_VERSION} |${grep} -q linaro; then
-            # Linaro glibc releases come from regular downloads...
-            YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
-            CT_GetFile "glibc-${CT_LIBC_VERSION}" \
-                       https://releases.linaro.org/${YYMM}/components/toolchain/glibc-linaro \
-                       http://cbuild.validation.linaro.org/snapshots
-        else
-            CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
-                       {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
-                       ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
-        fi
-    fi
-
-    # C library addons
-    for addon in "${addons_list[@]}"; do
-        # Never ever try to download these add-ons,
-        # they've always been internal
-        case "${addon}" in
-            nptl)   continue;;
-        esac
-
-        case "${addon}:${CT_LIBC_GLIBC_PORTS_EXTERNAL}" in
-            ports:y)    ;;
-            ports:*)    continue;;
-        esac
-
-        if ! CT_GetFile "glibc-${addon}-${CT_LIBC_VERSION}"                      \
-               http://mirrors.kernel.org/sourceware/glibc                        \
-               {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
-               ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
-        then
-            # Some add-ons are bundled with glibc, others are
-            # bundled in their own tarball. Eg. NPTL is internal,
-            # while LinuxThreads was external. Also, for old
-            # versions of glibc, the libidn add-on was external,
-            # but with version >=2.10, it is internal.
-            CT_DoLog DEBUG "Addon '${addon}' could not be downloaded."
-            CT_DoLog DEBUG "We'll see later if we can find it in the source tree"
-        fi
-    done
-
-    return 0
-}
-
-# There is nothing to do for glibc check config
-do_libc_check_config() {
-    :
-}
-
 # Extract the files required for the libc locales
 # Nothing to do
 do_libc_locales_extract() {
@@ -676,6 +677,3 @@ do_libc_locales() {
                           localedata/install-locales
 }
 
-do_libc_post_cc() {
-    :
-}
