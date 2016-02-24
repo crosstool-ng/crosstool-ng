@@ -39,10 +39,6 @@ do_libc_extract() {
     find . -type f -name configure -exec touch {} \; 2>&1 |CT_DoLog ALL
 
     CT_Popd
-
-    if [ "${CT_LIBC_LOCALES}" = "y" ]; then
-        do_libc_locales_extract
-    fi
 }
 
 do_libc_check_config() {
@@ -533,12 +529,6 @@ do_libc_min_kernel_config() {
             echo "--enable-kernel=${min_kernel_config}"
             ;;
     esac
-}
-
-# Extract the files required for the libc locales
-# Nothing to do
-do_libc_locales_extract() {
-    :
 }
 
 # Build and install the libc locales
