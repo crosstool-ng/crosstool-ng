@@ -584,6 +584,7 @@ do_libc_locales() {
         --disable-profile                  \
         --without-gd                       \
         --disable-debug                    \
+        --disable-sanity-checks            \
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building C library localedef"
