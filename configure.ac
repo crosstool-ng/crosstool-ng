@@ -133,6 +133,19 @@ AS_IF([test -z "$CC"],
       [AC_MSG_ERROR([no suitable compiler found])])
 AC_PROG_CPP
 
+#---------------------------------------------------------------------
+# Check to see if gcc can static link
+AC_MSG_CHECKING([if gcc can static link])
+echo "int main() {}" | gcc -static -xc - > /dev/null 2>&1
+static_test=$?
+AS_IF([test $static_test -eq 0],
+          [static_link=y
+           AC_MSG_RESULT([yes])],
+      [test $static_test -ne 0],
+          [static_link=
+           AC_MSG_RESULT([no])])
+ACX_SET_KCONFIG_OPTION([static_link])
+
 # But we still need a way to specify the PATH to GNU versions (Damn MacOS)
 AC_ARG_WITH([objcopy],
     AS_HELP_STRING([--with-objcopy=PATH],
