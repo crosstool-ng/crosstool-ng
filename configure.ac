@@ -136,7 +136,7 @@ AC_PROG_CPP
 #---------------------------------------------------------------------
 # Check to see if gcc can static link
 AC_MSG_CHECKING([if gcc can static link])
-echo "int main() {}" | gcc -static -xc - > /dev/null 2>&1
+echo "int main() {}" | gcc -static -o /dev/null -xc - > /dev/null 2>&1
 static_test=$?
 AS_IF([test $static_test -eq 0],
           [static_link=y
