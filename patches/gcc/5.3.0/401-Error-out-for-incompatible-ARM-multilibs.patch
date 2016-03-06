@@ -1,0 +1,87 @@
+From 3628c539f111daafb8a29c93284bf7d289a63dac Mon Sep 17 00:00:00 2001
+From: thopre01 <thopre01@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date: Thu, 17 Dec 2015 09:32:05 +0000
+Subject: [PATCH 2/3] Error out for incompatible ARM multilibs
+
+2015-12-17  Thomas Preud'homme  <thomas.preudhomme@arm.com>
+
+	gcc/
+	* config.gcc: Error out when conflicting multilib is detected.  Do not
+	loop over multilibs since no combination is legal.
+---
+ gcc/config.gcc | 52 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 27 insertions(+), 25 deletions(-)
+
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index c835734..6c02f1e 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -3702,38 +3702,40 @@ case "${target}" in
+ 		# Add extra multilibs
+ 		if test "x$with_multilib_list" != x; then
+ 			arm_multilibs=`echo $with_multilib_list | sed -e 's/,/ /g'`
+-			for arm_multilib in ${arm_multilibs}; do
+-				case ${arm_multilib} in
+-				aprofile)
++			case ${arm_multilibs} in
++			aprofile)
+ 				# Note that arm/t-aprofile is a
+ 				# stand-alone make file fragment to be
+ 				# used only with itself.  We do not
+ 				# specifically use the
+ 				# TM_MULTILIB_OPTION framework because
+ 				# this shorthand is more
+-				# pragmatic. Additionally it is only
+-				# designed to work without any
+-				# with-cpu, with-arch with-mode
++				# pragmatic.
++				tmake_profile_file="arm/t-aprofile"
++				;;
++			default)
++				;;
++			*)
++				echo "Error: --with-multilib-list=${with_multilib_list} not supported." 1>&2
++				exit 1
++				;;
++			esac
++
++			if test "x${tmake_profile_file}" != x ; then
++				# arm/t-aprofile is only designed to work
++				# without any with-cpu, with-arch, with-mode,
+ 				# with-fpu or with-float options.
+-					if test "x$with_arch" != x \
+-					    || test "x$with_cpu" != x \
+-					    || test "x$with_float" != x \
+-					    || test "x$with_fpu" != x \
+-					    || test "x$with_mode" != x ; then
+-					    echo "Error: You cannot use any of --with-arch/cpu/fpu/float/mode with --with-multilib-list=aprofile" 1>&2
+-					    exit 1
+-					fi
+-					tmake_file="${tmake_file} arm/t-aprofile"
+-					break
+-					;;
+-				default)
+-					;;
+-				*)
+-					echo "Error: --with-multilib-list=${with_multilib_list} not supported." 1>&2
+-					exit 1
+-					;;
+-				esac
+-			done
++				if test "x$with_arch" != x \
++				    || test "x$with_cpu" != x \
++				    || test "x$with_float" != x \
++				    || test "x$with_fpu" != x \
++				    || test "x$with_mode" != x ; then
++				    echo "Error: You cannot use any of --with-arch/cpu/fpu/float/mode with --with-multilib-list=${arm_multilib}" 1>&2
++				    exit 1
++				fi
++
++				tmake_file="${tmake_file} ${tmake_profile_file}"
++			fi
+ 		fi
+ 		;;
+ 
+-- 
+1.9.1
+
