@@ -127,7 +127,9 @@ do_libc() {
         newlib_opts+=( "--enable-newlib-global-atexit" )
     fi
 
-    [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
+    if [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+        newlib_opts+=("--enable-target-optspace")
+    fi
 
     cflags_for_target="${CT_TARGET_CFLAGS} ${CT_LIBC_NEWLIB_TARGET_CFLAGS}"
 
