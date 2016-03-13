@@ -1,0 +1,310 @@
+reporter_name="Jasmin Jessich"
+reporter_url="http://jasmin.anw.at/"
+reporter_comment="NOTE: Please read samples/arm-none-eabi/reported.by prior to any built!"
+
+#
+# This configuration will build an arm-none-eabi compiler to be used for
+# embedded development. The original build script can be found here:
+#    https://launchpad.net/gcc-arm-embedded
+# To see the original build script, you have to download the installer:
+#    https://launchpad.net/gcc-arm-embedded/5.0/5-2015-q4-major
+# 
+# I tried to mimic the original configure options and environment settings with
+# crosstool-ng (CT_NG) as close as possible. I really analysed every option
+# which was not provided by CT-NG or which was added. The description in this
+# file explains each diversion from the original.
+# 
+# NOTE:   newlib-nano is currently not built!
+# 
+# The original uses the git/SVN versions of binutils-gdb, gcc and newlib. CT-NG
+# doesn't currently support using a git or SVN repository for the source
+# location. In fact this is not really necessary, because the official packages
+# contain most of the required code already.
+# Only armv8-m is not available in the official packages. This core is very new
+# and even not available on GCC trunk, so I guess we can wait for the next GCC
+# release to add it.
+#
+# If someone really want to experiment with the mentioned core variant, feel
+# free to use them as custom location in CT-NG.
+# You can get the sources from this locations:
+#   binutils-gdb - git://sourceware.org/git/binutils-gdb.git
+#   gcc          - svn://gcc.gnu.org/svn/gcc/branches/ARM/embedded-5-branch
+#   newlib       - git://sourceware.org/git/newlib-cygwin.git
+# 
+# Now create symbolic links for binutils and gdb, pointing to the binutils-gdb
+# directory and reference them as custom location.
+# 
+# The compiler will be installed to ~/x-tools/arm-none-eabi and can be moved to
+# any location you like. To use it, add the location of the bin directory to the
+# system path.
+# 
+# The following description describes for each tool the configure options.
+# "missing" contains a list of configure options, which were present in the
+# original build script, but not for the CT-NG build.
+# "additional" describes a list of configure options, which are added by CT-NG.
+# 
+# 
+# 
+# GMP:
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --enable-fft --enable-cxx --disable-shared --enable-static
+#     
+#   missing:
+#     --disable-nls
+# 
+#   additional:
+#     --enable-static .. default
+#     --enable-fft    .. default
+# 
+# MPFR:
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-gmp=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --disable-shared --enable-static
+# 
+#   missing:
+#     --disable-nls
+# 
+#   additional:
+#     --enable-static .. default
+# 
+# ISL:
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-piplib=no --disable-shared --enable-static --with-gmp=system
+#     --with-gmp-prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-clang=no
+# 
+#   missing:
+#     --disable-nls
+# 
+#   additional:
+#     --enable-static   .. default
+#     --with-gmp=system .. default
+#     --with-piplib=no  .. default
+#     --with-clang=no   .. default
+# 
+# CLooG:
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-bits=gmp --with-host-libstdcxx=-lstdc++ --disable-shared --enable-static
+#     --with-gmp=system 
+#     --with-gmp-prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-isl=system
+#     --with-isl-prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --without-osl
+# 
+#   missing:
+#     --disable-nls
+# 
+#   additional:
+#     --enable-static   .. default
+#     --with-gmp=system .. default
+#     --with-isl=system .. default
+#     --without-osl     .. default
+# 
+# MPC:
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-gmp=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-mpfr=mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --disable-shared --enable-static
+#     
+#   missing:
+# 
+#   additional:
+#     --enable-static .. default
+# 
+# binutils:
+#   git:
+#     git://sourceware.org/git/binutils-gdb.git
+# 
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --target=arm-none-eabi '--prefix=/home/jasmin/x-tools/arm-none-eabi
+#     --disable-werror --enable-ld=yes --enable-gold=no --enable-plugins
+#     --with-pkgversion=crosstool-NG crosstool-ng-1.22.0-134-g9c19597 - GNU Tools \
+#       for ARM Embedded Processors --enable-multilib --disable-sim --disable-gdb
+#     --disable-nls
+#     --with-sysroot=/home/jasmin/x-tools/arm-none-eabi/arm-none-eabi/sysroot
+#     --enable-interwork
+#   
+#     What does "--enable-interwork"?
+# 
+#   missing:
+# 
+#   additional:
+#     --enable-ld=yes   .. default
+#     --enable-gold=no  .. default
+#     --enable-multilib .. default 
+# 
+# core C gcc compiler (first):
+#   See https://gcc.gnu.org/install/configure.html for a description of this
+#   options.
+# 
+#   svn:
+#     svn://gcc.gnu.org/svn/gcc/branches/ARM/embedded-4_9-branch
+# 
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --target=arm-none-eabi
+#     --prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-local-prefix=/home/jasmin/x-tools/arm-none-eabi/arm-none-eabi/sysroot
+#     --with-sysroot=/home/jasmin/x-tools/arm-none-eabi/arm-none-eabi/sysroot
+#     --with-newlib --enable-threads=no --disable-shared
+#     --with-pkgversion=crosstool-NG crosstool-ng-1.22.0-134-g9c19597 - GNU Tools \
+#       for ARM Embedded Processors --enable-__cxa_atexit
+#     --with-gmp=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-mpfr=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-mpc=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-isl=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm
+#     --without-long-double-128 --disable-libgomp --disable-libmudflap --disable-libssp
+#     --disable-libquadmath --disable-libquadmath-support --enable-lto
+#     --disable-nls --disable-libstdcxx-pch --enable-languages=c
+#     --with-multilib-list=armv6-m,armv7-m,armv7e-m,cortex-m7,armv7-r
+#     --disable-tls 
+#
+#   missing:
+#     --disable-threads       .. replaced by enable-threads=no
+#     --disable-decimal-float .. default
+#     --disable-libffi        .. seems to have an effect on java and fortran only, but I am
+#                                not sure
+#     --with-python-dir       .. keep the default, because CT-NG will install a default .gdbinit
+#                                which references the default location.
+#     --libexecdir            .. keep the default, because CT-NG will strip only in the default
+#                                libexec directory.
+#     --without-headers       .. same as with-headers=no; this does nothing, so it is not
+#                                necessary to define. Moreover it is depreciated and replaced by
+#                                "--with-sysroot=...".
+#     --with-gnu-as           .. default on a Linux system
+#     --with-gnu-ld           .. default on a Linux system
+# 
+#   additional:
+#     --with-local-prefix       .. same directory as --with-sysroot=
+#                                  This is required to prevent gcc searching in "/usr/local/include"
+#     --without-long-double-128 .. long double is 64 bit 
+#     --enable-lto              .. default
+# 
+# Newlib (C library):
+#   git:
+#     git://sourceware.org/git/newlib-cygwin.git
+# 
+#   configure:
+#     CFLAGS_FOR_TARGET= -mlittle-endian -ffunction-sections -fdata-sections
+#     --host=x86_64-build_pc-linux-gnu
+#     --target=arm-none-eabi
+#     --prefix=/home/jasmin/x-tools/arm-none-eabi
+#     --disable-newlib-io-c99-formats
+#     --enable-newlib-io-long-long
+#     --disable-newlib-io-float
+#     --disable-newlib-io-long-double
+#     --disable-newlib-supplied-syscalls
+#     --enable-newlib-register-fini
+#     --disable-nls
+#
+#   missing:
+# 
+#   additional:
+#     --disable-newlib-io-c99-formats .. default
+#     --disable-newlib-io-float       .. default
+#     --disable-newlib-io-long-double .. default
+# 
+# 
+# Newlib-nano (C library short version)
+# --- NOT IMPLEMENTED TILL NOW ---
+#      --prefix=$BUILDDIR_NATIVE/target-libs \
+#      --disable-newlib-supplied-syscalls    \
+#      --enable-newlib-reent-small           \
+#      --disable-newlib-fvwrite-in-streamio  \
+#      --disable-newlib-fseek-optimization   \
+#      --disable-newlib-wide-orient          \
+#      --enable-newlib-nano-malloc           \
+#      --disable-newlib-unbuf-stream-opt     \
+#      --enable-lite-exit                    \
+#      --enable-newlib-global-atexit         \
+#      --enable-newlib-nano-formatted-io     \
+#      --disable-nls
+#  
+# final gcc compiler:
+#   See https://gcc.gnu.org/install/configure.html for a description of this
+#   options.
+# 
+#   svn:
+#     See section "core C gcc compiler (first)".
+# 
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --target=arm-none-eabi
+#     --prefix=/home/jasmin/x-tools/arm-none-eabi
+#     --with-local-prefix=/home/jasmin/x-tools/arm-none-eabi/arm-none-eabi/sysroot
+#     --with-sysroot=/home/jasmin/x-tools/arm-none-eabi/arm-none-eabi/sysroot
+#     --with-newlib --enable-threads=no --disable-shared
+#     --with-pkgversion=crosstool-NG crosstool-ng-1.22.0-134-g9c19597 - GNU Tools \
+#       for ARM Embedded Processors --enable-__cxa_atexit
+#     --with-gmp=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-mpfr=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-mpc=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-isl=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --with-host-libstdcxx=-static-libgcc -Wl,-Bstatic,-lstdc++,-Bdynamic -lm
+#     --without-long-double-128 --disable-libgomp --disable-libmudflap --disable-libssp
+#     --disable-libquadmath --disable-libquadmath-support --enable-lto
+#     --disable-nls --disable-libstdcxx-pch --enable-languages=c,c++
+#     --enable-plugin
+#     --with-multilib-list=armv6-m,armv7-m,armv7e-m,cortex-m7,armv7-r
+#     --disable-tls
+#
+#   missing:
+#     --disable-threads       .. replaced by enable-threads=no
+#     --disable-decimal-float .. default
+#     --disable-libffi        .. seems to have an effect on java and fortran only, but I am
+#                                not sure
+#     --with-python-dir       .. keep the default, because CT-NG will install a default .gdbinit
+#                                which references the default location.
+#     --libexecdir            .. keep the default, because CT-NG will strip only in the default
+#                                libexec directory.
+#     --with-headers=yes      .. this does nothing, so it is not necessary to define. Moreover,
+#                                it is depreciated and replaced by "--with-sysroot=...".
+#     --with-gnu-as           .. default on a Linux system
+#     --with-gnu-ld           .. default on a Linux system
+# 
+#   additional:
+#     --with-local-prefix       .. same directory as --with-sysroot=
+#                                  This is required to prevent gcc searching in "/usr/local/include"
+#     --without-long-double-128 .. long double is 64 bit 
+#     --enable-lto              .. default
+# 
+# GDB:
+#   git:
+#     git://sourceware.org/git/binutils-gdb.git
+# 
+#   configure:
+#     --build=x86_64-build_pc-linux-gnu --host=x86_64-build_pc-linux-gnu
+#     --target=arm-none-eabi
+#     --prefix=/home/jasmin/x-tools/arm-none-eabi
+#     --with-build-sysroot=/home/jasmin/x-tools/arm-none-eabi/arm-none-eabi/sysroot
+#     --with-sysroot=/home/jasmin/x-tools/arm-none-eabi/arm-none-eabi/sysroot
+#     --disable-werror
+#     --with-pkgversion=crosstool-NG crosstool-ng-1.22.0-134-g9c19597 - GNU Tools \
+#       for ARM Embedded Processors --with-expat
+#     --with-libexpat-prefix=/mnt/home_hdd/jasmin/SW/crosstool-ng/crosstool-ng/.build/arm-none-eabi/buildtools
+#     --disable-threads --with-python=yes --disable-sim --disable-nls --disable-gas
+#     --disable-binutils --disable-ld --with-lzma=no
+#
+#   missing:
+#     --with-libexpat         .. replaced by --with-expat --with-libexpat-prefix= 
+#     --with-system-gdbinit   .. keep the default, because CT-NG will install a default .gdbinit
+#                                to the default location.
+#     --with-gdb-datadir      .. see --with-system-gdbinit
+# 
+#   additional:
+#     --with-build-sysroot    .. use sysroot as the system root during the build
+#     --disable-werror        .. default
+#     --with-python           .. enable python support
+# 
