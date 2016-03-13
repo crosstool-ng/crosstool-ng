@@ -170,6 +170,9 @@ do_libc_backend() {
                              libc_target="${target}"
 
         CT_Popd
+        if [ "${multi_dir}" != "." ]; then
+            CT_EndStep
+        fi
 
     done
 
