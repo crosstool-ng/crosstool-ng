@@ -403,6 +403,12 @@ do_gcc_core_backend() {
         extra_config+=("--with-system-zlib")
     fi
 
+    case "${CT_CC_GCC_CONFIG_TLS}" in
+        y)  extra_config+=("--enable-tls");;
+        m)  ;;
+        "") extra_config+=("--disable-tls");;
+    esac
+
     # Some versions of gcc have a deffective --enable-multilib.
     # Since that's the default, only pass --disable-multilib.
     if [ "${CT_MULTILIB}" != "y" ]; then
@@ -879,6 +885,12 @@ do_gcc_backend() {
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
     fi
+
+    case "${CT_CC_GCC_CONFIG_TLS}" in
+        y)  extra_config+=("--enable-tls");;
+        m)  ;;
+        "") extra_config+=("--disable-tls");;
+    esac
 
     # Some versions of gcc have a deffective --enable-multilib.
     # Since that's the default, only pass --disable-multilib.
