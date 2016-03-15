@@ -69,7 +69,11 @@ do_debug_gdb_build() {
 
         cross_extra_config=("${extra_config[@]}")
         cross_extra_config+=("--with-expat")
-        cross_extra_config+=("--with-libexpat-prefix=${CT_HOST_COMPLIBS_DIR}")
+        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
+        # It conflicts with a static build: GDB's configure script will find the shared
+        # version of expat and will attempt to link that, despite the -static flag.
+        # The link will fail, and configure will abort with "expat missing or unusable"
+        # message.
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
@@ -88,11 +92,11 @@ do_debug_gdb_build() {
             cross_extra_config+=("--disable-nls")
         fi
 
-        CC_for_gdb=
-        LD_for_gdb=
+        CC_for_gdb="${CT_HOST}-gcc ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST}"
+        LD_for_gdb="${CT_HOST}-ld ${CT_LDFLAGS_FOR_HOST}"
         if [ "${CT_GDB_CROSS_STATIC}" = "y" ]; then
-            CC_for_gdb="${CT_HOST}-gcc -static"
-            LD_for_gdb="${CT_HOST}-ld -static"
+            CC_for_gdb+=" -static"
+            LD_for_gdb+=" -static"
         fi
 
     # Disable binutils options when building from the binutils-gdb repo.
@@ -162,6 +166,11 @@ do_debug_gdb_build() {
         fi
 
         native_extra_config+=("--with-expat")
+        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
+        # It conflicts with a static build: GDB's configure script will find the shared
+        # version of expat and will attempt to link that, despite the -static flag.
+        # The link will fail, and configure will abort with "expat missing or unusable"
+        # message.
 
         CT_DoLog EXTRA "Configuring native gdb"
 
