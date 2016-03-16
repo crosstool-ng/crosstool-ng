@@ -99,10 +99,17 @@ do_debug_gdb_build() {
             LD_for_gdb+=" -static"
         fi
 
-    # Disable binutils options when building from the binutils-gdb repo.
-    cross_extra_config+=("--disable-binutils")
-    cross_extra_config+=("--disable-ld")
-    cross_extra_config+=("--disable-gas")
+        # Fix up whitespace. Some older GDB releases (e.g. 6.8a) get confused if there
+        # are multiple consecutive spaces: sub-configure scripts replace them with a
+        # single space and then complain that $CC value changed from that in
+        # the master directory.
+        CC_for_gdb=`echo $CC_for_gdb`
+        LD_for_gdb=`echo $LD_for_gdb`
+
+        # Disable binutils options when building from the binutils-gdb repo.
+        cross_extra_config+=("--disable-binutils")
+        cross_extra_config+=("--disable-ld")
+        cross_extra_config+=("--disable-gas")
 
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
