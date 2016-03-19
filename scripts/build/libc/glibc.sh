@@ -288,12 +288,12 @@ do_libc_backend_once() {
                      |${sed} -r -e '/^(.*[[:space:]])?-(E[BL]|m((big|little)(-endian)?|e?[bl]))([[:space:]].*)?$/!d;' \
                                 -e 's//\2/;'    \
                    )"
+    # If extra_flags contained an endianness option, no need to add it again. Otherwise,
+    # add the option from the configuration.
     case "${endian_extra}" in
         EB|mbig-endian|mbig|meb|mb)
-            extra_cc_args="${extra_cc_args} ${endian_extra}"
             ;;
         EL|mlittle-endian|mlittle|mel|ml)
-            extra_cc_args="${extra_cc_args} ${endian_extra}"
             ;;
         "") extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
             ;;
