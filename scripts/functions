@@ -1,6 +1,6 @@
 # -*- mode: sh; tab-width: 4 -*-
 # vi: ts=4:sw=4:sts=4:et
-# This file contains some usefull common functions
+# This file contains some useful common functions
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
@@ -308,21 +308,57 @@ CT_SanitizePath() {
     PATH="${new}"
 }
 
-# Sanitise the directory name contained in the variable passed as argument:
+# Sanitize the directory name contained in the variable passed as argument:
 # - remove duplicate /
-# Usage: CT_SanitiseVarDir CT_PREFIX_DIR
-CT_SanitiseVarDir() {
+# - remove . (current dir) at the beginning, in the middle or at the end
+# - resolve .. (parent dir) if there is a previous component
+# - remove .. (parent dir) if at the root
+#
+# Usage: CT_SanitizeVarDir CT_PREFIX_DIR
+CT_SanitizeVarDir() {
     local var
     local old_dir
-    local new_dir
+    local new_dir tmp
 
     for var in "$@"; do
         eval "old_dir=\"\${${var}}\""
-        new_dir="$( printf "${old_dir}"     \
-                    |${sed} -r -e 's:/+:/:g;'  \
-                  )"
+        new_dir=$( echo "${old_dir}" | ${awk} '
+{
+    isabs = $1 == "" # Started with a slash
+    trail = $NF == "" # Ending with a slash
+    ncomp = 0 # Components in a path so far
+    for (i = 1; i <= NF; i++) {
+        # Double-slash or current dir? Ignore
+        if ($i == "" || $i == ".") {
+            continue;
+        }
+        # .. pops the last component unless it is at the beginning
+        if ($i == ".." && ncomp != 0 && comps[ncomp] != "..") {
+            ncomp--;
+            continue;
+        }
+        comps[++ncomp] = $i;
+    }
+    seencomp = 0
+    for (i = 1; i <= ncomp; i++) {
+        if (comps[i] == ".." && isabs) {
+            # /../ at the beginning is equivalent to /
+            continue;
+        }
+        printf "%s%s", isabs || i != 1 ? "/" : "", comps[i];
+        seencomp = 1;
+    }
+    if (!seencomp && !isabs && !trail) {
+        # Eliminated all components, but no trailing slash -
+        # if the result is appened with /foo, must not become absolute
+        printf ".";
+    }
+    if ((!seencomp && isabs) || (seencomp && trail)) {
+        printf "/";
+    }
+}' FS=/ )
         eval "${var}=\"${new_dir}\""
-        CT_DoLog DEBUG "Sanitised '${var}': '${old_dir}' -> '${new_dir}'"
+        CT_DoLog DEBUG "Sanitized '${var}': '${old_dir}' -> '${new_dir}'"
     done
 }
 

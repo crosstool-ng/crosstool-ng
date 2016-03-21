@@ -70,14 +70,8 @@ do_libc_backend() {
     local libc_mode
     local -a multilibs
     local multilib
-    local multi_dir
-    local multi_flags
-    local multi_last
+    local multi_dir multi_os_dir multi_flags multi_last
     local target
-    local extra_dir
-    local target
-    local libc_headers libc_startfiles libc_full
-    local hdr
     local arg
 
     for arg in "$@"; do
@@ -87,17 +81,13 @@ do_libc_backend() {
     case "${libc_mode}" in
         startfiles)
             CT_DoStep INFO "Installing C library headers & start files"
-            hdr=y
-            libc_startfiles=y
-            libc_full=
             ;;
         final)
             CT_DoStep INFO "Installing C library"
-            hdr=
-            libc_startfiles=
-            libc_full=y
             ;;
-        *)  CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
+        *)
+            CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'"
+            ;;
     esac
 
     # If gcc is not configured for multilib, it still prints
@@ -130,41 +120,10 @@ do_libc_backend() {
         #   <sysroot>/m4a/usr/lib/
         multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
-        if [ "${multi_dir}" != "." ]; then
-            CT_DoStep INFO "Building for multilib subdir='${multi_dir}'"
+        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
+        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
 
-            extra_flags="$( echo "${multilib#*;}"       \
-                            |${sed} -r -e 's/@/ -/g;'   \
-                          )"
-            extra_dir="/${multi_dir}"
-
-            # glibc install its files in ${extra_dir}/{usr/,}lib
-            # while gcc expects them in {,usr/}lib/${extra_dir}.
-            # Prepare some symlinks so glibc installs in fact in
-            # the proper place
-            # We do it in the start-files step, so it is not needed
-            # to do it in the final step, as the symlinks will
-            # already exist
-            if [ "${libc_mode}" = "startfiles" ]; then
-                CT_Pushd "${CT_SYSROOT_DIR}"
-                CT_DoExecLog ALL mkdir -p "lib/${multi_dir}"        \
-                                          "usr/lib/${multi_dir}"    \
-                                          "${multi_dir}"            \
-                                          "${multi_dir}/usr"
-                CT_DoExecLog ALL ln -sf "../lib/${multi_dir}" "${multi_dir}/lib"
-                CT_DoExecLog ALL ln -sf "../../usr/lib/${multi_dir}" "${multi_dir}/usr/lib"
-                CT_Popd
-            fi
-            libc_headers=
-        else
-            extra_dir=
-            extra_flags=
-            libc_headers="${hdr}"
-        fi
-
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
-
-        target=$(CT_DoMultilibTarget "${extra_flags}" ${CT_TARGET})
+        target=$(CT_DoMultilibTarget "${multi_flags}" ${CT_TARGET})
         case "${target}" in
             # SPARC quirk: glibc 2.23 and newer dropped support for SPARCv8 and
             # earlier (corresponding pthread barrier code is missing). Until this
@@ -188,18 +147,21 @@ do_libc_backend() {
                 ;;
         esac
 
-        do_libc_backend_once extra_dir="${extra_dir}"               \
-                             extra_flags="${extra_flags}"           \
-                             libc_headers="${libc_headers}"         \
-                             libc_startfiles="${libc_startfiles}"   \
-                             libc_full="${libc_full}"               \
-                             libc_target="${target}"                \
-                             multi_last="${multi_last}"
+        CT_DoStep INFO "Building for multilib '${multi_flags}'"
+
+        # Ensure sysroot (with suffix, if applicable) exists
+        CT_DoExecLog ALL mkdir -p "${multi_root}"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${multi_dir//\//_}"
+        do_libc_backend_once multi_dir="${multi_dir}"               \
+                             multi_os_dir="${multi_os_dir}"         \
+                             multi_flags="${multi_flags}"           \
+                             multi_root="${multi_root}"             \
+                             multi_last="${multi_last}"             \
+                             libc_mode="${libc_mode}"               \
+                             libc_target="${target}"
 
         CT_Popd
-        if [ "${multi_dir}" != "." ]; then
-            CT_EndStep
-        fi
+        CT_EndStep
 
     done
 
@@ -208,23 +170,17 @@ do_libc_backend() {
 
 # This backend builds the C library once
 # Usage: do_libc_backend_once param=value [...]
-#   Parameter           : Definition                            : Type      : Default
-#   libc_headers        : Build libc headers                    : bool      : n
-#   libc_startfiles     : Build libc start-files                : bool      : n
-#   libc_target         : Build libc target triplet             : string    : ${CT_TARGET}
-#   libc_full           : Build full libc                       : bool      : n
-#   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
-#   extra_dir           : Extra subdir for multilib             : string    : (empty)
+#   Parameter           : Definition                            : Type
+#   libc_mode           : 'startfiles' or 'final'               : string    : (empty)
+#   libc_target         : Build libc target triplet             : string    : (empty)
+#   multi_root          : Installation root, chosen for multilib: string    : (empty)
+#   multi_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
+#   multi_dir           : Extra subdir for multilib (gcc)       : string    : (empty)
+#   multi_os_dir        : Extra subdir for multilib (os)        : string    : (empty)
 #   multi_last          : The last multilib target              : bool      : n
 do_libc_backend_once() {
-    local libc_headers
-    local libc_startfiles
-    local libc_full
-    local extra_flags
-    local extra_dir
-    local extraos_dir
-    local lib_dir
-    local install_root
+    local multi_flags multi_dir multi_os_dir multi_root multi_last multi_root
+    local startfiles_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local extra_cc_args
     local -a extra_config
@@ -233,12 +189,31 @@ do_libc_backend_once() {
     local float_extra
     local endian_extra
     local libc_target="${CT_TARGET}"
-    local multi_last
     local arg
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
+
+    # Glibc seems to be smart enough to know about the cases that can coexist
+    # in the same root and installs them into proper multilib-os directory; all
+    # we need is to point to the right root. We do need to handle multilib-os
+    # here, though, for the first pass where we install crt*.o and a dummy
+    # libc.so; we therefore install it to the most specific location of
+    # <sysroot>/<suffix>/usr/lib/<multilib-os> where it is least likely to clash
+    # with other multilib variants. We then remove these temporary files at
+    # the beginning of the libc-final step and allow glibc to install them
+    # where it thinks is proper.
+    startfiles_dir="${multi_root}/usr/lib/${multi_os_dir}"
+    CT_SanitizeVarDir startfiles_dir
+
+    if [ "${libc_mode}" = "final" ]; then
+        CT_DoLog EXTRA "Cleaning up start files"
+        CT_DoExecLog ALL rm -f "${startfiles_dir}/crt1.o" \
+            "${startfiles_dir}/crti.o" \
+            "${startfiles_dir}/crtn.o" \
+            "${startfiles_dir}/libc.so"
+    fi
 
     CT_DoLog EXTRA "Configuring C library"
 
@@ -255,7 +230,7 @@ do_libc_backend_once() {
     extra_config+=( --enable-obsolete-rpc )
 
     # Add some default glibc config options if not given by user.
-    # We don't need to be conditional on wether the user did set different
+    # We don't need to be conditional on whether the user did set different
     # values, as they CT_LIBC_GLIBC_EXTRA_CONFIG_ARRAY is passed after
     # extra_config
 
@@ -277,7 +252,7 @@ do_libc_backend_once() {
         *) extra_config+=("--disable-shared");;
     esac
 
-    float_extra="$( echo "${extra_flags}"       \
+    float_extra="$( echo "${multi_flags}"       \
                     |${sed} -r -e '/^(.*[[:space:]])?-m(hard|soft)-float([[:space:]].*)?$/!d;'  \
                                -e 's//\2/;'     \
                   )"
@@ -311,11 +286,11 @@ do_libc_backend_once() {
     # Extract the endianness options if any
     # This should cover all possible endianness options
     # in gcc, but it is prone to bit-rot... :-(
-    endian_extra="$( echo "${extra_flags}"      \
+    endian_extra="$( echo "${multi_flags}"      \
                      |${sed} -r -e '/^(.*[[:space:]])?-(E[BL]|m((big|little)(-endian)?|e?[bl]))([[:space:]].*)?$/!d;' \
                                 -e 's//\2/;'    \
                    )"
-    # If extra_flags contained an endianness option, no need to add it again. Otherwise,
+    # If multi_flags contained an endianness option, no need to add it again. Otherwise,
     # add the option from the configuration.
     case "${endian_extra}" in
         EB|mbig-endian|mbig|meb|mb)
@@ -335,8 +310,7 @@ do_libc_backend_once() {
     # Pre-seed the configparms file with values from the config option
     printf "%s\n" "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
 
-    cross_cc=$(CT_Which "${CT_TARGET}-gcc")
-    extra_cc_args+=" ${extra_flags}"
+    extra_cc_args+=" ${multi_flags}"
 
     case "${CT_LIBC_ENABLE_FORTIFIED_BUILD}" in
         y)  ;;
@@ -357,24 +331,6 @@ do_libc_backend_once() {
     # or even after they get installed...
     echo "ac_cv_path_BASH_SHELL=/bin/bash" >>config.cache
 
-
-    # GCC makes the distinction between:
-    # multilib (-print-multi-lib) and
-    # multilib-os (--print-multi-os-directory)
-    # as the gcc library and gcc sysroot library paths, respecitively.
-    # For example:
-    # multilib:    -m32=32      -m64=.
-    # multilib-os: -m32=../lib  -m64=../lib64
-    if "${cross_cc}" -print-multi-os-directory ${extra_cc_args} > /dev/null 2>&1; then
-        lib_dir=/usr/lib/$("${cross_cc}" -print-multi-os-directory ${extra_cc_args})
-        install_root="${CT_SYSROOT_DIR}"
-    else
-        # maintain the previous behaviour if -print-multi-os-directory doesn't work.
-        lib_dir=/usr/lib
-        install_root="${CT_SYSROOT_DIR}${extra_dir}"
-    fi
-    extraos_dir="${install_root}${lib_dir}"
-
     # Configure with --prefix the way we want it on the target...
     # There are a whole lot of settings here.  You'll probably want
     # to read up on what they all mean, and customize a bit, possibly by setting GLIBC_EXTRA_CONFIG_ARRAY
@@ -385,14 +341,12 @@ do_libc_backend_once() {
     # Run explicitly through CONFIG_SHELL, or the build breaks badly (loop-of-death)
     # when the shell is not bash... Sigh... :-(
 
-    CT_DoLog DEBUG "Using gcc for target     : '${cross_cc}'"
     CT_DoLog DEBUG "Configuring with addons  : '$(do_libc_add_ons_list ,)'"
     CT_DoLog DEBUG "Extra config args passed : '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CC args passed     : '${glibc_cflags}'"
-    CT_DoLog DEBUG "Extra flags (multilib)   : '${extra_flags}'"
-    CT_DoLog DEBUG "Multilib os dir          : '${extraos_dir}'"
+    CT_DoLog DEBUG "Extra flags (multilib)   : '${multi_flags}'"
+    CT_DoLog DEBUG "Placing startfiles into  : '${startfiles_dir}'"
     CT_DoLog DEBUG "Configuring with --host  : '${libc_target}'"
-    CT_DoLog DEBUG "Configuring with --libdir: '${lib_dir}'"
 
     CT_DoExecLog CFG                                                \
     BUILD_CC="${CT_BUILD}-gcc"                                      \
@@ -410,7 +364,6 @@ do_libc_backend_once() {
         --disable-profile                                           \
         --without-gd                                                \
         --with-headers="${CT_HEADERS_DIR}"                          \
-        --libdir=${lib_dir}                                         \
         "${extra_config[@]}"                                        \
         "${CT_LIBC_GLIBC_EXTRA_CONFIG_ARRAY[@]}"
 
@@ -441,13 +394,14 @@ do_libc_backend_once() {
             ;;
     esac
 
-    if [ "${libc_headers}" = "y" ]; then
+    if [ "${libc_mode}" = "startfiles" -a ! -r "${multi_root}/.libc_headers_installed" ]; then
         CT_DoLog EXTRA "Installing C library headers"
+        CT_DoExecLog ALL touch "${multi_root}/.libc_headers_installed"
 
         # use the 'install-headers' makefile target to install the
         # headers
         CT_DoExecLog ALL ${make} ${JOBSFLAGS}                       \
-                         install_root=${install_root}               \
+                         install_root=${multi_root}                 \
                          install-bootstrap-headers=yes              \
                          "${extra_make_args[@]}"                    \
                          install-headers
@@ -488,35 +442,37 @@ do_libc_backend_once() {
                     ;;
             esac
         fi
-    fi # libc_headers == y
+    elif [ "${libc_mode}" = "final" -a -r "${multi_root}/.libc_headers_installed" ]; then
+        CT_DoExecLog ALL rm -f "${multi_root}/.libc_headers_installed"
+    fi # installing headers
 
-    if [ "${libc_startfiles}" = "y" ]; then
+    if [ "${libc_mode}" = "startfiles" ]; then
         if [ "${CT_THREADS}" = "nptl" ]; then
             CT_DoLog EXTRA "Installing C library start files"
 
             # there are a few object files needed to link shared libraries,
             # which we build and install by hand
-            CT_DoExecLog ALL mkdir -p "${extraos_dir}"
+            CT_DoExecLog ALL mkdir -p "${startfiles_dir}"
             CT_DoExecLog ALL ${make} ${JOBSFLAGS} \
                         "${extra_make_args[@]}" \
                         csu/subdir_lib
             CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o    \
-                                "${extraos_dir}"
+                                "${startfiles_dir}"
 
             # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
             # However, since we will never actually execute its code,
             # it doesn't matter what it contains.  So, treating '/dev/null'
             # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${cross_cc}" ${extra_flags}   \
-                                            -nostdlib       \
-                                           -nostartfiles    \
-                                           -shared          \
-                                           -x c /dev/null   \
-                                           -o "${extraos_dir}/libc.so"
+            CT_DoExecLog ALL "${CT_TARGET}-gcc" ${multi_flags}   \
+                                            -nostdlib            \
+                                           -nostartfiles         \
+                                           -shared               \
+                                           -x c /dev/null        \
+                                           -o "${startfiles_dir}/libc.so"
         fi # threads == nptl
-    fi # libc_headers == y
+    fi # libc_mode = startfiles
 
-    if [ "${libc_full}" = "y" ]; then
+    if [ "${libc_mode}" = "final" ]; then
         CT_DoLog EXTRA "Building C library"
         CT_DoExecLog ALL ${make} ${JOBSFLAGS}         \
                               "${extra_make_args[@]}" \
@@ -525,7 +481,7 @@ do_libc_backend_once() {
         CT_DoLog EXTRA "Installing C library"
         CT_DoExecLog ALL ${make} ${JOBSFLAGS}                 \
                               "${extra_make_args[@]}"         \
-                              install_root="${install_root}"  \
+                              install_root="${multi_root}"    \
                               install
 
         if [ "${CT_BUILD_MANUALS}" = "y" -a "${multi_last}" = "y" ]; then
@@ -545,7 +501,7 @@ do_libc_backend_once() {
         if [ "${CT_LIBC_LOCALES}" = "y" -a "${multi_last}" = "y" ]; then
             do_libc_locales
         fi
-    fi # libc_full == y
+    fi # libc_mode = final
 }
 
 # Build up the addons list, separated with $1

@@ -73,63 +73,62 @@ do_libc_check_config() {
 
 # Build and install headers and start files
 do_libc_start_files() {
-    local cross
+    local multi_os_dir multi_root startfiles_dir
 
     CT_DoStep INFO "Installing C library headers"
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}"   \
+    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}"   \
                             "${CT_BUILD_DIR}/build-libc-headers"
     cd "${CT_BUILD_DIR}/build-libc-headers"
 
     # Retrieve the config file
     CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/uClibc.config" .config
 
-    # uClibc uses the CROSS environment variable as a prefix to the
-    # compiler tools to use.  Setting it to the empty string forces
-    # use of the native build host tools, which we need at this
-    # stage, as we don't have target tools yet.
-    # BUT! With NPTL, we need a cross-compiler (and we have it)
-    if [ "${CT_THREADS}" = "nptl" ]; then
-        cross="${CT_TARGET}-"
-    fi
+    multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory )
+    multi_root=$( "${CT_TARGET}-gcc" -print-sysroot )
+    startfiles_dir="${multi_root}/usr/lib/${multi_os_dir}"
+    CT_SanitizeVarDir startfiles_dir
+    CT_DoExecLog ALL mkdir -p "${startfiles_dir}"
 
     # Force the date of the pregen locale data, as the
     # newer ones that are referenced are not available
     CT_DoLog EXTRA "Applying configuration"
     CT_DoYes "" |CT_DoExecLog ALL                                   \
-                 ${make} CROSS_COMPILE="${cross}"                   \
+                 ${make} CROSS_COMPILE="${CT_TARGET}-"              \
                  UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-                 PREFIX="${CT_SYSROOT_DIR}/"                        \
+                 PREFIX="${multi_root}/"                            \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
 
     CT_DoLog EXTRA "Building headers"
     CT_DoExecLog ALL                                        \
     ${make} ${CT_LIBC_UCLIBC_VERBOSITY}                     \
-         CROSS_COMPILE="${cross}"                           \
+         CROSS_COMPILE="${CT_TARGET}-"                      \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         PREFIX="${multi_root}/"                            \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          headers
 
     CT_DoLog EXTRA "Installing headers"
     CT_DoExecLog ALL                                        \
     ${make} ${CT_LIBC_UCLIBC_VERBOSITY}                     \
-         CROSS_COMPILE="${cross}"                           \
+         CROSS_COMPILE="${CT_TARGET}-"                      \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         PREFIX="${multi_root}/"                            \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
          install_headers
 
+    # The check might look bogus, but it is the same condition as is used
+    # by GCC build script to enable/disable shared library support.
     if [ "${CT_THREADS}" = "nptl" ]; then
         CT_DoLog EXTRA "Building start files"
         CT_DoExecLog ALL                                        \
         ${make} ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}        \
-             CROSS_COMPILE="${cross}"                           \
+             CROSS_COMPILE="${CT_TARGET}-"                      \
              UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-             PREFIX="${CT_SYSROOT_DIR}/"                        \
+             PREFIX="${multi_root}/"                            \
              STRIPTOOL=true                                     \
              ${CT_LIBC_UCLIBC_VERBOSITY}                        \
              LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
@@ -139,7 +138,7 @@ do_libc_start_files() {
         # libm.so is needed for ppc, as libgcc is linked against libm.so
         # No problem to create it for other archs.
         CT_DoLog EXTRA "Building dummy shared libs"
-        CT_DoExecLog ALL "${cross}gcc" -nostdlib        \
+        CT_DoExecLog ALL "${CT_TARGET}-gcc" -nostdlib   \
                                        -nostartfiles    \
                                        -shared          \
                                        -x c /dev/null   \
@@ -147,11 +146,11 @@ do_libc_start_files() {
 
         CT_DoLog EXTRA "Installing start files"
         CT_DoExecLog ALL ${install} -m 0644 lib/crt1.o lib/crti.o lib/crtn.o   \
-                                         "${CT_SYSROOT_DIR}/usr/lib"
+                                         "${startfiles_dir}"
 
         CT_DoLog EXTRA "Installing dummy shared libs"
-        CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libc.so"
-        CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${CT_SYSROOT_DIR}/usr/lib/libm.so"
+        CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${startfiles_dir}/libc.so"
+        CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${startfiles_dir}/libm.so"
     fi # CT_THREADS == nptl
 
     CT_EndStep
@@ -159,6 +158,8 @@ do_libc_start_files() {
 
 # This function build and install the full uClibc
 do_libc() {
+    local multi_os_dir multi_root multilib_dir startfiles_dir
+
     CT_DoStep INFO "Installing C library"
 
     # Simply copy files until uClibc has the ability to build out-of-tree
@@ -169,6 +170,20 @@ do_libc() {
 
     # Retrieve the config file
     CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/uClibc.config" .config
+
+    multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory )
+    multi_root=$( "${CT_TARGET}-gcc" -print-sysroot )
+    startfiles_dir="${multi_root}/usr/lib/${multi_os_dir}"
+
+    CT_DoLog EXTRA "Cleaning up startfiles"
+    CT_DoExecLog ALL rm -f "${startfiles_dir}/crt1.o" \
+                "${startfiles_dir}/crti.o" \
+                "${startfiles_dir}/crtn.o" \
+                "${startfiles_dir}/libc.so" \
+                "${startfiles_dir}/libm.so"
+
+    multilib_dir="lib/${multi_os_dir}"
+    CT_SanitizeVarDir multilib_dir
 
     # uClibc uses the CROSS environment variable as a prefix to the compiler
     # tools to use.  The newly built tools should be in our path, so we need
@@ -181,7 +196,7 @@ do_libc() {
     CT_DoYes "" |CT_DoExecLog CFG                                   \
                  ${make} CROSS_COMPILE=${CT_TARGET}-                \
                  UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-                 PREFIX="${CT_SYSROOT_DIR}/"                        \
+                 PREFIX="${multi_root}/"                            \
                  LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
                  oldconfig
 
@@ -193,7 +208,7 @@ do_libc() {
     ${make} -j1                                             \
          CROSS_COMPILE=${CT_TARGET}-                        \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         PREFIX="${multi_root}/"                            \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
@@ -202,7 +217,7 @@ do_libc() {
     ${make} ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}        \
          CROSS_COMPILE=${CT_TARGET}-                        \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         PREFIX="${multi_root}/"                            \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
@@ -220,16 +235,17 @@ do_libc() {
     # We do _not_ want to strip anything for now, in case we specifically
     # asked for a debug toolchain, hence the STRIPTOOL= assignment
     #
-    # Note: JOBSFLAGS is not usefull for installation.
+    # Note: JOBSFLAGS is not useful for installation.
     #
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL                                        \
     ${make} CROSS_COMPILE=${CT_TARGET}-                     \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
-         PREFIX="${CT_SYSROOT_DIR}/"                        \
+         PREFIX="${multi_root}/"                            \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
          LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+         MULTILIB_DIR="${multilib_dir}"                     \
          install
 
     CT_EndStep

@@ -192,11 +192,13 @@ cc_gcc_multilib_housekeeping() {
     if [ ${#multilibs[@]} -ne 0 ]; then
         CT_DoLog EXTRA "gcc configured with these multilibs (including the default):"
         for i in "${multilibs[@]}"; do
-            dir="${i%%;*}"
+            dir="lib/${i%%;*}"
             flags="${i#*;}"
             flags=${flags//@/ -}
-            osdir=$( "${cc}" -print-multi-os-directory ${flags} )
-            CT_DoLog EXTRA "   '${flags}' -->  lib/${dir}/ (gcc)   lib/${osdir} (os)"
+            flags=$( echo ${flags} )
+            osdir="lib/"$( "${cc}" -print-multi-os-directory ${flags} )
+            CT_SanitizeVarDir dir osdir
+            CT_DoLog EXTRA "   '${flags}' --> ${dir} (gcc)   ${osdir} (os)"
             for f in ${flags}; do
                 eval ml_`cc_gcc_classify_opt ${f}`=seen
             done

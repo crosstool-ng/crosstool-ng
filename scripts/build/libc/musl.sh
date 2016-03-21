@@ -46,6 +46,7 @@ do_libc_backend() {
     local -a extra_config
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local libc_headers libc_startfiles libc_full
+    local multi_os_dir multi_root multilib_dir
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -66,6 +67,12 @@ do_libc_backend() {
             ;;
         *)  CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
     esac
+
+    multi_root=$( "${CT_TARGET}-gcc" -print-sysroot )
+    multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory )
+    multilib_dir="/usr/lib/${multi_os_dir}"
+    CT_SanitizeVarDir multilib_dir
+    CT_DoExecLog ALL mkdir -p "${multi_root}${multilib_dir}"
 
     # From buildroot:
     # gcc constant folding bug with weak aliases workaround
@@ -89,37 +96,44 @@ do_libc_backend() {
     # NOTE: musl handles the build/host/target a little bit differently
     # then one would expect:
     #   build   : not used
-    #   host    : the machine building musl
+    #   host    : same as --target
     #   target  : the machine musl runs on
-    CT_DoExecLog CFG                \
-    CFLAGS="${extra_cflags[@]}"     \
-    CROSS_COMPILE="${CT_TARGET}-"   \
-    ${src_dir}/configure            \
-        --host="${CT_TARGET}"       \
-        --target="${CT_TARGET}"     \
-        --prefix="/usr"             \
-        --disable-gcc-wrapper       \
+    CT_DoExecLog CFG                        \
+    CFLAGS="${extra_cflags[@]}"             \
+    CROSS_COMPILE="${CT_TARGET}-"           \
+    ${src_dir}/configure                    \
+        --host="${CT_TARGET}"               \
+        --target="${CT_TARGET}"             \
+        --prefix="/usr"                     \
+        --libdir="${multilib_dir}"          \
+        --disable-gcc-wrapper               \
         "${extra_config[@]}"
 
     if [ "${libc_headers}" = "y" ]; then
         CT_DoLog EXTRA "Installing C library headers"
-        CT_DoExecLog ALL ${make} DESTDIR="${CT_SYSROOT_DIR}" install-headers
+        CT_DoExecLog ALL ${make} DESTDIR="${multi_root}" install-headers
     fi
     if [ "${libc_startfiles}" = "y" ]; then
         CT_DoLog EXTRA "Building C library start files"
-        CT_DoExecLog ALL ${make} DESTDIR="${CT_SYSROOT_DIR}" \
+        CT_DoExecLog ALL ${make} DESTDIR="${multi_root}" \
             obj/crt/crt1.o obj/crt/crti.o obj/crt/crtn.o
         CT_DoLog EXTRA "Installing C library start files"
-        CT_DoExecLog ALL cp -av obj/crt/crt*.o "${CT_SYSROOT_DIR}/usr/lib"
+        CT_DoExecLog ALL cp -av obj/crt/crt*.o "${multi_root}${multilib_dir}"
         CT_DoExecLog ALL ${CT_TARGET}-gcc -nostdlib \
-            -nostartfiles -shared -x c /dev/null -o "${CT_SYSROOT_DIR}/usr/lib/libc.so"
+            -nostartfiles -shared -x c /dev/null -o "${multi_root}${multilib_dir}/libc.so"
     fi
     if [ "${libc_full}" = "y" ]; then
+        CT_DoLog EXTRA "Cleaning up start files"
+        CT_DoExecLog ALL rm -f "${multi_root}${multilib_dir}/crt1.o" \
+            "${multi_root}${multilib_dir}/crti.o" \
+            "${multi_root}${multilib_dir}/crtn.o" \
+            "${multi_root}${multilib_dir}/libc.so"
+
         CT_DoLog EXTRA "Building C library"
         CT_DoExecLog ALL ${make} ${JOBSFLAGS}
 
         CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL ${make} DESTDIR="${CT_SYSROOT_DIR}" install
+        CT_DoExecLog ALL ${make} DESTDIR="${multi_root}" install
     fi
 
     CT_EndStep
