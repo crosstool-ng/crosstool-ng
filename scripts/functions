@@ -1183,6 +1183,14 @@ CT_DoConfigSub() {
     fi
 }
 
+# Normally, each step is executed in a sub-shell and thus cannot modify the
+# environment for the next step(s). When this is needed, it can do so by
+# invoking this function.
+# Usage: CT_EnvModify VAR VALUE
+CT_EnvModify() {
+    echo "${1}=\"${2}\"" >> "${CT_BUILD_DIR}/env.modify.sh"
+}
+
 # Compute the target tuple from what is provided by the user
 # Usage: CT_DoBuildTargetTuple
 # In fact this function takes the environment variables to build the target
@@ -1303,6 +1311,23 @@ CT_DoBuildTargetTuple() {
 
     # Now on for the target LDFLAGS
     CT_ARCH_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_ARCH_ENDIAN_LDFLAG}"
+
+    # Now, a multilib quirk. We may not be able to pass CT_ARCH_TARGET_CFLAGS
+    # and CT_ARCH_TARGET_LDFLAGS to gcc: even though GCC build appends the multilib
+    # flags afterwards, on some architectures the build breaks because some
+    # flags do not completely override each other. For example, on mips target,
+    # 'gcc -mabi=32' and 'gcc -mabi=n32' both work, but 'gcc -mabi=32 -mabi=n32'
+    # triggers an internal linker error. Likely a bug in GNU binutils, but we
+    # have to work it around for now: *do not pass the CT_ARCH_TARGET_ flags*.
+    # Instead, save them into a different variable here. Then, after the first
+    # core pass, we'll know which of them vary with multilibs (i.e. must be
+    # filtered out).
+    if [ "${CT_MULTILIB}" = "y" ]; then
+        CT_ARCH_TARGET_CFLAGS_MULTILIB="${CT_ARCH_TARGET_CFLAGS}"
+        CT_ARCH_TARGET_CFLAGS=
+        CT_ARCH_TARGET_LDFLAGS_MULTILIB="${CT_ARCH_TARGET_LDFLAGS}"
+        CT_ARCH_TARGET_LDFLAGS=
+    fi
 }
 
 # This function determines the target tuple for a given set of compiler
