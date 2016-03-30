@@ -111,6 +111,24 @@ do_libc_backend() {
             # (default target, not multilib)
             multi_last=y
         fi
+
+        # GCC makes the distinction between:
+        #   multilib (-print-multi-lib or -print-multi-directory) and
+        #   multilib-os (--print-multi-os-directory)
+        # as the gcc library and gcc sysroot library paths, respectively.
+        # For example, on x86_64:
+        #   multilib:    -m32=32      -m64=.
+        #   multilib-os: -m32=../lib  -m64=../lib64
+        # Moreover, while some multilibs can coexist in the same sysroot (e.g.
+        # on x86), some have a "sysroot suffix" to separate incompatible variants.
+        # Such sysroot suffixes combine with multilib-os directories, e.g.
+        # on sh4 with -m4a multilib, the search order in sysroot is (dropping some
+        # directories for brevity:
+        #   <sysroot>/m4a/lib/m4a/
+        #   <sysroot>/m4a/usr/lib/m4a/
+        #   <sysroot>/m4a/lib/
+        #   <sysroot>/m4a/usr/lib/
+        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
         if [ "${multi_dir}" != "." ]; then
             CT_DoStep INFO "Building for multilib subdir='${multi_dir}'"
