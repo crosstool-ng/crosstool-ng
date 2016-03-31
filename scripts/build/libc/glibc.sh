@@ -182,14 +182,11 @@ do_libc_backend_once() {
     local multi_flags multi_dir multi_os_dir multi_root multi_last multi_root
     local startfiles_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
-    local extra_cc_args
     local -a extra_config
     local -a extra_make_args
     local glibc_cflags
-    local float_extra
-    local endian_extra
     local libc_target="${CT_TARGET}"
-    local arg
+    local arg opt
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -217,14 +214,8 @@ do_libc_backend_once() {
 
     CT_DoLog EXTRA "Configuring C library"
 
-    case "${CT_LIBC}" in
-        glibc)
-            # glibc can't be built without -O2 (reference needed!)
-            OPTIMIZE=-O2
-            # Also, if those two are missing, iconv build breaks
-            extra_config+=( --disable-debug --disable-sanity-checks )
-            ;;
-    esac
+    # Also, if those two are missing, iconv build breaks
+    extra_config+=( --disable-debug --disable-sanity-checks )
 
     # always include rpc, the user can still override it with TI-RPC
     extra_config+=( --enable-obsolete-rpc )
@@ -252,21 +243,6 @@ do_libc_backend_once() {
         *) extra_config+=("--disable-shared");;
     esac
 
-    float_extra="$( echo "${multi_flags}"       \
-                    |${sed} -r -e '/^(.*[[:space:]])?-m(hard|soft)-float([[:space:]].*)?$/!d;'  \
-                               -e 's//\2/;'     \
-                  )"
-    case "${float_extra}" in
-        hard)   extra_config+=("--with-fp");;
-        soft)   extra_config+=("--without-fp");;
-        "")
-            case "${CT_ARCH_FLOAT}" in
-                hard|softfp)    extra_config+=("--with-fp");;
-                soft)           extra_config+=("--without-fp");;
-            esac
-            ;;
-    esac
-
     if [ "${CT_LIBC_DISABLE_VERSIONING}" = "y" ]; then
         extra_config+=("--disable-versioning")
     fi
@@ -283,24 +259,6 @@ do_libc_backend_once() {
     extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
     [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
 
-    # Extract the endianness options if any
-    # This should cover all possible endianness options
-    # in gcc, but it is prone to bit-rot... :-(
-    endian_extra="$( echo "${multi_flags}"      \
-                     |${sed} -r -e '/^(.*[[:space:]])?-(E[BL]|m((big|little)(-endian)?|e?[bl]))([[:space:]].*)?$/!d;' \
-                                -e 's//\2/;'    \
-                   )"
-    # If multi_flags contained an endianness option, no need to add it again. Otherwise,
-    # add the option from the configuration.
-    case "${endian_extra}" in
-        EB|mbig-endian|mbig|meb|mb)
-            ;;
-        EL|mlittle-endian|mlittle|mel|ml)
-            ;;
-        "") extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
-            ;;
-    esac
-
     touch config.cache
     if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
         echo "libc_cv_forced_unwind=yes" >>config.cache
@@ -310,13 +268,30 @@ do_libc_backend_once() {
     # Pre-seed the configparms file with values from the config option
     printf "%s\n" "${CT_LIBC_GLIBC_CONFIGPARMS}" > configparms
 
-    extra_cc_args+=" ${multi_flags}"
+    # glibc can't be built without -O2 (reference needed!)
+    glibc_cflags+=" -O2"
 
     case "${CT_LIBC_ENABLE_FORTIFIED_BUILD}" in
         y)  ;;
         *)  glibc_cflags+=" -U_FORTIFY_SOURCE";;
     esac
-    glibc_cflags+=" ${CT_TARGET_CFLAGS} ${OPTIMIZE} ${CT_LIBC_GLIBC_EXTRA_CFLAGS}"
+
+    # In the order of increasing precedence. Flags common to compiler and linker.
+    glibc_cflags+=" ${CT_TARGET_CFLAGS}"
+    glibc_cflags+=" ${CT_LIBC_GLIBC_EXTRA_CFLAGS}"
+    glibc_cflags+=" ${multi_flags}"
+
+    # Analyze the resulting options for any extra configure switches to throw in.
+    for opt in ${glibc_cflags}; do
+        case ${opt} in
+            -mhard-float|-mfloat-abi=hard|-mfloat-abi=softfp|-mno-soft-float|-mfpu)
+                extra_config+=("--with-fp")
+                ;;
+            -msoft-float|-mfloat-abi=soft|-mno-float|-mno-fpu)
+                extra_config+=("--without-fp")
+                ;;
+        esac
+    done
 
     # ./configure is mislead by our tools override wrapper for bash
     # so just tell it where the real bash is _on_the_target_!
@@ -333,9 +308,12 @@ do_libc_backend_once() {
 
     # Configure with --prefix the way we want it on the target...
     # There are a whole lot of settings here.  You'll probably want
-    # to read up on what they all mean, and customize a bit, possibly by setting GLIBC_EXTRA_CONFIG_ARRAY
-    # Compare these options with the ones used when installing the glibc headers above - they're different.
-    # Adding "--without-gd" option to avoid error "memusagestat.c:36:16: gd.h: No such file or directory"
+    # to read up on what they all mean, and customize a bit, possibly
+    # by setting GLIBC_EXTRA_CONFIG_ARRAY.
+    # Compare these options with the ones used when installing
+    # the glibc headers above - they're different.
+    # Adding "--without-gd" option to avoid error "memusagestat.c:36:16:
+    # gd.h: No such file or directory"
     # See also http://sources.redhat.com/ml/libc-alpha/2000-07/msg00024.html.
     # Set BUILD_CC, or we won't be able to build datafiles
     # Run explicitly through CONFIG_SHELL, or the build breaks badly (loop-of-death)
@@ -343,15 +321,15 @@ do_libc_backend_once() {
 
     CT_DoLog DEBUG "Configuring with addons  : '$(do_libc_add_ons_list ,)'"
     CT_DoLog DEBUG "Extra config args passed : '${extra_config[*]}'"
-    CT_DoLog DEBUG "Extra CC args passed     : '${glibc_cflags}'"
-    CT_DoLog DEBUG "Extra flags (multilib)   : '${multi_flags}'"
+    CT_DoLog DEBUG "Extra CFLAGS passed      : '${glibc_cflags}'"
     CT_DoLog DEBUG "Placing startfiles into  : '${startfiles_dir}'"
     CT_DoLog DEBUG "Configuring with --host  : '${libc_target}'"
 
+    # CFLAGS are only applied when compiling .c files. .S files are compiled with ASFLAGS,
+    # but they are not passed by configure. Thus, pass everything in CC instead.
     CT_DoExecLog CFG                                                \
-    BUILD_CC="${CT_BUILD}-gcc"                                      \
-    CFLAGS="${glibc_cflags}"                                        \
-    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    BUILD_CC=${CT_BUILD}-gcc                                        \
+    CC="${CT_TARGET}-gcc ${glibc_cflags}"                           \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CONFIG_SHELL}"                                               \
