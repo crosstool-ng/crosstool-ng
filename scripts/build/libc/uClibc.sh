@@ -51,26 +51,6 @@ do_libc_extract() {
     return 0
 }
 
-# Check that uClibc has been previously configured
-do_libc_check_config() {
-    CT_DoStep INFO "Checking C library configuration"
-
-    # Use the default config if the user did not provide one.
-    if [ -z "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
-        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/contrib/uClibc-defconfigs/${uclibc_name}.config"
-    fi
-
-    if ${grep} -E '^KERNEL_SOURCE=' "${CT_LIBC_UCLIBC_CONFIG_FILE}" >/dev/null 2>&1; then
-        CT_DoLog WARN "Your uClibc version refers to the kernel _sources_, which is bad."
-        CT_DoLog WARN "I can't guarantee that our little hack will work. Please try to upgrade."
-    fi
-
-    CT_DoLog EXTRA "Manage uClibc configuration"
-    manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" "${CT_CONFIG_DIR}/uClibc.config"
-
-    CT_EndStep
-}
-
 # Build and install headers and start files
 do_libc_start_files() {
     # Start files and Headers should be configured the same way as the
@@ -131,12 +111,17 @@ do_libc_backend() {
                 ${CT_LIBC_UCLIBC_VERBOSITY}                             \
                 )
 
-    # Retrieve the config file
-    CT_DoExecLog ALL cp "${CT_CONFIG_DIR}/uClibc.config" .config
-
     # Force the date of the pregen locale data, as the
     # newer ones that are referenced are not available
     CT_DoLog EXTRA "Applying configuration"
+
+    # Use the default config if the user did not provide one.
+    if [ -z "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
+        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/contrib/uClibc-defconfigs/${uclibc_name}.config"
+    fi
+
+    manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config
+
     CT_DoYes | CT_DoExecLog ALL ${make} "${make_args[@]}" oldconfig
 
     if [ "${libc_mode}" = "startfiles" ]; then
@@ -347,7 +332,6 @@ manage_uClibc_config() {
     # which is the correct value of ${PREFIX}/${TARGET}.
     CT_KconfigSetOption "DEVEL_PREFIX" "\"/usr/\"" "${dst}"
     CT_KconfigSetOption "RUNTIME_PREFIX" "\"/\"" "${dst}"
-    CT_KconfigSetOption "SHARED_LIB_LOADER_PREFIX" "\"/lib/\"" "${dst}"
     CT_KconfigSetOption "KERNEL_HEADERS" "\"${CT_HEADERS_DIR}\"" "${dst}"
 
     # Locales support
