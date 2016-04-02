@@ -16,10 +16,6 @@ do_libc_extract() {
     CT_Patch "musl" "${CT_LIBC_VERSION}"
 }
 
-do_libc_check_config() {
-    :
-}
-
 # Build and install headers and start files
 do_libc_start_files() {
     # Start files and Headers should be configured the same way as the

@@ -25,5 +25,39 @@ CT_DoArchMultilibTarget ()
     local target="${1}"; shift
     local -a multi_flags=( "$@" )
 
+    local m32=false
+    local m64=false
+
+    for m in "${multi_flags[@]}"; do
+        case "$m" in
+            -m32)     m32=true ;;
+            -m64)     m64=true ;;
+        esac
+    done
+
+    # Fix up bitness
+    case "${target}" in
+        sparc-*)      $m64 && target=${target/#sparc-/sparc64-} ;;
+        sparc64-*)    $m32 && target=${target/#sparc64-/sparc-} ;;
+    esac
+
+    echo "${target}"
+}
+
+# Special tuple adjustment for glibc.
+CT_DoArchGlibcAdjustTuple() {
+    local target="${1}"
+
+    case "${target}" in
+        # SPARC quirk: glibc 2.23 and newer dropped support for SPARCv8 and
+        # earlier (corresponding pthread barrier code is missing). Until this
+        # support is reintroduced, configure as sparcv9.
+        sparc-*)
+            if [ "${CT_LIBC_GLIBC_2_23_or_later}" = y ]; then
+                target=${target/#sparc-/sparcv9-}
+            fi
+            ;;
+    esac
+
     echo "${target}"
 }

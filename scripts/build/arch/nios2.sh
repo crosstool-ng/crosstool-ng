@@ -9,5 +9,4 @@ CT_DoArchTupleValues() {
     CT_ARCH_WITH_FPU=
     CT_ARCH_WITH_FLOAT=
     CT_TARGET_SYS=elf
-
 }

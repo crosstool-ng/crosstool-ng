@@ -41,10 +41,6 @@ do_libc_extract() {
     CT_Popd
 }
 
-do_libc_check_config() {
-    :
-}
-
 # Build and install headers and start files
 do_libc_start_files() {
     # Start files and Headers should be configured the same way as the
@@ -123,30 +119,9 @@ do_libc_backend() {
         multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
         multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
 
+        # Adjust target tuple according to CFLAGS + any GLIBC quirks
         target=$( CT_DoMultilibTarget "${CT_TARGET}" ${extra_flags} )
-        case "${target}" in
-            # SPARC quirk: glibc 2.23 and newer dropped support for SPARCv8 and
-            # earlier (corresponding pthread barrier code is missing). Until this
-            # support is reintroduced, configure as sparcv9.
-            sparc-*)
-                if [ "${CT_LIBC_GLIBC_2_23_or_later}" = y ]; then
-                    target=${target/#sparc-/sparcv9-}
-                fi
-                ;;
-            # x86 quirk: architecture name is i386, but glibc expects i[4567]86 - to
-            # indicate the desired optimization. If it was a multilib variant of x86_64,
-            # then it targets at least NetBurst a.k.a. i786, but we'll follow arch/x86.sh
-            # and set the optimization to i686. Otherwise, replace with the most
-            # conservative choice, i486.
-            i386-*)
-                if [ "${CT_TARGET_ARCH}" = "x86_64" ]; then
-                    target=${target/#i386-/i686-}
-                else
-                    target=${target/#i386-/i486-}
-                fi
-                ;;
-        esac
-
+        target=$( CT_DoArchGlibcAdjustTuple "${target}" )
         CT_DoStep INFO "Building for multilib '${multi_flags}'"
 
         # Ensure sysroot (with suffix, if applicable) exists
