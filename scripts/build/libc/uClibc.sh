@@ -5,7 +5,7 @@
 # This is a constant because it does not change very often.
 # We're in 2010, and are still using data from 7 years ago.
 uclibc_locales_version=030818
-uclibc_local_tarball="uClibc-locale-${uclibc_locales_version}"
+uclibc_locale_tarball="uClibc-locale-${uclibc_locales_version}"
 
 if [ "${CT_LIBC_UCLIBC_NG}" = "y" ]; then
     uclibc_name="uClibc-ng"
@@ -26,7 +26,7 @@ do_libc_get() {
     fi
     # uClibc locales
     if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
-        CT_GetFile "${uclibc_local_tarball}" ${libc_src}
+        CT_GetFile "${uclibc_locale_tarball}" ${libc_src}
     fi
 
     return 0
@@ -41,11 +41,11 @@ do_libc_extract() {
     # Extracting pregen locales ourselves is kinda
     # broken, so just link it in place...
     if [    "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y"           \
-         -a ! -f "${CT_SRC_DIR}/.${uclibc_local_tarball}.extracted" ]; then
+         -a ! -f "${CT_SRC_DIR}/.${uclibc_locale_tarball}.extracted" ]; then
         CT_Pushd "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}/extra/locale"
-        CT_DoExecLog ALL ln -s "${CT_TARBALLS_DIR}/${uclibc_local_tarball}.tgz" .
+        CT_DoExecLog ALL ln -s "${CT_TARBALLS_DIR}/${uclibc_locale_tarball}.tgz" .
         CT_Popd
-        touch "${CT_SRC_DIR}/.${uclibc_local_tarball}.extracted"
+        touch "${CT_SRC_DIR}/.${uclibc_locale_tarball}.extracted"
     fi
 
     return 0
@@ -99,7 +99,7 @@ do_libc_start_files() {
                  ${make} CROSS_COMPILE="${CT_TARGET}-"              \
                  UCLIBC_EXTRA_CFLAGS="-pipe"                        \
                  PREFIX="${multi_root}/"                            \
-                 LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+                 LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
                  oldconfig
 
     CT_DoLog EXTRA "Building headers"
@@ -108,7 +108,7 @@ do_libc_start_files() {
          CROSS_COMPILE="${CT_TARGET}-"                      \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${multi_root}/"                            \
-         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+         LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
          headers
 
     CT_DoLog EXTRA "Installing headers"
@@ -117,7 +117,7 @@ do_libc_start_files() {
          CROSS_COMPILE="${CT_TARGET}-"                      \
          UCLIBC_EXTRA_CFLAGS="-pipe"                        \
          PREFIX="${multi_root}/"                            \
-         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+         LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
          install_headers
 
     # The check might look bogus, but it is the same condition as is used
@@ -131,7 +131,7 @@ do_libc_start_files() {
              PREFIX="${multi_root}/"                            \
              STRIPTOOL=true                                     \
              ${CT_LIBC_UCLIBC_VERBOSITY}                        \
-             LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+             LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
              lib/crt1.o lib/crti.o lib/crtn.o
 
         # From:  http://git.openembedded.org/cgit.cgi/openembedded/commit/?id=ad5668a7ac7e0436db92e55caaf3fdf782b6ba3b
@@ -197,7 +197,7 @@ do_libc() {
                  ${make} CROSS_COMPILE=${CT_TARGET}-                \
                  UCLIBC_EXTRA_CFLAGS="-pipe"                        \
                  PREFIX="${multi_root}/"                            \
-                 LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+                 LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
                  oldconfig
 
     # We do _not_ want to strip anything for now, in case we specifically
@@ -211,7 +211,7 @@ do_libc() {
          PREFIX="${multi_root}/"                            \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
-         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+         LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
          pregen
     CT_DoExecLog ALL                                        \
     ${make} ${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}        \
@@ -220,7 +220,7 @@ do_libc() {
          PREFIX="${multi_root}/"                            \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
-         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+         LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
          all
 
     # YEM-FIXME:
@@ -244,7 +244,7 @@ do_libc() {
          PREFIX="${multi_root}/"                            \
          STRIPTOOL=true                                     \
          ${CT_LIBC_UCLIBC_VERBOSITY}                        \
-         LOCALE_DATA_FILENAME="${uclibc_local_tarball}.tgz" \
+         LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz" \
          MULTILIB_DIR="${multilib_dir}"                     \
          install
 
