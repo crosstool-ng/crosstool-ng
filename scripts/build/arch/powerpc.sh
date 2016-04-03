@@ -26,6 +26,7 @@ CT_DoArchTupleValues () {
         CT_ARCH_CC_EXTRA_CONFIG="--enable-e500_double"
     fi
 }
+
 #------------------------------------------------------------------------------
 # Get multilib architecture-specific target
 # Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
