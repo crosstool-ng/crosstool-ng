@@ -6,18 +6,15 @@ CT_DoArchTupleValues() {
 }
 
 # Multilib: change the target triplet according to CFLAGS
+# Usage: CT_DoArchGlibcAdjustTuple <variable-name> <CFLAGS>
 CT_DoArchMultilibTarget() {
-    local multi_flags="${1}"
-    local target="${2}"
-
-    echo "${target}"
+    :;
 }
 
 # Multilib: Adjust target tuple for GLIBC
+# Usage: CT_DoArchGlibcAdjustTuple <variable-name>
 CT_DoArchGlibcAdjustTuple() {
-    local target="${1}"
-
-    echo "${target}"
+    :;
 }
 
 # Override from the actual arch implementation as needed.

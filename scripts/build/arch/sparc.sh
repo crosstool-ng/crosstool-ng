@@ -19,11 +19,12 @@ CT_DoArchTupleValues() {
 
 #------------------------------------------------------------------------------
 # Get multilib architecture-specific target
-# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
+# Usage: CT_DoArchMultilibTarget "target variable" "multilib flags"
 CT_DoArchMultilibTarget ()
 {
-    local target="${1}"; shift
+    local target_var="${1}"; shift
     local -a multi_flags=( "$@" )
+    local target_
 
     local m32=false
     local m64=false
@@ -35,29 +36,37 @@ CT_DoArchMultilibTarget ()
         esac
     done
 
+    eval target_=\"\${${target_var}}\"
+
     # Fix up bitness
-    case "${target}" in
-        sparc-*)      $m64 && target=${target/#sparc-/sparc64-} ;;
-        sparc64-*)    $m32 && target=${target/#sparc64-/sparc-} ;;
+    case "${target_}" in
+        sparc-*)      $m64 && target_=${target_/#sparc-/sparc64-} ;;
+        sparc64-*)    $m32 && target_=${target_/#sparc64-/sparc-} ;;
     esac
 
-    echo "${target}"
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
 }
 
 # Special tuple adjustment for glibc.
 CT_DoArchGlibcAdjustTuple() {
-    local target="${1}"
+    local target_var="${1}"
+    local target_
 
-    case "${target}" in
+    eval target_=\"\${${target_var}}\"
+
+    case "${target_}" in
         # SPARC quirk: glibc 2.23 and newer dropped support for SPARCv8 and
         # earlier (corresponding pthread barrier code is missing). Until this
         # support is reintroduced, configure as sparcv9.
         sparc-*)
             if [ "${CT_LIBC_GLIBC_2_23_or_later}" = y ]; then
-                target=${target/#sparc-/sparcv9-}
+                CT_DoLog WARN "GLIBC 2.23 only supports SPARCv9"
+                target_=${target_/#sparc-/sparcv9-}
             fi
             ;;
     esac
 
-    echo "${target}"
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
 }

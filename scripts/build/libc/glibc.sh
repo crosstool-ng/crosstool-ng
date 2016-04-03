@@ -120,8 +120,9 @@ do_libc_backend() {
         multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
 
         # Adjust target tuple according to CFLAGS + any GLIBC quirks
-        target=$( CT_DoMultilibTarget "${CT_TARGET}" ${extra_flags} )
-        target=$( CT_DoArchGlibcAdjustTuple "${target}" )
+        target="${CT_TARGET}"
+        CT_DoMultilibTarget target ${extra_flags}
+        CT_DoArchGlibcAdjustTuple target
         CT_DoStep INFO "Building for multilib '${multi_flags}'"
 
         # Ensure sysroot (with suffix, if applicable) exists
