@@ -35,11 +35,12 @@ CT_DoArchTupleValues() {
 
 #------------------------------------------------------------------------------
 # Get multilib architecture-specific target
-# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
+# Usage: CT_DoArchMultilibTarget "target variable" "multilib flags"
 CT_DoArchMultilibTarget ()
 {
-    local multi_flags="${1}"
-    local target="${2}"
+    local target_var="${1}"
+    local multi_flags="${2}"
+    local target_
 
     local bit=default
     local abi=default
@@ -52,26 +53,32 @@ CT_DoArchMultilibTarget ()
         esac
     done
 
+    eval target_=\"\${${target_var}}\"
+
     # Fix up architecture.
-    case "${target}" in
-        x86_64-*)      [ $bit = 32 ] && target=${target/#x86_64-/i386-} ;;
-        i[34567]86-*)  [ $bit = 64 ] && target=${target/#i[34567]86-/x86_64-} ;;
+    case "${target_}" in
+        x86_64-*)      [ $bit = 32 ] && target_=${target_/#x86_64-/i386-} ;;
+        i[34567]86-*)  [ $bit = 64 ] && target_=${target_/#i[34567]86-/x86_64-} ;;
     esac
 
     # Fix up the ABI part.
-    case "${target}" in
-        *x32) [ $abi = default ] && target=${target/%x32} ;;
-        *)    [ $abi = x32 ] && target=${target}x32 ;;
+    case "${target_}" in
+        *x32) [ $abi = default ] && target_=${target_/%x32} ;;
+        *)    [ $abi = x32 ] && target_=${target_}x32 ;;
     esac
 
-    echo "${target}"
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
 }
 
 # Adjust target tuple for GLIBC
 CT_DoArchGlibcAdjustTuple() {
-    local target="${1}"
+    local target_var="${1}"
+    local target_
 
-    case "${target}" in
+    eval target_=\"\${${target_var}}\"
+
+    case "${target_}" in
         # x86 quirk: architecture name is i386, but glibc expects i[4567]86 - to
         # indicate the desired optimization. If it was a multilib variant of x86_64,
         # then it targets at least NetBurst a.k.a. i786, but we'll follow the model
@@ -79,14 +86,15 @@ CT_DoArchGlibcAdjustTuple() {
         # conservative choice, i486.
         i386-*)
             if [ "${CT_TARGET_ARCH}" = "x86_64" ]; then
-                target=${target/#i386-/i686-}
+                target_=${target_/#i386-/i686-}
             elif [ "${CT_TARGET_ARCH}" != "i386" ]; then
-                target=${target/#i386-/${CT_TARGET_ARCH}-}
+                target_=${target_/#i386-/${CT_TARGET_ARCH}-}
             else
-                target=${target/#i386-/i486-}
+                target_=${target_/#i386-/i486-}
             fi
             ;;
     esac
 
-    echo "${target}"
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
 }
