@@ -19,3 +19,9 @@ CT_DoArchTupleValues () {
     esac
 
 }
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    CT_DoArchUClibcSelectArch "${cfg}" "microblaze"
+}
