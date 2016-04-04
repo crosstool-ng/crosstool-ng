@@ -100,3 +100,33 @@ CT_DoArchGlibcAdjustTuple() {
     # Set the target variable
     eval ${target_var}=\"${target_}\"
 }
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    if [ "${CT_ARCH_BITNESS}" = 64 ]; then
+        CT_DoArchUClibcSelectArch "${cfg}" "x86_64"
+    else
+        CT_DoArchUClibcSelectArch "${cfg}" "i386"
+    fi
+
+    # FIXME This doesn't cover all cases of x86_32 on uClibc (!ng)
+    CT_KconfigDisableOption "CONFIG_386" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_486" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_586" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_686" "${cfg}"
+    case ${CT_TARGET_ARCH} in
+        i386)
+            CT_KconfigEnableOption "CONFIG_386" "${cfg}"
+            ;;
+        i486)
+            CT_KconfigEnableOption "CONFIG_486" "${cfg}"
+            ;;
+        i586)
+            CT_KconfigEnableOption "CONFIG_586" "${cfg}"
+            ;;
+        i686)
+            CT_KconfigEnableOption "CONFIG_686" "${cfg}"
+            ;;
+    esac
+}

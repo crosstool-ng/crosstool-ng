@@ -35,3 +35,18 @@ CT_DoArchTupleValues () {
     esac
     CT_ARCH_FLOAT_CFLAG=
 }
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    # FIXME: uclibc (!ng) seems to support sh64 (sh5), too
+    CT_DoArchUClibcSelectArch "${cfg}" "sh"
+    CT_KconfigDisableOption "CONFIG_SH3" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_SH4" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_SH4A" "${cfg}"
+    case "${CT_ARCH_SH_VARIAN}" in
+        sh3) CT_KconfigEnableOption "CONFIG_SH3" "${cfg}";;
+        sh4) CT_KconfigEnableOption "CONFIG_SH4" "${cfg}";;
+        sh4a) CT_KconfigEnableOption "CONFIG_SH4A" "${cfg}";;
+    esac
+}

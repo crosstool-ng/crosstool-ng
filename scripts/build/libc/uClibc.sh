@@ -193,96 +193,8 @@ manage_uClibc_config() {
     dst="$2"
 
     # Start with fresh files
-    CT_DoExecLog ALL rm -f "${dst}"
-    CT_DoExecLog ALL mkdir -p "$(dirname ${dst})"
     CT_DoExecLog ALL cp "${src}" "${dst}"
 
-    # Hack our target in the config file.
-    case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
-        x86:32)      arch=i386;;
-        x86:64)      arch=x86_64;;
-        sh:32)       arch="sh";;
-        *)           arch="${CT_ARCH}";;
-    esac
-    # Also remove stripping: its the responsibility of the
-    # firmware builder to strip or not.
-    ${sed} -i -r -e '/^TARGET_.*/d' "${dst}"
-    CT_KconfigEnableOption "TARGET_${arch}" "${dst}"
-    CT_KconfigSetOption "TARGET_ARCH" "${arch}" "${dst}"
-    CT_KconfigDisableOption "DOSTRIP" "${dst}"
-
-    # Ah. We may one day need architecture-specific handler here...
-    case "${arch}" in
-        arm*)
-            if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
-                CT_KconfigDisableOption "CONFIG_ARM_OABI" "${dst}"
-                CT_KconfigEnableOption "CONFIG_ARM_EABI" "${dst}"
-            else
-                CT_KconfigDisableOption "CONFIG_ARM_EABI" "${dst}"
-                CT_KconfigEnableOption "CONFIG_ARM_OABI" "${dst}"
-            fi
-            ;;
-        i386)
-            # FIXME This doesn't cover all cases of x86_32...
-            case ${CT_TARGET_ARCH} in
-                i386)
-                    CT_KconfigEnableOption "CONFIG_386" "${dst}"
-                    ;;
-                i486)
-                    CT_KconfigEnableOption "CONFIG_486" "${dst}"
-                    ;;
-                i586)
-                    CT_KconfigEnableOption "CONFIG_586" "${dst}"
-                    ;;
-                i686)
-                    CT_KconfigEnableOption "CONFIG_686" "${dst}"
-                    ;;
-            esac
-            ;;
-        mips*)
-            CT_KconfigDisableOption "CONFIG_MIPS_O32_ABI" "${dst}"
-            CT_KconfigDisableOption "CONFIG_MIPS_N32_ABI" "${dst}"
-            CT_KconfigDisableOption "CONFIG_MIPS_N64_ABI" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_1" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_2" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_3" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_4" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS32" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS32R2" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS64" "${dst}"
-            CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS64R2" "${dst}"
-            case "${CT_ARCH_mips_ABI}" in
-                32)
-                    CT_KconfigEnableOption "CONFIG_MIPS_O32_ABI" "${dst}"
-                    ;;
-                n32)
-                    CT_KconfigEnableOption "CONFIG_MIPS_N32_ABI" "${dst}"
-                    ;;
-                64)
-                    CT_KconfigEnableOption "CONFIG_MIPS_N64_ABI" "${dst}"
-                    ;;
-            esac
-            ;;
-        powerpc*)
-            CT_KconfigDisableOption "CONFIG_E500" "${dst}"
-            CT_KconfigDisableOption "CONFIG_CLASSIC" "${dst}"
-            CT_KconfigDeleteOption "TARGET_SUBARCH" "${dst}"
-            if [ "${CT_ARCH_powerpc_ABI}" = "spe" ]; then
-                CT_KconfigEnableOption "CONFIG_E500" "${dst}"
-                CT_KconfigSetOption "TARGET_SUBARCH" "e500" "${dst}"
-            else
-                CT_KconfigEnableOption "CONFIG_CLASSIC" "${dst}"
-                CT_KconfigSetOption "TARGET_SUBARCH" "classic" "${dst}"
-            fi
-            ;;
-        sh)
-            # all we really support right now is sh4:32
-            CT_KconfigEnableOption "CONFIG_SH4" "${dst}"
-            ;;
-    esac
-
-    # Accomodate for old and new uClibc versions, where the
-    # way to select between big/little endian has changed
     case "${CT_ARCH_ENDIAN}" in
         big)
             CT_KconfigDisableOption "ARCH_LITTLE_ENDIAN" "${dst}"
@@ -298,8 +210,6 @@ manage_uClibc_config() {
             ;;
     esac
 
-    # Accomodate for old and new uClibc versions, where the
-    # MMU settings has different config knobs
     if [ "${CT_ARCH_USE_MMU}" = "y" ]; then
         CT_KconfigEnableOption "ARCH_USE_MMU" "${dst}"
     else
@@ -392,29 +302,23 @@ manage_uClibc_config() {
     fi
 
     # Push the threading model
+    CT_KconfigDisableOption "UCLIBC_HAS_THREADS" "${dst}"
+    CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
+    CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
+    CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
     case "${CT_THREADS}:${CT_LIBC_UCLIBC_LNXTHRD}" in
         none:)
-            CT_KconfigDisableOption "UCLIBC_HAS_THREADS" "${dst}"
-            CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
-            CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
-            CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         linuxthreads:old)
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
             CT_KconfigEnableOption "LINUXTHREADS_OLD" "${dst}"
-            CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
-            CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         linuxthreads:new)
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
-            CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
             CT_KconfigEnableOption "LINUXTHREADS_NEW" "${dst}"
-            CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         nptl:)
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
-            CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
-            CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         *)
@@ -426,29 +330,22 @@ manage_uClibc_config() {
     CT_KconfigEnableOption "PTHREADS_DEBUG_SUPPORT" "${dst}"
 
     # Force on debug options if asked for
+    CT_KconfigDisableOption "DODEBUG" "${dst}"
+    CT_KconfigDisableOption "DODEBUG_PT" "${dst}"
+    CT_KconfigDisableOption "DOASSERTS" "${dst}"
+    CT_KconfigDisableOption "SUPPORT_LD_DEBUG" "${dst}"
+    CT_KconfigDisableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
+    CT_KconfigDisableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
     case "${CT_LIBC_UCLIBC_DEBUG_LEVEL}" in
         0)
-            CT_KconfigDisableOption "DODEBUG" "${dst}"
-            CT_KconfigDisableOption "DODEBUG_PT" "${dst}"
-            CT_KconfigDisableOption "DOASSERTS" "${dst}"
-            CT_KconfigDisableOption "SUPPORT_LD_DEBUG" "${dst}"
-            CT_KconfigDisableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
-            CT_KconfigDisableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
             ;;
         1)
             CT_KconfigEnableOption "DODEBUG" "${dst}"
-            CT_KconfigDisableOption "DODEBUG_PT" "${dst}"
-            CT_KconfigDisableOption "DOASSERTS" "${dst}"
-            CT_KconfigDisableOption "SUPPORT_LD_DEBUG" "${dst}"
-            CT_KconfigDisableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
-            CT_KconfigDisableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
             ;;
         2)
             CT_KconfigEnableOption "DODEBUG" "${dst}"
-            CT_KconfigDisableOption "DODEBUG_PT" "${dst}"
             CT_KconfigEnableOption "DOASSERTS" "${dst}"
             CT_KconfigEnableOption "SUPPORT_LD_DEBUG" "${dst}"
-            CT_KconfigDisableOption "SUPPORT_LD_DEBUG_EARLY" "${dst}"
             CT_KconfigEnableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
             ;;
         3)
@@ -460,6 +357,13 @@ manage_uClibc_config() {
             CT_KconfigEnableOption "UCLIBC_MALLOC_DEBUGGING" "${dst}"
             ;;
     esac
+
+    # Remove stripping: its the responsibility of the
+    # firmware builder to strip or not.
+    CT_KconfigDisableOption "DOSTRIP" "${dst}"
+
+    # Now allow architecture to tweak as it wants
+    CT_DoArchUClibcConfig "${dst}"
 }
 
 do_libc_post_cc() {

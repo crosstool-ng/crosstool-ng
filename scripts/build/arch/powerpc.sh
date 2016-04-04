@@ -71,3 +71,20 @@ CT_DoArchMultilibTarget ()
     # Set the target variable
     eval ${target_var}=\"${target_}\"
 }
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    CT_DoArchUClibcSelectArch "${cfg}" "powerpc"
+
+    CT_KconfigDisableOption "CONFIG_E500" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_CLASSIC" "${cfg}"
+    CT_KconfigDeleteOption "TARGET_SUBARCH" "${cfg}"
+    if [ "${CT_ARCH_powerpc_ABI}" = "spe" ]; then
+        CT_KconfigEnableOption "CONFIG_E500" "${cfg}"
+        CT_KconfigSetOption "TARGET_SUBARCH" "e500" "${cfg}"
+    else
+        CT_KconfigEnableOption "CONFIG_CLASSIC" "${cfg}"
+        CT_KconfigSetOption "TARGET_SUBARCH" "classic" "${cfg}"
+    fi
+}

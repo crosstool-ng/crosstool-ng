@@ -70,3 +70,10 @@ CT_DoArchGlibcAdjustTuple() {
     # Set the target variable
     eval ${target_var}=\"${target_}\"
 }
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    CT_DoArchUClibcSelectArch "${cfg}" "${CT_ARCH}"
+    # FIXME: select CONFIG_SPARC_V7/V8/V9/V9B according to the CPU selector
+}
