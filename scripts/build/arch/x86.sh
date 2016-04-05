@@ -130,3 +130,40 @@ CT_DoArchUClibcConfig() {
             ;;
     esac
 }
+
+CT_DoArchUClibcCflags() {
+    local cfg="${1}"
+    local cflags="${2}"
+    local f
+
+    for f in ${cflags}; do
+        case "${f}" in
+            -m64)
+                CT_DoArchUClibcSelectArch "${cfg}" "x86_64"
+                ;;
+            -m32)
+                # Since it's a part of multilib with 64-bit flavor, default
+                # to new architecture (i686).
+                CT_DoArchUClibcSelectArch "${cfg}" "i386"
+                CT_KconfigDisableOption "CONFIG_386" "${cfg}"
+                CT_KconfigDisableOption "CONFIG_486" "${cfg}"
+                CT_KconfigDisableOption "CONFIG_586" "${cfg}"
+                CT_KconfigEnableOption "CONFIG_686" "${cfg}"
+                ;;
+            -mx32)
+                CT_Abort "uClibc does not support x32 ABI"
+                ;;
+        esac
+    done
+}
+
+CT_DoArchUClibcHeaderDir() {
+    local dir_var="${1}"
+    local cflags="${2}"
+
+    # If it is non-default multilib, add a suffix with architecture (reported by gcc)
+    # to the headers installation path.
+    if [ -n "${cflags}" ]; then
+        eval "${dir_var}="$( ${CT_TARGET}-gcc -print-multiarch ${cflags} )
+    fi
+}

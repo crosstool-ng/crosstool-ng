@@ -63,12 +63,13 @@ do_libc() {
     do_libc_backend libc_mode=final
 }
 
-# Common backend for 1st and 2nd passes
+# Common backend for 1st and 2nd passes.
 do_libc_backend() {
     local libc_mode
-    local multi_os_dir multi_root multilib_dir startfiles_dir
-    local jflag=${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}
-    local -a make_args
+    local -a multilibs
+    local multilib
+    local multi_dir multi_os_dir multi_flags
+    local ldso ldso_f ldso_d multilib_dir
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -80,14 +81,86 @@ do_libc_backend() {
         *)              CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
     esac
 
+    # See glibc.sh for the explanation of this magic.
+    multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
+    for multilib in "${multilibs[@]}"; do
+        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
+        multi_dir="${multilib%%;*}"
+        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
+        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+
+        CT_DoStep INFO "Building for multilib '${multi_flags}'"
+        do_libc_backend_once multi_dir="${multi_dir}"               \
+                             multi_os_dir="${multi_os_dir}"         \
+                             multi_flags="${multi_flags}"           \
+                             multi_root="${multi_root}"             \
+                             libc_mode="${libc_mode}"
+        CT_EndStep
+    done
+
+    if [ "${libc_mode}" = "final" -a "${CT_SHARED_LIBS}" = "y" ]; then
+        # uClibc and GCC disagree where the dynamic linker lives. uClibc always
+        # places it in the MULTILIB_DIR, while gcc does that for *some* variants
+        # and expects it in /lib for the other. So, create a symlink from lib
+        # to the actual location, but only if that will not override the actual
+        # file in /lib. Thus, need to do this after all the variants are built.
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-test-ldso"
+        echo "int main(void) { return 0; }" > dummy.c
+        for multilib in "${multilibs[@]}"; do
+            multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
+            multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
+            multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+            multilib_dir="/lib/${multi_os_dir}"
+            CT_SanitizeVarDir multilib_dir
+
+            CT_DoExecLog ALL "${CT_TARGET}-gcc" -o dummy dummy.c ${multi_flags}
+            ldso=$( ${CT_TARGET}-readelf -Wl dummy | \
+                grep 'Requesting program interpreter: ' | \
+                sed -e 's,.*: ,,' -e 's,\].*,,' )
+            ldso_d="${ldso%/ld*.so.*}"
+            ldso_f="${ldso##*/}"
+            if [ -z "${ldso}" -o "${ldso_d}" = "${multilib_dir}" ]; then
+                # GCC cannot produce shared executable, or the base directory
+                # for ld.so is the same as the multi_os_directory
+                continue
+            fi
+
+            # If there is no such file in the expected ldso dir, create a symlink to
+            # multilib_dir ld.so
+            if [ ! -r "${multi_root}${ldso}" ]; then
+                # Convert ldso_d to "how many levels we need to go up" and remove
+                # leading slash.
+                ldso_d=$( echo "${ldso_d#/}" | sed 's,[^/]\+,..,g' )
+                CT_DoExecLog ALL ln -sf "${ldso_d}${multilib_dir}/${ldso_f}" \
+                    "${multi_root}${ldso}"
+            fi
+        done
+        CT_Popd
+    fi
+
+    CT_EndStep
+}
+
+# Common backend for 1st and 2nd passes, once per multilib.
+do_libc_backend_once() {
+    local libc_mode
+    local multi_dir multi_os_dir multi_root multilib_dir startfiles_dir
+    local jflag=${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}
+    local -a make_args
+    local build_dir
+    local extra_cflags f cfg_cflags cf
+    local hdr_install_subdir
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}"   \
-                            "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    cd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
+    build_dir="${CT_BUILD_DIR}/build-libc-${libc_mode}${multi_dir//\//_}"
+    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}" "${build_dir}"
+    cd "${build_dir}"
 
-    multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory )
-    multi_root=$( "${CT_TARGET}-gcc" -print-sysroot )
     multilib_dir="lib/${multi_os_dir}"
     startfiles_dir="${multi_root}/usr/${multilib_dir}"
     CT_SanitizeVarDir multilib_dir startfiles_dir
@@ -103,7 +176,6 @@ do_libc_backend() {
     # - We do _not_ want to strip anything for now, in case we specifically
     #   asked for a debug toolchain, thus the STRIPTOOL= assignment.
     make_args=( CROSS_COMPILE="${CT_TARGET}-"                           \
-                UCLIBC_EXTRA_CFLAGS="-pipe"                             \
                 PREFIX="${multi_root}/"                                 \
                 MULTILIB_DIR="${multilib_dir}"                          \
                 LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz"     \
@@ -120,9 +192,44 @@ do_libc_backend() {
         CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/contrib/uClibc-defconfigs/${uclibc_name}.config"
     fi
 
-    manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config
-
+    manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config "${multi_flags}"
     CT_DoYes | CT_DoExecLog ALL ${make} "${make_args[@]}" oldconfig
+
+    # Now filter the multilib flags. manage_uClibc_config did the opposite of
+    # what Rules.mak in uClibc would do: by the multilib's CFLAGS, it determined
+    # the applicable configuration options. We don't want to pass the same options
+    # in the UCLIBC_EXTRA_CFLAGS again (on some targets, the options do not correctly
+    # override each other). On the other hand, we do not want to lose the options
+    # that are not reflected in the .config.
+    extra_cflags="-pipe"
+    { echo "include Rules.mak"; echo "show-cpu-flags:"; printf '\t@echo $(CPU_CFLAGS)\n'; } \
+                > .show-cpu-cflags.mk
+    cfg_cflags=$( ${make} "${make_args[@]}" \
+        --no-print-directory -f .show-cpu-cflags.mk show-cpu-flags )
+    CT_DoExecLog ALL rm -f .show-cpu-cflags.mk
+    CT_DoLog DEBUG "CPU_CFLAGS detected by uClibc: ${cfg_cflags[@]}"
+    for f in ${multi_flags}; do
+        for cf in ${cfg_cflags}; do
+            if [ "${f}" = "${cf}" ]; then
+                f=
+                break
+            fi
+        done
+        if [ -n "${f}" ]; then
+            extra_cflags+=" ${f}"
+        fi
+    done
+    CT_DoLog DEBUG "Filtered multilib CFLAGS: ${extra_cflags}"
+    make_args+=( UCLIBC_EXTRA_CFLAGS="${extra_cflags}" )
+
+    # uClibc does not have a way to select the installation subdirectory for headers,
+    # it is always $(DEVEL_PREFIX)/include. Also, we're reinstalling the headers
+    # at the final stage (see the note below), we may already have the subdirectory
+    # in /usr/include.
+    CT_DoArchUClibcHeaderDir hdr_install_subdir "${multi_flags}"
+    if [ -n "$hdr_install_subdir" ]; then
+        CT_DoExecLog ALL cp -a "${multi_root}/usr/include" "${multi_root}/usr/include.saved"
+    fi
 
     if [ "${libc_mode}" = "startfiles" ]; then
         CT_DoLog EXTRA "Building headers"
@@ -146,7 +253,7 @@ do_libc_backend() {
             # No problem to create it for other archs.
             CT_DoLog EXTRA "Building dummy shared libs"
             CT_DoExecLog ALL "${CT_TARGET}-gcc" -nostdlib -nostartfiles \
-                -shared -x c /dev/null -o libdummy.so
+                -shared ${multi_flags} -x c /dev/null -o libdummy.so
 
             CT_DoLog EXTRA "Installing start files"
             CT_DoExecLog ALL ${install} -m 0644 lib/crt1.o lib/crti.o lib/crtn.o \
@@ -182,7 +289,14 @@ do_libc_backend() {
         CT_DoExecLog ALL ${make} "${make_args[@]}" install
     fi # libc_mode == final
 
-    CT_EndStep
+    # Now, if installing headers into a subdirectory, put everything in its place.
+    # Remove the header subdirectory if it existed already.
+    if [ -n "$hdr_install_subdir" ]; then
+        CT_DoExecLog ALL mv "${multi_root}/usr/include" "${multi_root}/usr/include.new"
+        CT_DoExecLog ALL mv "${multi_root}/usr/include.saved" "${multi_root}/usr/include"
+        CT_DoExecLog ALL rm -rf "${multi_root}/usr/include/${hdr_install_subdir}"
+        CT_DoExecLog ALL mv "${multi_root}/usr/include.new" "${multi_root}/usr/include/${hdr_install_subdir}"
+    fi
 }
 
 # Initialises the .config file to sensible values
@@ -191,6 +305,7 @@ do_libc_backend() {
 manage_uClibc_config() {
     src="$1"
     dst="$2"
+    flags="$3"
 
     # Start with fresh files
     CT_DoExecLog ALL cp "${src}" "${dst}"
@@ -364,6 +479,7 @@ manage_uClibc_config() {
 
     # Now allow architecture to tweak as it wants
     CT_DoArchUClibcConfig "${dst}"
+    CT_DoArchUClibcCflags "${dst}" "${flags}"
 }
 
 do_libc_post_cc() {
