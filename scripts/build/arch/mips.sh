@@ -47,3 +47,25 @@ CT_DoArchUClibcConfig() {
     CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS64" "${cfg}"
     CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS64R2" "${cfg}"
 }
+
+CT_DoArchUClibcCflags() {
+    local cfg="${1}"
+    local cflags="${2}"
+    local f
+
+    for f in ${cflags}; do
+        case "${f}" in
+            -mabi=*)
+                CT_KconfigDisableOption "CONFIG_MIPS_O32_ABI" "${cfg}"
+                CT_KconfigDisableOption "CONFIG_MIPS_N32_ABI" "${cfg}"
+                CT_KconfigDisableOption "CONFIG_MIPS_N64_ABI" "${cfg}"
+                case "${f#-mabi=}" in
+                    32)  CT_KconfigEnableOption "CONFIG_MIPS_O32_ABI" "${cfg}";;
+                    n32) CT_KconfigEnableOption "CONFIG_MIPS_N32_ABI" "${cfg}";;
+                    64)  CT_KconfigEnableOption "CONFIG_MIPS_N64_ABI" "${cfg}";;
+                    *)   CT_Abort "Unsupported ABI: ${f#-mabi=}";;
+                esac
+                ;;
+        esac
+    done
+}
