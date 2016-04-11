@@ -160,6 +160,11 @@ do_libc_backend() {
                         fi
                     done
                 done
+                # Copy the gnu/{lib-names,stubs}-${multi_dir} headers needed by gnu/{lib-names,stubs}.h
+                CT_DoExecLog ALL cp -v "${CT_SYSROOT_DIR}/${multi_dir}/usr/include/gnu/lib-names-${multi_dir}.h" \
+                                       "${CT_HEADERS_DIR}/gnu/lib-names-${multi_dir}.h"
+                CT_DoExecLog ALL cp -v "${CT_SYSROOT_DIR}/${multi_dir}/usr/include/gnu/stubs-${multi_dir}.h" \
+                                       "${CT_HEADERS_DIR}/gnu/stubs-${multi_dir}.h"
                 # Remove the multi_dir now it is no longer useful
                 CT_DoExecLog DEBUG rm -rf "${CT_SYSROOT_DIR}/${multi_dir}"
             fi # libc_mode == final
@@ -284,6 +289,15 @@ do_libc_backend_once() {
             ;;
     esac
 
+    glibc_target="${CT_TARGET}"
+    case "${extra_flags}" in
+        *-m32*)
+            if [ -n "${CT_TARGET_32}" ]; then
+                glibc_target="${CT_TARGET_32}"
+            fi
+            ;;
+    esac
+
     touch config.cache
     if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
         echo "libc_cv_forced_unwind=yes" >>config.cache
@@ -334,14 +348,14 @@ do_libc_backend_once() {
     CT_DoExecLog CFG                                                \
     BUILD_CC="${CT_BUILD}-gcc"                                      \
     CFLAGS="${glibc_cflags}"                                        \
-    CC="${CT_TARGET}-gcc ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
+    CC="${cross_cc} ${CT_LIBC_EXTRA_CC_ARGS} ${extra_cc_args}" \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CONFIG_SHELL}"                                               \
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
-        --host=${CT_TARGET}                                         \
+        --host=${glibc_target}                                      \
         --cache-file="$(pwd)/config.cache"                          \
         --without-cvs                                               \
         --disable-profile                                           \
@@ -443,7 +457,9 @@ do_libc_backend_once() {
             # However, since we will never actually execute its code,
             # it doesn't matter what it contains.  So, treating '/dev/null'
             # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
+            CT_DoExecLog ALL "${cross_cc}" ${CT_LIBC_EXTRA_CC_ARGS} \
+                                           ${extra_cc_args} \
+                                           -nostdlib        \
                                            -nostartfiles    \
                                            -shared          \
                                            -x c /dev/null   \
