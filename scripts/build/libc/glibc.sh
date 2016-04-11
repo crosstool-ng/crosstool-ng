@@ -64,11 +64,6 @@ do_libc_post_cc() {
 #   libc_mode           : 'startfiles' or 'final'               : string    : (none)
 do_libc_backend() {
     local libc_mode
-    local -a multilibs
-    local multilib
-    local multi_dir multi_os_dir multi_root multi_flags multi_last
-    local root_suffix
-    local target
     local arg
 
     for arg in "$@"; do
@@ -88,94 +83,7 @@ do_libc_backend() {
     esac
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-
-    # If gcc is not configured for multilib, it still prints
-    # a single line for the default settings
-    multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
-    for multilib in "${multilibs[@]}"; do
-        # GCC makes the distinction between:
-        #   multilib (-print-multi-lib or -print-multi-directory) and
-        #   multilib-os (--print-multi-os-directory)
-        # as the gcc library and gcc sysroot library paths, respectively.
-        # For example, on x86_64:
-        #   multilib:    -m32=32      -m64=.
-        #   multilib-os: -m32=../lib  -m64=../lib64
-        # Moreover, while some multilibs can coexist in the same sysroot (e.g.
-        # on x86), some have a "sysroot suffix" to separate incompatible variants.
-        # Such sysroot suffixes combine with multilib-os directories, e.g.
-        # on sh4 with -m4a multilib, the search order in sysroot is (dropping some
-        # directories for brevity:
-        #   <sysroot>/m4a/lib/m4a/
-        #   <sysroot>/m4a/usr/lib/m4a/
-        #   <sysroot>/m4a/lib/
-        #   <sysroot>/m4a/usr/lib/
-        # The problem is that while GCC itself is aware of these subtleties, the
-        # binutils (notably, ld) it invokes under the hood are not. For example,
-        # if a shared library libfoo.so.1 requires libbar.so.1, ld will only search
-        # for libbar.so.1 in <sysroot>/m4a/usr/lib, but not in <sysroot>/m4a/usr/lib/m4a.
-        # In other words, 'gcc -lfoo -lbar' will work for both the default and -m4a
-        # cases, and 'gcc -lfoo' will work for the default, but not for -m4a. To
-        # address this, we first try to determine if the sysroot alone makes the
-        # configuration sufficiently unique. If there are no multilibs within the
-        # same suffixed sysroot, we can drop the multi_os_dir and both gcc and ld
-        # will work. If not, we'll supply both multi_root/multi_os_dir (which will
-        # likely break later, e.g. while building final GCC with C++ support). But,
-        # we've done all we can.
-        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
-        multi_dir="${multilib%%;*}"
-        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
-        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
-        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
-        CT_DoExecLog ALL mkdir -p "sysroot${root_suffix}"
-        if [ -e "sysroot${root_suffix}/seen" ]; then
-            CT_DoExecLog ALL rm -f "sysroot${root_suffix}/unique"
-        else
-            CT_DoExecLog ALL touch "sysroot${root_suffix}/seen" "sysroot${root_suffix}/unique"
-        fi
-    done
-
-    last_multi=
-    for multilib in "${multilibs[@]}"; do
-        last_multi=$(( ${#multilibs[@]} - 1 ))
-        if [ "${multilib%%;*}" = "${multilibs[last_multi]%%;*}" ]; then
-            # This is the last multilib build or multilib is '.'
-            # (default target, not multilib)
-            multi_last=y
-        fi
-
-        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
-        multi_dir="${multilib%%;*}"
-        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
-        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
-        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
-
-        # Avoid multi_os_dir if it's the only directory in this sysroot.
-        if [ -e "sysroot${root_suffix}/unique" ]; then
-            multi_os_dir=.
-        fi
-
-        # Adjust target tuple according to CFLAGS + any GLIBC quirks
-        target="${CT_TARGET}"
-        CT_DoMultilibTarget target ${extra_flags}
-        CT_DoArchGlibcAdjustTuple target
-        CT_DoStep INFO "Building for multilib '${multi_flags}'"
-
-        # Ensure sysroot (with suffix, if applicable) exists
-        CT_DoExecLog ALL mkdir -p "${multi_root}"
-        CT_mkdir_pushd "multilib_${multi_dir//\//_}"
-        do_libc_backend_once multi_dir="${multi_dir}"               \
-                             multi_os_dir="${multi_os_dir}"         \
-                             multi_flags="${multi_flags}"           \
-                             multi_root="${multi_root}"             \
-                             multi_last="${multi_last}"             \
-                             libc_mode="${libc_mode}"               \
-                             libc_target="${target}"
-
-        CT_Popd
-        CT_EndStep
-
-    done
-
+    CT_IterateMultilibs do_libc_backend_once multilib libc_mode="${libc_mode}"
     CT_Popd
     CT_EndStep
 }
@@ -184,25 +92,27 @@ do_libc_backend() {
 # Usage: do_libc_backend_once param=value [...]
 #   Parameter           : Definition                            : Type
 #   libc_mode           : 'startfiles' or 'final'               : string    : (empty)
-#   libc_target         : Build libc target triplet             : string    : (empty)
-#   multi_root          : Installation root, chosen for multilib: string    : (empty)
-#   multi_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
-#   multi_dir           : Extra subdir for multilib (gcc)       : string    : (empty)
-#   multi_os_dir        : Extra subdir for multilib (os)        : string    : (empty)
-#   multi_last          : The last multilib target              : bool      : n
+#   multi_*             : as defined in CT_IterateMultilibs     : (varies)  :
 do_libc_backend_once() {
-    local multi_flags multi_dir multi_os_dir multi_root multi_last multi_root
+    local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
     local startfiles_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local -a extra_config
     local -a extra_make_args
     local glibc_cflags
-    local libc_target="${CT_TARGET}"
     local arg opt
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
+
+    CT_DoStep INFO "Building for multilib ${multi_index}/${multi_count}: '${multi_flags}'"
+
+    # Ensure sysroot (with suffix, if applicable) exists
+    CT_DoExecLog ALL mkdir -p "${multi_root}"
+
+    # Adjust target tuple according GLIBC quirks
+    CT_DoArchGlibcAdjustTuple multi_target
 
     # Glibc seems to be smart enough to know about the cases that can coexist
     # in the same root and installs them into proper multilib-os directory; all
@@ -335,7 +245,7 @@ do_libc_backend_once() {
     CT_DoLog DEBUG "Extra config args passed : '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CFLAGS passed      : '${glibc_cflags}'"
     CT_DoLog DEBUG "Placing startfiles into  : '${startfiles_dir}'"
-    CT_DoLog DEBUG "Configuring with --host  : '${libc_target}'"
+    CT_DoLog DEBUG "Configuring with --host  : '${multi_target}'"
 
     # CFLAGS are only applied when compiling .c files. .S files are compiled with ASFLAGS,
     # but they are not passed by configure. Thus, pass everything in CC instead.
@@ -348,7 +258,7 @@ do_libc_backend_once() {
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
-        --host=${libc_target}                                       \
+        --host=${multi_target}                                      \
         --cache-file="$(pwd)/config.cache"                          \
         --without-cvs                                               \
         --disable-profile                                           \
@@ -474,7 +384,7 @@ do_libc_backend_once() {
                               install_root="${multi_root}"    \
                               install
 
-        if [ "${CT_BUILD_MANUALS}" = "y" -a "${multi_last}" = "y" ]; then
+        if [ "${CT_BUILD_MANUALS}" = "y" -a "${multi_index}" = "${multi_count}" ]; then
             # We only need to build the manuals once. Only build them on the
             # last multilib target. If it's not multilib, it will happen on the
             # only target.
@@ -488,10 +398,12 @@ do_libc_backend_once() {
                                     ${CT_PREFIX_DIR}/share/doc
         fi
 
-        if [ "${CT_LIBC_LOCALES}" = "y" -a "${multi_last}" = "y" ]; then
+        if [ "${CT_LIBC_LOCALES}" = "y" -a "${multi_index}" = "${multi_count}" ]; then
             do_libc_locales
         fi
     fi # libc_mode = final
+
+    CT_EndStep
 }
 
 # Build up the addons list, separated with $1
