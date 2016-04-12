@@ -66,7 +66,8 @@ do_libc_backend() {
     local libc_mode
     local -a multilibs
     local multilib
-    local multi_dir multi_os_dir multi_flags multi_last
+    local multi_dir multi_os_dir multi_root multi_flags multi_last
+    local root_suffix
     local target
     local arg
 
@@ -86,18 +87,12 @@ do_libc_backend() {
             ;;
     esac
 
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
+
     # If gcc is not configured for multilib, it still prints
     # a single line for the default settings
     multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
-    last_multi=
     for multilib in "${multilibs[@]}"; do
-        last_multi=$(( ${#multilibs[@]} - 1 ))
-        if [ "${multilib%%;*}" = "${multilibs[last_multi]%%;*}" ]; then
-            # This is the last multilib build or multilib is '.'
-            # (default target, not multilib)
-            multi_last=y
-        fi
-
         # GCC makes the distinction between:
         #   multilib (-print-multi-lib or -print-multi-directory) and
         #   multilib-os (--print-multi-os-directory)
@@ -114,10 +109,50 @@ do_libc_backend() {
         #   <sysroot>/m4a/usr/lib/m4a/
         #   <sysroot>/m4a/lib/
         #   <sysroot>/m4a/usr/lib/
+        # The problem is that while GCC itself is aware of these subtleties, the
+        # binutils (notably, ld) it invokes under the hood are not. For example,
+        # if a shared library libfoo.so.1 requires libbar.so.1, ld will only search
+        # for libbar.so.1 in <sysroot>/m4a/usr/lib, but not in <sysroot>/m4a/usr/lib/m4a.
+        # In other words, 'gcc -lfoo -lbar' will work for both the default and -m4a
+        # cases, and 'gcc -lfoo' will work for the default, but not for -m4a. To
+        # address this, we first try to determine if the sysroot alone makes the
+        # configuration sufficiently unique. If there are no multilibs within the
+        # same suffixed sysroot, we can drop the multi_os_dir and both gcc and ld
+        # will work. If not, we'll supply both multi_root/multi_os_dir (which will
+        # likely break later, e.g. while building final GCC with C++ support). But,
+        # we've done all we can.
         multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
         multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
         multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
+        CT_DoExecLog ALL mkdir -p "sysroot${root_suffix}"
+        if [ -e "sysroot${root_suffix}/seen" ]; then
+            CT_DoExecLog ALL rm -f "sysroot${root_suffix}/unique"
+        else
+            CT_DoExecLog ALL touch "sysroot${root_suffix}/seen" "sysroot${root_suffix}/unique"
+        fi
+    done
+
+    last_multi=
+    for multilib in "${multilibs[@]}"; do
+        last_multi=$(( ${#multilibs[@]} - 1 ))
+        if [ "${multilib%%;*}" = "${multilibs[last_multi]%%;*}" ]; then
+            # This is the last multilib build or multilib is '.'
+            # (default target, not multilib)
+            multi_last=y
+        fi
+
+        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
+        multi_dir="${multilib%%;*}"
+        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
+        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
+
+        # Avoid multi_os_dir if it's the only directory in this sysroot.
+        if [ -e "sysroot${root_suffix}/unique" ]; then
+            multi_os_dir=.
+        fi
 
         # Adjust target tuple according to CFLAGS + any GLIBC quirks
         target="${CT_TARGET}"
@@ -127,7 +162,7 @@ do_libc_backend() {
 
         # Ensure sysroot (with suffix, if applicable) exists
         CT_DoExecLog ALL mkdir -p "${multi_root}"
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${multi_dir//\//_}"
+        CT_mkdir_pushd "multilib_${multi_dir//\//_}"
         do_libc_backend_once multi_dir="${multi_dir}"               \
                              multi_os_dir="${multi_os_dir}"         \
                              multi_flags="${multi_flags}"           \
@@ -141,6 +176,7 @@ do_libc_backend() {
 
     done
 
+    CT_Popd
     CT_EndStep
 }
 

@@ -81,6 +81,8 @@ do_libc_backend() {
         *)              CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
     esac
 
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
+
     # See glibc.sh for the explanation of this magic.
     multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
     for multilib in "${multilibs[@]}"; do
@@ -88,6 +90,26 @@ do_libc_backend() {
         multi_dir="${multilib%%;*}"
         multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
         multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
+        CT_DoExecLog ALL mkdir -p "sysroot${root_suffix}"
+        if [ -e "sysroot${root_suffix}/seen" ]; then
+            CT_DoExecLog ALL rm -f "sysroot${root_suffix}/unique"
+        else
+            CT_DoExecLog ALL touch "sysroot${root_suffix}/seen" "sysroot${root_suffix}/unique"
+        fi
+    done
+
+    for multilib in "${multilibs[@]}"; do
+        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
+        multi_dir="${multilib%%;*}"
+        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
+        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
+
+        # Avoid multi_os_dir if it's the only directory in this sysroot.
+        if [ -e "sysroot${root_suffix}/unique" ]; then
+            multi_os_dir=.
+        fi
 
         CT_DoStep INFO "Building for multilib '${multi_flags}'"
         do_libc_backend_once multi_dir="${multi_dir}"               \
@@ -104,17 +126,23 @@ do_libc_backend() {
         # and expects it in /lib for the other. So, create a symlink from lib
         # to the actual location, but only if that will not override the actual
         # file in /lib. Thus, need to do this after all the variants are built.
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-test-ldso"
-        echo "int main(void) { return 0; }" > dummy.c
+        echo "int main(void) { return 0; }" > test-ldso.c
         for multilib in "${multilibs[@]}"; do
             multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
             multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
             multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+            root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
+
+            # Avoid multi_os_dir if it's the only directory in this sysroot.
+            if [ -e "sysroot${root_suffix}/unique" ]; then
+                multi_os_dir=.
+            fi
+
             multilib_dir="/lib/${multi_os_dir}"
             CT_SanitizeVarDir multilib_dir
 
-            CT_DoExecLog ALL "${CT_TARGET}-gcc" -o dummy dummy.c ${multi_flags}
-            ldso=$( ${CT_TARGET}-readelf -Wl dummy | \
+            CT_DoExecLog ALL "${CT_TARGET}-gcc" -o test-ldso test-ldso.c ${multi_flags}
+            ldso=$( ${CT_TARGET}-readelf -Wl test-ldso | \
                 grep 'Requesting program interpreter: ' | \
                 sed -e 's,.*: ,,' -e 's,\].*,,' )
             ldso_d="${ldso%/ld*.so.*}"
@@ -135,9 +163,9 @@ do_libc_backend() {
                     "${multi_root}${ldso}"
             fi
         done
-        CT_Popd
     fi
 
+    CT_Popd
     CT_EndStep
 }
 
@@ -157,9 +185,9 @@ do_libc_backend_once() {
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    build_dir="${CT_BUILD_DIR}/build-libc-${libc_mode}${multi_dir//\//_}"
+    build_dir="multilib_${multi_dir//\//_}"
     CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}" "${build_dir}"
-    cd "${build_dir}"
+    CT_Pushd "${build_dir}"
 
     multilib_dir="lib/${multi_os_dir}"
     startfiles_dir="${multi_root}/usr/${multilib_dir}"
@@ -297,6 +325,8 @@ do_libc_backend_once() {
         CT_DoExecLog ALL rm -rf "${multi_root}/usr/include/${hdr_install_subdir}"
         CT_DoExecLog ALL mv "${multi_root}/usr/include.new" "${multi_root}/usr/include/${hdr_install_subdir}"
     fi
+
+    CT_Popd
 }
 
 # Initialises the .config file to sensible values
