@@ -66,10 +66,7 @@ do_libc() {
 # Common backend for 1st and 2nd passes.
 do_libc_backend() {
     local libc_mode
-    local -a multilibs
-    local multilib
-    local multi_dir multi_os_dir multi_flags
-    local ldso ldso_f ldso_d multilib_dir
+    local arg
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -82,43 +79,7 @@ do_libc_backend() {
     esac
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-
-    # See glibc.sh for the explanation of this magic.
-    multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
-    for multilib in "${multilibs[@]}"; do
-        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
-        multi_dir="${multilib%%;*}"
-        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
-        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
-        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
-        CT_DoExecLog ALL mkdir -p "sysroot${root_suffix}"
-        if [ -e "sysroot${root_suffix}/seen" ]; then
-            CT_DoExecLog ALL rm -f "sysroot${root_suffix}/unique"
-        else
-            CT_DoExecLog ALL touch "sysroot${root_suffix}/seen" "sysroot${root_suffix}/unique"
-        fi
-    done
-
-    for multilib in "${multilibs[@]}"; do
-        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
-        multi_dir="${multilib%%;*}"
-        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
-        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
-        root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
-
-        # Avoid multi_os_dir if it's the only directory in this sysroot.
-        if [ -e "sysroot${root_suffix}/unique" ]; then
-            multi_os_dir=.
-        fi
-
-        CT_DoStep INFO "Building for multilib '${multi_flags}'"
-        do_libc_backend_once multi_dir="${multi_dir}"               \
-                             multi_os_dir="${multi_os_dir}"         \
-                             multi_flags="${multi_flags}"           \
-                             multi_root="${multi_root}"             \
-                             libc_mode="${libc_mode}"
-        CT_EndStep
-    done
+    CT_IterateMultilibs do_libc_backend_once multilib libc_mode="${libc_mode}"
 
     if [ "${libc_mode}" = "final" -a "${CT_SHARED_LIBS}" = "y" ]; then
         # uClibc and GCC disagree where the dynamic linker lives. uClibc always
@@ -127,42 +88,7 @@ do_libc_backend() {
         # to the actual location, but only if that will not override the actual
         # file in /lib. Thus, need to do this after all the variants are built.
         echo "int main(void) { return 0; }" > test-ldso.c
-        for multilib in "${multilibs[@]}"; do
-            multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
-            multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
-            multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
-            root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
-
-            # Avoid multi_os_dir if it's the only directory in this sysroot.
-            if [ -e "sysroot${root_suffix}/unique" ]; then
-                multi_os_dir=.
-            fi
-
-            multilib_dir="/lib/${multi_os_dir}"
-            CT_SanitizeVarDir multilib_dir
-
-            CT_DoExecLog ALL "${CT_TARGET}-gcc" -o test-ldso test-ldso.c ${multi_flags}
-            ldso=$( ${CT_TARGET}-readelf -Wl test-ldso | \
-                grep 'Requesting program interpreter: ' | \
-                sed -e 's,.*: ,,' -e 's,\].*,,' )
-            ldso_d="${ldso%/ld*.so.*}"
-            ldso_f="${ldso##*/}"
-            if [ -z "${ldso}" -o "${ldso_d}" = "${multilib_dir}" ]; then
-                # GCC cannot produce shared executable, or the base directory
-                # for ld.so is the same as the multi_os_directory
-                continue
-            fi
-
-            # If there is no such file in the expected ldso dir, create a symlink to
-            # multilib_dir ld.so
-            if [ ! -r "${multi_root}${ldso}" ]; then
-                # Convert ldso_d to "how many levels we need to go up" and remove
-                # leading slash.
-                ldso_d=$( echo "${ldso_d#/}" | sed 's,[^/]\+,..,g' )
-                CT_DoExecLog ALL ln -sf "${ldso_d}${multilib_dir}/${ldso_f}" \
-                    "${multi_root}${ldso}"
-            fi
-        done
+        CT_IterateMultilibs do_libc_ldso_fixup ldso_fixup
     fi
 
     CT_Popd
@@ -172,10 +98,10 @@ do_libc_backend() {
 # Common backend for 1st and 2nd passes, once per multilib.
 do_libc_backend_once() {
     local libc_mode
-    local multi_dir multi_os_dir multi_root multilib_dir startfiles_dir
+    local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
+    local multilib_dir startfiles_dir
     local jflag=${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}
     local -a make_args
-    local build_dir
     local extra_cflags f cfg_cflags cf
     local hdr_install_subdir
 
@@ -183,11 +109,11 @@ do_libc_backend_once() {
         eval "${arg// /\\ }"
     done
 
+    CT_DoStep INFO "Building for multilib ${multi_index}/${multi_count}: '${multi_flags}'"
+
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    build_dir="multilib_${multi_dir//\//_}"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}" "${build_dir}"
-    CT_Pushd "${build_dir}"
+    CT_DoExecLog ALL cp -aT "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}" .
 
     multilib_dir="lib/${multi_os_dir}"
     startfiles_dir="${multi_root}/usr/${multilib_dir}"
@@ -326,7 +252,40 @@ do_libc_backend_once() {
         CT_DoExecLog ALL mv "${multi_root}/usr/include.new" "${multi_root}/usr/include/${hdr_install_subdir}"
     fi
 
-    CT_Popd
+    CT_EndStep
+}
+
+do_libc_ldso_fixup() {
+    local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
+    local ldso ldso_f ldso_d multilib_dir
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoLog EXTRA "Checking dynamic linker for multilib '${multi_flags}'"
+
+    multilib_dir="/lib/${multi_os_dir}"
+    CT_SanitizeVarDir multilib_dir
+
+    CT_DoExecLog ALL "${CT_TARGET}-gcc" -o test-ldso ../test-ldso.c ${multi_flags}
+    ldso=$( ${CT_TARGET}-readelf -Wl test-ldso | \
+        grep 'Requesting program interpreter: ' | \
+        sed -e 's,.*: ,,' -e 's,\].*,,' )
+    CT_DoLog DEBUG "Detected dynamic linker for multilib '${multi_flags}': '${ldso}'"
+
+    ldso_d="${ldso%/ld*.so.*}"
+    ldso_f="${ldso##*/}"
+    # Create symlink if GCC produced an executable, dynamically linked, it was requesting
+    # a linker not in the current directory, and there is no such file in the expected
+    # ldso dir.
+    if [ -n "${ldso}" -a "${ldso_d}" != "${multilib_dir}" -a ! -r "${multi_root}${ldso}" ]; then
+        # Convert ldso_d to "how many levels we need to go up" and remove
+        # leading slash.
+        ldso_d=$( echo "${ldso_d#/}" | sed 's,[^/]\+,..,g' )
+        CT_DoExecLog ALL ln -sf "${ldso_d}${multilib_dir}/${ldso_f}" \
+            "${multi_root}${ldso}"
+    fi
 }
 
 # Initialises the .config file to sensible values
