@@ -57,5 +57,12 @@ CT_DoArchUClibcHeaderDir() {
     :;
 }
 
+# Multilib/MUSL: Adjust header installation path for given CFLAGS
+# Usage: CT_DoArchMUSLHeaderDir <path-variable> <cflags>
+CT_DoArchMUSLHeaderDir() {
+    # Only needed if a given architecture may select different MUSL architectures.
+    :;
+}
+
 # Override from the actual arch implementation as needed.
 . "${CT_LIB_DIR}/scripts/build/arch/${CT_ARCH}.sh"

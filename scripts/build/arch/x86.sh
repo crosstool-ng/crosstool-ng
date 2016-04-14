@@ -167,3 +167,14 @@ CT_DoArchUClibcHeaderDir() {
         eval "${dir_var}="$( ${CT_TARGET}-gcc -print-multiarch ${cflags} )
     fi
 }
+
+CT_DoArchMUSLHeaderDir() {
+    local dir_var="${1}"
+    local cflags="${2}"
+
+    # If it is non-default multilib, add a suffix with architecture (reported by gcc)
+    # to the headers installation path.
+    if [ -n "${cflags}" ]; then
+        eval "${dir_var}="$( ${CT_TARGET}-gcc -print-multiarch ${cflags} )
+    fi
+}
