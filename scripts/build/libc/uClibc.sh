@@ -172,7 +172,7 @@ do_libc_backend_once() {
     # at the final stage (see the note below), we may already have the subdirectory
     # in /usr/include.
     CT_DoArchUClibcHeaderDir hdr_install_subdir "${multi_flags}"
-    if [ -n "$hdr_install_subdir" ]; then
+    if [ -n "${hdr_install_subdir}" ]; then
         CT_DoExecLog ALL cp -a "${multi_root}/usr/include" "${multi_root}/usr/include.saved"
     fi
 
@@ -236,7 +236,7 @@ do_libc_backend_once() {
 
     # Now, if installing headers into a subdirectory, put everything in its place.
     # Remove the header subdirectory if it existed already.
-    if [ -n "$hdr_install_subdir" ]; then
+    if [ -n "${hdr_install_subdir}" ]; then
         CT_DoExecLog ALL mv "${multi_root}/usr/include" "${multi_root}/usr/include.new"
         CT_DoExecLog ALL mv "${multi_root}/usr/include.saved" "${multi_root}/usr/include"
         CT_DoExecLog ALL rm -rf "${multi_root}/usr/include/${hdr_install_subdir}"
