@@ -81,15 +81,6 @@ do_libc_backend() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
     CT_IterateMultilibs do_libc_backend_once multilib libc_mode="${libc_mode}"
 
-    if [ "${libc_mode}" = "final" -a "${CT_SHARED_LIBS}" = "y" ]; then
-        # uClibc and GCC disagree where the dynamic linker lives. uClibc always
-        # places it in the MULTILIB_DIR, while gcc does that for *some* variants
-        # and expects it in /lib for the other. So, create a symlink from lib
-        # to the actual location, but only if that will not override the actual
-        # file in /lib. Thus, need to do this after all the variants are built.
-        echo "int main(void) { return 0; }" > test-ldso.c
-        CT_IterateMultilibs do_libc_ldso_fixup ldso_fixup
-    fi
 
     CT_Popd
     CT_EndStep
@@ -253,39 +244,6 @@ do_libc_backend_once() {
     fi
 
     CT_EndStep
-}
-
-do_libc_ldso_fixup() {
-    local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
-    local ldso ldso_f ldso_d multilib_dir
-
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    CT_DoLog EXTRA "Checking dynamic linker for multilib '${multi_flags}'"
-
-    multilib_dir="/lib/${multi_os_dir}"
-    CT_SanitizeVarDir multilib_dir
-
-    CT_DoExecLog ALL "${CT_TARGET}-gcc" -o test-ldso ../test-ldso.c ${multi_flags}
-    ldso=$( ${CT_TARGET}-readelf -Wl test-ldso | \
-        grep 'Requesting program interpreter: ' | \
-        sed -e 's,.*: ,,' -e 's,\].*,,' )
-    CT_DoLog DEBUG "Detected dynamic linker for multilib '${multi_flags}': '${ldso}'"
-
-    ldso_d="${ldso%/ld*.so.*}"
-    ldso_f="${ldso##*/}"
-    # Create symlink if GCC produced an executable, dynamically linked, it was requesting
-    # a linker not in the current directory, and there is no such file in the expected
-    # ldso dir.
-    if [ -n "${ldso}" -a "${ldso_d}" != "${multilib_dir}" -a ! -r "${multi_root}${ldso}" ]; then
-        # Convert ldso_d to "how many levels we need to go up" and remove
-        # leading slash.
-        ldso_d=$( echo "${ldso_d#/}" | sed 's,[^/]\+,..,g' )
-        CT_DoExecLog ALL ln -sf "${ldso_d}${multilib_dir}/${ldso_f}" \
-            "${multi_root}${ldso}"
-    fi
 }
 
 # Initialises the .config file to sensible values
@@ -472,5 +430,58 @@ manage_uClibc_config() {
 }
 
 do_libc_post_cc() {
-    :
+    # uClibc and GCC disagree where the dynamic linker lives. uClibc always
+    # places it in the MULTILIB_DIR, while gcc does that for *some* variants
+    # and expects it in /lib for the other. So, create a symlink from lib
+    # to the actual location, but only if that will not override the actual
+    # file in /lib. Thus, need to do this after all the variants are built.
+    # Moreover, need to do this after the final compiler is built: on targets
+    # that use elf2flt, the core compilers cannot find ld when running elf2flt.
+    CT_DoStep INFO "Checking dynamic linker symlinks"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-post_cc"
+    echo "int main(void) { return 0; }" > test-ldso.c
+    CT_IterateMultilibs do_libc_ldso_fixup ldso_fixup
+    CT_Popd
+    CT_EndStep
+}
+
+do_libc_ldso_fixup() {
+    local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
+    local binary
+    local ldso ldso_f ldso_d multilib_dir
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoLog EXTRA "Checking dynamic linker for multilib '${multi_flags}'"
+
+    multilib_dir="/lib/${multi_os_dir}"
+    CT_SanitizeVarDir multilib_dir
+
+    CT_DoExecLog ALL "${CT_TARGET}-gcc" -o test-ldso ../test-ldso.c ${multi_flags}
+    if [ -r "test-ldso.gdb" ]; then
+        binary="test-ldso.gdb"
+    else
+        binary="test-ldso"
+    fi
+    if ${CT_TARGET}-readelf -Wl "${binary}" | grep -q 'Requesting program interpreter: '; then
+        ldso=$( ${CT_TARGET}-readelf -Wl "${binary}" | \
+            grep 'Requesting program interpreter: ' | \
+            sed -e 's,.*: ,,' -e 's,\].*,,' )
+    fi
+    CT_DoLog DEBUG "Detected dynamic linker for multilib '${multi_flags}': '${ldso}'"
+
+    ldso_d="${ldso%/ld*.so.*}"
+    ldso_f="${ldso##*/}"
+    # Create symlink if GCC produced an executable, dynamically linked, it was requesting
+    # a linker not in the current directory, and there is no such file in the expected
+    # ldso dir.
+    if [ -n "${ldso}" -a "${ldso_d}" != "${multilib_dir}" -a ! -r "${multi_root}${ldso}" ]; then
+        # Convert ldso_d to "how many levels we need to go up" and remove
+        # leading slash.
+        ldso_d=$( echo "${ldso_d#/}" | sed 's,[^/]\+,..,g' )
+        CT_DoExecLog ALL ln -sf "${ldso_d}${multilib_dir}/${ldso_f}" \
+            "${multi_root}${ldso}"
+    fi
 }
