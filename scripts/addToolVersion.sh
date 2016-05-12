@@ -44,7 +44,7 @@ doHelp() {
             add experimental obsolete version 2.3.5 and stable current versions 2.6.1
             and 2.6.2 to glibc, add stable obsolete version 3.3.3 to gcc:
               ${myname} --glibc -x -o 2.3.5 -s -c 2.6.1 2.6.2 --gcc -o 3.3.3
-        EOF
+EOF
 }
 
 # Extract field $3 from version $1 with separator $2
@@ -61,7 +61,7 @@ getVersionField() {
 # $tool         : tool name
 # $tool_prefix  : tool directory prefix
 # $EXP          : set to non empty if experimental, to empty otherwise
-# #OBS          : set to non empty if obsolete, to empty otherwise
+# OBS           : set to non empty if obsolete, to empty otherwise
 # $1            : version string to add
 addToolVersion() {
     local version="$1"
@@ -124,7 +124,7 @@ addToolVersion() {
             ver_p=$(getVersionField "${version}" . 3)
             if [ ${ver_M} -eq 2 -a ${ver_m} -eq 26 ]; then
                 SedExpr1="${SedExpr1}\n    select BINUTILS_2_26_or_later"
-            if [ ${ver_M} -eq 2 -a ${ver_m} -eq 25 -a ${ver_p} -eq 1 ]; then
+            elif [ ${ver_M} -eq 2 -a ${ver_m} -eq 25 -a ${ver_p} -eq 1 ]; then
                 SedExpr1="${SedExpr1}\n    select BINUTILS_2_25_1_or_later"
             elif [ ${ver_M} -eq 2 -a ${ver_m} -eq 25 -a -z ${ver_p} ]; then
                 SedExpr1="${SedExpr1}\n    select BINUTILS_2_25_or_later"
@@ -139,7 +139,7 @@ addToolVersion() {
             ver_M=$(getVersionField "${version}" . 1)
             ver_m=$(getVersionField "${version}" . 2)
             ver_p=$(getVersionField "${version}" . 3)
-            elif [  ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -eq 33 ]; then
+            if [  ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -eq 33 ]; then
                 SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_0_9_33_2_or_later"
             fi
             ;;
