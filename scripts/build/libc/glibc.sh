@@ -73,6 +73,7 @@ do_libc_backend() {
     local multi_dir
     local multi_flags
     local extra_dir
+    local target
     local libc_headers libc_startfiles libc_full
     local hdr
     local arg
@@ -136,11 +137,24 @@ do_libc_backend() {
 
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
 
+        target=${CT_TARGET}
+        case "${target}" in
+            # SPARC quirk: glibc 2.23 and newer dropped support for SPARCv8 and
+            # earlier (corresponding pthread barrier code is missing). Until this
+            # support is reintroduced, configure as sparcv9.
+            sparc-*)
+                if [ "${CT_LIBC_GLIBC_2_23_or_later}" = y ]; then
+                    target=${target/#sparc-/sparcv9-}
+                fi
+                ;;
+        esac
+
         do_libc_backend_once extra_dir="${extra_dir}"               \
                              extra_flags="${extra_flags}"           \
                              libc_headers="${libc_headers}"         \
                              libc_startfiles="${libc_startfiles}"   \
-                             libc_full="${libc_full}"
+                             libc_full="${libc_full}"               \
+                             target="${target}"
 
         CT_Popd
 
@@ -192,6 +206,7 @@ do_libc_backend_once() {
     local glibc_cflags
     local float_extra
     local endian_extra
+    local target
     local arg
 
     for arg in "$@"; do
@@ -341,7 +356,7 @@ do_libc_backend_once() {
     "${src_dir}/configure"                                          \
         --prefix=/usr                                               \
         --build=${CT_BUILD}                                         \
-        --host=${CT_TARGET}                                         \
+        --host=${target}                                            \
         --cache-file="$(pwd)/config.cache"                          \
         --without-cvs                                               \
         --disable-profile                                           \
