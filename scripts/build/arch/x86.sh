@@ -20,6 +20,17 @@ CT_DoArchTupleValues() {
         esac
     fi
     CT_TARGET_ARCH="${CT_TARGET_ARCH}${CT_ARCH_SUFFIX}"
+
+    # Shouldn't be possible to specify this (CT_TARGET_SYS is not specified by the user,
+    # it is computed by scripts/functions from libc choices). But trap if such invalid
+    # values ever come from the caller:
+    case "${CT_TARGET_ARCH}-${CT_TARGET_SYS}" in
+        i[34567]86-gnux32)
+            CT_DoLog ERROR "Invalid CT_TARGET: i[34567]86-<vendor>-<os>-gnux32 is invalid."
+            CT_DoLog ERROR "CT_TARGET: ${CT_TARGET}"
+            CT_Abort "Go read: https://wiki.debian.org/Multiarch/Tuples"
+            ;;
+    esac
 }
 
 #------------------------------------------------------------------------------
