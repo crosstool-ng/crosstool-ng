@@ -39,3 +39,14 @@ CT_DoArchTupleValues() {
         CT_TARGET_SYS="${CT_TARGET_SYS}hf"
     fi
 }
+
+#------------------------------------------------------------------------------
+# Get multilib architecture-specific target
+# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
+CT_DoArchMultilibTarget ()
+{
+    local target="${1}"; shift
+    local -a multi_flags=( "$@" )
+
+    echo "${target}"
+}
