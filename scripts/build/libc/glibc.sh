@@ -475,7 +475,8 @@ do_libc_backend_once() {
             # However, since we will never actually execute its code,
             # it doesn't matter what it contains.  So, treating '/dev/null'
             # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
+            CT_DoExecLog ALL "${cross_cc}" ${extra_flags}   \
+                                           -nostdlib        \
                                            -nostartfiles    \
                                            -shared          \
                                            -x c /dev/null   \
