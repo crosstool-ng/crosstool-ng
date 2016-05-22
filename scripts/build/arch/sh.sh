@@ -20,7 +20,12 @@ CT_DoArchTupleValues () {
 
     # CFLAGS
     case "${CT_ARCH_SH_VARIANT}" in
+        sh1)    CT_ARCH_ARCH_CFLAG=-m1;;
+        sh2)    CT_ARCH_ARCH_CFLAG=-m2;;
+        sh2e)   CT_ARCH_ARCH_CFLAG=-m2e;;
+        sh2a)   CT_ARCH_ARCH_CFLAG=-m2a;;
         sh3)    CT_ARCH_ARCH_CFLAG=-m3;;
+        sh3e)   CT_ARCH_ARCH_CFLAG=-m3e;;
         sh4*)
             # softfp is not possible for SuperH, no need to test for it.
             case "${CT_ARCH_FLOAT}" in
