@@ -137,7 +137,7 @@ do_libc_backend() {
 
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}${extra_dir//\//_}"
 
-        target=${CT_TARGET}
+        target=$( CT_DoMultilibTarget "${CT_TARGET}" ${extra_flags} )
         case "${target}" in
             # SPARC quirk: glibc 2.23 and newer dropped support for SPARCv8 and
             # earlier (corresponding pthread barrier code is missing). Until this
@@ -145,6 +145,18 @@ do_libc_backend() {
             sparc-*)
                 if [ "${CT_LIBC_GLIBC_2_23_or_later}" = y ]; then
                     target=${target/#sparc-/sparcv9-}
+                fi
+                ;;
+            # x86 quirk: architecture name is i386, but glibc expects i[4567]86 - to
+            # indicate the desired optimization. If it was a multilib variant of x86_64,
+            # then it targets at least NetBurst a.k.a. i786, but we'll follow arch/x86.sh
+            # and set the optimization to i686. Otherwise, replace with the most
+            # conservative choice, i486.
+            i386-*)
+                if [ "${CT_TARGET_ARCH}" = "x86_64" ]; then
+                    target=${target/#i386-/i686-}
+                else
+                    target=${target/#i386-/i486-}
                 fi
                 ;;
         esac
@@ -193,6 +205,7 @@ do_libc_backend() {
 #   libc_full           : Build full libc                       : bool      : n
 #   extra_flags         : Extra CFLAGS to use (for multilib)    : string    : (empty)
 #   extra_dir           : Extra subdir for multilib             : string    : (empty)
+#   target              : Build libc using this target (for multilib) : string : ${CT_TARGET}
 do_libc_backend_once() {
     local libc_headers
     local libc_startfiles
@@ -212,6 +225,10 @@ do_libc_backend_once() {
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
+
+    if [ "${target}" = "" ]; then
+        target="${CT_TARGET}"
+    fi
 
     CT_DoLog EXTRA "Configuring C library"
 
@@ -288,12 +305,12 @@ do_libc_backend_once() {
                      |${sed} -r -e '/^(.*[[:space:]])?-(E[BL]|m((big|little)(-endian)?|e?[bl]))([[:space:]].*)?$/!d;' \
                                 -e 's//\2/;'    \
                    )"
+    # If extra_flags contained an endianness option, no need to add it again. Otherwise,
+    # add the option from the configuration.
     case "${endian_extra}" in
         EB|mbig-endian|mbig|meb|mb)
-            extra_cc_args="${extra_cc_args} ${endian_extra}"
             ;;
         EL|mlittle-endian|mlittle|mel|ml)
-            extra_cc_args="${extra_cc_args} ${endian_extra}"
             ;;
         "") extra_cc_args="${extra_cc_args} ${CT_ARCH_ENDIAN_OPT}"
             ;;
@@ -458,7 +475,8 @@ do_libc_backend_once() {
             # However, since we will never actually execute its code,
             # it doesn't matter what it contains.  So, treating '/dev/null'
             # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${cross_cc}" -nostdlib        \
+            CT_DoExecLog ALL "${cross_cc}" ${extra_flags}   \
+                                           -nostdlib        \
                                            -nostartfiles    \
                                            -shared          \
                                            -x c /dev/null   \
