@@ -26,3 +26,44 @@ CT_DoArchTupleValues () {
         CT_ARCH_CC_EXTRA_CONFIG="--enable-e500_double"
     fi
 }
+#------------------------------------------------------------------------------
+# Get multilib architecture-specific target
+# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
+CT_DoArchMultilibTarget ()
+{
+    local target="${1}"; shift
+    local -a multi_flags=( "$@" )
+
+    local m32=false
+    local m64=false
+    local mlittle=false
+    local mbig=false
+
+    for m in "${multi_flags[@]}"; do
+        case "$m" in
+            -m32)     m32=true ;;
+            -m64)     m64=true ;;
+            -mbig)    mbig=true ;;
+            -mlittle) mlittle=true ;;
+        esac
+    done
+
+    # Fix up bitness
+    case "${target}" in
+        powerpc-*)      $m64 && target=${target/#powerpc-/powerpc64-} ;;
+        powerpcle-*)    $m64 && target=${target/#powerpcle-/powerpc64le-} ;;
+        powerpc64-*)    $m32 && target=${target/#powerpc64-/powerpc-} ;;
+        powerpc64le-*)  $m32 && target=${target/#powerpc64le-/powerpcle-} ;;
+    esac
+
+    # Fix up endianness
+    case "${target}" in
+        powerpc-*)      $mlittle && target=${target/#powerpc-/powerpcle-} ;;
+        powerpcle-*)    $mbig && target=${target/#powerpcle-/powerpc-} ;;
+        powerpc64-*)    $mlittle && target=${target/#powerpc64-/powerpc64le-} ;;
+        powerpc64le-*)  $mbig && target=${target/#powerpc64le-/powerpc64-} ;;
+    esac
+
+    # return the target
+    echo "${target}"
+}

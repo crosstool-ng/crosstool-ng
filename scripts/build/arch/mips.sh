@@ -14,3 +14,14 @@ CT_DoArchTupleValues() {
     CT_ARCH_ABI_CFLAG="-mabi=${CT_ARCH_mips_ABI}"
     CT_ARCH_WITH_ABI="--with-abi=${CT_ARCH_mips_ABI}"
 }
+
+#------------------------------------------------------------------------------
+# Get multilib architecture-specific target
+# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
+CT_DoArchMultilibTarget ()
+{
+    local target="${1}"; shift
+    local -a multi_flags=( "$@" )
+
+    echo "${target}"
+}
