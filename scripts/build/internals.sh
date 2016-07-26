@@ -64,6 +64,7 @@ do_finish() {
         CT_DoLog EXTRA "Installing the populate helper"
         ${sed} -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
                -e 's|@@CT_install@@|'"${install}"'|g;'     \
+               -e 's|@@CT_awk@@|'"${awk}"'|g;'             \
                -e 's|@@CT_bash@@|'"${bash}"'|g;'           \
                -e 's|@@CT_grep@@|'"${grep}"'|g;'           \
                -e 's|@@CT_make@@|'"${make}"'|g;'           \
