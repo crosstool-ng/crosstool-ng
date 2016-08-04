@@ -375,7 +375,7 @@ You can find *all* of this and more at [crosstool-ng.org](http://crosstool-ng.or
 
 We are also available on IRC: irc.freenode.net #crosstool-ng
 
-We also have a [mailing list](mailto:crossgcc@sourceware.org), when you can get ahold of anyone on IRC.
+We also have a [mailing list](mailto:crossgcc@sourceware.org), when you can get ahold of anyone on IRC. Archive and subscription info can be found here: [https://sourceware.org/ml/crossgcc/](https://sourceware.org/ml/crossgcc/)
 
 Aloha! :-)
 
