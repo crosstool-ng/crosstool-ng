@@ -4,7 +4,7 @@
 
 [![Throughput Graph](https://graphs.waffle.io/crosstool-ng/crosstool-ng/throughput.svg)](https://waffle.io/crosstool-ng/crosstool-ng/metrics/throughput)
 
-[![Stories in Ready](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=in%20progress&title=In%20Progress)](https://waffle.io/crosstool-ng/crosstool-ng) [![Stories in Ready](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=ready&title=Ready)](https://waffle.io/crosstool-ng/crosstool-ng) [![Stories in Ready](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=waiting%20for%20response&title=Waiting%20For%20Response)](https://waffle.io/crosstool-ng/crosstool-ng) [![Stories in Ready](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=ready&title=Ready)](https://waffle.io/crosstool-ng/crosstool-ng)
+[![Stories in Ready](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=ready&title=Ready)](https://waffle.io/crosstool-ng/crosstool-ng) [![Stories in Waiting For Response](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=waiting%20for%20response&title=Waiting%20For%20Response)](https://waffle.io/crosstool-ng/crosstool-ng) [![Stories in In Progress](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=in%20progress&title=In%20Progress)](https://waffle.io/crosstool-ng/crosstool-ng)
 
 ## Introduction
 
