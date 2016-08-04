@@ -17,8 +17,8 @@ Some cross-toolchains exist on the internet, and can be used for general develop
 - They can be general purpose, in that they are configured for the majority - in that it is optimized for a specific target - and may be configured for a specific target when you might have multiple and want consistent configuration across the toolchains you use.
 - They can be prepared for a specific target and thus are not easy to use, nor optimised for, or even supporting your target,
 - They often are using aging components (compiler, C library, etc…) not supporting special features of your shiny new processor; On the other side, these toolchains offer some advantages:
-- They are ready to use and quite easy to install and setup,
-- They are proven if used by a wide community.
+ - They are ready to use and quite easy to install and setup,
+ - They are proven if used by a wide community.
 
 But once you want to get all the juice out of your specific hardware, you will want to build your own toolchain. This is where crosstool-NG comes into play.
 
