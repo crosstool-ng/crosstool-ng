@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=ready&title=Ready)](https://waffle.io/crosstool-ng/crosstool-ng)
 # Crosstool-NG [![Build Status][travis-status]][travis]
 
 Crosstool-NG follows the `autoconf` dance. So, to get you
