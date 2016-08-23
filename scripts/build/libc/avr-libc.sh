@@ -18,10 +18,6 @@ do_libc_extract() {
     CT_Patch "avr-libc" "${CT_LIBC_VERSION}"
 }
 
-do_libc_check_config() {
-    :
-}
-
 do_libc_configure() {
     CT_DoLog EXTRA "Configuring C library"
 

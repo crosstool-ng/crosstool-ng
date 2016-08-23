@@ -85,6 +85,169 @@ cc_gcc_lang_list() {
 }
 
 #------------------------------------------------------------------------------
+# Return a value of a requested GCC spec
+cc_gcc_get_spec() {
+    local spec=$1
+    local cc_and_cflags=$2
+
+    # GCC does not provide a facility to request a value of a spec string.
+    # The only way to do that I found was to augment the spec file with
+    # some dummy suffix handler that does nothing except printing it.
+    touch temp-input.spec_eval
+    {
+        echo ".spec_eval:"
+        echo "echo %(${spec})"
+    } > "tmp-specs-${spec}"
+    ${cc_and_cflags} -specs="tmp-specs-${spec}" -E temp-input.spec_eval
+}
+
+#------------------------------------------------------------------------------
+# Report the type of a GCC option
+cc_gcc_classify_opt() {
+    # Options present in multiple architectures
+    case "${1}" in
+        -march=*) echo "arch"; return;;
+        -mabi=*) echo "abi"; return;;
+        -mcpu=*|-mmcu=*) echo "cpu"; return;;
+        -mtune=*) echo "tune"; return;;
+        -mfpu=*) echo "fpu"; return;;
+        -mhard-float|-msoft-float|-mno-soft-float|-mno-float|-mfloat-abi=*|\
+            -mfpu|-mno-fpu) echo "float"; return;;
+        -EB|-EL|-mbig-endian|-mlittle-endian|-mbig|-mlittle|-meb|-mel|-mb|-ml) echo "endian"; return;;
+        -mthumb|-marm) echo "mode"; return;;
+    esac
+
+    # Arch-specific options and aliases
+    case "${CT_ARCH}" in
+        m68k)
+            case "${1}" in
+                -m68881) echo "float"; return;;
+                -m5[234]*|-mcfv4e) echo "cpu"; return;;
+                -m68*|-mc68*) echo "arch"; return;;
+            esac
+            ;;
+        mips)
+            case "${1}" in
+                -mips[1234]|-mips32|-mips32r*|-mips64|-mips64r*) echo "cpu"; return;;
+            esac
+            ;;
+        sh)
+            case "${1}" in
+                -m[12345]*) echo "cpu"; return;;
+            esac
+    esac
+
+    # All tried and failed
+    echo "unknown"
+}
+
+#------------------------------------------------------------------------------
+# This function lists the multilibs configured in the compiler (even if multilib
+# is disabled - so that it lists the default GCC/OS directory, which may differ
+# from the default 'lib'). It then performs a few multilib checks/quirks:
+#
+# 1. On SuperH target, configuring with default CPU (e.g. by supplying the target
+# name as 'sh4', which is what CT-NG does) results in the compiler being unable to
+# run if that same switch is passed to the resulting gcc (e.g. 'gcc -m4'). The reason
+# for this behavior is that the script that determines the sysroot suffix is not
+# aware of the default multilib selection, so it generates <sysroot>/m4 as the
+# suffixed sysroot. But the main driver, knowing that -m4 is the default, does not
+# even attempt to fall back to the non-suffixed sysroot (as it does with non-default
+# multilibs) - as a result, gcc fails to find any library if invoked with -m4.
+# The right solution would be to drop the default CPU from the multilib list
+# completely, or make the print-sysroot-suffix.sh script aware of the defaults
+# (which is not easy, as the defaults are not in tmake_file, but rather in tm_file...)
+#
+# 2. On MIPS target, gcc (or rather, ld, which it invokes under the hood) chokes
+# if supplied with two -mabi=* options. I.e., 'gcc -mabi=n32' and 'gcc -mabi=32' both
+# work, but 'gcc -mabi=32 -mabi=n32' produces an internal error in ld. Thus we do
+# not supply target's CFLAGS in multilib builds - and after compiling pass-1 gcc,
+# attempt to determine which CFLAGS need to be filtered out.
+cc_gcc_multilib_housekeeping() {
+    local cc host
+    local flags osdir dir multilibs i f
+    local multilib_defaults
+    local suffix sysroot base lnk
+    local ml_arch ml_abi ml_cpu ml_tune ml_fpu ml_float ml_endian ml_mode ml_unknown ml
+    local new_cflags
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    if [ \( "${CT_CANADIAN}" = "y" -o "${CT_CROSS_NATIVE}" = "y" \) -a "${host}" = "${CT_HOST}" ]; then
+        CT_DoLog EXTRA "Canadian Cross/Cross-native unable to confirm multilibs configuration "\
+            "directly; will use build-compiler for housekeeping."
+        # Since we cannot run the desired compiler, substitute build-CC with the assumption
+        # that the host-CC is configured in the same way.
+        cc="${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-gcc"
+    fi
+
+    # sed: prepend dashes or do nothing if default is empty string
+    multilib_defaults=( $( cc_gcc_get_spec multilib_defaults "${cc}" | \
+        ${sed} 's/\(^\|[[:space:]]\+\)\([^[:space:]]\)/ -\2/g' ) )
+    CT_DoLog EXTRA "gcc default flags: '${multilib_defaults}'"
+
+    multilibs=( $( "${cc}" -print-multi-lib ) )
+    if [ ${#multilibs[@]} -ne 0 ]; then
+        CT_DoLog EXTRA "gcc configured with these multilibs (including the default):"
+        for i in "${multilibs[@]}"; do
+            dir="lib/${i%%;*}"
+            flags="${i#*;}"
+            flags=${flags//@/ -}
+            flags=$( echo ${flags} )
+            osdir="lib/"$( "${cc}" -print-multi-os-directory ${flags} )
+            CT_SanitizeVarDir dir osdir
+            CT_DoLog EXTRA "   '${flags}' --> ${dir} (gcc)   ${osdir} (os)"
+            for f in ${flags}; do
+                eval ml_`cc_gcc_classify_opt ${f}`=seen
+            done
+        done
+    else
+        CT_DoLog WARN "no multilib configuration: GCC unusable?"
+    fi
+
+    # Filtering out some of the options provided in CT-NG config. Then *prepend*
+    # them to CT_TARGET_CFLAGS, like scripts/crosstool-NG.sh does. Zero out
+    # the stashed MULTILIB flags so that we don't process them again in the passes
+    # that follow.
+    CT_DoLog DEBUG "Configured target CFLAGS: '${CT_ARCH_TARGET_CFLAGS_MULTILIB}'"
+    ml_unknown= # Pass through anything we don't know about
+    for f in ${CT_ARCH_TARGET_CFLAGS_MULTILIB}; do
+        eval ml=\$ml_`cc_gcc_classify_opt ${f}`
+        if [ "${ml}" != "seen" ]; then
+            new_cflags="${new_cflags} ${f}"
+        fi
+    done
+    CT_DoLog DEBUG "Filtered target CFLAGS: '${new_cflags}'"
+    CT_EnvModify CT_TARGET_CFLAGS "${new_cflags} ${CT_TARGET_CFLAGS}"
+    CT_EnvModify CT_ARCH_TARGET_CFLAGS_MULTILIB ""
+
+    # Currently, the only LDFLAGS are endianness-related
+    CT_DoLog DEBUG "Configured target LDFLAGS: '${CT_ARCH_TARGET_LDFLAGS_MULTILIB}'"
+    if [ "${ml_endian}" != "seen" ]; then
+        CT_EnvModify CT_TARGET_LDFLAGS "${CT_ARCH_TARGET_LDFLAGS_MULTILIB} ${CT_TARGET_LDFLAGS}"
+        CT_EnvModify CT_ARCH_TARGET_LDFLAGS_MULTILIB ""
+    fi
+    CT_DoLog DEBUG "Filtered target LDFLAGS: '${CT_ARCH_TARGET_LDFLAGS_MULTILIB}'"
+
+    # Sysroot suffix fixup for the multilib default.
+    suffix=$( cc_gcc_get_spec sysroot_suffix_spec "${cc} ${multilib_defaults}" )
+    if [ -n "${suffix}" ]; then
+        base=${suffix%/*}
+        sysroot=$( "${cc}" -print-sysroot )
+        if [ -n "${base}" ]; then
+            CT_DoExecLog ALL mkdir -p "${sysroot}${base}"
+            lnk=$( echo "${base#/}" | ${sed} -e 's,[^/]*,..,g' )
+        else
+            lnk=.
+        fi
+        CT_DoExecLog ALL rm -f "${sysroot}${suffix}"
+        CT_DoExecLog ALL ln -sfv "${lnk}" "${sysroot}${suffix}"
+    fi
+}
+
+#------------------------------------------------------------------------------
 # Core gcc pass 1
 do_gcc_core_pass_1() {
     local -a core_opts
@@ -539,7 +702,7 @@ do_gcc_core_backend() {
     # tree makes the libtoolized utilities that are built next assume
     # that, for example, libsupc++ is an "accessory library", and not include
     # -lsupc++ to the link flags. That breaks ltrace, for example.
-    CT_DoLog EXTRA "Housekeeping for final gcc compiler"
+    CT_DoLog EXTRA "Housekeeping for core gcc compiler"
     CT_Pushd "${prefix}"
     find . -type f -name "*.la" -exec rm {} \; |CT_DoLog ALL
     CT_Popd
@@ -560,25 +723,8 @@ do_gcc_core_backend() {
         CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    if [ "${CT_MULTILIB}" = "y" ]; then
-        if [ "${CT_CANADIAN}" = "y" -a "${mode}" = "baremetal" \
-             -a "${host}" = "${CT_HOST}" ]; then
-            CT_DoLog WARN "Canadian Cross unable to confirm multilibs configured correctly"
-        else
-            multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib \
-                           |tail -n +2 ) )
-            if [ ${#multilibs[@]} -ne 0 ]; then
-                CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
-                for i in "${multilibs[@]}"; do
-                    dir="${i%%;*}"
-                    flags="${i#*;}"
-                    CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
-                done
-            else
-                CT_DoLog WARN "gcc configured for multilib, but none available"
-            fi
-        fi
-    fi
+    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-gcc" \
+        host="${host}"
 }
 
 #------------------------------------------------------------------------------
@@ -965,25 +1111,9 @@ do_gcc_backend() {
     file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
     if [ -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc${ext}" ]; then
-        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-cc${ext}"
+        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    if [ "${CT_MULTILIB}" = "y" ]; then
-        if [ "${CT_CANADIAN}" = "y" ]; then
-            CT_DoLog WARN "Canadian Cross unable to confirm multilibs configured correctly"
-        else
-            multilibs=( $( "${prefix}/bin/${CT_TARGET}-gcc" -print-multi-lib \
-                           |tail -n +2 ) )
-            if [ ${#multilibs[@]} -ne 0 ]; then
-                CT_DoLog EXTRA "gcc configured with these multilibs (besides the default):"
-                for i in "${multilibs[@]}"; do
-                    dir="${i%%;*}"
-                    flags="${i#*;}"
-                    CT_DoLog EXTRA "   ${flags//@/ -}  -->  ${dir}/"
-                done
-            else
-                CT_DoLog WARN "gcc configured for multilib, but none available"
-            fi
-        fi
-    fi
+    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-gcc" \
+        host="${host}"
 }
