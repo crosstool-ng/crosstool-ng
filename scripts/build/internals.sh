@@ -64,6 +64,7 @@ do_finish() {
         CT_DoLog EXTRA "Installing the populate helper"
         ${sed} -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
                -e 's|@@CT_install@@|'"${install}"'|g;'     \
+               -e 's|@@CT_awk@@|'"${awk}"'|g;'             \
                -e 's|@@CT_bash@@|'"${bash}"'|g;'           \
                -e 's|@@CT_grep@@|'"${grep}"'|g;'           \
                -e 's|@@CT_make@@|'"${make}"'|g;'           \
@@ -117,13 +118,6 @@ do_finish() {
         CT_DoForceRmdir "${CT_SYSROOT_DIR}/"{,usr/}{,share/}{man,info}
         CT_DoForceRmdir "${CT_DEBUGROOT_DIR}/"{,usr/}{,share/}{man,info}
     fi
-
-    # Remove the lib* symlinks, now:
-    # The symlinks are needed only during the build process.
-    # The final gcc will still search those dirs, but will also search
-    # the standard lib/ dirs, so we can get rid of the symlinks
-    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/lib32"
-    CT_DoExecLog ALL rm -f "${CT_PREFIX_DIR}/lib64"
 
     CT_EndStep
 }

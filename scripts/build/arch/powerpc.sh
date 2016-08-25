@@ -26,3 +26,65 @@ CT_DoArchTupleValues () {
         CT_ARCH_CC_EXTRA_CONFIG="--enable-e500_double"
     fi
 }
+
+#------------------------------------------------------------------------------
+# Get multilib architecture-specific target
+# Usage: CT_DoArchMultilibTarget "target variable" "multilib flags"
+CT_DoArchMultilibTarget ()
+{
+    local target_var="${1}"; shift
+    local -a multi_flags=( "$@" )
+    local target_
+
+    local m32=false
+    local m64=false
+    local mlittle=false
+    local mbig=false
+
+    for m in "${multi_flags[@]}"; do
+        case "$m" in
+            -m32)     m32=true ;;
+            -m64)     m64=true ;;
+            -mbig)    mbig=true ;;
+            -mlittle) mlittle=true ;;
+        esac
+    done
+
+    eval target_=\"\${${target_var}}\"
+
+    # Fix up bitness
+    case "${target_}" in
+        powerpc-*)      $m64 && target_=${target_/#powerpc-/powerpc64-} ;;
+        powerpcle-*)    $m64 && target_=${target_/#powerpcle-/powerpc64le-} ;;
+        powerpc64-*)    $m32 && target_=${target_/#powerpc64-/powerpc-} ;;
+        powerpc64le-*)  $m32 && target_=${target_/#powerpc64le-/powerpcle-} ;;
+    esac
+
+    # Fix up endianness
+    case "${target_}" in
+        powerpc-*)      $mlittle && target_=${target_/#powerpc-/powerpcle-} ;;
+        powerpcle-*)    $mbig && target_=${target_/#powerpcle-/powerpc-} ;;
+        powerpc64-*)    $mlittle && target_=${target_/#powerpc64-/powerpc64le-} ;;
+        powerpc64le-*)  $mbig && target_=${target_/#powerpc64le-/powerpc64-} ;;
+    esac
+
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
+}
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    CT_DoArchUClibcSelectArch "${cfg}" "powerpc"
+
+    CT_KconfigDisableOption "CONFIG_E500" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_CLASSIC" "${cfg}"
+    CT_KconfigDeleteOption "TARGET_SUBARCH" "${cfg}"
+    if [ "${CT_ARCH_powerpc_ABI}" = "spe" ]; then
+        CT_KconfigEnableOption "CONFIG_E500" "${cfg}"
+        CT_KconfigSetOption "TARGET_SUBARCH" "e500" "${cfg}"
+    else
+        CT_KconfigEnableOption "CONFIG_CLASSIC" "${cfg}"
+        CT_KconfigSetOption "TARGET_SUBARCH" "classic" "${cfg}"
+    fi
+}

@@ -35,3 +35,48 @@ CT_DoArchTupleValues () {
     esac
     CT_ARCH_FLOAT_CFLAG=
 }
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    # FIXME: uclibc (!ng) seems to support sh64 (sh5), too
+    CT_DoArchUClibcSelectArch "${cfg}" "sh"
+    CT_KconfigDisableOption "CONFIG_SH3" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_SH4" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_SH4A" "${cfg}"
+    case "${CT_ARCH_SH_VARIANT}" in
+        sh3) CT_KconfigEnableOption "CONFIG_SH3" "${cfg}";;
+        sh4) CT_KconfigEnableOption "CONFIG_SH4" "${cfg}";;
+        sh4a) CT_KconfigEnableOption "CONFIG_SH4A" "${cfg}";;
+    esac
+}
+
+CT_DoArchUClibcCflags() {
+    local cfg="${1}"
+    local cflags="${2}"
+    local f
+
+    for f in ${cflags}; do
+        case "${f}" in
+            -m3)
+                CT_KconfigEnableOption "CONFIG_SH3" "${cfg}"
+                ;;
+            -m4)
+                CT_KconfigEnableOption "CONFIG_SH4" "${cfg}"
+                CT_KconfigEnableOption "UCLIBC_HAS_FPU" "${cfg}"
+                ;;
+            -m4-nofpu)
+                CT_KconfigEnableOption "CONFIG_SH4" "${cfg}"
+                CT_KconfigDisableOption "UCLIBC_HAS_FPU" "${cfg}"
+                ;;
+            -m4a)
+                CT_KconfigEnableOption "CONFIG_SH4A" "${cfg}"
+                CT_KconfigEnableOption "UCLIBC_HAS_FPU" "${cfg}"
+                ;;
+            -m4a-nofpu)
+                CT_KconfigEnableOption "CONFIG_SH4A" "${cfg}"
+                CT_KconfigDisableOption "UCLIBC_HAS_FPU" "${cfg}"
+                ;;
+        esac
+    done
+}
