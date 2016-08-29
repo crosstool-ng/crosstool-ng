@@ -231,7 +231,7 @@ do_libc_backend_once() {
         # - "make install" calls install_runtime and install_dev
         # - so we're left with re-installing the headers... Sigh...
         CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL ${make} "${make_args[@]}" install
+        CT_DoExecLog ALL ${make} "${make_args[@]}" install install_utils
     fi # libc_mode == final
 
     # Now, if installing headers into a subdirectory, put everything in its place.
