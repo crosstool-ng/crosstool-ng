@@ -278,6 +278,12 @@ manage_uClibc_config() {
         CT_KconfigDisableOption "ARCH_USE_MMU" "${dst}"
     fi
 
+    if [ "${CT_SHARED_LIBS}" = "y" ]; then
+        CT_KconfigEnableOption "HAVE_SHARED" "${dst}"
+    else
+        CT_KconfigDisableOption "HAVE_SHARED" "${dst}"
+    fi
+
     # Accomodate for old and new uClibc version, where the
     # way to select between hard/soft float has changed
     case "${CT_ARCH_FLOAT}" in
