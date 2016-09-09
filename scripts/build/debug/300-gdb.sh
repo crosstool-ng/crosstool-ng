@@ -69,11 +69,8 @@ do_debug_gdb_build() {
 
         cross_extra_config=("${extra_config[@]}")
         cross_extra_config+=("--with-expat")
-        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
-        # It conflicts with a static build: GDB's configure script will find the shared
-        # version of expat and will attempt to link that, despite the -static flag.
-        # The link will fail, and configure will abort with "expat missing or unusable"
-        # message.
+        cross_extra_config+=("--without-libexpat-prefix")
+
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
@@ -173,11 +170,7 @@ do_debug_gdb_build() {
         fi
 
         native_extra_config+=("--with-expat")
-        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
-        # It conflicts with a static build: GDB's configure script will find the shared
-        # version of expat and will attempt to link that, despite the -static flag.
-        # The link will fail, and configure will abort with "expat missing or unusable"
-        # message.
+        native_extra_config+=("--without-libexpat-prefix")
 
         CT_DoLog EXTRA "Configuring native gdb"
 
