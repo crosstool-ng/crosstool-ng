@@ -8,6 +8,7 @@ do_finish() {
     local _type
     local strip_args
     local gcc_version
+    local exe_suffix
 
     CT_DoStep INFO "Cleaning-up the toolchain's directory"
 
@@ -20,13 +21,21 @@ do_finish() {
                 strip_args="--strip-all -v"
                 ;;
         esac
+        case "$CT_TARGET" in
+            *mingw*)
+                exe_suffix=".exe"
+                ;;
+            *)
+                exe_suffix=""
+                ;;
+        esac
         CT_DoLog INFO "Stripping all toolchain executables"
         CT_Pushd "${CT_PREFIX_DIR}"
 
         # Strip gdbserver
         if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
             CT_DoExecLog ALL "${CT_TARGET}-strip" ${strip_args}         \
-                             "${CT_TARGET}/debug-root/usr/bin/gdbserver"
+                             "${CT_TARGET}/debug-root/usr/bin/gdbserver${exe_suffix}"
         fi
         if [ "${CT_CC_gcc}" = "y" ]; then
             # We can not use the version in CT_CC_GCC_VERSION because
