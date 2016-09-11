@@ -68,6 +68,10 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=("${extra_config[@]}")
+
+        # For gdb-cross this combination of flags forces
+        # gdb configure to fall back to default '-lexpat' flag
+        # which is acceptable.
         cross_extra_config+=("--with-expat")
         cross_extra_config+=("--without-libexpat-prefix")
 
@@ -169,6 +173,16 @@ do_debug_gdb_build() {
             native_extra_config+=("--with-curses")
         fi
 
+        # Target libexpat resides in sysroot and does not have
+        # any dependencies, so just passing '-lexpat' to gcc is enough.
+        #
+        # By default gdb configure looks for expat in '$prefix/lib'
+        # directory. In our case '$prefix/lib' resolves to '/usr/lib'
+        # where libexpat for build platform lives, which is
+        # unacceptable for cross-compiling.
+        #
+        # To prevent this '--without-libexpat-prefix' flag must be passed.
+        # Thus configure falls back to '-lexpat', which is exactly what we want.
         native_extra_config+=("--with-expat")
         native_extra_config+=("--without-libexpat-prefix")
 
