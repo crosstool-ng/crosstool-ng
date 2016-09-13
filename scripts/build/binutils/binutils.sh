@@ -132,7 +132,7 @@ do_binutils_for_host() {
             mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
             for t in "${binutils_tools[@]}"; do
                 CT_DoExecLog ALL ln -sv                                         \
-                                    "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}"    \
+                                    "${CT_PREFIX_DIR}/${CT_TARGET}/bin/${t}"    \
                                     "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
                 CT_DoExecLog ALL ln -sv                                         \
                                     "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}"    \
