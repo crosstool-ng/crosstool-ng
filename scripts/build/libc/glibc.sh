@@ -30,7 +30,8 @@ do_libc_get() {
 do_libc_extract() {
     CT_Extract "${CT_LIBC}-${CT_LIBC_VERSION}"
     CT_Pushd "${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
-    # Attempt CT_PATCH only if NOT custom
+    # Custom glibc won't get patched, because CT_GetCustom
+    # marks custom glibc as patched.
     CT_Patch nochdir "${CT_LIBC}" "${CT_LIBC_VERSION}"
 
     # The configure files may be older than the configure.in files
