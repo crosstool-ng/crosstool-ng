@@ -1,0 +1,193 @@
+diff -Naurd mpfr-3.0.0-a/PATCHES mpfr-3.0.0-b/PATCHES
+--- mpfr-3.0.0-a/PATCHES	2010-11-09 15:15:07.000000000 +0000
++++ mpfr-3.0.0-b/PATCHES	2010-11-09 15:15:07.000000000 +0000
+@@ -0,0 +1 @@
++macros
+diff -Naurd mpfr-3.0.0-a/VERSION mpfr-3.0.0-b/VERSION
+--- mpfr-3.0.0-a/VERSION	2010-10-21 21:18:26.000000000 +0000
++++ mpfr-3.0.0-b/VERSION	2010-11-09 15:15:07.000000000 +0000
+@@ -1 +1 @@
+-3.0.0-p7
++3.0.0-p8
+diff -Naurd mpfr-3.0.0-a/mpfr.h mpfr-3.0.0-b/mpfr.h
+--- mpfr-3.0.0-a/mpfr.h	2010-10-21 21:18:26.000000000 +0000
++++ mpfr-3.0.0-b/mpfr.h	2010-11-09 15:15:07.000000000 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 0
+ #define MPFR_VERSION_PATCHLEVEL 0
+-#define MPFR_VERSION_STRING "3.0.0-p7"
++#define MPFR_VERSION_STRING "3.0.0-p8"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+@@ -67,6 +67,16 @@
+ # define _MPFR_H_HAVE_INTMAX_T 1
+ #endif
+ 
++/* Avoid some problems with macro expansion if the user defines macros
++   with the same name as keywords. By convention, identifiers and macro
++   names starting with mpfr_ are reserved by MPFR. */
++typedef void            mpfr_void;
++typedef int             mpfr_int;
++typedef unsigned int    mpfr_uint;
++typedef long            mpfr_long;
++typedef unsigned long   mpfr_ulong;
++typedef size_t          mpfr_size_t;
++
+ /* Definition of rounding modes (DON'T USE MPFR_RNDNA!).
+    Warning! Changing the contents of this enum should be seen as an
+    interface change since the old and the new types are not compatible
+@@ -136,7 +146,7 @@
+ typedef mp_exp_t     mpfr_exp_t;
+ 
+ /* Definition of the standard exponent limits */
+-#define MPFR_EMAX_DEFAULT ((mpfr_exp_t) (((unsigned long) 1 << 30) - 1))
++#define MPFR_EMAX_DEFAULT ((mpfr_exp_t) (((mpfr_ulong) 1 << 30) - 1))
+ #define MPFR_EMIN_DEFAULT (-(MPFR_EMAX_DEFAULT))
+ 
+ /* Definition of the main structure */
+@@ -725,13 +735,13 @@
+    unexpected results with future compilers and aggressive optimisations.
+    Why not working only with signed types, using INT_MIN and LONG_MIN? */
+ #if __GMP_MP_SIZE_T_INT
+-#define __MPFR_EXP_NAN  ((mpfr_exp_t)((~((~(unsigned int)0)>>1))+2))
+-#define __MPFR_EXP_ZERO ((mpfr_exp_t)((~((~(unsigned int)0)>>1))+1))
+-#define __MPFR_EXP_INF  ((mpfr_exp_t)((~((~(unsigned int)0)>>1))+3))
++#define __MPFR_EXP_NAN  ((mpfr_exp_t)((~((~(mpfr_uint)0)>>1))+2))
++#define __MPFR_EXP_ZERO ((mpfr_exp_t)((~((~(mpfr_uint)0)>>1))+1))
++#define __MPFR_EXP_INF  ((mpfr_exp_t)((~((~(mpfr_uint)0)>>1))+3))
+ #else
+-#define __MPFR_EXP_NAN  ((mpfr_exp_t)((~((~(unsigned long)0)>>1))+2))
+-#define __MPFR_EXP_ZERO ((mpfr_exp_t)((~((~(unsigned long)0)>>1))+1))
+-#define __MPFR_EXP_INF  ((mpfr_exp_t)((~((~(unsigned long)0)>>1))+3))
++#define __MPFR_EXP_NAN  ((mpfr_exp_t)((~((~(mpfr_ulong)0)>>1))+2))
++#define __MPFR_EXP_ZERO ((mpfr_exp_t)((~((~(mpfr_ulong)0)>>1))+1))
++#define __MPFR_EXP_INF  ((mpfr_exp_t)((~((~(mpfr_ulong)0)>>1))+3))
+ #endif
+ 
+ /* Define MPFR_USE_EXTENSION to avoid "gcc -pedantic" warnings. */
+@@ -760,9 +770,9 @@
+ #define mpfr_inf_p(_x)      ((_x)->_mpfr_exp == __MPFR_EXP_INF)
+ #define mpfr_zero_p(_x)     ((_x)->_mpfr_exp == __MPFR_EXP_ZERO)
+ #define mpfr_regular_p(_x)  ((_x)->_mpfr_exp >  __MPFR_EXP_INF)
+-#define mpfr_sgn(_x)                                          \
+-  ((_x)->_mpfr_exp < __MPFR_EXP_INF ?                         \
+-   (mpfr_nan_p (_x) ? mpfr_set_erangeflag () : (void) 0), 0 : \
++#define mpfr_sgn(_x)                                               \
++  ((_x)->_mpfr_exp < __MPFR_EXP_INF ?                              \
++   (mpfr_nan_p (_x) ? mpfr_set_erangeflag () : (mpfr_void) 0), 0 : \
+    MPFR_SIGN (_x))
+ 
+ /* Prevent them from using as lvalues */
+@@ -805,7 +815,19 @@
+    Moreover casts to unsigned long have been added to avoid warnings in
+    programs that use MPFR and are compiled with -Wconversion; such casts
+    are OK since if X is a constant expression, then (unsigned long) X is
+-   also a constant expression, so that the optimizations still work. */
++   also a constant expression, so that the optimizations still work. The
++   warnings are probably related to the following two bugs:
++     http://gcc.gnu.org/bugzilla/show_bug.cgi?id=4210
++     http://gcc.gnu.org/bugzilla/show_bug.cgi?id=38470 (possibly a variant)
++   and the casts could be removed once these bugs are fixed.
++   Casts shouldn't be used on the generic calls (to the ..._2exp functions),
++   where implicit conversions are performed. Indeed, having at least one
++   implicit conversion in the macro allows the compiler to emit diagnostics
++   when normally expected, for instance in the following call:
++     mpfr_set_ui (x, "foo", MPFR_RNDN);
++   If this is not possible (for future macros), one of the tricks described
++   on http://groups.google.com/group/comp.std.c/msg/e92abd24bf9eaf7b could
++   be used. */
+ #if defined (__GNUC__) && !defined(__ICC) && !defined(__cplusplus)
+ #if (__GNUC__ >= 2)
+ #undef mpfr_cmp_ui
+@@ -813,45 +835,45 @@
+    But warning! mpfr_sgn is specified as a macro in the API, thus the macro
+    mustn't be used if side effects are possible, like here. */
+ #define mpfr_cmp_ui(_f,_u)                                      \
+-  (__builtin_constant_p (_u) && (unsigned long) (_u) == 0 ?     \
++  (__builtin_constant_p (_u) && (mpfr_ulong) (_u) == 0 ?        \
+    (mpfr_sgn) (_f) :                                            \
+-   mpfr_cmp_ui_2exp ((_f), (unsigned long) (_u), 0))
++   mpfr_cmp_ui_2exp ((_f), (_u), 0))
+ #undef mpfr_cmp_si
+-#define mpfr_cmp_si(_f,_s)                              \
+-  (__builtin_constant_p (_s) && (long) (_s) >= 0 ?      \
+-   mpfr_cmp_ui ((_f), (unsigned long) (long) (_s)) :    \
+-   mpfr_cmp_si_2exp ((_f), (long) (_s), 0))
++#define mpfr_cmp_si(_f,_s)                                      \
++  (__builtin_constant_p (_s) && (mpfr_long) (_s) >= 0 ?         \
++   mpfr_cmp_ui ((_f), (mpfr_ulong) (mpfr_long) (_s)) :          \
++   mpfr_cmp_si_2exp ((_f), (_s), 0))
+ #if __GNUC__ > 2 || __GNUC_MINOR__ >= 95
+ #undef mpfr_set_ui
+ #define mpfr_set_ui(_f,_u,_r)                                   \
+-  (__builtin_constant_p (_u) && (unsigned long) (_u) == 0 ?     \
++  (__builtin_constant_p (_u) && (mpfr_ulong) (_u) == 0 ?        \
+    __extension__ ({                                             \
+        mpfr_ptr _p = (_f);                                      \
+        _p->_mpfr_sign = 1;                                      \
+        _p->_mpfr_exp = __MPFR_EXP_ZERO;                         \
+-       (void) (_r); 0; }) :                                     \
+-   mpfr_set_ui_2exp ((_f), (unsigned long) (_u), 0, (_r)))
++       (mpfr_void) (_r); 0; }) :                                \
++   mpfr_set_ui_2exp ((_f), (_u), 0, (_r)))
+ #endif
+ #undef mpfr_set_si
+ #define mpfr_set_si(_f,_s,_r)                                   \
+-  (__builtin_constant_p (_s) && (long) (_s) >= 0 ?              \
+-   mpfr_set_ui ((_f), (unsigned long) (long) (_s), (_r)) :      \
+-   mpfr_set_si_2exp ((_f), (long) (_s), 0, (_r)))
++  (__builtin_constant_p (_s) && (mpfr_long) (_s) >= 0 ?         \
++   mpfr_set_ui ((_f), (mpfr_ulong) (mpfr_long) (_s), (_r)) :    \
++   mpfr_set_si_2exp ((_f), (_s), 0, (_r)))
+ #endif
+ #endif
+ 
+ /* Macro version of mpfr_stack interface for fast access */
+-#define mpfr_custom_get_size(p) ((size_t)                            \
++#define mpfr_custom_get_size(p) ((mpfr_size_t)                          \
+        (((p)+GMP_NUMB_BITS-1)/GMP_NUMB_BITS*sizeof (mp_limb_t)))
+ #define mpfr_custom_init(m,p) do {} while (0)
+-#define mpfr_custom_get_significand(x) ((void*)((x)->_mpfr_d))
++#define mpfr_custom_get_significand(x) ((mpfr_void*)((x)->_mpfr_d))
+ #define mpfr_custom_get_exp(x) ((x)->_mpfr_exp)
+ #define mpfr_custom_move(x,m) do { ((x)->_mpfr_d = (mp_limb_t*)(m)); } while (0)
+ #define mpfr_custom_init_set(x,k,e,p,m) do {                   \
+   mpfr_ptr _x = (x);                                           \
+   mpfr_exp_t _e;                                               \
+   mpfr_kind_t _t;                                              \
+-  int _s, _k;                                                  \
++  mpfr_int _s, _k;                                             \
+   _k = (k);                                                    \
+   if (_k >= 0)  {                                              \
+     _t = (mpfr_kind_t) _k;                                     \
+@@ -868,11 +890,13 @@
+   _x->_mpfr_exp  = _e;                                         \
+   _x->_mpfr_d    = (mp_limb_t*) (m);                           \
+  } while (0)
+-#define mpfr_custom_get_kind(x)                                              \
+-  ( (x)->_mpfr_exp >  __MPFR_EXP_INF ? (int)MPFR_REGULAR_KIND*MPFR_SIGN (x) \
+-  : (x)->_mpfr_exp == __MPFR_EXP_INF ? (int)MPFR_INF_KIND*MPFR_SIGN (x)     \
+-  : (x)->_mpfr_exp == __MPFR_EXP_NAN ? (int)MPFR_NAN_KIND                   \
+-  : (int) MPFR_ZERO_KIND * MPFR_SIGN (x) )
++#define mpfr_custom_get_kind(x)                                         \
++  ( (x)->_mpfr_exp >  __MPFR_EXP_INF ?                                  \
++    (mpfr_int) MPFR_REGULAR_KIND * MPFR_SIGN (x)                        \
++  : (x)->_mpfr_exp == __MPFR_EXP_INF ?                                  \
++    (mpfr_int) MPFR_INF_KIND * MPFR_SIGN (x)                            \
++  : (x)->_mpfr_exp == __MPFR_EXP_NAN ? (mpfr_int) MPFR_NAN_KIND         \
++  : (mpfr_int) MPFR_ZERO_KIND * MPFR_SIGN (x) )
+ 
+ 
+ #endif /* MPFR_USE_NO_MACRO */
+diff -Naurd mpfr-3.0.0-a/version.c mpfr-3.0.0-b/version.c
+--- mpfr-3.0.0-a/version.c	2010-10-21 21:18:26.000000000 +0000
++++ mpfr-3.0.0-b/version.c	2010-11-09 15:15:07.000000000 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.0.0-p7";
++  return "3.0.0-p8";
+ }
