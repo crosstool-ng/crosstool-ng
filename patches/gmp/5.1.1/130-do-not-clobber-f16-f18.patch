@@ -1,0 +1,73 @@
+
+# HG changeset patch
+# User Torbjorn Granlund <tege@gmplib.org>
+# Date 1369216954 -7200
+# Node ID 394bdf8fdaee749660cc5680cc0636ea0242fae7
+# Parent  0771124b9f13b218a3f07f7dd7c127961974489d
+Don't clobber f16-f18.
+
+diff -r 0771124b9f13 -r 394bdf8fdaee mpn/ia64/divrem_2.asm
+--- a/mpn/ia64/divrem_2.asm	Mon May 20 16:56:05 2013 +0200
++++ b/mpn/ia64/divrem_2.asm	Wed May 22 12:02:34 2013 +0200
+@@ -1,6 +1,6 @@
+ dnl  IA-64 mpn_divrem_2 -- Divide an mpn number by a normalized 2-limb number.
+ 
+-dnl  Copyright 2010 Free Software Foundation, Inc.
++dnl  Copyright 2010, 2013 Free Software Foundation, Inc.
+ 
+ dnl  This file is part of the GNU MP Library.
+ 
+@@ -98,17 +98,17 @@
+ 	br.call.sptk.many b0 = mpn_invert_limb
+ 	;;
+ 	setf.sig f11 = r8		// di (non-final)
+-	setf.sig f18 = r39		// d1
+-	setf.sig f17 = r36		// d0
++	setf.sig f34 = r39		// d1
++	setf.sig f33 = r36		// d0
+ 	mov	 r1 = r43
+ 	;;
+ 	mov	 r17 = 1
+ 	setf.sig f9 = r38		// n2
+-	xma.l	 f6 = f11, f18, f0	// t0 = LO(di * d1)
++	xma.l	 f6 = f11, f34, f0	// t0 = LO(di * d1)
+ 	;;
+ 	setf.sig f10 = r37		// n1
+ 	setf.sig f15 = r17		// 1
+-	xma.hu	 f8 = f11, f17, f0	// s0 = HI(di * d0)
++	xma.hu	 f8 = f11, f33, f0	// s0 = HI(di * d0)
+ 	;;
+ 	getf.sig r17 = f6
+ 	getf.sig r16 = f8
+@@ -178,7 +178,7 @@
+   (p9)	br.cond.dptk .L52
+ .L46:
+ ')
+-	setf.sig f16 = r8		// di
++	setf.sig f32 = r8		// di
+ 	shladd	 r32 = r35, 3, r32
+ 	;;
+ 
+@@ -189,8 +189,8 @@
+ 	;;
+  (p8)	mov	 r37 = r0
+  (p9)	ld8	 r37 = [r34], -8
+-	xma.hu	 f8 = f9, f16, f10	//				0,29
+-	xma.l	 f12 = f9, f16, f10	//				0
++	xma.hu	 f8 = f9, f32, f10	//				0,29
++	xma.l	 f12 = f9, f32, f10	//				0
+ 	;;
+ 	getf.sig r20 = f12		// q0				4
+ 	xma.l	 f13 = f15, f8, f9	// q += n2			4
+@@ -198,8 +198,8 @@
+ 	;;
+ 	getf.sig r18 = f13		//				8
+ 	xma.l	 f7 = f14, f13, f10	//				8
+-	xma.l	 f6 = f17, f13, f17	// t0 = LO(d0*q+d0)		8
+-	xma.hu	 f9 = f17, f13, f17	// t1 = HI(d0*q+d0)		9
++	xma.l	 f6 = f33, f13, f33	// t0 = LO(d0*q+d0)		8
++	xma.hu	 f9 = f33, f13, f33	// t1 = HI(d0*q+d0)		9
+ 	;;
+ 	getf.sig r38 = f7		// n1				12
+ 	getf.sig r16 = f6		//				13
+
