@@ -309,6 +309,7 @@ do_elf2flt_backend() {
         --with-binutils-include-dir=${binutils_src}/include     \
         --with-libbfd=${binutils_bld}/bfd/libbfd.a              \
         --with-libiberty=${binutils_bld}/libiberty/libiberty.a  \
+        --disable-werror                                        \
         ${elf2flt_opts}                                         \
         "${CT_ELF2FLT_EXTRA_CONFIG_ARRAY[@]}"
 
