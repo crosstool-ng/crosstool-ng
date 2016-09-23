@@ -436,6 +436,7 @@ do_gcc_core_backend() {
 
     extra_config+=(--disable-libgomp)
     extra_config+=(--disable-libmudflap)
+    extra_config+=(--disable-libmpx)
 
     if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
         extra_config+=(--enable-libssp)
@@ -901,6 +902,14 @@ do_gcc_backend() {
             extra_config+=(--enable-libsanitizer)
         else
             extra_config+=(--disable-libsanitizer)
+        fi
+    fi
+
+    if [ "${CT_CC_GCC_HAS_LIBMPX}" = "y" ]; then
+        if [ "${CT_CC_GCC_LIBMPX}" = "y" ]; then
+            extra_config+=(--enable-libmpx)
+        else
+            extra_config+=(--disable-libmpx)
         fi
     fi
 
