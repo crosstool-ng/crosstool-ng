@@ -16,9 +16,9 @@ help-env::
 
 # The _for_build steps are noop for native and cross,
 # but are actual steps for canadian and cross-native.
-# Please keep the last line with a '\' and keep the following empy line:
+# Please keep the last line with a '\' and keep the following empty line:
 # it helps when diffing and merging.
-CT_STEPS := libc_check_config          \
+CT_STEPS := \
             companion_libs_for_build   \
             binutils_for_build         \
             companion_libs_for_host    \

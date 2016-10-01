@@ -23,10 +23,6 @@ do_libc_extract() {
     CT_Popd
 }
 
-do_libc_check_config() {
-    :
-}
-
 do_set_mingw_install_prefix(){
     MINGW_INSTALL_PREFIX=/usr/${CT_TARGET}
     if [[ ${CT_WINAPI_VERSION} == 2* ]]; then

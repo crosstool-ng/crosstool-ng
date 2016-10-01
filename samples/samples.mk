@@ -186,6 +186,7 @@ $(CT_SAMPLES): config_files
 __comma = ,
 prefix_dir = $(CT_PREFIX)/$(subst $(__comma),=,$(1))
 host_triplet = $(if $(findstring $(__comma),$(1)),$(firstword $(subst $(__comma), ,$(1))))
+target_triplet = $(if $(findstring $(__comma),$(1)),$(word 2,$(subst $(__comma), ,$(1))),$(1))
 
 # Create the rule to build a sample
 # $1: sample name (target tuple, or host/target tuples separated by a comma)
@@ -212,7 +213,8 @@ define build_sample
 	fi; \
 	printf '\r  %-5s %s\n' $$status '$(1)'; \
 	mkdir -p .build-all/$$status/$(1); \
-	bzip2 < build.log > .build-all/$$status/$(1)/build.log.bz2
+	bzip2 < build.log > .build-all/$$status/$(1)/build.log.bz2; \
+	[ "$$status" = PASS -a -z "$(CT_PRESERVE_PASSED_BUILDS)" ] && rm -rf .build/$(call target_triplet,$(1)) || :
 endef
 
 # ----------------------------------------------------------

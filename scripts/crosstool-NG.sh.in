@@ -141,7 +141,7 @@ CT_DoLog INFO "Building environment variables"
 # Include sub-scripts instead of calling them: that way, we do not have to
 # export any variable, nor re-parse the configuration and functions files.
 . "${CT_LIB_DIR}/scripts/build/internals.sh"
-. "${CT_LIB_DIR}/scripts/build/arch/${CT_ARCH}.sh"
+. "${CT_LIB_DIR}/scripts/build/arch.sh"
 . "${CT_LIB_DIR}/scripts/build/companion_tools.sh"
 . "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
 . "${CT_LIB_DIR}/scripts/build/companion_libs.sh"
@@ -181,7 +181,6 @@ CT_SRC_DIR="${CT_WORK_DIR}/src"
 CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
 CT_BUILDTOOLS_PREFIX_DIR="${CT_WORK_DIR}/${CT_TARGET}/buildtools"
 CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
-CT_CONFIG_DIR="${CT_BUILD_DIR}/configs"
 # Note about HOST_COMPLIBS_DIR: it's always gonna be in the buildtools dir, or a
 # sub-dir. So we won't have to save/restore it, not even create it.
 # In case of cross or native, host-complibs are used for build-complibs;
@@ -266,7 +265,6 @@ CT_DoExecLog ALL mkdir -p "${CT_TARBALLS_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
-CT_DoExecLog ALL mkdir -p "${CT_CONFIG_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_HOST_COMPLIBS_DIR}"
@@ -292,13 +290,13 @@ if [ -z "${CT_RESTART}" ]; then
         */*)    CT_Abort "Sysroot name contains forbidden slash(es): '${CT_SYSROOT_NAME}'";;
     esac
 
-    # Arrange paths depending on wether we use sysroot or not.
+    # Arrange paths depending on whether we use sysroot or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
         CT_SYSROOT_REL_DIR="${CT_SYSROOT_DIR_PREFIX:+${CT_SYSROOT_DIR_PREFIX}/}${CT_SYSROOT_NAME}"
         CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_REL_DIR}"
         CT_DEBUGROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/debug-root"
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/usr/include"
-        CT_SanitiseVarDir CT_SYSROOT_REL_DIR CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR 
+        CT_SanitizeVarDir CT_SYSROOT_REL_DIR CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR
         BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         CC_CORE_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         CC_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
@@ -312,7 +310,7 @@ if [ -z "${CT_RESTART}" ]; then
         CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}"
         CT_DEBUGROOT_DIR="${CT_SYSROOT_DIR}"
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/include"
-        CT_SanitiseVarDir CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR 
+        CT_SanitizeVarDir CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR
         # hack!  Always use --with-sysroot for binutils.
         # binutils 2.14 and later obey it, older binutils ignore it.
         # Lets you build a working 32->64 bit cross gcc
@@ -325,40 +323,14 @@ if [ -z "${CT_RESTART}" ]; then
     fi
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}"
     CT_DoExecLog ALL mkdir -p "${CT_DEBUGROOT_DIR}"
+    CT_DoExecLog ALL mkdir -p "${CT_HEADERS_DIR}"
 
-    # Prepare the 'lib' directories in sysroot, else the ../lib64 hack used by
-    # 32 -> 64 bit crosscompilers won't work, and build of final gcc will fail
-    # with: "ld: cannot open crti.o: No such file or directory"
-    # Also prepare the lib directory in the install dir, else some 64 bit archs
-    # won't build
+    # Need the non-multilib directories: GCC's multi-os-directory is based off them, so
+    # even if the /lib is not used for any of the multilibs, it must be present so that
+    # the paths like 'lib/../lib64' still work.
     CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/lib"
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/lib"
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}/usr/lib"
-    CT_DoExecLog ALL mkdir -p "${CT_HEADERS_DIR}"
-
-    if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        # Prevent gcc from installing its libraries outside of the sysroot
-        CT_Pushd "${CT_PREFIX_DIR}/${CT_TARGET}"
-        CT_DoExecLog ALL ln -sf "${CT_SYSROOT_REL_DIR}/lib" "lib"
-        CT_Popd
-    fi
-
-    # Since we're *not* multilib on the target side, we want all the
-    # libraries to end up in "lib".  We create "lib64" (for 64-bit
-    # build or host architectures) and "lib32" (for 32-bit emulation
-    # on 64-bit) as symlinks to "lib".
-    #
-    # Not all of these symlinks are necessary, but better safe than
-    # sorry. They are summarily removed by build/internals.sh:do_finish.
-    for d in                            \
-        "${CT_PREFIX_DIR}"              \
-        "${CT_SYSROOT_DIR}"             \
-        "${CT_SYSROOT_DIR}/usr"         \
-        "${CT_PREFIX_DIR}/${CT_TARGET}" \
-    ; do
-        CT_DoExecLog ALL ln -sf "lib" "${d}/lib32"
-        CT_DoExecLog ALL ln -sf "lib" "${d}/lib64"
-    done
 
     # Determine build system if not set by the user
     if [ -z "${CT_BUILD}" ]; then
@@ -373,7 +345,7 @@ if [ -z "${CT_RESTART}" ]; then
             build_mangle="build_"
             host_mangle="build_"
             target_mangle=""
-            install_build_tools_for="BUILD HOST"
+            install_build_tools_for="BUILD"
             ;;
         canadian)
             build_mangle="build_"
@@ -500,7 +472,7 @@ if [ -z "${CT_RESTART}" ]; then
     CT_CFLAGS_FOR_BUILD+=" ${CT_EXTRA_CFLAGS_FOR_BUILD}"
     CT_LDFLAGS_FOR_BUILD=
     CT_LDFLAGS_FOR_BUILD+=" ${CT_EXTRA_LDFLAGS_FOR_BUILD}"
-    
+
     # Help host gcc
     # Explicitly optimise, else the lines below will overide the
     # package's default optimisation flags
@@ -654,6 +626,14 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
             # sub-shell ending with !0. bash-3 does not, while bash-4 does,
             # so the following line is for bash-3; bash-4 would choke above.
             [ $? -eq 0 ]
+            # Pick up environment changes.
+            if [ -r "${CT_BUILD_DIR}/env.modify.sh" ]; then
+                CT_DoLog DEBUG "Step '${step}' modified the environment:"
+                CT_DoExecLog DEBUG cat "${CT_BUILD_DIR}/env.modify.sh"
+                . "${CT_BUILD_DIR}/env.modify.sh"
+                CT_DoExecLog DEBUG rm -f "${CT_BUILD_DIR}/env.modify.sh"
+
+            fi
             if [ "${CT_STOP}" = "${step}" ]; then
                 do_stop=1
             fi

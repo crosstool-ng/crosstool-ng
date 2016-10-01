@@ -38,10 +38,6 @@ do_libc_extract() {
     fi
 }
 
-do_libc_check_config() {
-    :
-}
-
 do_libc_start_files() {
     CT_DoStep INFO "Installing C library headers & start files"
     CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/newlib/libc/include/." \

@@ -27,7 +27,6 @@ CT_DoArchTupleValues() {
         thumb)
             CT_ARCH_CC_CORE_EXTRA_CONFIG="--with-mode=thumb"
             CT_ARCH_CC_EXTRA_CONFIG="--with-mode=thumb"
-#            CT_ARCH_TARGET_CFLAGS="-mthumb"
             ;;
     esac
 
@@ -38,15 +37,84 @@ CT_DoArchTupleValues() {
     if [ "${CT_ARCH_ARM_TUPLE_USE_EABIHF}" = "y" ]; then
         CT_TARGET_SYS="${CT_TARGET_SYS}hf"
     fi
+
+    # If building multilib, zero out any WITH_*/*_CFLAG - GCC on ARM does not allow
+    # any of them with multilib.
+    if [ "${CT_MULTILIB}" = "y" ]; then
+        CT_ARCH_WITH_ARCH=
+        CT_ARCH_WITH_ABI=
+        CT_ARCH_WITH_CPU=
+        CT_ARCH_WITH_TUNE=
+        CT_ARCH_WITH_FPU=
+        CT_ARCH_WITH_FLOAT=
+        CT_ARCH_ARCH_CFLAG=
+        CT_ARCH_ABI_CFLAG=
+        CT_ARCH_CPU_CFLAG=
+        CT_ARCH_TUNE_CFLAG=
+        CT_ARCH_FPU_CFLAG=
+        CT_ARCH_FLOAT_CFLAG=
+    fi
 }
 
-#------------------------------------------------------------------------------
-# Get multilib architecture-specific target
-# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
-CT_DoArchMultilibTarget ()
-{
-    local target="${1}"; shift
-    local -a multi_flags=( "$@" )
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
 
-    echo "${target}"
+    CT_DoArchUClibcSelectArch "${cfg}" "arm"
+
+    case "${CT_ARCH_ARM_MODE}" in
+        arm)
+            CT_KconfigDisableOption "COMPILE_IN_THUMB_MODE" "${cfg}"
+            ;;
+        thumb)
+            CT_KconfigEnableOption "COMPILE_IN_THUMB_MODE" "${cfg}"
+            ;;
+    esac
+
+    # FIXME: CONFIG_ARM_OABI does not exist in neither uClibc/uClibc-ng
+    # FIXME: CONFIG_ARM_EABI does not seem to affect anything in either of them, too
+    # (both check the compiler's built-in define, __ARM_EABI__ instead) except for
+    # a check for match between toolchain configuration and uClibc-ng in
+    # uClibc_arch_features.h
+    if [ "${CT_ARCH_ARM_EABI}" = "y" ]; then
+        CT_KconfigDisableOption "CONFIG_ARM_OABI" "${cfg}"
+        CT_KconfigEnableOption "CONFIG_ARM_EABI" "${cfg}"
+    else
+        CT_KconfigDisableOption "CONFIG_ARM_EABI" "${cfg}"
+        CT_KconfigEnableOption "CONFIG_ARM_OABI" "${cfg}"
+    fi
+}
+
+CT_DoArchUClibcCflags() {
+    local cfg="${1}"
+    local cflags="${2}"
+    local f
+
+    for f in ${cflags}; do
+        case "${f}" in
+            -mthumb)
+                CT_KconfigEnableOption "COMPILE_IN_THUMB_MODE" "${cfg}"
+                ;;
+            -marm)
+                CT_KconfigDisableOption "COMPILE_IN_THUMB_MODE" "${cfg}"
+                ;;
+            -mlittle-endian)
+                CT_KconfigDisableOption "ARCH_BIG_ENDIAN" "${cfg}"
+                CT_KconfigDisableOption "ARCH_WANTS_BIG_ENDIAN" "${cfg}"
+                CT_KconfigEnableOption "ARCH_LITTLE_ENDIAN" "${cfg}"
+                CT_KconfigEnableOption "ARCH_WANTS_LITTLE_ENDIAN" "${cfg}"
+                ;;
+            -mbig-endian)
+                CT_KconfigEnableOption "ARCH_BIG_ENDIAN" "${cfg}"
+                CT_KconfigEnableOption "ARCH_WANTS_BIG_ENDIAN" "${cfg}"
+                CT_KconfigDisableOption "ARCH_LITTLE_ENDIAN" "${cfg}"
+                CT_KconfigDisableOption "ARCH_WANTS_LITTLE_ENDIAN" "${cfg}"
+                ;;
+            -mhard-float|-mfloat-abi=hard|-mfloat-abi=softfp)
+                CT_KconfigEnableOption "UCLIBC_HAS_FPU" "${cfg}"
+                ;;
+            -msoft-float|-mfloat-abi=soft)
+                CT_KconfigDisableOption "UCLIBC_HAS_FPU" "${cfg}"
+                ;;
+        esac
+    done
 }

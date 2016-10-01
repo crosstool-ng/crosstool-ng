@@ -25,7 +25,7 @@ do_binutils_get() {
             CT_GetCustom "elf2flt" "${CT_ELF2FLT_CUSTOM_VERSION}" \
                 "${CT_ELF2FLT_CUSTOM_LOCATION}"
         else
-            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" http://cgit.openadk.org/cgi/cgit/elf2flt.git
+            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" https://github.com/uclinux-dev/elf2flt.git
         fi
     fi
 }
@@ -132,7 +132,7 @@ do_binutils_for_host() {
             mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
             for t in "${binutils_tools[@]}"; do
                 CT_DoExecLog ALL ln -sv                                         \
-                                    "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}"    \
+                                    "${CT_PREFIX_DIR}/${CT_TARGET}/bin/${t}"    \
                                     "${CT_BUILDTOOLS_PREFIX_DIR}/${CT_TARGET}/bin/${t}"
                 CT_DoExecLog ALL ln -sv                                         \
                                     "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${t}"    \
@@ -309,6 +309,7 @@ do_elf2flt_backend() {
         --with-binutils-include-dir=${binutils_src}/include     \
         --with-libbfd=${binutils_bld}/bfd/libbfd.a              \
         --with-libiberty=${binutils_bld}/libiberty/libiberty.a  \
+        --disable-werror                                        \
         ${elf2flt_opts}                                         \
         "${CT_ELF2FLT_EXTRA_CONFIG_ARRAY[@]}"
 

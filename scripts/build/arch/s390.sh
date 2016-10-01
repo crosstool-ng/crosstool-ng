@@ -9,11 +9,12 @@ CT_DoArchTupleValues() {
 
 #------------------------------------------------------------------------------
 # Get multilib architecture-specific target
-# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
+# Usage: CT_DoArchMultilibTarget "target variable" "multilib flags"
 CT_DoArchMultilibTarget ()
 {
-    local target="${1}"; shift
+    local target_var="${1}"; shift
     local -a multi_flags=( "$@" )
+    local target_
 
     local m31=false
     local m64=false
@@ -25,11 +26,14 @@ CT_DoArchMultilibTarget ()
         esac
     done
 
+    eval target_=\"\${${target_var}}\"
+
     # Fix bitness
-    case "${target}" in
-        s390-*)   $m64 && target=${target/#s390-/s390x-} ;;
-        s390x-*)  $m31 && target=${target/#s390x-/s390-} ;;
+    case "${target_}" in
+        s390-*)   $m64 && target_=${target_/#s390-/s390x-} ;;
+        s390x-*)  $m31 && target_=${target_/#s390x-/s390-} ;;
     esac
 
-    echo "${target}"
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
 }

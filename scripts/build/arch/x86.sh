@@ -15,7 +15,9 @@ CT_DoArchTupleValues() {
             winchip*)                     CT_TARGET_ARCH=i486;;
             pentium|pentium-mmx|c3*)      CT_TARGET_ARCH=i586;;
             pentiumpro|pentium*|athlon*)  CT_TARGET_ARCH=i686;;
-            prescott)                     CT_TARGET_ARCH=i686;;
+            core2|atom)                   CT_TARGET_ARCH=i686;;
+            prescott|nocona)              CT_TARGET_ARCH=i686;;
+            k8*|opteron*)                 CT_TARGET_ARCH=i686;;
             *)                            CT_TARGET_ARCH=i586;;
         esac
     fi
@@ -35,11 +37,12 @@ CT_DoArchTupleValues() {
 
 #------------------------------------------------------------------------------
 # Get multilib architecture-specific target
-# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
+# Usage: CT_DoArchMultilibTarget "target variable" "multilib flags"
 CT_DoArchMultilibTarget ()
 {
-    local target="${1}"; shift
+    local target_var="${1}"; shift
     local -a multi_flags=( "$@" )
+    local target_
 
     local bit32=false
     local bit64=false
@@ -54,17 +57,126 @@ CT_DoArchMultilibTarget ()
         esac
     done
 
+    eval target_=\"\${${target_var}}\"
+
     # Fix up architecture.
-    case "${target}" in
-        x86_64-*)      $bit32 && target=${target/#x86_64-/i386-} ;;
-        i[34567]86-*)  $bit64 && target=${target/#i[34567]86-/x86_64-} ;;
+    case "${target_}" in
+        x86_64-*)      $bit32 && target_=${target_/#x86_64-/i386-} ;;
+        i[34567]86-*)  $bit64 && target_=${target_/#i[34567]86-/x86_64-} ;;
     esac
 
     # Fix up the ABI part.
-    case "${target}" in
-        *x32) $abi_dflt && target=${target/%x32} ;;
-        *)    $abi_x32  && target=${target}x32 ;;
+    case "${target_}" in
+        *x32) $abi_dflt && target_=${target_/%x32} ;;
+        *)    $abi_x32  && target_=${target_}x32 ;;
     esac
 
-    echo "${target}"
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
+}
+
+# Adjust target tuple for GLIBC
+CT_DoArchGlibcAdjustTuple() {
+    local target_var="${1}"
+    local target_
+
+    eval target_=\"\${${target_var}}\"
+
+    case "${target_}" in
+        # x86 quirk: architecture name is i386, but glibc expects i[4567]86 - to
+        # indicate the desired optimization. If it was a multilib variant of x86_64,
+        # then it targets at least NetBurst a.k.a. i786, but we'll follow the model
+        # above # and set the optimization to i686. Otherwise, replace with the most
+        # conservative choice, i486.
+        i386-*)
+            if [ "${CT_TARGET_ARCH}" = "x86_64" ]; then
+                target_=${target_/#i386-/i686-}
+            elif [ "${CT_TARGET_ARCH}" != "i386" ]; then
+                target_=${target_/#i386-/${CT_TARGET_ARCH}-}
+            else
+                target_=${target_/#i386-/i486-}
+            fi
+            ;;
+    esac
+
+    # Set the target variable
+    eval ${target_var}=\"${target_}\"
+}
+
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
+
+    if [ "${CT_ARCH_BITNESS}" = 64 ]; then
+        CT_DoArchUClibcSelectArch "${cfg}" "x86_64"
+    else
+        CT_DoArchUClibcSelectArch "${cfg}" "i386"
+    fi
+
+    # FIXME This doesn't cover all cases of x86_32 on uClibc (!ng)
+    CT_KconfigDisableOption "CONFIG_386" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_486" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_586" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_686" "${cfg}"
+    case ${CT_TARGET_ARCH} in
+        i386)
+            CT_KconfigEnableOption "CONFIG_386" "${cfg}"
+            ;;
+        i486)
+            CT_KconfigEnableOption "CONFIG_486" "${cfg}"
+            ;;
+        i586)
+            CT_KconfigEnableOption "CONFIG_586" "${cfg}"
+            ;;
+        i686)
+            CT_KconfigEnableOption "CONFIG_686" "${cfg}"
+            ;;
+    esac
+}
+
+CT_DoArchUClibcCflags() {
+    local cfg="${1}"
+    local cflags="${2}"
+    local f
+
+    for f in ${cflags}; do
+        case "${f}" in
+            -m64)
+                CT_DoArchUClibcSelectArch "${cfg}" "x86_64"
+                ;;
+            -m32)
+                # Since it's a part of multilib with 64-bit flavor, default
+                # to new architecture (i686).
+                CT_DoArchUClibcSelectArch "${cfg}" "i386"
+                CT_KconfigDisableOption "CONFIG_386" "${cfg}"
+                CT_KconfigDisableOption "CONFIG_486" "${cfg}"
+                CT_KconfigDisableOption "CONFIG_586" "${cfg}"
+                CT_KconfigEnableOption "CONFIG_686" "${cfg}"
+                ;;
+            -mx32)
+                CT_Abort "uClibc does not support x32 ABI"
+                ;;
+        esac
+    done
+}
+
+CT_DoArchUClibcHeaderDir() {
+    local dir_var="${1}"
+    local cflags="${2}"
+
+    # If it is non-default multilib, add a suffix with architecture (reported by gcc)
+    # to the headers installation path.
+    if [ -n "${cflags}" ]; then
+        eval "${dir_var}="$( ${CT_TARGET}-gcc -print-multiarch ${cflags} )
+    fi
+}
+
+CT_DoArchMUSLHeaderDir() {
+    local dir_var="${1}"
+    local cflags="${2}"
+
+    # If it is non-default multilib, add a suffix with architecture (reported by gcc)
+    # to the headers installation path.
+    if [ -n "${cflags}" ]; then
+        eval "${dir_var}="$( ${CT_TARGET}-gcc -print-multiarch ${cflags} )
+    fi
 }

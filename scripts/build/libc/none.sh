@@ -10,10 +10,6 @@ do_libc_extract() {
     :
 }
 
-do_libc_check_config() {
-    :
-}
-
 do_libc_start_files() {
     :
 }

@@ -20,13 +20,8 @@ CT_DoArchTupleValues () {
 
 }
 
-#------------------------------------------------------------------------------
-# Get multilib architecture-specific target
-# Usage: CT_DoArchMultilibTarget "multilib flags" "target tuple"
-CT_DoArchMultilibTarget ()
-{
-    local target="${1}"; shift
-    local -a multi_flags=( "$@" )
+CT_DoArchUClibcConfig() {
+    local cfg="${1}"
 
-    echo "${target}"
+    CT_DoArchUClibcSelectArch "${cfg}" "microblaze"
 }
