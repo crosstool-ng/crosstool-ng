@@ -778,7 +778,7 @@ gcc_movelibs() {
     done
 
     # Move only files, directories are for other multilibs
-    gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}"
+    gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_os_dir}"
     ls "${gcc_dir}" | while read f; do
         if [ -f "${gcc_dir}/${f}" ]; then
             CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${multi_root}/lib/${multi_os_dir}/${f}"
