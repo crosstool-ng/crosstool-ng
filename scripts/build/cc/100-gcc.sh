@@ -769,6 +769,23 @@ do_gcc_for_build() {
     CT_EndStep
 }
 
+gcc_movelibs() {
+    local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
+    local gcc_dir
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    # Move only files, directories are for other multilibs
+    gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_os_dir}"
+    ls "${gcc_dir}" | while read f; do
+        if [ -f "${gcc_dir}/${f}" ]; then
+            CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${multi_root}/lib/${multi_os_dir}/${f}"
+        fi
+    done
+}
+
 #------------------------------------------------------------------------------
 # Build final gcc to run on host
 do_gcc_for_host() {
@@ -800,10 +817,18 @@ do_gcc_for_host() {
 
     CT_DoStep INFO "Installing final gcc compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-final"
-
     "${final_backend}" "${final_opts[@]}"
-
     CT_Popd
+
+    # GCC installs stuff (including libgcc) into its own /lib dir,
+    # outside of sysroot, breaking linking with -static-libgcc.
+    # Fix up by moving the libraries into the sysroot.
+    if [ "${CT_USE_SYSROOT}" = "y" ]; then
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-final-movelibs"
+        CT_IterateMultilibs gcc_movelibs movelibs
+        CT_Popd
+    fi
+
     CT_EndStep
 }
 
