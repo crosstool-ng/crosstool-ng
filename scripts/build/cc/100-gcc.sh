@@ -780,8 +780,20 @@ gcc_movelibs() {
 
     # Move only files, directories are for other multilibs
     gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_os_dir}"
+    if [ ! -d "${gcc_dir}" ]; then
+        # GCC didn't install anything outside of sysroot
+        return
+    fi
     ls "${gcc_dir}" | while read f; do
+        case "${f}" in
+            *.ld)
+                # Linker scripts remain in GCC's directory; elf2flt insists on
+                # finding them there.
+                continue
+                ;;
+        esac
         if [ -f "${gcc_dir}/${f}" ]; then
+            CT_DoExecLog ALL mkdir -p "${multi_root}/lib/${multi_os_dir}"
             CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${multi_root}/lib/${multi_os_dir}/${f}"
         fi
     done
