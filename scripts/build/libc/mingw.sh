@@ -83,6 +83,31 @@ do_check_mingw_vendor_tuple()
     fi
 }
 
+do_mingw_tools() {
+    for f in gendef genidl genlib genpeimg widl
+    do
+        if [[ ! -d "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-tools/${f}" ]]; then
+            continue;
+        fi
+
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-tools/${f}"
+
+        CT_DoExecLog CFG        \
+            "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-tools/${f}/configure" \
+            --build=${CT_BUILD} \
+            --host=${CT_HOST} \
+            --target=${CT_TARGET} \
+            --program-prefix=${CT_TARGET}- \
+            --prefix="${CT_PREFIX_DIR}"
+
+        CT_DoExecLog ALL ${make} ${JOBSFLAGS}
+
+        CT_DoExecLog ALL ${make} install
+
+        CT_Popd
+    done
+}
+
 do_libc() {
     do_check_mingw_vendor_tuple
 
@@ -108,6 +133,11 @@ do_libc() {
 
     CT_DoLog EXTRA "Installing mingw-w64-crt"
     CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
+
+    if [[ ${CT_MINGW_TOOLS} == "y" ]]; then
+        CT_DoLog EXTRA "Installing mingw-w64 companion tools"
+        do_mingw_tools
+    fi
 
     CT_EndStep
 
