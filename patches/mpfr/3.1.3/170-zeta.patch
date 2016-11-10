@@ -1,0 +1,125 @@
+diff -Naurd mpfr-3.1.3-a/PATCHES mpfr-3.1.3-b/PATCHES
+--- mpfr-3.1.3-a/PATCHES	2016-02-15 15:11:00.898156344 +0000
++++ mpfr-3.1.3-b/PATCHES	2016-02-15 15:11:00.966156445 +0000
+@@ -0,0 +1 @@
++zeta
+diff -Naurd mpfr-3.1.3-a/VERSION mpfr-3.1.3-b/VERSION
+--- mpfr-3.1.3-a/VERSION	2016-02-15 15:10:03.414066216 +0000
++++ mpfr-3.1.3-b/VERSION	2016-02-15 15:11:00.966156445 +0000
+@@ -1 +1 @@
+-3.1.3-p6
++3.1.3-p7
+diff -Naurd mpfr-3.1.3-a/src/mpfr.h mpfr-3.1.3-b/src/mpfr.h
+--- mpfr-3.1.3-a/src/mpfr.h	2016-02-15 15:10:03.410066210 +0000
++++ mpfr-3.1.3-b/src/mpfr.h	2016-02-15 15:11:00.962156439 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 1
+ #define MPFR_VERSION_PATCHLEVEL 3
+-#define MPFR_VERSION_STRING "3.1.3-p6"
++#define MPFR_VERSION_STRING "3.1.3-p7"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-3.1.3-a/src/version.c mpfr-3.1.3-b/src/version.c
+--- mpfr-3.1.3-a/src/version.c	2016-02-15 15:10:03.414066216 +0000
++++ mpfr-3.1.3-b/src/version.c	2016-02-15 15:11:00.966156445 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.1.3-p6";
++  return "3.1.3-p7";
+ }
+diff -Naurd mpfr-3.1.3-a/src/zeta.c mpfr-3.1.3-b/src/zeta.c
+--- mpfr-3.1.3-a/src/zeta.c	2015-06-19 19:55:10.000000000 +0000
++++ mpfr-3.1.3-b/src/zeta.c	2016-02-15 15:11:00.942156410 +0000
+@@ -377,8 +377,8 @@
+         }
+     }
+ 
+-  /* Check for case s= 1 before changing the exponent range */
+-  if (mpfr_cmp (s, __gmpfr_one) ==0)
++  /* Check for case s=1 before changing the exponent range */
++  if (mpfr_cmp (s, __gmpfr_one) == 0)
+     {
+       MPFR_SET_INF (z);
+       MPFR_SET_POS (z);
+@@ -420,7 +420,7 @@
+       MPFR_ZIV_INIT (loop, prec1);
+       for (;;)
+         {
+-          mpfr_sub (s1, __gmpfr_one, s, MPFR_RNDN);/* s1 = 1-s */
++          mpfr_sub (s1, __gmpfr_one, s, MPFR_RNDN); /* s1 = 1-s */
+           mpfr_zeta_pos (z_pre, s1, MPFR_RNDN);   /* zeta(1-s)  */
+           mpfr_gamma (y, s1, MPFR_RNDN);          /* gamma(1-s) */
+           if (MPFR_IS_INF (y)) /* Zeta(s) < 0 for -4k-2 < s < -4k,
+@@ -432,17 +432,32 @@
+               break;
+             }
+           mpfr_mul (z_pre, z_pre, y, MPFR_RNDN);  /* gamma(1-s)*zeta(1-s) */
+-          mpfr_const_pi (p, MPFR_RNDD);
+-          mpfr_mul (y, s, p, MPFR_RNDN);
+-          mpfr_div_2ui (y, y, 1, MPFR_RNDN);      /* s*Pi/2 */
+-          mpfr_sin (y, y, MPFR_RNDN);             /* sin(Pi*s/2) */
+-          mpfr_mul (z_pre, z_pre, y, MPFR_RNDN);
++
++          mpfr_const_pi (p, MPFR_RNDD); /* p is Pi */
++
++          /* multiply z_pre by 2^s*Pi^(s-1) where p=Pi, s1=1-s */
+           mpfr_mul_2ui (y, p, 1, MPFR_RNDN);      /* 2*Pi */
+           mpfr_neg (s1, s1, MPFR_RNDN);           /* s-1 */
+           mpfr_pow (y, y, s1, MPFR_RNDN);         /* (2*Pi)^(s-1) */
+           mpfr_mul (z_pre, z_pre, y, MPFR_RNDN);
+           mpfr_mul_2ui (z_pre, z_pre, 1, MPFR_RNDN);
+ 
++          /* multiply z_pre by sin(Pi*s/2) */
++          mpfr_mul (y, s, p, MPFR_RNDN);
++          mpfr_div_2ui (p, y, 1, MPFR_RNDN);      /* p = s*Pi/2 */
++          mpfr_sin (y, p, MPFR_RNDN);             /* y = sin(Pi*s/2) */
++          if (MPFR_GET_EXP(y) < 0) /* take account of cancellation in sin(p) */
++            {
++              mpfr_t t;
++              mpfr_init2 (t, prec1 - MPFR_GET_EXP(y));
++              mpfr_const_pi (t, MPFR_RNDD);
++              mpfr_mul (t, s, t, MPFR_RNDN);
++              mpfr_div_2ui (t, t, 1, MPFR_RNDN);
++              mpfr_sin (y, t, MPFR_RNDN);
++              mpfr_clear (t);
++            }
++          mpfr_mul (z_pre, z_pre, y, MPFR_RNDN);
++
+           if (MPFR_LIKELY (MPFR_CAN_ROUND (z_pre, prec1 - add, precz,
+                                            rnd_mode)))
+             break;
+diff -Naurd mpfr-3.1.3-a/tests/tzeta.c mpfr-3.1.3-b/tests/tzeta.c
+--- mpfr-3.1.3-a/tests/tzeta.c	2015-06-19 19:55:10.000000000 +0000
++++ mpfr-3.1.3-b/tests/tzeta.c	2016-02-15 15:11:00.942156410 +0000
+@@ -394,6 +394,27 @@
+   mpfr_nextabove (s);
+   MPFR_ASSERTN (mpfr_equal_p (z, s) && inex > 0);
+ 
++  /* bug reported by Fredrik Johansson on 19 Jan 2016 */
++  mpfr_set_prec (s, 536);
++  mpfr_set_ui_2exp (s, 1, -424, MPFR_RNDN);
++  mpfr_sub_ui (s, s, 128, MPFR_RNDN);  /* -128 + 2^(-424) */
++  for (prec = 6; prec <= 536; prec += 8) /* should go through 318 */
++    {
++      mpfr_set_prec (z, prec);
++      mpfr_zeta (z, s, MPFR_RNDD);
++      mpfr_set_prec (y, prec + 10);
++      mpfr_zeta (y, s, MPFR_RNDD);
++      mpfr_prec_round (y, prec, MPFR_RNDD);
++      if (! mpfr_equal_p (z, y))
++        {
++          printf ("mpfr_zeta fails near -128 for inprec=%lu outprec=%lu\n",
++                  (unsigned long) mpfr_get_prec (s), (unsigned long) prec);
++          printf ("expected "); mpfr_dump (y);
++          printf ("got      "); mpfr_dump (z);
++          exit (1);
++        }
++    }
++
+   mpfr_clear (s);
+   mpfr_clear (y);
+   mpfr_clear (z);

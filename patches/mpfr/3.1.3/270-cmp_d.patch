@@ -1,0 +1,219 @@
+diff -Naurd mpfr-3.1.3-a/PATCHES mpfr-3.1.3-b/PATCHES
+--- mpfr-3.1.3-a/PATCHES	2016-02-23 12:28:35.578442642 +0000
++++ mpfr-3.1.3-b/PATCHES	2016-02-23 12:28:35.602442321 +0000
+@@ -0,0 +1 @@
++cmp_d
+diff -Naurd mpfr-3.1.3-a/VERSION mpfr-3.1.3-b/VERSION
+--- mpfr-3.1.3-a/VERSION	2016-02-23 07:55:54.052346433 +0000
++++ mpfr-3.1.3-b/VERSION	2016-02-23 12:28:35.602442321 +0000
+@@ -1 +1 @@
+-3.1.3-p16
++3.1.3-p17
+diff -Naurd mpfr-3.1.3-a/src/cmp_d.c mpfr-3.1.3-b/src/cmp_d.c
+--- mpfr-3.1.3-a/src/cmp_d.c	2015-06-19 19:55:10.000000000 +0000
++++ mpfr-3.1.3-b/src/cmp_d.c	2016-02-23 12:28:35.590442481 +0000
+@@ -27,12 +27,19 @@
+ {
+   mpfr_t tmp;
+   int res;
++  MPFR_SAVE_EXPO_DECL (expo);
++
++  MPFR_SAVE_EXPO_MARK (expo);
+ 
+   mpfr_init2 (tmp, IEEE_DBL_MANT_DIG);
+   res = mpfr_set_d (tmp, d, MPFR_RNDN);
+   MPFR_ASSERTD (res == 0);
++
++  mpfr_clear_flags ();
+   res = mpfr_cmp (b, tmp);
+-  mpfr_clear (tmp);
++  MPFR_SAVE_EXPO_UPDATE_FLAGS (expo, __gmpfr_flags);
+ 
++  mpfr_clear (tmp);
++  MPFR_SAVE_EXPO_FREE (expo);
+   return res;
+ }
+diff -Naurd mpfr-3.1.3-a/src/cmp_ld.c mpfr-3.1.3-b/src/cmp_ld.c
+--- mpfr-3.1.3-a/src/cmp_ld.c	2015-06-19 19:55:10.000000000 +0000
++++ mpfr-3.1.3-b/src/cmp_ld.c	2016-02-23 12:28:35.590442481 +0000
+@@ -27,12 +27,19 @@
+ {
+   mpfr_t tmp;
+   int res;
++  MPFR_SAVE_EXPO_DECL (expo);
++
++  MPFR_SAVE_EXPO_MARK (expo);
+ 
+   mpfr_init2 (tmp, MPFR_LDBL_MANT_DIG);
+   res = mpfr_set_ld (tmp, d, MPFR_RNDN);
+   MPFR_ASSERTD (res == 0);
++
++  mpfr_clear_flags ();
+   res = mpfr_cmp (b, tmp);
+-  mpfr_clear (tmp);
++  MPFR_SAVE_EXPO_UPDATE_FLAGS (expo, __gmpfr_flags);
+ 
++  mpfr_clear (tmp);
++  MPFR_SAVE_EXPO_FREE (expo);
+   return res;
+ }
+diff -Naurd mpfr-3.1.3-a/src/mpfr.h mpfr-3.1.3-b/src/mpfr.h
+--- mpfr-3.1.3-a/src/mpfr.h	2016-02-23 07:55:54.052346433 +0000
++++ mpfr-3.1.3-b/src/mpfr.h	2016-02-23 12:28:35.598442376 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 1
+ #define MPFR_VERSION_PATCHLEVEL 3
+-#define MPFR_VERSION_STRING "3.1.3-p16"
++#define MPFR_VERSION_STRING "3.1.3-p17"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-3.1.3-a/src/version.c mpfr-3.1.3-b/src/version.c
+--- mpfr-3.1.3-a/src/version.c	2016-02-23 07:55:54.052346433 +0000
++++ mpfr-3.1.3-b/src/version.c	2016-02-23 12:28:35.598442376 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.1.3-p16";
++  return "3.1.3-p17";
+ }
+diff -Naurd mpfr-3.1.3-a/tests/tcmp_d.c mpfr-3.1.3-b/tests/tcmp_d.c
+--- mpfr-3.1.3-a/tests/tcmp_d.c	2015-06-19 19:55:10.000000000 +0000
++++ mpfr-3.1.3-b/tests/tcmp_d.c	2016-02-23 12:28:35.590442481 +0000
+@@ -29,8 +29,10 @@
+ main (void)
+ {
+   mpfr_t x;
++  mpfr_exp_t emin;
+ 
+   tests_start_mpfr ();
++  emin = mpfr_get_emin ();
+ 
+   mpfr_init2(x, IEEE_DBL_MANT_DIG);
+ 
+@@ -67,16 +69,31 @@
+       exit (1);
+     }
+ 
++  /* Test in reduced exponent range. */
++  set_emin (1);
++  mpfr_set_ui (x, 1, MPFR_RNDN);
++  if (mpfr_cmp_d (x, 0.9) <= 0)
++    {
++      printf ("Error in reduced exponent range.\n");
++      exit (1);
++    }
++  set_emin (emin);
++
+ #if !defined(MPFR_ERRDIVZERO)
+   /* Check NAN */
+   {
+     int c;
+ 
+-    mpfr_clear_erangeflag ();
++    mpfr_clear_flags ();
+     c = mpfr_cmp_d (x, DBL_NAN);
+-    if (c != 0 || !mpfr_erangeflag_p ())
++    if (c != 0 || __gmpfr_flags != MPFR_FLAGS_ERANGE)
+       {
+         printf ("ERROR for NAN (1)\n");
++        printf ("Expected 0, got %d\n", c);
++        printf ("Expected flags:");
++        flags_out (MPFR_FLAGS_ERANGE);
++        printf ("Got flags:     ");
++        flags_out (__gmpfr_flags);
+ #ifdef MPFR_NANISNAN
+         printf ("The reason is that NAN == NAN. Please look at the configure "
+                 "output\nand Section \"In case of problem\" of the INSTALL "
+@@ -84,12 +101,18 @@
+ #endif
+         exit (1);
+       }
++
+     mpfr_set_nan (x);
+-    mpfr_clear_erangeflag ();
++    mpfr_clear_flags ();
+     c = mpfr_cmp_d (x, 2.0);
+-    if (c != 0 || !mpfr_erangeflag_p ())
++    if (c != 0 || __gmpfr_flags != MPFR_FLAGS_ERANGE)
+       {
+         printf ("ERROR for NAN (2)\n");
++        printf ("Expected 0, got %d\n", c);
++        printf ("Expected flags:");
++        flags_out (MPFR_FLAGS_ERANGE);
++        printf ("Got flags:     ");
++        flags_out (__gmpfr_flags);
+ #ifdef MPFR_NANISNAN
+         printf ("The reason is that NAN == NAN. Please look at the configure "
+                 "output\nand Section \"In case of problem\" of the INSTALL "
+diff -Naurd mpfr-3.1.3-a/tests/tcmp_ld.c mpfr-3.1.3-b/tests/tcmp_ld.c
+--- mpfr-3.1.3-a/tests/tcmp_ld.c	2015-06-19 19:55:10.000000000 +0000
++++ mpfr-3.1.3-b/tests/tcmp_ld.c	2016-02-23 12:28:35.590442481 +0000
+@@ -28,8 +28,10 @@
+ main (void)
+ {
+   mpfr_t x;
++  mpfr_exp_t emin;
+ 
+   tests_start_mpfr ();
++  emin = mpfr_get_emin ();
+ 
+   mpfr_init2(x, MPFR_LDBL_MANT_DIG);
+ 
+@@ -66,16 +68,31 @@
+       exit (1);
+     }
+ 
++  /* Test in reduced exponent range. */
++  set_emin (1);
++  mpfr_set_ui (x, 1, MPFR_RNDN);
++  if (mpfr_cmp_ld (x, 0.9) <= 0)
++    {
++      printf ("Error in reduced exponent range.\n");
++      exit (1);
++    }
++  set_emin (emin);
++
+ #if !defined(MPFR_ERRDIVZERO)
+   /* Check NAN */
+   {
+     int c;
+ 
+-    mpfr_clear_erangeflag ();
++    mpfr_clear_flags ();
+     c = mpfr_cmp_ld (x, DBL_NAN);
+-    if (c != 0 || !mpfr_erangeflag_p ())
++    if (c != 0 || __gmpfr_flags != MPFR_FLAGS_ERANGE)
+       {
+         printf ("ERROR for NAN (1)\n");
++        printf ("Expected 0, got %d\n", c);
++        printf ("Expected flags:");
++        flags_out (MPFR_FLAGS_ERANGE);
++        printf ("Got flags:     ");
++        flags_out (__gmpfr_flags);
+ #ifdef MPFR_NANISNAN
+         printf ("The reason is that NAN == NAN. Please look at the configure "
+                 "output\nand Section \"In case of problem\" of the INSTALL "
+@@ -83,12 +100,18 @@
+ #endif
+         exit (1);
+       }
++
+     mpfr_set_nan (x);
+-    mpfr_clear_erangeflag ();
++    mpfr_clear_flags ();
+     c = mpfr_cmp_ld (x, 2.0);
+-    if (c != 0 || !mpfr_erangeflag_p ())
++    if (c != 0 || __gmpfr_flags != MPFR_FLAGS_ERANGE)
+       {
+         printf ("ERROR for NAN (2)\n");
++        printf ("Expected 0, got %d\n", c);
++        printf ("Expected flags:");
++        flags_out (MPFR_FLAGS_ERANGE);
++        printf ("Got flags:     ");
++        flags_out (__gmpfr_flags);
+ #ifdef MPFR_NANISNAN
+         printf ("The reason is that NAN == NAN. Please look at the configure "
+                 "output\nand Section \"In case of problem\" of the INSTALL "
