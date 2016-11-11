@@ -436,6 +436,7 @@ do_gcc_core_backend() {
 
     extra_config+=(--disable-libgomp)
     extra_config+=(--disable-libmudflap)
+    extra_config+=(--disable-libmpx)
 
     if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
         extra_config+=(--enable-libssp)
@@ -695,8 +696,16 @@ do_gcc_core_backend() {
     CT_DoLog EXTRA "Building ${log_txt}"
     CT_DoExecLog ALL ${make} ${JOBSFLAGS} ${core_targets_all}
 
+    # Do not pass ${JOBSFLAGS} here: recent GCC builds have been failing
+    # in parallel 'make install' at random locations: libitm, libcilk,
+    # always for the files that are installed more than once to the same
+    # location (such as libitm.info).
+    # The symptom is that the install command fails with "File exists"
+    # error; running the same command manually succeeds. It looks like
+    # attempts to remove the destination and re-create it, but another
+    # install gets in the way.
     CT_DoLog EXTRA "Installing ${log_txt}"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS} ${core_targets_install}
+    CT_DoExecLog ALL ${make} ${core_targets_install}
 
     # Remove the libtool "pseudo-libraries": having them in the installed
     # tree makes the libtoolized utilities that are built next assume
@@ -769,6 +778,35 @@ do_gcc_for_build() {
     CT_EndStep
 }
 
+gcc_movelibs() {
+    local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
+    local gcc_dir
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    # Move only files, directories are for other multilibs
+    gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_os_dir}"
+    if [ ! -d "${gcc_dir}" ]; then
+        # GCC didn't install anything outside of sysroot
+        return
+    fi
+    ls "${gcc_dir}" | while read f; do
+        case "${f}" in
+            *.ld)
+                # Linker scripts remain in GCC's directory; elf2flt insists on
+                # finding them there.
+                continue
+                ;;
+        esac
+        if [ -f "${gcc_dir}/${f}" ]; then
+            CT_DoExecLog ALL mkdir -p "${multi_root}/lib/${multi_os_dir}"
+            CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${multi_root}/lib/${multi_os_dir}/${f}"
+        fi
+    done
+}
+
 #------------------------------------------------------------------------------
 # Build final gcc to run on host
 do_gcc_for_host() {
@@ -800,10 +838,18 @@ do_gcc_for_host() {
 
     CT_DoStep INFO "Installing final gcc compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-final"
-
     "${final_backend}" "${final_opts[@]}"
-
     CT_Popd
+
+    # GCC installs stuff (including libgcc) into its own /lib dir,
+    # outside of sysroot, breaking linking with -static-libgcc.
+    # Fix up by moving the libraries into the sysroot.
+    if [ "${CT_USE_SYSROOT}" = "y" ]; then
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-final-movelibs"
+        CT_IterateMultilibs gcc_movelibs movelibs
+        CT_Popd
+    fi
+
     CT_EndStep
 }
 
@@ -901,6 +947,14 @@ do_gcc_backend() {
             extra_config+=(--enable-libsanitizer)
         else
             extra_config+=(--disable-libsanitizer)
+        fi
+    fi
+
+    if [ "${CT_CC_GCC_HAS_LIBMPX}" = "y" ]; then
+        if [ "${CT_CC_GCC_LIBMPX}" = "y" ]; then
+            extra_config+=(--enable-libmpx)
+        else
+            extra_config+=(--disable-libmpx)
         fi
     fi
 
@@ -1082,11 +1136,12 @@ do_gcc_backend() {
     CT_DoLog EXTRA "Building final gcc compiler"
     CT_DoExecLog ALL ${make} ${JOBSFLAGS} all
 
+    # See the note on issues with parallel 'make install' in GCC above.
     CT_DoLog EXTRA "Installing final gcc compiler"
     if [ "${CT_STRIP_TARGET_TOOLCHAIN_EXECUTABLES}" = "y" ]; then
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS} install-strip
+        CT_DoExecLog ALL ${make} install-strip
     else
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS} install
+        CT_DoExecLog ALL ${make} install
     fi
 
     # Remove the libtool "pseudo-libraries": having them in the installed

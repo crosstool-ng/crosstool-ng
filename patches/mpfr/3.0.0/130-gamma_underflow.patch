@@ -1,0 +1,88 @@
+diff -Naurd mpfr-3.0.0-a/PATCHES mpfr-3.0.0-b/PATCHES
+--- mpfr-3.0.0-a/PATCHES	2010-07-10 00:11:19.000000000 +0000
++++ mpfr-3.0.0-b/PATCHES	2010-07-10 00:12:50.000000000 +0000
+@@ -0,0 +1 @@
++gamma_underflow
+diff -Naurd mpfr-3.0.0-a/VERSION mpfr-3.0.0-b/VERSION
+--- mpfr-3.0.0-a/VERSION	2010-06-25 13:23:13.000000000 +0000
++++ mpfr-3.0.0-b/VERSION	2010-07-10 00:11:53.000000000 +0000
+@@ -1 +1 @@
+-3.0.0-p2
++3.0.0-p3
+diff -Naurd mpfr-3.0.0-a/gamma.c mpfr-3.0.0-b/gamma.c
+--- mpfr-3.0.0-a/gamma.c	2010-06-10 11:00:14.000000000 +0000
++++ mpfr-3.0.0-b/gamma.c	2010-07-10 00:11:46.000000000 +0000
+@@ -274,7 +274,7 @@
+       /* we want an upper bound for x * [log(2-x)-1].
+          since x < 0, we need a lower bound on log(2-x) */
+       mpfr_ui_sub (xp, 2, x, MPFR_RNDD);
+-      mpfr_log (xp, xp, MPFR_RNDD);
++      mpfr_log2 (xp, xp, MPFR_RNDD);
+       mpfr_sub_ui (xp, xp, 1, MPFR_RNDD);
+       mpfr_mul (xp, xp, x, MPFR_RNDU);
+ 
+@@ -303,8 +303,8 @@
+         {
+           mpfr_sub (tmp, tmp, tmp2, MPFR_RNDZ); /* low bnd on |sin(Pi*(2-x))| */
+           mpfr_ui_div (tmp, 12, tmp, MPFR_RNDU); /* upper bound */
+-          mpfr_log (tmp, tmp, MPFR_RNDU);
+-          mpfr_add (tmp, tmp, xp, MPFR_RNDU);
++          mpfr_log2 (tmp, tmp, MPFR_RNDU);
++          mpfr_add (xp, tmp, xp, MPFR_RNDU);
+           underflow = mpfr_cmp_si (xp, expo.saved_emin - 2) <= 0;
+         }
+ 
+diff -Naurd mpfr-3.0.0-a/mpfr.h mpfr-3.0.0-b/mpfr.h
+--- mpfr-3.0.0-a/mpfr.h	2010-06-25 13:23:13.000000000 +0000
++++ mpfr-3.0.0-b/mpfr.h	2010-07-10 00:11:53.000000000 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 0
+ #define MPFR_VERSION_PATCHLEVEL 0
+-#define MPFR_VERSION_STRING "3.0.0-p2"
++#define MPFR_VERSION_STRING "3.0.0-p3"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-3.0.0-a/tests/tgamma.c mpfr-3.0.0-b/tests/tgamma.c
+--- mpfr-3.0.0-a/tests/tgamma.c	2010-06-10 11:00:13.000000000 +0000
++++ mpfr-3.0.0-b/tests/tgamma.c	2010-07-10 00:11:46.000000000 +0000
+@@ -461,6 +461,20 @@
+   mpfr_clear (x);
+ }
+ 
++/* bug found by Stathis, only occurs on 32-bit machines */
++static void
++test20100709 (void)
++{
++  mpfr_t x;
++  int inex;
++
++  mpfr_init2 (x, 100);
++  mpfr_set_str (x, "-4.6308260837372266e+07", 10, MPFR_RNDN);
++  inex = mpfr_gamma (x, x, MPFR_RNDN);
++  MPFR_ASSERTN(MPFR_IS_ZERO(x) && MPFR_IS_NEG(x) && inex > 0);
++  mpfr_clear (x);
++}
++
+ int
+ main (int argc, char *argv[])
+ {
+@@ -471,6 +485,7 @@
+   test_generic (2, 100, 2);
+   gamma_integer ();
+   test20071231 ();
++  test20100709 ();
+ 
+   data_check ("data/gamma", mpfr_gamma, "mpfr_gamma");
+ 
+diff -Naurd mpfr-3.0.0-a/version.c mpfr-3.0.0-b/version.c
+--- mpfr-3.0.0-a/version.c	2010-06-25 13:23:13.000000000 +0000
++++ mpfr-3.0.0-b/version.c	2010-07-10 00:11:53.000000000 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.0.0-p2";
++  return "3.0.0-p3";
+ }

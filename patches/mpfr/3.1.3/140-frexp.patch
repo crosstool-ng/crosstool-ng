@@ -1,0 +1,204 @@
+diff -Naurd mpfr-3.1.3-a/PATCHES mpfr-3.1.3-b/PATCHES
+--- mpfr-3.1.3-a/PATCHES	2015-07-17 08:58:21.094987384 +0000
++++ mpfr-3.1.3-b/PATCHES	2015-07-17 08:58:21.118986898 +0000
+@@ -0,0 +1 @@
++frexp
+diff -Naurd mpfr-3.1.3-a/VERSION mpfr-3.1.3-b/VERSION
+--- mpfr-3.1.3-a/VERSION	2015-07-17 08:54:48.616811495 +0000
++++ mpfr-3.1.3-b/VERSION	2015-07-17 08:58:21.118986898 +0000
+@@ -1 +1 @@
+-3.1.3-p3
++3.1.3-p4
+diff -Naurd mpfr-3.1.3-a/src/frexp.c mpfr-3.1.3-b/src/frexp.c
+--- mpfr-3.1.3-a/src/frexp.c	2015-06-19 19:55:09.000000000 +0000
++++ mpfr-3.1.3-b/src/frexp.c	2015-07-17 08:58:21.106987142 +0000
+@@ -26,6 +26,13 @@
+ mpfr_frexp (mpfr_exp_t *exp, mpfr_ptr y, mpfr_srcptr x, mpfr_rnd_t rnd)
+ {
+   int inex;
++  unsigned int saved_flags = __gmpfr_flags;
++  MPFR_BLOCK_DECL (flags);
++
++  MPFR_LOG_FUNC
++    (("x[%Pu]=%.*Rg rnd=%d", mpfr_get_prec (x), mpfr_log_prec, x, rnd),
++     ("y[%Pu]=%.*Rg exp=%" MPFR_EXP_FSPEC "d inex=%d", mpfr_get_prec (y),
++      mpfr_log_prec, y, (mpfr_eexp_t) *exp, inex));
+ 
+   if (MPFR_UNLIKELY(MPFR_IS_SINGULAR(x)))
+     {
+@@ -49,8 +56,32 @@
+         }
+     }
+ 
+-  inex = mpfr_set (y, x, rnd);
++  MPFR_BLOCK (flags, inex = mpfr_set (y, x, rnd));
++  __gmpfr_flags = saved_flags;
++
++  /* Possible overflow due to the rounding, no possible underflow. */
++
++  if (MPFR_UNLIKELY (MPFR_OVERFLOW (flags)))
++    {
++      int inex2;
++
++      /* An overflow here means that the exponent of y would be larger than
++         the one of x, thus x would be rounded to the next power of 2, and
++         the returned y should be 1/2 in absolute value, rounded (i.e. with
++         possible underflow or overflow). This also implies that x and y are
++         different objects, so that the exponent of x has not been lost. */
++      MPFR_LOG_MSG (("Internal overflow\n", 0));
++      MPFR_ASSERTD (x != y);
++      *exp = MPFR_GET_EXP (x) + 1;
++      inex2 = mpfr_set_si_2exp (y, MPFR_INT_SIGN (x), -1, rnd);
++      MPFR_LOG_MSG (("inex=%d inex2=%d\n", inex, inex2));
++      if (inex2 != 0)
++        inex = inex2;
++      MPFR_RET (inex);
++    }
++
+   *exp = MPFR_GET_EXP (y);
+-  MPFR_SET_EXP (y, 0);
++  /* Do not use MPFR_SET_EXP because the range has not been checked yet. */
++  MPFR_EXP (y) = 0;
+   return mpfr_check_range (y, inex, rnd);
+ }
+diff -Naurd mpfr-3.1.3-a/src/mpfr.h mpfr-3.1.3-b/src/mpfr.h
+--- mpfr-3.1.3-a/src/mpfr.h	2015-07-17 08:54:48.616811495 +0000
++++ mpfr-3.1.3-b/src/mpfr.h	2015-07-17 08:58:21.114986979 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 1
+ #define MPFR_VERSION_PATCHLEVEL 3
+-#define MPFR_VERSION_STRING "3.1.3-p3"
++#define MPFR_VERSION_STRING "3.1.3-p4"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-3.1.3-a/src/version.c mpfr-3.1.3-b/src/version.c
+--- mpfr-3.1.3-a/src/version.c	2015-07-17 08:54:48.616811495 +0000
++++ mpfr-3.1.3-b/src/version.c	2015-07-17 08:58:21.118986898 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.1.3-p3";
++  return "3.1.3-p4";
+ }
+diff -Naurd mpfr-3.1.3-a/tests/tfrexp.c mpfr-3.1.3-b/tests/tfrexp.c
+--- mpfr-3.1.3-a/tests/tfrexp.c	2015-06-19 19:55:10.000000000 +0000
++++ mpfr-3.1.3-b/tests/tfrexp.c	2015-07-17 08:58:21.106987142 +0000
+@@ -129,12 +129,115 @@
+   mpfr_clear (x);
+ }
+ 
++static void check1 (void)
++{
++  mpfr_exp_t emin, emax, e;
++  mpfr_t x, y1, y2;
++  int r, neg, red;
++
++  emin = mpfr_get_emin ();
++  emax = mpfr_get_emax ();
++  set_emin (MPFR_EMIN_MIN);
++  set_emax (MPFR_EMAX_MAX);
++
++  mpfr_init2 (x, 7);
++  mpfr_inits2 (4, y1, y2, (mpfr_ptr) 0);
++
++  mpfr_set_ui_2exp (x, 1, -2, MPFR_RNDN);
++  while (mpfr_regular_p (x))
++    {
++      /* Test the exponents up to 3 and with the maximum exponent
++         (to check potential intermediate overflow). */
++      if (MPFR_GET_EXP (x) == 4)
++        mpfr_set_exp (x, MPFR_EMAX_MAX);
++      e = MPFR_GET_EXP (x);
++      for (neg = 0; neg < 2; neg++)
++        {
++          RND_LOOP (r)
++            {
++              int inex1, inex2;
++              mpfr_exp_t e1, e2;
++              unsigned int flags1, flags2;
++
++              for (red = 0; red < 2; red++)
++                {
++                  if (red)
++                    {
++                      /* e1: exponent of the rounded value of x. */
++                      MPFR_ASSERTN (e1 == e || e1 == e + 1);
++                      set_emin (e);
++                      set_emax (e);
++                      mpfr_clear_flags ();
++                      inex1 = e1 < 0 ?
++                        mpfr_mul_2ui (y1, x, -e1, (mpfr_rnd_t) r) :
++                        mpfr_div_2ui (y1, x, e1, (mpfr_rnd_t) r);
++                      flags1 = __gmpfr_flags;
++                    }
++                  else
++                    {
++                      inex1 = mpfr_set (y1, x, (mpfr_rnd_t) r);
++                      e1 = MPFR_IS_INF (y1) ? e + 1 : MPFR_GET_EXP (y1);
++                      flags1 = inex1 != 0 ? MPFR_FLAGS_INEXACT : 0;
++                    }
++                  mpfr_clear_flags ();
++                  inex2 = mpfr_frexp (&e2, y2, x, (mpfr_rnd_t) r);
++                  flags2 = __gmpfr_flags;
++                  set_emin (MPFR_EMIN_MIN);
++                  set_emax (MPFR_EMAX_MAX);
++                  if ((!red || e == 0) &&
++                      (! mpfr_regular_p (y2) || MPFR_GET_EXP (y2) != 0))
++                    {
++                      printf ("Error in check1 for %s, red = %d, x = ",
++                              mpfr_print_rnd_mode ((mpfr_rnd_t) r), red);
++                      mpfr_dump (x);
++                      printf ("Expected 1/2 <= |y| < 1, got y = ");
++                      mpfr_dump (y2);
++                      exit (1);
++                    }
++                  if (!red)
++                    {
++                      if (e2 > 0)
++                        mpfr_mul_2ui (y2, y2, e2, MPFR_RNDN);
++                      else if (e2 < 0)
++                        mpfr_div_2ui (y2, y2, -e2, MPFR_RNDN);
++                    }
++                  if (! (SAME_SIGN (inex1, inex2) &&
++                         mpfr_equal_p (y1, y2) &&
++                         flags1 == flags2))
++                    {
++                      printf ("Error in check1 for %s, red = %d, x = ",
++                              mpfr_print_rnd_mode ((mpfr_rnd_t) r), red);
++                      mpfr_dump (x);
++                      printf ("Expected y1 = ");
++                      mpfr_dump (y1);
++                      printf ("Got      y2 = ");
++                      mpfr_dump (y2);
++                      printf ("Expected inex ~= %d, got %d\n", inex1, inex2);
++                      printf ("Expected flags:");
++                      flags_out (flags1);
++                      printf ("Got flags:     ");
++                      flags_out (flags2);
++                      exit (1);
++                    }
++                }
++            }
++          mpfr_neg (x, x, MPFR_RNDN);
++        }
++      mpfr_nextabove (x);
++    }
++
++  mpfr_clears (x, y1, y2, (mpfr_ptr) 0);
++  set_emin (emin);
++  set_emax (emax);
++}
++
+ int
+ main (int argc, char *argv[])
+ {
+   tests_start_mpfr ();
+ 
+   check_special ();
++  check1 ();
+ 
+   tests_end_mpfr ();
+   return 0;

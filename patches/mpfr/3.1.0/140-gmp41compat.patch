@@ -1,0 +1,166 @@
+diff -Naurd mpfr-3.1.0-a/PATCHES mpfr-3.1.0-b/PATCHES
+--- mpfr-3.1.0-a/PATCHES	2011-11-28 12:22:52.000000000 +0000
++++ mpfr-3.1.0-b/PATCHES	2011-11-28 12:22:52.000000000 +0000
+@@ -0,0 +1 @@
++gmp41compat
+diff -Naurd mpfr-3.1.0-a/VERSION mpfr-3.1.0-b/VERSION
+--- mpfr-3.1.0-a/VERSION	2011-11-03 15:15:11.000000000 +0000
++++ mpfr-3.1.0-b/VERSION	2011-11-28 12:22:52.000000000 +0000
+@@ -1 +1 @@
+-3.1.0-p3
++3.1.0-p4
+diff -Naurd mpfr-3.1.0-a/doc/mpfr.info mpfr-3.1.0-b/doc/mpfr.info
+--- mpfr-3.1.0-a/doc/mpfr.info	2011-10-03 09:43:04.000000000 +0000
++++ mpfr-3.1.0-b/doc/mpfr.info	2011-11-28 12:22:52.000000000 +0000
+@@ -2994,11 +2994,12 @@
+ 
+    * `mpfr_urandom' and `mpfr_urandomb' changed in MPFR 3.1.  Their
+      behavior no longer depends on the platform (assuming this is also
+-     true for GMP's random generator).  As a consequence, the returned
+-     values can be different between MPFR 3.1 and previous MPFR
+-     versions.  Note: as the reproducibility of these functions was not
+-     specified before MPFR 3.1, the MPFR 3.1 behavior is _not_ regarded
+-     as backward incompatible with previous versions.
++     true for GMP's random generator, which is not the case between GMP
++     4.1 and 4.2 if `gmp_randinit_default' is used).  As a consequence,
++     the returned values can be different between MPFR 3.1 and previous
++     MPFR versions.  Note: as the reproducibility of these functions
++     was not specified before MPFR 3.1, the MPFR 3.1 behavior is _not_
++     regarded as backward incompatible with previous versions.
+ 
+ 
+ 
+@@ -4239,13 +4240,13 @@
+ Node: Type and Macro Changes129308
+ Node: Added Functions132029
+ Node: Changed Functions134972
+-Node: Removed Functions139167
+-Node: Other Changes139579
+-Node: Contributors141108
+-Node: References143574
+-Node: GNU Free Documentation License145315
+-Node: Concept Index167758
+-Node: Function and Type Index173677
++Node: Removed Functions139253
++Node: Other Changes139665
++Node: Contributors141194
++Node: References143660
++Node: GNU Free Documentation License145401
++Node: Concept Index167844
++Node: Function and Type Index173763
+ 
+ End Tag Table
+ 
+diff -Naurd mpfr-3.1.0-a/doc/mpfr.texi mpfr-3.1.0-b/doc/mpfr.texi
+--- mpfr-3.1.0-a/doc/mpfr.texi	2011-10-03 08:17:14.000000000 +0000
++++ mpfr-3.1.0-b/doc/mpfr.texi	2011-11-28 12:22:52.000000000 +0000
+@@ -3466,8 +3466,9 @@
+ a lack of specification.
+ 
+ @item @code{mpfr_urandom} and @code{mpfr_urandomb} changed in MPFR 3.1.
+-Their behavior no longer depends on the platform (assuming this is also
+-true for GMP's random generator).  As a consequence, the returned values
++Their behavior no longer depends on the platform (assuming this is also true
++for GMP's random generator, which is not the case between GMP 4.1 and 4.2 if
++@code{gmp_randinit_default} is used).  As a consequence, the returned values
+ can be different between MPFR 3.1 and previous MPFR versions.
+ Note: as the reproducibility of these functions was not specified
+ before MPFR 3.1, the MPFR 3.1 behavior is @emph{not} regarded as
+diff -Naurd mpfr-3.1.0-a/src/mpfr.h mpfr-3.1.0-b/src/mpfr.h
+--- mpfr-3.1.0-a/src/mpfr.h	2011-11-03 15:15:11.000000000 +0000
++++ mpfr-3.1.0-b/src/mpfr.h	2011-11-28 12:22:52.000000000 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 1
+ #define MPFR_VERSION_PATCHLEVEL 0
+-#define MPFR_VERSION_STRING "3.1.0-p3"
++#define MPFR_VERSION_STRING "3.1.0-p4"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-3.1.0-a/src/version.c mpfr-3.1.0-b/src/version.c
+--- mpfr-3.1.0-a/src/version.c	2011-11-03 15:15:11.000000000 +0000
++++ mpfr-3.1.0-b/src/version.c	2011-11-28 12:22:52.000000000 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.1.0-p3";
++  return "3.1.0-p4";
+ }
+diff -Naurd mpfr-3.1.0-a/tests/trandom.c mpfr-3.1.0-b/tests/trandom.c
+--- mpfr-3.1.0-a/tests/trandom.c	2011-10-03 08:17:14.000000000 +0000
++++ mpfr-3.1.0-b/tests/trandom.c	2011-11-28 12:22:52.000000000 +0000
+@@ -114,21 +114,29 @@
+   mpfr_t x;
+   gmp_randstate_t s;
+ 
++#if __MPFR_GMP(4,2,0)
++# define C1 "0.895943"
++# define C2 "0.848824"
++#else
++# define C1 "0.479652"
++# define C2 "0.648529"
++#endif
++
+   gmp_randinit_default (s);
+   gmp_randseed_ui (s, 42);
+   mpfr_init2 (x, 17);
+   mpfr_urandomb (x, s);
+-  if (mpfr_cmp_str1 (x, "0.895943") != 0)
++  if (mpfr_cmp_str1 (x, C1) != 0)
+     {
+-      printf ("Error in bug20100914, expected 0.895943, got ");
++      printf ("Error in bug20100914, expected " C1 ", got ");
+       mpfr_out_str (stdout, 10, 0, x, MPFR_RNDN);
+       printf ("\n");
+       exit (1);
+     }
+   mpfr_urandomb (x, s);
+-  if (mpfr_cmp_str1 (x, "0.848824") != 0)
++  if (mpfr_cmp_str1 (x, C2) != 0)
+     {
+-      printf ("Error in bug20100914, expected 0.848824, got ");
++      printf ("Error in bug20100914, expected " C2 ", got ");
+       mpfr_out_str (stdout, 10, 0, x, MPFR_RNDN);
+       printf ("\n");
+       exit (1);
+diff -Naurd mpfr-3.1.0-a/tests/turandom.c mpfr-3.1.0-b/tests/turandom.c
+--- mpfr-3.1.0-a/tests/turandom.c	2011-10-03 08:17:14.000000000 +0000
++++ mpfr-3.1.0-b/tests/turandom.c	2011-11-28 12:22:52.000000000 +0000
+@@ -160,23 +160,29 @@
+   mpfr_t x;
+   gmp_randstate_t s;
+ 
++#if __MPFR_GMP(4,2,0)
++# define C1 "0.8488312"
++# define C2 "0.8156509"
++#else
++# define C1 "0.6485367"
++# define C2 "0.9362717"
++#endif
++
+   gmp_randinit_default (s);
+   gmp_randseed_ui (s, 42);
+   mpfr_init2 (x, 17);
+   mpfr_urandom (x, s, MPFR_RNDN);
+-  /* the following values are obtained on a 32-bit computer, we should get
+-     the same values on a 64-bit computer */
+-  if (mpfr_cmp_str1 (x, "0.8488312") != 0)
++  if (mpfr_cmp_str1 (x, C1) != 0)
+     {
+-      printf ("Error in bug20100914, expected 0.8488312, got ");
++      printf ("Error in bug20100914, expected " C1 ", got ");
+       mpfr_out_str (stdout, 10, 0, x, MPFR_RNDN);
+       printf ("\n");
+       exit (1);
+     }
+   mpfr_urandom (x, s, MPFR_RNDN);
+-  if (mpfr_cmp_str1 (x, "0.8156509") != 0)
++  if (mpfr_cmp_str1 (x, C2) != 0)
+     {
+-      printf ("Error in bug20100914, expected 0.8156509, got ");
++      printf ("Error in bug20100914, expected " C2 ", got ");
+       mpfr_out_str (stdout, 10, 0, x, MPFR_RNDN);
+       printf ("\n");
+       exit (1);

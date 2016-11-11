@@ -1,0 +1,164 @@
+
+# HG changeset patch
+# User Torbjorn Granlund <tege@gmplib.org>
+# Date 1373624469 -7200
+# Node ID a447c0c537891ed23edf180594a89616364ee633
+# Parent  6540e0b2925ead29f7158bb182e4fabfb9441433
+Partial rewrite.
+
+diff -r 6540e0b2925e -r a447c0c53789 mpn/generic/sbpi1_div_sec.c
+--- a/mpn/generic/sbpi1_div_sec.c	Mon Jul 01 19:16:32 2013 +0200
++++ b/mpn/generic/sbpi1_div_sec.c	Fri Jul 12 12:21:09 2013 +0200
+@@ -8,7 +8,7 @@
+    SAFE TO REACH THEM THROUGH DOCUMENTED INTERFACES.  IN FACT, IT IS ALMOST
+    GUARANTEED THAT THEY WILL CHANGE OR DISAPPEAR IN A FUTURE GNU MP RELEASE.
+ 
+-Copyright 2011, 2012 Free Software Foundation, Inc.
++Copyright 2011, 2012, 2013 Free Software Foundation, Inc.
+ 
+ This file is part of the GNU MP Library.
+ 
+@@ -29,6 +29,28 @@
+ #include "gmp-impl.h"
+ #include "longlong.h"
+ 
++/* This side-channel silent division algorithm reduces the partial remainder by
++   GMP_NUMB_BITS/2 bits at a time, compared to GMP_NUMB_BITS for the main
++   division algorithm.  We do not insists on reducing by exactly
++   GMP_NUMB_BITS/2, but may leave a partial remainder that is D*B^i to 3D*B^i
++   too large (B is the limb base, D is the divisor, and i is the induction
++   variable); the subsequent step will handle the extra partial remainder bits.
++
++   WIth that partial remainder reduction, each step generates a quotient "half
++   limb".  The outer loop generates two quotient half limbs, an upper (q1h) and
++   a lower (q0h) which are stored sparsely in separate limb arrays.  These
++   arrays are added at the end; using separate arrays avoids data-dependent
++   carry propagation which could else pose a side-channel leakage problem.
++
++   The quotient half limbs may be between -3 to 0 from the accurate value
++   ("accurate" being the one which corresponds to a reduction to a principal
++   partial remainder).  Too small quotient half limbs correspond to too large
++   remainders, which we reduce later, as described above.
++
++   In order to keep quotients from getting too big, corresponding to a negative
++   partial remainder, we use an inverse which is sligtly smaller than usually.
++*/
++
+ #if OPERATION_sbpi1_div_qr_sec
+ /* Needs (dn + 1) + (nn - dn) + (nn - dn) = 2nn - dn + 1 limbs at tp. */
+ #define FNAME mpn_sbpi1_div_qr_sec
+@@ -49,7 +71,7 @@
+        mp_limb_t dinv,
+        mp_ptr tp)
+ {
+-  mp_limb_t nh, cy, q1h, q0h, dummy, h;
++  mp_limb_t nh, cy, q1h, q0h, dummy, cnd;
+   mp_size_t i;
+   mp_ptr hp;
+ #if OPERATION_sbpi1_div_qr_sec
+@@ -72,77 +94,69 @@
+ #endif
+     }
+ 
++  /* Decremenet inverse to keep quotient half limbs from being too large.  */
++  dinv -= dinv != 0;				/* FIXME: cmp-to-int */
++
+   /* Create a divisor copy shifted half a limb.  */
+   hp = tp;					/* (dn + 1) limbs */
+-  cy = mpn_lshift (hp, dp, dn, GMP_NUMB_BITS / 2);
+-  hp[dn] = dp[dn - 1] >> GMP_NUMB_BITS / 2;
++  hp[dn] = mpn_lshift (hp, dp, dn, GMP_NUMB_BITS / 2);
+ 
+ #if OPERATION_sbpi1_div_qr_sec
+   qlp = tp + (dn + 1);				/* (nn - dn) limbs */
+   qhp = tp + (nn + 1);				/* (nn - dn) limbs */
+ #endif
+ 
+-  np += nn;
++  np += nn - dn;
++  nh = 0;
+ 
+-  /* Main loop.  Develop one full limb per iteration, but do it in two steps in
+-     order to avoid conditionals.  Quotient bits will be either correct or
+-     underestimates.  When a quotient is underestimated, the next quotient will
+-     compensate, since quotients are to be added at consecutive weight distance
+-     GMP_NUMB_BITS/2.  We make two quotient arrays, each with GMP_NUMB_BITS/2+2
+-     bits per entry.  The arrays are added late after the loop.  Separate
+-     arrays avoid data-dependent carry propagation.  */
+-  nh = 0;
+   for (i = nn - dn - 1; i >= 0; i--)
+     {
+       np--;
+ 
+-      nh = (nh << GMP_NUMB_BITS/2) + (np[0] >> GMP_NUMB_BITS/2);
++      nh = (nh << GMP_NUMB_BITS/2) + (np[dn] >> GMP_NUMB_BITS/2);
+       umul_ppmm (q1h, dummy, nh, dinv);
+       q1h += nh;
+ #if OPERATION_sbpi1_div_qr_sec
+       qhp[i] = q1h;
+ #endif
+-      cy = mpn_submul_1 (np - dn, hp, dn + 1, q1h);
++      mpn_submul_1 (np, hp, dn + 1, q1h);
+ 
+-      nh = np[0];
++      nh = np[dn];
+       umul_ppmm (q0h, dummy, nh, dinv);
+       q0h += nh;
+ #if OPERATION_sbpi1_div_qr_sec
+       qlp[i] = q0h;
+ #endif
+-      cy = mpn_submul_1 (np - dn, dp, dn, q0h);
+-
+-      nh -= cy;
++      nh -= mpn_submul_1 (np, dp, dn, q0h);
+     }
+ 
+-  np[0] = nh;
+-
+-  np -= dn;
+-
+   /* 1st adjustment depends on extra high remainder limb.  */
+-  h = np[dn];
++  cnd = nh != 0;				/* FIXME: cmp-to-int */
+ #if OPERATION_sbpi1_div_qr_sec
+-  qlp[0] += h;
++  qlp[0] += cnd;
+ #endif
+-  h -= mpn_subcnd_n (np, np, dp, dn, h);
++  nh -= mpn_subcnd_n (np, np, dp, dn, cnd);
+ 
+-  /* 2nd adjustment depends on remainder/divisor comparision as well as whether
++  /* 2nd adjustment depends on remainder/divisor comparison as well as whether
+      extra remainder limb was nullified by previous subtract.  */
+   cy = mpn_sub_n (np, np, dp, dn);
+-  cy = cy == h;				/* FIXME: might leak on some archs */
++  cy = cy - nh;
+ #if OPERATION_sbpi1_div_qr_sec
+-  qlp[0] += cy;
++  qlp[0] += 1 - cy;
+ #endif
+-  mpn_addcnd_n (np, np, dp, dn, 1 - cy);
++  mpn_addcnd_n (np, np, dp, dn, cy);
+ 
++  /* 3rd adjustment depends on remainder/divisor comparison.  */
++  cy = mpn_sub_n (np, np, dp, dn);
++#if OPERATION_sbpi1_div_qr_sec
++  qlp[0] += 1 - cy;
++#endif
++  mpn_addcnd_n (np, np, dp, dn, cy);
++
++#if OPERATION_sbpi1_div_qr_sec
+   /* Combine quotient halves into final quotient.  */
+-#if OPERATION_sbpi1_div_qr_sec
+-  qh = 0;
+-  if (nn - dn != 0)
+-    {
+-      qh = mpn_lshift (qhp, qhp, nn - dn, GMP_NUMB_BITS/2);
+-      qh += mpn_add_n (qp, qhp, qlp, nn - dn);
+-    }
++  qh = mpn_lshift (qhp, qhp, nn - dn, GMP_NUMB_BITS/2);
++  qh += mpn_add_n (qp, qhp, qlp, nn - dn);
+ 
+   return qh;
+ #else
+

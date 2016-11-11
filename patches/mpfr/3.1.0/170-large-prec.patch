@@ -1,0 +1,591 @@
+diff -Naurd mpfr-3.1.0-a/PATCHES mpfr-3.1.0-b/PATCHES
+--- mpfr-3.1.0-a/PATCHES	2012-03-08 15:17:03.000000000 +0000
++++ mpfr-3.1.0-b/PATCHES	2012-03-08 15:17:03.000000000 +0000
+@@ -0,0 +1 @@
++large-prec
+diff -Naurd mpfr-3.1.0-a/VERSION mpfr-3.1.0-b/VERSION
+--- mpfr-3.1.0-a/VERSION	2012-02-24 13:50:05.000000000 +0000
++++ mpfr-3.1.0-b/VERSION	2012-03-08 15:17:03.000000000 +0000
+@@ -1 +1 @@
+-3.1.0-p6
++3.1.0-p7
+diff -Naurd mpfr-3.1.0-a/src/add1.c mpfr-3.1.0-b/src/add1.c
+--- mpfr-3.1.0-a/src/add1.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/add1.c	2012-03-08 15:17:03.000000000 +0000
+@@ -44,12 +44,12 @@
+   bq = MPFR_PREC(b);
+   cq = MPFR_PREC(c);
+ 
+-  an = (aq-1)/GMP_NUMB_BITS+1; /* number of limbs of a */
++  an = MPFR_PREC2LIMBS (aq); /* number of limbs of a */
+   aq2 = (mpfr_prec_t) an * GMP_NUMB_BITS;
+   sh = aq2 - aq;                  /* non-significant bits in low limb */
+ 
+-  bn = (bq-1)/GMP_NUMB_BITS+1; /* number of limbs of b */
+-  cn = (cq-1)/GMP_NUMB_BITS+1; /* number of limbs of c */
++  bn = MPFR_PREC2LIMBS (bq); /* number of limbs of b */
++  cn = MPFR_PREC2LIMBS (cq); /* number of limbs of c */
+ 
+   ap = MPFR_MANT(a);
+   bp = MPFR_MANT(b);
+@@ -124,7 +124,7 @@
+       dif = aq2 - diff_exp;
+       /* dif is the number of bits of c which overlap with a' */
+ 
+-      difn = (dif-1)/GMP_NUMB_BITS + 1;
++      difn = MPFR_PREC2LIMBS (dif);
+       /* only the highest difn limbs from c have to be considered */
+       if (MPFR_UNLIKELY(difn > cn))
+         {
+diff -Naurd mpfr-3.1.0-a/src/add1sp.c mpfr-3.1.0-b/src/add1sp.c
+--- mpfr-3.1.0-a/src/add1sp.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/add1sp.c	2012-03-08 15:17:03.000000000 +0000
+@@ -107,7 +107,7 @@
+ 
+   /* Read prec and num of limbs */
+   p = MPFR_PREC(b);
+-  n = (p+GMP_NUMB_BITS-1)/GMP_NUMB_BITS;
++  n = MPFR_PREC2LIMBS (p);
+   MPFR_UNSIGNED_MINUS_MODULO(sh, p);
+   bx = MPFR_GET_EXP(b);
+   d = (mpfr_uexp_t) (bx - MPFR_GET_EXP(c));
+diff -Naurd mpfr-3.1.0-a/src/agm.c mpfr-3.1.0-b/src/agm.c
+--- mpfr-3.1.0-a/src/agm.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/agm.c	2012-03-08 15:17:03.000000000 +0000
+@@ -91,7 +91,7 @@
+   q = MPFR_PREC(r);
+   p = q + MPFR_INT_CEIL_LOG2(q) + 15;
+   MPFR_ASSERTD (p >= 7); /* see algorithms.tex */
+-  s = (p - 1) / GMP_NUMB_BITS + 1;
++  s = MPFR_PREC2LIMBS (p);
+ 
+   /* b (op2) and a (op1) are the 2 operands but we want b >= a */
+   compare = mpfr_cmp (op1, op2);
+@@ -285,7 +285,7 @@
+ 
+       /* Next iteration */
+       MPFR_ZIV_NEXT (loop, p);
+-      s = (p - 1) / GMP_NUMB_BITS + 1;
++      s = MPFR_PREC2LIMBS (p);
+     }
+   MPFR_ZIV_FREE (loop);
+ 
+diff -Naurd mpfr-3.1.0-a/src/eq.c mpfr-3.1.0-b/src/eq.c
+--- mpfr-3.1.0-a/src/eq.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/eq.c	2012-03-08 15:17:03.000000000 +0000
+@@ -56,8 +56,8 @@
+   if (uexp != vexp)
+     return 0; /* no bit agree */
+ 
+-  usize = (MPFR_PREC(u) - 1) / GMP_NUMB_BITS + 1;
+-  vsize = (MPFR_PREC(v) - 1) / GMP_NUMB_BITS + 1;
++  usize = MPFR_LIMB_SIZE (u);
++  vsize = MPFR_LIMB_SIZE (v);
+ 
+   if (vsize > usize) /* exchange u and v */
+     {
+diff -Naurd mpfr-3.1.0-a/src/exp.c mpfr-3.1.0-b/src/exp.c
+--- mpfr-3.1.0-a/src/exp.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/exp.c	2012-03-08 15:17:03.000000000 +0000
+@@ -133,7 +133,7 @@
+               mp_size_t yn;
+               int sh;
+ 
+-              yn = 1 + (MPFR_PREC(y) - 1) / GMP_NUMB_BITS;
++              yn = MPFR_LIMB_SIZE (y);
+               sh = (mpfr_prec_t) yn * GMP_NUMB_BITS - MPFR_PREC(y);
+               MPFR_MANT(y)[0] += MPFR_LIMB_ONE << sh;
+               inexact = 1;
+diff -Naurd mpfr-3.1.0-a/src/get_d.c mpfr-3.1.0-b/src/get_d.c
+--- mpfr-3.1.0-a/src/get_d.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/get_d.c	2012-03-08 15:17:03.000000000 +0000
+@@ -100,7 +100,7 @@
+           nbits += (1021 + e);
+           MPFR_ASSERTD (nbits >= 1);
+         }
+-      np = (nbits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
++      np = MPFR_PREC2LIMBS (nbits);
+       MPFR_ASSERTD ( np <= MPFR_LIMBS_PER_DOUBLE );
+       carry = mpfr_round_raw_4 (tp, MPFR_MANT(src), MPFR_PREC(src), negative,
+                                 nbits, rnd_mode);
+diff -Naurd mpfr-3.1.0-a/src/get_flt.c mpfr-3.1.0-b/src/get_flt.c
+--- mpfr-3.1.0-a/src/get_flt.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/get_flt.c	2012-03-08 15:17:03.000000000 +0000
+@@ -92,7 +92,7 @@
+           nbits += (125 + e);
+           MPFR_ASSERTD (nbits >= 1);
+         }
+-      np = (nbits + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
++      np = MPFR_PREC2LIMBS (nbits);
+       MPFR_ASSERTD(np <= MPFR_LIMBS_PER_FLT);
+       carry = mpfr_round_raw_4 (tp, MPFR_MANT(src), MPFR_PREC(src), negative,
+                                 nbits, rnd_mode);
+diff -Naurd mpfr-3.1.0-a/src/get_str.c mpfr-3.1.0-b/src/get_str.c
+--- mpfr-3.1.0-a/src/get_str.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/get_str.c	2012-03-08 15:17:03.000000000 +0000
+@@ -2351,7 +2351,7 @@
+ 
+       /* the first digit will contain only r bits */
+       prec = (m - 1) * pow2 + r; /* total number of bits */
+-      n = (prec - 1) / GMP_NUMB_BITS + 1;
++      n = MPFR_PREC2LIMBS (prec);
+ 
+       MPFR_TMP_MARK (marker);
+       x1 = MPFR_TMP_LIMBS_ALLOC (n + 1);
+@@ -2417,12 +2417,12 @@
+       exact = 1;
+ 
+       /* number of limbs */
+-      n = 1 + (prec - 1) / GMP_NUMB_BITS;
++      n = MPFR_PREC2LIMBS (prec);
+ 
+       /* a will contain the approximation of the mantissa */
+       a = MPFR_TMP_LIMBS_ALLOC (n);
+ 
+-      nx = 1 + (MPFR_PREC(x) - 1) / GMP_NUMB_BITS;
++      nx = MPFR_LIMB_SIZE (x);
+ 
+       if ((mpfr_exp_t) m == g) /* final exponent is 0, no multiplication or
+                                 division to perform */
+diff -Naurd mpfr-3.1.0-a/src/init2.c mpfr-3.1.0-b/src/init2.c
+--- mpfr-3.1.0-a/src/init2.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/init2.c	2012-03-08 15:17:03.000000000 +0000
+@@ -51,7 +51,7 @@
+      which both have an odd mantissa */
+   MPFR_ASSERTN(p >= MPFR_PREC_MIN && p <= MPFR_PREC_MAX);
+ 
+-  xsize = (mp_size_t) ((p - 1) / GMP_NUMB_BITS) + 1;
++  xsize = MPFR_PREC2LIMBS (p);
+   tmp   = (mpfr_limb_ptr) (*__gmp_allocate_func)(MPFR_MALLOC_SIZE(xsize));
+ 
+   MPFR_PREC(x) = p;                /* Set prec */
+diff -Naurd mpfr-3.1.0-a/src/lngamma.c mpfr-3.1.0-b/src/lngamma.c
+--- mpfr-3.1.0-a/src/lngamma.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/lngamma.c	2012-03-08 15:17:03.000000000 +0000
+@@ -67,7 +67,7 @@
+ 
+   /* Now, the unit bit is represented. */
+ 
+-  prec = ((prec - 1) / GMP_NUMB_BITS + 1) * GMP_NUMB_BITS - expo;
++  prec = MPFR_PREC2LIMBS (prec) * GMP_NUMB_BITS - expo;
+   /* number of represented fractional bits (including the trailing 0's) */
+ 
+   x0 = *(MPFR_MANT (x) + prec / GMP_NUMB_BITS);
+diff -Naurd mpfr-3.1.0-a/src/mpfr-impl.h mpfr-3.1.0-b/src/mpfr-impl.h
+--- mpfr-3.1.0-a/src/mpfr-impl.h	2012-02-24 13:50:05.000000000 +0000
++++ mpfr-3.1.0-b/src/mpfr-impl.h	2012-03-09 12:06:26.000000000 +0000
+@@ -646,10 +646,24 @@
+  **************** mpfr_t properties *******************
+  ******************************************************/
+ 
++/* In the following macro, p is usually a mpfr_prec_t, but this macro
++   works with other integer types (without integer overflow). Checking
++   that p >= 1 in debug mode is useful here because this macro can be
++   used on a computed precision (in particular, this formula does not
++   work for a degenerate case p = 0, and could give different results
++   on different platforms). But let us not use an assertion checking
++   in the MPFR_LAST_LIMB() and MPFR_LIMB_SIZE() macros below to avoid
++   too much expansion for assertions (in practice, this should be a
++   problem just when testing MPFR with the --enable-assert configure
++   option and the -ansi -pedantic-errors gcc compiler flags). */
++#define MPFR_PREC2LIMBS(p) \
++  (MPFR_ASSERTD ((p) >= 1), ((p) - 1) / GMP_NUMB_BITS + 1)
++
+ #define MPFR_PREC(x)      ((x)->_mpfr_prec)
+ #define MPFR_EXP(x)       ((x)->_mpfr_exp)
+ #define MPFR_MANT(x)      ((x)->_mpfr_d)
+-#define MPFR_LIMB_SIZE(x) ((MPFR_PREC((x))-1)/GMP_NUMB_BITS+1)
++#define MPFR_LAST_LIMB(x) ((MPFR_PREC (x) - 1) / GMP_NUMB_BITS)
++#define MPFR_LIMB_SIZE(x) (MPFR_LAST_LIMB (x) + 1)
+ 
+ 
+ /******************************************************
+@@ -749,7 +763,8 @@
+ #define MPFR_IS_FP(x)       (!MPFR_IS_NAN(x) && !MPFR_IS_INF(x))
+ #define MPFR_IS_SINGULAR(x) (MPFR_EXP(x) <= MPFR_EXP_INF)
+ #define MPFR_IS_PURE_FP(x)  (!MPFR_IS_SINGULAR(x) && \
+-  (MPFR_ASSERTD (MPFR_MANT(x)[MPFR_LIMB_SIZE(x)-1] & MPFR_LIMB_HIGHBIT), 1))
++  (MPFR_ASSERTD ((MPFR_MANT(x)[MPFR_LAST_LIMB(x)]  \
++                  & MPFR_LIMB_HIGHBIT) != 0), 1))
+ 
+ #define MPFR_ARE_SINGULAR(x,y) \
+   (MPFR_UNLIKELY(MPFR_IS_SINGULAR(x)) || MPFR_UNLIKELY(MPFR_IS_SINGULAR(y)))
+@@ -1061,7 +1076,7 @@
+ /* Set a number to 1 (Fast) - It doesn't check if 1 is in the exponent range */
+ #define MPFR_SET_ONE(x)                                               \
+ do {                                                                  \
+-  mp_size_t _size = MPFR_LIMB_SIZE(x) - 1;                            \
++  mp_size_t _size = MPFR_LAST_LIMB(x);                                \
+   MPFR_SET_POS(x);                                                    \
+   MPFR_EXP(x) = 1;                                                    \
+   MPN_ZERO ( MPFR_MANT(x), _size);                                    \
+@@ -1213,8 +1228,8 @@
+     _destp = MPFR_MANT (dest);                                              \
+     if (MPFR_UNLIKELY (_destprec >= _srcprec))                              \
+       {                                                                     \
+-        _srcs  = (_srcprec  + GMP_NUMB_BITS-1)/GMP_NUMB_BITS;               \
+-        _dests = (_destprec + GMP_NUMB_BITS-1)/GMP_NUMB_BITS - _srcs;       \
++        _srcs  = MPFR_PREC2LIMBS (_srcprec);                                \
++        _dests = MPFR_PREC2LIMBS (_destprec) - _srcs;                       \
+         MPN_COPY (_destp + _dests, srcp, _srcs);                            \
+         MPN_ZERO (_destp, _dests);                                          \
+         inexact = 0;                                                        \
+@@ -1227,8 +1242,8 @@
+         mp_limb_t _rb, _sb, _ulp;                                           \
+                                                                             \
+         /* Compute Position and shift */                                    \
+-        _srcs  = (_srcprec  + GMP_NUMB_BITS-1)/GMP_NUMB_BITS;               \
+-        _dests = (_destprec + GMP_NUMB_BITS-1)/GMP_NUMB_BITS;               \
++        _srcs  = MPFR_PREC2LIMBS (_srcprec);                                \
++        _dests = MPFR_PREC2LIMBS (_destprec);                               \
+         MPFR_UNSIGNED_MINUS_MODULO (_sh, _destprec);                        \
+         _sp = (srcp) + _srcs - _dests;                                      \
+                                                                             \
+@@ -1372,7 +1387,7 @@
+       if (MPFR_LIKELY (MPFR_PREC (dest) == MPFR_PREC (src)))            \
+         {                                                               \
+           MPN_COPY (MPFR_MANT (dest), MPFR_MANT (src),                  \
+-                    (MPFR_PREC (src) + GMP_NUMB_BITS-1)/GMP_NUMB_BITS); \
++                    MPFR_LIMB_SIZE (src));                              \
+           inexact = 0;                                                  \
+         }                                                               \
+       else                                                              \
+@@ -1682,7 +1697,7 @@
+  MPFR_ASSERTD (_prec >= MPFR_PREC_MIN);                                 \
+  if (MPFR_UNLIKELY (_prec > MPFR_PREC_MAX))                             \
+    mpfr_abort_prec_max ();                                              \
+- _size = (mpfr_prec_t) (_prec + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;     \
++ _size = MPFR_PREC2LIMBS (_prec);                                       \
+  if (MPFR_UNLIKELY (_size * (num) > MPFR_GROUP_STATIC_SIZE))            \
+    {                                                                    \
+      (g).alloc = (num) * _size * sizeof (mp_limb_t);                    \
+@@ -1733,7 +1748,7 @@
+  MPFR_ASSERTD (_prec >= MPFR_PREC_MIN);                                 \
+  if (MPFR_UNLIKELY (_prec > MPFR_PREC_MAX))                             \
+    mpfr_abort_prec_max ();                                              \
+- _size = (mpfr_prec_t) (_prec + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;     \
++ _size = MPFR_PREC2LIMBS (_prec);                                       \
+  (g).alloc = (num) * _size * sizeof (mp_limb_t);                        \
+  if (MPFR_LIKELY (_oalloc == 0))                                        \
+    (g).mant = (mp_limb_t *) (*__gmp_allocate_func) ((g).alloc);         \
+@@ -1886,7 +1901,7 @@
+        MPFR_NORETURN_ATTR;
+ 
+ __MPFR_DECLSPEC void mpfr_rand_raw _MPFR_PROTO((mpfr_limb_ptr, gmp_randstate_t,
+-                                                unsigned long));
++                                                mpfr_prec_t));
+ 
+ __MPFR_DECLSPEC mpz_t* mpfr_bernoulli_internal _MPFR_PROTO((mpz_t*,
+                                                             unsigned long));
+diff -Naurd mpfr-3.1.0-a/src/mpfr.h mpfr-3.1.0-b/src/mpfr.h
+--- mpfr-3.1.0-a/src/mpfr.h	2012-02-24 13:50:05.000000000 +0000
++++ mpfr-3.1.0-b/src/mpfr.h	2012-03-08 15:17:03.000000000 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 1
+ #define MPFR_VERSION_PATCHLEVEL 0
+-#define MPFR_VERSION_STRING "3.1.0-p6"
++#define MPFR_VERSION_STRING "3.1.0-p7"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-3.1.0-a/src/mul.c mpfr-3.1.0-b/src/mul.c
+--- mpfr-3.1.0-a/src/mul.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/mul.c	2012-03-08 15:17:03.000000000 +0000
+@@ -93,15 +93,15 @@
+ 
+   ax = MPFR_GET_EXP (b) + MPFR_GET_EXP (c);
+ 
+-  bq = MPFR_PREC(b);
+-  cq = MPFR_PREC(c);
++  bq = MPFR_PREC (b);
++  cq = MPFR_PREC (c);
+ 
+-  MPFR_ASSERTD(bq+cq > bq); /* PREC_MAX is /2 so no integer overflow */
++  MPFR_ASSERTN ((mpfr_uprec_t) bq + cq <= MPFR_PREC_MAX);
+ 
+-  bn = (bq+GMP_NUMB_BITS-1)/GMP_NUMB_BITS; /* number of limbs of b */
+-  cn = (cq+GMP_NUMB_BITS-1)/GMP_NUMB_BITS; /* number of limbs of c */
++  bn = MPFR_PREC2LIMBS (bq); /* number of limbs of b */
++  cn = MPFR_PREC2LIMBS (cq); /* number of limbs of c */
+   k = bn + cn; /* effective nb of limbs used by b*c (= tn or tn+1) below */
+-  tn = (bq + cq + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
++  tn = MPFR_PREC2LIMBS (bq + cq);
+   /* <= k, thus no int overflow */
+   MPFR_ASSERTD(tn <= k);
+ 
+@@ -292,12 +292,12 @@
+   bq = MPFR_PREC (b);
+   cq = MPFR_PREC (c);
+ 
+-  MPFR_ASSERTD (bq+cq > bq); /* PREC_MAX is /2 so no integer overflow */
++  MPFR_ASSERTN ((mpfr_uprec_t) bq + cq <= MPFR_PREC_MAX);
+ 
+-  bn = (bq+GMP_NUMB_BITS-1)/GMP_NUMB_BITS; /* number of limbs of b */
+-  cn = (cq+GMP_NUMB_BITS-1)/GMP_NUMB_BITS; /* number of limbs of c */
++  bn = MPFR_PREC2LIMBS (bq); /* number of limbs of b */
++  cn = MPFR_PREC2LIMBS (cq); /* number of limbs of c */
+   k = bn + cn; /* effective nb of limbs used by b*c (= tn or tn+1) below */
+-  tn = (bq + cq + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
++  tn = MPFR_PREC2LIMBS (bq + cq);
+   MPFR_ASSERTD (tn <= k); /* tn <= k, thus no int overflow */
+ 
+   /* Check for no size_t overflow*/
+diff -Naurd mpfr-3.1.0-a/src/pow.c mpfr-3.1.0-b/src/pow.c
+--- mpfr-3.1.0-a/src/pow.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/pow.c	2012-03-08 15:17:03.000000000 +0000
+@@ -136,7 +136,7 @@
+      (b) all the 'z' bits are zero
+   */
+ 
+-  prec = ((prec - 1) / GMP_NUMB_BITS + 1) * GMP_NUMB_BITS - expo;
++  prec = MPFR_PREC2LIMBS (prec) * GMP_NUMB_BITS - expo;
+   /* number of z+0 bits */
+ 
+   yn = prec / GMP_NUMB_BITS;
+diff -Naurd mpfr-3.1.0-a/src/print_raw.c mpfr-3.1.0-b/src/print_raw.c
+--- mpfr-3.1.0-a/src/print_raw.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/print_raw.c	2012-03-08 15:17:03.000000000 +0000
+@@ -84,7 +84,7 @@
+   int i;
+   mpfr_prec_t count = 0;
+   char c;
+-  mp_size_t n = (r - 1) / GMP_NUMB_BITS + 1;
++  mp_size_t n = MPFR_PREC2LIMBS (r);
+ 
+   printf("%s ", str);
+   for(n-- ; n>=0 ; n--)
+@@ -109,7 +109,7 @@
+   int i;
+   mpfr_prec_t count = 0;
+   char c;
+-  mp_size_t n = (r - 1) / GMP_NUMB_BITS + 1;
++  mp_size_t n = MPFR_PREC2LIMBS (r);
+ 
+   for(n-- ; n>=0 ; n--)
+     {
+diff -Naurd mpfr-3.1.0-a/src/round_prec.c mpfr-3.1.0-b/src/round_prec.c
+--- mpfr-3.1.0-a/src/round_prec.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/round_prec.c	2012-03-08 15:17:03.000000000 +0000
+@@ -55,12 +55,12 @@
+ 
+   MPFR_ASSERTN(prec >= MPFR_PREC_MIN && prec <= MPFR_PREC_MAX);
+ 
+-  nw = 1 + (prec - 1) / GMP_NUMB_BITS; /* needed allocated limbs */
++  nw = MPFR_PREC2LIMBS (prec); /* needed allocated limbs */
+ 
+   /* check if x has enough allocated space for the significand */
+   /* Get the number of limbs from the precision.
+      (Compatible with all allocation methods) */
+-  ow = (MPFR_PREC (x) + GMP_NUMB_BITS - 1) / GMP_NUMB_BITS;
++  ow = MPFR_LIMB_SIZE (x);
+   if (nw > ow)
+     {
+       /* FIXME: Variable can't be created using custom allocation,
+diff -Naurd mpfr-3.1.0-a/src/round_raw_generic.c mpfr-3.1.0-b/src/round_raw_generic.c
+--- mpfr-3.1.0-a/src/round_raw_generic.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/round_raw_generic.c	2012-03-08 15:17:03.000000000 +0000
+@@ -80,7 +80,7 @@
+       (xprec <= yprec || MPFR_IS_LIKE_RNDZ (rnd_mode, neg)))
+     return 0;
+ 
+-  xsize = (xprec-1)/GMP_NUMB_BITS + 1;
++  xsize = MPFR_PREC2LIMBS (xprec);
+   nw = yprec / GMP_NUMB_BITS;
+   rw = yprec & (GMP_NUMB_BITS - 1);
+ 
+diff -Naurd mpfr-3.1.0-a/src/set.c mpfr-3.1.0-b/src/set.c
+--- mpfr-3.1.0-a/src/set.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/set.c	2012-03-08 15:17:03.000000000 +0000
+@@ -48,8 +48,7 @@
+       /* Same precision and b is not singular:
+        * just copy the mantissa, and set the exponent and the sign
+        * The result is exact. */
+-      MPN_COPY (MPFR_MANT (a), MPFR_MANT (b),
+-                (MPFR_PREC (b) + GMP_NUMB_BITS-1)/GMP_NUMB_BITS);
++      MPN_COPY (MPFR_MANT (a), MPFR_MANT (b), MPFR_LIMB_SIZE (b));
+       MPFR_RET (0);
+     }
+   else
+diff -Naurd mpfr-3.1.0-a/src/set_f.c mpfr-3.1.0-b/src/set_f.c
+--- mpfr-3.1.0-a/src/set_f.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/set_f.c	2012-03-08 15:17:03.000000000 +0000
+@@ -43,7 +43,7 @@
+   if (SIZ(x) * MPFR_FROM_SIGN_TO_INT(MPFR_SIGN(y)) < 0)
+     MPFR_CHANGE_SIGN (y);
+ 
+-  sy = 1 + (MPFR_PREC(y) - 1) / GMP_NUMB_BITS;
++  sy = MPFR_LIMB_SIZE (y);
+   my = MPFR_MANT(y);
+   mx = PTR(x);
+ 
+diff -Naurd mpfr-3.1.0-a/src/set_prec.c mpfr-3.1.0-b/src/set_prec.c
+--- mpfr-3.1.0-a/src/set_prec.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/set_prec.c	2012-03-08 15:17:03.000000000 +0000
+@@ -32,7 +32,7 @@
+   MPFR_ASSERTN (p >= MPFR_PREC_MIN && p <= MPFR_PREC_MAX);
+ 
+   /* Calculate the new number of limbs */
+-  xsize = (p - 1) / GMP_NUMB_BITS + 1;
++  xsize = MPFR_PREC2LIMBS (p);
+ 
+   /* Realloc only if the new size is greater than the old */
+   xoldsize = MPFR_GET_ALLOC_SIZE (x);
+diff -Naurd mpfr-3.1.0-a/src/setmax.c mpfr-3.1.0-b/src/setmax.c
+--- mpfr-3.1.0-a/src/setmax.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/setmax.c	2012-03-08 15:17:03.000000000 +0000
+@@ -32,7 +32,7 @@
+   mp_limb_t *xp;
+ 
+   MPFR_SET_EXP (x, e);
+-  xn = 1 + (MPFR_PREC(x) - 1) / GMP_NUMB_BITS;
++  xn = MPFR_LIMB_SIZE (x);
+   sh = (mpfr_prec_t) xn * GMP_NUMB_BITS - MPFR_PREC(x);
+   xp = MPFR_MANT(x);
+   xp[0] = MP_LIMB_T_MAX << sh;
+diff -Naurd mpfr-3.1.0-a/src/sqr.c mpfr-3.1.0-b/src/sqr.c
+--- mpfr-3.1.0-a/src/sqr.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/sqr.c	2012-03-08 15:17:03.000000000 +0000
+@@ -56,11 +56,11 @@
+   ax = 2 * MPFR_GET_EXP (b);
+   bq = MPFR_PREC(b);
+ 
+-  MPFR_ASSERTD (2 * bq > bq); /* PREC_MAX is /2 so no integer overflow */
++  MPFR_ASSERTN (2 * (mpfr_uprec_t) bq <= MPFR_PREC_MAX);
+ 
+-  bn = MPFR_LIMB_SIZE(b); /* number of limbs of b */
+-  tn = 1 + (2 * bq - 1) / GMP_NUMB_BITS; /* number of limbs of square,
+-                                               2*bn or 2*bn-1 */
++  bn = MPFR_LIMB_SIZE (b); /* number of limbs of b */
++  tn = MPFR_PREC2LIMBS (2 * bq); /* number of limbs of square,
++                                    2*bn or 2*bn-1 */
+ 
+   if (MPFR_UNLIKELY(bn > MPFR_SQR_THRESHOLD))
+     return mpfr_mul (a, b, b, rnd_mode);
+diff -Naurd mpfr-3.1.0-a/src/stack_interface.c mpfr-3.1.0-b/src/stack_interface.c
+--- mpfr-3.1.0-a/src/stack_interface.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/stack_interface.c	2012-03-08 15:17:03.000000000 +0000
+@@ -26,7 +26,7 @@
+ size_t
+ mpfr_custom_get_size (mpfr_prec_t prec)
+ {
+-  return (prec + GMP_NUMB_BITS -1) / GMP_NUMB_BITS * BYTES_PER_MP_LIMB;
++  return MPFR_PREC2LIMBS (prec) * BYTES_PER_MP_LIMB;
+ }
+ 
+ #undef mpfr_custom_init
+diff -Naurd mpfr-3.1.0-a/src/strtofr.c mpfr-3.1.0-b/src/strtofr.c
+--- mpfr-3.1.0-a/src/strtofr.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/strtofr.c	2012-03-08 15:17:03.000000000 +0000
+@@ -467,7 +467,7 @@
+       /* Set y to the value of the ~prec most significant bits of pstr->mant
+          (as long as we guarantee correct rounding, we don't need to get
+          exactly prec bits). */
+-      ysize = (prec - 1) / GMP_NUMB_BITS + 1;
++      ysize = MPFR_PREC2LIMBS (prec);
+       /* prec bits corresponds to ysize limbs */
+       ysize_bits = ysize * GMP_NUMB_BITS;
+       /* and to ysize_bits >= prec > MPFR_PREC (x) bits */
+diff -Naurd mpfr-3.1.0-a/src/sub1sp.c mpfr-3.1.0-b/src/sub1sp.c
+--- mpfr-3.1.0-a/src/sub1sp.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/sub1sp.c	2012-03-08 15:17:03.000000000 +0000
+@@ -155,8 +155,8 @@
+   MPFR_ASSERTD(MPFR_IS_PURE_FP(c));
+ 
+   /* Read prec and num of limbs */
+-  p = MPFR_PREC(b);
+-  n = (p-1)/GMP_NUMB_BITS+1;
++  p = MPFR_PREC (b);
++  n = MPFR_PREC2LIMBS (p);
+ 
+   /* Fast cmp of |b| and |c|*/
+   bx = MPFR_GET_EXP (b);
+diff -Naurd mpfr-3.1.0-a/src/urandomb.c mpfr-3.1.0-b/src/urandomb.c
+--- mpfr-3.1.0-a/src/urandomb.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/urandomb.c	2012-03-08 15:17:03.000000000 +0000
+@@ -31,13 +31,20 @@
+    a sufficient number of limbs */
+ void
+ mpfr_rand_raw (mpfr_limb_ptr mp, gmp_randstate_t rstate,
+-               unsigned long int nbits)
++               mpfr_prec_t nbits)
+ {
+   mpz_t z;
+ 
++  MPFR_ASSERTN (nbits >= 1);
+   /* To be sure to avoid the potential allocation of mpz_urandomb */
+-  ALLOC(z) = SIZ(z) = ((nbits - 1) / GMP_NUMB_BITS) + 1;
++  ALLOC(z) = SIZ(z) = MPFR_PREC2LIMBS (nbits);
+   PTR(z)   = mp;
++#if __MPFR_GMP(5,0,0)
++  /* Check for integer overflow (unless mp_bitcnt_t is signed,
++     but according to the GMP manual, this shouldn't happen).
++     Note: mp_bitcnt_t has been introduced in GMP 5.0.0. */
++  MPFR_ASSERTN ((mp_bitcnt_t) -1 < 0 || nbits <= (mp_bitcnt_t) -1);
++#endif
+   mpz_urandomb (z, rstate, nbits);
+ }
+ 
+diff -Naurd mpfr-3.1.0-a/src/version.c mpfr-3.1.0-b/src/version.c
+--- mpfr-3.1.0-a/src/version.c	2012-02-24 13:50:05.000000000 +0000
++++ mpfr-3.1.0-b/src/version.c	2012-03-08 15:17:03.000000000 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.1.0-p6";
++  return "3.1.0-p7";
+ }
+diff -Naurd mpfr-3.1.0-a/tests/tinits.c mpfr-3.1.0-b/tests/tinits.c
+--- mpfr-3.1.0-a/tests/tinits.c	2011-10-03 08:17:14.000000000 +0000
++++ mpfr-3.1.0-b/tests/tinits.c	2012-03-08 15:17:03.000000000 +0000
+@@ -1,4 +1,4 @@
+-/* Test file for mpfr_inits, mpfr_inits2 and mpfr_clears.
++/* Test file for mpfr_init2, mpfr_inits, mpfr_inits2 and mpfr_clears.
+ 
+ Copyright 2003, 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+ Contributed by the Arenaire and Caramel projects, INRIA.
+@@ -20,18 +20,43 @@
+ http://www.gnu.org/licenses/ or write to the Free Software Foundation, Inc.,
+ 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA. */
+ 
++#include <stdlib.h>
++
+ #include "mpfr-test.h"
+ 
+ int
+ main (void)
+ {
+   mpfr_t a, b, c;
++  long large_prec;
+ 
+   tests_start_mpfr ();
++
+   mpfr_inits (a, b, c, (mpfr_ptr) 0);
+   mpfr_clears (a, b, c, (mpfr_ptr) 0);
+   mpfr_inits2 (200, a, b, c, (mpfr_ptr) 0);
+   mpfr_clears (a, b, c, (mpfr_ptr) 0);
++
++  /* test for precision 2^31-1, see
++     https://gforge.inria.fr/tracker/index.php?func=detail&aid=13918 */
++  large_prec = 2147483647;
++  if (getenv ("MPFR_CHECK_LARGEMEM") != NULL)
++    {
++      /* We assume that the precision won't be increased internally. */
++      if (large_prec > MPFR_PREC_MAX)
++        large_prec = MPFR_PREC_MAX;
++      mpfr_inits2 (large_prec, a, b, (mpfr_ptr) 0);
++      mpfr_set_ui (a, 17, MPFR_RNDN);
++      mpfr_set (b, a, MPFR_RNDN);
++      if (mpfr_get_ui (a, MPFR_RNDN) != 17)
++        {
++          printf ("Error in mpfr_init2 with precision 2^31-1\n");
++          exit (1);
++        }
++      mpfr_clears (a, b, (mpfr_ptr) 0);
++    }
++
+   tests_end_mpfr ();
++
+   return 0;
+ }

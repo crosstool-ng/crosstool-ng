@@ -1,0 +1,247 @@
+diff -Naurd mpfr-3.1.0-a/PATCHES mpfr-3.1.0-b/PATCHES
+--- mpfr-3.1.0-a/PATCHES	2011-11-03 15:15:11.000000000 +0000
++++ mpfr-3.1.0-b/PATCHES	2011-11-03 15:15:11.000000000 +0000
+@@ -0,0 +1 @@
++vasprintf
+diff -Naurd mpfr-3.1.0-a/VERSION mpfr-3.1.0-b/VERSION
+--- mpfr-3.1.0-a/VERSION	2011-10-14 10:43:32.000000000 +0000
++++ mpfr-3.1.0-b/VERSION	2011-11-03 15:15:11.000000000 +0000
+@@ -1 +1 @@
+-3.1.0-p2
++3.1.0-p3
+diff -Naurd mpfr-3.1.0-a/src/mpfr.h mpfr-3.1.0-b/src/mpfr.h
+--- mpfr-3.1.0-a/src/mpfr.h	2011-10-14 10:43:32.000000000 +0000
++++ mpfr-3.1.0-b/src/mpfr.h	2011-11-03 15:15:11.000000000 +0000
+@@ -27,7 +27,7 @@
+ #define MPFR_VERSION_MAJOR 3
+ #define MPFR_VERSION_MINOR 1
+ #define MPFR_VERSION_PATCHLEVEL 0
+-#define MPFR_VERSION_STRING "3.1.0-p2"
++#define MPFR_VERSION_STRING "3.1.0-p3"
+ 
+ /* Macros dealing with MPFR VERSION */
+ #define MPFR_VERSION_NUM(a,b,c) (((a) << 16L) | ((b) << 8) | (c))
+diff -Naurd mpfr-3.1.0-a/src/vasprintf.c mpfr-3.1.0-b/src/vasprintf.c
+--- mpfr-3.1.0-a/src/vasprintf.c	2011-10-03 08:17:09.000000000 +0000
++++ mpfr-3.1.0-b/src/vasprintf.c	2011-11-03 15:15:11.000000000 +0000
+@@ -1178,7 +1178,7 @@
+   mpfr_exp_t exp;
+   char * str;
+   const int spec_g = (spec.spec == 'g' || spec.spec == 'G');
+-  const int keep_trailing_zeros = spec_g && spec.alt;
++  const int keep_trailing_zeros = !spec_g || spec.alt;
+ 
+   /* WARNING: an empty precision field is forbidden (it means precision = 6
+      and it should have been changed to 6 before the function call) */
+@@ -1356,7 +1356,7 @@
+   else
+     /* 1 <= |p| */
+     {
+-      size_t nsd;  /* Number of significant digits */
++      size_t str_len;
+ 
+       /* Determine the position of the most significant decimal digit. */
+       exp = floor_log10 (p);
+@@ -1365,12 +1365,10 @@
+         /* P is too large to print all its integral part digits */
+         return -1;
+ 
+-      np->ip_size = exp + 1;
+-
+-      nsd = spec.prec + np->ip_size;
+       if (dec_info == NULL)
+-        {
+-          str = mpfr_get_str (NULL, &exp, 10, nsd, p, spec.rnd_mode);
++        { /* this case occurs with mpfr_printf ("%.0RUf", x) with x=9.5 */
++          str =
++            mpfr_get_str (NULL, &exp, 10, spec.prec+exp+1, p, spec.rnd_mode);
+           register_string (np->sl, str);
+         }
+       else
+@@ -1379,81 +1377,60 @@
+           str = dec_info->str;
+         }
+       np->ip_ptr = MPFR_IS_NEG (p) ? ++str : str; /* skip sign */
++      str_len = strlen (str);
++
++      /* integral part */
++      if (exp > str_len)
++        /* mpfr_get_str gives no trailing zero when p is rounded up to the next
++           power of 10 (p integer, so no fractional part) */
++        {
++          np->ip_trailing_zeros = exp - str_len;
++          np->ip_size = str_len;
++        }
++      else
++        np->ip_size = exp;
+ 
+       if (spec.group)
+         /* thousands separator in integral part */
+         np->thousands_sep = MPFR_THOUSANDS_SEPARATOR;
+ 
+-      if (nsd == 0 || (spec_g && !spec.alt))
+-        /* compute how much non-zero digits in integral and fractional
+-           parts */
++      /* fractional part */
++      str += np->ip_size;
++      str_len -= np->ip_size;
++      if (!keep_trailing_zeros)
++        /* remove trailing zeros, if any */
+         {
+-          size_t str_len;
+-          str_len = strlen (str); /* note: the sign has been skipped */
+-
+-          if (exp > str_len)
+-            /* mpfr_get_str doesn't give the trailing zeros when p is a
+-               multiple of 10 (p integer, so no fractional part) */
+-            {
+-              np->ip_trailing_zeros = exp - str_len;
+-              np->ip_size = str_len;
+-              if (spec.alt)
+-                np->point = MPFR_DECIMAL_POINT;
+-            }
+-          else
+-            /* str may contain some digits which are in fractional part */
++          char *ptr = str + str_len - 1; /* pointer to the last digit of
++                                            str */
++          while ((*ptr == '0') && (str_len != 0))
+             {
+-              char *ptr;
+-
+-              ptr = str + str_len - 1; /* points to the end of str */
+-              str_len -= np->ip_size;  /* number of digits in fractional
+-                                          part */
+-
+-              if (!keep_trailing_zeros)
+-                /* remove trailing zeros, if any */
+-                {
+-                  while ((*ptr == '0') && (str_len != 0))
+-                    {
+-                      --ptr;
+-                      --str_len;
+-                    }
+-                }
+-
+-              if (str_len > INT_MAX)
+-                /* too many digits in fractional part */
+-                return -1;
+-
+-              if (str_len != 0)
+-                /* some digits in fractional part */
+-                {
+-                  np->point = MPFR_DECIMAL_POINT;
+-                  np->fp_ptr = str + np->ip_size;
+-                  np->fp_size = str_len;
+-                }
++              --ptr;
++              --str_len;
+             }
+         }
+-      else
+-        /* spec.prec digits in fractional part */
++
++      if (str_len > 0)
++        /* some nonzero digits in fractional part */
+         {
+-          if (np->ip_size == exp - 1)
+-            /* the absolute value of the number has been rounded up to a power
+-               of ten.
+-               Insert an additional zero in integral part and put the rest of
+-               them in fractional part. */
+-            np->ip_trailing_zeros = 1;
++          if (str_len > INT_MAX)
++            /* too many digits in fractional part */
++            return -1;
+ 
+-          if (spec.prec != 0)
+-            {
+-              MPFR_ASSERTD (np->ip_size + np->ip_trailing_zeros == exp);
+-              MPFR_ASSERTD (np->ip_size + spec.prec == nsd);
++          np->point = MPFR_DECIMAL_POINT;
++          np->fp_ptr = str;
++          np->fp_size = str_len;
++        }
+ 
+-              np->point = MPFR_DECIMAL_POINT;
+-              np->fp_ptr = str + np->ip_size;
+-              np->fp_size = spec.prec;
+-            }
+-          else if (spec.alt)
+-            np->point = MPFR_DECIMAL_POINT;
++      if (keep_trailing_zeros && str_len < spec.prec)
++        /* add missing trailing zeros */
++        {
++          np->point = MPFR_DECIMAL_POINT;
++          np->fp_trailing_zeros = spec.prec - np->fp_size;
+         }
++
++      if (spec.alt)
++        /* add decimal point even if no digits follow it */
++        np->point = MPFR_DECIMAL_POINT;
+     }
+ 
+   return 0;
+diff -Naurd mpfr-3.1.0-a/src/version.c mpfr-3.1.0-b/src/version.c
+--- mpfr-3.1.0-a/src/version.c	2011-10-14 10:43:32.000000000 +0000
++++ mpfr-3.1.0-b/src/version.c	2011-11-03 15:15:11.000000000 +0000
+@@ -25,5 +25,5 @@
+ const char *
+ mpfr_get_version (void)
+ {
+-  return "3.1.0-p2";
++  return "3.1.0-p3";
+ }
+diff -Naurd mpfr-3.1.0-a/tests/tsprintf.c mpfr-3.1.0-b/tests/tsprintf.c
+--- mpfr-3.1.0-a/tests/tsprintf.c	2011-10-03 08:17:14.000000000 +0000
++++ mpfr-3.1.0-b/tests/tsprintf.c	2011-11-03 15:15:11.000000000 +0000
+@@ -475,6 +475,18 @@
+   check_sprintf ("-1.", "%- #0.1RG", x);
+ 
+   /* precision zero */
++  mpfr_set_d (x, 9.5, MPFR_RNDN);
++  check_sprintf ("9",    "%.0RDf", x);
++  check_sprintf ("10",    "%.0RUf", x);
++
++  mpfr_set_d (x, 19.5, MPFR_RNDN);
++  check_sprintf ("19",    "%.0RDf", x);
++  check_sprintf ("20",    "%.0RUf", x);
++
++  mpfr_set_d (x, 99.5, MPFR_RNDN);
++  check_sprintf ("99",    "%.0RDf", x);
++  check_sprintf ("100",   "%.0RUf", x);
++
+   mpfr_set_d (x, -9.5, MPFR_RNDN);
+   check_sprintf ("-10",    "%.0RDf", x);
+   check_sprintf ("-10",    "%.0RYf", x);
+@@ -1078,6 +1090,23 @@
+   mpfr_clear (x);
+ }
+ 
++static void
++bug20111102 (void)
++{
++  mpfr_t t;
++  char s[100];
++
++  mpfr_init2 (t, 84);
++  mpfr_set_str (t, "999.99999999999999999999", 10, MPFR_RNDN);
++  mpfr_sprintf (s, "%.20RNg", t);
++  if (strcmp (s, "1000") != 0)
++    {
++      printf ("Error in bug20111102, expected 1000, got %s\n", s);
++      exit (1);
++    }
++  mpfr_clear (t);
++}
++
+ /* In particular, the following test makes sure that the rounding
+  * for %Ra and %Rb is not done on the MPFR number itself (as it
+  * would overflow). Note: it has been reported on comp.std.c that
+@@ -1161,6 +1190,7 @@
+   locale = setlocale (LC_ALL, "C");
+ #endif
+ 
++  bug20111102 ();
+   native_types ();
+   hexadecimal ();
+   binary ();

@@ -377,6 +377,11 @@ manage_uClibc_config() {
     case "${CT_THREADS}:${CT_LIBC_UCLIBC_LNXTHRD}" in
         none:)
             ;;
+        linuxthreads:)
+            # Newer version of uClibc-ng, no old/new dichotomy
+            CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
+            CT_KconfigEnableOption "UCLIBC_HAS_LINUXTHREADS" "${dst}"
+            ;;
         linuxthreads:old)
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
             CT_KconfigEnableOption "LINUXTHREADS_OLD" "${dst}"
