@@ -1,0 +1,28 @@
+diff -urpN ltrace-0.7.3.orig/sysdeps/linux-gnu/proc.c ltrace-0.7.3/sysdeps/linux-gnu/proc.c
+--- ltrace-0.7.3.orig/sysdeps/linux-gnu/proc.c	2013-01-02 06:24:46.000000000 -0800
++++ ltrace-0.7.3/sysdeps/linux-gnu/proc.c	2016-11-13 11:24:32.760365875 -0800
+@@ -240,14 +240,18 @@ process_tasks(pid_t pid, pid_t **ret_tas
+ 	size_t alloc = 0;
+ 
+ 	while (1) {
+-		struct dirent entry;
+ 		struct dirent *result;
+-		if (readdir_r(d, &entry, &result) != 0) {
+-			free(tasks);
+-			return -1;
+-		}
+-		if (result == NULL)
++
++		errno = 0;
++		result = readdir(d);
++		if (result == NULL) {
++			if (errno) {
++				free(tasks);
++				closedir(d);
++				return -1;
++			}
+ 			break;
++		}
+ 		if (result->d_type == DT_DIR && all_digits(result->d_name)) {
+ 			pid_t npid = atoi(result->d_name);
+ 			if (n >= alloc) {
