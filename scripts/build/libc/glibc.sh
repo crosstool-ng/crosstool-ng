@@ -346,13 +346,21 @@ do_libc_backend_once() {
     build_ldflags="${CT_LDFLAGS_FOR_BUILD}"
 
     case "$CT_BUILD" in
-        *mingw*|*cygwin*|*msys*|*darwin*)
+        *mingw*|*cygwin*|*msys*|*darwin*|*freebsd*)
             # When installing headers on Cygwin, Darwin, MSYS2 and MinGW-w64 sunrpc needs
             # gettext for building cross-rpcgen.
             build_cppflags="${build_cppflags} -I${CT_BUILDTOOLS_PREFIX_DIR}/include/"
             build_ldflags="${build_ldflags} -lintl -liconv"
+            case "$CT_BUILD" in
+                *cygwin*|*freebsd*)
+                # Additionally, stat in FreeBSD, Cygwin, and possibly others
+                # is always 64bit, so replace struct stat64 with stat.
+                build_cppflags="${build_cppflags} -Dstat64=stat"
+                ;;
+            esac
             ;;
     esac
+
     extra_make_args+=( "BUILD_CFLAGS=${build_cflags}" )
     extra_make_args+=( "BUILD_CPPFLAGS=${build_cppflags}" )
     extra_make_args+=( "BUILD_LDFLAGS=${build_ldflags}" )
