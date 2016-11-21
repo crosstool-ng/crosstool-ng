@@ -148,9 +148,9 @@ do_ncurses_backend() {
     # it also builds ncurses anyway, and dedicated targets (install.includes and
     # install.progs) do not do well with parallel make (-jX).
     CT_DoLog EXTRA "Building ncurses"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
     CT_DoLog EXTRA "Installing ncurses"
-    CT_DoExecLog ALL ${make} install
+    CT_DoExecLog ALL make install
 }
 
 fi

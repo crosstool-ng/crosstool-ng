@@ -322,7 +322,7 @@ CT_SanitizeVarDir() {
 
     for var in "$@"; do
         eval "old_dir=\"\${${var}}\""
-        new_dir=$( echo "${old_dir}" | ${awk} '
+        new_dir=$( echo "${old_dir}" | awk '
 {
     isabs = $1 == "" # Started with a slash
     trail = $NF == "" # Ending with a slash
@@ -419,7 +419,7 @@ CT_Which() {
 # to the highest entire second
 # Usage: CT_DoDate <fmt>
 CT_DoDate() {
-    date "$1" |${sed} -r -e 's/%?N$/000000000/;'
+    date "$1" |sed -r -e 's/%?N$/000000000/;'
 }
 
 CT_STEP_COUNT=1
@@ -442,7 +442,7 @@ CT_DoStep() {
 CT_EndStep() {
     local stop=$(CT_DoDate +%s%N)
     local duration=$(printf "%032d" $((stop-${CT_STEP_START[${CT_STEP_COUNT}]})) \
-                     |${sed} -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;'
+                     |sed -r -e 's/([[:digit:]]{2})[[:digit:]]{7}$/\.\1/; s/^0+//; s/^\./0\./;'
                     )
     local elapsed=$(printf "%02d:%02d" $((SECONDS/60)) $((SECONDS%60)))
     local level="${CT_STEP_LEVEL[${CT_STEP_COUNT}]}"
@@ -516,7 +516,7 @@ CT_DoForceRmdir() {
 # Echoes the specified string on stdout until the pipe breaks.
 # Doesn't fail
 # $1: string to echo
-# Usage: CT_DoYes "" |${make} oldconfig
+# Usage: CT_DoYes "" |make oldconfig
 CT_DoYes() {
     yes "$1" || true
 }
@@ -899,7 +899,7 @@ CT_GetGit() {
     local url="${3}"
     local _out_cset="${4}"
 
-    local ref=$(echo "${cset_or_ref}" | ${sed} -n 's/^ref=\(.*\)/\1/p')
+    local ref=$(echo "${cset_or_ref}" | sed -n 's/^ref=\(.*\)/\1/p')
     if [ -n "$ref" ]; then
         local matches=$(git ls-remote --exit-code "$url" --refs "${ref}")
         local result=$?
@@ -1079,9 +1079,9 @@ CT_ExtractGit() {
     if [ -z "${ref}" ]; then
         ref_type=head
         ref=$(git rev-list -n1 HEAD)
-    elif git tag |${grep} -E "^${ref}$" >/dev/null 2>&1; then
+    elif git tag |grep -E "^${ref}$" >/dev/null 2>&1; then
         ref_type=tag
-    elif git branch -a --no-color |${grep} -E "^. ${ref}$" >/dev/null 2>&1; then
+    elif git branch -a --no-color |grep -E "^. ${ref}$" >/dev/null 2>&1; then
         ref_type=branch
     elif date -d "${ref}" >/dev/null 2>&1; then
         ref_type=date
@@ -1322,7 +1322,7 @@ CT_DoBuildTargetTuple() {
     # Sanity checks
     __sed_alias=""
     if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
-        __sed_alias=$(echo "${CT_TARGET}" |${sed} -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
+        __sed_alias=$(echo "${CT_TARGET}" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
     fi
     case ":${CT_TARGET_VENDOR}:${CT_TARGET_ALIAS}:${__sed_alias}:" in
       :*" "*:*:*:) CT_Abort "Don't use spaces in the vendor string, it breaks things.";;
@@ -1395,7 +1395,7 @@ CT_DoTarballIfExists() {
         CT_DoLog DEBUG "  Saving '${dir}'"
         { tar c -C "${dir}" -v -f - "${extra_tar_opts[@]}" .    \
           |"${compress[@]}" >"${tarball}.tar${tar_ext}"         ;
-        } 2>&1 |${sed} -r -e 's/^/    /;' |CT_DoLog STATE
+        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog STATE
     else
         CT_DoLog STATE "  Not saving '${dir}': does not exist"
     fi
@@ -1422,7 +1422,7 @@ CT_DoExtractTarballIfExists() {
         CT_DoExecLog DEBUG mkdir -p "${dir}"
         { "${uncompress[@]}" "${tarball}.tar${tar_ext}"     \
           |tar x -C "${dir}" -v -f - "${extra_tar_opts[@]}" ;
-        } 2>&1 |${sed} -r -e 's/^/    /;' |CT_DoLog STATE
+        } 2>&1 |sed -r -e 's/^/    /;' |CT_DoLog STATE
     else
         CT_DoLog STATE "  Not restoring '${dir}': does not exist"
     fi
@@ -1445,12 +1445,12 @@ CT_DoSaveState() {
     # We must omit shell functions, and some specific bash variables
     # that break when restoring the environment, later. We could do
     # all the processing in the awk script, but a sed is easier...
-    set |${awk} '
+    set |awk '
               BEGIN { _p = 1; }
               $0~/^[^ ]+ \(\)/ { _p = 0; }
               _p == 1
               $0 == "}" { _p = 1; }
-              ' |${sed} -r -e '/^BASH_(ARGC|ARGV|LINENO|SOURCE|VERSINFO)=/d;
+              ' |sed -r -e '/^BASH_(ARGC|ARGV|LINENO|SOURCE|VERSINFO)=/d;
                            /^(UID|EUID)=/d;
                            /^(FUNCNAME|GROUPS|PPID|SHELLOPTS)=/d;' >"${state_dir}/env.sh"
 
@@ -1514,10 +1514,10 @@ CT_KconfigSetOption() {
     local value="$2"
     local file="$3"
 
-    ${grep} -E -q "^${option}=.*" "${file}" && \
-        ${sed} -i -r -e "s;^${option}=.*$;${option}=${value};" "${file}" || \
-    ${grep} -E -q "^# ${option} is not set$" "${file}" && \
-        ${sed} -i -r -e "s;^# ${option} is not set$;${option}=${value};" "${file}" || \
+    grep -E -q "^${option}=.*" "${file}" && \
+        sed -i -r -e "s;^${option}=.*$;${option}=${value};" "${file}" || \
+    grep -E -q "^# ${option} is not set$" "${file}" && \
+        sed -i -r -e "s;^# ${option} is not set$;${option}=${value};" "${file}" || \
     echo "${option}=${value}" >> "${file}"
 }
 
@@ -1536,9 +1536,9 @@ CT_KconfigDisableOption() {
     local option="${1}"
     local file="${2}"
 
-    ${grep} -E -q "^# ${option} is not set$" "${file}" || \
-    ${grep} -E -q "^${option}=.*$" "${file}" && \
-        ${sed} -i -r -e "s;^${option}=.*$;# ${option} is not set;" "${file}" || \
+    grep -E -q "^# ${option} is not set$" "${file}" || \
+    grep -E -q "^${option}=.*$" "${file}" && \
+        sed -i -r -e "s;^${option}=.*$;# ${option} is not set;" "${file}" || \
     echo "# ${option} is not set" >> "${file}"
 }
 
@@ -1549,10 +1549,10 @@ CT_KconfigDeleteOption() {
     local option="${1}"
     local file="${2}"
 
-    ${grep} -E -q "^# ${option} is not set$" "${file}" && \
-        ${sed} -i -r -e "/^# ${option} is not set$/d" "${file}" || \
-    ${grep} -E -q "^${option}=.*$" "${file}" && \
-        ${sed} -i -r -e "/^${option}=.*$/d" "${file}" || true
+    grep -E -q "^# ${option} is not set$" "${file}" && \
+        sed -i -r -e "/^# ${option} is not set$/d" "${file}" || \
+    grep -E -q "^${option}=.*$" "${file}" && \
+        sed -i -r -e "/^${option}=.*$/d" "${file}" || true
 }
 
 # Multilib iterator. The caller should be in a directory where the directories
@@ -1616,7 +1616,7 @@ CT_IterateMultilibs() {
         # will work. If not, we'll supply both multi_root/multi_os_dir (which will
         # likely break later, e.g. while building final GCC with C++ support). But,
         # we've done all we can.
-        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
+        multi_flags=$( echo "${multilib#*;}" | sed -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
         multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
         multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
@@ -1636,7 +1636,7 @@ CT_IterateMultilibs() {
     # the architecture-specific functions.
     multi_index=1
     for multilib in "${multilibs[@]}"; do
-        multi_flags=$( echo "${multilib#*;}" | ${sed} -r -e 's/@/ -/g;' )
+        multi_flags=$( echo "${multilib#*;}" | sed -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
         multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
         multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )

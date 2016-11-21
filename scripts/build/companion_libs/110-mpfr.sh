@@ -53,12 +53,12 @@ do_mpfr_extract() {
                 # See: http://sourceware.org/ml/crossgcc/2008-11/msg00046.html
                 # and: http://sourceware.org/ml/crossgcc/2008-11/msg00048.html
                 libtoolize_opt=
-                case "$(${libtoolize} --version |head -n 1 |${awk} '{ print $(NF); }')" in
+                case "$(libtoolize --version |head -n 1 |awk '{ print $(NF); }')" in
                     0.*)    ;;
                     1.*)    ;;
                     *)      libtoolize_opt=-i;;
                 esac
-                CT_DoExecLog ALL ${libtoolize} -f ${libtoolize_opt}
+                CT_DoExecLog ALL libtoolize -f ${libtoolize_opt}
                 touch .autotools.ct-ng
             fi
             CT_Popd
@@ -146,15 +146,15 @@ do_mpfr_backend() {
         --enable-static
 
     CT_DoLog EXTRA "Building MPFR"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking MPFR"
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS} -s check
+        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing MPFR"
-    CT_DoExecLog ALL ${make} install
+    CT_DoExecLog ALL make install
 }
 
 fi # CT_MPFR

@@ -12,10 +12,10 @@ do_debug_gdb_get() {
     else
         # Account for the Linaro versioning
         linaro_version="$( echo "${CT_GDB_VERSION}"      \
-                           |${sed} -r -e 's/^linaro-//;'   \
+                           |sed -r -e 's/^linaro-//;'   \
                          )"
         linaro_series="$( echo "${linaro_version}"      \
-                          |${sed} -r -e 's/-.*//;'         \
+                          |sed -r -e 's/-.*//;'         \
                         )"
 
         if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
@@ -24,7 +24,7 @@ do_debug_gdb_get() {
                        {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
                        ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
         else
-            YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |${sed} -e 's,^..,,'`
+            YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
             CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
                        "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
                        https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
@@ -128,15 +128,15 @@ do_debug_gdb_build() {
             "${CT_GDB_CROSS_EXTRA_CONFIG_ARRAY[@]}"
 
         CT_DoLog EXTRA "Building cross-gdb"
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS}
+        CT_DoExecLog ALL make ${JOBSFLAGS}
 
         CT_DoLog EXTRA "Installing cross-gdb"
-        CT_DoExecLog ALL ${make} install
+        CT_DoExecLog ALL make install
 
         if [ "${CT_BUILD_MANUALS}" = "y" ]; then
             CT_DoLog EXTRA "Building and installing the cross-GDB manuals"
-            CT_DoExecLog ALL ${make} ${JOBSFLAGS} pdf html
-            CT_DoExecLog ALL ${make} install-{pdf,html}-gdb
+            CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
+            CT_DoExecLog ALL make install-{pdf,html}-gdb
         fi
 
         if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
@@ -145,11 +145,11 @@ do_debug_gdb_build() {
             if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" ]; then
                 gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" )
             else
-                gcc_version=$(${sed} -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
+                gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
                                    "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/version.c"   \
                              )
             fi
-            ${sed} -r                                               \
+            sed -r                                               \
                    -e "s:@@PREFIX@@:${CT_PREFIX_DIR}:;"             \
                    -e "s:@@VERSION@@:${gcc_version}:;"              \
                    "${CT_LIB_DIR}/scripts/build/debug/gdbinit.in"   \
@@ -230,10 +230,10 @@ do_debug_gdb_build() {
             "${native_extra_config[@]}"
 
         CT_DoLog EXTRA "Building native gdb"
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS} CC=${CT_TARGET}-${CT_CC}
+        CT_DoExecLog ALL make ${JOBSFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing native gdb"
-        CT_DoExecLog ALL ${make} DESTDIR="${CT_DEBUGROOT_DIR}" install
+        CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install
 
         # Building a native gdb also builds a gdbserver
         find "${CT_DEBUGROOT_DIR}" -type f -name gdbserver -exec rm -fv {} \; 2>&1 |CT_DoLog ALL
@@ -302,10 +302,10 @@ do_debug_gdb_build() {
             "${gdbserver_extra_config[@]}"
 
         CT_DoLog EXTRA "Building gdbserver"
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS} CC=${CT_TARGET}-${CT_CC}
+        CT_DoExecLog ALL make ${JOBSFLAGS} CC=${CT_TARGET}-${CT_CC}
 
         CT_DoLog EXTRA "Installing gdbserver"
-        CT_DoExecLog ALL ${make} DESTDIR="${CT_DEBUGROOT_DIR}" install
+        CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install
 
         CT_EndStep
     fi

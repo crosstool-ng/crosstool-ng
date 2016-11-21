@@ -23,7 +23,7 @@ CT_DoArchUClibcSelectArch() {
     local cfg="${1}"
     local arch="${2}"
 
-    ${sed} -i -r -e '/^TARGET_.*/d' "${cfg}"
+    sed -i -r -e '/^TARGET_.*/d' "${cfg}"
     CT_KconfigEnableOption "TARGET_${arch}" "${cfg}"
     CT_KconfigSetOption "TARGET_ARCH" "${arch}" "${cfg}"
 }

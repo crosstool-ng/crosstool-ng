@@ -93,7 +93,7 @@ do_kernel_headers() {
 
     CT_DoLog EXTRA "Installing kernel headers"
     CT_DoExecLog ALL                                    \
-    ${make} -C "${kernel_path}"                         \
+    make -C "${kernel_path}"                         \
          CROSS_COMPILE="${CT_TARGET}-"                  \
          O="${CT_BUILD_DIR}/build-kernel-headers"       \
          ARCH=${kernel_arch}                            \
@@ -104,7 +104,7 @@ do_kernel_headers() {
     if [ "${CT_KERNEL_LINUX_INSTALL_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking installed headers"
         CT_DoExecLog ALL                                    \
-        ${make} -C "${kernel_path}"                         \
+        make -C "${kernel_path}"                         \
              CROSS_COMPILE="${CT_TARGET}-"                  \
              O="${CT_BUILD_DIR}/build-kernel-headers"       \
              ARCH=${kernel_arch}                            \

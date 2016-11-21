@@ -109,15 +109,15 @@ do_cloog_backend() {
         "${cloog_opts[@]}"
 
     CT_DoLog EXTRA "Building CLooG"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         CT_DoLog EXTRA "Checking CLooG"
-        CT_DoExecLog ALL ${make} ${JOBSFLAGS} -s check
+        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
     fi
 
     CT_DoLog EXTRA "Installing CLooG"
-    CT_DoExecLog ALL ${make} install
+    CT_DoExecLog ALL make install
 }
 
 fi # CT_CLOOG

@@ -132,7 +132,7 @@ do_libelf_backend() {
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building libelf"
-    CT_DoExecLog ALL ${make}
+    CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing libelf"
 
@@ -142,7 +142,7 @@ do_libelf_backend() {
         destdir=
     fi
 
-    CT_DoExecLog ALL ${make} instroot="${destdir}" install
+    CT_DoExecLog ALL make instroot="${destdir}" install
 }
 
 fi # CT_LIBELF || CT_LIBELF_TARGET

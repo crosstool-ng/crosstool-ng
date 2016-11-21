@@ -93,9 +93,9 @@ do_expat_backend() {
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building expat"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${JOBSFLAGS}
     CT_DoLog EXTRA "Installing expat"
-    CT_DoExecLog ALL ${make} install INSTALL_ROOT="${destdir}"
+    CT_DoExecLog ALL make install INSTALL_ROOT="${destdir}"
 }
 
 fi
