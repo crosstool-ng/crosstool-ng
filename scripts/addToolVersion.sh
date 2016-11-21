@@ -143,6 +143,16 @@ addToolVersion() {
                 SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_0_9_33_2_or_later"
             fi
             ;;
+        uClibc-ng)
+            # uClibc-ng-1.0.15 changed threading configuration, no longer compatible
+            # with the rest of uClibc gang.
+            ver_M=$(getVersionField "${version}" . 1)
+            ver_m=$(getVersionField "${version}" . 2)
+            ver_p=$(getVersionField "${version}" . 3)
+            if [  ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -eq 33 ]; then
+                SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_NG_1_0_15_or_later"
+            fi
+            ;;
         gdb)
             # gdb-7.0 and above have special handling
             ver_M=$(getVersionField "${version}" . 1)
@@ -175,27 +185,32 @@ fi
 while [ $# -gt 0 ]; do
     case "$1" in
         # Tools:
-        --gcc)      EXP=; OBS=; cat=CC_GCC;         tool=gcc;       tool_prefix=cc;             dot2suffix=;;
-        --binutils) EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;       dot2suffix=;;
-        --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;     tool_prefix=libc;           dot2suffix=;;
-        --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;    tool_prefix=libc;           dot2suffix=;;
-        --uClibc-ng)EXP=; OBS=; cat=LIBC_UCLIBC_NG; tool=uClibc;    tool_prefix=libc;           dot2suffix=;;
-        --newlib)   EXP=; OBS=; cat=LIBC_NEWLIB;    tool=newlib;    tool_prefix=libc;           dot2suffix=;;
-        --mingw-w64)EXP=; OBS=; cat=WINAPI;         tool=mingw;     tool_prefix=libc;           dot2suffix=;;
-        --linux)    EXP=; OBS=; cat=KERNEL;         tool=linux;     tool_prefix=kernel;         dot2suffix=;;
-        --gdb)      EXP=; OBS=; cat=GDB;            tool=gdb;       tool_prefix=debug;          dot2suffix=;;
-        --dmalloc)  EXP=; OBS=; cat=DMALLOC;        tool=dmalloc;   tool_prefix=debug;          dot2suffix=;;
-        --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;          dot2suffix=;;
-        --strace)   EXP=; OBS=; cat=STRACE;         tool=strace;    tool_prefix=debug;          dot2suffix=;;
-        --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;          dot2suffix=;;
-        --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs; dot2suffix=;;
-        --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs; dot2suffix=;;
-        --isl)      EXP=; OBS=; cat=ISL;            tool=isl;       tool_prefix=companion_libs; dot2suffix=;;
-        --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs; dot2suffix=;;
-        --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs; dot2suffix=;;
-        --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs; dot2suffix=;;
-        --expat)    EXP=; OBS=; cat=EXPAT;          tool=expat;     tool_prefix=companion_libs; dot2suffix=;;
-        --ncurses)  EXP=; OBS=; cat=NCURSES;        tool=ncurses;   tool_prefix=companion_libs; dot2suffix=;;
+        --gcc)      EXP=; OBS=; cat=CC_GCC;         tool=gcc;       tool_prefix=cc;              dot2suffix=;;
+        --binutils) EXP=; OBS=; cat=BINUTILS;       tool=binutils;  tool_prefix=binutils;        dot2suffix=;;
+        --glibc)    EXP=; OBS=; cat=LIBC_GLIBC;     tool=glibc;     tool_prefix=libc;            dot2suffix=;;
+        --uClibc)   EXP=; OBS=; cat=LIBC_UCLIBC;    tool=uClibc;    tool_prefix=libc;            dot2suffix=;;
+        --uClibc-ng)EXP=; OBS=; cat=LIBC_UCLIBC_NG; tool=uClibc;    tool_prefix=libc;            dot2suffix=;;
+        --newlib)   EXP=; OBS=; cat=LIBC_NEWLIB;    tool=newlib;    tool_prefix=libc;            dot2suffix=;;
+        --mingw-w64)EXP=; OBS=; cat=WINAPI;         tool=mingw;     tool_prefix=libc;            dot2suffix=;;
+        --linux)    EXP=; OBS=; cat=KERNEL;         tool=linux;     tool_prefix=kernel;          dot2suffix=;;
+        --gdb)      EXP=; OBS=; cat=GDB;            tool=gdb;       tool_prefix=debug;           dot2suffix=;;
+        --dmalloc)  EXP=; OBS=; cat=DMALLOC;        tool=dmalloc;   tool_prefix=debug;           dot2suffix=;;
+        --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;           dot2suffix=;;
+        --strace)   EXP=; OBS=; cat=STRACE;         tool=strace;    tool_prefix=debug;           dot2suffix=;;
+        --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;           dot2suffix=;;
+        --gmp)      EXP=; OBS=; cat=GMP;            tool=gmp;       tool_prefix=companion_libs;  dot2suffix=;;
+        --mpfr)     EXP=; OBS=; cat=MPFR;           tool=mpfr;      tool_prefix=companion_libs;  dot2suffix=;;
+        --isl)      EXP=; OBS=; cat=ISL;            tool=isl;       tool_prefix=companion_libs;  dot2suffix=;;
+        --cloog)    EXP=; OBS=; cat=CLOOG;          tool=cloog;     tool_prefix=companion_libs;  dot2suffix=;;
+        --mpc)      EXP=; OBS=; cat=MPC;            tool=mpc;       tool_prefix=companion_libs;  dot2suffix=;;
+        --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs;  dot2suffix=;;
+        --expat)    EXP=; OBS=; cat=EXPAT;          tool=expat;     tool_prefix=companion_libs;  dot2suffix=;;
+        --ncurses)  EXP=; OBS=; cat=NCURSES;        tool=ncurses;   tool_prefix=companion_libs;  dot2suffix=;;
+        --make)     EXP=; OBS=; cat=MAKE;           tool=make;      tool_prefix=companion_tools; dot2suffix=;;
+        --m4)       EXP=; OBS=; cat=M4;             tool=m4;        tool_prefix=companion_tools; dot2suffix=;;
+        --autoconf) EXP=; OBS=; cat=AUTOCONF;       tool=autoconf;  tool_prefix=companion_tools; dot2suffix=;;
+        --automake) EXP=; OBS=; cat=AUTOMAKE;       tool=automake;  tool_prefix=companion_tools; dot2suffix=;;
+        --libtool)  EXP=; OBS=; cat=LIBTOOL;        tool=libtool;   tool_prefix=companion_tools; dot2suffix=;;
 
         # Tools options:
         -x|--experimental|+s)   EXP=1;;
