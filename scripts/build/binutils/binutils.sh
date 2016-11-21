@@ -314,7 +314,7 @@ do_elf2flt_backend() {
         "${CT_ELF2FLT_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building elf2flt"
-    CT_DoExecLog ALL ${make} ${JOBSFLAGS}
+    CT_DoExecLog ALL ${make} ${JOBSFLAGS} CPU=${CT_ARCH}
 
     CT_DoLog EXTRA "Installing elf2flt"
     CT_DoExecLog ALL ${make} install
