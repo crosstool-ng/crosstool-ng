@@ -26,14 +26,16 @@ BINUTILS_CONFIG_FILES_2 = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LI
 LIBC_CONFIG_FILES       = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/libc/*.in)))
 LIBC_CONFIG_FILES_2     = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/libc/*.in.2)))
 DEBUG_CONFIG_FILES      = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/debug/*.in)))
+COMP_TOOLS_CONFIG_FILES = $(patsubst $(CT_LIB_DIR)/%,%,$(sort $(wildcard $(CT_LIB_DIR)/config/companion_tools/*.in)))
 
 # Build the list of generated config files
-GEN_CONFIG_FILES = config.gen/arch.in     \
-                   config.gen/kernel.in   \
-                   config.gen/cc.in       \
-                   config.gen/binutils.in \
-                   config.gen/libc.in     \
-                   config.gen/debug.in
+GEN_CONFIG_FILES = config.gen/arch.in            \
+                   config.gen/kernel.in          \
+                   config.gen/cc.in              \
+                   config.gen/binutils.in        \
+                   config.gen/libc.in            \
+                   config.gen/debug.in           \
+                   config.gen/companion_tools.in
 # ... and how to access them:
 # Generated files depends on the gen_in_frags script because it has the
 # functions needed to build the genrated files, and thus they might need
@@ -67,6 +69,7 @@ CCS       = $(patsubst config/cc/%.in,%,$(CC_CONFIG_FILES))
 BINUTILSS = $(patsubst config/binutils/%.in,%,$(BINUTILS_CONFIG_FILES))
 LIBCS     = $(patsubst config/libc/%.in,%,$(LIBC_CONFIG_FILES))
 DEBUGS    = $(patsubst config/debug/%.in,%,$(DEBUG_CONFIG_FILES))
+COMP_TOOLS= $(patsubst config/companion_tools/%.in,%,$(COMP_TOOLS_CONFIG_FILES))
 
 #-----------------------------------------------------------
 # The rules for the generated config files
@@ -96,6 +99,10 @@ config.gen/libc.in: $(LIBC_CONFIG_FILES) $(LIBC_CONFIG_FILES_2)
 config.gen/debug.in: $(DEBUG_CONFIG_FILES)
 	@$(CT_ECHO) '  IN    $(@)'
 	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh menu "$@" "Debug facilities" "DEBUG" "config/debug" $(DEBUGS)
+
+config.gen/companion_tools.in: $(COMP_TOOLS_CONFIG_FILES)
+	@$(CT_ECHO) '  IN    $(@)'
+	$(SILENT)$(CT_LIB_DIR)/scripts/gen_in_frags.sh menu "$@" "Companion tools" "COMP_TOOLS" "config/companion_tools" $(COMP_TOOLS)
 
 #-----------------------------------------------------------
 # Cleaning up the mess...

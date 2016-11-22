@@ -106,10 +106,10 @@ do_libiconv_backend() {
         "${extra_config[@]}"                                  \
 
     CT_DoLog EXTRA "Building libiconv"
-    CT_DoExecLog ALL ${make} CC="${host}-gcc ${cflags}" ${JOBSFLAGS}
+    CT_DoExecLog ALL make CC="${host}-gcc ${cflags}" ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing libiconv"
-    CT_DoExecLog ALL ${make} install CC="${host}-gcc ${cflags}"
+    CT_DoExecLog ALL make install CC="${host}-gcc ${cflags}"
 }
 
 fi

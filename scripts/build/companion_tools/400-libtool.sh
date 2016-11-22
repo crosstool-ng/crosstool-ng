@@ -1,7 +1,5 @@
 # Build script for libtool
 
-CT_LIBTOOL_VERSION=2.4.6
-
 do_companion_tools_libtool_get() {
     CT_GetFile "libtool-${CT_LIBTOOL_VERSION}"     \
         {http,ftp,https}://ftp.gnu.org/gnu/libtool
@@ -21,8 +19,8 @@ do_companion_tools_libtool_build() {
     CT_DoExecLog CFG \
     "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}/configure" \
         --prefix="${CT_BUILDTOOLS_PREFIX_DIR}"
-    CT_DoExecLog ALL ${make}
-    CT_DoExecLog ALL ${make} install
+    CT_DoExecLog ALL make
+    CT_DoExecLog ALL make install
     CT_Popd
     CT_EndStep
 }

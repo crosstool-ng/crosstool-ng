@@ -47,7 +47,7 @@ do_finish() {
             if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" ]; then
                 gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" )
             else
-                gcc_version=$(${sed} -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;' \
+                gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;' \
                                    "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/version.c" \
                              )
             fi
@@ -71,13 +71,13 @@ do_finish() {
 
     if [ "${CT_BARE_METAL}" != "y" ]; then
         CT_DoLog EXTRA "Installing the populate helper"
-        ${sed} -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
-               -e 's|@@CT_install@@|'"${install}"'|g;'     \
-               -e 's|@@CT_awk@@|'"${awk}"'|g;'             \
+        sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
+               -e 's|@@CT_install@@|'"install"'|g;'     \
+               -e 's|@@CT_awk@@|'"awk"'|g;'             \
                -e 's|@@CT_bash@@|'"${bash}"'|g;'           \
-               -e 's|@@CT_grep@@|'"${grep}"'|g;'           \
-               -e 's|@@CT_make@@|'"${make}"'|g;'           \
-               -e 's|@@CT_sed@@|'"${sed}"'|g;'             \
+               -e 's|@@CT_grep@@|'"grep"'|g;'           \
+               -e 's|@@CT_make@@|'"make"'|g;'           \
+               -e 's|@@CT_sed@@|'"sed"'|g;'             \
                "${CT_LIB_DIR}/scripts/populate.in"         \
                >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
         CT_DoExecLog ALL chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-populate"
@@ -85,14 +85,14 @@ do_finish() {
 
     if [ "${CT_LIBC_XLDD}" = "y" ]; then
         CT_DoLog EXTRA "Installing a cross-ldd helper"
-        ${sed} -r -e 's|@@CT_VERSION@@|'"${CT_VERSION}"'|g;' \
+        sed -r -e 's|@@CT_VERSION@@|'"${CT_VERSION}"'|g;' \
                -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;'      \
                -e 's|@@CT_BITS@@|'"${CT_ARCH_BITNESS}"'|g;'  \
-               -e 's|@@CT_install@@|'"${install}"'|g;'       \
+               -e 's|@@CT_install@@|'"install"'|g;'       \
                -e 's|@@CT_bash@@|'"${bash}"'|g;'             \
-               -e 's|@@CT_grep@@|'"${grep}"'|g;'             \
-               -e 's|@@CT_make@@|'"${make}"'|g;'             \
-               -e 's|@@CT_sed@@|'"${sed}"'|g;'               \
+               -e 's|@@CT_grep@@|'"grep"'|g;'             \
+               -e 's|@@CT_make@@|'"make"'|g;'             \
+               -e 's|@@CT_sed@@|'"sed"'|g;'               \
                "${CT_LIB_DIR}/scripts/xldd.in"               \
                >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
         CT_DoExecLog ALL chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
@@ -103,11 +103,11 @@ do_finish() {
     CT_Pushd "${CT_PREFIX_DIR}/bin"
     for t in "${CT_TARGET}-"*; do
         if [ -n "${CT_TARGET_ALIAS}" ]; then
-            _t=$(echo "$t" |${sed} -r -e 's/^'"${CT_TARGET}"'-/'"${CT_TARGET_ALIAS}"'-/;')
+            _t=$(echo "$t" |sed -r -e 's/^'"${CT_TARGET}"'-/'"${CT_TARGET_ALIAS}"'-/;')
             CT_DoExecLog ALL ln -sfv "${t}" "${_t}"
         fi
         if [ -n "${CT_TARGET_ALIAS_SED_EXPR}" ]; then
-            _t=$(echo "$t" |${sed} -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
+            _t=$(echo "$t" |sed -r -e "${CT_TARGET_ALIAS_SED_EXPR}")
             if [ "${_t}" = "${t}" ]; then
                 CT_DoLog WARN "The sed expression '${CT_TARGET_ALIAS_SED_EXPR}' has no effect on '${t}'"
             else

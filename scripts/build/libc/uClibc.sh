@@ -138,7 +138,7 @@ do_libc_backend_once() {
     fi
 
     manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config "${multi_flags}"
-    CT_DoYes | CT_DoExecLog ALL ${make} "${make_args[@]}" oldconfig
+    CT_DoYes | CT_DoExecLog ALL make "${make_args[@]}" oldconfig
 
     # Now filter the multilib flags. manage_uClibc_config did the opposite of
     # what Rules.mak in uClibc would do: by the multilib's CFLAGS, it determined
@@ -149,7 +149,7 @@ do_libc_backend_once() {
     extra_cflags="-pipe"
     { echo "include Rules.mak"; echo "show-cpu-flags:"; printf '\t@echo $(CPU_CFLAGS)\n'; } \
                 > .show-cpu-cflags.mk
-    cfg_cflags=$( ${make} "${make_args[@]}" \
+    cfg_cflags=$( make "${make_args[@]}" \
         --no-print-directory -f .show-cpu-cflags.mk show-cpu-flags )
     CT_DoExecLog ALL rm -f .show-cpu-cflags.mk
     CT_DoLog DEBUG "CPU_CFLAGS detected by uClibc: ${cfg_cflags[@]}"
@@ -178,19 +178,19 @@ do_libc_backend_once() {
 
     if [ "${libc_mode}" = "startfiles" ]; then
         CT_DoLog EXTRA "Building headers"
-        CT_DoExecLog ALL ${make} "${make_args[@]}" headers
+        CT_DoExecLog ALL make "${make_args[@]}" headers
 
         # Ensure the directory for installing multilib-specific binaries exists.
         CT_DoExecLog ALL mkdir -p "${startfiles_dir}"
 
         CT_DoLog EXTRA "Installing headers"
-        CT_DoExecLog ALL ${make} "${make_args[@]}" install_headers
+        CT_DoExecLog ALL make "${make_args[@]}" install_headers
 
         # The check might look bogus, but it is the same condition as is used
         # by GCC build script to enable/disable shared library support.
         if [ "${CT_THREADS}" = "nptl" ]; then
             CT_DoLog EXTRA "Building start files"
-            CT_DoExecLog ALL ${make} ${jflag} "${make_args[@]}" \
+            CT_DoExecLog ALL make ${jflag} "${make_args[@]}" \
                 lib/crt1.o lib/crti.o lib/crtn.o
 
             # From:  http://git.openembedded.org/cgit.cgi/openembedded/commit/?id=ad5668a7ac7e0436db92e55caaf3fdf782b6ba3b
@@ -201,12 +201,12 @@ do_libc_backend_once() {
                 -shared ${multi_flags} -x c /dev/null -o libdummy.so
 
             CT_DoLog EXTRA "Installing start files"
-            CT_DoExecLog ALL ${install} -m 0644 lib/crt1.o lib/crti.o lib/crtn.o \
+            CT_DoExecLog ALL install -m 0644 lib/crt1.o lib/crti.o lib/crtn.o \
                                              "${startfiles_dir}"
 
             CT_DoLog EXTRA "Installing dummy shared libs"
-            CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${startfiles_dir}/libc.so"
-            CT_DoExecLog ALL ${install} -m 0755 libdummy.so "${startfiles_dir}/libm.so"
+            CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libc.so"
+            CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libm.so"
         fi # CT_THREADS == nptl
     fi # libc_mode == startfiles
 
@@ -219,8 +219,8 @@ do_libc_backend_once() {
                     "${startfiles_dir}/libm.so"
 
         CT_DoLog EXTRA "Building C library"
-        CT_DoExecLog ALL ${make} "${make_args[@]}" pregen
-        CT_DoExecLog ALL ${make} ${jflag} "${make_args[@]}" all
+        CT_DoExecLog ALL make "${make_args[@]}" pregen
+        CT_DoExecLog ALL make ${jflag} "${make_args[@]}" all
 
         # YEM-FIXME:
         # - we want to install 'runtime' files, eg. lib*.{a,so*}, crti.o and
@@ -231,7 +231,7 @@ do_libc_backend_once() {
         # - "make install" calls install_runtime and install_dev
         # - so we're left with re-installing the headers... Sigh...
         CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL ${make} "${make_args[@]}" install install_utils
+        CT_DoExecLog ALL make "${make_args[@]}" install install_utils
     fi # libc_mode == final
 
     # Now, if installing headers into a subdirectory, put everything in its place.
