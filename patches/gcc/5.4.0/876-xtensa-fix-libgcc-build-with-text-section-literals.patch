@@ -1,0 +1,67 @@
+From 44fbad9f8bed55f690f251b530ab38df1e696d95 Mon Sep 17 00:00:00 2001
+From: jcmvbkbc <jcmvbkbc@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date: Wed, 17 Feb 2016 20:21:48 +0000
+Subject: [PATCH] xtensa: fix libgcc build with --text-section-literals
+
+Functions __muldf3_aux, __divdf3_aux, __mulsf3_aux and __divsf3_aux
+don't start with leaf_entry, so they need explicit .literal_position,
+otherwise libgcc build fails in the presence of --text-section-literals.
+
+2016-02-17  Max Filippov  <jcmvbkbc@gmail.com>
+libgcc/
+	* config/xtensa/ieee754-df.S (__muldf3_aux, __divdf3_aux): Add
+	.literal_position before the function.
+	* config/xtensa/ieee754-sf.S (__mulsf3_aux, __divsf3_aux):
+	Likewise.
+
+git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@233505 138bc75d-0d04-0410-961f-82ee72b054a4
+
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ libgcc/config/xtensa/ieee754-df.S | 2 ++
+ libgcc/config/xtensa/ieee754-sf.S | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/libgcc/config/xtensa/ieee754-df.S b/libgcc/config/xtensa/ieee754-df.S
+index a7ae209..26f2abd 100644
+--- a/libgcc/config/xtensa/ieee754-df.S
++++ b/libgcc/config/xtensa/ieee754-df.S
+@@ -606,6 +606,7 @@ __subdf3:
+ #define XCHAL_NO_MUL 1
+ #endif
+ 
++	.literal_position
+ __muldf3_aux:
+ 
+ 	/* Handle unusual cases (zeros, subnormals, NaNs and Infinities).
+@@ -1216,6 +1217,7 @@ __muldf3:
+ 
+ #ifdef L_divdf3
+ 
++	.literal_position
+ 	/* Division */
+ __divdf3_aux:
+ 
+diff --git a/libgcc/config/xtensa/ieee754-sf.S b/libgcc/config/xtensa/ieee754-sf.S
+index 7e397dc..a5e6e3c 100644
+--- a/libgcc/config/xtensa/ieee754-sf.S
++++ b/libgcc/config/xtensa/ieee754-sf.S
+@@ -487,6 +487,7 @@ __subsf3:
+ #define XCHAL_NO_MUL 1
+ #endif
+ 
++	.literal_position
+ __mulsf3_aux:
+ 
+ 	/* Handle unusual cases (zeros, subnormals, NaNs and Infinities).
+@@ -884,6 +885,7 @@ __mulsf3:
+ 
+ #ifdef L_divsf3
+ 
++	.literal_position
+ 	/* Division */
+ __divsf3_aux:
+ 
+-- 
+2.1.4
+

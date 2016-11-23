@@ -1,0 +1,108 @@
+From 7d3692c6933f7ff87bf110dede8e33e922b164c6 Mon Sep 17 00:00:00 2001
+From: jcmvbkbc <jcmvbkbc@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date: Tue, 15 Sep 2015 19:30:32 +0000
+Subject: [PATCH] xtensa: fix xtensa_fallback_frame_state for call0 ABI
+
+2015-09-15  Max Filippov  <jcmvbkbc@gmail.com>
+gcc/
+	* config/xtensa/xtensa.h (DWARF_ALT_FRAME_RETURN_COLUMN): New
+	definition.
+	(DWARF_FRAME_REGISTERS): Reserve space for one extra register in
+	call0 ABI.
+
+libgcc/
+	* config/xtensa/linux-unwind.h (xtensa_fallback_frame_state):
+	Add support for call0 ABI.
+
+git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@227809 138bc75d-0d04-0410-961f-82ee72b054a4
+
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ gcc/config/xtensa/xtensa.h          |  4 +++-
+ libgcc/config/xtensa/linux-unwind.h | 30 ++++++++++++++++++++++++++++--
+ 2 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/gcc/config/xtensa/xtensa.h b/gcc/config/xtensa/xtensa.h
+index 584080b..e165def 100644
+--- a/gcc/config/xtensa/xtensa.h
++++ b/gcc/config/xtensa/xtensa.h
+@@ -813,7 +813,9 @@ typedef struct xtensa_args
+    for debugging.  */
+ #define INCOMING_RETURN_ADDR_RTX gen_rtx_REG (Pmode, 0)
+ #define DWARF_FRAME_RETURN_COLUMN DWARF_FRAME_REGNUM (0)
+-#define DWARF_FRAME_REGISTERS 16
++#define DWARF_ALT_FRAME_RETURN_COLUMN 16
++#define DWARF_FRAME_REGISTERS (DWARF_ALT_FRAME_RETURN_COLUMN		\
++			       + (TARGET_WINDOWED_ABI ? 0 : 1))
+ #define EH_RETURN_DATA_REGNO(N) ((N) < 2 ? (N) + 2 : INVALID_REGNUM)
+ #define ASM_PREFERRED_EH_DATA_FORMAT(CODE, GLOBAL)			\
+   (flag_pic								\
+diff --git a/libgcc/config/xtensa/linux-unwind.h b/libgcc/config/xtensa/linux-unwind.h
+index 9daf738..9a67b5d 100644
+--- a/libgcc/config/xtensa/linux-unwind.h
++++ b/libgcc/config/xtensa/linux-unwind.h
+@@ -52,7 +52,6 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ #define ENTRY_BYTE 0x36
+ #endif
+ 
+-#ifdef __XTENSA_WINDOWED_ABI__
+ #define MD_FALLBACK_FRAME_STATE_FOR xtensa_fallback_frame_state
+ 
+ static _Unwind_Reason_Code
+@@ -61,6 +60,10 @@ xtensa_fallback_frame_state (struct _Unwind_Context *context,
+ {
+   unsigned char *pc = context->ra;
+   struct sigcontext *sc;
++#if defined(__XTENSA_CALL0_ABI__)
++  _Unwind_Ptr new_cfa;
++  int i;
++#endif
+ 
+   struct rt_sigframe {
+     siginfo_t info;
+@@ -76,6 +79,7 @@ xtensa_fallback_frame_state (struct _Unwind_Context *context,
+       || pc[5] != SYSC_BYTE2)
+     return _URC_END_OF_STACK;
+ 
++#if defined(__XTENSA_WINDOWED_ABI__)
+   rt_ = context->sp;
+   sc = &rt_->uc.uc_mcontext;
+   fs->signal_regs = (_Unwind_Word *) sc->sc_a;
+@@ -90,11 +94,33 @@ xtensa_fallback_frame_state (struct _Unwind_Context *context,
+    }
+   else
+     fs->signal_ra = sc->sc_pc;
++#elif defined(__XTENSA_CALL0_ABI__)
++  rt_ = context->cfa;
++  sc = &rt_->uc.uc_mcontext;
++
++  new_cfa = (_Unwind_Ptr) sc;
++  fs->regs.cfa_how = CFA_REG_OFFSET;
++  fs->regs.cfa_reg = __LIBGCC_STACK_POINTER_REGNUM__;
++  fs->regs.cfa_offset = new_cfa - (_Unwind_Ptr) context->cfa;
++
++  for (i = 0; i < 16; i++)
++    {
++      fs->regs.reg[i].how = REG_SAVED_OFFSET;
++      fs->regs.reg[i].loc.offset = (_Unwind_Ptr) &(sc->sc_a[i]) - new_cfa;
++    }
++
++  fs->regs.reg[__LIBGCC_DWARF_ALT_FRAME_RETURN_COLUMN__].how =
++    REG_SAVED_VAL_OFFSET;
++  fs->regs.reg[__LIBGCC_DWARF_ALT_FRAME_RETURN_COLUMN__].loc.offset =
++    (_Unwind_Ptr) (sc->sc_pc) - new_cfa;
++  fs->retaddr_column = __LIBGCC_DWARF_ALT_FRAME_RETURN_COLUMN__;
++#else
++#error Unsupported Xtensa ABI
++#endif
+ 
+   fs->signal_frame = 1;
+   return _URC_NO_REASON;
+ }
+ 
+-#endif /* __XTENSA_WINDOWED_ABI__ */
+ 
+ #endif /* ifdef inhibit_libc  */
+-- 
+2.1.4
+
