@@ -19,6 +19,7 @@ help-env::
 # Please keep the last line with a '\' and keep the following empty line:
 # it helps when diffing and merging.
 CT_STEPS := \
+            companion_tools_for_build  \
             companion_libs_for_build   \
             binutils_for_build         \
             companion_libs_for_host    \

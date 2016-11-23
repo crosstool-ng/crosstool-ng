@@ -11,7 +11,7 @@ do_companion_tools_autoconf_extract() {
     CT_Patch "autoconf" "${CT_AUTOCONF_VERSION}"
 }
 
-do_companion_tools_autoconf_build() {
+do_companion_tools_autoconf_for_build() {
     CT_DoStep EXTRA "Installing autoconf"
     mkdir -p "${CT_BUILD_DIR}/build-autoconf"
     CT_Pushd "${CT_BUILD_DIR}/build-autoconf"
@@ -21,10 +21,15 @@ do_companion_tools_autoconf_build() {
     # For reference see:
     # http://www.gnu.org/software/autoconf/manual/autoconf.html#CONFIG_005fSHELL
     
+    CT_DoLog EXTRA "Configuring autoconf"
     CT_DoExecLog CFG ${CONFIG_SHELL} \
     "${CT_SRC_DIR}/autoconf-${CT_AUTOCONF_VERSION}/configure" \
         --prefix="${CT_BUILDTOOLS_PREFIX_DIR}"
+
+    CT_DoLog EXTRA "Building autoconf"
     CT_DoExecLog ALL make
+
+    CT_DoLog EXTRA "Installing autoconf"
     CT_DoExecLog ALL make install
     CT_Popd
     CT_EndStep

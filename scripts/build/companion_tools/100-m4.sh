@@ -10,15 +10,20 @@ do_companion_tools_m4_extract() {
     CT_Patch "m4" "${CT_M4_VERSION}"
 }
 
-do_companion_tools_m4_build() {
+do_companion_tools_m4_for_build() {
     CT_DoStep EXTRA "Installing m4"
     mkdir -p "${CT_BUILD_DIR}/build-m4"
     CT_Pushd "${CT_BUILD_DIR}/build-m4"
     
+    CT_DoLog EXTRA "Configuring m4"
     CT_DoExecLog CFG \
     "${CT_SRC_DIR}/m4-${CT_M4_VERSION}/configure" \
         --prefix="${CT_BUILDTOOLS_PREFIX_DIR}"
+
+    CT_DoLog EXTRA "Building m4"
     CT_DoExecLog ALL make
+
+    CT_DoLog EXTRA "Building m4"
     CT_DoExecLog ALL make install
     CT_Popd
     CT_EndStep

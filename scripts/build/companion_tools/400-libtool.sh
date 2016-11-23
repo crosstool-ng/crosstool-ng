@@ -11,15 +11,20 @@ do_companion_tools_libtool_extract() {
     CT_Patch "libtool" "${CT_LIBTOOL_VERSION}"
 }
 
-do_companion_tools_libtool_build() {
+do_companion_tools_libtool_for_build() {
     CT_DoStep EXTRA "Installing libtool"
     mkdir -p "${CT_BUILD_DIR}/build-libtool"
     CT_Pushd "${CT_BUILD_DIR}/build-libtool"
     
+    CT_DoLog EXTRA "Configuring libtool"
     CT_DoExecLog CFG \
     "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}/configure" \
         --prefix="${CT_BUILDTOOLS_PREFIX_DIR}"
+
+    CT_DoLog EXTRA "Building libtool"
     CT_DoExecLog ALL make
+
+    CT_DoLog EXTRA "Installing libtool"
     CT_DoExecLog ALL make install
     CT_Popd
     CT_EndStep
