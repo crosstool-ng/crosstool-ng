@@ -88,7 +88,7 @@ do_libiconv_backend() {
 
     CT_DoLog EXTRA "Configuring libiconv"
 
-    CT_DoExecLog ALL cp -aT "${CT_SRC_DIR}/libiconv-${CT_LIBICONV_VERSION}" "."
+    CT_DoExecLog ALL cp -aT "${CT_SRC_DIR}/libiconv-${CT_LIBICONV_VERSION}/." "."
 
     if [ "${static_build}" = "y" ]; then
         extra_config+=("--disable-shared")

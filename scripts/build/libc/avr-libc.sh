@@ -41,7 +41,7 @@ do_libc_post_cc() {
     CT_DoStep INFO "Installing C library"
 
     CT_DoLog EXTRA "Copying sources to build directory"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/avr-libc-${CT_LIBC_VERSION}" \
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/avr-libc-${CT_LIBC_VERSION}/." \
                             "${CT_BUILD_DIR}/build-libc-post-cc"
     cd "${CT_BUILD_DIR}/build-libc-post-cc"
 

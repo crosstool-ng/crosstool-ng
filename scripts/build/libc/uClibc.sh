@@ -104,7 +104,7 @@ do_libc_backend_once() {
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -aT "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}" .
+    CT_DoExecLog ALL cp -aT "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}/." .
 
     multilib_dir="lib/${multi_os_dir}"
     startfiles_dir="${multi_root}/usr/${multilib_dir}"
