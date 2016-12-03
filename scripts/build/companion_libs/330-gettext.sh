@@ -88,7 +88,7 @@ do_gettext_backend() {
 
     CT_DoLog EXTRA "Configuring gettext"
 
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/gettext-${CT_GETTEXT_VERSION}/"/* .
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/gettext-${CT_GETTEXT_VERSION}/." .
 
     # A bit ugly. D__USE_MINGW_ANSI_STDIO=1 has its own {v}asprintf functions
     # but gettext configure doesn't see this flag when it checks for that. An
