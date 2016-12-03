@@ -185,12 +185,23 @@ CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
 # sub-dir. So we won't have to save/restore it, not even create it.
 # In case of cross or native, host-complibs are used for build-complibs;
 # in case of canadian or cross-native, host-complibs are specific
+# Note about BUILD_COMPTOOLS_DIR: if installing companion tools for "host" in
+# a native or simple cross, we can can use the same binaries we built for
+# "build". However, we need companion tools for "build" early - as other
+# components may depend on them - so we may skip building for "host" rather
+# than for "build" in that case.
 case "${CT_TOOLCHAIN_TYPE}" in
     native|cross)
         CT_HOST_COMPLIBS_DIR="${CT_BUILDTOOLS_PREFIX_DIR}"
+        if [ -n "${CT_COMP_TOOLS_FOR_HOST}" ]; then
+            CT_BUILD_COMPTOOLS_DIR="${CT_PREFIX_DIR}"
+        else
+            CT_BUILD_COMPTOOLS_DIR="${CT_BUILDTOOLS_PREFIX_DIR}"
+        fi
         ;;
     canadian|cross-native)
         CT_HOST_COMPLIBS_DIR="${CT_BUILDTOOLS_PREFIX_DIR}/complibs-host"
+        CT_BUILD_COMPTOOLS_DIR="${CT_BUILDTOOLS_PREFIX_DIR}"
         ;;
 esac
 
@@ -580,14 +591,8 @@ if [ -z "${CT_RESTART}" ]; then
             CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
         fi
 
-        if [ "${CT_COMP_TOOLS}" = "y" ]; then
-          CT_DoStep INFO "Extracting, patching and installing companion tools"
-          do_companion_tools_extract
-          do_companion_tools
-          CT_EndStep
-        fi
-
         CT_DoStep INFO "Extracting and patching toolchain components"
+        do_companion_tools_extract
         do_kernel_extract
         do_companion_libs_extract
         do_binutils_extract
