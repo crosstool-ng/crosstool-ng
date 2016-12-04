@@ -63,7 +63,7 @@ diff -urN a/gettext-tools/src/Makefile.am b/gettext-tools/src/Makefile.am
 +$(COLOR_SOURCE) $(OUTPUT_SOURCE) \
  msgl-ascii.c msgl-iconv.c msgl-equal.c msgl-cat.c msgl-header.c msgl-english.c \
  msgl-check.c file-list.c msgl-charset.c po-time.c plural-exp.c plural-eval.c \
- plural-table.c quote.h sentence.h sentence.c libexpat-compat.c \
+ plural-table.c quote.h sentence.h sentence.c \
 diff -urN a/gettext-tools/src/Makefile.in b/gettext-tools/src/Makefile.in
 --- a/gettext-tools/src/Makefile.in	2015-09-11 04:05:11.000000000 +0100
 +++ b/gettext-tools/src/Makefile.in	2015-10-22 00:42:26.253852000 +0100
@@ -76,12 +76,12 @@ diff -urN a/gettext-tools/src/Makefile.in b/gettext-tools/src/Makefile.in
 -	msgl-iconv.c msgl-equal.c msgl-cat.c msgl-header.c \
 -	msgl-english.c msgl-check.c file-list.c msgl-charset.c \
 -	po-time.c plural-exp.c plural-eval.c plural-table.c quote.h \
--	sentence.h sentence.c libexpat-compat.c format.c \
--	format-invalid.h format-c.c format-c-parse.h format-sh.c \
--	format-python.c format-python-brace.c format-lisp.c \
--	format-elisp.c format-librep.c format-scheme.c format-java.c \
--	format-csharp.c format-awk.c format-pascal.c format-ycp.c \
--	format-tcl.c format-perl.c format-perl-brace.c format-php.c \
+-	sentence.h sentence.c format.c format-invalid.h format-c.c \
+-	format-c-parse.h format-sh.c format-python.c \
+-	format-python-brace.c format-lisp.c format-elisp.c \
+-	format-librep.c format-scheme.c format-java.c format-csharp.c \
+-	format-awk.c format-pascal.c format-ycp.c format-tcl.c \
+-	format-perl.c format-perl-brace.c format-php.c \
 -	format-gcc-internal.c format-gfc-internal.c format-qt.c \
 -	format-qt-plural.c format-kde.c format-kde-kuit.c \
 +	dir-list.c str-list.c read-catalog.c color.c \
@@ -92,7 +92,7 @@ diff -urN a/gettext-tools/src/Makefile.in b/gettext-tools/src/Makefile.in
 +	msgl-ascii.c msgl-iconv.c msgl-equal.c msgl-cat.c \
 +	msgl-header.c msgl-english.c msgl-check.c file-list.c \
 +	msgl-charset.c po-time.c plural-exp.c plural-eval.c \
-+	plural-table.c quote.h sentence.h sentence.c libexpat-compat.c \
++	plural-table.c quote.h sentence.h sentence.c \
 +	format.c format-invalid.h format-c.c format-c-parse.h \
 +	format-sh.c format-python.c format-python-brace.c \
 +	format-lisp.c format-elisp.c format-librep.c format-scheme.c \
@@ -101,7 +101,7 @@ diff -urN a/gettext-tools/src/Makefile.in b/gettext-tools/src/Makefile.in
 +	format-php.c format-gcc-internal.c format-gfc-internal.c \
 +	format-qt.c format-qt-plural.c format-kde.c format-kde-kuit.c \
  	format-boost.c format-lua.c format-javascript.c \
- 	../woe32dll/c++format.cc read-desktop.c \
+ 	../woe32dll/c++format.cc read-desktop.c locating-rule.c its.c \
  	../woe32dll/gettextsrc-exports.c
 @@ -413,7 +416,18 @@
  	libgettextsrc_la-open-catalog.lo libgettextsrc_la-dir-list.lo \
@@ -149,18 +149,19 @@ diff -urN a/gettext-tools/src/Makefile.in b/gettext-tools/src/Makefile.in
  	libgettextsrc_la-msgl-iconv.lo libgettextsrc_la-msgl-equal.lo \
  	libgettextsrc_la-msgl-cat.lo libgettextsrc_la-msgl-header.lo \
  	libgettextsrc_la-msgl-english.lo \
-@@ -482,8 +493,8 @@
+@@ -482,9 +493,9 @@
  	libgettextsrc_la-msgl-charset.lo libgettextsrc_la-po-time.lo \
  	libgettextsrc_la-plural-exp.lo libgettextsrc_la-plural-eval.lo \
  	libgettextsrc_la-plural-table.lo libgettextsrc_la-sentence.lo \
--	libgettextsrc_la-libexpat-compat.lo $(am__objects_2) \
--	libgettextsrc_la-read-desktop.lo $(am__objects_3)
-+	libgettextsrc_la-libexpat-compat.lo $(am__objects_4) \
-+	libgettextsrc_la-read-desktop.lo $(am__objects_5)
+-	$(am__objects_2) libgettextsrc_la-read-desktop.lo \
++	$(am__objects_4) libgettextsrc_la-read-desktop.lo \
+	libgettextsrc_la-locating-rule.lo libgettextsrc_la-its.lo \
+-	$(am__objects_3)
++	$(am__objects_5)
  libgettextsrc_la_OBJECTS = $(am_libgettextsrc_la_OBJECTS)
  PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
  am_cldr_plurals_OBJECTS = cldr_plurals-cldr-plural.$(OBJEXT) \
-@@ -1975,15 +1986,29 @@
+@@ -1975,15 +1986,28 @@
  @WOE32DLL_TRUE@	format-qt.c format-qt-plural.c format-kde.c \
  @WOE32DLL_TRUE@	format-kde-kuit.c format-boost.c format-lua.c \
  @WOE32DLL_TRUE@	format-javascript.c
@@ -185,15 +186,14 @@ diff -urN a/gettext-tools/src/Makefile.in b/gettext-tools/src/Makefile.in
 -	write-po.c msgl-ascii.c msgl-iconv.c msgl-equal.c msgl-cat.c \
 -	msgl-header.c msgl-english.c msgl-check.c file-list.c \
 -	msgl-charset.c po-time.c plural-exp.c plural-eval.c \
--	plural-table.c quote.h sentence.h sentence.c libexpat-compat.c \
--	$(FORMAT_SOURCE) read-desktop.c $(am__append_1)
+-	plural-table.c quote.h sentence.h sentence.c $(FORMAT_SOURCE) \
+-	read-desktop.c locating-rule.c its.c $(am__append_1)
 +libgettextsrc_la_SOURCES = $(COMMON_SOURCE) read-catalog.c \
 +	$(COLOR_SOURCE) $(OUTPUT_SOURCE) msgl-ascii.c msgl-iconv.c \
 +	msgl-equal.c msgl-cat.c msgl-header.c msgl-english.c \
 +	msgl-check.c file-list.c msgl-charset.c po-time.c plural-exp.c \
 +	plural-eval.c plural-table.c quote.h sentence.h sentence.c \
-+	libexpat-compat.c $(FORMAT_SOURCE) read-desktop.c \
-+	$(am__append_1)
++	$(FORMAT_SOURCE) read-desktop.c locating-rule.c its.c $(am__append_1)
  
  # msggrep needs pattern matching.
  LIBGREP = ../libgrep/libgrep.a
