@@ -72,6 +72,12 @@ do_debug_gdb_build() {
         # For gdb-cross this combination of flags forces
         # gdb configure to fall back to default '-lexpat' flag
         # which is acceptable.
+        #
+        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
+        # It conflicts with a static build: GDB's configure script will find the shared
+        # version of expat and will attempt to link that, despite the -static flag.
+        # The link will fail, and configure will abort with "expat missing or unusable"
+        # message.
         cross_extra_config+=("--with-expat")
         cross_extra_config+=("--without-libexpat-prefix")
 
@@ -183,6 +189,12 @@ do_debug_gdb_build() {
         #
         # To prevent this '--without-libexpat-prefix' flag must be passed.
         # Thus configure falls back to '-lexpat', which is exactly what we want.
+        #
+        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
+        # It conflicts with a static build: GDB's configure script will find the shared
+        # version of expat and will attempt to link that, despite the -static flag.
+        # The link will fail, and configure will abort with "expat missing or unusable"
+        # message.
         native_extra_config+=("--with-expat")
         native_extra_config+=("--without-libexpat-prefix")
 
