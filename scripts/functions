@@ -1574,6 +1574,7 @@ CT_IterateMultilibs() {
     local -a multilibs
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_target
     local root_suffix
+    local dir_postfix
 
     # Name used internally below
     if [ "${prefix}" = "sysroot-check" ]; then
@@ -1655,7 +1656,12 @@ CT_IterateMultilibs() {
             multi_os_dir=.
         fi
 
-        CT_mkdir_pushd "${prefix}_${multi_dir//\//_}"
+        # Brain-dead Cygwin hack: Cygwin cannot run a binary if there is a directory
+        # component in the path that ends with a dot. Unfortunately, that's the case
+        # for the default library name with GCC.
+        dir_postfix=_${multi_dir//\//_}
+        dir_postfix=${dir_postfix%_.}
+        CT_mkdir_pushd "${prefix}${dir_postfix}"
         $func multi_dir="${multi_dir}"       \
               multi_os_dir="${multi_os_dir}" \
               multi_flags="${multi_flags}"   \
