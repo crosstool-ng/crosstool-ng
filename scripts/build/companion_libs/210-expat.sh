@@ -43,12 +43,21 @@ fi
 if [ "${CT_EXPAT_TARGET}" = "y" ]; then
 do_expat_for_target() {
     local -a expat_opts
+    local prefix
 
     CT_DoStep INFO "Installing expat for target"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-expat-target-${CT_TARGET}"
 
     expat_opts+=( "host=${CT_TARGET}" )
-    expat_opts+=( "prefix=/usr" )
+    case "${CT_TARGET}" in
+        *-*-mingw*)
+            prefix="/mingw"
+            ;;
+        *)
+            prefix="/usr"
+            ;;
+    esac
+    expat_opts+=( "prefix=${prefix}" )
     expat_opts+=( "destdir=${CT_SYSROOT_DIR}" )
     expat_opts+=( "static_build=y" )
 

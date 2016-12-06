@@ -69,13 +69,24 @@ if [ "${CT_LIBELF_TARGET}" = "y" ]; then
 
 do_libelf_for_target() {
     local -a libelf_opts
+    local prefix
 
     CT_DoStep INFO "Installing libelf for the target"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libelf-target-${CT_TARGET}"
 
+    case "${CT_TARGET}" in
+        *-*-mingw*)
+            prefix="/mingw"
+            ;;
+        *)
+            prefix="/usr"
+            ;;
+    esac
+
     libelf_opts+=( "destdir=${CT_SYSROOT_DIR}" )
     libelf_opts+=( "host=${CT_TARGET}" )
-    libelf_opts+=( "prefix=/usr" )
+
+    libelf_opts+=( "prefix=${prefix}" )
     libelf_opts+=( "shared=y" )
     do_libelf_backend "${libelf_opts[@]}"
 

@@ -68,12 +68,19 @@ do_debug_gdb_build() {
         cd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=("${extra_config[@]}")
-        cross_extra_config+=("--with-expat")
+
+        # For gdb-cross this combination of flags forces
+        # gdb configure to fall back to default '-lexpat' flag
+        # which is acceptable.
+        #
         # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
         # It conflicts with a static build: GDB's configure script will find the shared
         # version of expat and will attempt to link that, despite the -static flag.
         # The link will fail, and configure will abort with "expat missing or unusable"
         # message.
+        cross_extra_config+=("--with-expat")
+        cross_extra_config+=("--without-libexpat-prefix")
+
         case "${CT_THREADS}" in
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
@@ -172,12 +179,24 @@ do_debug_gdb_build() {
             native_extra_config+=("--with-curses")
         fi
 
-        native_extra_config+=("--with-expat")
+        # Target libexpat resides in sysroot and does not have
+        # any dependencies, so just passing '-lexpat' to gcc is enough.
+        #
+        # By default gdb configure looks for expat in '$prefix/lib'
+        # directory. In our case '$prefix/lib' resolves to '/usr/lib'
+        # where libexpat for build platform lives, which is
+        # unacceptable for cross-compiling.
+        #
+        # To prevent this '--without-libexpat-prefix' flag must be passed.
+        # Thus configure falls back to '-lexpat', which is exactly what we want.
+        #
         # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
         # It conflicts with a static build: GDB's configure script will find the shared
         # version of expat and will attempt to link that, despite the -static flag.
         # The link will fail, and configure will abort with "expat missing or unusable"
         # message.
+        native_extra_config+=("--with-expat")
+        native_extra_config+=("--without-libexpat-prefix")
 
         CT_DoLog EXTRA "Configuring native gdb"
 

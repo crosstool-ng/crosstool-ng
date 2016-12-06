@@ -72,13 +72,23 @@ fi
 
 if [ "${CT_NCURSES_TARGET}" = "y" ]; then
 do_ncurses_for_target() {
+    local prefix
+
     CT_DoStep INFO "Installing ncurses for target"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-ncurses-target-${CT_TARGET}"
     opts=("--without-sysmouse")
     [ "${CT_CC_LANG_CXX}" = "y" ] || opts+=("--without-cxx" "--without-cxx-binding")
     [ "${CT_CC_LANG_ADA}" = "y" ] || opts+=("--without-ada")
+    case "${CT_TARGET}" in
+        *-*-mingw*)
+            prefix="/mingw"
+            ;;
+        *)
+            prefix="/usr"
+            ;;
+    esac
     do_ncurses_backend host="${CT_TARGET}" \
-                       prefix="/usr" \
+                       prefix="${prefix}" \
                        destdir="${CT_SYSROOT_DIR}" \
                        "${opts[@]}"
     CT_Popd
