@@ -104,6 +104,7 @@ do_gettext_backend() {
                     ;;
             esac
             extra_config+=( --enable-threads=win32 )
+            extra_config+=( "CPPFLAGS=-DLIBXML_STATIC" )
             cflags=$cflags" -O2"
         ;;
     esac
