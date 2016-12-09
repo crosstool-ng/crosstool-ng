@@ -87,7 +87,7 @@ do_libelf_for_target() {
     libelf_opts+=( "host=${CT_TARGET}" )
 
     libelf_opts+=( "prefix=${prefix}" )
-    libelf_opts+=( "shared=y" )
+    libelf_opts+=( "shared=${CT_SHARED_LIBS}" )
     do_libelf_backend "${libelf_opts[@]}"
 
     CT_Popd

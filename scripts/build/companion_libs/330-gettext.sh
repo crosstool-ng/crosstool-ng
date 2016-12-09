@@ -35,7 +35,6 @@ do_gettext_for_build() {
     gettext_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     gettext_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     gettext_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
-    gettext_opts+=( "static_build=y" )
     do_gettext_backend "${gettext_opts[@]}"
 
     CT_Popd
@@ -46,12 +45,6 @@ do_gettext_for_build() {
 do_gettext_for_host() {
     local -a gettext_opts
 
-    case "$CT_HOST" in
-        *linux*)
-            return 0
-            ;;
-    esac
-
     CT_DoStep INFO "Installing gettext for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-gettext-host-${CT_HOST}"
 
@@ -59,7 +52,6 @@ do_gettext_for_host() {
     gettext_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     gettext_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     gettext_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
-    gettext_opts+=( "static_build=${CT_STATIC_TOOLCHAIN}" )
     do_gettext_backend "${gettext_opts[@]}"
 
     CT_Popd
@@ -70,13 +62,13 @@ do_gettext_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
-#     static_build  : build statically          : bool      : no
+#     shared        : build shared lib          : bool      : no
 #     cflags        : host cflags to use        : string    : (empty)
 #     ldflags       : host ldflags to use       : string    : (empty)
 do_gettext_backend() {
     local host
     local prefix
-    local static_build
+    local shared
     local cflags
     local ldflags
     local arg
@@ -88,14 +80,15 @@ do_gettext_backend() {
 
     CT_DoLog EXTRA "Configuring gettext"
 
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/gettext-${CT_GETTEXT_VERSION}/." .
-
     # A bit ugly. D__USE_MINGW_ANSI_STDIO=1 has its own {v}asprintf functions
     # but gettext configure doesn't see this flag when it checks for that. An
     # alternative may be to use CC="${host}-gcc ${cflags}" but that didn't
     # work.
     # -O2 works around bug at http://savannah.gnu.org/bugs/?36443
     # gettext needs some fixing for MinGW-w64 it would seem.
+    # -DLIBXML_STATIC needed to link with libxml (provided by gnulib) under
+    # MinGW: without this flag, xmlFree is defined as `dllimport` by libxml
+    # headers and hence fails to link.
     case "${host}" in
         *mingw*)
             case "${cflags}" in
@@ -104,13 +97,12 @@ do_gettext_backend() {
                     ;;
             esac
             extra_config+=( --enable-threads=win32 )
-            cflags=$cflags" -O2"
+            cflags=$cflags" -O2 -DLIBXML_STATIC"
         ;;
     esac
 
-    if [ "${static_build}" = "y" ]; then
+    if [ "${shared}" != "y" ]; then
         extra_config+=("--disable-shared")
-        extra_config+=("--enable-static")
     fi
 
     CT_DoExecLog CFG                                        \
@@ -120,6 +112,7 @@ do_gettext_backend() {
         --build=${CT_BUILD}                                 \
         --host="${host}"                                    \
         --prefix="${prefix}"                                \
+        --enable-static                                     \
         --disable-java                                      \
         --disable-native-java                               \
         --disable-csharp                                    \
