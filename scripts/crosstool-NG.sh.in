@@ -206,7 +206,7 @@ case "${CT_TOOLCHAIN_TYPE}" in
 esac
 
 # Compute test suite install directory
-CT_TEST_SUITE_DIR=${CT_INSTALL_DIR}/test-suite
+CT_TEST_SUITE_DIR=${CT_PREFIX_DIR}/test-suite
 
 # We must ensure that we can restart if asked for!
 if [ -n "${CT_RESTART}" -a ! -d "${CT_STATE_DIR}"  ]; then
@@ -226,8 +226,8 @@ if [    "${CT_SAVE_TARBALLS}" = "y"     \
 fi
 
 # Check now if we can write to the destination directory:
-if [ -d "${CT_INSTALL_DIR}" ]; then
-    CT_TestAndAbort "Destination directory '${CT_INSTALL_DIR}' is not removable" ! -w $(dirname "${CT_INSTALL_DIR}")
+if [ -d "${CT_PREFIX_DIR}" ]; then
+    CT_TestAndAbort "Destination directory '${CT_PREFIX_DIR}' is not removable" ! -w $(dirname "${CT_PREFIX_DIR}")
 fi
 
 # Good, now grab a bit of informations on the system we're being run on,
@@ -260,8 +260,8 @@ if [ -z "${CT_RESTART}" ]; then
     if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
         CT_DoForceRmdir "${CT_SRC_DIR}"
     fi
-    if [ -d "${CT_INSTALL_DIR}" -a "${CT_RM_RF_PREFIX_DIR}" = "y" ]; then
-        CT_DoForceRmdir "${CT_INSTALL_DIR}"
+    if [ -d "${CT_PREFIX_DIR}" -a "${CT_RM_RF_PREFIX_DIR}" = "y" ]; then
+        CT_DoForceRmdir "${CT_PREFIX_DIR}"
     fi
     # In case we start anew, get rid of the previously saved state directory
     if [ -d "${CT_STATE_DIR}" ]; then
@@ -276,7 +276,6 @@ CT_DoExecLog ALL mkdir -p "${CT_TARBALLS_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"
-CT_DoExecLog ALL mkdir -p "${CT_INSTALL_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_HOST_COMPLIBS_DIR}"
 
@@ -288,9 +287,9 @@ CT_DoExecLog DEBUG touch "${CT_PREFIX_DIR}/foo"
 CT_TestAndAbort "Your file system in '${CT_PREFIX_DIR}' is *not* case-sensitive!" -f "${CT_PREFIX_DIR}/FOO"
 CT_DoExecLog DEBUG rm -f "${CT_PREFIX_DIR}/foo"
 
-# Kludge: CT_INSTALL_DIR and CT_PREFIX_DIR might have grown read-only if
+# Kludge: CT_PREFIX_DIR might have grown read-only if
 # the previous build was successful.
-CT_DoExecLog ALL chmod -R u+w "${CT_INSTALL_DIR}" "${CT_PREFIX_DIR}"
+CT_DoExecLog ALL chmod -R u+w "${CT_PREFIX_DIR}"
 
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
@@ -664,8 +663,8 @@ if [ "${CT_LOG_TO_FILE}" = "y" ]; then
         bzip2 -9 "${CT_PREFIX_DIR}/build.log"
     fi
 fi
-if [ "${CT_INSTALL_DIR_RO}" = "y" ]; then
-    chmod -R a-w "${CT_INSTALL_DIR}"
+if [ "${CT_PREFIX_DIR_RO}" = "y" ]; then
+    chmod -R a-w "${CT_PREFIX_DIR}"
 fi
 # CT_TEST_SUITE_DIR may not exist if only downloading or extracting
 if [ "${CT_TEST_SUITE}" = "y" -a -d "${CT_TEST_SUITE_DIR}" ]; then
