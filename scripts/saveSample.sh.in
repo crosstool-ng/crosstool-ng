@@ -40,14 +40,17 @@ esac
 samp_dir="samples/${samp_name}"
 mkdir -p "${samp_dir}"
 
-# Tweak the .config file.
-cp .config .defconfig
-"${sed}" -r -e 's|^(CT_PREFIX_DIR)=.*|\1="${HOME}/x-tools/${CT_TARGET}"|;'      \
-            -e 's|^# CT_LOG_TO_FILE is not set$|CT_LOG_TO_FILE=y|;'             \
-            -e 's|^# CT_LOG_FILE_COMPRESS is not set$|CT_LOG_FILE_COMPRESS=y|;' \
-            -e 's|^(CT_LOCAL_TARBALLS_DIR)=.*|\1="${HOME}/src"|;'               \
-         <.config                                                               \
-         >.defconfig
+# Tweak the .config file: remove the options that we want to keep
+# at default setting in samples.
+force_default_opts=( \
+    PREFIX_DIR LOG_TO_FILE LOG_FILE_COMPRESS \
+    LOCAL_TARBALLS_DIR SAVE_TARBALLS \
+    LOG_ERROR LOG_WARN LOG_INFO LOG_EXTRA LOG_ALL LOG_DEBUG \
+    LOG_PROGRESS_BAR
+    )
+regexp=${force_default_opts[*]}
+regexp=${regexp// /|}
+grep -v -E '^(# )?CT_('"${regexp}"')' .config > .defconfig
 
 # Function to copy a file to the sample directory
 # Needed in case the file is already there (think of a previously available sample)
