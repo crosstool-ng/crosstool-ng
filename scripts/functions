@@ -4,6 +4,50 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
+CT_LoadConfig() {
+    # Parse the configuration file
+    # It has some info about the logging facility, so include it early
+    # It also sets KERNEL/ARCH/... for file inclusion below. Does not handle
+    # recursive definitions yet.
+    CT_TestOrAbort "Configuration file not found. Please create one." -r .config.2
+    . .config.2
+
+    # Include sub-scripts instead of calling them: that way, we do not have to
+    # export any variable, nor re-parse the configuration and functions files.
+    . "${CT_LIB_DIR}/scripts/build/internals.sh"
+    . "${CT_LIB_DIR}/scripts/build/arch.sh"
+    . "${CT_LIB_DIR}/scripts/build/companion_tools.sh"
+    . "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
+    . "${CT_LIB_DIR}/scripts/build/companion_libs.sh"
+    . "${CT_LIB_DIR}/scripts/build/binutils/${CT_BINUTILS}.sh"
+    . "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
+    . "${CT_LIB_DIR}/scripts/build/cc.sh"
+    . "${CT_LIB_DIR}/scripts/build/debug.sh"
+    . "${CT_LIB_DIR}/scripts/build/test_suite.sh"
+
+    # Target tuple: CT_TARGET needs a little love:
+    CT_DoBuildTargetTuple
+
+    # Kludge: If any of the configured options needs CT_TARGET,
+    # then rescan the options file now. This also handles recursive variables;
+    # but we don't want to loop forever if there's a circular reference.
+    touch ${CT_TOP_DIR}/.config.out.1
+    try=0
+    while [ "$try" -le 10 ]; do
+        . .config.2
+        set | ${grep} -E '^CT_' > ${CT_TOP_DIR}/.config.out.2
+        if cmp -s ${CT_TOP_DIR}/.config.out.1 ${CT_TOP_DIR}/.config.out.2; then
+            break
+        fi
+        mv ${CT_TOP_DIR}/.config.out.2 ${CT_TOP_DIR}/.config.out.1
+        try=$[ try + 1 ]
+    done
+    if [ "$try" -gt 10 ]; then
+        CT_Abort "Variables in .config recurse too deep."
+    fi
+    rm -f ${CT_TOP_DIR}/.config.out.[12]
+}
+
 # Prepare the fault handler
 CT_OnError() {
     local ret=$?
@@ -48,7 +92,7 @@ CT_OnError() {
             old_trap="$(trap -p ERR)"
             trap -- ERR
             (
-                exec >&6 2>&7 <&8
+                CT_LogDisable # In this subshell
                 printf "\r         \n\nCurrent command"
                 if [ -n "${cur_cmd}" ]; then
                     printf ":\n  %s\n" "${cur_cmd}"
@@ -132,12 +176,22 @@ set +o hashall
 
 # Log policy:
 #  - first of all, save stdout so we can see the live logs: fd #6
-# (also save stdin and stderr for use by CT_DEBUG_INTERACTIVE)
-exec 6>&1 7>&2 8<&0
-#  - then point stdout to the log file
-tmp_log_file="${CT_TOP_DIR}/build.log"
-rm -f "${tmp_log_file}"
-exec >>"${tmp_log_file}"
+#    (also save stdin and stderr for use by CT_DEBUG_INTERACTIVE)
+#    FIXME: it doesn't look like anyone is overriding stdin/stderr. Do we need
+#    to save/restore them?
+CT_LogEnable() {
+	exec 6>&1 7>&2 8<&0
+	CT_BUILD_LOG="${CT_TOP_DIR}/build.log"
+	CT_LOG_ENABLED=y
+	rm -f "${CT_BUILD_LOG}"
+	exec >>"${CT_BUILD_LOG}"
+}
+
+# Restore original stdout, stderr and stdin
+CT_LogDisable() {
+	exec >&6 2>&7 <&8
+	CT_LOG_ENABLED=
+}
 
 # The different log levels:
 CT_LOG_LEVEL_ERROR=0
@@ -197,14 +251,20 @@ CT_DoLog() {
                 *)                      cur_L="${LEVEL}"; cur_l="${level}";;
               esac
               # There will always be a log file (stdout, fd #1), be it /dev/null
-              printf "[%-5s]%*s%s%s\n" "${cur_L}" "${indent}" " " "${line}"
-              if [ ${cur_l} -le ${max_level} ]; then
-                  # Only print to console (fd #6) if log level is high enough.
-                  printf "${CT_LOG_PROGRESS_BAR:+\r}[%-5s]%*s%s%s\n" "${cur_L}" "${indent}" " " "${line}" >&6
-              fi
-              if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
-                  printf "\r[%02d:%02d] %s " $((SECONDS/60)) $((SECONDS%60)) "${_prog_bar[$((_prog_bar_cpt/10))]}" >&6
-                  _prog_bar_cpt=$(((_prog_bar_cpt+1)%40))
+              if [ -n "${CT_LOG_ENABLED}" ]; then
+                  printf "[%-5s]%*s%s%s\n" "${cur_L}" "${indent}" " " "${line}"
+                  # If log file has been set up, fd#6 is console and it only
+                  # gets the most important messages.
+                  if [ ${cur_l} -le ${max_level} ]; then
+                      # Only print to console (fd #6) if log level is high enough.
+                      printf "${CT_LOG_PROGRESS_BAR:+\r}[%-5s]%*s%s%s\n" "${cur_L}" "${indent}" " " "${line}" >&6
+                  fi
+                  if [ "${CT_LOG_PROGRESS_BAR}" = "y" ]; then
+                      printf "\r[%02d:%02d] %s " $((SECONDS/60)) $((SECONDS%60)) "${_prog_bar[$((_prog_bar_cpt/10))]}" >&6
+                      _prog_bar_cpt=$(((_prog_bar_cpt+1)%40))
+                  fi
+              elif [ ${cur_l} -le ${CT_LOG_LEVEL_WARN} ]; then
+                  printf "[%-5s]%*s%s%s\n" "${cur_L}" "${indent}" " " "${line}"
               fi
           done
         )

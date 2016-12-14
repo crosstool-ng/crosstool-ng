@@ -17,13 +17,13 @@
 # most notably:
 #  - set trap handler on errors,
 #  - don't hash commands lookups,
-#  - initialise logging.
 . "${CT_LIB_DIR}/scripts/functions"
 
-# Parse the configuration file
-# It has some info about the logging facility, so include it early
-. .config.2
 # Yes! We can do full logging from now on!
+CT_LogEnable
+
+# Read the sample settings
+CT_LoadConfig
 
 # Check running as root
 if [ -z "${CT_ALLOW_BUILD_AS_ROOT_SURE}" ]; then
@@ -126,7 +126,7 @@ CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 # Log real begining of build, now
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 
-# We really need to extract from ,config and not .config.2, as we
+# We really need to extract from .config and not .config.2, as we
 # do want the kconfig's values, not our mangled config with arrays.
 CT_DoStep DEBUG "Dumping user-supplied crosstool-NG configuration"
 CT_DoExecLog DEBUG ${grep} -E '^(# )?CT_' .config
@@ -137,26 +137,6 @@ unset MAKEFLAGS
 export MAKEFLAGS
 
 CT_DoLog INFO "Building environment variables"
-
-# Include sub-scripts instead of calling them: that way, we do not have to
-# export any variable, nor re-parse the configuration and functions files.
-. "${CT_LIB_DIR}/scripts/build/internals.sh"
-. "${CT_LIB_DIR}/scripts/build/arch.sh"
-. "${CT_LIB_DIR}/scripts/build/companion_tools.sh"
-. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
-. "${CT_LIB_DIR}/scripts/build/companion_libs.sh"
-. "${CT_LIB_DIR}/scripts/build/binutils/${CT_BINUTILS}.sh"
-. "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
-. "${CT_LIB_DIR}/scripts/build/cc.sh"
-. "${CT_LIB_DIR}/scripts/build/debug.sh"
-. "${CT_LIB_DIR}/scripts/build/test_suite.sh"
-
-# Target tuple: CT_TARGET needs a little love:
-CT_DoBuildTargetTuple
-
-# Kludge: If any of the configured options needs CT_TARGET,
-# then rescan the options file now:
-. .config.2
 
 # Sanity check some directories
 CT_TestAndAbort "'CT_PREFIX_DIR' is not set: where should I install?" -z "${CT_PREFIX_DIR}"
@@ -691,12 +671,12 @@ CT_DoEnd INFO
 
 # From now-on, it can become impossible to log any time, because
 # either we're compressing the log file, or it can become RO any
-# moment... Restore original stdout, stderr and stdin
+# moment...
 CT_DoLog INFO "Finishing installation (may take a few seconds)..."
-exec >&6 2>&7 <&8
+CT_LogDisable
 rm -f ${CT_PREFIX_DIR}/build.log.bz2
 if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-    cp "${tmp_log_file}" "${CT_PREFIX_DIR}/build.log"
+    cp "${CT_BUILD_LOG}" "${CT_PREFIX_DIR}/build.log"
     if [ "${CT_LOG_FILE_COMPRESS}" = y ]; then
         bzip2 -9 "${CT_PREFIX_DIR}/build.log"
     fi

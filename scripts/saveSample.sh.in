@@ -10,29 +10,14 @@
 
 # Parse the tools' paths configuration
 . "${CT_LIB_DIR}/paths.sh"
-
-# We'll need the stdout later, save it
-exec 7>&1
-
 . "${CT_LIB_DIR}/scripts/functions"
 
-# Don't care about any log file
-exec >/dev/null
-rm -f "${tmp_log_file}"
-
-# Parse the configuration file
-# Don't use CT_TestOrAbort, it prints the test string to [DEBUG]
-# Note: we just need the non-mangled .config, not .config.2
-if [ ! -f .config ]; then
-    CT_Abort "Configuration file not found. Please create one."
-fi
-. .config
+CT_LoadConfig
 
 # We can not reliably save a sample which either uses local patches
 # and/or custom Linux kernel headers. Warn the user about this issue
 # and continue if he/she confirms sving the sample.
 if [ "${CT_CUSTOM_PATCH}" = "y" ]; then
-    exec >&7
     echo "You are using local patches."
     echo "You will not be able to (easily) share this sample in this case."
     read -p "Press Ctrl-C to stop now, or Enter to continue..."
@@ -40,17 +25,6 @@ fi
 
 # Do not use a progress bar
 unset CT_LOG_PROGRESS_BAR
-
-# Parse architecture and kernel specific functions
-. "${CT_LIB_DIR}/scripts/build/arch/${CT_ARCH}.sh"
-. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
-
-# Target tuple: CT_TARGET needs a little love:
-CT_DoBuildTargetTuple
-
-# Kludge: if any of the config options needs either CT_TARGET or CT_TOP_DIR,
-# re-parse them:
-. .config
 
 # Override log options
 unset CT_LOG_PROGRESS_BAR CT_LOG_ERROR CT_LOG_INFO CT_LOG_EXTRA CT_LOG_DEBUG LOG_ALL
@@ -113,9 +87,6 @@ fi
 export KCONFIG_CONFIG="$(pwd)/.defconfig"
 ${CONF} --savedefconfig="${samp_dir}/crosstool.config" "${KCONFIG_TOP}"
 rm -f .defconfig
-
-# Restore stdout now, to be interactive
-exec >&7
 
 # Fill-in the reported-by info
 [ -f "${samp_dir}/reported.by" ] && . "${samp_dir}/reported.by"
