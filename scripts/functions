@@ -5,12 +5,14 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 CT_LoadConfig() {
+    local o
+
     # Parse the configuration file
     # It has some info about the logging facility, so include it early
     # It also sets KERNEL/ARCH/... for file inclusion below. Does not handle
-    # recursive definitions yet.
-    CT_TestOrAbort "Configuration file not found. Please create one." -r .config.2
-    . .config.2
+    # recursive definitions yet. We don't need arrays at this point.
+    CT_TestOrAbort "Configuration file not found. Please create one." -r .config
+    . .config
 
     # Include sub-scripts instead of calling them: that way, we do not have to
     # export any variable, nor re-parse the configuration and functions files.
@@ -31,21 +33,25 @@ CT_LoadConfig() {
     # Kludge: If any of the configured options needs CT_TARGET,
     # then rescan the options file now. This also handles recursive variables;
     # but we don't want to loop forever if there's a circular reference.
-    touch ${CT_TOP_DIR}/.config.out.1
+    oldvals=""
     try=0
     while [ "$try" -le 10 ]; do
-        . .config.2
-        set | ${grep} -E '^CT_' > ${CT_TOP_DIR}/.config.out.2
-        if cmp -s ${CT_TOP_DIR}/.config.out.1 ${CT_TOP_DIR}/.config.out.2; then
+        . .config
+        vals=`set | ${grep} -E '^CT_'`
+        if [ "$oldvals" = "$vals" ]; then
             break
         fi
-        mv ${CT_TOP_DIR}/.config.out.2 ${CT_TOP_DIR}/.config.out.1
+        oldvals="$vals"
         try=$[ try + 1 ]
     done
     if [ "$try" -gt 10 ]; then
         CT_Abort "Variables in .config recurse too deep."
     fi
-    rm -f ${CT_TOP_DIR}/.config.out.[12]
+    # Double eval: first eval substitutes option name, second eval unescapes quotes
+    # and whitespace.
+    for o in `set | sed -rn 's/^(CT_[A-Za-z0-9_]*_ARRAY)=.*/\1/p'`; do
+        eval "eval $o=(\"\$$o\")"
+    done
 }
 
 # Prepare the fault handler
