@@ -22,10 +22,8 @@ do_gettext_extract() {
 do_gettext_for_build() {
     local -a gettext_opts
 
-    case "$CT_BUILD" in
-        *linux*)
-            return 0
-            ;;
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
     esac
 
     CT_DoStep INFO "Installing gettext for build"
