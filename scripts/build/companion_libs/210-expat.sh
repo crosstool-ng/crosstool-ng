@@ -31,7 +31,6 @@ do_expat_for_host() {
     expat_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     expat_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     expat_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
-    expat_opts+=( "static_build=${CT_STATIC_TOOLCHAIN}" )
 
     do_expat_backend "${expat_opts[@]}"
 
@@ -59,7 +58,7 @@ do_expat_for_target() {
     esac
     expat_opts+=( "prefix=${prefix}" )
     expat_opts+=( "destdir=${CT_SYSROOT_DIR}" )
-    expat_opts+=( "static_build=y" )
+    expat_opts+=( "shared=${CT_SHARED_LIBS}" )
 
     do_expat_backend "${expat_opts[@]}"
 
@@ -78,6 +77,7 @@ do_expat_backend() {
     local prefix
     local cflags
     local ldflags
+    local shared
     local arg
     local -a extra_config
 
@@ -85,9 +85,8 @@ do_expat_backend() {
         eval "${arg// /\\ }"
     done
 
-    if [ "${static_build}" = "y" ]; then
+    if [ "${shared}" != "y" ]; then
         extra_config+=("--disable-shared")
-        extra_config+=("--enable-static")
     fi
 
     CT_DoLog EXTRA "Configuring expat"
@@ -99,6 +98,7 @@ do_expat_backend() {
         --build=${CT_BUILD}                                         \
         --host=${host}                                              \
         --prefix="${prefix}"                                        \
+        --enable-static                                             \
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building expat"

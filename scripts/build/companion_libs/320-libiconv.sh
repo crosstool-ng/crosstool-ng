@@ -35,7 +35,6 @@ do_libiconv_for_build() {
     libiconv_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     libiconv_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     libiconv_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
-    libiconv_opts+=( "static_build=y" )
     do_libiconv_backend "${libiconv_opts[@]}"
 
     CT_Popd
@@ -46,12 +45,6 @@ do_libiconv_for_build() {
 do_libiconv_for_host() {
     local -a libiconv_opts
 
-    case "$CT_HOST" in
-        *darwin*|*linux*)
-            return 0
-            ;;
-    esac
-
     CT_DoStep INFO "Installing libiconv for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libiconv-host-${CT_HOST}"
 
@@ -59,7 +52,6 @@ do_libiconv_for_host() {
     libiconv_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
     libiconv_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     libiconv_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
-    libiconv_opts+=( "static_build=${CT_STATIC_TOOLCHAIN}" )
     do_libiconv_backend "${libiconv_opts[@]}"
 
     CT_Popd
@@ -70,13 +62,13 @@ do_libiconv_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
-#     static_build  : build statically          : bool      : no
+#     shared        : build shared lib          : bool      : no
 #     cflags        : host cflags to use        : string    : (empty)
 #     ldflags       : host ldflags to use       : string    : (empty)
 do_libiconv_backend() {
     local host
     local prefix
-    local static_build
+    local shared
     local cflags
     local ldflags
     local arg
@@ -88,11 +80,8 @@ do_libiconv_backend() {
 
     CT_DoLog EXTRA "Configuring libiconv"
 
-    CT_DoExecLog ALL cp -aT "${CT_SRC_DIR}/libiconv-${CT_LIBICONV_VERSION}/." "."
-
-    if [ "${static_build}" = "y" ]; then
+    if [ "${shared}" != "y" ]; then
         extra_config+=("--disable-shared")
-        extra_config+=("--enable-static")
     fi
 
     CT_DoExecLog CFG                                          \
@@ -102,6 +91,7 @@ do_libiconv_backend() {
         --build=${CT_BUILD}                                   \
         --host="${host}"                                      \
         --prefix="${prefix}"                                  \
+        --enable-static                                       \
         --disable-nls                                         \
         "${extra_config[@]}"                                  \
 
