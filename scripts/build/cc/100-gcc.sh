@@ -787,8 +787,9 @@ gcc_movelibs() {
         eval "${arg// /\\ }"
     done
 
-    # Move only files, directories are for other multilibs
-    gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_os_dir}"
+    # Move only files, directories are for other multilibs. We're looking inside
+    # GCC's directory structure, thus use unmangled multi_os_dir that GCC reports.
+    gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_os_dir_gcc}"
     if [ ! -d "${gcc_dir}" ]; then
         # GCC didn't install anything outside of sysroot
         return

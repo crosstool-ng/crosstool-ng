@@ -118,6 +118,14 @@ do_gettext_backend() {
         --disable-csharp                                    \
         --without-emacs                                     \
         --disable-openmp                                    \
+        --with-included-libxml                              \
+        --with-included-gettext                             \
+        --with-included-glib                                \
+        --with-included-libcroco                            \
+        --with-included-libunistring                        \
+        --with-libncurses-prefix="${prefix}"                \
+        --with-libiconv-prefix="${prefix}"                  \
+        --without-libpth-prefix                             \
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building gettext"
