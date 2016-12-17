@@ -16,7 +16,7 @@ doHelp() {
     cat <<-EOF
         Usage: ${myname} <--tool> <[options] version [...]> ...
           'tool' in one of:
-            gcc, binutils, glibc, uClibc, uClibc-ng, newlib, linux, gdb, dmalloc,
+            gcc, binutils, glibc, uClibc, uClibc-ng, newlib, linux, gdb,
             duma, strace, ltrace, libelf, gmp, mpfr, isl, cloog, mpc,
             mingw-w64, expat, ncurses
 
@@ -194,7 +194,6 @@ while [ $# -gt 0 ]; do
         --mingw-w64)EXP=; OBS=; cat=WINAPI;         tool=mingw;     tool_prefix=libc;            dot2suffix=;;
         --linux)    EXP=; OBS=; cat=KERNEL;         tool=linux;     tool_prefix=kernel;          dot2suffix=;;
         --gdb)      EXP=; OBS=; cat=GDB;            tool=gdb;       tool_prefix=debug;           dot2suffix=;;
-        --dmalloc)  EXP=; OBS=; cat=DMALLOC;        tool=dmalloc;   tool_prefix=debug;           dot2suffix=;;
         --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;           dot2suffix=;;
         --strace)   EXP=; OBS=; cat=STRACE;         tool=strace;    tool_prefix=debug;           dot2suffix=;;
         --ltrace)   EXP=; OBS=; cat=LTRACE;         tool=ltrace;    tool_prefix=debug;           dot2suffix=;;

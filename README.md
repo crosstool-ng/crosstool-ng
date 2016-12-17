@@ -61,7 +61,7 @@ It's quite difficult to list all possible features available in crosstool-NG. He
 * support for multlib toolchains (experimental for now)
 * debug facilities
  * native and cross gdb, gdbserver
- * debugging libraries: dmalloc, duma
+ * debugging libraries: duma
  * debugging tools: ltrace, strace
  * restart a build at any step
 * sample configurations repository usable as starting point for your own toolchain
