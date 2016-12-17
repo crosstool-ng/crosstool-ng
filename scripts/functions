@@ -1558,13 +1558,14 @@ CT_KconfigDeleteOption() {
 # Multilib iterator. The caller should be in a directory where the directories
 # will be created, one per multilib, and the specified command will be run in
 # each of them. The following arguments will be passed to the invoked command:
-#   multi_flags   CFLAGS for this multilib
-#   multi_dir     GCC internal library location for the multilib
-#   multi_os_dir  OS library location for the multilib
-#   multi_root    Sysroot for this multilib
-#   multi_target  Target tuple, either as reported by GCC or by our guesswork
-#   multi_count   Total number of multilibs
-#   multi_index   Index of the current multilib
+#   multi_flags       CFLAGS for this multilib
+#   multi_dir         GCC internal library location for the multilib
+#   multi_os_dir      OS library location for the multilib
+#   multi_os_dir_gcc  Same as multi_os_dir, preserved from GCC output
+#   multi_root        Sysroot for this multilib
+#   multi_target      Target tuple, either as reported by GCC or by our guesswork
+#   multi_count       Total number of multilibs
+#   multi_index       Index of the current multilib
 # Any additional arguments passed to this function will be forwarded to the called
 # function as well.
 # Usage: CT_IterateMultilibs <function> <prefix> <additional-args...>
@@ -1572,7 +1573,7 @@ CT_IterateMultilibs() {
     local func="${1}"
     local prefix="${2}"
     local -a multilibs
-    local multi_dir multi_os_dir multi_root multi_flags multi_index multi_target
+    local multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_flags multi_index multi_target
     local root_suffix
     local dir_postfix
 
@@ -1617,6 +1618,9 @@ CT_IterateMultilibs() {
         # will work. If not, we'll supply both multi_root/multi_os_dir (which will
         # likely break later, e.g. while building final GCC with C++ support). But,
         # we've done all we can.
+        # We do supply original multi_os_dir for consumers that need to look inside
+        # GCC's directories (e.g. to locate the libraries), under the name of
+        # multi_os_dir_gcc.
         multi_flags=$( echo "${multilib#*;}" | sed -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
         multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
@@ -1640,6 +1644,7 @@ CT_IterateMultilibs() {
         multi_flags=$( echo "${multilib#*;}" | sed -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
         multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
+        multi_os_dir_gcc="${multi_os_dir}"
         multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
         multi_target=$( "${CT_TARGET}-gcc" -print-multiarch ${multi_flags} )
         root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
