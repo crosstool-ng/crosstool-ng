@@ -560,7 +560,11 @@ do_gcc_core_backend() {
             ;; # ARCH is mips
     esac
 
-    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+    if [ "${CT_TOOLCHAIN_ENABLE_NLS}" = "y" ]; then
+        extra_config+=("--with-libintl-prefix=${complibs}")
+    else
+        extra_config+=("--disable-nls")
+    fi
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
@@ -1084,7 +1088,11 @@ do_gcc_backend() {
             ;; # ARCH is mips
     esac
 
-    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+    if [ "${CT_TOOLCHAIN_ENABLE_NLS}" = "y" ]; then
+        extra_config+=("--with-libintl-prefix=${complibs}")
+    else
+        extra_config+=("--disable-nls")
+    fi
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
