@@ -469,10 +469,24 @@ if [ -z "${CT_RESTART}" ]; then
     #  - fall back to searching user's PATH
     # Of course, neither cross-native nor canadian can run on BUILD,
     # so don't add those PATHs in this case...
+    # For native and simple cross, build==host, combine the extra CFLAGS/LDFLAGS
+    # supplied for both (so that it doesn't matter where the user supplied them).
     case "${CT_TOOLCHAIN_TYPE}" in
-        cross)  export PATH="${CT_PREFIX_DIR}/bin:${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}";;
-        canadian) export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}";;
-        *)  ;;
+        cross|native)
+            export PATH="${CT_PREFIX_DIR}/bin:${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}"
+            bh_cflags="${CT_EXTRA_CFLAGS_FOR_BUILD} ${CT_EXTRA_CFLAGS_FOR_HOST}"
+            bh_ldflags="${CT_EXTRA_LDFLAGS_FOR_BUILD} ${CT_EXTRA_LDFLAGS_FOR_HOST}"
+            CT_EXTRA_CFLAGS_FOR_BUILD="${bh_cflags}"
+            CT_EXTRA_CFLAGS_FOR_HOST="${bh_cflags}"
+            CT_EXTRA_LDFLAGS_FOR_BUILD="${bh_ldflags}"
+            CT_EXTRA_LDFLAGS_FOR_HOST="${bh_ldflags}"
+            ;;
+        canadian|cross-native)
+            export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}"
+            # build!=host in this case
+            ;;
+        *)
+            ;;
     esac
 
     # Help build gcc
