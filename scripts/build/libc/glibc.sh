@@ -96,6 +96,7 @@ do_libc_backend() {
 #   multi_*             : as defined in CT_IterateMultilibs     : (varies)  :
 do_libc_backend_once() {
     local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
+    local build_cflags build_cppflags build_ldflags
     local startfiles_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local -a extra_config
@@ -277,23 +278,26 @@ do_libc_backend_once() {
             ;;
     esac
 
-    CT_CFLAGS_FOR_BUILD+=" ${CT_EXTRA_CFLAGS_FOR_BUILD}"
-    CT_LDFLAGS_FOR_BUILD+=" ${CT_EXTRA_LDFLAGS_FOR_BUILD}"
-    extra_make_args+=( "BUILD_CFLAGS=${CT_CFLAGS_FOR_BUILD}" "BUILD_LDFLAGS=${CT_LDFLAGS_FOR_BUILD}" )
+    build_cflags="${CT_CFLAGS_FOR_BUILD}"
+    build_cppflags=
+    build_ldflags="${CT_LDFLAGS_FOR_BUILD}"
 
     case "$CT_BUILD" in
         *mingw*|*cygwin*|*msys*)
             # When installing headers on Cygwin, MSYS2 and MinGW-w64 sunrpc needs
             # gettext for building cross-rpcgen.
-            extra_make_args+=( BUILD_CPPFLAGS="-I${CT_BUILDTOOLS_PREFIX_DIR}/include/" )
-            extra_make_args+=( BUILD_LDFLAGS="-L${CT_BUILDTOOLS_PREFIX_DIR}/lib -Wl,-Bstatic -lintl -liconv -Wl,-Bdynamic" )
+            build_cppflags="${build_cppflags} -I${CT_BUILDTOOLS_PREFIX_DIR}/include/"
+            build_ldflags="${build_ldflags} -lintl -liconv"
             ;;
         *darwin*)
             # .. and the same goes for Darwin.
-            extra_make_args+=( BUILD_CPPFLAGS="-I${CT_BUILDTOOLS_PREFIX_DIR}/include/" )
-            extra_make_args+=( BUILD_LDFLAGS="-L${CT_BUILDTOOLS_PREFIX_DIR}/lib -lintl" )
+            build_cppflags="${build_cppflags} -I${CT_BUILDTOOLS_PREFIX_DIR}/include/"
+            build_ldflags="${build_ldflags} -lintl"
             ;;
     esac
+    extra_make_args+=( "BUILD_CFLAGS=${build_cflags}" )
+    extra_make_args+=( "BUILD_CPPFLAGS=${build_cppflags}" )
+    extra_make_args+=( "BUILD_LDFLAGS=${build_ldflags}" )
 
     if [ "${libc_mode}" = "startfiles" -a ! -r "${multi_root}/.libc_headers_installed" ]; then
         CT_DoLog EXTRA "Installing C library headers"
