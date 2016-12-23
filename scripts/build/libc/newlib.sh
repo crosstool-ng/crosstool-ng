@@ -116,6 +116,9 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     [ "${CT_LIBC_NEWLIB_EXTRA_SECTIONS}" = "y" ] && \
         CT_LIBC_NEWLIB_TARGET_CFLAGS="${CT_LIBC_NEWLIB_TARGET_CFLAGS} -ffunction-sections -fdata-sections"
 
+    [ "${CT_LIBC_NEWLIB_LTO}" = "y" ] && \
+        CT_LIBC_NEWLIB_TARGET_CFLAGS="${CT_LIBC_NEWLIB_TARGET_CFLAGS} -flto"
+
     [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
 
     cflags_for_target="${CT_TARGET_CFLAGS} ${CT_LIBC_NEWLIB_TARGET_CFLAGS}"
@@ -125,16 +128,16 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     #   build  : not used
     #   host   : the machine building newlib
     #   target : the machine newlib runs on
-    CT_DoExecLog CFG                                    \
-    CC_FOR_BUILD="${CT_BUILD}-gcc"                      \
-    CFLAGS_FOR_TARGET="${cflags_for_target}"            \
-    AR=${CT_TARGET}-ar                                  \
-    RANLIB=${CT_TARGET}-ranlib                          \
-    "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure" \
-        --host=${CT_BUILD}                              \
-        --target=${CT_TARGET}                           \
-        --prefix=${CT_PREFIX_DIR}                       \
-        "${newlib_opts[@]}"                             \
+    CT_DoExecLog CFG                                               \
+    CC_FOR_BUILD="${CT_BUILD}-gcc"                                 \
+    CFLAGS_FOR_TARGET="${cflags_for_target}"                       \
+    AR_FOR_TARGET="`which ${CT_TARGET}-gcc-ar`"                    \
+    RANLIB_FOR_TARGET="`which ${CT_TARGET}-gcc-ranlib`"            \
+    "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure"            \
+        --host=${CT_BUILD}                                         \
+        --target=${CT_TARGET}                                      \
+        --prefix=${CT_PREFIX_DIR}                                  \
+        "${newlib_opts[@]}"                                        \
         "${CT_LIBC_NEWLIB_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building C library"
