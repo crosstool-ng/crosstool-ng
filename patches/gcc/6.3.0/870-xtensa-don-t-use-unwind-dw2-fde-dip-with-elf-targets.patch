@@ -1,0 +1,62 @@
+From d28554ee61a1ab1263274d66386e4051bca0ce05 Mon Sep 17 00:00:00 2001
+From: jcmvbkbc <jcmvbkbc@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date: Tue, 18 Oct 2016 19:12:19 +0000
+Subject: [PATCH] xtensa: don't use unwind-dw2-fde-dip with elf targets
+
+Define LIB2ADDEH_XTENSA_UNWIND_DW2_FDE to unwind-dw2-fde.c in
+xtensa/t-elf and to unwind-dw2-fde-dip.c in xtensa/t-linux and use
+LIB2ADDEH_XTENSA_UNWIND_DW2_FDE in LIB2ADDEH definition.
+
+This fixes build for elf target with windowed xtensa core that currently
+breaks with the following error message:
+
+  unwind-dw2-fde-dip.c:36:40: fatal error: elf.h: No such file or directory
+
+2016-10-18  Max Filippov  <jcmvbkbc@gmail.com>
+libgcc/
+	* config/xtensa/t-elf (LIB2ADDEH_XTENSA_UNWIND_DW2_FDE): New
+	definition.
+	* config/xtensa/t-linux (LIB2ADDEH_XTENSA_UNWIND_DW2_FDE): New
+	definition.
+	* config/xtensa/t-windowed (LIB2ADDEH): Use
+	LIB2ADDEH_XTENSA_UNWIND_DW2_FDE defined by either xtensa/t-elf
+	or xtensa/t-linux.
+
+git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@241313 138bc75d-0d04-0410-961f-82ee72b054a4
+
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ libgcc/config/xtensa/t-elf      | 2 ++
+ libgcc/config/xtensa/t-linux    | 2 ++
+ libgcc/config/xtensa/t-windowed | 2 +-
+ 3 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/libgcc/config/xtensa/t-elf b/libgcc/config/xtensa/t-elf
+index 59d5121..967cf9b 100644
+--- a/libgcc/config/xtensa/t-elf
++++ b/libgcc/config/xtensa/t-elf
+@@ -3,3 +3,5 @@ CRTSTUFF_T_CFLAGS += -mlongcalls
+ CRTSTUFF_T_CFLAGS_S += -mlongcalls
+ 
+ HOST_LIBGCC2_CFLAGS += -mlongcalls
++
++LIB2ADDEH_XTENSA_UNWIND_DW2_FDE = $(srcdir)/unwind-dw2-fde.c
+diff --git a/libgcc/config/xtensa/t-linux b/libgcc/config/xtensa/t-linux
+index 6f4ae89..412ecca 100644
+--- a/libgcc/config/xtensa/t-linux
++++ b/libgcc/config/xtensa/t-linux
+@@ -1 +1,3 @@
+ SHLIB_MAPFILES += $(srcdir)/config/xtensa/libgcc-glibc.ver
++
++LIB2ADDEH_XTENSA_UNWIND_DW2_FDE = $(srcdir)/unwind-dw2-fde-dip.c
+diff --git a/libgcc/config/xtensa/t-windowed b/libgcc/config/xtensa/t-windowed
+index a99156c..f140136 100644
+--- a/libgcc/config/xtensa/t-windowed
++++ b/libgcc/config/xtensa/t-windowed
+@@ -1,2 +1,2 @@
+ LIB2ADDEH = $(srcdir)/config/xtensa/unwind-dw2-xtensa.c \
+-   $(srcdir)/unwind-dw2-fde-dip.c $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c
++   $(LIB2ADDEH_XTENSA_UNWIND_DW2_FDE) $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c
+-- 
+2.1.4
+
