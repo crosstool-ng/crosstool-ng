@@ -1103,6 +1103,11 @@ do_gcc_backend() {
         fi
     fi
 
+    # Workaround for an uninitialized bool in libgo/runtime/mprof.goc:406
+    if [ "${CT_CC_LANG_GOLANG}" = "y" ]; then
+        extra_config+=("--enable-werror=no")
+    fi
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # Clang's default bracket-depth is 256, and building GCC
