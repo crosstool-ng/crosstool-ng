@@ -21,7 +21,7 @@ do_debug_strace_build() {
     CT_DoExecLog CFG                                        \
     CC="${CT_TARGET}-gcc"                                   \
     CPP="${CT_TARGET}-cpp"                                  \
-    LD="${LD_TARGET}-ld"                                    \
+    LD="${CT_TARGET}-ld"                                    \
     "${CT_SRC_DIR}/strace-${CT_STRACE_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${CT_TARGET}                                 \
