@@ -283,16 +283,11 @@ do_libc_backend_once() {
     build_ldflags="${CT_LDFLAGS_FOR_BUILD}"
 
     case "$CT_BUILD" in
-        *mingw*|*cygwin*|*msys*)
-            # When installing headers on Cygwin, MSYS2 and MinGW-w64 sunrpc needs
+        *mingw*|*cygwin*|*msys*|*darwin*)
+            # When installing headers on Cygwin, Darwin, MSYS2 and MinGW-w64 sunrpc needs
             # gettext for building cross-rpcgen.
             build_cppflags="${build_cppflags} -I${CT_BUILDTOOLS_PREFIX_DIR}/include/"
             build_ldflags="${build_ldflags} -lintl -liconv"
-            ;;
-        *darwin*)
-            # .. and the same goes for Darwin.
-            build_cppflags="${build_cppflags} -I${CT_BUILDTOOLS_PREFIX_DIR}/include/"
-            build_ldflags="${build_ldflags} -lintl"
             ;;
     esac
     extra_make_args+=( "BUILD_CFLAGS=${build_cflags}" )
