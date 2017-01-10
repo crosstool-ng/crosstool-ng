@@ -98,8 +98,38 @@ do_libc() {
     if [ "${CT_LIBC_NEWLIB_NANO_FORMATTED_IO}" = "y" ]; then
         newlib_opts+=( "--enable-newlib-nano-formatted-io" )
     fi
+    if [ "${CT_LIBC_NEWLIB_REGISTER_FINI}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-register-fini" )
+    fi
+    if [ "${CT_LIBC_NEWLIB_REENT_SMALL}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-reent-small" )
+    fi
+    if [ "${CT_LIBC_NEWLIB_ATEXIT_DYNAMIC_ALLOC}" = "y" ]; then
+        newlib_opts+=( "--disable-newlib-atexit-dynamic-alloc" )
+    fi
+    if [ "${CT_LIBC_NEWLIB_FVWRITE_IN_STREAMIO}" = "y" ]; then
+        newlib_opts+=( "--disable-newlib-fvwrite-in-streamio" )
+    fi
+    if [ "${CT_LIBC_NEWLIB_FSEEK_OPTIMIZATION}" = "y" ]; then
+        newlib_opts+=( "--disable-newlib-fseek-optimization" )
+    fi
+    if [ "${CT_LIBC_NEWLIB_WIDE_ORIENT}" = "y" ]; then
+        newlib_opts+=( "--disable-newlib-wide-orient" )
+    fi
+    if [ "${CT_LIBC_NEWLIB_UNBUF_STREAM_OPT}" = "y" ]; then
+        newlib_opts+=( "--disable-newlib-unbuf-stream-opt" )
+    fi
+    if [ "${CT_LIBC_NEWLIB_GLOBAL_ATEXIT}" = "y" ]; then
+        newlib_opts+=( "--enable-newlib-global-atexit" )
+    fi
 
-    [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
+    if [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+        newlib_opts+=("--enable-target-optspace")
+    fi
+
+    if [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ]; then
+        newlib_opts+=("--disable-nls")
+    fi
 
     cflags_for_target="${CT_TARGET_CFLAGS} ${CT_LIBC_NEWLIB_TARGET_CFLAGS}"
 
