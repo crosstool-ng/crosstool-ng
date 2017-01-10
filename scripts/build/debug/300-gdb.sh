@@ -105,6 +105,12 @@ do_debug_gdb_build() {
             CC_for_gdb+=" -static"
             LD_for_gdb+=" -static"
         fi
+        case "${CT_HOST}" in
+            *darwin*)
+                # FIXME: Really, we should be testing for host compiler being clang.
+                CC_for_gdb+=" -Qunused-arguments"
+                ;;
+        esac
 
         # Fix up whitespace. Some older GDB releases (e.g. 6.8a) get confused if there
         # are multiple consecutive spaces: sub-configure scripts replace them with a

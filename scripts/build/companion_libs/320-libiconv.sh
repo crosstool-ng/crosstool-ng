@@ -22,10 +22,8 @@ do_libiconv_extract() {
 do_libiconv_for_build() {
     local -a libiconv_opts
 
-    case "$CT_BUILD" in
-        *darwin*|*linux*)
-            return 0
-            ;;
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)   return 0;;
     esac
 
     CT_DoStep INFO "Installing libiconv for build"

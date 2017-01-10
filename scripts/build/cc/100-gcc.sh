@@ -478,14 +478,13 @@ do_gcc_core_backend() {
             host_libstdcxx_flags+=("-static-libgcc")
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
-        elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
-            # When companion libraries are build static (eg !shared),
-            # the libstdc++ is not pulled automatically, although it
-            # is needed. Shoe-horn it in our LDFLAGS
-            # Ditto libm on some Fedora boxen
-            core_LDFLAGS+=("-lstdc++")
-            core_LDFLAGS+=("-lm")
         fi
+        # When companion libraries are build static (eg !shared),
+        # the libstdc++ is not pulled automatically, although it
+        # is needed. Shoe-horn it in our LDFLAGS
+        # Ditto libm on some Fedora boxen
+        core_LDFLAGS+=("-lstdc++")
+        core_LDFLAGS+=("-lm")
     fi
 
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
@@ -561,7 +560,11 @@ do_gcc_core_backend() {
             ;; # ARCH is mips
     esac
 
-    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+    if [ "${CT_TOOLCHAIN_ENABLE_NLS}" = "y" ]; then
+        extra_config+=("--with-libintl-prefix=${complibs}")
+    else
+        extra_config+=("--disable-nls")
+    fi
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
@@ -985,14 +988,13 @@ do_gcc_backend() {
             host_libstdcxx_flags+=("-static-libgcc")
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
-        elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
-            # When companion libraries are build static (eg !shared),
-            # the libstdc++ is not pulled automatically, although it
-            # is needed. Shoe-horn it in our LDFLAGS
-            # Ditto libm on some Fedora boxen
-            final_LDFLAGS+=("-lstdc++")
-            final_LDFLAGS+=("-lm")
         fi
+        # When companion libraries are build static (eg !shared),
+        # the libstdc++ is not pulled automatically, although it
+        # is needed. Shoe-horn it in our LDFLAGS
+        # Ditto libm on some Fedora boxen
+        final_LDFLAGS+=("-lstdc++")
+        final_LDFLAGS+=("-lm")
     fi
 
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
@@ -1086,7 +1088,11 @@ do_gcc_backend() {
             ;; # ARCH is mips
     esac
 
-    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+    if [ "${CT_TOOLCHAIN_ENABLE_NLS}" = "y" ]; then
+        extra_config+=("--with-libintl-prefix=${complibs}")
+    else
+        extra_config+=("--disable-nls")
+    fi
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")

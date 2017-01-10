@@ -29,8 +29,6 @@ do_isl_extract() {
 # - install in build-tools prefix
 do_isl_for_build() {
     local -a isl_opts
-    local isl_cflags
-    local isl_cxxflags
 
     case "${CT_TOOLCHAIN_TYPE}" in
         native|cross)   return 0;;
@@ -39,13 +37,10 @@ do_isl_for_build() {
     CT_DoStep INFO "Installing ISL for build"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-isl-build-${CT_BUILD}"
 
-    isl_cflags="${CT_CFLAGS_FOR_BUILD}"
-    isl_cxxflags="${CT_CFLAGS_FOR_BUILD}"
-
     isl_opts+=( "host=${CT_BUILD}" )
     isl_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
-    isl_opts+=( "cflags=${isl_cflags}" )
-    isl_opts+=( "cxxflags=${isl_cxxflags}" )
+    isl_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
+    isl_opts+=( "cxxflags=${CT_CFLAGS_FOR_BUILD}" )
     isl_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     do_isl_backend "${isl_opts[@]}"
 
@@ -56,19 +51,14 @@ do_isl_for_build() {
 # Build ISL for running on host
 do_isl_for_host() {
     local -a isl_opts
-    local isl_cflags
-    local isl_cxxflags
 
     CT_DoStep INFO "Installing ISL for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-isl-host-${CT_HOST}"
 
-    isl_cflags="${CT_CFLAGS_FOR_HOST}"
-    isl_cxxflags="${CT_CFLAGS_FOR_HOST}"
-
     isl_opts+=( "host=${CT_HOST}" )
     isl_opts+=( "prefix=${CT_HOST_COMPLIBS_DIR}" )
-    isl_opts+=( "cflags=${isl_cflags}" )
-    isl_opts+=( "cxxflags=${isl_cxxflags}" )
+    isl_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+    isl_opts+=( "cxxflags=${CT_CFLAGS_FOR_HOST}" )
     isl_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     do_isl_backend "${isl_opts[@]}"
 
