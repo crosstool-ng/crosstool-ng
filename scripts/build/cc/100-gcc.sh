@@ -409,9 +409,6 @@ do_gcc_core_backend() {
             ;;
     esac
 
-    CT_DoLog DEBUG "Copying headers to install area of core C compiler"
-    CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
-
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
         if [ -n "${tmp}" ]; then
