@@ -119,8 +119,6 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     [ "${CT_LIBC_NEWLIB_LTO}" = "y" ] && \
         CT_LIBC_NEWLIB_TARGET_CFLAGS="${CT_LIBC_NEWLIB_TARGET_CFLAGS} -flto"
 
-    [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
-
     cflags_for_target="${CT_TARGET_CFLAGS} ${CT_LIBC_NEWLIB_TARGET_CFLAGS}"
 
     # Note: newlib handles the build/host/target a little bit differently
