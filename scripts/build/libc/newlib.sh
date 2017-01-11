@@ -142,7 +142,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     CT_DoExecLog ALL make ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL make install install_root="${CT_SYSROOT_DIR}"
+    CT_DoExecLog ALL make install
 
     if [ "${CT_BUILD_MANUALS}" = "y" ]; then
         local -a doc_dir="${CT_BUILD_DIR}/build-libc/${CT_TARGET}"
