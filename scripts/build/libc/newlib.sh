@@ -5,10 +5,6 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
-LIBC_NEWLIB_AVR_HDRS_URI="http://www.atmel.com/Images"
-LIBC_NEWLIB_AVR_HDRS_BASE="avr-headers-3.2.3.970"
-LIBC_NEWLIB_AVR_HDRS_EXT=".zip"
-
 do_libc_get() {
     local libc_src="{http://mirrors.kernel.org/sourceware/newlib,
                      ftp://sourceware.org/pub/newlib}"
