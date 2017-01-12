@@ -11,30 +11,18 @@ do_gcc_get() {
         CT_GetCustom "gcc" "${CT_CC_GCC_CUSTOM_VERSION}" \
             "${CT_CC_GCC_CUSTOM_LOCATION}"
     else
-        # Account for the Linaro versioning
-        linaro_version="$( echo "${CT_CC_GCC_VERSION}"  \
-                           |sed -r -e 's/^linaro-//;'   \
-                         )"
-        linaro_series="$( echo "${linaro_version}"      \
-                          |sed -r -e 's/-.*//;'         \
-                        )"
-
-        # The official gcc hosts put gcc under a gcc/release/ directory,
-        # whereas the mirrors put it in the gcc/ directory.
-        # Also, Split out linaro mirrors, so that downloads happen faster.
-        if [ x"${linaro_version}" = x"${CT_CC_GCC_VERSION}" ]; then
-            CT_GetFile "gcc-${CT_CC_GCC_VERSION}"                                                   \
-                       {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_GCC_VERSION} \
-                       ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_GCC_VERSION}
-        else
-            YYMM=`echo ${CT_CC_GCC_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
-            CT_GetFile "gcc-${CT_CC_GCC_VERSION}"                                                             \
-                       "https://releases.linaro.org/components/toolchain/gcc-linaro/${linaro_version}"        \
-                       "https://releases.linaro.org/${YYMM}/components/toolchain/gcc-linaro/${linaro_series}" \
-                       "http://launchpad.net/gcc-linaro/${linaro_series}/${linaro_version}/+download"         \
-                       http://cbuild.validation.linaro.org/snapshots
-        fi
-
+        case "${CT_CC_GCC_VERSION}" in
+            linaro-*)
+                CT_GetLinaro "gcc" "${CT_CC_GCC_VERSION}"
+                ;;
+            *)
+                # The official gcc hosts put gcc under a gcc/release/ directory,
+                # whereas the mirrors put it in the gcc/ directory.
+                CT_GetFile "gcc-${CT_CC_GCC_VERSION}" \
+                           {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_GCC_VERSION} \
+                           ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_GCC_VERSION}
+                ;;
+        esac
     fi # ! custom location
     # Starting with GCC 4.3, ecj is used for Java, and will only be
     # built if the configure script finds ecj.jar at the top of the

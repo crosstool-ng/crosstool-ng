@@ -10,26 +10,17 @@ do_debug_gdb_get() {
         CT_GetCustom "gdb" "${CT_GDB_CUSTOM_VERSION}" \
             "${CT_GDB_CUSTOM_LOCATION}"
     else
-        # Account for the Linaro versioning
-        linaro_version="$( echo "${CT_GDB_VERSION}"      \
-                           |sed -r -e 's/^linaro-//;'   \
-                         )"
-        linaro_series="$( echo "${linaro_version}"      \
-                          |sed -r -e 's/-.*//;'         \
-                        )"
-
-        if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
-            CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
-                       http://mirrors.kernel.org/sourceware/gdb            \
-                       {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
-                       ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
-        else
-            YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
-            CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
-                       "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
-                       https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
-                       http://cbuild.validation.linaro.org/snapshots
-        fi
+        case "${CT_GDB_VERSION}" in
+            linaro-*)
+                CT_GetLinaro "gdb" "${CT_GDB_VERSION}"
+                ;;
+            *)
+                CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
+                           http://mirrors.kernel.org/sourceware/gdb            \
+                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
+                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
+                ;;
+        esac
     fi
 }
 
