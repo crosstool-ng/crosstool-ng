@@ -2,7 +2,12 @@
 # Hmmm! Cheesy build!
 # Or: where I can unveil my make-fu... :-]
 
-all: conf mconf nconf
+__silent = $(if $(V),,@printf '  %-7s %s\n' '$1' '$(if $2,$2,$(strip $<))' && )
+__silent_rm = $(call __silent,RM,$1)rm -f $1
+
+PROGS = conf mconf nconf
+
+all: $(PROGS)
 	@true   # Just be silent, you fscking son of a fscking beach...
 
 # Build flags
@@ -64,8 +69,7 @@ DEPS += $(nconf_DEP)
 
 # Build the dependency for C files
 %.dep: %.c
-	@echo "  DEP    '$@'"
-	@$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |$(sed) -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
+	$(call __silent,DEP,$@)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |$(sed) -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
 
 # Generate the grammar parser
 zconf.tab.o: zconf.tab.c zconf.hash.c zconf.lex.c
@@ -73,39 +77,39 @@ zconf.tab.dep: zconf.tab.c zconf.hash.c zconf.lex.c
 
 .PRECIOUS: zconf.tab.c
 zconf.tab.c: zconf.y
-	@echo "  BISON  '$@'"
-	@bison -l -b zconf -p zconf $<
+	$(call __silent,BISON)bison -l -b zconf -p zconf $<
 
 zconf.hash.c: zconf.gperf
-	@echo "  GPERF  '$@'"
-	@$(gperf) -C < $< > $@
+	$(call __silent,GPERF)$(gperf) -C < $< > $@
 
 zconf.lex.c: zconf.l
-	@echo "  LEX    '$@'"
-	@flex -L -Pzconf -o$@ $<
+	$(call __silent,LEX)flex -L -Pzconf -o$@ $<
 
 # Build C files
 %.o: %.c
-	@echo "  CC     '$@'"
-	@$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ -c $<
+	$(call __silent,CC)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ -c $<
 
 # Actual link
 mconf: $(COMMON_OBJ) $(LX_OBJ) $(mconf_OBJ)
-	@echo "  LD     '$@'"
-	@$(CC) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
+	$(call __silent,LD,$@)$(CC) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 nconf: $(COMMON_OBJ) $(nconf_OBJ)
-	@echo "  LD     '$@'"
-	@$(CC) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
+	$(call __silent,LD,$@)$(CC) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 conf: $(COMMON_OBJ) $(conf_OBJ)
-	@echo "  LD     '$@'"
-	@$(CC) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
+	$(call __silent,LD,$@)$(CC) -o $@ $^ $(LDFLAGS) $(EXTRA_LDFLAGS)
+
+#-----------------------------------------------------------
+# Installation
+install: $(patsubst %,install-%,$(PROGS)) install-kconfig.mk
+
+install-%: %
+	$(call __silent,INSTALL,$<)install $< $(DESTDIR)/$<
 
 #-----------------------------------------------------------
 # Cleaning up the mess...
 
 clean:
-	@echo "  RM     'kconfig'"
-	@rm -f conf mconf nconf $(ALL_OBJS) $(ALL_DEPS)
-	@rm -f rm -f zconf.tab.c zconf.hash.c zconf.lex.c lex.backup
+	$(call __silent,RM,objs)rm -f $(ALL_OBJS) $(ALL_DEPS)
+	$(call __silent_rm,$(PROGS))
+	$(call __silent_rm,zconf.tab.c zconf.hash.c zconf.lex.c lex.backup)
