@@ -17,15 +17,18 @@ do_libc_get() {
         CT_GetCustom "newlib" "${CT_LIBC_NEWLIB_CUSTOM_VERSION}" \
             "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
     else # ! custom location
-        if echo ${CT_LIBC_VERSION} |grep -q linaro; then
-            YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
-            CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src} \
-                       https://releases.linaro.org/${YYMM}/components/toolchain/newlib-linaro \
-                       http://cbuild.validation.linaro.org/snapshots
-        else
-            CT_GetFile "newlib-${CT_LIBC_VERSION}" ${libc_src} \
-                       http://mirrors.kernel.org/sources.redhat.com/newlib
-        fi
+        case "${CT_LIBC_VERSION}" in
+            linaro-*)
+                CT_GetLinaro "newlib" "${CT_LIBC_VERSION}"
+                ;;
+            *)
+                # kernel.org mirror is outdated, keep last as a fallback
+                CT_GetFile "newlib-${CT_LIBC_VERSION}" \
+                           ftp://sourceware.org/pub/newlib \
+                           http://mirrors.kernel.org/sourceware/newlib \
+                           http://mirrors.kernel.org/sources.redhat.com/newlib
+                ;;
+        esac
     fi # ! custom location
 }
 

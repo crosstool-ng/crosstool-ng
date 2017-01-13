@@ -798,6 +798,40 @@ CT_GetFile() {
     return 1
 }
 
+# Get a component from Linaro archives.
+# Usage: CT_GetLinaro <component> <version>
+CT_GetLinaro() {
+    local comp="$1"
+    local version="$2"
+    local linaro_version
+    local yyyymm_p
+    local yymm
+    local base
+
+    case "${version}" in
+        linaro-*)
+            linaro_version="${version#linaro-}"
+            ;;
+        *)
+            CT_Abort "Version ${version} is not a Linaro package"
+            ;;
+    esac
+
+    # Recent releases reside in top of the directory tree; older releases
+    # are moved into the archive. Subdirectories are named differently
+    # in archive!
+    # In archive, some URLs also contain base component version
+    # (e.g. "gcc-linaro/4.9") while some do not (e.g. just "newlib-linaro").
+    base="${linaro_version%%-*}"
+    # Strip base version, first two digits of the year and optional patchlevel
+    yymm="${linaro_version#*-??}"
+    yymm="${yymm%-*}"
+    CT_GetFile "${comp}-${version}" \
+        "https://releases.linaro.org/components/toolchain/${comp}-linaro/${linaro_version}" \
+        "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro/${base}" \
+        "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro"
+}
+
 # Checkout from CVS, and build the associated tarball
 # The tarball will be called ${basename}.tar.bz2
 # Prerequisite: either the server does not require password,

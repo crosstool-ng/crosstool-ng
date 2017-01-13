@@ -11,17 +11,16 @@ do_libc_get() {
         CT_GetCustom "glibc" "${CT_LIBC_GLIBC_CUSTOM_VERSION}" \
             "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
     else
-        if echo ${CT_LIBC_VERSION} |grep -q linaro; then
-            # Linaro glibc releases come from regular downloads...
-            YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
-            CT_GetFile "glibc-${CT_LIBC_VERSION}" \
-                       https://releases.linaro.org/${YYMM}/components/toolchain/glibc-linaro \
-                       http://cbuild.validation.linaro.org/snapshots
-        else
-            CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
-                       {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
-                       ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
-        fi
+        case "${CT_LIBC_VERSION}" in
+            linaro-*)
+                CT_GetLinaro "glibc" "${CT_LIBC_VERSION}"
+                ;;
+            *)
+                CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
+                           {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
+                           ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
+                ;;
+	esac
     fi
 
     return 0
