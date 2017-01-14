@@ -6,7 +6,8 @@ all: conf mconf nconf
 	@true   # Just be silent, you fscking son of a fscking beach...
 
 # Build flags
-CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\""
+CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\"" \
+	 -DGPERF_LEN_TYPE="$(gperf_len_type)"
 LDFLAGS = $(INTL_LIBS)
 
 # Compiler flags to use gettext
