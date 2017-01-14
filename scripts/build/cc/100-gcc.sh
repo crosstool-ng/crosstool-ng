@@ -168,7 +168,7 @@ cc_gcc_multilib_housekeeping() {
             "directly; will use build-compiler for housekeeping."
         # Since we cannot run the desired compiler, substitute build-CC with the assumption
         # that the host-CC is configured in the same way.
-        cc="${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-gcc"
+        cc="${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}"
     fi
 
     # sed: prepend dashes or do nothing if default is empty string
@@ -646,7 +646,7 @@ do_gcc_core_backend() {
         if [ "${CT_BARE_METAL},${CT_CANADIAN}" = "y,y" ]; then
             repair_cc="CC_FOR_BUILD=${CT_BUILD}-gcc \
                        CXX_FOR_BUILD=${CT_BUILD}-g++ \
-                       GCC_FOR_TARGET=${CT_TARGET}-gcc"
+                       GCC_FOR_TARGET=${CT_TARGET}-${CT_CC}"
         else
             repair_cc=""
         fi
@@ -711,16 +711,16 @@ do_gcc_core_backend() {
         CT_DoExecLog ALL make install-{pdf,html}-gcc
     fi
 
-    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
+    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-${CT_CC} to always be able
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
-    file="$( ls -1 "${prefix}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    file="$( ls -1 "${prefix}/bin/${CT_TARGET}-${CT_CC}."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
-    if [ -f "${prefix}/bin/${CT_TARGET}-gcc${ext}" ]; then
-        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
+    if [ -f "${prefix}/bin/${CT_TARGET}-${CT_CC}${ext}" ]; then
+        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-${CT_CC}${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-gcc" \
+    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-${CT_CC}" \
         host="${host}"
 }
 
@@ -1153,15 +1153,15 @@ do_gcc_backend() {
         CT_DoExecLog ALL make install-{pdf,html}-gcc
     fi
 
-    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
+    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-${CT_CC} to always be able
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
-    file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
-    if [ -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc${ext}" ]; then
-        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
+    if [ -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}${ext}" ]; then
+        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-${CT_CC}${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-gcc" \
+    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-${CT_CC}" \
         host="${host}"
 }

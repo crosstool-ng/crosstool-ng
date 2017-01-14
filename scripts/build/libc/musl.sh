@@ -126,7 +126,7 @@ do_libc_backend_once() {
             obj/crt/crt1.o obj/crt/crti.o obj/crt/crtn.o
         CT_DoLog EXTRA "Installing C library start files"
         CT_DoExecLog ALL cp -av obj/crt/crt*.o "${multi_root}${multilib_dir}"
-        CT_DoExecLog ALL ${CT_TARGET}-gcc -nostdlib \
+        CT_DoExecLog ALL ${CT_TARGET}-${CT_CC} -nostdlib \
             -nostartfiles -shared -x c /dev/null -o "${multi_root}${multilib_dir}/libc.so"
     fi
     if [ "${libc_mode}" = "final" ]; then
