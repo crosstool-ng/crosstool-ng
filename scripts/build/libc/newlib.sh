@@ -5,10 +5,6 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
-LIBC_NEWLIB_AVR_HDRS_URI="http://www.atmel.com/Images"
-LIBC_NEWLIB_AVR_HDRS_BASE="avr-headers-3.2.3.970"
-LIBC_NEWLIB_AVR_HDRS_EXT=".zip"
-
 do_libc_get() {
     local libc_src="{http://mirrors.kernel.org/sourceware/newlib,
                      ftp://sourceware.org/pub/newlib}"
@@ -122,8 +118,6 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     [ "${CT_LIBC_NEWLIB_LTO}" = "y" ] && \
         CT_LIBC_NEWLIB_TARGET_CFLAGS="${CT_LIBC_NEWLIB_TARGET_CFLAGS} -flto"
 
-    [ "${CT_LIBC_NEWLIB_ENABLE_TARGET_OPTSPACE}" = "y" ] && newlib_opts+=("--enable-target-optspace")
-
     cflags_for_target="${CT_TARGET_CFLAGS} ${CT_LIBC_NEWLIB_TARGET_CFLAGS}"
 
     # Note: newlib handles the build/host/target a little bit differently
@@ -147,7 +141,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     CT_DoExecLog ALL make ${JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL make install install_root="${CT_SYSROOT_DIR}"
+    CT_DoExecLog ALL make install
 
     if [ "${CT_BUILD_MANUALS}" = "y" ]; then
         local -a doc_dir="${CT_BUILD_DIR}/build-libc/${CT_TARGET}"
