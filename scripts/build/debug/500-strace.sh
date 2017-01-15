@@ -15,22 +15,10 @@ do_debug_strace_extract() {
 do_debug_strace_build() {
     CT_DoStep INFO "Installing strace"
 
-    # Strace needs _IOC definitions, and it tries to pick them up from <linux/ioctl.h>.
-    # While cross-compiling on a non-Linux host, we don't have this header. Replacing
-    # <linux/ioctl.h> with <sys/ioctl.h>, as suggested by many internet "solutions",
-    # is wrong: for example, MacOS defines _IOC macros differently, and we need the
-    # definitions for the target!
-    # Hence, create a "window" into target includes.
-    CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}/build-strace-headers"
-    for d in linux asm asm-generic; do
-        CT_DoExecLog ALL ln -sf "${CT_HEADERS_DIR}/${d}" "${CT_BUILD_DIR}/build-strace-headers/${d}"
-    done
-
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-strace"
 
     CT_DoLog EXTRA "Configuring strace"
     CT_DoExecLog CFG                                           \
-    CFLAGS_FOR_BUILD="-I ${CT_BUILD_DIR}/build-strace-headers" \
     CC="${CT_TARGET}-${CT_CC}"                                 \
     CPP="${CT_TARGET}-cpp"                                     \
     LD="${CT_TARGET}-ld"                                       \
