@@ -18,7 +18,7 @@ doHelp() {
           'tool' in one of:
             gcc, binutils, glibc, uClibc, uClibc-ng, newlib, linux, gdb,
             duma, strace, ltrace, libelf, gmp, mpfr, isl, cloog, mpc,
-            mingw-w64, expat, ncurses
+            mingw-w64, expat, ncurses, musl
 
           Valid options for all tools:
             --stable, -s, +x   (default)
@@ -151,7 +151,7 @@ addToolVersion() {
             ver_M=$(getVersionField "${version}" . 1)
             ver_m=$(getVersionField "${version}" . 2)
             ver_p=$(getVersionField "${version}" . 3)
-            if [  ${ver_M} -eq 0 -a ${ver_m} -eq 9 -a ${ver_p} -eq 33 ]; then
+            if [  ${ver_M} -eq 1 -a ${ver_m} -eq 0 -a ${ver_p} -eq 15 ]; then
                 SedExpr1="${SedExpr1}\n    select LIBC_UCLIBC_NG_1_0_15_or_later"
             fi
             ;;
@@ -195,6 +195,7 @@ while [ $# -gt 0 ]; do
         --uClibc-ng)EXP=; OBS=; cat=LIBC_UCLIBC_NG; tool=uClibc;    tool_prefix=libc;            dot2suffix=;;
         --newlib)   EXP=; OBS=; cat=LIBC_NEWLIB;    tool=newlib;    tool_prefix=libc;            dot2suffix=;;
         --mingw-w64)EXP=; OBS=; cat=WINAPI;         tool=mingw;     tool_prefix=libc;            dot2suffix=;;
+        --musl)     EXP=; OBS=; cat=LIBC_MUSL;      tool=musl;      tool_prefix=libc;            dot2suffix=;;
         --linux)    EXP=; OBS=; cat=KERNEL;         tool=linux;     tool_prefix=kernel;          dot2suffix=;;
         --gdb)      EXP=; OBS=; cat=GDB;            tool=gdb;       tool_prefix=debug;           dot2suffix=;;
         --duma)     EXP=; OBS=; cat=DUMA;           tool=duma;      tool_prefix=debug;           dot2suffix=;;
