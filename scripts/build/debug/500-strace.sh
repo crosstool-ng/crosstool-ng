@@ -31,7 +31,7 @@ do_debug_strace_build() {
     CT_DoLog EXTRA "Configuring strace"
     CT_DoExecLog CFG                                           \
     CFLAGS_FOR_BUILD="-I ${CT_BUILD_DIR}/build-strace-headers" \
-    CC="${CT_TARGET}-gcc"                                      \
+    CC="${CT_TARGET}-${CT_CC}"                                 \
     CPP="${CT_TARGET}-cpp"                                     \
     LD="${CT_TARGET}-ld"                                       \
     "${CT_SRC_DIR}/strace-${CT_STRACE_VERSION}/configure"      \

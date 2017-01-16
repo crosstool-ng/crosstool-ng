@@ -252,7 +252,7 @@ do_libc_backend_once() {
     # but they are not passed by configure. Thus, pass everything in CC instead.
     CT_DoExecLog CFG                                                \
     BUILD_CC=${CT_BUILD}-gcc                                        \
-    CC="${CT_TARGET}-gcc ${glibc_cflags}"                           \
+    CC="${CT_TARGET}-${CT_CC} ${glibc_cflags}"                      \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CONFIG_SHELL}"                                               \
@@ -362,11 +362,11 @@ do_libc_backend_once() {
             # However, since we will never actually execute its code,
             # it doesn't matter what it contains.  So, treating '/dev/null'
             # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${CT_TARGET}-gcc" ${multi_flags}   \
-                                           -nostdlib             \
-                                           -nostartfiles         \
-                                           -shared               \
-                                           -x c /dev/null        \
+            CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" ${multi_flags}   \
+                                           -nostdlib                  \
+                                           -nostartfiles              \
+                                           -shared                    \
+                                           -x c /dev/null             \
                                            -o "${startfiles_dir}/libc.so"
         fi # threads == nptl
     fi # libc_mode = startfiles

@@ -40,9 +40,9 @@ do_debug_duma_build() {
     libs="${libs# }"
     CT_DoLog EXTRA "Building libraries '${libs}'"
     CT_DoExecLog ALL                    \
-    make HOSTCC="${CT_BUILD}-gcc"    \
-         CC="${CT_TARGET}-gcc"          \
-         CXX="${CT_TARGET}-gcc"         \
+    make HOSTCC="${CT_BUILD}-gcc"       \
+         CC="${CT_TARGET}-${CT_CC}"     \
+         CXX="${CT_TARGET}-g++"         \
          RANLIB="${CT_TARGET}-ranlib"   \
          DUMA_CPP="${DUMA_CPP}"         \
          ${libs}
