@@ -14,17 +14,17 @@ do_debug_strace_extract() {
 
 do_debug_strace_build() {
     CT_DoStep INFO "Installing strace"
-    mkdir -p "${CT_BUILD_DIR}/build-strace"
-    CT_Pushd "${CT_BUILD_DIR}/build-strace"
+
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-strace"
 
     CT_DoLog EXTRA "Configuring strace"
-    CT_DoExecLog CFG                                        \
-    CC="${CT_TARGET}-gcc"                                   \
-    CPP="${CT_TARGET}-cpp"                                  \
-    LD="${LD_TARGET}-ld"                                    \
-    "${CT_SRC_DIR}/strace-${CT_STRACE_VERSION}/configure"   \
-        --build=${CT_BUILD}                                 \
-        --host=${CT_TARGET}                                 \
+    CT_DoExecLog CFG                                           \
+    CC="${CT_TARGET}-${CT_CC}"                                 \
+    CPP="${CT_TARGET}-cpp"                                     \
+    LD="${CT_TARGET}-ld"                                       \
+    "${CT_SRC_DIR}/strace-${CT_STRACE_VERSION}/configure"      \
+        --build=${CT_BUILD}                                    \
+        --host=${CT_TARGET}                                    \
         --prefix=/usr
 
     CT_DoLog EXTRA "Building strace"

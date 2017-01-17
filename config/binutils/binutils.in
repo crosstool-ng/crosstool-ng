@@ -37,21 +37,21 @@ endif # BINUTILS_CUSTOM
 
 if ! BINUTILS_CUSTOM
 
-config CC_BINUTILS_SHOW_LINARO
+config BINUTILS_SHOW_LINARO
     bool
     prompt "Show Linaro versions"
     help
       Linaro is maintaining some advanced/more stable/experimental versions
       of binutils, especially for the ARM architecture.
-      
+
       Those versions have not been blessed by the binutils comunity (nor have they
       been cursed either!), but they look to be pretty much stable, and even
       more stable than the upstream versions. YMMV...
-      
+
       If you do not know what this Linaro stuff is, then simply say 'n' here,
       and rest in peace. OTOH, if you know what you are doing, you will be
       able to use and enjoy :-) the Linaro versions by saying 'y' here.
-      
+
       Linaro: http://www.linaro.org/
 
 choice
@@ -59,6 +59,11 @@ choice
     prompt "binutils version"
 # Don't remove next line
 # CT_INSERT_VERSION_BELOW
+
+config BINUTILS_V_2_27
+    bool
+    prompt "2.27"
+    select BINUTILS_2_27_or_later
 
 config BINUTILS_V_2_26
     bool
@@ -74,18 +79,24 @@ config BINUTILS_LINARO_V_2_25
     bool
     prompt "linaro-2.25.0-2015.01-2"
     select BINUTILS_2_25_or_later
-    depends on CC_BINUTILS_SHOW_LINARO
+    depends on BINUTILS_SHOW_LINARO
 
 config BINUTILS_LINARO_V_2_24
     bool
     prompt "linaro-2.24.0-2014.11-2"
     select BINUTILS_2_24_or_later
-    depends on CC_BINUTILS_SHOW_LINARO
+    depends on BINUTILS_SHOW_LINARO
 
 config BINUTILS_V_2_24
     bool
     prompt "2.24"
     select BINUTILS_2_24_or_later
+
+config BINUTILS_LINARO_V_2_23_2
+    bool
+    prompt "linaro-2.23.2-2013.10-4"
+    select BINUTILS_2_23_2_or_later
+    depends on BINUTILS_SHOW_LINARO
 
 config BINUTILS_V_2_23_2
     bool
@@ -98,14 +109,20 @@ config BINUTILS_VERSION
     string
 # Don't remove next line
 # CT_INSERT_VERSION_STRING_BELOW
+    default "2.27" if BINUTILS_V_2_27
     default "2.26" if BINUTILS_V_2_26
     default "2.25.1" if BINUTILS_V_2_25_1
     default "linaro-2.25.0-2015.01-2" if BINUTILS_LINARO_V_2_25
     default "linaro-2.24.0-2014.11-2" if BINUTILS_LINARO_V_2_24
     default "2.24" if BINUTILS_V_2_24
+    default "linaro-2.23.2-2013.10-4" if BINUTILS_LINARO_V_2_23_2
     default "2.23.2" if BINUTILS_V_2_23_2
 
 endif # ! BINUTILS_CUSTOM
+
+config BINUTILS_2_27_or_later
+    bool
+    select BINUTILS_2_26_or_later
 
 config BINUTILS_2_26_or_later
     bool
@@ -192,7 +209,7 @@ config BINUTILS_LINKER_LD_GOLD
     help
       Both the historical ld and the new gold linkers will be
       installed, with ld being the default linker used.
-      
+
       See help for gold, above.
 
 config BINUTILS_LINKER_GOLD_LD
@@ -205,7 +222,7 @@ config BINUTILS_LINKER_GOLD_LD
     help
       Both the historical ld and the new gold linkers will be
       installed, with gold being the default linker used.
-      
+
       See help for gold, above.
 
 endchoice # Enable linkers
@@ -242,7 +259,7 @@ config BINUTILS_LD_WRAPPER
     depends on BINUTILS_LINKER_BOTH
     help
       Add an ld wrapper that calls to either gold or ld.
-      
+
       By default, the wrapper will call to the default wrapper,
       but if you set the environment variable CTNG_LD_IS, you
       can change which linker will get called:
@@ -270,7 +287,7 @@ config BINUTILS_EXTRA_CONFIG_ARRAY
     default ""
     help
       Extra flags passed onto ./configure when configuring
-      
+
       You can enter multiple arguments here, and arguments can contain spaces
       if they are properly quoted (or escaped, but prefer quotes). Eg.:
           --with-foo="1st arg with 4 spaces" --with-bar=2nd-arg-without-space

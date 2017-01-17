@@ -11,30 +11,18 @@ do_gcc_get() {
         CT_GetCustom "gcc" "${CT_CC_GCC_CUSTOM_VERSION}" \
             "${CT_CC_GCC_CUSTOM_LOCATION}"
     else
-        # Account for the Linaro versioning
-        linaro_version="$( echo "${CT_CC_GCC_VERSION}"  \
-                           |sed -r -e 's/^linaro-//;'   \
-                         )"
-        linaro_series="$( echo "${linaro_version}"      \
-                          |sed -r -e 's/-.*//;'         \
-                        )"
-
-        # The official gcc hosts put gcc under a gcc/release/ directory,
-        # whereas the mirrors put it in the gcc/ directory.
-        # Also, Split out linaro mirrors, so that downloads happen faster.
-        if [ x"${linaro_version}" = x"${CT_CC_GCC_VERSION}" ]; then
-            CT_GetFile "gcc-${CT_CC_GCC_VERSION}"                                                   \
-                       {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_GCC_VERSION} \
-                       ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_GCC_VERSION}
-        else
-            YYMM=`echo ${CT_CC_GCC_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
-            CT_GetFile "gcc-${CT_CC_GCC_VERSION}"                                                             \
-                       "https://releases.linaro.org/components/toolchain/gcc-linaro/${linaro_version}"        \
-                       "https://releases.linaro.org/${YYMM}/components/toolchain/gcc-linaro/${linaro_series}" \
-                       "http://launchpad.net/gcc-linaro/${linaro_series}/${linaro_version}/+download"         \
-                       http://cbuild.validation.linaro.org/snapshots
-        fi
-
+        case "${CT_CC_GCC_VERSION}" in
+            linaro-*)
+                CT_GetLinaro "gcc" "${CT_CC_GCC_VERSION}"
+                ;;
+            *)
+                # The official gcc hosts put gcc under a gcc/release/ directory,
+                # whereas the mirrors put it in the gcc/ directory.
+                CT_GetFile "gcc-${CT_CC_GCC_VERSION}" \
+                           {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_GCC_VERSION} \
+                           ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_GCC_VERSION}
+                ;;
+        esac
     fi # ! custom location
     # Starting with GCC 4.3, ecj is used for Java, and will only be
     # built if the configure script finds ecj.jar at the top of the
@@ -180,7 +168,7 @@ cc_gcc_multilib_housekeeping() {
             "directly; will use build-compiler for housekeeping."
         # Since we cannot run the desired compiler, substitute build-CC with the assumption
         # that the host-CC is configured in the same way.
-        cc="${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-gcc"
+        cc="${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}"
     fi
 
     # sed: prepend dashes or do nothing if default is empty string
@@ -409,8 +397,12 @@ do_gcc_core_backend() {
             ;;
     esac
 
-    CT_DoLog DEBUG "Copying headers to install area of core C compiler"
-    CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
+    # This is only needed when building libstdc++ in a canadian environment with
+    # this function being used for final step (i.e., when building for bare metal).
+    if [ "${build_step}" = "gcc_build" ]; then
+        CT_DoLog DEBUG "Copying headers to install area of core C compiler"
+        CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
+    fi
 
     for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
@@ -478,14 +470,13 @@ do_gcc_core_backend() {
             host_libstdcxx_flags+=("-static-libgcc")
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
-        elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
-            # When companion libraries are build static (eg !shared),
-            # the libstdc++ is not pulled automatically, although it
-            # is needed. Shoe-horn it in our LDFLAGS
-            # Ditto libm on some Fedora boxen
-            core_LDFLAGS+=("-lstdc++")
-            core_LDFLAGS+=("-lm")
         fi
+        # When companion libraries are build static (eg !shared),
+        # the libstdc++ is not pulled automatically, although it
+        # is needed. Shoe-horn it in our LDFLAGS
+        # Ditto libm on some Fedora boxen
+        core_LDFLAGS+=("-lstdc++")
+        core_LDFLAGS+=("-lm")
     fi
 
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
@@ -561,7 +552,11 @@ do_gcc_core_backend() {
             ;; # ARCH is mips
     esac
 
-    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+    if [ "${CT_TOOLCHAIN_ENABLE_NLS}" = "y" ]; then
+        extra_config+=("--with-libintl-prefix=${complibs}")
+    else
+        extra_config+=("--disable-nls")
+    fi
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
@@ -658,7 +653,7 @@ do_gcc_core_backend() {
         if [ "${CT_BARE_METAL},${CT_CANADIAN}" = "y,y" ]; then
             repair_cc="CC_FOR_BUILD=${CT_BUILD}-gcc \
                        CXX_FOR_BUILD=${CT_BUILD}-g++ \
-                       GCC_FOR_TARGET=${CT_TARGET}-gcc"
+                       GCC_FOR_TARGET=${CT_TARGET}-${CT_CC}"
         else
             repair_cc=""
         fi
@@ -723,16 +718,16 @@ do_gcc_core_backend() {
         CT_DoExecLog ALL make install-{pdf,html}-gcc
     fi
 
-    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
+    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-${CT_CC} to always be able
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
-    file="$( ls -1 "${prefix}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    file="$( ls -1 "${prefix}/bin/${CT_TARGET}-${CT_CC}."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
-    if [ -f "${prefix}/bin/${CT_TARGET}-gcc${ext}" ]; then
-        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
+    if [ -f "${prefix}/bin/${CT_TARGET}-${CT_CC}${ext}" ]; then
+        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-${CT_CC}${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-gcc" \
+    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-${CT_CC}" \
         host="${host}"
 }
 
@@ -985,14 +980,13 @@ do_gcc_backend() {
             host_libstdcxx_flags+=("-static-libgcc")
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
-        elif [ "${CT_COMPLIBS_SHARED}" != "y" ]; then
-            # When companion libraries are build static (eg !shared),
-            # the libstdc++ is not pulled automatically, although it
-            # is needed. Shoe-horn it in our LDFLAGS
-            # Ditto libm on some Fedora boxen
-            final_LDFLAGS+=("-lstdc++")
-            final_LDFLAGS+=("-lm")
         fi
+        # When companion libraries are build static (eg !shared),
+        # the libstdc++ is not pulled automatically, although it
+        # is needed. Shoe-horn it in our LDFLAGS
+        # Ditto libm on some Fedora boxen
+        final_LDFLAGS+=("-lstdc++")
+        final_LDFLAGS+=("-lm")
     fi
 
     if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
@@ -1086,7 +1080,11 @@ do_gcc_backend() {
             ;; # ARCH is mips
     esac
 
-    [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
+    if [ "${CT_TOOLCHAIN_ENABLE_NLS}" = "y" ]; then
+        extra_config+=("--with-libintl-prefix=${complibs}")
+    else
+        extra_config+=("--disable-nls")
+    fi
 
     if [ "${CT_CC_GCC_SYSTEM_ZLIB}" = "y" ]; then
         extra_config+=("--with-system-zlib")
@@ -1162,15 +1160,15 @@ do_gcc_backend() {
         CT_DoExecLog ALL make install-{pdf,html}-gcc
     fi
 
-    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-gcc to always be able
+    # Create a symlink ${CT_TARGET}-cc to ${CT_TARGET}-${CT_CC} to always be able
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
-    file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc."* 2>/dev/null || true )"
+    file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}."* 2>/dev/null || true )"
     [ -z "${file}" ] || ext=".${file##*.}"
-    if [ -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-gcc${ext}" ]; then
-        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-gcc${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
+    if [ -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}${ext}" ]; then
+        CT_DoExecLog ALL ln -sfv "${CT_TARGET}-${CT_CC}${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
 
-    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-gcc" \
+    cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-${CT_CC}" \
         host="${host}"
 }

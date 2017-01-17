@@ -11,17 +11,16 @@ do_libc_get() {
         CT_GetCustom "glibc" "${CT_LIBC_GLIBC_CUSTOM_VERSION}" \
             "${CT_LIBC_GLIBC_CUSTOM_LOCATION}"
     else
-        if echo ${CT_LIBC_VERSION} |grep -q linaro; then
-            # Linaro glibc releases come from regular downloads...
-            YYMM=`echo ${CT_LIBC_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
-            CT_GetFile "glibc-${CT_LIBC_VERSION}" \
-                       https://releases.linaro.org/${YYMM}/components/toolchain/glibc-linaro \
-                       http://cbuild.validation.linaro.org/snapshots
-        else
-            CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
-                       {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
-                       ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
-        fi
+        case "${CT_LIBC_VERSION}" in
+            linaro-*)
+                CT_GetLinaro "glibc" "${CT_LIBC_VERSION}"
+                ;;
+            *)
+                CT_GetFile "glibc-${CT_LIBC_VERSION}"                                        \
+                           {http,ftp,https}://ftp.gnu.org/gnu/glibc                          \
+                           ftp://{sourceware.org,gcc.gnu.org}/pub/glibc/{releases,snapshots}
+                ;;
+	esac
     fi
 
     return 0
@@ -96,6 +95,7 @@ do_libc_backend() {
 #   multi_*             : as defined in CT_IterateMultilibs     : (varies)  :
 do_libc_backend_once() {
     local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
+    local build_cflags build_cppflags build_ldflags
     local startfiles_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
     local -a extra_config
@@ -252,7 +252,7 @@ do_libc_backend_once() {
     # but they are not passed by configure. Thus, pass everything in CC instead.
     CT_DoExecLog CFG                                                \
     BUILD_CC=${CT_BUILD}-gcc                                        \
-    CC="${CT_TARGET}-gcc ${glibc_cflags}"                           \
+    CC="${CT_TARGET}-${CT_CC} ${glibc_cflags}"                      \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CONFIG_SHELL}"                                               \
@@ -277,23 +277,21 @@ do_libc_backend_once() {
             ;;
     esac
 
-    CT_CFLAGS_FOR_BUILD+=" ${CT_EXTRA_CFLAGS_FOR_BUILD}"
-    CT_LDFLAGS_FOR_BUILD+=" ${CT_EXTRA_LDFLAGS_FOR_BUILD}"
-    extra_make_args+=( "BUILD_CFLAGS=${CT_CFLAGS_FOR_BUILD}" "BUILD_LDFLAGS=${CT_LDFLAGS_FOR_BUILD}" )
+    build_cflags="${CT_CFLAGS_FOR_BUILD}"
+    build_cppflags=
+    build_ldflags="${CT_LDFLAGS_FOR_BUILD}"
 
     case "$CT_BUILD" in
-        *mingw*|*cygwin*|*msys*)
-            # When installing headers on Cygwin, MSYS2 and MinGW-w64 sunrpc needs
+        *mingw*|*cygwin*|*msys*|*darwin*)
+            # When installing headers on Cygwin, Darwin, MSYS2 and MinGW-w64 sunrpc needs
             # gettext for building cross-rpcgen.
-            extra_make_args+=( BUILD_CPPFLAGS="-I${CT_BUILDTOOLS_PREFIX_DIR}/include/" )
-            extra_make_args+=( BUILD_LDFLAGS="-L${CT_BUILDTOOLS_PREFIX_DIR}/lib -Wl,-Bstatic -lintl -liconv -Wl,-Bdynamic" )
-            ;;
-        *darwin*)
-            # .. and the same goes for Darwin.
-            extra_make_args+=( BUILD_CPPFLAGS="-I${CT_BUILDTOOLS_PREFIX_DIR}/include/" )
-            extra_make_args+=( BUILD_LDFLAGS="-L${CT_BUILDTOOLS_PREFIX_DIR}/lib -lintl" )
+            build_cppflags="${build_cppflags} -I${CT_BUILDTOOLS_PREFIX_DIR}/include/"
+            build_ldflags="${build_ldflags} -lintl -liconv"
             ;;
     esac
+    extra_make_args+=( "BUILD_CFLAGS=${build_cflags}" )
+    extra_make_args+=( "BUILD_CPPFLAGS=${build_cppflags}" )
+    extra_make_args+=( "BUILD_LDFLAGS=${build_ldflags}" )
 
     if [ "${libc_mode}" = "startfiles" -a ! -r "${multi_root}/.libc_headers_installed" ]; then
         CT_DoLog EXTRA "Installing C library headers"
@@ -364,11 +362,11 @@ do_libc_backend_once() {
             # However, since we will never actually execute its code,
             # it doesn't matter what it contains.  So, treating '/dev/null'
             # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${CT_TARGET}-gcc" ${multi_flags}   \
-                                           -nostdlib             \
-                                           -nostartfiles         \
-                                           -shared               \
-                                           -x c /dev/null        \
+            CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" ${multi_flags}   \
+                                           -nostdlib                  \
+                                           -nostartfiles              \
+                                           -shared                    \
+                                           -x c /dev/null             \
                                            -o "${startfiles_dir}/libc.so"
         fi # threads == nptl
     fi # libc_mode = startfiles

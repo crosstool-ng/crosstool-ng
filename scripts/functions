@@ -798,6 +798,40 @@ CT_GetFile() {
     return 1
 }
 
+# Get a component from Linaro archives.
+# Usage: CT_GetLinaro <component> <version>
+CT_GetLinaro() {
+    local comp="$1"
+    local version="$2"
+    local linaro_version
+    local yyyymm_p
+    local yymm
+    local base
+
+    case "${version}" in
+        linaro-*)
+            linaro_version="${version#linaro-}"
+            ;;
+        *)
+            CT_Abort "Version ${version} is not a Linaro package"
+            ;;
+    esac
+
+    # Recent releases reside in top of the directory tree; older releases
+    # are moved into the archive. Subdirectories are named differently
+    # in archive!
+    # In archive, some URLs also contain base component version
+    # (e.g. "gcc-linaro/4.9") while some do not (e.g. just "newlib-linaro").
+    base="${linaro_version%%-*}"
+    # Strip base version, first two digits of the year and optional patchlevel
+    yymm="${linaro_version#*-??}"
+    yymm="${yymm%-*}"
+    CT_GetFile "${comp}-${version}" \
+        "https://releases.linaro.org/components/toolchain/${comp}-linaro/${linaro_version}" \
+        "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro/${base}" \
+        "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro"
+}
+
 # Checkout from CVS, and build the associated tarball
 # The tarball will be called ${basename}.tar.bz2
 # Prerequisite: either the server does not require password,
@@ -1587,7 +1621,7 @@ CT_IterateMultilibs() {
 
     # If gcc is not configured for multilib, it still prints a single line
     # for the default settings
-    multilibs=( $("${CT_TARGET}-gcc" -print-multi-lib 2>/dev/null) )
+    multilibs=( $("${CT_TARGET}-${CT_CC}" -print-multi-lib 2>/dev/null) )
     CT_DoExecLog ALL rm -rf "sysroot-check"
     for multilib in "${multilibs[@]}"; do
         # GCC makes the distinction between:
@@ -1623,8 +1657,8 @@ CT_IterateMultilibs() {
         # multi_os_dir_gcc.
         multi_flags=$( echo "${multilib#*;}" | sed -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
-        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
-        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
+        multi_os_dir=$( "${CT_TARGET}-${CT_CC}" -print-multi-os-directory ${multi_flags} )
+        multi_root=$( "${CT_TARGET}-${CT_CC}" -print-sysroot ${multi_flags} )
         root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
         CT_DoExecLog ALL mkdir -p "sysroot-check${root_suffix}"
         if [ -e "sysroot-check${root_suffix}/seen" ]; then
@@ -1643,10 +1677,10 @@ CT_IterateMultilibs() {
     for multilib in "${multilibs[@]}"; do
         multi_flags=$( echo "${multilib#*;}" | sed -r -e 's/@/ -/g;' )
         multi_dir="${multilib%%;*}"
-        multi_os_dir=$( "${CT_TARGET}-gcc" -print-multi-os-directory ${multi_flags} )
+        multi_os_dir=$( "${CT_TARGET}-${CT_CC}" -print-multi-os-directory ${multi_flags} )
         multi_os_dir_gcc="${multi_os_dir}"
-        multi_root=$( "${CT_TARGET}-gcc" -print-sysroot ${multi_flags} )
-        multi_target=$( "${CT_TARGET}-gcc" -print-multiarch ${multi_flags} )
+        multi_root=$( "${CT_TARGET}-${CT_CC}" -print-sysroot ${multi_flags} )
+        multi_target=$( "${CT_TARGET}-${CT_CC}" -print-multiarch ${multi_flags} )
         root_suffix="${multi_root#${CT_SYSROOT_DIR}}"
 
         # If GCC did not report the target tuple (i.e. this configuration is not

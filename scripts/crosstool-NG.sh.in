@@ -469,30 +469,68 @@ if [ -z "${CT_RESTART}" ]; then
     #  - fall back to searching user's PATH
     # Of course, neither cross-native nor canadian can run on BUILD,
     # so don't add those PATHs in this case...
+    # For native and simple cross, build==host, combine the extra CFLAGS/LDFLAGS
+    # supplied for both (so that it doesn't matter where the user supplied them).
     case "${CT_TOOLCHAIN_TYPE}" in
-        cross)  export PATH="${CT_PREFIX_DIR}/bin:${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}";;
-        canadian) export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}";;
-        *)  ;;
+        cross|native)
+            export PATH="${CT_PREFIX_DIR}/bin:${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}"
+            bh_cflags="${CT_EXTRA_CFLAGS_FOR_BUILD} ${CT_EXTRA_CFLAGS_FOR_HOST}"
+            bh_ldflags="${CT_EXTRA_LDFLAGS_FOR_BUILD} ${CT_EXTRA_LDFLAGS_FOR_HOST}"
+            CT_EXTRA_CFLAGS_FOR_BUILD="${bh_cflags}"
+            CT_EXTRA_CFLAGS_FOR_HOST="${bh_cflags}"
+            CT_EXTRA_LDFLAGS_FOR_BUILD="${bh_ldflags}"
+            CT_EXTRA_LDFLAGS_FOR_HOST="${bh_ldflags}"
+            ;;
+        canadian|cross-native)
+            export PATH="${CT_BUILDTOOLS_PREFIX_DIR}/bin:${PATH}"
+            # build!=host in this case
+            ;;
+        *)
+            ;;
     esac
 
     # Help build gcc
     # Explicitly optimise, else the lines below will overide the
     # package's default optimisation flags
-    CT_CFLAGS_FOR_BUILD="-O2 -g"
+    CT_CFLAGS_FOR_BUILD="-O2 -g -I${CT_BUILDTOOLS_PREFIX_DIR}/include"
     CT_CFLAGS_FOR_BUILD+=" ${CT_EXTRA_CFLAGS_FOR_BUILD}"
-    CT_LDFLAGS_FOR_BUILD=
+    CT_LDFLAGS_FOR_BUILD="-L${CT_BUILDTOOLS_PREFIX_DIR}/lib"
     CT_LDFLAGS_FOR_BUILD+=" ${CT_EXTRA_LDFLAGS_FOR_BUILD}"
+
+    case "${CT_BUILD}" in
+        *darwin*)
+            # Two issues while building on MacOS. Really, we should be checking for
+            # clang instead.
+            # - gettext static library fails to link unless CoreFoundation framework
+            #   is included
+            # - ranlib on MacOS does not include common symbols into the symbol index
+            #   for a static library, and hence linker fails to pull in the right
+            #   archive members; hence, avoid common symbols. Alternative is to
+            #   have ranlib wrapper in buildtools/bin supply -c option.
+            CT_CFLAGS_FOR_BUILD+=" -fno-common"
+            CT_LDFLAGS_FOR_BUILD+=" -framework CoreFoundation"
+            ;;
+    esac
+
+    CT_DoLog DEBUG "CFLAGS for build compiler: '${CT_CFLAGS_FOR_BUILD}'"
+    CT_DoLog DEBUG "LDFLAGS for build compiler: '${CT_LDFLAGS_FOR_BUILD}'"
 
     # Help host gcc
     # Explicitly optimise, else the lines below will overide the
     # package's default optimisation flags
     CT_CFLAGS_FOR_HOST="-O2 -g"
     [ "${CT_USE_PIPES}" = "y" ] && CT_CFLAGS_FOR_HOST+=" -pipe"
-    CT_CFLAGS_FOR_HOST+=" ${CT_EXTRA_CFLAGS_FOR_HOST}"
-    CT_LDFLAGS_FOR_HOST=
-    CT_LDFLAGS_FOR_HOST+=" ${CT_EXTRA_LDFLAGS_FOR_HOST}"
     CT_CFLAGS_FOR_HOST+=" -I${CT_HOST_COMPLIBS_DIR}/include"
-    CT_LDFLAGS_FOR_HOST+=" -L${CT_HOST_COMPLIBS_DIR}/lib"
+    CT_CFLAGS_FOR_HOST+=" ${CT_EXTRA_CFLAGS_FOR_HOST}"
+    CT_LDFLAGS_FOR_HOST="-L${CT_HOST_COMPLIBS_DIR}/lib"
+    CT_LDFLAGS_FOR_HOST+=" ${CT_EXTRA_LDFLAGS_FOR_HOST}"
+    case "${CT_HOST}" in
+        *darwin*)
+            # Same as above, for host
+            CT_CFLAGS_FOR_HOST+=" -fno-common"
+            CT_LDFLAGS_FOR_HOST+=" -framework CoreFoundation"
+            ;;
+    esac
     CT_DoLog DEBUG "CFLAGS for host compiler: '${CT_CFLAGS_FOR_HOST}'"
     CT_DoLog DEBUG "LDFLAGS for host compiler: '${CT_LDFLAGS_FOR_HOST}'"
 

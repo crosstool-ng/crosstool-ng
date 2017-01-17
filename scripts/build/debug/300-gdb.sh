@@ -10,26 +10,17 @@ do_debug_gdb_get() {
         CT_GetCustom "gdb" "${CT_GDB_CUSTOM_VERSION}" \
             "${CT_GDB_CUSTOM_LOCATION}"
     else
-        # Account for the Linaro versioning
-        linaro_version="$( echo "${CT_GDB_VERSION}"      \
-                           |sed -r -e 's/^linaro-//;'   \
-                         )"
-        linaro_series="$( echo "${linaro_version}"      \
-                          |sed -r -e 's/-.*//;'         \
-                        )"
-
-        if [ x"${linaro_version}" = x"${CT_GDB_VERSION}" ]; then
-            CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
-                       http://mirrors.kernel.org/sourceware/gdb            \
-                       {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
-                       ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
-        else
-            YYMM=`echo ${CT_GDB_VERSION} |cut -d- -f3 |sed -e 's,^..,,'`
-            CT_GetFile "gdb-${CT_GDB_VERSION}"                                                        \
-                       "http://launchpad.net/gdb-linaro/${linaro_series}/${linaro_version}/+download" \
-                       https://releases.linaro.org/${YYMM}/components/toolchain/gdb-linaro            \
-                       http://cbuild.validation.linaro.org/snapshots
-        fi
+        case "${CT_GDB_VERSION}" in
+            linaro-*)
+                CT_GetLinaro "gdb" "${CT_GDB_VERSION}"
+                ;;
+            *)
+                CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
+                           http://mirrors.kernel.org/sourceware/gdb            \
+                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
+                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
+                ;;
+        esac
     fi
 }
 
@@ -99,18 +90,30 @@ do_debug_gdb_build() {
             cross_extra_config+=("--disable-nls")
         fi
 
+        CPP_for_gdb="${CT_HOST}-cpp ${CT_CFLAGS_FOR_HOST}"
         CC_for_gdb="${CT_HOST}-gcc ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST}"
+        CXX_for_gdb="${CT_HOST}-g++ ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST}"
         LD_for_gdb="${CT_HOST}-ld ${CT_LDFLAGS_FOR_HOST}"
         if [ "${CT_GDB_CROSS_STATIC}" = "y" ]; then
             CC_for_gdb+=" -static"
+            CXX_for_gdb+=" -static"
             LD_for_gdb+=" -static"
         fi
+        case "${CT_HOST}" in
+            *darwin*)
+                # FIXME: Really, we should be testing for host compiler being clang.
+                CC_for_gdb+=" -Qunused-arguments"
+                CXX_for_gdb+=" -Qunused-arguments"
+                ;;
+        esac
 
         # Fix up whitespace. Some older GDB releases (e.g. 6.8a) get confused if there
         # are multiple consecutive spaces: sub-configure scripts replace them with a
         # single space and then complain that $CC value changed from that in
         # the master directory.
+        CPP_for_gdb=`echo $CPP_for_gdb`
         CC_for_gdb=`echo $CC_for_gdb`
+        CXX_for_gdb=`echo $CXX_for_gdb`
         LD_for_gdb=`echo $LD_for_gdb`
 
         # Disable binutils options when building from the binutils-gdb repo.
@@ -121,7 +124,9 @@ do_debug_gdb_build() {
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
+        CPP="${CPP_for_gdb}"                            \
         CC="${CC_for_gdb}"                              \
+        CXX="${CXX_for_gdb}"                            \
         LD="${LD_for_gdb}"                              \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
@@ -168,7 +173,6 @@ do_debug_gdb_build() {
 
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
-        local -a gdb_native_CFLAGS
 
         CT_DoStep INFO "Installing native gdb"
 
@@ -211,12 +215,14 @@ do_debug_gdb_build() {
         [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] &&    \
         native_extra_config+=("--disable-nls")
 
+        CPP_for_gdb="${CT_TARGET}-cpp"
+        CC_for_gdb="${CT_TARGET}-${CT_CC}"
+        CXX_for_gdb="${CT_TARGET}-g++"
+        LD_for_gdb="${CT_TARGET}-ld"
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
-            CC_for_gdb="${CT_TARGET}-gcc -static"
-            LD_for_gdb="${CT_TARGET}-ld -static"
-        else
-            CC_for_gdb="${CT_TARGET}-gcc"
-            LD_for_gdb="${CT_TARGET}-ld"
+            CC_for_gdb+=" -static"
+            CXX_for_gdb+=" -static"
+            LD_for_gdb+=" -static"
         fi
 
         export ac_cv_func_strncmp_works=yes
@@ -229,9 +235,10 @@ do_debug_gdb_build() {
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
+        CPP="${CPP_for_gdb}"                            \
         CC="${CC_for_gdb}"                              \
+        CXX="${CXX_for_gdb}"                            \
         LD="${LD_for_gdb}"                              \
-        CFLAGS="${gdb_native_CFLAGS[*]}"                \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -249,7 +256,7 @@ do_debug_gdb_build() {
             "${native_extra_config[@]}"
 
         CT_DoLog EXTRA "Building native gdb"
-        CT_DoExecLog ALL make ${JOBSFLAGS} CC=${CT_TARGET}-${CT_CC}
+        CT_DoExecLog ALL make ${JOBSFLAGS}
 
         CT_DoLog EXTRA "Installing native gdb"
         CT_DoExecLog ALL make DESTDIR="${CT_DEBUGROOT_DIR}" install
@@ -264,6 +271,7 @@ do_debug_gdb_build() {
 
     if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
         local -a gdbserver_extra_config
+        local gdbserver_LDFLAGS
 
         CT_DoStep INFO "Installing gdbserver"
         CT_DoLog EXTRA "Configuring gdbserver"
@@ -297,7 +305,7 @@ do_debug_gdb_build() {
         gdbserver_extra_config+=("--disable-gas")
 
         CT_DoExecLog CFG                                \
-        CC="${CT_TARGET}-gcc"                           \
+        CC="${CT_TARGET}-${CT_CC}"                      \
         CPP="${CT_TARGET}-cpp"                          \
         LD="${CT_TARGET}-ld"                            \
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
