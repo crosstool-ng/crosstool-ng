@@ -299,6 +299,13 @@ manage_uClibc_config() {
     esac
     if [ "${CT_LIBC_UCLIBC_FENV}" = "y" ]; then
         CT_KconfigEnableOption "UCLIBC_HAS_FENV" "${dst}"
+    else
+        CT_KconfigDisableOption "UCLIBC_HAS_FENV" "${dst}"
+    fi
+    if [ "${CT_LIBC_UCLIBC_RPC}" = "y" ]; then
+        CT_KconfigEnableOption "UCLIBC_HAS_RPC" "${dst}"
+    else
+        CT_KconfigDisableOption "UCLIBC_HAS_RPC" "${dst}"
     fi
 
     # We always want ctor/dtor
