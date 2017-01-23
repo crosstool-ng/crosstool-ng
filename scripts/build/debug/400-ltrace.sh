@@ -27,8 +27,9 @@ do_debug_ltrace_build() {
     CT_Pushd "${CT_BUILD_DIR}/build-ltrace"
 
     CT_DoLog EXTRA "Configuring ltrace"
-    # ltrace-0.5.3, and later, don't use GNU Autotools configure script anymore
-    if [ "${CT_LTRACE_0_5_3_or_later}" = "y" ]; then
+    # ltrace-0.5.3 has a unique hand-crafted configure script. Releases
+    # 0.5.2 and earlier as well as 0.6.0 and later use GNU autotools.
+    if [ "${LTRACE_0_5_3_CONFIGURE}" = "y" ]; then
         case "${CT_ARCH}:${CT_ARCH_BITNESS}" in
             x86:32)     ltrace_host="i386";;
             x86:64)     ltrace_host="x86_64";;
