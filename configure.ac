@@ -342,6 +342,9 @@ ACX_SET_KCONFIG_OPTION([cvs])
 AC_CHECK_PROGS([svn], [svn])
 ACX_SET_KCONFIG_OPTION([svn])
 
+AC_CHECK_PROGS([git], [git])
+ACX_SET_KCONFIG_OPTION([git])
+
 #--------------------------------------------------------------------
 # Now, for some fun...
 #--------------------------------------------------------------------
