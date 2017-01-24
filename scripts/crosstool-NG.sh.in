@@ -17,13 +17,13 @@
 # most notably:
 #  - set trap handler on errors,
 #  - don't hash commands lookups,
-#  - initialise logging.
 . "${CT_LIB_DIR}/scripts/functions"
 
-# Parse the configuration file
-# It has some info about the logging facility, so include it early
-. .config.2
+# Read the sample settings
+CT_LoadConfig
+
 # Yes! We can do full logging from now on!
+CT_LogEnable
 
 # Check running as root
 if [ -z "${CT_ALLOW_BUILD_AS_ROOT_SURE}" ]; then
@@ -126,8 +126,6 @@ CT_STAR_DATE_HUMAN=$(CT_DoDate +%Y%m%d.%H%M%S)
 # Log real begining of build, now
 CT_DoLog INFO "Build started ${CT_STAR_DATE_HUMAN}"
 
-# We really need to extract from ,config and not .config.2, as we
-# do want the kconfig's values, not our mangled config with arrays.
 CT_DoStep DEBUG "Dumping user-supplied crosstool-NG configuration"
 CT_DoExecLog DEBUG ${grep} -E '^(# )?CT_' .config
 CT_EndStep
@@ -137,26 +135,6 @@ unset MAKEFLAGS
 export MAKEFLAGS
 
 CT_DoLog INFO "Building environment variables"
-
-# Include sub-scripts instead of calling them: that way, we do not have to
-# export any variable, nor re-parse the configuration and functions files.
-. "${CT_LIB_DIR}/scripts/build/internals.sh"
-. "${CT_LIB_DIR}/scripts/build/arch.sh"
-. "${CT_LIB_DIR}/scripts/build/companion_tools.sh"
-. "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
-. "${CT_LIB_DIR}/scripts/build/companion_libs.sh"
-. "${CT_LIB_DIR}/scripts/build/binutils/${CT_BINUTILS}.sh"
-. "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
-. "${CT_LIB_DIR}/scripts/build/cc.sh"
-. "${CT_LIB_DIR}/scripts/build/debug.sh"
-. "${CT_LIB_DIR}/scripts/build/test_suite.sh"
-
-# Target tuple: CT_TARGET needs a little love:
-CT_DoBuildTargetTuple
-
-# Kludge: If any of the configured options needs CT_TARGET,
-# then rescan the options file now:
-. .config.2
 
 # Sanity check some directories
 CT_TestAndAbort "'CT_PREFIX_DIR' is not set: where should I install?" -z "${CT_PREFIX_DIR}"
@@ -178,8 +156,8 @@ CT_PKGVERSION="crosstool-NG ${CT_VERSION}${CT_TOOLCHAIN_PKGVERSION:+ - ${CT_TOOL
 # Compute the working directories names
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
 CT_SRC_DIR="${CT_WORK_DIR}/src"
-CT_BUILD_DIR="${CT_WORK_DIR}/${CT_TARGET}/build"
-CT_BUILDTOOLS_PREFIX_DIR="${CT_WORK_DIR}/${CT_TARGET}/buildtools"
+CT_BUILD_DIR="${CT_BUILD_TOP_DIR}/build"
+CT_BUILDTOOLS_PREFIX_DIR="${CT_BUILD_TOP_DIR}/buildtools"
 CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
 # Note about HOST_COMPLIBS_DIR: it's always gonna be in the buildtools dir, or a
 # sub-dir. So we won't have to save/restore it, not even create it.
@@ -310,7 +288,6 @@ if [ -z "${CT_RESTART}" ]; then
         BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         CC_CORE_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         CC_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
-        LIBC_SYSROOT_ARG=""
         # glibc's prefix must be exactly /usr, else --with-sysroot'd gcc will get
         # confused when $sysroot/usr/include is not present.
         # Note: --prefix=/usr is magic!
@@ -329,7 +306,6 @@ if [ -z "${CT_RESTART}" ]; then
         # building libgcc, and you'll have no profiling
         CC_CORE_SYSROOT_ARG="--without-headers"
         CC_SYSROOT_ARG="--with-headers=${CT_HEADERS_DIR}"
-        LIBC_SYSROOT_ARG="prefix="
     fi
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}"
     CT_DoExecLog ALL mkdir -p "${CT_DEBUGROOT_DIR}"
@@ -591,8 +567,6 @@ if [ -z "${CT_RESTART}" ]; then
     fi
     rm -f "${testc}"
 
-    # We need to save the real .config with kconfig's value,
-    # not our mangled .config.2 with arrays.
     CT_DoLog EXTRA "Installing user-supplied crosstool-NG configuration"
     CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/bin"
     CT_DoExecLog DEBUG ${install} -m 0755 "${CT_LIB_DIR}/scripts/toolchain-config.in" "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ct-ng.config"
@@ -691,12 +665,12 @@ CT_DoEnd INFO
 
 # From now-on, it can become impossible to log any time, because
 # either we're compressing the log file, or it can become RO any
-# moment... Restore original stdout, stderr and stdin
+# moment...
 CT_DoLog INFO "Finishing installation (may take a few seconds)..."
-exec >&6 2>&7 <&8
+CT_LogDisable
 rm -f ${CT_PREFIX_DIR}/build.log.bz2
 if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-    cp "${tmp_log_file}" "${CT_PREFIX_DIR}/build.log"
+    cp "${CT_BUILD_LOG}" "${CT_PREFIX_DIR}/build.log"
     if [ "${CT_LOG_FILE_COMPRESS}" = y ]; then
         bzip2 -9 "${CT_PREFIX_DIR}/build.log"
     fi
