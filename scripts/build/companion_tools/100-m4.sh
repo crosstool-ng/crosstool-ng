@@ -11,7 +11,7 @@ do_companion_tools_m4_extract() {
 }
 
 do_companion_tools_m4_for_build() {
-    CT_DoStep EXTRA "Installing m4 for build"
+    CT_DoStep INFO "Installing m4 for build"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-m4-build"
     do_m4_backend \
         host=${CT_BUILD} \
@@ -23,7 +23,7 @@ do_companion_tools_m4_for_build() {
 }
 
 do_companion_tools_m4_for_host() {
-    CT_DoStep EXTRA "Installing m4 for host"
+    CT_DoStep INFO "Installing m4 for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-m4-host"
     do_m4_backend \
         host=${CT_HOST} \

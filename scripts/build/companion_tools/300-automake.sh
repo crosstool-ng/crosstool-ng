@@ -12,7 +12,7 @@ do_companion_tools_automake_extract() {
 }
 
 do_companion_tools_automake_for_build() {
-    CT_DoStep EXTRA "Installing automake for build"
+    CT_DoStep INFO "Installing automake for build"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-automake-build"
     do_automake_backend host=${CT_BUILD} prefix="${CT_BUILD_COMPTOOLS_DIR}"
     CT_Popd
@@ -20,7 +20,7 @@ do_companion_tools_automake_for_build() {
 }
 
 do_companion_tools_automake_for_host() {
-    CT_DoStep EXTRA "Installing automake for host"
+    CT_DoStep INFO "Installing automake for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-automake-host"
     do_automake_backend host=${CT_HOST} prefix="${CT_PREFIX_DIR}"
     CT_Popd
