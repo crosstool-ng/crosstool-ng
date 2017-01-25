@@ -152,7 +152,7 @@ CT_OnError() {
         CT_STEP_COUNT=1     # To have a zero-indentation
         CT_DoLog ERROR ">>"
         if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-            CT_DoLog ERROR ">>  For more info on this error, look at the file: '${tmp_log_file#${CT_TOP_DIR}/}'"
+            CT_DoLog ERROR ">>  For more info on this error, look at the file: '${CT_BUILD_LOG#${CT_TOP_DIR}/}'"
         fi
         CT_DoLog ERROR ">>  There is a list of known issues, some with workarounds, in:"
         CT_DoLog ERROR ">>      '${CT_DOC_DIR#${CT_TOP_DIR}/}/B - Known issues.txt'"
@@ -186,10 +186,16 @@ set +o hashall
 #    FIXME: it doesn't look like anyone is overriding stdin/stderr. Do we need
 #    to save/restore them?
 CT_LogEnable() {
+	local clean=no
+	local arg
+
+	for arg in "$@"; do eval "$arg"; done
 	exec 6>&1 7>&2 8<&0
 	CT_BUILD_LOG="${CT_TOP_DIR}/build.log"
 	CT_LOG_ENABLED=y
-	rm -f "${CT_BUILD_LOG}"
+        if [ "$clean" = "yes" ]; then
+		rm -f "${CT_BUILD_LOG}"
+	fi
 	exec >>"${CT_BUILD_LOG}"
 }
 
@@ -1558,12 +1564,12 @@ CT_DoSaveState() {
     CT_DoTarballIfExists "${CT_PREFIX_DIR}" "${state_dir}/prefix_dir" --exclude '*.log'
 
     CT_DoLog STATE "  Saving log file"
-    exec >/dev/null
+    CT_LogDisable
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  gzip -3 -c "${tmp_log_file}"  >"${state_dir}/log.gz";;
-        *)  cat "${tmp_log_file}" >"${state_dir}/log";;
+        y)  gzip -3 -c "${CT_BUILD_LOG}"  >"${state_dir}/log.gz";;
+        *)  cat "${CT_BUILD_LOG}" >"${state_dir}/log";;
     esac
-    exec >>"${tmp_log_file}"
+    CT_LogEnable
 }
 
 # This function restores a previously saved state
@@ -1575,11 +1581,6 @@ CT_DoLoadState(){
     local old_STOP="${CT_STOP}"
 
     CT_TestOrAbort "The previous build did not reach the point where it could be restarted at '${CT_RESTART}'" -d "${state_dir}"
-
-    # We need to do something special with the log file!
-    if [ "${CT_LOG_TO_FILE}" = "y" ]; then
-        exec >"${state_dir}/tail.log"
-    fi
 
     CT_DoLog INFO "Restoring state at step '${state_name}', as requested."
 
@@ -1597,14 +1598,15 @@ CT_DoLoadState(){
     unset old_stop old_restart
 
     CT_DoLog STATE "  Restoring log file"
-    exec >/dev/null
+    CT_LogDisable
+    mv "${CT_BUILD_LOG}" "${CT_BUILD_LOG}.tail"
     case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  gzip -dc "${state_dir}/log.gz" >"${tmp_log_file}";;
-        *)  cat "${state_dir}/log" >"${tmp_log_file}";;
+        y)  gzip -dc "${state_dir}/log.gz" >"${CT_BUILD_LOG}";;
+        *)  cat "${state_dir}/log" >"${CT_BUILD_LOG}";;
     esac
-    cat "${state_dir}/tail.log" >>"${tmp_log_file}"
-    exec >>"${tmp_log_file}"
-    rm -f "${state_dir}/tail.log"
+    cat "${CT_BUILD_LOG}.tail" >>"${CT_BUILD_LOG}"
+    CT_LogEnable
+    rm -f "${CT_BUILD_LOG}.tail"
 }
 
 # This function sets a kconfig option to a specific value in a .config file
