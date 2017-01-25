@@ -57,6 +57,7 @@ do_m4_backend() {
     CT_DoExecLog CFG \
                      CFLAGS="${cflags}" \
                      LDFLAGS="${ldflags}" \
+                     ${CONFIG_SHELL} \
                      "${CT_SRC_DIR}/m4-${CT_M4_VERSION}/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"

@@ -128,6 +128,7 @@ do_debug_gdb_build() {
         CC="${CC_for_gdb}"                              \
         CXX="${CXX_for_gdb}"                            \
         LD="${LD_for_gdb}"                              \
+        ${CONFIG_SHELL}                                 \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_HOST}                           \
@@ -239,6 +240,7 @@ do_debug_gdb_build() {
         CC="${CC_for_gdb}"                              \
         CXX="${CXX_for_gdb}"                            \
         LD="${LD_for_gdb}"                              \
+        ${CONFIG_SHELL}                                 \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \
@@ -309,6 +311,7 @@ do_debug_gdb_build() {
         CPP="${CT_TARGET}-cpp"                          \
         LD="${CT_TARGET}-ld"                            \
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
+        ${CONFIG_SHELL}                                 \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
             --build=${CT_BUILD}                         \
             --host=${CT_TARGET}                         \

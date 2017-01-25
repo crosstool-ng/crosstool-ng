@@ -131,6 +131,7 @@ do_libelf_backend() {
     RANLIB="${host}-ranlib"                                 \
     CFLAGS="${cflags} -fPIC"                                \
     LDFLAGS="${ldflags}"                                    \
+    ${CONFIG_SHELL}                                         \
     "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
         --build=${CT_BUILD}                                 \
         --host=${host}                                      \

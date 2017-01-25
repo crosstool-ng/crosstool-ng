@@ -40,7 +40,8 @@ do_autoconf_backend() {
     # For reference see:
     # http://www.gnu.org/software/autoconf/manual/autoconf.html#CONFIG_005fSHELL
     CT_DoLog EXTRA "Configuring autoconf"
-    CT_DoExecLog CFG ${CONFIG_SHELL} \
+    CT_DoExecLog CFG \
+    ${CONFIG_SHELL} \
     "${CT_SRC_DIR}/autoconf-${CT_AUTOCONF_VERSION}/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"

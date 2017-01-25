@@ -98,6 +98,7 @@ do_cloog_backend() {
     CFLAGS="${cflags}"                                  \
     LDFLAGS="${ldflags}"                                \
     LIBS="-lm"                                          \
+    ${CONFIG_SHELL}                                     \
     "${CT_SRC_DIR}/cloog-${CT_CLOOG_VERSION}/configure" \
         --build=${CT_BUILD}                             \
         --host=${host}                                  \

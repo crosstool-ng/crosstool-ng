@@ -216,6 +216,7 @@ do_binutils_backend() {
     CFLAGS="${cflags}"                                          \
     CXXFLAGS="${cflags}"                                        \
     LDFLAGS="${ldflags}"                                        \
+    ${CONFIG_SHELL}                                             \
     "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
@@ -300,6 +301,7 @@ do_elf2flt_backend() {
     CFLAGS="${cflags}"                                          \
     LDFLAGS="${ldflags}"                                        \
     LIBS="-ldl"                                                 \
+    ${CONFIG_SHELL}                                             \
     "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
@@ -359,6 +361,7 @@ do_binutils_for_target() {
         [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
         CT_DoExecLog CFG                                            \
+        ${CONFIG_SHELL}                                             \
         "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
             --build=${CT_BUILD}                                     \
             --host=${CT_TARGET}                                     \

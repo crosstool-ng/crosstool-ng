@@ -36,7 +36,9 @@ do_libtool_backend() {
     done
 
     CT_DoLog EXTRA "Configuring libtool"
-    CT_DoExecLog CFG "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}/configure" \
+    CT_DoExecLog CFG \
+                     ${CONFIG_SHELL} \
+                     "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"
 

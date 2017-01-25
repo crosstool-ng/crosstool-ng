@@ -147,6 +147,7 @@ do_ncurses_backend() {
     CT_DoExecLog CFG                                                    \
     CFLAGS="${cflags}"                                                  \
     LDFLAGS="${ldflags}"                                                \
+    ${CONFIG_SHELL}                                                     \
     "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure"             \
         --build=${CT_BUILD}                                             \
         --host=${host}                                                  \

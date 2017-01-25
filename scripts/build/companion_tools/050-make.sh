@@ -55,6 +55,7 @@ do_make_backend() {
     CT_DoExecLog CFG \
                      CFLAGS="${cflags}" \
                      LDFLAGS="${ldflags}" \
+                     ${CONFIG_SHELL} \
                      "${CT_SRC_DIR}/make-${CT_MAKE_VERSION}/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"

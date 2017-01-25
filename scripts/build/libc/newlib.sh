@@ -130,6 +130,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     CFLAGS_FOR_TARGET="${cflags_for_target}"                       \
     AR_FOR_TARGET="`which ${CT_TARGET}-gcc-ar`"                    \
     RANLIB_FOR_TARGET="`which ${CT_TARGET}-gcc-ranlib`"            \
+    ${CONFIG_SHELL}                                                \
     "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure"            \
         --host=${CT_BUILD}                                         \
         --target=${CT_TARGET}                                      \

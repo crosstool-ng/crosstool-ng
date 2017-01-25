@@ -42,9 +42,11 @@ do_debug_ltrace_build() {
         HOST="${ltrace_host}"           \
         HOST_OS="${CT_TARGET_KERNEL}"   \
         CFLAGS="${CT_TARGET_CFLAGS}"    \
+        ${CONFIG_SHELL}                 \
         ./configure --prefix=/usr
     else
         CT_DoExecLog CFG        \
+        ${CONFIG_SHELL}         \
         ./configure             \
             --build=${CT_BUILD} \
             --host=${CT_TARGET} \

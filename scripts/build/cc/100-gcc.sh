@@ -595,6 +595,7 @@ do_gcc_core_backend() {
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"            \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"          \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"          \
+    ${CONFIG_SHELL}                                    \
     "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/configure" \
         --build=${CT_BUILD}                            \
         --host=${host}                                 \
@@ -1109,23 +1110,24 @@ do_gcc_backend() {
         cflags="$cflags "-fbracket-depth=512
     fi
 
-    CT_DoExecLog CFG                                \
-    CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
-    CFLAGS="${cflags}"                              \
-    CXXFLAGS="${cflags}"                            \
-    LDFLAGS="${final_LDFLAGS[*]}"                   \
-    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"         \
-    CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"       \
-    LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"       \
+    CT_DoExecLog CFG                                   \
+    CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
+    CFLAGS="${cflags}"                                 \
+    CXXFLAGS="${cflags}"                               \
+    LDFLAGS="${final_LDFLAGS[*]}"                      \
+    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"            \
+    CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"          \
+    LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"          \
+    ${CONFIG_SHELL}                                    \
     "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/configure" \
-        --build=${CT_BUILD}                         \
-        --host=${host}                              \
-        --target=${CT_TARGET}                       \
-        --prefix="${prefix}"                        \
-        ${CC_SYSROOT_ARG}                           \
-        "${extra_config[@]}"                        \
-        --with-local-prefix="${CT_SYSROOT_DIR}"     \
-        --enable-long-long                          \
+        --build=${CT_BUILD}                            \
+        --host=${host}                                 \
+        --target=${CT_TARGET}                          \
+        --prefix="${prefix}"                           \
+        ${CC_SYSROOT_ARG}                              \
+        "${extra_config[@]}"                           \
+        --with-local-prefix="${CT_SYSROOT_DIR}"        \
+        --enable-long-long                             \
         "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}"
 
     if [ "${CT_CANADIAN}" = "y" ]; then
