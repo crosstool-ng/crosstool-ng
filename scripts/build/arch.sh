@@ -64,5 +64,10 @@ CT_DoArchMUSLHeaderDir() {
     :;
 }
 
+# MUSL: Perform any final adjustments on the installed libc/headers
+CT_DoArchMUSLPostInstall() {
+    :;
+}
+
 # Override from the actual arch implementation as needed.
 . "${CT_LIB_DIR}/scripts/build/arch/${CT_ARCH}.sh"

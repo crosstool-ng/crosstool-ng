@@ -69,3 +69,22 @@ CT_DoArchUClibcCflags() {
         esac
     done
 }
+
+CT_DoArchMUSLPostInstall() {
+    # GDB and MUSL maintainers seem to disagree on whether <sgidefs.h>
+    # is to be provided as a part of C library. GDB guys think it is
+    # a C library responsibility, while MUSL authors think GDB should
+    # not be using <sgidefs.h>. Neither side is willing to reach out
+    # to the other and negotiate the needed changes, and I don't want
+    # to play the middle man. Hence, provide our own wrapper for
+    # for <sgidefs.h> - the only solution short of telling MUSL users
+    # stop using it. This is why MUSL is experimental in ct-ng and
+    # will likely remain in that status.
+    # References:
+    #   http://www.openwall.com/lists/musl/2017/01/26/2
+    #   https://sourceware.org/ml/gdb-patches/2017-01/msg00469.html
+    #   https://www.sourceware.org/ml/libc-alpha/2004-11/msg00034.html
+    if [ ! -r "${CT_HEADERS_DIR}/sgidefs.h" ]; then
+        echo "#include <asm/sgidefs.h> // Redirected by ct-ng" > "${CT_HEADERS_DIR}/sgidefs.h"
+    fi
+}
