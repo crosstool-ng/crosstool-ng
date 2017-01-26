@@ -18,7 +18,7 @@ doHelp() {
           'tool' in one of:
             gcc, binutils, glibc, uClibc, uClibc-ng, newlib, linux, gdb,
             duma, strace, ltrace, libelf, gmp, mpfr, isl, cloog, mpc,
-            mingw-w64, expat, ncurses, musl
+            mingw-w64, expat, ncurses, musl, gettext
 
           Valid options for all tools:
             --stable, -s, +x   (default)
@@ -209,6 +209,7 @@ while [ $# -gt 0 ]; do
         --libelf)   EXP=; OBS=; cat=LIBELF;         tool=libelf;    tool_prefix=companion_libs;  dot2suffix=;;
         --expat)    EXP=; OBS=; cat=EXPAT;          tool=expat;     tool_prefix=companion_libs;  dot2suffix=;;
         --ncurses)  EXP=; OBS=; cat=NCURSES;        tool=ncurses;   tool_prefix=companion_libs;  dot2suffix=;;
+        --gettext)  EXP=; OBS=; cat=GETTEXT;        tool=gettext;   tool_prefix=companion_libs;  dot2suffix=;;
         --make)     EXP=; OBS=; cat=MAKE;           tool=make;      tool_prefix=companion_tools; dot2suffix=;;
         --m4)       EXP=; OBS=; cat=M4;             tool=m4;        tool_prefix=companion_tools; dot2suffix=;;
         --autoconf) EXP=; OBS=; cat=AUTOCONF;       tool=autoconf;  tool_prefix=companion_tools; dot2suffix=;;
