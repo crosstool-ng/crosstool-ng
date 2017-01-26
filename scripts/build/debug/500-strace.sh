@@ -22,6 +22,7 @@ do_debug_strace_build() {
     CC="${CT_TARGET}-${CT_CC}"                                 \
     CPP="${CT_TARGET}-cpp"                                     \
     LD="${CT_TARGET}-ld"                                       \
+    ${CONFIG_SHELL}                                            \
     "${CT_SRC_DIR}/strace-${CT_STRACE_VERSION}/configure"      \
         --build=${CT_BUILD}                                    \
         --host=${CT_TARGET}                                    \

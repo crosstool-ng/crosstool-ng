@@ -137,6 +137,7 @@ do_mpfr_backend() {
     CC="${host}-gcc"                                    \
     CFLAGS="${cflags}"                                  \
     LDFLAGS="${ldflags}"                                \
+    ${CONFIG_SHELL}                                     \
     "${CT_SRC_DIR}/mpfr-${CT_MPFR_VERSION}/configure"   \
         --build=${CT_BUILD}                             \
         --host=${host}                                  \

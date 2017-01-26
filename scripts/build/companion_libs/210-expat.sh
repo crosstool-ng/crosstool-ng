@@ -94,6 +94,7 @@ do_expat_backend() {
     CT_DoExecLog CFG                                                \
     CFLAGS="${cflags}"                                              \
     LDFLAGS="${ldflags}"                                            \
+    ${CONFIG_SHELL}                                                 \
     "${CT_SRC_DIR}/expat-${CT_EXPAT_VERSION}/configure"             \
         --build=${CT_BUILD}                                         \
         --host=${host}                                              \

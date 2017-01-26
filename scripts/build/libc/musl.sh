@@ -110,6 +110,7 @@ do_libc_backend_once() {
     CT_DoExecLog CFG                                      \
     CFLAGS="${extra_cflags[*]}"                           \
     CROSS_COMPILE="${CT_TARGET}-"                         \
+    ${CONFIG_SHELL}                                       \
     ${src_dir}/configure                                  \
         --host="${multi_target}"                          \
         --target="${multi_target}"                        \

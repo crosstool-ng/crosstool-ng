@@ -36,7 +36,9 @@ do_automake_backend() {
     done
 
     CT_DoLog EXTRA "Configuring automake"
-    CT_DoExecLog CFG "${CT_SRC_DIR}/automake-${CT_AUTOMAKE_VERSION}/configure" \
+    CT_DoExecLog CFG \
+                     ${CONFIG_SHELL} \
+                     "${CT_SRC_DIR}/automake-${CT_AUTOMAKE_VERSION}/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"
 

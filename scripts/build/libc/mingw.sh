@@ -48,6 +48,7 @@ do_libc_start_files() {
 
     do_set_mingw_install_prefix
     CT_DoExecLog CFG        \
+    ${CONFIG_SHELL} \
     "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-headers/configure" \
         --build=${CT_BUILD} \
         --host=${CT_TARGET} \
@@ -93,6 +94,7 @@ do_mingw_tools() {
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-tools/${f}"
 
         CT_DoExecLog CFG        \
+            ${CONFIG_SHELL} \
             "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-tools/${f}/configure" \
             --build=${CT_BUILD} \
             --host=${CT_HOST} \
@@ -119,6 +121,7 @@ do_libc() {
 
     do_set_mingw_install_prefix
     CT_DoExecLog CFG                                                                  \
+    ${CONFIG_SHELL}                                                                   \
     "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-crt/configure" \
         --with-sysroot=${CT_SYSROOT_DIR}                                              \
         --prefix=${MINGW_INSTALL_PREFIX}                                              \
@@ -158,6 +161,7 @@ do_pthreads() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-winpthreads"
 
     CT_DoExecLog CFG                                                        \
+    ${CONFIG_SHELL}                                                                   \
     "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-libraries/winpthreads/configure" \
         --with-sysroot=${CT_SYSROOT_DIR}                                              \
         --prefix=${MINGW_INSTALL_PREFIX}                                              \

@@ -502,6 +502,7 @@ do_libc_locales() {
 
     CT_DoExecLog CFG                       \
     CFLAGS="${glibc_cflags}"               \
+    ${CONFIG_SHELL}                        \
     "${src_dir}/configure"                 \
         --prefix=/usr                      \
         --cache-file="$(pwd)/config.cache" \

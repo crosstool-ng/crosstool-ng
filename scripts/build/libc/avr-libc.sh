@@ -22,6 +22,7 @@ do_libc_configure() {
     CT_DoLog EXTRA "Configuring C library"
 
     CT_DoExecLog CFG                \
+    ${CONFIG_SHELL}                 \
     ./configure                     \
         --build=${CT_BUILD}         \
         --host=${CT_TARGET}         \
