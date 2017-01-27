@@ -11,6 +11,16 @@ AC_CONFIG_AUX_DIR([scripts])
 #--------------------------------------------------------------------
 # A few helper macros
 
+# ACX_WITH_DEPRECATED(PROG, VAR)
+# Declare a deprecated --with option: instead of --with-PROG=xxx, must use VAR=xxx
+AC_DEFUN(
+    [ACX_WITH_DEPRECATED],
+    [AC_ARG_WITH([$1],
+                 [AS_HELP_STRING([--with-$1=PATH],
+                                 [Deprecated; use $2=PATH instead])],
+                 [AC_MSG_ERROR([--with-$1=$withval deprecated; use $2=$withval instead])])
+    ])
+
 # Check for required tool
 AC_DEFUN(
     [ACX_CHECK_TOOL_REQ],
@@ -23,7 +33,9 @@ AC_DEFUN(
 # Check for required tool, set variable to full pathname
 AC_DEFUN(
     [ACX_PATH_TOOL_REQ],
-    [ACX_CHECK_TOOL_REQ([$1], [$2])
+    [ACX_WITH_DEPRECATED([$3], [$1])
+     AC_ARG_VAR([$1], [Specify the full path to GNU $3])
+     ACX_CHECK_TOOL_REQ([$1], [$2])
      AS_CASE(
         [$$1],
         [/*],,
@@ -58,6 +70,56 @@ AC_DEFUN(
         [kconfig_options="$kconfig_options has_$1"])
     ])
 
+# Check if a given program is available with a particular version.
+#   ACX_PROG_VERSION(VAR, HELP, PROG, SRCH, VERSION_CHECK[, CONFIG_OPT])
+# Search for PROG under possible names of SRCH. Allow user overrides in variable
+# VAR; display HELP message. Try to find a version that satisfies VERSION_CHECK
+# regexp; if that is achieved, set CONFIG_OPT in the kconfig. Otherwise, settle
+# for any version found.
+# Sets acx_version_VAR_ok to ':' if the version met the criterion, or false otherwise.
+AC_DEFUN(
+    [ACX_PROG_VERSION],
+    [AS_IF([test -z "$EGREP"],
+         [AC_MSG_ERROR([This macro can only be used after checking for EGREP])])
+     ACX_WITH_DEPRECATED([$3], [$1])
+     AC_ARG_VAR([$1], [Specify the full path to $2])
+     acx_version_$1_ok=false
+     AC_CACHE_CHECK([for $3], [ac_cv_path_$1],
+         [AC_PATH_PROGS_FEATURE_CHECK([$1], [$4],
+              [[ver=`$ac_path_$1 --version 2>/dev/null| $EGREP $5`
+                test -z "$ac_cv_path_$1" && ac_cv_path_$1=$ac_path_$1
+                test -n "$ver" && ac_cv_path_$1="$ac_path_$1" ac_path_$1_found=: acx_version_$1_ok=:]])])
+     AS_IF([test -n "$1"],
+         [[ver=`$ac_path_$1 --version 2>/dev/null| $EGREP $5`
+           test -n "$ver" && acx_version_$1_ok=:]])
+     AC_MSG_CHECKING([for $2])
+     AS_IF([$acx_version_$1_ok],
+         [AC_MSG_RESULT([yes])],
+         [AC_MSG_RESULT([no])])
+     AC_SUBST([$1], [$ac_cv_path_$1])
+     AS_IF([test -n "$6"],
+         [AS_IF([$acx_version_$1_ok], [$6=y], [$6=])
+          ACX_SET_KCONFIG_OPTION([$6])])
+    ])
+
+# Same as above, but make it a fatal error if the tool is not found at all
+# (i.e. "require any version, prefer version X or newer")
+AC_DEFUN(
+    [ACX_PROG_VERSION_REQ_ANY],
+    [ACX_PROG_VERSION([$1], [$2], [$3], [$4], [$5], [$6])
+     AS_IF([test -z "$$1"],
+         [AC_MSG_ERROR([Required tool not found: $3])])
+    ])
+
+# Same, but also require the version check to pass
+# (i.e. "require version X or newer")
+AC_DEFUN(
+    [ACX_PROG_VERSION_REQ_STRICT],
+    [ACX_PROG_VERSION([$1], [$2], [$3], [$4], [$5], [$6])
+     AS_IF([test -z "$$1" || ! $acx_version_$1_ok],
+         [AC_MSG_ERROR([Required tool not found: $2])])
+    ])
+
 #--------------------------------------------------------------------
 # Allow dummy --{en,dis}able-{static,shared}
 AC_ARG_ENABLE(
@@ -66,16 +128,19 @@ AC_ARG_ENABLE(
         [--enable-local],
         [do not install, and use current directory])])
 AC_SUBST([enable_local], [${enable_local:-no}])
+
+# FIXME: I don't know why we have this. Will remove after the next
+# release.
 AC_ARG_ENABLE(
     [shared],
     [AS_HELP_STRING(
         [--enable-shared],
-        [build shared libraries (default=yes) (ignored)])])
+        [build shared libraries (deprecated, ignored)])])
 AC_ARG_ENABLE(
     [static],
     [AS_HELP_STRING(
         [--enable-static],
-        [build static libraries (default=yes) (ignored)])])
+        [build static libraries (deprecated, ignored)])])
 
 #---------------------------------------------------------------------
 # Check for --build and --host...
@@ -92,37 +157,30 @@ AC_ARG_PROGRAM
 # Initial checks that are usually done first (I don't know why, that's
 # just what I seem to experience...)
 #---------------------------------------------------------------------
-AC_ARG_WITH([install],
-    AS_HELP_STRING([--with-install=PATH],
-                   [Specify the full PATH to a BSD-compatible install]),
-    [INSTALL=$withval])
+ACX_WITH_DEPRECATED([install], [INSTALL])
+AC_ARG_VAR([INSTALL], [Specify the full path to a BSD-compatible install])
 AC_PROG_INSTALL
-AC_CACHE_VAL([ac_cv_path_GREP],
-    [AC_ARG_WITH([grep],
-        AS_HELP_STRING([--with-grep=PATH],
-                       [Specify the full PATH to GNU grep]),
-        [ac_cv_path_GREP=$withval])])
+
+ACX_WITH_DEPRECATED([grep], [GREP])
+AC_ARG_VAR([INSTALL], [Specify the full path to GNU grep])
 AC_PROG_GREP
 AC_PROG_EGREP
-AS_IF(
-    [test ! "$EGREP" = "$GREP -E"],
+AS_IF([test "$EGREP" != "$GREP -E"],
     [AC_MSG_ERROR([egrep is not $GREP -E])])
-AC_CACHE_VAL([ac_cv_path_SED],
-    [AC_ARG_WITH([sed],
-        AS_HELP_STRING([--with-sed=PATH],
-                       [Specify the full PATH to GNU sed]),
-        [ac_cv_path_SED=$withval])])
+
+ACX_WITH_DEPRECATED([sed], [SED])
+AC_ARG_VAR([INSTALL], [Specify the full path to GNU sed])
 AC_PROG_SED
 AC_MSG_CHECKING([whether sed understands -r -i -e])
-touch .ct-ng.sed.test
-if ${SED} -r -i -e 's/foo/bar/' .ct-ng.sed.test >/dev/null 2>&1; then
-    rm -f .ct-ng.sed.test
-    AC_MSG_RESULT([yes])
-else
-    rm -f .ct-ng.sed.test
-    AC_MSG_RESULT([no])
-    AC_MSG_ERROR()
-fi
+echo foo > .ct-ng.sed.test
+${SED} -r -i -e 's/f(o)o/b\1ar/' .ct-ng.sed.test >/dev/null 2>&1
+rc=$?
+content=`cat .ct-ng.sed.test`
+rm -f .ct-ng.sed.test
+AS_IF([test "$rc:$content" = "0:boar"],
+    [AC_MSG_RESULT([yes])],
+    [AC_MSG_ERROR([sed does not accept -r -i -e])])
+
 AC_PROG_LN_S
 
 #--------------------------------------------------------------------
@@ -146,33 +204,11 @@ AS_IF([test $static_test -eq 0],
            AC_MSG_RESULT([no])])
 ACX_SET_KCONFIG_OPTION([static_link])
 
-# But we still need a way to specify the PATH to GNU versions (Damn MacOS)
-AC_ARG_WITH([objcopy],
-    AS_HELP_STRING([--with-objcopy=PATH],
-                   [Specify the full PATH to GNU objcopy]),
-    [OBJCOPY=$withval])
-AC_ARG_WITH([objdump],
-    AS_HELP_STRING([--with-objdump=PATH],
-                   [Specify the full PATH to GNU objdump]),
-    [OBJDUMP=$withval])
-AC_ARG_WITH([ranlib],
-    AS_HELP_STRING([--with-ranlib=PATH],
-                   [Specify the full PATH to GNU ranlib]),
-    [RANLIB=$withval])
-AC_ARG_WITH([readelf],
-    AS_HELP_STRING([--with-readelf=PATH],
-                   [Specify the full PATH to GNU readelf]),
-    [READELF=$withval])
-AC_ARG_WITH([gperf],
-    AS_HELP_STRING([--with-gperf=PATH],
-                   [Specify the full PATH to GNU gperf]),
-    [GPERF=$withval])
-
 AC_PROG_RANLIB
-ACX_PATH_TOOL_REQ([OBJCOPY], [gobjcopy objcopy])
-ACX_PATH_TOOL_REQ([OBJDUMP], [gobjdump objdump])
-ACX_PATH_TOOL_REQ([READELF], [greadelf readelf])
-ACX_PATH_TOOL_REQ([GPERF], [gperf])
+ACX_PATH_TOOL_REQ([OBJCOPY], [gobjcopy objcopy], [objcopy])
+ACX_PATH_TOOL_REQ([OBJDUMP], [gobjdump objdump], [objdump])
+ACX_PATH_TOOL_REQ([READELF], [greadelf readelf], [readelf])
+ACX_PATH_TOOL_REQ([GPERF], [gperf], [gperf])
 
 ACX_CHECK_PROGS_REQ([bison], [bison])
 ACX_CHECK_PROGS_REQ([flex], [flex])
@@ -189,121 +225,81 @@ ACX_CHECK_PROGS_REQ([help2man], [help2man])
 #--------------------------------------------------------------------
 # Still boring, but remember the path, now...
 #--------------------------------------------------------------------
-ACX_PATH_TOOL_REQ([PATCH], [gpatch patch])
+ACX_PATH_TOOL_REQ([PATCH], [gpatch patch], [patch])
 
 #--------------------------------------------------------------------
 # And a bunch of less boring tests...
 #--------------------------------------------------------------------
 # We need a bash that is >= 3.1
-AC_CACHE_VAL([ac_cv_path__BASH],
-    [AC_ARG_WITH([bash],
-        AS_HELP_STRING([--with-bash=PATH],
-                       [Specify the full PATH to GNU bash >= 3.1]),
-        [ac_cv_path__BASH=$withval])])
-AC_CACHE_CHECK([for bash >= 3.1], [ac_cv_path__BASH],
-    [AC_PATH_PROGS_FEATURE_CHECK([_BASH], [bash],
-        [[_BASH_ver=$($ac_path__BASH --version 2>&1 \
-                     |$EGREP '^GNU bash, version (3\.[1-9]|4)')
-          test -n "$_BASH_ver" && ac_cv_path__BASH=$ac_path__BASH ac_path__BASH_found=:]],
-        [AC_MSG_RESULT([no])
-         AC_MSG_ERROR([could not find bash >= 3.1])])])
-AC_SUBST([_BASH], [$ac_cv_path__BASH])
+ACX_PROG_VERSION_REQ_STRICT([BASH_SHELL],
+    [GNU bash >= 3.1],
+    [bash],
+    [bash],
+    ['^GNU bash, version (3\.[1-9]|4)'])
 
 # We need a awk that *is* GNU awk
-AC_CACHE_VAL([ac_cv_path__AWK],
-    [AC_ARG_WITH([awk],
-        AS_HELP_STRING([--with-awk=PATH],
-                       [Specify the full PATH to GNU awk]),
-        [ac_cv_path__AWK=$withval])])
-AC_CACHE_CHECK([for GNU awk], [ac_cv_path__AWK],
-    [AC_PATH_PROGS_FEATURE_CHECK([_AWK], [gawk awk],
-        [[_AWK_ver=$($ac_path__AWK --version 2>&1 \
-                     |$EGREP '^GNU Awk ')
-          test -n "$_AWK_ver" && ac_cv_path__AWK=$ac_path__AWK ac_path__AWK_found=:]],
-        [AC_MSG_RESULT([no])
-         AC_MSG_ERROR([could not find GNU awk])])])
-AC_SUBST([_AWK], [$ac_cv_path__AWK])
+ACX_PROG_VERSION_REQ_STRICT([AWK],
+    [GNU awk],
+    [awk],
+    [gawk awk],
+    ['^GNU Awk '])
 
+# FIXME This checks for tools at the time configure runs. If a tool is later updated
+# to satisfy our version requirement, we still won't be able to see that. Or worse,
+# downgraded/removed. We should check this and update configure.in options right
+# before running kconfig. Our configure should only check for stuff needed to
+# build/install crosstool-ng itself.
 #----------------------------------------
-# Check for GNU make 3.80 or above
-AC_CACHE_VAL([ac_cv_path_MAKE],
-    [AC_ARG_WITH([make],
-        AS_HELP_STRING([--with-make=PATH],
-                       [Specify the full PATH to GNU make >= 3.80]),
-        [ac_cv_path_MAKE=$withval])])
-AC_CACHE_CHECK([for GNU make >= 3.80], [ac_cv_path_MAKE],
-    [AC_PATH_PROGS_FEATURE_CHECK([MAKE], [gmake make],
-        [[MAKE_ver=$($ac_path_MAKE --version 2>&1 \
-                     |$EGREP '^GNU Make (3.[89][[:digit:]]|[4-9])')
-          test -n "$MAKE_ver" && ac_cv_path_MAKE=$ac_path_MAKE ac_path_MAKE_found=:]],
-        [AC_MSG_RESULT([no])
-         AC_MSG_ERROR([could not find GNU make >= 3.80])])])
-AC_SUBST([MAKE], [$ac_cv_path_MAKE])
-AC_PROG_MAKE_SET
+# Check for GNU make (want 3.81 or above, but will accept as long as any make is found)
+ACX_PROG_VERSION_REQ_ANY([MAKE],
+    [GNU make >= 3.81],
+    [make],
+    [gmake make],
+    ['^GNU Make (3\.8[1-9]|3\.9[0-9]|[4-9]\.)'],
+    [make_3_81_or_newer])
 
-# Check for GNU make 3.81 or newer, otherwise
-# it will be built as a companion tool.
-AC_MSG_CHECKING([if make is 3.81 or newer])
-AS_IF(
-      [[MAKE_ver2=$(echo "$MAKE_ver" \
-                    |$EGREP '^GNU Make (3.81|3.9[0-9]|[4-9])')
-        test -n "$MAKE_ver2"]],
-      [make_3_81_or_newer="y"
-       AC_MSG_RESULT([yes])
-      ],
-      [make_3_81_or_newer=
-       AC_MSG_RESULT([no])
-      ]
-     )
-ACX_SET_KCONFIG_OPTION([make_3_81_or_newer])
+# Check other companion tools that we may or may not build
+ACX_PROG_VERSION([LIBTOOL],
+    [GNU libtool >= 2.4],
+    [libtool],
+    [glibtool libtool],
+    ['^libtool \(GNU libtool\) ([3-9]\.|2.[4-9]|2.[1-3][0-9])'],
+    [libtool_2_4_or_newer])
 
-#----------------------------------------
-# Check for libtool >= 1.5.26
-AC_CACHE_VAL([ac_cv_path_LIBTOOL],
-    [AC_ARG_WITH([libtool],
-        AS_HELP_STRING([--with-libtool=PATH],
-                       [Specify the full PATH to GNU libtool >= 1.5.26]),
-        [ac_cv_path_LIBTOOL=$withval])])
-AC_CACHE_CHECK([for GNU libtool >= 1.5.26], [ac_cv_path_LIBTOOL],
-    [AC_PATH_PROGS_FEATURE_CHECK([LIBTOOL], [glibtool libtool],
-        [[LIBTOOL_ver=$($ac_path_LIBTOOL --version 2>&1 \
-                        |$EGREP '\(GNU libtool.*\) (2[[:digit:]]*\.|1\.6[[:digit:]]*\.|1\.5\.[2-9][[:digit:]]+)')
-          test -n "$LIBTOOL_ver" && ac_cv_path_LIBTOOL=$ac_path_LIBTOOL ac_path_LIBTOOL_found=:]],
-        [AC_MSG_RESULT([no])
-         AC_MSG_ERROR([could not find GNU libtool >= 1.5.26])])])
-AC_SUBST([LIBTOOL], [$ac_cv_path_LIBTOOL])
+ACX_PROG_VERSION([LIBTOOLIZE],
+    [GNU libtoolize >= 2.4],
+    [libtoolize],
+    [glibtoolize libtoolize],
+    ['^libtoolize \(GNU libtool\) ([3-9]\.|2.[4-9]|2.[1-3][0-9])'],
+    [libtoolize_2_4_or_newer])
 
-#----------------------------------------
-# Check for libtoolize >= 1.5.26
-AC_CACHE_VAL([ac_cv_path_LIBTOOLIZE],
-    [AC_ARG_WITH([libtoolize],
-        AS_HELP_STRING([--with-libtoolize=PATH],
-                       [Specify the full PATH to GNU libtoolize >= 1.5.26]),
-        [ac_cv_path_LIBTOOLIZE=$withval])])
-AC_CACHE_CHECK([for GNU libtoolize >= 1.5.26], [ac_cv_path_LIBTOOLIZE],
-    [AC_PATH_PROGS_FEATURE_CHECK([LIBTOOLIZE], [glibtoolize libtoolize],
-        [[LIBTOOLIZE_ver=$($ac_path_LIBTOOLIZE --version 2>&1 \
-                        |$EGREP '\(GNU libtool.*\) (2[[:digit:]]*\.|1\.6[[:digit:]]*\.|1\.5\.[2-9][[:digit:]]+)')
-          test -n "$LIBTOOLIZE_ver" && ac_cv_path_LIBTOOLIZE=$ac_path_LIBTOOLIZE ac_path_LIBTOOLIZE_found=:]],
-        [AC_MSG_RESULT([no])
-         AC_MSG_ERROR([could not find GNU libtoolize >= 1.5.26])])])
-AC_SUBST([LIBTOOLIZE], [$ac_cv_path_LIBTOOLIZE])
+ACX_PROG_VERSION([AUTOCONF],
+    [GNU autoconf >= 2.63],
+    [AUTOCONF],
+    [autoconf],
+    ['^autoconf \(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[3-9])'],
+    [autoconf_2_63_or_newer])
 
-#----------------------------------------
-# Check for automake >= 1.10
-AC_CACHE_VAL([ac_cv_path_automake],
-    [AC_ARG_WITH([automake],
-        AS_HELP_STRING([--with-automake=PATH],
-                       [Specify the full PATH to GNU automake >= 1.10]),
-        [ac_cv_path_automake=$withval])])
-AC_CACHE_CHECK([for GNU automake >= 1.10], [ac_cv_path_automake],
-    [AC_PATH_PROGS_FEATURE_CHECK([automake], [automake],
-        [[automake_ver=$($ac_path_automake --version 2>&1 \
-                         |$EGREP '\(GNU automake\) (1\.[[:digit:]]{2,}|[2-9][[:digit:]]*\.)')
-          test -n "$automake_ver" && ac_cv_path_automake=$ac_path_automake ac_path_automake_found=:]],
-        [AC_MSG_RESULT([no])
-         AC_MSG_ERROR([could not find GNU automake >= 1.10])])])
-AC_SUBST([automake], [$ac_cv_path_automake])
+ACX_PROG_VERSION([AUTORECONF],
+    [GNU autoreconf >= 2.63],
+    [autoreconf],
+    [autoreconf],
+    ['^autoreconf \(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[3-9])'],
+    [autoreconf_2_63_or_newer])
+
+ACX_PROG_VERSION([AUTOMAKE],
+    [GNU automake >= 1.15],
+    [automake],
+    [automake],
+    ['automake \(GNU automake\) ([2-9]\.|1\.[2-9][0-9]|1\.1[5-9])'],
+    [automake_1_15_or_newer])
+
+ACX_PROG_VERSION([M4],
+    [GNU m4 >= 1.4.12],
+    [m4],
+    [gm4 m4],
+    ['^m4 \(GNU M4\) ([2-9]\.|1\.[5-9]|1\.[1-4][0-9]|1\.4\.[2-9][0-9]|1\.4\.1[2-9])'],
+    [gnu_m4_1_4_12_or_newer])
 
 #----------------------------------------
 # Gperf 3.1 started generating functions with size_t rather than unsigned int

@@ -31,23 +31,6 @@ do_companion_tools_extract() {
 
 # Build the companion tools facilities for build
 do_companion_tools_for_build() {
-    # Skip out if:
-    # - native/cross, and companion tools were neither selected
-    #   to be built, nor included in the final toolchain
-    # - canadian/cross-native, and companion tools were not
-    #   selected to be built
-    case "${CT_TOOLCHAIN_TYPE}" in
-        native|cross)
-            if [ -z "${CT_COMP_TOOLS}${CT_COMP_TOOLS_FOR_HOST}" ]; then
-                return
-            fi
-            ;;
-        canadian|cross-native)
-            if [ -z "${CT_COMP_TOOLS}" ]; then
-                return
-            fi
-            ;;
-    esac
     for f in ${CT_COMP_TOOLS_FACILITY_LIST}; do
         do_companion_tools_${f}_for_build
     done
@@ -55,12 +38,14 @@ do_companion_tools_for_build() {
 
 # Build the companion tools facilities for host
 do_companion_tools_for_host() {
-    # For native/cross, build==host, and the tools were built
-    # earlier by do_companion_tools_for_build.
     case "${CT_TOOLCHAIN_TYPE}" in
+        # For native/cross, build==host, skip: the tools were built
+        # earlier by do_companion_tools_for_build.
         native|cross)
             return
             ;;
+        # For canadian/cross-native, only need to build tools for host
+        # if explicitly requested.
         canadian|cross-native)
             if [ -z "${CT_COMP_TOOLS_FOR_HOST}" ]; then
                 return
