@@ -154,6 +154,9 @@ do_libc_backend_once() {
                     ;;
             esac
         done
+
+        # Any additional actions for this architecture
+        CT_DoArchMUSLPostInstall
     fi
 
     CT_EndStep
