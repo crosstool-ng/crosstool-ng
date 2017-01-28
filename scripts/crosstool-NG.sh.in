@@ -1,4 +1,3 @@
-#!@@CT_bash@@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package.
 
@@ -42,7 +41,7 @@ if [ "${CT_DEBUG_INTERACTIVE}" = "y" -a ! \( -t 0 -a -t 6 -a -t 2 \) ]; then
 fi
 
 # Override the locale early, in case we ever translate crosstool-NG messages
-if [ -z "${CT_NO_OVERIDE_LC_MESSAGES}" ]; then
+if [ -z "${CT_NO_OVERRIDE_LC_MESSAGES}" ]; then
     export LC_ALL=C
     export LANG=C
 fi
@@ -104,19 +103,24 @@ CT_TestOrAbort "The CONFIG_SHELL '${CT_CONFIG_SHELL}' is not valid" -f "${CT_CON
 # Contains symlinks to the tools found by ./configure
 # Note: CT_DoLog and CT_DoExecLog do not use any of those tool, so
 # they can be safely used
-CT_TOOLS_OVERIDE_DIR="${CT_WORK_DIR}/tools"
-CT_DoLog DEBUG "Creating bin-override for tools in '${CT_TOOLS_OVERIDE_DIR}'"
-CT_DoExecLog DEBUG mkdir -p "${CT_TOOLS_OVERIDE_DIR}/bin"
+CT_TOOLS_OVERRIDE_DIR="${CT_WORK_DIR}/tools"
+CT_DoLog DEBUG "Creating bin-override for tools in '${CT_TOOLS_OVERRIDE_DIR}'"
+CT_DoExecLog DEBUG mkdir -p "${CT_TOOLS_OVERRIDE_DIR}/bin"
 cat "${CT_LIB_DIR}/paths.sh" |while read trash line; do
     tool="${line%%=*}"
-    path="${line#*=}"
-    CT_DoLog DEBUG "Creating script-override for '${tool}' -> '${path}'"
-    # Note: we need to supress the " in the path because
-    # there can be arguments in there (thanks autostuff...)
-    printf "#${BANG}${CT_CONFIG_SHELL}\nexec ${path//\"/} \"\${@}\"\n" >"${CT_TOOLS_OVERIDE_DIR}/bin/${tool}"
-    CT_DoExecLog ALL chmod 700 "${CT_TOOLS_OVERIDE_DIR}/bin/${tool}"
+    # Suppress extra quoting
+    eval path=${line#*=}
+    if [ -r "${CT_LIB_DIR}/scripts/override/$tool" ]; then
+       tmpl="${CT_LIB_DIR}/scripts/override/$tool"
+    else
+       tmpl="${CT_LIB_DIR}/scripts/override/__default"
+    fi
+    CT_DoLog DEBUG "Creating script-override for '${tool}' -> '${path}' using '${tmpl}' template"
+    ${sed} -r -e "s#@CONFIG_SHELL@#${CT_CONFIG_SHELL}#g" \
+              -e "s#@TOOL_PATH@#${path}#g" "${tmpl}" > "${CT_TOOLS_OVERRIDE_DIR}/bin/${tool}"
+    CT_DoExecLog ALL chmod 700 "${CT_TOOLS_OVERRIDE_DIR}/bin/${tool}"
 done
-export PATH="${CT_TOOLS_OVERIDE_DIR}/bin:${PATH}"
+export PATH="${CT_TOOLS_OVERRIDE_DIR}/bin:${PATH}"
 
 # Start date. Can't be done until we know the locale
 # Also requires the bin-override tools
