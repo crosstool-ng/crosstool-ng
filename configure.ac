@@ -274,10 +274,10 @@ ACX_PROG_VERSION([LIBTOOLIZE],
     [libtoolize_2_4_or_newer])
 
 ACX_PROG_VERSION([AUTOCONF],
-    [GNU autoconf >= 2.63],
+    [GNU autoconf >= 2.65],
     [AUTOCONF],
     [autoconf],
-    ['^autoconf \(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[3-9])'],
+    ['^autoconf \(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])'],
     [autoconf_2_63_or_newer])
 
 ACX_PROG_VERSION([AUTORECONF],
