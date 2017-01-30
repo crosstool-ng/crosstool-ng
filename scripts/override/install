@@ -1,0 +1,35 @@
+#!@CONFIG_SHELL@
+
+# Do the most common case first
+if [ -z "${__PORTAGE_HELPER_PATH}" ]; then
+    exec @TOOL_PATH@ "$@"
+fi
+
+# Not so simple case: Gentoo uses *two* wrappers around install script
+# to deal with extended attributes:
+#  - /usr/lib/portage/python*/ebuild-helpers/xattr/install
+#    This sets __PORTAGE_HELPER_PATH (see the check above) and
+#    invokes either C- or Python-based wrapper (they do the same
+#    thing anyway). E.g., let it be /usr/bin/install-xattrs...
+#  - /usr/bin/install-xattrs
+#    This now analyzes $PATH and invokes 'install' in the first directory
+#    in $PATH where it is found, but not the __PORTAGE_HELPER_PATH
+# This scheme breaks if we interject another install wrapper, resulting
+# in a fork bomb. Hence, if we detected a loop, we need to remove our
+# own directory from $PATH and try again. Ironically, the very code below
+# based on that portage helper.
+IFS=:
+set -f
+path=
+for x in ${PATH}; do
+    case "${x}" in
+    @TOOLS_OVERRIDE_DIR@/bin) continue;;
+    esac
+    if test -n "${path}"; then
+        path="${path}:${x}"
+    else
+        path="${x}"
+    fi
+done
+PATH="${path}"
+exec @TOOL_PATH@ "$@"
