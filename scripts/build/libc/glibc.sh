@@ -392,8 +392,8 @@ do_libc_backend_once() {
             # manuals in parallel
             CT_DoExecLog ALL make pdf html
             CT_DoExecLog ALL mkdir -p ${CT_PREFIX_DIR}/share/doc
-            CT_DoExecLog ALL cp -av ${src_dir}/manual/*.pdf    \
-                                    ${src_dir}/manual/libc     \
+            CT_DoExecLog ALL cp -av manual/*.pdf    \
+                                    manual/libc     \
                                     ${CT_PREFIX_DIR}/share/doc
         fi
 
