@@ -25,7 +25,7 @@ do_binutils_get() {
             CT_GetCustom "elf2flt" "${CT_ELF2FLT_CUSTOM_VERSION}" \
                 "${CT_ELF2FLT_CUSTOM_LOCATION}"
         else
-            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" https://github.com/uclinux-dev/elf2flt.git
+            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" https://github.com/uclinux-dev/elf2flt.git CT_ELF2FLT_VERSION
         fi
     fi
 }
@@ -36,8 +36,8 @@ do_binutils_extract() {
     CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
-        CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
+        CT_Extract "elf2flt-${CT_ELF2FLT_VERSION}"
+        CT_Patch "elf2flt" "${CT_ELF2FLT_VERSION}"
     fi
 
     if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
