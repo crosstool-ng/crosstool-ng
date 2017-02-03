@@ -186,8 +186,10 @@ AC_PROG_LN_S
 #--------------------------------------------------------------------
 # A bunch of boring tests...
 #--------------------------------------------------------------------
+# Modern GCC/GDB releases require C++ support in the compiler
 AC_PROG_CC
-AS_IF([test -z "$CC"],
+AC_PROG_CXX
+AS_IF([test -z "$CC" -o -z "$CXX"],
       [AC_MSG_ERROR([no suitable compiler found])])
 AC_PROG_CPP
 
