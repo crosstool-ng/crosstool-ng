@@ -25,7 +25,6 @@ do_isl_extract() {
 
 # Build ISL for running on build
 # - always build statically
-# - we do not have build-specific CFLAGS
 # - install in build-tools prefix
 do_isl_for_build() {
     local -a isl_opts

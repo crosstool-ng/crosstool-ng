@@ -128,7 +128,7 @@ gen_menu() {
     shift 4
     local file entry _entry
 
-    # GEnerate the menuconfig
+    # Generate the menuconfig
     exec >"${out_file}"
     printf '# %s menu\n' "${label}"
     printf '# Generated file, do not edit!!!\n'

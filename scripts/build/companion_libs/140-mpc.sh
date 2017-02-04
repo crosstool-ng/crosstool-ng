@@ -26,7 +26,6 @@ do_mpc_extract() {
 
 # Build MPC for running on build
 # - always build statically
-# - we do not have build-specific CFLAGS
 # - install in build-tools prefix
 do_mpc_for_build() {
     local -a mpc_opts

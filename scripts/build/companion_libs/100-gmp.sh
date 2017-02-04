@@ -26,7 +26,6 @@ do_gmp_extract() {
 
 # Build GMP for running on build
 # - always build statically
-# - we do not have build-specific CFLAGS
 # - install in build-tools prefix
 do_gmp_for_build() {
     local -a gmp_opts
@@ -101,7 +100,7 @@ do_gmp_backend() {
         --enable-cxx                                \
         --disable-shared                            \
         --enable-static                             \
-        "${extra_config}"
+        "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building GMP"
     CT_DoExecLog ALL make ${JOBSFLAGS}
