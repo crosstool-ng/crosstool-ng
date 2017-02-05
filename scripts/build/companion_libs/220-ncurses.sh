@@ -32,6 +32,18 @@ do_ncurses_for_build() {
           "--without-cxx" \
           "--without-cxx-binding" \
           "--without-ada")
+    # If we are not canadian, this is also our host curses
+    # Unlike other companion libs, we skip host build if build==host
+    # (i.e. in simple cross or native): ncurses may not be needed for
+    # host, but we still need them on build to produce 'tic'.
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)
+            if [ "${CT_NCURSES_HOST_DISABLE_DB}" = "y" ]; then
+                opts+=( "--disable-database" "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
+            fi
+            opts+=( "${CT_NCURSES_HOST_CONFIG_ARGS[@]}" )
+            ;;
+    esac
     do_ncurses_backend host="${CT_BUILD}" \
                        destdir="${CT_BUILDTOOLS_PREFIX_DIR}" \
                        cflags="${CT_CFLAGS_FOR_BUILD}" \
@@ -59,7 +71,11 @@ do_ncurses_for_host() {
           "--without-tests" \
           "--without-cxx" \
           "--without-cxx-binding" \
-          "--without-ada")
+          "--without-ada" )
+    if [ "${CT_NCURSES_HOST_DISABLE_DB}" = "y" ]; then
+        opts+=( "--disable-database" "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
+    fi
+    opts+=( "${CT_NCURSES_HOST_CONFIG_ARGS[@]}" )
     do_ncurses_backend host="${CT_HOST}" \
                        prefix="${CT_HOST_COMPLIBS_DIR}" \
                        cflags="${CT_CFLAGS_FOR_HOST}" \
@@ -79,6 +95,10 @@ do_ncurses_for_target() {
     opts=("--without-sysmouse")
     [ "${CT_CC_LANG_CXX}" = "y" ] || opts+=("--without-cxx" "--without-cxx-binding")
     [ "${CT_CC_LANG_ADA}" = "y" ] || opts+=("--without-ada")
+    if [ "${CT_NCURSES_TARGET_DISABLE_DB}" = "y" ]; then
+        opts+=( "--disable-database" "--with-fallbacks=${CT_NCURSES_TARGET_FALLBACKS}" )
+    fi
+    opts+=( "${CT_NCURSES_TARGET_CONFIG_ARGS[@]}" )
     case "${CT_TARGET}" in
         *-*-mingw*)
             prefix="/mingw"
