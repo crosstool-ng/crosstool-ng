@@ -138,7 +138,7 @@ do_libc_backend_once() {
     fi
 
     manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config "${multi_flags}"
-    CT_DoYes | CT_DoExecLog ALL make "${make_args[@]}" oldconfig
+    CT_DoExecLog ALL make "${make_args[@]}" olddefconfig
 
     # Now filter the multilib flags. manage_uClibc_config did the opposite of
     # what Rules.mak in uClibc would do: by the multilib's CFLAGS, it determined

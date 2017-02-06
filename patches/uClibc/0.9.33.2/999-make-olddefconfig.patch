@@ -1,0 +1,41 @@
+diff -urpN uClibc-0.9.33.2.orig/extra/config/conf.c uClibc-0.9.33.2/extra/config/conf.c
+--- uClibc-0.9.33.2.orig/extra/config/conf.c	2017-02-04 12:57:38.488808014 -0800
++++ uClibc-0.9.33.2/extra/config/conf.c	2017-02-04 20:26:28.613244457 -0800
+@@ -435,6 +435,7 @@ int main(int ac, char **av)
+ 	const char *name;
+ 	const char *configname = conf_get_configname();
+ 	struct stat tmpstat;
++	int olddefconfig = 0;
+ 
+ 	setlocale(LC_ALL, "");
+ 	bindtextdomain(PACKAGE, LOCALEDIR);
+@@ -451,6 +452,7 @@ int main(int ac, char **av)
+ 			break;
+ 		case 'd':
+ 			input_mode = set_default;
++			olddefconfig = 1;
+ 			break;
+ 		case 'D':
+ 			input_mode = set_default;
+@@ -514,7 +516,7 @@ int main(int ac, char **av)
+ 	switch (input_mode) {
+ 	case set_default:
+ 		if (!defconfig_file)
+-			defconfig_file = conf_get_default_confname();
++			defconfig_file = olddefconfig ? NULL : conf_get_default_confname();
+ 		if (conf_read(defconfig_file)) {
+ 			printf(_("***\n"
+ 				"*** Can't find default configuration \"%s\"!\n"
+diff -urpN uClibc-0.9.33.2.orig/Makefile.in uClibc-0.9.33.2/Makefile.in
+--- uClibc-0.9.33.2.orig/Makefile.in	2017-02-04 12:57:38.484807980 -0800
++++ uClibc-0.9.33.2/Makefile.in	2017-02-04 12:59:34.625789324 -0800
+@@ -460,6 +460,9 @@ allyesconfig: $(conf)
+ allnoconfig: $(conf)
+ 	$(Q)$< -n extra/Configs/Config.in
+ 
++olddefconfig: $(conf)
++	$(Q)$< -d extra/Configs/Config.in
++
+ defconfig: $(conf)
+ 	$(Q)$< -D extra/Configs/defconfigs/$(ARCH)/$@ extra/Configs/Config.in
+ 
