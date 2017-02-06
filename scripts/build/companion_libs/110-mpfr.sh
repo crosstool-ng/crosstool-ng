@@ -68,7 +68,6 @@ do_mpfr_extract() {
 
 # Build MPFR for running on build
 # - always build statically
-# - we do not have build-specific CFLAGS
 # - install in build-tools prefix
 do_mpfr_for_build() {
     local -a mpfr_opts

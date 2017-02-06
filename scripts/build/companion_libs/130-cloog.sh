@@ -29,7 +29,6 @@ do_cloog_extract() {
 
 # Build CLooG for running on build
 # - always build statically
-# - we do not have build-specific CFLAGS
 # - install in build-tools prefix
 do_cloog_for_build() {
     local -a cloog_opts

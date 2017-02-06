@@ -24,7 +24,6 @@ if [ "${CT_LIBELF}" = "y" ]; then
 
 # Build libelf for running on build
 # - always build statically
-# - we do not have build-specific CFLAGS
 # - install in build-tools prefix
 do_libelf_for_build() {
     local -a libelf_opts
