@@ -1,0 +1,25 @@
+Respect environment CPPFLAGS when we run ./configure so we can inject
+random -D things without having to set CFLAGS/ASFLAGS
+
+diff -durN glibc-2.12.1.orig/Makeconfig glibc-2.12.1/Makeconfig
+--- glibc-2.12.1.orig/Makeconfig	2009-05-09 23:57:56.000000000 +0200
++++ glibc-2.12.1/Makeconfig	2009-11-13 00:49:41.000000000 +0100
+@@ -697,6 +697,7 @@
+ 	   $(foreach lib,$(libof-$(basename $(@F))) \
+ 		         $(libof-$(<F)) $(libof-$(@F)),$(CPPFLAGS-$(lib))) \
+ 	   $(CPPFLAGS-$(<F)) $(CPPFLAGS-$(@F)) $(CPPFLAGS-$(basename $(@F)))
++CPPFLAGS += $(CPPFLAGS-config)
+ override CFLAGS	= -std=gnu99 $(gnu89-inline-CFLAGS) \
+ 		  $(filter-out %frame-pointer,$(+cflags)) $(+gccwarn-c) \
+ 		  $(sysdep-CFLAGS) $(CFLAGS-$(suffix $@)) $(CFLAGS-$(<F)) \
+diff -durN glibc-2.12.1.orig/config.make.in glibc-2.12.1/config.make.in
+--- glibc-2.12.1.orig/config.make.in	2009-05-09 17:59:38.000000000 +0200
++++ glibc-2.12.1/config.make.in	2009-11-13 00:49:41.000000000 +0100
+@@ -107,6 +107,7 @@
+ CXX = @CXX@
+ BUILD_CC = @BUILD_CC@
+ CFLAGS = @CFLAGS@
++CPPFLAGS-config = @CPPFLAGS@
+ ASFLAGS-config = @ASFLAGS_config@
+ AR = @AR@
+ RANLIB = @RANLIB@
