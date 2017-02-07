@@ -5,15 +5,16 @@
 # This list must be carefully in sync with the architectures names
 # we can find in config/arch/*
 
+# Ports were integrated into the main tarball in 2.17
 config LIBC_GLIBC_PORTS_EXTERNAL
     bool
-    default n
+    default y
+    depends on !LIBC_GLIBC_2_17_or_later
 
-config LIBC_GLIBC_MAY_FORCE_PORTS
+# Ports are no longer an add-on starting with 2.20
+config LIBC_GLIBC_USE_PORTS
     bool
-    default y if ARCH_arm
-    default y if ARCH_mips
-    select LIBC_GLIBC_USE_PORTS
+    default y if ARCH_alpha || ARCH_arm || ARCH_m68k || ARCH_mips || ARCH_powerpc
     depends on !LIBC_GLIBC_2_20_or_later
 
 # Force using the BFD linker during the toolchain build
@@ -109,19 +110,6 @@ config LIBC_GLIBC_FORCE_UNWIND
       of glibc on some architectures
       (seen on s390, s390x and x86_64).
 
-config LIBC_GLIBC_USE_PORTS
-    bool
-    prompt "Use the ports addon"
-    depends on !LIBC_GLIBC_2_20_or_later
-    help
-      The ports addon contains some architecture ports that are not available
-      in the official distribution.
-
-      For example, this is the case for ARM with glibc-2.4 and above.
-
-      Say n only if you're sure that your architecture is in the official
-      distribution for your chosen version.
-
 config LIBC_ADDONS_LIST
     string
     prompt "Extra addons"
@@ -131,17 +119,12 @@ config LIBC_ADDONS_LIST
 
       You need to specify neither linuxthreads nor nptl, as they are added
       automagically for you depending on the threading model you chose
-      earlier.
+      earlier and on libc version selected.
 
-      Eg.: crypt        (for very old libces)
+      Also, do not specify ports even if applicable to the selected libc
+      version/architecture; it is selected automatically.
 
-if LIBC_GLIBC_USE_PORTS || ( LIBC_ADDONS_LIST != "" )
-comment "WARNING !!!                                            "
-comment "|  For glibc >= 2.8, it can happen that the tarballs    "
-comment "|  for the addons are not available for download.       "
-comment "|  If that happens, bad luck... Try a previous version  "
-comment "|  or try again later... :-(                            "
-endif
+      Eg.: libidn
 
 config LIBC_LOCALES
     bool
