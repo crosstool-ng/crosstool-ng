@@ -34,7 +34,7 @@ With crosstool-NG, you can learn precisely how each component is configured and 
 
 crosstool-NG can build from generic, general purpose toolchains, to very specific and dedicated toolchains. Simply fill in specific values in the adequate options.
 
-Of course, it doesn't prevent you from doing your home work first. You have to know with some degree of exactitude what your target is (archictecture, processor variant), what it will be used for (embedded, desktop, realtime), what degree of confidence you have with each component (stability, maintainability), and so on…
+Of course, it doesn't prevent you from doing your home work first. You have to know with some degree of exactitude what your target is (architecture, processor variant), what it will be used for (embedded, desktop, realtime), what degree of confidence you have with each component (stability, maintainability), and so on…
 
 ## Features
 
