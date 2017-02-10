@@ -178,10 +178,14 @@ config BINUTILS_HAS_PLUGINS
 config BINUTILS_HAS_PKGVERSION_BUGURL
     bool
 
-# Force using the BFD linker if needed
-# This is the case for some C libraries (eg. glibc at least) and affected
-# components can select this
-config BINUTILS_FORCE_LD_BFD
+# Force using the BFD linker if needed. There are two options:
+# - For some C libraries (eg. glibc at least), BFD ld must be
+#   built and be selected by default.
+# - For elf2flt, BFD ld must be the only linker built.
+config BINUTILS_FORCE_LD_BFD_DEFAULT
+    bool
+
+config BINUTILS_FORCE_LD_BFD_ONLY
     bool
 
 choice
@@ -198,7 +202,7 @@ config BINUTILS_LINKER_GOLD
     bool
     prompt "gold"
     depends on BINUTILS_GOLD_SUPPORT
-    depends on ! BINUTILS_FORCE_LD_BFD
+    depends on !BINUTILS_FORCE_LD_BFD_DEFAULT && !BINUTILS_FORCE_LD_BFD_ONLY
     select BINUTILS_GOLD_INSTALLED
     help
       gold is a new, optimised, multi-threaded linker with support
@@ -209,6 +213,7 @@ config BINUTILS_LINKER_GOLD
 config BINUTILS_LINKER_LD_GOLD
     bool
     prompt "ld, gold"
+    depends on !BINUTILS_FORCE_LD_BFD_ONLY
     depends on BINUTILS_GOLD_SUPPORT
     select BINUTILS_GOLD_INSTALLED
     select BINUTILS_LINKER_BOTH
@@ -221,10 +226,11 @@ config BINUTILS_LINKER_LD_GOLD
 config BINUTILS_LINKER_GOLD_LD
     bool
     prompt "gold, ld"
+    depends on !BINUTILS_FORCE_LD_BFD_ONLY
     depends on BINUTILS_GOLD_SUPPORT
     select BINUTILS_GOLD_INSTALLED
     select BINUTILS_LINKER_BOTH
-    select BINUTILS_LD_WRAPPER if BINUTILS_FORCE_LD_BFD
+    select BINUTILS_LD_WRAPPER if BINUTILS_FORCE_LD_BFD_DEFAULT
     help
       Both the historical ld and the new gold linkers will be
       installed, with gold being the default linker used.
