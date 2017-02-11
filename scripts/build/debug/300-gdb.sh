@@ -1,7 +1,5 @@
 # Build script for the gdb debug facility
 
-if [ "${CT_GDB_CROSS}" = y -o "${CT_GDB_GDBSERVER}" = "y" -o "${CT_GDB_NATIVE}" = "y" ]; then
-
 do_debug_gdb_get() {
     local linaro_version=""
     local linaro_series=""
@@ -346,5 +344,3 @@ do_debug_gdb_build() {
         CT_EndStep
     fi
 }
-
-fi
