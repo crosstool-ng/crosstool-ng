@@ -112,8 +112,13 @@ do_cloog_backend() {
     CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
-        CT_DoLog EXTRA "Checking CLooG"
-        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
+        if [ "${host}" = "${CT_BUILD}" ]; then
+            CT_DoLog EXTRA "Checking CLooG"
+            CT_DoExecLog ALL make ${JOBSFLAGS} -s check
+        else
+            # Cannot run host binaries on build in a canadian cross
+            CT_DoLog EXTRA "Skipping check for CLooG on the host"
+        fi
     fi
 
     CT_DoLog EXTRA "Installing CLooG"

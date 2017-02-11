@@ -97,8 +97,13 @@ do_zlib_backend() {
     CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
-        CT_DoLog EXTRA "Checking zlib"
-        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
+        if [ "${host}" = "${CT_BUILD}" ]; then
+            CT_DoLog EXTRA "Checking zlib"
+            CT_DoExecLog ALL make ${JOBSFLAGS} -s check
+        else
+            # Cannot run host binaries on build in a canadian cross
+            CT_DoLog EXTRA "Skipping check for zlib on the host"
+        fi
     fi
 
     CT_DoLog EXTRA "Installing zlib"
