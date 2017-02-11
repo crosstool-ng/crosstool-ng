@@ -1,0 +1,171 @@
+[Patch modified to apply to 2.15]
+
+commit 07037eeb43ca1e0ac2802e3a1492cecf869c63c6
+Author: Joseph Myers <joseph@codesourcery.com>
+Date:   Thu Mar 8 00:17:27 2012 +0000
+
+    Fix .ctors/.dtors header configure test for bootstrapping.
+
+diff -urpN glibc-2.15.orig/aclocal.m4 glibc-2.15/aclocal.m4
+--- glibc-2.15.orig/aclocal.m4	2017-02-08 11:27:28.445657746 -0800
++++ glibc-2.15/aclocal.m4	2017-02-08 11:37:25.818463475 -0800
+@@ -114,3 +114,17 @@ AC_CACHE_CHECK(whether $LD is GNU ld, li
+ [LIBC_PROG_FOO_GNU($LD, libc_cv_prog_ld_gnu=yes, libc_cv_prog_ld_gnu=no)])
+ gnu_ld=$libc_cv_prog_ld_gnu
+ ])
++
++dnl Run a static link test with -nostdlib -nostartfiles.
++dnl LIBC_TRY_LINK_STATIC([code], [action-if-true], [action-if-false])
++AC_DEFUN([LIBC_TRY_LINK_STATIC],
++[cat > conftest.c <<EOF
++int _start (void) { return 0; }
++int __start (void) { return 0; }
++$1
++EOF
++AS_IF([AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS -o conftest
++		       conftest.c -static -nostartfiles -nostdlib
++		       1>&AS_MESSAGE_LOG_FD])],
++      [$2], [$3])
++rm -f conftest*])
+diff -urpN glibc-2.15.orig/configure glibc-2.15/configure
+--- glibc-2.15.orig/configure	2017-02-08 11:27:28.453657802 -0800
++++ glibc-2.15/configure	2017-02-08 11:47:36.184360147 -0800
+@@ -6147,29 +6147,32 @@ $as_echo_n "checking for .preinit_array/
+ if ${libc_cv_initfini_array+:} false; then :
+   $as_echo_n "(cached) " >&6
+ else
+-    cat > conftest.c <<EOF
++  cat > conftest.c <<EOF
+ int _start (void) { return 0; }
+ int __start (void) { return 0; }
++
+ int foo (void) { return 1; }
+ int (*fp) (void) __attribute__ ((section (".init_array"))) = foo;
++
+ EOF
+-  if { ac_try='${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS -o conftest conftest.c
+-		     -static -nostartfiles -nostdlib 1>&5'
++if { ac_try='${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS -o conftest
++		       conftest.c -static -nostartfiles -nostdlib
++		       1>&5'
+   { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+   (eval $ac_try) 2>&5
+   ac_status=$?
+   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+-  test $ac_status = 0; }; }
+-  then
+-    if $READELF -S conftest | fgrep INIT_ARRAY > /dev/null; then
+-      libc_cv_initfini_array=yes
+-    else
+-      libc_cv_initfini_array=no
+-    fi
++  test $ac_status = 0; }; }; then :
++  if $READELF -S conftest | fgrep INIT_ARRAY > /dev/null; then
++    libc_cv_initfini_array=yes
+   else
+     libc_cv_initfini_array=no
+   fi
+-  rm -f conftest*
++else
++  libc_cv_initfini_array=no
++fi
++rm -f conftest*
++
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_initfini_array" >&5
+ $as_echo "$libc_cv_initfini_array" >&6; }
+@@ -6183,21 +6186,22 @@ if ${libc_cv_ctors_header+:} false; then
+   $as_echo_n "(cached) " >&6
+ else
+       libc_cv_ctors_header=yes
+-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
++    cat > conftest.c <<EOF
++int _start (void) { return 0; }
++int __start (void) { return 0; }
++
++__attribute__ ((constructor)) void ctor (void) { asm (""); }
++__attribute__ ((destructor))  void dtor (void) { asm (""); }
+ 
+-int
+-main ()
+-{
+-
+-__attribute__ ((constructor)) void ctor (void) { puts("ctor"); }
+-__attribute__ ((destructor))  void dtor (void) { puts("dtor"); }
+-
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_link "$LINENO"; then :
++EOF
++if { ac_try='${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS -o conftest
++		       conftest.c -static -nostartfiles -nostdlib
++		       1>&5'
++  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
++  (eval $ac_try) 2>&5
++  ac_status=$?
++  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
++  test $ac_status = 0; }; }; then :
+         if $READELF -WS conftest$ac_exeext | $AWK '
+ 	{ gsub(/\[ */, "[") }
+ 	$2 == ".ctors" || $2 == ".dtors" {
+@@ -6219,8 +6223,7 @@ else
+         as_fn_error $? "missing __attribute__ ((constructor)) support??" "$LINENO" 5
+ 
+ fi
+-rm -f core conftest.err conftest.$ac_objext \
+-    conftest$ac_exeext conftest.$ac_ext
++rm -f conftest*
+ 
+ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_ctors_header" >&5
+diff -urpN glibc-2.15.orig/configure.in glibc-2.15/configure.in
+--- glibc-2.15.orig/configure.in	2017-02-08 11:27:28.433657663 -0800
++++ glibc-2.15/configure.in	2017-02-08 11:46:58.994915812 -0800
+@@ -1439,24 +1439,17 @@ EOF
+ 
+   AC_CACHE_CHECK(for .preinit_array/.init_array/.fini_array support,
+ 		 libc_cv_initfini_array, [dnl
+-  cat > conftest.c <<EOF
+-int _start (void) { return 0; }
+-int __start (void) { return 0; }
++LIBC_TRY_LINK_STATIC([
+ int foo (void) { return 1; }
+ int (*fp) (void) __attribute__ ((section (".init_array"))) = foo;
+-EOF
+-  if AC_TRY_COMMAND([${CC-cc} $CFLAGS $CPPFLAGS $LDFLAGS -o conftest conftest.c
+-		     -static -nostartfiles -nostdlib 1>&AS_MESSAGE_LOG_FD])
+-  then
+-    if $READELF -S conftest | fgrep INIT_ARRAY > /dev/null; then
+-      libc_cv_initfini_array=yes
+-    else
+-      libc_cv_initfini_array=no
+-    fi
++],
++  [if $READELF -S conftest | fgrep INIT_ARRAY > /dev/null; then
++    libc_cv_initfini_array=yes
+   else
+     libc_cv_initfini_array=no
+-  fi
+-  rm -f conftest*])
++  fi],
++  [libc_cv_initfini_array=no])
++])
+   if test $libc_cv_initfini_array != yes; then
+     AC_MSG_ERROR([Need linker with .init_array/.fini_array support.])
+   fi
+@@ -1464,9 +1457,9 @@ EOF
+   AC_CACHE_CHECK(whether to use .ctors/.dtors header and trailer,
+ 		 libc_cv_ctors_header, [dnl
+     libc_cv_ctors_header=yes
+-    AC_TRY_LINK([], [
+-__attribute__ ((constructor)) void ctor (void) { puts("ctor"); }
+-__attribute__ ((destructor))  void dtor (void) { puts("dtor"); }
++    LIBC_TRY_LINK_STATIC([
++__attribute__ ((constructor)) void ctor (void) { asm (""); }
++__attribute__ ((destructor))  void dtor (void) { asm (""); }
+ ],
+ 		[dnl
+       AS_IF([$READELF -WS conftest$ac_exeext | $AWK '
