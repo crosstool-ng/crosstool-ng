@@ -26,7 +26,7 @@ updatetools: $(CONFIG_SUB_DEST) $(CONFIG_GUESS_DEST)
 # ----------------------------------------------------------
 # How to retrieve the tools
 
-wget_opt=-o /dev/null
+wget_opt=-o /dev/null --no-check-certificate
 ifeq ($(strip $(V)),2)
   wget_opt=
 endif
