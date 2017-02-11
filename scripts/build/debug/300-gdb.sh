@@ -179,6 +179,9 @@ do_debug_gdb_build() {
 
         native_extra_config=("${extra_config[@]}")
 
+        # We may not have C++ language configured for target
+        native_extra_config+=("--disable-build-with-cxx")
+
         # GDB on Mingw depends on PDcurses, not ncurses
         if [ "${CT_MINGW32}" != "y" ]; then
             native_extra_config+=("--with-curses")
@@ -292,6 +295,9 @@ do_debug_gdb_build() {
         fi
 
         gdbserver_extra_config=("${extra_config[@]}")
+
+        # We may not have C++ language configured for target
+        gdbserver_extra_config+=("--disable-build-with-cxx")
 
         if [ "${CT_GDB_GDBSERVER_HAS_IPA_LIB}" = "y" ]; then
             if [ "${CT_GDB_GDBSERVER_BUILD_IPA_LIB}" = "y" ]; then
