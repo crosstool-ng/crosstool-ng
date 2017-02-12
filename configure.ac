@@ -218,11 +218,21 @@ ACX_CHECK_PROGS_REQ([makeinfo], [makeinfo])
 ACX_CHECK_PROGS_REQ([cut], [cut])
 ACX_CHECK_PROGS_REQ([stat], [stat])
 ACX_CHECK_PROGS_REQ([readlink], [readlink])
-ACX_CHECK_PROGS_REQ([wget], [wget])
 ACX_CHECK_PROGS_REQ([tar], [tar])
 ACX_CHECK_PROGS_REQ([gzip], [gzip])
 ACX_CHECK_PROGS_REQ([bzip2], [bzip2])
 ACX_CHECK_PROGS_REQ([help2man], [help2man])
+
+# Not a fatal failure even if we have neither - the tarballs may
+# be provided in a local directory.
+AC_CHECK_PROGS([wget], [wget])
+ACX_SET_KCONFIG_OPTION([wget])
+AC_SUBST([wget])
+
+AC_CHECK_PROGS([curl], [curl])
+ACX_SET_KCONFIG_OPTION([curl])
+AC_SUBST([curl])
+
 
 #--------------------------------------------------------------------
 # Still boring, but remember the path, now...

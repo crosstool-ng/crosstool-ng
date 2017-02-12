@@ -2,6 +2,23 @@
 
 comment "Downloading"
 
+choice
+    prompt "Download agent"
+
+config DOWNLOAD_AGENT_WGET
+    bool "wget"
+    depends on CONFIGURE_has_wget
+
+config DOWNLOAD_AGENT_CURL
+    bool "curl"
+    depends on CONFIGURE_has_curl
+
+config DOWNLOAD_AGENT_NONE
+    bool "none (forbid download)"
+    select FORBID_DOWNLOAD
+
+endchoice
+
 config FORBID_DOWNLOAD
     bool
     prompt "Forbid downloads"
@@ -11,7 +28,7 @@ config FORBID_DOWNLOAD
       If you do not have network connectivity when you run crosstool-NG,
       and some files are missing, it can be a long time before crosstool-NG
       fails.
-      
+
       Saying 'y' here will prevent crosstool-NG from downloading missing
       files, thus failing early so that you don't get stuck.
 
@@ -22,7 +39,7 @@ config FORCE_DOWNLOAD
     prompt "Force downloads"
     help
       Force downloading tarballs, even if one already exists.
-      
+
       Useful if you suspect a tarball to be damaged.
 
 config CONNECT_TIMEOUT
@@ -31,7 +48,7 @@ config CONNECT_TIMEOUT
     default 10
     help
       Maximum time in seconds that you allow the connection to the server to take.
-      
+
       The scenario is as follows;
         - some enterprise networks have firewalls that prohibit FTP traffic, while
           still allowing HTTP
@@ -39,12 +56,28 @@ config CONNECT_TIMEOUT
         - after this number of seconds, it is considered that the connection could
           not be established, and the next URL in the list is tried, until we reach
           an URL that will go through the firewall, most probably an http:// URL.
-      
+
       If you have a slow network, you'd better set this value higher than the default
       10s. If you know a firewall is blocking connections, but your network is globally
       fast, you can try to lower this value to jump more quickly to allowed URLs. YMMV.
-      
+
       If '-1' is specified, no timeout reconfiguration options are passed to wget.
+
+if DOWNLOAD_AGENT_WGET
+
+config DOWNLOAD_WGET_OPTIONS
+    string "Extra options to wget"
+    default "--passive-ftp --tries=3 -nc --progress=dot:binary"
+
+endif
+
+if DOWNLOAD_AGENT_CURL
+
+config DOWNLOAD_CURL_OPTIONS
+    string "Extra options to curl"
+    default "--location --ftp-pasv --retry 3 --fail --silent"
+
+endif
 
 config ONLY_DOWNLOAD
     bool

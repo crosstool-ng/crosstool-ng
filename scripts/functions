@@ -663,29 +663,34 @@ CT_DoGetFile() {
     local url="${1}"
     local dest="${CT_TARBALLS_DIR}/${url##*/}"
     local tmp="${dest}.tmp-dl"
+    local ok
+    local T
 
     # Remove potential left-over from a previous run
     rm -f "${tmp}"
 
-    # We also retry a few times, in case there is a transient error (eg. behind
-    # a dynamic IP that changes during the transfer...)
-    # With automated download as we are doing, it can be very dangerous to
-    # continue the downloads. It's far better to simply overwrite the
-    # destination file.
-    # Some company networks have firewalls to connect to the internet, but it's
-    # not easy to detect them, so force a global ${CT_CONNECT_TIMEOUT}-second
-    # timeout.
-    if [ ${CT_CONNECT_TIMEOUT} = -1 ]; then
-        T=
-    else
-        T="-T ${CT_CONNECT_TIMEOUT}"
+    # Replace a special value of '-1' with empty string
+    if [ ${CT_CONNECT_TIMEOUT} != -1 ]; then
+        T="${CT_CONNECT_TIMEOUT}"
     fi
-    if CT_DoExecLog ALL wget --passive-ftp --tries=3 -nc    \
-                             --progress=dot:binary          \
-                             ${T}                           \
-                             -O "${tmp}"                    \
-                             "${url}"
-    then
+
+    if [ "${CT_DOWNLOAD_AGENT_WGET}" = "y" ]; then
+        if CT_DoExecLog ALL wget ${CT_DOWNLOAD_WGET_OPTIONS} \
+                                 ${T:+-T ${T}}               \
+                                 -O "${tmp}"                 \
+                                 "${url}"; then
+            ok=y
+        fi
+    elif [ "${CT_DOWNLOAD_AGENT_CURL}" = "y" ]; then
+        if CT_DoExecLog ALL curl ${CT_DOWNLOAD_CURL_OPTIONS}  \
+                                 ${T:+--connect-timeout ${T}} \
+                                 -o "${tmp}"                  \
+                                 "${url}"; then
+            ok=y
+        fi
+    fi
+
+    if [ "${ok}" = "y" ]; then
         # Success, we got it, good!
         mv "${tmp}" "${dest}"
         CT_DoLog DEBUG "Got it from: \"${url}\""

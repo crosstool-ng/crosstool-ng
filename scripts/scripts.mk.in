@@ -26,9 +26,19 @@ updatetools: $(CONFIG_SUB_DEST) $(CONFIG_GUESS_DEST)
 # ----------------------------------------------------------
 # How to retrieve the tools
 
-wget_opt=-o /dev/null
-ifeq ($(strip $(V)),2)
-  wget_opt=
+ifneq ($(strip $(V)),2)
+  wget_silent_opt = -o /dev/null
+  curl_silent_opt = --silent
+endif
+
+ifneq (@@CT_wget@@,)
+download_cmd = wget --passive-ftp $(wget_silent_opt) -O $@
+else
+ifneq (@@CT_curl@@,)
+download_cmd = curl --ftp-pasv $(curl_silent_opt) -o $@
+else
+download_cmd = $(error wget or curl needed for downloads)
+endif
 endif
 
 PHONY += scripts
@@ -37,13 +47,13 @@ scripts:
 	$(SILENT)mkdir -p $@
 
 $(CONFIG_SUB_DEST): scripts FORCE
-	@$(CT_ECHO) '  WGET  $@'
-	$(SILENT)wget $(wget_opt) -O $@ $(CONFIG_SUB_SRC)
+	@$(CT_ECHO) '  DOWNLOAD  $@'
+	$(SILENT)$(download_cmd) $(CONFIG_SUB_SRC)
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
 $(CONFIG_GUESS_DEST): scripts FORCE
-	@$(CT_ECHO) '  WGET  $@'
-	$(SILENT)wget $(wget_opt) -O $@ $(CONFIG_GUESS_SRC)
+	@$(CT_ECHO) '  DOWNLOAD  $@'
+	$(SILENT)$(download_cmd) $(CONFIG_GUESS_SRC)
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
 # ----------------------------------------------------------
