@@ -100,8 +100,13 @@ do_mpc_backend() {
     CT_DoExecLog ALL make ${JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
-        CT_DoLog EXTRA "Checking MPC"
-        CT_DoExecLog ALL make ${JOBSFLAGS} -s check
+        if [ "${host}" = "${CT_BUILD}" ]; then
+            CT_DoLog EXTRA "Checking MPC"
+            CT_DoExecLog ALL make ${JOBSFLAGS} -s check
+        else
+            # Cannot run host binaries on build in a canadian cross
+            CT_DoLog EXTRA "Skipping check for MPC on the host"
+        fi
     fi
 
     CT_DoLog EXTRA "Installing MPC"
