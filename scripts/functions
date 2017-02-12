@@ -567,15 +567,15 @@ CT_DoForceRmdir() {
     local mode
     for dir in "${@}"; do
         [ -d "${dir}" ] || continue
-        case "$CT_SYS_OS" in
-            Linux|CYGWIN*)
+        case "${CT_CONFIGURE_has_stat_flavor_GNU},${CT_CONFIGURE_has_stat_flavor_BSD}" in
+            y,*)
                 mode="$(stat -c '%a' "$(dirname "${dir}")")"
                 ;;
-            Darwin|*BSD)
+            *,y)
                 mode="$(stat -f '%Lp' "$(dirname "${dir}")")"
                 ;;
             *)
-                CT_Abort "Unhandled host OS $CT_SYS_OS"
+                CT_Abort "Unknown stat format options"
                 ;;
         esac
         CT_DoExecLog ALL chmod u+w "$(dirname "${dir}")"
