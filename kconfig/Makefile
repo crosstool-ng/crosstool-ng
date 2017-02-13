@@ -65,7 +65,7 @@ DEPS += $(nconf_DEP)
 # Build the dependency for C files
 %.dep: %.c
 	@echo "  DEP    '$@'"
-	@$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |$(sed) -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
+	@$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |$(sed_r) -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
 
 # Generate the grammar parser
 zconf.tab.o: zconf.tab.c zconf.hash.c zconf.lex.c

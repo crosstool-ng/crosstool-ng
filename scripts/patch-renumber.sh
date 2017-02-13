@@ -59,7 +59,7 @@ for p in "${src}/"*.patch*; do
     newname="$(printf "%03d-%s"                                     \
                       "${cpt}"                                      \
                       "$( basename "${p}"                           \
-                          |"${sed}" -r -e 's/^[[:digit:]]+[-_]//'   \
+                          |"${sed_r}" -e 's/^[[:digit:]]+[-_]//'   \
                                        -e "${sed_re}"               \
                         )"                                          \
               )"

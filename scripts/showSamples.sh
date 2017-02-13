@@ -129,7 +129,7 @@ dump_single_sample() {
                 ;;
             canadian)
                 printf "| ''"
-                printf "${sample}" |${sed} -r -e 's/.*,//'
+                printf "${sample}" |${sed_r} -e 's/.*,//'
                 printf "''  | ${CT_HOST}  "
                 ;;
             *)          ;;

@@ -473,7 +473,7 @@ do_libc_backend_once() {
 do_libc_add_ons_list() {
     local sep="$1"
     local addons_list="$( echo "${CT_LIBC_ADDONS_LIST}"            \
-                          |sed -r -e "s/[[:space:],]/${sep}/g;" \
+                          |sed_r -e "s/[[:space:],]/${sep}/g;" \
                         )"
     if [ "${CT_LIBC_GLIBC_2_20_or_later}" != "y" ]; then
         case "${CT_THREADS}" in
@@ -483,7 +483,7 @@ do_libc_add_ons_list() {
     fi
     [ "${CT_LIBC_GLIBC_USE_PORTS}" = "y" ] && addons_list="${addons_list}${sep}ports"
     # Remove duplicate, leading and trailing separators
-    echo "${addons_list}" |sed -r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
+    echo "${addons_list}" |sed_r -e "s/${sep}+/${sep}/g; s/^${sep}//; s/${sep}\$//;"
 }
 
 # Compute up the minimum supported Linux kernel version
@@ -512,7 +512,7 @@ do_libc_min_kernel_config() {
             elif [ "${CT_LIBC_GLIBC_KERNEL_VERSION_CHOSEN}" = "y" ]; then
                 # Trim the fourth part of the linux version, keeping only the first three numbers
                 min_kernel_config="$( echo "${CT_LIBC_GLIBC_MIN_KERNEL_VERSION}"               \
-                                      |sed -r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;' \
+                                      |sed_r -e 's/^([^.]+\.[^.]+\.[^.]+)(|\.[^.]+)$/\1/;' \
                                     )"
             fi
             echo "--enable-kernel=${min_kernel_config}"

@@ -65,18 +65,18 @@ gen_choice() {
     printf '\n'
     for entry in "${@}"; do
         file="${base_dir}/${entry}.in"
-        _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
+        _entry=$(printf '%s\n' "${entry}" |${sed_r} -s -e 's/[-.+]/_/g;')
         printf 'config %s_%s\n' "${cfg_prefix}" "${_entry}"
         printf '    bool\n'
         printf '    prompt "%s"\n' "${entry}"
         if [ "${cond}" = "Y" -o "${cond}" = "y" ]; then
             printf '    depends on %s_%s_AVAILABLE\n' "${cfg_prefix}" "${_entry}"
         fi
-        "${sed}" -r -e '/^## depends on /!d; s/^## /    /;' ${file} 2>/dev/null
-        "${sed}" -r -e '/^## select /!d; s/^## /    /;' ${file} 2>/dev/null
-        if "${grep}" -E '^## help' ${file} >/dev/null 2>&1; then
+        ${sed_r} -e '/^## depends on /!d; s/^## /    /;' ${file} 2>/dev/null
+        ${sed_r} -e '/^## select /!d; s/^## /    /;' ${file} 2>/dev/null
+        if ${grep} -E '^## help' ${file} >/dev/null 2>&1; then
             printf '    help\n'
-            "${sed}" -r -e '/^## help ?/!d; s/^## help ?/      /;' ${file} 2>/dev/null
+            ${sed_r} -e '/^## help ?/!d; s/^## help ?/      /;' ${file} 2>/dev/null
         fi
         printf '\n'
     done
@@ -84,7 +84,7 @@ gen_choice() {
 
     for entry in "${@}"; do
         file="${base_dir}/${entry}.in"
-        _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
+        _entry=$(printf '%s\n' "${entry}" |${sed_r} -s -e 's/[-.+]/_/g;')
         printf '\n'
         if [ "${cond}" = "Y" -o "${cond}" = "y" ]; then
             printf 'config %s_%s_AVAILABLE\n' "${cfg_prefix}" "${_entry}"
@@ -107,7 +107,7 @@ gen_choice() {
     printf '# Generated file, do not edit!!!\n'
     for entry in "${@}"; do
         file="${base_dir}/${entry}.in"
-        _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
+        _entry=$(printf '%s\n' "${entry}" |${sed_r} -s -e 's/[-.+]/_/g;')
         if [ -f "${file}.2" ]; then
             printf '\n'
             printf 'if %s_%s\n' "${cfg_prefix}" "${_entry}"
@@ -135,18 +135,18 @@ gen_menu() {
     printf '\n'
     for entry in "${@}"; do
         file="${base_dir}/${entry}.in"
-        _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
+        _entry=$(printf '%s\n' "${entry}" |${sed_r} -s -e 's/[-.+]/_/g;')
         printf 'menuconfig %s_%s\n' "${cfg_prefix}" "${_entry}"
         printf '    bool\n'
-        if "${grep}" -E '^## default' ${file} >/dev/null 2>&1; then
-            "${sed}" -r -e '/^## default ?/!d; s/^## default ?/    default /;' ${file} 2>/dev/null
+        if ${grep} -E '^## default' ${file} >/dev/null 2>&1; then
+            ${sed_r} -e '/^## default ?/!d; s/^## default ?/    default /;' ${file} 2>/dev/null
         fi
         printf '    prompt "%s"\n' "${entry}"
-        "${sed}" -r -e '/^## depends on /!d; s/^## /    /;' ${file} 2>/dev/null
-        "${sed}" -r -e '/^## select /!d; s/^## /    /;' ${file} 2>/dev/null
-        if "${grep}" -E '^## help' ${file} >/dev/null 2>&1; then
+        ${sed_r} -e '/^## depends on /!d; s/^## /    /;' ${file} 2>/dev/null
+        ${sed_r} -e '/^## select /!d; s/^## /    /;' ${file} 2>/dev/null
+        if ${grep} -E '^## help' ${file} >/dev/null 2>&1; then
             printf '    help\n'
-            "${sed}" -r -e '/^## help ?/!d; s/^## help ?/      /;' ${file} 2>/dev/null
+            ${sed_r} -e '/^## help ?/!d; s/^## help ?/      /;' ${file} 2>/dev/null
         fi
         printf '\n'
         printf 'if %s_%s\n' "${cfg_prefix}" "${_entry}"

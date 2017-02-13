@@ -8,6 +8,7 @@ set -e
 install="@@CT_install@@"
 grep="@@CT_grep@@"
 sed="@@CT_sed@@"
+sed_r="@@CT_sed_r@@"
 awk="@@CT_awk@@"
 
 # Detect where the toolchain is:
@@ -25,8 +26,8 @@ CT_CFG_SYSROOT_DIR="$("${CT_GCC}" -v 2>&1                   \
                       |cut -d = -f 2-
                      )"
 CT_SYSROOT_DIR="$(printf "${CT_CFG_SYSROOT_DIR}\n"                              \
-                  |"${sed}" -r -e "s:^${CT_CFG_PREFIX_DIR}:${CT_PREFIX_DIR}:;"  \
-                  |"${sed}" -r -e 's,/+,/,g;'                                   \
+                  |"${sed_r}" -e "s:^${CT_CFG_PREFIX_DIR}:${CT_PREFIX_DIR}:;"  \
+                  |"${sed_r}" -e 's,/+,/,g;'                                   \
                  )"
 
 myname=$(basename "$0")
@@ -199,7 +200,7 @@ do_add_lib() {
             mkdir -p "${dir}"
             true_libname=$("${CT_READELF}" -d "${libfile}"          \
                            |"${grep}" "Library soname:"             \
-                           |"${sed}" -r -e 's,.+\[(.+)\] *$,\1,;'   \
+                           |"${sed_r}" -e 's,.+\[(.+)\] *$,\1,;'   \
                           )
             case "${libfile}" in
                 */ld*)  mode=0755;;
@@ -226,7 +227,7 @@ do_resolve_deps() {
     
     for libname in $("${CT_READELF}" -d "${file}"                           \
                      |"${grep}" -E '\(NEEDED\)[[:space:]]+Shared library:'  \
-                     |"${sed}" -r -e 's,.+\[(.+)\] *$,\1,;'                 \
+                     |"${sed_r}" -e 's,.+\[(.+)\] *$,\1,;'                 \
                     ); do
         [ -n "${libname}" ] || continue
         ${CT_PRINTF} "Searching for '%s' needed by '%s'\n" "${libname}" "${file}"
@@ -243,7 +244,7 @@ cd "${CT_ROOT_DST_DIR}"
 # First of, copy the forced libraries into the working copy
 lib_list=
 if [ -n "${CT_LIB_FILE}" ]; then
-    lib_list=$("${sed}" -r -e ':loop; s/#.*//;'         \
+    lib_list=$("${sed_r}" -e ':loop; s/#.*//;'         \
                            -e 's/[[:space:]]+//g;'      \
                            -e 's/([^:])$/\1:/;'         \
                            -e '/$/N; s/\n//; tloop;'    \
@@ -251,7 +252,7 @@ if [ -n "${CT_LIB_FILE}" ]; then
               )
 fi
 CT_LIB_LIST=$(printf "${CT_LIB_LIST}:${lib_list}\n"         \
-              |"${sed}" -r -e 's/^:+//; s/:+$//; s/:+/ /g;' \
+              |"${sed_r}" -e 's/^:+//; s/:+$//; s/:+/ /g;' \
              )
 if [ -n "${CT_LIB_LIST}" ]; then
     for name in ${CT_LIB_LIST}; do

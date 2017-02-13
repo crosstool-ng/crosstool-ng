@@ -5,6 +5,7 @@ export LC_ALL=C
 version="@@CT_VERSION@@"
 bits="@@CT_BITS@@"
 sed="${SED:-@@CT_sed@@}"
+sed_r="${SED_R:-@@CT_sed_r@@}"
 grep="${GREP:-@@CT_grep@@}"
 
 my_name="$( basename "${0}" )"
@@ -159,7 +160,7 @@ fi
 sysroot="$( "${gcc}" -print-sysroot 2>/dev/null )"
 if [ -z "${sysroot}" ]; then
     sysroot="$( "${gcc}" -print-file-name=libc.so 2>/dev/null \
-                |${sed} -r -e 's:/usr/lib/libc.so$::;'        \
+                |${sed_r} -e 's:/usr/lib/libc.so$::;'        \
               )"
 fi
 if [ -z "${sysroot}" ]; then
@@ -259,7 +260,7 @@ do_process_file() {
     save_search_rpath=( "${search_rpath[@]}" )
     for n in $( "${readelf}" -d "${file}"                                           \
                 |"${grep}" -E '\((RPATH|RUNPATH)\)'                                 \
-                |"${sed}" -r -e 's/^.*Library r(|un)path:[[:space:]]+\[(.*)\]$/\2/;'\
+                |"${sed_r}" -e 's/^.*Library r(|un)path:[[:space:]]+\[(.*)\]$/\2/;'\
               ); do
         do_trace "-> adding rpath '%s'\n" "${n}"
         search_rpath+=( "${n}" )
@@ -272,7 +273,7 @@ do_process_file() {
 
     for n in $( "${readelf}" -d "${file}"                                               \
                 |"${grep}" -E '\(NEEDED\)'                                              \
-                |"${sed}" -r -e 's/^.*Shared library:[[:space:]]+\[([^]]+)\].*/\1/;'    \
+                |"${sed_r}" -e 's/^.*Shared library:[[:space:]]+\[([^]]+)\].*/\1/;'    \
               ); do
         found=0
         for m in "${needed_list[@]}"; do

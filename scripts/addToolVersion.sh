@@ -73,7 +73,7 @@ addToolVersion() {
 
     [ -f "${file}" ] || return 0
 
-    v=$(echo "${version}" |"${sed}" -r -e 's/-/_/g; s/\./_/g;')
+    v=$(echo "${version}" |"${sed_r}" -e 's/-/_/g; s/\./_/g;')
 
     config_ver_option="${cat}_V_${v}"
 
