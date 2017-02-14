@@ -216,13 +216,42 @@ ACX_CHECK_PROGS_REQ([bison], [bison])
 ACX_CHECK_PROGS_REQ([flex], [flex])
 ACX_CHECK_PROGS_REQ([makeinfo], [makeinfo])
 ACX_CHECK_PROGS_REQ([cut], [cut])
-ACX_CHECK_PROGS_REQ([stat], [stat])
 ACX_CHECK_PROGS_REQ([readlink], [readlink])
-ACX_CHECK_PROGS_REQ([wget], [wget])
 ACX_CHECK_PROGS_REQ([tar], [tar])
 ACX_CHECK_PROGS_REQ([gzip], [gzip])
 ACX_CHECK_PROGS_REQ([bzip2], [bzip2])
 ACX_CHECK_PROGS_REQ([help2man], [help2man])
+
+# Not a fatal failure even if we have neither - the tarballs may
+# be provided in a local directory.
+AC_CHECK_PROGS([wget], [wget])
+ACX_SET_KCONFIG_OPTION([wget])
+AC_SUBST([wget])
+
+AC_CHECK_PROGS([curl], [curl])
+ACX_SET_KCONFIG_OPTION([curl])
+AC_SUBST([curl])
+
+ACX_CHECK_PROGS_REQ([stat], [stat])
+AC_CACHE_CHECK([whether stat takes GNU or BSD format],
+    [acx_cv_stat_flavor],
+    [touch conftest
+     chmod 642 conftest
+     attr_bsd=`stat -f '%Lp' conftest 2>/dev/null`
+     attr_gnu=`stat -c '%a' conftest 2>/dev/null`
+     rm -f conftest
+     AS_IF([test "$attr_bsd" = "642"],
+       [acx_cv_stat_flavor=BSD],
+       [test "$attr_gnu" = "642"],
+       [acx_cv_stat_flavor=GNU],
+       [AC_MSG_ERROR([cannot determine stat(1) format option])])])
+
+# FIXME: support SET_KCONFIG_OPTION with string values? But then
+# again, these checks may be moved into ct-ng script.
+test "$acx_cv_stat_flavor" = "BSD" && stat_flavor_BSD=y
+ACX_SET_KCONFIG_OPTION([stat_flavor_BSD])
+test "$acx_cv_stat_flavor" = "GNU" && stat_flavor_GNU=y
+ACX_SET_KCONFIG_OPTION([stat_flavor_GNU])
 
 #--------------------------------------------------------------------
 # Still boring, but remember the path, now...
