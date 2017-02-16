@@ -257,7 +257,7 @@ do_binutils_backend() {
         CT_DoLog EXTRA "Installing ld wrapper"
         rm -f "${prefix}/bin/${CT_TARGET}-ld"
         rm -f "${prefix}/${CT_TARGET}/bin/ld"
-        sed -r -e "s/@@DEFAULT_LD@@/${CT_BINUTILS_LINKER_DEFAULT}/" \
+        sed_r -e "s/@@DEFAULT_LD@@/${CT_BINUTILS_LINKER_DEFAULT}/" \
             "${CT_LIB_DIR}/scripts/build/binutils/binutils-ld.in"      \
             >"${prefix}/bin/${CT_TARGET}-ld"
         chmod +x "${prefix}/bin/${CT_TARGET}-ld"

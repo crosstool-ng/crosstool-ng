@@ -171,15 +171,27 @@ AS_IF([test "$EGREP" != "$GREP -E"],
 ACX_WITH_DEPRECATED([sed], [SED])
 AC_ARG_VAR([INSTALL], [Specify the full path to GNU sed])
 AC_PROG_SED
-AC_MSG_CHECKING([whether sed understands -r -i -e])
-echo foo > .ct-ng.sed.test
-${SED} -r -i -e 's/f(o)o/b\1ar/' .ct-ng.sed.test >/dev/null 2>&1
-rc=$?
-content=`cat .ct-ng.sed.test`
-rm -f .ct-ng.sed.test
-AS_IF([test "$rc:$content" = "0:boar"],
-    [AC_MSG_RESULT([yes])],
-    [AC_MSG_ERROR([sed does not accept -r -i -e])])
+AC_CACHE_CHECK([whether $SED understands -i -e],
+    [acx_cv_sed_i_e],
+    [echo foo > .ct-ng.sed.test
+     ${SED} -i -e 's/foo/bar/' .ct-ng.sed.test >/dev/null 2>&1
+     rc=$?
+     content=`cat .ct-ng.sed.test`
+     rm -f .ct-ng.sed.test
+     AS_IF([test "$rc:$content" = "0:bar"],
+           [acx_cv_sed_i_e=yes],
+           [AC_MSG_ERROR([sed does not accept -i -e])])])
+AC_CACHE_CHECK([which $SED option selects extended regexp],
+    [acx_cv_sed_r],
+    [opt_r=`echo foo | $SED -r -e 's/f(o)o/b\1ar/' 2>/dev/null`
+     opt_E=`echo foo | $SED -E -e 's/f(o)o/b\1ar/' 2>/dev/null`
+     AS_IF([test "$opt_r" = "boar"],
+           [acx_cv_sed_r=-r],
+           [test "$opt_E" = "boar"],
+           [acx_cv_sed_r=-E],
+           [AC_MSG_ERROR([neither -r nor -E enables extended regexp])])])
+SED_R="$SED $acx_cv_sed_r"
+AC_SUBST([SED_R])
 
 AC_PROG_LN_S
 

@@ -80,7 +80,7 @@ do_kernel_extract() {
     # to version - patching each particular Linux version would be
     # too cumbersome.
     CT_Pushd "${CT_SRC_DIR}/linux-${CT_KERNEL_VERSION}"
-    sed -i -r 's/(\$\(MAKE\) .* relocs)$/:/' arch/*/Makefile
+    sed_r -i 's/(\$\(MAKE\) .* relocs)$/:/' arch/*/Makefile
     CT_Popd
 }
 

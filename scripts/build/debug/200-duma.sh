@@ -48,7 +48,7 @@ do_debug_duma_build() {
     if [ "${CT_DUMA_CUSTOM_WRAPPER}" = "y" ]; then
         # The shared library needs some love: some version have libduma.so.0.0,
         # while others have libduma.so.0.0.0
-        duma_so=$( make "${make_args[@]}" printvars | sed -n -r -e 's/^DUMASO \[(.*)\]$/\1/p' )
+        duma_so=$( make "${make_args[@]}" printvars | sed_r -n -e 's/^DUMASO \[(.*)\]$/\1/p' )
 
         CT_DoLog EXTRA "Installing wrapper script"
         CT_DoExecLog ALL mkdir -p "${CT_DEBUGROOT_DIR}/usr/bin"
@@ -56,7 +56,7 @@ do_debug_duma_build() {
         CT_DoExecLog ALL rm -f "${CT_DEBUGROOT_DIR}/usr/bin/duma"
         CT_DoExecLog ALL cp "${CT_LIB_DIR}/scripts/build/debug/duma.in" \
                             "${CT_DEBUGROOT_DIR}/usr/bin/duma"
-        CT_DoExecLog ALL sed -i -r -e "s:^LIBDUMA_SO=.*:LIBDUMA_SO=/usr/lib/${duma_so}:;" \
+        CT_DoExecLog ALL sed_r -i -e "s:^LIBDUMA_SO=.*:LIBDUMA_SO=/usr/lib/${duma_so}:;" \
                             "${CT_DEBUGROOT_DIR}/usr/bin/duma"
         CT_DoExecLog ALL chmod 755 "${CT_DEBUGROOT_DIR}/usr/bin/duma"
     fi
