@@ -76,18 +76,21 @@ do_gettext_backend() {
         eval "${arg// /\\ }"
     done
 
-    CT_DoLog EXTRA "Configuring gettext"
-
-    # A bit ugly. D__USE_MINGW_ANSI_STDIO=1 has its own {v}asprintf functions
-    # but gettext configure doesn't see this flag when it checks for that. An
-    # alternative may be to use CC="${host}-gcc ${cflags}" but that didn't
-    # work.
-    # -O2 works around bug at http://savannah.gnu.org/bugs/?36443
-    # gettext needs some fixing for MinGW-w64 it would seem.
-    # -DLIBXML_STATIC needed to link with libxml (provided by gnulib) under
-    # MinGW: without this flag, xmlFree is defined as `dllimport` by libxml
-    # headers and hence fails to link.
     case "${host}" in
+        *-linux-gnu*)
+            CT_DoLog EXTRA "Skipping (included in GNU C library)"
+            return
+            ;;
+
+        # A bit ugly. D__USE_MINGW_ANSI_STDIO=1 has its own {v}asprintf functions
+        # but gettext configure doesn't see this flag when it checks for that. An
+        # alternative may be to use CC="${host}-gcc ${cflags}" but that didn't
+        # work.
+        # -O2 works around bug at http://savannah.gnu.org/bugs/?36443
+        # gettext needs some fixing for MinGW-w64 it would seem.
+        # -DLIBXML_STATIC needed to link with libxml (provided by gnulib) under
+        # MinGW: without this flag, xmlFree is defined as `dllimport` by libxml
+        # headers and hence fails to link.
         *mingw*)
             case "${cflags}" in
                 *D__USE_MINGW_ANSI_STDIO=1*)
@@ -102,6 +105,8 @@ do_gettext_backend() {
     if [ "${shared}" != "y" ]; then
         extra_config+=("--disable-shared")
     fi
+
+    CT_DoLog EXTRA "Configuring gettext"
 
     CT_DoExecLog CFG                                        \
     CFLAGS="${cflags}"                                      \
