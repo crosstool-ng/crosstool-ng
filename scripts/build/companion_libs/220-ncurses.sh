@@ -39,7 +39,10 @@ do_ncurses_for_build() {
     case "${CT_TOOLCHAIN_TYPE}" in
         native|cross)
             if [ "${CT_NCURSES_HOST_DISABLE_DB}" = "y" ]; then
-                opts+=( "--disable-database" "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
+                opts+=( "--disable-database" )
+            fi
+            if [ -n "${CT_NCURSES_HOST_FALLBACKS}" ]; then
+                opts+=( "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
             fi
             opts+=( "${CT_NCURSES_HOST_CONFIG_ARGS[@]}" )
             ;;
@@ -73,7 +76,10 @@ do_ncurses_for_host() {
           "--without-cxx-binding" \
           "--without-ada" )
     if [ "${CT_NCURSES_HOST_DISABLE_DB}" = "y" ]; then
-        opts+=( "--disable-database" "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
+        opts+=( "--disable-database" )
+    fi
+    if [ -n "${CT_NCURSES_HOST_FALLBACKS}" ]; then
+        opts+=( "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
     fi
     opts+=( "${CT_NCURSES_HOST_CONFIG_ARGS[@]}" )
     do_ncurses_backend host="${CT_HOST}" \
@@ -96,7 +102,10 @@ do_ncurses_for_target() {
     [ "${CT_CC_LANG_CXX}" = "y" ] || opts+=("--without-cxx" "--without-cxx-binding")
     [ "${CT_CC_LANG_ADA}" = "y" ] || opts+=("--without-ada")
     if [ "${CT_NCURSES_TARGET_DISABLE_DB}" = "y" ]; then
-        opts+=( "--disable-database" "--with-fallbacks=${CT_NCURSES_TARGET_FALLBACKS}" )
+        opts+=( "--disable-database" )
+    fi
+    if [ -n "${CT_NCURSES_TARGET_FALLBACKS}" ]; then
+        opts+=( "--with-fallbacks=${CT_NCURSES_TARGET_FALLBACKS}" )
     fi
     opts+=( "${CT_NCURSES_TARGET_CONFIG_ARGS[@]}" )
     case "${CT_TARGET}" in
