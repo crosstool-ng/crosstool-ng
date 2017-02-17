@@ -15,19 +15,19 @@ awk="@@CT_awk@@"
 CT_PREFIX_DIR="$(cd "$(dirname "$0")/.."; pwd)"
 CT_GCC="${0%-populate}-gcc"
 CT_READELF="${0%-populate}-readelf"
-CT_CFG_PREFIX_DIR="$("${CT_GCC}" -v 2>&1            \
+CT_CFG_PREFIX_DIR="$(${CT_GCC} -v 2>&1              \
                      |tr ' ' '\n'                   \
-                     |"${grep}" -E -- '--prefix='   \
+                     |${grep} -E -- '--prefix='     \
                      |cut -d = -f 2-
                     )"
-CT_CFG_SYSROOT_DIR="$("${CT_GCC}" -v 2>&1                   \
-                      |tr ' ' '\n'                          \
-                      |"${grep}" -E -- '--with-sysroot='    \
+CT_CFG_SYSROOT_DIR="$(${CT_GCC} -v 2>&1                   \
+                      |tr ' ' '\n'                        \
+                      |${grep} -E -- '--with-sysroot='    \
                       |cut -d = -f 2-
                      )"
-CT_SYSROOT_DIR="$(printf "${CT_CFG_SYSROOT_DIR}\n"                              \
-                  |"${sed_r}" -e "s:^${CT_CFG_PREFIX_DIR}:${CT_PREFIX_DIR}:;"  \
-                  |"${sed_r}" -e 's,/+,/,g;'                                   \
+CT_SYSROOT_DIR="$(printf "${CT_CFG_SYSROOT_DIR}\n"                           \
+                  |${sed_r} -e "s:^${CT_CFG_PREFIX_DIR}:${CT_PREFIX_DIR}:;"  \
+                            -e 's,/+,/,g;'                                   \
                  )"
 
 myname=$(basename "$0")
@@ -198,9 +198,9 @@ do_add_lib() {
         ${CT_PRINTF} ": '%s'\n" "${libfile}"
         if [ -e "${libfile}" ]; then
             mkdir -p "${dir}"
-            true_libname=$("${CT_READELF}" -d "${libfile}"          \
-                           |"${grep}" "Library soname:"             \
-                           |"${sed_r}" -e 's,.+\[(.+)\] *$,\1,;'   \
+            true_libname=$("${CT_READELF}" -d "${libfile}"       \
+                           |${grep} "Library soname:"            \
+                           |${sed_r} -e 's,.+\[(.+)\] *$,\1,;'   \
                           )
             case "${libfile}" in
                 */ld*)  mode=0755;;
@@ -225,9 +225,9 @@ do_resolve_deps() {
     local file="${1}"
     local libname
     
-    for libname in $("${CT_READELF}" -d "${file}"                           \
-                     |"${grep}" -E '\(NEEDED\)[[:space:]]+Shared library:'  \
-                     |"${sed_r}" -e 's,.+\[(.+)\] *$,\1,;'                 \
+    for libname in $("${CT_READELF}" -d "${file}"                        \
+                     |${grep} -E '\(NEEDED\)[[:space:]]+Shared library:' \
+                     |${sed_r} -e 's,.+\[(.+)\] *$,\1,;'                 \
                     ); do
         [ -n "${libname}" ] || continue
         ${CT_PRINTF} "Searching for '%s' needed by '%s'\n" "${libname}" "${file}"
@@ -244,15 +244,15 @@ cd "${CT_ROOT_DST_DIR}"
 # First of, copy the forced libraries into the working copy
 lib_list=
 if [ -n "${CT_LIB_FILE}" ]; then
-    lib_list=$("${sed_r}" -e ':loop; s/#.*//;'         \
-                           -e 's/[[:space:]]+//g;'      \
-                           -e 's/([^:])$/\1:/;'         \
-                           -e '/$/N; s/\n//; tloop;'    \
+    lib_list=$(${sed_r} -e ':loop; s/#.*//;'         \
+                        -e 's/[[:space:]]+//g;'      \
+                        -e 's/([^:])$/\1:/;'         \
+                        -e '/$/N; s/\n//; tloop;'    \
                         "${CT_LIB_FILE}"
               )
 fi
 CT_LIB_LIST=$(printf "${CT_LIB_LIST}:${lib_list}\n"         \
-              |"${sed_r}" -e 's/^:+//; s/:+$//; s/:+/ /g;' \
+              |${sed_r} -e 's/^:+//; s/:+$//; s/:+/ /g;' \
              )
 if [ -n "${CT_LIB_LIST}" ]; then
     for name in ${CT_LIB_LIST}; do
@@ -283,7 +283,7 @@ trap "rm -rf ${CT_TMP_DIR}" EXIT
 
 # List all ELF (executables|shared objects)...
 find . -type f -exec file {} \;                                             \
-|"${grep}" -E ': ELF [[:digit:]]+-bit (L|M)SB +(executable|shared object),' \
+|${grep} -E ': ELF [[:digit:]]+-bit (L|M)SB +(executable|shared object),' \
 |cut -d ":" -f 1                                                            \
 >"${CT_TMP_DIR}/files.list"
 
