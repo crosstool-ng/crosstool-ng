@@ -1050,6 +1050,8 @@ do_gcc_backend() {
 
     if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugin )
+    else
+        extra_config+=( --disable-plugin )
     fi
     if [ "${CT_CC_GCC_GOLD}" = "y" ]; then
         extra_config+=( --enable-gold )
