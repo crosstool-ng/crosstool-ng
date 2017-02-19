@@ -476,13 +476,9 @@ do_gcc_core_backend() {
         core_LDFLAGS+=("-lm")
     fi
 
-    if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${complibs}")
-        extra_config+=("--with-mpfr=${complibs}")
-    fi
-    if [ "${CT_CC_GCC_USE_MPC}" = "y" ]; then
-        extra_config+=("--with-mpc=${complibs}")
-    fi
+    extra_config+=("--with-gmp=${complibs}")
+    extra_config+=("--with-mpfr=${complibs}")
+    extra_config+=("--with-mpc=${complibs}")
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
         if [ "${CT_ISL}" = "y" ]; then
             extra_config+=("--with-isl=${complibs}")
@@ -982,13 +978,9 @@ do_gcc_backend() {
         final_LDFLAGS+=("-lm")
     fi
 
-    if [ "${CT_CC_GCC_USE_GMP_MPFR}" = "y" ]; then
-        extra_config+=("--with-gmp=${complibs}")
-        extra_config+=("--with-mpfr=${complibs}")
-    fi
-    if [ "${CT_CC_GCC_USE_MPC}" = "y" ]; then
-        extra_config+=("--with-mpc=${complibs}")
-    fi
+    extra_config+=("--with-gmp=${complibs}")
+    extra_config+=("--with-mpfr=${complibs}")
+    extra_config+=("--with-mpc=${complibs}")
     if [ "${CT_CC_GCC_USE_GRAPHITE}" = "y" ]; then
         if [ "${CT_ISL}" = "y" ]; then
             extra_config+=("--with-isl=${complibs}")
