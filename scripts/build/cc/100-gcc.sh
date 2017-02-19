@@ -434,14 +434,12 @@ do_gcc_core_backend() {
     else
         extra_config+=(--disable-libssp)
     fi
-    if [ "${CT_CC_GCC_HAS_LIBQUADMATH}" = "y" ]; then
-        if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
-            extra_config+=(--enable-libquadmath)
-            extra_config+=(--enable-libquadmath-support)
-        else
-            extra_config+=(--disable-libquadmath)
-            extra_config+=(--disable-libquadmath-support)
-        fi
+    if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
+        extra_config+=(--enable-libquadmath)
+        extra_config+=(--enable-libquadmath-support)
+    else
+        extra_config+=(--disable-libquadmath)
+        extra_config+=(--disable-libquadmath-support)
     fi
 
     core_LDFLAGS+=("${ldflags}")
@@ -928,22 +926,18 @@ do_gcc_backend() {
     else
         extra_config+=(--disable-libssp)
     fi
-    if [ "${CT_CC_GCC_HAS_LIBQUADMATH}" = "y" ]; then
-        if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
-            extra_config+=(--enable-libquadmath)
-            extra_config+=(--enable-libquadmath-support)
-        else
-            extra_config+=(--disable-libquadmath)
-            extra_config+=(--disable-libquadmath-support)
-        fi
+    if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
+        extra_config+=(--enable-libquadmath)
+        extra_config+=(--enable-libquadmath-support)
+    else
+        extra_config+=(--disable-libquadmath)
+        extra_config+=(--disable-libquadmath-support)
     fi
 
-    if [ "${CT_CC_GCC_HAS_LIBSANITIZER}" = "y" ]; then
-        if [ "${CT_CC_GCC_LIBSANITIZER}" = "y" ]; then
-            extra_config+=(--enable-libsanitizer)
-        else
-            extra_config+=(--disable-libsanitizer)
-        fi
+    if [ "${CT_CC_GCC_LIBSANITIZER}" = "y" ]; then
+        extra_config+=(--enable-libsanitizer)
+    else
+        extra_config+=(--disable-libsanitizer)
     fi
 
     if [ "${CT_CC_GCC_HAS_LIBMPX}" = "y" ]; then
