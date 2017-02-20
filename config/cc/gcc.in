@@ -7,6 +7,7 @@
 ## select CC_SUPPORT_ADA
 ## select CC_SUPPORT_OBJC
 ## select CC_SUPPORT_OBJCXX
+## select CC_SUPPORT_GOLANG
 ##
 ## help gcc is the full-blown GNU compiler. This is what most people will choose.
 ## help
@@ -128,16 +129,6 @@ endif # ! CC_GCC_CUSTOM
 config CC_GCC_4_8
     bool
     select CC_GCC_4_8_or_later
-    select CC_GCC_USE_GMP_MPFR
-    select CC_GCC_USE_MPC
-    select CC_GCC_HAS_GRAPHITE
-    select CC_GCC_HAS_LTO
-    select CC_GCC_HAS_PKGVERSION_BUGURL
-    select CC_GCC_HAS_BUILD_ID
-    select CC_GCC_HAS_LNK_HASH_STYLE
-    select CC_GCC_HAS_LIBQUADMATH
-    select CC_GCC_HAS_LIBSANITIZER
-    select CC_SUPPORT_GOLANG
 
 config CC_GCC_4_8_or_later
     bool
@@ -145,16 +136,6 @@ config CC_GCC_4_8_or_later
 config CC_GCC_4_9
     bool
     select CC_GCC_4_9_or_later
-    select CC_GCC_USE_GMP_MPFR
-    select CC_GCC_USE_MPC
-    select CC_GCC_HAS_GRAPHITE
-    select CC_GCC_HAS_LTO
-    select CC_GCC_HAS_PKGVERSION_BUGURL
-    select CC_GCC_HAS_BUILD_ID
-    select CC_GCC_HAS_LNK_HASH_STYLE
-    select CC_GCC_HAS_LIBQUADMATH
-    select CC_GCC_HAS_LIBSANITIZER
-    select CC_SUPPORT_GOLANG
 
 config CC_GCC_4_9_or_later
     bool
@@ -163,17 +144,7 @@ config CC_GCC_4_9_or_later
 config CC_GCC_5
     bool
     select CC_GCC_5_or_later
-    select CC_GCC_USE_GMP_MPFR
-    select CC_GCC_USE_MPC
-    select CC_GCC_HAS_GRAPHITE
-    select CC_GCC_HAS_LTO
-    select CC_GCC_HAS_PKGVERSION_BUGURL
-    select CC_GCC_HAS_BUILD_ID
-    select CC_GCC_HAS_LNK_HASH_STYLE
-    select CC_GCC_HAS_LIBQUADMATH
-    select CC_GCC_HAS_LIBSANITIZER
     select CC_GCC_HAS_LIBMPX
-    select CC_SUPPORT_GOLANG
 
 config CC_GCC_5_or_later
     bool
@@ -182,17 +153,7 @@ config CC_GCC_5_or_later
 config CC_GCC_6
     bool
     select CC_GCC_6_or_later
-    select CC_GCC_USE_GMP_MPFR
-    select CC_GCC_USE_MPC
-    select CC_GCC_HAS_GRAPHITE
-    select CC_GCC_HAS_LTO
-    select CC_GCC_HAS_PKGVERSION_BUGURL
-    select CC_GCC_HAS_BUILD_ID
-    select CC_GCC_HAS_LNK_HASH_STYLE
-    select CC_GCC_HAS_LIBQUADMATH
-    select CC_GCC_HAS_LIBSANITIZER
     select CC_GCC_HAS_LIBMPX
-    select CC_SUPPORT_GOLANG
 
 config CC_GCC_6_or_later
     bool
@@ -201,64 +162,7 @@ config CC_GCC_6_or_later
 config CC_GCC_latest
     bool
     select CC_GCC_6_or_later
-    select CC_GCC_USE_GMP_MPFR
-    select CC_GCC_USE_MPC
-    select CC_GCC_HAS_GRAPHITE
-    select CC_GCC_HAS_LTO
-    select CC_GCC_HAS_PKGVERSION_BUGURL
-    select CC_GCC_HAS_BUILD_ID
-    select CC_GCC_HAS_LNK_HASH_STYLE
-    select CC_GCC_HAS_LIBQUADMATH
-    select CC_GCC_HAS_LIBSANITIZER
-
-config CC_GCC_HAS_GRAPHITE
-    bool
-
-# For graphite: gcc needs cloog and isl
-# In >= gcc-5.x, cloog is no longer needed, but isl is.
-# Prompt in config/cc/gcc.in.2
-config CC_GCC_USE_GRAPHITE
-    bool
-    default y
-    depends on CC_GCC_HAS_GRAPHITE
-    select CLOOG_NEEDED if !CC_GCC_5_or_later
-    select ISL_NEEDED
-    help
-      Enable the GRAPHITE loop optimsations.
-      
-      On some systems (eg. Cygwin), CLooG and ISL (required to enable
-      GRAPHITE) may not build properly (yet), so you'll have to say 'N'
-      here (or help debug the issues)
-
-      TODO: Is this still true on Cygwin?
-
-# The way LTO works is a bit twisted.
-# See: http://gcc.gnu.org/wiki/LinkTimeOptimization#Requirements
-# Basically:
-#   - if binutils has plugins: LTO is handled by ld/gold by loading
-#     the plugin when linking
-#   - if binutils does not have plugins: LTO is handled by collect2
-# In any case, LTO support does not depend on plugins, but takes
-# advantage of it
-config CC_GCC_HAS_LTO
-    bool
-
-# Prompt in config/cc/gcc.in.2
-config CC_GCC_USE_LTO
-    bool
-    default y
-    depends on CC_GCC_HAS_LTO
-    help
-      Enable the Link Time Optimisations.
-
-config CC_GCC_HAS_PKGVERSION_BUGURL
-    bool
-
-config CC_GCC_HAS_BUILD_ID
-    bool
-
-config CC_GCC_HAS_LNK_HASH_STYLE
-    bool
+    select CC_GCC_HAS_LIBMPX
 
 # Only enable gcc's support for plugins if binutils has it as well
 # They are useful only when doing LTO, but it does no harm enabling
@@ -274,21 +178,6 @@ config CC_GCC_GOLD
     bool
     depends on BINUTILS_GOLD_INSTALLED
     default y
-
-config CC_GCC_USE_GMP_MPFR
-    bool
-    select GMP_NEEDED
-    select MPFR_NEEDED
-
-config CC_GCC_USE_MPC
-    bool
-    select MPC_NEEDED
-
-config CC_GCC_HAS_LIBQUADMATH
-    bool
-
-config CC_GCC_HAS_LIBSANITIZER
-    bool
 
 config CC_GCC_HAS_LIBMPX
     bool
@@ -314,9 +203,5 @@ config CC_LANG_JAVA_USE_ECJ
     bool
     default y
     depends on CC_LANG_JAVA
-
-# Fortran always requires GMP+MPFR, whatever the gcc version
-config CC_LANG_FORTRAN
-    select CC_GCC_USE_GMP_MPFR
 
 source "config/cc/gcc.in.2"

@@ -96,8 +96,22 @@ config CC_GCC_SYSTEM_ZLIB
 comment "Optimisation features"
 
 # Defined in config/cc/gcc.in
+# For graphite: gcc needs cloog and isl
+# In >= gcc-5.x, cloog is no longer needed, but isl is.
+# Prompt in config/cc/gcc.in.2
 config CC_GCC_USE_GRAPHITE
-    prompt "Enable GRAPHITE loop optimisations"
+    bool "Enable GRAPHITE loop optimisations"
+    default y
+    select CLOOG_NEEDED if !CC_GCC_5_or_later
+    select ISL_NEEDED
+    help
+      Enable the GRAPHITE loop optimsations.
+      
+      On some systems (eg. Cygwin), CLooG and ISL (required to enable
+      GRAPHITE) may not build properly (yet), so you'll have to say 'N'
+      here (or help debug the issues)
+
+      TODO: Is this still true on Cygwin?
 
 # The way LTO works is a bit twisted.
 # See: http://gcc.gnu.org/wiki/LinkTimeOptimization#Requirements
@@ -107,11 +121,12 @@ config CC_GCC_USE_GRAPHITE
 #   - if binutils does not have plugins: LTO is handled by collect2
 # In any case, LTO support does not depend on plugins, but takes
 # advantage of it
-# Also, only the 4.5 series needs libelf for LTO; 4.6 has dropped
-# the dependency.
-# Defined in config/cc/gcc.in
 config CC_GCC_USE_LTO
-    prompt "Enable LTO"
+    bool "Enable LTO"
+    default y
+    depends on ! STATIC_TOOLCHAIN
+    help
+      Enable the Link Time Optimisations.
 
 #-----------------------------------------------------------------------------
 comment "Settings for libraries running on target"
@@ -163,7 +178,6 @@ config CC_GCC_LIBSSP
 config CC_GCC_LIBQUADMATH
     bool
     prompt "Compile libquadmath"
-    depends on CC_GCC_HAS_LIBQUADMATH
     help
       libquadmath is a library which provides quad-precision mathematical
       functions on targets supporting the __float128 datatype. See:
@@ -174,7 +188,6 @@ config CC_GCC_LIBQUADMATH
 config CC_GCC_LIBSANITIZER
     bool
     prompt "Compile libsanitizer"
-    depends on CC_GCC_HAS_LIBSANITIZER
     depends on THREADS_NATIVE
     depends on ! LIBC_uClibc && ! LIBC_musl # Currently lacks required headers (like netrom.h)
     help
@@ -258,7 +271,6 @@ config CC_GCC_LDBL_128
 config CC_GCC_BUILD_ID
     bool
     prompt "Enable build-id"
-    depends on CC_GCC_HAS_BUILD_ID
     help
       Tells GCC to pass --build-id option to the linker for all final
       links (links performed without the -r or --relocatable option),
@@ -271,7 +283,6 @@ config CC_GCC_BUILD_ID
 choice CC_GCC_LNK_HASH_STYLE_CHOICE
     bool
     prompt "linker hash style"
-    depends on CC_GCC_HAS_LNK_HASH_STYLE
     depends on BINUTILS_HAS_HASH_STYLE
 
 config CC_GCC_LNK_HASH_STYLE_DEFAULT
