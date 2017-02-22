@@ -88,7 +88,10 @@ do_gmp_backend() {
         extra_config+=("--enable-mpbsd")
     fi
 
+    # FIXME: GMP's configure script doesn't respect the host parameter
+    # when not cross-compiling, ie when build == host.
     CT_DoExecLog CFG                                \
+    CC="${host}-gcc"                                \
     CFLAGS="${cflags} -fexceptions"                 \
     LDFLAGS="${ldflags}"                            \
     ${CONFIG_SHELL}                                 \
