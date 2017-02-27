@@ -62,7 +62,6 @@ export awk             := @AWK@
 export grep            := @GREP@
 export make            := @MAKE@
 export sed             := @SED@
-export sed_r           := @SED_R@
 export wget            := @wget@
 export curl            := @curl@
 export libtool         := @LIBTOOL@
@@ -181,7 +180,7 @@ docs/$(PROG_NAME).1.gz: docs/$(PROG_NAME).1
 
 define sed_it
 	@echo "  SED    '$@'"
-	@$(sed_r)  -e 's,@@CT_BINDIR@@,$(bindir),g;'        \
+	@$(sed) -r -e 's,@@CT_BINDIR@@,$(bindir),g;'        \
 	           -e 's,@@CT_LIBDIR@@,$(libdir),g;'        \
 	           -e 's,@@CT_DOCDIR@@,$(docdir),g;'        \
 	           -e 's,@@CT_MANDIR@@,$(mandir),g;'        \
@@ -205,43 +204,18 @@ $(PROG_NAME): ct-ng.in Makefile
 %: %.in Makefile
 	$(call sed_it)
 
+__paths_vars	= install bash awk grep make sed libtool \
+		  libtoolize objcopy objdump readelf patch gperf
+
 # We create a script fragment that is parseable from inside a Makefile,
-# and one from inside a shell script
+# and one from inside a shell script.
 paths.mk: FORCE
 	@echo "  GEN    '$@'"
-	@(echo 'export install=$(install)';         \
-	  echo 'export bash=$(bash)';               \
-	  echo 'export awk=$(awk)';                 \
-	  echo 'export grep=$(grep)';               \
-	  echo 'export make=$(make)';               \
-	  echo 'export sed=$(sed)';                 \
-	  echo 'export sed_r=$(sed_r)';             \
-	  echo 'export libtool=$(libtool)';         \
-	  echo 'export libtoolize=$(libtoolize)';   \
-	  echo 'export objcopy=$(objcopy)';         \
-	  echo 'export objdump=$(objdump)';         \
-	  echo 'export readelf=$(readelf)';         \
-	  echo 'export patch=$(patch)';             \
-	  echo 'export gperf=$(gperf)';             \
-	 ) >$@
+	@{ $(foreach w,$(__paths_vars),$(if $($w),echo 'export $w=$(subst ','\'',$($w))';)) :; } >$@
 
 paths.sh: FORCE
 	@echo "  GEN    '$@'"
-	@(echo 'export install="$(install)"';       \
-	  echo 'export bash="$(bash)"';             \
-	  echo 'export awk="$(awk)"';               \
-	  echo 'export grep="$(grep)"';             \
-	  echo 'export make="$(make)"';             \
-	  echo 'export sed="$(sed)"';               \
-	  echo 'export sed_r="$(sed_r)"';           \
-	  echo 'export libtool="$(libtool)"';       \
-	  echo 'export libtoolize="$(libtoolize)"'; \
-	  echo 'export objcopy="$(objcopy)"';       \
-	  echo 'export objdump="$(objdump)"';       \
-	  echo 'export readelf="$(readelf)"';       \
-	  echo 'export patch="$(patch)"';           \
-	  echo 'export gperf="$(gperf)"';           \
-	 ) >$@
+	@{ $(foreach w,$(__paths_vars),$(if $($w),echo 'export $w="$(subst ','\'',$($w))"';)) :; } >$@
 
 config/configure.in: FORCE
 	@echo "  GEN    '$@'"

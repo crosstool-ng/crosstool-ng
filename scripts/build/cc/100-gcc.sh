@@ -660,7 +660,7 @@ do_gcc_core_backend() {
 
         CT_DoExecLog ALL make ${JOBSFLAGS} -C gcc ${libgcc_rule} \
                               ${repair_cc}
-        sed_r -i -e 's@-lc@@g' gcc/${libgcc_rule}
+        sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
         core_targets=( gcc )
     fi   # ! build libgcc
