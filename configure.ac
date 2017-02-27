@@ -172,7 +172,7 @@ ACX_PROG_VERSION_REQ_STRICT([SED],
     [GNU sed >= 4.0],
     [sed],
     [gsed sed],
-    ['\(GNU sed\) [4-9]\.'])
+    ['GNU sed[^0-9]* [4-9]\.'])
 AC_ARG_VAR([SED], [Specify the full path to GNU sed])
 
 AC_PROG_LN_S
