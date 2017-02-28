@@ -214,6 +214,7 @@ ACX_CHECK_PROGS_REQ([readlink], [readlink])
 ACX_CHECK_PROGS_REQ([tar], [tar])
 ACX_CHECK_PROGS_REQ([gzip], [gzip])
 ACX_CHECK_PROGS_REQ([bzip2], [bzip2])
+ACX_CHECK_PROGS_REQ([xz], [xz])
 ACX_CHECK_PROGS_REQ([help2man], [help2man])
 
 # Not a fatal failure even if we have neither - the tarballs may
@@ -346,14 +347,6 @@ AC_SUBST([GPERF_LEN_TYPE])
 # Boring again... But still a bit of work to do...
 #--------------------------------------------------------------------
 AC_SUBST([kconfig_options])
-
-#----------------------------------------
-AC_CHECK_PROGS([xz],   [xz])
-ACX_SET_KCONFIG_OPTION([xz])
-AS_IF(
-    [test -z "$xz"],
-    [AC_CHECK_PROGS([lzma], [lzma])])
-ACX_SET_KCONFIG_OPTION([lzma])
 
 #----------------------------------------
 AC_CHECK_PROGS([cvs], [cvs])
