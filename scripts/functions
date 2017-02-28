@@ -618,13 +618,8 @@ CT_SetLibPath() {
 # Build up the list of allowed tarball extensions
 # Add them in the prefered order; most preferred comes first
 CT_DoListTarballExt() {
-    if [ "${CT_CONFIGURE_has_xz}" = "y" ]; then
-        printf ".tar.xz\n"
-    fi
-    if [    "${CT_CONFIGURE_has_lzma}" = "y"    \
-         -o "${CT_CONFIGURE_has_xz}" = "y" ]; then
-        printf ".tar.lzma\n"
-    fi
+    printf ".tar.xz\n"
+    printf ".tar.lzma\n"
     printf ".tar.bz2\n"
     printf ".tar.gz\n.tgz\n"
     printf ".tar\n"
@@ -1085,7 +1080,6 @@ CT_Extract() {
     local nochdir="$1"
     local basename
     local ext
-    local lzma_prog
     local -a tar_opts
 
     if [ "${nochdir}" = "nochdir" ]; then
@@ -1128,19 +1122,9 @@ CT_Extract() {
     tar_opts+=( "-C" "${basename}" )
     tar_opts+=( "-xv" )
 
-    # One note here:
-    # - lzma can be handled either with 'xz' or 'lzma'
-    # - we get lzma tarball only if either or both are available
-    # - so, if we get an lzma tarball, and either 'xz' or 'lzma' is
-    #   missing, we can assume the other is available
-    if [ "${CT_CONFIGURE_has_lzma}" = "y" ]; then
-        lzma_prog="lzma -fdc"
-    else
-        lzma_prog="xz -fdc"
-    fi
     case "${ext}" in
         .tar.xz)      xz -fdc "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
-        .tar.lzma)    ${lzma_prog} "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
+        .tar.lzma)    xz -fdc "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
         .tar.bz2)     bzip2 -dc "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
         .tar.gz|.tgz) gzip -dc "${full_file}" | CT_DoExecLog FILE tar "${tar_opts[@]}" -f -;;
         .tar)         CT_DoExecLog FILE tar "${tar_opts[@]}" -f "${full_file}";;
