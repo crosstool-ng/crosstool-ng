@@ -1,0 +1,104 @@
+diff -urpN '--exclude=autom4te.cache' gcc-4.9.4.orig/gcc/configure gcc-4.9.4/gcc/configure
+--- gcc-4.9.4.orig/gcc/configure	2016-05-22 01:53:32.000000000 -0700
++++ gcc-4.9.4/gcc/configure	2017-02-11 16:54:52.879474293 -0800
+@@ -28058,6 +28058,9 @@ fi
+ 
+ 
+ pluginlibs=
++PICFLAG="-fPIC"
++UNDEFINEDPREAMBLE="extern int X;"
++UNDEFINEDCODE="return X == 0;"
+ 
+ case "${host}" in
+   *-*-darwin*)
+@@ -28069,6 +28072,11 @@ case "${host}" in
+       export_sym_check=
+     fi
+   ;;
++  *-*-mingw*|*-*-cygwin*|*-*-msys*)
++    PICFLAG=""
++    UNDEFINEDPREAMBLE=""
++    UNDEFINEDCODE=""
++  ;;
+   *)
+     if test x$build = x$host; then
+       export_sym_check="objdump${exeext} -T"
+@@ -28181,23 +28189,23 @@ fi
+   case "${host}" in
+     *-*-darwin*)
+       CFLAGS=`echo $CFLAGS | sed s/-mdynamic-no-pic//g`
+-      CFLAGS="$CFLAGS -fPIC"
++      CFLAGS="$CFLAGS ${PICFLAG}"
+       LDFLAGS="$LDFLAGS -shared -undefined dynamic_lookup"
+     ;;
+     *)
+-      CFLAGS="$CFLAGS -fPIC"
+-      LDFLAGS="$LDFLAGS -fPIC -shared"
++      CFLAGS="$CFLAGS ${PICFLAG}"
++      LDFLAGS="$LDFLAGS ${PICFLAG} -shared"
+     ;;
+   esac
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fPIC -shared" >&5
+-$as_echo_n "checking for -fPIC -shared... " >&6; }
++  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${PICFLAG} -shared" >&5
++$as_echo_n "checking for ${PICFLAG} -shared... " >&6; }
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+-extern int X;
++${UNDEFINEDPREAMBLE}
+ int
+ main ()
+ {
+-return X == 0;
++${UNDEFINEDCODE}
+   ;
+   return 0;
+ }
+diff -urpN '--exclude=autom4te.cache' gcc-4.9.4.orig/gcc/configure.ac gcc-4.9.4/gcc/configure.ac
+--- gcc-4.9.4.orig/gcc/configure.ac	2016-05-22 01:53:32.000000000 -0700
++++ gcc-4.9.4/gcc/configure.ac	2017-02-11 16:49:59.820965424 -0800
+@@ -5583,6 +5583,9 @@ enable_plugin=$enableval,
+ enable_plugin=yes; default_plugin=yes)
+ 
+ pluginlibs=
++PICFLAG="-fPIC"
++UNDEFINEDPREAMBLE="extern int X;"
++UNDEFINEDCODE="return X == 0;"
+ 
+ case "${host}" in
+   *-*-darwin*)
+@@ -5594,6 +5597,11 @@ case "${host}" in
+       export_sym_check=
+     fi
+   ;;
++  *-*-mingw*|*-*-cygwin*|*-*-msys*)
++    PICFLAG=""
++    UNDEFINEDPREAMBLE=""
++    UNDEFINEDCODE=""
++  ;;
+   *)
+     if test x$build = x$host; then
+       export_sym_check="objdump${exeext} -T"
+@@ -5645,17 +5653,17 @@ if test x"$enable_plugin" = x"yes"; then
+   case "${host}" in
+     *-*-darwin*)
+       CFLAGS=`echo $CFLAGS | sed s/-mdynamic-no-pic//g`
+-      CFLAGS="$CFLAGS -fPIC"
++      CFLAGS="$CFLAGS ${PICFLAG}"
+       LDFLAGS="$LDFLAGS -shared -undefined dynamic_lookup"
+     ;;
+     *)
+-      CFLAGS="$CFLAGS -fPIC"
+-      LDFLAGS="$LDFLAGS -fPIC -shared"
++      CFLAGS="$CFLAGS ${PICFLAG}"
++      LDFLAGS="$LDFLAGS ${PICFLAG} -shared"
+     ;;
+   esac
+-  AC_MSG_CHECKING([for -fPIC -shared])
++  AC_MSG_CHECKING([for ${PICFLAG} -shared])
+   AC_TRY_LINK(
+-    [extern int X;],[return X == 0;],
++    [${UNDEFINEDPREAMBLE}],[${UNDEFINEDCODE}],
+     [AC_MSG_RESULT([yes]); have_pic_shared=yes],
+     [AC_MSG_RESULT([no]); have_pic_shared=no])
+   if test x"$have_pic_shared" != x"yes" -o x"$ac_cv_search_dlopen" = x"no"; then
