@@ -526,6 +526,15 @@ do_libc_locales() {
     local -a extra_config
     local glibc_cflags
 
+    # To build locales, we'd need to build glibc for the build machine.
+    # Bail out if the host is not supported.
+    case "${CT_BUILD}" in
+        *-cygwin)
+            CT_DoLog EXTRA "Skipping GNU libc locales: incompatible build machine"
+            return
+            ;;
+    esac
+
     mkdir -p "${CT_BUILD_DIR}/build-localedef"
     cd "${CT_BUILD_DIR}/build-localedef"
 
