@@ -247,6 +247,10 @@ do_libc_backend_once() {
     [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
 
     touch config.cache
+
+    # Hide host C++ binary from configure
+    echo "ac_cv_prog_ac_ct_CXX=${CT_TARGET}-g++" >>config.cache
+
     if [ "${CT_LIBC_GLIBC_FORCE_UNWIND}" = "y" ]; then
         echo "libc_cv_forced_unwind=yes" >>config.cache
         echo "libc_cv_c_cleanup=yes" >>config.cache
