@@ -248,6 +248,15 @@ ACX_SET_KCONFIG_OPTION([stat_flavor_BSD])
 test "$acx_cv_stat_flavor" = "GNU" && stat_flavor_GNU=y
 ACX_SET_KCONFIG_OPTION([stat_flavor_GNU])
 
+#Find out how to count CPUs
+AC_CACHE_CHECK([whether to use getconf or sysctl to count CPUs],
+    [acx_cv_cpu_count],
+    [getconf _NPROCESSORS_ONLN >/dev/null 2>&1 && \
+         acx_cv_cpu_count="getconf _NPROCESSORS_ONLN"
+     sysctl -n hw.ncpu >/dev/null 2>&1 && \
+         acx_cv_cpu_count="sysctl -n hw.ncpu"])
+AC_SUBST(CPU_COUNT, "$acx_cv_cpu_count")
+
 #--------------------------------------------------------------------
 # Still boring, but remember the path, now...
 #--------------------------------------------------------------------
