@@ -4,16 +4,14 @@
 CT_WINAPI_VERSION_DOWNLOADED=
 
 do_libc_get() {
-    CT_DoStep INFO "Fetching mingw-w64 source for ${CT_WINAPI_VERSION}"
     if [ "${CT_WINAPI_VERSION}" = "devel" ]; then
         CT_GetGit "mingw-w64" "ref=HEAD" "git://git.code.sf.net/p/mingw-w64/mingw-w64" CT_WINAPI_VERSION_DOWNLOADED
-        CT_DoLog EXTRA "Fetched as ${CT_WINAPI_VERSION_DOWNLOADED}"
+        CT_DoLog DEBUG "Fetched mingw-w64 as ${CT_WINAPI_VERSION_DOWNLOADED}"
     else
         CT_GetFile "mingw-w64-v${CT_WINAPI_VERSION}" \
             http://downloads.sourceforge.net/sourceforge/mingw-w64
         CT_WINAPI_VERSION_DOWNLOADED=v${CT_WINAPI_VERSION}
     fi
-    CT_EndStep
 }
 
 do_libc_extract() {
