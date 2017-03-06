@@ -279,6 +279,9 @@ CT_DoExecLog ALL chmod -R u+w "${CT_PREFIX_DIR}"
 
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
+    # Having .. inside CT_PREFIX breaks relocatability.
+    CT_SanitizeVarDir CT_PREFIX_DIR
+
     case "${CT_SYSROOT_NAME}" in
         "")     CT_SYSROOT_NAME="sysroot";;
         .)      CT_Abort "Sysroot name is set to '.' which is forbidden";;
@@ -288,11 +291,10 @@ if [ -z "${CT_RESTART}" ]; then
 
     # Arrange paths depending on whether we use sysroot or not.
     if [ "${CT_USE_SYSROOT}" = "y" ]; then
-        CT_SYSROOT_REL_DIR="${CT_SYSROOT_DIR_PREFIX:+${CT_SYSROOT_DIR_PREFIX}/}${CT_SYSROOT_NAME}"
-        CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_REL_DIR}"
+        CT_SYSROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/${CT_SYSROOT_NAME}"
         CT_DEBUGROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/debug-root"
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/usr/include"
-        CT_SanitizeVarDir CT_SYSROOT_REL_DIR CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR
+        CT_SanitizeVarDir CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR
         BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         CC_CORE_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         CC_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
