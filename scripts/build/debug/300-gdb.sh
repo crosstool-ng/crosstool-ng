@@ -102,6 +102,11 @@ do_debug_gdb_build() {
                 # FIXME: Really, we should be testing for host compiler being clang.
                 CC_for_gdb+=" -Qunused-arguments"
                 CXX_for_gdb+=" -Qunused-arguments"
+                # clang detects the line from gettext's _ macro as format string
+                # not being a string literal and produces a lot of warnings - which
+                # ct-ng's logger faithfully relays to user if this happens in the
+                # error() function. Suppress them.
+                cross_extra_config+=( "--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security" )
                 ;;
         esac
 
