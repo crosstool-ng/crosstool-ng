@@ -340,6 +340,7 @@ do_gcc_core_backend() {
     local complibs
     local lang_list
     local cflags
+    local cflags_for_build
     local ldflags
     local build_step
     local log_txt
@@ -579,17 +580,30 @@ do_gcc_core_backend() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
+    # We may need to modify host/build CFLAGS separately below
+    cflags_for_build="${cflags}"
+
     # Clang's default bracket-depth is 256, and building GCC
     # requires somewhere between 257 and 512.
-    if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
-        cflags="$cflags "-fbracket-depth=512
+    if [ "${host}" = "${CT_BUILD}" ]; then
+        if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
+            cflags="$cflags "-fbracket-depth=512
+            cflags_for_build="$cflags_for_build "-fbracket-depth=512
+        fi
+    else
+        # FIXME we currently don't support clang as host compiler, only as build
+        if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
+            cflags_for_build="$cflags_for_build "-fbracket-depth=512
+        fi
     fi
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
     CT_DoExecLog CFG                                   \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
     CFLAGS="${cflags}"                                 \
+    CFLAGS_FOR_BUILD="${cflags_for_build}"             \
     CXXFLAGS="${cflags}"                               \
+    CXXFLAGS_FOR_BUILD="${cflags_for_build}"           \
     LDFLAGS="${core_LDFLAGS[*]}"                       \
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"            \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"          \
@@ -867,6 +881,7 @@ do_gcc_backend() {
     local complibs
     local lang_list
     local cflags
+    local cflags_for_build
     local ldflags
     local build_manuals
     local -a host_libstdcxx_flags
@@ -1102,16 +1117,29 @@ do_gcc_backend() {
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
+    # We may need to modify host/build CFLAGS separately below
+    cflags_for_build="${cflags}"
+
     # Clang's default bracket-depth is 256, and building GCC
     # requires somewhere between 257 and 512.
-    if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
-        cflags="$cflags "-fbracket-depth=512
+    if [ "${host}" = "${CT_BUILD}" ]; then
+        if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
+            cflags="$cflags "-fbracket-depth=512
+            cflags_for_build="$cflags_for_build "-fbracket-depth=512
+        fi
+    else
+        # FIXME we currently don't support clang as host compiler, only as build
+        if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
+            cflags_for_build="$cflags_for_build "-fbracket-depth=512
+        fi
     fi
 
     CT_DoExecLog CFG                                   \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
     CFLAGS="${cflags}"                                 \
+    CFLAGS_FOR_BUILD="${cflags_for_build}"             \
     CXXFLAGS="${cflags}"                               \
+    CXXFLAGS_FOR_BUILD="${cflags_for_build}"           \
     LDFLAGS="${final_LDFLAGS[*]}"                      \
     CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"            \
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"          \

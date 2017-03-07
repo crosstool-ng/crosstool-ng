@@ -86,7 +86,7 @@ do_zlib_backend() {
     CT_DoExecLog CFG                                  \
     CFLAGS="${cflags}"                                \
     LDFLAGS="${ldflags}"                              \
-    CROSS_PREFIX="${host}-"                           \
+    CHOST="${host}"                                   \
     ${CONFIG_SHELL}                                   \
     "${CT_SRC_DIR}/zlib-${CT_ZLIB_VERSION}/configure" \
         --prefix="${prefix}"                          \
