@@ -541,7 +541,7 @@ do_libc_locales() {
     # To build locales, we'd need to build glibc for the build machine.
     # Bail out if the host is not supported.
     case "${CT_BUILD}" in
-        *-cygwin)
+        *-cygwin|*-darwin*)
             CT_DoLog EXTRA "Skipping GNU libc locales: incompatible build machine"
             return
             ;;
