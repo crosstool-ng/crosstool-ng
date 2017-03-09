@@ -1,0 +1,44 @@
+From 61d5f9c09b3157db76bd1a393e248c262a8d9dd4 Mon Sep 17 00:00:00 2001
+From: Alexey Neyman <stilor@att.net>
+Date: Wed, 8 Mar 2017 14:31:10 -0800
+Subject: [PATCH] Fix combreloc test with BSD grep
+
+The test for "-z combreloc" fails when cross-compiling on a machine
+that uses BSD grep (e.g. on macos). grep complains about empty
+subexpression and exits with non-zero status, which is interpreted
+by configure as "not found". As a result, support for "-z combreloc"
+(HAVE_Z_COMBRELOC) is not detected, leading to link failure on SPARC.
+
+	* configure.ac: Avoid empty subexpression in grep.
+
+Signed-off-by: Alexey Neyman <stilor@att.net>
+---
+ ChangeLog    | 5 +++++
+ configure    | 2 +-
+ configure.ac | 2 +-
+ 3 files changed, 7 insertions(+), 2 deletions(-)
+
+diff -urpN glibc-2.15.orig/configure glibc-2.15/configure
+--- glibc-2.15.orig/configure	2012-03-19 07:56:58.000000000 -0700
++++ glibc-2.15/configure	2017-03-08 21:02:21.000000000 -0800
+@@ -6566,7 +6566,7 @@ EOF
+   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+   test $ac_status = 0; }; }
+   then
+-    if $READELF -S conftest.so | grep '\.rel\(a\|\)\.dyn' > /dev/null; then
++    if $READELF -S conftest.so | grep '\.\(rel\|rela\)\.dyn' > /dev/null; then
+       libc_cv_z_combreloc=yes
+     else
+       libc_cv_z_combreloc=no
+diff -urpN glibc-2.15.orig/configure.in glibc-2.15/configure.in
+--- glibc-2.15.orig/configure.in	2012-01-01 04:16:32.000000000 -0800
++++ glibc-2.15/configure.in	2017-03-08 21:01:54.000000000 -0800
+@@ -1716,7 +1716,7 @@ dnl cross-platform since the gcc used ca
+ dnl introducing new options this is not easily doable.  Instead use a tool
+ dnl which always is cross-platform: readelf.  To detect whether -z combreloc
+ dnl look for a section named .rel.dyn.
+-    if $READELF -S conftest.so | grep '\.rel\(a\|\)\.dyn' > /dev/null; then
++    if $READELF -S conftest.so | grep '\.\(rel\|rela\)\.dyn' > /dev/null; then
+       libc_cv_z_combreloc=yes
+     else
+       libc_cv_z_combreloc=no
