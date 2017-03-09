@@ -163,6 +163,10 @@ AC_PROG_INSTALL
 
 ACX_WITH_DEPRECATED([grep], [GREP])
 AC_ARG_VAR([GREP], [Specify the full path to GNU grep])
+
+# This is not a typo! Prefer GNU grep on macOS if it is installed.
+ACX_PATH_TOOL_REQ([GREP], [ggrep grep], [grep])
+ACX_PATH_TOOL_REQ([EGREP], [gegrep egrep], [egrep])
 AC_PROG_GREP
 AC_PROG_EGREP
 AS_IF([test "$EGREP" != "$GREP -E"],
