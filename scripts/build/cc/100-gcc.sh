@@ -790,7 +790,7 @@ do_gcc_for_build() {
 
 gcc_movelibs() {
     local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
-    local gcc_dir
+    local gcc_dir dst_dir
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -803,6 +803,15 @@ gcc_movelibs() {
         # GCC didn't install anything outside of sysroot
         return
     fi
+    # Depending on the selected libc, we may or may not have the ${multi_os_dir_gcc}
+    # created by libc installation. If we do, use it. If we don't, use ${multi_os_dir}
+    # to avoid creating an otherwise empty directory.
+    dst_dir="${multi_root}/lib/${multi_os_dir_gcc}"
+    if [ ! -d "${dst_dir}" ]; then
+        dst_dir="${multi_root}/lib/${multi_os_dir}"
+    fi
+    CT_SanitizeVarDir dst_dir gcc_dir
+
     ls "${gcc_dir}" | while read f; do
         case "${f}" in
             *.ld)
@@ -812,8 +821,8 @@ gcc_movelibs() {
                 ;;
         esac
         if [ -f "${gcc_dir}/${f}" ]; then
-            CT_DoExecLog ALL mkdir -p "${multi_root}/lib/${multi_os_dir}"
-            CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${multi_root}/lib/${multi_os_dir}/${f}"
+            CT_DoExecLog ALL mkdir -p "${dst_dir}"
+            CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${dst_dir}/${f}"
         fi
     done
 }
