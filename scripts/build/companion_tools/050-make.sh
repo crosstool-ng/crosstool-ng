@@ -46,10 +46,15 @@ do_make_backend() {
     local prefix
     local cflags
     local ldflags
+    local -a extra_config
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
+
+    if [ "${host}" != "${CT_BUILD}" ]; then
+        extra_config+=( --without-guile )
+    fi
 
     CT_DoLog EXTRA "Configuring make"
     CT_DoExecLog CFG \
@@ -58,7 +63,8 @@ do_make_backend() {
                      ${CONFIG_SHELL} \
                      "${CT_SRC_DIR}/make-${CT_MAKE_VERSION}/configure" \
                      --host="${host}" \
-                     --prefix="${prefix}"
+                     --prefix="${prefix}" \
+		     "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building make"
     CT_DoExecLog ALL make
