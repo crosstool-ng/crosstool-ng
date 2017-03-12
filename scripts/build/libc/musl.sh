@@ -102,6 +102,8 @@ do_libc_backend_once() {
         extra_config+=( "--includedir=/usr/include/${hdr_install_subdir}" )
     fi
 
+    CT_SymlinkToolsMultilib
+
     # NOTE: musl handles the build/host/target a little bit differently
     # then one would expect:
     #   build   : not used

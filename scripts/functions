@@ -1762,3 +1762,56 @@ CT_IterateMultilibs() {
         multi_index=$((multi_index+1))
     done
 }
+
+# Create symbolic links in buildtools for binutils using a different
+# target name.
+# Usage:
+#   CT_SymlinkTools BIN-DIR SRC-DIR NEW-PREFIX SED-EXPR
+CT_SymlinkTools()
+{
+    local bindir="$1"
+    local srcdir="$2"
+    local newpfx="$3"
+    local sedexpr="$4"
+    local dirpfx
+    local t _t
+
+    # if bindir==srcdir, create symlinks just with the filename
+    if [ "${bindir}" != "${srcdir}" ]; then
+        dirpfx="${srcdir}/"
+    fi
+
+    CT_Pushd "${srcdir}"
+    for t in "${CT_TARGET}-"*; do
+        if [ -n "${newpfx}" -a "${newpfx}" != "${CT_TARGET}" ]; then
+            _t="${newpfx}-${t#${CT_TARGET}-}"
+            CT_DoExecLog ALL ln -sfv "${dirpfx}${t}" "${bindir}/${_t}"
+        fi
+        if [ -n "${sedexpr}" ]; then
+            _t=$( echo "${t}" | sed -r -e "${sedexpr}" )
+            if [ "${_t}" = "${t}" ]; then
+                CT_DoLog WARN "The sed expression '${sedexpr}' has no effect on '${t}'"
+            else
+                CT_DoExecLog ALL ln -sfv "${dirpfx}${t}" "${bindir}/${_t}"
+            fi
+        fi
+    done
+    CT_Popd
+}
+
+# Create symbolic links for multilib iterator. Expects ${multi_target}
+# variable to indicate the desired triplet for the tools.
+CT_SymlinkToolsMultilib()
+{
+    # Make configure detect ${target}-tool binaries even if it is different
+    # from configured tuple. Only symlink to final tools if they're executable
+    # on build.
+    CT_SymlinkTools "${CT_BUILDTOOLS_PREFIX_DIR}/bin" \
+        "${CT_BUILDTOOLS_PREFIX_DIR}/bin" "${multi_target}"
+    case "${CT_TOOLCHAIN_TYPE}" in
+        native|cross)
+            CT_SymlinkTools "${CT_BUILDTOOLS_PREFIX_DIR}/bin" \
+                "${CT_PREFIX_DIR}/bin" "${multi_target}"
+            ;;
+    esac
+}
