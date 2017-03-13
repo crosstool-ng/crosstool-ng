@@ -29,7 +29,9 @@ do_libc() {
 }
 
 do_libc_post_cc() {
-    :
+    # MUSL creates dynamic linker symlink with absolute path - which works on the
+    # target but not on the host. We want our cross-ldd tool to work.
+    CT_MultilibFixupLDSO
 }
 
 do_libc_backend() {

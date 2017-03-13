@@ -1815,3 +1815,90 @@ CT_SymlinkToolsMultilib()
             ;;
     esac
 }
+
+# Helper (iterator) for CT_MultilibFixupLDSO
+CT__FixupLDSO()
+{
+    local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
+    local binary
+    local ldso ldso_l ldso_f ldso_d ldso_u multilib_dir
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoLog EXTRA "Checking dynamic linker for multilib '${multi_flags}'"
+
+    multilib_dir="/lib/${multi_os_dir}"
+    CT_SanitizeVarDir multilib_dir
+
+    CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" -o test-ldso ../test-ldso.c ${multi_flags}
+    if [ -r "test-ldso.gdb" ]; then
+        binary="test-ldso.gdb"
+    else
+        binary="test-ldso"
+    fi
+    if ${CT_TARGET}-readelf -Wl "${binary}" | grep -q 'Requesting program interpreter: '; then
+        ldso=$( ${CT_TARGET}-readelf -Wl "${binary}" | \
+            grep 'Requesting program interpreter: ' | \
+            sed -e 's,.*: ,,' -e 's,\].*,,' )
+    fi
+    CT_DoLog DEBUG "Detected dynamic linker for multilib '${multi_flags}': '${ldso}'"
+
+    # Create symlink if GCC produced a dynamically linked executable.
+    if [ -z "${ldso}" ]; then
+        return # Probably, we're building a static toolchain.
+    fi
+
+    ldso_d="${ldso%/ld*.so.*}"
+    ldso_f="${ldso##*/}"
+
+    # Convert ldso_d to "how many levels we need to go up" and remove
+    # leading slash.
+    ldso_u=$( echo "${ldso_d#/}" | sed 's,[^/]\+,..,g' )
+
+    # If the requested dynamic linker exists, but is a symlink - check that it is either
+    # relative (in which case, if it is readable, we trust libc to have created it properly)
+    # or otherwise, convert it from absolute (target) path to a relative path that works on
+    # both host & target.
+    if [ -L "${multi_root}${ldso}" ]; then
+        ldso_l=`readlink "${multi_root}${ldso}"`
+        case "${ldso_l}" in
+            /*) # Absolute, convert to relative
+                if [ -r "${multi_root}${ldso_l}" ]; then
+                    CT_DoExecLog ALL ln -sfv "${ldso_u}${ldso_l}" "${multi_root}${ldso}"
+                else
+                    CT_DoLog WARN "Compiler selects '${ldso}' as dynamic linker for '${multi_flags}'"
+                    CT_DoLog WARN "but '${ldso}' is a symlink to '${ldso_l}' which is not valid on target."
+                fi
+                ;;
+            *) # Relative, must be readable
+                if [ ! -r "${multi_root}${ldso}" ]; then
+                    CT_DoLog WARN "Compiler selects '${ldso}' as dynamic linker for '${multi_flags}'"
+                    CT_DoLog WARN "but '${ldso}' is a symlink to '${ldso_l}' which is invalid relative symlink."
+                fi
+                ;;
+        esac
+        return
+    elif [ -r "${multi_root}${ldso}" ]; then
+        return # Not a symlink but readable - looks like libc installed a real executable.
+    fi
+
+    # Is it requesting a linker not in the current directory? uClibc case.
+    if [ "${ldso_d}" != "${multilib_dir}" ]; then
+        CT_DoExecLog ALL ln -sfv "${ldso_u}${multilib_dir}/${ldso_f}" \
+            "${multi_root}${ldso}"
+    fi
+}
+
+# Go over multilib variants and check that the requested dynamic linker
+# is present and resolves on both target and host.
+CT_MultilibFixupLDSO()
+{
+    CT_DoStep INFO "Checking dynamic linker symlinks"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-check-ldso"
+    echo "int main(void) { return 0; }" > test-ldso.c
+    CT_IterateMultilibs CT__FixupLDSO ldso_fixup
+    CT_Popd
+    CT_EndStep
+}
