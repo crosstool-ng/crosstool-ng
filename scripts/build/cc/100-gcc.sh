@@ -789,7 +789,7 @@ do_gcc_for_build() {
 }
 
 gcc_movelibs() {
-    local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
+    local multi_flags multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_index multi_count
     local gcc_dir dst_dir
 
     for arg in "$@"; do
