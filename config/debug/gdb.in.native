@@ -15,9 +15,24 @@ if GDB_NATIVE
 config GDB_NATIVE_STATIC
     bool
     prompt "Build a static native gdb"
-    depends on CONFIGURE_has_static_link
+    depends on EXPERIMENTAL
     help
       In case you have trouble with dynamic loading of shared libraries,
       you will find that a static gdb comes in handy.
+
+      However, it has been noticed at least on x86 that enabling this
+      option produces an invalid gdb binary. It is linked with
+      "-static -Wl,--dynamic-list=..." which
+      # (a) requests invalid program interpreter
+      # (b) crashes glibc/uClibc-ng and does not work with musl
+      # See https://sourceware.org/ml/libc-alpha/2017-03/msg00267.html
+
+      It is possible it would work with other architectures, hence it is
+      not completely removed. Use with care and report to the mailing list
+      if the resulting gdbserver works.
+
+      For further details, see:
+      https://sourceware.org/bugzilla/show_bug.cgi?id=19617
+      https://sourceware.org/bugzilla/show_bug.cgi?id=21086
 
 endif # GDB_NATIVE
