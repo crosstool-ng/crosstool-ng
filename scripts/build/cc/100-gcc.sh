@@ -129,6 +129,40 @@ cc_gcc_classify_opt() {
     echo "unknown"
 }
 
+evaluate_multilib_cflags()
+{
+    local multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_flags multi_index multi_count
+    local mdir mdir_os dirtop
+    local f
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    mdir="lib/${multi_dir}"
+    mdir_os="lib/${multi_os_dir_gcc}"
+    CT_SanitizeVarDir mdir mdir_os
+    CT_DoLog EXTRA "   '${multi_flags}' --> ${mdir} (gcc)   ${mdir_os} (os)"
+    for f in ${multi_flags}; do
+        eval ml_`cc_gcc_classify_opt ${f}`=seen
+    done
+    if [ "${CT_DEMULTILIB}" = "y" ]; then
+        case "${mdir_os}" in
+            lib/*)
+                ;;
+            *)
+                dirtop="${mdir_os%%/*}"
+                if [ ! -e "${multi_root}/${mdir_os}" ]; then
+                    CT_DoExecLog ALL ln -sfv lib "${multi_root}/${mdir_os}"
+                fi
+                if [ ! -e "${multi_root}/usr/${mdir_os}" ]; then
+                    CT_DoExecLog ALL ln -sfv lib "${multi_root}/usr/${mdir_os}"
+                fi
+                ;;
+        esac
+    fi
+}
+
 #------------------------------------------------------------------------------
 # This function lists the multilibs configured in the compiler (even if multilib
 # is disabled - so that it lists the default GCC/OS directory, which may differ
@@ -151,9 +185,11 @@ cc_gcc_classify_opt() {
 # work, but 'gcc -mabi=32 -mabi=n32' produces an internal error in ld. Thus we do
 # not supply target's CFLAGS in multilib builds - and after compiling pass-1 gcc,
 # attempt to determine which CFLAGS need to be filtered out.
+#
+# 3. If "demultilibing" is in effect, create top-level directories for any
+# multilibs not in lib/ as symlinks to lib.
 cc_gcc_multilib_housekeeping() {
     local cc host
-    local flags osdir dir multilibs i f
     local multilib_defaults
     local suffix sysroot base lnk
     local ml_arch ml_abi ml_cpu ml_tune ml_fpu ml_float ml_endian ml_mode ml_unknown ml
@@ -175,25 +211,7 @@ cc_gcc_multilib_housekeeping() {
     multilib_defaults=( $( cc_gcc_get_spec multilib_defaults "${cc}" | \
         sed 's/\(^\|[[:space:]]\+\)\([^[:space:]]\)/ -\2/g' ) )
     CT_DoLog EXTRA "gcc default flags: '${multilib_defaults}'"
-
-    multilibs=( $( "${cc}" -print-multi-lib ) )
-    if [ ${#multilibs[@]} -ne 0 ]; then
-        CT_DoLog EXTRA "gcc configured with these multilibs (including the default):"
-        for i in "${multilibs[@]}"; do
-            dir="lib/${i%%;*}"
-            flags="${i#*;}"
-            flags=${flags//@/ -}
-            flags=$( echo ${flags} )
-            osdir="lib/"$( "${cc}" -print-multi-os-directory ${flags} )
-            CT_SanitizeVarDir dir osdir
-            CT_DoLog EXTRA "   '${flags}' --> ${dir} (gcc)   ${osdir} (os)"
-            for f in ${flags}; do
-                eval ml_`cc_gcc_classify_opt ${f}`=seen
-            done
-        done
-    else
-        CT_DoLog WARN "no multilib configuration: GCC unusable?"
-    fi
+    CT_IterateMultilibs evaluate_multilib_cflags evaluate_cflags
 
     # Filtering out some of the options provided in CT-NG config. Then *prepend*
     # them to CT_TARGET_CFLAGS, like scripts/crosstool-NG.sh does. Zero out
