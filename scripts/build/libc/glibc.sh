@@ -297,6 +297,8 @@ do_libc_backend_once() {
     # or even after they get installed...
     echo "ac_cv_path_BASH_SHELL=/bin/bash" >>config.cache
 
+    CT_SymlinkToolsMultilib
+
     # Configure with --prefix the way we want it on the target...
     # There are a whole lot of settings here.  You'll probably want
     # to read up on what they all mean, and customize a bit, possibly

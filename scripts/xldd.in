@@ -16,6 +16,10 @@ fake_load_addr_rpath="$((0xdeadc0de))"
 fake_load_addr_sysroot="$((0x8badf00d))"
 ld_library_path="/lib:/usr/lib"
 
+need_e_class=
+need_e_flags=
+need_e_mach=
+
 do_error() {
     printf "%s: %s\n" "${my_name}" "$*" >&2
 }
@@ -200,6 +204,35 @@ do_report_needed_found() {
            "${sys}"
 }
 
+do_check_compat() {
+    local file="${1}"
+    local info e_mach e_class e_flags
+
+    if [ ! -r "${file}" ]; then
+        return 1
+    fi
+    info=`${readelf} -Wh "${file}"`
+    e_class=`echo "${info}" | "${sed}" -nr 's/.*Class:[[:space:]]*//p'`
+    e_mach=`echo "${info}" | "${sed}" -nr 's/.*Machine:[[:space:]]*//p'`
+    e_flags=`echo "${info}" | "${sed}" -nr 's/.*Flags:[[:space:]]*//p'`
+    if [ "${e_class}" != "${need_e_class}" ]; then
+        do_trace "-> skip incompatible '%s' (class '%s', need '%s')\n" \
+            "${base}${d}/${needed}" "${e_class}" "${need_e_class}"
+        return 1
+    fi
+    if [ "${e_mach}" != "${need_e_mach}" ]; then
+        do_trace "-> skip incompatible '%s' (machine '%s', need '%s')\n" \
+            "${base}${d}/${needed}" "${e_mach}" "${need_e_mach}"
+        return 1
+    fi
+    if [ "${e_flags}" != "${need_e_flags}" ]; then
+        do_trace "-> skip incompatible '%s' (flags '%s', need '%s')\n" \
+            "${base}${d}/${needed}" "${e_flags}" "${need_e_flags}"
+        return 1
+    fi
+    return 0
+}
+
 # Search a needed file, scanning ${lib_dir} in the root directory
 do_find_needed() {
     local needed="${1}"
@@ -229,7 +262,7 @@ do_find_needed() {
         fi
         for d in "${dirs[@]}"; do
             do_trace "-> looking in '%s' (%s)\n" "${d}" "${where}"
-            if [ -f "${base}${d}/${needed}" ]; then
+            if do_check_compat "${base}${d}/${needed}"; then
                 found="${d}/${needed}"
                 do_trace "---> found\n"
                 break 2
@@ -250,9 +283,11 @@ do_find_needed() {
 # Scan a file for all NEEDED tags
 do_process_file() {
     local file="${1}"
+    local initial="${2}"
     local -a save_search_rpath
     local n m
     local found
+    local info
 
     do_trace "Parsing file '%s'\n" "${file}"
 
@@ -270,6 +305,17 @@ do_process_file() {
     done
     do_trace ": end search path\n"
 
+    if [ -n "${initial}" ]; then
+        if ! "${readelf}" -Wl "${file}" |
+                "${grep}" 'Requesting program interpreter: ' >/dev/null; then
+            printf "	not a dynamic executable\n"
+            exit 1
+        fi
+        info=`${readelf} -Wh "${file}"`
+        need_e_class=`echo "${info}" | "${sed}" -nr 's/.*Class:[[:space:]]*//p'`
+        need_e_mach=`echo "${info}" | "${sed}" -nr 's/.*Machine:[[:space:]]*//p'`
+        need_e_flags=`echo "${info}" | "${sed}" -nr 's/.*Flags:[[:space:]]*//p'`
+    fi
     for n in $( "${readelf}" -d "${file}"                                               \
                 |"${grep}" -E '\(NEEDED\)'                                              \
                 |"${sed}" -r -e 's/^.*Shared library:[[:space:]]+\[([^]]+)\].*/\1/;'    \
@@ -324,6 +370,12 @@ do_scan_etc_ldsoconf() {
     do_trace "Finished parsing ld.so.conf: '%s'\n" "${ldsoconf}"
 }
 
+if [ -z "${1}" ]; then
+    show_help
+elif [ ! -r "${1}" ]; then
+    do_error "${1}: No such file or directory"
+fi
+
 # Build up the full list of search directories
 declare -a needed_search_path
 do_trace "Adding basic lib dirs\n"
@@ -348,5 +400,5 @@ done
 declare -a needed_list
 declare -a search_rpath
 do_trace "Scanning file '%s'\n" "${1}"
-do_process_file "${1}"
+do_process_file "${1}" initial
 do_trace "Done scanning file '%s'\n" "${1}"

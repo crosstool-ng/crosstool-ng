@@ -15,14 +15,29 @@ config GDB_GDBSERVER_HAS_IPA_LIB
     depends on GDB_7_2_or_later
     default y
 
+# gdbserver is then linked with "-static -Wl,--dynamic-list=..." which
 config GDB_GDBSERVER_STATIC
     bool
     prompt "Build a static gdbserver"
-    depends on CONFIGURE_has_static_link
-    default y
+    depends on EXPERIMENTAL
     help
       In case you have trouble with dynamic loading of shared libraries,
       you will find that a static gdbserver comes in handy.
+
+      However, it has been noticed at least on x86 that enabling this
+      option produces an invalid gdbserver binary. It is linked with
+      "-static -Wl,--dynamic-list=..." which
+      # (a) requests invalid program interpreter
+      # (b) crashes glibc/uClibc-ng and does not work with musl
+      # See https://sourceware.org/ml/libc-alpha/2017-03/msg00267.html
+
+      It is possible it would work with other architectures, hence it is
+      not completely removed. Use with care and report to the mailing list
+      if the resulting gdbserver works.
+
+      For further details, see:
+      https://sourceware.org/bugzilla/show_bug.cgi?id=19617
+      https://sourceware.org/bugzilla/show_bug.cgi?id=21086
 
 config GDB_GDBSERVER_BUILD_IPA_LIB
     bool
