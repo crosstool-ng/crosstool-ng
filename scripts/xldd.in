@@ -204,9 +204,36 @@ do_report_needed_found() {
            "${sys}"
 }
 
+# Helper: passed flags and needed flags must either both have
+# a given flag set, or neither must have it.
+flag_match() {
+    local flags="${1}"
+    local e_flags="${2}"
+    local dso="${3}"
+    local f
+
+    for f in ${flags}; do
+        case "${e_flags}:${need_e_flags}" in
+        *,${f},*:*,${f},*)
+            # Both have it, continue
+            ;;
+        *,${f},*)
+            # Only one has it
+            do_trace "-> skip incompatible '%s' (flags '%s', need '%s')" \
+                "${dso}" "${e_flags}" "${need_e_flags}"
+            return 1;;
+        *) ;;                   # Neither one has it, continue
+        esac
+    done
+    return 0
+}
+
+__warned_unknown_machine=no
 do_check_compat() {
     local file="${1}"
     local info e_mach e_class e_flags
+    local dso
+    local -a flags
 
     if [ ! -r "${file}" ]; then
         return 1
@@ -214,22 +241,63 @@ do_check_compat() {
     info=`${readelf} -Wh "${file}"`
     e_class=`echo "${info}" | "${sed}" -nr 's/.*Class:[[:space:]]*//p'`
     e_mach=`echo "${info}" | "${sed}" -nr 's/.*Machine:[[:space:]]*//p'`
-    e_flags=`echo "${info}" | "${sed}" -nr 's/.*Flags:[[:space:]]*//p'`
+    e_flags=`echo "${info}" | "${sed}" -nr -e 's/$/,/' -e 's/, /,/g' -e 's/.*Flags:[[:space:]]*0x[0-9a-f]{1,}//p'`
+    dso="${base}${d}/${needed}"
     if [ "${e_class}" != "${need_e_class}" ]; then
         do_trace "-> skip incompatible '%s' (class '%s', need '%s')\n" \
-            "${base}${d}/${needed}" "${e_class}" "${need_e_class}"
+            "${dso}" "${e_class}" "${need_e_class}"
         return 1
     fi
     if [ "${e_mach}" != "${need_e_mach}" ]; then
         do_trace "-> skip incompatible '%s' (machine '%s', need '%s')\n" \
-            "${base}${d}/${needed}" "${e_mach}" "${need_e_mach}"
+            "${dso}" "${e_mach}" "${need_e_mach}"
         return 1
     fi
-    if [ "${e_flags}" != "${need_e_flags}" ]; then
-        do_trace "-> skip incompatible '%s' (flags '%s', need '%s')\n" \
-            "${base}${d}/${needed}" "${e_flags}" "${need_e_flags}"
-        return 1
-    fi
+
+    # ElfXX_Ehdr.e_flags is trickier, the rules for compatibility are
+    # different for different architectures (machines). The logic is
+    # the same as in elf_machine_matches_host() in GNU libc.
+    case "${e_mach}" in
+    AArch64|"Advanced Micro Devices X86-64"|Alpha|ARM|"Intel 80386"|\
+    MC68000|"Xilinx MicroBlaze"|"Altera Nios II"|"Renesas / SuperH SH")
+        # Simple cases: flags are not taken into the account
+        ;;
+    "MIPS R3000")
+        # glibc just rejects "fp64", says it is unsupported on linux.
+        # but who knows, maybe one day ct-ng will be targeting non-linux too.
+        if ! flag_match "abi2 nan2008 fp64" "${e_flags}" "${dso}"; then
+            return 1
+        fi
+        ;;
+    PowerPC)
+        # For 32-bit PowerPC, flags not checked. For 64-bit, check ABI version:
+        # 0 means "not using any features affected by the differences"; v1 and v2
+        # are the defined ABI versions. Here we have a different check than glibc:
+        # in glibc, the dynamic linker checks the ABI compatibility against its own
+        # ABI while we here check against the binary ABI. Doing it properly requires
+        # a rework of this script, and the current check seems to work even with a
+        # trivial "hello world" (it is reported as "abiv1", so apparently no
+        # applications report 0 as ABI version).
+        if [ "${e_class}" = "ELF64" ] && ! flag_match "abiv1 abiv2" "${e_flags}" "${dso}"; then
+            return 1
+        fi
+        ;;
+    "IBM S/390")
+        # Dynamic linker checks against the kernel capability for "highgprs" flag
+        # at runtime, but we cannot do that. Report success.
+        ;;
+    Sparc|"Sparc v8+"|"Sparc v9")
+        # According to glibc sources, even DSOs reporting these different e_machine
+        # values may be compatible. We currently don't handle that, but might need to.
+        ;;
+    *)
+        # Warn once on an unhandled architecture and assume flags are compatible
+        if [ "${__warned_unknown_machine}" = "no" ]; then
+            __warned_unknown_machine=yes
+            do_error "Architecture ${e_mach} not handled by cross-ldd script; assuming match"
+        fi
+        ;;
+    esac
     return 0
 }
 
@@ -314,7 +382,7 @@ do_process_file() {
         info=`${readelf} -Wh "${file}"`
         need_e_class=`echo "${info}" | "${sed}" -nr 's/.*Class:[[:space:]]*//p'`
         need_e_mach=`echo "${info}" | "${sed}" -nr 's/.*Machine:[[:space:]]*//p'`
-        need_e_flags=`echo "${info}" | "${sed}" -nr 's/.*Flags:[[:space:]]*//p'`
+        need_e_flags=`echo "${info}" | "${sed}" -nr -e 's/$/,/' -e 's/, /,/g' -e 's/.*Flags:[[:space:]]*0x[0-9a-f]{1,}//p'`
     fi
     for n in $( "${readelf}" -d "${file}"                                               \
                 |"${grep}" -E '\(NEEDED\)'                                              \
