@@ -6,6 +6,7 @@ docs_subdir=_pages/docs
 formats=( "bz2" "xz" )
 declare -A tar_opt=( ["bz2"]=j ["xz"]=J )
 digests=( md5 sha1 sha512 )
+use_gpg=yes
 
 do_trace()
 {
@@ -96,5 +97,7 @@ for fmt in "${formats[@]}"; do
     for h in "${digests[@]}"; do
         ${h}sum "release/${version}.tar.${fmt}" > "release/${version}.tar.${fmt}.${h}"
     done
-    # TBD sign
+    if [ "${use_gpg}" = "yes" ]; then
+        gpg --detach-sign "release/${version}.tar.${fmt}"
+    fi
 done
