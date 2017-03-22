@@ -10,7 +10,7 @@ create_ldso_conf()
     done
 
     CT_DoExecLog ALL mkdir -p "${multi_root}/etc"
-    for b in /lib /usr/lib /usr/local/lib; do
+    for b in /lib /usr/lib "${CT_LDSO_CONF_EXTRA_DIRS_ARRAY[@]}"; do
         d="${b}/${multi_os_dir}"
         CT_SanitizeVarDir d
         echo "${d}" >> "${multi_root}/etc/ld.so.conf"
@@ -34,7 +34,7 @@ do_finish() {
 
     CT_DoStep INFO "Finalizing the toolchain's directory"
 
-    if [ "${CT_SHARED_LIBS}" = "y" ]; then
+    if [ "${CT_CREATE_LDSO_CONF}" = "y" ]; then
         # Create /etc/ld.so.conf
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-create-ldso"
         CT_IterateMultilibs create_ldso_conf create-ldso
