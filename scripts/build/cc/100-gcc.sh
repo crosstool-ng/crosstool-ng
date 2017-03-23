@@ -146,7 +146,7 @@ evaluate_multilib_cflags()
     for f in ${multi_flags}; do
         eval ml_`cc_gcc_classify_opt ${f}`=seen
     done
-    if [ "${CT_DEMULTILIB}" = "y" ]; then
+    if [ "${CT_DEMULTILIB}" = "y" -a "${CT_USE_SYSROOT}" = "y" ]; then
         case "${mdir_os}" in
             lib/*)
                 ;;
