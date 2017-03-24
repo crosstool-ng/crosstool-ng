@@ -95,9 +95,9 @@ do_trace "Packaging"
 for fmt in "${formats[@]}"; do
     tar c${tar_opt[$fmt]}f "release/${version}.tar.${fmt}" -C "release" "${version}"
     for h in "${digests[@]}"; do
-        ${h}sum "release/${version}.tar.${fmt}" > "release/${version}.tar.${fmt}.${h}"
+        (cd "release" && ${h}sum "${version}.tar.${fmt}") > "release/${version}.tar.${fmt}.${h}"
     done
     if [ "${use_gpg}" = "yes" ]; then
-        gpg --detach-sign "release/${version}.tar.${fmt}"
+        (cd "release" && gpg --detach-sign "${version}.tar.${fmt}")
     fi
 done
