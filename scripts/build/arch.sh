@@ -5,6 +5,11 @@ CT_DoArchTupleValues() {
     :;
 }
 
+# Adjust the list of multilibs for the target
+CT_DoArchMultilibList() {
+    :;
+}
+
 # Multilib: change the target triplet according to CFLAGS
 # Usage: CT_DoArchGlibcAdjustTuple <variable-name> <CFLAGS>
 CT_DoArchMultilibTarget() {
@@ -43,7 +48,7 @@ CT_DoArchUClibcCflags() {
 
     # Likely, any non-default cflags need to be reflected into the config.
     # It may work if we just pass them into EXTRA_CFLAGS, but we have no
-    # idea as they might interact with the CFLAGS inferred by uClibc from
+    # idea how they might interact with the CFLAGS inferred by uClibc from
     # the configuration file.
     if [ "${cflags}" != "" ]; then
         CT_DoLog WARN "Multilib configuration not supported for uClibc/${CT_ARCH}"
