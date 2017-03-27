@@ -73,23 +73,6 @@ cc_gcc_lang_list() {
 }
 
 #------------------------------------------------------------------------------
-# Return a value of a requested GCC spec
-cc_gcc_get_spec() {
-    local spec=$1
-    local cc_and_cflags=$2
-
-    # GCC does not provide a facility to request a value of a spec string.
-    # The only way to do that I found was to augment the spec file with
-    # some dummy suffix handler that does nothing except printing it.
-    touch temp-input.spec_eval
-    {
-        echo ".spec_eval:"
-        echo "echo %(${spec})"
-    } > "tmp-specs-${spec}"
-    ${cc_and_cflags} -specs="tmp-specs-${spec}" -E temp-input.spec_eval
-}
-
-#------------------------------------------------------------------------------
 # Report the type of a GCC option
 cc_gcc_classify_opt() {
     # Options present in multiple architectures
@@ -168,30 +151,16 @@ evaluate_multilib_cflags()
 # is disabled - so that it lists the default GCC/OS directory, which may differ
 # from the default 'lib'). It then performs a few multilib checks/quirks:
 #
-# 1. On SuperH target, configuring with default CPU (e.g. by supplying the target
-# name as 'sh4', which is what CT-NG does) results in the compiler being unable to
-# run if that same switch is passed to the resulting gcc (e.g. 'gcc -m4'). The reason
-# for this behavior is that the script that determines the sysroot suffix is not
-# aware of the default multilib selection, so it generates <sysroot>/m4 as the
-# suffixed sysroot. But the main driver, knowing that -m4 is the default, does not
-# even attempt to fall back to the non-suffixed sysroot (as it does with non-default
-# multilibs) - as a result, gcc fails to find any library if invoked with -m4.
-# The right solution would be to drop the default CPU from the multilib list
-# completely, or make the print-sysroot-suffix.sh script aware of the defaults
-# (which is not easy, as the defaults are not in tmake_file, but rather in tm_file...)
-#
-# 2. On MIPS target, gcc (or rather, ld, which it invokes under the hood) chokes
+# 1. On MIPS target, gcc (or rather, ld, which it invokes under the hood) chokes
 # if supplied with two -mabi=* options. I.e., 'gcc -mabi=n32' and 'gcc -mabi=32' both
 # work, but 'gcc -mabi=32 -mabi=n32' produces an internal error in ld. Thus we do
 # not supply target's CFLAGS in multilib builds - and after compiling pass-1 gcc,
 # attempt to determine which CFLAGS need to be filtered out.
 #
-# 3. If "demultilibing" is in effect, create top-level directories for any
+# 2. If "demultilibing" is in effect, create top-level directories for any
 # multilibs not in lib/ as symlinks to lib.
 cc_gcc_multilib_housekeeping() {
     local cc host
-    local multilib_defaults
-    local suffix sysroot base lnk
     local ml_arch ml_abi ml_cpu ml_tune ml_fpu ml_float ml_endian ml_mode ml_unknown ml
     local new_cflags
 
@@ -207,10 +176,6 @@ cc_gcc_multilib_housekeeping() {
         cc="${CT_BUILDTOOLS_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}"
     fi
 
-    # sed: prepend dashes or do nothing if default is empty string
-    multilib_defaults=( $( cc_gcc_get_spec multilib_defaults "${cc}" | \
-        sed 's/\(^\|[[:space:]]\+\)\([^[:space:]]\)/ -\2/g' ) )
-    CT_DoLog EXTRA "gcc default flags: '${multilib_defaults}'"
     CT_IterateMultilibs evaluate_multilib_cflags evaluate_cflags
 
     # Filtering out some of the options provided in CT-NG config. Then *prepend*
@@ -236,21 +201,6 @@ cc_gcc_multilib_housekeeping() {
         CT_EnvModify CT_ARCH_TARGET_LDFLAGS_MULTILIB ""
     fi
     CT_DoLog DEBUG "Filtered target LDFLAGS: '${CT_ARCH_TARGET_LDFLAGS_MULTILIB}'"
-
-    # Sysroot suffix fixup for the multilib default.
-    suffix=$( cc_gcc_get_spec sysroot_suffix_spec "${cc} ${multilib_defaults}" )
-    if [ -n "${suffix}" ]; then
-        base=${suffix%/*}
-        sysroot=$( "${cc}" -print-sysroot )
-        if [ -n "${base}" ]; then
-            CT_DoExecLog ALL mkdir -p "${sysroot}${base}"
-            lnk=$( echo "${base#/}" | sed -e 's,[^/]*,..,g' )
-        else
-            lnk=.
-        fi
-        CT_DoExecLog ALL rm -f "${sysroot}${suffix}"
-        CT_DoExecLog ALL ln -sfv "${lnk}" "${sysroot}${suffix}"
-    fi
 }
 
 #------------------------------------------------------------------------------
