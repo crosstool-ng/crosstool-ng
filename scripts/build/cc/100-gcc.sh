@@ -759,6 +759,7 @@ do_gcc_for_build() {
 gcc_movelibs() {
     local multi_flags multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_index multi_count
     local gcc_dir dst_dir
+    local rel
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -779,6 +780,7 @@ gcc_movelibs() {
         dst_dir="${multi_root}/lib/${multi_os_dir}"
     fi
     CT_SanitizeVarDir dst_dir gcc_dir
+    rel=$( echo "${gcc_dir#${CT_PREFIX_DIR}/}" | sed 's#[^/]\{1,\}#..#g' )
 
     ls "${gcc_dir}" | while read f; do
         case "${f}" in
@@ -791,6 +793,7 @@ gcc_movelibs() {
         if [ -f "${gcc_dir}/${f}" ]; then
             CT_DoExecLog ALL mkdir -p "${dst_dir}"
             CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${dst_dir}/${f}"
+            CT_DoExecLog ALL ln -sf "${rel}/${dst_dir#${CT_PREFIX_DIR}/}/${f}" "${gcc_dir}/${f}"
         fi
     done
 }
