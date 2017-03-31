@@ -158,7 +158,7 @@ do_libc_backend() {
 #   libc_mode           : 'startfiles' or 'final'               : string    : (empty)
 #   multi_*             : as defined in CT_IterateMultilibs     : (varies)  :
 do_libc_backend_once() {
-    local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count
+    local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count multi_target
     local build_cflags build_cppflags build_ldflags
     local startfiles_dir
     local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
