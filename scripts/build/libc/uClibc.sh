@@ -119,6 +119,7 @@ do_libc_backend_once() {
     # - We do _not_ want to strip anything for now, in case we specifically
     #   asked for a debug toolchain, thus the STRIPTOOL= assignment.
     make_args=( CROSS_COMPILE="${CT_TARGET}-"                           \
+                HOSTCC="${CT_BUILD}-gcc"                                \
                 PREFIX="${multi_root}/"                                 \
                 MULTILIB_DIR="${multilib_dir}"                          \
                 LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz"     \
