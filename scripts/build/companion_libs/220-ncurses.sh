@@ -31,26 +31,13 @@ do_ncurses_for_build() {
           "--without-tests" \
           "--without-cxx" \
           "--without-cxx-binding" \
-          "--without-ada")
-    # If we are not canadian, this is also our host curses
-    # Unlike other companion libs, we skip host build if build==host
-    # (i.e. in simple cross or native): ncurses may not be needed for
-    # host, but we still need them on build to produce 'tic'.
-    case "${CT_TOOLCHAIN_TYPE}" in
-        native|cross)
-            if [ "${CT_NCURSES_HOST_DISABLE_DB}" = "y" ]; then
-                opts+=( "--disable-database" )
-            fi
-            if [ -n "${CT_NCURSES_HOST_FALLBACKS}" ]; then
-                opts+=( "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
-            fi
-            opts+=( "${CT_NCURSES_HOST_CONFIG_ARGS[@]}" )
-            ;;
-    esac
+          "--without-ada" \
+          "--without-fallbacks" )
     do_ncurses_backend host="${CT_BUILD}" \
                        destdir="${CT_BUILDTOOLS_PREFIX_DIR}" \
                        cflags="${CT_CFLAGS_FOR_BUILD}" \
                        ldflags="${CT_LDFLAGS_FOR_BUILD}" \
+                       install_target=install.progs \
                        "${opts[@]}"
     CT_Popd
     CT_EndStep
@@ -59,13 +46,6 @@ do_ncurses_for_build() {
 if [ "${CT_NCURSES}" = "y" ]; then
 do_ncurses_for_host() {
     local -a opts
-
-    # Unlike other companion libs, we skip host build if build==host
-    # (i.e. in simple cross or native): ncurses may not be needed for
-    # host, but we still need them on build to produce 'tic'.
-    case "${CT_TOOLCHAIN_TYPE}" in
-        native|cross)   return 0;;
-    esac
 
     CT_DoStep INFO "Installing ncurses for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-ncurses-host-${CT_HOST}"
@@ -142,7 +122,7 @@ do_ncurses_backend() {
     local ldflags
     local shared
     local arg
-    local for_target
+    local install_target=install
 
     for arg in "$@"; do
         case "$arg" in
@@ -198,7 +178,7 @@ do_ncurses_backend() {
     CT_DoLog EXTRA "Building ncurses"
     CT_DoExecLog ALL make ${JOBSFLAGS}
     CT_DoLog EXTRA "Installing ncurses"
-    CT_DoExecLog ALL make install
+    CT_DoExecLog ALL make "${install_target}"
 }
 
 fi
