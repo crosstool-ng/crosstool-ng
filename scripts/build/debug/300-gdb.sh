@@ -140,6 +140,8 @@ do_debug_gdb_build() {
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
+        CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
+        CFLAGS_FOR_BUILD="${cflags_for_build}"          \
         CPP="${CPP_for_gdb}"                            \
         CC="${CC_for_gdb}"                              \
         CXX="${CXX_for_gdb}"                            \
@@ -255,6 +257,8 @@ do_debug_gdb_build() {
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
+        CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
+        CFLAGS_FOR_BUILD="${cflags_for_build}"          \
         CPP="${CPP_for_gdb}"                            \
         CC="${CC_for_gdb}"                              \
         CXX="${CXX_for_gdb}"                            \
@@ -329,6 +333,8 @@ do_debug_gdb_build() {
         gdbserver_extra_config+=("--disable-gas")
 
         CT_DoExecLog CFG                                \
+        CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
+        CFLAGS_FOR_BUILD="${cflags_for_build}"          \
         CC="${CT_TARGET}-${CT_CC}"                      \
         CPP="${CT_TARGET}-cpp"                          \
         LD="${CT_TARGET}-ld"                            \
