@@ -199,6 +199,8 @@ do_binutils_backend() {
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     CT_DoExecLog CFG                                            \
+    CC_FOR_BUILD="${CT_BUILD}-gcc"                              \
+    CFLAGS_FOR_BUILD="${cflags_for_build}"                      \
     CFLAGS="${cflags}"                                          \
     CXXFLAGS="${cflags}"                                        \
     LDFLAGS="${ldflags}"                                        \
