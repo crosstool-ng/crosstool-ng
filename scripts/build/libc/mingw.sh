@@ -40,6 +40,11 @@ do_libc_start_files() {
         :)      ;;
     esac
 
+    case "${CT_MINGW_SECURE_API}" in
+        :y)     sdk_opts+=( "--enable-secure-api"  );;
+        :)      ;;
+    esac
+
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-headers"
 
     CT_DoLog EXTRA "Configuring Headers"
