@@ -209,7 +209,7 @@ do_libc()
         CT_EndStep
     fi
 
-    if [ ${CT_MINGW_TOOLS} = "y" ]; then
+    if [ "${CT_MINGW_TOOLS}" = "y" ]; then
         CT_DoStep INFO "Installing mingw-w64 companion tools"
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-tools"
         do_mingw_tools
