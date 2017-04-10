@@ -4,6 +4,8 @@
 
 Crosstool-NG aims at building toolchains. Toolchains are an essential component in a software development project. It will compile, assemble and link the code that is being developed. Some pieces of the toolchain will eventually end up in the resulting binaries: static libraries are but an example.
 
+**Before reporting a bug**, please read [bug reporting guidelines](http://crosstool-ng.github.io/support/). Bugs that do not provide the required information will be closed without explanation.
+
 Refer to [documentation at crosstool-NG website](http://crosstool-ng.github.io/docs/) for more information on how to configure, install and use crosstool-NG.
 
 ##########################################
