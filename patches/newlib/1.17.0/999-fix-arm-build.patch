@@ -1,0 +1,62 @@
+diff -urpN newlib-1.17.0.orig/libgloss/arm/linux-syscalls0.S newlib-1.17.0/libgloss/arm/linux-syscalls0.S
+--- newlib-1.17.0.orig/libgloss/arm/linux-syscalls0.S	2017-04-10 23:18:30.559142019 -0700
++++ newlib-1.17.0/libgloss/arm/linux-syscalls0.S	2017-04-10 23:35:06.422568832 -0700
+@@ -19,47 +19,6 @@
+ #define GLOBAL(name) .global name; FUNC(name)
+ #define SIZE(name) .size name, .-name
+ 
+-#if __thumb__
+-
+-# define SYSCALL0(name) \
+-	GLOBAL(_ ## name); \
+-	mov r12, r7; \
+-	mov r7, #SYS_ ## name; \
+-	swi; \
+-	mov r7, r12; \
+-	b _set_errno; \
+-	SIZE(_ ## name)
+-
+-/* static int _syscall3(int a, int b, int c, int number); */
+-FUNC(_syscall3)
+-	push { r7 }
+-	mov r7, r3
+-	swi
+-	pop { r7 }
+-	b _set_errno
+-	SIZE(_syscall3)
+-
+-# define SYSCALL3(name) \
+-	GLOBAL(_ ## name); \
+-	mov r3, #SYS_ ## name; \
+-	b _syscall3; \
+-	SIZE(_ ## name)
+-
+-# define SYSCALL6(name) \
+-	GLOBAL(_ ## name); \
+-	push { r4 - r5, r7 }; \
+-	ldr r4, [sp, #12]; \
+-	ldr r5, [sp, #16]; \
+-	mov r7, #SYS_ ## name; \
+-	swi; \
+-	pop { r4 - r5, r7 }; \
+-	b _set_errno; \
+-	SIZE(_ ## name)
+-
+-# define SYSCALL4(name) SYSCALL6(name)
+-
+-#else /* __thumb__ */
+-
+ # define SYSCALL4(name) \
+ 	GLOBAL(_ ## name); \
+ 	swi #SYS_ ## name; \
+@@ -78,9 +37,6 @@ FUNC(_syscall3)
+ 
+ #define SYSCALL0(name) SYSCALL3(name)
+ #define SYSCALL3(name) SYSCALL4(name)
+-
+-#endif /* __thumb__ */
+-
+ #define SYSCALL1(name) SYSCALL3(name)
+ #define SYSCALL2(name) SYSCALL3(name)
+ #define SYSCALL5(name) SYSCALL6(name)
+Binary files newlib-1.17.0.orig/libgloss/arm/.linux-syscalls0.S.swp and newlib-1.17.0/libgloss/arm/.linux-syscalls0.S.swp differ
