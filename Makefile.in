@@ -89,9 +89,6 @@ export curses_hdr      := @ac_ct_curses_hdr@
 export gettext         := @gettext@
 export CPU_COUNT       := @CPU_COUNT@
 
-# config options to push down to kconfig
-KCONFIG:= @kconfig_options@
-
 ###############################################################################
 # Non-configure variables
 MAN_SECTION := 1
@@ -169,8 +166,7 @@ build-bin: $(PROG_NAME)             \
            scripts/showConfig.sh
 	$(call __silent,CHMOD,$^)chmod 755 $^
 
-build-lib: config/configure.in  \
-           paths.mk             \
+build-lib: paths.mk             \
            paths.sh
 
 build-lib-kconfig:
@@ -222,21 +218,6 @@ paths.mk: FORCE
 paths.sh: FORCE
 	$(call __silent,GEN,$@){ $(foreach w,$(__paths_vars),$(if $($w),echo 'export $w="$(subst ','\'',$($w))"';)) :; } >$@
 
-config/configure.in: FORCE
-	$(call __silent,GEN,$@)                                  \
-	{  printf "# Generated file, do not edit\n";             \
-	    printf "# Default values as found by ./configure\n"; \
-	    for var in $(KCONFIG); do                            \
-	        printf "\n";                                     \
-	        printf "config CONFIGURE_$${var%%=*}\n";         \
-	        if [ "$${var#*=}" = "y" ]; then                  \
-	            printf "    def_bool y\n";                   \
-	        else                                             \
-	            printf "    bool\n";                         \
-	        fi;                                              \
-	    done;                                                \
-	 } >$@
-
 FORCE:
 
 #--------------------------------------
@@ -251,7 +232,6 @@ clean-bin:
 
 clean-lib:
 	$(call __silent_rm,paths.mk paths.sh)
-	$(call __silent_rm,config/configure.in)
 
 clean-lib-kconfig:
 	$(call __silent,ENTER,kconfig)$(MAKE) -C kconfig clean
