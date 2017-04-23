@@ -1,15 +1,21 @@
-#!/bin/sh
+#!/bin/bash
+
 set -e
 
-# This scripts generates either a choice or a menuconfig
-# with the specified entries.
+# Accept overrides from command line if needed
+sed=${SED:-sed}
+grep=${GREP:-grep}
+
+# Generate either a choice or a menuconfig with the specified entries.
 #
 # Usage:
 #   generate a choice:
-#       gen_in_frags.sh choice <out-file> <label> <config-prefix> <base-dir> <conditionals> entry [entry...]
+#       gen_choice <out-file> <label> <config-prefix> <base-dir> \
+#                  <conditionals> entry [entry...]
 #
 #   generate a menuconfig:
-#       gen_in_frags.sh menu <out-file> <label> <config-prefix> <base-dir> entry [entry...]
+#       gen_menu <out-file> <label> <config-prefix> <base-dir> \
+#                entry [entry...]
 #
 # where:
 #   out-file
@@ -41,7 +47,17 @@ set -e
 #           linux cygwin mingw32 solaris...
 #           ...
 #
-#------------------------------------------------------------------------------
+
+# Helper: find the base names of all *.in files in a given directory
+get_components() {
+    local dir="${1}"
+    local f b
+
+    for f in ${dir}/*.in; do
+        b=${f#${dir}/}
+        echo ${b%.in}
+    done
+}
 
 # Generate a choice
 # See above for usage
@@ -51,7 +67,6 @@ gen_choice() {
     local cfg_prefix="${3}"
     local base_dir="${4}"
     local cond="${5}"
-    shift 5
     local file entry _entry
 
     # Generate the part-1
@@ -63,7 +78,7 @@ gen_choice() {
     printf '    bool\n'
     printf '    prompt "%s"\n' "${label}"
     printf '\n'
-    for entry in "${@}"; do
+    for entry in `get_components ${base_dir}`; do
         file="${base_dir}/${entry}.in"
         _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
         printf 'config %s_%s\n' "${cfg_prefix}" "${_entry}"
@@ -82,7 +97,7 @@ gen_choice() {
     done
     printf 'endchoice\n'
 
-    for entry in "${@}"; do
+    for entry in `get_components ${base_dir}`; do
         file="${base_dir}/${entry}.in"
         _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
         printf '\n'
@@ -105,7 +120,7 @@ gen_choice() {
     exec >"${out_file}.2"
     printf '# %s second part options\n' "${label}"
     printf '# Generated file, do not edit!!!\n'
-    for entry in "${@}"; do
+    for entry in `get_components ${base_dir}`; do
         file="${base_dir}/${entry}.in"
         _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
         if [ -f "${file}.2" ]; then
@@ -125,7 +140,6 @@ gen_menu() {
     local label="${2}"
     local cfg_prefix="${3}"
     local base_dir="${4}"
-    shift 4
     local file entry _entry
 
     # Generate the menuconfig
@@ -133,7 +147,7 @@ gen_menu() {
     printf '# %s menu\n' "${label}"
     printf '# Generated file, do not edit!!!\n'
     printf '\n'
-    for entry in "${@}"; do
+    for entry in `get_components ${base_dir}`; do
         file="${base_dir}/${entry}.in"
         _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
         printf 'menuconfig %s_%s\n' "${cfg_prefix}" "${_entry}"
@@ -156,6 +170,11 @@ gen_menu() {
     done
 }
 
-type="${1}"
-shift
-"gen_${type}" "${@}"
+mkdir -p config/gen
+gen_choice config/gen/arch.in "Target Architecture" "ARCH" "config/arch" "Y"
+gen_choice config/gen/kernel.in "Target OS" "KERNEL" "config/kernel" "Y"
+gen_choice config/gen/cc.in "Compiler" "CC" "config/cc" "N"
+gen_choice config/gen/binutils.in "Binutils" "BINUTILS" "config/binutils" "N"
+gen_choice config/gen/libc.in "C library" "LIBC" "config/libc" "Y"
+gen_menu config/gen/debug.in "Debug facilities" "DEBUG" "config/debug"
+gen_menu config/gen/companion_tools.in "Companion tools" "COMP_TOOLS" "config/companion_tools"
