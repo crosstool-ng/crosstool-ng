@@ -8,11 +8,6 @@
 # Top file of crosstool-NG configuration
 export KCONFIG_TOP = $(CT_LIB_DIR)/config/config.in
 
-export CT_IS_A_BACKEND:=$(CT_IS_A_BACKEND)
-export CT_BACKEND_ARCH:=$(CT_BACKEND_ARCH)
-export CT_BACKEND_KERNEL:=$(CT_BACKEND_KERNEL)
-export CT_BACKEND_LIBC:=$(CT_BACKEND_LIBC)
-
 # We need CONF for savedefconfig in scripts/saveSample.sh
 export CONF  := $(CT_LIB_DIR)/kconfig/conf
 MCONF := $(CT_LIB_DIR)/kconfig/mconf

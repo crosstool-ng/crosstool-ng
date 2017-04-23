@@ -10,12 +10,10 @@ grep=${GREP:-grep}
 #
 # Usage:
 #   generate a choice:
-#       gen_choice <out-file> <label> <config-prefix> <base-dir> \
-#                  <conditionals> entry [entry...]
+#       gen_choice <out-file> <label> <config-prefix> <base-dir>
 #
 #   generate a menuconfig:
-#       gen_menu <out-file> <label> <config-prefix> <base-dir> \
-#                entry [entry...]
+#       gen_menu <out-file> <label> <config-prefix> <base-dir>
 #
 # where:
 #   out-file
@@ -34,18 +32,6 @@ grep=${GREP:-grep}
 #   base-dir
 #       base directory containing config files
 #       eg. config/arch, config/kernel...
-#
-#   conditionals (valid only for choice)
-#       generate backend conditionals if Y/y, don't if anything else
-#       if 'Y' (or 'y'), a dependency on the backen mode will be added
-#       to each entry
-#
-#   entry [entry...]
-#       a list of entry/ies toadd to the choice/menuconfig
-#       eg.:
-#           arm mips sh x86...
-#           linux cygwin mingw32 solaris...
-#           ...
 #
 
 # Helper: find the base names of all *.in files in a given directory
@@ -66,7 +52,6 @@ gen_choice() {
     local label="${2}"
     local cfg_prefix="${3}"
     local base_dir="${4}"
-    local cond="${5}"
     local file entry _entry
 
     # Generate the part-1
@@ -84,9 +69,6 @@ gen_choice() {
         printf 'config %s_%s\n' "${cfg_prefix}" "${_entry}"
         printf '    bool\n'
         printf '    prompt "%s"\n' "${entry}"
-        if [ "${cond}" = "Y" -o "${cond}" = "y" ]; then
-            printf '    depends on %s_%s_AVAILABLE\n' "${cfg_prefix}" "${_entry}"
-        fi
         "${sed}" -r -e '/^## depends on /!d; s/^## /    /;' ${file} 2>/dev/null
         "${sed}" -r -e '/^## select /!d; s/^## /    /;' ${file} 2>/dev/null
         if "${grep}" -E '^## help' ${file} >/dev/null 2>&1; then
@@ -97,21 +79,19 @@ gen_choice() {
     done
     printf 'endchoice\n'
 
+    printf '\n'
+    printf 'config %s\n' "${cfg_prefix}"
     for entry in `get_components ${base_dir}`; do
         file="${base_dir}/${entry}.in"
         _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
-        printf '\n'
-        if [ "${cond}" = "Y" -o "${cond}" = "y" ]; then
-            printf 'config %s_%s_AVAILABLE\n' "${cfg_prefix}" "${_entry}"
-            printf '    bool\n'
-            printf '    default y if'
-            printf ' BACKEND_%s = "%s"' "${cfg_prefix}" "${entry}"
-            printf ' || BACKEND_%s = ""' "${cfg_prefix}"
-            printf ' || ! BACKEND\n'
-        fi
-        printf 'if %s_%s\n' "${cfg_prefix}" "${_entry}"
-        printf 'config %s\n' "${cfg_prefix}"
         printf '    default "%s" if %s_%s\n' "${entry}" "${cfg_prefix}" "${_entry}"
+    done
+
+    printf '\n'
+    for entry in `get_components ${base_dir}`; do
+        file="${base_dir}/${entry}.in"
+        _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')
+        printf 'if %s_%s\n' "${cfg_prefix}" "${_entry}"
         printf 'source "%s"\n' "${file}"
         printf 'endif\n'
     done
@@ -171,10 +151,10 @@ gen_menu() {
 }
 
 mkdir -p config/gen
-gen_choice config/gen/arch.in "Target Architecture" "ARCH" "config/arch" "Y"
-gen_choice config/gen/kernel.in "Target OS" "KERNEL" "config/kernel" "Y"
-gen_choice config/gen/cc.in "Compiler" "CC" "config/cc" "N"
-gen_choice config/gen/binutils.in "Binutils" "BINUTILS" "config/binutils" "N"
-gen_choice config/gen/libc.in "C library" "LIBC" "config/libc" "Y"
+gen_choice config/gen/arch.in "Target Architecture" "ARCH" "config/arch"
+gen_choice config/gen/kernel.in "Target OS" "KERNEL" "config/kernel"
+gen_choice config/gen/cc.in "Compiler" "CC" "config/cc"
+gen_choice config/gen/binutils.in "Binutils" "BINUTILS" "config/binutils"
+gen_choice config/gen/libc.in "C library" "LIBC" "config/libc"
 gen_menu config/gen/debug.in "Debug facilities" "DEBUG" "config/debug"
 gen_menu config/gen/companion_tools.in "Companion tools" "COMP_TOOLS" "config/companion_tools"
