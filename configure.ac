@@ -65,10 +65,9 @@ AC_DEFUN(
 AC_DEFUN(
     [ACX_SET_KCONFIG_OPTION],
     [AS_IF(
-        [test -n "$$1"],
-        [kconfig_options="$kconfig_options has_$1=y"],
-        [kconfig_options="$kconfig_options has_$1"])
-    ])
+     [test -n "$$1"],
+     [AC_SUBST([KCONFIG_$1], ["def_bool y"])],
+     [AC_SUBST([KCONFIG_$1], ["bool"])])])
 
 # Check if a given program is available with a particular version.
 #   ACX_PROG_VERSION(VAR, HELP, PROG, SRCH, VERSION_CHECK[, CONFIG_OPT])
@@ -466,5 +465,5 @@ AS_IF(
 #--------------------------------------------------------------------
 # Finally, generate the output file(s)
 #--------------------------------------------------------------------
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile config/configure.in])
 AC_OUTPUT

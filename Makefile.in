@@ -35,6 +35,12 @@ endif # No rR
 endif # No -Rr
 endif # No Rr
 
+# Helper: print abbreviation of the command by default, or full command
+# if doing 'make V=1'.
+__silent = $(if $(V),,@printf '  %-7s %s\n' '$1' '$(if $2,$2,$(strip $<))' && )
+__silent_rm = $(call __silent,RM,$1)rm -f $1
+__silent_rmdir = $(call __silent,RMDIR,$1)rm -rf $1
+
 # Remove any suffix rules
 .SUFFIXES:
 
@@ -83,9 +89,6 @@ export curses_hdr      := @ac_ct_curses_hdr@
 export gettext         := @gettext@
 export CPU_COUNT       := @CPU_COUNT@
 
-# config options to push down to kconfig
-KCONFIG:= @kconfig_options@
-
 ###############################################################################
 # Non-configure variables
 MAN_SECTION := 1
@@ -98,7 +101,7 @@ PROG_NAME := $(shell echo 'ct-ng' |$(sed) -r -e '$(PROG_SED)' )
 
 # Check if Makefile is up to date:
 Makefile: Makefile.in
-	@echo "$< did changed: you must re-run './configure'"
+	@echo "$< changed: you must re-run './configure'"
 	@false
 
 # If installing with DESTDIR, check it's an absolute path
@@ -142,12 +145,11 @@ install: build real-install
 clean: $(patsubst %,clean-%,$(TARGETS))
 
 distclean: clean
-	@echo "  RM     'Makefile'"
-	@rm -f Makefile
+	$(call __silent_rm,Makefile)
 
 mrproper: distclean
-	@echo "  RM     'autostuff'"
-	@ rm -rf autom4te.cache config.log config.status configure
+	$(call __silent_rmdir,autom4te.cache)
+	$(call __silent_rm,config.log config.status configure)
 
 uninstall: real-uninstall
 
@@ -162,26 +164,25 @@ build-bin: $(PROG_NAME)             \
            scripts/crosstool-NG.sh  \
            scripts/saveSample.sh    \
            scripts/showConfig.sh
-	@chmod 755 $^
+	$(call __silent,CHMOD,$^)chmod 755 $^
 
-build-lib: config/configure.in  \
-           paths.mk             \
+build-lib: paths.mk             \
            paths.sh
 
 build-lib-kconfig:
-	@$(MAKE) -C kconfig
+	$(call __silent,ENTER,kconfig)$(MAKE) -C kconfig
+	$(call __silent,LEAVE,kconfig):
 
 build-doc:
 
 build-man: docs/$(PROG_NAME).1.gz
 
 docs/$(PROG_NAME).1.gz: docs/$(PROG_NAME).1
-	@echo "  GZIP   '$@'"
-	@gzip -c9 $< >$@
+	$(call __silent,GZIP)gzip -c9 $< >$@
 
 define sed_it
-	@echo "  SED    '$@'"
-	@$(sed) -r -e 's,@@CT_BINDIR@@,$(bindir),g;'        \
+	$(call __silent,SED,$@)$(sed) -r                    \
+	           -e 's,@@CT_BINDIR@@,$(bindir),g;'        \
 	           -e 's,@@CT_LIBDIR@@,$(libdir),g;'        \
 	           -e 's,@@CT_DOCDIR@@,$(docdir),g;'        \
 	           -e 's,@@CT_MANDIR@@,$(mandir),g;'        \
@@ -212,27 +213,10 @@ __paths_vars	= install bash awk grep make sed libtool \
 # We create a script fragment that is parseable from inside a Makefile,
 # and one from inside a shell script.
 paths.mk: FORCE
-	@echo "  GEN    '$@'"
-	@{ $(foreach w,$(__paths_vars),$(if $($w),echo 'export $w=$(subst ','\'',$($w))';)) :; } >$@
+	$(call __silent,GEN,$@){ $(foreach w,$(__paths_vars),$(if $($w),echo 'export $w=$(subst ','\'',$($w))';)) :; } >$@
 
 paths.sh: FORCE
-	@echo "  GEN    '$@'"
-	@{ $(foreach w,$(__paths_vars),$(if $($w),echo 'export $w="$(subst ','\'',$($w))"';)) :; } >$@
-
-config/configure.in: FORCE
-	@echo "  GEN    '$@'"
-	@{  printf "# Generated file, do not edit\n";            \
-	    printf "# Default values as found by ./configure\n"; \
-	    for var in $(KCONFIG); do                            \
-	        printf "\n";                                     \
-	        printf "config CONFIGURE_$${var%%=*}\n";         \
-	        if [ "$${var#*=}" = "y" ]; then                  \
-	            printf "    def_bool y\n";                   \
-	        else                                             \
-	            printf "    bool\n";                         \
-	        fi;                                              \
-	    done;                                                \
-	 } >$@
+	$(call __silent,GEN,$@){ $(foreach w,$(__paths_vars),$(if $($w),echo 'export $w="$(subst ','\'',$($w))"';)) :; } >$@
 
 FORCE:
 
@@ -240,33 +224,24 @@ FORCE:
 # Clean rules
 
 clean-bin:
-	@echo "  RM     '$(PROG_NAME)'"
-	@rm -f $(PROG_NAME)
-	@echo "  RM     'scripts/scripts.mk'"
-	@rm -f scripts/scripts.mk
-	@echo "  RM     'scripts/crosstool-NG.sh'"
-	@rm -f scripts/crosstool-NG.sh
-	@echo "  RM     'scripts/saveSample.sh'"
-	@rm -f scripts/saveSample.sh
-	@echo "  RM     'scripts/showConfig.sh'"
-	@rm -f scripts/showConfig.sh
+	$(call __silent_rm,$(PROG_NAME))
+	$(call __silent_rm,scripts/scripts.mk)
+	$(call __silent_rm,scripts/crosstool-NG.sh)
+	$(call __silent_rm,scripts/scripts/saveSample.sh)
+	$(call __silent_rm,scripts/scripts/showConfig.sh)
 
 clean-lib:
-	@echo "  RM     'paths'"
-	@rm -f paths.mk paths.sh
-	@echo "  RM     'config/configure.in'"
-	@rm -f config/configure.in
+	$(call __silent_rm,paths.mk paths.sh)
 
 clean-lib-kconfig:
-	@$(MAKE) -C kconfig clean
+	$(call __silent,ENTER,kconfig)$(MAKE) -C kconfig clean
+	$(call __silent,LEAVE,kconfig):
 
 clean-doc:
 
 clean-man:
-	@echo "  RM     'docs/$(PROG_NAME).1'"
-	@rm -f docs/$(PROG_NAME).1
-	@echo "  RM     'docs/$(PROG_NAME).1.gz'"
-	@rm -f docs/$(PROG_NAME).1.gz
+	$(call __silent_rm,docs/$(PROG_NAME).1)
+	$(call __silent_rm,docs/$(PROG_NAME).1.gz)
 
 #--------------------------------------
 # Check for --local setup
@@ -287,8 +262,7 @@ else
 real-install: $(patsubst %,install-%,$(TARGETS)) install-post
 
 install-bin: $(DESTDIR)$(bindir)
-	@echo "  INST    '$(PROG_NAME)'"
-	@$(install) -m 755 $(PROG_NAME) "$(DESTDIR)$(bindir)/$(PROG_NAME)"
+	$(call __silent,INST,$(PROG_NAME))$(install) -m 755 $(PROG_NAME) "$(DESTDIR)$(bindir)/$(PROG_NAME)"
 
 # If one is hacking crosstool-NG, the patch set might change between any two
 # installations of the same VERSION, thus the patches must be removed prior
@@ -299,30 +273,22 @@ install-lib: $(DESTDIR)$(libdir)    \
              install-lib-samples
 
 LIB_SUB_DIR := config contrib patches scripts
-$(patsubst %,install-lib-%-copy,$(LIB_SUB_DIR)): $(DESTDIR)$(libdir)
-	@echo "  INSTDIR '$(patsubst install-lib-%-copy,%,$(@))/'"
-	@tar cf - --exclude='*.sh.in' $(patsubst install-lib-%-copy,%,$(@)) \
+$(patsubst %,install-lib-%-copy,$(LIB_SUB_DIR)): install-lib-%-copy: $(DESTDIR)$(libdir)
+	$(call __silent,INSTDIR,$*)tar cf - --exclude='*.sh.in' --exclude='*.in.in' $* \
 	 |(cd "$(DESTDIR)$(libdir)"; tar xf -)
 
-# We need at least one command to make this rule kick-in.
-install-lib-%: install-lib-%-copy
-	@true
-
-install-lib-scripts: install-lib-scripts-copy
-	@chmod a+x $(DESTDIR)$(libdir)/scripts/crosstool-NG.sh
-	@chmod a+x $(DESTDIR)$(libdir)/scripts/saveSample.sh
+# Dependency-only by default.
+$(patsubst %,install-lib-%,$(LIB_SUB_DIR)): install-lib-%: install-lib-%-copy
 
 install-lib-main: $(DESTDIR)$(libdir) $(patsubst %,install-lib-%,$(LIB_SUB_DIR))
-	@echo "  INST    'steps.mk'"
-	@$(install) -m 644 steps.mk "$(DESTDIR)$(libdir)/steps.mk"
-	@echo "  INST    'paths'"
-	@$(install) -m 644 paths.mk paths.sh "$(DESTDIR)$(libdir)"
+	$(call __silent,INST,steps.mk)$(install) -m 644 steps.mk "$(DESTDIR)$(libdir)"
+	$(call __silent,INST,paths.mk)$(install) -m 644 paths.mk "$(DESTDIR)$(libdir)"
+	$(call __silent,INST,paths.sh)$(install) -m 644 paths.sh "$(DESTDIR)$(libdir)"
 
 # Samples need a little love:
 #  - change every occurrence of CT_TOP_DIR to CT_LIB_DIR
 install-lib-samples: $(DESTDIR)$(libdir) install-lib-main
-	@echo "  INSTDIR 'samples/'"
-	@for samp_dir in samples/*/; do                                         \
+	$(call __silent,INSTDIR,samples)for samp_dir in samples/*/; do          \
 	     mkdir -p "$(DESTDIR)$(libdir)/$${samp_dir}";                       \
 	     $(sed) -r -e 's:\$$\{CT_TOP_DIR\}:\$$\{CT_LIB_DIR\}:;'             \
 	               -e 's:^(CT_WORK_DIR)=.*:\1="\$${CT_TOP_DIR}/.build":;'   \
@@ -341,13 +307,11 @@ install-lib-samples: $(DESTDIR)$(libdir) install-lib-main
 	 done
 	@$(install) -m 644 samples/samples.mk "$(DESTDIR)$(libdir)/samples/samples.mk"
 
-KCONFIG_FILES := conf mconf nconf kconfig.mk
 install-lib-kconfig: $(DESTDIR)$(libdir) install-lib-main
-	@echo "  INST    'kconfig/'"
-	@mkdir -p "$(DESTDIR)$(libdir)/kconfig"
-	@for f in $(KCONFIG_FILES); do                                      \
-	    install "kconfig/$${f}" "$(DESTDIR)$(libdir)/kconfig/$${f}";    \
-	 done
+	$(call __silent,MKDIR,$@)$(install) -m 755 -d "$(libdir)/kconfig"
+	$(call __silent,ENTER,kconfig)$(MAKE) -C kconfig install \
+		DESTDIR=$(DESTDIR)$(libdir)/kconfig
+	$(call __silent,LEAVE,kconfig):
 
 install-doc: install-doc-$(if $(wildcard docs/MANUAL_ONLINE),message,real)
 
@@ -358,20 +322,16 @@ install-doc-message:
 	@echo "      http://crosstool-ng.github.io/docs"
 	@echo "********************************************************************"
 
-
 install-doc-real: $(DESTDIR)$(docdir)
-	@echo "  INST    'docs/manual/*.md'"
-	@for doc_file in docs/manual/*.md; do                        \
+	$(call __silent,INST,docs)for doc_file in docs/manual/*.md; do     \
 	     $(install) -m 644 "$${doc_file}" "$(DESTDIR)$(docdir)"; \
-	 done
+	done
 
 install-man: $(DESTDIR)$(mandir)$(MAN_SUBDIR)
-	@echo "  INST    '$(PROG_NAME).1.gz'"
-	@$(install) -m 644 docs/$(PROG_NAME).1.gz "$(DESTDIR)$(mandir)$(MAN_SUBDIR)"
+	$(call __silent,INST,$(PROG_NAME).1.gz)$(install) -m 644 docs/$(PROG_NAME).1.gz "$(DESTDIR)$(mandir)$(MAN_SUBDIR)"
 
 $(sort $(DESTDIR)$(bindir) $(DESTDIR)$(libdir) $(DESTDIR)$(docdir) $(DESTDIR)$(mandir)$(MAN_SUBDIR)):
-	@echo "  MKDIR   '$@/'"
-	@$(install) -m 755 -d "$@"
+	$(call __silent,MKDIR,$@)$(install) -m 755 -d "$@"
 
 install-post:
 	@echo
@@ -384,20 +344,16 @@ install-post:
 real-uninstall: $(patsubst %,uninstall-%,$(filter-out lib-kconfig,$(TARGETS)))
 
 uninstall-bin:
-	@echo "  RM      '$(DESTDIR)$(bindir)/$(PROG_NAME)'"
-	@rm -f "$(DESTDIR)$(bindir)/$(PROG_NAME)"
+	$(call __silent_rm,$(DESTDIR)$(bindir)/$(PROG_NAME))
 
 uninstall-lib:
-	@echo "  RMDIR   '$(DESTDIR)$(libdir)/'"
-	@rm -rf "$(DESTDIR)$(libdir)"
+	$(call __silent_rmdir,$(DESTDIR)$(libdir))
 
 uninstall-doc:
-	@echo "  RMDIR   '$(DESTDIR)$(docdir)/'"
-	@rm -rf "$(DESTDIR)$(docdir)"
+	$(call __silent_rmdir,$(DESTDIR)$(docdir))
 
 uninstall-man:
-	@echo "  RM      '$(DESTDIR)$(mandir)$(MAN_SUBDIR)/$(PROG_NAME).1.gz'"
-	@rm -f "$(DESTDIR)$(mandir)$(MAN_SUBDIR)/$(PROG_NAME).1"{,.gz}
+	$(call __silent_rm,$(DESTDIR)$(mandir)$(MAN_SUBDIR)/$(PROG_NAME).1.gz)
 
 endif # Not --local
 

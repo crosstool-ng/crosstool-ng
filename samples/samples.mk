@@ -48,7 +48,7 @@ show-config: .config
 
 # Prints the details of a sample
 PHONY += $(patsubst %,show-%,$(CT_SAMPLES))
-$(patsubst %,show-%,$(CT_SAMPLES)): show-%: config_files
+$(patsubst %,show-%,$(CT_SAMPLES)): show-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
@@ -72,7 +72,7 @@ list-samples-pre: FORCE
 	@echo 'Status  Sample name'
 
 PHONY += $(patsubst %,list-%,$(CT_SAMPLES))
-$(patsubst %,list-%,$(CT_SAMPLES)): list-%: config_files
+$(patsubst %,list-%,$(CT_SAMPLES)): list-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
@@ -87,7 +87,7 @@ list-samples-short: FORCE
 
 # Check one sample
 PHONY += $(patsubst %,check-%,$(CT_SAMPLES))
-$(patsubst %,check-%,$(CT_SAMPLES)): check-%: config_files
+$(patsubst %,check-%,$(CT_SAMPLES)): check-%:
 	@export KCONFIG_CONFIG=$$(pwd)/.config.sample;                                  \
 	 CT_NG_SAMPLE=$(call sample_dir,$*)/crosstool.config;                           \
 	 $(CONF) -s --defconfig=$${CT_NG_SAMPLE} $(KCONFIG_TOP) &>/dev/null;            \
@@ -119,7 +119,7 @@ wiki-samples-pre: FORCE
 wiki-samples-post: FORCE
 	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -W $(CT_SAMPLES)
 
-$(patsubst %,wiki-%,$(CT_SAMPLES)): wiki-%: config_files
+$(patsubst %,wiki-%,$(CT_SAMPLES)): wiki-%:
 	$(SILENT)KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
@@ -146,8 +146,8 @@ endef
 
 # How we do recall one sample
 PHONY += $(CT_SAMPLES)
-$(CT_SAMPLES): config_files
-	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
+$(CT_SAMPLES):
+	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(CONF) --defconfig=$(call sample_dir,$@)/crosstool.config $(KCONFIG_TOP)
 	@echo
 	@echo  '***********************************************************'
@@ -225,7 +225,7 @@ endif # MAKECMDGOALS contains a build sample rule
 endif # MAKECMDGOALS != ""
 
 # Build a single sample
-$(patsubst %,build-%,$(CT_SAMPLES)): build-%: config_files
+$(patsubst %,build-%,$(CT_SAMPLES)): build-%:
 	$(call build_sample,$*)
 
 # Cross samples (build==host)

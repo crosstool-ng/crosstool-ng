@@ -5,31 +5,27 @@
 #-----------------------------------------------------------
 # The configurators rules
 
-configurators = menuconfig nconfig oldconfig savedefconfig defconfig
-PHONY += $(configurators)
-
-$(configurators): config_files
-
-export CT_IS_A_BACKEND:=$(CT_IS_A_BACKEND)
-export CT_BACKEND_ARCH:=$(CT_BACKEND_ARCH)
-export CT_BACKEND_KERNEL:=$(CT_BACKEND_KERNEL)
-export CT_BACKEND_LIBC:=$(CT_BACKEND_LIBC)
+# Top file of crosstool-NG configuration
+export KCONFIG_TOP = $(CT_LIB_DIR)/config/config.in
 
 # We need CONF for savedefconfig in scripts/saveSample.sh
 export CONF  := $(CT_LIB_DIR)/kconfig/conf
 MCONF := $(CT_LIB_DIR)/kconfig/mconf
 NCONF := $(CT_LIB_DIR)/kconfig/nconf
 
+# Used by conf/mconf/nconf to find the .in files
+export srctree=$(CT_LIB_DIR)
+
 menuconfig:
-	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
+	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(MCONF) $(KCONFIG_TOP)
 
 nconfig:
-	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
+	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(NCONF) $(KCONFIG_TOP)
 
 oldconfig: .config
-	@$(CT_ECHO) "  CONF  $(KCONFIG_TOP)"
+	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
 
 savedefconfig: .config
