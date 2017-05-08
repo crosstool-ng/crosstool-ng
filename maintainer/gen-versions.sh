@@ -139,14 +139,54 @@ config ${info[pfx]}_V_${info[kcfg]}
 	depends on OBSOLETE}${info[experimental]:+
 	depends on EXPERIMENTAL}'\"
 
-	# TBD devel (from official repository)
-	# TBD show changeset/revision/branch selection
+	if [ -n "${info[repository]}" ]; then
+		cat <<EOF
+
+config ${info[pfx]}_V_DEVEL
+	bool "development"
+	depends on EXPERIMENTAL
+	help
+	  Check out from the repository: ${info[repository]#* }
+EOF
+	fi
+
 	# TBD custom (local tarball/directory)
 	# TBD show custom location selection
 
 	cat <<EOF
 
 endchoice
+EOF
+
+	if [ -n "${info[repository]}" ]; then
+		local -A dflt_branch=( [git]="master" [svn]="/trunk" )
+		cat <<EOF
+
+if ${info[pfx]}_V_DEVEL
+
+config ${info[pfx]}_DEVEL_URL
+	string
+	default "${info[repository]}"
+
+config ${info[pfx]}_DEVEL_BRANCH
+	string "Branch to check out"
+	default "${dflt_branch[${info[repository]%% *}]}"
+	help
+	  Git: branch to be checked out
+	  Subversion: directories to append to the repository URL.
+
+config ${info[pfx]}_DEVEL_REVISION
+	string "Revision/changeset"
+	default "HEAD"
+	help
+	  Commit ID or revision ID to check out.
+
+endif
+
+EOF
+	fi
+
+	cat <<EOF
 
 # Text string with the version of ${info[name]}
 config ${info[pfx]}_VERSION
