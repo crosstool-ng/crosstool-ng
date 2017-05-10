@@ -1,293 +1,316 @@
 #!/bin/bash
 
-# Where the version configs are generated
-config_dir=config/versions
-defaults=packages/default.desc
+########################################
+# Common meta-language implementation
 
-declare -A forks
+declare -A info
 
 debug()
 {
-	if [ -n "${DEBUG}" ]; then
-		echo ":: $@" >&2
-	fi
+    if [ -n "${DEBUG}" ]; then
+        echo "DEBUG :: $@" >&2
+    fi
 }
 
-read_files()
+warn()
 {
-	local f l
-
-	for f in ${defaults} "$@"; do
-		[ -r "${f}" ] || continue
-		while read l; do
-			case "${l}" in
-				"#*") continue;;
-				*) echo "[${l%%=*}]=${l#*=}";;
-			esac
-		done < "${f}"
-	done
+    echo "WARN  :: $@" >&2
 }
 
-derived_package()
+error()
 {
-	info[name]=${p}
-	info[forks]=${forks[${p}]}
-	info[master]=${info[master]:-${p}}
-	# Various kconfig-ized prefixes
-	tmp=${p^^}
-	info[pfx]=${tmp//[^0-9A-Z_]/_}
-	tmp=${info[origin]^^}
-	info[originpfx]=${tmp//[^0-9A-Z_/_}
-	tmp=${info[master]^^}
-	info[masterpfx]=${tmp//[^0-9A-Z_/_}
+    echo "ERROR :: $@" >&2
+    exit 1
+}
+
+find_end()
+{
+    local token="${1}"
+    local count=1
+
+    # Skip first line, we know it has the proper '#!' command on it
+    endline=$[l + 1]
+    while [ "${endline}" -le "${end}" ]; do
+        case "${tlines[${endline}]}" in
+            "#!${token} "*)
+                count=$[count + 1]
+                ;;
+            "#!end-${token}")
+                count=$[count - 1]
+                ;;
+        esac
+        if [ "${count}" = 0 ]; then
+            return
+        fi
+        endline=$[endline + 1]
+    done
+    error "line ${l}: '${token}' token is unpaired"
+}
+
+set_iter()
+{
+    local name="${1}"
+
+    if [ "${info[iter_${name}]+set}" = "set" ]; then
+        error "Iterator over '${name}' is already set up"
+    fi
+    shift
+    debug "Setting iterator over '${name}' to '$*'"
+    info[iter_${name}]="$*"
+}
+
+run_if()
+{
+    local cond="${1}"
+    local endline
+
+    find_end "if"
+    if eval "${cond}"; then
+        debug "True conditional '${cond}' at lines ${l}..${endline}"
+        run_lines $[l + 1] $[endline - 1]
+    else
+        debug "False conditional '${cond}' at lines ${l}..${endline}"
+    fi
+    lnext=$[endline + 1]
+    debug "Continue at line ${lnext}"
+}
+
+do_foreach()
+{
+    local var="${1}"
+    local v saveinfo
+
+    shift
+    if [ "`type -t enter_${var}`" != "function" ]; then
+        error "No parameter setup routine for iterator over '${var}'"
+    fi
+    for v in ${info[iter_${var}]}; do
+        saveinfo=`declare -p info`
+        eval "enter_${var} ${v}"
+        eval "$@"
+        eval "${saveinfo#declare -A }"
+    done
+}
+
+run_foreach()
+{
+    local var="${1}"
+    local endline
+
+    if [ "${info[iter_${var}]+set}" != "set" ]; then
+        error "line ${l}: iterator over '${var}' is not defined"
+    fi
+    find_end "foreach"
+    debug "Loop over '${var}', lines ${l}..${endline}"
+    do_foreach ${var} run_lines $[l + 1] $[endline - 1]
+    lnext=$[endline + 1]
+    debug "Continue at line ${lnext}"
+}
+
+run_lines()
+{
+    local start="${1}"
+    local end="${2}"
+    local l lnext s v
+
+    debug "Running lines ${start}..${end}"
+    l=${start}
+    while [ "${l}" -le "${end}" ]; do
+        lnext=$[l+1]
+        s="${tlines[${l}]}"
+        # Expand @@foo@@ to ${info[foo]}. First escape quotes/backslashes.
+        s="${s//\\/\\\\}"
+        s="${s//\$/\\\$}"
+        while [ -n "${s}" ]; do
+            case "${s}" in
+                *@@*@@*)
+                    v="${s#*@@}"
+                    v="${v%%@@*}"
+                    if [ "${info[${v}]+set}" != "set" ]; then
+                        error "line ${l}: reference to undefined variable '${v}'"
+                    fi
+                    s="${s%%@@*}\${info[${v}]}${s#*@@*@@}"
+                    ;;
+                *@@*)
+                    error "line ${l}: non-paired @@ markers"
+                    ;;
+                *)
+                    break
+                    ;;
+            esac
+        done
+
+        debug "Evaluate: ${s}"
+        case "${s}" in
+            "#!if "*)
+                run_if "${s#* }"
+                ;;
+            "#!foreach "*)
+                run_foreach "${s#* }"
+                ;;
+            "#!"*)
+                error "line ${l}: unrecognized command"
+                ;;
+            *)
+                # Not a special command
+                eval "echo \"${s//\"/\\\"}\""
+                ;;
+        esac
+        l=${lnext}
+    done
+}
+
+run_template()
+{
+    local -a tlines
+    local src="${1}"
+
+    debug "Running template ${src}"
+    mapfile -O 1 -t tlines < "${src}"
+    run_lines 1 ${#tlines[@]}
+}
+
+########################################
+
+# Where the version configs are generated
+config_dir=config/versions
+template=maintainer/kconfig-versions.template
+
+declare -A pkg_forks
+declare -a pkg_masters pkg_nforks pkg_all
+
+kconfigize()
+{
+    local v="${1}"
+
+    v=${v//[^0-9A-Za-z_]/_}
+    echo "${v^^}"
+}
+
+read_file()
+{
+    local l
+
+    while read l; do
+        case "${l}" in
+            "#*") continue;;
+            *) echo "info[${l%%=*}]=${l#*=}";;
+        esac
+    done < "${1}"
 }
 
 read_package_desc()
 {
-	read_files "packages/${1}/package.desc"
+    read_file "packages/${1}/package.desc"
 }
 
 read_version_desc()
 {
-	read_files "packages/${1}/package.desc" "packages/${1}/${2}/version.desc"
+    read_file "packages/${1}/${2}/version.desc"
 }
 
-for_each_package()
-{
-	local list="${1}"
-	local -A info
-	local p tmp
-
-	debug "Entering: for_each_package $@"
-
-	shift
-	for p in ${list}; do
-		eval "info=( `read_package_desc ${p}` )"
-		derived_package ${p}
-		debug "Evaluate for ${p}: $@"
-		eval "$@"
-	done
-}
-
-for_each_version()
-{
-	local pkg="${1}"
-	local -A info prev
-	local -a versions
-	local v tmp
-
-	debug "Entering: for_each_version $@"
-
-	shift
-	versions=( `cd packages/${pkg} && ls */version.desc 2>/dev/null | sed 's,/version.desc$,,' | sort -rV` )
-	tmp=
-	for v in "${versions[@]}"; do
-		if [ -n "${tmp}" ]; then
-			prev["${tmp}"]=${v}
-		fi
-		tmp="${v}"
-	done
-	
-	if [ -n "${tmp}" ]; then
-		prev["${tmp}"]=
-	fi
-
-	for v in "${versions[@]}"; do
-		eval "info=( `read_version_desc "${pkg}" "${v}"` )"
-		debug "INFO [[ `read_version_desc "${pkg}" "${v}"` ]]"
-		derived_package ${pkg}
-		info[ver]="${v}"
-		info[kcfg]="${v//[^0-9A-Za-z_]/_}"
-		info[prev]="${prev[${v}]//[^0-9A-Za-z_]/_}"
-		debug "Evaluate for ${pkg}/${v}: $@"
-		eval "$@"
-	done
-}
-
-# Setup: find master-fork relationships between packages
 find_forks()
 {
-	[ "${info[master]}" != "${info[name]}" ] && forks[${info[master]}]+=" ${info[name]}"
+    local -A info
+
+    eval `read_package_desc ${1}`
+
+    if [ -n "${info[master]}" ]; then
+        pkg_nforks[${info[master]}]=$[pkg_nforks[${info[master]}]+1]
+        pkg_forks[${info[master]}]+=" ${1}"
+    else
+        pkg_nforks[${1}]=$[pkg_nforks[${1}]+1]
+        pkg_forks[${1}]="${1}${pkg_forks[${1}]}"
+        pkg_masters+=( "${1}" )
+    fi
 }
 
-gen_versions()
+check_obsolete_experimental()
 {
-	local cond=$1
-
-	debug "Entering: gen_versions $@"
-
-	if [ -n "${cond}" ]; then
-		cat <<EOF
-if ${cond}
-
-EOF
-	fi
-
-	cat <<EOF
-# Versions for ${info[name]}
-choice
-	bool
-	prompt "Version of ${info[name]}"
-
-# Defined versions first
-EOF
-
-	for_each_version "${info[name]}" echo \"'
-config ${info[pfx]}_V_${info[kcfg]}
-	bool \"${info[ver]}\"
-	select ${info[pfx]}_V_${info[kcfg]}_or_later${info[obsolete]:+
-	depends on OBSOLETE}${info[experimental]:+
-	depends on EXPERIMENTAL}'\"
-
-	if [ -n "${info[repository]}" ]; then
-		cat <<EOF
-
-config ${info[pfx]}_V_DEVEL
-	bool "development"
-	depends on EXPERIMENTAL
-	help
-	  Check out from the repository: ${info[repository]#* }
-EOF
-	fi
-
-	# TBD custom (local tarball/directory)
-	# TBD show custom location selection
-
-	cat <<EOF
-
-endchoice
-EOF
-
-	if [ -n "${info[repository]}" ]; then
-		local -A dflt_branch=( [git]="master" [svn]="/trunk" )
-		cat <<EOF
-
-if ${info[pfx]}_V_DEVEL
-
-config ${info[pfx]}_DEVEL_URL
-	string
-	default "${info[repository]}"
-
-config ${info[pfx]}_DEVEL_BRANCH
-	string "Branch to check out"
-	default "${dflt_branch[${info[repository]%% *}]}"
-	help
-	  Git: branch to be checked out
-	  Subversion: directories to append to the repository URL.
-
-config ${info[pfx]}_DEVEL_REVISION
-	string "Revision/changeset"
-	default "HEAD"
-	help
-	  Commit ID or revision ID to check out.
-
-endif
-
-EOF
-	fi
-
-	cat <<EOF
-
-# Text string with the version of ${info[name]}
-config ${info[pfx]}_VERSION
-	string
-EOF
-	for_each_version "${info[name]}" echo \
-		\"'	default \"${info[ver]}\" if ${info[pfx]}_V_${info[kcfg]}'\"
- 	cat <<EOF
-	default "unknown"
-
-EOF
-
-	cat <<EOF
-
-# Flags for all versions indicating "this or later".
-# Only produced for master version of the package (which is what
-# the build scriptes are tied to); derived versions must
-# select the matching master version.
-EOF
-	for_each_version "${info[name]}" echo \"'
-config ${info[pfx]}_V_${info[kcfg]}_or_later
-	bool${info[prev]:+
-	select ${info[pfx]}_V_${info[prev]}_or_later}'\"
-
-	if [ -n "${cond}" ]; then
-		cat <<EOF
-
-endif
-
-EOF
-	fi
+    [ -z "${info[obsolete]}" ] && only_obsolete=
+    [ -z "${info[experimental]}" ] && only_experimental=
 }
 
-# Generate a menu for selecting a fork for a component
-gen_selection()
+enter_fork()
 {
-	local only_obsolete=yes only_experimental=yes
+    local fork="${1}"
+    local -A dflt_branch=( [git]="master" [svn]="/trunk" )
+    local versions
+    local only_obsolete only_experimental
 
-	for_each_version "${info[name]}" '
-[ -z "${info[experimental]}" ] && only_experimental=
-[ -z "${info[obsolete]}" ] && only_obsolete=
-'
+    eval `read_package_desc ${fork}`
 
-	debug "${info[name]}: ${only_obsolete:+obsolete} ${only_experimental:+experimental}"
+    info[name]=${fork}
+    info[pfx]=`kconfigize ${fork}`
+    info[originpfx]=`kconfigize ${info[origin]}`
+    if [ -r "packages/${info[origin]}.help" ]; then
+        info[originhelp]=`sed 's/^/\t  /' "packages/${info[origin]}.help"`
+    else
+        info[originhelp]="${info[master]} from ${info[origin]}."
+    fi
 
-	echo "
-config ${info[masterpfx]}_USE_${info[originpfx]}
-	bool \"${info[origin]}\"${only_obsolete:+
-	depends on OBSOLETE}${only_experimental:+
-	depends on EXPERIMENTAL}
-	help" && sed 's/^/\t  /' "packages/${info[origin]}.help"
+    if [ -n "${info[repository]}" ]; then
+        info[vcs]=${info[repository]%% *}
+        info[repository_url]=${info[repository]##* }
+        info[repository_dflt_branch]=${dflt_branch[${info[vcs]}]}
+    fi
+
+    versions=`cd packages/${fork} && \
+        for f in */version.desc; do [ -r "${f}" ] && echo "${f%/version.desc}"; done | \
+            sort -rV | xargs echo`
+
+    set_iter version $versions
+    info[all_versions]=$versions
+
+    only_obsolete=yes
+    only_experimental=yes
+    do_foreach version check_obsolete_experimental
+    info[only_obsolete]=${only_obsolete}
+    info[only_experimental]=${only_experimental}
 }
 
-# Generate a single configuration file
-gen_one_component()
+enter_version()
 {
-	local cond
+    local version="${1}"
+    local tmp
 
-	debug "Entering: gen_one_component $@"
-
-	# Non-masters forks: skip, will be generated along with their master version
-	if [ "${info[master]}" != "${info[name]}" ]; then
-		debug "Skip '${info[name]}': master '${info[master]}'"
-		return
-	fi
-
-	debug "Generating '${info[name]}.in'${info[forks]:+ (includes ${info[forks]}})"
-	exec >"${config_dir}/${info[name]}.in"
-	cat <<EOF
-#
-# DO NOT EDIT! This file is automatically generated.
-#
-
-EOF
-
-	# Generate fork selection, if there is more than one fork
-	if [ -n "${info[forks]}" ]; then
-		cat <<EOF
-choice
-	bool "Show ${info[name]} versions from"
-EOF
-		for_each_package "${info[name]} ${info[forks]}" gen_selection
-
-		cat <<EOF
-
-endchoice
-
-EOF
-		for_each_package "${info[name]} ${info[forks]}" \
-			gen_versions '${info[masterpfx]}_USE_${info[originpfx]}'
-	else
-		for_each_package "${info[name]}" gen_versions
-	fi
+    eval `read_version_desc ${info[name]} ${version}`
+    info[ver]=${version}
+    info[kcfg]=`kconfigize ${version}`
+    tmp=" ${info[all_versions]} "
+    tmp=${tmp##* ${version} }
+    info[prev]=`kconfigize ${tmp%% *}`
 }
 
 rm -rf "${config_dir}"
 mkdir -p "${config_dir}"
 
-all_packages=`cd packages && ls */package.desc 2>/dev/null | sed 's,/package.desc$,,' | xargs echo`
+pkg_all=( `cd packages && \
+    ls */package.desc 2>/dev/null | \
+    while read f; do [ -r "${f}" ] && echo "${f%/package.desc}"; done | \
+    xargs echo` )
 debug "Generating package version descriptions"
-debug "Packages: ${all_packages}"
-for_each_package "${all_packages}" find_forks
-for_each_package "${all_packages}" gen_one_component
-debug "Done!"
+debug "Packages: ${pkg_all[@]}"
+
+# We need to group forks of the same package into the same
+# config file. Discover such relationships and only iterate
+# over "master" packages at the top.
+for p in "${pkg_all[@]}"; do
+    find_forks "${p}"
+done
+debug "Master packages: ${pkg_masters[@]}"
+
+# Now for each master, create its kconfig file with version
+# definitions.
+for p in "${pkg_masters[@]}"; do
+    debug "Generating '${config_dir}/${p}.in'"
+    exec >"${config_dir}/${p}.in"
+    # Base definitions for the whole config file
+    info=( \
+        [master]=${p} \
+        [masterpfx]=`kconfigize ${p}` \
+        [nforks]=${pkg_nforks[${p}]} \
+        )
+    set_iter fork ${pkg_forks[${p}]}
+    run_template "${template}"
+done
