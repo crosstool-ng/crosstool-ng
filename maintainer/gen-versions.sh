@@ -12,6 +12,13 @@ debug()
     fi
 }
 
+info()
+{
+    if [ -z "${QUIET}" ]; then
+        echo "INFO  :: $@" >&2
+    fi
+}
+
 warn()
 {
     echo "WARN  :: $@" >&2
@@ -148,6 +155,9 @@ run_lines()
             "#!foreach "*)
                 run_foreach "${s#* }"
                 ;;
+            "#!//"*)
+                # Comment, do nothing
+                ;;
             "#!"*)
                 error "line ${l}: unrecognized command"
                 ;;
@@ -193,8 +203,9 @@ read_file()
 
     while read l; do
         case "${l}" in
-            "#*") continue;;
-            *) echo "info[${l%%=*}]=${l#*=}";;
+            "#"*) continue;;
+            *=*) echo "info[${l%%=*}]=${l#*=}";;
+            *) error "syntax error in '${1}': '${l}'"
         esac
     done < "${1}"
 }
@@ -238,6 +249,10 @@ enter_fork()
     local versions
     local only_obsolete only_experimental
 
+    # Set defaults
+    info[obsolete]=
+    info[experimental]=
+
     eval `read_package_desc ${fork}`
 
     info[name]=${fork}
@@ -259,20 +274,32 @@ enter_fork()
         for f in */version.desc; do [ -r "${f}" ] && echo "${f%/version.desc}"; done | \
             sort -rV | xargs echo`
 
-    set_iter version $versions
-    info[all_versions]=$versions
+    set_iter version ${versions}
+    info[all_versions]=${versions}
 
-    only_obsolete=yes
-    only_experimental=yes
-    do_foreach version check_obsolete_experimental
-    info[only_obsolete]=${only_obsolete}
-    info[only_experimental]=${only_experimental}
+    # If a fork does not define any versions at all ("rolling release"), do not
+    # consider it obsolete/experimental unless it is marked in the fork's
+    # description.
+    if [ -n "${versions}" ]; then
+        only_obsolete=yes
+        only_experimental=yes
+        do_foreach version check_obsolete_experimental
+        info[only_obsolete]=${only_obsolete}
+        info[only_experimental]=${only_experimental}
+    else
+        info[only_obsolete]=${info[obsolete]}
+        info[only_experimental]=${info[experimental]}
+    fi
 }
 
 enter_version()
 {
     local version="${1}"
     local tmp
+
+    # Set defaults
+    info[obsolete]=
+    info[experimental]=
 
     eval `read_version_desc ${info[name]} ${version}`
     info[ver]=${version}
@@ -289,7 +316,8 @@ pkg_all=( `cd packages && \
     ls */package.desc 2>/dev/null | \
     while read f; do [ -r "${f}" ] && echo "${f%/package.desc}"; done | \
     xargs echo` )
-debug "Generating package version descriptions"
+
+info "Generating package version descriptions"
 debug "Packages: ${pkg_all[@]}"
 
 # We need to group forks of the same package into the same
@@ -298,12 +326,12 @@ debug "Packages: ${pkg_all[@]}"
 for p in "${pkg_all[@]}"; do
     find_forks "${p}"
 done
-debug "Master packages: ${pkg_masters[@]}"
+info "Master packages: ${pkg_masters[@]}"
 
 # Now for each master, create its kconfig file with version
 # definitions.
 for p in "${pkg_masters[@]}"; do
-    debug "Generating '${config_dir}/${p}.in'"
+    info "Generating '${config_dir}/${p}.in'"
     exec >"${config_dir}/${p}.in"
     # Base definitions for the whole config file
     info=( \
@@ -312,5 +340,8 @@ for p in "${pkg_masters[@]}"; do
         [nforks]=${pkg_nforks[${p}]} \
         )
     set_iter fork ${pkg_forks[${p}]}
+    # TBD check that origins are set for all forks if there is more than one? or is it automatic because of a missing variable check?
+    # TBD get rid of the "origin" completely and use just the fork name?
     run_template "${template}"
 done
+info "Done!"
