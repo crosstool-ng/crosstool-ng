@@ -48,6 +48,17 @@ CT_DoArchUClibcConfig() {
     CT_KconfigDeleteOption "CONFIG_MIPS_ISA_MIPS64R2" "${cfg}"
 }
 
+CT_DoArchUClibcHeaderDir() {
+    local dir_var="${1}"
+    local cflags="${2}"
+
+    # If it is non-default multilib, add a suffix with architecture (reported by gcc)
+    # to the headers installation path.
+    if [ -n "${cflags}" ]; then
+        eval "${dir_var}="$( ${CT_TARGET}-${CT_CC} -print-multiarch ${cflags} )
+    fi
+}
+
 CT_DoArchUClibcCflags() {
     local cfg="${1}"
     local cflags="${2}"
