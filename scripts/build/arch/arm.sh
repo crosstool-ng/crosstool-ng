@@ -18,6 +18,7 @@ CT_DoArchTupleValues() {
         *glibc,y)   CT_TARGET_SYS=gnueabi;;
         uClibc,y)   CT_TARGET_SYS=uclibc${CT_LIBC_UCLIBC_USE_GNU_SUFFIX:+gnu}eabi;;
         musl,y)     CT_TARGET_SYS=musleabi;;
+        bionic,y)   CT_TARGET_SYS=android;;
         *,y)        CT_TARGET_SYS=eabi;;
     esac
 

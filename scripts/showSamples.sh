@@ -101,7 +101,7 @@ dump_single_sample() {
             cc=$(echo ${CT_CC} | ${awk} '{ print toupper($0)}')
             version=$(eval echo \${CT_CC_${cc}_VERSION})
             compiler=$(echo $cc | ${awk} '{print tolower($0)}')
-            printf " $compiler  |  $version"
+            printf " $compiler-$version"
             printf "\n"
             printf  "    %-*s : %s" ${width} "Languages" "C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
