@@ -186,15 +186,168 @@ run_template()
 config_dir=config/versions
 template=maintainer/kconfig-versions.template
 
-declare -A pkg_forks
+declare -A pkg_forks pkg_milestones
 declare -a pkg_masters pkg_nforks pkg_all
 
+# Convert the argument to a Kconfig-style macro
 kconfigize()
 {
     local v="${1}"
 
     v=${v//[^0-9A-Za-z_]/_}
     echo "${v^^}"
+}
+
+# Helper for cmp_versions: compare an upstream/debian portion of
+# a version. Returns 0 if equal, otherwise echoes "-1" or "1" and
+# returns 1.
+equal_versions()
+{
+    local v1="${1}"
+    local v2="${2}"
+    local p1 p2
+
+    # Compare alternating non-numerical/numerical portions, until
+    # non-equal portion is found or either string is exhausted.
+    while [ -n "${v1}" -a -n "${v2}" ]; do
+        # Find non-numerical portions and compare lexicographically
+        p1="${v1%%[0-9]*}"
+        p2="${v2%%[0-9]*}"
+        v1="${v1#${p1}}"
+        v2="${v2#${p2}}"
+        #debug "lex [${p1}] v [${p2}]"
+        if [ "${p1}" \< "${p2}" ]; then
+            echo "-1"
+            return 1
+        elif [ "${p1}" \> "${p2}" ]; then
+            echo "1"
+            return 1
+        fi
+        #debug "rem [${v1}] v [${v2}]"
+        # Find numerical portions and compare numerically
+        p1="${v1%%[^0-9]*}"
+        p2="${v2%%[^0-9]*}"
+        v1="${v1#${p1}}"
+        v2="${v2#${p2}}"
+        #debug "num [${p1}] v [${p2}]"
+        if [ "${p1:-0}" -lt "${p2:-0}" ]; then
+            echo "-1"
+            return 1
+        elif [ "${p1:-0}" -gt "${p2:-0}" ]; then
+            echo "1"
+            return 1
+        fi
+        #debug "rem [${v1}] v [${v2}]"
+    done
+    if [ -n "${v1}" ]; then
+        echo "1"
+        return 1
+    elif [ -n "${v2}" ]; then
+        echo "-1"
+        return 1
+    fi
+    return 0
+}
+
+# Compare two version strings, similar to sort -V. But we don't
+# want to depend on GNU sort availability on the host.
+# See http://www.debian.org/doc/debian-policy/ch-controlfields.html
+# for description of what the version is expected to be.
+# Returns "-1", "0" or "1" if first version is earlier, same or
+# later than the second.
+cmp_versions()
+{
+    local v1="${1}"
+    local v2="${2}"
+    local e1=0 e2=0 u1 u2 d1=0 d2=0
+
+    # Case-insensitive comparison
+    v1="${v1^^}"
+    v2="${v2^^}"
+
+    # Find if the versions contain epoch part
+    case "${v1}" in
+        *:*)
+            e1="${v1%%:*}"
+            v1="${v1#*:}"
+            ;;
+    esac
+    case "${v2}" in
+        *:*)
+            e2="${v2%%:*}"
+            v2="${v2#*:}"
+            ;;
+    esac
+
+    # Compare epochs numerically
+    if [ "${e1}" -lt "${e2}" ]; then
+        echo "-1"
+        return
+    elif [ "${e1}" -gt "${e2}" ]; then
+        echo "1"
+        return
+    fi
+
+    # Find if the version contains a "debian" part.
+    # v1/v2 will now contain "upstream" part.
+    case "${v1}" in
+        *-*)
+            d1=${v1##*-}
+            v1=${v1%-*}
+            ;;
+    esac
+    case "${v2}" in
+        *-*)
+            d2=${v2##*-}
+            v2=${v2%-*}
+            ;;
+    esac
+
+    # Compare upstream
+    if equal_versions "${v1}" "${v2}" && equal_versions "${d1}" "${d2}"; then
+        echo "0"
+    fi
+}
+
+# Sort versions, descending
+sort_versions()
+{
+    local sorted
+    local remains="$*"
+    local next_remains
+    local v vx found
+
+    while [ -n "${remains}" ]; do
+        #debug "Sorting [${remains}]"
+        for v in ${remains}; do
+            found=yes
+            next_remains=
+            #debug "Candidate ${v}"
+            for vx in ${remains}; do
+                #debug "${v} vs ${vx} :: `cmp_versions ${v} ${vx}`"
+                case `cmp_versions ${v} ${vx}` in
+                    1)
+			    next_remains+=" ${vx}"
+			    ;;
+                    0)
+			    ;;
+                    -1)
+			    found=no
+			    #debug "Bad: earlier than ${vx}"
+			    break
+			    ;;
+                esac
+            done
+            if [ "${found}" = "yes" ]; then
+                # $v is less than all other members in next_remains
+                sorted+=" ${v}"
+                remains="${next_remains}"
+                #debug "Good candidate ${v} sorted [${sorted}] remains [${remains}]"
+                break
+            fi
+        done
+    done
+    echo "${sorted}"
 }
 
 read_file()
@@ -232,6 +385,7 @@ find_forks()
     else
         pkg_nforks[${1}]=$[pkg_nforks[${1}]+1]
         pkg_forks[${1}]="${1}${pkg_forks[${1}]}"
+	pkg_milestones[${1}]=`sort_versions ${info[milestones]}`
         pkg_masters+=( "${1}" )
     fi
 }
@@ -271,8 +425,8 @@ enter_fork()
     fi
 
     versions=`cd packages/${fork} && \
-        for f in */version.desc; do [ -r "${f}" ] && echo "${f%/version.desc}"; done | \
-            sort -rV | xargs echo`
+        for f in */version.desc; do [ -r "${f}" ] && echo "${f%/version.desc}"; done`
+    versions=`sort_versions ${versions}`
 
     set_iter version ${versions}
     info[all_versions]=${versions}
@@ -292,10 +446,17 @@ enter_fork()
     fi
 }
 
+set_latest_milestone()
+{
+    if [ `cmp_versions ${info[ms]} ${info[ver]}` -le 0 -a -z "${milestone}" ]; then
+        milestone=${info[ms_kcfg]}
+    fi
+}
+
 enter_version()
 {
     local version="${1}"
-    local tmp
+    local tmp milestone
 
     # Set defaults
     info[obsolete]=
@@ -304,9 +465,28 @@ enter_version()
     eval `read_version_desc ${info[name]} ${version}`
     info[ver]=${version}
     info[kcfg]=`kconfigize ${version}`
+    # TBD do we need "prev" version?
     tmp=" ${info[all_versions]} "
     tmp=${tmp##* ${version} }
     info[prev]=`kconfigize ${tmp%% *}`
+
+    # Find the latest milestone preceding this version
+    milestone=
+    do_foreach milestone set_latest_milestone
+    info[milestone]=${milestone}
+}
+
+enter_milestone()
+{
+    local ms="${1}"
+    local tmp
+
+    info[ms]=${ms}
+    info[ms_kcfg]=`kconfigize ${ms}`
+
+    tmp=" ${info[all_milestones]} "
+    tmp=${tmp##* ${ms} }
+    info[ms_prev]=`kconfigize ${tmp%% *}`
 }
 
 rm -rf "${config_dir}"
@@ -338,8 +518,11 @@ for p in "${pkg_masters[@]}"; do
         [master]=${p} \
         [masterpfx]=`kconfigize ${p}` \
         [nforks]=${pkg_nforks[${p}]} \
+        [all_milestones]=${pkg_milestones[${p}]} \
         )
     set_iter fork ${pkg_forks[${p}]}
+    set_iter milestone ${pkg_milestones[${p}]}
+
     # TBD check that origins are set for all forks if there is more than one? or is it automatic because of a missing variable check?
     # TBD get rid of the "origin" completely and use just the fork name?
     run_template "${template}"

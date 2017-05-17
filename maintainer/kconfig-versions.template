@@ -56,7 +56,7 @@ config @@pfx@@_SRC_DEVEL
 	bool "Vendor repository"
 	help
 	  Check out from vendor repository at:
-	  @@repository@@
+	  @@repository_url@@
 
 #!end-if
 config @@pfx@@_SRC_CUSTOM
@@ -112,7 +112,15 @@ choice
 #!foreach version
 config @@pfx@@_V_@@kcfg@@
 	bool "@@ver@@"
-	select @@pfx@@_V_@@kcfg@@_or_later
+#!if [ "@@obsolete@@" = "yes" ]
+	depends on OBSOLETE
+#!end-if
+#!if [ "@@experimental@@" = "yes" ]
+	depends on EXPERIMENTAL
+#!end-if
+#!if [ -n "@@milestone@@" ]
+	select @@masterpfx@@_MS_@@milestone@@
+#!end-if
 
 #!end-foreach
 endchoice
@@ -128,13 +136,13 @@ config @@pfx@@_VERSION
 #!end-foreach
 	default "unknown"
 
-#!foreach version
-config @@pfx@@_V_@@kcfg@@_or_later
-	bool
-#!if [ -n "@@prev@@" ]
-	select @@pfx@@_V_@@prev@@_or_later
-#!end-if
-
 #!end-foreach
+
+#!foreach milestone
+config @@masterpfx@@_MS_@@ms_kcfg@@
+	bool
+#!if [ -n "@@ms_prev@@" ]
+	select @@masterpfx@@_MS_@@ms_prev@@
+#!end-if
 
 #!end-foreach
