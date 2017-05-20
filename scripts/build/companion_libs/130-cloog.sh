@@ -85,7 +85,7 @@ do_cloog_backend() {
         eval "${arg// /\\ }"
     done
 
-    if [ "${CT_CLOOG_0_18_or_later}" = y ]; then
+    if [ "${CT_CLOOG_HAS_WITH_GMP_ISL_OSL}" = y ]; then
         cloog_opts+=( --with-gmp=system --with-gmp-prefix="${prefix}" )
         cloog_opts+=( --with-isl=system --with-isl-prefix="${prefix}" )
         cloog_opts+=( --without-osl )

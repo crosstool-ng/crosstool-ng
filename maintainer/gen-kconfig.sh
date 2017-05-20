@@ -106,7 +106,6 @@ gen_choice() {
         if [ -f "${file}.2" ]; then
             printf '\n'
             printf 'if %s_%s\n' "${cfg_prefix}" "${_entry}"
-            printf 'comment "%s other options"\n' "${entry}"
             printf 'source "%s.2"\n' "${file}"
             printf 'endif\n'
         fi

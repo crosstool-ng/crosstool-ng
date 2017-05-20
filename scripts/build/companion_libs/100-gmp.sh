@@ -84,7 +84,9 @@ do_gmp_backend() {
 
     CT_DoLog EXTRA "Configuring GMP"
 
-    if [ ! "${CT_GMP_5_0_2_or_later}" = "y" ]; then
+    # FIXME is it needed even for older versions? They seem to compile fine
+    # without it.
+    if [ "${CT_GMP_HAS_MPBSD}" = "y" ]; then
         extra_config+=("--enable-mpbsd")
     fi
 

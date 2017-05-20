@@ -86,12 +86,12 @@ do_isl_backend() {
 
     CT_DoLog EXTRA "Configuring ISL"
 
-    if [ "${CT_ISL_V_0_12_or_later}" != "y" ]; then
+    if [ "${CT_ISL_NEEDS_WITH_GMP}" != "y" ]; then
         extra_config+=("--with-libgmp-prefix=${prefix}")
         extra_config+=("--with-libgmpxx-prefix=${prefix}")
     fi
 
-    if [ "${CT_ISL_V_0_14_or_later}" != "y" ]; then
+    if [ "${CT_ISL_HAS_WITH_PIPLIB}" != "y" ]; then
         extra_config+=("--with-piplib=no")
     fi
 

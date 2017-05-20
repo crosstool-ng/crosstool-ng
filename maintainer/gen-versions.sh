@@ -186,8 +186,8 @@ run_template()
 config_dir=config/versions
 template=maintainer/kconfig-versions.template
 
-declare -A pkg_forks pkg_milestones
-declare -a pkg_masters pkg_nforks pkg_all
+declare -A pkg_forks pkg_milestones pkg_nforks
+declare -a pkg_masters pkg_all
 
 # Convert the argument to a Kconfig-style macro
 kconfigize()
@@ -385,7 +385,7 @@ find_forks()
     else
         pkg_nforks[${1}]=$[pkg_nforks[${1}]+1]
         pkg_forks[${1}]="${1}${pkg_forks[${1}]}"
-	pkg_milestones[${1}]=`sort_versions ${info[milestones]}`
+        pkg_milestones[${1}]=`sort_versions ${info[milestones]}`
         pkg_masters+=( "${1}" )
     fi
 }
@@ -406,10 +406,13 @@ enter_fork()
     # Set defaults
     info[obsolete]=
     info[experimental]=
+    info[repository]=
+    info[repository_cset]=HEAD
+    info[fork]=${fork}
+    info[name]=${fork}
 
     eval `read_package_desc ${fork}`
 
-    info[name]=${fork}
     info[pfx]=`kconfigize ${fork}`
     info[originpfx]=`kconfigize ${info[origin]}`
     if [ -r "packages/${info[origin]}.help" ]; then
@@ -455,6 +458,10 @@ set_latest_milestone()
 
 enter_version()
 {
+    local -A ver_postfix=( \
+        [,yes,,]=" (OBSOLETE)" \
+        [,,yes,]=" (EXPERIMENTAL)" \
+        [,yes,yes,]=" (OBSOLETE,EXPERIMENTAL)" )
     local version="${1}"
     local tmp milestone
 
@@ -462,9 +469,11 @@ enter_version()
     info[obsolete]=
     info[experimental]=
 
-    eval `read_version_desc ${info[name]} ${version}`
+    eval `read_version_desc ${info[fork]} ${version}`
     info[ver]=${version}
     info[kcfg]=`kconfigize ${version}`
+    info[ver_postfix]=${ver_postfix[,${info[obsolete]},${info[experimental]},]}
+
     # TBD do we need "prev" version?
     tmp=" ${info[all_versions]} "
     tmp=${tmp##* ${version} }
