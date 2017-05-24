@@ -337,10 +337,8 @@ do_gcc_core_backend() {
             CT_DoLog EXTRA "Configuring final gcc compiler"
             extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
             log_txt="final gcc compiler"
-            if [ "${CT_CC_GCC_TARGET_FINAL}" = "y" ]; then
-                # to inhibit the libiberty and libgcc tricks later on
-                build_libgcc=no
-            fi
+            # to inhibit the libiberty and libgcc tricks later on
+            build_libgcc=no
             ;;
         *)
             CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build' or 'gcc_host', not '${build_step:-(empty)}'"
@@ -663,10 +661,8 @@ do_gcc_core_backend() {
 
     case "${build_step}" in
         gcc_build|gcc_host)
-            if [ "${CT_CC_GCC_TARGET_FINAL}" = "y" ]; then
-                core_targets_all=all
-                core_targets_install=install
-            fi
+            core_targets_all=all
+            core_targets_install=install
             ;;
     esac
 
