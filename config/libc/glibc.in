@@ -5,218 +5,50 @@
 ## select LIBC_SUPPORT_THREADS_NATIVE
 ## select CC_CORE_PASSES_NEEDED
 ## select GETTEXT_NEEDED
+## select BINUTILS_FORCE_LD_BFD_DEFAULT
 ##
 ## help The de-facto standard for Linux distributions.
 ## help Feature-rich, but large...  Most useful for desktop-like systems.
-
-config THREADS
-    default "nptl"
-
-config LIBC_GLIBC_CUSTOM
-    bool
-    prompt "Custom glibc"
-    depends on EXPERIMENTAL
-    select LIBC_CUSTOM
-    select LIBC_GLIBC_2_20_or_later
-    help
-      The choosen glibc version shall be not downloaded. Instead use
-      a custom location to get the source.
-
-if LIBC_GLIBC_CUSTOM
-
-config LIBC_GLIBC_CUSTOM_LOCATION
-    string
-    prompt "Full path to custom glibc source"
-    help
-      Enter the path to the directory or tarball of your source for glibc.
-
-      If the path is a tarball, it should extract to: <name>-<version>/
-      where the name is this component, glibc, and the version is set
-      below in the custom version string.
-
-config LIBC_GLIBC_CUSTOM_VERSION
-    string
-    prompt "Custom GLIBC version"
-    help
-      Enter the version number for your custom glibc.
-
-config LIBC_VERSION
-    string
-    default LIBC_GLIBC_CUSTOM_VERSION
-
-endif # LIBC_GLIBC_CUSTOM
-
-if ! LIBC_GLIBC_CUSTOM
-
-config CC_GLIBC_SHOW_LINARO
-    bool
-    prompt "Show Linaro versions"
-    help
-      Linaro is maintaining some advanced/more stable/experimental versions
-      of glibc, especially for the ARM architecture.
-      
-      Those versions have not been blessed by the glibc comunity (nor have they
-      been cursed either!), but they look to be pretty much stable, and even
-      more stable than the upstream versions. YMMV...
-      
-      If you do not know what this Linaro stuff is, then simply say 'n' here,
-      and rest in peace. OTOH, if you know what you are doing, you will be
-      able to use and enjoy :-) the Linaro versions by saying 'y' here.
-      
-      Linaro: http://www.linaro.org/
 
 # GLIBC and kernel are special when it comes to obsoletion. Users
 # of crosstool-ng depend on the ability to build new toolchains matching
 # the kernel/libc versions of a particular target system, and LTS releases
 # are still using quite ancient versions. Please do not retire versions
-# (including versions in between) until the EOL dates indicated below.
-choice
-    bool
-    prompt "glibc version"
-# Don't remove next line
-# CT_INSERT_VERSION_BELOW
+# (including versions in between) until the EOL dates indicated in version.desc.
+source "config/versions/glibc.in"
 
-config LIBC_GLIBC_V_2_25
-    bool
-    prompt "2.25"
-    select LIBC_GLIBC_2_23_or_later
+config THREADS
+    default "nptl"
 
-config LIBC_GLIBC_V_2_24
-    bool
-    prompt "2.24"
-    select LIBC_GLIBC_2_23_or_later
+# SPARCv8 support retired in 2.23
+config GLIBC_NO_SPARC_V8
+    def_bool y
+    depends on GLIBC_2_23_or_later
 
-# EOL 04/2021 [Ubuntu16.04]
-config LIBC_GLIBC_V_2_23
-    bool
-    prompt "2.23"
-    select LIBC_GLIBC_2_23_or_later
+# With 2.20, NPTL is in default glibc
+config GLIBC_HAS_NPTL_ADDON
+    def_bool y
+    depends on !GLIBC_2_20_or_later
 
-config LIBC_GLIBC_V_2_22
-    bool
-    prompt "2.22 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on OBSOLETE
+# With 2.20, all architectures are in main tree
+config GLIBC_HAS_PORTS_ADDON
+    def_bool y
+    depends on !GLIBC_2_20_or_later
 
-config LIBC_GLIBC_V_2_21
-    bool
-    prompt "2.21 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on OBSOLETE
+# With 2.17 and later, 'ports' addon is shipped in glibc tarball
+config GLIBC_PORTS_EXTERNAL
+    def_bool y
+    depends on !GLIBC_2_17_or_later
 
-config LIBC_GLIBC_LINARO_V_2_20
-    bool
-    prompt "Linaro 2.20-2014.11 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on CC_GLIBC_SHOW_LINARO
-    depends on OBSOLETE
+# Some architectures require the ports addon. List them one by one here:
+# This list must be carefully in sync with the architectures names
+# we can find in config/arch/*
+config GLIBC_NEEDS_PORTS
+    def_bool y
+    depends on ARCH_alpha || ARCH_arm || ARCH_m68k || ARCH_mips || ARCH_powerpc
 
-config LIBC_GLIBC_V_2_20
-    bool
-    prompt "2.20 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on OBSOLETE
+# Ports are no longer an add-on starting with 2.20
+config GLIBC_USE_PORTS
+    def_bool y
+    depends on GLIBC_NEEDS_PORTS && GLIBC_HAS_PORTS_ADDON
 
-# EOL 04/2019 [Ubuntu14.04]
-config LIBC_GLIBC_V_2_19
-    bool
-    prompt "2.19 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_GLIBC_2_17_or_later
-
-config LIBC_GLIBC_V_2_18
-    bool
-    prompt "2.18 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_GLIBC_2_17_or_later
-
-# EOL 06/2024 [CentOS7.x]
-config LIBC_GLIBC_V_2_17
-    bool
-    prompt "2.17 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_GLIBC_2_17_or_later
-
-config LIBC_GLIBC_V_2_16_0
-    bool
-    prompt "2.16.0 (OBSOLETE)"
-    depends on OBSOLETE
-
-# EOL 04/2017 [Ubuntu12.04]
-config LIBC_GLIBC_V_2_15
-    bool
-    prompt "2.15 (OBSOLETE)"
-    depends on OBSOLETE
-
-config LIBC_GLIBC_V_2_14_1
-    bool
-    prompt "2.14.1 (OBSOLETE)"
-    depends on OBSOLETE
-
-config LIBC_GLIBC_V_2_14
-    bool
-    prompt "2.14 (OBSOLETE)"
-    depends on OBSOLETE
-
-config LIBC_GLIBC_V_2_13
-    bool
-    prompt "2.13 (OBSOLETE)"
-    depends on OBSOLETE
-
-# This version did not have glibc-ports addon released
-config LIBC_GLIBC_V_2_12_2
-    bool
-    prompt "2.12.2 (OBSOLETE)"
-    depends on OBSOLETE
-    depends on !LIBC_GLIBC_NEEDS_PORTS
-
-# EOL 11/2020 [CentOS6.x]
-config LIBC_GLIBC_V_2_12_1
-    bool
-    prompt "2.12.1 (OBSOLETE)"
-    depends on OBSOLETE
-
-endchoice
-
-endif # ! LIBC_GLIBC_CUSTOM
-
-# Checked by SPARC build: SPARCv8 is dropped in 2.23.
-config LIBC_GLIBC_2_23_or_later
-    select LIBC_GLIBC_2_20_or_later
-    bool
-
-# DeMark 2.20 as no longer needs to set NPTL as an addon.
-# It is no longer possible to build glibc without pthread!
-config LIBC_GLIBC_2_20_or_later
-    bool
-    select LIBC_GLIBC_2_17_or_later
-
-# DeMark no more ports
-config LIBC_GLIBC_2_17_or_later
-    bool
-
-if ! LIBC_GLIBC_CUSTOM
-
-config LIBC_VERSION
-    string
-# Don't remove next line
-# CT_INSERT_VERSION_STRING_BELOW
-    default "2.25" if LIBC_GLIBC_V_2_25
-    default "2.24" if LIBC_GLIBC_V_2_24
-    default "2.23" if LIBC_GLIBC_V_2_23
-    default "2.22" if LIBC_GLIBC_V_2_22
-    default "2.21" if LIBC_GLIBC_V_2_21
-    default "linaro-2.20-2014.11" if LIBC_GLIBC_LINARO_V_2_20
-    default "2.20" if LIBC_GLIBC_V_2_20
-    default "2.19" if LIBC_GLIBC_V_2_19
-    default "2.18" if LIBC_GLIBC_V_2_18
-    default "2.17" if LIBC_GLIBC_V_2_17
-    default "2.16.0" if LIBC_GLIBC_V_2_16_0
-    default "2.15" if LIBC_GLIBC_V_2_15
-    default "2.14.1" if LIBC_GLIBC_V_2_14_1
-    default "2.14" if LIBC_GLIBC_V_2_14
-    default "2.13" if LIBC_GLIBC_V_2_13
-    default "2.12.2" if LIBC_GLIBC_V_2_12_2
-    default "2.12.1" if LIBC_GLIBC_V_2_12_1
-
-endif # ! LIBC_GLIBC_CUSTOM

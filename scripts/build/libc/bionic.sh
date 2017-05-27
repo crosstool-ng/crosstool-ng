@@ -28,9 +28,9 @@ do_libc() {
     local arch="${CT_ARCH}"
     if [ "${CT_ARCH_64}" = "y" ]; then
         if [ "${CT_ARCH}" = "x86" ]; then
-	    arch="${arch}_"
-	fi
-	arch="${arch}64"
+            arch="${arch}_"
+        fi
+        arch="${arch}64"
     fi
     CT_DoStep INFO "Installing C library binaries"
     CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/android-ndk-${CT_LIBC_VERSION}/platforms/android-${CT_ANDROID_API}/arch-${arch}/usr" "${CT_SYSROOT_DIR}"

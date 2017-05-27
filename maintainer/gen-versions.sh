@@ -465,10 +465,6 @@ enter_version()
     local version="${1}"
     local tmp milestone
 
-    # Set defaults
-    info[obsolete]=
-    info[experimental]=
-
     eval `read_version_desc ${info[fork]} ${version}`
     info[ver]=${version}
     info[kcfg]=`kconfigize ${version}`
