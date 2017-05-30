@@ -1,14 +1,11 @@
 # Build script for make
 
 do_companion_tools_make_get() {
-    CT_GetFile "make-${CT_MAKE_VERSION}"        \
-        {http,ftp,https}://ftp.gnu.org/gnu/make
+    CT_Fetch MAKE
 }
 
 do_companion_tools_make_extract() {
-    CT_Extract "make-${CT_MAKE_VERSION}"
-    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/make-${CT_MAKE_VERSION}"
-    CT_Patch "make" "${CT_MAKE_VERSION}"
+    CT_ExtractPatch MAKE
 }
 
 do_companion_tools_make_for_build() {
@@ -61,7 +58,7 @@ do_make_backend() {
                      CFLAGS="${cflags}" \
                      LDFLAGS="${ldflags}" \
                      ${CONFIG_SHELL} \
-                     "${CT_SRC_DIR}/make-${CT_MAKE_VERSION}/configure" \
+                     "${CT_SRC_DIR}/make/configure" \
                      --host="${host}" \
                      --prefix="${prefix}" \
 		     "${extra_config[@]}"

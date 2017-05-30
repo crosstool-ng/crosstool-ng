@@ -9,13 +9,11 @@ do_gettext_for_target() { :; }
 if [ "${CT_GETTEXT}" = "y" ]; then
 
 do_gettext_get() {
-    CT_GetFile "gettext-${CT_GETTEXT_VERSION}" \
-               http://ftp.gnu.org/pub/gnu/gettext/
+    CT_Fetch GETTEXT
 }
 
 do_gettext_extract() {
-    CT_Extract "gettext-${CT_GETTEXT_VERSION}"
-    CT_Patch "gettext" "${CT_GETTEXT_VERSION}"
+    CT_ExtractPatch GETTEXT
 }
 
 # Build gettext for running on build
@@ -112,7 +110,7 @@ do_gettext_backend() {
     CFLAGS="${cflags}"                                      \
     LDFLAGS="${ldflags}"                                    \
     ${CONFIG_SHELL}                                         \
-    "${CT_SRC_DIR}/gettext-${CT_GETTEXT_VERSION}/configure" \
+    "${CT_SRC_DIR}/gettext/configure"                       \
         --build=${CT_BUILD}                                 \
         --host="${host}"                                    \
         --prefix="${prefix}"                                \

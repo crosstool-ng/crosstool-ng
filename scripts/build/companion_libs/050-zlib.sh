@@ -13,14 +13,12 @@ if [ "${CT_ZLIB}" = "y" ]; then
 
 # Download zlib
 do_zlib_get() {
-    CT_GetFile "zlib-${CT_ZLIB_VERSION}"         \
-        "http://downloads.sourceforge.net/project/libpng/zlib/${CT_ZLIB_VERSION}"
+    CT_Fetch ZLIB
 }
 
 # Extract zlib
 do_zlib_extract() {
-    CT_Extract "zlib-${CT_ZLIB_VERSION}"
-    CT_Patch "zlib" "${CT_ZLIB_VERSION}"
+    CT_ExtractPatch ZLIB
 }
 
 # Build zlib for running on build
@@ -87,7 +85,7 @@ do_zlib_backend() {
         # zlib treats mingw host differently and requires using a different
         # makefile rather than configure+make. It also does not support
         # out-of-tree building.
-        cp -av "${CT_SRC_DIR}/zlib-${CT_ZLIB_VERSION}/." .
+        cp -av "${CT_SRC_DIR}/zlib/." .
         extra_make=( -f win32/Makefile.gcc \
             PREFIX="${host}-" \
             SHAREDLIB= \
@@ -107,7 +105,7 @@ do_zlib_backend() {
         LDFLAGS="${ldflags}"                              \
         CHOST="${host}"                                   \
         ${CONFIG_SHELL}                                   \
-        "${CT_SRC_DIR}/zlib-${CT_ZLIB_VERSION}/configure" \
+        "${CT_SRC_DIR}/zlib/configure"                    \
             --prefix="${prefix}"                          \
             --static                                      \
             "${extra_config[@]}"

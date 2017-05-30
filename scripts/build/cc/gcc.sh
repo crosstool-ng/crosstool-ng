@@ -7,30 +7,14 @@ do_gcc_get() {
     local linaro_version=""
     local linaro_series=""
 
-    if [ "${CT_CC_GCC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "gcc" "${CT_CC_GCC_CUSTOM_VERSION}" \
-            "${CT_CC_GCC_CUSTOM_LOCATION}"
-    else
-        case "${CT_CC_GCC_VERSION}" in
-            linaro-*)
-                CT_GetLinaro "gcc" "${CT_CC_GCC_VERSION}"
-                ;;
-            *)
-                # The official gcc hosts put gcc under a gcc/release/ directory,
-                # whereas the mirrors put it in the gcc/ directory.
-                CT_GetFile "gcc-${CT_CC_GCC_VERSION}" \
-                           {http,ftp,https}://ftp.gnu.org/gnu/gcc/gcc-${CT_CC_GCC_VERSION} \
-                           ftp://{gcc.gnu.org,sourceware.org}/pub/gcc/releases/gcc-${CT_CC_GCC_VERSION}
-                ;;
-        esac
-    fi # ! custom location
+    CT_Fetch GCC
+
     # Starting with GCC 4.3, ecj is used for Java, and will only be
     # built if the configure script finds ecj.jar at the top of the
     # GCC source tree, which will not be there unless we get it and
     # put it there ourselves
     if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" ]; then
         CT_GetFile ecj-latest .jar http://mirrors.kernel.org/sourceware/java/ \
-                                   http://crosstool-ng.org/pub/java           \
                                    ftp://gcc.gnu.org/pub/java                 \
                                    ftp://sourceware.org/pub/java
     fi
@@ -38,18 +22,12 @@ do_gcc_get() {
 
 # Extract gcc
 do_gcc_extract() {
-    CT_Extract "gcc-${CT_CC_GCC_VERSION}"
-    CT_Patch "gcc" "${CT_CC_GCC_VERSION}"
+    # TBD handle xtensa overlays
+    CT_ExtractPatch GCC
 
     # Copy ecj-latest.jar to ecj.jar at the top of the GCC source tree
-    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y"                     \
-         -a ! -f "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/ecj.jar"   \
-       ]; then
-        CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/ecj-latest.jar" "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/ecj.jar"
-    fi
-
-    if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
-        CT_ConfigureXtensa "gcc" "${CT_CC_GCC_VERSION}"
+    if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" -a ! -f "${CT_SRC_DIR}/gcc/ecj.jar" ]; then
+        CT_DoExecLog ALL cp -v "${CT_TARBALLS_DIR}/ecj-latest.jar" "${CT_SRC_DIR}/gcc/ecj.jar"
     fi
 }
 
@@ -575,7 +553,7 @@ do_gcc_core_backend() {
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"          \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"          \
     ${CONFIG_SHELL}                                    \
-    "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/configure" \
+    "${CT_SRC_DIR}/gcc/configure"                      \
         --build=${CT_BUILD}                            \
         --host=${host}                                 \
         --target=${CT_TARGET}                          \
@@ -603,7 +581,7 @@ do_gcc_core_backend() {
         # so we configure then build it.
         # Next we have to configure gcc, create libgcc.mk then edit it...
         # So much easier if we just edit the source tree, but hey...
-        if [ ! -f "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" ]; then
+        if [ ! -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
             CT_DoExecLog CFG make ${JOBSFLAGS} configure-libiberty
             CT_DoExecLog ALL make ${JOBSFLAGS} -C libiberty libiberty.a
             CT_DoExecLog CFG make ${JOBSFLAGS} configure-gcc configure-libcpp
@@ -613,12 +591,12 @@ do_gcc_core_backend() {
             CT_DoExecLog ALL make ${JOBSFLAGS} all-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
-        if [ -d "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/libdecnumber" ]; then
+        if [ -d "${CT_SRC_DIR}/gcc/libdecnumber" ]; then
             CT_DoExecLog CFG make ${JOBSFLAGS} configure-libdecnumber
             CT_DoExecLog ALL make ${JOBSFLAGS} -C libdecnumber libdecnumber.a
         fi
         # HACK: gcc-4.8 uses libbacktrace to make libgcc.mvars, so make it here.
-        if [ -d "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/libbacktrace" ]; then
+        if [ -d "${CT_SRC_DIR}/gcc/libbacktrace" ]; then
             CT_DoExecLog CFG make ${JOBSFLAGS} configure-libbacktrace
             CT_DoExecLog ALL make ${JOBSFLAGS} -C libbacktrace
         fi
@@ -1121,7 +1099,7 @@ do_gcc_backend() {
     CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"          \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"          \
     ${CONFIG_SHELL}                                    \
-    "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/configure" \
+    "${CT_SRC_DIR}/gcc/configure"                      \
         --build=${CT_BUILD}                            \
         --host=${host}                                 \
         --target=${CT_TARGET}                          \

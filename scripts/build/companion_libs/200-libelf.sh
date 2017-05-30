@@ -9,15 +9,11 @@ do_libelf_for_target() { :; }
 if [ "${CT_LIBELF}" = "y" -o "${CT_LIBELF_TARGET}" = "y" ]; then
 
 do_libelf_get() {
-    # The server hosting libelf will return an "HTTP 300 : Multiple Choices"
-    # error code if we try to download a file that does not exists there.
-    # So we have to request the file with an explicit extension.
-    CT_GetFile "libelf-${CT_LIBELF_VERSION}" .tar.gz http://www.mr511.de/software/
+    CT_Fetch LIBELF
 }
 
 do_libelf_extract() {
-    CT_Extract "libelf-${CT_LIBELF_VERSION}"
-    CT_Patch "libelf" "${CT_LIBELF_VERSION}"
+    CT_ExtractPatch LIBELF
 }
 
 if [ "${CT_LIBELF}" = "y" ]; then
@@ -131,7 +127,7 @@ do_libelf_backend() {
     CFLAGS="${cflags} -fPIC"                                \
     LDFLAGS="${ldflags}"                                    \
     ${CONFIG_SHELL}                                         \
-    "${CT_SRC_DIR}/libelf-${CT_LIBELF_VERSION}/configure"   \
+    "${CT_SRC_DIR}/libelf/configure"                        \
         --build=${CT_BUILD}                                 \
         --host=${host}                                      \
         --target=${CT_TARGET}                               \

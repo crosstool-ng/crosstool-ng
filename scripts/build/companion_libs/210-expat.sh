@@ -9,13 +9,11 @@ do_expat_for_target() { :; }
 if [ "${CT_EXPAT_TARGET}" = "y" -o "${CT_EXPAT}" = "y" ]; then
 
 do_expat_get() {
-    CT_GetFile "expat-${CT_EXPAT_VERSION}" .tar.gz    \
-               http://downloads.sourceforge.net/project/expat/expat/${CT_EXPAT_VERSION}
+    CT_Fetch EXPAT
 }
 
 do_expat_extract() {
-    CT_Extract "expat-${CT_EXPAT_VERSION}"
-    CT_Patch "expat" "${CT_EXPAT_VERSION}"
+    CT_ExtractPatch EXPAT
 }
 
 if [ "${CT_EXPAT}" = "y" ]; then
@@ -95,7 +93,7 @@ do_expat_backend() {
     CFLAGS="${cflags}"                                              \
     LDFLAGS="${ldflags}"                                            \
     ${CONFIG_SHELL}                                                 \
-    "${CT_SRC_DIR}/expat-${CT_EXPAT_VERSION}/configure"             \
+    "${CT_SRC_DIR}/expat/configure"                                 \
         --build=${CT_BUILD}                                         \
         --host=${host}                                              \
         --prefix="${prefix}"                                        \

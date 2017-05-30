@@ -58,19 +58,6 @@ config @@pfx@@_SRC_DEVEL
 	  Check out from vendor repository at:
 	  @@repository_url@@
 
-#!end-if
-config @@pfx@@_SRC_CUSTOM
-	bool "Custom location"
-	depends on EXPERIMENTAL
-	help
-	  Custom directory or tarball.
-
-endchoice
-#!if [ -n "@@all_versions@@" ]
-endif
-#!end-if
-
-#!if [ -n "@@repository@@" ]
 if @@pfx@@_SRC_DEVEL
 
 config @@pfx@@_DEVEL_VCS
@@ -95,7 +82,13 @@ config @@pfx@@_DEVEL_REVISION
 	  Commit ID or revision ID to check out.
 
 endif
+
 #!end-if
+config @@pfx@@_SRC_CUSTOM
+	bool "Custom location"
+	depends on EXPERIMENTAL
+	help
+	  Custom directory or tarball.
 
 if @@pfx@@_SRC_CUSTOM
 
@@ -106,9 +99,40 @@ config @@pfx@@_CUSTOM_LOCATION
 
 endif
 
+endchoice
 #!if [ -n "@@all_versions@@" ]
+endif
+
+config @@pfx@@_MIRRORS_ARRAY
+    string
+    default "@@mirrors@@"
+#!end-if
+
+#!// Below, we explicitly select all milestones to which a given version
+#!// compares greater-or-equal. We don't select just the latest applicable
+#!// (and letting milestones chain-select each other, with FOO_6_or_later
+#!// selecting FOO_5_or_later and so on) so that we can handle the cases
+#!// where we need to identify a range of releases on a branch, for example,
+#!// "all FOO releases after 4.9.1 but before 4.9.3".
+#!//
+#!if [ -n "@@all_versions@@" -a -z "@@versionlocked@@" ]
 choice
 	bool "Version of @@name@@"
+    help
+      For a released version, select the version of @@name@@ to download
+      and build. For sources out of the vendor repository or from a custom
+      location, select the version that describes those custom sources.
+      Based on this version, crosstool-NG may apply some version-specific
+      quirks while building @@name@@.
+
+config @@pfx@@_VERY_NEW
+    bool "newer than anything below"
+    depends on EXPERIMENTAL
+    depends on @@pfx@@_SRC_DEVEL || @@pfx@@_SRC_CUSTOM
+#!foreach milestone
+    select @@masterpfx@@_@@ms_kcfg@@_or_later
+    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_older
+#!end-foreach
 
 #!foreach version
 config @@pfx@@_V_@@kcfg@@
@@ -119,12 +143,37 @@ config @@pfx@@_V_@@kcfg@@
 #!if [ "@@experimental@@" = "yes" ]
 	depends on EXPERIMENTAL
 #!end-if
-#!if [ -n "@@milestone@@" ]
-	select @@masterpfx@@_@@milestone@@_or_later
+#!foreach milestone
+#!if [ "@@version_cmp_milestone@@" -ge 0 ]
+	select @@masterpfx@@_@@ms_kcfg@@_or_later
 #!end-if
+#!if [ "@@version_cmp_milestone@@" -gt 0 ]
+    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_older
+#!end-if
+#!if [ "@@version_cmp_milestone@@" -lt 0 ]
+    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_later
+#!end-if
+#!end-foreach
 
 #!end-foreach
+config @@pfx@@_VERY_OLD
+    bool "older than anything above"
+    depends on OBSOLETE && EXPERIMENTAL
+    depends on @@pfx@@_SRC_DEVEL || @@pfx@@_SRC_CUSTOM
+#!foreach milestone
+    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_later
+#!end-foreach
+
 endchoice
+#!end-if
+
+#!if [ -n "@@versionlocked@@" ]
+#!foreach version
+config @@pfx@@_V_@@kcfg@@
+    def_bool y
+    depends on @@versionlocked@@_V_@@kcfg@@
+
+#!end-foreach
 #!end-if
 
 #!if [ "@@nforks@@" -ge 2 ]
@@ -141,10 +190,16 @@ config @@pfx@@_VERSION
 #!end-foreach
 
 #!foreach milestone
+#!// Milestones selected by a chosen version of this package
 config @@masterpfx@@_@@ms_kcfg@@_or_later
 	bool
-#!if [ -n "@@ms_prev@@" ]
-	select @@masterpfx@@_@@ms_prev@@_or_later
-#!end-if
+
+#!// Milestone requirements selected by other packages that restrict
+#!// the choices in this package
+config @@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_later
+    bool
+
+config @@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_older
+    bool
 
 #!end-foreach

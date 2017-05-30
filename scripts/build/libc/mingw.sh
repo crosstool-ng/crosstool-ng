@@ -1,29 +1,17 @@
 # Copyright 2012 Yann Diorcet
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-CT_WINAPI_VERSION_DOWNLOADED=
-
 do_libc_get() {
-    if [ "${CT_WINAPI_VERSION}" = "devel" ]; then
-        CT_GetGit "mingw-w64" "ref=HEAD" "git://git.code.sf.net/p/mingw-w64/mingw-w64" CT_WINAPI_VERSION_DOWNLOADED
-        CT_DoLog DEBUG "Fetched mingw-w64 as ${CT_WINAPI_VERSION_DOWNLOADED}"
-    else
-        CT_GetFile "mingw-w64-v${CT_WINAPI_VERSION}" \
-            http://downloads.sourceforge.net/sourceforge/mingw-w64
-        CT_WINAPI_VERSION_DOWNLOADED=v${CT_WINAPI_VERSION}
-    fi
+    CT_Fetch MINGW_W64
 }
 
 do_libc_extract() {
-    CT_Extract "mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}"
-    CT_Pushd "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/"
-    CT_Patch nochdir mingw-w64 "${CT_WINAPI_VERSION_DOWNLOADED}"
-    CT_Popd
+    CT_ExtractPatch MINGW_W64
 }
 
 do_set_mingw_install_prefix(){
     MINGW_INSTALL_PREFIX=/usr/${CT_TARGET}
-    if [[ ${CT_WINAPI_VERSION} == 2* ]]; then
+    if [[ ${CT_MINGW_W64_VERSION} == 2* ]]; then
         MINGW_INSTALL_PREFIX=/usr
     fi
 }
@@ -51,7 +39,7 @@ do_libc_start_files() {
     do_set_mingw_install_prefix
     CT_DoExecLog CFG        \
     ${CONFIG_SHELL} \
-    "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-headers/configure" \
+    "${CT_SRC_DIR}/mingw-w64/mingw-w64-headers/configure" \
         --build=${CT_BUILD} \
         --host=${CT_TARGET} \
         --prefix=${MINGW_INSTALL_PREFIX} \
@@ -75,9 +63,9 @@ do_libc_start_files() {
 
 do_check_mingw_vendor_tuple()
 {
-    if [[ ${CT_WINAPI_VERSION} == 4* ]]; then
-       CT_DoStep INFO "Checking vendor tuple configured in crosstool-ng .config"
-       if [[ ${CT_TARGET_VENDOR} == w64 ]]; then
+    if [ "${CT_MINGW_W64_VERSION%%.*}" -ge 4 ]; then
+       CT_DoStep INFO "Checking configured vendor tuple"
+       if [ ${CT_TARGET_VENDOR} == w64 ]; then
            CT_DoLog EXTRA "The tuple is set to '${CT_TARGET_VENDOR}', as recommended by mingw-64 developers."
        else
            CT_DoLog WARN "The tuple vendor is '${CT_TARGET_VENDOR}', not equal to 'w64' and might break the toolchain!"
@@ -92,7 +80,7 @@ do_mingw_tools()
 
     for f in "${CT_MINGW_TOOL_LIST_ARRAY[@]}"; do
         CT_mkdir_pushd "${f}"
-        if [ ! -d "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-tools/${f}" ]; then
+        if [ ! -d "${CT_SRC_DIR}/mingw-w64/mingw-w64-tools/${f}" ]; then
             CT_DoLog WARN "Skipping ${f}: not found"
             CT_Popd
             continue
@@ -101,7 +89,7 @@ do_mingw_tools()
         CT_DoLog EXTRA "Configuring ${f}"
         CT_DoExecLog CFG        \
             ${CONFIG_SHELL} \
-            "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-tools/${f}/configure" \
+            "${CT_SRC_DIR}/mingw-w64/mingw-w64-tools/${f}/configure" \
             --build=${CT_BUILD} \
             --host=${CT_HOST} \
             --target=${CT_TARGET} \
@@ -159,7 +147,7 @@ do_mingw_pthreads()
     RCFLAGS="${rcflags}" \
     DLLTOOLFLAGS="${dlltoolflags}" \
     ${CONFIG_SHELL} \
-    "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-libraries/winpthreads/configure" \
+    "${CT_SRC_DIR}/mingw-w64/mingw-w64-libraries/winpthreads/configure" \
         --with-sysroot=${CT_SYSROOT_DIR} \
         --prefix=${MINGW_INSTALL_PREFIX} \
         --libdir=${libprefix} \
@@ -189,7 +177,7 @@ do_libc()
     do_set_mingw_install_prefix
     CT_DoExecLog CFG \
     ${CONFIG_SHELL} \
-    "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-crt/configure" \
+    "${CT_SRC_DIR}/mingw-w64/mingw-w64-crt/configure" \
         --with-sysroot=${CT_SYSROOT_DIR} \
         --prefix=${MINGW_INSTALL_PREFIX} \
         --build=${CT_BUILD} \

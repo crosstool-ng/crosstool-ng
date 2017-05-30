@@ -9,15 +9,11 @@ do_ncurses_for_target() { :; }
 if [ "${CT_NCURSES_TARGET}" = "y" -o "${CT_NCURSES}" = "y" ]; then
 
 do_ncurses_get() {
-    CT_GetFile "ncurses-${CT_NCURSES_VERSION}" .tar.gz  \
-               {http,ftp,https}://ftp.gnu.org/pub/gnu/ncurses     \
-               ftp://invisible-island.net/ncurses
+    CT_Fetch NCURSES
 }
 
 do_ncurses_extract() {
-    CT_Extract "ncurses-${CT_NCURSES_VERSION}"
-    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}"
-    CT_Patch "ncurses" "${CT_NCURSES_VERSION}"
+    CT_ExtractPatch NCURSES
 }
 
 # We need tic that runs on the build when building ncurses for host/target
@@ -157,7 +153,7 @@ do_ncurses_backend() {
     CFLAGS="${cflags}"                                                  \
     LDFLAGS="${ldflags}"                                                \
     ${CONFIG_SHELL}                                                     \
-    "${CT_SRC_DIR}/ncurses-${CT_NCURSES_VERSION}/configure"             \
+    "${CT_SRC_DIR}/ncurses/configure"                                   \
         --build=${CT_BUILD}                                             \
         --host=${host}                                                  \
         --prefix="${prefix}"                                            \

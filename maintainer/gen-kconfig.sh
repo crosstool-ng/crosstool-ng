@@ -81,6 +81,7 @@ gen_choice() {
 
     printf '\n'
     printf 'config %s\n' "${cfg_prefix}"
+    printf '    string\n'
     for entry in `get_components ${base_dir}`; do
         file="${base_dir}/${entry}.in"
         _entry=$(printf '%s\n' "${entry}" |"${sed}" -r -s -e 's/[-.+]/_/g;')

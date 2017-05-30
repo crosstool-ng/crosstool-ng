@@ -1,33 +1,11 @@
 # This file adds functions to build the avr-libc C library
 
 do_libc_get() {
-    local libc_src
-
-    libc_src="http://download.savannah.gnu.org/releases/avr-libc"
-
-    if [ "${CT_LIBC_AVR_LIBC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "avr-libc" "${CT_LIBC_AVR_LIBC_CUSTOM_VERSION}" \
-            "${CT_LIBC_AVR_LIBC_CUSTOM_LOCATION}"
-    else # ! custom location
-        CT_GetFile "avr-libc-${CT_LIBC_VERSION}" "${libc_src}"
-    fi # ! custom location
+    CT_Fetch AVR_LIBC
 }
 
 do_libc_extract() {
-    CT_Extract "avr-libc-${CT_LIBC_VERSION}"
-    CT_Patch "avr-libc" "${CT_LIBC_VERSION}"
-}
-
-do_libc_configure() {
-    CT_DoLog EXTRA "Configuring C library"
-
-    CT_DoExecLog CFG                \
-    ${CONFIG_SHELL}                 \
-    ./configure                     \
-        --build=${CT_BUILD}         \
-        --host=${CT_TARGET}         \
-        --prefix=${CT_PREFIX_DIR}   \
-        "${CT_LIBC_AVR_LIBC_EXTRA_CONFIG_ARRAY[@]}"
+    CT_ExtractPatch AVR_LIBC
 }
 
 do_libc_start_files() {
@@ -42,11 +20,19 @@ do_libc_post_cc() {
     CT_DoStep INFO "Installing C library"
 
     CT_DoLog EXTRA "Copying sources to build directory"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/avr-libc-${CT_LIBC_VERSION}/." \
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/avr-libc/." \
                             "${CT_BUILD_DIR}/build-libc-post-cc"
     cd "${CT_BUILD_DIR}/build-libc-post-cc"
 
-    do_libc_configure
+    CT_DoLog EXTRA "Configuring C library"
+
+    CT_DoExecLog CFG                \
+    ${CONFIG_SHELL}                 \
+    ./configure                     \
+        --build=${CT_BUILD}         \
+        --host=${CT_TARGET}         \
+        --prefix=${CT_PREFIX_DIR}   \
+        "${CT_LIBC_AVR_LIBC_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building C library"
     CT_DoExecLog ALL make ${JOBSFLAGS}

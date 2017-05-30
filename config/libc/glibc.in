@@ -1,9 +1,13 @@
 # glibc options
 
+# TBD move all the remaining parts into glibc.in.2 and move the sourcing of versions
+# into the auto-generated choice/menus?
+
 ## depends on ! WINDOWS && ! BARE_METAL && ARCH_USE_MMU
 ##
 ## select LIBC_SUPPORT_THREADS_NATIVE
 ## select CC_CORE_PASSES_NEEDED
+# TBD: select GETTEXT for build only, not for host
 ## select GETTEXT_NEEDED
 ## select BINUTILS_FORCE_LD_BFD_DEFAULT
 ##
@@ -16,39 +20,6 @@
 # are still using quite ancient versions. Please do not retire versions
 # (including versions in between) until the EOL dates indicated in version.desc.
 source "config/versions/glibc.in"
-
-config THREADS
-    default "nptl"
-
-# SPARCv8 support retired in 2.23
-config GLIBC_NO_SPARC_V8
-    def_bool y
-    depends on GLIBC_2_23_or_later
-
-# With 2.20, NPTL is in default glibc
-config GLIBC_HAS_NPTL_ADDON
-    def_bool y
-    depends on !GLIBC_2_20_or_later
-
-# With 2.20, all architectures are in main tree
-config GLIBC_HAS_PORTS_ADDON
-    def_bool y
-    depends on !GLIBC_2_20_or_later
-
-# With 2.17 and later, 'ports' addon is shipped in glibc tarball
-config GLIBC_PORTS_EXTERNAL
-    def_bool y
-    depends on !GLIBC_2_17_or_later
-
-# Some architectures require the ports addon. List them one by one here:
-# This list must be carefully in sync with the architectures names
-# we can find in config/arch/*
-config GLIBC_NEEDS_PORTS
-    def_bool y
-    depends on ARCH_alpha || ARCH_arm || ARCH_m68k || ARCH_mips || ARCH_powerpc
-
-# Ports are no longer an add-on starting with 2.20
-config GLIBC_USE_PORTS
-    def_bool y
-    depends on GLIBC_NEEDS_PORTS && GLIBC_HAS_PORTS_ADDON
-
+if GLIBC_USE_PORTS_EXTERNAL
+source "config/versions/glibc-ports.in"
+endif

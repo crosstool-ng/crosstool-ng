@@ -869,40 +869,6 @@ CT_GetFile() {
     return 1
 }
 
-# Get a component from Linaro archives.
-# Usage: CT_GetLinaro <component> <version>
-CT_GetLinaro() {
-    local comp="$1"
-    local version="$2"
-    local linaro_version
-    local yyyymm_p
-    local yymm
-    local base
-
-    case "${version}" in
-        linaro-*)
-            linaro_version="${version#linaro-}"
-            ;;
-        *)
-            CT_Abort "Version ${version} is not a Linaro package"
-            ;;
-    esac
-
-    # Recent releases reside in top of the directory tree; older releases
-    # are moved into the archive. Subdirectories are named differently
-    # in archive!
-    # In archive, some URLs also contain base component version
-    # (e.g. "gcc-linaro/4.9") while some do not (e.g. just "newlib-linaro").
-    base="${linaro_version%%-*}"
-    # Strip base version, first two digits of the year and optional patchlevel
-    yymm="${linaro_version#*-??}"
-    yymm="${yymm%-*}"
-    CT_GetFile "${comp}-${version}" \
-        "https://releases.linaro.org/components/toolchain/${comp}-linaro/${linaro_version}" \
-        "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro/${base}" \
-        "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro"
-}
-
 # Checkout from CVS, and build the associated tarball
 # The tarball will be called ${basename}.tar.bz2
 # Prerequisite: either the server does not require password,
@@ -1913,4 +1879,60 @@ CT_MultilibFixupLDSO()
     CT_IterateMultilibs CT__FixupLDSO ldso_fixup
     CT_Popd
     CT_EndStep
+}
+
+# List the download mirrors. Usage:
+# CT_Mirrors ORGANIZATION PROJECT
+CT_Mirrors()
+{
+    local org="${1}"
+    local project="${2}"
+
+    case "${org}" in
+    GNU)
+        echo "https://ftpmirror.gnu.org/gnu/${project}"
+        echo "http://ftpmirror.gnu.org/gnu/${project}"
+        echo "https://ftp.gnu.org/gnu/${project}"
+        echo "http://ftp.gnu.org/gnu/${project}"
+        echo "ftp://ftp.gnu.org/gnu/${project}"
+        ;;
+    sourceware)
+        local subdir="${3:+/${3}}"
+        echo "ftp://sourceware.org/pub/${project}/releases${subdir}"
+        echo "http://mirrors.kernel.org/sourceware/${project}/releases${subdir}"
+        echo "http://gcc.gnu.org/pub/${project}/releases${subdir}"
+        ;;
+    Linaro)
+        local version="${3}"
+        base yymm
+        base="${version%%-*}"
+        yymm="${version##*-??}"
+        echo "https://releases.linaro.org/components/toolchain/${comp}-linaro/${version}"
+        echo "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro/${base}"
+        echo "https://releases.linaro.org/archive/${yymm}/components/toolchain/${comp}-linaro"
+        ;;
+    linux)
+        local version="${3}"
+        case "${version}" in
+        [34].*)
+            echo "http://www.kernel.org/pub/linux/kernel/v${version%%.*}.x"
+            ;;
+        2.6.*)
+            echo "http://www.kernel.org/pub/linux/kernel/v2.6"
+            case "${version}" in
+            2.6.*.*)
+                echo "http://www.kernel.org/pub/linux/kernel/v2.6/longterm"
+                echo "http://www.kernel.org/pub/linux/kernel/v2.6/longterm/v${version%.*}"
+                ;;
+            esac
+            ;;
+        *)
+            CT_Abort "Unsupported Linux kernel version"
+            ;;
+        esac
+        ;;
+    *)
+        CT_Abort "Unknown mirror '${org}'"
+        ;;
+    esac
 }

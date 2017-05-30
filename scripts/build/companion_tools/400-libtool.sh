@@ -1,14 +1,11 @@
 # Build script for libtool
 
 do_companion_tools_libtool_get() {
-    CT_GetFile "libtool-${CT_LIBTOOL_VERSION}"     \
-        {http,ftp,https}://ftp.gnu.org/gnu/libtool
+    CT_Fetch LIBTOOL
 }
 
 do_companion_tools_libtool_extract() {
-    CT_Extract "libtool-${CT_LIBTOOL_VERSION}"
-    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}"
-    CT_Patch "libtool" "${CT_LIBTOOL_VERSION}"
+    CT_ExtractPatch LIBTOOL
 }
 
 do_companion_tools_libtool_for_build() {
@@ -38,7 +35,7 @@ do_libtool_backend() {
     CT_DoLog EXTRA "Configuring libtool"
     CT_DoExecLog CFG \
                      ${CONFIG_SHELL} \
-                     "${CT_SRC_DIR}/libtool-${CT_LIBTOOL_VERSION}/configure" \
+                     "${CT_SRC_DIR}/libtool/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"
 

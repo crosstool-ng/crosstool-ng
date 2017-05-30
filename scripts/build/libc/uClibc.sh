@@ -7,48 +7,24 @@
 uclibc_locales_version=030818
 uclibc_locale_tarball="uClibc-locale-${uclibc_locales_version}"
 
-if [ "${CT_LIBC_UCLIBC_NG}" = "y" ]; then
+if [ "${CT_UCLIBC_NG_USE_UCLIBC_NG_ORG}" = "y" ]; then
+    # TBD make the name come from config/versions/uclibc.in
     uclibc_name="uClibc-ng"
-    libc_src="http://downloads.uclibc-ng.org/releases/${CT_LIBC_VERSION}"
-else
+elif [ "${CT_UCLIBC_NG_USE_UCLIBC_ORG}" = "y" ]; then
     uclibc_name="uClibc"
-    libc_src="http://www.uclibc.org/downloads
-              http://www.uclibc.org/downloads/old-releases"
 fi
 
 # Download uClibc
 do_libc_get() {
-    if [ "${CT_LIBC_UCLIBC_CUSTOM}" = "y" ]; then
-        CT_GetCustom "${uclibc_name}" "${CT_LIBC_UCLIBC_CUSTOM_VERSION}" \
-            "${CT_LIBC_UCLIBC_CUSTOM_LOCATION}"
-    else
-        CT_GetFile "${uclibc_name}-${CT_LIBC_VERSION}" ${libc_src}
-    fi
-    # uClibc locales
-    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
-        CT_GetFile "${uclibc_locale_tarball}" ${libc_src}
-    fi
-
-    return 0
+    # TBD allow for "default fork" selection in package.desc and select uClibc-NG (and then use just UCLIBC moniker)
+    CT_Fetch UCLIBC_NG
+    # TBD locales
 }
 
 # Extract uClibc
 do_libc_extract() {
-    CT_Extract "${uclibc_name}-${CT_LIBC_VERSION}"
-    CT_Patch "${uclibc_name}" "${CT_LIBC_VERSION}"
-
-    # uClibc locales
-    # Extracting pregen locales ourselves is kinda
-    # broken, so just link it in place...
-    if [    "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y"           \
-         -a ! -f "${CT_SRC_DIR}/.${uclibc_locale_tarball}.extracted" ]; then
-        CT_Pushd "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}/extra/locale"
-        CT_DoExecLog ALL ln -s "${CT_TARBALLS_DIR}/${uclibc_locale_tarball}.tgz" .
-        CT_Popd
-        touch "${CT_SRC_DIR}/.${uclibc_locale_tarball}.extracted"
-    fi
-
-    return 0
+    CT_ExtractPatch UCLIBC_NG
+    # TBD locales
 }
 
 # Build and install headers and start files
@@ -102,7 +78,7 @@ do_libc_backend_once() {
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/${uclibc_name}-${CT_LIBC_VERSION}/." .
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/${uclibc_name}/." .
 
     multilib_dir="lib/${multi_os_dir}"
     startfiles_dir="${multi_root}/usr/${multilib_dir}"

@@ -1,7 +1,21 @@
 #!/bin/bash
 
 ########################################
-# Common meta-language implementation
+# Common meta-language implementation. Syntax:
+#
+# The template file is processed line by line, with @@VAR@@ placeholders
+# being replaced with a value of the VAR variable.
+# Special lines start with '#!' and a keyword:
+#
+# #!//
+#     Comment, the rest of the line is ignored
+# #!if COND
+#     Conditional: the lines until the matching #!end-if are processed
+#     only if the conditional COND evaluates to true.
+# #!foreach NAME
+#     Iterate over NAME entities (the iterator must be set up first
+#     using the set_iter function), processing the lines until the matching
+#     #!end-foreach line.
 
 declare -A info
 
@@ -12,7 +26,7 @@ debug()
     fi
 }
 
-info()
+msg()
 {
     if [ -z "${QUIET}" ]; then
         echo "INFO  :: $@" >&2
@@ -125,7 +139,7 @@ run_lines()
     while [ "${l}" -le "${end}" ]; do
         lnext=$[l+1]
         s="${tlines[${l}]}"
-        # Expand @@foo@@ to ${info[foo]}. First escape quotes/backslashes.
+        # Expand @@foo@@ to ${info[foo]}. First escape variables/backslashes for evals below.
         s="${s//\\/\\\\}"
         s="${s//\$/\\\$}"
         while [ -n "${s}" ]; do
@@ -352,13 +366,28 @@ sort_versions()
 
 read_file()
 {
-    local l
+    local l p
 
     while read l; do
+        l="${p}${l}"
+        p=
         case "${l}" in
-            "#"*) continue;;
-            *=*) echo "info[${l%%=*}]=${l#*=}";;
-            *) error "syntax error in '${1}': '${l}'"
+            "")
+                continue
+                ;;
+            *\\)
+                p="${l%\\}"
+                continue
+                ;;
+            "#"*)
+                continue
+                ;;
+            *=*)
+                echo "info[${l%%=*}]=${l#*=}"
+                ;;
+            *)
+                error "syntax error in '${1}': '${l}'"
+                ;;
         esac
     done < "${1}"
 }
@@ -410,6 +439,7 @@ enter_fork()
     info[repository_cset]=HEAD
     info[fork]=${fork}
     info[name]=${fork}
+    info[mirrors]=
 
     eval `read_package_desc ${fork}`
 
@@ -426,6 +456,7 @@ enter_fork()
         info[repository_url]=${info[repository]##* }
         info[repository_dflt_branch]=${dflt_branch[${info[vcs]}]}
     fi
+    info[versionlocked]=`kconfigize "${info[versionlocked]}"`
 
     versions=`cd packages/${fork} && \
         for f in */version.desc; do [ -r "${f}" ] && echo "${f%/version.desc}"; done`
@@ -449,13 +480,6 @@ enter_fork()
     fi
 }
 
-set_latest_milestone()
-{
-    if [ `cmp_versions ${info[ms]} ${info[ver]}` -le 0 -a -z "${milestone}" ]; then
-        milestone=${info[ms_kcfg]}
-    fi
-}
-
 enter_version()
 {
     local -A ver_postfix=( \
@@ -463,35 +487,23 @@ enter_version()
         [,,yes,]=" (EXPERIMENTAL)" \
         [,yes,yes,]=" (OBSOLETE,EXPERIMENTAL)" )
     local version="${1}"
-    local tmp milestone
 
     eval `read_version_desc ${info[fork]} ${version}`
     info[ver]=${version}
     info[kcfg]=`kconfigize ${version}`
     info[ver_postfix]=${ver_postfix[,${info[obsolete]},${info[experimental]},]}
-
-    # TBD do we need "prev" version?
-    tmp=" ${info[all_versions]} "
-    tmp=${tmp##* ${version} }
-    info[prev]=`kconfigize ${tmp%% *}`
-
-    # Find the latest milestone preceding this version
-    milestone=
-    do_foreach milestone set_latest_milestone
-    info[milestone]=${milestone}
 }
 
 enter_milestone()
 {
     local ms="${1}"
-    local tmp
+    local cmp
 
     info[ms]=${ms}
     info[ms_kcfg]=`kconfigize ${ms}`
-
-    tmp=" ${info[all_milestones]} "
-    tmp=${tmp##* ${ms} }
-    info[ms_prev]=`kconfigize ${tmp%% *}`
+    if [ -n "${info[ver]}" ]; then
+        info[version_cmp_milestone]=`cmp_versions ${info[ver]} ${info[ms]}`
+    fi
 }
 
 rm -rf "${config_dir}"
@@ -502,7 +514,7 @@ pkg_all=( `cd packages && \
     while read f; do [ -r "${f}" ] && echo "${f%/package.desc}"; done | \
     xargs echo` )
 
-info "Generating package version descriptions"
+msg "Generating package version descriptions"
 debug "Packages: ${pkg_all[@]}"
 
 # We need to group forks of the same package into the same
@@ -511,12 +523,12 @@ debug "Packages: ${pkg_all[@]}"
 for p in "${pkg_all[@]}"; do
     find_forks "${p}"
 done
-info "Master packages: ${pkg_masters[@]}"
+msg "Master packages: ${pkg_masters[@]}"
 
 # Now for each master, create its kconfig file with version
 # definitions.
 for p in "${pkg_masters[@]}"; do
-    info "Generating '${config_dir}/${p}.in'"
+    msg "Generating '${config_dir}/${p}.in'"
     exec >"${config_dir}/${p}.in"
     # Base definitions for the whole config file
     info=( \
@@ -532,4 +544,4 @@ for p in "${pkg_masters[@]}"; do
     # TBD get rid of the "origin" completely and use just the fork name?
     run_template "${template}"
 done
-info "Done!"
+msg "Done!"
