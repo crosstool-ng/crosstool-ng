@@ -190,6 +190,7 @@ do_debug_gdb_build() {
         CT_EndStep
     fi
 
+    # TBD combine GDB native and gdbserver backends, build either or both in a single pass.
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
 
@@ -198,7 +199,9 @@ do_debug_gdb_build() {
         native_extra_config=("${extra_config[@]}")
 
         # We may not have C++ language configured for target
-        native_extra_config+=("--disable-build-with-cxx")
+        if [ "${GDB_TARGET_DISABLE_CXX_BUILD}" = "y" ]; then
+            native_extra_config+=("--disable-build-with-cxx")
+        fi
 
         # GDB on Mingw depends on PDcurses, not ncurses
         if [ "${CT_MINGW32}" != "y" ]; then
@@ -317,7 +320,9 @@ do_debug_gdb_build() {
         gdbserver_extra_config=("${extra_config[@]}")
 
         # We may not have C++ language configured for target
-        gdbserver_extra_config+=("--disable-build-with-cxx")
+        if [ "${GDB_TARGET_DISABLE_CXX_BUILD}" = "y" ]; then
+            gdbserver_extra_config+=("--disable-build-with-cxx")
+        fi
 
         if [ "${CT_GDB_GDBSERVER_HAS_IPA_LIB}" = "y" ]; then
             if [ "${CT_GDB_GDBSERVER_BUILD_IPA_LIB}" = "y" ]; then

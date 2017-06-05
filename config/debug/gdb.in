@@ -12,7 +12,7 @@ config GDB_CUSTOM
     bool
     prompt "Custom gdb"
     depends on EXPERIMENTAL
-    select GDB_7_12_or_later
+    select GDB_8_0_or_later
     help
       The choosen gdb version shall be not downloaded. Instead use
       a custom location to get the source.
@@ -66,6 +66,11 @@ choice
     prompt "gdb version"
 # Don't remove next line
 # CT_INSERT_VERSION_BELOW
+
+config GDB_V_8_0
+    bool
+    prompt "8.0"
+    select GDB_8_0_or_later
 
 config GDB_V_7_12_1
     bool
@@ -249,6 +254,10 @@ endchoice
 
 endif # ! GDB_CUSTOM
 
+config GDB_8_0_or_later
+    bool
+    select GDB_7_12_or_later
+
 config GDB_7_12_or_later
     bool
     select GDB_7_2_or_later
@@ -272,12 +281,19 @@ config GDB_HAS_PYTHON
 config GDB_INSTALL_GDBINIT
     bool
 
+# GDB 8.0 now requires C++ for build. GDB 7.12 offered a configure
+# switch to fall back to C.
+config GDB_TARGET_DISABLE_CXX_BUILD
+    def_bool y
+    depends on GDB_7_12_or_later && !GDB_8_0_or_later
+
 if ! GDB_CUSTOM
 
 config GDB_VERSION
     string
 # Don't remove next line
 # CT_INSERT_VERSION_STRING_BELOW
+    default "8.0" if GDB_V_8_0
     default "7.12.1" if GDB_V_7_12_1
     default "7.11.1" if GDB_V_7_11_1
     default "7.10.1" if GDB_V_7_10_1
