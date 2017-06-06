@@ -445,6 +445,7 @@ do_libc_backend_once() {
                                            -nostartfiles              \
                                            -shared                    \
                                            -x c /dev/null             \
+                                           -fno-lto                   \
                                            -o "${startfiles_dir}/libc.so"
         fi # threads == nptl
     fi # libc_mode = startfiles

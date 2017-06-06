@@ -196,7 +196,7 @@ do_libc_backend_once() {
             # libm.so is needed for ppc, as libgcc is linked against libm.so
             # No problem to create it for other archs.
             CT_DoLog EXTRA "Building dummy shared libs"
-            CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" -nostdlib -nostartfiles \
+            CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" -nostdlib -nostartfiles -fno-lto \
                 -shared ${multi_flags} -x c /dev/null -o libdummy.so
 
             CT_DoLog EXTRA "Installing start files"
