@@ -34,7 +34,7 @@ do_ncurses_for_build() {
           "--without-ada" \
           "--without-fallbacks" )
     do_ncurses_backend host="${CT_BUILD}" \
-                       destdir="${CT_BUILDTOOLS_PREFIX_DIR}" \
+                       prefix="${CT_BUILDTOOLS_PREFIX_DIR}" \
                        cflags="${CT_CFLAGS_FOR_BUILD}" \
                        ldflags="${CT_LDFLAGS_FOR_BUILD}" \
                        install_target=install.progs \
