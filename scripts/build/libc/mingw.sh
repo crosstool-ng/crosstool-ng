@@ -68,7 +68,16 @@ do_libc_start_files() {
     # It seems mingw is strangely set up to look into /mingw instead of
     # /usr (notably when looking for the headers). This symlink is
     # here to workaround this, and seems to be here to last... :-/
-    CT_DoExecLog ALL ln -sv "usr/${CT_TARGET}" "${CT_SYSROOT_DIR}/mingw"
+    CT_DoExecLog ALL ln -sv "${MINGW_INSTALL_PREFIX#/}" "${CT_SYSROOT_DIR}/mingw"
+
+    # Also create symlinks for companion libraries that want to install
+    # into /usr/lib and /usr/include
+    if [ "${MINGW_INSTALL_PREFIX}" = "/usr/${CT_TARGET}" ]; then
+        CT_DoExecLog ALL rmdir "${CT_SYSROOT_DIR}/usr/include"
+        CT_DoExecLog ALL ln -sv "${CT_TARGET}/include" "${CT_SYSROOT_DIR}/usr/include"
+        CT_DoExecLog ALL rmdir "${CT_SYSROOT_DIR}/usr/lib"
+        CT_DoExecLog ALL ln -sv "${CT_TARGET}/lib" "${CT_SYSROOT_DIR}/usr/lib"
+    fi
 
     CT_EndStep
 }
