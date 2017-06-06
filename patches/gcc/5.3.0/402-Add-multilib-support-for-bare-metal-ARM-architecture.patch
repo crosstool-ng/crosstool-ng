@@ -1,0 +1,280 @@
+From cdaef735ed42305e61affefdafc409ef9415264c Mon Sep 17 00:00:00 2001
+From: Jasmin Jessich <jasmin@anw.at>
+Date: Thu, 3 Mar 2016 23:54:03 +0100
+Subject: [PATCH 3/3] Add multilib support for bare-metal ARM architectures
+
+Based on svn://gcc.gnu.org/svn/gcc/branches/ARM/embedded-5-branch
+commit r231749 and r231750 from
+Thomas Preud'homme  <thomas.preudhomme@arm.com>
+
+Thomas did export with_multilib_list and used it in the Makefile. I
+changed it to using TM_MULTILIB_CONFIG instead, which is the preferred
+GCC pattern.
+Fixed error message "You cannot use any of ..."
+Additionally, I commented out armv8-m.base and armv8-m.main, because this
+is currently not available in GCC mainline and gcc 5.3.0 release.
+
+gcc/
+    * config.gcc: Handle bare-metal multilibs in --with-multilib-list option.
+    * config/arm/t-baremetal: New file.
+    * configure.ac: added comment for ARM in --with-multilib-list option.
+    * configure: added comment for ARM in --with-multilib-list option.
+
+Signed-off-by: Jasmin Jessich <jasmin@anw.at>
+Signed-off-by: Thomas Preud'homme <thomas.preudhomme@arm.com>
+---
+ gcc/config.gcc             |  24 +++++--
+ gcc/config/arm/t-baremetal | 165 +++++++++++++++++++++++++++++++++++++++++++++
+ gcc/configure              |   2 +-
+ gcc/configure.ac           |   2 +-
+ 4 files changed, 185 insertions(+), 8 deletions(-)
+ create mode 100644 gcc/config/arm/t-baremetal
+
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 6c02f1e..4935a57 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -3716,25 +3716,37 @@ case "${target}" in
+ 			default)
+ 				;;
+ 			*)
+-				echo "Error: --with-multilib-list=${with_multilib_list} not supported." 1>&2
+-				exit 1
++				for arm_multilib in ${arm_multilibs}; do
++					case ${arm_multilib} in
++					armv6-m | armv7-m | armv7e-m | armv7-r) # armv8-m.base | armv8-m.main)
++						tmake_profile_file="arm/t-baremetal"
++                        TM_MULTILIB_CONFIG="${TM_MULTILIB_CONFIG},${arm_multilib}"
++						;;
++					*)
++						echo "Error: --with-multilib-list=${with_multilib_list}: '${arm_multilib}' not supported." 1>&2
++						exit 1
++						;;
++					esac
++				done
+ 				;;
+ 			esac
+ 
+ 			if test "x${tmake_profile_file}" != x ; then
+-				# arm/t-aprofile is only designed to work
+-				# without any with-cpu, with-arch, with-mode,
+-				# with-fpu or with-float options.
++				# arm/t-aprofile and arm/t-baremetal are only
++				# designed to work without any with-cpu,
++				# with-arch, with-mode, with-fpu or with-float
++				# options.
+ 				if test "x$with_arch" != x \
+ 				    || test "x$with_cpu" != x \
+ 				    || test "x$with_float" != x \
+ 				    || test "x$with_fpu" != x \
+ 				    || test "x$with_mode" != x ; then
+-				    echo "Error: You cannot use any of --with-arch/cpu/fpu/float/mode with --with-multilib-list=${arm_multilib}" 1>&2
++				    echo "Error: You cannot use any of --with-arch/cpu/fpu/float/mode with --with-multilib-list=${with_multilib_list}" 1>&2
+ 				    exit 1
+ 				fi
+ 
+ 				tmake_file="${tmake_file} ${tmake_profile_file}"
++                TM_MULTILIB_CONFIG=`echo $TM_MULTILIB_CONFIG | sed 's/^,//'`
+ 			fi
+ 		fi
+ 		;;
+diff --git a/gcc/config/arm/t-baremetal b/gcc/config/arm/t-baremetal
+new file mode 100644
+index 0000000..6d98ea8
+--- /dev/null
++++ b/gcc/config/arm/t-baremetal
+@@ -0,0 +1,165 @@
++# Copyright (C) 2012-2016 Free Software Foundation, Inc.
++#
++# This file is part of GCC.
++#
++# GCC is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# GCC is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with GCC; see the file COPYING3.  If not see
++# <http://www.gnu.org/licenses/>.
++
++# This is a target makefile fragment that attempts to get
++# multilibs built for ARM embedded CPU's. It should not be used in
++# conjunction with another make file fragment and assumes --with-arch,
++# --with-cpu, --with-fpu, --with-float, --with-mode have their default
++# values during the configure step. We enforce this during the
++# top-level configury.
++# Via the configure option --with-multilib-list, user can customize the
++# final MULTILIB implementation.
++# TM_MULTILIB_CONFIG is set in config.gcc .
++
++comma := ,
++
++tm_ml_conf := $(subst $(comma), ,$(TM_MULTILIB_CONFIG))
++
++# We have the following hierachy:
++#   ISA: A32 (.) or T32 (thumb)
++#   Architecture: ARMv6-M (armv6-m), ARMv7-M (armv7-m), ARMv7E-M (armv7e-m)
++#                 or ARMv7 (armv7-ar)
++#   Float-abi: Soft (.), softfp (softfp), or hard (fpu).
++#   FPU: VFPv5-SP-D16 (fpv5-sp-d16), VFPv5-D16 (fpv5-d16),
++#        VFPv4-SP-D16 (fpv4-sp-d16), VFPv3-D16 (vfpv3-d16),
++#        or None (.).
++
++MULTILIB_OPTIONS   = mthumb/marm
++MULTILIB_DIRNAMES  = thumb arm
++MULTILIB_OPTIONS  += march=armv6s-m/march=armv7-m/march=armv7e-m/march=armv7
++MULTILIB_DIRNAMES += armv6-m armv7-m armv7e-m armv7-ar
++# MULTILIB_OPTIONS  += march=armv8-m.base/march=armv8-m.main
++# MULTILIB_DIRNAMES += armv8-m.base armv8-m.main
++MULTILIB_OPTIONS  += mfloat-abi=softfp/mfloat-abi=hard
++MULTILIB_DIRNAMES += softfp fpu
++MULTILIB_OPTIONS  += mfpu=fpv5-sp-d16/mfpu=fpv5-d16/mfpu=fpv4-sp-d16/mfpu=vfpv3-d16
++MULTILIB_DIRNAMES += fpv5-sp-d16 fpv5-d16 fpv4-sp-d16 vfpv3-d16
++
++MULTILIB_MATCHES   = march?armv6s-m=mcpu?cortex-m0
++MULTILIB_MATCHES  += march?armv6s-m=mcpu?cortex-m0.small-multiply
++MULTILIB_MATCHES  += march?armv6s-m=mcpu?cortex-m0plus
++MULTILIB_MATCHES  += march?armv6s-m=mcpu?cortex-m0plus.small-multiply
++MULTILIB_MATCHES  += march?armv6s-m=mcpu?cortex-m1
++MULTILIB_MATCHES  += march?armv6s-m=mcpu?cortex-m1.small-multiply
++MULTILIB_MATCHES  += march?armv6s-m=march?armv6-m
++MULTILIB_MATCHES  += march?armv7-m=mcpu?cortex-m3
++MULTILIB_MATCHES  += march?armv7e-m=mcpu?cortex-m4
++MULTILIB_MATCHES  += march?armv7e-m=mcpu?cortex-m7
++MULTILIB_MATCHES  += march?armv7e-m=mcpu?marvell-pj4
++MULTILIB_MATCHES  += march?armv7=march?armv7-r
++MULTILIB_MATCHES  += march?armv7=march?armv7-a
++MULTILIB_MATCHES  += march?armv7=march?armv8-a
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-r4
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-r4f
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-r5
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-r7
++MULTILIB_MATCHES  += march?armv7=mcpu?generic-armv7-a
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a5
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a7
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a8
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a9
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a12
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a15
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a17
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a15.cortex-a7
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a17.cortex-a7
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a53
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a57
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a72
++MULTILIB_MATCHES  += march?armv7=mcpu?exynos-m1
++MULTILIB_MATCHES  += march?armv7=mcpu?xgene1
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a57.cortex-a53
++MULTILIB_MATCHES  += march?armv7=mcpu?cortex-a72.cortex-a53
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?vfpv3
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?vfpv3-fp16
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?vfpv3-d16-fp16
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?vfpv3xd
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?vfpv3xd-fp16
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?vfpv4
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?vfpv4-d16
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?neon
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?neon-fp16
++MULTILIB_MATCHES  += mfpu?vfpv3-d16=mfpu?neon-vfpv4
++
++MULTILIB_EXCEPTIONS =
++MULTILIB_REUSE =
++
++MULTILIB_REQUIRED  = mthumb
++MULTILIB_REQUIRED += marm
++MULTILIB_REQUIRED += mfloat-abi=hard
++
++MULTILIB_OSDIRNAMES  = mthumb=!thumb
++MULTILIB_OSDIRNAMES += marm=!arm
++MULTILIB_OSDIRNAMES += mfloat-abi.hard=!fpu
++
++ifneq (,$(findstring armv6-m,$(tm_ml_conf)))
++MULTILIB_REQUIRED   += mthumb/march=armv6s-m
++MULTILIB_OSDIRNAMES += mthumb/march.armv6s-m=!armv6-m
++endif
++
++# ifneq (,$(findstring armv8-m.base,$(tm_ml_conf)))
++# MULTILIB_REQUIRED   += mthumb/march=armv8-m.base
++# MULTILIB_OSDIRNAMES += mthumb/march.armv8-m.base=!armv8-m.base
++# endif
++
++ifneq (,$(findstring armv7-m,$(tm_ml_conf)))
++MULTILIB_REQUIRED   += mthumb/march=armv7-m
++MULTILIB_OSDIRNAMES += mthumb/march.armv7-m=!armv7-m
++endif
++
++ifneq (,$(findstring armv7e-m,$(tm_ml_conf)))
++MULTILIB_REQUIRED   += mthumb/march=armv7e-m
++MULTILIB_REQUIRED   += mthumb/march=armv7e-m/mfloat-abi=softfp/mfpu=fpv4-sp-d16
++MULTILIB_REQUIRED   += mthumb/march=armv7e-m/mfloat-abi=hard/mfpu=fpv4-sp-d16
++MULTILIB_REQUIRED   += mthumb/march=armv7e-m/mfloat-abi=softfp/mfpu=fpv5-d16
++MULTILIB_REQUIRED   += mthumb/march=armv7e-m/mfloat-abi=hard/mfpu=fpv5-d16
++MULTILIB_REQUIRED   += mthumb/march=armv7e-m/mfloat-abi=softfp/mfpu=fpv5-sp-d16
++MULTILIB_REQUIRED   += mthumb/march=armv7e-m/mfloat-abi=hard/mfpu=fpv5-sp-d16
++MULTILIB_OSDIRNAMES += mthumb/march.armv7e-m=!armv7e-m
++MULTILIB_OSDIRNAMES += mthumb/march.armv7e-m/mfloat-abi.hard/mfpu.fpv4-sp-d16=!armv7e-m/fpu
++MULTILIB_OSDIRNAMES += mthumb/march.armv7e-m/mfloat-abi.softfp/mfpu.fpv4-sp-d16=!armv7e-m/softfp
++MULTILIB_OSDIRNAMES += mthumb/march.armv7e-m/mfloat-abi.hard/mfpu.fpv5-d16=!armv7e-m/fpu/fpv5-d16
++MULTILIB_OSDIRNAMES += mthumb/march.armv7e-m/mfloat-abi.softfp/mfpu.fpv5-d16=!armv7e-m/softfp/fpv5-d16
++MULTILIB_OSDIRNAMES += mthumb/march.armv7e-m/mfloat-abi.hard/mfpu.fpv5-sp-d16=!armv7e-m/fpu/fpv5-sp-d16
++MULTILIB_OSDIRNAMES += mthumb/march.armv7e-m/mfloat-abi.softfp/mfpu.fpv5-sp-d16=!armv7e-m/softfp/fpv5-sp-d16
++endif
++
++# ifneq (,$(findstring armv8-m.main,$(tm_ml_conf)))
++# MULTILIB_REQUIRED   += mthumb/march=armv8-m.main
++# MULTILIB_REQUIRED   += mthumb/march=armv8-m.main/mfloat-abi=softfp/mfpu=fpv5-d16
++# MULTILIB_REQUIRED   += mthumb/march=armv8-m.main/mfloat-abi=hard/mfpu=fpv5-d16
++# MULTILIB_REQUIRED   += mthumb/march=armv8-m.main/mfloat-abi=softfp/mfpu=fpv5-sp-d16
++# MULTILIB_REQUIRED   += mthumb/march=armv8-m.main/mfloat-abi=hard/mfpu=fpv5-sp-d16
++# MULTILIB_OSDIRNAMES += mthumb/march.armv8-m.main=!armv8-m.main
++# MULTILIB_OSDIRNAMES += mthumb/march.armv8-m.main/mfloat-abi.hard/mfpu.fpv5-d16=!armv8-m.main/fpu/fpv5-d16
++# MULTILIB_OSDIRNAMES += mthumb/march.armv8-m.main/mfloat-abi.softfp/mfpu.fpv5-d16=!armv8-m.main/softfp/fpv5-d16
++# MULTILIB_OSDIRNAMES += mthumb/march.armv8-m.main/mfloat-abi.hard/mfpu.fpv5-sp-d16=!armv8-m.main/fpu/fpv5-sp-d16
++# MULTILIB_OSDIRNAMES += mthumb/march.armv8-m.main/mfloat-abi.softfp/mfpu.fpv5-sp-d16=!armv8-m.main/softfp/fpv5-sp-d16
++# endif
++
++ifneq (,$(filter armv7 armv7-r armv7-a,$(tm_ml_conf)))
++MULTILIB_REQUIRED   += mthumb/march=armv7
++MULTILIB_REQUIRED   += mthumb/march=armv7/mfloat-abi=softfp/mfpu=vfpv3-d16
++MULTILIB_REQUIRED   += mthumb/march=armv7/mfloat-abi=hard/mfpu=vfpv3-d16
++MULTILIB_OSDIRNAMES += mthumb/march.armv7=!armv7-ar/thumb
++MULTILIB_OSDIRNAMES += mthumb/march.armv7/mfloat-abi.hard/mfpu.vfpv3-d16=!armv7-ar/thumb/fpu
++MULTILIB_OSDIRNAMES += mthumb/march.armv7/mfloat-abi.softfp/mfpu.vfpv3-d16=!armv7-ar/thumb/softfp
++MULTILIB_REUSE      += mthumb/march.armv7=marm/march.armv7
++MULTILIB_REUSE      += mthumb/march.armv7/mfloat-abi.softfp/mfpu.vfpv3-d16=marm/march.armv7/mfloat-abi.softfp/mfpu.vfpv3-d16
++MULTILIB_REUSE      += mthumb/march.armv7/mfloat-abi.hard/mfpu.vfpv3-d16=marm/march.armv7/mfloat-abi.hard/mfpu.vfpv3-d16
++endif
+diff --git a/gcc/configure b/gcc/configure
+index 3c92795..6940163 100755
+--- a/gcc/configure
++++ b/gcc/configure
+@@ -1701,7 +1701,7 @@ Optional Packages:
+   --with-specs=SPECS      add SPECS to driver command-line processing
+   --with-pkgversion=PKG   Use PKG in the version string in place of "GCC"
+   --with-bugurl=URL       Direct users to URL to report a bug
+-  --with-multilib-list    select multilibs (AArch64, SH and x86-64 only)
++  --with-multilib-list    select multilibs (AArch64, ARM, SH and x86-64 only)
+   --with-gnu-ld           assume the C compiler uses GNU ld default=no
+   --with-libiconv-prefix[=DIR]  search for libiconv in DIR/include and DIR/lib
+   --without-libiconv-prefix     don't search for libiconv in includedir and libdir
+diff --git a/gcc/configure.ac b/gcc/configure.ac
+index d414081..b0cff66 100644
+--- a/gcc/configure.ac
++++ b/gcc/configure.ac
+@@ -922,7 +922,7 @@ if test x"$offload_targets" != x; then
+ fi
+ 
+ AC_ARG_WITH(multilib-list,
+-[AS_HELP_STRING([--with-multilib-list], [select multilibs (AArch64, SH and x86-64 only)])],
++[AS_HELP_STRING([--with-multilib-list], [select multilibs (AArch64, ARM, SH and x86-64 only)])],
+ :,
+ with_multilib_list=default)
+ 
+-- 
+1.9.1
+
