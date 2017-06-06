@@ -323,6 +323,7 @@ do_libc_backend_once() {
     CT_DoExecLog CFG                                                \
     BUILD_CC=${CT_BUILD}-gcc                                        \
     CC="${CT_TARGET}-${CT_CC} ${glibc_cflags}"                      \
+    CPP="${CT_TARGET}-cpp"                                          \
     AR=${CT_TARGET}-ar                                              \
     RANLIB=${CT_TARGET}-ranlib                                      \
     "${CONFIG_SHELL}"                                               \
