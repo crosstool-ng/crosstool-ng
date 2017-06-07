@@ -1,6 +1,3 @@
-#!/bin/sh
-# Yes, this is supposed to be a POSIX-compliant shell script.
-
 # Parses all samples on the command line, and for each of them, prints
 # the versions of the main tools
 
