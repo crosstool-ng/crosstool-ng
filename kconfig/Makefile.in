@@ -15,6 +15,12 @@ CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\"" \
 	 -DGPERF_LEN_TYPE="$(gperf_len_type)"
 LDFLAGS = $(INTL_LIBS)
 
+ifneq (@DPKG_BUILDFLAGS@,)
+CFLAGS += $(shell @DPKG_BUILDFLAGS@ --get CPPFLAGS) \
+          $(shell @DPKG_BUILDFLAGS@ --get CFLAGS)
+LDFLAGS += $(shell @DPKG_BUILDFLAGS@ --get LDFLAGS)
+endif
+
 # Compiler flags to use gettext
 ifeq ($(gettext),)
 INTL_CFLAGS = -Wno-format-security -DKBUILD_NO_NLS
@@ -103,8 +109,11 @@ conf: $(COMMON_OBJ) $(conf_OBJ)
 # Installation
 install: $(patsubst %,install-%,$(PROGS)) install-kconfig.mk
 
-install-%: %
-	$(call __silent,INSTALL,$<)install $< $(DESTDIR)/$<
+$(patsubst %,install-%,$(PROGS)): install-%: %
+	$(call __silent,INSTALL,$<)install -m 0755 $< $(DESTDIR)/$<
+
+install-kconfig.mk: kconfig.mk
+	$(call __silent,INSTALL,$<)install -m 0644 $< $(DESTDIR)/$<
 
 #-----------------------------------------------------------
 # Cleaning up the mess...

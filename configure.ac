@@ -371,6 +371,8 @@ ACX_SET_KCONFIG_OPTION([svn])
 AC_CHECK_PROGS([git], [git])
 ACX_SET_KCONFIG_OPTION([git])
 
+AC_CHECK_PROGS([DPKG_BUILDFLAGS], [dpkg-buildflags])
+
 #--------------------------------------------------------------------
 # Now, for some fun...
 #--------------------------------------------------------------------
@@ -465,5 +467,5 @@ AS_IF(
 #--------------------------------------------------------------------
 # Finally, generate the output file(s)
 #--------------------------------------------------------------------
-AC_CONFIG_FILES([Makefile config/configure.in])
+AC_CONFIG_FILES([Makefile kconfig/Makefile config/configure.in])
 AC_OUTPUT

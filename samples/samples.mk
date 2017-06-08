@@ -43,7 +43,7 @@ help-env::
 PHONY += show-config
 show-config: .config
 	@cp .config .config.sample
-	@$(CT_LIB_DIR)/scripts/showSamples.sh -v current
+	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -v current
 	@rm -f .config.sample
 
 # Prints the details of a sample
@@ -52,7 +52,7 @@ $(patsubst %,show-%,$(CT_SAMPLES)): show-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(CT_LIB_DIR)/scripts/showSamples.sh -v $*
+	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -v $*
 	@rm -f .config.sample
 
 # Prints the details of all samples
@@ -76,7 +76,7 @@ $(patsubst %,list-%,$(CT_SAMPLES)): list-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(CT_LIB_DIR)/scripts/showSamples.sh $*
+	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh $*
 	@rm -f .config.sample
 
 PHONY += list-samples-short
@@ -114,16 +114,16 @@ PHONY += wiki-samples
 wiki-samples: wiki-samples-pre $(patsubst %,wiki-%,$(CT_SAMPLES)) wiki-samples-post
 
 wiki-samples-pre: FORCE
-	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w
+	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -w
 
 wiki-samples-post: FORCE
-	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -W $(CT_SAMPLES)
+	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -W $(CT_SAMPLES)
 
 $(patsubst %,wiki-%,$(CT_SAMPLES)): wiki-%:
 	$(SILENT)KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	$(SILENT)$(CT_LIB_DIR)/scripts/showSamples.sh -w $*
+	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -w $*
 	$(SILENT)rm -f .config.sample
 
 # ----------------------------------------------------------
@@ -136,7 +136,7 @@ samples:
 
 # Save a sample
 saveconfig: .config samples
-	$(SILENT)$(CT_LIB_DIR)/scripts/saveSample.sh
+	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/saveSample.sh
 
 # The 'sample_dir' function prints the directory in which the sample is,
 # searching first in local samples, then in global samples
