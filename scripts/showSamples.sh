@@ -11,6 +11,9 @@
 # GREP_OPTIONS screws things up.
 export GREP_OPTIONS=
 
+# Dummy version which is invoked from .config
+CT_Mirrors() { :; }
+
 # Dump a single sample
 # Note: we use the specific .config.sample config file
 dump_single_sample() {
@@ -20,7 +23,6 @@ dump_single_sample() {
     [ "$1" = "-v" ] && verbose=1 && shift
     [ "$1" = "-w" ] && wiki=1 && shift
     local sample="$1"
-    # TBD use CT_LoadConfig
     . $(pwd)/.config.sample
 
     # libc needs some love

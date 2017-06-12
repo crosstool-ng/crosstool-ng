@@ -428,7 +428,6 @@ check_obsolete_experimental()
 enter_fork()
 {
     local fork="${1}"
-    local -A dflt_branch=( [git]="master" [svn]="/trunk" )
     local versions
     local only_obsolete only_experimental
 
@@ -436,7 +435,8 @@ enter_fork()
     info[obsolete]=
     info[experimental]=
     info[repository]=
-    info[repository_cset]=HEAD
+    info[repository_branch]=
+    info[repository_cset]=
     info[fork]=${fork}
     info[name]=${fork}
     info[mirrors]=
@@ -453,8 +453,7 @@ enter_fork()
 
     if [ -n "${info[repository]}" ]; then
         info[vcs]=${info[repository]%% *}
-        info[repository_url]=${info[repository]##* }
-        info[repository_dflt_branch]=${dflt_branch[${info[vcs]}]}
+        info[repository_url]=${info[repository]#* }
     fi
     info[versionlocked]=`kconfigize "${info[versionlocked]}"`
 
