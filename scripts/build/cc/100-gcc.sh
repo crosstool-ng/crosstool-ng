@@ -547,7 +547,7 @@ do_gcc_core_backend() {
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     # We may need to modify host/build CFLAGS separately below
-    cflags_for_build="${cflags}"
+    cflags_for_build="${CT_CFLAGS_FOR_BUILD}"
 
     # Clang's default bracket-depth is 256, and building GCC
     # requires somewhere between 257 and 512.
