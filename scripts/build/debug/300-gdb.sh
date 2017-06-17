@@ -319,6 +319,10 @@ do_debug_gdb_build() {
             gdbserver_LDFLAGS=-static
         fi
 
+        if [ "${CT_GDB_GDBSERVER_STATIC_LIBSTDCXX}" = "y" ]; then
+            gdbserver_LDFLAGS+=" -static-libstdc++"
+        fi
+
         gdbserver_extra_config=("${extra_config[@]}")
 
         # We may not have C++ language configured for target
