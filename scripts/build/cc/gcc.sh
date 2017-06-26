@@ -14,6 +14,7 @@ do_gcc_get() {
     # GCC source tree, which will not be there unless we get it and
     # put it there ourselves
     if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" ]; then
+        # TBD check return code
         CT_GetFile ecj-latest .jar http://mirrors.kernel.org/sourceware/java/ \
                                    ftp://gcc.gnu.org/pub/java                 \
                                    ftp://sourceware.org/pub/java

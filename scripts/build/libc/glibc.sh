@@ -17,9 +17,9 @@ do_libc_get() {
 do_libc_extract() {
     local addon
 
-    CT_ExtrachPatch GLIBC
+    CT_ExtractPatch GLIBC
     if [ "${CT_GLIBC_USE_PORTS_EXTERNAL}" = "y" ]; then
-        CT_Fetch GLIBC_PORTS
+        CT_ExtractPatch GLIBC_PORTS
     fi
     # TBD make patches for addons (ports? anything else?) uniformly using short names
     # TBD make the configure timestamp fix in all patched packages (e.g. part of CT_ExtractPatch)

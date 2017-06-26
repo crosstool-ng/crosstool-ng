@@ -22,21 +22,23 @@ do_kernel_get() {
     CT_Fetch LINUX
 }
 
-# Extract kernel
-do_kernel_extract() {
-    CT_ExtractPatch LINUX
-
-    # Disable building relocs application - it needs <linux/types.h>
-    # on the host, which may not be present on Cygwin or MacOS; it
-    # needs <elf.h>, which again is not present on MacOS; and most
-    # important, we don't need it to install the headers.
-    # This is not done as a patch, since it varies from Linux version
-    # to version - patching each particular Linux version would be
-    # too cumbersome.
-    # TBD should happen before marking the sources as "patched"?
-    CT_Pushd "${CT_SRC_DIR}/linux"
+# Disable building relocs application - it needs <linux/types.h>
+# on the host, which may not be present on Cygwin or MacOS; it
+# needs <elf.h>, which again is not present on MacOS; and most
+# important, we don't need it to install the headers.
+# This is not done as a patch, since it varies from Linux version
+# to version - patching each particular Linux version would be
+# too cumbersome.
+linux_disable_build_relocs()
+{
     sed -i -r 's/(\$\(MAKE\) .* relocs)$/:/' arch/*/Makefile
-    CT_Popd
+}
+
+# Extract kernel
+do_kernel_extract()
+{
+    # TBD verify linux_disable_build_relocs is run
+    CT_ExtractPatch LINUX linux_disable_build_relocs
 }
 
 # Install kernel headers using headers_install from kernel sources.
