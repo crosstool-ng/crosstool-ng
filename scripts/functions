@@ -1546,7 +1546,9 @@ CT_Download_cvs()
     # TBD try -'d ${basename}', with/without -N
     CT_DoExecLog ALL cvs -z 9 -d "${pserver}" co -P ${devel_branch:+-r ${devel_branch}} \
             -D "${devel_revision} UTC" "${module}"
-    CT_DoExecLog ALL mv "${module}" "${basename}"
+    if [ "${module}" != "${pkg_name}" ]; then
+        CT_DoExecLog ALL mv "${module}" "${pkg_name}"
+    fi
 }
 
 # Find the most recent version from Subversion. 
@@ -1572,7 +1574,7 @@ CT_GetVersion_svn()
 # Retrieve sources from Subversion.
 CT_Download_svn()
 {
-    CT_DoExecLog ALL svn export -r "${devel_revision}" "${devel_url}${devel_branch}" "${basename}"
+    CT_DoExecLog ALL svn export -r "${devel_revision}" "${devel_url}${devel_branch}" "${pkg_name}"
 }
 
 # Find the most recent version from Mercurial.
@@ -1614,7 +1616,6 @@ CT_Download_hg()
     fi
     CT_DoExecLog ALL rm -rf .hg
     CT_Popd
-    CT_DoExecLog ALL mv "${pkg_name}" "${basename}"
 }
 
 # Get the most recent version from Git.
@@ -1646,8 +1647,8 @@ CT_GetVersion_git()
 # Retrieve sources from Git.
 CT_Download_git()
 {
-    CT_DoExecLog ALL git clone "${devel_url}" "${basename}"
-    CT_Pushd "${basename}"
+    CT_DoExecLog ALL git clone "${devel_url}" "${pkg_name}"
+    CT_Pushd "${pkg_name}"
     CT_DoExecLog ALL git checkout "${devel_revision}" --
     CT_DoExecLog ALL rm -rf .git
     CT_Popd
@@ -1673,7 +1674,8 @@ CT_PackageRun()
 
     # Variables that are per-fork
     for v in basename pkg_name version src_release mirrors src_devel src_custom \
-            devel_vcs devel_url devel_branch devel_revision custom_location; do
+            devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
+            custom_location; do
         eval "local ${v}=\${CT_${use}_${v^^}}"
     done
 
@@ -1708,7 +1710,7 @@ CT_DoFetch()
         # - CT_GetVersion_xxx that sets the base name for the package (package name
         #   and some unique identifier for the version)
         # - CT_Download_xxx that retrieves the sources into the directory named as
-        #   ${basename}
+        #   ${pkg_name}
         # Both these methods can also modify devel_branch/devel_revision. Typically,
         # this would override empty (default) values with "default branch name" and
         # "most current revision", respectively.
@@ -1734,6 +1736,23 @@ CT_DoFetch()
         CT_MktempDir tmp_dir
         CT_Pushd "${tmp_dir}"
         CT_Download_${devel_vcs}
+        CT_DoExecLog ALL mv "${pkg_name}${devel_subdir:+/${devel_subdir}}" "${basename}"
+
+        # Post-download scripts.
+        # FIXME: This currently means we end up using host's autotools,
+        # but changing this requires reworking the order of operations in crosstool-NG:
+        # we'd need to defer the download/extraction/patching of a package until after
+        # the companion tools are built.
+        local remains="${devel_bootstrap}"
+        while [ -n "${remains}" ]; do
+            CT_Pushd "${basename}"
+            CT_DoExecLog ALL ${remains%%&&*}
+            case "${remains}" in
+            *\&\&*) remains="${remains#*&&}";;
+            *) remains=;;
+            esac
+            CT_Popd
+        done
         CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${basename}"
         CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"
         CT_Popd
@@ -1805,7 +1824,6 @@ CT_DoExtractPatch()
     local bundled_patch_dir
     local local_patch_dir
 
-    CT_DoLog EXTRA "Extracting ${basename}"
     if [ "${src_custom}" != "y" ]; then
         # Non-custom: extract to shared location
         # If the previous extraction/patching was aborted, clean up.
@@ -1819,6 +1837,7 @@ CT_DoExtractPatch()
         if [ -f "${CT_COMMON_SRC_DIR}/.${basename}.extracted" ]; then
             CT_DoLog DEBUG "Already extracted ${basename}"
         else
+            CT_DoLog EXTRA "Extracting ${basename}"
             CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.extracting"
             # TBD save/discover the extension while fetching
             ext=`CT_GetFileExtension "${basename}"`
@@ -1859,6 +1878,7 @@ CT_DoExtractPatch()
                 fi
             done
  
+            # TBD meta-package for config.sub/config.guess with replacement script
             if [ "${CT_OVERRIDE_CONFIG_GUESS_SUB}" = "y" ]; then
                 CT_DoLog ALL "Overiding config.guess and config.sub"
                 for cfg in config.guess config.sub; do

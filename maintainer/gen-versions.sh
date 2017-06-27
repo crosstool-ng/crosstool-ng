@@ -437,6 +437,8 @@ enter_fork()
     info[repository]=
     info[repository_branch]=
     info[repository_cset]=
+    info[repository_subdir]=
+    info[bootstrap]=
     info[fork]=${fork}
     info[name]=${fork}
     info[mirrors]=
