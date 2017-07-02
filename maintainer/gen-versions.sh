@@ -201,7 +201,7 @@ config_dir=config/versions
 template=maintainer/kconfig-versions.template
 
 declare -A pkg_forks pkg_milestones pkg_nforks
-declare -a pkg_masters pkg_all
+declare -a pkg_masters pkg_all pkg_preferred
 
 # Convert the argument to a Kconfig-style macro
 kconfigize()
@@ -406,16 +406,22 @@ find_forks()
 {
     local -A info
 
+    info[preferred]=${1}
     eval `read_package_desc ${1}`
 
     if [ -n "${info[master]}" ]; then
         pkg_nforks[${info[master]}]=$[pkg_nforks[${info[master]}]+1]
-        pkg_forks[${info[master]}]+=" ${1}"
+        pkg_forks[${info[master]}]+=" ${1} "
     else
+        pkg_preferred[${1}]=${info[preferred]}
         pkg_nforks[${1}]=$[pkg_nforks[${1}]+1]
-        pkg_forks[${1}]="${1}${pkg_forks[${1}]}"
+        pkg_forks[${1}]+=" ${1} "
         pkg_milestones[${1}]=`sort_versions ${info[milestones]}`
         pkg_masters+=( "${1}" )
+    fi
+    # Keep sorting so that preferred fork is first
+    if [ -n "${pkg_preferred[${1}]}" ]; then
+        pkg_forks[${1}]="${pkg_preferred[${1}]} ${pkg_forks[${1}]##* ${pkg_preferred[${1}]} } ${pkg_forks[${1}]%% ${pkg_preferred[${1}]} *}"
     fi
 }
 
@@ -442,15 +448,16 @@ enter_fork()
     info[fork]=${fork}
     info[name]=${fork}
     info[mirrors]=
+    info[archivesuffix]=
 
     eval `read_package_desc ${fork}`
 
     info[pfx]=`kconfigize ${fork}`
     info[originpfx]=`kconfigize ${info[origin]}`
     if [ -r "packages/${info[origin]}.help" ]; then
-        info[originhelp]=`sed 's/^/\t  /' "packages/${info[origin]}.help"`
+        info[originhelp]=`sed 's/^/      /' "packages/${info[origin]}.help"`
     else
-        info[originhelp]="${info[master]} from ${info[origin]}."
+        info[originhelp]="      ${info[master]} from ${info[origin]}."
     fi
 
     if [ -n "${info[repository]}" ]; then
@@ -467,7 +474,7 @@ enter_fork()
     info[all_versions]=${versions}
 
     # If a fork does not define any versions at all ("rolling release"), do not
-    # consider it obsolete/experimental unless it is marked in the fork's
+    # consider it obsolete/experimental unless it is so marked in the fork's
     # description.
     if [ -n "${versions}" ]; then
         only_obsolete=yes

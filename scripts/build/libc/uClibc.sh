@@ -7,16 +7,15 @@
 uclibc_locales_version=030818
 uclibc_locale_tarball="uClibc-locale-${uclibc_locales_version}"
 
-if [ "${CT_UCLIBC_NG_USE_UCLIBC_NG_ORG}" = "y" ]; then
+if [ "${CT_UCLIBC_USE_UCLIBC_NG_ORG}" = "y" ]; then
     # TBD make the name come from config/versions/uclibc.in
     uclibc_name="uClibc-ng"
-elif [ "${CT_UCLIBC_NG_USE_UCLIBC_ORG}" = "y" ]; then
+elif [ "${CT_UCLIBC_USE_UCLIBC_ORG}" = "y" ]; then
     uclibc_name="uClibc"
 fi
 
 # Download uClibc
 do_libc_get() {
-    # TBD allow for "default fork" selection in package.desc and select uClibc-NG (and then use just UCLIBC moniker)
     CT_Fetch UCLIBC_NG
     # TBD locales
 }
