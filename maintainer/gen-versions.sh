@@ -132,7 +132,7 @@ run_lines()
 {
     local start="${1}"
     local end="${2}"
-    local l lnext s v
+    local l lnext s s1 v
 
     debug "Running lines ${start}..${end}"
     l=${start}
@@ -142,6 +142,7 @@ run_lines()
         # Expand @@foo@@ to ${info[foo]}. First escape variables/backslashes for evals below.
         s="${s//\\/\\\\}"
         s="${s//\$/\\\$}"
+        s1=
         while [ -n "${s}" ]; do
             case "${s}" in
                 *@@*@@*)
@@ -150,16 +151,19 @@ run_lines()
                     if [ "${info[${v}]+set}" != "set" ]; then
                         error "line ${l}: reference to undefined variable '${v}'"
                     fi
-                    s="${s%%@@*}\${info[${v}]}${s#*@@*@@}"
+                    s1="${s1}${s%%@@*}\${info[${v}]}"
+                    s="${s#*@@*@@}"
                     ;;
                 *@@*)
                     error "line ${l}: non-paired @@ markers"
                     ;;
                 *)
+                    s1="${s1}${s}"
                     break
                     ;;
             esac
         done
+        s=${s1}
 
         debug "Evaluate: ${s}"
         case "${s}" in
@@ -448,7 +452,8 @@ enter_fork()
     info[fork]=${fork}
     info[name]=${fork}
     info[mirrors]=
-    info[archivesuffix]=
+    info[archive_filename]='@{pkg_name}-@{version}'
+    info[archive_dirname]='@{pkg_name}-@{version}'
 
     eval `read_package_desc ${fork}`
 

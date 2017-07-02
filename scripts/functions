@@ -1688,10 +1688,18 @@ CT_PackageRun()
     use="${use:-${sym}}"
 
     # Variables that are per-fork
-    for v in basename pkg_name version src_release mirrors archive_suffix src_devel src_custom \
-            devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
-            custom_location; do
+    for v in basename pkg_name version src_release mirrors archive_filename archive_dirname \
+            src_devel src_custom devel_vcs devel_url devel_branch devel_revision \
+            devel_subdir devel_bootstrap custom_location; do
         eval "local ${v}=\${CT_${use}_${v^^}}"
+    done
+
+    for v in archive_filename archive_dirname; do
+        # kconfig and shell have different quoting rules, so it seems impossible to make
+        # kconfig quote '$' properly for eval (i.e. not have it expanded when loading the
+        # .config). Therefore, use '@' instead of '$' in kconfig files and substitute it
+        # here for select variables.
+        eval "eval ${v}=\${${v}//@/$}"
     done
 
     ${run} "$@"
@@ -1710,8 +1718,8 @@ CT_DoFetch()
     local tmp_dir
 
     if [ "${src_release}" = "y" ]; then
-        basename="${pkg_name}-${version}"
-        if ! CT_GetFile "${basename}${archive_suffix}" ${mirrors}; then
+        basename="${archive_dirname}"
+        if ! CT_GetFile "${archive_filename}" ${mirrors}; then
             CT_Abort "${pkg_name}: download failed"
         fi
 
@@ -1834,7 +1842,7 @@ CT_Extract()
 CT_DoExtractPatch()
 {
     local patchfunc="${1}"
-    local ext
+    local archive ext
     local -a patch_dirs
     local bundled_patch_dir
     local local_patch_dir
@@ -1854,9 +1862,14 @@ CT_DoExtractPatch()
         else
             CT_DoLog EXTRA "Extracting ${basename}"
             CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.extracting"
+            if [ "${src_release}" = "y" ]; then
+                archive="${archive_filename}"
+            else
+                archive="${basename}"
+            fi
             # TBD save/discover the extension while fetching
-            ext=`CT_GetFileExtension "${basename}${archive_suffix}"`
-            CT_Extract "${CT_TARBALLS_DIR}/${basename}${archive_suffix}${ext}" "${CT_COMMON_SRC_DIR}"
+            ext=`CT_GetFileExtension "${archive}"`
+            CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${CT_COMMON_SRC_DIR}"
             CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.extracted"
             CT_DoExecLog ALL rm -f "${CT_COMMON_SRC_DIR}/.${basename}.extracting"
         fi

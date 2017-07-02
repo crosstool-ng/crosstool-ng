@@ -265,7 +265,7 @@ do_elf2flt_backend() {
     CFLAGS="${cflags}"                                          \
     LDFLAGS="${ldflags}"                                        \
     ${CONFIG_SHELL}                                             \
-    "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
+    "${CT_SRC_DIR}/elf2flt/configure"                           \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
         --target=${CT_TARGET}                                   \
