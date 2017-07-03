@@ -537,18 +537,14 @@ CT_Pushd() {
     pushd "$1" >/dev/null 2>&1
 }
 CT_Popd() {
+    local dir=`dirs +0`
+
+    CT_DoLog DEBUG "Leaving '${dir}'"
     popd >/dev/null 2>&1
 }
 
-# Create a dir and cd or pushd into it
-# Usage: CT_mkdir_cd <dir/to/create>
-#        CT_mkdir_pushd <dir/to/create>
-CT_mkdir_cd() {
-    local dir="${1}"
-
-    mkdir -p "${dir}"
-    cd "${dir}"
-}
+# Create a dir and pushd into it
+# Usage: CT_mkdir_pushd <dir/to/create>
 CT_mkdir_pushd() {
     local dir="${1}"
 
@@ -1718,7 +1714,12 @@ CT_DoFetch()
     local tmp_dir
 
     if [ "${src_release}" = "y" ]; then
-        basename="${archive_dirname}"
+        # Some packages do not contain any directory level at all
+        if [ "${archive_dirname}" != "." ]; then
+            basename="${archive_dirname}"
+        else
+            basename="${pkg_name}-${version}"
+        fi
         if ! CT_GetFile "${archive_filename}" ${mirrors}; then
             CT_Abort "${pkg_name}: download failed"
         fi
@@ -1869,7 +1870,13 @@ CT_DoExtractPatch()
             fi
             # TBD save/discover the extension while fetching
             ext=`CT_GetFileExtension "${archive}"`
-            CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${CT_COMMON_SRC_DIR}"
+            if [ "${archive_dirname}" = "." ]; then
+                CT_mkdir_pushd "${CT_COMMON_SRC_DIR}/${basename}"
+                CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${CT_COMMON_SRC_DIR}/${basename}"
+                CT_Popd
+            else
+                CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${CT_COMMON_SRC_DIR}"
+            fi
             CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.extracted"
             CT_DoExecLog ALL rm -f "${CT_COMMON_SRC_DIR}/.${basename}.extracting"
         fi
@@ -1937,7 +1944,7 @@ CT_DoExtractPatch()
             CT_DoLog WARN "${pkg_name}: using custom location, no overlays applied"
         fi
         if [ -d "${custom_location}" ]; then
-            CT_DoExecLog ALL cp -av "${custom_location}" "${CT_SRC_DIR}/${pkg_name}"
+            CT_DoExecLog ALL cp -av "${custom_location}" "${CT_SRC_DIR}/${dir_name}"
         elif [ -f "${custom_location}" ]; then
             # Assume "foo.tar.gz" (or likes) contain the "foo" directory
             local bn
@@ -1945,7 +1952,7 @@ CT_DoExtractPatch()
             CT_Extract "${custom_location}" "${CT_SRC_DIR}"
             bn=`CT_GetFileBasename "${custom_location##*/}"`
             CT_TestOrAbort "Unknown file extension: ${custom_location}" -n "${bn}"
-            CT_DoExecLog ALL mv -v "${CT_SRC_DIR}/${bn%${ext}}" "${CT_SRC_DIR}/${pkg_name}"
+            CT_DoExecLog ALL mv -v "${CT_SRC_DIR}/${bn%${ext}}" "${CT_SRC_DIR}/${dir_name}"
         else
             CT_Abort "Neither file nor directory: ${custom_location}"
         fi
@@ -1953,13 +1960,13 @@ CT_DoExtractPatch()
         # Possibly has overlays; copy from common source and apply overlays if any
         local overlay
 
-        CT_DoExecLog ALL cp -av "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${pkg_name}"
+        CT_DoExecLog ALL cp -av "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
         overlay="${CT_OVERLAY_LOCATION}/${CT_ARCH}-${CT_OVERLAY_NAME:-overlay}"
         ext=`CT_GetFileExtension "${overlay}"`
-        CT_Extract "${overlay}${ext}" "${CT_SRC_DIR}" "${pkg_name}"
+        CT_Extract "${overlay}${ext}" "${CT_SRC_DIR}" "${dir_name}"
     else
         # Common source, just symlink
-        CT_DoExecLog ALL ln -s "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${pkg_name}"
+        CT_DoExecLog ALL ln -s "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
     fi
 }
 

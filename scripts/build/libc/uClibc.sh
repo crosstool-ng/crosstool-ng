@@ -2,28 +2,20 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-# This is a constant because it does not change very often.
-# We're in 2010, and are still using data from 7 years ago.
-uclibc_locales_version=030818
-uclibc_locale_tarball="uClibc-locale-${uclibc_locales_version}"
-
-if [ "${CT_UCLIBC_USE_UCLIBC_NG_ORG}" = "y" ]; then
-    # TBD make the name come from config/versions/uclibc.in
-    uclibc_name="uClibc-ng"
-elif [ "${CT_UCLIBC_USE_UCLIBC_ORG}" = "y" ]; then
-    uclibc_name="uClibc"
-fi
-
 # Download uClibc
 do_libc_get() {
-    CT_Fetch UCLIBC_NG
-    # TBD locales
+    CT_Fetch UCLIBC
+    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
+        CT_Fetch UCLIBC_LOCALE
+    fi
 }
 
 # Extract uClibc
 do_libc_extract() {
-    CT_ExtractPatch UCLIBC_NG
-    # TBD locales
+    CT_ExtractPatch UCLIBC
+    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
+        CT_ExtractPatch UCLIBC_LOCALE
+    fi
 }
 
 # Build and install headers and start files
@@ -68,16 +60,19 @@ do_libc_backend_once() {
     local -a make_args
     local extra_cflags f cfg_cflags cf
     local hdr_install_subdir
+    local uclibc_name
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
-    CT_DoStep INFO "Building for multilib ${multi_index}/${multi_count}: '${multi_flags}'"
+    if [ "${CT_UCLIBC_USE_UCLIBC_NG_ORG}" = "y" ]; then
+        uclibc_name="uClibc-ng"
+    elif [ "${CT_UCLIBC_USE_UCLIBC_ORG}" = "y" ]; then
+        uclibc_name="uClibc"
+    fi
 
-    # Simply copy files until uClibc has the ability to build out-of-tree
-    CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/${uclibc_name}/." .
+    CT_DoStep INFO "Building for multilib ${multi_index}/${multi_count}: '${multi_flags}'"
 
     multilib_dir="lib/${multi_os_dir}"
     startfiles_dir="${multi_root}/usr/${multilib_dir}"
@@ -97,10 +92,21 @@ do_libc_backend_once() {
                 HOSTCC="${CT_BUILD}-gcc"                                \
                 PREFIX="${multi_root}/"                                 \
                 MULTILIB_DIR="${multilib_dir}"                          \
-                LOCALE_DATA_FILENAME="${uclibc_locale_tarball}.tgz"     \
                 STRIPTOOL=true                                          \
                 ${CT_LIBC_UCLIBC_VERBOSITY}                             \
                 )
+
+    # Simply copy files until uClibc has the ability to build out-of-tree
+    CT_DoLog EXTRA "Copying sources to build dir"
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc/." .
+    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
+        # uClibc's makefile insists on unpacking, but that would screw fetching from
+        # non-tarball locations.
+        CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-locale/." extra/locale
+        CT_DoExecLog ALL touch extra/locale/dummy-file
+        CT_DoExecLog ALL tar czf extra/locale/dummy.tar.gz -C extra/locale dummy-file
+        make_args+=( LOCALE_DATA_FILENAME=dummy.tar.gz )
+    fi
 
     # Force the date of the pregen locale data, as the
     # newer ones that are referenced are not available
@@ -298,24 +304,20 @@ manage_uClibc_config() {
     # entirely if LOCALE is not set.  If LOCALE was already set, we'll
     # assume the user has already made all the appropriate generation
     # arrangements.  Note that having the uClibc Makefile download the
-    # pregenerated locales is not compatible with crosstool; besides,
-    # crosstool downloads them as part of getandpatch.sh.
-    CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE" "${dst}"
+    # pregenerated locales is not compatible with crosstool.
     case "${CT_LIBC_UCLIBC_LOCALES}:${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" in
         :*)
             ;;
         y:)
             CT_KconfigEnableOption "UCLIBC_HAS_LOCALE" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_PREGENERATED_LOCALE_DATA" "${dst}"
-            CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" \
-                "${dst}"
+            CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_HAS_XLOCALE" "${dst}"
             ;;
         y:y)
             CT_KconfigEnableOption "UCLIBC_HAS_LOCALE" "${dst}"
             CT_KconfigEnableOption "UCLIBC_PREGENERATED_LOCALE_DATA" "${dst}"
-            CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" \
-                "${dst}"
+            CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_HAS_XLOCALE" "${dst}"
             ;;
     esac
