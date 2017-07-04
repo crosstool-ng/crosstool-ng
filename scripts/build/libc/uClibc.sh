@@ -5,17 +5,11 @@
 # Download uClibc
 do_libc_get() {
     CT_Fetch UCLIBC
-    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
-        CT_Fetch UCLIBC_LOCALE
-    fi
 }
 
 # Extract uClibc
 do_libc_extract() {
     CT_ExtractPatch UCLIBC
-    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
-        CT_ExtractPatch UCLIBC_LOCALE
-    fi
 }
 
 # Build and install headers and start files
@@ -99,14 +93,6 @@ do_libc_backend_once() {
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
     CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc/." .
-    if [ "${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" = "y" ]; then
-        # uClibc's makefile insists on unpacking, but that would screw fetching from
-        # non-tarball locations.
-        CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-locale/." extra/locale
-        CT_DoExecLog ALL touch extra/locale/dummy-file
-        CT_DoExecLog ALL tar czf extra/locale/dummy.tar.gz -C extra/locale dummy-file
-        make_args+=( LOCALE_DATA_FILENAME=dummy.tar.gz )
-    fi
 
     # Force the date of the pregen locale data, as the
     # newer ones that are referenced are not available
@@ -305,22 +291,14 @@ manage_uClibc_config() {
     # assume the user has already made all the appropriate generation
     # arrangements.  Note that having the uClibc Makefile download the
     # pregenerated locales is not compatible with crosstool.
-    case "${CT_LIBC_UCLIBC_LOCALES}:${CT_LIBC_UCLIBC_LOCALES_PREGEN_DATA}" in
-        :*)
-            ;;
-        y:)
+    if [ -z "${CT_LIBC_UCLIBC_LOCALES}" ]; then
+            CT_KconfigDisableOption "UCLIBC_HAS_LOCALE" "${dst}"
+    else
             CT_KconfigEnableOption "UCLIBC_HAS_LOCALE" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_PREGENERATED_LOCALE_DATA" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_HAS_XLOCALE" "${dst}"
-            ;;
-        y:y)
-            CT_KconfigEnableOption "UCLIBC_HAS_LOCALE" "${dst}"
-            CT_KconfigEnableOption "UCLIBC_PREGENERATED_LOCALE_DATA" "${dst}"
-            CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" "${dst}"
-            CT_KconfigDeleteOption "UCLIBC_HAS_XLOCALE" "${dst}"
-            ;;
-    esac
+    fi
 
     # WCHAR support
     if [ "${CT_LIBC_UCLIBC_WCHAR}" = "y" ]; then
