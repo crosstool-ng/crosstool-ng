@@ -1529,7 +1529,7 @@ CT_GetVersion_cvs()
             ;;
         esac
     fi
-    basename="${pkg_name}-${devel_branch:-trunk}-${devel_revision//[^0-9]/}"
+    unique_id="${devel_branch:-trunk}-${devel_revision//[^0-9]/}"
 }
 
 # Check out sources from CVS. Variables are set by CT_PackageRun.
@@ -1564,7 +1564,7 @@ CT_GetVersion_svn()
     version="${version#_}"
     version="${version%_}"
     version="${version}-${devel_revision}"
-    basename="${pkg_name}-${version}"
+    unique_id="${version}"
 }
 
 # Retrieve sources from Subversion.
@@ -1588,10 +1588,10 @@ CT_GetVersion_hg()
             devel_revision=`hg identify "${devel_url}"`
         else
             CT_DoLog WARN "${pkg_name}: Mercurial cannot query non-default branch, will clone"
-            devel_revision="TBD"
+            devel_revision="to.be.determined"
         fi
     fi
-    basename="${pkg_name}-${devel_revision}"
+    unique_id="${devel_revision}"
 }
 
 # Retrieve sources from Mercurial.
@@ -1602,10 +1602,10 @@ CT_Download_hg()
     if [ -n "${devel_branch}" ]; then
         CT_DoExecLog ALL hg update "${devel_branch}"
     fi
-    if [ "${devel_revision}" = "TBD" ]; then
+    if [ "${devel_revision}" = "to.be.determined" ]; then
         # Report what we found out (as common message lacks the revision)
         devel_revision=`hg identify -i` 
-        basename="${pkg_name}-${devel_revision}"
+        unique_id="${devel_revision}"
         CT_DoLog EXTRA "Retrieved revision ${devel_revision}"
     else
         CT_DoExecLog ALL hg update "${devel_revision}"
@@ -1651,7 +1651,7 @@ CT_GetVersion_git()
         devel_revision=`echo "${best}" | cut -c1-8`
         CT_DoLog DEBUG "ref ${devel_branch} at ${devel_url} has cset of ${devel_revision}"
     fi
-    basename="${pkg_name}-${devel_revision}"
+    unique_id="${devel_revision}"
 }
 
 # Retrieve sources from Git.
@@ -1684,9 +1684,10 @@ CT_PackageRun()
     use="${use:-${sym}}"
 
     # Variables that are per-fork
-    for v in basename pkg_name version src_release mirrors archive_filename archive_dirname \
-            src_devel src_custom devel_vcs devel_url devel_branch devel_revision \
-            devel_subdir devel_bootstrap custom_location; do
+    for v in basename pkg_name version \
+            src_release mirrors archive_filename archive_dirname \
+            src_devel devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
+            src_custom custom_location; do
         eval "local ${v}=\${CT_${use}_${v^^}}"
     done
 
@@ -1703,8 +1704,9 @@ CT_PackageRun()
     # Save certain variables that may be modified by the callback.
     # Fetching the sources is run in the main process, so no need to
     # use CT_EnvModify.
-    for v in devel_branch devel_revision basename; do
+    for v in devel_branch devel_revision basename version; do
         eval "CT_${use}_${v^^}=\${${v}}"
+        eval "CT_DoLog DEBUG \"Override CT_${use}_${v^^}=\${CT_${use}_${v^^}}\""
     done
 }
 
@@ -1725,6 +1727,7 @@ CT_DoFetch()
         fi
 
     elif [ "${src_devel}" = "y" ]; then
+        local unique_id
 
         if [ -z "${devel_revision}" -a "${CT_FORBID_DOWNLOAD}" = "y" ]; then
             CT_Abort "${pkg_name}: cannot find most recent revisions with downloads prohibited"
@@ -1740,43 +1743,35 @@ CT_DoFetch()
         # "most current revision", respectively.
 
         CT_GetVersion_${devel_vcs}
-        if [ -z "${basename}" ]; then
-            CT_Abort "${pkg_name}: ${devel_vcs} did not set base name"
+        if [ -z "${unique_id}" ]; then
+            CT_Abort "${pkg_name}: ${devel_vcs} did not set unique ID for branch/revision"
         fi
+        basename="${pkg_name}-${devel_vcs}-${unique_id}"
+        version="${devel_vcs}-${unique_id}"
 
         # Try getting the tarball with empty list of URLs: it will only
         # attempt getting it from local storage or from the mirror if configured.
-        # TBD extra "Retrieving" message from CT_GetFile
-        if CT_GetFile "${basename}" .tar.bz2; then
+        if [ "${unique_id}" != "to.be.determined" ] && \
+                CT_GetFile "${basename}" .tar.bz2; then
             return 0
         fi
 
-        CT_DoLog EXTRA "Retrieving '${basename}' (${devel_vcs} ${devel_url} ${devel_branch} ${devel_revision})"
         if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
             CT_DoLog WARN "Downloads forbidden, not trying ${devel_vcs} retrieval"
             return 1
         fi
 
+        CT_DoLog EXTRA "Retrieving '${basename}' (${devel_vcs} ${devel_url} ${devel_branch} ${devel_revision})"
         CT_MktempDir tmp_dir
         CT_Pushd "${tmp_dir}"
         CT_Download_${devel_vcs}
-        CT_DoExecLog ALL mv "${pkg_name}${devel_subdir:+/${devel_subdir}}" "${basename}"
 
-        # Post-download scripts.
-        # FIXME: This currently means we end up using host's autotools,
-        # but changing this requires reworking the order of operations in crosstool-NG:
-        # we'd need to defer the download/extraction/patching of a package until after
-        # the companion tools are built.
-        local remains="${devel_bootstrap}"
-        while [ -n "${remains}" ]; do
-            CT_Pushd "${basename}"
-            CT_DoExecLog ALL ${remains%%&&*}
-            case "${remains}" in
-            *\&\&*) remains="${remains#*&&}";;
-            *) remains=;;
-            esac
-            CT_Popd
-        done
+        # First setting above may not have determined the version (e.g. with Mercurial)
+        # Set the final, downloaded version.
+        version="${devel_vcs}-${unique_id}"
+        basename="${pkg_name}-${version}"
+
+        CT_DoExecLog ALL mv "${pkg_name}${devel_subdir:+/${devel_subdir}}" "${basename}"
         CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${basename}"
         CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"
         CT_Popd
@@ -1784,6 +1779,8 @@ CT_DoFetch()
 
     elif [ "${src_custom}" = "y" ]; then
         # Will be handled during extraction/patching
+        version="local"
+        basename="${pkg_name}-${version}"
         :;
     else
         CT_Abort "No known source for ${pkg_name}"
@@ -1880,10 +1877,7 @@ CT_DoExtractPatch()
             CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.extracted"
             CT_DoExecLog ALL rm -f "${CT_COMMON_SRC_DIR}/.${basename}.extracting"
         fi
-    fi
 
-    # Patch the released tarballs
-    if [ "${src_release}" = "y" ]; then
         if [ -f "${CT_COMMON_SRC_DIR}/.${basename}.patched" ]; then
             CT_DoLog DEBUG "Already patched ${basename}"
         else
@@ -1913,7 +1907,7 @@ CT_DoExtractPatch()
                 fi
             done
  
-            # TBD meta-package for config.sub/config.guess with replacement script
+            # TBD create meta-package for config.sub/config.guess with replacement script
             if [ "${CT_OVERRIDE_CONFIG_GUESS_SUB}" = "y" ]; then
                 CT_DoLog ALL "Overiding config.guess and config.sub"
                 for cfg in config.guess config.sub; do
@@ -1922,6 +1916,14 @@ CT_DoExtractPatch()
                         -exec chmod -v u+w {} \; \
                         -exec cp -v "${CT_TOP_DIR}/scripts/${cfg}" {} \; |CT_DoLog ALL
                 done
+            fi
+
+            # FIXME: This currently means we end up using host's autotools,
+            # but changing this requires reworking the order of operations in crosstool-NG:
+            # we'd need to defer the download/extraction/patching of a package until after
+            # the companion tools are built.
+            if [ -n "${devel_bootstrap}" ]; then
+                CT_DoExecLog ALL "${CT_CONFIG_SHELL}" -c "${devel_bootstrap}"
             fi
 
             if [ -n "${patchfunc}" ]; then
@@ -1934,7 +1936,7 @@ CT_DoExtractPatch()
             CT_DoExecLog ALL rm -f "${CT_COMMON_SRC_DIR}/.${basename}.patching"
         fi
     else
-        CT_DoLog WARN "${pkg_name}: not using a released version, no patches applied"
+        CT_DoLog WARN "${pkg_name}: using custom location, no patches applied"
     fi
 
     # Symlink/copy/overlay into per-target source directory
