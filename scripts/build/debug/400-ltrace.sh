@@ -46,11 +46,13 @@ do_debug_ltrace_build() {
         ${CONFIG_SHELL}                 \
         ./configure --prefix=/usr
     else
-        CT_DoExecLog CFG        \
-        ${CONFIG_SHELL}         \
-        ./configure             \
-            --build=${CT_BUILD} \
-            --host=${CT_TARGET} \
+        CT_DoExecLog CFG               \
+        CONFIG_SHELL=${CONFIG_SHELL}   \
+        ${CONFIG_SHELL}                \
+        ./configure                    \
+            CONFIG_SHELL=${CONFIG_SHELL}\
+            --build=${CT_BUILD}        \
+            --host=${CT_TARGET}        \
             --prefix=/usr
     fi
 
