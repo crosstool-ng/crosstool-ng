@@ -18,7 +18,7 @@ do_libc_start_files() {
     CT_DoStep INFO "Installing C library headers & start files"
     CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib/newlib/libc/include/." \
     "${CT_HEADERS_DIR}"
-    if [ "${CT_ARCH_xtensa}" = "y" ]; then
+    if [ "${CT_ARCH_XTENSA}" = "y" ]; then
         CT_DoLog EXTRA "Installing Xtensa headers"
         CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/newlib/newlib/libc/sys/xtensa/include/."   \
                                "${CT_HEADERS_DIR}"

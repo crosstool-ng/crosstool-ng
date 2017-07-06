@@ -69,7 +69,7 @@ do_finish() {
             CT_DoExecLog ALL "${CT_TARGET}-strip" ${strip_args}         \
                              "${CT_TARGET}/debug-root/usr/bin/gdbserver${exe_suffix}"
         fi
-        if [ "${CT_CC_gcc}" = "y" ]; then
+        if [ "${CT_CC_GCC}" = "y" ]; then
             # TBD GCC 3.x/2.x is no longer supported by ctng
             # We can not use the version in CT_GCC_VERSION because
             # of the Linaro stuff. So, harvest the version string
