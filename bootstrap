@@ -99,17 +99,29 @@ run_if()
 do_foreach()
 {
     local var="${1}"
-    local v saveinfo
+    local -A saveinfo
+    local v k
 
     shift
     if [ "`type -t enter_${var}`" != "function" ]; then
         error "No parameter setup routine for iterator over '${var}'"
     fi
     for v in ${info[iter_${var}]}; do
-        saveinfo=`declare -p info`
+        # This works in bash 4.4, but not in bash 4.3:
+        # local saveinfo=`declare -p info`
+        # ...
+        # eval "${saveinfo}"
+        # Therefore, need to save key-by-key
+        saveinfo=()
+        for k in "${!info[@]}"; do
+            saveinfo["${k}"]=${info["${k}"]}
+        done
         eval "enter_${var} ${v}"
         eval "$@"
-        eval "${saveinfo#declare -A }"
+        info=()
+        for k in "${!saveinfo[@]}"; do
+            info["${k}"]=${saveinfo["${k}"]}
+        done
     done
 }
 
