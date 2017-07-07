@@ -219,6 +219,20 @@ run_template()
 kconfigize()
 {
     local v="${1}"
+    local p pb pa vx
+    shift
+
+    # If optional patterns are provided, find the first match
+    # and contract to the matching portion.
+    for p in "$@"; do
+        pb=${p%|*}
+        pa=${p#*|}
+        eval "vx=\${v#${pb}${pa}}"
+        if [ "${v%${pa}${vx}}" != "${v}" ]; then
+            v=${v%${pa}${vx}}
+            break
+        fi
+    done
 
     v=${v//[^0-9A-Za-z_]/_}
     echo "${v^^}"
@@ -429,6 +443,7 @@ find_forks()
         pkg_nforks[${1}]=$[pkg_nforks[${1}]+1]
         pkg_forks[${1}]+=" ${1} "
         pkg_milestones[${1}]=`sort_versions ${info[milestones]}`
+        pkg_relevantpattern[${1}]=${info[relevantpattern]}
         pkg_masters+=( "${1}" )
     fi
     # Keep sorting so that preferred fork is first
@@ -511,7 +526,7 @@ enter_version()
 
     eval `read_version_desc ${info[fork]} ${version}`
     info[ver]=${version}
-    info[kcfg]=`kconfigize ${version}`
+    info[kcfg]=`kconfigize ${version} ${info[relevantpattern]}`
     info[ver_postfix]=${ver_postfix[,${info[obsolete]},${info[experimental]},]}
 }
 
@@ -529,7 +544,7 @@ enter_milestone()
 
 gen_packages()
 {
-    local -A pkg_forks pkg_milestones pkg_nforks
+    local -A pkg_forks pkg_milestones pkg_nforks pkg_relevantpattern
     local -a pkg_masters pkg_all pkg_preferred
 
     pkg_all=( `cd packages && \
@@ -558,6 +573,7 @@ gen_packages()
             [masterpfx]=`kconfigize ${p}` \
             [nforks]=${pkg_nforks[${p}]} \
             [all_milestones]=${pkg_milestones[${p}]} \
+            [relevantpattern]=${pkg_relevantpattern[${p}]} \
             )
         set_iter fork ${pkg_forks[${p}]}
         set_iter milestone ${pkg_milestones[${p}]}
@@ -588,8 +604,8 @@ enter_choice()
     local choice="${1}"
     local l
 
-    # TBD generate sourcing of versions/$component.in automatically - and add a comment that versions must
-    # TBD generated first? [what to do with glibc/glibc-ports]
+    # TBD generate sourcing of versions/$component.in automatically - and add a comment
+    # TBD that versions must be generated first? [what to do with glibc/glibc-ports]
     info[choice]="${choice}"
     info[kcfg_choice]=`kconfigize "${choice}"`
 
