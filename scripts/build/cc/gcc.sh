@@ -3,7 +3,7 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 # Download gcc
-do_gcc_get() {
+do_cc_get() {
     local linaro_version=""
     local linaro_series=""
 
@@ -22,8 +22,7 @@ do_gcc_get() {
 }
 
 # Extract gcc
-do_gcc_extract() {
-    # TBD handle xtensa overlays
+do_cc_extract() {
     CT_ExtractPatch GCC
 
     # Copy ecj-latest.jar to ecj.jar at the top of the GCC source tree
@@ -184,7 +183,7 @@ cc_gcc_multilib_housekeeping() {
 
 #------------------------------------------------------------------------------
 # Core gcc pass 1
-do_gcc_core_pass_1() {
+do_cc_core_pass_1() {
     local -a core_opts
 
     if [ "${CT_CC_CORE_PASS_1_NEEDED}" != "y" ]; then
@@ -210,7 +209,7 @@ do_gcc_core_pass_1() {
 }
 
 # Core gcc pass 2
-do_gcc_core_pass_2() {
+do_cc_core_pass_2() {
     local -a core_opts
 
     if [ "${CT_CC_CORE_PASS_2_NEEDED}" != "y" ]; then
@@ -690,7 +689,7 @@ do_gcc_core_backend() {
 
 #------------------------------------------------------------------------------
 # Build complete gcc to run on build
-do_gcc_for_build() {
+do_cc_for_build() {
     local -a build_final_opts
     local build_final_backend
 
@@ -775,7 +774,7 @@ gcc_movelibs() {
 
 #------------------------------------------------------------------------------
 # Build final gcc to run on host
-do_gcc_for_host() {
+do_cc_for_host() {
     local -a final_opts
     local final_backend
 
