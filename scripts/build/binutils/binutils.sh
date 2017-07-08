@@ -12,7 +12,6 @@ do_binutils_get() {
 
 # Extract binutils
 do_binutils_extract() {
-    # TBD handle xtensa overlays in CT_ExtractPatch
     CT_ExtractPatch BINUTILS
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
         CT_ExtractPatch ELF2FLT

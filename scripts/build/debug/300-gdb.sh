@@ -5,7 +5,6 @@ do_debug_gdb_get() {
 }
 
 do_debug_gdb_extract() {
-    # TBD xtensa overlays
     CT_ExtractPatch GDB
 }
 

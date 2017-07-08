@@ -10,7 +10,6 @@ do_libc_get() {
 }
 
 do_libc_extract() {
-    # TBD xtensa overlays
     CT_ExtractPatch NEWLIB
 }
 

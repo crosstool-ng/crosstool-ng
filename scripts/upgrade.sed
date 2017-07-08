@@ -19,8 +19,6 @@ s/\<CT_LIBC_MUSL_V_/CT_MUSL_V_/g
 s/\<CT_LIBC_NEWLIB_V_/CT_NEWLIB_V_/g
 s/\<CT_LIBC_UCLIBC_NG_V_/CT_UCLIBC_NG_V_/g
 
-# TBD add some way to ignore fast-changing parts, such as patchlevel in Linux or patchdate in newlib?
-
 # Special cases that need manual intervention (require setting of supporting options)
 s/\<CT_LIBC_UCLIBC_V_.*/# [&] not handled by upgrade script, use menuconfig./w/dev/stderr
 s/\<CT_[A-Za-z0-9_]*_SHOW_LINARO.*/# [&] not handled by upgrade script, use menuconfig./w/dev/stderr
