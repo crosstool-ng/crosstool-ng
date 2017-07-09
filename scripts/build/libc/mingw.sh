@@ -50,10 +50,10 @@ do_libc_start_files() {
 
     do_set_mingw_install_prefix
     CT_DoExecLog CFG        \
-    ${CONFIG_SHELL} \
+    "${CONFIG_SHELL}" \
     "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-headers/configure" \
-        --build=${CT_BUILD} \
-        --host=${CT_TARGET} \
+        --build="${CT_BUILD}" \
+        --host="${CT_TARGET}" \
         --prefix=${MINGW_INSTALL_PREFIX} \
         "${sdk_opts[@]}"
 
@@ -61,7 +61,7 @@ do_libc_start_files() {
     CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing Headers"
-    CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
+    CT_DoExecLog ALL make install DESTDIR="${CT_SYSROOT_DIR}"
 
     CT_Popd
 
@@ -100,12 +100,12 @@ do_mingw_tools()
 
         CT_DoLog EXTRA "Configuring ${f}"
         CT_DoExecLog CFG        \
-            ${CONFIG_SHELL} \
+            "${CONFIG_SHELL}" \
             "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-tools/${f}/configure" \
-            --build=${CT_BUILD} \
-            --host=${CT_HOST} \
-            --target=${CT_TARGET} \
-            --program-prefix=${CT_TARGET}- \
+            --build="${CT_BUILD}" \
+            --host="${CT_HOST}" \
+            --target="${CT_TARGET}" \
+            --program-prefix="${CT_TARGET}"- \
             --prefix="${CT_PREFIX_DIR}"
 
         # mingw-w64 has issues with parallel builds, see do_libc
@@ -119,7 +119,7 @@ do_mingw_tools()
 
 do_mingw_pthreads()
 {
-    local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count multi_target
+    local multi_flags multi_os_dir multi_index multi_count multi_target
     local libprefix
     local rcflags dlltoolflags
 
@@ -158,20 +158,20 @@ do_mingw_pthreads()
     CXXFLAGS="${multi_flags}" \
     RCFLAGS="${rcflags}" \
     DLLTOOLFLAGS="${dlltoolflags}" \
-    ${CONFIG_SHELL} \
+    "${CONFIG_SHELL}" \
     "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-libraries/winpthreads/configure" \
-        --with-sysroot=${CT_SYSROOT_DIR} \
-        --prefix=${MINGW_INSTALL_PREFIX} \
-        --libdir=${libprefix} \
-        --build=${CT_BUILD} \
-        --host=${multi_target}
+        --with-sysroot="${CT_SYSROOT_DIR}" \
+        --prefix="${MINGW_INSTALL_PREFIX}" \
+        --libdir="${libprefix}" \
+        --build="${CT_BUILD}" \
+        --host="${multi_target}"
 
     # mingw-w64 has issues with parallel builds, see do_libc
     CT_DoLog EXTRA "Building mingw-w64-winpthreads"
     CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing mingw-w64-winpthreads"
-    CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
+    CT_DoExecLog ALL make install DESTDIR="${CT_SYSROOT_DIR}"
 
     CT_EndStep
 }
@@ -188,12 +188,12 @@ do_libc()
 
     do_set_mingw_install_prefix
     CT_DoExecLog CFG \
-    ${CONFIG_SHELL} \
+    "${CONFIG_SHELL}" \
     "${CT_SRC_DIR}/mingw-w64-${CT_WINAPI_VERSION_DOWNLOADED}/mingw-w64-crt/configure" \
-        --with-sysroot=${CT_SYSROOT_DIR} \
+        --with-sysroot="${CT_SYSROOT_DIR}" \
         --prefix=${MINGW_INSTALL_PREFIX} \
-        --build=${CT_BUILD} \
-        --host=${CT_TARGET}
+        --build="${CT_BUILD}" \
+        --host="${CT_TARGET}"
 
     # mingw-w64-crt has a missing dependency occasionally breaking the
     # parallel build. See https://github.com/crosstool-ng/crosstool-ng/issues/246
@@ -202,7 +202,7 @@ do_libc()
     CT_DoExecLog ALL make
 
     CT_DoLog EXTRA "Installing mingw-w64-crt"
-    CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
+    CT_DoExecLog ALL make install DESTDIR="${CT_SYSROOT_DIR}"
     CT_EndStep
 
     if [ "${CT_THREADS}" = "posix" ]; then
