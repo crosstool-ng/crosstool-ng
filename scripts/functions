@@ -641,11 +641,8 @@ CT_GetFileExtension()
     shift
     local first_ext="$1"
 
-    # we need to also check for an empty extension for those very
-    # peculiar components that don't have one (such as sstrip from
-    # buildroot).
     for ext in ${first_ext} $(CT_DoListTarballExt); do
-        if [ -e "${CT_TARBALLS_DIR}/${file}${ext}" -o -L  "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
+        if [ -e "${file}${ext}" -o -L "${file}${ext}" ]; then
             echo "${ext}"
             exit 0
         fi
@@ -723,8 +720,8 @@ CT_GetLocal() {
     local ext
 
     # Do we already have it in *our* tarballs dir?
-    if ext="$( CT_GetFileExtension "${basename}" ${first_ext} )"; then
-        CT_DoLog DEBUG "Already have '${basename}'"
+    if ext="$( CT_GetFileExtension "${CT_TARBALLS_DIR}/${basename}" ${first_ext} )"; then
+        CT_DoLog DEBUG "Already have '${CT_TARBALLS_DIR}/${basename}${ext}'"
         return 0
     fi
 
@@ -1866,7 +1863,7 @@ CT_DoExtractPatch()
                 archive="${basename}"
             fi
             # TBD save/discover the extension while fetching
-            ext=`CT_GetFileExtension "${archive}"`
+            ext=`CT_GetFileExtension "${CT_TARBALLS_DIR}/${archive}"`
             if [ "${archive_dirname}" = "." ]; then
                 CT_mkdir_pushd "${CT_COMMON_SRC_DIR}/${basename}"
                 CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${CT_COMMON_SRC_DIR}/${basename}"
@@ -1959,13 +1956,28 @@ CT_DoExtractPatch()
             CT_Abort "Neither file nor directory: ${custom_location}"
         fi
     elif [ "${CT_TARGET_USE_OVERLAY}" = "y" ]; then
-        # Possibly has overlays; copy from common source and apply overlays if any
+        # Possibly has overlays; check and if it has, copy from common source and apply
+        # overlays.
         local overlay
 
-        CT_DoExecLog ALL cp -av "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
-        overlay="${CT_OVERLAY_LOCATION}/${CT_ARCH}-${CT_OVERLAY_NAME:-overlay}"
-        ext=`CT_GetFileExtension "${overlay}"`
-        CT_Extract "${overlay}${ext}" "${CT_SRC_DIR}" "${dir_name}"
+        if [ ! -d "${CT_BUILD_DIR}/overlay" ]; then
+            CT_DoLog ALL mkdir -p "${CT_BUILD_DIR}/overlay"
+            overlay="${CT_OVERLAY_LOCATION}/${CT_ARCH}_${CT_OVERLAY_NAME:-overlay}"
+            ext=`CT_GetFileExtension "${overlay}"`
+            if [ ! -r "${overlay}${ext}" ]; then
+                CT_Abort "Overlay ${overlay} not found"
+            fi
+            CT_Extract "${overlay}${ext}" "${CT_BUILD_DIR}/overlay"
+        fi
+
+        if [ -d "${CT_BUILD_DIR}/overlay/${dir_name}" ]; then
+            CT_DoExecLog ALL cp -a "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
+            tar cf - -C "${CT_BUILD_DIR}/overlay" "${dir_name}" | \
+                    CT_DoExecLog FILE tar xvf - -C "${CT_SRC_DIR}"
+        else
+            # No overlay for this component, just symlink
+            CT_DoExecLog ALL ln -s "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
+        fi
     else
         # Common source, just symlink
         CT_DoExecLog ALL ln -s "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
