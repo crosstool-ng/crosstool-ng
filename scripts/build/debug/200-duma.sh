@@ -1,7 +1,6 @@
 # Build script for D.U.M.A.
 
 do_debug_duma_get() {
-    # TBD need cleanup after sourceforge.net download?
     CT_Fetch DUMA
 }
 
