@@ -1,40 +1,17 @@
 # Build script for the gdb debug facility
 
 do_debug_gdb_get() {
-    local linaro_version=""
-    local linaro_series=""
-
-    if [ "${CT_GDB_CUSTOM}" = "y" ]; then
-        CT_GetCustom "gdb" "${CT_GDB_CUSTOM_VERSION}" \
-            "${CT_GDB_CUSTOM_LOCATION}"
-    else
-        case "${CT_GDB_VERSION}" in
-            linaro-*)
-                CT_GetLinaro "gdb" "${CT_GDB_VERSION}"
-                ;;
-            *)
-                CT_GetFile "gdb-${CT_GDB_VERSION}"                             \
-                           http://mirrors.kernel.org/sourceware/gdb            \
-                           {http,ftp,https}://ftp.gnu.org/pub/gnu/gdb          \
-                           ftp://{sourceware.org,gcc.gnu.org}/pub/gdb/releases
-                ;;
-        esac
-    fi
+    CT_Fetch GDB
 }
 
 do_debug_gdb_extract() {
-    CT_Extract "gdb-${CT_GDB_VERSION}"
-    CT_Patch "gdb" "${CT_GDB_VERSION}"
-
-    if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
-        CT_ConfigureXtensa "gdb" "${CT_GDB_VERSION}"
-    fi
+    CT_ExtractPatch GDB
 }
 
 do_debug_gdb_build() {
     local -a extra_config
 
-    gdb_src_dir="${CT_SRC_DIR}/gdb-${CT_GDB_VERSION}"
+    gdb_src_dir="${CT_SRC_DIR}/gdb"
 
     # Version 6.3 and below behave badly with gdbmi
     case "${CT_GDB_VERSION}" in
@@ -174,11 +151,12 @@ do_debug_gdb_build() {
         if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
             CT_DoLog EXTRA "Installing '.gdbinit' template"
             # See in scripts/build/internals.sh for why we do this
-            if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" ]; then
-                gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" )
+            # TBD GCC 3.x and older not supported
+            if [ -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
+                gcc_version=$( cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER" )
             else
                 gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
-                                   "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/version.c"   \
+                                   "${CT_SRC_DIR}/gcc/gcc/version.c"   \
                              )
             fi
             sed -r                                               \

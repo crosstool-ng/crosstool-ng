@@ -1,222 +1,289 @@
-# glibc options
+# This file contains the common configuration options
+# that apply to both glibc.
 
 ## depends on ! WINDOWS && ! BARE_METAL && ARCH_USE_MMU
-##
 ## select LIBC_SUPPORT_THREADS_NATIVE
 ## select CC_CORE_PASSES_NEEDED
+# TBD: select GETTEXT for build only, not for host
 ## select GETTEXT_NEEDED
-##
+## select BINUTILS_FORCE_LD_BFD_DEFAULT
+
 ## help The de-facto standard for Linux distributions.
 ## help Feature-rich, but large...  Most useful for desktop-like systems.
-
-config THREADS
-    default "nptl"
-
-config LIBC_GLIBC_CUSTOM
-    bool
-    prompt "Custom glibc"
-    depends on EXPERIMENTAL
-    select LIBC_CUSTOM
-    select LIBC_GLIBC_2_20_or_later
-    help
-      The choosen glibc version shall be not downloaded. Instead use
-      a custom location to get the source.
-
-if LIBC_GLIBC_CUSTOM
-
-config LIBC_GLIBC_CUSTOM_LOCATION
-    string
-    prompt "Full path to custom glibc source"
-    help
-      Enter the path to the directory or tarball of your source for glibc.
-
-      If the path is a tarball, it should extract to: <name>-<version>/
-      where the name is this component, glibc, and the version is set
-      below in the custom version string.
-
-config LIBC_GLIBC_CUSTOM_VERSION
-    string
-    prompt "Custom GLIBC version"
-    help
-      Enter the version number for your custom glibc.
-
-config LIBC_VERSION
-    string
-    default LIBC_GLIBC_CUSTOM_VERSION
-
-endif # LIBC_GLIBC_CUSTOM
-
-if ! LIBC_GLIBC_CUSTOM
-
-config CC_GLIBC_SHOW_LINARO
-    bool
-    prompt "Show Linaro versions"
-    help
-      Linaro is maintaining some advanced/more stable/experimental versions
-      of glibc, especially for the ARM architecture.
-      
-      Those versions have not been blessed by the glibc comunity (nor have they
-      been cursed either!), but they look to be pretty much stable, and even
-      more stable than the upstream versions. YMMV...
-      
-      If you do not know what this Linaro stuff is, then simply say 'n' here,
-      and rest in peace. OTOH, if you know what you are doing, you will be
-      able to use and enjoy :-) the Linaro versions by saying 'y' here.
-      
-      Linaro: http://www.linaro.org/
 
 # GLIBC and kernel are special when it comes to obsoletion. Users
 # of crosstool-ng depend on the ability to build new toolchains matching
 # the kernel/libc versions of a particular target system, and LTS releases
 # are still using quite ancient versions. Please do not retire versions
-# (including versions in between) until the EOL dates indicated below.
-choice
-    bool
-    prompt "glibc version"
-# Don't remove next line
-# CT_INSERT_VERSION_BELOW
+# (including versions in between) until the EOL dates indicated in version.desc.
+source "config/versions/glibc.in"
+if GLIBC_USE_PORTS_EXTERNAL
+source "config/versions/glibc-ports.in"
+endif
 
-config LIBC_GLIBC_V_2_25
-    bool
-    prompt "2.25"
-    select LIBC_GLIBC_2_23_or_later
+config THREADS
+    default "nptl"
 
-config LIBC_GLIBC_V_2_24
-    bool
-    prompt "2.24"
-    select LIBC_GLIBC_2_23_or_later
+# Known add-ons and when they exist(ed)
+#   crypt           external in 2.1, no longer an add-on since 2.2
+#   libidn          external in 2.3.4 .. 2.10, still an add-on
+#   linuxthreads    external in 2.0.1 .. 2.5,  no longer available since 2.6 [*]
+#   localedata      external in 2.0.1 .. 2.0.6, no longer an add-on since 2.1 [*]
+#   ports           external in 2.3.4 .. 2.16, no longer an add-on since 2.20
+#   nptl            never external, no longer an add-on since 2.20
+#
+# Given the list of currently supported glibc releases, we only need to worry about
+# 'libidn', 'ports' and 'nptl' add-ons. Of these, only 'ports' can be an external
+# tarball; and only 'libidn' is user-selectable ('ports' & 'nptl' are selected
+# by crosstool-NG, as dictated by the architecture and thread model).
+#
+# I had trouble locating the sources in the repository for some of the released
+# versions. E.g., there is a 2.5 version of linuxthreads, but the tag for 2.5 in Git
+# does not have the linuxthreads directory at all. Similarly, 2.0.6 tag did not have
+# localedata. Since these releases are no longer supported by crosstool-NG, this is
+# of pure historical interest now, however.
 
-# EOL 04/2021 [Ubuntu16.04]
-config LIBC_GLIBC_V_2_23
-    bool
-    prompt "2.23"
-    select LIBC_GLIBC_2_23_or_later
+config GLIBC_HAS_NPTL_ADDON
+    def_bool y
+    depends on !GLIBC_2_20_or_later
 
-config LIBC_GLIBC_V_2_22
-    bool
-    prompt "2.22 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on OBSOLETE
+config GLIBC_HAS_PORTS_ADDON
+    def_bool y
+    depends on !GLIBC_2_20_or_later
 
-config LIBC_GLIBC_V_2_21
-    bool
-    prompt "2.21 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on OBSOLETE
+config GLIBC_HAS_PORTS_ADDON_EXTERNAL
+    def_bool y
+    depends on !GLIBC_2_17_or_later
 
-config LIBC_GLIBC_LINARO_V_2_20
-    bool
-    prompt "Linaro 2.20-2014.11 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on CC_GLIBC_SHOW_LINARO
-    depends on OBSOLETE
+# In case it folds into main distribution in some future release, too
+config GLIBC_HAS_LIBIDN_ADDON
+    def_bool y
 
-config LIBC_GLIBC_V_2_20
-    bool
-    prompt "2.20 (OBSOLETE)"
-    select LIBC_GLIBC_2_20_or_later
-    depends on OBSOLETE
+# Some architectures require the ports addon. List them one by one here:
+# This list must be carefully in sync with the architectures names
+# we can find in config/arch/*
+config GLIBC_USE_PORTS_ADDON
+    def_bool y
+    depends on ARCH_ALPHA || ARCH_ARM || ARCH_M68K || ARCH_MIPS || ARCH_POWERPC
+    depends on GLIBC_HAS_PORTS_ADDON
 
-# EOL 04/2019 [Ubuntu14.04]
-config LIBC_GLIBC_V_2_19
-    bool
-    prompt "2.19 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_GLIBC_2_17_or_later
+config GLIBC_USE_PORTS_EXTERNAL
+    def_bool y
+    depends on GLIBC_USE_PORTS_ADDON && GLIBC_HAS_PORTS_ADDON_EXTERNAL
 
-config LIBC_GLIBC_V_2_18
-    bool
-    prompt "2.18 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_GLIBC_2_17_or_later
+config GLIBC_USE_NPTL_ADDON
+    def_bool y
+    depends on THREADS_NATIVE && GLIBC_HAS_NPTL_ADDON
 
-# EOL 06/2024 [CentOS7.x]
-config LIBC_GLIBC_V_2_17
-    bool
-    prompt "2.17 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_GLIBC_2_17_or_later
+config GLIBC_USE_LIBIDN_ADDON
+    bool "Build libidn add-on"
+    help
+      Enables the libidn add-on in GNU libc.
 
-config LIBC_GLIBC_V_2_16_0
-    bool
-    prompt "2.16.0 (OBSOLETE)"
-    depends on OBSOLETE
+# SPARCv8 support retired in 2.23
+config GLIBC_NO_SPARC_V8
+    def_bool y
+    depends on GLIBC_2_23_or_later
 
-# EOL 04/2017 [Ubuntu12.04]
-config LIBC_GLIBC_V_2_15
-    bool
-    prompt "2.15 (OBSOLETE)"
-    depends on OBSOLETE
+config GLIBC_EXTRA_CONFIG_ARRAY
+    string
+    prompt "extra config"
+    default ""
+    help
+      Extra flags to pass onto ./configure when configuring.
 
-config LIBC_GLIBC_V_2_14_1
-    bool
-    prompt "2.14.1 (OBSOLETE)"
-    depends on OBSOLETE
+      You can enter multiple arguments here, and arguments can contain spaces
+      if they are properly quoted (or escaped, but prefer quotes). Eg.:
+          --with-foo="1st arg with 4 spaces" --with-bar=2nd-arg-without-space
 
-config LIBC_GLIBC_V_2_14
-    bool
-    prompt "2.14 (OBSOLETE)"
-    depends on OBSOLETE
+config GLIBC_CONFIGPARMS
+    string
+    prompt "Extra config params (READ HELP)"
+    default "" if ! ARCH_SH
+    default "no-z-defs=yes" if ARCH_SH
+    help
+      Some architectures need to set options in the file configparms.
+      This is the case for sh3/4, which really need to set configparms
+      to "no-z-defs=yes" as of gcc-3.4/glibc-2.3.2.
+      
+      Unless you are building a toolchain for sh3/4, you should leave that empty.
+      
+      Note: If you need to pass more than one value, separate them with
+            '\n'. Eg.:  var1=val1\nvar2=val2
 
-config LIBC_GLIBC_V_2_13
-    bool
-    prompt "2.13 (OBSOLETE)"
-    depends on OBSOLETE
+config GLIBC_EXTRA_CFLAGS
+    string
+    prompt "extra target CFLAGS"
+    default ""
+    help
+      Extra target CFLAGS to use when building.
 
-# This version did not have glibc-ports addon released
-config LIBC_GLIBC_V_2_12_2
+config GLIBC_ENABLE_FORTIFIED_BUILD
     bool
-    prompt "2.12.2 (OBSOLETE)"
-    depends on OBSOLETE
-    depends on !LIBC_GLIBC_NEEDS_PORTS
+    prompt "Enable fortified build (EXPERIMENTAL)"
+    depends on EXPERIMENTAL
+    help
+      If you say 'y' here, then glibc will be using fortified versions
+      of functions with format arguments (eg. vsyslog, printf...), and
+      do a sanity check on the format at runtime, to avoid some of the
+      common format string attacks.
+      
+      This is currently not supported, and will most probably result in
+      a broken build, with an error message like:
+        ../misc/syslog.c: In function '__vsyslog_chk':
+        ../misc/syslog.c:123: sorry, unimplemented: inlining failed in
+        call to 'syslog': function body not available
+      
+      If you are brave enough and want to debug the issue, then say 'y'
+      here. Otherwise, be still and say 'n' (the default). ;-)
 
-# EOL 11/2020 [CentOS6.x]
-config LIBC_GLIBC_V_2_12_1
+
+config GLIBC_DISABLE_VERSIONING
     bool
-    prompt "2.12.1 (OBSOLETE)"
-    depends on OBSOLETE
+    prompt "Disable symbols versioning"
+    help
+      Do not include versioning information in the library objects.
+
+config GLIBC_OLDEST_ABI
+    string
+    prompt "Oldest supported ABI"
+    default ""
+    help
+      Set the oldest ABI supported by the C library.
+      
+      Setting this option, for example, to 2.2 will provide ABI support
+      back to (e)glibc-2.2.
+
+      If this option is not set, (e)glibc will choose for you.
+
+config GLIBC_FORCE_UNWIND
+    bool
+    prompt "Force unwind support (READ HELP!)"
+    default y
+    help
+      If your toolchain fails building while building the C library
+      start files, or the complete C library, with a message like:
+        configure: error: forced unwind support is required
+      
+      then you may try changing this option. Otherwise, leave it to
+      the default 'y'.
+      
+      The issue seems to be related to building NPTL on old versions
+      of glibc on some architectures
+      (seen on s390, s390x and x86_64).
+
+config GLIBC_LOCALES
+    bool
+    prompt "Build and install locales"
+    help
+      Whether to build and install the libc locale files for the target,
+      which is required in order to support internationalization.
+
+if LIBC_GLIBC && GLIBC_LOCALES
+comment "WARNING!                                                      "
+comment "|  The built locales will be usable if and only if the build  "
+comment "|  machine and the target:                                    "
+comment "|   - have the same endianness,                               "
+comment "|   - and have the same alignment requirements for uint32_t.  "
+comment "|  You will have to check by yourself (for now).              "
+comment "WARNING!                                                      "
+comment "|  Building GLIBC locales requires that GLIBC supports        "
+comment "|  the build machine as the target.                           "
+endif # LIBC_GLIBC && GLIBC_LOCALES
+
+if KERNEL_LINUX
+
+choice GLIBC_SUPPORTED_KERNEL
+    bool
+    prompt "Minimum supported kernel version"
+    default GLIBC_KERNEL_VERSION_AS_HEADERS
+
+config GLIBC_KERNEL_VERSION_NONE
+    bool
+    prompt "Let ./configure decide"
+    help
+      Let ./configure decide what minimum kernel version glibc will be
+      able to run against.
+      
+      This will include legacy compatibility code for older kernels in
+      the C library, thus ensuring that it will run on a large number
+      of old kernels.
+      
+      The minimum kernel version supported will be dependent upon the
+      target you build for. For example:
+        alpha*-*-linux-gnu      Requires Linux 2.6.9 for NPTL
+        sh[34]-*-linux-gnu      Requires Linux 2.6.11
+        powerpc*                Requires Linux 2.4.19
+        arm*-*-linux-*gnueabi   Requires Linux 2.6.16
+
+config GLIBC_KERNEL_VERSION_AS_HEADERS
+    bool
+    prompt "Same as kernel headers (default)"
+    help
+      Normally, you'll want glibc to run against the same kernel
+      version as the one used for the headers.
+      
+      This is the default.
+      
+      If enabled, crosstool-ng will use the chosen version of kernel
+      headers for the glibc minimum kernel version supported, which is
+      what gets passed to "--enable-kernel=" when configuring glibc.
+      
+      Enabling this will ensure that no legacy compatibility code for
+      older kernels is built into your C libraries, but it will
+      be unable to run on kernel versions older than whichever kernel
+      headers version you've built the toolchain for.
+      
+      If you know for sure that your toolchain will never need to build
+      applications that will run under a kernel version older than your
+      chosen kernel headers version (CT_KERNEL_VERSION), you can choose
+      "y" here.
+
+config GLIBC_KERNEL_VERSION_CHOSEN
+    bool
+    prompt "Specific kernel version"
+    help
+      Specify the earliest Linux kernel version you want glibc to
+      include support for.  This does not have to match the kernel
+      headers version used for your toolchain.  This controls what is
+      passed to the "--enable-kernel=" option to the glibc configure
+      script.
+
+      If you want to be able to statically link programs with your
+      toolchain's C library, make sure this kernel version is lower than
+      all kernels you wish to support to avoid "FATAL: kernel too old"
+      errors.  The higher the version you specify, the less legacy code
+      will be built into libc.
+
+      Most people can leave this at the default value of "2.6.9".
+
+if GLIBC_KERNEL_VERSION_CHOSEN
+
+config GLIBC_MIN_KERNEL_VERSION
+    string
+    prompt "Minimum kernel version to support"
+    default "2.6.9"
+    help
+      Enter here the lowest kernel version glibc will be able to run against.
+      
+      The minimum kernel version supported will be dependent upon the
+      target you build for. For example:
+        alpha*-*-linux-gnu      Requires Linux 2.6.9 for NPTL
+        sh[34]-*-linux-gnu      Requires Linux 2.6.11
+        powerpc*                Requires Linux 2.4.19
+        arm*-*-linux-*gnueabi   Requires Linux 2.6.16
+      
+      Note that no sanity check is performed by crosstool-NG to ensure
+      that the value you enter here is appropriate for your target.
+
+endif # GLIBC_KERNEL_VERSION_CHOSEN
 
 endchoice
 
-endif # ! LIBC_GLIBC_CUSTOM
-
-# Checked by SPARC build: SPARCv8 is dropped in 2.23.
-config LIBC_GLIBC_2_23_or_later
-    select LIBC_GLIBC_2_20_or_later
-    bool
-
-# DeMark 2.20 as no longer needs to set NPTL as an addon.
-# It is no longer possible to build glibc without pthread!
-config LIBC_GLIBC_2_20_or_later
-    bool
-    select LIBC_GLIBC_2_17_or_later
-
-# DeMark no more ports
-config LIBC_GLIBC_2_17_or_later
-    bool
-
-if ! LIBC_GLIBC_CUSTOM
-
-config LIBC_VERSION
+config GLIBC_MIN_KERNEL
     string
-# Don't remove next line
-# CT_INSERT_VERSION_STRING_BELOW
-    default "2.25" if LIBC_GLIBC_V_2_25
-    default "2.24" if LIBC_GLIBC_V_2_24
-    default "2.23" if LIBC_GLIBC_V_2_23
-    default "2.22" if LIBC_GLIBC_V_2_22
-    default "2.21" if LIBC_GLIBC_V_2_21
-    default "linaro-2.20-2014.11" if LIBC_GLIBC_LINARO_V_2_20
-    default "2.20" if LIBC_GLIBC_V_2_20
-    default "2.19" if LIBC_GLIBC_V_2_19
-    default "2.18" if LIBC_GLIBC_V_2_18
-    default "2.17" if LIBC_GLIBC_V_2_17
-    default "2.16.0" if LIBC_GLIBC_V_2_16_0
-    default "2.15" if LIBC_GLIBC_V_2_15
-    default "2.14.1" if LIBC_GLIBC_V_2_14_1
-    default "2.14" if LIBC_GLIBC_V_2_14
-    default "2.13" if LIBC_GLIBC_V_2_13
-    default "2.12.2" if LIBC_GLIBC_V_2_12_2
-    default "2.12.1" if LIBC_GLIBC_V_2_12_1
+    default ""                            if GLIBC_KERNEL_VERSION_NONE
+    default LINUX_VERSION                 if GLIBC_KERNEL_VERSION_AS_HEADERS
+    default GLIBC_MIN_KERNEL_VERSION      if GLIBC_KERNEL_VERSION_CHOSEN
 
-endif # ! LIBC_GLIBC_CUSTOM
+endif # KERNEL_LINUX

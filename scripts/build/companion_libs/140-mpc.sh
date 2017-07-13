@@ -13,15 +13,12 @@ if [ "${CT_MPC}" = "y" ]; then
 
 # Download MPC
 do_mpc_get() {
-    CT_GetFile "mpc-${CT_MPC_VERSION}" .tar.gz      \
-        {http,ftp,https}://ftp.gnu.org/gnu/mpc      \
-        http://www.multiprecision.org/mpc/download
+    CT_Fetch MPC
 }
 
 # Extract MPC
 do_mpc_extract() {
-    CT_Extract "mpc-${CT_MPC_VERSION}"
-    CT_Patch "mpc" "${CT_MPC_VERSION}"
+    CT_ExtractPatch MPC
 }
 
 # Build MPC for running on build
@@ -87,7 +84,7 @@ do_mpc_backend() {
     CFLAGS="${cflags}"                              \
     LDFLAGS="${ldflags}"                            \
     ${CONFIG_SHELL}                                 \
-    "${CT_SRC_DIR}/mpc-${CT_MPC_VERSION}/configure" \
+    "${CT_SRC_DIR}/mpc/configure"                   \
         --build=${CT_BUILD}                         \
         --host=${host}                              \
         --prefix="${prefix}"                        \

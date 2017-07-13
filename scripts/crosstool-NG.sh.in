@@ -166,7 +166,8 @@ CT_PKGVERSION="crosstool-NG ${CT_VERSION}${CT_TOOLCHAIN_PKGVERSION:+ - ${CT_TOOL
 
 # Compute the working directories names
 CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
-CT_SRC_DIR="${CT_WORK_DIR}/src"
+CT_COMMON_SRC_DIR="${CT_WORK_DIR}/src"
+CT_SRC_DIR="${CT_BUILD_DIR}/src"
 CT_BUILDTOOLS_PREFIX_DIR="${CT_BUILD_TOP_DIR}/buildtools"
 CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
 # Note about HOST_COMPLIBS_DIR: it's always gonna be in the buildtools dir, or a
@@ -244,12 +245,14 @@ CT_DoForceRmdir "${CT_BUILD_DIR}" "${CT_BUILDTOOLS_PREFIX_DIR}"
 
 # Don't eradicate directories if we need to restart
 if [ -z "${CT_RESTART}" ]; then
+    # Per-target sources: eliminate
+    CT_DoForceRmdir "${CT_SRC_DIR}"
     # Get rid of pre-existing installed toolchain and previous build directories.
     if [ "${CT_FORCE_DOWNLOAD}" = "y" -a -d "${CT_TARBALLS_DIR}" ]; then
         CT_DoForceRmdir "${CT_TARBALLS_DIR}"
     fi
-    if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_SRC_DIR}" ]; then
-        CT_DoForceRmdir "${CT_SRC_DIR}"
+    if [ "${CT_FORCE_EXTRACT}" = "y" -a -d "${CT_COMMON_SRC_DIR}" ]; then
+        CT_DoForceRmdir "${CT_COMMON_SRC_DIR}"
     fi
     if [ -d "${CT_PREFIX_DIR}" -a "${CT_RM_RF_PREFIX_DIR}" = "y" ]; then
         CT_DoForceRmdir "${CT_PREFIX_DIR}"
@@ -264,6 +267,7 @@ fi
 # create already existent directories, and CT_BUILD_DIR needs to be created
 # anyway
 CT_DoExecLog ALL mkdir -p "${CT_TARBALLS_DIR}"
+CT_DoExecLog ALL mkdir -p "${CT_COMMON_SRC_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_SRC_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
 CT_DoExecLog ALL mkdir -p "${CT_BUILDTOOLS_PREFIX_DIR}/bin"

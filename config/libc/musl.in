@@ -1,75 +1,66 @@
-# musl options
+# musl second-part option
 
 ## depends on ! WINDOWS && ! BARE_METAL
 ## depends on EXPERIMENTAL
-##
 ## select LIBC_SUPPORT_THREADS_NATIVE
 ## select CC_CORE_PASSES_NEEDED
-##
+
 ## help Musl is a new standard library to power a new generation of Linux-based
 ## help devices. musl is lightweight, fast, simple, free, and strives to be
 ## help correct in the sense of standards-conformance and safety.
 
+source "config/versions/musl.in"
+
+# TBD why? it claims "native", why report "musl"?
 config THREADS
     default "musl"
 
-config LIBC_MUSL_CUSTOM
+config LIBC_MUSL_DEBUG
     bool
-    prompt "Custom musl"
-    depends on EXPERIMENTAL
+    prompt "Build with debugging information"
     help
-      The choosen musl-libc version shall be not downloaded. Instead use
-      a custom location to get the source.
+      This option enables debugging information, this will increase the size of
+      the resulting library.
 
-if LIBC_MUSL_CUSTOM
-
-config LIBC_MUSL_CUSTOM_LOCATION
-    string
-    prompt "Full path to custom musl-libc source"
+config LIBC_MUSL_WARNINGS
+    bool
+    prompt "Build with recommended warnings flags"
     help
-      Enter the path to the directory or tarball of your source for musl.
-
-      If the path is a tarball, it should extract to: <name>-<version>/
-      where the name is this component, musl, and the version is set
-      below in the custom version string.
-
-config LIBC_MUSL_CUSTOM_VERSION
-    string
-    prompt "Custom MUSL version"
-    help
-      Enter the version number for your custom musl-libc.
-
-config LIBC_VERSION
-    string
-    default LIBC_MUSL_CUSTOM_VERSION
-
-endif # LIBC_MUSL_CUSTOM
-
-if ! LIBC_MUSL_CUSTOM
+      Build musl-libc with extra warnings, useful for musl-libc development.
 
 choice
-    bool
-    prompt "musl version"
-# Don't remove next line
-# CT_INSERT_VERSION_BELOW
+    prompt "How to optimize musl-libc"
+    default LIBC_MUSL_OPTIMIZE_AUTO
 
-config LIBC_MUSL_V_1_1_16
+config LIBC_MUSL_OPTIMIZE_NONE
     bool
-    prompt "1.1.16"
-    depends on EXPERIMENTAL
+    prompt "Do not optimize musl-libc"
+    help
+      This option sets `--enable-optimize=no' to disable optimization.
 
-config LIBC_MUSL_V_1_1_15
+config LIBC_MUSL_OPTIMIZE_AUTO
     bool
-    prompt "1.1.15 (OBSOLETE)"
-    depends on EXPERIMENTAL && OBSOLETE
+    prompt "Use musl-libc's automatic optimization"
+    help
+      This option sets `--enable-optimize=auto' to automatically set optimization.
+
+config LIBC_MUSL_OPTIMIZE_SPEED
+    bool
+    prompt "Optimize musl-libc for speed"
+    help
+      This option sets `--enable-optimize=yes' to set optimization to -O3 for speed.
+
+config LIBC_MUSL_OPTIMIZE_SIZE
+    bool
+    prompt "Optimize musl-libc for size"
+    help
+      This option sets `--enable-optimize=size' to set optimization to -Os for size.
 
 endchoice
 
-config LIBC_VERSION
+config LIBC_MUSL_OPTIMIZE
     string
-# Don't remove next line
-# CT_INSERT_VERSION_STRING_BELOW
-    default "1.1.16" if LIBC_MUSL_V_1_1_16
-    default "1.1.15" if LIBC_MUSL_V_1_1_15
-
-endif # ! LIBC_MUSL_CUSTOM
+    default "no"   if LIBC_MUSL_OPTIMIZE_NONE
+    default "auto" if LIBC_MUSL_OPTIMIZE_AUTO
+    default "yes"  if LIBC_MUSL_OPTIMIZE_SPEED
+    default "size" if LIBC_MUSL_OPTIMIZE_SIZE

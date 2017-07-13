@@ -60,7 +60,7 @@ CT_DoArchGlibcAdjustTuple() {
         # earlier (corresponding pthread barrier code is missing). Until this
         # support is reintroduced, configure as sparcv9.
         sparc-*)
-            if [ "${CT_LIBC_GLIBC_2_23_or_later}" = y ]; then
+            if [ "${CT_GLIBC_NO_SPARC_V8}" = y ]; then
                 CT_DoLog WARN "GLIBC 2.23 and newer only support SPARCv9"
                 target_=${target_/#sparc-/sparcv9-}
             fi

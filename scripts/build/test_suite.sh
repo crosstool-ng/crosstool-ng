@@ -7,8 +7,7 @@
 CT_TEST_SUITE_FACILITY_LIST=
 for f in "${CT_LIB_DIR}/scripts/build/test_suite/"*.sh; do
     _f="$(basename "${f}" .sh)"
-    __f="CT_TEST_SUITE_${_f}"
-    __f=`echo ${__f} | tr "[:lower:]" "[:upper:]"`
+    __f="CT_TEST_SUITE_${_f^^}"
     if [ "${!__f}" = "y" ]; then
         CT_DoLog DEBUG "Enabling test suite '${_f}'"
         . "${f}"

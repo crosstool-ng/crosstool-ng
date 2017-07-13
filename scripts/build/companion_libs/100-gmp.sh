@@ -13,15 +13,12 @@ if [ "${CT_GMP}" = "y" ]; then
 
 # Download GMP
 do_gmp_get() {
-    CT_GetFile "gmp-${CT_GMP_VERSION}"         \
-        https://gmplib.org/download/gmp        \
-        {http,ftp,https}://ftp.gnu.org/gnu/gmp
+    CT_Fetch GMP
 }
 
 # Extract GMP
 do_gmp_extract() {
-    CT_Extract "gmp-${CT_GMP_VERSION}"
-    CT_Patch "gmp" "${CT_GMP_VERSION}"
+    CT_ExtractPatch GMP
 }
 
 # Build GMP for running on build
@@ -84,7 +81,9 @@ do_gmp_backend() {
 
     CT_DoLog EXTRA "Configuring GMP"
 
-    if [ ! "${CT_GMP_5_0_2_or_later}" = "y" ]; then
+    # FIXME is it needed even for older versions? They seem to compile fine
+    # without it.
+    if [ "${CT_GMP_HAS_MPBSD}" = "y" ]; then
         extra_config+=("--enable-mpbsd")
     fi
 
@@ -95,7 +94,7 @@ do_gmp_backend() {
     CFLAGS="${cflags} -fexceptions"                 \
     LDFLAGS="${ldflags}"                            \
     ${CONFIG_SHELL}                                 \
-    "${CT_SRC_DIR}/gmp-${CT_GMP_VERSION}/configure" \
+    "${CT_SRC_DIR}/gmp/configure"                   \
         --build=${CT_BUILD}                         \
         --host=${host}                              \
         --prefix="${prefix}"                        \

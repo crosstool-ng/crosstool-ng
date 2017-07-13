@@ -1,13 +1,11 @@
 # Build script for m4
 
 do_companion_tools_m4_get() {
-    CT_GetFile "m4-${CT_M4_VERSION}"          \
-        {http,ftp,https}://ftp.gnu.org/gnu/m4
+    CT_Fetch M4
 }
 
 do_companion_tools_m4_extract() {
-    CT_Extract "m4-${CT_M4_VERSION}"
-    CT_Patch "m4" "${CT_M4_VERSION}"
+    CT_ExtractPatch M4
 }
 
 do_companion_tools_m4_for_build() {
@@ -58,7 +56,7 @@ do_m4_backend() {
                      CFLAGS="${cflags}" \
                      LDFLAGS="${ldflags}" \
                      ${CONFIG_SHELL} \
-                     "${CT_SRC_DIR}/m4-${CT_M4_VERSION}/configure" \
+                     "${CT_SRC_DIR}/m4/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"
 

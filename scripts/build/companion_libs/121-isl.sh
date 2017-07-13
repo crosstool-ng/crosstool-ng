@@ -13,14 +13,12 @@ if [ "${CT_ISL}" = "y" ]; then
 
 # Download ISL
 do_isl_get() {
-    CT_GetFile "isl-${CT_ISL_VERSION}" \
-        http://isl.gforge.inria.fr
+    CT_Fetch ISL
 }
 
 # Extract ISL
 do_isl_extract() {
-    CT_Extract "isl-${CT_ISL_VERSION}"
-    CT_Patch "isl" "${CT_ISL_VERSION}"
+    CT_ExtractPatch ISL
 }
 
 # Build ISL for running on build
@@ -86,12 +84,12 @@ do_isl_backend() {
 
     CT_DoLog EXTRA "Configuring ISL"
 
-    if [ "${CT_ISL_V_0_12_or_later}" != "y" ]; then
+    if [ "${CT_ISL_NEEDS_WITH_GMP}" != "y" ]; then
         extra_config+=("--with-libgmp-prefix=${prefix}")
         extra_config+=("--with-libgmpxx-prefix=${prefix}")
     fi
 
-    if [ "${CT_ISL_V_0_14_or_later}" != "y" ]; then
+    if [ "${CT_ISL_HAS_WITH_PIPLIB}" != "y" ]; then
         extra_config+=("--with-piplib=no")
     fi
 
@@ -100,7 +98,7 @@ do_isl_backend() {
     CXXFLAGS="${cxxflags}"                          \
     LDFLAGS="${ldflags}"                            \
     ${CONFIG_SHELL}                                 \
-    "${CT_SRC_DIR}/isl-${CT_ISL_VERSION}/configure" \
+    "${CT_SRC_DIR}/isl/configure"                   \
         --build=${CT_BUILD}                         \
         --host=${host}                              \
         --prefix="${prefix}"                        \

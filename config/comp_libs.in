@@ -1,0 +1,203 @@
+# Companion libraries config options
+# Those libraries are required for different versions of gcc,
+# and can be used by binutils and gdb (maybe others as well).
+
+menu "Companion libraries"
+
+config COMPLIBS_NEEDED
+    bool
+
+config LIBICONV_NEEDED
+    bool
+    select LIBICONV
+    select COMPLIBS_NEEDED
+
+config GETTEXT_NEEDED
+    bool
+    select GETTEXT
+    select LIBICONV_NEEDED
+    select COMPLIBS_NEEDED
+
+config GMP_NEEDED
+    def_bool y
+    select GMP
+    select COMPLIBS_NEEDED
+
+config MPFR_NEEDED
+    def_bool y
+    select MPFR
+    select COMPLIBS_NEEDED
+
+config ISL_NEEDED
+    bool
+    select ISL
+    select COMPLIBS_NEEDED
+
+config CLOOG_NEEDED
+    bool
+    select CLOOG
+    select COMPLIBS_NEEDED
+
+config MPC_NEEDED
+    def_bool y
+    select MPC
+    select COMPLIBS_NEEDED
+
+config LIBELF_NEEDED
+    bool
+    select LIBELF
+    select COMPLIBS_NEEDED
+
+config EXPAT_NEEDED
+    bool
+    select EXPAT
+    select COMPLIBS_NEEDED
+
+config NCURSES_NEEDED
+    bool
+    select NCURSES
+    select COMPLIBS_NEEDED
+
+config COMPLIBS
+    bool
+
+config LIBICONV
+    bool "Build local libiconv"
+    default y if CANADIAN || CROSS_NATIVE
+    select COMPLIBS
+
+config GETTEXT
+    bool "Build local gettext"
+    default y if CANADIAN || CROSS_NATIVE
+    select LIBICONV_NEEDED
+    select NCURSES_NEEDED
+    select COMPLIBS
+
+config GMP
+    bool
+    select COMPLIBS
+
+config MPFR
+    bool
+    select GMP
+    select COMPLIBS
+
+config ISL
+    bool
+    select GMP
+    select COMPLIBS
+
+config CLOOG
+    bool
+    select GMP
+    select COMPLIBS
+
+config MPC
+    bool
+    select GMP
+    select MPFR
+    select COMPLIBS
+
+config LIBELF
+    bool
+    select COMPLIBS
+
+config LIBELF_TARGET
+    bool
+
+config EXPAT
+    bool
+    select COMPLIBS
+
+config EXPAT_TARGET
+    bool
+
+config NCURSES
+    bool
+    select COMPLIBS
+
+config NCURSES_TARGET
+    bool
+
+config ZLIB
+    bool "Build local zlib"
+
+# FIXME this needs to have a list of options
+# [ ] libfoo for build
+# [ ] libfoo for host (if canadian)
+# [ ] libfoo for target
+#     libfoo options -->
+#
+# Then have other packages *set default* for build/host
+# (but not select, so that user can utilize build's or host's system library)
+# and *select* the target (so that we build it if we must, and let user optionally
+# build it if he wants). Upon any of these options LIBFOO_{BUILD,HOST,TARGET}
+# being set, set LIBFOO_ENABLED and use that as a qualifier for submenu.
+# For now, just have comments delineating the libs.
+if ZLIB
+comment "zlib options"
+source "config/comp_libs/zlib.in"
+endif
+if LIBICONV
+comment "libiconv options"
+source "config/comp_libs/libiconv.in"
+endif
+if GETTEXT
+comment "gettext options"
+source "config/comp_libs/gettext.in"
+endif
+if GMP
+comment "GMP options"
+source "config/comp_libs/gmp.in"
+endif
+if MPFR
+comment "MPFR options"
+source "config/comp_libs/mpfr.in"
+endif
+if ISL
+comment "ISL options"
+source "config/comp_libs/isl.in"
+endif
+if CLOOG
+comment "CLooG options"
+source "config/comp_libs/cloog.in"
+endif
+if MPC
+comment "MPC options"
+source "config/comp_libs/mpc.in"
+endif
+if LIBELF || LIBELF_TARGET
+comment "libelf options"
+source "config/comp_libs/libelf.in"
+endif
+if EXPAT || EXPAT_TARGET
+comment "expat options"
+source "config/comp_libs/expat.in"
+endif
+if NCURSES || NCURSES_TARGET
+comment "ncurses options"
+source "config/comp_libs/ncurses.in"
+endif
+
+if COMPLIBS
+
+comment "Companion libraries common options"
+
+config COMPLIBS_CHECK
+    bool
+    prompt "Check the companion libraries builds (!!! READ HELP!!!)"
+    help
+      It is highly recommended to check the newly built companion libraries.
+      Unfortunately, this is a very intensive task, and takes a loooong time.
+      
+      Checking the newly built companion libraries is thus disabled by default,
+      but it is suggested that you check them at least once on your machine,
+      and if they work, disable the check on subsequent builds.
+      
+      If you suspect that one (or more) of your companion libraries is the
+      cause for incorrectly generated code, you should answer 'Y' here.
+      Note however that this will take a really long time.
+
+endif # COMPLIBS
+
+endmenu

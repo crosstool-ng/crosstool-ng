@@ -5,7 +5,7 @@ CT_DEBUG_FACILITY_LIST=
 for f in "${CT_LIB_DIR}/scripts/build/debug/"*.sh; do
     _f="$(basename "${f}" .sh)"
     _f="${_f#???-}"
-    __f="CT_DEBUG_${_f}"
+    __f="CT_DEBUG_${_f^^}"
     if [ "${!__f}" = "y" ]; then
         CT_DoLog DEBUG "Enabling debug '${_f}'"
         . "${f}"

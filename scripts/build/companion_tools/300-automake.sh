@@ -1,14 +1,11 @@
 # Build script for automake
 
 do_companion_tools_automake_get() {
-    CT_GetFile "automake-${CT_AUTOMAKE_VERSION}"    \
-        {http,ftp,https}://ftp.gnu.org/gnu/automake
+    CT_Fetch AUTOMAKE
 }
 
 do_companion_tools_automake_extract() {
-    CT_Extract "automake-${CT_AUTOMAKE_VERSION}"
-    CT_DoExecLog ALL chmod -R u+w "${CT_SRC_DIR}/automake-${CT_AUTOMAKE_VERSION}"
-    CT_Patch "automake" "${CT_AUTOMAKE_VERSION}"
+    CT_ExtractPatch AUTOMAKE
 }
 
 do_companion_tools_automake_for_build() {
@@ -38,7 +35,7 @@ do_automake_backend() {
     CT_DoLog EXTRA "Configuring automake"
     CT_DoExecLog CFG \
                      ${CONFIG_SHELL} \
-                     "${CT_SRC_DIR}/automake-${CT_AUTOMAKE_VERSION}/configure" \
+                     "${CT_SRC_DIR}/automake/configure" \
                      --host="${host}" \
                      --prefix="${prefix}"
 

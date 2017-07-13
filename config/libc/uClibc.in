@@ -4,12 +4,15 @@
 ##
 ## select LIBC_SUPPORT_THREADS_LT
 ## select LIBC_SUPPORT_THREADS_NONE
+## select LIBC_SUPPORT_THREADS_NATIVE if UCLIBC_0_9_33_2_or_later
 ## select CC_CORE_PASSES_NEEDED
 ##
 ## help The de-facto standard for embeded linux systems.
 ## help
 ## help Highly configurable, thus as feature-rich as you
 ## help need, without compromising for size.
+
+source "config/versions/uClibc.in"
 
 config THREADS
     default "nptl"          if THREADS_NATIVE
@@ -20,141 +23,18 @@ comment "'softfp' ABI and uClibc is not entirely tested in crosstool-NG"
 comment "You may experience issues, although it should work just fine"
 endif # ARCH_FLOAT_SOFTFP
 
-config LIBC_UCLIBC_CUSTOM
-    bool
-    prompt "Custom uClibc"
-    depends on EXPERIMENTAL
-    help
-      The choosen uclibc version shall be not downloaded. Instead use
-      a custom location to get the source.
-
-if LIBC_UCLIBC_CUSTOM
-
-choice
-    bool
-    prompt "uClibc Version Name"
-
-config LIBC_UCLIBC_CUSTOM_UCLIBC
-    bool "uClibc (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_UCLIBC_0_9_33_2_or_later
-
-config LIBC_UCLIBC_CUSTOM_UCLIBC_NG
-    bool "uClibc-ng (1.0.15 or later)"
-    select LIBC_UCLIBC_NG_1_0_15_or_later
-
-config LIBC_UCLIBC_CUSTOM_UCLIBC_NG_OLD
-    bool "uClibc-ng (older than 1.0.15)"
-    select LIBC_UCLIBC_NG_1_0_0_or_later
-
-endchoice
-
-config LIBC_UCLIBC_CUSTOM_LOCATION
-    string
-    prompt "Full path to custom uClibc source"
-    help
-      Enter the path to the directory or tarball of your source for uClibc.
-
-      If the path is a tarball, it should extract to: <name>-<version>/
-      where the name is this component will be set by the uClibc Version Name
-      option from above, and the version is set below in the custom version
-      string.
-
-config LIBC_UCLIBC_CUSTOM_VERSION
-    string
-    prompt "Custom uClibc Version"
-    help
-      Enter the version number for your custom uClibc.
-      Version 1.0.18 is only enabled in EXPERIMENTAL builds due to issues
-      with static libraries.
-
-config LIBC_VERSION
-    string
-    default LIBC_UCLIBC_CUSTOM_VERSION
-
-endif # LIBC_UCLIBC_CUSTOM
-
-if ! LIBC_UCLIBC_CUSTOM
-
-choice
-    bool
-    prompt "uClibc version"
-# Don't remove next line
-# CT_INSERT_VERSION_BELOW
-
-config LIBC_UCLIBC_NG_V_1_0_25
-    bool
-    prompt "1.0.25"
-    select LIBC_UCLIBC_NG_1_0_15_or_later
-
-config LIBC_UCLIBC_NG_V_1_0_24
-    bool
-    prompt "1.0.24"
-    select LIBC_UCLIBC_NG_1_0_15_or_later
-
-config LIBC_UCLIBC_NG_V_1_0_23
-    bool
-    prompt "1.0.23"
-    select LIBC_UCLIBC_NG_1_0_15_or_later
-
-config LIBC_UCLIBC_NG_V_1_0_22
-    bool
-    prompt "1.0.22"
-    select LIBC_UCLIBC_NG_1_0_15_or_later
-
-config LIBC_UCLIBC_NG_V_1_0_21
-    bool
-    prompt "1.0.21 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_UCLIBC_NG_1_0_15_or_later
-
-config LIBC_UCLIBC_NG_V_1_0_20
-    bool
-    prompt "1.0.20 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_UCLIBC_NG_1_0_15_or_later
-
-config LIBC_UCLIBC_V_0_9_33_2
-    bool
-    prompt "0.9.33.2 (OBSOLETE)"
-    depends on OBSOLETE
-    select LIBC_UCLIBC_0_9_33_2_or_later
-
-endchoice
-
-config LIBC_VERSION
-    string
-# Don't remove next line
-# CT_INSERT_VERSION_STRING_BELOW
-    default "1.0.25" if LIBC_UCLIBC_NG_V_1_0_25
-    default "1.0.24" if LIBC_UCLIBC_NG_V_1_0_24
-    default "1.0.23" if LIBC_UCLIBC_NG_V_1_0_23
-    default "1.0.22" if LIBC_UCLIBC_NG_V_1_0_22
-    default "1.0.21" if LIBC_UCLIBC_NG_V_1_0_21
-    default "1.0.20" if LIBC_UCLIBC_NG_V_1_0_20
-    default "0.9.33.2" if LIBC_UCLIBC_V_0_9_33_2
-
-endif # ! LIBC_UCLIBC_CUSTOM
-
-config LIBC_UCLIBC_NG_1_0_15_or_later
-    bool
-    select LIBC_UCLIBC_NG_1_0_0_or_later
-
-config LIBC_UCLIBC_NG_1_0_0_or_later
-    bool
-    select LIBC_UCLIBC_NG
-    select LIBC_UCLIBC_0_9_33_2_or_later
-
-config LIBC_UCLIBC_0_9_33_2_or_later
-    bool
-    select LIBC_SUPPORT_THREADS_NATIVE
-    select LIBC_UCLIBC_PARALLEL
-
 config LIBC_UCLIBC_PARALLEL
-    bool
+    def_bool y
+    depends on UCLIBC_0_9_33_2_or_later
 
 config LIBC_UCLIBC_NG
-    bool
+    def_bool y
+    depends on UCLIBC_1_0_0_or_later
+
+# uClibc-ng 1.0.15 did away with 2 implementations of linuxthreads
+config UCLIBC_MERGED_LINUXTHREADS
+    def_bool y
+    depends on UCLIBC_1_0_15_or_later
 
 choice
     bool
@@ -230,3 +110,98 @@ config LIBC_UCLIBC_CONFIG_FILE
       Path to the configuration file.
 
       If the file is not provided, we fall back to a default config file.
+
+if THREADS_LT && !UCLIBC_MERGED_LINUXTHREADS
+
+choice
+    bool
+    prompt "Linuxthread implementation: "
+    default LIBC_UCLIBC_LNXTHRD_OLD
+
+config LIBC_UCLIBC_LNXTHRD_OLD
+    bool
+    prompt "old/stable"
+    help
+      From the uClibc config option help:
+        There are two versions of linuxthreads.  The older (stable) version
+        has been in uClibc for quite a long time but hasn't seen too many
+        updates other than bugfixes.
+
+config LIBC_UCLIBC_LNXTHRD_NEW
+    bool
+    prompt "new"
+    help
+      From the uClibc config option help:
+        The new version has not been tested much, and lacks ports for arches
+        which glibc does not support (like frv, etc...), but is based on
+        the latest code from glibc, so it may be the only choice for the
+        newer ports (like alpha/amd64/64bit arches and hppa).
+
+endchoice
+
+endif # THREADS_LT
+
+config LIBC_UCLIBC_LNXTHRD
+    string
+    default ""      if THREADS_NONE
+    default ""      if THREADS_NATIVE
+    default ""      if UCLIBC_MERGED_LINUXTHREADS
+    default "old"   if LIBC_UCLIBC_LNXTHRD_OLD
+    default "new"   if LIBC_UCLIBC_LNXTHRD_NEW
+
+config LIBC_UCLIBC_LOCALES
+    bool
+    select LIBC_UCLIBC_WCHAR
+    prompt "Add support for locales"
+    help
+      Say y if you want uClibc to support localisation.
+
+      Note that seems to be broken on recent uClibc releases.
+
+config LIBC_UCLIBC_IPV6
+    bool
+    prompt "Add support for IPv6"
+    help
+      Say y if you want uClibc to support IPv6.
+
+config LIBC_UCLIBC_WCHAR
+    bool
+    prompt "Add support for WCHAR"
+    help
+      Say y if you want uClibc to support WCHAR.
+
+      Maybe this is needed, if you're building a C++-Compiler
+
+config LIBC_UCLIBC_FENV
+    bool
+    prompt "Add support for fenv.h"
+    default y if ARCH_X86
+    help
+      fenv.h provides functions to control the floating point environment,
+      such as rounding mode, exceptions...
+
+      For some architectures, fenv.h is incomplete, so is not installed
+      by default. x86 is known to have a rather complete fenv.h, so it is
+      installed by default only for x86.
+
+      If you need fenv.h on other architectures, say 'y' here, but you may
+      encounter some issues.
+
+config LIBC_UCLIBC_RPC
+    bool
+    prompt "Add support for RPC"
+    help
+      Enable support for remote procedure calls (RPC) in uClibc.
+
+if ARCH_ARM
+config LIBC_UCLIBC_USE_GNU_SUFFIX
+    bool
+    default y
+    prompt "Use -uclibcgnueabi suffix"
+    help
+      Depending on where the resulting toolchain will be used, you may need
+      to tweak the "system" part of the target tuple. Buildroot prefers
+      to have arm-*-linux-uclibcgnueabi; OpenEmbedded prefers
+      arm-*-linux-uclibceabi. Other tools seem to either accept both, or
+      don't care about the suffix.
+endif

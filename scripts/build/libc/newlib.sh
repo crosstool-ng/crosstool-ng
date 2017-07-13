@@ -6,44 +6,20 @@
 #
 
 do_libc_get() {
-    local libc_src="{http://mirrors.kernel.org/sourceware/newlib,
-                     ftp://sourceware.org/pub/newlib}"
-
-    if [ "${CT_LIBC_NEWLIB_CUSTOM}" = "y" ]; then
-        CT_GetCustom "newlib" "${CT_LIBC_NEWLIB_CUSTOM_VERSION}" \
-            "${CT_LIBC_NEWLIB_CUSTOM_LOCATION}"
-    else # ! custom location
-        case "${CT_LIBC_VERSION}" in
-            linaro-*)
-                CT_GetLinaro "newlib" "${CT_LIBC_VERSION}"
-                ;;
-            *)
-                # kernel.org mirror is outdated, keep last as a fallback
-                CT_GetFile "newlib-${CT_LIBC_VERSION}" \
-                           ftp://sourceware.org/pub/newlib \
-                           http://mirrors.kernel.org/sourceware/newlib \
-                           http://mirrors.kernel.org/sources.redhat.com/newlib
-                ;;
-        esac
-    fi # ! custom location
+    CT_Fetch NEWLIB
 }
 
 do_libc_extract() {
-    CT_Extract "newlib-${CT_LIBC_VERSION}"
-    CT_Patch "newlib" "${CT_LIBC_VERSION}"
-
-    if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
-        CT_ConfigureXtensa "newlib" "${CT_LIBC_VERSION}"
-    fi
+    CT_ExtractPatch NEWLIB
 }
 
 do_libc_start_files() {
     CT_DoStep INFO "Installing C library headers & start files"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/newlib/libc/include/." \
+    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib/newlib/libc/include/." \
     "${CT_HEADERS_DIR}"
-    if [ "${CT_ARCH_xtensa}" = "y" ]; then
+    if [ "${CT_ARCH_XTENSA}" = "y" ]; then
         CT_DoLog EXTRA "Installing Xtensa headers"
-        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/newlib/libc/sys/xtensa/include/."   \
+        CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/newlib/newlib/libc/sys/xtensa/include/."   \
                                "${CT_HEADERS_DIR}"
     fi
     CT_EndStep
@@ -131,7 +107,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     AR_FOR_TARGET="`which ${CT_TARGET}-gcc-ar`"                    \
     RANLIB_FOR_TARGET="`which ${CT_TARGET}-gcc-ranlib`"            \
     ${CONFIG_SHELL}                                                \
-    "${CT_SRC_DIR}/newlib-${CT_LIBC_VERSION}/configure"            \
+    "${CT_SRC_DIR}/newlib/configure"                               \
         --host=${CT_BUILD}                                         \
         --target=${CT_TARGET}                                      \
         --prefix=${CT_PREFIX_DIR}                                  \

@@ -3,17 +3,11 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 do_libc_get() {
-    if [ "${CT_LIBC_MUSL_CUSTOM}" = "y" ]; then
-        CT_GetCustom "musl" "${CT_LIBC_MUSL_CUSTOM_VERSION}" \
-            "${CT_LIBC_MUSL_CUSTOM_LOCATION}"
-    else # ! custom location
-        CT_GetFile "musl-${CT_LIBC_VERSION}" http://www.musl-libc.org/releases
-    fi # ! custom location
+    CT_Fetch MUSL
 }
 
 do_libc_extract() {
-    CT_Extract "musl-${CT_LIBC_VERSION}"
-    CT_Patch "musl" "${CT_LIBC_VERSION}"
+    CT_ExtractPatch MUSL
 }
 
 # Build and install headers and start files
@@ -62,7 +56,7 @@ do_libc_backend_once() {
     local libc_mode
     local -a extra_cflags
     local -a extra_config
-    local src_dir="${CT_SRC_DIR}/${CT_LIBC}-${CT_LIBC_VERSION}"
+    local src_dir="${CT_SRC_DIR}/musl"
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
     local multilib_dir
     local hdr_install_subdir
@@ -83,7 +77,7 @@ do_libc_backend_once() {
     # From buildroot:
     # gcc constant folding bug with weak aliases workaround
     # See http://www.openwall.com/lists/musl/2014/05/15/1
-    if [ "${CT_CC_GCC_4_9_or_later}" = "y" ]; then
+    if [ "${CT_GCC_BUG_61144}" = "y" ]; then
         extra_cflags+=("-fno-toplevel-reorder")
     fi
 

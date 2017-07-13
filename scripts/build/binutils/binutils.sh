@@ -4,44 +4,17 @@
 
 # Download binutils
 do_binutils_get() {
-    if [ "${CT_BINUTILS_CUSTOM}" = "y" ]; then
-        CT_GetCustom "binutils" "${CT_BINUTILS_CUSTOM_VERSION}" \
-            "${CT_BINUTILS_CUSTOM_LOCATION}"
-    else
-        case "${CT_BINUTILS_VERSION}" in
-            linaro-*)
-                CT_GetLinaro "binutils" "${CT_BINUTILS_VERSION}"
-                ;;
-            *)
-                CT_GetFile "binutils-${CT_BINUTILS_VERSION}"                                        \
-                           {http,ftp}://{ftp.gnu.org/gnu,ftp.kernel.org/pub/linux/devel}/binutils   \
-                           ftp://{sourceware.org,gcc.gnu.org}/pub/binutils/{releases,snapshots}
-                ;;
-        esac
-    fi
-
+    CT_Fetch BINUTILS
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        if [ "${CT_ELF2FLT_CUSTOM}" = "y" ]; then
-            CT_GetCustom "elf2flt" "${CT_ELF2FLT_CUSTOM_VERSION}" \
-                "${CT_ELF2FLT_CUSTOM_LOCATION}"
-        else
-            CT_GetGit elf2flt "${CT_ELF2FLT_GIT_CSET}" https://github.com/uclinux-dev/elf2flt.git
-        fi
+        CT_Fetch ELF2FLT
     fi
 }
 
 # Extract binutils
 do_binutils_extract() {
-    CT_Extract "binutils-${CT_BINUTILS_VERSION}"
-    CT_Patch "binutils" "${CT_BINUTILS_VERSION}"
-
+    CT_ExtractPatch BINUTILS
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
-        CT_Extract "elf2flt-${CT_ELF2FLT_GIT_CSET}"
-        CT_Patch "elf2flt" "${CT_ELF2FLT_GIT_CSET}"
-    fi
-
-    if [ -n "${CT_ARCH_XTENSA_CUSTOM_NAME}" ]; then
-        CT_ConfigureXtensa "binutils" "${CT_BINUTILS_VERSION}"
+        CT_ExtractPatch ELF2FLT
     fi
 }
 
@@ -67,7 +40,7 @@ do_binutils_for_build() {
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
         # We re-use binutils' options, plus our owns
-        binutils_opts+=( "binutils_src=${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}" )
+        binutils_opts+=( "binutils_src=${CT_SRC_DIR}/binutils" )
         binutils_opts+=( "binutils_bld=${CT_BUILD_DIR}/build-binutils-build-${CT_BUILD}" )
 
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-elf2flt-build-${CT_BUILD}"
@@ -100,7 +73,7 @@ do_binutils_for_host() {
 
     if [ -n "${CT_ARCH_BINFMT_FLAT}" ]; then
         # We re-use binutils' options, plus our owns
-        binutils_opts+=( "binutils_src=${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}" )
+        binutils_opts+=( "binutils_src=${CT_SRC_DIR}/binutils" )
         binutils_opts+=( "binutils_bld=${CT_BUILD_DIR}/build-binutils-host-${CT_HOST}" )
 
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-elf2flt-host-${CT_HOST}"
@@ -207,7 +180,7 @@ do_binutils_backend() {
     CXXFLAGS="${cflags}"                                        \
     LDFLAGS="${ldflags}"                                        \
     ${CONFIG_SHELL}                                             \
-    "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
+    "${CT_SRC_DIR}/binutils/configure"                          \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
         --target=${CT_TARGET}                                   \
@@ -291,7 +264,7 @@ do_elf2flt_backend() {
     CFLAGS="${cflags}"                                          \
     LDFLAGS="${ldflags}"                                        \
     ${CONFIG_SHELL}                                             \
-    "${CT_SRC_DIR}/elf2flt-${CT_ELF2FLT_VERSION}/configure"     \
+    "${CT_SRC_DIR}/elf2flt/configure"                           \
         --build=${CT_BUILD}                                     \
         --host=${host}                                          \
         --target=${CT_TARGET}                                   \
@@ -351,7 +324,7 @@ do_binutils_for_target() {
 
         CT_DoExecLog CFG                                            \
         ${CONFIG_SHELL}                                             \
-        "${CT_SRC_DIR}/binutils-${CT_BINUTILS_VERSION}/configure"   \
+        "${CT_SRC_DIR}/binutils/configure"                          \
             --build=${CT_BUILD}                                     \
             --host=${CT_TARGET}                                     \
             --target=${CT_TARGET}                                   \

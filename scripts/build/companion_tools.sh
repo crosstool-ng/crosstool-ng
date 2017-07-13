@@ -5,7 +5,7 @@ CT_COMP_TOOLS_FACILITY_LIST=
 for f in "${CT_LIB_DIR}/scripts/build/companion_tools/"*.sh; do
     _f="$(basename "${f}" .sh)"
     _f="${_f#???-}"
-    __f="CT_COMP_TOOLS_${_f}"
+    __f="CT_COMP_TOOLS_${_f^^}"
     if [ "${!__f}" = "y" ]; then
         CT_DoLog DEBUG "Enabling companion tool '${_f}'"
         . "${f}"

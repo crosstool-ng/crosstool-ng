@@ -26,6 +26,7 @@ nconfig:
 
 oldconfig: .config
 	@$(CT_ECHO) "  CONF  $@"
+	$(SILENT)$(sed) -i -r -f $(CT_LIB_DIR)/scripts/upgrade.sed $<
 	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
 
 savedefconfig: .config

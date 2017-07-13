@@ -69,18 +69,19 @@ do_finish() {
             CT_DoExecLog ALL "${CT_TARGET}-strip" ${strip_args}         \
                              "${CT_TARGET}/debug-root/usr/bin/gdbserver${exe_suffix}"
         fi
-        if [ "${CT_CC_gcc}" = "y" ]; then
-            # We can not use the version in CT_CC_GCC_VERSION because
+        if [ "${CT_CC_GCC}" = "y" ]; then
+            # TBD GCC 3.x/2.x is no longer supported by ctng
+            # We can not use the version in CT_GCC_VERSION because
             # of the Linaro stuff. So, harvest the version string
             # directly from the gcc sources...
             # All gcc 4.x seem to have the version in gcc/BASE-VER
             # while version prior to 4.x have the version in gcc/version.c
             # Of course, here is not the better place to do that...
-            if [ -f "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" ]; then
-                gcc_version=$( cat "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/BASE-VER" )
+            if [ -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
+                gcc_version=$( cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER" )
             else
                 gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;' \
-                                   "${CT_SRC_DIR}/gcc-${CT_CC_GCC_VERSION}/gcc/version.c" \
+                                   "${CT_SRC_DIR}/gcc/gcc/version.c" \
                              )
             fi
             for _t in "bin/${CT_TARGET}-"*                                      \

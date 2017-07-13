@@ -1,24 +1,11 @@
 # Build script for D.U.M.A.
 
 do_debug_duma_get() {
-    local dl_base
-
-    dl_base="http://downloads.sourceforge.net/project/duma/duma"
-    dl_base+="/${CT_DUMA_VERSION//_/.}"
-
-    # Downloading an non-existing file from sourceforge will give you an
-    # HTML file containing an error message, instead of returning a 404.
-    # Sigh...
-    CT_GetFile "duma_${CT_DUMA_VERSION}" .tar.gz "${dl_base}"
-    # Downloading from sourceforge may leave garbage, cleanup
-    CT_DoExecLog ALL rm -f "${CT_TARBALLS_DIR}/showfiles.php"*
+    CT_Fetch DUMA
 }
 
 do_debug_duma_extract() {
-    CT_Extract "duma_${CT_DUMA_VERSION}"
-    CT_Pushd "${CT_SRC_DIR}/duma_${CT_DUMA_VERSION}"
-    CT_Patch nochdir "duma" "${CT_DUMA_VERSION}"
-    CT_Popd
+    CT_ExtractPatch DUMA
 }
 
 do_debug_duma_build() {
@@ -26,7 +13,7 @@ do_debug_duma_build() {
 
     CT_DoStep INFO "Installing D.U.M.A."
     CT_DoLog EXTRA "Copying sources"
-    cp -a "${CT_SRC_DIR}/duma_${CT_DUMA_VERSION}/." "${CT_BUILD_DIR}/build-duma"
+    cp -a "${CT_SRC_DIR}/duma/." "${CT_BUILD_DIR}/build-duma"
     CT_Pushd "${CT_BUILD_DIR}/build-duma"
 
     make_args=(
