@@ -63,10 +63,10 @@ do_libc_start_files() {
 
 do_check_mingw_vendor_tuple()
 {
-    if [ "${CT_MINGW_W64_VERSION%%.*}" -ge 4 ]; then
+    if [ "${CT_MINGW_W64_REQUIRES_W64_VENDOR}" = "y" ]; then
        CT_DoStep INFO "Checking configured vendor tuple"
-       if [ ${CT_TARGET_VENDOR} == w64 ]; then
-           CT_DoLog EXTRA "The tuple is set to '${CT_TARGET_VENDOR}', as recommended by mingw-64 developers."
+       if [ ${CT_TARGET_VENDOR} = "w64" ]; then
+           CT_DoLog DEBUG "The tuple is set to '${CT_TARGET_VENDOR}', as recommended by mingw-64 developers."
        else
            CT_DoLog WARN "The tuple vendor is '${CT_TARGET_VENDOR}', not equal to 'w64' and might break the toolchain!"
        fi
