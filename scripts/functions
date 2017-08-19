@@ -1052,7 +1052,10 @@ CT_DoSaveState() {
                            /^(UID|EUID)=/d;
                            /^(FUNCNAME|GROUPS|PPID|SHELLOPTS)=/d;' >"${state_dir}/env.sh"
 
+    CT_DoExecLog STATE cp ".config" "${state_dir}/config"
+
     CT_DoTarballIfExists "${CT_BUILDTOOLS_PREFIX_DIR}" "${state_dir}/buildtools_dir"
+    CT_DoTarballIfExists "${CT_SRC_DIR}" "${state_dir}/src_dir"
     CT_DoTarballIfExists "${CT_PREFIX_DIR}" "${state_dir}/prefix_dir" --exclude '*.log'
 
     CT_DoLog STATE "  Saving log file"
@@ -1073,10 +1076,14 @@ CT_DoLoadState(){
     local old_STOP="${CT_STOP}"
 
     CT_TestOrAbort "The previous build did not reach the point where it could be restarted at '${CT_RESTART}'" -d "${state_dir}"
+    if ! cmp ".config" "${state_dir}/config" >/dev/null 2>&1; then
+        CT_Abort "The configuration file has changed between two runs"
+    fi
 
     CT_DoLog INFO "Restoring state at step '${state_name}', as requested."
 
     CT_DoExtractTarballIfExists "${state_dir}/prefix_dir" "${CT_PREFIX_DIR}"
+    CT_DoExtractTarballIfExists "${state_dir}/src_dir" "${CT_SRC_DIR}"
     CT_DoExtractTarballIfExists "${state_dir}/buildtools_dir" "${CT_BUILDTOOLS_PREFIX_DIR}"
 
     # Restore the environment, discarding any error message
