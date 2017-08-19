@@ -639,16 +639,13 @@ CT_GetFileExtension()
 {
     local ext
     local file="$1"
-    shift
-    local first_ext="$1"
 
-    for ext in ${first_ext} $(CT_DoListTarballExt); do
+    for ext in $(CT_DoListTarballExt); do
         if [ -e "${file}${ext}" -o -L "${file}${ext}" ]; then
             echo "${ext}"
             exit 0
         fi
     done
-
     exit 1
 }
 
@@ -686,6 +683,7 @@ CT_DoGetFile() {
         T="${CT_CONNECT_TIMEOUT}"
     fi
 
+    CT_DoLog DEBUG "Trying '${url}'"
     if [ "${CT_DOWNLOAD_AGENT_WGET}" = "y" ]; then
         if CT_DoExecLog ALL wget ${CT_DOWNLOAD_WGET_OPTIONS} \
                                  ${T:+-T ${T}}               \
@@ -706,41 +704,13 @@ CT_DoGetFile() {
         # Success, we got it, good!
         mv "${tmp}" "${dest}"
         CT_DoLog DEBUG "Got it from: \"${url}\""
+        return 0
     else
-        # Woops...
+        # Whoops...
         rm -f "${tmp}"
         CT_DoLog DEBUG "Not at this location: \"${url}\""
+        return 1
     fi
-}
-
-# This function tries to retrieve a tarball form a local directory
-# Usage: CT_GetLocal <basename> [.extension]
-CT_GetLocal() {
-    local basename="$1"
-    local first_ext="$2"
-    local ext
-
-    # Do we already have it in *our* tarballs dir?
-    if ext="$( CT_GetFileExtension "${CT_TARBALLS_DIR}/${basename}" ${first_ext} )"; then
-        CT_DoLog DEBUG "Already have '${CT_TARBALLS_DIR}/${basename}${ext}'"
-        return 0
-    fi
-
-    if [ -n "${CT_LOCAL_TARBALLS_DIR}" ]; then
-        CT_DoLog DEBUG "Trying to retrieve an already downloaded copy of '${basename}'"
-        # We'd rather have a bzip2'ed tarball, then gzipped tarball, plain tarball,
-        # or, as a failover, a file without extension.
-        for ext in ${first_ext} $(CT_DoListTarballExt) ''; do
-            CT_DoLog DEBUG "Trying '${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}'"
-            if [ -r "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" -a \
-                 "${CT_FORCE_DOWNLOAD}" != "y" ]; then
-                CT_DoLog DEBUG "Got '${basename}' from local storage"
-                CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" "${CT_TARBALLS_DIR}/${basename}${ext}"
-                return 0
-            fi
-        done
-    fi
-    return 1
 }
 
 # This function saves the specified to local storage if possible,
@@ -760,29 +730,34 @@ CT_SaveLocal() {
 }
 
 # Download the file from one of the URLs passed as argument
-# Usage: CT_GetFile <basename> [.extension] <url> [url ...]
+# Usage: CT_GetFile <packagename> <basename> <extensions> <url> [url ...]
 CT_GetFile() {
     local ext
     local -a URLS
     local url
-    local file="$1"
-    local first_ext
-    shift
-    # If next argument starts with a dot, then this is not an URL,
-    # and we can consider that it is a preferred extension.
-    case "$1" in
-        .*) first_ext="$1"
-            shift
-            ;;
-    esac
+    local package="$1"
+    local file="$2"
+    local extensions="$3"
+    shift 3
 
-    # Does it exist localy?
-    if CT_GetLocal "${file}" ${first_ext}; then
-        return 0
-    fi
-    # No, it does not...
+    # Does any of the requested files exist localy?
+    for ext in ${extensions}; do
+        # Do we already have it in *our* tarballs dir?
+        if [ -r "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
+            CT_DoLog DEBUG "Already have '${CT_TARBALLS_DIR}/${file}${ext}'"
+            return 0
+        fi
 
-    # If not allowed to download from the Internet, don't
+        if [ -n "${CT_LOCAL_TARBALLS_DIR}" -a "${CT_FORCE_DOWNLOAD}" != "y" -a \
+                -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" ]; then
+            CT_DoLog DEBUG "Got '${file}' from local storage"
+            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" \
+                    "${CT_TARBALLS_DIR}/${file}${ext}"
+            return 0
+        fi
+    done
+
+    # No, it does not...  If not allowed to download from the Internet, don't.
     if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
         CT_DoLog DEBUG "Not allowed to download from the Internet, aborting ${file} download"
         return 1
@@ -794,7 +769,9 @@ CT_GetFile() {
     # Add URLs on the LAN mirror
     if [ "${CT_USE_MIRROR}" = "y" ]; then
         CT_TestOrAbort "Please set the mirror base URL" -n "${CT_MIRROR_BASE_URL}"
-        URLS+=( "${CT_MIRROR_BASE_URL}/${file%-*}" )
+        if [ -n "${package}" ]; then
+            URLS+=( "${CT_MIRROR_BASE_URL}/${package}" )
+        fi
         URLS+=( "${CT_MIRROR_BASE_URL}" )
     fi
 
@@ -805,14 +782,11 @@ CT_GetFile() {
     # Scan all URLs in turn, and try to grab a tarball from there
     # Do *not* try git trees (ext=/.git), this is handled in a specific
     # wrapper, below
-    for ext in ${first_ext} $(CT_DoListTarballExt) ''; do
+    for ext in ${extensions}; do
         # Try all urls in turn
         for url in "${URLS[@]}"; do
             [ -n "${url}" ] || continue
-            CT_DoLog DEBUG "Trying '${url}/${file}${ext}'"
-            CT_DoGetFile "${url}/${file}${ext}"
-            if [ -f "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
-                CT_DoLog DEBUG "Got '${file}' from the Internet"
+            if CT_DoGetFile "${url}/${file}${ext}"; then
                 CT_SaveLocal "${CT_TARBALLS_DIR}/${file}${ext}"
                 return 0
             fi
@@ -1683,7 +1657,7 @@ CT_PackageRun()
 
     # Variables that are per-fork
     for v in basename pkg_name version \
-            src_release mirrors archive_filename archive_dirname \
+            src_release mirrors archive_filename archive_dirname archive_formats \
             src_devel devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
             src_custom custom_location; do
         eval "local ${v}=\${CT_${use}_${v^^}}"
@@ -1720,7 +1694,7 @@ CT_DoFetch()
         else
             basename="${pkg_name}-${version}"
         fi
-        if ! CT_GetFile "${archive_filename}" ${mirrors}; then
+        if ! CT_GetFile "${pkg_name}" "${archive_filename}" "${archive_formats}" ${mirrors}; then
             CT_Abort "${pkg_name}: download failed"
         fi
 
@@ -1749,8 +1723,9 @@ CT_DoFetch()
 
         # Try getting the tarball with empty list of URLs: it will only
         # attempt getting it from local storage or from the mirror if configured.
+        # Bzip2 offers a reasonable compromise between compression speed and size.
         if [ "${unique_id}" != "to.be.determined" ] && \
-                CT_GetFile "${basename}" .tar.bz2; then
+                CT_GetFile "${pkg_name}" "${basename}" '.tar.bz2'; then
             return 0
         fi
 
