@@ -40,6 +40,8 @@ if [ "${CT_DEBUG_INTERACTIVE}" = "y" -a ! \( -t 0 -a -t 6 -a -t 2 \) ]; then
     exit 1
 fi
 
+CT_TrapEnvExport
+
 # Override the locale early, in case we ever translate crosstool-NG messages
 if [ -z "${CT_NO_OVERRIDE_LC_MESSAGES}" ]; then
     export LC_ALL=C
@@ -62,8 +64,8 @@ CT_TestAndAbort "Don't set CFLAGS. It screws up the build." -n "${CFLAGS+set}"
 CT_TestAndAbort "Don't set CXXFLAGS. It screws up the build." -n "${CXXFLAGS+set}"
 CT_TestAndAbort "Don't set CC. It screws up the build." -n "${CC+set}"
 CT_TestAndAbort "Don't set CXX. It screws up the build." -n "${CXX+set}"
-CT_Test "GREP_OPTIONS screws up the build. Resetting." -n "${GREP_OPTIONS}"
-export GREP_OPTIONS=
+CT_Test "GREP_OPTIONS screws up the build. Unsetting." -n "${GREP_OPTIONS+set}"
+unset GREP_OPTIONS
 # Workaround against openSUSE 12.1 that breaks ./configure for cross-compilation:
 export CONFIG_SITE=
 
@@ -141,9 +143,13 @@ CT_DoStep DEBUG "Dumping user-supplied crosstool-NG configuration"
 CT_DoExecLog DEBUG ${grep} -E '^(# )?CT_' .config
 CT_EndStep
 
-CT_DoLog DEBUG "Unsetting and unexporting MAKEFLAGS"
+CT_DoLog DEBUG "Unsetting MAKEFLAGS"
 unset MAKEFLAGS
-export MAKEFLAGS
+
+# Set the shell to be used by ./configure scripts and by Makefiles (those
+# that support it!).
+export CONFIG_SHELL="${CT_CONFIG_SHELL}"    # for ./configure
+export SHELL="${CT_CONFIG_SHELL}"           # for Makefiles
 
 CT_DoLog INFO "Building environment variables"
 
@@ -304,9 +310,9 @@ if [ -z "${CT_RESTART}" ]; then
         CT_DEBUGROOT_DIR="${CT_PREFIX_DIR}/${CT_TARGET}/${CT_SYSROOT_DIR_PREFIX}/debug-root"
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/usr/include"
         CT_SanitizeVarDir CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR
-        BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
-        CC_CORE_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
-        CC_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
+        CT_BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
+        CT_CC_CORE_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
+        CT_CC_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         # glibc's prefix must be exactly /usr, else --with-sysroot'd gcc will get
         # confused when $sysroot/usr/include is not present.
         # Note: --prefix=/usr is magic!
@@ -320,11 +326,11 @@ if [ -z "${CT_RESTART}" ]; then
         # hack!  Always use --with-sysroot for binutils.
         # binutils 2.14 and later obey it, older binutils ignore it.
         # Lets you build a working 32->64 bit cross gcc
-        BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
+        CT_BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         # Use --with-headers, else final gcc will define disable_glibc while
         # building libgcc, and you'll have no profiling
-        CC_CORE_SYSROOT_ARG="--without-headers"
-        CC_SYSROOT_ARG="--with-headers=${CT_HEADERS_DIR}"
+        CT_CC_CORE_SYSROOT_ARG="--without-headers"
+        CT_CC_SYSROOT_ARG="--with-headers=${CT_HEADERS_DIR}"
     fi
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}"
     CT_DoExecLog ALL mkdir -p "${CT_DEBUGROOT_DIR}"
@@ -529,11 +535,6 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoLog DEBUG "CFLAGS for host compiler: '${CT_CFLAGS_FOR_HOST}'"
     CT_DoLog DEBUG "LDFLAGS for host compiler: '${CT_LDFLAGS_FOR_HOST}'"
 
-    # Set the shell to be used by ./configure scripts and by Makefiles (those
-    # that support it!).
-    export CONFIG_SHELL="${CT_CONFIG_SHELL}"    # for ./configure
-    export SHELL="${CT_CONFIG_SHELL}"           # for Makefiles
-
     # And help make go faster
     JOBSFLAGS=
     # Override the configured jobs with what's been given on the command line
@@ -601,9 +602,7 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoLog DEBUG "Other environment:"
     printenv |${grep} -v -E '^CT_.+=' |CT_DoLog DEBUG
     CT_EndStep
-fi
 
-if [ -z "${CT_RESTART}" ]; then
     CT_DoStep INFO "Retrieving needed toolchain components' tarballs"
     do_companion_tools_get
     do_kernel_get

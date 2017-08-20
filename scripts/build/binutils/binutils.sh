@@ -188,7 +188,7 @@ do_binutils_backend() {
         --disable-werror                                        \
         "${extra_config[@]}"                                    \
         ${CT_ARCH_WITH_FLOAT}                                   \
-        ${BINUTILS_SYSROOT_ARG}                                 \
+        ${CT_BINUTILS_SYSROOT_ARG}                              \
         "${CT_BINUTILS_EXTRA_CONFIG_ARRAY[@]}"
 
     if [ "${static_build}" = "y" ]; then

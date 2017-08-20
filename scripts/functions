@@ -974,6 +974,30 @@ CT_DoPause() {
     return 0
 }
 
+# This function sets up trapping export/unset operations so that saving/restoring
+# the state can restore status of environment exactly.
+CT_TrapEnvExport()
+{
+    unset()
+    {
+        eval "builtin unset $*"
+        CT_ENVVAR_UNSET="${CT_ENVVAR_UNSET} $*"
+    }
+
+    export()
+    {
+        local v
+
+        for v in "$@"; do
+            eval "builtin export \"${v}\""
+            case "${CT_ENVVAR_EXPORTED} " in
+                *" ${v%%=*} "*) continue;;
+            esac
+            CT_ENVVAR_EXPORTED="${CT_ENVVAR_EXPORTED} ${v%%=*}"
+        done
+    }
+}
+
 # This function creates a tarball of the specified directory, but
 # only if it exists
 # Usage: CT_DoTarballIfExists <dir> <tarball_basename> [extra_tar_options [...]]
@@ -1033,25 +1057,31 @@ CT_DoSaveState() {
 	[ "${CT_DEBUG_CT_SAVE_STEPS}" = "y" ] || return 0
     local state_name="$1"
     local state_dir="${CT_STATE_DIR}/${state_name}"
+    local v
 
     CT_DoLog INFO "Saving state to restart at step '${state_name}'..."
 
     rm -rf "${state_dir}"
     mkdir -p "${state_dir}"
 
+    # Save only environment variables, not functions.
+    # Limit saving to our variables (CT_*) and exported variables.
+    # Also unset variables that have been removed from the environment.
+    # This generated script will be sourced from a function, so make
+    # all the definitions global by adding -g. Hope we don't have
+    # a multi-line variable that has a line starting with "declare"
+    # (or we'll need to run sed on each variable separately, only on
+    # the first line of it).
     CT_DoLog STATE "  Saving environment and aliases"
-    # We must omit shell functions, and some specific bash variables
-    # that break when restoring the environment, later. We could do
-    # all the processing in the awk script, but a sed is easier...
-    set |${awk} '
-              BEGIN { _p = 1; }
-              $0~/^[^ ]+ \(\)/ { _p = 0; }
-              _p == 1
-              $0 == "}" { _p = 1; }
-              ' |${sed} -r -e '/^BASH_(ARGC|ARGV|LINENO|SOURCE|VERSINFO)=/d;
-                           /^(UID|EUID)=/d;
-                           /^(FUNCNAME|GROUPS|PPID|SHELLOPTS)=/d;' >"${state_dir}/env.sh"
-
+    {
+        for v in "${!CT_@}" ${CT_ENVVAR_EXPORTED}; do
+            # Check if it is still set
+            [ -n "${!v+set}" ] && declare -p "${v}"
+        done | ${sed} 's/^declare /declare -g /'
+        echo "builtin unset ${CT_ENVVAR_UNSET}"
+    } >"${state_dir}/env.sh"
+    
+    # Save .config to check it hasn't changed when resuming.
     CT_DoExecLog STATE cp ".config" "${state_dir}/config"
 
     CT_DoTarballIfExists "${CT_BUILDTOOLS_PREFIX_DIR}" "${state_dir}/buildtools_dir"
@@ -1094,7 +1124,6 @@ CT_DoLoadState(){
     # Restore the new RESTART and STOP steps
     CT_RESTART="${old_RESTART}"
     CT_STOP="${old_STOP}"
-    unset old_stop old_restart
 
     CT_DoLog STATE "  Restoring log file"
     CT_LogDisable
