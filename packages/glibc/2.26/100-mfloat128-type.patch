@@ -1,0 +1,193 @@
+diff -urpN glibc-2.26.orig/config.make.in glibc-2.26/config.make.in
+--- glibc-2.26.orig/config.make.in	2017-08-20 21:59:30.036150121 -0700
++++ glibc-2.26/config.make.in	2017-08-20 21:31:38.493453145 -0700
+@@ -40,6 +40,7 @@ asflags-cpu = @libc_cv_cc_submachine@
+ config-extra-cflags = @libc_extra_cflags@
+ config-extra-cppflags = @libc_extra_cppflags@
+ config-cflags-nofma = @libc_cv_cc_nofma@
++config-cflags-mfloat128-type = @libc_cv_compiler_powerpc64le_float128_type@
+ 
+ defines = @DEFINES@
+ sysheaders = @sysheaders@
+diff -urpN glibc-2.26.orig/configure glibc-2.26/configure
+--- glibc-2.26.orig/configure	2017-08-20 21:59:22.800103852 -0700
++++ glibc-2.26/configure	2017-08-20 22:02:25.581384888 -0700
+@@ -618,6 +618,7 @@ have_libaudit
+ LIBGD
+ libc_cv_cc_loop_to_function
+ libc_cv_cc_submachine
++libc_cv_compiler_powerpc64le_float128_type
+ libc_cv_cc_nofma
+ libc_cv_mtls_dialect_gnu2
+ fno_unit_at_a_time
+@@ -6295,6 +6296,9 @@ fi
+ $as_echo "$libc_cv_cc_nofma" >&6; }
+ 
+ 
++# Detected in powerpc64le fragment
++
++
+ if test -n "$submachine"; then
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for compiler option for CPU variant" >&5
+ $as_echo_n "checking for compiler option for CPU variant... " >&6; }
+diff -urpN glibc-2.26.orig/configure.ac glibc-2.26/configure.ac
+--- glibc-2.26.orig/configure.ac	2017-08-20 21:59:22.800103852 -0700
++++ glibc-2.26/configure.ac	2017-08-20 22:00:33.220570833 -0700
+@@ -1656,6 +1656,9 @@ for opt in -ffp-contract=off -mno-fused-
+ done])
+ AC_SUBST(libc_cv_cc_nofma)
+ 
++# Detected in powerpc64le fragment
++AC_SUBST(libc_cv_compiler_powerpc64le_float128_type)
++
+ if test -n "$submachine"; then
+   AC_CACHE_CHECK([for compiler option for CPU variant],
+ 		 libc_cv_cc_submachine, [dnl
+diff -urpN glibc-2.26.orig/sysdeps/powerpc/powerpc64le/configure glibc-2.26/sysdeps/powerpc/powerpc64le/configure
+--- glibc-2.26.orig/sysdeps/powerpc/powerpc64le/configure	2017-08-20 21:59:30.036150121 -0700
++++ glibc-2.26/sysdeps/powerpc/powerpc64le/configure	2017-08-20 22:01:12.712847975 -0700
+@@ -1,6 +1,24 @@
+ # This file is generated from configure.ac by Autoconf.  DO NOT EDIT!
+  # Local configure fragment for sysdeps/powerpc/powerpc64le.
+ 
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether compiler supports -mfloat128-type" >&5
++$as_echo_n "checking whether compiler supports -mfloat128-type... " >&6; }
++if ${libc_cv_compiler_powerpc64le_float128_type+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  if { ac_try='${CC-cc} -mfloat128-type -xc /dev/null -S -o /dev/null'
++  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
++  (eval $ac_try) 2>&5
++  ac_status=$?
++  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
++  test $ac_status = 0; }; }; then :
++  libc_cv_compiler_powerpc64le_float128_type=-mfloat128-type
++fi
++
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_compiler_powerpc64le_float128_type" >&5
++$as_echo "$libc_cv_compiler_powerpc64le_float128_type" >&6; }
++
+ 
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports binary128 floating point type" >&5
+ $as_echo_n "checking if $CC supports binary128 floating point type... " >&6; }
+@@ -8,7 +26,7 @@ if ${libc_cv_compiler_powerpc64le_binary
+   $as_echo_n "(cached) " >&6
+ else
+   save_CFLAGS="$CFLAGS"
+-CFLAGS="$CFLAGS -Werror -mfloat128"
++CFLAGS="$CFLAGS -Werror -mfloat128 $libc_cv_compiler_powerpc64le_float128_type"
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ 
+diff -urpN glibc-2.26.orig/sysdeps/powerpc/powerpc64le/configure.ac glibc-2.26/sysdeps/powerpc/powerpc64le/configure.ac
+--- glibc-2.26.orig/sysdeps/powerpc/powerpc64le/configure.ac	2017-08-20 21:59:30.036150121 -0700
++++ glibc-2.26/sysdeps/powerpc/powerpc64le/configure.ac	2017-08-20 22:01:08.764819809 -0700
+@@ -1,12 +1,18 @@
+ GLIBC_PROVIDES dnl See aclocal.m4 in the top level source directory.
+ # Local configure fragment for sysdeps/powerpc/powerpc64le.
+ 
++AC_CACHE_CHECK([whether compiler supports -mfloat128-type],
++	       libc_cv_compiler_powerpc64le_float128_type, [dnl
++LIBC_TRY_CC_OPTION([-mfloat128-type],
++    [libc_cv_compiler_powerpc64le_float128_type=-mfloat128-type])
++])
++
+ dnl Require binary128 floating point support on powerpc64le (available in
+ dnl GCC 6.2).
+ AC_CACHE_CHECK([if $CC supports binary128 floating point type],
+ 	       libc_cv_compiler_powerpc64le_binary128_ok, [dnl
+ save_CFLAGS="$CFLAGS"
+-CFLAGS="$CFLAGS -Werror -mfloat128"
++CFLAGS="$CFLAGS -Werror -mfloat128 $libc_cv_compiler_powerpc64le_float128_type"
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ __float128 a, b, c, d, e;
+ int i;
+diff -urpN glibc-2.26.orig/sysdeps/powerpc/powerpc64le/Makefile glibc-2.26/sysdeps/powerpc/powerpc64le/Makefile
+--- glibc-2.26.orig/sysdeps/powerpc/powerpc64le/Makefile	2017-08-20 21:59:30.036150121 -0700
++++ glibc-2.26/sysdeps/powerpc/powerpc64le/Makefile	2017-08-20 21:31:38.493453145 -0700
+@@ -6,35 +6,37 @@
+ # linked executables, forcing to link the loader after libgcc link.
+ f128-loader-link = $(as-needed) $(elf-objpfx)ld.so $(no-as-needed)
+ 
++f128-options = -mfloat128 $(config-cflags-mfloat128-type)
++
+ ifeq ($(subdir),math)
+ # sqrtf128 requires emulation before POWER9.
+ CPPFLAGS += -I../soft-fp
+ 
+ # float128 requires adding a handful of extra flags.
+-$(foreach suf,$(all-object-suffixes),%f128$(suf)): CFLAGS += -mfloat128
+-$(foreach suf,$(all-object-suffixes),%f128_r$(suf)): CFLAGS += -mfloat128
+-$(foreach suf,$(all-object-suffixes),$(objpfx)test-float128%$(suf)): CFLAGS += -mfloat128
+-$(foreach suf,$(all-object-suffixes),$(objpfx)test-ifloat128%$(suf)): CFLAGS += -mfloat128
+-CFLAGS-libm-test-support-float128.c += -mfloat128
++$(foreach suf,$(all-object-suffixes),%f128$(suf)): CFLAGS += $(f128-options)
++$(foreach suf,$(all-object-suffixes),%f128_r$(suf)): CFLAGS += $(f128-options)
++$(foreach suf,$(all-object-suffixes),$(objpfx)test-float128%$(suf)): CFLAGS += $(f128-options)
++$(foreach suf,$(all-object-suffixes),$(objpfx)test-ifloat128%$(suf)): CFLAGS += $(f128-options)
++CFLAGS-libm-test-support-float128.c += $(f128-options)
+ $(objpfx)test-float128% $(objpfx)test-ifloat128%: \
+   gnulib-tests += $(f128-loader-link)
+ endif
+ 
+ # Append flags to string <-> _Float128 routines.
+ ifneq ($(filter $(subdir),wcsmbs stdlib),)
+-$(foreach suf,$(all-object-suffixes),%f128$(suf)): CFLAGS += -mfloat128
+-$(foreach suf,$(all-object-suffixes),%f128_l$(suf)): CFLAGS += -mfloat128
+-$(foreach suf,$(all-object-suffixes),%f128_nan$(suf)): CFLAGS += -mfloat128
+-$(foreach suf,$(all-object-suffixes),%float1282mpn$(suf)): CFLAGS += -mfloat128
+-$(foreach suf,$(all-object-suffixes),%mpn2float128$(suf)): CFLAGS += -mfloat128
+-CFLAGS-bug-strtod.c += -mfloat128
+-CFLAGS-bug-strtod2.c += -mfloat128
+-CFLAGS-tst-strtod-round.c += -mfloat128
+-CFLAGS-tst-wcstod-round.c += -mfloat128
+-CFLAGS-tst-strtod6.c += -mfloat128
+-CFLAGS-tst-strfrom.c += -mfloat128
+-CFLAGS-tst-strfrom-locale.c += -mfloat128
+-CFLAGS-strfrom-skeleton.c += -mfloat128
++$(foreach suf,$(all-object-suffixes),%f128$(suf)): CFLAGS += $(f128-options)
++$(foreach suf,$(all-object-suffixes),%f128_l$(suf)): CFLAGS += $(f128-options)
++$(foreach suf,$(all-object-suffixes),%f128_nan$(suf)): CFLAGS += $(f128-options)
++$(foreach suf,$(all-object-suffixes),%float1282mpn$(suf)): CFLAGS += $(f128-options)
++$(foreach suf,$(all-object-suffixes),%mpn2float128$(suf)): CFLAGS += $(f128-options)
++CFLAGS-bug-strtod.c += $(f128-options)
++CFLAGS-bug-strtod2.c += $(f128-options)
++CFLAGS-tst-strtod-round.c += $(f128-options)
++CFLAGS-tst-wcstod-round.c += $(f128-options)
++CFLAGS-tst-strtod6.c += $(f128-options)
++CFLAGS-tst-strfrom.c += $(f128-options)
++CFLAGS-tst-strfrom-locale.c += $(f128-options)
++CFLAGS-strfrom-skeleton.c += $(f128-options)
+ $(foreach test,bug-strtod bug-strtod2 bug-strtod2 tst-strtod-round \
+ tst-wcstod-round tst-strtod6 tst-strrom tst-strfrom-locale \
+ strfrom-skeleton,$(objpfx)$(test)): gnulib-tests += $(f128-loader-link)
+@@ -44,18 +46,18 @@ strfrom-skeleton,$(objpfx)$(test)): gnul
+ # Makefiles (e.g.: wcsmbs/Makefile) override CFLAGS defined by the Makefiles in
+ # sysdeps.  This is avoided with the use sysdep-CFLAGS instead of CFLAGS.
+ sysdep-CFLAGS += $(sysdep-CFLAGS-$(<F))
+-sysdep-CFLAGS-fpioconst.c += -mfloat128
+-sysdep-CFLAGS-strtod_l.c += -mfloat128
+-sysdep-CFLAGS-strtof_l.c += -mfloat128
+-sysdep-CFLAGS-strtold_l.c += -mfloat128
+-sysdep-CFLAGS-wcstod_l.c += -mfloat128
+-sysdep-CFLAGS-wcstof_l.c += -mfloat128
+-sysdep-CFLAGS-wcstold_l.c += -mfloat128
++sysdep-CFLAGS-fpioconst.c += $(f128-options)
++sysdep-CFLAGS-strtod_l.c += $(f128-options)
++sysdep-CFLAGS-strtof_l.c += $(f128-options)
++sysdep-CFLAGS-strtold_l.c += $(f128-options)
++sysdep-CFLAGS-wcstod_l.c += $(f128-options)
++sysdep-CFLAGS-wcstof_l.c += $(f128-options)
++sysdep-CFLAGS-wcstold_l.c += $(f128-options)
+ endif
+ 
+ # Append flags to printf routines.
+ ifeq ($(subdir),stdio-common)
+-CFLAGS-printf_fp.c = -mfloat128
+-CFLAGS-printf_fphex.c = -mfloat128
+-CFLAGS-printf_size.c = -mfloat128
++CFLAGS-printf_fp.c = $(f128-options)
++CFLAGS-printf_fphex.c = $(f128-options)
++CFLAGS-printf_size.c = $(f128-options)
+ endif
