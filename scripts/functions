@@ -1713,6 +1713,7 @@ CT_PackageRun()
     # Fetching the sources is run in the main process, so no need to
     # use CT_EnvModify.
     for v in devel_branch devel_revision basename version; do
+        eval "[ \"\${${v}}\" != \"\${CT_${use}_${v^^}}\" ] || continue"
         eval "CT_${use}_${v^^}=\${${v}}"
         eval "CT_DoLog DEBUG \"Override CT_${use}_${v^^}=\${CT_${use}_${v^^}}\""
     done
@@ -2008,4 +2009,18 @@ CT_ExtractPatch()
 
     shift
     CT_PackageRun "${pkg}" CT_DoExtractPatch "$@"
+}
+
+CT_DoGetPkgVersion()
+{
+    echo "${version}"
+}
+
+# Get the version of the package (main or fork)
+CT_GetPkgVersion()
+{
+    local pkg="${1}"
+    shift
+
+    CT_PackageRun "${pkg}" CT_DoGetPkgVersion
 }
