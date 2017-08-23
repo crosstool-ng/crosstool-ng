@@ -570,7 +570,9 @@ gen_packages()
     msg "Master packages: ${pkg_masters[@]}"
 
     # Now for each master, create its kconfig file with version
-    # definitions.
+    # definitions. As a byproduct, generate a list of all package
+    # versions for maintenance purposes.
+    exec 3>"maintainer/package-versions"
     for p in "${pkg_masters[@]}"; do
         msg "Generating '${config_versions_dir}/${p}.in'"
         exec >"${config_versions_dir}/${p}.in"
@@ -586,6 +588,7 @@ gen_packages()
         set_iter milestone ${pkg_milestones[${p}]}
 
         run_template "maintainer/kconfig-versions.template"
+        run_template "maintainer/package-versions.template" >&3
     done
 }
 
