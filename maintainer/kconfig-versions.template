@@ -3,7 +3,7 @@
 #
 
 # The component directory name
-config @@masterpfx@@_DIR_NAME
+config @@master|@@_DIR_NAME
     string
     default "@@master@@"
 
@@ -13,7 +13,7 @@ choice
     bool "Show @@master@@ versions from"
 
 #!foreach fork
-config @@masterpfx@@_USE_@@originpfx@@
+config @@master|@@_USE_@@origin|@@
     bool "@@origin@@"
 #!if [ -n "@@only_obsolete@@" ]
     depends on OBSOLETE
@@ -27,20 +27,20 @@ config @@masterpfx@@_USE_@@originpfx@@
 #!end-foreach
 endchoice
 
-config @@masterpfx@@_USE
+config @@master|@@_USE
     string
 #!foreach fork
-    default "@@pfx@@" if @@masterpfx@@_USE_@@originpfx@@
+    default "@@fork|@@" if @@master|@@_USE_@@origin|@@
 #!end-foreach
 
 #!end-if
 
 #!foreach fork
 #!if [ "@@nforks@@" -ge 2 ]
-if @@masterpfx@@_USE_@@originpfx@@
+if @@master|@@_USE_@@origin|@@
 #!end-if
 
-config @@pfx@@_PKG_NAME
+config @@fork|@@_PKG_NAME
     string
     default "@@pkg_name@@"
 
@@ -51,16 +51,16 @@ config @@pfx@@_PKG_NAME
 choice
     bool "Source of @@pkg_label@@"
 
-#!if [ -n "@@all_versions@@" ]
-config @@pfx@@_SRC_RELEASE
+#!if [ "@@#version@@" -gt 0 ]
+config @@fork|@@_SRC_RELEASE
     bool "Released tarball"
     help
       Download a released tarball.
 
 #!end-if
-config @@pfx@@_SRC_DEVEL
+config @@fork|@@_SRC_DEVEL
     bool "Vendor/custom repository"
-#!if [ -n "@@all_versions@@" ]
+#!if [ "@@#version@@" -gt 0 ]
     depends on EXPERIMENTAL
 #!end-if
     help
@@ -69,39 +69,39 @@ config @@pfx@@_SRC_DEVEL
       Default is the vendor repository at @@repository_url@@
 #!end-if
 
-if @@pfx@@_SRC_DEVEL
+if @@fork|@@_SRC_DEVEL
 
 choice
     bool "VCS type"
 #!if [ -n "@@repository@@" ]
-    default @@pfx@@_DEVEL_VCS_@@vcs@@
+    default @@fork|@@_DEVEL_VCS_@@vcs@@
 #!end-if
     help
       Version control system from which the sources will be checked out.
       The default value points to the development repository for @@pkg_label@@.
 
-config @@pfx@@_DEVEL_VCS_git
+config @@fork|@@_DEVEL_VCS_git
     bool "Git"
 
-config @@pfx@@_DEVEL_VCS_svn
+config @@fork|@@_DEVEL_VCS_svn
     bool "Subversion"
 
-config @@pfx@@_DEVEL_VCS_hg
+config @@fork|@@_DEVEL_VCS_hg
     bool "Mercurial"
 
-config @@pfx@@_DEVEL_VCS_cvs
+config @@fork|@@_DEVEL_VCS_cvs
     bool "CVS"
 
 endchoice
 
-config @@pfx@@_DEVEL_VCS
+config @@fork|@@_DEVEL_VCS
     string
-    default "git" if @@pfx@@_DEVEL_VCS_git
-    default "svn" if @@pfx@@_DEVEL_VCS_svn
-    default "hg" if @@pfx@@_DEVEL_VCS_hg
-    default "cvs" if @@pfx@@_DEVEL_VCS_cvs
+    default "git" if @@fork|@@_DEVEL_VCS_git
+    default "svn" if @@fork|@@_DEVEL_VCS_svn
+    default "hg" if @@fork|@@_DEVEL_VCS_hg
+    default "cvs" if @@fork|@@_DEVEL_VCS_cvs
 
-config @@pfx@@_DEVEL_URL
+config @@fork|@@_DEVEL_URL
     string "Repository URL"
 #!if [ -n "@@repository@@" ]
     default "@@repository_url@@"
@@ -112,7 +112,7 @@ config @@pfx@@_DEVEL_URL
       For CVS, enter both the value of CVS root and the module name, separated
       by a space.
 
-config @@pfx@@_DEVEL_BRANCH
+config @@fork|@@_DEVEL_BRANCH
     string "Branch/tag to check out"
     default "@@repository_branch@@"
     help
@@ -122,7 +122,7 @@ config @@pfx@@_DEVEL_BRANCH
       stable branches. You likely need to change the repository URL, rather than
       enter anything here.
 
-config @@pfx@@_DEVEL_REVISION
+config @@fork|@@_DEVEL_REVISION
     string "Revision/changeset"
     default "@@repository_cset@@"
     help
@@ -131,7 +131,7 @@ config @@pfx@@_DEVEL_REVISION
       CVS: enter the date in "YYYY/MM/DD HH:MM:SS" format (UTC) to check out certain date.
       Subversion: enter the revision.
 
-config @@pfx@@_DEVEL_SUBDIR
+config @@fork|@@_DEVEL_SUBDIR
     string "Subdirectory in the repository"
     default "@@repository_subdir@@"
     help
@@ -139,7 +139,7 @@ config @@pfx@@_DEVEL_SUBDIR
       repository, but rather from some subdirectory. If it is the case,
       specify this subdirectory here.
 
-config @@pfx@@_DEVEL_BOOTSTRAP
+config @@fork|@@_DEVEL_BOOTSTRAP
     string "Bootstrap command"
     default "@@bootstrap@@"
     help
@@ -150,15 +150,15 @@ config @@pfx@@_DEVEL_BOOTSTRAP
 
 endif
 
-config @@pfx@@_SRC_CUSTOM
+config @@fork|@@_SRC_CUSTOM
     bool "Custom location"
     depends on EXPERIMENTAL
     help
       Custom directory or tarball.
 
-if @@pfx@@_SRC_CUSTOM
+if @@fork|@@_SRC_CUSTOM
 
-config @@pfx@@_CUSTOM_LOCATION
+config @@fork|@@_CUSTOM_LOCATION
     string "Custom source location"
     help
       Path to the directory or tarball with the sources.
@@ -174,7 +174,7 @@ endchoice
 #!// where we need to identify a range of releases on a branch, for example,
 #!// "all FOO releases after 4.9.1 but before 4.9.3".
 #!//
-#!if [ -n "@@all_versions@@" -a -z "@@versionlocked@@" ]
+#!if [ "@@#version@@" -gt 0 -a -z "@@versionlocked@@" ]
 choice
     bool "Version of @@pkg_label@@"
     help
@@ -184,18 +184,18 @@ choice
       Based on this version, crosstool-NG may apply some version-specific
       quirks while building @@pkg_label@@.
 
-config @@pfx@@_VERY_NEW
+config @@fork|@@_VERY_NEW
     bool "newer than anything below"
     depends on EXPERIMENTAL
-    depends on @@pfx@@_SRC_DEVEL || @@pfx@@_SRC_CUSTOM
+    depends on @@fork|@@_SRC_DEVEL || @@fork|@@_SRC_CUSTOM
 #!foreach milestone
-    select @@masterpfx@@_@@ms_kcfg@@_or_later
-    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_older
+    select @@master|@@_@@ms|@@_or_later
+    depends on !@@master|@@_REQUIRE_@@ms|@@_or_older
 #!end-foreach
 
 #!foreach version
-config @@pfx@@_V_@@kcfg@@
-    bool "@@ver@@@@ver_postfix@@"
+config @@fork|@@_V_@@ver_sel|@@
+    bool "@@ver@@@@obsolete? (OBSOLETE)@@@@experimental? (EXPERIMENTAL)@@"
 #!if [ "@@obsolete@@" = "yes" ]
     depends on OBSOLETE
 #!end-if
@@ -204,26 +204,26 @@ config @@pfx@@_V_@@kcfg@@
 #!end-if
 #!foreach milestone
 #!if [ "@@version_cmp_milestone@@" -ge 0 ]
-    select @@masterpfx@@_@@ms_kcfg@@_or_later
+    select @@master|@@_@@ms|@@_or_later
 #!end-if
 #!if [ "@@version_cmp_milestone@@" -le 0 ]
-    select @@masterpfx@@_@@ms_kcfg@@_or_older
+    select @@master|@@_@@ms|@@_or_older
 #!end-if
 #!if [ "@@version_cmp_milestone@@" -gt 0 ]
-    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_older
+    depends on !@@master|@@_REQUIRE_@@ms|@@_or_older
 #!end-if
 #!if [ "@@version_cmp_milestone@@" -lt 0 ]
-    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_later
+    depends on !@@master|@@_REQUIRE_@@ms|@@_or_later
 #!end-if
 #!end-foreach
 
 #!end-foreach
-config @@pfx@@_VERY_OLD
+config @@fork|@@_VERY_OLD
     bool "older than anything above"
     depends on OBSOLETE && EXPERIMENTAL
-    depends on @@pfx@@_SRC_DEVEL || @@pfx@@_SRC_CUSTOM
+    depends on @@fork|@@_SRC_DEVEL || @@fork|@@_SRC_CUSTOM
 #!foreach milestone
-    depends on !@@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_later
+    depends on !@@master|@@_REQUIRE_@@ms|@@_or_later
 #!end-foreach
 
 endchoice
@@ -231,46 +231,46 @@ endchoice
 
 #!if [ -n "@@versionlocked@@" ]
 #!foreach version
-config @@pfx@@_V_@@kcfg@@
+config @@fork|@@_V_@@ver_sel|@@
     def_bool y
-    depends on @@versionlocked@@_V_@@kcfg@@
+    depends on @@versionlocked|@@_V_@@ver_sel|@@
 
 #!end-foreach
 #!end-if
 
-config @@pfx@@_VERSION
+config @@fork|@@_VERSION
     string
 #!foreach version
-    default "@@ver@@" if @@pfx@@_V_@@kcfg@@
+    default "@@ver@@" if @@fork|@@_V_@@ver_sel|@@
 #!end-foreach
     default "unknown"
 
-#!if [ -n "@@all_versions@@" ]
-config @@pfx@@_MIRRORS
+#!if [ "@@#version@@" -gt 0 ]
+config @@fork|@@_MIRRORS
     string
 #!foreach version
-    default "@@mirrors@@" if @@pfx@@_V_@@kcfg@@
+    default "@@mirrors@@" if @@fork|@@_V_@@ver_sel|@@
 #!end-foreach
     default "@@mirrors@@"
 
-config @@pfx@@_ARCHIVE_FILENAME
+config @@fork|@@_ARCHIVE_FILENAME
     string
 #!foreach version
-    default "@@archive_filename@@" if @@pfx@@_V_@@kcfg@@
+    default "@@archive_filename@@" if @@fork|@@_V_@@ver_sel|@@
 #!end-foreach
     default "@@archive_filename@@"
 
-config @@pfx@@_ARCHIVE_DIRNAME
+config @@fork|@@_ARCHIVE_DIRNAME
     string
 #!foreach version
-    default "@@archive_dirname@@" if @@pfx@@_V_@@kcfg@@
+    default "@@archive_dirname@@" if @@fork|@@_V_@@ver_sel|@@
 #!end-foreach
     default "@@archive_dirname@@"
 
-config @@pfx@@_ARCHIVE_FORMATS
+config @@fork|@@_ARCHIVE_FORMATS
     string
 #!foreach version
-    default "@@archive_formats@@" if @@pfx@@_V_@@kcfg@@
+    default "@@archive_formats@@" if @@fork|@@_V_@@ver_sel|@@
 #!end-foreach
     default "@@archive_formats@@"
 
@@ -284,18 +284,18 @@ endif
 
 #!foreach milestone
 #!// Milestones selected by a chosen version of this package
-config @@masterpfx@@_@@ms_kcfg@@_or_later
+config @@master|@@_@@ms|@@_or_later
     bool
 
-config @@masterpfx@@_@@ms_kcfg@@_or_older
+config @@master|@@_@@ms|@@_or_older
     bool
 
 #!// Milestone requirements selected by other packages that restrict
 #!// the choices in this package
-config @@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_later
+config @@master|@@_REQUIRE_@@ms|@@_or_later
     bool
 
-config @@masterpfx@@_REQUIRE_@@ms_kcfg@@_or_older
+config @@master|@@_REQUIRE_@@ms|@@_or_older
     bool
 
 #!end-foreach

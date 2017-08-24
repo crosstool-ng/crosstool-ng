@@ -77,13 +77,16 @@ find_end()
 set_iter()
 {
     local name="${1}"
+    local -a temp
 
     if [ "${info[iter_${name}]+set}" = "set" ]; then
         error "Iterator over '${name}' is already set up"
     fi
     shift
     debug "Setting iterator over '${name}' to '$*'"
+    temp=("$@")
     info[iter_${name}]="$*"
+    info[#${name}]=${#temp[@]}
 }
 
 run_if()
@@ -150,7 +153,7 @@ run_lines()
 {
     local start="${1}"
     local end="${2}"
-    local l lnext s s1 v
+    local l lnext s s1 v vp pp p val
 
     debug "Running lines ${start}..${end}"
     l=${start}
@@ -166,8 +169,34 @@ run_lines()
                 *@@*@@*)
                     v="${s#*@@}"
                     v="${v%%@@*}"
+                    # $v now includes variable name + any postprocessing
+                    vp="${v%%[|?]*}"
+                    pp="${v#${vp}}"
+                    # $vp is name of the variable proper, $pp is any postprocessing
+                    if [ "${info[${vp}]+set}" != "set" ]; then
+                        error "line ${l}: reference to undefined variable '${vp}'"
+                    fi
                     if [ "${info[${v}]+set}" != "set" ]; then
-                        error "line ${l}: reference to undefined variable '${v}'"
+                        # We know the base variable, need to cache postprocessed value
+                        val="${info[${vp}]}"
+                        # Apply postprocessing(s)
+                        while [ -n "${pp}" ]; do
+                            case "${pp}" in
+                                "|"*)
+                                    # Kconfigize
+                                    pp="${pp#|}"
+                                    val=${val//[^0-9A-Za-z_]/_}
+                                    val=${val^^}
+                                    ;;
+                                "?"*)
+                                    pp="${pp#?}"
+                                    p="${pp%%[|?]*}"
+                                    pp="${pp#${p}}"
+                                    val="${val:+${p}}"
+                                    ;;
+                            esac
+                        done
+                        info[${v}]="${val}"
                     fi
                     s1="${s1}${s%%@@*}\${info[${v}]}"
                     s="${s#*@@*@@}"
@@ -221,15 +250,14 @@ run_template()
 
 ########################################
 
-# Convert the argument to a Kconfig-style macro
-kconfigize()
+# Leave only relevant portion of the string
+relevantize()
 {
-    local v="${1}"
     local p pb pa vx
+    local v="${1}"
     shift
 
-    # If optional patterns are provided, find the first match
-    # and contract to the matching portion.
+    # Find the first match and contract to the matching portion.
     for p in "$@"; do
         pb=${p%|*}
         pa=${p#*|}
@@ -239,9 +267,7 @@ kconfigize()
             break
         fi
     done
-
-    v=${v//[^0-9A-Za-z_]/_}
-    echo "${v^^}"
+    echo "${v}"
 }
 
 # Helper for cmp_versions: compare an upstream/debian portion of
@@ -484,11 +510,11 @@ enter_fork()
     info[mirrors]=
     info[archive_filename]='@{pkg_name}-@{version}'
     info[archive_dirname]='@{pkg_name}-@{version}'
+    info[versionlocked]=
+    info[origin]=
 
     eval `read_package_desc ${fork}`
 
-    info[pfx]=`kconfigize ${fork}`
-    info[originpfx]=`kconfigize ${info[origin]}`
     if [ -r "packages/${info[origin]}.help" ]; then
         info[originhelp]=`sed 's/^/      /' "packages/${info[origin]}.help"`
     else
@@ -499,7 +525,6 @@ enter_fork()
         info[vcs]=${info[repository]%% *}
         info[repository_url]=${info[repository]#* }
     fi
-    info[versionlocked]=`kconfigize "${info[versionlocked]}"`
 
     versions=`cd packages/${fork} && \
         for f in */version.desc; do [ -r "${f}" ] && echo "${f%/version.desc}"; done`
@@ -525,16 +550,11 @@ enter_fork()
 
 enter_version()
 {
-    local -A ver_postfix=( \
-        [,yes,,]=" (OBSOLETE)" \
-        [,,yes,]=" (EXPERIMENTAL)" \
-        [,yes,yes,]=" (OBSOLETE,EXPERIMENTAL)" )
     local version="${1}"
 
     eval `read_version_desc ${info[fork]} ${version}`
     info[ver]=${version}
-    info[kcfg]=`kconfigize ${version} ${info[relevantpattern]}`
-    info[ver_postfix]=${ver_postfix[,${info[obsolete]},${info[experimental]},]}
+    info[ver_sel]=`relevantize ${version} ${info[relevantpattern]}`
 }
 
 enter_milestone()
@@ -543,7 +563,6 @@ enter_milestone()
     local cmp
 
     info[ms]=${ms}
-    info[ms_kcfg]=`kconfigize ${ms}`
     if [ -n "${info[ver]}" ]; then
         info[version_cmp_milestone]=`cmp_versions ${info[ver]} ${info[ms]}`
     fi
@@ -579,9 +598,7 @@ gen_packages()
         # Base definitions for the whole config file
         info=( \
             [master]=${p} \
-            [masterpfx]=`kconfigize ${p}` \
             [nforks]=${pkg_nforks[${p}]} \
-            [all_milestones]=${pkg_milestones[${p}]} \
             [relevantpattern]=${pkg_relevantpattern[${p}]} \
             )
         set_iter fork ${pkg_forks[${p}]}
@@ -615,7 +632,6 @@ enter_choice()
     local l
 
     info[choice]="${choice}"
-    info[kcfg_choice]=`kconfigize "${choice}"`
 
     # Not local, we need these arrays be set in enter_dependency/enter_help
     deplines=( )
@@ -653,7 +669,6 @@ gen_selection()
     msg "Generating ${dir}.in"
     exec >"${config_gen_dir}/${dir}.in"
     info=( \
-        [prefix]=`kconfigize ${dir}` \
         [dir]=${dir} \
         [label]="${label}" \
         )
