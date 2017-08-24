@@ -92,7 +92,11 @@ check_pkg_urls()
         CT_DoStep EXTRA "Looking for ${archive_filename}${e}"
         for m in ${mirrors}; do
             url="${m}/${archive_filename}${e}"
-            mh="${m#*://}"
+            case "${url}" in
+            # WGET always returns success for FTP URLs in spider mode :(
+            ftp://*) CT_DoLog DEBUG "Skipping '${url}': FTP not supported"; continue;;
+            esac
+            mh="${url#*://}"
             mh="${mh%%[:/]*}"
             if [ -n "${mirror_status[${mh}]}" ]; then
                 CT_DoLog DEBUG "Skipping '${url}': already found on this host at '${mirror_status[${mh}]}'"
