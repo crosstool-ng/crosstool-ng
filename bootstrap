@@ -91,7 +91,7 @@ set_iter()
 
 run_if()
 {
-    local cond="${1}"
+    local cond="$*"
     local endline
 
     find_end "if"
@@ -125,8 +125,9 @@ do_foreach()
         for k in "${!info[@]}"; do
             saveinfo["${k}"]=${info["${k}"]}
         done
-        eval "enter_${var} ${v}"
-        eval "$@"
+        if eval "enter_${var} ${v}"; then
+            eval "$@"
+        fi
         info=()
         for k in "${!saveinfo[@]}"; do
             info["${k}"]=${saveinfo["${k}"]}
@@ -136,17 +137,46 @@ do_foreach()
 
 run_foreach()
 {
-    local var="${1}"
     local endline
+    local var="${1}"
+    shift
 
     if [ "${info[iter_${var}]+set}" != "set" ]; then
         error "line ${l}: iterator over '${var}' is not defined"
     fi
     find_end "foreach"
     debug "Loop over '${var}', lines ${l}..${endline}"
-    do_foreach ${var} run_lines $[l + 1] $[endline - 1]
+    do_foreach ${var} run_lines_if $[l + 1] $[endline - 1] "$*"
     lnext=$[endline + 1]
     debug "Continue at line ${lnext}"
+}
+
+run_lines_if()
+{
+    local start="${1}"
+    local end="${2}"
+    shift 2
+    local cond="$*"
+    local a prev
+
+    for a in ${cond}; do
+        if [ -n "${prev}" ]; then
+            case "${prev}" in
+                if-differs)
+                    if [ "${info[${a}]}" = "${saveinfo[${a}]}" ]; then
+                        return
+                    fi
+                    ;;
+                *)
+                    error "line ${l}: unknown condition '${prev}' for loop"
+                    ;;
+            esac
+            prev=
+        else
+            prev=${a}
+        fi
+    done
+    run_lines "${start}" "${end}"
 }
 
 run_lines()
@@ -215,10 +245,10 @@ run_lines()
         debug "Evaluate: ${s}"
         case "${s}" in
             "#!if "*)
-                run_if "${s#* }"
+                run_if ${s#* }
                 ;;
             "#!foreach "*)
-                run_foreach "${s#* }"
+                run_foreach ${s#* }
                 ;;
             "#!//"*)
                 # Comment, do nothing
