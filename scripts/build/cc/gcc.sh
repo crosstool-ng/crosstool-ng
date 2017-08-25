@@ -458,8 +458,10 @@ do_gcc_core_backend() {
         # Pass-2 should be able to get it from the headers, but for some options
         # (such as --with-long-double-128) we need to get it right even in pass-1.
         # GCC expects just two numbers separated by a dot.
-        local glibc_version=`CT_GetPkgVersion GLIBC | sed 's/\([1-9][0-9]*\.[1-9][0-9]*\).*/\1/'`
+        local glibc_version
 
+        CT_GetPkgVersion GLIBC glibc_version
+        glibc_version=`echo "${glibc_version}" | sed 's/\([1-9][0-9]*\.[1-9][0-9]*\).*/\1/'`
         extra_config+=("--with-glibc-version=${glibc_version}")
     fi
 

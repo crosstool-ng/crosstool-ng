@@ -5,7 +5,6 @@
 do_libc_get() {
     local date
     local version
-    local -a addons_list
 
     CT_Fetch GLIBC
     if [ "${CT_GLIBC_USE_PORTS_EXTERNAL}" = "y" ]; then
@@ -15,13 +14,18 @@ do_libc_get() {
 }
 
 do_libc_extract() {
-    local addon
-
     CT_ExtractPatch GLIBC
     if [ "${CT_GLIBC_USE_PORTS_EXTERNAL}" = "y" ]; then
         CT_ExtractPatch GLIBC_PORTS
+
+        # This may create a bogus symlink if glibc-ports is using custom
+        # sources or has an overlay (and glibc is shared). However,
+        # we do not support concurrent use of the source directory
+        # and next run, if using different glibc-ports source, will override
+        # this symlink anyway.
+        CT_DoExecLog ALL ln -sf "${CT_GLIBC_PORTS_SRC_DIR}/${CT_GLIBC_PORTS_BASENAME}" \
+                "${CT_GLIBC_SRC_DIR}/${CT_GLIBC_BASENAME}/ports"
     fi
-    # TBD make patches for addons (ports? anything else?) uniformly using short names
     # TBD make the configure timestamp fix in all patched packages (e.g. part of CT_ExtractPatch)
 }
 
