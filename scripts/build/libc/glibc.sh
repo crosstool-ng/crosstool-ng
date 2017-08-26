@@ -128,8 +128,9 @@ do_libc_backend_once() {
     # Also, if those two are missing, iconv build breaks
     extra_config+=( --disable-debug --disable-sanity-checks )
 
-    # always include rpc, the user can still override it with TI-RPC
-    extra_config+=( --enable-obsolete-rpc )
+    if [ "${CT_GLIBC_ENABLE_OBSOLETE_RPC}" = "y" ]; then
+        extra_config+=( --enable-obsolete-rpc )
+    fi
 
     # Add some default glibc config options if not given by user.
     # We don't need to be conditional on whether the user did set different
