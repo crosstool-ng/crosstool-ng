@@ -1,0 +1,1660 @@
+commit 021db4be6f1f4189f66feee066a495d49e92b93e
+Author: Andreas Jaeger <aj@suse.de>
+Date:   Thu May 10 20:16:53 2012 +0200
+
+    Make sunrpc code usable again
+    
+      New configure option --enable-obsolete-rpc makes the deprecated RPC
+      headers and functions available at compile time as they were before
+      version 2.14.  This option will be removed at some time in the future
+      after the TI-RPC library becomes fully sufficient for the needs of
+      existing applications.
+
+diff --git a/config.h.in b/config.h.in
+index 787873b4c0..54952609ef 100644
+--- a/config.h.in
++++ b/config.h.in
+@@ -178,6 +178,9 @@
+ /* Define if `.ctors' and `.dtors' sections shouldn't be used.  */
+ #undef	NO_CTORS_DTORS_SECTIONS
+ 
++/* Define if obsolete RPC code should be made available for user-level code
++   to link against.  */
++#undef LINK_OBSOLETE_RPC
+ /*
+  */
+ 
+diff --git a/config.make.in b/config.make.in
+index 5f6f9e281d..6c4d04ee33 100644
+--- a/config.make.in
++++ b/config.make.in
+@@ -96,6 +96,7 @@ add-on-subdirs = @add_on_subdirs@
+ sysdeps-add-ons = @sysdeps_add_ons@
+ cross-compiling = @cross_compiling@
+ force-install = @force_install@
++link-obsolete-rpc = @link_obsolete_rpc@
+ 
+ # Build tools.
+ CC = @CC@
+diff --git a/configure b/configure
+index 1c5f4adbea..c7cb47d0c2 100755
+--- a/configure
++++ b/configure
+@@ -687,6 +687,7 @@ multi_arch
+ base_machine
+ add_on_subdirs
+ add_ons
++link_obsolete_rpc
+ libc_cv_nss_crypt
+ all_warnings
+ force_install
+@@ -779,6 +780,7 @@ enable_kernel
+ enable_all_warnings
+ enable_multi_arch
+ enable_nss_crypt
++enable_obsolete_rpc
+ with_cpu
+ '
+       ac_precious_vars='build_alias
+@@ -1434,6 +1436,8 @@ Optional Features:
+   --enable-multi-arch     enable single DSO with optimizations for multiple
+                           architectures
+   --enable-nss-crypt      enable libcrypt to use nss
++  --enable-obsolete-rpc   build and install the obsolete RPC code for
++                          link-time usage
+ 
+ Optional Packages:
+   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+@@ -3746,6 +3750,20 @@ else
+ fi
+ 
+ 
++# Check whether --enable-obsolete-rpc was given.
++if test "${enable_obsolete_rpc+set}" = set; then :
++  enableval=$enable_obsolete_rpc; link_obsolete_rpc=$enableval
++else
++  link_obsolete_rpc=no
++fi
++
++
++
++if test "$link_obsolete_rpc" = yes; then
++  $as_echo "#define LINK_OBSOLETE_RPC 1" >>confdefs.h
++
++fi
++
+ # The way shlib-versions is used to generate soversions.mk uses a
+ # fairly simplistic model for name recognition that can't distinguish
+ # i486-pc-linux-gnu fully from i486-pc-gnu.  So we mutate a $host_os
+diff --git a/configure.in b/configure.in
+index 19a2c1a0f0..4eb9277e8c 100644
+--- a/configure.in
++++ b/configure.in
+@@ -252,6 +252,17 @@ else
+ fi
+ AC_SUBST(libc_cv_nss_crypt)
+ 
++AC_ARG_ENABLE([obsolete-rpc],
++              AC_HELP_STRING([--enable-obsolete-rpc],
++                             [build and install the obsolete RPC code for link-time usage]),
++              [link_obsolete_rpc=$enableval],
++              [link_obsolete_rpc=no])
++AC_SUBST(link_obsolete_rpc)
++
++if test "$link_obsolete_rpc" = yes; then
++  AC_DEFINE(LINK_OBSOLETE_RPC)
++fi
++
+ # The way shlib-versions is used to generate soversions.mk uses a
+ # fairly simplistic model for name recognition that can't distinguish
+ # i486-pc-linux-gnu fully from i486-pc-gnu.  So we mutate a $host_os
+diff --git a/include/libc-symbols.h b/include/libc-symbols.h
+index 951e46a6e3..0c3274e253 100644
+--- a/include/libc-symbols.h
++++ b/include/libc-symbols.h
+@@ -556,7 +556,12 @@ for linking")
+ # define libc_hidden_proto(name, attrs...) hidden_proto (name, ##attrs)
+ # define libc_hidden_def(name) hidden_def (name)
+ # define libc_hidden_weak(name) hidden_weak (name)
+-# define libc_hidden_nolink(name, version) hidden_nolink (name, libc, version)
++# ifdef LINK_OBSOLETE_RPC
++   /* libc_hidden_nolink_sunrpc should only get used in sunrpc code.  */
++#  define libc_hidden_nolink_sunrpc(name, version) hidden_def (name)
++# else
++#  define libc_hidden_nolink_sunrpc(name, version) hidden_nolink (name, libc, version)
++# endif
+ # define libc_hidden_ver(local, name) hidden_ver (local, name)
+ # define libc_hidden_data_def(name) hidden_data_def (name)
+ # define libc_hidden_data_weak(name) hidden_data_weak (name)
+diff --git a/nis/Makefile b/nis/Makefile
+index a48753f7a9..b412cee304 100644
+--- a/nis/Makefile
++++ b/nis/Makefile
+@@ -23,6 +23,12 @@ subdir	:= nis
+ 
+ aux			:= nis_hash
+ 
++include ../Makeconfig
++
++ifeq ($(link-obsolete-rpc),yes)
++headers			:= $(wildcard rpcsvc/*.[hx])
++endif
++
+ distribute		:= nss-nis.h nss-nisplus.h nis_intern.h Banner \
+ 			   nisplus-parser.h nis_xdr.h nss \
+ 			   $(wildcard rpcsvc/*.[hx])
+diff --git a/sunrpc/Makefile b/sunrpc/Makefile
+index e61efd02b3..3b79dcdb72 100644
+--- a/sunrpc/Makefile
++++ b/sunrpc/Makefile
+@@ -60,6 +60,10 @@ generated-dirs := rpcsvc
+ 
+ include ../Makeconfig
+ 
++ifeq ($(link-obsolete-rpc),yes)
++headers += $(headers-in-tirpc) $(headers-not-in-tirpc)
++endif
++
+ ifeq ($(versioning),yes)
+ need-export-routines := auth_des auth_unix clnt_gen clnt_perr clnt_tcp \
+ 			clnt_udp get_myaddr key_call netname pm_getport \
+@@ -73,9 +77,11 @@ routines := auth_none authuxprot bindrsvprt clnt_raw clnt_simp \
+ 	    svc_simple xdr_float xdr_rec publickey authdes_prot \
+ 	    des_crypt des_impl des_soft key_prot openchild rtime svcauth_des \
+ 	    clnt_unix svc_unix create_xid $(need-export-routines)
++ifneq ($(link-obsolete-rpc),yes)
+ # We only add the RPC for compatibility to libc.so.
+ shared-only-routines = $(routines)
+ endif
++endif
+ 
+ # We do not build rpcinfo anymore.  It is not needed for a bootstrap
+ # and not wanted on complete systems.
+diff --git a/sunrpc/auth_des.c b/sunrpc/auth_des.c
+index 96bbcfc328..0408d60826 100644
+--- a/sunrpc/auth_des.c
++++ b/sunrpc/auth_des.c
+@@ -117,7 +117,7 @@ authdes_create (const char *servername, u_int window,
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (authdes_create)
+ #else
+-libc_hidden_nolink (authdes_create, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (authdes_create, GLIBC_2_1)
+ #endif
+ 
+ AUTH *
+@@ -211,7 +211,7 @@ failed:
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (authdes_pk_create)
+ #else
+-libc_hidden_nolink (authdes_pk_create, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (authdes_pk_create, GLIBC_2_1)
+ #endif
+ 
+ /*
+diff --git a/sunrpc/auth_none.c b/sunrpc/auth_none.c
+index 5f252a9544..3af5966794 100644
+--- a/sunrpc/auth_none.c
++++ b/sunrpc/auth_none.c
+@@ -95,7 +95,7 @@ authnone_create (void)
+   __libc_once (authnone_private_guard, authnone_create_once);
+   return &authnone_private.no_client;
+ }
+-libc_hidden_nolink (authnone_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (authnone_create, GLIBC_2_0)
+ 
+ static bool_t
+ authnone_marshal (AUTH *client, XDR *xdrs)
+diff --git a/sunrpc/auth_unix.c b/sunrpc/auth_unix.c
+index d3b5dc7dee..68b42d7b1f 100644
+--- a/sunrpc/auth_unix.c
++++ b/sunrpc/auth_unix.c
+@@ -149,7 +149,7 @@ no_memory:
+   marshal_new_auth (auth);
+   return auth;
+ }
+-libc_hidden_nolink (authunix_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (authunix_create, GLIBC_2_0)
+ 
+ /*
+  * Returns an auth handle with parameters determined by doing lots of
+@@ -216,7 +216,7 @@ authunix_create_default (void)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (authunix_create_default)
+ #else
+-libc_hidden_nolink (authunix_create_default, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (authunix_create_default, GLIBC_2_0)
+ #endif
+ 
+ /*
+diff --git a/sunrpc/authdes_prot.c b/sunrpc/authdes_prot.c
+index 0a25bac143..164c1223ca 100644
+--- a/sunrpc/authdes_prot.c
++++ b/sunrpc/authdes_prot.c
+@@ -63,7 +63,7 @@ xdr_authdes_cred (XDR *xdrs, struct authdes_cred *cred)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_authdes_cred, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_authdes_cred, GLIBC_2_1)
+ 
+ 
+ bool_t
+@@ -78,4 +78,4 @@ xdr_authdes_verf (register XDR *xdrs, register struct authdes_verf *verf)
+ 		       sizeof (verf->adv_int_u)));
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_authdes_verf, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_authdes_verf, GLIBC_2_1)
+diff --git a/sunrpc/authuxprot.c b/sunrpc/authuxprot.c
+index 64da1799e0..d37faee0c7 100644
+--- a/sunrpc/authuxprot.c
++++ b/sunrpc/authuxprot.c
+@@ -63,4 +63,4 @@ xdr_authunix_parms (XDR * xdrs, struct authunix_parms *p)
+     }
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_authunix_parms, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_authunix_parms, GLIBC_2_0)
+diff --git a/sunrpc/clnt_gen.c b/sunrpc/clnt_gen.c
+index 2b7096cf20..df34672d72 100644
+--- a/sunrpc/clnt_gen.c
++++ b/sunrpc/clnt_gen.c
+@@ -175,5 +175,5 @@ clnt_create (const char *hostname, u_long prog, u_long vers,
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (clnt_create)
+ #else
+-libc_hidden_nolink (clnt_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnt_create, GLIBC_2_0)
+ #endif
+diff --git a/sunrpc/clnt_perr.c b/sunrpc/clnt_perr.c
+index 175370ebfc..b4f84c92e8 100644
+--- a/sunrpc/clnt_perr.c
++++ b/sunrpc/clnt_perr.c
+@@ -127,7 +127,7 @@ clnt_sperror (CLIENT * rpch, const char *msg)
+ 
+   return str;
+ }
+-libc_hidden_nolink (clnt_sperror, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnt_sperror, GLIBC_2_0)
+ 
+ void
+ clnt_perror (CLIENT * rpch, const char *msg)
+@@ -137,7 +137,7 @@ clnt_perror (CLIENT * rpch, const char *msg)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (clnt_perror)
+ #else
+-libc_hidden_nolink (clnt_perror, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnt_perror, GLIBC_2_0)
+ #endif
+ 
+ 
+@@ -270,7 +270,7 @@ clnt_perrno (enum clnt_stat num)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (clnt_perrno)
+ #else
+-libc_hidden_nolink (clnt_perrno, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnt_perrno, GLIBC_2_0)
+ #endif
+ 
+ char *
+@@ -308,7 +308,7 @@ clnt_spcreateerror (const char *msg)
+ 
+   return str;
+ }
+-libc_hidden_nolink (clnt_spcreateerror, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnt_spcreateerror, GLIBC_2_0)
+ 
+ void
+ clnt_pcreateerror (const char *msg)
+@@ -318,7 +318,7 @@ clnt_pcreateerror (const char *msg)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (clnt_pcreateerror)
+ #else
+-libc_hidden_nolink (clnt_pcreateerror, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnt_pcreateerror, GLIBC_2_0)
+ #endif
+ 
+ struct auth_errtab
+diff --git a/sunrpc/clnt_raw.c b/sunrpc/clnt_raw.c
+index 95e3eae988..4004c6b6a8 100644
+--- a/sunrpc/clnt_raw.c
++++ b/sunrpc/clnt_raw.c
+@@ -129,7 +129,7 @@ clntraw_create (u_long prog, u_long vers)
+   client->cl_auth = authnone_create ();
+   return client;
+ }
+-libc_hidden_nolink (clntraw_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clntraw_create, GLIBC_2_0)
+ 
+ static enum clnt_stat
+ clntraw_call (h, proc, xargs, argsp, xresults, resultsp, timeout)
+diff --git a/sunrpc/clnt_simp.c b/sunrpc/clnt_simp.c
+index d2dd3b307a..d612df09a0 100644
+--- a/sunrpc/clnt_simp.c
++++ b/sunrpc/clnt_simp.c
+@@ -139,7 +139,7 @@ callrpc (const char *host, u_long prognum, u_long versnum, u_long procnum,
+     crp->valid = 0;
+   return (int) clnt_stat;
+ }
+-libc_hidden_nolink (callrpc, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (callrpc, GLIBC_2_0)
+ 
+ #ifdef _RPC_THREAD_SAFE_
+ void
+diff --git a/sunrpc/clnt_tcp.c b/sunrpc/clnt_tcp.c
+index d1fc43dbfd..6bd4c8c0cd 100644
+--- a/sunrpc/clnt_tcp.c
++++ b/sunrpc/clnt_tcp.c
+@@ -220,7 +220,7 @@ fooy:
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (clnttcp_create)
+ #else
+-libc_hidden_nolink (clnttcp_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnttcp_create, GLIBC_2_0)
+ #endif
+ 
+ static enum clnt_stat
+diff --git a/sunrpc/clnt_udp.c b/sunrpc/clnt_udp.c
+index 294e13a58c..7ecf2ef5a5 100644
+--- a/sunrpc/clnt_udp.c
++++ b/sunrpc/clnt_udp.c
+@@ -239,7 +239,7 @@ fooy:
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (__libc_clntudp_bufcreate)
+ #else
+-libc_hidden_nolink (__libc_clntudp_bufcreate, GLIBC_PRIVATE)
++libc_hidden_nolink_sunrpc (__libc_clntudp_bufcreate, GLIBC_PRIVATE)
+ #endif
+ 
+ CLIENT *
+@@ -250,7 +250,7 @@ clntudp_bufcreate (struct sockaddr_in *raddr, u_long program, u_long version,
+   return __libc_clntudp_bufcreate (raddr, program, version, wait,
+ 				   sockp, sendsz, recvsz, 0);
+ }
+-libc_hidden_nolink (clntudp_bufcreate, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clntudp_bufcreate, GLIBC_2_0)
+ 
+ CLIENT *
+ clntudp_create (raddr, program, version, wait, sockp)
+@@ -266,7 +266,7 @@ clntudp_create (raddr, program, version, wait, sockp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (clntudp_create)
+ #else
+-libc_hidden_nolink (clntudp_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clntudp_create, GLIBC_2_0)
+ #endif
+ 
+ static int
+diff --git a/sunrpc/clnt_unix.c b/sunrpc/clnt_unix.c
+index 282127bb8b..776ceab484 100644
+--- a/sunrpc/clnt_unix.c
++++ b/sunrpc/clnt_unix.c
+@@ -200,7 +200,7 @@ fooy:
+   mem_free ((caddr_t) h, sizeof (CLIENT));
+   return (CLIENT *) NULL;
+ }
+-libc_hidden_nolink (clntunix_create, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (clntunix_create, GLIBC_2_1)
+ 
+ static enum clnt_stat
+ clntunix_call (h, proc, xdr_args, args_ptr, xdr_results, results_ptr, timeout)
+diff --git a/sunrpc/des_crypt.c b/sunrpc/des_crypt.c
+index 8745900b82..22a34b7f3a 100644
+--- a/sunrpc/des_crypt.c
++++ b/sunrpc/des_crypt.c
+@@ -102,7 +102,7 @@ cbc_crypt (char *key, char *buf, unsigned int len, unsigned int mode,
+   COPY8 (dp.des_ivec, ivec);
+   return err;
+ }
+-libc_hidden_nolink (cbc_crypt, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (cbc_crypt, GLIBC_2_1)
+ 
+ /*
+  * ECB mode encryption
+@@ -115,4 +115,4 @@ ecb_crypt (char *key, char *buf, unsigned int len, unsigned int mode)
+   dp.des_mode = ECB;
+   return common_crypt (key, buf, len, mode, &dp);
+ }
+-libc_hidden_nolink (ecb_crypt, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (ecb_crypt, GLIBC_2_1)
+diff --git a/sunrpc/des_soft.c b/sunrpc/des_soft.c
+index 27d918c64d..cddef5d76b 100644
+--- a/sunrpc/des_soft.c
++++ b/sunrpc/des_soft.c
+@@ -70,4 +70,4 @@ des_setparity (char *p)
+       p++;
+     }
+ }
+-libc_hidden_nolink (des_setparity, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (des_setparity, GLIBC_2_1)
+diff --git a/sunrpc/get_myaddr.c b/sunrpc/get_myaddr.c
+index def5b7a74a..24407b53ec 100644
+--- a/sunrpc/get_myaddr.c
++++ b/sunrpc/get_myaddr.c
+@@ -99,5 +99,5 @@ get_myaddress (struct sockaddr_in *addr)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (get_myaddress)
+ #else
+-libc_hidden_nolink (get_myaddress, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (get_myaddress, GLIBC_2_0)
+ #endif
+diff --git a/sunrpc/key_call.c b/sunrpc/key_call.c
+index 6d08bf8e80..e0a076b47f 100644
+--- a/sunrpc/key_call.c
++++ b/sunrpc/key_call.c
+@@ -80,7 +80,7 @@ key_setsecret (char *secretkey)
+     }
+   return 0;
+ }
+-libc_hidden_nolink (key_setsecret, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_setsecret, GLIBC_2_1)
+ 
+ /* key_secretkey_is_set() returns 1 if the keyserver has a secret key
+  * stored for the caller's effective uid; it returns 0 otherwise
+@@ -109,7 +109,7 @@ key_secretkey_is_set (void)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (key_secretkey_is_set)
+ #else
+-libc_hidden_nolink (key_secretkey_is_set, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_secretkey_is_set, GLIBC_2_1)
+ #endif
+ 
+ int
+@@ -133,7 +133,7 @@ key_encryptsession (char *remotename, des_block *deskey)
+   *deskey = res.cryptkeyres_u.deskey;
+   return 0;
+ }
+-libc_hidden_nolink (key_encryptsession, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_encryptsession, GLIBC_2_1)
+ 
+ int
+ key_decryptsession (char *remotename, des_block *deskey)
+@@ -155,7 +155,7 @@ key_decryptsession (char *remotename, des_block *deskey)
+   *deskey = res.cryptkeyres_u.deskey;
+   return 0;
+ }
+-libc_hidden_nolink (key_decryptsession, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_decryptsession, GLIBC_2_1)
+ 
+ int
+ key_encryptsession_pk (char *remotename, netobj *remotekey,
+@@ -180,7 +180,7 @@ key_encryptsession_pk (char *remotename, netobj *remotekey,
+   *deskey = res.cryptkeyres_u.deskey;
+   return 0;
+ }
+-libc_hidden_nolink (key_encryptsession_pk, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_encryptsession_pk, GLIBC_2_1)
+ 
+ int
+ key_decryptsession_pk (char *remotename, netobj *remotekey,
+@@ -205,7 +205,7 @@ key_decryptsession_pk (char *remotename, netobj *remotekey,
+   *deskey = res.cryptkeyres_u.deskey;
+   return 0;
+ }
+-libc_hidden_nolink (key_decryptsession_pk, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_decryptsession_pk, GLIBC_2_1)
+ 
+ int
+ key_gendes (des_block *key)
+@@ -239,7 +239,7 @@ key_gendes (des_block *key)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (key_gendes)
+ #else
+-libc_hidden_nolink (key_gendes, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_gendes, GLIBC_2_1)
+ #endif
+ 
+ int
+@@ -259,7 +259,7 @@ key_setnet (struct key_netstarg *arg)
+     }
+   return 1;
+ }
+-libc_hidden_nolink (key_setnet, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_setnet, GLIBC_2_1)
+ 
+ int
+ key_get_conv (char *pkey, des_block *deskey)
+@@ -278,7 +278,7 @@ key_get_conv (char *pkey, des_block *deskey)
+   *deskey = res.cryptkeyres_u.deskey;
+   return 0;
+ }
+-libc_hidden_nolink (key_get_conv, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (key_get_conv, GLIBC_2_1)
+ 
+ /*
+  * Hack to allow the keyserver to use AUTH_DES (for authenticated
+diff --git a/sunrpc/key_prot.c b/sunrpc/key_prot.c
+index dd73f5e3cb..2899c9a448 100644
+--- a/sunrpc/key_prot.c
++++ b/sunrpc/key_prot.c
+@@ -38,7 +38,7 @@ xdr_keystatus (XDR * xdrs, keystatus * objp)
+ 
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_keystatus, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_keystatus, GLIBC_2_0)
+ 
+ bool_t
+ xdr_keybuf (XDR * xdrs, keybuf objp)
+@@ -48,7 +48,7 @@ xdr_keybuf (XDR * xdrs, keybuf objp)
+ 
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_keybuf, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_keybuf, GLIBC_2_0)
+ 
+ bool_t
+ xdr_netnamestr (XDR * xdrs, netnamestr * objp)
+@@ -58,7 +58,7 @@ xdr_netnamestr (XDR * xdrs, netnamestr * objp)
+ 
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_netnamestr, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_netnamestr, GLIBC_2_1)
+ 
+ bool_t
+ xdr_cryptkeyarg (XDR * xdrs, cryptkeyarg * objp)
+@@ -71,7 +71,7 @@ xdr_cryptkeyarg (XDR * xdrs, cryptkeyarg * objp)
+ 
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_cryptkeyarg, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_cryptkeyarg, GLIBC_2_0)
+ 
+ bool_t
+ xdr_cryptkeyarg2 (XDR * xdrs, cryptkeyarg2 * objp)
+@@ -84,7 +84,7 @@ xdr_cryptkeyarg2 (XDR * xdrs, cryptkeyarg2 * objp)
+     return FALSE;
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_cryptkeyarg2, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_cryptkeyarg2, GLIBC_2_0)
+ 
+ bool_t
+ xdr_cryptkeyres (XDR * xdrs, cryptkeyres * objp)
+@@ -102,7 +102,7 @@ xdr_cryptkeyres (XDR * xdrs, cryptkeyres * objp)
+     }
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_cryptkeyres, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_cryptkeyres, GLIBC_2_0)
+ 
+ bool_t
+ xdr_unixcred (XDR * xdrs, unixcred * objp)
+@@ -117,7 +117,7 @@ xdr_unixcred (XDR * xdrs, unixcred * objp)
+     return FALSE;
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_unixcred, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_unixcred, GLIBC_2_1)
+ 
+ bool_t
+ xdr_getcredres (XDR * xdrs, getcredres * objp)
+@@ -135,7 +135,7 @@ xdr_getcredres (XDR * xdrs, getcredres * objp)
+     }
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_getcredres, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_getcredres, GLIBC_2_1)
+ 
+ bool_t
+ xdr_key_netstarg (XDR * xdrs, key_netstarg * objp)
+@@ -148,7 +148,7 @@ xdr_key_netstarg (XDR * xdrs, key_netstarg * objp)
+     return FALSE;
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_key_netstarg, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_key_netstarg, GLIBC_2_0)
+ 
+ bool_t
+ xdr_key_netstres (XDR * xdrs, key_netstres * objp)
+@@ -166,4 +166,4 @@ xdr_key_netstres (XDR * xdrs, key_netstres * objp)
+     }
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_key_netstres, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_key_netstres, GLIBC_2_0)
+diff --git a/sunrpc/netname.c b/sunrpc/netname.c
+index 0b4980074c..197d503eae 100644
+--- a/sunrpc/netname.c
++++ b/sunrpc/netname.c
+@@ -54,7 +54,7 @@ user2netname (char netname[MAXNETNAMELEN + 1], const uid_t uid,
+     netname[i - 1] = '\0';
+   return 1;
+ }
+-libc_hidden_nolink (user2netname, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (user2netname, GLIBC_2_1)
+ 
+ int
+ host2netname (char netname[MAXNETNAMELEN + 1], const char *host,
+@@ -118,7 +118,7 @@ host2netname (char netname[MAXNETNAMELEN + 1], const char *host,
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (host2netname)
+ #else
+-libc_hidden_nolink (host2netname, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (host2netname, GLIBC_2_1)
+ #endif
+ 
+ int
+@@ -134,7 +134,7 @@ getnetname (char name[MAXNETNAMELEN + 1])
+     dummy = user2netname (name, uid, NULL);
+   return (dummy);
+ }
+-libc_hidden_nolink (getnetname, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (getnetname, GLIBC_2_1)
+ 
+ /* Type of the lookup function for netname2user.  */
+ typedef int (*netname2user_function) (const char netname[MAXNETNAMELEN + 1],
+@@ -187,7 +187,7 @@ netname2user (const char netname[MAXNETNAMELEN + 1], uid_t * uidp, gid_t * gidp,
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (netname2user)
+ #else
+-libc_hidden_nolink (netname2user, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (netname2user, GLIBC_2_1)
+ #endif
+ 
+ int
+@@ -214,4 +214,4 @@ netname2host (const char netname[MAXNETNAMELEN + 1], char *hostname,
+ 
+   return 1;
+ }
+-libc_hidden_nolink (netname2host, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (netname2host, GLIBC_2_1)
+diff --git a/sunrpc/pm_getmaps.c b/sunrpc/pm_getmaps.c
+index 6b61d324f9..6f7ad10ef6 100644
+--- a/sunrpc/pm_getmaps.c
++++ b/sunrpc/pm_getmaps.c
+@@ -84,4 +84,4 @@ pmap_getmaps (struct sockaddr_in *address)
+   address->sin_port = 0;
+   return head;
+ }
+-libc_hidden_nolink (pmap_getmaps, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (pmap_getmaps, GLIBC_2_0)
+diff --git a/sunrpc/pm_getport.c b/sunrpc/pm_getport.c
+index 58974a5661..f10f87250d 100644
+--- a/sunrpc/pm_getport.c
++++ b/sunrpc/pm_getport.c
+@@ -142,7 +142,7 @@ __libc_rpc_getport (address, program, version, protocol, timeout_sec,
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (__libc_rpc_getport)
+ #else
+-libc_hidden_nolink (__libc_rpc_getport, GLIBC_PRIVATE)
++libc_hidden_nolink_sunrpc (__libc_rpc_getport, GLIBC_PRIVATE)
+ #endif
+ 
+ 
+@@ -160,4 +160,4 @@ pmap_getport (address, program, version, protocol)
+ {
+   return __libc_rpc_getport (address, program, version, protocol, 5, 60);
+ }
+-libc_hidden_nolink (pmap_getport, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (pmap_getport, GLIBC_2_0)
+diff --git a/sunrpc/pmap_clnt.c b/sunrpc/pmap_clnt.c
+index 36479f0e5c..5d7d185766 100644
+--- a/sunrpc/pmap_clnt.c
++++ b/sunrpc/pmap_clnt.c
+@@ -131,7 +131,7 @@ pmap_set (u_long program, u_long version, int protocol, u_short port)
+   /* (void)close(socket); CLNT_DESTROY closes it */
+   return rslt;
+ }
+-libc_hidden_nolink (pmap_set, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (pmap_set, GLIBC_2_0)
+ 
+ /*
+  * Remove the mapping between program,version and port.
+@@ -162,4 +162,4 @@ pmap_unset (u_long program, u_long version)
+   /* (void)close(socket); CLNT_DESTROY already closed it */
+   return rslt;
+ }
+-libc_hidden_nolink (pmap_unset, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (pmap_unset, GLIBC_2_0)
+diff --git a/sunrpc/pmap_prot.c b/sunrpc/pmap_prot.c
+index 5a2e052728..8df41dc5f2 100644
+--- a/sunrpc/pmap_prot.c
++++ b/sunrpc/pmap_prot.c
+@@ -49,4 +49,4 @@ xdr_pmap (xdrs, regs)
+     return xdr_u_long (xdrs, &regs->pm_port);
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_pmap, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_pmap, GLIBC_2_0)
+diff --git a/sunrpc/pmap_prot2.c b/sunrpc/pmap_prot2.c
+index 3213898ce8..57b0800178 100644
+--- a/sunrpc/pmap_prot2.c
++++ b/sunrpc/pmap_prot2.c
+@@ -110,4 +110,4 @@ xdr_pmaplist (xdrs, rp)
+       rp = freeing ? &next : &((*rp)->pml_next);
+     }
+ }
+-libc_hidden_nolink (xdr_pmaplist, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_pmaplist, GLIBC_2_0)
+diff --git a/sunrpc/pmap_rmt.c b/sunrpc/pmap_rmt.c
+index 16f322773e..fd8de85589 100644
+--- a/sunrpc/pmap_rmt.c
++++ b/sunrpc/pmap_rmt.c
+@@ -104,7 +104,7 @@ pmap_rmtcall (addr, prog, vers, proc, xdrargs, argsp, xdrres, resp, tout, port_p
+   addr->sin_port = 0;
+   return stat;
+ }
+-libc_hidden_nolink (pmap_rmtcall, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (pmap_rmtcall, GLIBC_2_0)
+ 
+ 
+ /*
+@@ -137,7 +137,7 @@ xdr_rmtcall_args (XDR *xdrs, struct rmtcallargs *cap)
+     }
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_rmtcall_args, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_rmtcall_args, GLIBC_2_0)
+ 
+ /*
+  * XDR remote call results
+@@ -160,7 +160,7 @@ xdr_rmtcallres (xdrs, crp)
+     }
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_rmtcallres, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_rmtcallres, GLIBC_2_0)
+ 
+ 
+ /*
+@@ -388,4 +388,4 @@ done_broad:
+   AUTH_DESTROY (unix_auth);
+   return stat;
+ }
+-libc_hidden_nolink (clnt_broadcast, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (clnt_broadcast, GLIBC_2_0)
+diff --git a/sunrpc/publickey.c b/sunrpc/publickey.c
+index 4d0b09874c..089b544953 100644
+--- a/sunrpc/publickey.c
++++ b/sunrpc/publickey.c
+@@ -75,7 +75,7 @@ getpublickey (const char *name, char *key)
+ 
+   return status == NSS_STATUS_SUCCESS;
+ }
+-libc_hidden_nolink (getpublickey, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (getpublickey, GLIBC_2_0)
+ 
+ 
+ int
+@@ -118,4 +118,4 @@ getsecretkey (const char *name, char *key, const char *passwd)
+ 
+   return status == NSS_STATUS_SUCCESS;
+ }
+-libc_hidden_nolink (getsecretkey, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (getsecretkey, GLIBC_2_0)
+diff --git a/sunrpc/rpc_cmsg.c b/sunrpc/rpc_cmsg.c
+index ed70104b68..62d95fcc83 100644
+--- a/sunrpc/rpc_cmsg.c
++++ b/sunrpc/rpc_cmsg.c
+@@ -194,4 +194,4 @@ xdr_callmsg (XDR *xdrs, struct rpc_msg *cmsg)
+     return xdr_opaque_auth (xdrs, &(cmsg->rm_call.cb_verf));
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_callmsg, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_callmsg, GLIBC_2_0)
+diff --git a/sunrpc/rpc_common.c b/sunrpc/rpc_common.c
+index 44b4b38f4d..710191163c 100644
+--- a/sunrpc/rpc_common.c
++++ b/sunrpc/rpc_common.c
+@@ -45,7 +45,7 @@
+    section but we cannot add const to the type because this isn't how
+    the variable is declared.  So we use the section attribute.  */
+ struct opaque_auth _null_auth __attribute__ ((nocommon));
+-libc_hidden_nolink (_null_auth, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (_null_auth, GLIBC_2_0)
+ fd_set svc_fdset;
+ struct rpc_createerr rpc_createerr;
+ struct pollfd *svc_pollfd;
+diff --git a/sunrpc/rpc_dtable.c b/sunrpc/rpc_dtable.c
+index 9bee215496..81ddf8f55a 100644
+--- a/sunrpc/rpc_dtable.c
++++ b/sunrpc/rpc_dtable.c
+@@ -46,4 +46,4 @@ _rpc_dtablesize (void)
+ 
+   return size;
+ }
+-libc_hidden_nolink (_rpc_dtablesize, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (_rpc_dtablesize, GLIBC_2_0)
+diff --git a/sunrpc/rpc_prot.c b/sunrpc/rpc_prot.c
+index 9a23cc1b02..dc24f3673b 100644
+--- a/sunrpc/rpc_prot.c
++++ b/sunrpc/rpc_prot.c
+@@ -57,7 +57,7 @@ xdr_opaque_auth (XDR *xdrs, struct opaque_auth *ap)
+ 		      &ap->oa_length, MAX_AUTH_BYTES);
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_opaque_auth, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_opaque_auth, GLIBC_2_0)
+ 
+ /*
+  * XDR a DES block
+@@ -67,7 +67,7 @@ xdr_des_block (XDR *xdrs, des_block *blkp)
+ {
+   return xdr_opaque (xdrs, (caddr_t) blkp, sizeof (des_block));
+ }
+-libc_hidden_nolink (xdr_des_block, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_des_block, GLIBC_2_0)
+ 
+ /* * * * * * * * * * * * * * XDR RPC MESSAGE * * * * * * * * * * * * * * * */
+ 
+@@ -95,7 +95,7 @@ xdr_accepted_reply (XDR *xdrs, struct accepted_reply *ar)
+     }
+   return TRUE;		/* TRUE => open ended set of problems */
+ }
+-libc_hidden_nolink (xdr_accepted_reply, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_accepted_reply, GLIBC_2_0)
+ 
+ /*
+  * XDR the MSG_DENIED part of a reply message union
+@@ -118,7 +118,7 @@ xdr_rejected_reply (XDR *xdrs, struct rejected_reply *rr)
+     }
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_rejected_reply, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_rejected_reply, GLIBC_2_0)
+ 
+ static const struct xdr_discrim reply_dscrm[3] =
+ {
+@@ -142,7 +142,7 @@ xdr_replymsg (xdrs, rmsg)
+ 		      NULL_xdrproc_t);
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_replymsg, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_replymsg, GLIBC_2_0)
+ 
+ 
+ /*
+@@ -167,7 +167,7 @@ xdr_callhdr (xdrs, cmsg)
+     return xdr_u_long (xdrs, &(cmsg->rm_call.cb_vers));
+   return FALSE;
+ }
+-libc_hidden_nolink (xdr_callhdr, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_callhdr, GLIBC_2_0)
+ 
+ /* ************************** Client utility routine ************* */
+ 
+@@ -277,4 +277,4 @@ _seterr_reply (struct rpc_msg *msg,
+       break;
+     }
+ }
+-libc_hidden_nolink (_seterr_reply, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (_seterr_reply, GLIBC_2_0)
+diff --git a/sunrpc/rpc_thread.c b/sunrpc/rpc_thread.c
+index ac4c18fcee..94d9f1fd80 100644
+--- a/sunrpc/rpc_thread.c
++++ b/sunrpc/rpc_thread.c
+@@ -97,7 +97,7 @@ __rpc_thread_svc_fdset (void)
+ 		return &svc_fdset;
+ 	return &tvp->svc_fdset_s;
+ }
+-libc_hidden_nolink (__rpc_thread_svc_fdset, GLIBC_2_2_3)
++libc_hidden_nolink_sunrpc (__rpc_thread_svc_fdset, GLIBC_2_2_3)
+ 
+ struct rpc_createerr *
+ __rpc_thread_createerr (void)
+@@ -109,7 +109,7 @@ __rpc_thread_createerr (void)
+ 		return &rpc_createerr;
+ 	return &tvp->rpc_createerr_s;
+ }
+-libc_hidden_nolink (__rpc_thread_createerr, GLIBC_2_2_3)
++libc_hidden_nolink_sunrpc (__rpc_thread_createerr, GLIBC_2_2_3)
+ 
+ struct pollfd **
+ __rpc_thread_svc_pollfd (void)
+@@ -124,7 +124,7 @@ __rpc_thread_svc_pollfd (void)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (__rpc_thread_svc_pollfd)
+ #else
+-libc_hidden_nolink (__rpc_thread_svc_pollfd, GLIBC_2_2_3)
++libc_hidden_nolink_sunrpc (__rpc_thread_svc_pollfd, GLIBC_2_2_3)
+ #endif
+ 
+ int *
+@@ -140,7 +140,7 @@ __rpc_thread_svc_max_pollfd (void)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (__rpc_thread_svc_max_pollfd)
+ #else
+-libc_hidden_nolink (__rpc_thread_svc_max_pollfd, GLIBC_2_2_3)
++libc_hidden_nolink_sunrpc (__rpc_thread_svc_max_pollfd, GLIBC_2_2_3)
+ #endif
+ 
+ #endif /* _RPC_THREAD_SAFE_ */
+diff --git a/sunrpc/rtime.c b/sunrpc/rtime.c
+index 8506df554c..bcb280b48f 100644
+--- a/sunrpc/rtime.c
++++ b/sunrpc/rtime.c
+@@ -140,4 +140,4 @@ rtime (struct sockaddr_in *addrp, struct rpc_timeval *timep,
+   timep->tv_usec = 0;
+   return 0;
+ }
+-libc_hidden_nolink (rtime, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (rtime, GLIBC_2_1)
+diff --git a/sunrpc/svc.c b/sunrpc/svc.c
+index e1f4a322e8..103770a42c 100644
+--- a/sunrpc/svc.c
++++ b/sunrpc/svc.c
+@@ -115,7 +115,7 @@ xprt_register (SVCXPRT *xprt)
+ 					       POLLRDNORM | POLLRDBAND);
+     }
+ }
+-libc_hidden_nolink (xprt_register, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xprt_register, GLIBC_2_0)
+ 
+ /* De-activate a transport handle. */
+ void
+@@ -139,7 +139,7 @@ xprt_unregister (SVCXPRT *xprt)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xprt_unregister)
+ #else
+-libc_hidden_nolink (xprt_unregister, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xprt_unregister, GLIBC_2_0)
+ #endif
+ 
+ 
+@@ -218,7 +218,7 @@ pmap_it:
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svc_register)
+ #else
+-libc_hidden_nolink (svc_register, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svc_register, GLIBC_2_0)
+ #endif
+ 
+ /* Remove a service program from the callout list. */
+@@ -242,7 +242,7 @@ svc_unregister (rpcprog_t prog, rpcvers_t vers)
+   if (! svc_is_mapped (prog, vers))
+     pmap_unset (prog, vers);
+ }
+-libc_hidden_nolink (svc_unregister, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svc_unregister, GLIBC_2_0)
+ 
+ /* ******************* REPLY GENERATION ROUTINES  ************ */
+ 
+@@ -264,7 +264,7 @@ svc_sendreply (register SVCXPRT *xprt, xdrproc_t xdr_results,
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svc_sendreply)
+ #else
+-libc_hidden_nolink (svc_sendreply, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svc_sendreply, GLIBC_2_0)
+ #endif
+ 
+ /* No procedure error reply */
+@@ -282,7 +282,7 @@ svcerr_noproc (register SVCXPRT *xprt)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svcerr_noproc)
+ #else
+-libc_hidden_nolink (svcerr_noproc, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcerr_noproc, GLIBC_2_0)
+ #endif
+ 
+ /* Can't decode args error reply */
+@@ -300,7 +300,7 @@ svcerr_decode (register SVCXPRT *xprt)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svcerr_decode)
+ #else
+-libc_hidden_nolink (svcerr_decode, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcerr_decode, GLIBC_2_0)
+ #endif
+ 
+ /* Some system error */
+@@ -318,7 +318,7 @@ svcerr_systemerr (register SVCXPRT *xprt)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svcerr_systemerr)
+ #else
+-libc_hidden_nolink (svcerr_systemerr, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcerr_systemerr, GLIBC_2_0)
+ #endif
+ 
+ /* Authentication error reply */
+@@ -333,7 +333,7 @@ svcerr_auth (SVCXPRT *xprt, enum auth_stat why)
+   rply.rjcted_rply.rj_why = why;
+   SVC_REPLY (xprt, &rply);
+ }
+-libc_hidden_nolink (svcerr_auth, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcerr_auth, GLIBC_2_0)
+ 
+ /* Auth too weak error reply */
+ void
+@@ -341,7 +341,7 @@ svcerr_weakauth (SVCXPRT *xprt)
+ {
+   svcerr_auth (xprt, AUTH_TOOWEAK);
+ }
+-libc_hidden_nolink (svcerr_weakauth, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcerr_weakauth, GLIBC_2_0)
+ 
+ /* Program unavailable error reply */
+ void
+@@ -355,7 +355,7 @@ svcerr_noprog (register SVCXPRT *xprt)
+   rply.acpted_rply.ar_stat = PROG_UNAVAIL;
+   SVC_REPLY (xprt, &rply);
+ }
+-libc_hidden_nolink (svcerr_noprog, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcerr_noprog, GLIBC_2_0)
+ 
+ /* Program version mismatch error reply */
+ void
+@@ -372,7 +372,7 @@ svcerr_progvers (register SVCXPRT *xprt, rpcvers_t low_vers,
+   rply.acpted_rply.ar_vers.high = high_vers;
+   SVC_REPLY (xprt, &rply);
+ }
+-libc_hidden_nolink (svcerr_progvers, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcerr_progvers, GLIBC_2_0)
+ 
+ /* ******************* SERVER INPUT STUFF ******************* */
+ 
+@@ -401,7 +401,7 @@ svc_getreq (int rdfds)
+   readfds.fds_bits[0] = rdfds;
+   svc_getreqset (&readfds);
+ }
+-libc_hidden_nolink (svc_getreq, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svc_getreq, GLIBC_2_0)
+ 
+ void
+ svc_getreqset (fd_set *readfds)
+@@ -420,7 +420,7 @@ svc_getreqset (fd_set *readfds)
+     for (mask = *maskp++; (bit = ffsl (mask)); mask ^= (1L << (bit - 1)))
+       svc_getreq_common (sock + bit - 1);
+ }
+-libc_hidden_nolink (svc_getreqset, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svc_getreqset, GLIBC_2_0)
+ 
+ void
+ svc_getreq_poll (struct pollfd *pfdp, int pollretval)
+@@ -449,7 +449,7 @@ svc_getreq_poll (struct pollfd *pfdp, int pollretval)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svc_getreq_poll)
+ #else
+-libc_hidden_nolink (svc_getreq_poll, GLIBC_2_2)
++libc_hidden_nolink_sunrpc (svc_getreq_poll, GLIBC_2_2)
+ #endif
+ 
+ 
+@@ -542,7 +542,7 @@ svc_getreq_common (const int fd)
+     }
+   while (stat == XPRT_MOREREQS);
+ }
+-libc_hidden_nolink (svc_getreq_common, GLIBC_2_2)
++libc_hidden_nolink_sunrpc (svc_getreq_common, GLIBC_2_2)
+ 
+ #ifdef _RPC_THREAD_SAFE_
+ 
+diff --git a/sunrpc/svc_auth.c b/sunrpc/svc_auth.c
+index facbb13982..f33bda2f20 100644
+--- a/sunrpc/svc_auth.c
++++ b/sunrpc/svc_auth.c
+@@ -105,7 +105,7 @@ _authenticate (register struct svc_req *rqst, struct rpc_msg *msg)
+ 
+   return AUTH_REJECTEDCRED;
+ }
+-libc_hidden_nolink (_authenticate, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (_authenticate, GLIBC_2_1)
+ 
+ static enum auth_stat
+ _svcauth_null (struct svc_req *rqst, struct rpc_msg *msg)
+diff --git a/sunrpc/svc_raw.c b/sunrpc/svc_raw.c
+index 90f5d96e63..7d885574af 100644
+--- a/sunrpc/svc_raw.c
++++ b/sunrpc/svc_raw.c
+@@ -88,7 +88,7 @@ svcraw_create (void)
+   xdrmem_create (&srp->xdr_stream, srp->_raw_buf, UDPMSGSIZE, XDR_FREE);
+   return &srp->server;
+ }
+-libc_hidden_nolink (svcraw_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcraw_create, GLIBC_2_0)
+ 
+ static enum xprt_stat
+ svcraw_stat (SVCXPRT *xprt)
+diff --git a/sunrpc/svc_run.c b/sunrpc/svc_run.c
+index 09f40dd188..90dfc94056 100644
+--- a/sunrpc/svc_run.c
++++ b/sunrpc/svc_run.c
+@@ -46,7 +46,7 @@ svc_exit (void)
+   svc_pollfd = NULL;
+   svc_max_pollfd = 0;
+ }
+-libc_hidden_nolink (svc_exit, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svc_exit, GLIBC_2_0)
+ 
+ void
+ svc_run (void)
+@@ -104,5 +104,5 @@ svc_run (void)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svc_run)
+ #else
+-libc_hidden_nolink (svc_run, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svc_run, GLIBC_2_0)
+ #endif
+diff --git a/sunrpc/svc_tcp.c b/sunrpc/svc_tcp.c
+index e0515322a5..eb615494d8 100644
+--- a/sunrpc/svc_tcp.c
++++ b/sunrpc/svc_tcp.c
+@@ -187,7 +187,7 @@ svctcp_create (int sock, u_int sendsize, u_int recvsize)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svctcp_create)
+ #else
+-libc_hidden_nolink (svctcp_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svctcp_create, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -199,7 +199,7 @@ svcfd_create (int fd, u_int sendsize, u_int recvsize)
+ {
+   return makefd_xprt (fd, sendsize, recvsize);
+ }
+-libc_hidden_nolink (svcfd_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcfd_create, GLIBC_2_0)
+ 
+ static SVCXPRT *
+ internal_function
+diff --git a/sunrpc/svc_udp.c b/sunrpc/svc_udp.c
+index 04c8407e64..6c4d75a814 100644
+--- a/sunrpc/svc_udp.c
++++ b/sunrpc/svc_udp.c
+@@ -184,7 +184,7 @@ svcudp_create: xp_pad is too small for IP_PKTINFO\n"));
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svcudp_bufcreate)
+ #else
+-libc_hidden_nolink (svcudp_bufcreate, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcudp_bufcreate, GLIBC_2_0)
+ #endif
+ 
+ SVCXPRT *
+@@ -196,7 +196,7 @@ svcudp_create (sock)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (svcudp_create)
+ #else
+-libc_hidden_nolink (svcudp_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcudp_create, GLIBC_2_0)
+ #endif
+ 
+ static enum xprt_stat
+@@ -500,7 +500,7 @@ svcudp_enablecache (SVCXPRT *transp, u_long size)
+   su->su_cache = (char *) uc;
+   return 1;
+ }
+-libc_hidden_nolink (svcudp_enablecache, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (svcudp_enablecache, GLIBC_2_0)
+ 
+ 
+ /*
+diff --git a/sunrpc/svc_unix.c b/sunrpc/svc_unix.c
+index 2b02682e72..94507b2403 100644
+--- a/sunrpc/svc_unix.c
++++ b/sunrpc/svc_unix.c
+@@ -184,7 +184,7 @@ svcunix_create (int sock, u_int sendsize, u_int recvsize, char *path)
+   xprt_register (xprt);
+   return xprt;
+ }
+-libc_hidden_nolink (svcunix_create, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (svcunix_create, GLIBC_2_1)
+ 
+ /*
+  * Like svunix_create(), except the routine takes any *open* UNIX file
+@@ -195,7 +195,7 @@ svcunixfd_create (int fd, u_int sendsize, u_int recvsize)
+ {
+   return makefd_xprt (fd, sendsize, recvsize);
+ }
+-libc_hidden_nolink (svcunixfd_create, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (svcunixfd_create, GLIBC_2_1)
+ 
+ static SVCXPRT *
+ internal_function
+diff --git a/sunrpc/svcauth_des.c b/sunrpc/svcauth_des.c
+index b9656e25da..9609734960 100644
+--- a/sunrpc/svcauth_des.c
++++ b/sunrpc/svcauth_des.c
+@@ -583,7 +583,7 @@ authdes_getucred (const struct authdes_cred *adc, uid_t * uid, gid_t * gid,
+     groups[i] = cred->groups[i];
+   return 1;
+ }
+-libc_hidden_nolink (authdes_getucred, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (authdes_getucred, GLIBC_2_1)
+ 
+ static void
+ internal_function
+diff --git a/sunrpc/xcrypt.c b/sunrpc/xcrypt.c
+index 8b7642b503..2e53f2d9e9 100644
+--- a/sunrpc/xcrypt.c
++++ b/sunrpc/xcrypt.c
+@@ -127,7 +127,7 @@ xencrypt (char *secret, char *passwd)
+   free (buf);
+   return 1;
+ }
+-libc_hidden_nolink (xencrypt, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xencrypt, GLIBC_2_0)
+ 
+ /*
+  * Decrypt secret key using passwd
+@@ -163,7 +163,7 @@ xdecrypt (char *secret, char *passwd)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdecrypt)
+ #else
+-libc_hidden_nolink (xdecrypt, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdecrypt, GLIBC_2_1)
+ #endif
+ 
+ /*
+diff --git a/sunrpc/xdr.c b/sunrpc/xdr.c
+index 4dd82ff044..7eac2d40f0 100644
+--- a/sunrpc/xdr.c
++++ b/sunrpc/xdr.c
+@@ -72,7 +72,7 @@ xdr_free (xdrproc_t proc, char *objp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_free)
+ #else
+-libc_hidden_nolink (xdr_free, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_free, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -86,7 +86,7 @@ xdr_void (void)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_void)
+ #else
+-libc_hidden_nolink (xdr_void, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_void, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -126,7 +126,7 @@ xdr_int (XDR *xdrs, int *ip)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_int)
+ #else
+-libc_hidden_nolink (xdr_int, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_int, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -165,7 +165,7 @@ xdr_u_int (XDR *xdrs, u_int *up)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_u_int)
+ #else
+-libc_hidden_nolink (xdr_u_int, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_u_int, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -193,7 +193,7 @@ xdr_long (XDR *xdrs, long *lp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_long)
+ #else
+-libc_hidden_nolink (xdr_long, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_long, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -232,7 +232,7 @@ xdr_u_long (XDR *xdrs, u_long *ulp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_u_long)
+ #else
+-libc_hidden_nolink (xdr_u_long, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_u_long, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -268,7 +268,7 @@ xdr_hyper (XDR *xdrs, quad_t *llp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_hyper)
+ #else
+-libc_hidden_nolink (xdr_hyper, GLIBC_2_1_1)
++libc_hidden_nolink_sunrpc (xdr_hyper, GLIBC_2_1_1)
+ #endif
+ 
+ /*
+@@ -304,7 +304,7 @@ xdr_u_hyper (XDR *xdrs, u_quad_t *ullp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_u_hyper)
+ #else
+-libc_hidden_nolink (xdr_u_hyper, GLIBC_2_1_1)
++libc_hidden_nolink_sunrpc (xdr_u_hyper, GLIBC_2_1_1)
+ #endif
+ 
+ bool_t
+@@ -315,7 +315,7 @@ xdr_longlong_t (XDR *xdrs, quad_t *llp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_longlong_t)
+ #else
+-libc_hidden_nolink (xdr_longlong_t, GLIBC_2_1_1)
++libc_hidden_nolink_sunrpc (xdr_longlong_t, GLIBC_2_1_1)
+ #endif
+ 
+ bool_t
+@@ -326,7 +326,7 @@ xdr_u_longlong_t (XDR *xdrs, u_quad_t *ullp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_u_longlong_t)
+ #else
+-libc_hidden_nolink (xdr_u_longlong_t, GLIBC_2_1_1)
++libc_hidden_nolink_sunrpc (xdr_u_longlong_t, GLIBC_2_1_1)
+ #endif
+ 
+ /*
+@@ -359,7 +359,7 @@ xdr_short (XDR *xdrs, short *sp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_short)
+ #else
+-libc_hidden_nolink (xdr_short, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_short, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -392,7 +392,7 @@ xdr_u_short (XDR *xdrs, u_short *usp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_u_short)
+ #else
+-libc_hidden_nolink (xdr_u_short, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_u_short, GLIBC_2_0)
+ #endif
+ 
+ 
+@@ -415,7 +415,7 @@ xdr_char (XDR *xdrs, char *cp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_char)
+ #else
+-libc_hidden_nolink (xdr_char, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_char, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -437,7 +437,7 @@ xdr_u_char (XDR *xdrs, u_char *cp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_u_char)
+ #else
+-libc_hidden_nolink (xdr_u_char, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_u_char, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -470,7 +470,7 @@ xdr_bool (XDR *xdrs, bool_t *bp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_bool)
+ #else
+-libc_hidden_nolink (xdr_bool, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_bool, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -525,7 +525,7 @@ xdr_enum (XDR *xdrs, enum_t *ep)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_enum)
+ #else
+-libc_hidden_nolink (xdr_enum, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_enum, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -580,7 +580,7 @@ xdr_opaque (XDR *xdrs, caddr_t cp, u_int cnt)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_opaque)
+ #else
+-libc_hidden_nolink (xdr_opaque, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_opaque, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -648,7 +648,7 @@ xdr_bytes (xdrs, cpp, sizep, maxsize)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_bytes)
+ #else
+-libc_hidden_nolink (xdr_bytes, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_bytes, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -665,7 +665,7 @@ xdr_netobj (xdrs, np)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_netobj)
+ #else
+-libc_hidden_nolink (xdr_netobj, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_netobj, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -714,7 +714,7 @@ xdr_union (xdrs, dscmp, unp, choices, dfault)
+   return ((dfault == NULL_xdrproc_t) ? FALSE :
+ 	  (*dfault) (xdrs, unp, LASTUNSIGNED));
+ }
+-libc_hidden_nolink (xdr_union, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_union, GLIBC_2_0)
+ 
+ 
+ /*
+@@ -806,7 +806,7 @@ xdr_string (xdrs, cpp, maxsize)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_string)
+ #else
+-libc_hidden_nolink (xdr_string, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_string, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -827,5 +827,5 @@ xdr_wrapstring (xdrs, cpp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_wrapstring)
+ #else
+-libc_hidden_nolink (xdr_wrapstring, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_wrapstring, GLIBC_2_0)
+ #endif
+diff --git a/sunrpc/xdr_array.c b/sunrpc/xdr_array.c
+index b832078342..a634861278 100644
+--- a/sunrpc/xdr_array.c
++++ b/sunrpc/xdr_array.c
+@@ -127,7 +127,7 @@ xdr_array (xdrs, addrp, sizep, maxsize, elsize, elproc)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_array)
+ #else
+-libc_hidden_nolink (xdr_array, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_array, GLIBC_2_0)
+ #endif
+ 
+ /*
+@@ -162,4 +162,4 @@ xdr_vector (xdrs, basep, nelem, elemsize, xdr_elem)
+     }
+   return TRUE;
+ }
+-libc_hidden_nolink (xdr_vector, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_vector, GLIBC_2_0)
+diff --git a/sunrpc/xdr_float.c b/sunrpc/xdr_float.c
+index 1a9c260617..78e8f3bd2d 100644
+--- a/sunrpc/xdr_float.c
++++ b/sunrpc/xdr_float.c
+@@ -158,7 +158,7 @@ xdr_float(xdrs, fp)
+ 	}
+ 	return (FALSE);
+ }
+-libc_hidden_nolink (xdr_float, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_float, GLIBC_2_0)
+ 
+ /*
+  * This routine works on Suns (Sky / 68000's) and Vaxen.
+@@ -300,4 +300,4 @@ xdr_double(xdrs, dp)
+ 	}
+ 	return (FALSE);
+ }
+-libc_hidden_nolink (xdr_double, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_double, GLIBC_2_0)
+diff --git a/sunrpc/xdr_intXX_t.c b/sunrpc/xdr_intXX_t.c
+index fe06f45df3..02a0c09b5b 100644
+--- a/sunrpc/xdr_intXX_t.c
++++ b/sunrpc/xdr_intXX_t.c
+@@ -46,14 +46,14 @@ xdr_int64_t (XDR *xdrs, int64_t *ip)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_int64_t, GLIBC_2_1_1)
++libc_hidden_nolink_sunrpc (xdr_int64_t, GLIBC_2_1_1)
+ 
+ bool_t
+ xdr_quad_t (XDR *xdrs, quad_t *ip)
+ {
+   return xdr_int64_t (xdrs, (int64_t *) ip);
+ }
+-libc_hidden_nolink (xdr_quad_t, GLIBC_2_3_4)
++libc_hidden_nolink_sunrpc (xdr_quad_t, GLIBC_2_3_4)
+ 
+ /* XDR 64bit unsigned integers */
+ bool_t
+@@ -82,14 +82,14 @@ xdr_uint64_t (XDR *xdrs, uint64_t *uip)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_uint64_t, GLIBC_2_1_1)
++libc_hidden_nolink_sunrpc (xdr_uint64_t, GLIBC_2_1_1)
+ 
+ bool_t
+ xdr_u_quad_t (XDR *xdrs, u_quad_t *ip)
+ {
+   return xdr_uint64_t (xdrs, (uint64_t *) ip);
+ }
+-libc_hidden_nolink (xdr_u_quad_t, GLIBC_2_3_4)
++libc_hidden_nolink_sunrpc (xdr_u_quad_t, GLIBC_2_3_4)
+ 
+ /* XDR 32bit integers */
+ bool_t
+@@ -107,7 +107,7 @@ xdr_int32_t (XDR *xdrs, int32_t *lp)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_int32_t, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_int32_t, GLIBC_2_1)
+ 
+ /* XDR 32bit unsigned integers */
+ bool_t
+@@ -128,7 +128,7 @@ xdr_uint32_t (XDR *xdrs, uint32_t *ulp)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_uint32_t)
+ #else
+-libc_hidden_nolink (xdr_uint32_t, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_uint32_t, GLIBC_2_1)
+ #endif
+ 
+ /* XDR 16bit integers */
+@@ -153,7 +153,7 @@ xdr_int16_t (XDR *xdrs, int16_t *ip)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_int16_t, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_int16_t, GLIBC_2_1)
+ 
+ /* XDR 16bit unsigned integers */
+ bool_t
+@@ -177,7 +177,7 @@ xdr_uint16_t (XDR *xdrs, uint16_t *uip)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_uint16_t, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_uint16_t, GLIBC_2_1)
+ 
+ /* XDR 8bit integers */
+ bool_t
+@@ -201,7 +201,7 @@ xdr_int8_t (XDR *xdrs, int8_t *ip)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_int8_t, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_int8_t, GLIBC_2_1)
+ 
+ /* XDR 8bit unsigned integers */
+ bool_t
+@@ -225,4 +225,4 @@ xdr_uint8_t (XDR *xdrs, uint8_t *uip)
+       return FALSE;
+     }
+ }
+-libc_hidden_nolink (xdr_uint8_t, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_uint8_t, GLIBC_2_1)
+diff --git a/sunrpc/xdr_mem.c b/sunrpc/xdr_mem.c
+index 093a718739..ba7661aa54 100644
+--- a/sunrpc/xdr_mem.c
++++ b/sunrpc/xdr_mem.c
+@@ -81,7 +81,7 @@ xdrmem_create (XDR *xdrs, const caddr_t addr, u_int size, enum xdr_op op)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdrmem_create)
+ #else
+-libc_hidden_nolink (xdrmem_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdrmem_create, GLIBC_2_0)
+ #endif
+ 
+ /*
+diff --git a/sunrpc/xdr_rec.c b/sunrpc/xdr_rec.c
+index 556c6c4bc0..f5d6ef2af9 100644
+--- a/sunrpc/xdr_rec.c
++++ b/sunrpc/xdr_rec.c
+@@ -189,7 +189,7 @@ xdrrec_create (XDR *xdrs, u_int sendsize,
+   rstrm->fbtbc = 0;
+   rstrm->last_frag = TRUE;
+ }
+-libc_hidden_nolink (xdrrec_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdrrec_create, GLIBC_2_0)
+ 
+ 
+ /*
+@@ -477,7 +477,7 @@ xdrrec_skiprecord (XDR *xdrs)
+   rstrm->last_frag = FALSE;
+   return TRUE;
+ }
+-libc_hidden_nolink (xdrrec_skiprecord, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdrrec_skiprecord, GLIBC_2_0)
+ 
+ /*
+  * Lookahead function.
+@@ -501,7 +501,7 @@ xdrrec_eof (XDR *xdrs)
+     return TRUE;
+   return FALSE;
+ }
+-libc_hidden_nolink (xdrrec_eof, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdrrec_eof, GLIBC_2_0)
+ 
+ /*
+  * The client must tell the package when an end-of-record has occurred.
+@@ -528,7 +528,7 @@ xdrrec_endofrecord (XDR *xdrs, bool_t sendnow)
+   rstrm->out_finger += BYTES_PER_XDR_UNIT;
+   return TRUE;
+ }
+-libc_hidden_nolink (xdrrec_endofrecord, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdrrec_endofrecord, GLIBC_2_0)
+ 
+ 
+ /*
+diff --git a/sunrpc/xdr_ref.c b/sunrpc/xdr_ref.c
+index 7510bed873..8fb4584a75 100644
+--- a/sunrpc/xdr_ref.c
++++ b/sunrpc/xdr_ref.c
+@@ -90,7 +90,7 @@ xdr_reference (xdrs, pp, size, proc)
+     }
+   return stat;
+ }
+-libc_hidden_nolink (xdr_reference, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_reference, GLIBC_2_0)
+ 
+ 
+ /*
+@@ -137,5 +137,5 @@ xdr_pointer (xdrs, objpp, obj_size, xdr_obj)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_pointer)
+ #else
+-libc_hidden_nolink (xdr_pointer, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdr_pointer, GLIBC_2_0)
+ #endif
+diff --git a/sunrpc/xdr_sizeof.c b/sunrpc/xdr_sizeof.c
+index 0119486c3d..56e870a455 100644
+--- a/sunrpc/xdr_sizeof.c
++++ b/sunrpc/xdr_sizeof.c
+@@ -161,5 +161,5 @@ xdr_sizeof (xdrproc_t func, void *data)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdr_sizeof)
+ #else
+-libc_hidden_nolink (xdr_sizeof, GLIBC_2_1)
++libc_hidden_nolink_sunrpc (xdr_sizeof, GLIBC_2_1)
+ #endif
+diff --git a/sunrpc/xdr_stdio.c b/sunrpc/xdr_stdio.c
+index d9866063f9..667515e0a6 100644
+--- a/sunrpc/xdr_stdio.c
++++ b/sunrpc/xdr_stdio.c
+@@ -191,5 +191,5 @@ xdrstdio_putint32 (XDR *xdrs, const int32_t *ip)
+ #ifdef EXPORT_RPC_SYMBOLS
+ libc_hidden_def (xdrstdio_create)
+ #else
+-libc_hidden_nolink (xdrstdio_create, GLIBC_2_0)
++libc_hidden_nolink_sunrpc (xdrstdio_create, GLIBC_2_0)
+ #endif

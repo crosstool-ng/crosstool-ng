@@ -155,8 +155,28 @@ CT_OnError() {
             CT_DoLog ERROR ">>  For more info on this error, look at the file: '${CT_BUILD_LOG#${CT_TOP_DIR}/}'"
         fi
         CT_DoLog ERROR ">>  There is a list of known issues, some with workarounds, in:"
-        CT_DoLog ERROR ">>      '${CT_DOC_DIR#${CT_TOP_DIR}/}/B - Known issues.txt'"
+        if [ -r "${CT_DOC_DIR}/manual/B_Known_issues.md" ]; then
+            CT_DoLog ERROR ">>      '${CT_DOC_DIR#${CT_TOP_DIR}/}/manual/B_Known_issues.md'"
+        else
+            CT_DoLog ERROR ">>      https://crosstool-ng.github.io/docs/known-issues/"
+        fi
         CT_DoLog ERROR ">>"
+        if [ -n "${CT_EXPERIMENTAL}" ]; then
+            CT_DoLog ERROR ">> NOTE: Your configuration includes features marked EXPERIMENTAL."
+            CT_DoLog ERROR ">> Before submitting a bug report, try to reproduce it without enabling"
+            CT_DoLog ERROR ">> any experimental features. Otherwise, you'll need to debug it"
+            CT_DoLog ERROR ">> and present an explanation why it is a bug in crosstool-NG - or"
+            CT_DoLog ERROR ">> preferably, a fix."
+            CT_DoLog ERROR ">>"
+        fi
+        if [ "${CT_PATCH_ORDER}" != "bundled" ]; then
+            CT_DoLog ERROR ">> NOTE: You configuration uses non-default patch sets. Please"
+            CT_DoLog ERROR ">> select 'bundled' as the set of patches applied and attempt"
+            CT_DoLog ERROR ">> to reproduce this issue. Issues reported with other patch"
+            CT_DoLog ERROR ">> set selections (none, local, bundled+local) are going to be"
+            CT_DoLog ERROR ">> closed without explanation."
+            CT_DoLog ERROR ">>"
+        fi
         CT_DoLog ERROR ">>  If you feel this is a bug in crosstool-NG, report it at:"
         CT_DoLog ERROR ">>      https://github.com/crosstool-ng/crosstool-ng/issues/"
         CT_DoLog ERROR ">>"
@@ -178,7 +198,7 @@ trap CT_OnError ERR
 set -E
 
 # Make pipes fail on the _first_ failed command
-# Not supported on bash < 3.x, but we need it, so drop the obsoleting bash-2.x
+# Not supported on bash < 3.x, but we need it, so drop the obsolete bash-2.x
 set -o pipefail
 
 # Don't hash commands' locations, and search every time it is requested.
@@ -1678,6 +1698,7 @@ CT_PackageRun()
 {
     local sym="${1}"
     local run="${2}"
+    local src_dir="/unknown-src-dir"
     local v
 
     # Get rid of our arguments
@@ -1712,7 +1733,7 @@ CT_PackageRun()
     # Save certain variables that may be modified by the callback.
     # Fetching the sources is run in the main process, so no need to
     # use CT_EnvModify.
-    for v in devel_branch devel_revision basename version; do
+    for v in devel_branch devel_revision basename version src_dir; do
         eval "[ \"\${${v}}\" != \"\${CT_${use}_${v^^}}\" ] || continue"
         eval "CT_${use}_${v^^}=\${${v}}"
         eval "CT_DoLog DEBUG \"Override CT_${use}_${v^^}=\${CT_${use}_${v^^}}\""
@@ -1790,7 +1811,7 @@ CT_DoFetch()
     elif [ "${src_custom}" = "y" ]; then
         # Will be handled during extraction/patching
         version="local"
-        basename="${pkg_name}-${version}"
+        basename="${dir_name}"
         :;
     else
         CT_Abort "No known source for ${pkg_name}"
@@ -1857,22 +1878,46 @@ CT_DoExtractPatch()
     local -a patch_dirs
     local bundled_patch_dir
     local local_patch_dir
+    local overlay
+
+    # If using overlay, prepare it first - we need to determine where to unpack
+    # this component.
+    if [ "${CT_TARGET_USE_OVERLAY}" = "y" -a ! -d "${CT_BUILD_DIR}/overlay" ]; then
+        CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}/overlay"
+        overlay="${CT_OVERLAY_LOCATION}/${CT_ARCH}_${CT_OVERLAY_NAME:-overlay}"
+        ext=`CT_GetFileExtension "${overlay}"`
+        if [ ! -r "${overlay}${ext}" ]; then
+            CT_Abort "Overlay ${overlay} not found"
+        fi
+        CT_Extract "${overlay}${ext}" "${CT_BUILD_DIR}/overlay"
+    fi
+
+    # Can use common location only if using non-custom source, only bundled patches
+    # and no overlays. Otherwise, this source directory is custom-tailored for this
+    # particular configuration and cannot be reused by different configurations.
+    if [ "${src_custom}" != "y" -a \
+            "${CT_PATCH_ORDER}" = "bundled" -a \
+            ! -d "${CT_BUILD_DIR}/overlay/${dir_name}" ]; then
+        src_dir="${CT_COMMON_SRC_DIR}"
+    else
+        src_dir="${CT_SRC_DIR}"
+    fi
 
     if [ "${src_custom}" != "y" ]; then
         # Non-custom: extract to shared location
         # If the previous extraction/patching was aborted, clean up.
-        if [ -r "${CT_COMMON_SRC_DIR}/.${basename}.extracting" -o \
-                -r "${CT_COMMON_SRC_DIR}/.${basename}.patching" ]; then
+        if [ -r "${src_dir}/.${basename}.extracting" -o \
+                -r "${src_dir}/.${basename}.patching" ]; then
             CT_DoLog WARN "Sources for ${basename} were partially extracted/patched, cleaning up"
-            CT_DoExecLog ALL rm -rf "${CT_COMMON_SRC_DIR}/${basename}"
-            CT_DoExecLog ALL rm -f "${CT_COMMON_SRC_DIR}/.${basename}".*
+            CT_DoExecLog ALL rm -rf "${src_dir}/${basename}"
+            CT_DoExecLog ALL rm -f "${src_dir}/.${basename}".*
         fi
 
-        if [ -f "${CT_COMMON_SRC_DIR}/.${basename}.extracted" ]; then
+        if [ -f "${src_dir}/.${basename}.extracted" ]; then
             CT_DoLog DEBUG "Already extracted ${basename}"
         else
             CT_DoLog EXTRA "Extracting ${basename}"
-            CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.extracting"
+            CT_DoExecLog ALL touch "${src_dir}/.${basename}.extracting"
             if [ "${src_release}" = "y" ]; then
                 archive="${archive_filename}"
             else
@@ -1881,21 +1926,21 @@ CT_DoExtractPatch()
             # TBD save/discover the extension while fetching
             ext=`CT_GetFileExtension "${CT_TARBALLS_DIR}/${archive}"`
             if [ "${archive_dirname}" = "." ]; then
-                CT_mkdir_pushd "${CT_COMMON_SRC_DIR}/${basename}"
-                CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${CT_COMMON_SRC_DIR}/${basename}"
+                CT_mkdir_pushd "${src_dir}/${basename}"
+                CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${src_dir}/${basename}"
                 CT_Popd
             else
-                CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${CT_COMMON_SRC_DIR}"
+                CT_Extract "${CT_TARBALLS_DIR}/${archive}${ext}" "${src_dir}"
             fi
-            CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.extracted"
-            CT_DoExecLog ALL rm -f "${CT_COMMON_SRC_DIR}/.${basename}.extracting"
+            CT_DoExecLog ALL touch "${src_dir}/.${basename}.extracted"
+            CT_DoExecLog ALL rm -f "${src_dir}/.${basename}.extracting"
         fi
 
-        if [ -f "${CT_COMMON_SRC_DIR}/.${basename}.patched" ]; then
+        if [ -f "${src_dir}/.${basename}.patched" ]; then
             CT_DoLog DEBUG "Already patched ${basename}"
         else
             CT_DoLog EXTRA "Patching ${basename}"
-            CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.patching"
+            CT_DoExecLog ALL touch "${src_dir}/.${basename}.patching"
 
             bundled_patch_dir="${CT_LIB_DIR}/packages/${pkg_name}/${version}"
             local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkg_name}/${version}"
@@ -1908,7 +1953,7 @@ CT_DoExtractPatch()
                 none)           patch_dirs=;;
             esac
 
-            CT_Pushd "${CT_COMMON_SRC_DIR}/${basename}"
+            CT_Pushd "${src_dir}/${basename}"
             for d in "${patch_dirs[@]}"; do
                 CT_DoLog DEBUG "Looking for patches in '${d}'..."
                 if [ -n "${d}" -a -d "${d}" ]; then
@@ -1945,8 +1990,8 @@ CT_DoExtractPatch()
 
             CT_Popd
 
-            CT_DoExecLog ALL touch "${CT_COMMON_SRC_DIR}/.${basename}.patched"
-            CT_DoExecLog ALL rm -f "${CT_COMMON_SRC_DIR}/.${basename}.patching"
+            CT_DoExecLog ALL touch "${src_dir}/.${basename}.patched"
+            CT_DoExecLog ALL rm -f "${src_dir}/.${basename}.patching"
         fi
     else
         CT_DoLog WARN "${pkg_name}: using custom location, no patches applied"
@@ -1954,50 +1999,33 @@ CT_DoExtractPatch()
 
     # Symlink/copy/overlay into per-target source directory
     if [ "${src_custom}" = "y" ]; then
-        # Custom sources: unpack or copy into per-target directory
-        if [ "${CT_TARGET_USE_OVERLAY}" ]; then
-            CT_DoLog WARN "${pkg_name}: using custom location, no overlays applied"
-        fi
+        # Custom sources: unpack or copy into per-target directory. Note that
+        # ${src_dir} is never ${CT_COMMON_SRC_DIR} in this case.
         if [ -d "${custom_location}" ]; then
-            CT_DoExecLog ALL cp -av "${custom_location}" "${CT_SRC_DIR}/${dir_name}"
+            CT_DoExecLog ALL cp -av "${custom_location}" "${src_dir}/${dir_name}"
         elif [ -f "${custom_location}" ]; then
             # Assume "foo.tar.gz" (or likes) contain the "foo" directory
             local bn
 
-            CT_Extract "${custom_location}" "${CT_SRC_DIR}"
+            CT_Extract "${custom_location}" "${src_dir}"
             bn=`CT_GetFileBasename "${custom_location##*/}"`
             CT_TestOrAbort "Unknown file extension: ${custom_location}" -n "${bn}"
-            CT_DoExecLog ALL mv -v "${CT_SRC_DIR}/${bn%${ext}}" "${CT_SRC_DIR}/${dir_name}"
+            CT_DoExecLog ALL mv -v "${src_dir}/${bn%${ext}}" "${src_dir}/${dir_name}"
         else
             CT_Abort "Neither file nor directory: ${custom_location}"
         fi
-    elif [ "${CT_TARGET_USE_OVERLAY}" = "y" ]; then
-        # Possibly has overlays; check and if it has, copy from common source and apply
-        # overlays.
-        local overlay
-
-        if [ ! -d "${CT_BUILD_DIR}/overlay" ]; then
-            CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}/overlay"
-            overlay="${CT_OVERLAY_LOCATION}/${CT_ARCH}_${CT_OVERLAY_NAME:-overlay}"
-            ext=`CT_GetFileExtension "${overlay}"`
-            if [ ! -r "${overlay}${ext}" ]; then
-                CT_Abort "Overlay ${overlay} not found"
-            fi
-            CT_Extract "${overlay}${ext}" "${CT_BUILD_DIR}/overlay"
-        fi
-
-        if [ -d "${CT_BUILD_DIR}/overlay/${dir_name}" ]; then
-            CT_DoExecLog ALL cp -a "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
-            tar cf - -C "${CT_BUILD_DIR}/overlay" "${dir_name}" | \
-                    CT_DoExecLog FILE tar xvf - -C "${CT_SRC_DIR}"
-        else
-            # No overlay for this component, just symlink
-            CT_DoExecLog ALL ln -s "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
-        fi
     else
         # Common source, just symlink
-        CT_DoExecLog ALL ln -s "${CT_COMMON_SRC_DIR}/${basename}" "${CT_SRC_DIR}/${dir_name}"
+        CT_DoExecLog ALL ln -s "${src_dir}/${basename}" "${CT_SRC_DIR}/${dir_name}"
     fi
+
+    # Check if it has overlays and if it has, apply
+    if [ "${CT_TARGET_USE_OVERLAY}" = "y" -a \
+            -d "${CT_BUILD_DIR}/overlay/${dir_name}" ]; then
+        tar cf - -C "${CT_BUILD_DIR}/overlay" "${dir_name}" | \
+                CT_DoExecLog FILE tar xvf - -C "${src_dir}"
+    fi
+
 }
 
 # Extract/copy the sources to the shared source directory, then either symlink
@@ -2011,13 +2039,12 @@ CT_ExtractPatch()
     CT_PackageRun "${pkg}" CT_DoExtractPatch "$@"
 }
 
-CT_DoGetPkgVersion()
-{
-    echo "${version}"
-}
-
-# Get the version of the package (main or fork)
+# Set the specified variable to the version of the package (main or fork)
+# Usage: CT_GetPkgVersion PKG VAR
 CT_GetPkgVersion()
 {
-    CT_PackageRun "${1}" CT_DoGetPkgVersion
+    local rv
+    __do_GetPkgVersion() { rv="${version}"; }
+    CT_PackageRun "${1}" __do_GetPkgVersion
+    eval "${2}=\"${rv}\""
 }
