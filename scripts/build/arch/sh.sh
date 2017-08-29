@@ -4,36 +4,29 @@ CT_DoArchTupleValues () {
     # The architecture part of the tuple:
     CT_TARGET_ARCH="${CT_ARCH_SH_VARIANT}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
 
-    # gcc ./configure flags
-    CT_ARCH_WITH_ARCH=
-    CT_ARCH_WITH_ABI=
-    CT_ARCH_WITH_CPU=
-    CT_ARCH_WITH_TUNE=
-    CT_ARCH_WITH_FPU=
-    CT_ARCH_WITH_FLOAT=
-
-    # Endianness stuff
+    # Endianness stuff (uses non-standard CFLAGS). If both are compiled, let the
+    # compiler's default or multilib iterator be used.
     case "${CT_ARCH_ENDIAN}" in
         big)    CT_ARCH_ENDIAN_CFLAG=-mb;;
         little) CT_ARCH_ENDIAN_CFLAG=-ml;;
     esac
 
-    # CFLAGS
+    # Instead of -m{soft,hard}-float, uses CPU type
+    CT_ARCH_FLOAT_CFLAG=
     case "${CT_ARCH_SH_VARIANT}" in
         sh3)    CT_ARCH_ARCH_CFLAG=-m3;;
         sh4*)
             # softfp is not possible for SuperH, no need to test for it.
             case "${CT_ARCH_FLOAT}" in
                 hard)
-                    CT_ARCH_ARCH_CFLAG="-m4${CT_ARCH_SH_VARIANT##sh?}"
+                    CT_ARCH_ARCH_CFLAG="-m4${CT_ARCH_SH_VARIANT##sh4}"
                     ;;
                 soft)
-                    CT_ARCH_ARCH_CFLAG="-m4${CT_ARCH_SH_VARIANT##sh?}-nofpu"
+                    CT_ARCH_ARCH_CFLAG="-m4${CT_ARCH_SH_VARIANT##sh4}-nofpu"
                     ;;
             esac
             ;;
     esac
-    CT_ARCH_FLOAT_CFLAG=
 }
 
 CT_DoArchMultilibList() {
@@ -81,6 +74,36 @@ CT_DoArchUClibcCflags() {
 
     for f in ${cflags}; do
         case "${f}" in
+        -ml)
+            CT_KconfigDisableOption "ARCH_BIG_ENDIAN" "${dst}"
+            CT_KconfigDisableOption "ARCH_WANTS_BIG_ENDIAN" "${dst}"
+            CT_KconfigEnableOption "ARCH_LITTLE_ENDIAN" "${dst}"
+            CT_KconfigEnableOption "ARCH_WANTS_LITTLE_ENDIAN" "${dst}"
+            ;;
+        -mb)
+            CT_KconfigEnableOption "ARCH_BIG_ENDIAN" "${dst}"
+            CT_KconfigEnableOption "ARCH_WANTS_BIG_ENDIAN" "${dst}"
+            CT_KconfigDisableOption "ARCH_LITTLE_ENDIAN" "${dst}"
+            CT_KconfigDisableOption "ARCH_WANTS_LITTLE_ENDIAN" "${dst}"
+            ;;
+        -m2|-m2a|-m2a-nofpu|-m3|-m4|-m4-nofpu|-m4a|-m4a-nofpu)
+            CT_KconfigDisableOption "CONFIG_SH2" "${cfg}"
+            CT_KconfigDisableOption "CONFIG_SH2A" "${cfg}"
+            CT_KconfigDisableOption "CONFIG_SH3" "${cfg}"
+            CT_KconfigDisableOption "CONFIG_SH4" "${cfg}"
+            CT_KconfigDisableOption "CONFIG_SH4A" "${cfg}"
+            CT_KconfigDisableOption "UCLIBC_HAS_FPU" "${cfg}"
+            case "${f}" in
+            -m2)
+                CT_KconfigEnableOption "CONFIG_SH2" "${cfg}"
+                ;;
+            -m2a)
+                CT_KconfigEnableOption "CONFIG_SH2A" "${cfg}"
+                CT_KconfigEnableOption "UCLIBC_HAS_FPU" "${cfg}"
+                ;;
+            -m2a-nofpu)
+                CT_KconfigEnableOption "CONFIG_SH2A" "${cfg}"
+                ;;
             -m3)
                 CT_KconfigEnableOption "CONFIG_SH3" "${cfg}"
                 ;;
@@ -90,7 +113,6 @@ CT_DoArchUClibcCflags() {
                 ;;
             -m4-nofpu)
                 CT_KconfigEnableOption "CONFIG_SH4" "${cfg}"
-                CT_KconfigDisableOption "UCLIBC_HAS_FPU" "${cfg}"
                 ;;
             -m4a)
                 CT_KconfigEnableOption "CONFIG_SH4A" "${cfg}"
@@ -98,8 +120,9 @@ CT_DoArchUClibcCflags() {
                 ;;
             -m4a-nofpu)
                 CT_KconfigEnableOption "CONFIG_SH4A" "${cfg}"
-                CT_KconfigDisableOption "UCLIBC_HAS_FPU" "${cfg}"
                 ;;
+            esac
+            ;;
         esac
     done
 }

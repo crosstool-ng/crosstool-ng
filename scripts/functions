@@ -851,22 +851,32 @@ CT_EnvModify() {
 # sample saving sequence.
 CT_DoBuildTargetTuple() {
     # Set the endianness suffix, and the default endianness gcc option
+    target_endian_eb=
+    target_endian_be=
+    target_endian_el=
+    target_endian_le=
     case "${CT_ARCH_ENDIAN}" in
         big)
             target_endian_eb=eb
             target_endian_be=be
-            target_endian_el=
-            target_endian_le=
             CT_ARCH_ENDIAN_CFLAG="-mbig-endian"
             CT_ARCH_ENDIAN_LDFLAG="-Wl,-EB"
             ;;
         little)
-            target_endian_eb=
-            target_endian_be=
             target_endian_el=el
             target_endian_le=le
             CT_ARCH_ENDIAN_CFLAG="-mlittle-endian"
             CT_ARCH_ENDIAN_LDFLAG="-Wl,-EL"
+            ;;
+        # big,little and little,big do not need to pass the flags;
+        # gcc is expected to be configured for that as default.
+        big,little)
+            target_endian_eb=eb
+            target_endian_be=be
+            ;;
+        little,big)
+            target_endian_el=el
+            target_endian_le=le
             ;;
     esac
 
@@ -902,7 +912,7 @@ CT_DoBuildTargetTuple() {
 
     # Set the default values for ARCH, ABI, CPU, TUNE, FPU and FLOAT
     unset CT_ARCH_ARCH_CFLAG CT_ARCH_ABI_CFLAG CT_ARCH_CPU_CFLAG CT_ARCH_TUNE_CFLAG CT_ARCH_FPU_CFLAG CT_ARCH_FLOAT_CFLAG
-    unset CT_ARCH_WITH_ARCH CT_ARCH_WITH_ABI CT_ARCH_WITH_CPU CT_ARCH_WITH_TUNE CT_ARCH_WITH_FPU CT_ARCH_WITH_FLOAT
+    unset CT_ARCH_WITH_ARCH CT_ARCH_WITH_ABI CT_ARCH_WITH_CPU CT_ARCH_WITH_TUNE CT_ARCH_WITH_FPU CT_ARCH_WITH_FLOAT CT_ARCH_WITH_ENDIAN
     [ "${CT_ARCH_ARCH}"     ] && { CT_ARCH_ARCH_CFLAG="-march=${CT_ARCH_ARCH}";  CT_ARCH_WITH_ARCH="--with-arch=${CT_ARCH_ARCH}"; }
     [ "${CT_ARCH_ABI}"      ] && { CT_ARCH_ABI_CFLAG="-mabi=${CT_ARCH_ABI}";     CT_ARCH_WITH_ABI="--with-abi=${CT_ARCH_ABI}";    }
     [ "${CT_ARCH_CPU}"      ] && { CT_ARCH_CPU_CFLAG="-mcpu=${CT_ARCH_CPU}";     CT_ARCH_WITH_CPU="--with-cpu=${CT_ARCH_CPU}";    }
@@ -923,6 +933,10 @@ CT_DoBuildTargetTuple() {
             CT_ARCH_WITH_FLOAT="--with-float=softfp"
             ;;
     esac
+
+    if [ "${CT_ARCH_SUPPORTS_WITH_ENDIAN}" = "y" ]; then
+        CT_ARCH_WITH_ENDIAN="--with-endian=${CT_ARCH_ENDIAN}"
+    fi
 
     # Build the default kernel tuple part
     CT_TARGET_KERNEL="${CT_KERNEL}"
