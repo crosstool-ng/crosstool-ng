@@ -164,8 +164,21 @@ CT_PREFIX_DIR="$( ${sed} -r -e 's:/+:/:g; s:/*$::;' <<<"${CT_PREFIX_DIR}" )"
 # Put user-supplied flags at the end, so that they take precedence.
 CT_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_TARGET_CFLAGS}"
 CT_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_TARGET_LDFLAGS}"
+
+# FIXME move to gcc.sh
 CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY=( ${CT_ARCH_CC_CORE_EXTRA_CONFIG} "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
 CT_CC_GCC_EXTRA_CONFIG_ARRAY=( ${CT_ARCH_CC_EXTRA_CONFIG} "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
+
+# Starting with 1.0.20, applications using uClibc-ng do not link with
+# the default libgcc_c_spec used by GCC if only static libc.a exists - unless
+# -static is thrown in. The difference is that with -static, gcc passes
+# "--start-group -lgcc -lc --end-group" and without -static, it passes
+# "-lgcc -lc -lgcc" instead. The latter leaves a symbol from 2nd libgcc
+# (dl_iterate_phdr) unresolved because -lc is already done at this point.
+# Force static link on the target.
+if [ "${CT_SHARED_LIBS}" != "y" ]; then
+    CT_TARGET_LDFLAGS+=" -static"
+fi
 
 # Compute the package version string
 if [ "${CT_SHOW_CT_VERSION}" = "y" ]; then

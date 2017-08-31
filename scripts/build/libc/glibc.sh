@@ -150,6 +150,9 @@ do_libc_backend_once() {
                         ;;
     esac
 
+    # FIXME static version of glibc seems to be broken:
+    # build tries to use libc-modules.h which is generated from
+    # soversions.i, which is only created for builds with shared libs.
     case "${CT_SHARED_LIBS}" in
         y) extra_config+=("--enable-shared");;
         *) extra_config+=("--disable-shared");;
@@ -308,42 +311,39 @@ do_libc_backend_once() {
                          "${extra_make_args[@]}"                    \
                          install-headers
 
-        # For glibc, a few headers need to be manually installed
-        if [ "${CT_LIBC}" = "glibc" ]; then
-            # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
-            # so do them by hand.  We can tolerate an empty stubs.h for the moment.
-            # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
-            mkdir -p "${CT_HEADERS_DIR}/gnu"
-            CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
-            CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/glibc/include/features.h"  \
-                                   "${CT_HEADERS_DIR}/features.h"
+        # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
+        # so do them by hand.  We can tolerate an empty stubs.h for the moment.
+        # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
+        mkdir -p "${CT_HEADERS_DIR}/gnu"
+        CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
+        CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/glibc/include/features.h"  \
+                               "${CT_HEADERS_DIR}/features.h"
 
-            # Building the bootstrap gcc requires either setting inhibit_libc, or
-            # having a copy of stdio_lim.h... see
-            # http://sources.redhat.com/ml/libc-alpha/2003-11/msg00045.html
-            CT_DoExecLog ALL cp -v bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
+        # Building the bootstrap gcc requires either setting inhibit_libc, or
+        # having a copy of stdio_lim.h... see
+        # http://sources.redhat.com/ml/libc-alpha/2003-11/msg00045.html
+        CT_DoExecLog ALL cp -v bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
 
-            # Following error building gcc-4.0.0's gcj:
-            #  error: bits/syscall.h: No such file or directory
-            # solved by following copy; see http://sourceware.org/ml/crossgcc/2005-05/msg00168.html
-            # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
-            # Of course, only copy it if it does not already exist
-            case "${CT_ARCH}" in
-                arm)    ;;
-                *)  if [ -f "${CT_HEADERS_DIR}/bits/syscall.h" ]; then
-                        CT_DoLog ALL "Not over-writing existing bits/syscall.h"
-                    elif [ -f "misc/bits/syscall.h" ]; then
-                        CT_DoExecLog ALL cp -v "misc/bits/syscall.h"            \
-                                               "${CT_HEADERS_DIR}/bits/syscall.h"
-                    else
-                        # "Old" glibces do not have the above file,
-                        # but provide this one:
-                        CT_DoExecLog ALL cp -v "misc/syscall-list.h"            \
-                                               "${CT_HEADERS_DIR}/bits/syscall.h"
-                    fi
-                    ;;
-            esac
-        fi
+        # Following error building gcc-4.0.0's gcj:
+        #  error: bits/syscall.h: No such file or directory
+        # solved by following copy; see http://sourceware.org/ml/crossgcc/2005-05/msg00168.html
+        # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
+        # Of course, only copy it if it does not already exist
+        case "${CT_ARCH}" in
+            arm)    ;;
+            *)  if [ -f "${CT_HEADERS_DIR}/bits/syscall.h" ]; then
+                    CT_DoLog ALL "Not over-writing existing bits/syscall.h"
+                elif [ -f "misc/bits/syscall.h" ]; then
+                    CT_DoExecLog ALL cp -v "misc/bits/syscall.h"            \
+                                           "${CT_HEADERS_DIR}/bits/syscall.h"
+                else
+                    # "Old" glibces do not have the above file,
+                    # but provide this one:
+                    CT_DoExecLog ALL cp -v "misc/syscall-list.h"            \
+                                           "${CT_HEADERS_DIR}/bits/syscall.h"
+                fi
+                ;;
+        esac
     elif [ "${libc_mode}" = "final" -a -r "${multi_root}/.libc_headers_installed" ]; then
         CT_DoExecLog ALL rm -f "${multi_root}/.libc_headers_installed"
     fi # installing headers

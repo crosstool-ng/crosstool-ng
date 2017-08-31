@@ -318,10 +318,24 @@ CT_DoExecLog() {
     local level="$1"
     local cur_cmd
     local ret
+    local cmd_seen
     shift
+
     (
     for i in "$@"; do
-        cur_cmd+="'${i}' "
+        case "${i}" in
+        *=*)
+            if [ -z "${cmd_seen}" ]; then
+                cur_cmd+=" ${i%%=*}='${i#*=}'"
+            else
+                cur_cmd+=" '${i}'"
+            fi
+            ;;
+        *)
+            cur_cmd+=" '${i}'"
+            cmd_seen=y
+            ;;
+        esac
     done
     while true; do
         case "${1}" in
