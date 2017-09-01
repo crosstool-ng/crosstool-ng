@@ -357,7 +357,7 @@ do_gcc_core_backend() {
         fi
     done
 
-    extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+    [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
     [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
 
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
@@ -874,7 +874,7 @@ do_gcc_backend() {
     done
 
     [ "${CT_SHARED_LIBS}" = "y" ] || extra_config+=("--disable-shared")
-    extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+    [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
     [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
 
     case "${CT_CC_GCC_SJLJ_EXCEPTIONS}" in
