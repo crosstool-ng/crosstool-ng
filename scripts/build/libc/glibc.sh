@@ -211,6 +211,7 @@ do_libc_backend_once() {
                 ;;
         esac
     done
+    CT_DoArchGlibcAdjustConfigure extra_config "${glibc_cflags}"
 
     # ./configure is mislead by our tools override wrapper for bash
     # so just tell it where the real bash is _on_the_target_!
