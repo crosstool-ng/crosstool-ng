@@ -168,7 +168,7 @@ do_libc_backend_once() {
         *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
     esac
 
-    extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+    [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
     [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
 
     touch config.cache
@@ -484,7 +484,7 @@ do_libc_locales() {
     # a harmless: `configure: WARNING: unrecognized options: --with-bugurl...`
     # If it's set, use it, if is a recognized option.
     if [ ! "${CT_TOOLCHAIN_PKGVERSION}" = "" ]; then
-        extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+        [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
     fi
     if [ ! "${CT_TOOLCHAIN_BUGURL}" = "" ]; then
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
