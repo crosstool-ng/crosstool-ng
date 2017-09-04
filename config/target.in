@@ -93,8 +93,16 @@ config ARCH_USE_MMU
       have one (eg. ARM Cortex-A8).
 
 #--------------------------------------
+config ARCH_SUPPORTS_EITHER_ENDIAN
+    bool
+    help
+      Architecture allows to select endianness at the time the toolchain is built.
+
 config ARCH_SUPPORTS_BOTH_ENDIAN
     bool
+    select ARCH_SUPPORTS_EITHER_ENDIAN
+    help
+      Toolchain supports both big/little endian.
 
 config ARCH_DEFAULT_BE
     bool
@@ -102,12 +110,22 @@ config ARCH_DEFAULT_BE
 config ARCH_DEFAULT_LE
     bool
 
+config ARCH_DEFAULT_BE_LE
+    bool
+    depends on ARCH_SUPPORTS_BOTH_ENDIAN
+
+config ARCH_DEFAULT_LE_BE
+    bool
+    depends on ARCH_SUPPORTS_BOTH_ENDIAN
+
 choice
     bool
     prompt "Endianness:"
     depends on ARCH_SUPPORTS_BOTH_ENDIAN
     default ARCH_BE if ARCH_DEFAULT_BE
     default ARCH_LE if ARCH_DEFAULT_LE
+    default ARCH_BE_LE if ARCH_DEFAULT_BE_LE
+    default ARCH_LE_BE if ARCH_DEFAULT_LE_BE
 
 config ARCH_BE
     bool
@@ -117,13 +135,23 @@ config ARCH_LE
     bool
     prompt "Little endian"
 
+config ARCH_BE_LE
+    bool
+    prompt "Both, default big endian"
+
+config ARCH_LE_BE
+    bool
+    prompt "Both, default little endian"
+
 endchoice
 
 config ARCH_ENDIAN
     string
-    depends on ARCH_SUPPORTS_BOTH_ENDIAN
-    default "big"       if ARCH_BE
-    default "little"    if ARCH_LE
+    depends on ARCH_SUPPORTS_EITHER_ENDIAN
+    default "big"        if ARCH_BE
+    default "little"     if ARCH_LE
+    default "big,little" if ARCH_BE_LE
+    default "little,big" if ARCH_LE_BE
 
 #--------------------------------------
 config ARCH_SUPPORTS_8
@@ -206,6 +234,9 @@ config ARCH_SUPPORTS_WITH_FLOAT
     bool
 
 config ARCH_SUPPORTS_WITH_FPU
+    bool
+
+config ARCH_SUPPORTS_WITH_ENDIAN
     bool
 
 config ARCH_SUPPORTS_SOFTFP
@@ -396,7 +427,6 @@ config TARGET_LDFLAGS
 
 config ARCH_FLOAT
     string
-    default ""       if ! ARCH_SUPPORTS_WITH_FLOAT
     default "auto"   if ARCH_FLOAT_AUTO
     default "hard"   if ARCH_FLOAT_HW
     default "soft"   if ARCH_FLOAT_SW

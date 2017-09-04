@@ -22,6 +22,12 @@ CT_DoArchGlibcAdjustTuple() {
     :;
 }
 
+# Multilib: Adjust configure arguments for GLIBC
+# Usage: CT_DoArchGlibcAdjustConfigure <configure-args-array-name> <cflags>
+CT_DoArchGlibcAdjustConfigure() {
+    :;
+}
+
 # Helper for uClibc configurators: select the architecture
 # Usage: CT_DoArchUClibcSelectArch <config-file> <architecture>
 CT_DoArchUClibcSelectArch() {

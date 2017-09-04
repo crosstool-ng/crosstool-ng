@@ -224,13 +224,13 @@ manage_uClibc_config() {
     CT_DoExecLog ALL cp "${src}" "${dst}"
 
     case "${CT_ARCH_ENDIAN}" in
-        big)
+        big|big,little)
             CT_KconfigDisableOption "ARCH_LITTLE_ENDIAN" "${dst}"
             CT_KconfigDisableOption "ARCH_WANTS_LITTLE_ENDIAN" "${dst}"
             CT_KconfigEnableOption "ARCH_BIG_ENDIAN" "${dst}"
             CT_KconfigEnableOption "ARCH_WANTS_BIG_ENDIAN" "${dst}"
             ;;
-        little)
+        little|little,big)
             CT_KconfigDisableOption "ARCH_BIG_ENDIAN" "${dst}"
             CT_KconfigDisableOption "ARCH_WANTS_BIG_ENDIAN" "${dst}"
             CT_KconfigEnableOption "ARCH_LITTLE_ENDIAN" "${dst}"

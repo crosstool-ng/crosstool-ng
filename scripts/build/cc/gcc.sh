@@ -233,7 +233,11 @@ do_cc_core_pass_2() {
     #     later, we need to build libgcc
     case "${CT_THREADS}" in
         nptl)
-            core_opts+=( "mode=shared" )
+            if [ "${CT_SHARED_LIBS}" = "y" ]; then
+                core_opts+=( "mode=shared" )
+            else
+                core_opts+=( "mode=static" )
+            fi
             core_opts+=( "build_libgcc=yes" )
             ;;
         win32)
@@ -350,7 +354,7 @@ do_gcc_core_backend() {
         CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
     fi
 
-    for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
+    for tmp in ARCH ABI CPU TUNE FPU FLOAT ENDIAN; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
         if [ -n "${tmp}" ]; then
             extra_config+=("${tmp}")
@@ -873,9 +877,12 @@ do_gcc_backend() {
         fi
     done
 
-    [ "${CT_SHARED_LIBS}" = "y" ] || extra_config+=("--disable-shared")
     [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
     [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
+
+    if [ "${CT_SHARED_LIBS}" != "y" ]; then
+        extra_config+=("--disable-shared")
+    fi
 
     case "${CT_CC_GCC_SJLJ_EXCEPTIONS}" in
         y)  extra_config+=("--enable-sjlj-exceptions");;

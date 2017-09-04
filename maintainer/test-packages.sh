@@ -189,6 +189,8 @@ EOF
     CT_EndStep
 }
 
+mv .config .config-saved
 . maintainer/package-versions
+mv .config-saved .config
 
 rm -rf ${CT_TARBALLS_DIR} ${CT_COMMON_SRC_DIR}
