@@ -61,6 +61,11 @@ while [ -n "${1}" ]; do
     shift
 done
 
+if [ -z "${download_pkgs}${verify_urls}" ]; then
+    echo "No action selected" >&2
+    exit 1
+fi
+
 CT_LIB_DIR=`pwd`
 CT_TOP_DIR=`pwd`
 CT_TARBALLS_DIR=`pwd`/temp.tarballs
