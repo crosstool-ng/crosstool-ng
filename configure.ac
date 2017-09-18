@@ -424,9 +424,13 @@ AC_SEARCH_LIBS(
 # Lastly, take care of crosstool-NG internal values
 #--------------------------------------------------------------------
 # Hey! We need the date! :-)
-AC_SUBST(
-    [DATE],
-    [$(date +%Y%m%d)])
+DATE_FMT="%Y%m%d"
+if test "x$SOURCE_DATE_EPOCH" = "x"; then
+    DATE=$(date "+$DATE_FMT")
+else
+    DATE="$(date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT")"
+fi
+AC_SUBST([DATE])
 
 # Decorate the version string if needed
 AS_IF(
