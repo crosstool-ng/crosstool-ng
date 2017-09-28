@@ -32,6 +32,10 @@ Options:
         Specify the package to operate upon. MASK can be either package
         name ("-s foo"), or package name + version ("-s foo-1.1").
 
+    --signature, -S
+        When downloading archives (because of any of -D/-d/-u options),
+        also download/verify signatures.
+
 EOF
 }
 
@@ -54,6 +58,9 @@ while [ -n "${1}" ]; do
         shift
         [ -n "${1}" ] || { echo "argument required for --select" >&2; exit 1; }
         selected="${1}"
+        ;;
+    --signature|-S)
+        signature=y
         ;;
     --help|-?)
         usage
@@ -202,6 +209,7 @@ CT_${pfx}_SRC_RELEASE=y
 CT_${pfx}_V_${kcfg}=y
 CT_SAVE_TARBALLS=y
 # CT_VERIFY_DOWNLOAD_DIGEST is not set
+${signature+CT_VERIFY_DOWNLOAD_SIGNATURE=y}
 EOF
 
     ./kconfig/conf --defconfig=temp.defconfig temp.in >/dev/null
