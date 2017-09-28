@@ -382,6 +382,7 @@ CT_DoExecLog() {
             break
         fi
     done
+    CT_DoLog DEBUG "==> Return status ${ret}"
     exit ${ret}
     )
     # Catch failure of the sub-shell
@@ -702,7 +703,8 @@ CT_GetFileBasename()
 # This functions always returns true (0), as it can be legitimate not
 # to find the requested URL (think about snapshots, different layouts
 # for different gcc versions, etc...).
-CT_DoGetFile() {
+CT_DoGetFile()
+{
     local url="${1}"
     local dest="${CT_TARBALLS_DIR}/${url##*/}"
     local tmp="${dest}.tmp-dl"
@@ -750,7 +752,8 @@ CT_DoGetFile() {
 # This function saves the specified to local storage if possible,
 # and if so, symlinks it for later usage
 # Usage: CT_SaveLocal </full/path/file.name>
-CT_SaveLocal() {
+CT_SaveLocal()
+{
     local file="$1"
     local basename="${file##*/}"
 
@@ -763,42 +766,160 @@ CT_SaveLocal() {
     fi
 }
 
+# Verify the file against a known digest.
+# Usage: CT_DoVerifyDigest <local-file-path> <package-directory>
+CT_DoVerifyDigest()
+{
+    local path="$1"
+    local file="${path##*/}"
+    local dir="${path%/*}"
+    local pkgdir="$2"
+    local alg="${CT_VERIFY_DOWNLOAD_DIGEST_ALG}"
+
+    if [ ! -r "${pkgdir}/${file}.${alg}" ]; then
+        CT_DoLog WARN "Not verifying '${file}': digest missing"
+        return
+    fi
+    CT_DoLog EXTRA "Verifying ${alg^^} checksum for '${file}'"
+    CT_Pushd "${dir}"
+    if ! CT_DoExecLog ALL "${alg}sum" -c "${pkgdir}/${file}.${alg}"; then
+        CT_Popd
+        return 1
+    fi
+    CT_Popd
+}
+
+# Decompress a file to stdout
+CT_ZCat()
+{
+    local file="$1"
+
+    case "${file}" in
+    *.tar.xz)
+        xz -fdc "${file}"
+        ;;
+    *.tar.lzma)
+        xz -fdc --format=lzma "${file}"
+        ;;
+    *.tar.lz)
+        lzip -fdc "${file}"
+        ;;
+    *.tar.bz2)
+        bzip2 -dc "${file}"
+        ;;
+    *.tar.gz|*.tgz)
+        gzip -dc "${file}"
+        ;;
+    *.tar)
+        cat "${file}"
+        ;;
+    *)
+        CT_Abort "Unsupported archive file name '${file}'"
+    esac
+}
+
+# Verify the file against a detached signature.
+# Fetched from the URL, or obtained from the package directory.
+# Usage: CT_DoVerifySignature <local-file-path> <URL-used-for-download> <signature-format>
+CT_DoVerifySignature()
+{
+    local path="$1"
+    local file="${path##*/}"
+    local dir="${path%/*}"
+    local url="$2"
+    local urldir="${url%/*}"
+    local format="$3"
+    local method="${format%/*}"
+    local ext="${format#*/}"
+    local sigfile
+    local cat
+
+    case "${method}" in
+    packed)
+        # Typical case: release is packed, then signed
+        sigfile="${file}"
+        cat=cat
+        ;;
+    unpacked)
+        # Linux kernel: uncompressed tarball is signed, them compressed by various methods
+        case "${file}" in
+        *.tar.*)
+            sigfile="${file%.tar.*}.tar"
+            cat=CT_ZCat
+            ;;
+        *)
+            CT_Abort "'unpacked' signature method only supported for tar archives"
+            ;;
+        esac
+        ;;
+    *)
+        CT_Abort "Unsupported signature method ${method}"
+        ;;
+    esac
+
+    # No recursion, as we don't pass signature_format argument
+    if ! CT_DoGetFile "${urldir}/${sigfile}${ext}"; then
+        CT_DoLog WARN "Failed to download the signature '${sigfile}${ext}'"
+        return 1
+    fi
+
+    CT_Pushd "${dir}"
+    if ! ${cat} "${file}" | CT_DoExecLog ALL gpg --verify "${sigfile}${ext}" -; then
+        # Remove the signature so it's re-downloaded next time
+        CT_DoExecLog ALL rm "${sigfile}${ext}"
+        CT_Popd
+        return 1
+    fi
+    CT_Popd
+
+    # If we get here, verification succeeded.
+    CT_SaveLocal "${CT_TARBALLS_DIR}/${sigfile}${ext}"
+}
+
 # Download the file from one of the URLs passed as argument
-# Usage: CT_GetFile <packagename> <basename> <extensions> <url> [url ...]
-CT_GetFile() {
-    local ext
+CT_GetFile()
+{
+    local -a argnames=(
+        package             # Name of the package
+        version             # Version of the package
+        basename            # Base name of file/archive
+        extensions          # Extension(s) for the file/archive
+        digest              # If 'y', verify the digest
+        signature_format    # Format of the signature
+        mirrors             # Mirrors to download from
+    )
     local -a URLS
-    local url
-    local package="$1"
-    local file="$2"
-    local extensions="$3"
-    shift 3
+    local ext url
+
+    for arg in "${argnames[@]/%/=}" "$@"; do
+        eval "local ${arg//[[:space:]]/\\ }"
+    done
 
     # Does any of the requested files exist localy?
     for ext in ${extensions}; do
         # Do we already have it in *our* tarballs dir?
-        if [ -r "${CT_TARBALLS_DIR}/${file}${ext}" ]; then
-            CT_DoLog DEBUG "Already have '${CT_TARBALLS_DIR}/${file}${ext}'"
+        if [ -r "${CT_TARBALLS_DIR}/${basename}${ext}" ]; then
+            CT_DoLog DEBUG "Already have '${CT_TARBALLS_DIR}/${basename}${ext}'"
             return 0
         fi
 
         if [ -n "${CT_LOCAL_TARBALLS_DIR}" -a "${CT_FORCE_DOWNLOAD}" != "y" -a \
-                -r "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" ]; then
-            CT_DoLog DEBUG "Got '${file}' from local storage"
-            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${file}${ext}" \
-                    "${CT_TARBALLS_DIR}/${file}${ext}"
+                -r "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" ]; then
+            CT_DoLog DEBUG "Got '${basename}' from local storage"
+            CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${basename}${ext}" \
+                    "${CT_TARBALLS_DIR}/${basename}${ext}"
             return 0
         fi
     done
 
     # No, it does not...  If not allowed to download from the Internet, don't.
     if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
-        CT_DoLog DEBUG "Not allowed to download from the Internet, aborting ${file} download"
+        CT_DoLog DEBUG "Not allowed to download from the Internet, aborting ${basename} download"
         return 1
     fi
 
     # Try to retrieve the file
-    CT_DoLog EXTRA "Retrieving '${file}'"
+    CT_DoLog EXTRA "Retrieving '${basename}'"
 
     # Add URLs on the LAN mirror
     if [ "${CT_USE_MIRROR}" = "y" ]; then
@@ -810,18 +931,31 @@ CT_GetFile() {
     fi
 
     if [ "${CT_FORCE_MIRROR}" != "y" ]; then
-        URLS+=( "${@}" )
+        URLS+=( ${mirrors} )
     fi
 
     # Scan all URLs in turn, and try to grab a tarball from there
-    # Do *not* try git trees (ext=/.git), this is handled in a specific
-    # wrapper, below
     for ext in ${extensions}; do
         # Try all urls in turn
         for url in "${URLS[@]}"; do
             [ -n "${url}" ] || continue
-            if CT_DoGetFile "${url}/${file}${ext}"; then
-                CT_SaveLocal "${CT_TARBALLS_DIR}/${file}${ext}"
+            if CT_DoGetFile "${url}/${basename}${ext}"; then
+                if [ -n "${digest}" ] && ! CT_DoVerifyDigest \
+                            "${CT_TARBALLS_DIR}/${basename}${ext}" \
+                            "${CT_LIB_DIR}/packages/${package}/${version}"; then
+                    CT_DoLog ERROR "Digest verification failed; removing the download"
+                    CT_DoExecLog ALL rm "${CT_TARBALLS_DIR}/${basename}${ext}"
+                    return 1
+                fi
+                if [ -n "${signature_format}" ] && ! CT_DoVerifySignature \
+                            "${CT_TARBALLS_DIR}/${basename}${ext}" \
+                            "${url}/${basename}${ext}" \
+                            "${signature_format}"; then
+                    CT_DoLog ERROR "Signature verification failed; removing the download"
+                    CT_DoExecLog ALL rm "${CT_TARBALLS_DIR}/${basename}${ext}"
+                    return 1
+                fi
+                CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}${ext}"
                 return 0
             fi
         done
@@ -1742,7 +1876,7 @@ CT_PackageRun()
 
     # Variables that are per-fork
     for v in basename pkg_name version \
-            src_release mirrors archive_filename archive_dirname archive_formats \
+            src_release mirrors archive_filename archive_dirname archive_formats signature_format \
             src_devel devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
             src_custom custom_location; do
         eval "local ${v}=\${CT_${use}_${v^^}}"
@@ -1780,7 +1914,11 @@ CT_DoFetch()
         else
             basename="${pkg_name}-${version}"
         fi
-        if ! CT_GetFile "${pkg_name}" "${archive_filename}" "${archive_formats}" ${mirrors}; then
+        if ! CT_GetFile package="${pkg_name}" version="${version}" \
+                basename="${archive_filename}" extensions="${archive_formats}" \
+                digest="${CT_VERIFY_DOWNLOAD_DIGEST}" \
+                signature_format="${CT_VERIFY_DOWNLOAD_SIGNATURE:+${signature_format}}" \
+                mirrors="${mirrors}"; then
             CT_Abort "${pkg_name}: download failed"
         fi
 
@@ -1811,7 +1949,8 @@ CT_DoFetch()
         # attempt getting it from local storage or from the mirror if configured.
         # Bzip2 offers a reasonable compromise between compression speed and size.
         if [ "${unique_id}" != "to.be.determined" ] && \
-                CT_GetFile "${pkg_name}" "${basename}" '.tar.bz2'; then
+                CT_GetFile package="${pkg_name}" version="${version}" \
+                        basename="${basename}" extensions='.tar.bz2'; then
             return 0
         fi
 
@@ -1862,23 +2001,8 @@ CT_Extract()
 
     CT_DoExecLog ALL mkdir -p "${dir}"
     case "${file}" in
-        *.tar.xz)
-            xz -fdc "${file}" | CT_DoExecLog FILE tar x -v -f - -C "${dir}" ${components}
-            ;;
-        *.tar.lzma)
-            xz -fdc "${file}" | CT_DoExecLog FILE tar x -v -f - -C "${dir}" ${components}
-            ;;
-        *.tar.lz)
-            lzip -fdc "${file}" | CT_DoExecLog FILE tar x -v -f - -C "${dir}" ${components}
-            ;;
-        *.tar.bz2)
-            bzip2 -dc "${file}" | CT_DoExecLog FILE tar x -v -f - -C "${dir}" ${components}
-            ;;
-        *.tar.gz|*.tgz)
-            gzip -dc "${file}" | CT_DoExecLog FILE tar x -v -f - -C "${dir}" ${components}
-            ;;
-        *.tar)
-            CT_DoExecLog FILE tar x -v -f "${file}" -C "${dir}" ${components}
+        *.tar.*|*.tar)
+            CT_ZCat "${file}" | CT_DoExecLog FILE tar x -v -f - -C "${dir}" ${components}
             ;;
         *.zip)
             CT_Pushd "${dir}"

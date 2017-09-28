@@ -132,4 +132,49 @@ config MIRROR_BASE_URL
 
 endif # USE_MIRROR
 
+config VERIFY_DOWNLOAD_DIGEST
+    bool "Verify download digests (checksums)"
+    default y
+
+if VERIFY_DOWNLOAD_DIGEST
+
+choice
+    prompt "Digest algorithm"
+
+config VERIFY_DOWNLOAD_DIGEST_SHA512
+    bool "SHA-512"
+
+config VERIFY_DOWNLOAD_DIGEST_SHA256
+    bool "SHA-256"
+
+config VERIFY_DOWNLOAD_DIGEST_SHA1
+    bool "SHA-1"
+
+config VERIFY_DOWNLOAD_DIGEST_MD5
+    bool "MD5"
+
+endchoice
+
+config VERIFY_DOWNLOAD_DIGEST_ALG
+    string
+    default "md5" if VERIFY_DOWNLOAD_DIGEST_MD5
+    default "sha1" if VERIFY_DOWNLOAD_DIGEST_SHA1
+    default "sha256" if VERIFY_DOWNLOAD_DIGEST_SHA256
+    default "sha512" if VERIFY_DOWNLOAD_DIGEST_SHA512
+
+endif # VERIFY_DOWNLOAD_DIGEST
+
+config VERIFY_DOWNLOAD_SIGNATURE
+    bool "Verify detached signatures"
+    help
+      Verify the signatures for the downloads where available.
+      This requires the public keys for all the packages used in the build
+      to be imported into a keyring on the build machine.
+
+      Note that the validation will succeed so long as the signature
+      is known and valid, even if the signature is not trusted! GnuPG
+      issues a warning in this case, but ultimately reports that validation
+      succeeded. Check the log file if this is a concern; crosstool-NG
+      may add an option to verify this more paranoidally later.
+
 endif # ! FORBID_DOWNLOAD

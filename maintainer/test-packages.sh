@@ -18,6 +18,9 @@ Options:
     --download, -d
         Download all packages to the default directory (\$HOME/src).
 
+    --digest, -D
+        Create digests (MD5/SHA-1/...) for all package archives.
+
     --apply-patches, -a
         Implies -d. Unpack and apply the bundled patches.
 
@@ -36,6 +39,9 @@ while [ -n "${1}" ]; do
     case "${1}" in
     --download|-d)
         download_pkgs=y
+        ;;
+    --digest|-D)
+        create_digests=y
         ;;
     --verify-urls|-u)
         verify_urls=y
@@ -61,7 +67,7 @@ while [ -n "${1}" ]; do
     shift
 done
 
-if [ -z "${download_pkgs}${verify_urls}" ]; then
+if [ -z "${download_pkgs}${create_digests}${verify_urls}" ]; then
     echo "No action selected" >&2
     exit 1
 fi
@@ -124,6 +130,30 @@ check_pkg_urls()
     done
 }
 
+create_digests()
+{
+    local e m url alg
+    local save_archive_formats="${archive_formats}"
+
+    for e in ${save_archive_formats}; do
+        CT_DoStep EXTRA "Downloading ${archive_filename}${e}"
+        archive_formats="${e}"
+        CT_DoFetch
+        CT_Pushd "${CT_LOCAL_TARBALLS_DIR}"
+        for alg in md5 sha1 sha256 sha512; do
+            CT_DoLog EXTRA "Creating ${alg^^} digest for ${archive_filename}${e}"
+            if ! CT_DoExecLog ALL ${alg}sum "${archive_filename}${e}" > \
+                    "${CT_LIB_DIR}/packages/${pkg_name}/${version}/${archive_filename}${e}.${alg}"; then
+                CT_DoExecLog ALL rm -f "${CT_LIB_DIR}/packages/${pkg_name}/${version}/${archive_filename}${e}.${alg}"
+                CT_Abort "${alg}sum failed"
+            fi
+        done
+        CT_Popd
+        CT_EndStep
+    done
+    archive_formats="${save_archive_formats}"
+}
+
 run_pkgversion()
 {
     while [ -n "${1}" ]; do
@@ -171,6 +201,7 @@ CT_${masterpfx}_USE_${originpfx}=y
 CT_${pfx}_SRC_RELEASE=y
 CT_${pfx}_V_${kcfg}=y
 CT_SAVE_TARBALLS=y
+# CT_VERIFY_DOWNLOAD_DIGEST is not set
 EOF
 
     ./kconfig/conf --defconfig=temp.defconfig temp.in >/dev/null
@@ -180,6 +211,10 @@ EOF
     if [ -n "${verify_urls}" ]; then
         CT_DoLog EXTRA "Verifying URLs for ${pkg_name}-${ver}"
         CT_PackageRun "${masterpfx}" check_pkg_urls
+    fi
+    if [ -n "${create_digests}" ]; then
+        CT_DoLog EXTRA "Creating digests for ${pkg_name}-${ver}"
+        CT_PackageRun "${masterpfx}" create_digests
     fi
     if [ -n "${download_pkgs}" ]; then
         CT_DoLog EXTRA "Downloading ${pkg_name}-${ver}"
