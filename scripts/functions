@@ -775,18 +775,29 @@ CT_DoVerifyDigest()
     local dir="${path%/*}"
     local pkgdir="$2"
     local alg="${CT_VERIFY_DOWNLOAD_DIGEST_ALG}"
+    local chksum a f c
 
-    if [ ! -r "${pkgdir}/${file}.${alg}" ]; then
+    if [ ! -r "${pkgdir}/chksum" ]; then
         CT_DoLog WARN "Not verifying '${file}': digest missing"
-        return
+        return 0
     fi
     CT_DoLog EXTRA "Verifying ${alg^^} checksum for '${file}'"
-    CT_Pushd "${dir}"
-    if ! CT_DoExecLog ALL "${alg}sum" -c "${pkgdir}/${file}.${alg}"; then
-        CT_Popd
-        return 1
-    fi
-    CT_Popd
+    chksum=`"${alg}sum" "${path}"`
+    chksum="${chksum%%[[:space:]]*}"
+    while read a f c; do
+        if [ "${a}" != "${alg}" -o "${f}" != "${file}" ]; then
+            continue
+        fi
+        if [ "${c}" = "${chksum}" ]; then
+            CT_DoLog DEBUG "Correct ${alg} digest for ${file}: ${chksum}"
+            return 0
+        else
+            CT_DoLog ERROR "Bad ${alg} digest for ${file}: ${chksum}, expect ${c}"
+            return 1
+        fi
+    done < "${pkgdir}/chksum"
+    CT_DoLog WARN "Downloaded file ${file} reference digest not available"
+    return 0
 }
 
 # Decompress a file to stdout
@@ -834,6 +845,7 @@ CT_DoVerifySignature()
     local sigfile
     local cat
 
+    CT_DoLog EXTRA "Verifying detached signature for '${file}'"
     case "${method}" in
     packed)
         # Typical case: release is packed, then signed

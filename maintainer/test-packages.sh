@@ -139,9 +139,11 @@ check_pkg_urls()
 
 create_digests()
 {
-    local e m url alg
+    local e m url alg chksum
     local save_archive_formats="${archive_formats}"
 
+    # Remove stale digests - we'll create them anew below
+    CT_DoExecLog ALL rm -f "${CT_LIB_DIR}/packages/${pkg_name}/${version}/chksum"
     for e in ${save_archive_formats}; do
         CT_DoStep EXTRA "Downloading ${archive_filename}${e}"
         archive_formats="${e}"
@@ -149,11 +151,13 @@ create_digests()
         CT_Pushd "${CT_LOCAL_TARBALLS_DIR}"
         for alg in md5 sha1 sha256 sha512; do
             CT_DoLog EXTRA "Creating ${alg^^} digest for ${archive_filename}${e}"
-            if ! CT_DoExecLog ALL ${alg}sum "${archive_filename}${e}" > \
-                    "${CT_LIB_DIR}/packages/${pkg_name}/${version}/${archive_filename}${e}.${alg}"; then
-                CT_DoExecLog ALL rm -f "${CT_LIB_DIR}/packages/${pkg_name}/${version}/${archive_filename}${e}.${alg}"
+            chksum=`${alg}sum "${archive_filename}${e}"`
+            if [ "$?" != 0 ]; then
+                CT_DoExecLog ALL rm -f "${CT_LIB_DIR}/packages/${pkg_name}/${version}/chksum"
                 CT_Abort "${alg}sum failed"
             fi
+            echo "${alg} ${archive_filename}${e} ${chksum%%[[:space:]]*}" >> \
+                "${CT_LIB_DIR}/packages/${pkg_name}/${version}/chksum"
         done
         CT_Popd
         CT_EndStep
