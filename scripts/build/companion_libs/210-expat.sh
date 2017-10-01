@@ -54,6 +54,7 @@ do_expat_for_target() {
             prefix="/usr"
             ;;
     esac
+    expat_opts+=( "cflags=${CT_TARGET_CFLAGS}" )
     expat_opts+=( "prefix=${prefix}" )
     expat_opts+=( "destdir=${CT_SYSROOT_DIR}" )
     expat_opts+=( "shared=${CT_SHARED_LIBS}" )
@@ -103,7 +104,7 @@ do_expat_backend() {
     CT_DoLog EXTRA "Building expat"
     CT_DoExecLog ALL make ${JOBSFLAGS}
     CT_DoLog EXTRA "Installing expat"
-    CT_DoExecLog ALL make install INSTALL_ROOT="${destdir}"
+    CT_DoExecLog ALL make install DESTDIR="${destdir}"
 }
 
 fi

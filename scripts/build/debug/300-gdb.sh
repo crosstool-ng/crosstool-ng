@@ -13,11 +13,6 @@ do_debug_gdb_build() {
 
     gdb_src_dir="${CT_SRC_DIR}/gdb"
 
-    # Version 6.3 and below behave badly with gdbmi
-    case "${CT_GDB_VERSION}" in
-        6.2*|6.3)   extra_config+=("--disable-gdbmi");;
-    esac
-
     if [ "${CT_GDB_HAS_PKGVERSION_BUGURL}" = "y" ]; then
         [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
@@ -219,15 +214,19 @@ do_debug_gdb_build() {
         [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] &&    \
         native_extra_config+=("--disable-nls")
 
-        CPP_for_gdb="${CT_TARGET}-cpp"
-        CC_for_gdb="${CT_TARGET}-${CT_CC}"
-        CXX_for_gdb="${CT_TARGET}-g++"
-        LD_for_gdb="${CT_TARGET}-ld"
+        CPP_for_gdb="${CT_TARGET}-cpp ${CT_TARGET_CFLAGS}"
+        CC_for_gdb="${CT_TARGET}-${CT_CC} ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
+        CXX_for_gdb="${CT_TARGET}-g++ ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
+        LD_for_gdb="${CT_TARGET}-ld ${CT_TARGET_LDFLAGS}"
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
             CC_for_gdb+=" -static"
             CXX_for_gdb+=" -static"
             LD_for_gdb+=" -static"
         fi
+        CPP_for_gdb=`echo $CPP_for_gdb`
+        CC_for_gdb=`echo $CC_for_gdb`
+        CXX_for_gdb=`echo $CXX_for_gdb`
+        LD_for_gdb=`echo $LD_for_gdb`
 
         export ac_cv_func_strncmp_works=yes
 
@@ -321,13 +320,23 @@ do_debug_gdb_build() {
         gdbserver_extra_config+=("--disable-ld")
         gdbserver_extra_config+=("--disable-gas")
 
+        CPP_for_gdb="${CT_TARGET}-cpp ${CT_TARGET_CFLAGS}"
+        CC_for_gdb="${CT_TARGET}-${CT_CC} ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
+        CXX_for_gdb="${CT_TARGET}-g++ ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
+        LD_for_gdb="${CT_TARGET}-ld ${CT_TARGET_LDFLAGS}"
+        CPP_for_gdb=`echo $CPP_for_gdb`
+        CC_for_gdb=`echo $CC_for_gdb`
+        CXX_for_gdb=`echo $CXX_for_gdb`
+        LD_for_gdb=`echo $LD_for_gdb`
+
         CT_DoExecLog CFG                                \
         CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
         CFLAGS_FOR_BUILD="${CT_CFLAGS_FOR_BUILD}"       \
         LDFLAGS_FOR_BUILD="${CT_LDFLAGS_FOR_BUILD}"     \
-        CC="${CT_TARGET}-${CT_CC}"                      \
-        CPP="${CT_TARGET}-cpp"                          \
-        LD="${CT_TARGET}-ld"                            \
+        CPP="${CPP_for_gdb}"                            \
+        CC="${CC_for_gdb}"                              \
+        CXX="${CXX_for_gdb}"                            \
+        LD="${LD_for_gdb}"                              \
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
         ${CONFIG_SHELL}                                 \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
