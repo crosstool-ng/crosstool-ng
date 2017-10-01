@@ -96,6 +96,7 @@ do_ncurses_for_target() {
                        prefix="${prefix}" \
                        destdir="${CT_SYSROOT_DIR}" \
                        shared="${CT_SHARED_LIBS}" \
+                       cflags="${CT_TARGET_CFLAGS}" \
                        "${opts[@]}"
     CT_Popd
     CT_EndStep
