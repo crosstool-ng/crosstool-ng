@@ -893,7 +893,7 @@ CT_GetFile()
 {
     local -a argnames=(
         package             # Name of the package
-        version             # Version of the package
+        pkg_dir             # Directory with package's auxiliary files
         basename            # Base name of file/archive
         extensions          # Extension(s) for the file/archive
         digest              # If 'y', verify the digest
@@ -952,9 +952,9 @@ CT_GetFile()
         for url in "${URLS[@]}"; do
             [ -n "${url}" ] || continue
             if CT_DoGetFile "${url}/${basename}${ext}"; then
-                if [ -n "${digest}" ] && ! CT_DoVerifyDigest \
+                if [ -n "${digest}" -a -n "${pkg_dir}" ] && ! CT_DoVerifyDigest \
                             "${CT_TARBALLS_DIR}/${basename}${ext}" \
-                            "${CT_LIB_DIR}/packages/${package}/${version}"; then
+                            "${CT_LIB_DIR}/packages/${pkg_dir}"; then
                     CT_DoLog ERROR "Digest verification failed; removing the download"
                     CT_DoExecLog ALL rm "${CT_TARBALLS_DIR}/${basename}${ext}"
                     return 1
@@ -1752,8 +1752,6 @@ CT_Download_cvs()
 # Find the most recent version from Subversion. 
 CT_GetVersion_svn()
 {
-    local version
-
     devel_branch="${devel_branch:-/trunk}"
 
     # If revision is not given, find the most recent
@@ -1761,12 +1759,11 @@ CT_GetVersion_svn()
         devel_revision=`svn info "${devel_url}${devel_branch}" | sed -n 's/^Last Changed Rev: //p'`
     fi
 
-    # Construct version from branch/revision
-    version="${devel_branch//\//_}"
-    version="${version#_}"
-    version="${version%_}"
-    version="${version}-${devel_revision}"
-    unique_id="${version}"
+    # Construct unique ID from branch/revision
+    unique_id="${devel_branch//\//_}"
+    unique_id="${unique_id#_}"
+    unique_id="${unique_id%_}"
+    unique_id="${unique_id}-${devel_revision}"
 }
 
 # Retrieve sources from Subversion.
@@ -1887,7 +1884,7 @@ CT_PackageRun()
     use="${use:-${sym}}"
 
     # Variables that are per-fork
-    for v in basename pkg_name version \
+    for v in basename pkg_name version pkg_dir \
             src_release mirrors archive_filename archive_dirname archive_formats signature_format \
             src_devel devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
             src_custom custom_location; do
@@ -1907,7 +1904,7 @@ CT_PackageRun()
     # Save certain variables that may be modified by the callback.
     # Fetching the sources is run in the main process, so no need to
     # use CT_EnvModify.
-    for v in devel_branch devel_revision basename version src_dir; do
+    for v in devel_branch devel_revision basename src_dir pkg_dir; do
         eval "[ \"\${${v}}\" != \"\${CT_${use}_${v^^}}\" ] || continue"
         eval "CT_${use}_${v^^}=\${${v}}"
         eval "CT_DoLog DEBUG \"Override CT_${use}_${v^^}=\${CT_${use}_${v^^}}\""
@@ -1926,7 +1923,8 @@ CT_DoFetch()
         else
             basename="${pkg_name}-${version}"
         fi
-        if ! CT_GetFile package="${pkg_name}" version="${version}" \
+        pkg_dir="${pkg_name}/${version}"
+        if ! CT_GetFile package="${pkg_name}" pkg_dir="${pkg_dir}" \
                 basename="${archive_filename}" extensions="${archive_formats}" \
                 digest="${CT_VERIFY_DOWNLOAD_DIGEST}" \
                 signature_format="${CT_VERIFY_DOWNLOAD_SIGNATURE:+${signature_format}}" \
@@ -1955,13 +1953,13 @@ CT_DoFetch()
             CT_Abort "${pkg_name}: ${devel_vcs} did not set unique ID for branch/revision"
         fi
         basename="${pkg_name}-${devel_vcs}-${unique_id}"
-        version="${devel_vcs}-${unique_id}"
+        pkg_dir="${pkg_name}/${devel_vcs}-${unique_id}"
 
         # Try getting the tarball with empty list of URLs: it will only
         # attempt getting it from local storage or from the mirror if configured.
         # Bzip2 offers a reasonable compromise between compression speed and size.
         if [ "${unique_id}" != "to.be.determined" ] && \
-                CT_GetFile package="${pkg_name}" version="${version}" \
+                CT_GetFile package="${pkg_name}" \
                         basename="${basename}" extensions='.tar.bz2'; then
             return 0
         fi
@@ -1978,8 +1976,8 @@ CT_DoFetch()
 
         # First setting above may not have determined the version (e.g. with Mercurial)
         # Set the final, downloaded version.
-        version="${devel_vcs}-${unique_id}"
-        basename="${pkg_name}-${version}"
+        basename="${pkg_name}-${devel_vcs}-${unique_id}"
+        pkg_dir="${pkg_name}/${devel_vcs}-${unique_id}"
 
         CT_DoExecLog ALL mv "${pkg_name}${devel_subdir:+/${devel_subdir}}" "${basename}"
         CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${basename}"
@@ -1989,7 +1987,6 @@ CT_DoFetch()
 
     elif [ "${src_custom}" = "y" ]; then
         # Will be handled during extraction/patching
-        version="local"
         basename="${dir_name}"
         :;
     else
@@ -2106,8 +2103,8 @@ CT_DoExtractPatch()
             CT_DoLog EXTRA "Patching ${basename}"
             CT_DoExecLog ALL touch "${src_dir}/.${basename}.patching"
 
-            bundled_patch_dir="${CT_LIB_DIR}/packages/${pkg_name}/${version}"
-            local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkg_name}/${version}"
+            bundled_patch_dir="${CT_LIB_DIR}/packages/${pkg_dir}"
+            local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkg_dir}"
 
             case "${CT_PATCH_ORDER}" in
                 bundled)        patch_dirs=("${bundled_patch_dir}");;
