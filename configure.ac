@@ -301,9 +301,11 @@ AS_IF(
     [test -f version.sh -a -x version.sh],
     [PACKAGE_VERSION=$(./version.sh "${PACKAGE_VERSION}")])
 
+# We are not installing dynamic libraries that need to be found by dynamic linker.
+# Install into a subdirectory.
+libdir=${libdir}/${PACKAGE_TARNAME}
+
 # Handle the local case
-AC_SUBST([sublibdir])
-AC_SUBST([subdocdir])
 AS_IF(
     [test "x$enable_local" = "xyes"],
     [AC_MSG_NOTICE([overiding all of --prefix and the likes, because --enable-local was set])
@@ -311,13 +313,9 @@ AS_IF(
      exec_prefix="$prefix"
      bindir="$prefix"
      libdir="$prefix"
-     sublibdir=""
      docdir="$prefix""/docs"
-     subdocdir=""
      datarootdir="$prefix"
-     mandir="$docdir"],
-    [sublibdir="/\${VERSION}"
-     subdocdir="/\${VERSION}"])
+     mandir="$docdir"])
 
 AC_CONFIG_FILES([
     Makefile
