@@ -2158,7 +2158,7 @@ CT_DoExtractPatch()
         CT_DoLog WARN "${pkg_name}: using custom location, no patches applied"
     fi
 
-    # Symlink/copy/overlay into per-target source directory
+    # Symlink/move/copy into per-target source directory
     if [ "${src_custom}" = "y" ]; then
         # Custom sources: unpack or copy into per-target directory. Note that
         # ${src_dir} is never ${CT_COMMON_SRC_DIR} in this case.
@@ -2175,6 +2175,10 @@ CT_DoExtractPatch()
         else
             CT_Abort "Neither file nor directory: ${custom_location}"
         fi
+    elif [ "${src_dir}" = "${CT_SRC_DIR}" ]; then
+        # Sources specific to this target, just move (if we use overlay, symlinks
+        # would be overwritten and overlayed files will end up in a separate dir).
+        CT_DoExecLog ALL mv "${src_dir}/${basename}" "${CT_SRC_DIR}/${dir_name}"
     else
         # Common source, just symlink
         CT_DoExecLog ALL ln -s "${src_dir}/${basename}" "${CT_SRC_DIR}/${dir_name}"
