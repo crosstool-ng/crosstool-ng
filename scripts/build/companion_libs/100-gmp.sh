@@ -101,6 +101,7 @@ do_gmp_backend() {
         --enable-fft                                \
         --enable-cxx                                \
         --disable-shared                            \
+        --disable-assembly                          \
         --enable-static                             \
         "${extra_config[@]}"
 
