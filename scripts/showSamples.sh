@@ -113,7 +113,7 @@ dump_single_sample() {
             printf  "    %-*s : %s\n" ${width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
             printf  "    %-*s :" ${width} "C compilers"
             cc=$(echo ${CT_CC} | ${awk} '{ print toupper($0)}')
-            version=$(eval echo \${CT_CC_${cc}_VERSION})
+            version=$(eval echo \${CT_${cc}_VERSION})
             compiler=$(echo $cc | ${awk} '{print tolower($0)}')
             printf " $compiler-$version"
             printf "\n"
@@ -162,7 +162,7 @@ dump_single_sample() {
         printf "|  ${CT_BINUTILS_VERSION}  "
         printf "| "
         cc=$(echo ${CT_CC} | ${awk} '{ print toupper($0)}')
-        version=$(eval echo \${CT_CC_${cc}_VERSION})
+        version=$(eval echo \${CT_${cc}_VERSION})
         compiler=$(echo $cc | ${awk} '{print tolower($0)}')
         printf " $compiler  |  $version"
         printf "  "
