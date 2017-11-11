@@ -129,11 +129,10 @@ dump_single_sample() {
             printf "\n"
             printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${libc_name}${libc_ver:+-}${libc_ver}" "${CT_THREADS}"
             printf  "    %-*s :" ${width} "Tools"
-            [ "${CT_TOOL_sstrip}"   ] && printf " sstrip"
-            [ "${CT_DEBUG_duma}"    ] && printf " duma-${CT_DUMA_VERSION}"
-            [ "${CT_DEBUG_gdb}"     ] && printf " gdb-${CT_GDB_VERSION}"
-            [ "${CT_DEBUG_ltrace}"  ] && printf " ltrace-${CT_LTRACE_VERSION}"
-            [ "${CT_DEBUG_strace}"  ] && printf " strace-${CT_STRACE_VERSION}"
+            [ "${CT_DEBUG_DUMA}"    ] && printf " duma-${CT_DUMA_VERSION}"
+            [ "${CT_DEBUG_GDB}"     ] && printf " gdb-${CT_GDB_VERSION}"
+            [ "${CT_DEBUG_LTRACE}"  ] && printf " ltrace-${CT_LTRACE_VERSION}"
+            [ "${CT_DEBUG_STRACE}"  ] && printf " strace-${CT_STRACE_VERSION}"
             printf "\n"
         fi
     else
