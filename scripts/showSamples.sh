@@ -40,7 +40,7 @@ dump_single_sample() {
             fi
             ;;
         UCLIBC)
-            if [ "${UCLIBC_NG_USE_UCLIBC_NG_ORG}" = y ]; then
+            if [ "${CT_UCLIBC_USE_UCLIBC_NG_ORG}" = y ]; then
                 ksym="${ksym}_NG"
             fi
             ;;
