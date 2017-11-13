@@ -3,6 +3,7 @@
 
 # Use tools discovered by ./configure
 . "${CT_LIB_DIR}/paths.sh"
+. "${CT_LIB_DIR}/scripts/functions"
 
 [ "$1" = "-v" ] && opt="$1" && shift
 [ "$1" = "-w" ] && opt="$1" && shift
@@ -13,6 +14,24 @@ export GREP_OPTIONS=
 
 # Dummy version which is invoked from .config
 CT_Mirrors() { :; }
+
+# Dump a package version by a package name.
+dump_pkg_version() {
+    local name=$1
+    local ksym=$( echo ${name} | ${awk} '{ print toupper($0) }' )
+
+    CT_GetPkgBuildVersion "${ksym}" version
+    printf "${version}"
+}
+
+# Dump a short package description with a name and version in a format
+# " <name>[-<version>]"
+dump_pkg_desc() {
+    local name=$1
+    local version=$( dump_pkg_version "$name" )
+
+    printf " ${name}${version:+-}${version}"
+}
 
 # Dump a single sample
 # Note: we use the specific .config.sample config file
@@ -45,7 +64,7 @@ dump_single_sample() {
             fi
             ;;
     esac
-    eval "libc_ver=\"\${CT_${ksym}_VERSION}\""
+    CT_GetPkgBuildVersion "${ksym}" libc_ver
 
     case "${sample}" in
         current)
@@ -53,7 +72,7 @@ dump_single_sample() {
             sample="$( ${CT_NG} show-tuple )"
             case "${CT_TOOLCHAIN_TYPE}" in
                 canadian)
-                    sample="${CT_HOST},$sample"
+                    sample="${CT_HOST},${sample}"
                     ;;
             esac
             ;;
@@ -80,7 +99,7 @@ dump_single_sample() {
                     ;;
             esac
             # TBD currently only Linux is used. General handling for single-select (compiler/binutils/libc/os) and multi-select (debug/companions) components?
-            printf "    %-*s : %s\n" ${width} "OS" "${CT_KERNEL}${CT_LINUX_VERSION:+-}${CT_LINUX_VERSION}"
+            printf "    %-*s :" ${width} "OS" && dump_pkg_desc "${CT_KERNEL}" && printf "\n"
             if [    -n "${CT_GMP}"              \
                  -o -n "${CT_MPFR}"             \
                  -o -n "${CT_ISL}"              \
@@ -101,23 +120,18 @@ dump_single_sample() {
                 printf "    %-*s :" ${width} "Companion libs"
                 complibs=1
             fi
-            [ -z "${CT_GMP}"     -a -z "${CT_GMP_TARGET}"     ] || printf " gmp-%s"       "${CT_GMP_VERSION}"
-            [ -z "${CT_MPFR}"    -a -z "${CT_MPFR_TARGET}"    ] || printf " mpfr-%s"      "${CT_MPFR_VERSION}"
-            [ -z "${CT_ISL}"     -a -z "${CT_ISL_TARGET}"     ] || printf " isl-%s"       "${CT_ISL_VERSION}"
-            [ -z "${CT_CLOOG}"   -a -z "${CT_CLOOG_TARGET}"   ] || printf " cloog-%s"     "${CT_CLOOG_VERSION}"
-            [ -z "${CT_MPC}"     -a -z "${CT_MPC_TARGET}"     ] || printf " mpc-%s"       "${CT_MPC_VERSION}"
-            [ -z "${CT_LIBELF}"  -a -z "${CT_LIBELF_TARGET}"  ] || printf " libelf-%s"    "${CT_LIBELF_VERSION}"
-            [ -z "${CT_EXPAT}"   -a -z "${CT_EXPAT_TARGET}"   ] || printf " expat-%s"     "${CT_EXPAT_VERSION}"
-            [ -z "${CT_NCURSES}" -a -z "${CT_NCURSES_TARGET}" ] || printf " ncurses-%s"   "${CT_NCURSES_VERSION}"
+            [ -z "${CT_GMP}"     -a -z "${CT_GMP_TARGET}"     ] || dump_pkg_desc "gmp"
+            [ -z "${CT_MPFR}"    -a -z "${CT_MPFR_TARGET}"    ] || dump_pkg_desc "mpfr"
+            [ -z "${CT_ISL}"     -a -z "${CT_ISL_TARGET}"     ] || dump_pkg_desc "isl"
+            [ -z "${CT_CLOOG}"   -a -z "${CT_CLOOG_TARGET}"   ] || dump_pkg_desc "cloog"
+            [ -z "${CT_MPC}"     -a -z "${CT_MPC_TARGET}"     ] || dump_pkg_desc "mpc"
+            [ -z "${CT_LIBELF}"  -a -z "${CT_LIBELF_TARGET}"  ] || dump_pkg_desc "libelf"
+            [ -z "${CT_EXPAT}"   -a -z "${CT_EXPAT_TARGET}"   ] || dump_pkg_desc "expat"
+            [ -z "${CT_NCURSES}" -a -z "${CT_NCURSES_TARGET}" ] || dump_pkg_desc "ncurses"
             [ -z "${complibs}"  ] || printf "\n"
-            printf  "    %-*s : %s\n" ${width} "binutils" "binutils-${CT_BINUTILS_VERSION}"
-            printf  "    %-*s :" ${width} "C compilers"
-            cc=$(echo ${CT_CC} | ${awk} '{ print toupper($0)}')
-            version=$(eval echo \${CT_${cc}_VERSION})
-            compiler=$(echo $cc | ${awk} '{print tolower($0)}')
-            printf " $compiler-$version"
-            printf "\n"
-            printf  "    %-*s : %s" ${width} "Languages" "C"
+            printf "    %-*s :" ${width} "binutils"  && dump_pkg_desc "binutils" && printf "\n"
+            printf "    %-*s :" ${width} "Compilers" && dump_pkg_desc "${CT_CC}" && printf "\n"
+            printf "    %-*s : %s" ${width} "Languages" "C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
             [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ",Fortran"
             [ "${CT_CC_LANG_JAVA}" = "y"    ] && printf ",Java"
@@ -129,10 +143,10 @@ dump_single_sample() {
             printf "\n"
             printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${libc_name}${libc_ver:+-}${libc_ver}" "${CT_THREADS}"
             printf  "    %-*s :" ${width} "Tools"
-            [ "${CT_DEBUG_DUMA}"    ] && printf " duma-${CT_DUMA_VERSION}"
-            [ "${CT_DEBUG_GDB}"     ] && printf " gdb-${CT_GDB_VERSION}"
-            [ "${CT_DEBUG_LTRACE}"  ] && printf " ltrace-${CT_LTRACE_VERSION}"
-            [ "${CT_DEBUG_STRACE}"  ] && printf " strace-${CT_STRACE_VERSION}"
+            [ "${CT_DEBUG_DUMA}"   ] && dump_pkg_desc "duma"
+            [ "${CT_DEBUG_GDB}"    ] && dump_pkg_desc "gdb"
+            [ "${CT_DEBUG_LTRACE}" ] && dump_pkg_desc "ltrace"
+            [ "${CT_DEBUG_STRACE}" ] && dump_pkg_desc "strace"
             printf "\n"
         fi
     else
@@ -155,16 +169,11 @@ dump_single_sample() {
             if [ "${CT_KERNEL_LINUX_HEADERS_USE_CUSTOM_DIR}" = "y" ]; then
                 printf "  //custom//  "
             else
-                printf "  ${CT_LINUX_VERSION}  "
+                printf "  " && dump_pkg_version "${CT_KERNEL}" && printf "  "
             fi
         fi
-        printf "|  ${CT_BINUTILS_VERSION}  "
-        printf "| "
-        cc=$(echo ${CT_CC} | ${awk} '{ print toupper($0)}')
-        version=$(eval echo \${CT_${cc}_VERSION})
-        compiler=$(echo $cc | ${awk} '{print tolower($0)}')
-        printf " $compiler  |  $version"
-        printf "  "
+        printf "|  " && dump_pkg_version "binutils" && printf "  "
+        printf "|  ${CT_CC}  |  " && dump_pkg_version "${CT_CC}" && printf "  "
         printf "|  ''${libc_name}''  |"
         if [ "${libc_name}" != "none" ]; then
             printf "  ${libc_ver}  "
