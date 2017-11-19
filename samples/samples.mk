@@ -31,7 +31,6 @@ help-samples::
 help-distrib::
 	@echo  '  check-samples      - Verify if samples need updates due to Kconfig changes'
 	@echo  '  update-samples     - Regenerate sample configurations using the current Kconfig'
-	@echo  '  wiki-samples       - Print a DokuWiki table of samples'
 
 help-env::
 	@echo  '  CT_PREFIX=dir      - install samples in dir (see action "build-all", above).'
@@ -109,22 +108,6 @@ check-samples: $(patsubst %,check-%,$(CT_SAMPLES))
 
 update-samples:
 	$(SILENT)$(MAKE) -rf $(CT_NG) check-samples CT_UPDATE_SAMPLES=yes
-
-PHONY += wiki-samples
-wiki-samples: wiki-samples-pre $(patsubst %,wiki-%,$(CT_SAMPLES)) wiki-samples-post
-
-wiki-samples-pre: FORCE
-	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -w
-
-wiki-samples-post: FORCE
-	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -W $(CT_SAMPLES)
-
-$(patsubst %,wiki-%,$(CT_SAMPLES)): wiki-%:
-	$(SILENT)KCONFIG_CONFIG=$$(pwd)/.config.sample	\
-	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
-	            $(KCONFIG_TOP) >/dev/null
-	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -w $*
-	$(SILENT)rm -f .config.sample
 
 # ----------------------------------------------------------
 # This part deals with saving/restoring samples
