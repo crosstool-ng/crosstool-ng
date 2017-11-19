@@ -42,7 +42,7 @@ help-env::
 PHONY += show-config
 show-config: .config
 	@cp .config .config.sample
-	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -v current
+	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh -v current
 	@rm -f .config.sample
 
 # Prints the details of a sample
@@ -51,7 +51,7 @@ $(patsubst %,show-%,$(CT_SAMPLES)): show-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -v $*
+	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh -v $*
 	@rm -f .config.sample
 
 # Prints the details of all samples
@@ -75,7 +75,7 @@ $(patsubst %,list-%,$(CT_SAMPLES)): list-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh $*
+	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh $*
 	@rm -f .config.sample
 
 PHONY += list-samples-short
@@ -190,9 +190,9 @@ define build_sample
 	mkdir -p .build-all/$$status/$(1); \
 	bzip2 < build.log > .build-all/$$status/$(1)/build.log.bz2; \
 	if [ "$$status" = PASS ]; then \
-		blddir=`$(bash) $(CT_LIB_DIR)/scripts/showConfig.sh '$${CT_BUILD_TOP_DIR}'`; \
+		blddir=`$(bash) $(CT_LIB_DIR)/scripts/show-tuple.sh '$${CT_BUILD_TOP_DIR}'`; \
 		[ -z "$(CT_PRESERVE_PASSED_BUILDS)" ] && rm -rf $${blddir}; \
-		$(bash) $(CT_LIB_DIR)/scripts/showConfig.sh '$${CT_PREFIX_DIR}' > .build-all/PASS/$(1)/prefix; \
+		$(bash) $(CT_LIB_DIR)/scripts/show-tuple.sh '$${CT_PREFIX_DIR}' > .build-all/PASS/$(1)/prefix; \
 	fi; \
 	:
 endef
