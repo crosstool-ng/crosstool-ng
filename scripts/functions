@@ -1,5 +1,6 @@
 # -*- mode: sh; tab-width: 4 -*-
 # vi: ts=4:sw=4:sts=4:et
+# vim: filetype=sh :
 # This file contains some useful common functions
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
@@ -1891,6 +1892,10 @@ CT_PackageRun()
         eval "local ${v}=\${CT_${use}_${v^^}}"
     done
 
+    if [ -z "${pkg_name}" ]; then
+        CT_Abort "Internal ct-ng error: '${sym}' not defined, please report a bug"
+    fi
+
     for v in archive_filename archive_dirname; do
         # kconfig and shell have different quoting rules, so it seems impossible to make
         # kconfig quote '$' properly for eval (i.e. not have it expanded when loading the
@@ -2214,24 +2219,34 @@ CT_GetPkgVersion()
     eval "${2}=\"${rv}\""
 }
 
-# Closure of a build version selector.
-CT_DoGetPkgBuildVersion()
-{
-    if [ "${src_release}" = "y" ]; then
-        build_version="${version}"
-    elif [ -z "${devel_revision}" ]; then
-        build_version="${devel_branch}"
-    else
-        build_version="${devel_revision}"
-    fi
-}
-
 # Get a package version selected to build. May return an empty string.
 # Usage: CT_GetPkgBuildVersion PKG VAR
+# where PKG may refer to a specific package (e.g. GCC) or package choice
+# (e.g. LIBC).
 CT_GetPkgBuildVersion()
 {
+    local pkg="${1}"
+    local tmp
     local build_version
 
-    CT_PackageRun "${1}" CT_DoGetPkgBuildVersion
-    eval "${2}=\"${build_version}\""
+    # If it is a choice selector, switch to whatever specific package it selects
+    eval "tmp=\${CT_${pkg}_KSYM}"
+    if [ -n "${tmp}" ]; then
+        pkg="${tmp}"
+    fi
+
+    __do_GetPkgBuildVersion() {
+        tmp="${pkg_name}-${version}"
+        if [ "${src_devel}" = "y" ]; then
+            tmp+="-${devel_vcs}"
+            if [ -n "${devel_revision}" ]; then
+                tmp+="-${devel_revision}"
+            fi
+        elif [ "${src_custom}" = "y" ]; then
+            tmp+="-custom"
+        fi
+    }
+
+    CT_PackageRun "${pkg}" __do_GetPkgBuildVersion
+    eval "${2}=\"${tmp}\""
 }

@@ -15,22 +15,14 @@ export GREP_OPTIONS=
 # Dummy version which is invoked from .config
 CT_Mirrors() { :; }
 
-# Dump a package version by a package name.
-dump_pkg_version() {
-    local name=$1
-    local ksym=$( echo ${name} | ${awk} '{ print toupper($0) }' )
-
-    CT_GetPkgBuildVersion "${ksym}" version
-    printf "${version}"
-}
-
 # Dump a short package description with a name and version in a format
 # " <name>[-<version>]"
 dump_pkg_desc() {
     local name=$1
-    local version=$( dump_pkg_version "$name" )
+    local show_version
 
-    printf " ${name}${version:+-}${version}"
+    CT_GetPkgBuildVersion ${1} show_version
+    printf " %s" "${show_version}"
 }
 
 # Dump a single sample
@@ -43,28 +35,6 @@ dump_single_sample() {
     [ "$1" = "-w" ] && wiki=1 && shift
     local sample="$1"
     . $(pwd)/.config.sample
-
-    # libc needs some love
-    # TBD after conversion of gen-kconfig to template, use CT_LIBC_USE as a selector for other variables
-    # (i.e. whether to use CT_GLIBC_VERSION or CT_MUSL_VERSION)
-    local libc_name="${CT_LIBC}"
-    local libc_ver ksym
-
-    ksym=${libc_name//[^0-9A-Za-z_]/_}
-    ksym=${ksym^^}
-    case ${ksym} in
-        GLIBC|NEWLIB)
-            if eval "[ \"\${CT_${ksym}_USE_LINARO}\" = y ]"; then
-                ksym="${ksym}_LINARO"
-            fi
-            ;;
-        UCLIBC)
-            if [ "${CT_UCLIBC_USE_UCLIBC_NG_ORG}" = y ]; then
-                ksym="${ksym}_NG"
-            fi
-            ;;
-    esac
-    CT_GetPkgBuildVersion "${ksym}" libc_ver
 
     case "${sample}" in
         current)
@@ -98,39 +68,21 @@ dump_single_sample() {
                     printf "    %-*s : %s\n" ${width} "Host" "${CT_HOST}"
                     ;;
             esac
-            # TBD currently only Linux is used. General handling for single-select (compiler/binutils/libc/os) and multi-select (debug/companions) components?
-            printf "    %-*s :" ${width} "OS" && dump_pkg_desc "${CT_KERNEL}" && printf "\n"
-            if [    -n "${CT_GMP}"              \
-                 -o -n "${CT_MPFR}"             \
-                 -o -n "${CT_ISL}"              \
-                 -o -n "${CT_CLOOG}"            \
-                 -o -n "${CT_MPC}"              \
-                 -o -n "${CT_LIBELF}"           \
-                 -o -n "${CT_EXPAT}"            \
-                 -o -n "${CT_NCURSES}"          \
-                 -o -n "${CT_GMP_TARGET}"       \
-                 -o -n "${CT_MPFR_TARGET}"      \
-                 -o -n "${CT_ISL_TARGET}"       \
-                 -o -n "${CT_CLOOG_TARGET}"     \
-                 -o -n "${CT_MPC_TARGET}"       \
-                 -o -n "${CT_LIBELF_TARGET}"    \
-                 -o -n "${CT_EXPAT_TARGET}"     \
-                 -o -n "${CT_NCURSES_TARGET}"   \
-               ]; then
-                printf "    %-*s :" ${width} "Companion libs"
-                complibs=1
+            if [ "${CT_KERNEL}" != "bare-metal" ]; then
+                printf "    %-*s :" ${width} "OS" && dump_pkg_desc KERNEL && printf "\n"
             fi
-            [ -z "${CT_GMP}"     -a -z "${CT_GMP_TARGET}"     ] || dump_pkg_desc "gmp"
-            [ -z "${CT_MPFR}"    -a -z "${CT_MPFR_TARGET}"    ] || dump_pkg_desc "mpfr"
-            [ -z "${CT_ISL}"     -a -z "${CT_ISL_TARGET}"     ] || dump_pkg_desc "isl"
-            [ -z "${CT_CLOOG}"   -a -z "${CT_CLOOG_TARGET}"   ] || dump_pkg_desc "cloog"
-            [ -z "${CT_MPC}"     -a -z "${CT_MPC_TARGET}"     ] || dump_pkg_desc "mpc"
-            [ -z "${CT_LIBELF}"  -a -z "${CT_LIBELF_TARGET}"  ] || dump_pkg_desc "libelf"
-            [ -z "${CT_EXPAT}"   -a -z "${CT_EXPAT_TARGET}"   ] || dump_pkg_desc "expat"
-            [ -z "${CT_NCURSES}" -a -z "${CT_NCURSES_TARGET}" ] || dump_pkg_desc "ncurses"
-            [ -z "${complibs}"  ] || printf "\n"
-            printf "    %-*s :" ${width} "binutils"  && dump_pkg_desc "binutils" && printf "\n"
-            printf "    %-*s :" ${width} "Compilers" && dump_pkg_desc "${CT_CC}" && printf "\n"
+            printf "    %-*s :" ${width} "Companion libs"
+            [ -z "${CT_GMP}"     ] || dump_pkg_desc GMP
+            [ -z "${CT_MPFR}"    ] || dump_pkg_desc MPFR
+            [ -z "${CT_ISL}"     ] || dump_pkg_desc ISL
+            [ -z "${CT_CLOOG}"   ] || dump_pkg_desc CLOOG
+            [ -z "${CT_MPC}"     ] || dump_pkg_desc MPC
+            [ -z "${CT_LIBELF}"  -a -z "${CT_LIBELF_TARGET}"  ] || dump_pkg_desc LIBELF
+            [ -z "${CT_EXPAT}"   -a -z "${CT_EXPAT_TARGET}"   ] || dump_pkg_desc EXPAT
+            [ -z "${CT_NCURSES}" -a -z "${CT_NCURSES_TARGET}" ] || dump_pkg_desc NCURSES
+            printf "\n"
+            printf "    %-*s :" ${width} "Binutils"  && dump_pkg_desc BINUTILS && printf "\n"
+            printf "    %-*s :" ${width} "Compilers" && dump_pkg_desc CC && printf "\n"
             printf "    %-*s : %s" ${width} "Languages" "C"
             [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
             [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ",Fortran"
@@ -141,12 +93,12 @@ dump_single_sample() {
             [ "${CT_CC_LANG_GOLANG}" = "y"  ] && printf ",Go"
             [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
             printf "\n"
-            printf  "    %-*s : %s (threads: %s)\n" ${width} "C library" "${libc_name}${libc_ver:+-}${libc_ver}" "${CT_THREADS}"
+            printf  "    %-*s :" ${width} "C library" && dump_pkg_desc LIBC && printf " (threads: %s)\n" "${CT_THREADS}"
             printf  "    %-*s :" ${width} "Tools"
-            [ "${CT_DEBUG_DUMA}"   ] && dump_pkg_desc "duma"
-            [ "${CT_DEBUG_GDB}"    ] && dump_pkg_desc "gdb"
-            [ "${CT_DEBUG_LTRACE}" ] && dump_pkg_desc "ltrace"
-            [ "${CT_DEBUG_STRACE}" ] && dump_pkg_desc "strace"
+            [ "${CT_DEBUG_DUMA}"   ] && dump_pkg_desc DUMA
+            [ "${CT_DEBUG_GDB}"    ] && dump_pkg_desc GDB
+            [ "${CT_DEBUG_LTRACE}" ] && dump_pkg_desc LTRACE
+            [ "${CT_DEBUG_STRACE}" ] && dump_pkg_desc STRACE
             printf "\n"
         fi
     else
@@ -230,5 +182,5 @@ elif [ "${opt}" = "-W" ]; then
 fi
 
 for sample in "${@}"; do
-    ( dump_single_sample ${opt} "${sample}" )
+    dump_single_sample ${opt} "${sample}"
 done
