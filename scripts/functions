@@ -2225,14 +2225,23 @@ CT_GetPkgVersion()
 # (e.g. LIBC).
 CT_GetPkgBuildVersion()
 {
-    local pkg="${1}"
-    local tmp
-    local build_version
+    local category="${1}"
+    local component="${2}"
+    local var="${3}"
+    local choicename tmp pkg build_version
 
-    # If it is a choice selector, switch to whatever specific package it selects
-    eval "tmp=\${CT_${pkg}_KSYM}"
-    if [ -n "${tmp}" ]; then
-        pkg="${tmp}"
+    # If it is for a choice, not a menu, get the choice name
+    eval "choicename=\${CT_${category}}"
+
+    # Find the associated package
+    eval "pkg=\${CT_${category}_${component}_PKG_KSYM}"
+    if [ -z "${pkg}" ]; then
+        # This component does not have an associated package,
+        # return the component name.
+        if [ -n "${choicename}" ]; then
+            eval "${var}=\"${choicename}\""
+        fi
+        return
     fi
 
     __do_GetPkgBuildVersion() {
@@ -2245,8 +2254,23 @@ CT_GetPkgBuildVersion()
         elif [ "${src_custom}" = "y" ]; then
             tmp+="-custom"
         fi
+        if [ -n "${choicename}" -a "${pkg}" != "${component}" ]; then
+            tmp+=" (${choicename})"
+        fi
     }
 
     CT_PackageRun "${pkg}" __do_GetPkgBuildVersion
-    eval "${2}=\"${tmp}\""
+    eval "${var}=\"${tmp}\""
+}
+
+# Get a package version as selected by a generated choice in kconfig.
+CT_GetChoicePkgBuildVersion()
+{
+    local choice="${1}"
+    local var="${2}"
+    local component
+
+    # Find the selected component
+    eval "component=\${CT_${choice}_CHOICE_KSYM}"
+    CT_GetPkgBuildVersion "${choice}" "${component}" "${var}"
 }

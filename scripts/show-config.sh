@@ -10,22 +10,49 @@
 # GREP_OPTIONS screws things up.
 export GREP_OPTIONS=
 
+fieldwidth=15
+
 # Dummy version which is invoked from .config
 CT_Mirrors() { :; }
 
 # Dump a short package description with a name and version in a format
 # " <name>[-<version>]"
-dump_pkg_desc() {
-    local name=$1
+dump_pkgs_desc()
+{
+    local category="${1}"
+    local field="${2}"
+    shift 2
+    local show_version
+    local tmp
+
+    printf "    %-*s :" ${fieldwidth} "${field}"
+    while [ -n "${1}" ]; do
+        eval "tmp=\"\${CT_${category}_${1}}\""
+        if [ -n "${tmp}" ]; then
+            CT_GetPkgBuildVersion "${category}" "${1}" show_version
+            printf " %s" "${show_version}"
+        fi
+        shift
+    done
+    printf "\n"
+}
+
+# Dump a short package description with a name and version in a format
+# " <name>[-<version>]"
+dump_choice_desc()
+{
+    local category="${1}"
+    local field="${2}"
     local show_version
 
-    CT_GetPkgBuildVersion ${1} show_version
-    printf " %s" "${show_version}"
+    CT_GetChoicePkgBuildVersion "${category}" show_version
+    printf "    %-*s : %s\n" ${fieldwidth} "${field}" "${show_version}"
 }
 
 # Dump a single sample
 # Note: we use the specific .config.sample config file
-dump_single_sample() {
+dump_single_sample()
+{
     local verbose=0
     local complibs
     [ "$1" = "-v" ] && verbose=1 && shift
@@ -51,7 +78,6 @@ dump_single_sample() {
             fi
             ;;
     esac
-    width=14
     printf "[%s" "${sample_type}"
     [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf "."
     [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf "."
@@ -60,25 +86,17 @@ dump_single_sample() {
         case "${CT_TOOLCHAIN_TYPE}" in
             cross)  ;;
             canadian)
-                printf "    %-*s : %s\n" ${width} "Host" "${CT_HOST}"
+                printf "    %-*s : %s\n" ${fieldwidth} "Host" "${CT_HOST}"
                 ;;
         esac
-        if [ "${CT_KERNEL}" != "bare-metal" ]; then
-            printf "    %-*s :" ${width} "OS" && dump_pkg_desc KERNEL && printf "\n"
-        fi
-        printf "    %-*s :" ${width} "Companion libs"
-        [ -z "${CT_GMP}"     ] || dump_pkg_desc GMP
-        [ -z "${CT_MPFR}"    ] || dump_pkg_desc MPFR
-        [ -z "${CT_ISL}"     ] || dump_pkg_desc ISL
-        [ -z "${CT_CLOOG}"   ] || dump_pkg_desc CLOOG
-        [ -z "${CT_MPC}"     ] || dump_pkg_desc MPC
-        [ -z "${CT_LIBELF}"  -a -z "${CT_LIBELF_TARGET}"  ] || dump_pkg_desc LIBELF
-        [ -z "${CT_EXPAT}"   -a -z "${CT_EXPAT_TARGET}"   ] || dump_pkg_desc EXPAT
-        [ -z "${CT_NCURSES}" -a -z "${CT_NCURSES_TARGET}" ] || dump_pkg_desc NCURSES
-        printf "\n"
-        printf "    %-*s :" ${width} "Binutils"  && dump_pkg_desc BINUTILS && printf "\n"
-        printf "    %-*s :" ${width} "Compilers" && dump_pkg_desc CC && printf "\n"
-        printf "    %-*s : %s" ${width} "Languages" "C"
+        # FIXME get choice/menu names from generated kconfig files as well
+        # FIXME get the list of menu components from generated kconfig files
+        dump_choice_desc KERNEL "OS"
+        dump_pkgs_desc COMP_LIBS "Companion libs" GMP MPFR MPC ISL CLOOG LIBELF EXPAT NCURSES \
+                LIBICONV GETTEXT
+        dump_choice_desc BINUTILS "Binutils"
+        dump_choice_desc CC "Compiler"
+        printf "    %-*s : %s" ${fieldwidth} "Languages" "C"
         [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
         [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ",Fortran"
         [ "${CT_CC_LANG_JAVA}" = "y"    ] && printf ",Java"
@@ -88,13 +106,10 @@ dump_single_sample() {
         [ "${CT_CC_LANG_GOLANG}" = "y"  ] && printf ",Go"
         [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
         printf "\n"
-        printf  "    %-*s :" ${width} "C library" && dump_pkg_desc LIBC && printf " (threads: %s)\n" "${CT_THREADS}"
-        printf  "    %-*s :" ${width} "Tools"
-        [ "${CT_DEBUG_DUMA}"   ] && dump_pkg_desc DUMA
-        [ "${CT_DEBUG_GDB}"    ] && dump_pkg_desc GDB
-        [ "${CT_DEBUG_LTRACE}" ] && dump_pkg_desc LTRACE
-        [ "${CT_DEBUG_STRACE}" ] && dump_pkg_desc STRACE
-        printf "\n"
+
+        dump_choice_desc LIBC "C library"
+        dump_pkgs_desc DEBUG "Debug tools" DUMA GDB LTRACE STRACE
+        dump_pkgs_desc COMP_TOOLS "Companion tools" AUTOCONF AUTOMAKE LIBTOOL M4 MAKE
     fi
 }
 
