@@ -71,7 +71,7 @@ find_end()
         fi
         endline=$[endline + 1]
     done
-    error "line ${l}: '${token}' token is unpaired"
+    error "${template}:${l}: '${token}' token is unpaired"
 }
 
 set_iter()
@@ -142,7 +142,7 @@ run_foreach()
     shift
 
     if [ "${info[iter_${var}]+set}" != "set" ]; then
-        error "line ${l}: iterator over '${var}' is not defined"
+        error "${template}:${l}: iterator over '${var}' is not defined"
     fi
     find_end "foreach"
     debug "Loop over '${var}', lines ${l}..${endline}"
@@ -168,7 +168,7 @@ run_lines_if()
                     fi
                     ;;
                 *)
-                    error "line ${l}: unknown condition '${prev}' for loop"
+                    error "${template}:${l}: unknown condition '${prev}' for loop"
                     ;;
             esac
             prev=
@@ -204,7 +204,7 @@ run_lines()
                     pp="${v#${vp}}"
                     # $vp is name of the variable proper, $pp is any postprocessing
                     if [ "${info[${vp}]+set}" != "set" ]; then
-                        error "line ${l}: reference to undefined variable '${vp}'"
+                        error "${template}:${l}: reference to undefined variable '${vp}'"
                     fi
                     if [ "${info[${v}]+set}" != "set" ]; then
                         # We know the base variable, need to cache postprocessed value
@@ -232,7 +232,7 @@ run_lines()
                     s="${s#*@@*@@}"
                     ;;
                 *@@*)
-                    error "line ${l}: non-paired @@ markers"
+                    error "${template}:${l}: non-paired @@ markers"
                     ;;
                 *)
                     s1="${s1}${s}"
@@ -254,7 +254,7 @@ run_lines()
                 # Comment, do nothing
                 ;;
             "#!"*)
-                error "line ${l}: unrecognized command"
+                error "${template}:${l}: unrecognized command"
                 ;;
             *)
                 # Not a special command
@@ -273,6 +273,7 @@ run_template()
     if [ ! -r "${src}" ]; then
         error "Template '${src}' not found"
     fi
+    template="${src}"
     debug "Running template ${src}"
     mapfile -O 1 -t tlines < "${src}"
     run_lines 1 ${#tlines[@]}
@@ -660,23 +661,39 @@ get_components()
 enter_choice()
 {
     local choice="${1}"
-    local l
+    local input="config/${info[dir]}/${choice}.in"
+    local l ln
 
     info[choice]="${choice}"
+    info[pkg]="${choice}"
 
     # Not local, we need these arrays be set in enter_dependency/enter_help
     deplines=( )
     helplines=( )
+    ln=0
     while read l; do
+        ln=$[ln+1]
         case "${l}" in
         "## help "*)
-            helplines+=( "${l#* help }" )
+            helplines+=( "${l#\#\# help }" )
             ;;
-        "## depends "*|"## select "*)
-            deplines+=( "${l#* }" )
+        "## depends "*|"## select "*|"## default "*)
+            deplines+=( "${l#\#\# }" )
+            ;;
+        "## no-package")
+            info[pkg]=
+            ;;
+        "## package "*)
+            info[pkg]=${l#\#\# package }
+            ;;
+        "##"|"## help")
+            # accept empty, for formatting
+            ;;
+        "##"*)
+            error "${input}:${ln}: unrecognized command"
             ;;
         esac
-    done < "config/${info[dir]}/${choice}.in"
+    done < "${input}"
     set_iter dependency "${!deplines[@]}"
     set_iter help "${!helplines[@]}"
 }
@@ -697,7 +714,7 @@ gen_selection()
     local dir="${2}"
     local label="${3}"
 
-    msg "Generating ${dir}.in"
+    msg "Generating ${dir}.in (${type})"
     exec >"${config_gen_dir}/${dir}.in"
     info=( \
         [dir]=${dir} \
@@ -719,6 +736,7 @@ gen_selection choice binutils "Binutils"
 gen_selection choice libc "C library"
 gen_selection menu debug "Debug facilities"
 gen_selection menu comp_tools "Companion tools"
+gen_selection menu comp_libs "Companion libraries"
 
 msg "*** Running autoconf"
 autoconf -Wall --force

@@ -1,5 +1,6 @@
 # -*- mode: sh; tab-width: 4 -*-
 # vi: ts=4:sw=4:sts=4:et
+# vim: filetype=sh :
 # This file contains some useful common functions
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
@@ -1891,6 +1892,10 @@ CT_PackageRun()
         eval "local ${v}=\${CT_${use}_${v^^}}"
     done
 
+    if [ -z "${pkg_name}" ]; then
+        CT_Abort "Internal ct-ng error: '${sym}' not defined, please report a bug"
+    fi
+
     for v in archive_filename archive_dirname; do
         # kconfig and shell have different quoting rules, so it seems impossible to make
         # kconfig quote '$' properly for eval (i.e. not have it expanded when loading the
@@ -2212,4 +2217,60 @@ CT_GetPkgVersion()
     __do_GetPkgVersion() { rv="${version}"; }
     CT_PackageRun "${1}" __do_GetPkgVersion
     eval "${2}=\"${rv}\""
+}
+
+# Get a package version selected to build. May return an empty string.
+# Usage: CT_GetPkgBuildVersion PKG VAR
+# where PKG may refer to a specific package (e.g. GCC) or package choice
+# (e.g. LIBC).
+CT_GetPkgBuildVersion()
+{
+    local category="${1}"
+    local component="${2}"
+    local var="${3}"
+    local choicename tmp pkg build_version
+
+    # If it is for a choice, not a menu, get the choice name
+    eval "choicename=\${CT_${category}}"
+
+    # Find the associated package
+    eval "pkg=\${CT_${category}_${component}_PKG_KSYM}"
+    if [ -z "${pkg}" ]; then
+        # This component does not have an associated package,
+        # return the component name.
+        if [ -n "${choicename}" ]; then
+            eval "${var}=\"${choicename}\""
+        fi
+        return
+    fi
+
+    __do_GetPkgBuildVersion() {
+        tmp="${pkg_name}-${version}"
+        if [ "${src_devel}" = "y" ]; then
+            tmp+="-${devel_vcs}"
+            if [ -n "${devel_revision}" ]; then
+                tmp+="-${devel_revision}"
+            fi
+        elif [ "${src_custom}" = "y" ]; then
+            tmp+="-custom"
+        fi
+        if [ -n "${choicename}" -a "${pkg}" != "${component}" ]; then
+            tmp+=" (${choicename})"
+        fi
+    }
+
+    CT_PackageRun "${pkg}" __do_GetPkgBuildVersion
+    eval "${var}=\"${tmp}\""
+}
+
+# Get a package version as selected by a generated choice in kconfig.
+CT_GetChoicePkgBuildVersion()
+{
+    local choice="${1}"
+    local var="${2}"
+    local component
+
+    # Find the selected component
+    eval "component=\${CT_${choice}_CHOICE_KSYM}"
+    CT_GetPkgBuildVersion "${choice}" "${component}" "${var}"
 }

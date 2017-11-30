@@ -31,7 +31,6 @@ help-samples::
 help-distrib::
 	@echo  '  check-samples      - Verify if samples need updates due to Kconfig changes'
 	@echo  '  update-samples     - Regenerate sample configurations using the current Kconfig'
-	@echo  '  wiki-samples       - Print a DokuWiki table of samples'
 
 help-env::
 	@echo  '  CT_PREFIX=dir      - install samples in dir (see action "build-all", above).'
@@ -43,7 +42,7 @@ help-env::
 PHONY += show-config
 show-config: .config
 	@cp .config .config.sample
-	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -v current
+	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh -v current
 	@rm -f .config.sample
 
 # Prints the details of a sample
@@ -52,7 +51,7 @@ $(patsubst %,show-%,$(CT_SAMPLES)): show-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -v $*
+	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh -v $*
 	@rm -f .config.sample
 
 # Prints the details of all samples
@@ -76,7 +75,7 @@ $(patsubst %,list-%,$(CT_SAMPLES)): list-%:
 	@KCONFIG_CONFIG=$$(pwd)/.config.sample	\
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh $*
+	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh $*
 	@rm -f .config.sample
 
 PHONY += list-samples-short
@@ -109,22 +108,6 @@ check-samples: $(patsubst %,check-%,$(CT_SAMPLES))
 
 update-samples:
 	$(SILENT)$(MAKE) -rf $(CT_NG) check-samples CT_UPDATE_SAMPLES=yes
-
-PHONY += wiki-samples
-wiki-samples: wiki-samples-pre $(patsubst %,wiki-%,$(CT_SAMPLES)) wiki-samples-post
-
-wiki-samples-pre: FORCE
-	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -w
-
-wiki-samples-post: FORCE
-	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -W $(CT_SAMPLES)
-
-$(patsubst %,wiki-%,$(CT_SAMPLES)): wiki-%:
-	$(SILENT)KCONFIG_CONFIG=$$(pwd)/.config.sample	\
-	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
-	            $(KCONFIG_TOP) >/dev/null
-	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/showSamples.sh -w $*
-	$(SILENT)rm -f .config.sample
 
 # ----------------------------------------------------------
 # This part deals with saving/restoring samples
@@ -207,9 +190,9 @@ define build_sample
 	mkdir -p .build-all/$$status/$(1); \
 	bzip2 < build.log > .build-all/$$status/$(1)/build.log.bz2; \
 	if [ "$$status" = PASS ]; then \
-		blddir=`$(bash) $(CT_LIB_DIR)/scripts/showConfig.sh '$${CT_BUILD_TOP_DIR}'`; \
+		blddir=`$(bash) $(CT_LIB_DIR)/scripts/show-tuple.sh '$${CT_BUILD_TOP_DIR}'`; \
 		[ -z "$(CT_PRESERVE_PASSED_BUILDS)" ] && rm -rf $${blddir}; \
-		$(bash) $(CT_LIB_DIR)/scripts/showConfig.sh '$${CT_PREFIX_DIR}' > .build-all/PASS/$(1)/prefix; \
+		$(bash) $(CT_LIB_DIR)/scripts/show-tuple.sh '$${CT_PREFIX_DIR}' > .build-all/PASS/$(1)/prefix; \
 	fi; \
 	:
 endef
