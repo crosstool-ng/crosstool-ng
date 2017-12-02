@@ -24,6 +24,10 @@ Options:
     --apply-patches, -a
         Implies -d. Unpack and apply the bundled patches.
 
+    --update-patches, -P
+        Implies -d. Renumber the patches and update the offsets
+        in them. Requires quilt to be installed.
+
     --verify-urls, -u
         Check *all* the download URLs for accessibility, without
         actually downloading anything.
@@ -52,6 +56,10 @@ while [ -n "${1}" ]; do
         ;;
     --apply-patches|-a)
         apply_patches=y
+        download_pkgs=y
+        ;;
+    --update-patches|-P)
+        update_patches=y
         download_pkgs=y
         ;;
     --select|-s)
@@ -85,6 +93,7 @@ CT_TARBALLS_DIR=`pwd`/temp.tarballs
 CT_COMMON_SRC_DIR=`pwd`/temp.src
 CT_SRC_DIR=`pwd`/temp.src
 CT_LOG_LEVEL_MAX=EXTRA
+CT_TEMP_PATCH_DIR=`pwd`/temp.patches
 mkdir -p ${CT_TARBALLS_DIR}
 
 # Does not matter, just to make the scripts load
@@ -165,6 +174,51 @@ create_digests()
     archive_formats="${save_archive_formats}"
 }
 
+update_patches()
+{
+    local masterpfx="${1}"
+    local pkgdir="${CT_LIB_DIR}/packages/${pkg_name}/${version}"
+    local p i base newname
+
+    CT_DoExecLog ALL rm -rf "${CT_TEMP_PATCH_DIR}"
+    CT_DoExecLog ALL mkdir -p "${CT_TEMP_PATCH_DIR}"
+
+    # Move old patches so that CT_DoExtractPatch produces a clean directory
+    for p in "${pkgdir}"/*.patch; do
+        if [ "${p}" = "${pkgdir}/*.patch" ]; then
+            return # No patches
+        fi
+        CT_DoExecLog ALL mv "${p}" "${CT_TEMP_PATCH_DIR}"
+    done
+    # NOTE: we're already inside CT_PackageRun, so use CT_DoExtractPatch rather
+    # than CT_ExtractPatch, so that we keep the variable modified by it.
+    CT_DoExtractPatch
+    CT_DoLog EXTRA "Pushing patches into quilt"
+    CT_Pushd "${src_dir}/${dir_name}"
+    export QUILT_PATCHES=ct-ng.patches
+    CT_DoExecLog ALL mkdir -p ${QUILT_PATCHES}
+    CT_DoExecLog ALL touch ${QUILT_PATCHES}/series
+    CT_DoExecLog ALL quilt --quiltrc - setup ct-ng.patches/series
+    for p in "${CT_TEMP_PATCH_DIR}"/*.patch; do
+        # By now we know we have a non-empty set of patches
+        CT_DoExecLog ALL quilt --quiltrc - import "${p}"
+        CT_DoExecLog ALL quilt --quiltrc - push
+        CT_DoExecLog ALL quilt --quiltrc - refresh -p ab --no-timestamps --no-index --diffstat
+    done
+    # Now publish the patches back into the package's directory, renumbering them
+    # in the process.
+    CT_DoLog EXTRA "Saving updated patches"
+    i=0
+    for p in `quilt --quiltrc - applied`; do
+        # Strip index separated by dash or underscore
+        base=`echo "${p}" | sed 's#^[0-9]\{2,4\}[-_]##'`
+        newname=`printf "%04u-%s" "${i}" "${base}"`
+        i=$[i+1]
+        CT_DoExecLog ALL mv "${QUILT_PATCHES}/${p}" "${pkgdir}/${newname}"
+    done
+    CT_Popd
+}
+
 run_pkgversion()
 {
     while [ -n "${1}" ]; do
@@ -214,6 +268,7 @@ CT_${pfx}_V_${kcfg}=y
 CT_SAVE_TARBALLS=y
 # CT_VERIFY_DOWNLOAD_DIGEST is not set
 ${signature+CT_VERIFY_DOWNLOAD_SIGNATURE=y}
+# CT_OVERRIDE_CONFIG_GUESS_SUB is not set
 EOF
 
     ./kconfig/conf --defconfig=temp.defconfig temp.in >/dev/null
@@ -233,9 +288,14 @@ EOF
         CT_Fetch "${masterpfx}"
     fi
     if [ -n "${apply_patches}" ]; then
-        rm -rf ${CT_COMMON_SRC_DIR}
-        mkdir -p ${CT_COMMON_SRC_DIR}
+        CT_DoExecLog ALL rm -rf ${CT_COMMON_SRC_DIR}
+        CT_DoExecLog ALL mkdir -p ${CT_COMMON_SRC_DIR}
         CT_ExtractPatch "${masterpfx}"
+    fi
+    if [ -n "${update_patches}" ]; then
+        CT_DoExecLog ALL rm -rf ${CT_COMMON_SRC_DIR}
+        CT_DoExecLog ALL mkdir -p ${CT_COMMON_SRC_DIR}
+        CT_PackageRun "${masterpfx}" update_patches
     fi
 
     CT_EndStep
@@ -245,4 +305,4 @@ EOF
 . maintainer/package-versions
 [ -r .config-saved ] && mv .config-saved .config
 
-rm -rf ${CT_TARBALLS_DIR} ${CT_COMMON_SRC_DIR}
+CT_DoExecLog ALL rm -rf ${CT_TARBALLS_DIR} ${CT_COMMON_SRC_DIR} ${CT_TEMP_PATCH_DIR}
