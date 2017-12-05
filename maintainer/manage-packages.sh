@@ -219,6 +219,8 @@ update_patches()
     CT_Popd
 }
 
+matched=0
+
 run_pkgversion()
 {
     while [ -n "${1}" ]; do
@@ -237,6 +239,7 @@ run_pkgversion()
     fi
 
     CT_DoStep INFO "Handling ${pkg_name}-${ver}"
+    matched=$[matched+1]
 
     # Create a temporary configuration head file
     cat >temp.in <<EOF
@@ -302,7 +305,10 @@ EOF
 }
 
 [ -r .config ] && mv .config .config-saved
+CT_DoStep INFO "Iterating over ${selected:-all} packages"
 . maintainer/package-versions
+CT_EndStep
+CT_DoLog INFO "Handled ${matched} packages/versions"
 [ -r .config-saved ] && mv .config-saved .config
 
 CT_DoExecLog ALL rm -rf ${CT_TARBALLS_DIR} ${CT_COMMON_SRC_DIR} ${CT_TEMP_PATCH_DIR}
