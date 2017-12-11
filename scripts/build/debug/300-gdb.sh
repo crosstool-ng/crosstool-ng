@@ -182,6 +182,10 @@ do_debug_gdb_build() {
             native_extra_config+=("--with-curses")
         fi
 
+        # Build a native gdbserver later if required.
+        # Newer versions enable it automatically for a native target by default.
+        native_extra_config+=("--enable-gdbserver=no")
+
         # Target libexpat resides in sysroot and does not have
         # any dependencies, so just passing '-lexpat' to gcc is enough.
         #
