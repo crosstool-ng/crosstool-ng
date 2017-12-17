@@ -96,16 +96,16 @@ do_debug_gdb_build() {
         cross_LDFLAGS="${CT_LDFLAGS_FOR_HOST}"
 
         if [ "${CT_GDB_CROSS_STATIC}" = "y" ]; then
-            cross_CFLAGS+=("-static")
-            cross_CXXFLAGS+=("-static")
-            cross_LDFLAGS+=("-static")
+            cross_CFLAGS+=" -static"
+            cross_CXXFLAGS+=" -static"
+            cross_LDFLAGS+=" -static"
         fi
 
         case "${CT_HOST}" in
             *darwin*)
                 # FIXME: Really, we should be testing for host compiler being clang.
-                cross_CFLAGS+=("-Qunused-arguments")
-                cross_CXXFLAGS+=("-Qunused-arguments")
+                cross_CFLAGS+=" -Qunused-arguments"
+                cross_CXXFLAGS+=" -Qunused-arguments"
                 # clang detects the line from gettext's _ macro as format string
                 # not being a string literal and produces a lot of warnings - which
                 # ct-ng's logger faithfully relays to user if this happens in the
@@ -245,9 +245,9 @@ do_debug_gdb_build() {
         native_LDFLAGS="${CT_TARGET_LDFLAGS}"
 
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
-            native_CFLAGS+=("-static")
-            native_CXXFLAGS+=("-static")
-            native_LDFLAGS+=("-static")
+            native_CFLAGS+=" -static"
+            native_CXXFLAGS+=" -static"
+            native_LDFLAGS+=" -static"
         fi
 
         export ac_cv_func_strncmp_works=yes
@@ -345,11 +345,13 @@ do_debug_gdb_build() {
         gdbserver_LDFLAGS="${CT_TARGET_LDFLAGS}"
 
         if [ "${CT_GDB_GDBSERVER_STATIC}" = "y" ]; then
-            gdbserver_LDFLAGS+=("-static")
+            gdbserver_CFLAGS+=" -static"
+            gdbserver_CXXFLAGS+=" -static"
+            gdbserver_LDFLAGS+=" -static"
         fi
 
         if [ "${CT_GDB_GDBSERVER_STATIC_LIBSTDCXX}" = "y" ]; then
-            gdbserver_LDFLAGS+=("-static-libstdc++")
+            gdbserver_LDFLAGS+=" -static-libstdc++"
         fi
 
         gdbserver_CPPFLAGS=`echo ${gdbserver_CPPFLAGS}`
