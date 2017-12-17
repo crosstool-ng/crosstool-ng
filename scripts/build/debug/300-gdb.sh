@@ -11,6 +11,19 @@ do_debug_gdb_extract() {
 do_debug_gdb_build() {
     local -a extra_config
 
+    # These variables should be global and shared between all packages.
+    local CT_TARGET_CPP="${CT_TARGET}-cpp"
+    local CT_TARGET_CC="${CT_TARGET}-gcc"
+    local CT_TARGET_CXX="${CT_TARGET}-g++"
+    local CT_TARGET_LD="${CT_TARGET}-ld"
+    local CT_HOST_CPP="${CT_HOST}-cpp"
+    local CT_HOST_CC="${CT_HOST}-gcc"
+    local CT_HOST_CXX="${CT_HOST}-g++"
+    local CT_HOST_LD="${CT_HOST}-ld"
+
+    local CT_CXXFLAGS_FOR_HOST=${CT_CFLAGS_FOR_HOST}
+    local CT_TARGET_CXXFLAGS=${CT_TARGET_CFLAGS}
+
     gdb_src_dir="${CT_SRC_DIR}/gdb"
 
     if [ "${CT_GDB_HAS_PKGVERSION_BUGURL}" = "y" ]; then
@@ -21,6 +34,7 @@ do_debug_gdb_build() {
     if [ "${CT_GDB_CROSS}" = "y" ]; then
         local -a cross_extra_config
         local gcc_version p _p
+        local cross_CPPFLAGS cross_CFLAGS cross_CXXFLAGS cross_LDFLAGS
 
         CT_DoStep INFO "Installing cross-gdb"
         CT_DoLog EXTRA "Configuring cross-gdb"
@@ -46,12 +60,13 @@ do_debug_gdb_build() {
             none)   cross_extra_config+=("--disable-threads");;
             *)      cross_extra_config+=("--enable-threads");;
         esac
+
         if [ "${CT_GDB_CROSS_PYTHON}" = "y" ]; then
             if [ -z "${CT_GDB_CROSS_PYTHON_BINARY}" ]; then
                 for p in python python3 python2; do
                     _p=$( which "${p}" || true )
                     if [ -n "${_p}" ]; then
-                       cross_extra_config+=( "--with-python=${_p}" )
+                       cross_extra_config+=("--with-python=${_p}")
                        break
                     fi
                 done
@@ -59,39 +74,43 @@ do_debug_gdb_build() {
                     CT_Abort "Python support requested in cross-gdb, but Python not found. Set CT_GDB_CROSS_PYTHON_BINARY in your config."
                 fi
             else
-                cross_extra_config+=( "--with-python=${CT_GDB_CROSS_PYTHON_BINARY}" )
+                cross_extra_config+=("--with-python=${CT_GDB_CROSS_PYTHON_BINARY}")
             fi
         else
-            cross_extra_config+=( "--with-python=no" )
+            cross_extra_config+=("--with-python=no")
         fi
+
         if [ "${CT_GDB_CROSS_SIM}" = "y" ]; then
-            cross_extra_config+=( "--enable-sim" )
+            cross_extra_config+=("--enable-sim")
         else
-            cross_extra_config+=( "--disable-sim" )
+            cross_extra_config+=("--disable-sim")
         fi
+
         if [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ]; then
             cross_extra_config+=("--disable-nls")
         fi
 
-        CPP_for_gdb="${CT_HOST}-cpp ${CT_CFLAGS_FOR_HOST}"
-        CC_for_gdb="${CT_HOST}-gcc ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST}"
-        CXX_for_gdb="${CT_HOST}-g++ ${CT_CFLAGS_FOR_HOST} ${CT_LDFLAGS_FOR_HOST}"
-        LD_for_gdb="${CT_HOST}-ld ${CT_LDFLAGS_FOR_HOST}"
+        cross_CPPFLAGS="${CT_CPPFLAGS_FOR_HOST}"
+        cross_CFLAGS="${CT_CFLAGS_FOR_HOST}"
+        cross_CXXFLAGS="${CT_CXXFLAGS_FOR_HOST}"
+        cross_LDFLAGS="${CT_LDFLAGS_FOR_HOST}"
+
         if [ "${CT_GDB_CROSS_STATIC}" = "y" ]; then
-            CC_for_gdb+=" -static"
-            CXX_for_gdb+=" -static"
-            LD_for_gdb+=" -static"
+            cross_CFLAGS+=("-static")
+            cross_CXXFLAGS+=("-static")
+            cross_LDFLAGS+=("-static")
         fi
+
         case "${CT_HOST}" in
             *darwin*)
                 # FIXME: Really, we should be testing for host compiler being clang.
-                CC_for_gdb+=" -Qunused-arguments"
-                CXX_for_gdb+=" -Qunused-arguments"
+                cross_CFLAGS+=("-Qunused-arguments")
+                cross_CXXFLAGS+=("-Qunused-arguments")
                 # clang detects the line from gettext's _ macro as format string
                 # not being a string literal and produces a lot of warnings - which
                 # ct-ng's logger faithfully relays to user if this happens in the
                 # error() function. Suppress them.
-                cross_extra_config+=( "--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security" )
+                cross_extra_config+=("--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security")
                 ;;
         esac
 
@@ -99,10 +118,10 @@ do_debug_gdb_build() {
         # are multiple consecutive spaces: sub-configure scripts replace them with a
         # single space and then complain that $CC value changed from that in
         # the master directory.
-        CPP_for_gdb=`echo $CPP_for_gdb`
-        CC_for_gdb=`echo $CC_for_gdb`
-        CXX_for_gdb=`echo $CXX_for_gdb`
-        LD_for_gdb=`echo $LD_for_gdb`
+        cross_CPPFLAGS=`echo ${cross_CPPFLAGS}`
+        cross_CFLAGS=`echo ${cross_CFLAGS}`
+        cross_CXXFLAGS=`echo ${cross_CXXFLAGS}`
+        cross_LDFLAGS=`echo ${cross_LDFLAGS}`
 
         # Disable binutils options when building from the binutils-gdb repo.
         cross_extra_config+=("--disable-binutils")
@@ -112,13 +131,14 @@ do_debug_gdb_build() {
         CT_DoLog DEBUG "Extra config passed: '${cross_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
-        CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
-        CFLAGS_FOR_BUILD="${CT_CFLAGS_FOR_BUILD}"       \
-        LDFLAGS_FOR_BUILD="${CT_LDFLAGS_FOR_BUILD}"     \
-        CPP="${CPP_for_gdb}"                            \
-        CC="${CC_for_gdb}"                              \
-        CXX="${CXX_for_gdb}"                            \
-        LD="${LD_for_gdb}"                              \
+        CPP="${CT_HOST_CPP}"                            \
+        CC="${CT_HOST_CC}"                              \
+        CXX="${CT_HOST_CXX}"                            \
+        LD="${CT_HOST_LD}"                              \
+        CPPFLAGS="${cross_CPPFLAGS}"                    \
+        CFLAGS="${cross_CFLAGS}"                        \
+        CXXFLAGS="${cross_CXXFLAGS}"                    \
+        LDFLAGS="${cross_LDFLAGS}"                      \
         ${CONFIG_SHELL}                                 \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
@@ -148,13 +168,13 @@ do_debug_gdb_build() {
             # See in scripts/build/internals.sh for why we do this
             # TBD GCC 3.x and older not supported
             if [ -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
-                gcc_version=$( cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER" )
+                gcc_version=$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER")
             else
                 gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
                                    "${CT_SRC_DIR}/gcc/gcc/version.c"   \
                              )
             fi
-            sed -r                                               \
+            sed -r                                                  \
                    -e "s:@@PREFIX@@:${CT_PREFIX_DIR}:;"             \
                    -e "s:@@VERSION@@:${gcc_version}:;"              \
                    "${CT_LIB_DIR}/scripts/build/debug/gdbinit.in"   \
@@ -167,8 +187,13 @@ do_debug_gdb_build() {
     # TBD combine GDB native and gdbserver backends, build either or both in a single pass.
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
+        local native_CPPFLAGS native_CFLAGS native_CXXFLAGS native_LDFLAGS
 
         CT_DoStep INFO "Installing native gdb"
+        CT_DoLog EXTRA "Configuring native gdb"
+
+        mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
+        cd "${CT_BUILD_DIR}/build-gdb-native"
 
         native_extra_config=("${extra_config[@]}")
 
@@ -205,32 +230,25 @@ do_debug_gdb_build() {
         native_extra_config+=("--with-expat")
         native_extra_config+=("--without-libexpat-prefix")
 
-        CT_DoLog EXTRA "Configuring native gdb"
-
-        mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
-        cd "${CT_BUILD_DIR}/build-gdb-native"
-
         case "${CT_THREADS}" in
             none)   native_extra_config+=("--disable-threads");;
             *)      native_extra_config+=("--enable-threads");;
         esac
 
-        [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] &&    \
-        native_extra_config+=("--disable-nls")
-
-        CPP_for_gdb="${CT_TARGET}-cpp ${CT_TARGET_CFLAGS}"
-        CC_for_gdb="${CT_TARGET}-${CT_CC} ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
-        CXX_for_gdb="${CT_TARGET}-g++ ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
-        LD_for_gdb="${CT_TARGET}-ld ${CT_TARGET_LDFLAGS}"
-        if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
-            CC_for_gdb+=" -static"
-            CXX_for_gdb+=" -static"
-            LD_for_gdb+=" -static"
+        if [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ]; then
+            native_extra_config+=("--disable-nls")
         fi
-        CPP_for_gdb=`echo $CPP_for_gdb`
-        CC_for_gdb=`echo $CC_for_gdb`
-        CXX_for_gdb=`echo $CXX_for_gdb`
-        LD_for_gdb=`echo $LD_for_gdb`
+
+        native_CPPFLAGS="${CT_TARGET_CPPFLAGS}"
+        native_CFLAGS="${CT_TARGET_CFLAGS}"
+        native_CXXFLAGS="${CT_TARGET_CXXFLAGS}"
+        native_LDFLAGS="${CT_TARGET_LDFLAGS}"
+
+        if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
+            native_CFLAGS+=("-static")
+            native_CXXFLAGS+=("-static")
+            native_LDFLAGS+=("-static")
+        fi
 
         export ac_cv_func_strncmp_works=yes
 
@@ -239,16 +257,22 @@ do_debug_gdb_build() {
         native_extra_config+=("--disable-ld")
         native_extra_config+=("--disable-gas")
 
+        native_CPPFLAGS=`echo ${native_CPPFLAGS}`
+        native_CFLAGS=`echo ${native_CFLAGS}`
+        native_CXXFLAGS=`echo ${native_CXXFLAGS}`
+        native_LDFLAGS=`echo ${native_LDFLAGS}`
+
         CT_DoLog DEBUG "Extra config passed: '${native_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
-        CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
-        CFLAGS_FOR_BUILD="${CT_CFLAGS_FOR_BUILD}"       \
-        LDFLAGS_FOR_BUILD="${CT_LDFLAGS_FOR_BUILD}"     \
-        CPP="${CPP_for_gdb}"                            \
-        CC="${CC_for_gdb}"                              \
-        CXX="${CXX_for_gdb}"                            \
-        LD="${LD_for_gdb}"                              \
+        CPP="${CT_TARGET_CPP}"                          \
+        CC="${CT_TARGET_CC}"                            \
+        CXX="${CT_TARGET_CXX}"                          \
+        LD="${CT_TARGET_LD}"                            \
+        CPPFLAGS="${native_CPPFLAGS}"                   \
+        CFLAGS="${native_CFLAGS}"                       \
+        CXXFLAGS="${native_CXXFLAGS}"                   \
+        LDFLAGS="${native_LDFLAGS}"                     \
         ${CONFIG_SHELL}                                 \
         "${gdb_src_dir}/configure"                      \
             --build=${CT_BUILD}                         \
@@ -282,7 +306,7 @@ do_debug_gdb_build() {
 
     if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
         local -a gdbserver_extra_config
-        local gdbserver_LDFLAGS
+        local gdbserver_CPPFLAGS gdbserver_CFLAGS gdbserver_CXXFLAGS gdbserver_LDFLAGS
 
         CT_DoStep INFO "Installing gdbserver"
         CT_DoLog EXTRA "Configuring gdbserver"
@@ -295,15 +319,6 @@ do_debug_gdb_build() {
         # Bah, GNU folks strike again... :-(
         chmod +x "${gdb_src_dir}/gdb/gdbserver/configure"
 
-        gdbserver_LDFLAGS=
-        if [ "${CT_GDB_GDBSERVER_STATIC}" = "y" ]; then
-            gdbserver_LDFLAGS=-static
-        fi
-
-        if [ "${CT_GDB_GDBSERVER_STATIC_LIBSTDCXX}" = "y" ]; then
-            gdbserver_LDFLAGS+=" -static-libstdc++"
-        fi
-
         gdbserver_extra_config=("${extra_config[@]}")
 
         # We may not have C++ language configured for target
@@ -313,9 +328,9 @@ do_debug_gdb_build() {
 
         if [ "${CT_GDB_GDBSERVER_HAS_IPA_LIB}" = "y" ]; then
             if [ "${CT_GDB_GDBSERVER_BUILD_IPA_LIB}" = "y" ]; then
-                gdbserver_extra_config+=( --enable-inprocess-agent )
+                gdbserver_extra_config+=("--enable-inprocess-agent")
             else
-                gdbserver_extra_config+=( --disable-inprocess-agent )
+                gdbserver_extra_config+=("--disable-inprocess-agent")
             fi
         fi
 
@@ -324,23 +339,34 @@ do_debug_gdb_build() {
         gdbserver_extra_config+=("--disable-ld")
         gdbserver_extra_config+=("--disable-gas")
 
-        CPP_for_gdb="${CT_TARGET}-cpp ${CT_TARGET_CFLAGS}"
-        CC_for_gdb="${CT_TARGET}-${CT_CC} ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
-        CXX_for_gdb="${CT_TARGET}-g++ ${CT_TARGET_CFLAGS} ${CT_TARGET_LDFLAGS}"
-        LD_for_gdb="${CT_TARGET}-ld ${CT_TARGET_LDFLAGS}"
-        CPP_for_gdb=`echo $CPP_for_gdb`
-        CC_for_gdb=`echo $CC_for_gdb`
-        CXX_for_gdb=`echo $CXX_for_gdb`
-        LD_for_gdb=`echo $LD_for_gdb`
+        gdbserver_CPPFLAGS="${CT_TARGET_CPPFLAGS}"
+        gdbserver_CFLAGS="${CT_TARGET_CFLAGS}"
+        gdbserver_CXXFLAGS="${CT_TARGET_CXXFLAGS}"
+        gdbserver_LDFLAGS="${CT_TARGET_LDFLAGS}"
+
+        if [ "${CT_GDB_GDBSERVER_STATIC}" = "y" ]; then
+            gdbserver_LDFLAGS+=("-static")
+        fi
+
+        if [ "${CT_GDB_GDBSERVER_STATIC_LIBSTDCXX}" = "y" ]; then
+            gdbserver_LDFLAGS+=("-static-libstdc++")
+        fi
+
+        gdbserver_CPPFLAGS=`echo ${gdbserver_CPPFLAGS}`
+        gdbserver_CFLAGS=`echo ${gdbserver_CFLAGS}`
+        gdbserver_CXXFLAGS=`echo ${gdbserver_CXXFLAGS}`
+        gdbserver_LDFLAGS=`echo ${gdbserver_LDFLAGS}`
+
+        CT_DoLog DEBUG "Extra config passed: '${gdbserver_extra_config[*]}'"
 
         CT_DoExecLog CFG                                \
-        CC_FOR_BUILD="${CT_BUILD}-gcc"                  \
-        CFLAGS_FOR_BUILD="${CT_CFLAGS_FOR_BUILD}"       \
-        LDFLAGS_FOR_BUILD="${CT_LDFLAGS_FOR_BUILD}"     \
-        CPP="${CPP_for_gdb}"                            \
-        CC="${CC_for_gdb}"                              \
-        CXX="${CXX_for_gdb}"                            \
-        LD="${LD_for_gdb}"                              \
+        CPP="${CT_TARGET_CPP}"                          \
+        CC="${CT_TARGET_CC}"                            \
+        CXX="${CT_TARGET_CXX}"                          \
+        LD="${CT_TARGET_LD}"                            \
+        CPPFLAGS="${gdbserver_CPPFLAGS}"                \
+        CFLAGS="${gdbserver_CFLAGS}"                    \
+        CXXFLAGS="${gdbserver_CXXFLAGS}"                \
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
         ${CONFIG_SHELL}                                 \
         "${gdb_src_dir}/gdb/gdbserver/configure"        \
