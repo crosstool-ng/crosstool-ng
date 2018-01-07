@@ -11,8 +11,9 @@ all: $(PROGS)
 	@true   # Just be silent, you fscking son of a fscking beach...
 
 # Build flags
-CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\""
-LDFLAGS = $(INTL_LIBS)
+CFLAGS = --include @top_builddir@/config.h -DCONFIG_=\"CT_\" \
+	 @CFLAGS@ @CPPFLAGS@
+LDFLAGS = @LDFLAGS@ @LIBINTL@
 
 ifneq (@DPKG_BUILDFLAGS@,)
 CFLAGS += $(shell @DPKG_BUILDFLAGS@ --get CPPFLAGS) \
@@ -21,45 +22,41 @@ LDFLAGS += $(shell @DPKG_BUILDFLAGS@ --get LDFLAGS)
 endif
 
 # Compiler flags to use gettext
-ifeq ($(gettext),)
-INTL_CFLAGS = -Wno-format-security -DKBUILD_NO_NLS
+ifneq (@USE_NLS@,yes)
+CFLAGS += -Wno-format-security -DKBUILD_NO_NLS
 endif
-
-# Compiler and linker flags to use ncurses
-NCURSES_CFLAGS = -DCURSES_LOC="\"$(curses_hdr)\""
-NCURSES_LDFLAGS = $(LIBS)
 
 # Common source files
 COMMON_SRC = zconf.tab.c
 COMMON_OBJ = $(patsubst %.c,%.o,$(COMMON_SRC))
 COMMON_DEP = $(patsubst %.o,%.dep,$(COMMON_OBJ))
-$(COMMON_OBJ) $(COMMON_DEP): CFLAGS += $(INTL_CFLAGS) -I.
+$(COMMON_OBJ) $(COMMON_DEP): CFLAGS += -I.
 
 # lxdialog source files
 LX_SRC = $(sort $(wildcard lxdialog/*.c))
 LX_OBJ = $(patsubst %.c,%.o,$(LX_SRC))
 LX_DEP = $(patsubst %.o,%.dep,$(LX_OBJ))
-$(LX_OBJ) $(LX_DEP): CFLAGS += $(NCURSES_CFLAGS) $(INTL_CFLAGS)
+$(LX_OBJ) $(LX_DEP): CFLAGS += @CURSES_CFLAGS@
 
 # What's needed to build 'conf'
 conf_SRC = conf.c
 conf_OBJ = $(patsubst %.c,%.o,$(conf_SRC))
 conf_DEP = $(patsubst %.o,%.dep,$(conf_OBJ))
-$(conf_OBJ) $(conf_DEP): CFLAGS += $(INTL_CFLAGS)
+$(conf_OBJ) $(conf_DEP): CFLAGS +=
 
 # What's needed to build 'mconf'
 mconf_SRC = mconf.c
 mconf_OBJ = $(patsubst %.c,%.o,$(mconf_SRC))
 mconf_DEP = $(patsubst %.c,%.dep,$(mconf_SRC))
-$(mconf_OBJ) $(mconf_DEP): CFLAGS += $(NCURSES_CFLAGS) $(INTL_CFLAGS)
-mconf: LDFLAGS += $(NCURSES_LDFLAGS)
+$(mconf_OBJ) $(mconf_DEP): CFLAGS += @CURSES_CFLAGS@
+mconf: LDFLAGS += @CURSES_LIBS@
 
 # What's needed to build 'nconf'
 nconf_SRC = nconf.c nconf.gui.c
 nconf_OBJ = $(patsubst %.c,%.o,$(nconf_SRC))
 nconf_DEP = $(patsubst %.c,%.dep,$(nconf_SRC))
-$(nconf_OBJ) $(nconf_DEP): CFLAGS += $(INTL_CFLAGS) -I/usr/include/ncurses
-nconf: LDFLAGS += -lmenu -lpanel $(LIBS)
+$(nconf_OBJ) $(nconf_DEP): CFLAGS +=
+nconf: LDFLAGS += @MENU_LIBS@ @PANEL_LIBS@ @CURSES_LIBS@
 
 # These are generated files:
 ALL_OBJS = $(sort $(COMMON_OBJ) $(LX_OBJ) $(conf_OBJ) $(mconf_OBJ) $(nconf_OBJ))

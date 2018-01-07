@@ -62,6 +62,7 @@ AS_IF([test -n "$target_alias"],
 AC_ARG_PROGRAM
 
 AC_PROG_MKDIR_P
+AC_PROG_LN_S
 
 CTNG_WITH_DEPRECATED([install], [INSTALL])
 AC_ARG_VAR([INSTALL], [Specify the full path to a BSD-compatible install])
@@ -88,11 +89,8 @@ CTNG_PROG_VERSION_REQ_STRICT([SED],
     ['GNU sed[^0-9]* [4-9]\.'])
 AC_ARG_VAR([SED], [Specify the full path to GNU sed])
 
-AC_PROG_LN_S
+AC_CONFIG_HEADERS([config.h])
 
-#--------------------------------------------------------------------
-# A bunch of boring tests...
-#--------------------------------------------------------------------
 # Modern GCC/GDB releases require C++ support in the compiler
 AC_PROG_CC
 AC_PROG_CXX
@@ -102,7 +100,6 @@ AC_PROG_YACC
 AS_IF([test -z "$CC" -o -z "$CXX"],
       [AC_MSG_ERROR([no suitable compiler found])])
 
-#---------------------------------------------------------------------
 # Check to see if the compiler can link statically
 AC_MSG_CHECKING([if $CC can static link])
 echo "int main() {}" | ${CC} -static -o /dev/null -xc - > /dev/null 2>&1
@@ -249,50 +246,56 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_ALLOCA
 
-#----------------------------------------
-# Check for gettext and libintl for the kconfig frontends
-AC_SUBST([gettext])
-AC_CHECK_HEADERS(
-    [libintl.h],
-    [ac_ct_gettext_hdr=$ac_header; break])
-AS_IF(
-    [test -n "$ac_ct_gettext_hdr"],
-    [AC_CHECK_DECL(
-        [gettext],
-        [gettext=y],,
-        [AC_INCLUDES_DEFAULT()
-         #include <$ac_ct_gettext_hdr>])])
-SAVE_LIBS=$LIBS
-AC_SEARCH_LIBS(bindtextdomain, intl, [test "$ac_res" = "none required" || INTL_LIBS="${ac_res}"])
-LIBS=$SAVE_LIBS
-AC_SUBST([INTL_LIBS])
+AM_GNU_GETTEXT([external])
 
-# Check for ncurses, for the kconfig frontends
-AC_SUBST([ac_ct_curses_hdr])
-AC_CHECK_HEADERS(
-    [ncurses/ncurses.h ncurses/curses.h ncursesw/curses.h ncurses.h curses.h],
-    [ac_ct_curses_hdr=$ac_header; break])
-AS_IF(
-    [test -z "$ac_ct_curses_hdr"],
-    [AC_MSG_ERROR([could not find curses header, required for the kconfig frontends])])
-AC_SEARCH_LIBS(
-    [initscr],
-    [ncursesw ncurses curses],
-    [ac_ct_curses_lib_found=yes; break])
-AS_IF(
-    [test -z "$ac_ct_curses_lib_found"],
-    [AC_MSG_ERROR([could not find curses library, required for the kconfig frontends])])
-AC_SEARCH_LIBS(
-    [tgetent],
-    [termcap tinfo ncursesw ncurses curses])
+# For now, curses are needed to build kconfig. We may support a command-line
+# only configuration without curses later. For now, fail in configure but
+# consider it ok in config.h.
+AX_WITH_CURSES
+AS_IF([test "x$ax_cv_curses" != "xyes" ], [AC_MSG_ERROR([curses library not found])])
+AX_WITH_CURSES_PANEL
+AS_IF([test "x$ax_cv_panel" != "xyes" ], [AC_MSG_ERROR([panel library not found])])
+AX_WITH_CURSES_MENU
+AS_IF([test "x$ax_cv_menu" != "xyes" ], [AC_MSG_ERROR([menu library not found])])
 
-# Hey! We need the date! :-)
-DATE_FMT="%Y%m%d"
-if test "x$SOURCE_DATE_EPOCH" = "x"; then
-    DATE=$(date "+$DATE_FMT")
-else
-    DATE="$(date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT")"
-fi
+AH_BOTTOM([
+/* Select the correct curses/menu/panel headers */
+#if defined HAVE_NCURSESW_CURSES_H
+#  define CURSES_LOC <ncursesw/curses.h>
+#elif defined HAVE_NCURSESW_H
+#  define CURSES_LOC <ncursesw.h>
+#elif defined HAVE_NCURSES_CURSES_H
+#  define CURSES_LOC <ncurses/curses.h>
+#elif defined HAVE_NCURSES_H
+#  define CURSES_LOC <ncurses.h>
+#elif defined HAVE_CURSES_H
+#  define CURSES_LOC <curses.h>
+#else
+#  /* not an error - maybe a configuration didn't need curses */
+#endif
+
+#if defined HAVE_NCURSESW_PANEL_H
+#  define PANEL_LOC <ncursesw/panel.h>
+#elif defined HAVE_NCURSES_PANEL_H
+#  define PANEL_LOC <ncurses/panel.h>
+#elif defined HAVE_PANEL_H
+#  define PANEL_LOC <panel.h>
+#else
+#  /* not an error */
+#endif
+
+#if defined HAVE_NCURSESW_MENU_H
+#  define MENU_LOC <ncursesw/menu.h>
+#elif defined HAVE_NCURSES_MENU_H
+#  define MENU_LOC <ncurses/menu.h>
+#elif defined HAVE_MENU_H
+#  define MENU_LOC <menu.h>
+#else
+#  /* not an error */
+#endif
+])
+
+AX_BUILD_DATE_EPOCH(DATE, [%c])
 AC_SUBST([DATE])
 
 # Decorate the version string per user-supplied version.sh, if any

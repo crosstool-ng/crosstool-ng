@@ -1,5 +1,4 @@
 # Check for GNU perf location and the type it uses in the prototypes
-# FIXME: remove AC_SUBST after switching to using autoheader
 AC_DEFUN([CTNG_PROG_GPERF],
     [AX_REQUIRE_DEFINED([CTNG_CHECK_TOOL_REQ])
      CTNG_CHECK_TOOL_REQ([GPERF], [gperf], [gperf])
@@ -19,5 +18,4 @@ _ASEOF
         [AC_MSG_ERROR([unable to determine gperf len type])])
      rm -f conftest.gperf.c
      AC_DEFINE_UNQUOTED([GPERF_LEN_TYPE], $GPERF_LEN_TYPE, [String length type used by gperf])
-     AC_SUBST([GPERF_LEN_TYPE])
 ])
