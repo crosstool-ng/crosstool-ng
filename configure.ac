@@ -139,15 +139,13 @@ AC_CHECK_PROGS([curl], [curl])
 CTNG_SET_KCONFIG_OPTION([curl])
 AC_SUBST([curl])
 
-# TBD move the checks/setting kconfig into [IF-BSD] and [IF-GNU] arguments to CTNG_PROG_STAT
-# TBD modify CTNG_SET_KCONFIG_OPTION to take an optional argument to which it should be set
-CTNG_PROG_STAT
-# FIXME: support SET_KCONFIG_OPTION with string values? But then
-# again, these checks may be moved into ct-ng script.
-test "$acx_cv_stat_flavor" = "BSD" && stat_flavor_BSD=y
-CTNG_SET_KCONFIG_OPTION([stat_flavor_BSD])
-test "$acx_cv_stat_flavor" = "GNU" && stat_flavor_GNU=y
-CTNG_SET_KCONFIG_OPTION([stat_flavor_GNU])
+CTNG_PROG_STAT(
+    [CTNG_SET_KCONFIG_OPTION([stat_flavor_GNU], [y])
+     CTNG_SET_KCONFIG_OPTION([stat_flavor_BSD])
+    ],
+    [CTNG_SET_KCONFIG_OPTION([stat_flavor_BSD], [y])
+     CTNG_SET_KCONFIG_OPTION([stat_flavor_GNU])
+    ])
 
 CTNG_CPU_COUNT
 
