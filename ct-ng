@@ -1,0 +1,169 @@
+#!/usr/bin/make -rf
+# Makefile for crosstool-NG.
+# Copyright 2006 Yann E. MORIN <yann.morin.1998@free.fr>
+
+# Don't print directory as we descend into them
+# Don't use built-in rules, we know what we're doing
+MAKEFLAGS += --no-print-directory --no-builtin-rules
+
+# Don't go parallel
+.NOTPARALLEL:
+
+# This is where ct-ng is:
+export CT_NG:=$(abspath $(lastword $(MAKEFILE_LIST)))
+# and this is where we're working in:
+export CT_TOP_DIR:=$(shell pwd)
+
+# Paths and values set by ./configure
+# Don't bother to change it other than with a new ./configure!
+export CT_LIB_DIR:=/usr/local/lib/crosstool-ng-1.23.0-288-gadaa3a5-dirty
+export CT_DOC_DIR:=/usr/local/share/doc/crosstool-ng/crosstool-ng-1.23.0-288-gadaa3a5-dirty
+
+# This is crosstool-NG version string
+export CT_VERSION:=crosstool-ng-1.23.0-288-gadaa3a5-dirty
+
+# Paths found by ./configure
+include $(CT_LIB_DIR)/paths.mk
+
+# Some distributions (eg. Ubuntu) thought it wise to point /bin/sh to
+# a truly POSIX-conforming shell, ash in this case. This is not so good
+# as we, smart (haha!) developers (as smart we ourselves think we are),
+# got used to bashisms, and are inclined to easiness... So force use of
+# bash.
+export SHELL=$(bash)
+
+# Make the restart/stop steps available to scripts/crostool-NG.sh
+export CT_STOP:=$(STOP)
+export CT_RESTART:=$(RESTART)
+
+SILENT=@
+CT_ECHO=echo
+ifeq ($(strip $(origin V)),command line)
+  ifeq ($(strip $(V)),0)
+    SILENT=@
+    CT_ECHO=:
+  else
+    ifeq ($(strip $(V)),1)
+      SILENT=
+      CT_ECHO=:
+    else
+      ifeq ($(strip $(V)),2)
+        SILENT=
+        CT_ECHO=echo
+      endif # V == 2
+    endif # V== 1
+  endif # V == 0
+endif # origin V
+export V SILENT CT_ECHO
+
+all: help
+
+.PHONY: $(PHONY)
+PHONY += all
+FORCE:
+
+# Help system
+help:: help-head help-config help-samples help-build help-clean help-distrib help-env help-tail
+
+help-head:: version
+	@echo  'See below for a list of available actions, listed by category:'
+
+help-config::
+	@echo
+	@echo  'Configuration actions:'
+
+help-samples::
+	@echo
+	@echo  'Preconfigured toolchains (#: force number of // jobs):'
+
+help-build::
+	@echo
+	@echo  'Build actions (#: force number of // jobs):'
+
+help-clean::
+	@echo
+	@echo  'Clean actions:'
+
+help-distrib::
+	@echo
+	@echo  'Distribution actions:'
+
+help-env::
+	@echo
+	@echo  'Environment variables (see /usr/local/share/doc/crosstool-ng/crosstool-ng-1.23.0-288-gadaa3a5-dirty/0 - Table of content.txt):'
+
+help-tail::
+	@echo
+	@echo  'Use action "menuconfig" to configure your toolchain'
+	@echo  'Use action "build" to build your toolchain'
+	@echo  'Use action "version" to see the version'
+	@echo  'See "man 1 $(notdir $(CT_NG))" for some help as well'
+
+help-build::
+	@echo  '  source             - Download sources for currently configured toolchain'
+	@echo  '  build[.#]          - Build the currently configured toolchain'
+
+help-clean::
+	@echo  '  clean              - Remove generated files'
+	@echo  '  distclean          - Remove generated files, configuration and build directories'
+
+include $(CT_LIB_DIR)/kconfig/kconfig.mk
+include $(CT_LIB_DIR)/steps.mk
+include $(CT_LIB_DIR)/samples/samples.mk
+include $(CT_LIB_DIR)/scripts/scripts.mk
+
+help-config::
+	@echo  '  show-tuple         - Print the tuple of the currently configured toolchain'
+
+help-distrib::
+
+help-env::
+	@echo  '  V=0|1|2|<unset>    - <unset> show only human-readable messages (default)'
+	@echo  '                       0 => do not show commands or human-readable message'
+	@echo  '                       1 => show only the commands being executed'
+	@echo  '                       2 => show both'
+
+# End help system
+
+.config:
+	@echo "There is no existing .config file!"
+	@echo "You need to either run 'menuconfig',"
+	@echo "or configure an existing sample."
+	@false
+
+show-tuple: .config
+	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/show-tuple.sh '$${CT_TARGET}'
+
+# Actual build
+source: .config
+	$(SILENT)CT_SOURCE=y $(bash) $(CT_LIB_DIR)/scripts/crosstool-NG.sh
+
+build: .config
+	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/crosstool-NG.sh
+
+build.%:
+	$(SILENT)$(MAKE) -rf $(CT_NG) build CT_JOBS=$*
+
+PHONY += version
+version:
+	@echo 'This is crosstool-NG version $(CT_VERSION)'
+	@echo
+	@echo 'Copyright (C) 2008  Yann E. MORIN <yann.morin.1998@free.fr>'
+	@echo 'This is free software; see the source for copying conditions.'
+	@echo 'There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A'
+	@echo 'PARTICULAR PURPOSE.'
+	@echo
+
+PHONY += clean
+clean::
+	@$(CT_ECHO) "  CLEAN log"
+	$(SILENT)rm -f build.log
+	@$(CT_ECHO) "  CLEAN build dir"
+	$(SILENT)[ ! -d targets ] || chmod -R u+w targets
+	$(SILENT)[ ! -d .build  ] || chmod -R u+w .build
+	$(SILENT)rm -rf targets .build .build-all
+
+PHONY += distclean
+distclean:: clean
+	@$(CT_ECHO) "  CLEAN .config"
+	$(SILENT)rm -f .config .config.* ..config*
