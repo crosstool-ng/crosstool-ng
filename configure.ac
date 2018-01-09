@@ -235,8 +235,6 @@ CTNG_SET_KCONFIG_OPTION([svn])
 AC_CHECK_PROGS([git], [git])
 CTNG_SET_KCONFIG_OPTION([git])
 
-AC_CHECK_PROGS([DPKG_BUILDFLAGS], [dpkg-buildflags])
-
 # FIXME why checking if not using the result? We don't provide replacemant malloc/alloca/...
 AC_C_INLINE
 AC_HEADER_STDC
