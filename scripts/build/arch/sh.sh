@@ -1,8 +1,12 @@
 # Compute sh-specific values
 
 CT_DoArchTupleValues () {
-    # The architecture part of the tuple:
-    CT_TARGET_ARCH="${CT_ARCH_SH_VARIANT}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
+    # The architecture part of the tuple. Binutils do not accept specifications
+    # like 'sheb-unknown-elf' even though GCC does. So keep the tuple just sh-*-elf
+    # unless user wants something specific (either CPU or explicit suffix).
+    if [ "${CT_ARCH_SH_VARIANT}" != "sh" -o -n "${CT_ARCH_SUFFIX}" ]; then
+        CT_TARGET_ARCH="${CT_ARCH_SH_VARIANT}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
+    fi
 
     # Endianness stuff (uses non-standard CFLAGS). If both are compiled, let the
     # compiler's default or multilib iterator be used.
