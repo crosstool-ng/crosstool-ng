@@ -52,7 +52,8 @@ do_ncurses_for_host() {
           "--without-cxx-binding" \
           "--without-ada" )
     if [ "${CT_NCURSES_HOST_DISABLE_DB}" = "y" ]; then
-        opts+=( "--disable-database" )
+        opts+=( "--disable-database" \
+                "--disable-db-install" )
     fi
     if [ -n "${CT_NCURSES_HOST_FALLBACKS}" ]; then
         opts+=( "--with-fallbacks=${CT_NCURSES_HOST_FALLBACKS}" )
@@ -174,8 +175,12 @@ do_ncurses_backend() {
     # install.progs) do not do well with parallel make (-jX).
     CT_DoLog EXTRA "Building ncurses"
     CT_DoExecLog ALL make ${JOBSFLAGS}
+
+    # STRIPPROG is handled by our wrapper around install.
     CT_DoLog EXTRA "Installing ncurses"
-    CT_DoExecLog ALL make "${install_target}"
+    CT_DoExecLog ALL \
+        STRIPPROG="${host}-strip" \
+        make "${install_target}"
 }
 
 fi
