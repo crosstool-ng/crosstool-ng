@@ -26,9 +26,14 @@ config GLIBC_DEP_KERNEL_HEADERS_VERSION
 	def_bool y
 	select LINUX_REQUIRE_3_2_or_later if GLIBC_2_24_or_later
 
+# Glibc 2.26 requires at least binutils 2.25.
+# Also, binutils 2.30 fail while compiling aarch64 glibc; fixed in 2.27
+# and backported to 2.26. For other versions, require binutils older than
+# 2.30 (if the patch is backported, binutils 2.23 will break).
 config GLIBC_DEP_BINUTILS
     def_bool y
     select BINUTILS_REQUIRE_2_25_or_later if GLIBC_2_26_or_later
+    select BINUTILS_REQUIRE_older_than_2_30 if GLIBC_older_than_2_26 && ARCH_ARM && ARCH_64
 
 config GLIBC_DEP_GCC
     def_bool y

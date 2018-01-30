@@ -1,33 +1,23 @@
-commit 8a66d422721ae5999737d7825701ff22097d287b
-Author: Andrew Hsieh <andrewhsieh@google.com>
-Date:   Mon Apr 14 21:05:51 2014 -0700
+commit 89d27bc45ee7325dcfff6748da0f8b9c1dc1f234
+Author: Dmitry Moskalchuk <dm@crystax.net>
+Date:   Sat Aug 22 09:55:55 2015 +0300
 
-    [android] Fix ARM generates insufficient alignment for NEON vst/vld
+    [android][i386] Remove throw() declaration from posix_memalign() proto
     
-    See d909af3e2469aad87d5c3e79b93c778fd26c03a9
-    
-    Change-Id: Ie1de9f946f397196bb6f1623f5add86933739484
     Signed-off-by: Dmitry Moskalchuk <dm@crystax.net>
 
 ---
- gcc/config/arm/arm.c |    8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ gcc/config/i386/pmm_malloc.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- a/gcc/config/arm/arm.c
-+++ b/gcc/config/arm/arm.c
-@@ -22270,9 +22270,13 @@
- 	memsize = MEM_SIZE (x);
+--- a/gcc/config/i386/pmm_malloc.h
++++ b/gcc/config/i386/pmm_malloc.h
+@@ -31,7 +31,7 @@
+ #ifndef __cplusplus
+ extern int posix_memalign (void **, size_t, size_t);
+ #else
+-extern "C" int posix_memalign (void **, size_t, size_t) throw ();
++extern "C" int posix_memalign (void **, size_t, size_t);
+ #endif
  
- 	/* Only certain alignment specifiers are supported by the hardware.  */
--	if (memsize == 32 && (align % 32) == 0)
-+	/* Note that ARM EABI only guarentees 8-byte stack alignment. While GCC
-+	   honors stricter alignment of composite type in user code, it doesn't
-+	   observe the alignment of memory passed as an extra argument for function
-+	   returning large composite type.  See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=57271 */
-+	if (memsize == 32 && (align % 32) == 0 && !TARGET_AAPCS_BASED)
- 	  align_bits = 256;
--	else if ((memsize == 16 || memsize == 32) && (align % 16) == 0)
-+	else if ((memsize == 16 || memsize == 32) && (align % 16) == 0 && !TARGET_AAPCS_BASED)
- 	  align_bits = 128;
- 	else if (memsize >= 8 && (align % 8) == 0)
- 	  align_bits = 64;
+ static __inline void *
