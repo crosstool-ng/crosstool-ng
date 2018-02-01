@@ -538,6 +538,7 @@ int main(int ac, char **av)
 	}
 	if (ac == optind) {
 		printf(_("%s: Kconfig file missing\n"), av[0]);
+		fprintf(stderr, _("See README for usage info\n"));
 		exit(1);
 	}
 	name = av[optind];
