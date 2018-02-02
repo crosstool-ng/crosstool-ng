@@ -1,0 +1,80 @@
+Revert the commit below. A better solution is being discussed on newlib's mailing list.
+
+commit fcd33916ac03086b9090c68e88036afa4b25d913
+Author: Alexander Fedotov <alfedotov@gmail.com>
+Date:   Mon Dec 25 16:28:22 2017 +0300
+
+    fix incompatible pointer type for va_list in nano versions of printf and scanf for target like PowerPC
+
+diff --git b/newlib/libc/stdio/nano-vfprintf.c a/newlib/libc/stdio/nano-vfprintf.c
+index 663eb7149..e6604e771 100644
+--- b/newlib/libc/stdio/nano-vfprintf.c
++++ a/newlib/libc/stdio/nano-vfprintf.c
+@@ -168,16 +168,6 @@ static char *rcsid = "$Id$";
+ #include "vfieeefp.h"
+ #include "nano-vfprintf_local.h"
+ 
+-
+-/* GCC PR 14577 at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=14557 */
+-#if __STDC_VERSION__ >= 201112L
+-#define va_ptr(ap) _Generic(&(ap), va_list *: &(ap), default: (va_list *)(ap))
+-#elif __GNUC__ >= 4
+-#define va_ptr(ap) __builtin_choose_expr(__builtin_types_compatible_p(__typeof__(&(ap)), va_list *), &(ap), (va_list *)(ap))
+-#else
+-#define va_ptr(ap) (sizeof(ap) == sizeof(va_list) ? (va_list *)&(ap) : (va_list *)(ap))
+-#endif
+-
+ /* The __ssputs_r function is shared between all versions of vfprintf
+    and vfwprintf.  */
+ #ifdef STRING_ONLY
+@@ -643,12 +633,12 @@ _DEFUN(_VFPRINTF_R, (data, fp, fmt0, ap),
+ 	    }
+ 	  else
+ 	    {
+-	      n = _printf_float (data, &prt_data, fp, pfunc, va_ptr(ap));
++	      n = _printf_float (data, &prt_data, fp, pfunc, &ap);
+ 	    }
+ 	}
+       else
+ #endif
+-	n = _printf_i (data, &prt_data, fp, pfunc, va_ptr(ap));
++	n = _printf_i (data, &prt_data, fp, pfunc, &ap);
+ 
+       if (n == -1)
+ 	goto error;
+diff --git b/newlib/libc/stdio/nano-vfscanf.c a/newlib/libc/stdio/nano-vfscanf.c
+index 6467e5425..564f2916d 100644
+--- b/newlib/libc/stdio/nano-vfscanf.c
++++ a/newlib/libc/stdio/nano-vfscanf.c
+@@ -119,15 +119,6 @@ Supporting OS subroutines required:
+ #include "../stdlib/local.h"
+ #include "nano-vfscanf_local.h"
+ 
+-/* GCC PR 14577 at https://gcc.gnu.org/bugzilla/show_bug.cgi?id=14557 */
+-#if __STDC_VERSION__ >= 201112L
+-#define va_ptr(ap) _Generic(&(ap), va_list *: &(ap), default: (va_list *)(ap))
+-#elif __GNUC__ >= 4
+-#define va_ptr(ap) __builtin_choose_expr(__builtin_types_compatible_p(__typeof__(&(ap)), va_list *), &(ap), (va_list *)(ap))
+-#else
+-#define va_ptr(ap) (sizeof(ap) == sizeof(va_list) ? (va_list *)&(ap) : (va_list *)(ap))
+-#endif
+-
+ #define VFSCANF vfscanf
+ #define _VFSCANF_R _vfscanf_r
+ #define __SVFSCANF __svfscanf
+@@ -433,12 +424,12 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
+ 	}
+       ret = 0;
+       if (scan_data.code < CT_INT)
+-	ret = _scanf_chars (rptr, &scan_data, fp, va_ptr(ap));
++	ret = _scanf_chars (rptr, &scan_data, fp, &ap);
+       else if (scan_data.code < CT_FLOAT)
+-	ret = _scanf_i (rptr, &scan_data, fp, va_ptr(ap));
++	ret = _scanf_i (rptr, &scan_data, fp, &ap);
+ #ifdef FLOATING_POINT
+       else if (_scanf_float)
+-	ret = _scanf_float (rptr, &scan_data, fp, va_ptr(ap));
++	ret = _scanf_float (rptr, &scan_data, fp, &ap);
+ #endif
+ 
+       if (ret == MATCH_FAILURE)

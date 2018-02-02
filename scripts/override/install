@@ -1,8 +1,22 @@
 #!@CONFIG_SHELL@
 
+# GNU install takes the program to run to strip a binary via a --strip-program=
+# argument. Fallback script, install-sh, chokes on any unknown option and takes
+# the program name via $STRIPPROG variable - but that variable is ignored by
+# GNU install. BSD install uses $STRIPBIN.
+#
+# If using GNU install, convert to the command line option. In any case, set
+# STRIPPROG and STRIPBIN - they're either supported or harmless.
+if [ -n "${STRIPPROG}" ]; then
+    if [ "@INSTALL_WITH_STRIP_PROGRAM@" = "y" ]; then
+        __strip_opt="--strip-program=${STRIPPROG}"
+    fi
+    export STRIPBIN="${STRIPPROG}"
+fi
+
 # Do the most common case first
 if [ -z "${__PORTAGE_HELPER_PATH}" ]; then
-    exec @TOOL_PATH@ "$@"
+    exec @TOOL_PATH@ ${__strip_opt} "$@"
 fi
 
 # Not so simple case: Gentoo uses *two* wrappers around install script
@@ -32,4 +46,4 @@ for x in ${PATH}; do
     fi
 done
 PATH="${path}"
-exec @TOOL_PATH@ "$@"
+exec @TOOL_PATH@ ${__strip_opt} "$@"

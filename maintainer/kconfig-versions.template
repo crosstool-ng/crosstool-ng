@@ -190,7 +190,9 @@ config @@fork|@@_VERY_NEW
     depends on @@fork|@@_SRC_DEVEL || @@fork|@@_SRC_CUSTOM
 #!foreach milestone
     select @@master|@@_@@ms|@@_or_later
+    select @@master|@@_later_than_@@ms|@@
     depends on !@@master|@@_REQUIRE_@@ms|@@_or_older
+    depends on !@@master|@@_REQUIRE_older_than_@@ms|@@
 #!end-foreach
 
 #!foreach version
@@ -203,17 +205,21 @@ config @@fork|@@_V_@@ver_sel|@@
     depends on EXPERIMENTAL
 #!end-if
 #!foreach milestone
+#!if [ "@@version_cmp_milestone@@" -gt 0 ]
+    depends on !@@master|@@_REQUIRE_@@ms|@@_or_older
+    select @@master|@@_later_than_@@ms|@@
+#!end-if
 #!if [ "@@version_cmp_milestone@@" -ge 0 ]
+    depends on !@@master|@@_REQUIRE_older_than_@@ms|@@
     select @@master|@@_@@ms|@@_or_later
 #!end-if
 #!if [ "@@version_cmp_milestone@@" -le 0 ]
+    depends on !@@master|@@_REQUIRE_later_than_@@ms|@@
     select @@master|@@_@@ms|@@_or_older
-#!end-if
-#!if [ "@@version_cmp_milestone@@" -gt 0 ]
-    depends on !@@master|@@_REQUIRE_@@ms|@@_or_older
 #!end-if
 #!if [ "@@version_cmp_milestone@@" -lt 0 ]
     depends on !@@master|@@_REQUIRE_@@ms|@@_or_later
+    select @@master|@@_older_than_@@ms|@@
 #!end-if
 #!end-foreach
 
@@ -223,7 +229,10 @@ config @@fork|@@_VERY_OLD
     depends on OBSOLETE && EXPERIMENTAL
     depends on @@fork|@@_SRC_DEVEL || @@fork|@@_SRC_CUSTOM
 #!foreach milestone
+    select @@master|@@_@@ms|@@_or_older
+    select @@master|@@_older_than_@@ms|@@
     depends on !@@master|@@_REQUIRE_@@ms|@@_or_later
+    depends on !@@master|@@_REQUIRE_later_than_@@ms|@@
 #!end-foreach
 
 endchoice
@@ -293,18 +302,30 @@ endif
 
 #!foreach milestone
 #!// Milestones selected by a chosen version of this package
+config @@master|@@_later_than_@@ms|@@
+    bool
+
 config @@master|@@_@@ms|@@_or_later
     bool
 
 config @@master|@@_@@ms|@@_or_older
     bool
 
+config @@master|@@_older_than_@@ms|@@
+    bool
+
 #!// Milestone requirements selected by other packages that restrict
 #!// the choices in this package
+config @@master|@@_REQUIRE_later_than_@@ms|@@
+    bool
+
 config @@master|@@_REQUIRE_@@ms|@@_or_later
     bool
 
 config @@master|@@_REQUIRE_@@ms|@@_or_older
+    bool
+
+config @@master|@@_REQUIRE_older_than_@@ms|@@
     bool
 
 #!end-foreach
