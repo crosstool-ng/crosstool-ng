@@ -118,7 +118,6 @@ AC_PROG_RANLIB
 CTNG_PATH_TOOL_REQ([OBJCOPY], [gobjcopy objcopy], [objcopy])
 CTNG_PATH_TOOL_REQ([OBJDUMP], [gobjdump objdump], [objdump])
 CTNG_PATH_TOOL_REQ([READELF], [greadelf readelf], [readelf])
-CTNG_PATH_TOOL_REQ([GPERF], [gperf], [gperf])
 
 CTNG_CHECK_PROGS_REQ([bison], [bison])
 CTNG_CHECK_PROGS_REQ([flex], [flex])
@@ -223,8 +222,6 @@ CTNG_PROG_VERSION([M4],
     [gm4 m4],
     ['\(GNU M4\) ([2-9]\.|1\.[5-9]|1\.[1-4][0-9]|1\.4\.[2-9][0-9]|1\.4\.1[2-9])'],
     [gnu_m4_1_4_12_or_newer])
-
-CTNG_PROG_GPERF
 
 AC_SUBST([kconfig_options])
 
