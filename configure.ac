@@ -7,28 +7,15 @@ AC_PREREQ([2.67])
 # TBD need to quote sed expression
 AC_INIT(
     [crosstool-NG],
-    [m4_esyscmd_s([git describe --always --dirty])],
+    [m4_esyscmd_s([git describe --always --dirty | sed s,^crosstool-ng-,,])],
     [crossgcc@sourceware.org],
     [crosstool-ng],
     [http://crosstool-ng.org])
 AC_CONFIG_AUX_DIR([scripts])
 AC_CONFIG_MACRO_DIR([m4])
 
-# Check if install(1) supports --strip-program=...
-AC_DEFUN(
-    [ACX_INSTALL_STRIP_PROGRAM],
-    [touch conftest
-     mkdir conftest.dir
-     AC_MSG_CHECKING([if install takes --strip-program option])
-     AS_IF([$INSTALL --strip-program=true -s conftest conftest.dir/conftest 2>/dev/null],
-        [install_with_strip_program=y
-         AC_MSG_RESULT([yes])],
-        [AC_MSG_RESULT([no])])
-     ACX_SET_KCONFIG_OPTION([install_with_strip_program])
-     rm -rf conftest.dir
-     rm -f conftest
-    ])
-     
+# TBD try to use gnu strictness? Just add the missing files?
+AM_INIT_AUTOMAKE([-Wall -Werror foreign no-dist-gzip dist-xz dist-bzip2])
 
 #--------------------------------------------------------------------
 # Allow dummy --{en,dis}able-{static,shared}
@@ -51,6 +38,21 @@ AC_ARG_ENABLE(
         [--enable-static],
         [build static libraries (deprecated, ignored)])])
 
+# Check if install(1) supports --strip-program=...
+AC_DEFUN(
+    [ACX_INSTALL_STRIP_PROGRAM],
+    [touch conftest
+     mkdir conftest.dir
+     AC_MSG_CHECKING([if install takes --strip-program option])
+     AS_IF([$INSTALL --strip-program=true -s conftest conftest.dir/conftest 2>/dev/null],
+        [install_with_strip_program=y
+         AC_MSG_RESULT([yes])],
+        [AC_MSG_RESULT([no])])
+     ACX_SET_KCONFIG_OPTION([install_with_strip_program])
+     rm -rf conftest.dir
+     rm -f conftest
+    ])
+     
 # Check for --build and --host...
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
@@ -179,7 +181,7 @@ CTNG_PROG_VERSION_REQ_ANY([MAKE],
     ['^GNU Make (3\.8[1-9]|3\.9[0-9]|[4-9]\.)'],
     [make_3_81_or_newer])
 
-# Check other companion tools that we may or may not build
+# Check other companion tools that we may or may not build.
 CTNG_PROG_VERSION([LIBTOOL],
     [GNU libtool >= 2.4],
     [libtool],
@@ -199,14 +201,14 @@ CTNG_PROG_VERSION([AUTOCONF],
     [autoconf],
     [autoconf],
     ['\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])'],
-    [autoconf_2_63_or_newer])
+    [autoconf_2_65_or_newer])
 
 CTNG_PROG_VERSION([AUTORECONF],
     [GNU autoreconf >= 2.63],
     [autoreconf],
     [autoreconf],
-    ['\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[3-9])'],
-    [autoreconf_2_63_or_newer])
+    ['\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])'],
+    [autoreconf_2_65_or_newer])
 
 CTNG_PROG_VERSION([AUTOMAKE],
     [GNU automake >= 1.15],
@@ -243,6 +245,7 @@ AC_FUNC_REALLOC
 AC_FUNC_ALLOCA
 
 AM_GNU_GETTEXT([external])
+AM_GNU_GETTEXT_VERSION([0.19.8])
 
 # For now, curses are needed to build kconfig. We may support a command-line
 # only configuration without curses later. For now, fail in configure but
