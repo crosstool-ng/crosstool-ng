@@ -11,8 +11,7 @@ all: $(PROGS)
 	@true   # Just be silent, you fscking son of a fscking beach...
 
 # Build flags
-CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\"" \
-	 -DGPERF_LEN_TYPE="$(gperf_len_type)"
+CFLAGS = -DCONFIG_=\"CT_\" -DPACKAGE="\"crosstool-NG $(VERSION)\""
 LDFLAGS = $(INTL_LIBS)
 
 ifneq (@DPKG_BUILDFLAGS@,)
@@ -78,15 +77,12 @@ DEPS += $(nconf_DEP)
 	$(call __silent,DEP,$@)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MM $< |$(sed) -r -e 's|([^:]+.o)( *:+)|$(<:.c=.o) $@\2|;' >$@
 
 # Generate the grammar parser
-zconf.tab.o: zconf.tab.c zconf.hash.c zconf.lex.c
-zconf.tab.dep: zconf.tab.c zconf.hash.c zconf.lex.c
+zconf.tab.o: zconf.tab.c zconf.lex.c
+zconf.tab.dep: zconf.tab.c zconf.lex.c
 
 .PRECIOUS: zconf.tab.c
 zconf.tab.c: zconf.y
 	$(call __silent,BISON)bison -l -b zconf -p zconf $<
-
-zconf.hash.c: zconf.gperf
-	$(call __silent,GPERF)$(gperf) -C < $< > $@
 
 zconf.lex.c: zconf.l
 	$(call __silent,LEX)flex -L -Pzconf -o$@ $<
@@ -121,4 +117,4 @@ install-kconfig.mk: kconfig.mk
 clean:
 	$(call __silent,RM,objs)rm -f $(ALL_OBJS) $(ALL_DEPS)
 	$(call __silent_rm,$(PROGS))
-	$(call __silent_rm,zconf.tab.c zconf.hash.c zconf.lex.c lex.backup)
+	$(call __silent_rm,zconf.tab.c zconf.lex.c lex.backup)
