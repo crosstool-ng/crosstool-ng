@@ -16,6 +16,8 @@ NCONF := $(CT_LIB_DIR)/kconfig/nconf
 # Used by conf/mconf/nconf to find the .in files
 export srctree=$(CT_LIB_DIR)
 
+.PHONY: menuconfig nconfig oldconfig savedefconfig defconfig
+
 menuconfig:
 	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(MCONF) $(KCONFIG_TOP)
