@@ -21,6 +21,14 @@ comment "'softfp' ABI and uClibc is not entirely tested in crosstool-NG"
 comment "You may experience issues, although it should work just fine"
 endif # ARCH_FLOAT_SOFTFP
 
+config LIBC_UCLIBC_HAS_SUNRPC
+    bool
+    default y if !UCLIBC_1_0_23_or_later
+
+config LIBC_UCLIBC_HAS_LIBICONV
+    bool
+    default y if UCLIBC_1_0_21_or_later
+
 config LIBC_UCLIBC_PARALLEL
     def_bool y
     depends on UCLIBC_0_9_33_2_or_later
@@ -150,11 +158,18 @@ config LIBC_UCLIBC_LNXTHRD
 config LIBC_UCLIBC_LOCALES
     bool
     select LIBC_UCLIBC_WCHAR
+    # Before it became a separate option, libiconv depended on locales
     prompt "Add support for locales"
     help
       Say y if you want uClibc to support localisation.
 
       Note that seems to be broken on recent uClibc releases.
+
+config LIBC_UCLIBC_LIBICONV
+    bool "Enable iconv"
+    depends on LIBC_UCLIBC_HAS_LIBICONV
+    help
+      Say y if you want to enable <iconv.h> and the corresponding interfaces.
 
 config LIBC_UCLIBC_IPV6
     bool
@@ -188,6 +203,7 @@ config LIBC_UCLIBC_FENV
 config LIBC_UCLIBC_RPC
     bool
     prompt "Add support for RPC"
+    depends on LIBC_UCLIBC_HAS_SUNRPC
     help
       Enable support for remote procedure calls (RPC) in uClibc.
 
