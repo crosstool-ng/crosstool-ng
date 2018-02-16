@@ -952,6 +952,9 @@ CT_GetFile()
         # Try all urls in turn
         for url in "${URLS[@]}"; do
             [ -n "${url}" ] || continue
+            if [ "${url}" = "-unknown-" ]; then
+                CT_Abort "Don't know how to download ${basename}"
+            fi
             if CT_DoGetFile "${url}/${basename}${ext}"; then
                 if [ -n "${digest}" -a -n "${pkg_dir}" ] && ! CT_DoVerifyDigest \
                             "${CT_TARBALLS_DIR}/${basename}${ext}" \
@@ -1651,7 +1654,13 @@ CT_MultilibFixupLDSO()
 }
 
 # List the download mirrors. Usage:
-# CT_Mirrors ORGANIZATION PROJECT [...]
+#   CT_Mirrors ORGANIZATION PROJECT [...]
+# Important: this function should not call CT_Abort. Instead, print a special string,
+# -unknown-, to indicate that a certain combination of ORGANIZATION/PROJECT is not handled.
+# The reason is that this function is evaluated when config file is loaded - before ct-ng
+# determines if it needs to download anything at all. On the other hand, if a component
+# comes from a local source directory, it may have a version like "very new" or "very old"
+# which will confuse, for example, Linux mirror selection below.
 CT_Mirrors()
 {
     local org="${1}"
@@ -1683,7 +1692,7 @@ CT_Mirrors()
     kernel.org)
         # TBD move to linux.sh?
         if [ "${project}" != "linux" ]; then
-            CT_Abort "Unsupported project"
+            echo "-unknown-"
         fi
         local version="${CT_LINUX_VERSION}"
         case "${version}" in
@@ -1703,12 +1712,12 @@ CT_Mirrors()
             esac
             ;;
         *)
-            CT_Abort "Unsupported Linux kernel version '${version}'"
+            echo "-unknown-"
             ;;
         esac
         ;;
     *)
-        CT_Abort "Unknown mirror '${org}'"
+        echo "-unknown-"
         ;;
     esac
 }
