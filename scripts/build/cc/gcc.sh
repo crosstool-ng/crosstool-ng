@@ -315,10 +315,12 @@ do_gcc_core_backend() {
         core1|core2)
             CT_DoLog EXTRA "Configuring core C gcc compiler"
             log_txt="gcc"
+            extra_config+=( "${CT_CC_CORE_SYSROOT_ARG[@]}" )
             extra_user_config=( "${CT_CC_GCC_CORE_EXTRA_CONFIG_ARRAY[@]}" )
             ;;
         gcc_build|gcc_host)
             CT_DoLog EXTRA "Configuring final gcc compiler"
+            extra_config+=( "${CT_CC_SYSROOT_ARG[@]}" )
             extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
             log_txt="final gcc compiler"
             # to inhibit the libiberty and libgcc tricks later on
@@ -577,7 +579,6 @@ do_gcc_core_backend() {
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \
-        ${CT_CC_CORE_SYSROOT_ARG}                      \
         "${extra_config[@]}"                           \
         --enable-languages="${lang_list}"              \
         "${extra_user_config[@]}"
