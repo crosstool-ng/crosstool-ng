@@ -38,21 +38,6 @@ AC_ARG_ENABLE(
         [--enable-static],
         [build static libraries (deprecated, ignored)])])
 
-# Check if install(1) supports --strip-program=...
-AC_DEFUN(
-    [ACX_INSTALL_STRIP_PROGRAM],
-    [touch conftest
-     mkdir conftest.dir
-     AC_MSG_CHECKING([if install takes --strip-program option])
-     AS_IF([$INSTALL --strip-program=true -s conftest conftest.dir/conftest 2>/dev/null],
-        [install_with_strip_program=y
-         AC_MSG_RESULT([yes])],
-        [AC_MSG_RESULT([no])])
-     ACX_SET_KCONFIG_OPTION([install_with_strip_program])
-     rm -rf conftest.dir
-     rm -f conftest
-    ])
-     
 # Check for --build and --host...
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
@@ -66,10 +51,7 @@ AC_ARG_PROGRAM
 AC_PROG_MKDIR_P
 AC_PROG_LN_S
 
-CTNG_WITH_DEPRECATED([install], [INSTALL])
-AC_ARG_VAR([INSTALL], [Specify the full path to a BSD-compatible install])
-AC_PROG_INSTALL
-ACX_INSTALL_STRIP_PROGRAM
+CTNG_PROG_INSTALL
 
 CTNG_WITH_DEPRECATED([grep], [GREP])
 AC_ARG_VAR([GREP], [Specify the full path to GNU grep])
@@ -140,13 +122,7 @@ AC_CHECK_PROGS([curl], [curl])
 CTNG_SET_KCONFIG_OPTION([curl])
 AC_SUBST([curl])
 
-CTNG_PROG_STAT(
-    [CTNG_SET_KCONFIG_OPTION([stat_flavor_GNU], [y])
-     CTNG_SET_KCONFIG_OPTION([stat_flavor_BSD])
-    ],
-    [CTNG_SET_KCONFIG_OPTION([stat_flavor_BSD], [y])
-     CTNG_SET_KCONFIG_OPTION([stat_flavor_GNU])
-    ])
+CTNG_PROG_STAT
 
 CTNG_CPU_COUNT
 
