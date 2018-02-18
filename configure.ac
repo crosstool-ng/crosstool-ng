@@ -15,7 +15,7 @@ AC_CONFIG_AUX_DIR([scripts])
 AC_CONFIG_MACRO_DIR([m4])
 
 # TBD try to use gnu strictness? Just add the missing files?
-AM_INIT_AUTOMAKE([-Wall -Werror foreign no-dist-gzip dist-xz dist-bzip2])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign no-dist-gzip dist-xz dist-bzip2 subdir-objects])
 
 #--------------------------------------------------------------------
 # Allow dummy --{en,dis}able-{static,shared}

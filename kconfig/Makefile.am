@@ -1,9 +1,8 @@
-## Process this file with automake to produce Makefile.in
 ## vim: set noet :
 
 ## TBD install into lib/crosstool-ng/kconfig?
 ## TBD turn off program renaming for these? Or account for it in ct-ng script?
-pkglibexec_PROGRAMS    = conf nconf
+pkglibexec_PROGRAMS    = conf nconf mconf
 
 AM_LFLAGS		= -L -Pzconf
 AM_YFLAGS		= -l -b zconf -p zconf
@@ -17,6 +16,11 @@ conf_SOURCES    = conf.c zconf.c
 nconf_SOURCES	= nconf.c nconf.gui.c zconf.c
 nconf_CFLAGS	= $(CURSES_CFLAGS)
 nconf_LDADD		= $(MENU_LIBS) $(PANEL_LIBS) $(CURSES_LIBS)
+
+mconf_SOURCES	= mconf.c zconf.c lxdialog/checklist.c lxdialog/inputbox.c \
+				  lxdialog/menubox.c lxdialog/textbox.c lxdialog/util.c \
+				  lxdialog/yesno.c
+mconf_LDADD		= $(CURSES_LIBS)
 
 # automake's support for yacc/lex/gperf is too idiosyncratic. It doesn't
 # support a common pattern of including lex-generated file into yacc, nor does
