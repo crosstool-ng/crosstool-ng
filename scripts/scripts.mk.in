@@ -17,8 +17,10 @@ help-distrib::
 
 CONFIG_SUB_SRC="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD"
 CONFIG_SUB_DEST=scripts/config.sub
+CONFIG_SUB_PATCH_DIR=patches/config.sub
 CONFIG_GUESS_SRC="http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD"
 CONFIG_GUESS_DEST=scripts/config.guess
+CONFIG_GUESS_PATCH_DIR=patches/config.guess
 
 PHONY += updatetools
 updatetools: $(CONFIG_SUB_DEST) $(CONFIG_GUESS_DEST)
@@ -26,9 +28,13 @@ updatetools: $(CONFIG_SUB_DEST) $(CONFIG_GUESS_DEST)
 # ----------------------------------------------------------
 # How to retrieve the tools
 
-ifneq ($(strip $(V)),2)
+ifeq ($(strip $(V)),2)
+  shell_silent_opt = set -x
+else
   wget_silent_opt = -o /dev/null
   curl_silent_opt = --silent
+  shell_silent_opt = set +x
+  patch_silent_opt = --silent
 endif
 
 ifneq (@@CT_wget@@,)
@@ -41,6 +47,20 @@ download_cmd = $(error wget or curl needed for downloads)
 endif
 endif
 
+# ----------------------------------------------------------
+# How to patch the tools
+
+define patch_cmd
+( $(shell_silent_opt); \
+  read patch_dir; \
+  for p in $${patch_dir}/[0-9][0-9][0-9]*.patch; do \
+    if [ -f $$p ]; then \
+      patch $(patch_silent_opt) --strip=1 < $$p; \
+    fi; \
+  done \
+) <<<
+endef
+
 PHONY += scripts
 scripts:
 	@$(CT_ECHO) '  MKDIR $@'
@@ -49,11 +69,13 @@ scripts:
 $(CONFIG_SUB_DEST): scripts FORCE
 	@$(CT_ECHO) '  DOWNLOAD  $@'
 	$(SILENT)$(download_cmd) $(CONFIG_SUB_SRC)
+	$(SILENT)$(patch_cmd) $(CONFIG_SUB_PATCH_DIR)
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
 $(CONFIG_GUESS_DEST): scripts FORCE
 	@$(CT_ECHO) '  DOWNLOAD  $@'
 	$(SILENT)$(download_cmd) $(CONFIG_GUESS_SRC)
+	$(SILENT)$(patch_cmd) $(CONFIG_GUESS_PATCH_DIR)
 	$(SILENT)chmod u+rwx,go+rx-w $@
 
 # ----------------------------------------------------------
