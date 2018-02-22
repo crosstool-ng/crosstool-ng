@@ -1,4 +1,4 @@
-#!@@CT_make@@ -rf
+#!@MAKE@ -rf
 # Makefile for crosstool-NG.
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@free.fr>
 
@@ -16,11 +16,11 @@ export CT_TOP_DIR:=$(shell pwd)
 
 # Paths and values set by ./configure
 # Don't bother to change it other than with a new ./configure!
-export CT_LIB_DIR:=@@CT_LIBDIR@@
-export CT_DOC_DIR:=@@CT_DOCDIR@@
+export CT_LIB_DIR:=@libdir@
+export CT_DOC_DIR:=@docdir@
 
 # This is crosstool-NG version string
-export CT_VERSION:=@@CT_VERSION@@
+export CT_VERSION:=@PACKAGE_VERSION@
 
 # Paths found by ./configure
 include $(CT_LIB_DIR)/paths.mk
@@ -62,6 +62,59 @@ all: help
 PHONY += all
 FORCE:
 
+# Configuration rules. Currently, saveSample.sh uses some of the variables
+# below - they should be passed explicitly.
+
+# Top file of crosstool-NG configuration
+export KCONFIG_TOP = $(CT_LIB_DIR)/config/config.in
+
+# We need CONF for savedefconfig in scripts/saveSample.sh
+export CONF  := $(CT_LIB_DIR)/kconfig/conf
+MCONF := $(CT_LIB_DIR)/kconfig/mconf
+NCONF := $(CT_LIB_DIR)/kconfig/nconf
+
+# Used by conf/mconf/nconf to find the .in files
+# TBD needed? We do supply the defconfig name explicitly below
+export srctree=$(CT_LIB_DIR)
+
+.PHONY: menuconfig nconfig oldconfig savedefconfig defconfig
+
+menuconfig:
+	@$(CT_ECHO) "  CONF  $@"
+	$(SILENT)$(MCONF) $(KCONFIG_TOP)
+
+nconfig:
+	@$(CT_ECHO) "  CONF  $@"
+	$(SILENT)$(NCONF) $(KCONFIG_TOP)
+
+oldconfig: .config
+	@$(CT_ECHO) "  CONF  $@"
+	$(SILENT)$(sed) -i -r -f $(CT_LIB_DIR)/scripts/upgrade.sed $<
+	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
+
+savedefconfig: .config
+	@$(CT_ECHO) '  GEN   $@'
+	$(SILENT)$(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+
+defconfig:
+	@$(CT_ECHO) '  CONF  $@'
+	$(SILENT)$(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+
+# Always be silent, the stdout an be >.config
+extractconfig:
+	@$(awk) 'BEGIN { dump=0; }                                                  \
+	         dump==1 && $$0~/^\[.....\][[:space:]]+(# )?CT_/ {                  \
+	             $$1="";                                                        \
+	             gsub("^[[:space:]]","");                                       \
+	             print;                                                         \
+	         }                                                                  \
+	         $$0~/Dumping user-supplied crosstool-NG configuration: done in/ {  \
+	             dump=0;                                                        \
+	         }                                                                  \
+	         $$0~/Dumping user-supplied crosstool-NG configuration$$/ {         \
+	             dump=1;                                                        \
+	         }'
+
 # Help system
 help:: help-head help-config help-samples help-build help-clean help-distrib help-env help-tail
 
@@ -90,8 +143,8 @@ help-distrib::
 
 help-env::
 	@echo
-	@if [ -r "@@CT_DOCDIR@@/manual/4_Building.md" ]; then \
-		echo 'Environment variables (see @@CT_DOCDIR@@/0 - Table of content.txt):'; \
+	@if [ -r "@docdir@/manual/4_Building.md" ]; then \
+		echo 'Environment variables (see @docdir@/0 - Table of content.txt):'; \
 	else \
 		echo 'Environment variables (see http://crosstool-ng.github.io/docs/build/)'; \
 	fi
@@ -111,12 +164,19 @@ help-clean::
 	@echo  '  clean              - Remove generated files'
 	@echo  '  distclean          - Remove generated files, configuration and build directories'
 
-include $(CT_LIB_DIR)/kconfig/kconfig.mk
 include $(CT_LIB_DIR)/steps.mk
 include $(CT_LIB_DIR)/samples/samples.mk
 include $(CT_LIB_DIR)/scripts/scripts.mk
 
 help-config::
+	@echo  '  menuconfig         - Update current config using a menu based program'
+	@echo  '  nconfig            - Update current config using a menu based program'
+	@echo  '  oldconfig          - Update current config using a provided .config as base'
+	@echo  '  extractconfig      - Extract to stdout the configuration items from a'
+	@echo  '                       build.log file piped to stdin'
+	@echo  '  savedefconfig      - Save current config as a mini-defconfig to $${DEFCONFIG}'
+	@echo  '  defconfig          - Update config from a mini-defconfig $${DEFCONFIG}'
+	@echo  '                       (default: $${DEFCONFIG}=./defconfig)'
 	@echo  '  show-tuple         - Print the tuple of the currently configured toolchain'
 
 help-distrib::

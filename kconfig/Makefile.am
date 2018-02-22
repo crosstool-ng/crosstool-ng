@@ -1,7 +1,9 @@
 ## vim: set noet :
 
-## TBD install into lib/crosstool-ng/kconfig?
 ## TBD turn off program renaming for these? Or account for it in ct-ng script?
+transform		= s,x,x,
+
+## TBD install into lib/crosstool-ng/kconfig? or move to libexec which seems more suitable
 pkglibexec_PROGRAMS    = conf nconf mconf
 
 AM_LFLAGS		= -L -Pzconf
