@@ -563,8 +563,8 @@ if [ -z "${CT_RESTART}" ]; then
         CT_PARALLEL_JOBS="${CT_JOBS}"
     fi
     # Use the number of processors+1 when automatically setting the number of
-    # parallel jobs.  Fall back to 1 if the host doesn't use GLIBC.
-    AUTO_JOBS=$((`@@CT_cpucount@@ 2>/dev/null || echo 0` + 1))
+    # parallel jobs.
+    AUTO_JOBS=$[ BUILD_NCPUS + 1 ]
     [ ${CT_PARALLEL_JOBS} -eq 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
     [ ${CT_PARALLEL_JOBS} -gt 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
     JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"
