@@ -1,16 +1,21 @@
 ## vim: set noet :
 
 ## TBD turn off program renaming for these? Or account for it in ct-ng script?
+## TBD when kconfig is split into a subpackage, need to remove this option from sub-configure
 transform		= s,x,x,
 
 ## TBD install into lib/crosstool-ng/kconfig? or move to libexec which seems more suitable
 pkglibexec_PROGRAMS    = conf nconf mconf
 
-AM_LFLAGS		= -L -Pzconf
-AM_YFLAGS		= -l -b zconf -p zconf
+EXTRA_DIST		= zconf.y zconf.l \
+				  expr.h list.h lkc.h lkc_proto.h nconf.h lxdialog/dialog.h \
+				  confdata.c expr.c kconf_id.c menu.c symbol.c util.c
 
+CLEANFILES		= zconf.lex.c zconf.c
 BUILT_SOURCES	= zconf.c zconf.lex.c
 
+AM_LFLAGS		= -L -Pzconf
+AM_YFLAGS		= -l -b zconf -p zconf
 AM_CPPFLAGS		= -include config.h -DCONFIG_=\"CT_\"
 
 conf_SOURCES    = conf.c zconf.c
