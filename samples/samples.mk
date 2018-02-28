@@ -99,7 +99,7 @@ $(patsubst %,check-%,$(CT_SAMPLES)): check-%:
 		mv .defconfig "$${CT_NG_SAMPLE}";                                       \
 	    else                                                                        \
 		echo "$* needs update:";                                                \
-		diff -du0 "$${CT_NG_SAMPLE}" .defconfig |tail -n +4;                    \
+		diff -d -U 0 "$${CT_NG_SAMPLE}" .defconfig |tail -n +4;                    \
 	    fi;                                                                         \
 	 fi
 	@rm -f .config.sample* .defconfig
