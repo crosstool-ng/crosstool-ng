@@ -742,6 +742,18 @@ msg "*** Gathering the list of data files to install"
 {
     echo -n "verbatim_data ="
     find config contrib packages samples scripts -type f | LANG=C sort | while read f; do
+        case "${f}" in
+            # Skip certain files not needed at runtime (used above for generating kconfig
+            # fragments).
+            packages/*.help|packages/*.desc)
+                continue
+                ;;
+            # Special hack for configure.in.in - replace with the file that configure
+            # will produce. FIXME: create this file at the time of 'ct-ng build'.
+            config/configure.in.in)
+                f=config/configure.in
+                ;;
+        esac
         echo " \\"
         echo -n "	${f}"
     done
