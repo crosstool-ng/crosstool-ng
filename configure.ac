@@ -297,6 +297,7 @@ AS_IF(
 
 AC_CONFIG_FILES([
     Makefile
+    paths.sh
     kconfig/Makefile
     config/configure.in
 ])
