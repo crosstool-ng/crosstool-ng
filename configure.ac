@@ -290,9 +290,9 @@ AS_IF(
      prefix=$(pwd)
      exec_prefix="$prefix"
      bindir="$prefix"
-     libdir="$prefix"
      docdir="$prefix""/docs"
-     datarootdir="$prefix"
+     pkgdatadir="$prefix"
+     pkglibexecdir="$prefix/kconfig"
      mandir="$docdir"])
 
 AC_CONFIG_FILES([

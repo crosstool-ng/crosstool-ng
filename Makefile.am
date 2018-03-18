@@ -13,11 +13,10 @@ EXTRA_DIST		= ct-ng.in bootstrap
 nobase_dist_pkgdata_DATA = $(verbatim_data) paths.sh
 
 do_subst		= ( @SED@ \
-			-e 's,[@]bindir[@],$(bindir),g' \
 			-e 's,[@]docdir[@],$(docdir),g' \
-			-e 's,[@]mandir[@],$(mandir),g' \
 			-e 's,[@]pkgdatadir[@],$(pkgdatadir),g' \
 			-e 's,[@]pkglibexecdir[@],$(pkglibexecdir),g' \
+			-e 's,[@]enable_local[@],$(enable_local),g' \
 		| $(SHELL) config.status --file=- )
 
 ct-ng: ct-ng.in Makefile
