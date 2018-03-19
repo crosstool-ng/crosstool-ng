@@ -16,7 +16,6 @@ do_subst		= ( @SED@ \
 			-e 's,[@]docdir[@],$(docdir),g' \
 			-e 's,[@]pkgdatadir[@],$(pkgdatadir),g' \
 			-e 's,[@]pkglibexecdir[@],$(pkglibexecdir),g' \
-			-e 's,[@]enable_local[@],$(enable_local),g' \
 		| $(SHELL) config.status --file=- )
 
 ct-ng: ct-ng.in Makefile

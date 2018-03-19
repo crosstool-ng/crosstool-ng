@@ -27,7 +27,7 @@ AC_ARG_ENABLE(
     [local],
     [AS_HELP_STRING(
         [--enable-local],
-        [do not install, and use current directory])])
+        [run ct-ng from the current directory; 'make install' unsupported])])
 AC_SUBST([enable_local], [${enable_local:-no}])
 
 # FIXME: I don't know why we have this. Will remove after the 1.24 release.
@@ -278,22 +278,6 @@ AC_SUBST([DATE])
 AS_IF(
     [test -f version.sh -a -x version.sh],
     [PACKAGE_VERSION=$(./version.sh "${PACKAGE_VERSION}")])
-
-# We are not installing dynamic libraries that need to be found by dynamic linker.
-# Install into a subdirectory.
-libdir=${libdir}/${PACKAGE_TARNAME}
-
-# Handle the local case
-AS_IF(
-    [test "x$enable_local" = "xyes"],
-    [AC_MSG_NOTICE([overiding all of --prefix and the likes, because --enable-local was set])
-     prefix=$(pwd)
-     exec_prefix="$prefix"
-     bindir="$prefix"
-     docdir="$prefix""/docs"
-     pkgdatadir="$prefix"
-     pkglibexecdir="$prefix/kconfig"
-     mandir="$docdir"])
 
 AC_CONFIG_FILES([
     Makefile
