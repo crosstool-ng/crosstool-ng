@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Configurable portions
-docs_git=https://github.com/crosstool-ng/crosstool-ng.github.io.git
-docs_subdir=_pages/docs
 formats=( "bz2" "xz" )
 declare -A tar_opt=( ["bz2"]=j ["xz"]=J )
 digests=( md5 sha1 sha512 )
@@ -43,38 +40,8 @@ do_trace "Copying crosstool-NG"
 rm -rf "release/${version}"
 git archive --prefix="${version}/" HEAD | tar xf - -C "release"
 
-# Clone a repository for docs. Github does not support 'git archive --remote='.
-do_trace "Checking out docs"
-rm -rf "release/site"
-git clone --depth=1 "${docs_git}" "release/site"
-
 # The rest of modifications are inside the release directory
 cd "release/${version}"
-
-# Copy the docs instead of the MANUAL_ONLINE placeholder
-do_trace "Replacing docs"
-rm "docs/MANUAL_ONLINE"
-mkdir -p "docs/manual"
-for i in "../site/${docs_subdir}/"*.md; do
-    awk '
-BEGIN   { skip=0; }
-        {
-            if ($0=="---") {
-                if (NR==1) {
-                    skip=1
-                    next
-                }
-                else if (skip) {
-                    skip=0
-                    next
-                }
-            }
-            if (!skip) {
-                print $0
-            }
-        }
-' < "${i}" > "docs/manual/${i##*/}"
-done
 
 # Run bootstrap before it is removed
 do_trace "Bootstrapping"
