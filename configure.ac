@@ -4,7 +4,7 @@
 AC_PREREQ([2.67])
 
 # FIXME Temporary hack until the next release (we'll switch to plain numeric tags then)
-# TBD need to quote sed expression
+# FIXME need to quote sed expression
 AC_INIT(
     [crosstool-NG],
     [m4_esyscmd_s([git describe --always --dirty | sed s,^crosstool-ng-,,])],
@@ -14,12 +14,15 @@ AC_INIT(
 AC_CONFIG_AUX_DIR([scripts])
 AC_CONFIG_MACRO_DIR([m4])
 
-# TBD try to use gnu strictness? Just add the missing files?
+# FIXME try to use gnu strictness? Just add the missing files?
 # Set automake defaults:
 # - Tarballs are compressed with xz and bzip2
 # - Object files are generated in a subdirectory (new default in automake)
 # - Request new tar format (old, tar-v7, breaks on long paths we have)
 AM_INIT_AUTOMAKE([-Wall -Werror foreign no-dist-gzip dist-xz dist-bzip2 subdir-objects tar-pax])
+
+# Safety check per autoconf best practices
+AC_CONFIG_SRCDIR([ct-ng.in])
 
 #--------------------------------------------------------------------
 # Allow dummy --{en,dis}able-{static,shared}
@@ -274,6 +277,11 @@ AH_BOTTOM([
 AX_BUILD_DATE_EPOCH(DATE, [%c])
 AC_SUBST([DATE])
 
+AM_CONDITIONAL([INSTALL_USER_MANUAL], [test ! -f "${srcdir}/docs/MANUAL_ONLINE"])
+AC_MSG_CHECKING([if the manual needs to be installed])
+AM_COND_IF([INSTALL_USER_MANUAL], [AC_MSG_RESULT([yes])], [AC_MSG_RESULT([no])])
+
+# FIXME Retire? We don't want to debug a version that has been mislabeled by a user
 # Decorate the version string per user-supplied version.sh, if any
 AS_IF(
     [test -f version.sh -a -x version.sh],
