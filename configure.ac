@@ -251,14 +251,13 @@ ACX_CHECK_PROGS_REQ([stat], [stat])
 AC_CACHE_CHECK([whether stat takes GNU or BSD format],
     [acx_cv_stat_flavor],
     [touch conftest
-     chmod 642 conftest
-     attr_bsd=`stat -f '%Lp' conftest 2>/dev/null`
-     attr_gnu=`stat -c '%a' conftest 2>/dev/null`
+     stat -c '%a' conftest 2>/dev/null
+     stat_rc=$?
      rm -f conftest
-     AS_IF([test "$attr_bsd" = "642"],
-       [acx_cv_stat_flavor=BSD],
-       [test "$attr_gnu" = "642"],
+     AS_IF([test "$stat_rc" -eq 0],
        [acx_cv_stat_flavor=GNU],
+       [test "$stat_rc" -ne 0],
+       [acx_cv_stat_flavor=BSD],
        [AC_MSG_ERROR([cannot determine stat(1) format option])])])
 
 # FIXME: support SET_KCONFIG_OPTION with string values? But then
