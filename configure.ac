@@ -33,6 +33,16 @@ AC_ARG_ENABLE(
         [run ct-ng from the current directory; 'make install' unsupported])])
 AC_SUBST([enable_local], [${enable_local:-no}])
 
+AC_ARG_WITH([bash-completion-dir],
+    [AS_HELP_STRING(
+        [--with-bash-completion],
+        [install bash(1) command completion for ct-ng into specified directory,
+         relative to sysconfdir])],
+    [],
+    [with_bash_completion_dir=bash_completion.d])
+AM_CONDITIONAL([INSTALL_BASH_COMPLETION], [test "${with_bash_completion_dir}" != "no" ])
+AC_SUBST([BASH_COMPLETION_DIR], [${with_bash_completion_dir}])
+
 # FIXME: I don't know why we have this. Will remove after the 1.24 release.
 AC_ARG_ENABLE(
     [shared],

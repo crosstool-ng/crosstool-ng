@@ -6,8 +6,13 @@ include verbatim-data.mk
 SUBDIRS		= kconfig
 
 bin_SCRIPTS		= ct-ng
-CLEANFILES		= $(bin_SCRIPTS)
-EXTRA_DIST		= ct-ng.in bootstrap docs/ct-ng.1.in
+CLEANFILES		= ct-ng ct-ng.comp docs/ct-ng.1
+EXTRA_DIST		= bootstrap ct-ng.in ct-ng.comp.in docs/ct-ng.1.in maintainer
+
+if INSTALL_BASH_COMPLETION
+compdir				= $(sysconfdir)/@BASH_COMPLETION_DIR@
+comp_SCRIPTS		= ct-ng.comp
+endif
 
 man1_MANS	= docs/ct-ng.1
 
@@ -45,8 +50,11 @@ do_subst		= ( @SED@ \
 ct-ng: ct-ng.in Makefile
 	$(AM_V_GEN)$(do_subst) < $< >$@-t && chmod a-w,a+x $@-t && mv -f $@-t $@
 
-docs/ct-ng.1: docs/ct-ng.1.in
+docs/ct-ng.1: docs/ct-ng.1.in Makefile
 	$(AM_V_GEN)$(MKDIR_P) docs && $(do_subst) < $< >$@-t && mv -f $@-t $@
+
+ct-ng.comp: ct-ng.comp.in Makefile
+	$(AM_V_GEN)$(do_subst) < $< >$@-t && mv -f $@-t $@
 
 dist-hook: maintainer/download-docs.sh
 	$< $(top_distdir) $(USER_MANUAL_FILES)
