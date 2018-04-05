@@ -33,27 +33,19 @@ AC_ARG_ENABLE(
         [run ct-ng from the current directory; 'make install' unsupported])])
 AC_SUBST([enable_local], [${enable_local:-no}])
 
-AC_ARG_WITH([bash-completion-dir],
+AC_ARG_WITH([bash-completion],
     [AS_HELP_STRING(
         [--with-bash-completion],
-        [install bash(1) command completion for ct-ng into specified directory,
-         relative to sysconfdir])],
+        [install bash(1) command completion; can specify a path where it will be installed])],
     [],
-    [with_bash_completion_dir=bash_completion.d])
-AM_CONDITIONAL([INSTALL_BASH_COMPLETION], [test "${with_bash_completion_dir}" != "no" ])
-AC_SUBST([BASH_COMPLETION_DIR], [${with_bash_completion_dir}])
-
-# FIXME: I don't know why we have this. Will remove after the 1.24 release.
-AC_ARG_ENABLE(
-    [shared],
-    [AS_HELP_STRING(
-        [--enable-shared],
-        [build shared libraries (deprecated, ignored)])])
-AC_ARG_ENABLE(
-    [static],
-    [AS_HELP_STRING(
-        [--enable-static],
-        [build static libraries (deprecated, ignored)])])
+    [with_bash_completion=yes])
+AS_IF([test "${with_bash_completion}" = "no"],
+    [BASH_COMPLETION_DIR=],
+    [test "${with_bash_completion}" != "yes"],
+    [BASH_COMPLETION_DIR="${with_bash_completion}"],
+    [BASH_COMPLETION_DIR='${datadir}/bash-completion/completions'])
+AM_CONDITIONAL([INSTALL_BASH_COMPLETION], [test -n "${BASH_COMPLETION_DIR}"])
+AC_SUBST([BASH_COMPLETION_DIR])
 
 # Check for --build and --host...
 AC_CANONICAL_BUILD
