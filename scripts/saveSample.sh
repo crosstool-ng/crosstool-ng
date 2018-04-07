@@ -7,7 +7,6 @@
 #  - info about who reported the sample
 
 # Parse the tools' paths configuration
-. "${CT_LIB_DIR}/paths.sh"
 . "${CT_LIB_DIR}/scripts/functions"
 
 CT_LoadConfig

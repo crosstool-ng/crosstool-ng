@@ -111,7 +111,7 @@ CT_TestOrAbort "The CONFIG_SHELL '${CT_CONFIG_SHELL}' is not valid" -f "${CT_CON
 CT_TOOLS_OVERRIDE_DIR="${CT_WORK_DIR}/tools"
 CT_DoLog DEBUG "Creating bin-override for tools in '${CT_TOOLS_OVERRIDE_DIR}'"
 CT_DoExecLog DEBUG mkdir -p "${CT_TOOLS_OVERRIDE_DIR}/bin"
-cat "${CT_LIB_DIR}/paths.sh" |while read trash line; do
+cat "${paths_sh_location}" |while read trash line; do
     tool="${line%%=*}"
     # Suppress extra quoting
     eval path=${line#*=}

@@ -985,7 +985,7 @@ CT_GetFile()
 # Two wrappers to call config.(guess|sub) either from CT_TOP_DIR or CT_LIB_DIR.
 # Those from CT_TOP_DIR, if they exist, will be be more recent than those from CT_LIB_DIR.
 CT_DoConfigGuess() {
-    if [ -x "${CT_TOP_DIR}/scripts/config.guess" ]; then
+    if [ -r "${CT_TOP_DIR}/scripts/config.guess" ]; then
         "${CT_CONFIG_SHELL}" "${CT_TOP_DIR}/scripts/config.guess"
     else
         "${CT_CONFIG_SHELL}" "${CT_LIB_DIR}/scripts/config.guess"
@@ -993,7 +993,7 @@ CT_DoConfigGuess() {
 }
 
 CT_DoConfigSub() {
-    if [ -x "${CT_TOP_DIR}/scripts/config.sub" ]; then
+    if [ -r "${CT_TOP_DIR}/scripts/config.sub" ]; then
         "${CT_CONFIG_SHELL}" "${CT_TOP_DIR}/scripts/config.sub" "$@"
     else
         "${CT_CONFIG_SHELL}" "${CT_LIB_DIR}/scripts/config.sub" "$@"
@@ -2283,3 +2283,16 @@ CT_GetChoicePkgBuildVersion()
     eval "component=\${CT_${choice}_CHOICE_KSYM}"
     CT_GetPkgBuildVersion "${choice}" "${component}" "${var}"
 }
+
+# Finally, load paths.sh. For --enable-local build, it is located in
+# the current directory (CT_TOP_DIR) while the rest of the scripts are
+# in the source directory (CT_LIB_DIR). For other setups, paths.sh
+# is in CT_LIB_DIR.
+if [ -r "${CT_LIB_DIR}/paths.sh" ]; then
+    paths_sh_location="${CT_LIB_DIR}/paths.sh"
+elif [ -r "${CT_TOP_DIR}/paths.sh" ]; then
+    paths_sh_location="${CT_TOP_DIR}/paths.sh"
+else
+    CT_Error "Not found: paths.sh"
+fi
+. "${paths_sh_location}"

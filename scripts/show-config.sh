@@ -2,7 +2,6 @@
 # the versions of the main tools
 
 # Use tools discovered by ./configure
-. "${CT_LIB_DIR}/paths.sh"
 . "${CT_LIB_DIR}/scripts/functions"
 
 [ "$1" = "-v" ] && opt="$1" && shift
