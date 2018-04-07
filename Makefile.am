@@ -60,8 +60,13 @@ bash-completion/ct-ng: bash-completion/ct-ng.in Makefile
 	$(AM_V_GEN)$(MKDIR_P) bash-completion && $(do_subst) < $< >$@-t && mv -f $@-t $@
 
 # automake doesn't offer an option to compress manpages, do it after installation
+# Also, lintian is picky about execute-bit on the scripts
 install-data-hook:
+	rm -f $(DESTDIR)$(man1dir)/$(ctng_progname).1.gz
 	gzip -9 $(DESTDIR)$(man1dir)/$(ctng_progname).1
+	chmod +x $(DESTDIR)$(pkgdatadir)/scripts/config.guess
+	chmod +x $(DESTDIR)$(pkgdatadir)/scripts/config.sub
+	chmod -x $(DESTDIR)$(compdir)/$(ctng_progname)
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(man1dir)/$(ctng_progname).1.gz

@@ -26,16 +26,17 @@ AC_CONFIG_SRCDIR([ct-ng.in])
 
 #--------------------------------------------------------------------
 # Allow dummy --{en,dis}able-{static,shared}
-AC_ARG_ENABLE(
-    [local],
-    [AS_HELP_STRING(
-        [--enable-local],
+AC_ARG_ENABLE([local],
+    [AS_HELP_STRING([--enable-local],
         [run ct-ng from the current directory; 'make install' unsupported])])
 AC_SUBST([enable_local], [${enable_local:-no}])
 
+AC_ARG_ENABLE([maintainer-mode],
+    [AS_HELP_STRING([--enable-maintainer-mode],
+        [Ignored; accepted to avoid a warning from debuild])])
+
 AC_ARG_WITH([bash-completion],
-    [AS_HELP_STRING(
-        [--with-bash-completion],
+    [AS_HELP_STRING([--with-bash-completion],
         [install bash(1) command completion; can specify a path where it will be installed])],
     [],
     [with_bash_completion=yes])
