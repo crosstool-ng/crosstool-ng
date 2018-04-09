@@ -66,7 +66,9 @@ install-data-hook:
 	gzip -9 $(DESTDIR)$(man1dir)/$(ctng_progname).1
 	chmod +x $(DESTDIR)$(pkgdatadir)/scripts/config.guess
 	chmod +x $(DESTDIR)$(pkgdatadir)/scripts/config.sub
+if INSTALL_BASH_COMPLETION
 	chmod -x $(DESTDIR)$(compdir)/$(ctng_progname)
+endif
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(man1dir)/$(ctng_progname).1.gz
