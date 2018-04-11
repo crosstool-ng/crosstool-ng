@@ -111,7 +111,7 @@ CT_TestOrAbort "The CONFIG_SHELL '${CT_CONFIG_SHELL}' is not valid" -f "${CT_CON
 CT_TOOLS_OVERRIDE_DIR="${CT_WORK_DIR}/tools"
 CT_DoLog DEBUG "Creating bin-override for tools in '${CT_TOOLS_OVERRIDE_DIR}'"
 CT_DoExecLog DEBUG mkdir -p "${CT_TOOLS_OVERRIDE_DIR}/bin"
-cat "${CT_LIB_DIR}/paths.sh" |while read trash line; do
+cat "${paths_sh_location}" |while read trash line; do
     tool="${line%%=*}"
     # Suppress extra quoting
     eval path=${line#*=}
@@ -563,8 +563,8 @@ if [ -z "${CT_RESTART}" ]; then
         CT_PARALLEL_JOBS="${CT_JOBS}"
     fi
     # Use the number of processors+1 when automatically setting the number of
-    # parallel jobs.  Fall back to 1 if the host doesn't use GLIBC.
-    AUTO_JOBS=$((`@@CT_cpucount@@ 2>/dev/null || echo 0` + 1))
+    # parallel jobs.
+    AUTO_JOBS=$[ BUILD_NCPUS + 1 ]
     [ ${CT_PARALLEL_JOBS} -eq 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
     [ ${CT_PARALLEL_JOBS} -gt 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
     JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"

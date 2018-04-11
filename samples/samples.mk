@@ -19,6 +19,7 @@ CT_UPDATE_SAMPLES := no
 # This part deals with the samples help entries
 
 help-config::
+	@echo  '  show-config        - show a brief overview of current configuration'
 	@echo  '  saveconfig         - Save current config as a preconfigured target'
 
 help-samples::

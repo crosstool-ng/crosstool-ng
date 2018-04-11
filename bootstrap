@@ -738,7 +738,39 @@ gen_selection menu debug "Debug facilities"
 gen_selection menu comp_tools "Companion tools"
 gen_selection menu comp_libs "Companion libraries"
 
-msg "*** Running autoconf"
-autoconf -Wall --force
+msg "*** Gathering the list of data files to install"
+{
+    declare -A seen_files
+    echo -n "verbatim_data ="
+    find config contrib packages samples scripts -type f | LANG=C sort | while read f; do
+        # Implement some kind of .installignore for these files?
+        case "${f}" in
+            # Skip certain files not needed at runtime (used above for generating kconfig
+            # fragments).
+            packages/*.help | packages/*.desc)
+                continue
+                ;;
+            # And, some file automake insists we must have
+            scripts/compile | scripts/missing | scripts/depcomp | scripts/ltmain.sh | scripts/install-sh)
+                continue
+                ;;
+            # Special hack for configure.in.in - replace with the file that configure
+            # will produce. FIXME: create this file at the time of 'ct-ng build'.
+            config/configure.in.in)
+                f=config/configure.in
+                ;;
+        esac
+        # Checks & substitutions above may result in duplicate files
+        if [ -n "${seen_files[${f}]}" ]; then
+            continue
+        fi
+        echo " \\"
+        echo -n "	${f}"
+        seen_files[${f}]=y
+    done
+} > verbatim-data.mk
+
+msg "*** Running autoreconf"
+autoreconf -Wall --force
 
 msg "*** Done!"

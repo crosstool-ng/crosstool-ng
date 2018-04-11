@@ -1,4 +1,4 @@
-#!@@CT_make@@ -rf
+#!@MAKE@ -rf
 # Makefile for crosstool-NG.
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@free.fr>
 
@@ -14,16 +14,40 @@ export CT_NG:=$(abspath $(lastword $(MAKEFILE_LIST)))
 # and this is where we're working in:
 export CT_TOP_DIR:=$(shell pwd)
 
+ifeq (@enable_local@,yes)
+# automake does not allow to set pkgxxxdir, they are always derived from
+# a respective xxxdir. So, for enable-local case, set them directly here.
+export CT_LIB_DIR:=$(shell cd "@srcdir@" && pwd)
+export CT_LIBEXEC_DIR:=$(CT_TOP_DIR)/kconfig
+export CT_DOC_DIR:=$(CT_TOP_DIR)/docs
+else
 # Paths and values set by ./configure
 # Don't bother to change it other than with a new ./configure!
-export CT_LIB_DIR:=@@CT_LIBDIR@@
-export CT_DOC_DIR:=@@CT_DOCDIR@@
+export CT_LIB_DIR:=@pkgdatadir@
+export CT_LIBEXEC_DIR:=@pkglibexecdir@
+export CT_DOC_DIR:=@docdir@
+endif
 
 # This is crosstool-NG version string
-export CT_VERSION:=@@CT_VERSION@@
+export CT_VERSION:=@PACKAGE_VERSION@
+
+# Download agents used by scripts.mk
+CT_WGET     := @wget@
+CT_CURL     := @curl@
 
 # Paths found by ./configure
-include $(CT_LIB_DIR)/paths.mk
+export install      = @INSTALL@
+export bash         = @BASH_SHELL@
+export awk          = @AWK@
+export grep         = @GREP@
+export make         = @MAKE@
+export sed          = @SED@
+export libtool      = @LIBTOOL@
+export libtoolize   = @LIBTOOLIZE@
+export objcopy      = @OBJCOPY@
+export objdump      = @OBJDUMP@
+export readelf      = @READELF@
+export patch        = @PATCH@
 
 # Some distributions (eg. Ubuntu) thought it wise to point /bin/sh to
 # a truly POSIX-conforming shell, ash in this case. This is not so good
@@ -62,6 +86,59 @@ all: help
 PHONY += all
 FORCE:
 
+# Configuration rules. Currently, saveSample.sh uses some of the variables
+# below - they should be passed explicitly.
+
+# Top file of crosstool-NG configuration
+export KCONFIG_TOP = $(CT_LIB_DIR)/config/config.in
+
+# We need CONF for savedefconfig in scripts/saveSample.sh
+export CONF  := $(CT_LIBEXEC_DIR)/conf
+MCONF := $(CT_LIBEXEC_DIR)/mconf
+NCONF := $(CT_LIBEXEC_DIR)/nconf
+
+# Used by conf/mconf/nconf to find the .in files
+# TBD needed? We do supply the defconfig name explicitly below
+export srctree=$(CT_LIB_DIR)
+
+.PHONY: menuconfig nconfig oldconfig savedefconfig defconfig
+
+menuconfig:
+	@$(CT_ECHO) "  CONF  $@"
+	$(SILENT)$(MCONF) $(KCONFIG_TOP)
+
+nconfig:
+	@$(CT_ECHO) "  CONF  $@"
+	$(SILENT)$(NCONF) $(KCONFIG_TOP)
+
+oldconfig: .config
+	@$(CT_ECHO) "  CONF  $@"
+	$(SILENT)$(sed) -i -r -f $(CT_LIB_DIR)/scripts/upgrade.sed $<
+	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
+
+savedefconfig: .config
+	@$(CT_ECHO) '  GEN   $@'
+	$(SILENT)$(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+
+defconfig:
+	@$(CT_ECHO) '  CONF  $@'
+	$(SILENT)$(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+
+# Always be silent, the stdout an be >.config
+extractconfig:
+	@$(awk) 'BEGIN { dump=0; }                                                  \
+	         dump==1 && $$0~/^\[.....\][[:space:]]+(# )?CT_/ {                  \
+	             $$1="";                                                        \
+	             gsub("^[[:space:]]","");                                       \
+	             print;                                                         \
+	         }                                                                  \
+	         $$0~/Dumping user-supplied crosstool-NG configuration: done in/ {  \
+	             dump=0;                                                        \
+	         }                                                                  \
+	         $$0~/Dumping user-supplied crosstool-NG configuration$$/ {         \
+	             dump=1;                                                        \
+	         }'
+
 # Help system
 help:: help-head help-config help-samples help-build help-clean help-distrib help-env help-tail
 
@@ -79,6 +156,7 @@ help-samples::
 help-build::
 	@echo
 	@echo  'Build actions (#: force number of // jobs):'
+	@echo  '  list-steps         - List all build steps'
 
 help-clean::
 	@echo
@@ -90,7 +168,13 @@ help-distrib::
 
 help-env::
 	@echo
-	@echo  'Environment variables (see @@CT_DOCDIR@@/0 - Table of content.txt):'
+	@if [ -r "@docdir@/manual/4_Building.md" ]; then \
+		echo 'Environment variables (see @docdir@/0 - Table of content.txt):'; \
+	else \
+		echo 'Environment variables (see http://crosstool-ng.github.io/docs/build/)'; \
+	fi
+	@echo  '  STOP=step          - Stop the build just after this step (list with list-steps)'
+	@echo  '  RESTART=step       - Restart the build just before this step (list with list-steps)'
 
 help-tail::
 	@echo
@@ -107,12 +191,18 @@ help-clean::
 	@echo  '  clean              - Remove generated files'
 	@echo  '  distclean          - Remove generated files, configuration and build directories'
 
-include $(CT_LIB_DIR)/kconfig/kconfig.mk
-include $(CT_LIB_DIR)/steps.mk
 include $(CT_LIB_DIR)/samples/samples.mk
 include $(CT_LIB_DIR)/scripts/scripts.mk
 
 help-config::
+	@echo  '  menuconfig         - Update current config using a menu based program'
+	@echo  '  nconfig            - Update current config using a menu based program'
+	@echo  '  oldconfig          - Update current config using a provided .config as base'
+	@echo  '  extractconfig      - Extract to stdout the configuration items from a'
+	@echo  '                       build.log file piped to stdin'
+	@echo  '  savedefconfig      - Save current config as a mini-defconfig to $${DEFCONFIG}'
+	@echo  '  defconfig          - Update config from a mini-defconfig $${DEFCONFIG}'
+	@echo  '                       (default: $${DEFCONFIG}=./defconfig)'
 	@echo  '  show-tuple         - Print the tuple of the currently configured toolchain'
 
 help-distrib::
@@ -139,10 +229,65 @@ source: .config
 	$(SILENT)CT_SOURCE=y $(bash) $(CT_LIB_DIR)/scripts/crosstool-NG.sh
 
 build: .config
-	$(SILENT)$(bash) $(CT_LIB_DIR)/scripts/crosstool-NG.sh
+	$(SILENT)BUILD_NCPUS=`@@CT_cpucount@@ 2>/dev/null || echo 0` \
+        $(bash) $(CT_LIB_DIR)/scripts/crosstool-NG.sh
 
 build.%:
 	$(SILENT)$(MAKE) -rf $(CT_NG) build CT_JOBS=$*
+
+# The _for_build steps are noop for native and cross,
+# but are actual steps for canadian and cross-native.
+# Please keep the last line with a '\' and keep the following empty line:
+# it helps when diffing and merging.
+CT_STEPS := \
+            companion_tools_for_build  \
+            companion_libs_for_build   \
+            binutils_for_build         \
+            companion_tools_for_host   \
+            companion_libs_for_host    \
+            binutils_for_host          \
+            cc_core_pass_1             \
+            kernel_headers             \
+            libc_start_files           \
+            cc_core_pass_2             \
+            libc                       \
+            cc_for_build               \
+            cc_for_host                \
+            libc_post_cc               \
+            companion_libs_for_target  \
+            binutils_for_target        \
+            debug                      \
+            test_suite                 \
+            finish                     \
+
+# Keep an empty line above this comment, so the last
+# back-slash terminated line works as expected.
+
+# Make the list available to sub-processes (scripts/crosstool-NG.sh needs it)
+export CT_STEPS
+
+# Print the steps list
+PHONY += list-steps
+list-steps:
+	@echo  'Available build steps, in order:'
+	@for step in $(CT_STEPS); do    \
+	     echo "  - $${step}";       \
+	 done
+	@echo  'Use "<step>" as action to execute only that step.'
+	@echo  'Use "+<step>" as action to execute up to that step.'
+	@echo  'Use "<step>+" as action to execute from that step onward.'
+
+# ----------------------------------------------------------
+# This part deals with executing steps
+
+$(CT_STEPS):
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) RESTART=$@ STOP=$@ build
+
+$(patsubst %,+%,$(CT_STEPS)):
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) STOP=$(patsubst +%,%,$@) build
+
+$(patsubst %,%+,$(CT_STEPS)):
+	$(SILENT)$(MAKE) -rf $(CT_NG) V=$(V) RESTART=$(patsubst %+,%,$@) build
 
 PHONY += version
 version:
