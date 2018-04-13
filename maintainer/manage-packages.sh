@@ -119,12 +119,12 @@ check_pkg_urls()
         CT_DoStep EXTRA "Looking for ${archive_filename}${e}"
         for m in ${mirrors}; do
             url="${m}/${archive_filename}${e}"
-            case "${url}" in
-            # WGET always returns success for FTP URLs in spider mode :(
-            ftp://*) CT_DoLog DEBUG "Skipping '${url}': FTP not supported"; continue;;
-            esac
             mh="${url#*://}"
             mh="${mh%%[:/]*}"
+            case "${url}" in
+            # WGET always returns success for FTP URLs in spider mode :(
+            ftp://*) CT_DoLog EXTRA "SKIP ${mh} [FTP not supported]"; continue;;
+            esac
             if [ -n "${mirror_status[${mh}]}" ]; then
                 CT_DoLog DEBUG "Skipping '${url}': already found on this host at '${mirror_status[${mh}]}'"
                 continue
@@ -261,6 +261,7 @@ config ${versionlocked}_V_${kcfg}
 source "config/global/paths.in"
 source "config/global/download.in"
 source "config/global/extract.in"
+source "config/global/build-behave.in"
 source "config/versions/${master}.in"
 EOF
 
