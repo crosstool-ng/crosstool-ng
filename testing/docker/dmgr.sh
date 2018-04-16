@@ -51,6 +51,7 @@ _dckr()
         -v `pwd`/common-scripts:/setup-scripts:ro \
         -v ${topdir}:/crosstool-ng:ro \
         -v `pwd`/build-${cntr}:/home \
+        -v $HOME/src:/src:ro \
         ctng-${cntr} \
         /setup-scripts/su-as-user `id -un` `id -u` `id -gn` `id -g` "$@"
 }
@@ -64,7 +65,7 @@ action_test()
     msg "Setting up crosstool-NG in ${cntr}"
     _dckr "${cntr}" /setup-scripts/ctng-install
     msg "Running build-all in ${cntr}"
-    _dckr "${cntr}" /setup-scripts/ctng-build-all
+    _dckr "${cntr}" /setup-scripts/ctng-test-all
 }
 
 # Enter the container using the same user account/environment as for testing.
