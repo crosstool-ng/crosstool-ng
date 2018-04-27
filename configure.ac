@@ -87,6 +87,8 @@ AC_CONFIG_HEADERS([config.h])
 
 # Modern GCC/GDB releases require C++ support in the compiler
 AC_PROG_CC
+# Add for legacy reasons (automake < 1.14)
+AM_PROG_CC_C_O
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_LEX
