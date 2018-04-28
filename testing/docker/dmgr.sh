@@ -24,6 +24,9 @@ ${1:+ERROR :: $1
 Action is one of:
 
    build     Build or rebuild the specified containers.
+   test      Run tests (build-all).
+   enter     Spawn a shell in the specified container.
+   clean     Clean up in the specified container.
 
 If containers are not specified, the action is applied to all available containers.
 EOF
@@ -97,7 +100,7 @@ selected_containers="${*:-${all_containers}}"
 case "${action}" in
     build|test|enter|clean)
         for c in ${selected_containers}; do
-            eval "action_${action} $c"
+            eval "action_${action} ${c}"
         done
         ;;
     "")
