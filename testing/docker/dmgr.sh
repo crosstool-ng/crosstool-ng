@@ -83,7 +83,10 @@ action_clean()
     local cntr=$1
 
     msg "Cleaning up after ${cntr}"
-    rm -rf build-${cntr}
+    if [ -d build-${cntr} ]; then
+        chmod -R +w build-${cntr}
+        rm -rf build-${cntr}
+    fi
 }
 
 action=$1
