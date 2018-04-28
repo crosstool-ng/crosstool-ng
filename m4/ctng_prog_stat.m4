@@ -7,9 +7,13 @@ AC_DEFUN([CTNG_PROG_STAT_FORMAT],
          [ctng_cv_stat_flavor],
          [touch conftest
           chmod 642 conftest
-          attr_bsd=$(stat -f '%Lp' conftest 2>/dev/null)
-          attr_gnu=$(stat -c '%a' conftest 2>/dev/null)
-          rm -f conftest
+          attr_bsd=$(stat -f '%Lp' conftest 2>conftest.stderr.bsd)
+          CTNG_MSG_LOG_ENVVAR([attr_bsd], [stat -f output])
+          CTNG_MSG_LOG_FILE([conftest.stderr.bsd])
+          attr_gnu=$(stat -c '%a' conftest 2>conftest.stderr.gnu)
+          CTNG_MSG_LOG_ENVVAR([attr_gnu], [stat -c output])
+          CTNG_MSG_LOG_FILE([conftest.stderr.gnu])
+          rm -f conftest conftest.stderr.*
           AS_IF([test "$attr_bsd" = "642"],
               [ctng_cv_stat_flavor=BSD],
               [test "$attr_gnu" = "642"],
