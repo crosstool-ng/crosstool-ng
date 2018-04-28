@@ -37,7 +37,8 @@ do_debug_strace_build()
     "${CT_SRC_DIR}/strace/configure"                           \
         --build=${CT_BUILD}                                    \
         --host=${CT_TARGET}                                    \
-        --prefix=/usr
+        --prefix=/usr                                          \
+        --enable-mpers=check
 
     CT_DoLog EXTRA "Building strace"
     CT_DoExecLog ALL make
