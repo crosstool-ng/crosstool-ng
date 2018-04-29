@@ -21,6 +21,9 @@ AC_CONFIG_MACRO_DIR([m4])
 # - Request new tar format (old, tar-v7, breaks on long paths we have)
 AM_INIT_AUTOMAKE([-Wall -Werror foreign no-dist-gzip dist-xz dist-bzip2 subdir-objects tar-pax])
 
+# To avoid stubbing autotools with missing script
+AM_MAINTAINER_MODE([enable])
+
 # Safety check per autoconf best practices
 AC_CONFIG_SRCDIR([ct-ng.in])
 
@@ -80,7 +83,7 @@ CTNG_PROG_VERSION_REQ_STRICT([SED],
     [GNU sed >= 4.0],
     [sed],
     [gsed sed],
-    ['GNU sed[^0-9]* [4-9]\.'])
+    [GNU sed[^0-9]* [4-9]\.])
 AC_ARG_VAR([SED], [Specify the full path to GNU sed])
 
 AC_CONFIG_HEADERS([config.h])
@@ -122,6 +125,7 @@ CTNG_CHECK_PROGS_REQ([tar], [tar])
 CTNG_CHECK_PROGS_REQ([gzip], [gzip])
 CTNG_CHECK_PROGS_REQ([bzip2], [bzip2])
 CTNG_CHECK_PROGS_REQ([xz], [xz])
+CTNG_CHECK_PROGS_REQ([unzip], [unzip])
 CTNG_CHECK_PROGS_REQ([help2man], [help2man])
 
 # Not a fatal failure even if we have neither - the tarballs may
@@ -145,14 +149,14 @@ CTNG_PROG_VERSION_REQ_STRICT([BASH_SHELL],
     [GNU bash >= 3.1],
     [bash],
     [bash],
-    ['^GNU bash, version (3\.[1-9]|4)'])
+    [^GNU bash, version (3\.[1-9]|4)])
 
 # We need a awk that *is* GNU awk
 CTNG_PROG_VERSION_REQ_STRICT([AWK],
     [GNU awk],
     [awk],
     [gawk awk],
-    ['^GNU Awk '])
+    [^GNU Awk ])
 
 # FIXME This checks for tools at the time configure runs. If a tool is later updated
 # to satisfy our version requirement, we still won't be able to see that. Or worse,
@@ -165,7 +169,7 @@ CTNG_PROG_VERSION_REQ_ANY([MAKE],
     [GNU make >= 3.81],
     [make],
     [gmake make],
-    ['^GNU Make (3\.8[1-9]|3\.9[0-9]|[4-9]\.)'],
+    [^GNU Make (3\.8[1-9]|3\.9[0-9]|[4-9]\.)],
     [make_3_81_or_newer])
 
 # Check other companion tools that we may or may not build.
@@ -173,42 +177,42 @@ CTNG_PROG_VERSION_REQ_STRICT([LIBTOOL],
     [GNU libtool >= 2.4],
     [libtool],
     [glibtool libtool],
-    ['\(GNU libtool\) ([3-9]\.|2.[4-9]|2.[1-3][0-9])'],
+    [\(GNU libtool\) ([3-9]\.|2.[4-9]|2.[1-3][0-9])],
     [libtool_2_4_or_newer])
 
 CTNG_PROG_VERSION([LIBTOOLIZE],
     [GNU libtoolize >= 2.4],
     [libtoolize],
     [glibtoolize libtoolize],
-    ['\(GNU libtool\) ([3-9]\.|2.[4-9]|2.[1-3][0-9])'],
+    [\(GNU libtool\) ([3-9]\.|2.[4-9]|2.[1-3][0-9])],
     [libtoolize_2_4_or_newer])
 
 CTNG_PROG_VERSION([AUTOCONF],
     [GNU autoconf >= 2.65],
     [autoconf],
     [autoconf],
-    ['\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])'],
+    [\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])],
     [autoconf_2_65_or_newer])
 
 CTNG_PROG_VERSION([AUTORECONF],
     [GNU autoreconf >= 2.63],
     [autoreconf],
     [autoreconf],
-    ['\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])'],
+    [\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])],
     [autoreconf_2_65_or_newer])
 
 CTNG_PROG_VERSION([AUTOMAKE],
     [GNU automake >= 1.15],
     [automake],
     [automake],
-    ['\(GNU automake\) ([2-9]\.|1\.[2-9][0-9]|1\.1[5-9])'],
+    [\(GNU automake\) ([2-9]\.|1\.[2-9][0-9]|1\.1[5-9])],
     [automake_1_15_or_newer])
 
 CTNG_PROG_VERSION([M4],
     [GNU m4 >= 1.4.12],
     [m4],
     [gm4 m4],
-    ['\(GNU M4\) ([2-9]\.|1\.[5-9]|1\.[1-4][0-9]|1\.4\.[2-9][0-9]|1\.4\.1[2-9])'],
+    [\(GNU M4\) ([2-9]\.|1\.[5-9]|1\.[1-4][0-9]|1\.4\.[2-9][0-9]|1\.4\.1[2-9])],
     [gnu_m4_1_4_12_or_newer])
 
 AC_SUBST([kconfig_options])
@@ -221,6 +225,16 @@ CTNG_SET_KCONFIG_OPTION([svn])
 
 AC_CHECK_PROGS([git], [git])
 CTNG_SET_KCONFIG_OPTION([git])
+
+# Check which tools we have for verifying the digest
+AC_PATH_PROGS([md5sum], [gmd5sum md5sum])
+AC_PATH_PROGS([sha1sum], [gsha1sum sha1sum])
+AC_PATH_PROGS([sha256sum], [gsha256sum sha256sum])
+AC_PATH_PROGS([sha512sum], [gsha512sum sha512sum])
+CTNG_SET_KCONFIG_OPTION([md5sum])
+CTNG_SET_KCONFIG_OPTION([sha1sum])
+CTNG_SET_KCONFIG_OPTION([sha256sum])
+CTNG_SET_KCONFIG_OPTION([sha512sum])
 
 # FIXME why checking if not using the result? We don't provide replacemant malloc/alloca/...
 AC_C_INLINE
