@@ -117,6 +117,7 @@ cat "${paths_sh_location}" |while read trash line; do
     eval path=${line#*=}
     if [ ! -r "${CT_LIB_DIR}/scripts/override/$tool" ]; then
          if [ -n "${path}" ]; then
+             CT_DoExecLog ALL rm -f "${CT_TOOLS_OVERRIDE_DIR}/bin/${tool}"
              CT_DoExecLog ALL ln -s "${path}" "${CT_TOOLS_OVERRIDE_DIR}/bin/${tool}"
          fi
          continue
