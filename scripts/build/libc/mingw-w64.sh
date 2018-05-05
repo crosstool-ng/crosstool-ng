@@ -161,11 +161,29 @@ do_mingw_pthreads()
     CT_DoLog EXTRA "Installing mingw-w64-winpthreads"
     CT_DoExecLog ALL make install DESTDIR=${CT_SYSROOT_DIR}
 
+    # Post-install hackery: all libwinpthread-1.dll end up being installed
+    # into /bin, which is broken on multilib install. Hence, stash it back
+    # into /lib - and after iterating over multilibs, copy the default one
+    # back into /bin.
+    if [ "${multi_index}" != 1 -o "${multi_count}" != 1 ]; then
+        CT_DoExecLog ALL mv "${CT_SYSROOT_DIR}${MINGW_INSTALL_PREFIX}/bin/libwinpthread-1.dll" \
+                            "${CT_SYSROOT_DIR}${libprefix}/libwinpthread-1.dll"
+        if [ "${multi_index}" = 1 ]; then
+            default_libprefix="${libprefix}"
+        elif [ "${multi_index}" = "${multi_count}" ]; then
+            CT_DoExecLog ALL cp "${CT_SYSROOT_DIR}${default_libprefix}/libwinpthread-1.dll" \
+                                "${CT_SYSROOT_DIR}${MINGW_INSTALL_PREFIX}/bin/libwinpthread-1.dll"
+        fi
+    fi
+
     CT_EndStep
 }
 
 do_libc()
 {
+    # Used when iterating over libwinpthread
+    local default_libprefix
+
     do_check_mingw_vendor_tuple
 
     CT_DoStep INFO "Building mingw-w64"
