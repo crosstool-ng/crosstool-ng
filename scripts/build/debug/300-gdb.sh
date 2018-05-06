@@ -44,6 +44,10 @@ do_debug_gdb_build() {
 
         cross_extra_config=("${extra_config[@]}")
 
+        if [ "${CT_GDB_HAS_DISABLE_CXX_BUILD}" = "y" ]; then
+            cross_extra_config+=("--disable-build-with-cxx")
+        fi
+
         # For gdb-cross this combination of flags forces
         # gdb configure to fall back to default '-lexpat' flag
         # which is acceptable.
@@ -198,7 +202,7 @@ do_debug_gdb_build() {
         native_extra_config=("${extra_config[@]}")
 
         # We may not have C++ language configured for target
-        if [ "${GDB_TARGET_DISABLE_CXX_BUILD}" = "y" ]; then
+        if [ "${CT_GDB_HAS_DISABLE_CXX_BUILD}" = "y" ]; then
             native_extra_config+=("--disable-build-with-cxx")
         fi
 
@@ -322,7 +326,7 @@ do_debug_gdb_build() {
         gdbserver_extra_config=("${extra_config[@]}")
 
         # We may not have C++ language configured for target
-        if [ "${GDB_TARGET_DISABLE_CXX_BUILD}" = "y" ]; then
+        if [ "${CT_GDB_HAS_DISABLE_CXX_BUILD}" = "y" ]; then
             gdbserver_extra_config+=("--disable-build-with-cxx")
         fi
 
