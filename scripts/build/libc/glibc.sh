@@ -200,6 +200,13 @@ do_libc_backend_once() {
     glibc_cflags+=" ${CT_GLIBC_EXTRA_CFLAGS}"
     glibc_cflags+=" ${multi_flags}"
 
+    # Before 2.25, glibc didn't use GCC's ifunc attribute, instead creating
+    # the resolvers through some clever assembly. This had the resolver function
+    # aliased with an incompatible type, and GCC8 now complains about it.
+    if [ "${CT_GLIBC_HAS_NEW_IFUNC}" != "y" ]; then
+        glibc_cflags+=" -Wno-error=attribute-alias"
+    fi
+
     # Analyze the resulting options for any extra configure switches to throw in.
     for opt in ${glibc_cflags}; do
         case ${opt} in
