@@ -112,12 +112,6 @@ config GLIBC_HAS_OBSOLETE_RPC
     def_bool y
     depends on GLIBC_2_14_or_later
 
-# New GCC versions don't like the ifunc implementation in GCC, producing a warning.
-# We can either require old GCC for those versions, or disable erroring out on warnings.
-config GLIBC_HAS_NEW_IFUNC
-    def_bool y
-    depends on GLIBC_2_25_or_later
-
 config GLIBC_EXTRA_CONFIG_ARRAY
     string
     prompt "extra config"
@@ -325,5 +319,17 @@ config GLIBC_MIN_KERNEL
     default ""                            if GLIBC_KERNEL_VERSION_NONE
     default LINUX_VERSION                 if GLIBC_KERNEL_VERSION_AS_HEADERS
     default GLIBC_MIN_KERNEL_VERSION      if GLIBC_KERNEL_VERSION_CHOSEN
+
+# All supported versions of glibc build cleanly with GCC7 and earlier.
+# GCC8-related fixes were only available in glibc 2.27.
+config GLIBC_ENABLE_WERROR
+    bool "Enable -Werror during the build"
+    default y if GCC_7_or_older
+    default y if GCC_8_or_later && GLIBC_2_27_or_later
+    help
+      By default, glibc enables strict warning checks during the build.
+      However, older version of glibc may not build with newer versions
+      of the compiler than there were available at the time of a glibc
+      release (because newer compilers typically have better diagnostics).
 
 endif # KERNEL_LINUX
