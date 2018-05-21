@@ -22,7 +22,7 @@ CT_DoArchUClibcCflags() {
     local cflags="${2}"
     local f
 
-    CT_KconfigDeleteOption "CONFIG_ARC_HAS_ATOMICS" "${cfg}"
+    CT_KconfigDisableOption "CONFIG_ARC_HAS_ATOMICS" "${cfg}"
 
     for f in ${cflags}; do
         case "${f}" in
