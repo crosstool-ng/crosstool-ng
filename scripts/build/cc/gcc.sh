@@ -171,13 +171,13 @@ cc_gcc_multilib_housekeeping() {
         fi
     done
     CT_DoLog DEBUG "Filtered target CFLAGS: '${new_cflags}'"
-    CT_EnvModify CT_TARGET_CFLAGS "${new_cflags} ${CT_TARGET_CFLAGS}"
+    CT_EnvModify CT_ALL_TARGET_CFLAGS "${new_cflags} ${CT_TARGET_CFLAGS}"
     CT_EnvModify CT_ARCH_TARGET_CFLAGS_MULTILIB ""
 
     # Currently, the only LDFLAGS are endianness-related
     CT_DoLog DEBUG "Configured target LDFLAGS: '${CT_ARCH_TARGET_LDFLAGS_MULTILIB}'"
     if [ "${ml_endian}" != "seen" ]; then
-        CT_EnvModify CT_TARGET_LDFLAGS "${CT_ARCH_TARGET_LDFLAGS_MULTILIB} ${CT_TARGET_LDFLAGS}"
+        CT_EnvModify CT_ALL_TARGET_LDFLAGS "${CT_ARCH_TARGET_LDFLAGS_MULTILIB} ${CT_TARGET_LDFLAGS}"
         CT_EnvModify CT_ARCH_TARGET_LDFLAGS_MULTILIB ""
     fi
     CT_DoLog DEBUG "Filtered target LDFLAGS: '${CT_ARCH_TARGET_LDFLAGS_MULTILIB}'"
@@ -561,7 +561,11 @@ do_gcc_core_backend() {
         fi
     fi
 
-    # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532)
+    # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532).
+    # Pass only user-specified CFLAGS/LDFLAGS in CFLAGS_FOR_TARGET/LDFLAGS_FOR_TARGET: during
+    # the build of, for example, libatomic, GCC tried to compile multiple variants for runtime
+    # selection and passing architecture/CPU selectors, as detemined by crosstool-NG, may
+    # miscompile or outright fail.
     CT_DoExecLog CFG                                   \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
     CFLAGS="${cflags}"                                 \
@@ -1110,6 +1114,8 @@ do_gcc_backend() {
         fi
     fi
 
+    # NB: not using CT_ALL_TARGET_CFLAGS/CT_ALL_TARGET_LDFLAGS here!
+    # See do_gcc_core_backend for explanation.
     CT_DoExecLog CFG                                   \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
     CFLAGS="${cflags}"                                 \

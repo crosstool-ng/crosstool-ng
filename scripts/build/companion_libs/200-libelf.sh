@@ -81,7 +81,7 @@ do_libelf_for_target() {
     libelf_opts+=( "destdir=${CT_SYSROOT_DIR}" )
     libelf_opts+=( "host=${CT_TARGET}" )
 
-    libelf_opts+=( "cflags=${CT_TARGET_CFLAGS}" )
+    libelf_opts+=( "cflags=${CT_ALL_TARGET_CFLAGS}" )
     libelf_opts+=( "prefix=${prefix}" )
     libelf_opts+=( "shared=${CT_SHARED_LIBS}" )
     do_libelf_backend "${libelf_opts[@]}"
