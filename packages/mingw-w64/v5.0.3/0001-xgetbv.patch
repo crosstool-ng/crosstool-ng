@@ -1,0 +1,32 @@
+commit 3ce3e27f044935f19e93e80c43ca695262d484e1
+Author: Mateusz <mateuszb@poczta.onet.pl>
+Date:   Mon Jan 22 20:58:48 2018 +0100
+
+    intrin-impl.h: do not define _xgetbv for GCC 8
+    
+    GCC 8 from r248028 has defined function _xgetbv and we should
+    avoid double definition of this function.
+    
+    Signed-off-by: Mateusz Brzostek <mateuszb@poczta.onet.pl>
+    Signed-off-by: Martin Storsjö <martin@martin.st>
+
+diff --git a/mingw-w64-headers/include/psdk_inc/intrin-impl.h b/mingw-w64-headers/include/psdk_inc/intrin-impl.h
+index ff9e6aff..88af804c 100644
+--- a/mingw-w64-headers/include/psdk_inc/intrin-impl.h
++++ b/mingw-w64-headers/include/psdk_inc/intrin-impl.h
+@@ -1775,6 +1775,7 @@ __buildmov(__movsd, unsigned __LONG32, "d")
+ #define __INTRINSIC_DEFINED___movsd
+ #endif /* __INTRINSIC_PROLOG */
+ 
++#if !defined(__GNUC__) || __GNUC__ < 8 /* GCC 8 has already defined _xgetbv */
+ /* NOTE: This should be in immintrin.h */
+ #if __INTRINSIC_PROLOG(_xgetbv)
+ unsigned __int64 _xgetbv(unsigned int);
+@@ -1798,6 +1799,7 @@ unsigned __int64 _xgetbv(unsigned int index)
+ #endif
+ #define __INTRINSIC_DEFINED__xgetbv
+ #endif /* __INTRINSIC_PROLOG */
++#endif /* __GNUC__ < 8 */
+ 
+ #endif /* defined(__x86_64__) || defined(_AMD64_) || defined(__i386__) || defined(_X86_) */
+ 
