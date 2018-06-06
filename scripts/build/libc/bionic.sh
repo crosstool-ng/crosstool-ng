@@ -26,7 +26,7 @@ do_libc() {
     fi
     CT_DoStep INFO "Installing C library binaries"
     CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/android-ndk/platforms/android-${CT_ANDROID_API}/arch-${arch}/usr" "${CT_SYSROOT_DIR}"
-    CT_EnvModify CT_TARGET_CFLAGS "${CT_TARGET_CFLAGS} -D__ANDROID_API__=${CT_ANDROID_API}"
+    CT_EnvModify CT_ALL_TARGET_CFLAGS "${CT_ALL_TARGET_CFLAGS} -D__ANDROID_API__=${CT_ANDROID_API}"
 }
 
 do_libc_post_cc() {

@@ -197,7 +197,7 @@ do_libc_backend_once() {
     esac
 
     # In the order of increasing precedence. Flags common to compiler and linker.
-    glibc_cflags+=" ${CT_TARGET_CFLAGS}"
+    glibc_cflags+=" ${CT_ALL_TARGET_CFLAGS}"
     glibc_cflags+=" ${CT_GLIBC_EXTRA_CFLAGS}"
     glibc_cflags+=" ${multi_flags}"
 

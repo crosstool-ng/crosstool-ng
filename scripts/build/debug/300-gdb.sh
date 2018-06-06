@@ -22,7 +22,7 @@ do_debug_gdb_build() {
     local CT_HOST_LD="${CT_HOST}-ld"
 
     local CT_CXXFLAGS_FOR_HOST=${CT_CFLAGS_FOR_HOST}
-    local CT_TARGET_CXXFLAGS=${CT_TARGET_CFLAGS}
+    local CT_TARGET_CXXFLAGS=${CT_ALL_TARGET_CFLAGS}
 
     gdb_src_dir="${CT_SRC_DIR}/gdb"
 
@@ -34,7 +34,7 @@ do_debug_gdb_build() {
     if [ "${CT_GDB_CROSS}" = "y" ]; then
         local -a cross_extra_config
         local gcc_version p _p
-        local cross_CPPFLAGS cross_CFLAGS cross_CXXFLAGS cross_LDFLAGS
+        local cross_CFLAGS cross_CXXFLAGS cross_LDFLAGS
 
         CT_DoStep INFO "Installing cross-gdb"
         CT_DoLog EXTRA "Configuring cross-gdb"
@@ -94,7 +94,6 @@ do_debug_gdb_build() {
             cross_extra_config+=("--disable-nls")
         fi
 
-        cross_CPPFLAGS="${CT_CPPFLAGS_FOR_HOST}"
         cross_CFLAGS="${CT_CFLAGS_FOR_HOST}"
         cross_CXXFLAGS="${CT_CXXFLAGS_FOR_HOST}"
         cross_LDFLAGS="${CT_LDFLAGS_FOR_HOST}"
@@ -122,7 +121,6 @@ do_debug_gdb_build() {
         # are multiple consecutive spaces: sub-configure scripts replace them with a
         # single space and then complain that $CC value changed from that in
         # the master directory.
-        cross_CPPFLAGS=`echo ${cross_CPPFLAGS}`
         cross_CFLAGS=`echo ${cross_CFLAGS}`
         cross_CXXFLAGS=`echo ${cross_CXXFLAGS}`
         cross_LDFLAGS=`echo ${cross_LDFLAGS}`
@@ -139,7 +137,6 @@ do_debug_gdb_build() {
         CC="${CT_HOST_CC}"                              \
         CXX="${CT_HOST_CXX}"                            \
         LD="${CT_HOST_LD}"                              \
-        CPPFLAGS="${cross_CPPFLAGS}"                    \
         CFLAGS="${cross_CFLAGS}"                        \
         CXXFLAGS="${cross_CXXFLAGS}"                    \
         LDFLAGS="${cross_LDFLAGS}"                      \
@@ -191,7 +188,7 @@ do_debug_gdb_build() {
     # TBD combine GDB native and gdbserver backends, build either or both in a single pass.
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
-        local native_CPPFLAGS native_CFLAGS native_CXXFLAGS native_LDFLAGS
+        local native_CFLAGS native_CXXFLAGS native_LDFLAGS
 
         CT_DoStep INFO "Installing native gdb"
         CT_DoLog EXTRA "Configuring native gdb"
@@ -243,10 +240,9 @@ do_debug_gdb_build() {
             native_extra_config+=("--disable-nls")
         fi
 
-        native_CPPFLAGS="${CT_TARGET_CPPFLAGS}"
-        native_CFLAGS="${CT_TARGET_CFLAGS}"
-        native_CXXFLAGS="${CT_TARGET_CXXFLAGS}"
-        native_LDFLAGS="${CT_TARGET_LDFLAGS}"
+        native_CFLAGS="${CT_ALL_TARGET_CFLAGS}"
+        native_CXXFLAGS="${CT_ALL_TARGET_CFLAGS}"
+        native_LDFLAGS="${CT_ALL_TARGET_LDFLAGS}"
 
         if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
             native_CFLAGS+=" -static"
@@ -261,7 +257,6 @@ do_debug_gdb_build() {
         native_extra_config+=("--disable-ld")
         native_extra_config+=("--disable-gas")
 
-        native_CPPFLAGS=`echo ${native_CPPFLAGS}`
         native_CFLAGS=`echo ${native_CFLAGS}`
         native_CXXFLAGS=`echo ${native_CXXFLAGS}`
         native_LDFLAGS=`echo ${native_LDFLAGS}`
@@ -273,7 +268,6 @@ do_debug_gdb_build() {
         CC="${CT_TARGET_CC}"                            \
         CXX="${CT_TARGET_CXX}"                          \
         LD="${CT_TARGET_LD}"                            \
-        CPPFLAGS="${native_CPPFLAGS}"                   \
         CFLAGS="${native_CFLAGS}"                       \
         CXXFLAGS="${native_CXXFLAGS}"                   \
         LDFLAGS="${native_LDFLAGS}"                     \
@@ -310,7 +304,7 @@ do_debug_gdb_build() {
 
     if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
         local -a gdbserver_extra_config
-        local gdbserver_CPPFLAGS gdbserver_CFLAGS gdbserver_CXXFLAGS gdbserver_LDFLAGS
+        local gdbserver_CFLAGS gdbserver_CXXFLAGS gdbserver_LDFLAGS
 
         CT_DoStep INFO "Installing gdbserver"
         CT_DoLog EXTRA "Configuring gdbserver"
@@ -343,10 +337,9 @@ do_debug_gdb_build() {
         gdbserver_extra_config+=("--disable-ld")
         gdbserver_extra_config+=("--disable-gas")
 
-        gdbserver_CPPFLAGS="${CT_TARGET_CPPFLAGS}"
-        gdbserver_CFLAGS="${CT_TARGET_CFLAGS}"
-        gdbserver_CXXFLAGS="${CT_TARGET_CXXFLAGS}"
-        gdbserver_LDFLAGS="${CT_TARGET_LDFLAGS}"
+        gdbserver_CFLAGS="${CT_ALL_TARGET_CFLAGS}"
+        gdbserver_CXXFLAGS="${CT_ALL_TARGET_CFLAGS}"
+        gdbserver_LDFLAGS="${CT_ALL_TARGET_LDFLAGS}"
 
         if [ "${CT_GDB_GDBSERVER_STATIC}" = "y" ]; then
             gdbserver_CFLAGS+=" -static"
@@ -358,7 +351,6 @@ do_debug_gdb_build() {
             gdbserver_LDFLAGS+=" -static-libstdc++"
         fi
 
-        gdbserver_CPPFLAGS=`echo ${gdbserver_CPPFLAGS}`
         gdbserver_CFLAGS=`echo ${gdbserver_CFLAGS}`
         gdbserver_CXXFLAGS=`echo ${gdbserver_CXXFLAGS}`
         gdbserver_LDFLAGS=`echo ${gdbserver_LDFLAGS}`
@@ -370,7 +362,6 @@ do_debug_gdb_build() {
         CC="${CT_TARGET_CC}"                            \
         CXX="${CT_TARGET_CXX}"                          \
         LD="${CT_TARGET_LD}"                            \
-        CPPFLAGS="${gdbserver_CPPFLAGS}"                \
         CFLAGS="${gdbserver_CFLAGS}"                    \
         CXXFLAGS="${gdbserver_CXXFLAGS}"                \
         LDFLAGS="${gdbserver_LDFLAGS}"                  \
