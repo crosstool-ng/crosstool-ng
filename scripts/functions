@@ -1898,7 +1898,7 @@ CT_PackageRun()
     for v in basename pkg_name version pkg_dir \
             src_release mirrors archive_filename archive_dirname archive_formats signature_format \
             src_devel devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
-            src_custom custom_location; do
+            src_custom custom_location patch_order; do
         eval "local ${v}=\${CT_${use}_${v^^}}"
     done
 
@@ -2056,6 +2056,11 @@ CT_DoExtractPatch()
     local local_patch_dir
     local overlay
 
+    # Inherit global value if requested
+    if [ "${patch_order}" = "global" ]; then
+        patch_order="${CT_PATCH_ORDER}"
+    fi
+
     # If using overlay, prepare it first - we need to determine where to unpack
     # this component.
     if [ "${CT_TARGET_USE_OVERLAY}" = "y" -a ! -d "${CT_BUILD_DIR}/overlay" ]; then
@@ -2072,7 +2077,7 @@ CT_DoExtractPatch()
     # and no overlays. Otherwise, this source directory is custom-tailored for this
     # particular configuration and cannot be reused by different configurations.
     if [ "${src_custom}" != "y" -a \
-            "${CT_PATCH_ORDER}" = "bundled" -a \
+            "${patch_order}" = "bundled" -a \
             ! -d "${CT_BUILD_DIR}/overlay/${dir_name}" ]; then
         src_dir="${CT_COMMON_SRC_DIR}"
     else
@@ -2121,7 +2126,7 @@ CT_DoExtractPatch()
             bundled_patch_dir="${CT_LIB_DIR}/packages/${pkg_dir}"
             local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkg_dir}"
 
-            case "${CT_PATCH_ORDER}" in
+            case "${patch_order}" in
                 bundled)        patch_dirs=("${bundled_patch_dir}");;
                 local)          patch_dirs=("${local_patch_dir}");;
                 bundled,local)  patch_dirs=("${bundled_patch_dir}" "${local_patch_dir}");;
