@@ -3,11 +3,9 @@
 
 AC_PREREQ([2.67])
 
-# FIXME Temporary hack until the next release (we'll switch to plain numeric tags then)
-# FIXME need to quote sed expression
 AC_INIT(
     [crosstool-NG],
-    [m4_esyscmd_s([git describe --always --dirty | sed s,^crosstool-ng-,,])],
+    [m4_esyscmd_s([maintainer/git-version-gen --prefix crosstool-ng- .tarball-version])],
     [crossgcc@sourceware.org],
     [crosstool-ng],
     [http://crosstool-ng.org])
@@ -299,12 +297,6 @@ AC_SUBST([DATE])
 AM_CONDITIONAL([INSTALL_USER_MANUAL], [test ! -f "${srcdir}/docs/MANUAL_ONLINE"])
 AC_MSG_CHECKING([if the manual needs to be installed])
 AM_COND_IF([INSTALL_USER_MANUAL], [AC_MSG_RESULT([yes])], [AC_MSG_RESULT([no])])
-
-# FIXME Retire? We don't want to debug a version that has been mislabeled by a user
-# Decorate the version string per user-supplied version.sh, if any
-AS_IF(
-    [test -f version.sh -a -x version.sh],
-    [PACKAGE_VERSION=$(./version.sh "${PACKAGE_VERSION}")])
 
 AC_CONFIG_FILES([
     Makefile
