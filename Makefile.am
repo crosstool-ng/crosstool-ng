@@ -7,7 +7,8 @@ SUBDIRS		= kconfig
 
 bin_SCRIPTS		= ct-ng
 CLEANFILES		= ct-ng bash-completion/ct-ng docs/ct-ng.1
-EXTRA_DIST		= bootstrap ct-ng.in bash-completion/ct-ng.in docs/ct-ng.1.in maintainer
+EXTRA_DIST		= bootstrap ct-ng.in bash-completion/ct-ng.in \
+				  docs/ct-ng.1.in packages maintainer
 
 if INSTALL_BASH_COMPLETION
 compdir				= @BASH_COMPLETION_DIR@
@@ -73,5 +74,12 @@ endif
 uninstall-hook:
 	rm -f $(DESTDIR)$(man1dir)/$(ctng_progname).1.gz
 
-dist-hook: maintainer/download-docs.sh
+dist-hook: fetch-docs gen-tarball-version
+
+.PHONY: fetch-docs
+fetch-docs: maintainer/download-docs.sh
 	$< $(top_distdir) $(USER_MANUAL_FILES)
+
+.PHONY: gen-tarball-version
+gen-tarball-version:
+	echo $(VERSION) > $(distdir)/.tarball-version
