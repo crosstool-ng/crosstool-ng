@@ -1830,6 +1830,8 @@ CT_GetVersion_git()
         CT_Abort "${pkg_name}: cannot specify both branch and changeset for Git"
     fi
 
+    # Use `devel_branch` for shallow if it's defined
+    git_shallow_branch="${devel_branch}"
     devel_branch="${devel_branch:-master}"
     if [ -z "${devel_revision}" ]; then
         local matches=`git ls-remote --exit-code "${devel_url}" --refs "${devel_branch}" \
@@ -1858,6 +1860,8 @@ CT_GetVersion_git()
             best="${matches}"
         fi
         devel_revision=`echo "${best}" | cut -c1-8`
+        # Use a correspond branch name if it exists for devel_revision
+        git_shallow_branch=`echo "${best}" | sed -n "s|^.*refs/heads/\(.*\)$|\1|p"`
         CT_DoLog DEBUG "ref ${devel_branch} at ${devel_url} has cset of ${devel_revision}"
     fi
     unique_id="${devel_revision}"
@@ -1866,10 +1870,16 @@ CT_GetVersion_git()
 # Retrieve sources from Git.
 CT_Download_git()
 {
-    # Git does not allow making a shallow clone of a specific commit.
-    CT_DoExecLog ALL git clone "${devel_url}" "${pkg_name}"
-    CT_Pushd "${pkg_name}"
-    CT_DoExecLog ALL git checkout "${devel_revision}" --
+    # Git does not allow making a shallow clone of a specific commit but we can use branch name if exists
+    if [ -z "${git_shallow_branch}" ]; then
+        CT_DoExecLog ALL git clone "${devel_url}" "${pkg_name}"
+        CT_Pushd "${pkg_name}"
+        CT_DoExecLog ALL git checkout "${devel_revision}" --
+    else
+        CT_DoLog EXTRA "Using git_shallow_branch = ${git_shallow_branch}"
+        CT_DoExecLog ALL git clone --depth 1 --branch "${git_shallow_branch}" "${devel_url}" "${pkg_name}"
+        CT_Pushd "${pkg_name}"
+    fi
     CT_DoExecLog ALL rm -rf .git
     CT_Popd
 }
