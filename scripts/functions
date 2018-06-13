@@ -2146,11 +2146,15 @@ CT_DoExtractPatch()
     if [ "${CT_TARGET_USE_OVERLAY}" = "y" -a ! -d "${CT_BUILD_DIR}/overlay" ]; then
         CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}/overlay"
         overlay="${CT_OVERLAY_LOCATION}/${CT_ARCH}_${CT_OVERLAY_NAME:-overlay}"
-        ext=`CT_GetFileExtension "${overlay}"`
-        if [ ! -r "${overlay}${ext}" ]; then
-            CT_Abort "Overlay ${overlay} not found"
+        if [ -d "${overlay}" ]; then
+            CT_DoExecLog ALL cp -av "${overlay}/." "${CT_BUILD_DIR}/overlay"
+        else
+            ext=`CT_GetFileExtension "${overlay}"`
+            if [ ! -r "${overlay}${ext}" ]; then
+                CT_Abort "Overlay ${overlay} not found"
+            fi
+            CT_Extract "${overlay}${ext}" "${CT_BUILD_DIR}/overlay"
         fi
-        CT_Extract "${overlay}${ext}" "${CT_BUILD_DIR}/overlay"
     fi
 
     # Can use common location only if using non-custom source, only bundled patches
