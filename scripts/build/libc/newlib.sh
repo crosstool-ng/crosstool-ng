@@ -38,7 +38,7 @@ do_libc() {
 
     # Multilib is the default, so if it is not enabled, disable it.
     if [ "${CT_MULTILIB}" != "y" ]; then
-        extra_config+=("--disable-multilib")
+        newlib_opts+=("--disable-multilib")
     fi
 
     if [ "${CT_LIBC_NEWLIB_IO_FLOAT}" = "y" ]; then
