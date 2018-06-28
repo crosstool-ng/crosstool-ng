@@ -144,5 +144,7 @@ do_finish() {
         CT_DoForceRmdir "${CT_DEBUGROOT_DIR}/"{,usr/}{,share/}{man,info}
     fi
 
+    CT_InstallCopyingInformation
+
     CT_EndStep
 }
