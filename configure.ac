@@ -126,6 +126,7 @@ CTNG_CHECK_PROGS_REQ([xz], [xz])
 CTNG_CHECK_PROGS_REQ([unzip], [unzip])
 CTNG_CHECK_PROGS_REQ([help2man], [help2man])
 CTNG_CHECK_PROGS_REQ([file], [file])
+CTNG_CHECK_PROGS_REQ([which], [which])
 
 # Not a fatal failure even if we have neither - the tarballs may
 # be provided in a local directory.
