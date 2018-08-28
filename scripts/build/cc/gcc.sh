@@ -468,8 +468,10 @@ do_gcc_core_backend() {
         local glibc_version
 
         CT_GetPkgVersion GLIBC glibc_version
-        glibc_version=`echo "${glibc_version}" | sed 's/\([1-9][0-9]*\.[1-9][0-9]*\).*/\1/'`
-        extra_config+=("--with-glibc-version=${glibc_version}")
+        glibc_version=`echo "${glibc_version}" | sed -n 's/\([1-9][0-9]*\.[1-9][0-9]*\).*/\1/p'`
+        if [ ! -z "${glibc_version}" ]; then
+            extra_config+=("--with-glibc-version=${glibc_version}")
+        fi
     fi
 
     case "${CT_CC_GCC_LDBL_128}" in
