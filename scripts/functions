@@ -1009,6 +1009,19 @@ CT_EnvModify() {
     echo "${1}=\"${2}\"" >> "${CT_BUILD_DIR}/env.modify.sh"
 }
 
+# Compute target tuple with supplied vendor string
+CT_ComputeTargetTuple() {
+    local vendor="$1"
+    local target
+
+    target="${CT_TARGET_ARCH}"
+    target="${target}${vendor:+-${vendor}}"
+    target="${target}${CT_TARGET_KERNEL:+-${CT_TARGET_KERNEL}}"
+    target="${target}${CT_TARGET_SYS:+-${CT_TARGET_SYS}}"
+
+    echo "$target"
+}
+
 # Compute the target tuple from what is provided by the user
 # Usage: CT_DoBuildTargetTuple
 # In fact this function takes the environment variables to build the target
@@ -1111,10 +1124,7 @@ CT_DoBuildTargetTuple() {
     CT_DoKernelTupleValues
 
     # Finish the target tuple construction
-    CT_TARGET="${CT_TARGET_ARCH}"
-    CT_TARGET="${CT_TARGET}${CT_TARGET_VENDOR:+-${CT_TARGET_VENDOR}}"
-    CT_TARGET="${CT_TARGET}${CT_TARGET_KERNEL:+-${CT_TARGET_KERNEL}}"
-    CT_TARGET="${CT_TARGET}${CT_TARGET_SYS:+-${CT_TARGET_SYS}}"
+    CT_TARGET=$(CT_ComputeTargetTuple "${CT_TARGET_VENDOR}")
 
     # Sanity checks
     __sed_alias=""
@@ -1130,7 +1140,12 @@ CT_DoBuildTargetTuple() {
 
     # Canonicalise it
     if [ "${CT_TARGET_SKIP_CONFIG_SUB}" != "y" ]; then
-        CT_TARGET=$(CT_DoConfigSub "${CT_TARGET}")
+        if [ "${CT_TOOLCHAIN_STRIP_VENDOR}" = "y" ]; then
+            local target=$(CT_ComputeTargetTuple "CT_INVALID")
+            CT_TARGET=$(CT_DoConfigSub "${target}" | sed -r -s s:CT_INVALID-::)
+        else
+            CT_TARGET=$(CT_DoConfigSub "${CT_TARGET}")
+        fi
     fi
 
     # Prepare the target CFLAGS
