@@ -104,18 +104,17 @@ do_debug_gdb_build() {
             cross_LDFLAGS+=" -static"
         fi
 
-        case "${CT_HOST}" in
-            *darwin*)
-                # FIXME: Really, we should be testing for host compiler being clang.
-                cross_CFLAGS+=" -Qunused-arguments"
-                cross_CXXFLAGS+=" -Qunused-arguments"
-                # clang detects the line from gettext's _ macro as format string
-                # not being a string literal and produces a lot of warnings - which
-                # ct-ng's logger faithfully relays to user if this happens in the
-                # error() function. Suppress them.
-                cross_extra_config+=("--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security")
-                ;;
-        esac
+        if ${CT_HOST}-gcc --version 2>&1 | grep clang; then
+            # FIXME: Now we really are testing for host compiler being clang
+            # (also in crosstool-NG.sh), commented
+            # cross_CFLAGS+=" -Qunused-arguments"
+            cross_CXXFLAGS+=" -Qunused-arguments"
+            # clang detects the line from gettext's _ macro as format string
+            # not being a string literal and produces a lot of warnings - which
+            # ct-ng's logger faithfully relays to user if this happens in the
+            # error() function. Suppress them.
+            cross_extra_config+=("--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security")
+        fi
 
         # Fix up whitespace. Some older GDB releases (e.g. 6.8a) get confused if there
         # are multiple consecutive spaces: sub-configure scripts replace them with a
