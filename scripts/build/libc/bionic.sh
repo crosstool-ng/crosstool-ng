@@ -26,7 +26,13 @@ do_libc() {
     fi
     CT_DoStep INFO "Installing C library binaries"
     CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/android-ndk/platforms/android-${CT_ANDROID_API}/arch-${arch}/usr" "${CT_SYSROOT_DIR}"
-    CT_EnvModify CT_ALL_TARGET_CFLAGS "${CT_ALL_TARGET_CFLAGS} -D__ANDROID_API__=${CT_ANDROID_API}"
+
+    # NB: Modifying CT_TARGET_CFLAGS here, not CT_ALL_TARGET_CFLAGS: the __ANDROID_API__
+    # definition needs to be passed into GCC build, or the resulting libstdc++ gets
+    # miscompiled (attempt to link against it results in unresolved symbols to stdout/...).
+    # And since __ANDROID_API__ is a user config option, placing it with other user-supplied
+    # options isn't completely out of character.
+    CT_EnvModify CT_TARGET_CFLAGS "${CT_TARGET_CFLAGS} -D__ANDROID_API__=${CT_ANDROID_API}"
 }
 
 do_libc_post_cc() {
