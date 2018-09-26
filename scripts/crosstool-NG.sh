@@ -304,14 +304,14 @@ CT_DoExecLog ALL mkdir -p "${CT_HOST_COMPLIBS_DIR}"
 # Only create the state dir if asked for a restartable build
 [ -n "${CT_DEBUG_CT_SAVE_STEPS}" ] && CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"
 
+# Kludge: CT_PREFIX_DIR might have grown read-only if
+# the previous build was successful.
+CT_DoExecLog ALL chmod -R u+w "${CT_PREFIX_DIR}"
+
 # Check install file system case-sensitiveness
 CT_DoExecLog DEBUG touch "${CT_PREFIX_DIR}/foo"
 CT_TestAndAbort "Your file system in '${CT_PREFIX_DIR}' is *not* case-sensitive!" -f "${CT_PREFIX_DIR}/FOO"
 CT_DoExecLog DEBUG rm -f "${CT_PREFIX_DIR}/foo"
-
-# Kludge: CT_PREFIX_DIR might have grown read-only if
-# the previous build was successful.
-CT_DoExecLog ALL chmod -R u+w "${CT_PREFIX_DIR}"
 
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
