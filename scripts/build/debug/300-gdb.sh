@@ -315,7 +315,7 @@ do_debug_gdb_build() {
         # Workaround for bad versions, where the configure
         # script for gdbserver is not executable...
         # Bah, GNU folks strike again... :-(
-        chmod +x "${gdb_src_dir}/gdb/gdbserver/configure"
+        chmod a+x "${gdb_src_dir}/gdb/gdbserver/configure"
 
         gdbserver_extra_config=("${extra_config[@]}")
 
