@@ -109,7 +109,7 @@ action_clean()
 
     msg "Cleaning up after ${cntr}"
     if [ -d build-${cntr} ]; then
-        chmod -R +w build-${cntr}
+        chmod -R a+w build-${cntr}
         rm -rf build-${cntr}
     fi
 }

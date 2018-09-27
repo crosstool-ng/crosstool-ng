@@ -74,6 +74,7 @@ for d in            \
     LOCAL_TARBALLS  \
     WORK            \
     PREFIX          \
+    BUILD_TOP       \
     INSTALL         \
     ; do
         eval dir="\${CT_${d}_DIR}"
@@ -86,6 +87,17 @@ for d in            \
                 ;;
             *,*)
                 CT_Abort "'CT_${d}_DIR'='${dir}' contains a comma in it.\nDon't use commas in paths, it breaks things."
+                ;;
+        esac
+        case "${dir}" in
+            /*)
+                # Absolute path, okay
+                ;;
+            *)
+                # Relative path from CT_TOP_DIR, make absolute
+                eval CT_${d}_DIR="${CT_TOP_DIR}/${dir}"
+                # Having .. inside CT_PREFIX breaks relocatability.
+                CT_SanitizeVarDir CT_${d}_DIR
                 ;;
         esac
 done
@@ -304,20 +316,17 @@ CT_DoExecLog ALL mkdir -p "${CT_HOST_COMPLIBS_DIR}"
 # Only create the state dir if asked for a restartable build
 [ -n "${CT_DEBUG_CT_SAVE_STEPS}" ] && CT_DoExecLog ALL mkdir -p "${CT_STATE_DIR}"
 
+# Kludge: CT_PREFIX_DIR might have grown read-only if
+# the previous build was successful.
+CT_DoExecLog ALL chmod -R u+w "${CT_PREFIX_DIR}"
+
 # Check install file system case-sensitiveness
 CT_DoExecLog DEBUG touch "${CT_PREFIX_DIR}/foo"
 CT_TestAndAbort "Your file system in '${CT_PREFIX_DIR}' is *not* case-sensitive!" -f "${CT_PREFIX_DIR}/FOO"
 CT_DoExecLog DEBUG rm -f "${CT_PREFIX_DIR}/foo"
 
-# Kludge: CT_PREFIX_DIR might have grown read-only if
-# the previous build was successful.
-CT_DoExecLog ALL chmod -R u+w "${CT_PREFIX_DIR}"
-
 # Setting up the rest of the environment only if not restarting
 if [ -z "${CT_RESTART}" ]; then
-    # Having .. inside CT_PREFIX breaks relocatability.
-    CT_SanitizeVarDir CT_PREFIX_DIR
-
     case "${CT_SYSROOT_NAME}" in
         "")     CT_SYSROOT_NAME="sysroot";;
         .)      CT_Abort "Sysroot name is set to '.' which is forbidden";;
