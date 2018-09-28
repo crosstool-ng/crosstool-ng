@@ -42,7 +42,8 @@ action_build()
     local cntr=$1
 
     msg "Building Docker container for ${cntr}"
-    docker build --no-cache -t "ctng-${cntr}" "${cntr}"
+set -x
+    docker build --no-cache -t "ctng-${cntr}" --build-arg CTNG_GID=`id -g` --build-arg CTNG_UID=`id -u` "${cntr}"
 }
 
 # Common backend for enter/test
@@ -50,16 +51,23 @@ _dckr()
 {
     local topdir=`cd ../.. && pwd`
     local cntr=$1
+    local scmd prefix
     shift
 
     mkdir -p build-${cntr}
-    docker run --rm -i -t \
-        -v `pwd`/common-scripts:/setup-scripts:ro \
+    prefix="docker run --rm -i -t \
+        -v `pwd`/common-scripts:/common-scripts:ro \
         -v ${topdir}:/crosstool-ng:ro \
-        -v `pwd`/build-${cntr}:/home \
-        -v $HOME/src:/src:ro \
-        ctng-${cntr} \
-        ${SETUPCMD:-/setup-scripts/su-as-user `id -un` `id -u` `id -gn` `id -g`} "$@"
+        -v `pwd`/build-${cntr}:/home/ctng/work \
+        -v $HOME/src:/home/ctng/src:ro \
+        ctng-${cntr}"
+    if [ -n "${AS_ROOT}" ]; then
+        $prefix "$@"
+    elif [ -n "$*" ]; then
+        $prefix su -l ctng -c "$*"
+    else
+        $prefix su -l ctng
+    fi
 }
 
 # Run the test
@@ -69,8 +77,8 @@ action_install()
 
     # The test assumes the top directory is bootstrapped, but clean.
     msg "Setting up crosstool-NG in ${cntr}"
-    _dckr "${cntr}" /setup-scripts/ctng-install
-    _dckr "${cntr}" /setup-scripts/ctng-test-basic
+    _dckr "${cntr}" /common-scripts/ctng-install && \
+        _dckr "${cntr}" /common-scripts/ctng-test-basic
 }
 
 # Run the test
@@ -81,16 +89,17 @@ action_sample()
 
     # The test assumes the top directory is bootstrapped, but clean.
     msg "Building samples in ${cntr} [$@]"
-    _dckr "${cntr}" /setup-scripts/ctng-build-sample "$@"
+    _dckr "${cntr}" /common-scripts/ctng-build-sample "$@"
 }
 
 # Enter the container using the same user account/environment as for testing.
 action_enter()
 {
     local cntr=$1
+    shift
 
     msg "Entering ${cntr}"
-    _dckr "${cntr}"
+    _dckr "${cntr}" "$@"
 }
 
 # Enter the container using the same user account/environment as for testing.
@@ -99,7 +108,7 @@ action_root()
     local cntr=$1
 
     msg "Entering ${cntr} as root"
-    SETUPCMD=/bin/bash _dckr "${cntr}"
+    AS_ROOT=y _dckr "${cntr}" /bin/bash
 }
 
 # Clean up after test suite run
