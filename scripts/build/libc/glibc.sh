@@ -26,7 +26,6 @@ do_libc_extract() {
         CT_DoExecLog ALL ln -sf "${CT_GLIBC_PORTS_SRC_DIR}/${CT_GLIBC_PORTS_BASENAME}" \
                 "${CT_GLIBC_SRC_DIR}/${CT_GLIBC_BASENAME}/ports"
     fi
-    # TBD make the configure timestamp fix in all patched packages (e.g. part of CT_ExtractPatch)
 }
 
 # Build and install headers and start files
