@@ -2165,6 +2165,20 @@ CT_DoExtractPatch()
                 CT_DoExecLog ALL "${CT_CONFIG_SHELL}" -c "${devel_bootstrap}"
             fi
 
+            # Fix up the timestamps on the file we may be patching: otherwise, we may
+            # have a circular dependency. For example, we need make to build autoconf
+            # and automake companion tools, but we need autoconf and automake to regenerate
+            # aclocal.m4 or config.h.in after the patch touches configure.ac. Instead,
+            # assume the patch fixes all the files it needs.
+            find . -type f -name "aclocal.m4" \
+                    -exec touch {} \; -exec echo touch {} \; | CT_DoLog ALL
+            find . -type f -name "config.h.in" \
+                    -exec touch {} \; -exec echo touch {} \; | CT_DoLog ALL
+            find . -type f -name "Makefile.in" \
+                    -exec touch {} \; -exec echo touch {} \; | CT_DoLog ALL
+            find . -type f -name "configure" \
+                    -exec touch {} \; -exec echo touch {} \; | CT_DoLog ALL
+
             if [ -n "${patchfunc}" ]; then
                 ${patchfunc}
             fi
