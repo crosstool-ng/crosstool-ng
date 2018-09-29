@@ -83,3 +83,16 @@ fetch-docs: maintainer/download-docs.sh
 .PHONY: gen-tarball-version
 gen-tarball-version:
 	echo $(VERSION) > $(distdir)/.tarball-version
+
+DIGESTS		= md5 sha1 sha512
+USE_GPG		= yes
+
+dist-create-release: distcheck
+	for a in $(DIST_ARCHIVES); do \
+		for d in $(DIGESTS); do \
+			$${d}sum $${a} > $${a}.$${d}; \
+		done; \
+		if [ "$(USE_GPG)" = "yes" ]; then \
+			gpg --detach-sign $${a}; \
+		fi; \
+	done
