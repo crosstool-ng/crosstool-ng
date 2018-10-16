@@ -23,8 +23,8 @@ do_libc_extract() {
         # we do not support concurrent use of the source directory
         # and next run, if using different glibc-ports source, will override
         # this symlink anyway.
-        CT_DoExecLog ALL ln -sf "${CT_GLIBC_PORTS_SRC_DIR}/${CT_GLIBC_PORTS_BASENAME}" \
-                "${CT_GLIBC_SRC_DIR}/${CT_GLIBC_BASENAME}/ports"
+        CT_DoExecLog ALL ln -sf "${CT_SRC_DIR}/${CT_GLIBC_PORTS_DIR_NAME}" \
+                "${CT_SRC_DIR}/${CT_GLIBC_DIR_NAME}/ports"
     fi
 }
 
