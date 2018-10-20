@@ -208,7 +208,7 @@ CT_TARBALLS_DIR="${CT_WORK_DIR}/tarballs"
 CT_COMMON_SRC_DIR="${CT_WORK_DIR}/src"
 CT_SRC_DIR="${CT_BUILD_TOP_DIR}/src"
 CT_BUILDTOOLS_PREFIX_DIR="${CT_BUILD_TOP_DIR}/buildtools"
-CT_STATE_DIR="${CT_WORK_DIR}/${CT_TARGET}/state"
+CT_STATE_DIR="${CT_BUILD_TOP_DIR}/state"
 # Note about HOST_COMPLIBS_DIR: it's always gonna be in the buildtools dir, or a
 # sub-dir. So we won't have to save/restore it, not even create it.
 # In case of cross or native, host-complibs are used for build-complibs;
