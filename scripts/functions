@@ -1794,7 +1794,6 @@ CT_GetVersion_hg()
     # to clone if cset is not known and a branch is given.
     if [ -z "${devel_revision}" ]; then
         if [ -z "${devel_branch}" ]; then
-            # Mercurial does not allow querying branches
             devel_revision=`hg identify "${devel_url}"`
         else
             CT_DoLog WARN "${pkg_name}: Mercurial cannot query non-default branch, will clone"
@@ -1831,46 +1830,97 @@ CT_GetVersion_git()
         CT_Abort "${pkg_name}: cannot specify both branch and changeset for Git"
     fi
 
-    devel_branch="${devel_branch:-master}"
+    # Do not modify devel_branch so that we can check if it has been set by user
+    # in CT_Download_git.
+    local branch="${devel_branch:-master}"
+
     if [ -z "${devel_revision}" ]; then
-        local matches=`git ls-remote --exit-code "${devel_url}" --refs "${devel_branch}" \
+        local matches=`git ls-remote --exit-code "${devel_url}" --refs "${branch}" \
             || echo "not found"`
         local best using ref
 
         # Cannot test $?, setting a trap on ERR prevents bash from returning the
         # status code.
         if [ "${matches}" = "not found" ]; then
-            CT_Abort "Failed to find git ref ${devel_branch} at ${devel_url}"
+            CT_Abort "Failed to find git ref ${branch} at ${devel_url}"
         fi
         if [ `echo "${matches}" | wc -l` -gt 1 ]; then
-            if echo "${matches}" | grep '[[:space:]]\(refs/heads/\)\?'"${devel_branch}\$" >/dev/null; then
+            if echo "${matches}" | grep '[[:space:]]\(refs/heads/\)\?'"${branch}\$" >/dev/null; then
                 # Try exact match, or prepended with "refs/heads". Some projects (e.g. binutils)
                 # have refs/original/refs/heads/master as well as refs/heads/master, and
                 # `git ls-remote refs/heads/master` prints both.
-                best=`echo "${matches}" | grep '[[:space:]]\(refs/heads/\)\?'"${devel_branch}\$"`
+                best=`echo "${matches}" | grep '[[:space:]]\(refs/heads/\)\?'"${branch}\$"`
                 using="best match"
             else
                 best=`echo "${matches}" | head -n1`
                 using="first"
             fi
             ref=`echo "${best}" | sed 's/.*[[:space:]]//'`
-            CT_DoLog WARN "Ambiguous ref ${devel_branch} at ${devel_url}, using ${using} (${ref})"
+            CT_DoLog WARN "Ambiguous ref ${branch} at ${devel_url}, using ${using} (${ref})"
         else
             best="${matches}"
         fi
-        devel_revision=`echo "${best}" | cut -c1-8`
-        CT_DoLog DEBUG "ref ${devel_branch} at ${devel_url} has cset of ${devel_revision}"
+        # Similarly, do not modify the devel_revision, we'll need to know if it
+        # has been set by the user in CT_Download_git.
+        unique_id=`echo "${best}" | cut -c1-8`
+        CT_DoLog DEBUG "ref ${branch} at ${devel_url} has cset of ${unique_id}"
+    else
+        unique_id=`echo "${devel_revision}" | cut -c1-8`
     fi
-    unique_id="${devel_revision}"
 }
 
 # Retrieve sources from Git.
 CT_Download_git()
 {
-    # Git does not allow making a shallow clone of a specific commit.
-    CT_DoExecLog ALL git clone "${devel_url}" "${pkg_name}"
-    CT_Pushd "${pkg_name}"
-    CT_DoExecLog ALL git checkout "${devel_revision}" --
+    local new_unique_id fetched=n shallow_id
+
+    # Some of these operations are part of a `git clone`, but fetching a specific commit
+    # (if it is supported by the server) is not expressable as a `git clone`.
+    CT_mkdir_pushd "${pkg_name}"
+    CT_DoExecLog ALL git init
+    CT_DoExecLog ALL git remote add origin "${devel_url}"
+
+    if [ -z "${devel_revision}" ]; then
+        # Configuration didn't care about a specific commit; we'll use the most recent
+        # commit on the branch and will update the unique_id (and warn the user) if it
+        # differs from what we've previously determined.
+        shallow_id="${devel_branch:-master}"
+    else
+        local tmp=`echo "${devel_revision}" | sed 's/^[0-9a-z]\{40\}//'`
+
+        if [ -z "${tmp}" ]; then
+            shallow_id="${devel_revision}"
+        else
+            CT_DoLog WARN "Git only allows full 40-character SHA-1 hashes to identify a commit for shallow clone."
+        fi
+    fi
+
+    if [ -n "${shallow_id}" ]; then
+        if CT_DoExecLog ALL git fetch --quiet --depth 1 origin "${shallow_id}"; then
+            CT_DoExecLog ALL git checkout --quiet FETCH_HEAD --
+        else
+            # Git 2.15 and newer (which must be the case on both the client and the server)
+            # allows fetching a single commit so long as the server is configured
+            # to allow it (by having uploadpack.allowReachableSHA1InWant=true set
+            # in its config).
+            CT_DoLog WARN "Shallow clone failed (likely disallowed on the server)."
+            shallow_id=
+        fi
+    fi
+
+    if [ -z "${shallow_id}" ]; then
+        # In this case, we already determined the changeset we need
+        CT_DoLog WARN "Falling back to full clone; may take some time..."
+        CT_DoExecLog ALL git fetch --quiet origin
+        CT_DoExecLog ALL git checkout --quiet "${unique_id}" --
+    fi
+
+    new_unique_id=`git rev-parse HEAD | cut -c1-8`
+    if [ "${new_unique_id}" != "${unique_id}" ]; then
+        CT_DoLog EXTRA "Revision being fetched changed to ${new_unique_id}; source repository had more revisions pushed?"
+        unique_id="${new_unique_id}"
+    fi
+
     CT_DoExecLog ALL rm -rf .git
     CT_Popd
 }
@@ -1984,7 +2034,7 @@ CT_DoFetch()
             return 1
         fi
 
-        CT_DoLog EXTRA "Retrieving '${basename}' (${devel_vcs} ${devel_url} ${devel_branch} ${devel_revision})"
+        CT_DoLog EXTRA "Checking out '${basename}' (${devel_vcs} ${devel_url}${devel_branch:+, branch ${devel_branch}}${devel_revision:+, revision ${devel_revision}})"
         CT_MktempDir tmp_dir
         CT_Pushd "${tmp_dir}"
         CT_Download_${devel_vcs}
