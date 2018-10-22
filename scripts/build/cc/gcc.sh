@@ -468,7 +468,11 @@ do_gcc_core_backend() {
         local glibc_version
 
         CT_GetPkgVersion GLIBC glibc_version
-        glibc_version=`echo "${glibc_version}" | sed 's/\([1-9][0-9]*\.[1-9][0-9]*\).*/\1/'`
+        case "${glibc_version}" in
+        new) glibc_version=99.99;;
+        old) glibc_version=1.0;;
+        *) glibc_version=`echo "${glibc_version}" | sed 's/\([1-9][0-9]*\.[1-9][0-9]*\).*/\1/'`;;
+        esac
         extra_config+=("--with-glibc-version=${glibc_version}")
     fi
 
