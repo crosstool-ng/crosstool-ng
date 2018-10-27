@@ -752,7 +752,9 @@ CT_DoGetFile()
 }
 
 # This function saves the specified to local storage if possible,
-# and if so, symlinks it for later usage
+# and if so, symlinks it for later usage. This function is called from
+# the `if' condition (via the CT_GetFile) and therefore must return
+# on error rather than relying on the shell's ERR trap to catch it.
 # Usage: CT_SaveLocal </full/path/file.name>
 CT_SaveLocal()
 {
@@ -762,9 +764,22 @@ CT_SaveLocal()
     if [ "${CT_SAVE_TARBALLS}" = "y" ]; then
         CT_DoLog EXTRA "Saving '${basename}' to local storage"
         # The file may already exist if downloads are forced: remove it first
-        CT_DoExecLog ALL rm -f "${CT_LOCAL_TARBALLS_DIR}/${basename}"
-        CT_DoExecLog ALL mv -f "${file}" "${CT_LOCAL_TARBALLS_DIR}"
-        CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${basename}" "${file}"
+        if ! CT_DoExecLog ALL rm -f "${CT_LOCAL_TARBALLS_DIR}/${basename}"; then
+            return 1
+        fi
+        if ! CT_DoExecLog ALL mv -f "${file}" "${CT_LOCAL_TARBALLS_DIR}"; then
+            # Move may have failed if the local tarball storage is on a different
+            # filesystem. Fallback to copy+delete.
+            if ! CT_DoExecLog ALL cp -f "${file}" "${CT_LOCAL_TARBALLS_DIR}"; then
+                return 1
+            fi
+            if ! CT_DoExecLog ALL rm -f "${file}"; then
+                return 1
+            fi
+        fi
+        if ! CT_DoExecLog ALL ln -s "${CT_LOCAL_TARBALLS_DIR}/${basename}" "${file}"; then
+            return 1
+        fi
     fi
 }
 
@@ -887,7 +902,12 @@ CT_DoVerifySignature()
     CT_Popd
 
     # If we get here, verification succeeded.
-    CT_SaveLocal "${CT_TARBALLS_DIR}/${sigfile}${ext}"
+    if ! CT_SaveLocal "${CT_TARBALLS_DIR}/${sigfile}${ext}"; then
+        CT_Popd
+        return 1
+    fi
+
+    return 0
 }
 
 # Download the file from one of the URLs passed as argument
@@ -972,7 +992,9 @@ CT_GetFile()
                     CT_DoExecLog ALL rm "${CT_TARBALLS_DIR}/${basename}${ext}"
                     return 1
                 fi
-                CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}${ext}"
+                if ! CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}${ext}"; then
+                    return 1
+                fi
                 return 0
             fi
         done
@@ -2031,7 +2053,7 @@ CT_DoFetch()
 
         if [ "${CT_FORBID_DOWNLOAD}" = "y" ]; then
             CT_DoLog WARN "Downloads forbidden, not trying ${devel_vcs} retrieval"
-            return 1
+            CT_Abort "${pkg_name}: cannot check out"
         fi
 
         CT_DoLog EXTRA "Checking out '${basename}' (${devel_vcs} ${devel_url}${devel_branch:+, branch ${devel_branch}}${devel_revision:+, revision ${devel_revision}})"
@@ -2046,7 +2068,9 @@ CT_DoFetch()
 
         CT_DoExecLog ALL mv "${pkg_name}${devel_subdir:+/${devel_subdir}}" "${basename}"
         CT_DoExecLog ALL tar cjf "${CT_TARBALLS_DIR}/${basename}.tar.bz2" "${basename}"
-        CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"
+        if ! CT_SaveLocal "${CT_TARBALLS_DIR}/${basename}.tar.bz2"; then
+            CT_Abort "${pkg_name}: failed to save to local storage"
+        fi
         CT_Popd
         CT_DoExecLog ALL rm -rf "${tmp_dir}"
 
