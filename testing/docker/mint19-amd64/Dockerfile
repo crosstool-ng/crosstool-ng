@@ -8,4 +8,5 @@ RUN apt-get install -y gcc gperf bison flex texinfo help2man make libncurses5-de
     python-dev autoconf automake libtool libtool-bin gawk
 RUN wget -O /sbin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64
 RUN chmod a+x /sbin/dumb-init
+RUN echo 'export PATH=/opt/ctng/bin:$PATH' >> /etc/profile
 ENTRYPOINT [ "/sbin/dumb-init", "--" ]

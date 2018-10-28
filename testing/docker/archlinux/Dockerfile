@@ -7,5 +7,6 @@ RUN pacman -Syu --noconfirm
 RUN pacman -S --noconfirm base-devel git help2man python unzip wget
 RUN wget -O /sbin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64
 RUN chmod a+x /sbin/dumb-init
+RUN echo 'export PATH=/opt/ctng/bin:$PATH' >> /etc/profile
 RUN echo 'export MENUCONFIG_COLOR=mono' >> /etc/profile
 ENTRYPOINT [ "/sbin/dumb-init", "--" ]
