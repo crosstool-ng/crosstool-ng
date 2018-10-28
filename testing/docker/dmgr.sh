@@ -36,6 +36,17 @@ EOF
     exit 1
 }
 
+do_cleanup()
+{
+    local d
+
+    for d in "$@"; do
+        [ -d "$d" ] || continue
+        chmod -R a+w "$d"
+        rm -rf "$d"
+    done
+}
+
 # Build a docker container, store its ID.
 action_build()
 {
@@ -54,11 +65,13 @@ _dckr()
     local scmd prefix
     shift
 
-    mkdir -p build-${cntr}
+    mkdir -p ${cntr}/{build,install,xtools}
     prefix="docker run --rm -i -t \
         -v `pwd`/common-scripts:/common-scripts:ro \
         -v ${topdir}:/crosstool-ng:ro \
-        -v `pwd`/build-${cntr}:/home/ctng/work \
+        -v `pwd`/${cntr}/build:/home/ctng/work \
+        -v `pwd`/${cntr}/install:/opt/ctng \
+        -v `pwd`/${cntr}/xtools:/home/ctng/x-tools \
         -v $HOME/src:/home/ctng/src:ro \
         ctng-${cntr}"
     if [ -n "${AS_ROOT}" ]; then
@@ -77,6 +90,7 @@ action_install()
 
     # The test assumes the top directory is bootstrapped, but clean.
     msg "Setting up crosstool-NG in ${cntr}"
+    do_cleanup ${cntr}/build
     _dckr "${cntr}" /common-scripts/ctng-install && \
         _dckr "${cntr}" /common-scripts/ctng-test-basic
 }
@@ -87,8 +101,8 @@ action_sample()
     local cntr=$1
     shift
 
-    # The test assumes the top directory is bootstrapped, but clean.
     msg "Building samples in ${cntr} [$@]"
+    do_cleanup ${cntr}/build
     _dckr "${cntr}" /common-scripts/ctng-build-sample "$@"
 }
 
@@ -117,10 +131,16 @@ action_clean()
     local cntr=$1
 
     msg "Cleaning up after ${cntr}"
-    if [ -d build-${cntr} ]; then
-        chmod -R a+w build-${cntr}
-        rm -rf build-${cntr}
-    fi
+    do_cleanup ${cntr}/build
+}
+
+# Clean up after test suite run
+action_distclean()
+{
+    local cntr=$1
+
+    msg "Dist cleaning ${cntr}"
+    do_cleanup ${cntr}/{build,install,xtools}
 }
 
 all_containers=`ls */Dockerfile | sed 's,/Dockerfile,,'`
@@ -132,7 +152,7 @@ if [ "${selected_containers}" = "all" ]; then
 fi
 
 case "${action}" in
-    build|install|sample|enter|root|clean)
+    build|install|sample|enter|root|clean|distclean)
         for c in ${selected_containers}; do
             eval "action_${action} ${c} \"$@\""
         done
