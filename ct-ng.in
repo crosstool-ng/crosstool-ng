@@ -101,26 +101,29 @@ NCONF := $(CT_LIBEXEC_DIR)/nconf
 # TBD needed? We do supply the defconfig name explicitly below
 export srctree=$(CT_LIB_DIR)
 
-.PHONY: menuconfig nconfig oldconfig savedefconfig defconfig
+.PHONY: menuconfig nconfig oldconfig savedefconfig defconfig check-config
 
-menuconfig:
+check-config:
+	@[ ! -e .config -o -f .config ] || { echo ".config is not a regular file:"; ls -dl .config; exit 1; } >&2
+
+menuconfig: check-config
 	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(MCONF) $(KCONFIG_TOP)
 
-nconfig:
+nconfig: check-config
 	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(NCONF) $(KCONFIG_TOP)
 
-oldconfig: .config
+oldconfig: .config check-config
 	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(sed) -i -r -f $(CT_LIB_DIR)/scripts/upgrade.sed $<
 	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
 
-savedefconfig: .config
+savedefconfig: .config check-config
 	@$(CT_ECHO) '  GEN   $@'
 	$(SILENT)$(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
 
-defconfig:
+defconfig: check-config
 	@$(CT_ECHO) '  CONF  $@'
 	$(SILENT)$(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
 
