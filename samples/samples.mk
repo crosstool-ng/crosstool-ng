@@ -130,7 +130,7 @@ endef
 
 # How we do recall one sample
 PHONY += $(CT_SAMPLES)
-$(CT_SAMPLES):
+$(CT_SAMPLES): check-config
 	@$(CT_ECHO) "  CONF  $@"
 	$(SILENT)$(CONF) --defconfig=$(call sample_dir,$@)/crosstool.config $(KCONFIG_TOP)
 	@echo
