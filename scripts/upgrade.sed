@@ -1,5 +1,5 @@
 # After 1.23.0, generated config options were standardized to upper case
-s/\<CT_ARCH_(alpha|arm|avr|m68k|microblaze|mips|msp430|nios2|powerpc|s390|sh|sparc|x86|xtensa)\>/CT_ARCH_\U\1/g
+s/\<CT_ARCH_(alpha|arm|avr|m68k|microblaze|mips|moxie|msp430|nios2|powerpc|s390|sh|sparc|x86|xtensa)\>/CT_ARCH_\U\1/g
 s/\<CT_BINUTILS_binutils\>/CT_BINUTILS_BINUTILS/g
 s/\<CT_CC_gcc\>/CT_CC_GCC/g
 s/\<CT_COMP_TOOLS_(autoconf|automake|libtool|m4|make)\>/CT_COMP_TOOLS_\U\1/g
