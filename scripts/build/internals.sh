@@ -144,7 +144,9 @@ do_finish() {
         CT_DoForceRmdir "${CT_DEBUGROOT_DIR}/"{,usr/}{,share/}{man,info}
     fi
 
-    CT_InstallCopyingInformation
+    if [ "${CT_INSTALL_LICENSES}" = y ]; then
+        CT_InstallCopyingInformation
+    fi
 
     CT_EndStep
 }
