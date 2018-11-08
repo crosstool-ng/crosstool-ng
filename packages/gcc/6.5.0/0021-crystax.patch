@@ -16,7 +16,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  gcc/config/arm/arm.opt                     |    4 +
  gcc/config/arm/elf.h                       |    9 ++--
  gcc/config/arm/linux-eabi.h                |    7 ++-
- gcc/config/i386/gnu-user.h                 |    7 ++-
+ gcc/config/i386/gnu-user.h                 |    6 ++
  gcc/config/i386/gnu-user64.h               |    5 ++
  gcc/config/i386/linux-common.h             |    8 +++
  gcc/config/linux-android.h                 |   13 +++---
@@ -29,7 +29,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  libstdc++-v3/configure                     |   12 +++++
  libstdc++-v3/include/bits/locale_facets.h  |   18 +++++++-
  libstdc++-v3/libsupc++/guard.cc            |    5 ++
- 21 files changed, 235 insertions(+), 20 deletions(-)
+ 21 files changed, 234 insertions(+), 20 deletions(-)
 
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
@@ -52,7 +52,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  	esac
  	aarch64_multilibs="${with_multilib_list}"
  	if test "$aarch64_multilibs" = "default"; then
-@@ -2072,6 +2076,17 @@
+@@ -2076,6 +2080,17 @@
  	tm_file="dbxelf.h elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h ${tm_file} mips/gnu-user.h mips/linux.h mips/linux-common.h"
  	extra_options="${extra_options} linux-android.opt"
  	case ${target} in
@@ -152,7 +152,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  #define MUSL_DYNAMIC_LINKER "/lib/ld-musl-aarch64%{mbig-endian:_be}%{mabi=ilp32:_ilp32}.so.1"
 --- a/gcc/config/arm/arm.h
 +++ b/gcc/config/arm/arm.h
-@@ -1893,10 +1893,11 @@
+@@ -1894,10 +1894,11 @@
  
  #define CASE_VECTOR_PC_RELATIVE (TARGET_THUMB2				\
  				 || (TARGET_THUMB1			\
@@ -167,7 +167,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
        : min >= -256 && max < 256					\
 --- a/gcc/config/arm/arm.md
 +++ b/gcc/config/arm/arm.md
-@@ -8180,7 +8180,7 @@
+@@ -8177,7 +8177,7 @@
     (match_operand:SI 2 "const_int_operand" "")	; total range
     (match_operand:SI 3 "" "")			; table label
     (match_operand:SI 4 "" "")]			; Out of range label
@@ -243,7 +243,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
    LINUX_OR_ANDROID_LD (GNU_USER_TARGET_LIB_SPEC,			\
 --- a/gcc/config/i386/gnu-user.h
 +++ b/gcc/config/i386/gnu-user.h
-@@ -65,9 +65,14 @@
+@@ -65,9 +65,13 @@
     When the -shared link option is used a final link is not being
     done.  */
  
@@ -253,9 +253,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
 +
  #undef  ASM_SPEC
  #define ASM_SPEC \
--  "--32 %{!mno-sse2avx:%{mavx:-msse2avx}} %{msse2avx:%{!mavx:-msse2avx}}"
-+  "--32 %{!mno-sse2avx:%{mavx:-msse2avx}} %{msse2avx:%{!mavx:-msse2avx}} " \
-+  LINUX_OR_ANDROID_CC ("", ANDROID_ASM_SPEC)
+-  "--32 %{msse2avx:%{!mavx:-msse2avx}}"
++  "--32 %{msse2avx:%{!mavx:-msse2avx}}" LINUX_OR_ANDROID_CC ("", ANDROID_ASM_SPEC)
  
  #undef  SUBTARGET_EXTRA_SPECS
  #define SUBTARGET_EXTRA_SPECS \
@@ -445,7 +444,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  #if ((defined(_LIBOBJC) || defined(_LIBOBJC_WEAK)) \
 --- a/libstdc++-v3/configure
 +++ b/libstdc++-v3/configure
-@@ -78389,6 +78389,12 @@
+@@ -78391,6 +78391,12 @@
  /* end confdefs.h.  */
  #include <sys/syscall.h>
  	   int lk;
@@ -458,7 +457,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  int
  main ()
  {
-@@ -78447,6 +78453,12 @@
+@@ -78449,6 +78455,12 @@
  /* end confdefs.h.  */
  #include <sys/syscall.h>
  	   int lk;
