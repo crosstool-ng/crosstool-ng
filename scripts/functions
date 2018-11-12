@@ -2402,27 +2402,21 @@ fi
 
 CT_InstallCopyingInformation()
 {
-    local pkgname
-    local pkgdir
     local licfile
     local dstdir
 
     CT_DoLog EXTRA "Collect license information from: ${CT_SRC_DIR}"
     CT_DoLog EXTRA "Put the license information to: ${CT_PREFIX_DIR}/share/licenses"
 
-    shopt -s nullglob
-
-    for pkgdir in ${CT_SRC_DIR}/*; do
-        pkgname=$(basename "${pkgdir}")
-        for licfile in ${pkgdir}/{COPYING*,LICENSE*}; do
-            dstdir="${CT_PREFIX_DIR}/share/licenses/${pkgname}"
-            mkdir -p "${dstdir}"
-            CT_DoExecLog ALL cp -av "${licfile}" "${dstdir}/"
-        done
+    for licfile in $( find "${CT_SRC_DIR}" -follow -type f -a \( -name "COPYING*" -o -name "LICENSE*" \) ); do
+        dstdir="${licfile%/*}"
+        dstdir="${CT_PREFIX_DIR}/share/licenses${dstdir#${CT_SRC_DIR}}"
+        mkdir -p "${dstdir}"
+        CT_DoExecLog ALL cp -av "${licfile}" "${dstdir}/"
     done
 
     # Also add crosstool's information
-    for licfile in ${CT_TOP_DIR}/{COPYING*,LICENSE*,licenses.d}; do
+    for licfile in ${CT_LIB_DIR}/{COPYING*,LICENSE*,licenses.d}; do
         dstdir="${CT_PREFIX_DIR}/share/licenses/crosstool-ng"
         mkdir -p "${dstdir}"
         CT_DoExecLog ALL cp -av "${licfile}" "${dstdir}/"
