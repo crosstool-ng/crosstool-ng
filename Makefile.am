@@ -67,6 +67,8 @@ install-data-hook:
 	gzip -9 $(DESTDIR)$(man1dir)/$(ctng_progname).1
 	chmod a+x $(DESTDIR)$(pkgdatadir)/scripts/config.guess
 	chmod a+x $(DESTDIR)$(pkgdatadir)/scripts/config.sub
+	rm -f $(DESTDIR)$(pkgdatadir)/LICENSE
+	ln -s COPYING $(DESTDIR)$(pkgdatadir)/LICENSE
 if INSTALL_BASH_COMPLETION
 	chmod a-x $(DESTDIR)$(compdir)/$(ctng_progname)
 endif

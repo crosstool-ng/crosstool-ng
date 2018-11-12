@@ -31,11 +31,11 @@ ifneq ($(strip $(V)),2)
   curl_silent_opt = --silent
 endif
 
-ifneq ($(CT_wget),)
-download_cmd = $(CT_wget) --passive-ftp $(wget_silent_opt) -O $@
+ifneq ($(CT_WGET),)
+download_cmd = $(CT_WGET) --passive-ftp $(wget_silent_opt) -O $@
 else
-ifneq ($(CT_curl),)
-download_cmd = $(CT_curl) --ftp-pasv $(curl_silent_opt) -o $@
+ifneq ($(CT_CURL),)
+download_cmd = $(CT_CURL) --ftp-pasv $(curl_silent_opt) -o $@
 else
 download_cmd = $(error wget or curl needed for downloads)
 endif
