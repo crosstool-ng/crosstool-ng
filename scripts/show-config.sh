@@ -108,7 +108,7 @@ dump_single_sample()
 
         dump_choice_desc LIBC "C library"
         dump_pkgs_desc DEBUG "Debug tools" DUMA GDB LTRACE STRACE
-        dump_pkgs_desc COMP_TOOLS "Companion tools" AUTOCONF AUTOMAKE LIBTOOL M4 MAKE
+        dump_pkgs_desc COMP_TOOLS "Companion tools" AUTOCONF AUTOMAKE LIBTOOL M4 MAKE DTC
     fi
 }
 
