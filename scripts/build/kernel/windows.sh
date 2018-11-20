@@ -6,7 +6,6 @@ CT_DoKernelTupleValues() {
     # Even we compile for x86_64 target architecture, the target OS have to
     # bet mingw32 (require by gcc and mingw-w64)
     CT_TARGET_KERNEL="mingw32"
-    CT_TARGET_SYS=
 }
 
 do_kernel_get() {
