@@ -23,7 +23,7 @@ CT_LoadConfig() {
     . "${CT_LIB_DIR}/scripts/build/kernel/${CT_KERNEL}.sh"
     . "${CT_LIB_DIR}/scripts/build/companion_libs.sh"
     . "${CT_LIB_DIR}/scripts/build/binutils/${CT_BINUTILS}.sh"
-    . "${CT_LIB_DIR}/scripts/build/libc/${CT_LIBC}.sh"
+    . "${CT_LIB_DIR}/scripts/build/libc.sh"
     . "${CT_LIB_DIR}/scripts/build/cc/${CT_CC}.sh"
     . "${CT_LIB_DIR}/scripts/build/debug.sh"
     . "${CT_LIB_DIR}/scripts/build/test_suite.sh"
@@ -1095,11 +1095,6 @@ CT_DoBuildTargetTuple() {
         uClibc)   CT_TARGET_SYS=uclibc;;
         musl)     CT_TARGET_SYS=musl;;
         bionic)   CT_TARGET_SYS=android;;
-        avr-libc)
-            # avr-libc only seems to work with the non-canonical "avr" target.
-            CT_TARGET_SKIP_CONFIG_SUB=y
-            CT_TARGET_SYS= # CT_TARGET_SYS must be empty too
-            ;;
         none|newlib)
             CT_TARGET_SYS=elf
             ;;
@@ -1989,6 +1984,7 @@ CT_PackageRun()
             src_release mirrors archive_filename archive_dirname archive_formats signature_format \
             src_devel devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
             src_custom custom_location patch_order; do
+        CT_DoLog DEBUG "Package iterator: set ${v}=\${CT_${use}_${v^^}}"
         eval "local ${v}=\${CT_${use}_${v^^}}"
     done
 
@@ -2004,6 +2000,7 @@ CT_PackageRun()
         eval "eval ${v}=\${${v}//@/$}"
     done
 
+    CT_DoLog DEBUG "Package iterator: run ${run} $*"
     ${run} "$@"
 
     # Save certain variables that may be modified by the callback.
@@ -2369,7 +2366,10 @@ CT_GetPkgBuildVersion()
     fi
 
     __do_GetPkgBuildVersion() {
-        tmp="${pkg_name}-${version}"
+        tmp="${pkg_name}"
+        if [ "${version}" != "unknown" ]; then
+            tmp+="-${version}"
+        fi
         if [ "${src_devel}" = "y" ]; then
             tmp+="-${devel_vcs}"
             if [ -n "${devel_revision}" ]; then
@@ -2385,18 +2385,6 @@ CT_GetPkgBuildVersion()
 
     CT_PackageRun "${pkg}" __do_GetPkgBuildVersion
     eval "${var}=\"${tmp}\""
-}
-
-# Get a package version as selected by a generated choice in kconfig.
-CT_GetChoicePkgBuildVersion()
-{
-    local choice="${1}"
-    local var="${2}"
-    local component
-
-    # Find the selected component
-    eval "component=\${CT_${choice}_CHOICE_KSYM}"
-    CT_GetPkgBuildVersion "${choice}" "${component}" "${var}"
 }
 
 # Finally, load paths.sh. For --enable-local build, it is located in

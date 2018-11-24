@@ -2,22 +2,12 @@
 # Copyright 2008 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_libc_get() {
+none_get()
+{
     :
 }
 
-do_libc_extract() {
-    :
-}
-
-do_libc_start_files() {
-    :
-}
-
-do_libc() {
-    :
-}
-
-do_libc_post_cc() {
+none_extract()
+{
     :
 }

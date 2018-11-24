@@ -2,33 +2,27 @@
 # Copyright 2013 Timo TerÃ¤s
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_libc_get() {
-    CT_Fetch MUSL
-}
-
-do_libc_extract() {
-    CT_ExtractPatch MUSL
-}
-
 # Build and install headers and start files
-do_libc_start_files() {
+musl_start_files()
+{
     # Start files and Headers should be configured the same way as the
     # final libc, but built and installed differently.
-    do_libc_backend libc_mode=startfiles
+    musl_backend libc_mode=startfiles
 }
 
 # This function builds and install the full C library
-do_libc() {
-    do_libc_backend libc_mode=final
+musl_main()
+{
+    musl_backend libc_mode=final
 }
 
-do_libc_post_cc() {
+musl_post_cc() {
     # MUSL creates dynamic linker symlink with absolute path - which works on the
     # target but not on the host. We want our cross-ldd tool to work.
     CT_MultilibFixupLDSO
 }
 
-do_libc_backend() {
+musl_backend() {
     local libc_mode
     local arg
 
@@ -43,16 +37,16 @@ do_libc_backend() {
     esac
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs do_libc_backend_once multilib libc_mode="${libc_mode}"
+    CT_IterateMultilibs musl_backend_once multilib libc_mode="${libc_mode}"
     CT_Popd
     CT_EndStep
 }
 
 # This backend builds the C library
-# Usage: do_libc_backend param=value [...]
+# Usage: musl_backend param=value [...]
 #   Parameter           : Definition                      : Type      : Default
 #   libc_mode           : 'startfiles' or 'final'         : string    : (none)
-do_libc_backend_once() {
+musl_backend_once() {
     local libc_mode
     local -a extra_cflags
     local -a extra_config

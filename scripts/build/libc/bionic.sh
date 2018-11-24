@@ -2,21 +2,15 @@
 # Copyright 2017 Howard Chu
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_libc_get() {
-    CT_Fetch ANDROID_NDK
-}
-
-do_libc_extract() {
-    CT_ExtractPatch ANDROID_NDK
-}
-
 # Install Unified headers
-do_libc_start_files() {
+bionic_start_files()
+{
     CT_DoStep INFO "Installing C library headers"
     CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/android-ndk/sysroot/usr" "${CT_SYSROOT_DIR}"
 }
 
-do_libc() {
+bionic_main()
+{
     local arch="${CT_ARCH}"
     if [ "${CT_ARCH_64}" = "y" ]; then
         if [ "${CT_ARCH}" = "x86" ]; then
@@ -34,8 +28,3 @@ do_libc() {
     # options isn't completely out of character.
     CT_EnvModify CT_TARGET_CFLAGS "${CT_TARGET_CFLAGS} -D__ANDROID_API__=${CT_ANDROID_API}"
 }
-
-do_libc_post_cc() {
-    :
-}
-

@@ -669,7 +669,6 @@ if [ "${CT_ONLY_DOWNLOAD}" != "y" -a "${CT_ONLY_EXTRACT}" != "y" ]; then
     do_stop=0
     prev_step=
     [ -n "${CT_RESTART}" ] && do_it=0 || do_it=1
-    # Aha! CT_STEPS comes from steps.mk!
     for step in ${CT_STEPS}; do
         if [ ${do_it} -eq 0 ]; then
             if [ "${CT_RESTART}" = "${step}" ]; then
