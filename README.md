@@ -153,15 +153,4 @@ Report issues at [the project site on GitHub](https://github.com/crosstool-ng/cr
 
 We have a [mailing list](mailto:crossgcc@sourceware.org). Archive and subscription info can be found here: [https://sourceware.org/ml/crossgcc/](https://sourceware.org/ml/crossgcc/)
 
-We are also available on IRC: irc.freenode.net #crosstool-ng.
-
 Aloha! :-)
-
-[![Build Status][travis-status]][travis]
-
-[![Throughput Graph](https://graphs.waffle.io/crosstool-ng/crosstool-ng/throughput.svg)](https://waffle.io/crosstool-ng/crosstool-ng/metrics/throughput)
-
-[![Stories in Ready](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=ready&title=Ready)](https://waffle.io/crosstool-ng/crosstool-ng) [![Stories in Waiting For Response](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=waiting%20for%20response&title=Waiting%20For%20Response)](https://waffle.io/crosstool-ng/crosstool-ng) [![Stories in In Progress](https://badge.waffle.io/crosstool-ng/crosstool-ng.png?label=in%20progress&title=In%20Progress)](https://waffle.io/crosstool-ng/crosstool-ng)
-
-[travis]: https://travis-ci.org/crosstool-ng/crosstool-ng
-[travis-status]: https://travis-ci.org/crosstool-ng/crosstool-ng.svg
