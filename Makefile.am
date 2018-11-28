@@ -78,11 +78,15 @@ endif
 uninstall-hook:
 	rm -f $(DESTDIR)$(man1dir)/$(ctng_progname).1.gz
 
-dist-hook: fetch-docs gen-tarball-version
+dist-hook: fetch-docs create-symlinks gen-tarball-version
 
 .PHONY: fetch-docs
 fetch-docs: maintainer/download-docs.sh
 	$< $(top_distdir) $(USER_MANUAL_FILES)
+
+.PHONY: create-symlinks
+create-symlinks:
+	ln -s COPYING $(top_distdir)/LICENSE
 
 .PHONY: gen-tarball-version
 gen-tarball-version:
