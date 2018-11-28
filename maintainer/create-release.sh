@@ -8,6 +8,7 @@ if [ -z "${topdir}" ]; then
     do_abort "Not in the Git clone"
 fi
 cd "${topdir}"
+git clean -fxdq
 ./bootstrap
 ./configure --enable-local
 make dist-create-release
