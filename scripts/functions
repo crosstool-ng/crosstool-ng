@@ -582,7 +582,8 @@ CT_Popd() {
 
 # Create a dir and pushd into it
 # Usage: CT_mkdir_pushd <dir/to/create>
-CT_mkdir_pushd() {
+CT_mkdir_pushd()
+{
     local dir="${1}"
 
     mkdir -p "${dir}"
@@ -592,7 +593,8 @@ CT_mkdir_pushd() {
 # Creates a temporary directory
 # $1: variable to assign to
 # Usage: CT_MktempDir foo
-CT_MktempDir() {
+CT_MktempDir()
+{
     # Some mktemp do not allow more than 6 Xs
     eval "$1"=$(mktemp -q -d "${CT_BUILD_DIR}/tmp.XXXXXX")
     CT_TestOrAbort "Could not make temporary directory" -n "${!1}" -a -d "${!1}"
@@ -602,26 +604,29 @@ CT_MktempDir() {
 
 # Removes one or more directories, even if it is read-only, or its parent is
 # Usage: CT_DoForceRmdir dir [...]
-CT_DoForceRmdir() {
+CT_DoForceRmdir()
+{
     local dir
-    local mode
+    local cnt
+
     for dir in "${@}"; do
-        [ -d "${dir}" ] || continue
-        case "${CT_CONFIGURE_has_stat_flavor_GNU},${CT_CONFIGURE_has_stat_flavor_BSD}" in
-            y,*)
-                mode="$(stat -c '%a' "$(dirname "${dir}")")"
-                ;;
-            *,y)
-                mode="$(stat -f '%Lp' "$(dirname "${dir}")")"
-                ;;
-            *)
-                CT_Abort "Unknown stat format options"
-                ;;
-        esac
-        CT_DoExecLog ALL chmod u+w "$(dirname "${dir}")"
-        CT_DoExecLog ALL chmod -R u+w "${dir}"
-        CT_DoExecLog ALL rm -rf "${dir}"
-        CT_DoExecLog ALL chmod ${mode} "$(dirname "${dir}")"
+        [ -e "${dir}" ] || continue
+        CT_TestOrAbort "Cannot remove '${dir}': not a directory" -d "${dir}"
+        CT_DoExecLog ALL chmod -R u+w "${dir}" || :;
+        if CT_DoExecLog ALL rm -rf "${dir}"; then
+            continue
+        fi
+        # If we succeeded in removing the whole directory, good. If not,
+        # but only the top level directory remains - it is fine, too, because
+        # this function is used to remove the directories that are going to be
+        # re-created. Hence, verify we at least succeeded in verifying the
+        # contents of this directory.
+        if [ -d "${dir}" ]; then
+            cnt=$(ls -a "${dir}" | { grep -v '^\.\{1,2\}$' || :; } | wc -l)
+            if [ "${cnt}" != "0" ]; then
+                CT_Abort "Failed to remove '${dir}'"
+            fi
+        fi
     done
 }
 
@@ -630,7 +635,8 @@ CT_DoForceRmdir() {
 # $1: path to add
 # $2: add as 'first' or 'last' path, 'first' is assumed if $2 is empty
 # Usage CT_SetLibPath /some/where/lib [first|last]
-CT_SetLibPath() {
+CT_SetLibPath()
+{
     local path="$1"
     local pos="$2"
 

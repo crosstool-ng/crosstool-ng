@@ -138,8 +138,6 @@ AC_CHECK_PROGS([curl], [curl])
 CTNG_SET_KCONFIG_OPTION([curl])
 AC_SUBST([curl])
 
-CTNG_PROG_STAT
-
 CTNG_CPU_COUNT
 
 CTNG_PATH_TOOL_REQ([PATCH], [gpatch patch], [patch])
