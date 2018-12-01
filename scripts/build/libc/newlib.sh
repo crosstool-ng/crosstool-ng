@@ -5,15 +5,8 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
-do_libc_get() {
-    CT_Fetch NEWLIB
-}
-
-do_libc_extract() {
-    CT_ExtractPatch NEWLIB
-}
-
-do_libc_start_files() {
+newlib_start_files()
+{
     CT_DoStep INFO "Installing C library headers & start files"
     CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/newlib/newlib/libc/include/." \
     "${CT_HEADERS_DIR}"
@@ -25,14 +18,14 @@ do_libc_start_files() {
     CT_EndStep
 }
 
-do_libc() {
+newlib_main()
+{
     local -a newlib_opts
     local cflags_for_target
 
     CT_DoStep INFO "Installing C library"
 
-    mkdir -p "${CT_BUILD_DIR}/build-libc"
-    cd "${CT_BUILD_DIR}/build-libc"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
 
     CT_DoLog EXTRA "Configuring C library"
 
@@ -135,9 +128,6 @@ ENABLE_TARGET_OPTSPACE:target-optspace
                                 "${CT_PREFIX_DIR}/share/doc/newlib"
     fi
 
+    CT_Popd
     CT_EndStep
-}
-
-do_libc_post_cc() {
-    :
 }

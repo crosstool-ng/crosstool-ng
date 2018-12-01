@@ -1,14 +1,17 @@
 # Build script for libtool
 
-do_companion_tools_libtool_get() {
+do_companion_tools_libtool_get()
+{
     CT_Fetch LIBTOOL
 }
 
-do_companion_tools_libtool_extract() {
+do_companion_tools_libtool_extract()
+{
     CT_ExtractPatch LIBTOOL
 }
 
-do_companion_tools_libtool_for_build() {
+do_companion_tools_libtool_for_build()
+{
     CT_DoStep INFO "Installing libtool for build"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libtool-build"
     do_libtool_backend host=${CT_BUILD} prefix="${CT_BUILD_COMPTOOLS_DIR}"
@@ -16,7 +19,8 @@ do_companion_tools_libtool_for_build() {
     CT_EndStep
 }
 
-do_companion_tools_libtool_for_host() {
+do_companion_tools_libtool_for_host()
+{
     CT_DoStep INFO "Installing libtool for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libtool-host"
     do_libtool_backend host=${CT_HOST} prefix="${CT_PREFIX_DIR}"
@@ -24,7 +28,8 @@ do_companion_tools_libtool_for_host() {
     CT_EndStep
 }
 
-do_libtool_backend() {
+do_libtool_backend()
+{
     local host
     local prefix
 

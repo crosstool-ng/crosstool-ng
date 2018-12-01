@@ -2,7 +2,8 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_libc_get() {
+glibc_get()
+{
     local date
     local version
 
@@ -13,7 +14,8 @@ do_libc_get() {
     return 0
 }
 
-do_libc_extract() {
+glibc_extract()
+{
     CT_ExtractPatch GLIBC
     if [ "${CT_GLIBC_USE_PORTS_EXTERNAL}" = "y" ]; then
         CT_ExtractPatch GLIBC_PORTS
@@ -29,27 +31,26 @@ do_libc_extract() {
 }
 
 # Build and install headers and start files
-do_libc_start_files() {
+glibc_start_files()
+{
     # Start files and Headers should be configured the same way as the
     # final libc, but built and installed differently.
-    do_libc_backend libc_mode=startfiles
+    glibc_backend libc_mode=startfiles
 }
 
 # This function builds and install the full C library
-do_libc() {
-    do_libc_backend libc_mode=final
-}
-
-do_libc_post_cc() {
-    :
+glibc_main()
+{
+    glibc_backend libc_mode=final
 }
 
 # This backend builds the C library once for each multilib
 # variant the compiler gives us
-# Usage: do_libc_backend param=value [...]
+# Usage: glibc_backend param=value [...]
 #   Parameter           : Definition                            : Type      : Default
 #   libc_mode           : 'startfiles' or 'final'               : string    : (none)
-do_libc_backend() {
+glibc_backend()
+{
     local libc_mode
     local arg
 
@@ -70,17 +71,18 @@ do_libc_backend() {
     esac
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs do_libc_backend_once multilib libc_mode="${libc_mode}"
+    CT_IterateMultilibs glibc_backend_once multilib libc_mode="${libc_mode}"
     CT_Popd
     CT_EndStep
 }
 
 # This backend builds the C library once
-# Usage: do_libc_backend_once param=value [...]
+# Usage: glibc_backend_once param=value [...]
 #   Parameter           : Definition                            : Type
 #   libc_mode           : 'startfiles' or 'final'               : string    : (empty)
 #   multi_*             : as defined in CT_IterateMultilibs     : (varies)  :
-do_libc_backend_once() {
+glibc_backend_once()
+{
     local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count multi_target
     local build_cflags build_cppflags build_ldflags
     local startfiles_dir
@@ -136,7 +138,7 @@ do_libc_backend_once() {
     # values, as they CT_GLIBC_EXTRA_CONFIG_ARRAY is passed after
     # extra_config
 
-    extra_config+=("$(do_libc_min_kernel_config)")
+    extra_config+=("$(glibc_min_kernel_config)")
 
     case "${CT_THREADS}" in
         nptl)           extra_config+=("--with-__thread" "--with-tls");;
@@ -165,9 +167,9 @@ do_libc_backend_once() {
         extra_config+=("--enable-oldest-abi=${CT_GLIBC_OLDEST_ABI}")
     fi
 
-    case "$(do_libc_add_ons_list ,)" in
+    case "$(glibc_add_ons_list ,)" in
         "") extra_config+=("--enable-add-ons=no");;
-        *)  extra_config+=("--enable-add-ons=$(do_libc_add_ons_list ,)");;
+        *)  extra_config+=("--enable-add-ons=$(glibc_add_ons_list ,)");;
     esac
 
     [ "${CT_GLIBC_ENABLE_WERROR}" != "y" ] && extra_config+=("--disable-werror")
@@ -241,7 +243,7 @@ do_libc_backend_once() {
     # Run explicitly through CONFIG_SHELL, or the build breaks badly (loop-of-death)
     # when the shell is not bash... Sigh... :-(
 
-    CT_DoLog DEBUG "Configuring with addons  : '$(do_libc_add_ons_list ,)'"
+    CT_DoLog DEBUG "Configuring with addons  : '$(glibc_add_ons_list ,)'"
     CT_DoLog DEBUG "Extra config args passed : '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CFLAGS passed      : '${glibc_cflags}'"
     CT_DoLog DEBUG "Placing startfiles into  : '${startfiles_dir}'"
@@ -402,7 +404,7 @@ do_libc_backend_once() {
         fi
 
         if [ "${CT_GLIBC_LOCALES}" = "y" -a "${multi_index}" = "${multi_count}" ]; then
-            do_libc_locales
+            glibc_locales
         fi
     fi # libc_mode = final
 
@@ -410,7 +412,8 @@ do_libc_backend_once() {
 }
 
 # Build up the addons list, separated with $1
-do_libc_add_ons_list() {
+glibc_add_ons_list()
+{
     local sep="$1"
     local addons_list
 
@@ -427,7 +430,8 @@ do_libc_add_ons_list() {
 }
 
 # Compute up the minimum supported Linux kernel version
-do_libc_min_kernel_config() {
+glibc_min_kernel_config()
+{
     local min_kernel_config
 
     case "${CT_GLIBC_EXTRA_CONFIG_ARRAY[*]}" in
@@ -462,7 +466,8 @@ do_libc_min_kernel_config() {
 }
 
 # Build and install the libc locales
-do_libc_locales() {
+glibc_locales()
+{
     local src_dir="${CT_SRC_DIR}/glibc"
     local -a extra_config
     local glibc_cflags

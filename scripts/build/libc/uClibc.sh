@@ -2,30 +2,23 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-# Download uClibc
-do_libc_get() {
-    CT_Fetch UCLIBC
-}
-
-# Extract uClibc
-do_libc_extract() {
-    CT_ExtractPatch UCLIBC
-}
-
 # Build and install headers and start files
-do_libc_start_files() {
+uclibc_start_files()
+{
     # Start files and Headers should be configured the same way as the
     # final libc, but built and installed differently.
-    do_libc_backend libc_mode=startfiles
+    uclibc_backend libc_mode=startfiles
 }
 
 # This function builds and install the full C library
-do_libc() {
-    do_libc_backend libc_mode=final
+uclibc_main()
+{
+    uclibc_backend libc_mode=final
 }
 
 # Common backend for 1st and 2nd passes.
-do_libc_backend() {
+uclibc_backend()
+{
     local libc_mode
     local arg
 
@@ -40,13 +33,14 @@ do_libc_backend() {
     esac
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs do_libc_backend_once multilib libc_mode="${libc_mode}"
+    CT_IterateMultilibs uclibc_backend_once multilib libc_mode="${libc_mode}"
     CT_Popd
     CT_EndStep
 }
 
 # Common backend for 1st and 2nd passes, once per multilib.
-do_libc_backend_once() {
+uclibc_backend_once()
+{
     local libc_mode
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
     local multilib_dir startfiles_dir
@@ -215,7 +209,8 @@ do_libc_backend_once() {
 # Initialises the .config file to sensible values
 # $1: original file
 # $2: modified file
-manage_uClibc_config() {
+manage_uClibc_config()
+{
     src="$1"
     dst="$2"
     flags="$3"
@@ -408,7 +403,8 @@ manage_uClibc_config() {
     CT_DoArchUClibcCflags "${dst}" "${flags}"
 }
 
-do_libc_post_cc() {
+uclibc_post_cc()
+{
     # uClibc and GCC disagree where the dynamic linker lives. uClibc always
     # places it in the MULTILIB_DIR, while gcc does that for *some* variants
     # and expects it in /lib for the other. So, create a symlink from lib

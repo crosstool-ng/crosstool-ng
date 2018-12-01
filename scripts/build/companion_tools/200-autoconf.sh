@@ -1,14 +1,17 @@
 # Build script for autoconf
 
-do_companion_tools_autoconf_get() {
+do_companion_tools_autoconf_get()
+{
     CT_Fetch AUTOCONF
 }
 
-do_companion_tools_autoconf_extract() {
+do_companion_tools_autoconf_extract()
+{
     CT_ExtractPatch AUTOCONF
 }
 
-do_companion_tools_autoconf_for_build() {
+do_companion_tools_autoconf_for_build()
+{
     CT_DoStep INFO "Installing autoconf for build"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-autoconf-build"
     do_autoconf_backend host=${CT_BUILD} prefix="${CT_BUILD_COMPTOOLS_DIR}"
@@ -16,7 +19,8 @@ do_companion_tools_autoconf_for_build() {
     CT_EndStep
 }
 
-do_companion_tools_autoconf_for_host() {
+do_companion_tools_autoconf_for_host()
+{
     CT_DoStep INFO "Installing autoconf for host"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-autoconf-host"
     do_autoconf_backend host=${CT_HOST} prefix="${CT_PREFIX_DIR}"
@@ -24,7 +28,8 @@ do_companion_tools_autoconf_for_host() {
     CT_EndStep
 }
 
-do_autoconf_backend() {
+do_autoconf_backend()
+{
     local host
     local prefix
 

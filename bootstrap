@@ -22,6 +22,19 @@ fi
 #     Iterate over NAME entities (the iterator must be set up first
 #     using the set_iter function), processing the lines until the matching
 #     #!end-foreach line.
+#
+# Also, several forms of @@VAR@@ expansions are possible:
+#
+# @@VAR@@
+#     Just the value of the variable VAR
+# @@VAR|@@
+#     The value of VAR made into Kconfig-name: all non-alphanumeric character
+#     replaced with underscores; upper-cased.
+# @@VAR?val@@
+#     If VAR is non-empty, insert value "val". Otherwise, insert nothing.
+# @@*ITER@@
+#     Expands to a space separated list of values for the iterator ITER.
+#     Postprocess operations, if any, are applied to each value.
 
 declare -A info
 
@@ -183,7 +196,8 @@ run_lines()
 {
     local start="${1}"
     local end="${2}"
-    local l lnext s s1 v vp pp p val
+    local l lnext s s1 v vn vp pp p val val0 is_iter pp_saved
+    local -a vpl
 
     debug "Running lines ${start}..${end}"
     l=${start}
@@ -199,33 +213,53 @@ run_lines()
                 *@@*@@*)
                     v="${s#*@@}"
                     v="${v%%@@*}"
-                    # $v now includes variable name + any postprocessing
-                    vp="${v%%[|?]*}"
-                    pp="${v#${vp}}"
-                    # $vp is name of the variable proper, $pp is any postprocessing
-                    if [ "${info[${vp}]+set}" != "set" ]; then
-                        error "${template}:${l}: reference to undefined variable '${vp}'"
-                    fi
+                    # $v now has the complete reference. First check if it is cached already.
                     if [ "${info[${v}]+set}" != "set" ]; then
-                        # We know the base variable, need to cache postprocessed value
-                        val="${info[${vp}]}"
-                        # Apply postprocessing(s)
-                        while [ -n "${pp}" ]; do
-                            case "${pp}" in
-                                "|"*)
-                                    # Kconfigize
-                                    pp="${pp#|}"
-                                    val=${val//[^0-9A-Za-z_]/_}
-                                    val=${val^^}
-                                    ;;
-                                "?"*)
-                                    pp="${pp#?}"
-                                    p="${pp%%[|?]*}"
-                                    pp="${pp#${p}}"
-                                    val="${val:+${p}}"
-                                    ;;
-                            esac
+                        case "${v}" in
+                            "*"*) is_iter=y; vn="${v#\*}";;
+                            *) is_iter=n; vn="${v}";;
+                        esac
+                        # $vn is now the reference without the preceding iterator
+                        vp="${vn%%[|?]*}"
+                        pp="${vn#${vp}}"
+                        # $vp is name of the variable proper, $pp is any postprocessing
+                        if [ "${is_iter}" = "n" ]; then
+                            if [ "${info[${vp}]+set}" != "set" ]; then
+                                error "${template}:${l}: reference to undefined variable '${vp}'"
+                            fi
+                            vpl=( "${info[${vp}]}" )
+                        else
+                            if [ "${info[iter_${vp}]+set}" != "set" ]; then
+                                error "${template}:${l}: iterator over '${vp} is not defined"
+                            fi
+                            vpl=( ${info[iter_${vp}]} )
+                        fi
+                        # ${vpl[@]} now is an array of values to be transformed.
+                        val=
+                        pp_saved="${pp}"
+                        for val0 in "${vpl[@]}"; do
+                            debug "val0 [${val0}]"
+                            pp="${pp_saved}"
+                            # Apply postprocessing(s)
+                            while [ -n "${pp}" ]; do
+                                case "${pp}" in
+                                    "|"*)
+                                        # Kconfigize
+                                        pp="${pp#|}"
+                                        val0=${val0//[^0-9A-Za-z_]/_}
+                                        val0=${val0^^}
+                                        ;;
+                                    "?"*)
+                                        pp="${pp#?}"
+                                        p="${pp%%[|?]*}"
+                                        pp="${pp#${p}}"
+                                        val0="${val0:+${p}}"
+                                        ;;
+                                esac
+                            done
+                            val="${val:+${val} }${val0}"
                         done
+                        # Cache for future references.
                         info[${v}]="${val}"
                     fi
                     s1="${s1}${s%%@@*}\${info[${v}]}"

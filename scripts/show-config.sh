@@ -20,32 +20,25 @@ dump_pkgs_desc()
 {
     local category="${1}"
     local field="${2}"
+    local pkgs
     shift 2
     local show_version
-    local tmp
+    local tmp p
 
+    eval "pkgs=\"\${CT_ALL_${category}_CHOICES}\""
     printf "    %-*s :" ${fieldwidth} "${field}"
-    while [ -n "${1}" ]; do
-        eval "tmp=\"\${CT_${category}_${1}}\""
+    for p in ${pkgs}; do
+        # FIXME: multiple choices use category_package; single choice
+        # use category_package for the primary selection and category_package_SHOW
+        # for all other selections enabled by the primary. Cannot unify this syntax
+        # without a really extensive change.
+        eval "tmp=\"\${CT_${category}_${p}}\${CT_${category}_${p}_SHOW}\""
         if [ -n "${tmp}" ]; then
-            CT_GetPkgBuildVersion "${category}" "${1}" show_version
+            CT_GetPkgBuildVersion "${category}" "${p}" show_version
             printf " %s" "${show_version}"
         fi
-        shift
     done
     printf "\n"
-}
-
-# Dump a short package description with a name and version in a format
-# " <name>[-<version>]"
-dump_choice_desc()
-{
-    local category="${1}"
-    local field="${2}"
-    local show_version
-
-    CT_GetChoicePkgBuildVersion "${category}" show_version
-    printf "    %-*s : %s\n" ${fieldwidth} "${field}" "${show_version}"
 }
 
 # Dump a single sample
@@ -88,13 +81,6 @@ dump_single_sample()
                 printf "    %-*s : %s\n" ${fieldwidth} "Host" "${CT_HOST}"
                 ;;
         esac
-        # FIXME get choice/menu names from generated kconfig files as well
-        # FIXME get the list of menu components from generated kconfig files
-        dump_choice_desc KERNEL "OS"
-        dump_pkgs_desc COMP_LIBS "Companion libs" GMP MPFR MPC ISL CLOOG LIBELF EXPAT NCURSES \
-                LIBICONV GETTEXT
-        dump_choice_desc BINUTILS "Binutils"
-        dump_choice_desc CC "Compiler"
         printf "    %-*s : %s" ${fieldwidth} "Languages" "C"
         [ "${CT_CC_LANG_CXX}" = "y"     ] && printf ",C++"
         [ "${CT_CC_LANG_FORTRAN}" = "y" ] && printf ",Fortran"
@@ -106,9 +92,13 @@ dump_single_sample()
         [ -n "${CT_CC_LANG_OTHERS}"     ] && printf ",${CT_CC_LANG_OTHERS}"
         printf "\n"
 
-        dump_choice_desc LIBC "C library"
-        dump_pkgs_desc DEBUG "Debug tools" DUMA GDB LTRACE STRACE
-        dump_pkgs_desc COMP_TOOLS "Companion tools" AUTOCONF AUTOMAKE LIBTOOL M4 MAKE
+        dump_pkgs_desc KERNEL "OS"
+        dump_pkgs_desc BINUTILS "Binutils"
+        dump_pkgs_desc CC "Compiler"
+        dump_pkgs_desc LIBC "C library"
+        dump_pkgs_desc DEBUG "Debug tools"
+        dump_pkgs_desc COMP_LIBS "Companion libs"
+        dump_pkgs_desc COMP_TOOLS "Companion tools"
     fi
 }
 

@@ -217,6 +217,9 @@ CTNG_PROG_VERSION([M4],
 
 AC_SUBST([kconfig_options])
 
+AC_CHECK_PROGS([dtc], [dtc])
+CTNG_SET_KCONFIG_OPTION([dtc])
+
 AC_CHECK_PROGS([cvs], [cvs])
 CTNG_SET_KCONFIG_OPTION([cvs])
 

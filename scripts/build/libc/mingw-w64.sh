@@ -1,22 +1,15 @@
 # Copyright 2012 Yann Diorcet
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-do_libc_get() {
-    CT_Fetch MINGW_W64
-}
-
-do_libc_extract() {
-    CT_ExtractPatch MINGW_W64
-}
-
-do_set_mingw_install_prefix(){
+mingw_w64_set_install_prefix()
+{
     MINGW_INSTALL_PREFIX=/usr/${CT_TARGET}
     if [[ ${CT_MINGW_W64_VERSION} == 2* ]]; then
         MINGW_INSTALL_PREFIX=/usr
     fi
 }
 
-do_libc_start_files() {
+mingw_w64_start_files() {
     local -a sdk_opts
 
     CT_DoStep INFO "Installing C library headers"
@@ -36,7 +29,7 @@ do_libc_start_files() {
 
     CT_DoLog EXTRA "Configuring Headers"
 
-    do_set_mingw_install_prefix
+    mingw_w64_set_install_prefix
     CT_DoExecLog CFG        \
     ${CONFIG_SHELL} \
     "${CT_SRC_DIR}/mingw-w64/mingw-w64-headers/configure" \
@@ -96,7 +89,7 @@ do_mingw_tools()
             --program-prefix=${CT_TARGET}- \
             --prefix="${CT_PREFIX_DIR}"
 
-        # mingw-w64 has issues with parallel builds, see do_libc
+        # mingw-w64 has issues with parallel builds, see mingw_w64_main
         CT_DoLog EXTRA "Building ${f}"
         CT_DoExecLog ALL make
         CT_DoLog EXTRA "Installing ${f}"
@@ -154,7 +147,7 @@ do_mingw_pthreads()
         --build=${CT_BUILD} \
         --host=${multi_target}
 
-    # mingw-w64 has issues with parallel builds, see do_libc
+    # mingw-w64 has issues with parallel builds, see mingw_w64_main
     CT_DoLog EXTRA "Building mingw-w64-winpthreads"
     CT_DoExecLog ALL make
 
@@ -179,7 +172,7 @@ do_mingw_pthreads()
     CT_EndStep
 }
 
-do_libc()
+mingw_w64_main()
 {
     # Used when iterating over libwinpthread
     local default_libprefix
@@ -192,7 +185,7 @@ do_libc()
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-mingw-w64-crt"
 
-    do_set_mingw_install_prefix
+    mingw_w64_set_install_prefix
     CT_DoExecLog CFG \
     ${CONFIG_SHELL} \
     "${CT_SRC_DIR}/mingw-w64/mingw-w64-crt/configure" \
@@ -228,6 +221,6 @@ do_libc()
     fi
 }
 
-do_libc_post_cc() {
+mingw_w64_post_cc() {
     :
 }
