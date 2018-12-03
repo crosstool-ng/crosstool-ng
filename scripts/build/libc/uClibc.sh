@@ -3,21 +3,21 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 # Build and install headers and start files
-uclibc_start_files()
+uClibc_start_files()
 {
     # Start files and Headers should be configured the same way as the
     # final libc, but built and installed differently.
-    uclibc_backend libc_mode=startfiles
+    uClibc_backend libc_mode=startfiles
 }
 
 # This function builds and install the full C library
-uclibc_main()
+uClibc_main()
 {
-    uclibc_backend libc_mode=final
+    uClibc_backend libc_mode=final
 }
 
 # Common backend for 1st and 2nd passes.
-uclibc_backend()
+uClibc_backend()
 {
     local libc_mode
     local arg
@@ -33,13 +33,13 @@ uclibc_backend()
     esac
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs uclibc_backend_once multilib libc_mode="${libc_mode}"
+    CT_IterateMultilibs uClibc_backend_once multilib libc_mode="${libc_mode}"
     CT_Popd
     CT_EndStep
 }
 
 # Common backend for 1st and 2nd passes, once per multilib.
-uclibc_backend_once()
+uClibc_backend_once()
 {
     local libc_mode
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
@@ -48,16 +48,16 @@ uclibc_backend_once()
     local -a make_args
     local extra_cflags f cfg_cflags cf
     local hdr_install_subdir
-    local uclibc_name
+    local uClibc_name
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
 
     if [ "${CT_UCLIBC_USE_UCLIBC_NG_ORG}" = "y" ]; then
-        uclibc_name="uClibc-ng"
+        uClibc_name="uClibc-ng"
     elif [ "${CT_UCLIBC_USE_UCLIBC_ORG}" = "y" ]; then
-        uclibc_name="uClibc"
+        uClibc_name="uClibc"
     fi
 
     CT_DoStep INFO "Building for multilib ${multi_index}/${multi_count}: '${multi_flags}'"
@@ -94,7 +94,7 @@ uclibc_backend_once()
 
     # Use the default config if the user did not provide one.
     if [ -z "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
-        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/contrib/uClibc-defconfigs/${uclibc_name}.config"
+        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/contrib/uClibc-defconfigs/${uClibc_name}.config"
     fi
 
     manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config "${multi_flags}"
@@ -403,7 +403,7 @@ manage_uClibc_config()
     CT_DoArchUClibcCflags "${dst}" "${flags}"
 }
 
-uclibc_post_cc()
+uClibc_post_cc()
 {
     # uClibc and GCC disagree where the dynamic linker lives. uClibc always
     # places it in the MULTILIB_DIR, while gcc does that for *some* variants

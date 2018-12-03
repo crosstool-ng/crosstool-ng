@@ -45,7 +45,7 @@ moxiebox_main()
     CT_DoExecLog ALL cp -v "${CT_LIB_DIR}/packages/moxiebox/"sha*.[ch] ./
     CT_DoExecLog ALL "${CT_HOST}-gcc" -c sha256_wrap.c -O2 -Wall
     CT_DoExecLog ALL "${CT_HOST}-ar" cru libcrypto.a sha256_wrap.o
-    CT_Popd 
+    CT_Popd
 
     # Moxiebox includes a VM which we're building for the
     # host machine.
