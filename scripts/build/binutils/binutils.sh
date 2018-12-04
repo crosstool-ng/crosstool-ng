@@ -153,6 +153,11 @@ do_binutils_backend() {
     if [ "${CT_BINUTILS_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugins )
     fi
+    if [ "${CT_BINUTILES_RELRO}" = "y" ]; then
+        extra_config+=( --enable-relro )
+    elif [ "${CT_BINUTILS_RELRO}" != "m" ]; then
+        extra_config+=( --disable-relro )
+    fi
     if [ "${CT_BINUTILS_HAS_PKGVERSION_BUGURL}" = "y" ]; then
         [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
