@@ -10,7 +10,11 @@ CT_DoArchTupleValues() {
         arch="${CT_ARCH_ARCH}"
         [ -z "${arch}" ] && arch="${CT_ARCH_TUNE}"
         case "${arch}" in
-            "")                           CT_TARGET_ARCH=i386;;
+            "")
+                CT_DoLog WARN "Architecture level is not specified for 32-bit x86; defaulting to i386."
+                CT_DoLog WARN "This may not be supported by the C library."
+                CT_TARGET_ARCH=i386
+            ;;
             i386|i486|i586|i686)          CT_TARGET_ARCH="${arch}";;
             winchip*)                     CT_TARGET_ARCH=i486;;
             pentium|pentium-mmx|c3*)      CT_TARGET_ARCH=i586;;
