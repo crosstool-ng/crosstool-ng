@@ -176,6 +176,10 @@ glibc_backend_once()
     [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
     [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
 
+    if [ -n "${CT_GLIBC_SSP}" ]; then
+        extra_config+=("--enable-stack-protector=${CT_GLIBC_SSP}")
+    fi
+
     touch config.cache
 
     # Hide host C++ binary from configure

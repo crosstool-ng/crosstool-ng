@@ -94,7 +94,7 @@ uClibc_backend_once()
 
     # Use the default config if the user did not provide one.
     if [ -z "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
-        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/contrib/uClibc-defconfigs/${uClibc_name}.config"
+        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/packages/${uClibc_name}/config"
     fi
 
     manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config "${multi_flags}"
@@ -324,11 +324,14 @@ manage_uClibc_config()
     fi
 
     # Stack Smash Protection (SSP)
-    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
+    if [ "${CT_LIBC_UCLIBC_HAS_SSP}" = "y" ]; then
         CT_KconfigEnableOption "UCLIBC_HAS_SSP" "${dst}"
-        CT_KconfigEnableOption "UCLIBC_BUILD_SSP" "${dst}"
     else
         CT_KconfigDisableOption "UCLIBC_HAS_SSP" "${dst}"
+    fi
+    if [ "${CT_LIBC_UCLIBC_BUILD_SSP}" = "y" ]; then
+        CT_KconfigEnableOption "UCLIBC_BUILD_SSP" "${dst}"
+    else
         CT_KconfigDisableOption "UCLIBC_BUILD_SSP" "${dst}"
     fi
 
