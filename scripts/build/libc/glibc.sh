@@ -185,6 +185,14 @@ glibc_backend_once()
     # Hide host C++ binary from configure
     echo "ac_cv_prog_ac_ct_CXX=${CT_TARGET}-g++" >>config.cache
 
+    # Until it became explicitly controllable with --enable-stack-protector=...,
+    # configure detected GCC support for -fstack-protector{,-strong} and
+    # tried to enable it in some parts of glibc - which then failed to build.
+    if [ -z "${CT_GLIBC_BUILD_SSP}" ]; then
+        echo "libc_cv_ssp=no" >>config.cache
+        echo "libc_cv_ssp_strong=no" >>config.cache
+    fi
+
     if [ "${CT_GLIBC_FORCE_UNWIND}" = "y" ]; then
         echo "libc_cv_forced_unwind=yes" >>config.cache
         echo "libc_cv_c_cleanup=yes" >>config.cache
