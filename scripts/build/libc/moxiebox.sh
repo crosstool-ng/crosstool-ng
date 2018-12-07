@@ -23,14 +23,6 @@ moxiebox_main()
 {
     newlib_main
 
-    # newlib installs the linker script, moxiebox.ld, to the
-    # PREFIX/moxie-unknown-moxiebox/lib, but ld searches PREFIX/lib when
-    # configured for that target. ld does find scripts in PREFIX/TARGET/lib
-    # for other targets, so this seems to be moxie architecture's quirk.
-    # Move it to PREFIX/lib.
-    # TBD CT_DoExecLog ALL mv -v "${CT_SYSROOT_DIR}/lib/"*.ld "${CT_PREFIX_DIR}/lib"
-    # TBD what about moxie-*-elf? Does it need the same?
-
     CT_DoStep INFO "Installing moxiebox runtime and VM"
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-moxiebox"
