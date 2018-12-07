@@ -1189,11 +1189,14 @@ CT_DoBuildTargetTuple() {
     # Instead, save them into a different variable here. Then, after the first
     # core pass, we'll know which of them vary with multilibs (i.e. must be
     # filtered out).
-    if [ "${CT_MULTILIB}" = "y" ]; then
+    if [ -n "${CT_MULTILIB}" ]; then
         CT_ARCH_TARGET_CFLAGS_MULTILIB="${CT_ARCH_TARGET_CFLAGS}"
         CT_ARCH_TARGET_CFLAGS=
         CT_ARCH_TARGET_LDFLAGS_MULTILIB="${CT_ARCH_TARGET_LDFLAGS}"
         CT_ARCH_TARGET_LDFLAGS=
+    else
+        CT_ALL_TARGET_CFLAGS="${CT_ARCH_TARGET_CFLAGS} ${CT_TARGET_CFLAGS}"
+        CT_ALL_TARGET_LDFLAGS="${CT_ARCH_TARGET_LDFLAGS} ${CT_TARGET_LDFLAGS}"
     fi
 }
 
@@ -1990,7 +1993,7 @@ CT_PackageRun()
             src_release mirrors archive_filename archive_dirname archive_formats signature_format \
             src_devel devel_vcs devel_url devel_branch devel_revision devel_subdir devel_bootstrap \
             src_custom custom_location patch_order; do
-        CT_DoLog DEBUG "Package iterator: set ${v}=\${CT_${use}_${v^^}}"
+        eval "CT_DoLog DEBUG \"Package iterator: set ${v}='\${CT_${use}_${v^^}}'\""
         eval "local ${v}=\${CT_${use}_${v^^}}"
     done
 
@@ -2015,7 +2018,7 @@ CT_PackageRun()
     for v in devel_branch devel_revision basename src_dir pkg_dir; do
         eval "[ \"\${${v}}\" != \"\${CT_${use}_${v^^}}\" ] || continue"
         eval "CT_${use}_${v^^}=\${${v}}"
-        eval "CT_DoLog DEBUG \"Override CT_${use}_${v^^}=\${CT_${use}_${v^^}}\""
+        eval "CT_DoLog DEBUG \"Package iterator: override CT_${use}_${v^^}=\${CT_${use}_${v^^}}\""
     done
 }
 
