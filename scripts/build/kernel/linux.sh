@@ -2,10 +2,9 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-CT_DoKernelTupleValues() {
-    if [ "${CT_ARCH_USE_MMU}" = "y" ]; then
-        CT_TARGET_KERNEL="linux"
-    else
+CT_DoKernelTupleValues()
+{
+    if [ -z "${CT_ARCH_USE_MMU}" ]; then
         # Some no-mmu linux targets requires a -uclinux tuple (like m68k/cf),
         # while others must have a -linux tuple.  Other targets
         # should be added here when someone starts to care about them.
@@ -18,7 +17,8 @@ CT_DoKernelTupleValues() {
 }
 
 # Download the kernel
-do_kernel_get() {
+do_kernel_get()
+{
     CT_Fetch LINUX
 }
 
@@ -42,7 +42,8 @@ do_kernel_extract()
 }
 
 # Install kernel headers using headers_install from kernel sources.
-do_kernel_headers() {
+do_kernel_headers()
+{
     local kernel_path
     local kernel_arch
 
