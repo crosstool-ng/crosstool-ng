@@ -713,6 +713,13 @@ do_gcc_core_backend() {
 
     cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-${CT_CC}" \
         host="${host}"
+
+    # If binutils want the LTO plugin, point them to it
+    if [ -d "${CT_PREFIX_DIR}/lib/bfd-plugins" -a "${build_step}" = "gcc_host" ]; then
+        local gcc_version=$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER" )
+        CT_DoExecLog ALL ln -sfv "../../libexec/gcc/${CT_TARGET}/${gcc_version}/liblto_plugin.so" \
+                "${CT_PREFIX_DIR}/lib/bfd-plugins/liblto_plugin.so"
+    fi
 }
 
 #------------------------------------------------------------------------------
@@ -1186,4 +1193,11 @@ do_gcc_backend() {
 
     cc_gcc_multilib_housekeeping cc="${prefix}/bin/${CT_TARGET}-${CT_CC}" \
         host="${host}"
+
+    # If binutils want the LTO plugin, point them to it
+    if [ -d "${CT_PREFIX_DIR}/lib/bfd-plugins" -a "${build_step}" = "gcc_host" ]; then
+        local gcc_version=$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER" )
+        CT_DoExecLog ALL ln -sfv "../../libexec/gcc/${CT_TARGET}/${gcc_version}/liblto_plugin.so" \
+                "${CT_PREFIX_DIR}/lib/bfd-plugins/liblto_plugin.so"
+    fi
 }
