@@ -1094,18 +1094,18 @@ CT_DoBuildTargetTuple() {
     # Build the default architecture tuple part
     CT_TARGET_ARCH="${CT_ARCH}${CT_ARCH_SUFFIX}"
 
-    # Set defaults for the system part of the tuple. Can be overriden
-    # by architecture-specific values.
+    # Set defaults for the system part of the tuple; only C libraries that
+    # support multiple architectures. Can be overriden by architecture-specific
+    # values.
     case "${CT_LIBC}" in
-        glibc)    CT_TARGET_SYS=gnu;;
-        uClibc)   CT_TARGET_SYS=uclibc;;
-        musl)     CT_TARGET_SYS=musl;;
-        bionic)   CT_TARGET_SYS=android;;
-        none|newlib)
-            CT_TARGET_SYS=elf
-            ;;
+        glibc)       CT_TARGET_SYS=gnu;;
+        uClibc)      CT_TARGET_SYS=uclibc;;
+        musl)        CT_TARGET_SYS=musl;;
+        bionic)      CT_TARGET_SYS=android;;
+        none|newlib) CT_TARGET_SYS=elf;;
         *)
-            CT_TARGET_SYS= # Keep empty for the libraries like mingw
+            # Keep empty for the libraries like mingw or avr-libc
+            CT_TARGET_SYS=
             ;;
     esac
 
@@ -1145,10 +1145,18 @@ CT_DoBuildTargetTuple() {
     CT_DoKernelTupleValues
 
     # Finish the target tuple construction
-    CT_TARGET="${CT_TARGET_ARCH}"
-    CT_TARGET="${CT_TARGET}${CT_TARGET_VENDOR:+-${CT_TARGET_VENDOR}}"
-    CT_TARGET="${CT_TARGET}${CT_TARGET_KERNEL:+-${CT_TARGET_KERNEL}}"
-    CT_TARGET="${CT_TARGET}${CT_TARGET_SYS:+-${CT_TARGET_SYS}}"
+    if [ -z "${CT_OMIT_TARGET_ARCH}" ]; then
+        CT_TARGET="${CT_TARGET_ARCH}"
+    fi
+    if [ -z "${CT_OMIT_TARGET_VENDOR}" -a -n "${CT_TARGET_VENDOR}" ]; then
+        CT_TARGET="${CT_TARGET:+${CT_TARGET}-}${CT_TARGET_VENDOR}"
+    fi
+    if [ -n "${CT_TARGET_KERNEL}" ]; then
+        CT_TARGET="${CT_TARGET:+${CT_TARGET}-}${CT_TARGET_KERNEL}"
+    fi
+    if [ -n "${CT_TARGET_SYS}" ]; then
+        CT_TARGET="${CT_TARGET:+${CT_TARGET}-}${CT_TARGET_SYS}"
+    fi
 
     # Sanity checks
     __sed_alias=""
@@ -1165,6 +1173,12 @@ CT_DoBuildTargetTuple() {
     # Canonicalise it
     if [ "${CT_TARGET_SKIP_CONFIG_SUB}" != "y" ]; then
         CT_TARGET=$(CT_DoConfigSub "${CT_TARGET}")
+
+        if [ -n "${CT_OMIT_TARGET_VENDOR}" ]; then
+            # config.sub always returns a 3- or 4-part tuple, with vendor
+            # always being the 2nd part.
+            CT_TARGET="${CT_TARGET%%-*}-${CT_TARGET#*-*-}"
+        fi
     fi
 
     # Prepare the target CFLAGS
@@ -1316,7 +1330,7 @@ CT_DoSaveState() {
         done | ${sed} 's/^declare /declare -g /'
         echo "builtin unset ${CT_ENVVAR_UNSET}"
     } >"${state_dir}/env.sh"
-    
+
     # Save .config to check it hasn't changed when resuming.
     CT_DoExecLog STATE cp ".config" "${state_dir}/config"
 
@@ -1804,7 +1818,7 @@ CT_Download_cvs()
     fi
 }
 
-# Find the most recent version from Subversion. 
+# Find the most recent version from Subversion.
 CT_GetVersion_svn()
 {
     devel_branch="${devel_branch:-/trunk}"
@@ -1857,7 +1871,7 @@ CT_Download_hg()
     fi
     if [ "${devel_revision}" = "to.be.determined" ]; then
         # Report what we found out (as common message lacks the revision)
-        devel_revision=`hg identify -i` 
+        devel_revision=`hg identify -i`
         unique_id="${devel_revision}"
         CT_DoLog EXTRA "Retrieved revision ${devel_revision}"
     else
@@ -2246,7 +2260,7 @@ CT_DoExtractPatch()
                     done
                 fi
             done
- 
+
             # TBD create meta-package for config.sub/config.guess with replacement script
             if [ "${CT_OVERRIDE_CONFIG_GUESS_SUB}" = "y" ]; then
                 CT_DoLog ALL "Overiding config.guess and config.sub"
