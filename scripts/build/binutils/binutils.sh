@@ -208,6 +208,12 @@ do_binutils_backend() {
     CT_DoLog EXTRA "Installing binutils"
     CT_DoExecLog ALL make install
 
+    if [ "${CT_BINUTILS_PLUGINS}" = "y" ]; then
+        # Create a directory for plugins such as LTO (to be installed by
+        # their providers later)
+        CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/lib/bfd-plugins"
+    fi
+
     if [ "${build_manuals}" = "y" ]; then
         CT_DoLog EXTRA "Building and installing the binutils manuals"
         manuals_for=( gas binutils ld gprof )
