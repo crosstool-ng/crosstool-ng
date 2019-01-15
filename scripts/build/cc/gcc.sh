@@ -765,14 +765,23 @@ do_cc_for_build() {
     CT_EndStep
 }
 
-gcc_movelibs() {
+gcc_movelibs()
+{
     local multi_flags multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_index multi_count
-    local gcc_dir dst_dir
+    local gcc_dir dst_dir canon_root canon_prefix
     local rel
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
+
+    # GCC prints the sysroot in canonicalized form, which may be different if there
+    # is a symlink in the path. Since we need textual match to obtain a relative
+    # subdirectory path, canonicalize the prefix directory. Since GCC's behavior
+    # is not documented and hence may change at any time, canonicalize it too just
+    # for the good measure.
+    canon_root=$( cd "${multi_root}" && pwd -P )
+    canon_prefix=$( cd "${CT_PREFIX_DIR}" && pwd -P )
 
     # Move only files, directories are for other multilibs. We're looking inside
     # GCC's directory structure, thus use unmangled multi_os_dir that GCC reports.
@@ -784,9 +793,9 @@ gcc_movelibs() {
     # Depending on the selected libc, we may or may not have the ${multi_os_dir_gcc}
     # created by libc installation. If we do, use it. If we don't, use ${multi_os_dir}
     # to avoid creating an otherwise empty directory.
-    dst_dir="${multi_root}/lib/${multi_os_dir_gcc}"
+    dst_dir="${canon_root}/lib/${multi_os_dir_gcc}"
     if [ ! -d "${dst_dir}" ]; then
-        dst_dir="${multi_root}/lib/${multi_os_dir}"
+        dst_dir="${canon_root}/lib/${multi_os_dir}"
     fi
     CT_SanitizeVarDir dst_dir gcc_dir
     rel=$( echo "${gcc_dir#${CT_PREFIX_DIR}/}" | sed 's#[^/]\{1,\}#..#g' )
@@ -802,7 +811,7 @@ gcc_movelibs() {
         if [ -f "${gcc_dir}/${f}" ]; then
             CT_DoExecLog ALL mkdir -p "${dst_dir}"
             CT_DoExecLog ALL mv "${gcc_dir}/${f}" "${dst_dir}/${f}"
-            CT_DoExecLog ALL ln -sf "${rel}/${dst_dir#${CT_PREFIX_DIR}/}/${f}" "${gcc_dir}/${f}"
+            CT_DoExecLog ALL ln -sf "${rel}/${dst_dir#${canon_prefix}/}/${f}" "${gcc_dir}/${f}"
         fi
     done
 }
