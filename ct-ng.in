@@ -1,4 +1,5 @@
 #!@MAKE@ -rf
+# vim: set filetype=make :
 # Makefile for crosstool-NG.
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@free.fr>
 
@@ -31,6 +32,10 @@ endif
 
 # This is crosstool-NG version string
 export CT_VERSION:=@PACKAGE_VERSION@
+
+# Export with an empty value: this masks the version detection variable in
+# user-visible configurators, and suppresses a warning from kconfig.
+export CT_VCHECK=
 
 # Download agents used by scripts.mk
 CT_WGET     := @wget@
@@ -93,10 +98,9 @@ FORCE:
 # Top file of crosstool-NG configuration
 export KCONFIG_TOP = $(CT_LIB_DIR)/config/config.in
 
-# We need CONF for savedefconfig in scripts/saveSample.sh
-export CONF  := $(CT_LIBEXEC_DIR)/conf
-MCONF := $(CT_LIBEXEC_DIR)/mconf
-NCONF := $(CT_LIBEXEC_DIR)/nconf
+CONF            := $(CT_LIBEXEC_DIR)/conf
+CONF-menuconfig := $(CT_LIBEXEC_DIR)/mconf
+CONF-nconfig    := $(CT_LIBEXEC_DIR)/nconf
 
 # Used by conf/mconf/nconf to find the .in files
 # TBD needed? We do supply the defconfig name explicitly below
@@ -107,26 +111,26 @@ export srctree=$(CT_LIB_DIR)
 check-config:
 	@[ ! -e .config -o -f .config ] || { echo ".config is not a regular file:"; ls -dl .config; exit 1; } >&2
 
-menuconfig: check-config
+menuconfig nconfig: check-config
 	@$(CT_ECHO) "  CONF  $@"
-	$(SILENT)$(MCONF) $(KCONFIG_TOP)
-
-nconfig: check-config
-	@$(CT_ECHO) "  CONF  $@"
-	$(SILENT)$(NCONF) $(KCONFIG_TOP)
+	$(SILENT)if [ ! -f .config ] || CT_VCHECK=strict $(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config; then \
+		$(CONF-$@) $(KCONFIG_TOP); \
+	else \
+		CT_VCHECK=warning $(CONF-$@) $(KCONFIG_TOP); \
+	fi
 
 oldconfig: .config check-config
 	@$(CT_ECHO) "  CONF  $@"
-	$(SILENT)$(sed) -i -r -f $(CT_LIB_DIR)/scripts/upgrade.sed $<
+	@$(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config
 	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
 
 savedefconfig: .config check-config
 	@$(CT_ECHO) '  GEN   $@'
-	$(SILENT)$(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+	$(SILENT)CT_VCHECK=save $(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
 
 defconfig: check-config
 	@$(CT_ECHO) '  CONF  $@'
-	$(SILENT)$(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+	$(SILENT)CT_VCHECK=save $(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
 
 # Always be silent, the stdout an be >.config
 extractconfig:
