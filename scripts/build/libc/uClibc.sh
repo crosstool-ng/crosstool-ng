@@ -416,4 +416,8 @@ uClibc_post_cc()
     # Moreover, need to do this after the final compiler is built: on targets
     # that use elf2flt, the core compilers cannot find ld when running elf2flt.
     CT_MultilibFixupLDSO
+
+    if [ -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
+        CT_InstallConfigurationFile "$CT_LIBC_UCLIBC_CONFIG_FILE" libc
+    fi
 }
