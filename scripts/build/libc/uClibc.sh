@@ -418,6 +418,6 @@ uClibc_post_cc()
     CT_MultilibFixupLDSO
 
     if [ -n "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
-        CT_InstallConfigurationFile "$CT_LIBC_UCLIBC_CONFIG_FILE" libc
+        CT_InstallConfigurationFile "${CT_LIBC_UCLIBC_CONFIG_FILE}" libc
     fi
 }
