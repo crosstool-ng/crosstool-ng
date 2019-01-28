@@ -21,7 +21,6 @@ CT_UPDATE_SAMPLES := no
 help-config::
 	@echo  '  show-config        - Show a brief overview of current configuration'
 	@echo  '  saveconfig         - Save current config as a preconfigured target'
-	@echo  '  upgradeconfig      - Upgrade config file to current crosstool-NG'
 
 help-samples::
 	@echo  '  list-samples       - Prints the list of all samples (for scripting)'
@@ -94,7 +93,7 @@ list-samples-short: FORCE
 # Check one sample
 PHONY += $(patsubst %,check-%,$(CT_SAMPLES))
 $(patsubst %,check-%,$(CT_SAMPLES)): check-%:
-	@eset -e; xport KCONFIG_CONFIG=$$(pwd)/.config.sample;                          \
+	@set -e; export KCONFIG_CONFIG=$$(pwd)/.config.sample;                          \
 	 CT_NG_SAMPLE=$(call sample_dir,$*)/crosstool.config;                           \
 	 CT_VCHECK=load $(CONF) -s --defconfig=$${CT_NG_SAMPLE} $(KCONFIG_TOP) &>/dev/null;            \
 	 CT_UPGRADECONFIG=yes $(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config.sample;           \
@@ -128,9 +127,6 @@ samples:
 # Save a sample
 saveconfig: .config samples
 	$(SILENT)CT_VCHECK=save CONF=$(CONF) $(bash) $(CT_LIB_DIR)/scripts/saveSample.sh
-
-upgradeconfig: .config
-	$(SILENT)CT_UPGRADECONFIG=yes $(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config
 
 # The 'sample_dir' function prints the directory in which the sample is,
 # searching first in local samples, then in global samples

@@ -18,15 +18,24 @@ config VCHECK
     string
     option env="CT_VCHECK"
 
+# Kconfig's idiosynchrasy: it does not output the config settings declared with 'option env'
+# to the generated .config file. Must use one extra level of indirection.
+config CONFIG_VERSION_ENV
+    string
+    option env="CT_CONFIG_VERSION_CURRENT"
+
+# Up-to-date version of the configuration file. If saving a defconfig, choose a default that
+# is guaranteed not to match - so that kconfig saves the value to .config.
 config CONFIG_VERSION_CURRENT
     string
-    default -1 if VCHECK = "save"
-    default 1
+    default CONFIG_VERSION_ENV
 
+# Version used by the config being loaded (e.g. as part of 'oldconfig' or recalling
+# a defconfig. Make it changeable while loading/saving to force writing it to defconfig.
 config CONFIG_VERSION
     string
     prompt "** make it changeable **" if VCHECK = "load" || VCHECK = "save"
-    default 0 if VCHECK = "load" || VCHECK = "save"
+    default "0" if VCHECK = "load" || VCHECK = "save"
     default CONFIG_VERSION_CURRENT
 
 if VCHECK = "warning"
