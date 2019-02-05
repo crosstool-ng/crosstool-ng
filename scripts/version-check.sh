@@ -132,7 +132,7 @@ upgrade_v0()
     CT_LIBC_avr_libc|CT_LIBC_glibc|CT_LIBC_musl|CT_LIBC_newlib|CT_LIBC_none|\
     CT_LIBC_uClibc)
         # Renamed to upper-case
-        opt=${opt^^}
+        replace ${opt^^}
         ;;
     CT_ARCH_XTENSA_CUSTOM_NAME)
         replace CT_OVERLAY_NAME
