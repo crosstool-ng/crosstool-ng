@@ -107,6 +107,34 @@ run_sample()
 }
 
 mkdir -p logs
+
+# Non-sample-specific tests
+
+# Verify that no options have been retired since the stored known configuration.
+current_tc="options-set"
+exec {LOG}>"logs/global.log"
+curver=`sed -n 's,export CT_CONFIG_VERSION_CURRENT=,,p' ${CTNG}`
+if [ -z "${curver}" ]; then
+    echo "Cannot determine config version" >&${LOG}
+    fail
+elif [ ! -r "kconfig-list/${curver}" ]; then
+    echo "No saved kconfig data for version ${curver}" >&${LOG}
+    fail
+else
+    grep -hr '^\(menu\)\?config ' "${dirs[@]}" ../../config | \
+        grep -v '^Binary ' | \
+        sed 's,^.* ,CT_,' | LANG=C sort | uniq > logs/current-kconfig-list
+    diff -U 10000 "kconfig-list/${curver}" logs/current-kconfig-list | \
+        grep '^-CT_' > logs/current-kconfig-retired || true
+    nretired=`wc -l logs/current-kconfig-retired | sed 's/ .*//'`
+    echo "${nretired} kconfig options have been removed without bumping the config version" >&${LOG}
+    if [ "${nretired}" != "0" ]; then
+        fail
+    fi
+fi
+finish
+exec {LOG}>&-
+
 for i in samples/*.config; do
     current_tc=${i#samples/}
     current_tc=${current_tc%.config}
