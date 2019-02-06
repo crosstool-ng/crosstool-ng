@@ -99,6 +99,9 @@ run_sample()
         echo "Variable ${o} not present" >&${LOG}
         fail
     done
+    mv .config "logs/${current_tc}.config"
+    mv .config.before-olddefconfig "logs/${current_tc}.config.before-olddefconfig"
+    rm -rf .config.before-upgrade
     exec {LOG}>&-
     finish
 }

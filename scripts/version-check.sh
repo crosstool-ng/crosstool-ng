@@ -112,7 +112,8 @@ select_linaro()
 
 
 ### Per-version upgrade drivers. Called with ${opt} and ${val} set,
-### may modify these variables
+### may modify these variables.
+### FIXME: perhaps, split these functions into per-version files in scripts/upgrade/{0,1,...}
 
 # Upgrade from version 0 (which is 1.23, as released) to version 1
 # (current state of master as of 2019/01/20). Upgrades in the interim
@@ -233,10 +234,12 @@ upgrade_v0()
         replace CT_NEWLIB_CUSTOM_LOCATION
         ;;
     CT_LIBC_UCLIBC_CUSTOM)
-        if [ "${CT_LIBC_UCLIBC_CUSTOM_UCLIBC}" = "y" ]; then
-            replace CT_UCLIBC_SRC_CUSTOM
-        else
-            replace CT_UCLIBC_NG_SRC_CUSTOM
+        if is_set; then
+            if [ "${CT_LIBC_UCLIBC_CUSTOM_UCLIBC}" = "y" ]; then
+                replace CT_UCLIBC_USE_UCLIBC_ORG
+            else
+                replace CT_UCLIBC_USE_UCLIBC_NG_ORG
+            fi
         fi
         ;;
     CT_LIBC_UCLIBC_CUSTOM_UCLIBC)
@@ -337,7 +340,7 @@ upgrade_v0()
     CT_GDB_V_7_8|CT_GDB_V_7_8_1)    replace CT_GDB_V_7_8_2;;
     CT_GDB_V_7_8_2)                 replacement_for CT_GDB_V_7_8 CT_GDB_V_7_8_1;;
     CT_GDB_V_7_9)                   replace CT_GDB_V_7_9_1;;
-    CT_GDB_V_7_10)                  replace CT_CT_GDB_V_7_10_1;;
+    CT_GDB_V_7_10)                  replace CT_GDB_V_7_10_1;;
     CT_GDB_V_linaro_7_3)            select_linaro GDB; replace CT_GDB_LINARO_V_7_3_2011_12;;
     CT_GDB_V_linaro_7_4)            select_linaro GDB; replace CT_GDB_LINARO_V_7_4_2012_06;;
     CT_GDB_V_linaro_7_5)            select_linaro GDB; replace CT_GDB_LINARO_V_7_5_2012_12;;
@@ -383,7 +386,7 @@ upgrade_v0()
     CT_LIBC_NEWLIB_LINARO_V_2_2_0)  select_linaro NEWLIB; replace CT_NEWLIB_LINARO_V_2_2_0_2015;;
     CT_LIBELF_V_0_8_12)             replace CT_LIBELF_V_0_8_13;;
     CT_LIBELF_V_0_8_13)             replacement_for CT_LIBELF_V_0_8_12;;
-    CT_M4_V_1_4_13|CT_M4_V_1_4_17)  replace CT_CT_M4_V_1_4_18;;
+    CT_M4_V_1_4_13|CT_M4_V_1_4_17)  replace CT_M4_V_1_4_18;;
     CT_M4_V_1_4_18)                 replacement_for CT_M4_V_1_4_13 CT_M4_V_1_4_17;;
     CT_MPC_V_0_8_1)                 replace CT_MPC_V_0_8_2;;
     CT_MPC_V_0_8_2)                 replacement_for CT_MPC_V_0_8_1;;
@@ -402,11 +405,15 @@ upgrade_v0()
                                     replace CT_STRACE_V_4_5_20;;
     CT_STRACE_V_4_5_20)             replacement_for CT_STRACE_V_4_5_18 CT_STRACE_V_4_5_19;;
     CT_LIBC_UCLIBC_NG_V_1_0_20|CT_LIBC_UCLIBC_NG_V_1_0_21|CT_LIBC_UCLIBC_NG_V_1_0_22)
-                                    is_set && echo "CT_UCLIBC_USE_UCLIBC_NG_ORG=y"
+                                    if is_set; then
+                                        echo "CT_UCLIBC_USE_UCLIBC_NG_ORG=y"
+                                    fi
                                     replace CT_UCLIBC_NG_V_1_0_25
                                     ;;
     CT_LIBC_UCLIBC_V_0_9_33_2)
-                                    is_set && echo "CT_UCLIBC_USE_UCLIBC_ORG=y"
+                                    if is_set; then
+                                        echo "CT_UCLIBC_USE_UCLIBC_ORG=y"
+                                    fi
                                     replace CT_UCLIBC_V_0_9_33_2
                                     ;;
     CT_WINAPI_V_2_0_7|CT_WINAPI_V_2_0_7|CT_WINAPI_V_2_0_9)
@@ -441,7 +448,6 @@ upgrade_v0()
         unset opt
         ;;
     esac
-
 }
 
 # Upgrade v1 -> v2: several packages had their config options renamed
