@@ -68,13 +68,6 @@ musl_backend_once() {
 
     extra_cflags=( ${multi_flags} )
 
-    # From buildroot:
-    # gcc constant folding bug with weak aliases workaround
-    # See http://www.openwall.com/lists/musl/2014/05/15/1
-    if [ "${CT_GCC_BUG_61144}" = "y" ]; then
-        extra_cflags+=("-fno-toplevel-reorder")
-    fi
-
     if [ "${CT_LIBC_MUSL_DEBUG}" = "y" ]; then
         extra_config+=("--enable-debug")
     fi

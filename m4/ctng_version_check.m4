@@ -18,7 +18,7 @@ AC_DEFUN([CTNG_PROG_VERSION],
          [ac_cv_path_$1="$$1"
           CTNG_PATH_ABSNAME([ac_cv_path_$1])
           CTNG_MSG_LOG_ENVVAR([ac_cv_path_$1])
-          ver=$($ac_cv_path_$1 --version 2>/dev/null)
+          ver=$(eval $ac_cv_path_$1 --version 2>/dev/null)
           CTNG_MSG_LOG([looking for '[$5]' regexp in])
           CTNG_MSG_LOG_ENVVAR([ver], [version info for $ac_cv_path_$1])
           ver=$(AS_ECHO(["$ver"]) | $EGREP '[$5]')

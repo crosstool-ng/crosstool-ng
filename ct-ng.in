@@ -1,4 +1,5 @@
 #!@MAKE@ -rf
+# vim: set filetype=make noet :
 # Makefile for crosstool-NG.
 # Copyright 2006 Yann E. MORIN <yann.morin.1998@free.fr>
 
@@ -31,6 +32,16 @@ endif
 
 # This is crosstool-NG version string
 export CT_VERSION:=@PACKAGE_VERSION@
+
+# Export with an empty value: this masks the version detection variable in
+# user-visible configurators, and suppresses a warning from kconfig.
+export CT_VCHECK=
+
+# Current version of the configuration file. Defined here, because we also
+# need to pass it to the upgrade script - which may receive an input that
+# was not preprocessed by kconfig, and hence have no string for "up-to-date"
+# version.
+export CT_CONFIG_VERSION_CURRENT=2
 
 # Download agents used by scripts.mk
 CT_WGET     := @wget@
@@ -93,40 +104,50 @@ FORCE:
 # Top file of crosstool-NG configuration
 export KCONFIG_TOP = $(CT_LIB_DIR)/config/config.in
 
-# We need CONF for savedefconfig in scripts/saveSample.sh
-export CONF  := $(CT_LIBEXEC_DIR)/conf
-MCONF := $(CT_LIBEXEC_DIR)/mconf
-NCONF := $(CT_LIBEXEC_DIR)/nconf
+CONF            := $(CT_LIBEXEC_DIR)/conf
+CONF-menuconfig := $(CT_LIBEXEC_DIR)/mconf
+CONF-nconfig    := $(CT_LIBEXEC_DIR)/nconf
 
 # Used by conf/mconf/nconf to find the .in files
 # TBD needed? We do supply the defconfig name explicitly below
 export srctree=$(CT_LIB_DIR)
 
-.PHONY: menuconfig nconfig oldconfig savedefconfig defconfig check-config
+.PHONY: menuconfig nconfig oldconfig olddefconfig savedefconfig defconfig check-config extractconfig
+.PHONY: upgradeconfig
 
 check-config:
 	@[ ! -e .config -o -f .config ] || { echo ".config is not a regular file:"; ls -dl .config; exit 1; } >&2
 
-menuconfig: check-config
+menuconfig nconfig: check-config
 	@$(CT_ECHO) "  CONF  $@"
-	$(SILENT)$(MCONF) $(KCONFIG_TOP)
-
-nconfig: check-config
-	@$(CT_ECHO) "  CONF  $@"
-	$(SILENT)$(NCONF) $(KCONFIG_TOP)
+	$(SILENT)if [ ! -f .config ] || CT_VCHECK=strict $(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config; then \
+		$(CONF-$@) $(KCONFIG_TOP); \
+	else \
+		CT_VCHECK=warning $(CONF-$@) $(KCONFIG_TOP); \
+	fi
 
 oldconfig: .config check-config
 	@$(CT_ECHO) "  CONF  $@"
-	$(SILENT)$(sed) -i -r -f $(CT_LIB_DIR)/scripts/upgrade.sed $<
+	@$(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config
 	$(SILENT)$(CONF) --silent$@ $(KCONFIG_TOP)
+
+olddefconfig: .config check-config
+	@$(CT_ECHO) "  CONF  $@"
+	@$(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config
+	$(SILENT)$(CONF) --$@ $(KCONFIG_TOP)
 
 savedefconfig: .config check-config
 	@$(CT_ECHO) '  GEN   $@'
-	$(SILENT)$(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+	$(SILENT)CT_VCHECK=save $(CONF) --savedefconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
 
 defconfig: check-config
 	@$(CT_ECHO) '  CONF  $@'
-	$(SILENT)$(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+	$(SILENT)CT_VCHECK=save $(CONF) --defconfig=$${DEFCONFIG-defconfig} $(KCONFIG_TOP)
+
+upgradeconfig: .config check-config
+	$(SILENT)CT_UPGRADECONFIG=yes $(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config
+	$(SILENT)$(CONF) --olddefconfig $(KCONFIG_TOP)
+	@$(CT_ECHO) "Done. You may now run 'ct-ng menuconfig' to edit the configuration."
 
 # Always be silent, the stdout an be >.config
 extractconfig:
@@ -202,6 +223,7 @@ help-config::
 	@echo  '  menuconfig         - Update current config using a menu based program'
 	@echo  '  nconfig            - Update current config using a menu based program'
 	@echo  '  oldconfig          - Update current config using a provided .config as base'
+	@echo  '  upgradeconfig      - Upgrade config file to current crosstool-NG'
 	@echo  '  extractconfig      - Extract to stdout the configuration items from a'
 	@echo  '                       build.log file piped to stdin'
 	@echo  '  savedefconfig      - Save current config as a mini-defconfig to $${DEFCONFIG}'
