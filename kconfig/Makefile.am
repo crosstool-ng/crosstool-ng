@@ -18,15 +18,16 @@ AM_CPPFLAGS		= -include config.h -DCONFIG_=\"CT_\"
 AM_LIBTOOLFLAGS	= --tag CC
 
 conf_SOURCES    = conf.c zconf.c
+conf_LDADD      = $(LIBINTL)
 
 nconf_SOURCES	= nconf.c nconf.gui.c zconf.c
 nconf_CFLAGS	= $(CURSES_CFLAGS)
-nconf_LDADD		= $(MENU_LIBS) $(PANEL_LIBS) $(CURSES_LIBS)
+nconf_LDADD     = $(MENU_LIBS) $(PANEL_LIBS) $(CURSES_LIBS) $(LIBINTL)
 
 mconf_SOURCES	= mconf.c zconf.c lxdialog/checklist.c lxdialog/inputbox.c \
 				  lxdialog/menubox.c lxdialog/textbox.c lxdialog/util.c \
 				  lxdialog/yesno.c
-mconf_LDADD		= $(CURSES_LIBS)
+mconf_LDADD     = $(CURSES_LIBS) $(LIBINTL)
 
 # automake's support for yacc/lex/gperf is too idiosyncratic. It doesn't
 # support a common pattern of including lex-generated file into yacc, nor does
