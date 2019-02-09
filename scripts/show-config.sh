@@ -72,6 +72,7 @@ dump_single_sample()
     esac
     printf "[%s" "${sample_type}"
     [ -f "${sample_top}/samples/${sample}/broken" ] && printf "B" || printf "."
+    [ "${CT_CONFIG_VERSION}" != "${CT_CONFIG_VERSION_CURRENT}" ] && printf "O" || printf "."
     [ "${CT_EXPERIMENTAL}" = "y" ] && printf "X" || printf "."
     printf "]   %s\n" "${sample}"
     if [ ${verbose} -ne 0 ]; then

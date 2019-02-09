@@ -141,7 +141,6 @@ set_opt_and_val()
 
 # Main upgrade driver. One version at a time, read line by line, interpret
 # the options and replace anything that needs replacing.
-cp "${CFGFILE}" "${CFGFILE}.before-upgrade"
 input="${CFGFILE}"
 while :; do
     # Purge any possibly stale values
@@ -181,7 +180,7 @@ while :; do
             q=
             if set_opt_and_val; then
                 case "${opt}" in
-                    CT_CONFIG_VERSION_CURRENT=*|CT_CONFIG_VERSION=*)
+                    CT_CONFIG_VERSION_CURRENT|CT_CONFIG_VERSION)
                         continue
                         ;;
                 esac
@@ -213,10 +212,3 @@ while :; do
     # keep the versions where there is such a dependency.
 done
 mv "${CFGFILE}.${MY_CONFIG_VERSION_CURRENT}" "${CFGFILE}"
-cp "${CFGFILE}" "${CFGFILE}.before-olddefconfig"
-cat >&2 <<EOF
-
-Done. The original '${CFGFILE}' has been saved as '${CFGFILE}.before-upgrade'.
-Will now run through 'ct-ng olddefconfig'.  The intermediate configuration (after the upgrade script,
-but before running 'ct-ng olddefconfig') has been saved as '${CFGFILE}.before-olddefconfig'.
-EOF
