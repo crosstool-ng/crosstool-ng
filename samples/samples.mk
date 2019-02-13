@@ -43,7 +43,6 @@ help-env::
 PHONY += show-config
 show-config: .config
 	@cp .config .config.sample
-	@$(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config
 	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh -v current
 	@rm -f .config.sample
 
@@ -54,7 +53,6 @@ $(patsubst %,show-%,$(CT_SAMPLES)): show-%:
 	    CT_VCHECK=load \
         $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config.sample
 	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh -v $*
 	@rm -f .config.sample
 
@@ -69,6 +67,7 @@ list-samples: list-samples-pre $(patsubst %,list-%,$(CT_SAMPLES))
 	@echo ' G (Global)      : sample was installed with crosstool-NG'
 	@echo ' X (EXPERIMENTAL): sample may use EXPERIMENTAL features'
 	@echo ' B (BROKEN)      : sample is currently broken'
+	@echo ' O (OBSOLETE)    : sample needs to be upgraded'
 
 PHONY += list-samples-pre
 list-samples-pre: FORCE
@@ -80,7 +79,6 @@ $(patsubst %,list-%,$(CT_SAMPLES)): list-%:
 	    CT_VCHECK=load \
 	    $(CONF) --defconfig=$(call sample_dir,$*)/crosstool.config   \
 	            $(KCONFIG_TOP) >/dev/null
-	@$(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config.sample
 	@$(bash) $(CT_LIB_DIR)/scripts/show-config.sh $*
 	@rm -f .config.sample
 
@@ -90,17 +88,21 @@ list-samples-short: FORCE
 	    printf "%s\n" "$${s}";          \
 	done
 
-# Check one sample
+# Check one sample. Note that we are not loading but rather copying the defconfig;
+# loading it while it contains some removed options would reset them to currently
+# supported default values.
 PHONY += $(patsubst %,check-%,$(CT_SAMPLES))
 $(patsubst %,check-%,$(CT_SAMPLES)): check-%:
 	@set -e; export KCONFIG_CONFIG=$$(pwd)/.config.sample;                          \
 	 CT_NG_SAMPLE=$(call sample_dir,$*)/crosstool.config;                           \
-	 CT_VCHECK=load $(CONF) -s --defconfig=$${CT_NG_SAMPLE} $(KCONFIG_TOP) &>/dev/null;            \
-	 CT_UPGRADECONFIG=yes $(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config.sample;           \
-	 CT_VCHECK=save $(CONF) -s --savedefconfig=$$(pwd)/.defconfig $(KCONFIG_TOP) &>/dev/null;      \
-	 old_sha1=$$( sha1sum "$${CT_NG_SAMPLE}" |cut -d ' ' -f 1 );                    \
-	 new_sha1=$$( sha1sum .defconfig |cut -d ' ' -f 1 );                            \
-	 if [ $${old_sha1} != $${new_sha1} ]; then                                      \
+	 cp $${CT_NG_SAMPLE} .config.sample;                                            \
+	 CT_UPGRADECONFIG=yes                                                           \
+	     $(bash) $(CT_LIB_DIR)/scripts/version-check.sh .config.sample &>/dev/null; \
+	 CT_VCHECK=load $(CONF) -s --olddefconfig                                       \
+	     $(KCONFIG_TOP) &>/dev/null;                                                \
+	 CT_VCHECK=save $(CONF) -s --savedefconfig=$$(pwd)/.defconfig                   \
+	     $(KCONFIG_TOP) &>/dev/null;                                                \
+	 if ! cmp -s "$${CT_NG_SAMPLE}" .defconfig; then                                \
 		if [ $(CT_UPDATE_SAMPLES) = yes ]; then                                     \
 			echo "Updating $*";                                                     \
 			mv .defconfig "$${CT_NG_SAMPLE}";                                       \
