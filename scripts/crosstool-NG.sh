@@ -523,6 +523,9 @@ if [ -z "${CT_RESTART}" ]; then
     CT_LDFLAGS_FOR_BUILD="-L${CT_BUILDTOOLS_PREFIX_DIR}/lib"
     CT_LDFLAGS_FOR_BUILD+=" ${CT_EXTRA_LDFLAGS_FOR_BUILD}"
 
+    if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
+        CT_CFLAGS_FOR_BUILD+=" -Qunused-arguments"
+    fi
     case "${CT_BUILD}" in
         *darwin*)
             # Two issues while building on MacOS. Really, we should be checking for
@@ -550,6 +553,9 @@ if [ -z "${CT_RESTART}" ]; then
     CT_CFLAGS_FOR_HOST+=" ${CT_EXTRA_CFLAGS_FOR_HOST}"
     CT_LDFLAGS_FOR_HOST="-L${CT_HOST_COMPLIBS_DIR}/lib"
     CT_LDFLAGS_FOR_HOST+=" ${CT_EXTRA_LDFLAGS_FOR_HOST}"
+    if ${CT_HOST}-gcc --version 2>&1 | grep clang; then
+        CT_CFLAGS_FOR_HOST+=" -Qunused-arguments"
+    fi
     case "${CT_HOST}" in
         *darwin*)
             # Same as above, for host
