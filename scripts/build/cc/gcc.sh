@@ -14,8 +14,8 @@ do_cc_get() {
     # GCC source tree, which will not be there unless we get it and
     # put it there ourselves
     if [ "${CT_CC_LANG_JAVA_USE_ECJ}" = "y" ]; then
-        if ! CT_GetFile package=ecj basename=ecj-latest extensions=.jar \
-                mirrors=$(CT_Mirrors sourceware java); then
+        if ! CT_GetFile package=ecj basename=ecj-latest extensions=.jar dir_name=gcc \
+                mirrors="$(CT_Mirrors sourceware java)"; then
             # Should be a package, too - but with Java retirement in GCC,
             # it may not make sense.
             CT_Abort "Failed to download ecj-latest.jar"
