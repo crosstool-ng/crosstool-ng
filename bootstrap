@@ -128,6 +128,9 @@ do_foreach()
     if [ "`type -t enter_${var}`" != "function" ]; then
         error "No parameter setup routine for iterator over '${var}'"
     fi
+    if [ "x${info[iter_${var}]+set}" != "xset" ]; then
+        error "Iterator over '${var}' not configured"
+    fi
     for v in ${info[iter_${var}]}; do
         # This works in bash 4.4, but not in bash 4.3:
         # local saveinfo=`declare -p info`
@@ -549,17 +552,12 @@ find_forks()
     fi
 }
 
-check_obsolete_experimental()
-{
-    [ -z "${info[obsolete]}" ] && only_obsolete=
-    [ -z "${info[experimental]}" ] && only_experimental=
-}
-
 enter_fork()
 {
     local fork="${1}"
     local versions
     local only_obsolete only_experimental
+    local -A seen_selectors
 
     # Set defaults
     info[obsolete]=
@@ -599,12 +597,28 @@ enter_fork()
     set_iter version ${versions}
     info[all_versions]=${versions}
 
+    check_relevant_pattern()
+    {
+        if [ "x${seen_selectors[${info[ver_sel]}]+set}" = "xset" ]; then
+            error "${info[pkg_name]}: version ${info[ver]} conflicts with version ${seen_selectors[${info[ver_sel]}]} (${info[ver_sel]} selector)"
+        else
+            seen_selectors[${info[ver_sel]}]=${info[ver]}
+        fi
+    }
+    do_foreach version check_relevant_pattern
+
     # If a fork does not define any versions at all ("rolling release"), do not
     # consider it obsolete/experimental unless it is so marked in the fork's
     # description.
     if [ -n "${versions}" ]; then
         only_obsolete=yes
         only_experimental=yes
+
+        check_obsolete_experimental()
+        {
+            [ -z "${info[obsolete]}" ] && only_obsolete=
+            [ -z "${info[experimental]}" ] && only_experimental=
+        }
         do_foreach version check_obsolete_experimental
         info[only_obsolete]=${only_obsolete}
         info[only_experimental]=${only_experimental}
