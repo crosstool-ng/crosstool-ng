@@ -1,0 +1,32 @@
+From b6a77bbebb4573d1899cc72e964e9875aae64436 Mon Sep 17 00:00:00 2001
+From: Alexey Neyman <stilor@att.net>
+Date: Thu, 14 Feb 2019 20:12:34 -0800
+Subject: [PATCH] Check `output_elf' for being NULL
+
+... before passing it to unlink(). GCC8.2 detects that one of the
+branches in do_final_link() does not initialize it from its original
+value, NULL.
+
+Signed-off-by: Alexey Neyman <stilor@att.net>
+---
+ ld-elf2flt.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ld-elf2flt.c b/ld-elf2flt.c
+index de39fe0..ccb09b5 100644
+--- a/ld-elf2flt.c
++++ b/ld-elf2flt.c
+@@ -568,7 +568,9 @@ int main(int argc, char *argv[])
+ 	if (!flag_verbose) {
+ 		unlink(tmp_file);
+ 		unlink(output_flt);
+-		unlink(output_elf);
++		if (output_elf) {
++			unlink(output_elf);
++		}
+ 	} else {
+ 		fprintf(stderr,
+ 			"leaving elf2flt temp files behind:\n"
+-- 
+2.19.1
+
