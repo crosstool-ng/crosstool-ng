@@ -102,6 +102,14 @@ for d in            \
         esac
 done
 
+n_open_files=$(ulimit -n)
+if [ "${n_open_files}" -lt 2048 ]; then
+    # Newer ld seems to keep a lot of open file descriptors, hitting the default limit
+    # (1024) for example during uClibc-ng link.
+    CT_DoLog WARN "Number of open files ${n_open_files} may not be sufficient to build the toolchain; increasing to 2048"
+    ulimit -n 2048
+fi
+
 # Where will we work?
 CT_WORK_DIR="${CT_WORK_DIR:-${CT_TOP_DIR}/.build}"
 CT_BUILD_DIR="${CT_BUILD_TOP_DIR}/build"
