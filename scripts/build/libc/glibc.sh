@@ -182,9 +182,6 @@ glibc_backend_once()
 
     touch config.cache
 
-    # Hide host C++ binary from configure
-    echo "ac_cv_prog_ac_ct_CXX=${CT_TARGET}-g++" >>config.cache
-
     # Until it became explicitly controllable with --enable-stack-protector=...,
     # configure detected GCC support for -fstack-protector{,-strong} and
     # tried to enable it in some parts of glibc - which then failed to build.
@@ -282,6 +279,10 @@ glibc_backend_once()
         "${CT_GLIBC_EXTRA_CONFIG_ARRAY[@]}"
 
     # build hacks
+
+    # Mask C++ compiler. Glibc 2.29+ attempts to build some tests using gcc++, but
+    # we haven't built libstdc++ yet. Should really implement #808 after 1.24.0...
+    extra_make_args+=( CXX= )
     case "${CT_ARCH},${CT_ARCH_CPU}" in
         powerpc,8??)
             # http://sourceware.org/ml/crossgcc/2008-10/msg00068.html
