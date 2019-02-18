@@ -283,13 +283,15 @@ CT_DoLog() {
           _prog_bar[3]='|'
           indent=$((2*CT_STEP_COUNT))
           while read line; do
-              case "${CT_LOG_SEE_TOOLS_WARN},${line}" in
-                y,*"warning:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
-                y,*"WARNING:"*)         cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
-                *"error:"*)             cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
-                *"Error:"*)             cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
-                *"make["*"]: ***"*)     cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
-                *)                      cur_L="${LEVEL}"; cur_l="${level}";;
+              case "${CT_LOG_SEE_TOOLS_WARN:-n},${line}" in
+                  y,*[[:space:]][Ww]arning:*|y,[Ww]arning:*|y,*[[:space:]]WARNING:*|y,WARNING:*)
+                      cur_L=WARN; cur_l=${CT_LOG_LEVEL_WARN};;
+                  *[[:space:]][Ee]rror:*|[yn],[Ee]rror:*)
+                      cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
+                  *"make["*"]: ***"*)
+                      cur_L=ERROR; cur_l=${CT_LOG_LEVEL_ERROR};;
+                  *)
+                      cur_L="${LEVEL}"; cur_l="${level}";;
               esac
               # There will always be a log file (stdout, fd #1), be it /dev/null
               if [ -n "${CT_LOG_ENABLED}" ]; then
