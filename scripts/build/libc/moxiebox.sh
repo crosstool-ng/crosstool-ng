@@ -22,7 +22,10 @@ moxiebox_start_files()
 moxiebox_main()
 {
     newlib_main
+}
 
+moxiebox_post_cc()
+{
     CT_DoStep INFO "Installing moxiebox runtime and VM"
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-moxiebox"
@@ -45,7 +48,7 @@ moxiebox_main()
 
     CT_DoExecLog CFG ./autogen.sh
 
-    # moxiebox build script create symlinks from the installation location to the build
+    # moxiebox build script creates symlinks from the installation location to the build
     # directory for the moxiebox library. This seems backwards. Instead, pass the search
     # as part of the MOX_GCC definition.
     # moxiebox also depends on the tools being named moxiebox-{gcc,as,ar}. However, failure

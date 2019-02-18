@@ -220,7 +220,3 @@ mingw_w64_main()
         CT_EndStep
     fi
 }
-
-mingw_w64_post_cc() {
-    :
-}
