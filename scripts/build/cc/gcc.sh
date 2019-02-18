@@ -293,8 +293,7 @@ do_gcc_core_backend() {
     local prefix
     local complibs
     local lang_list
-    local cflags
-    local cflags_for_build
+    local cflags cflags_for_build cflags_for_target
     local ldflags
     local build_step
     local log_txt
@@ -350,12 +349,6 @@ do_gcc_core_backend() {
         *)
             CT_Abort "Internal Error: 'mode' must be one of: 'static', 'shared' or 'baremetal', not '${mode:-(empty)}'"
             ;;
-    esac
-
-    case "${build_step}" in
-        core2|gcc_build)
-            CT_DoLog DEBUG "Copying headers to install area of core C compiler"
-            CT_DoExecLog ALL cp -a "${CT_HEADERS_DIR}" "${prefix}/${CT_TARGET}/include"
     esac
 
     for tmp in ARCH ABI CPU TUNE FPU FLOAT ENDIAN; do
@@ -551,19 +544,33 @@ do_gcc_core_backend() {
 
     # We may need to modify host/build CFLAGS separately below
     cflags_for_build="${CT_CFLAGS_FOR_BUILD}"
+    cflags="${CT_CFLAGS_FOR_HOST}"
+    cflags_for_target="${CT_TARGET_CFLAGS}"
 
     # Clang's default bracket-depth is 256, and building GCC
     # requires somewhere between 257 and 512.
     if [ "${host}" = "${CT_BUILD}" ]; then
         if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
-            cflags="$cflags "-fbracket-depth=512
-            cflags_for_build="$cflags_for_build "-fbracket-depth=512
+            cflags="$cflags -fbracket-depth=512"
+            cflags_for_build="$cflags_for_build -fbracket-depth=512"
         fi
     else
         # FIXME we currently don't support clang as host compiler, only as build
         if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
-            cflags_for_build="$cflags_for_build "-fbracket-depth=512
+            cflags_for_build="$cflags_for_build -fbracket-depth=512"
         fi
+    fi
+
+    # For non-sysrooted toolchain, GCC doesn't search except at the installation
+    # prefix; in core-1/2 stage we use a temporary installation prefix - but
+    # we may have installed something into the final prefix. This is less than ideal:
+    # in the installation prefix GCC also handles subdirectories for multilibs
+    # (e.g. first trying ${prefix}/include/${arch-triplet}) but
+    # we can only pass the top level directory, so non-sysrooted build with libc
+    # selection that doesn't merge the headers (i.e. musl, uClibc-ng) may not
+    # work. Better suggestions welcome.
+    if [ "${CT_USE_SYSROOT}" != "y" ]; then
+        cflags_for_target="${cflags_for_target} -idirafter ${CT_HEADERS_DIR}"
     fi
 
     # Use --with-local-prefix so older gccs don't look in /usr/local (http://gcc.gnu.org/PR10532).
@@ -578,8 +585,8 @@ do_gcc_core_backend() {
     CXXFLAGS="${cflags}"                               \
     CXXFLAGS_FOR_BUILD="${cflags_for_build}"           \
     LDFLAGS="${core_LDFLAGS[*]}"                       \
-    CFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"            \
-    CXXFLAGS_FOR_TARGET="${CT_TARGET_CFLAGS}"          \
+    CFLAGS_FOR_TARGET="${cflags_for_target}"           \
+    CXXFLAGS_FOR_TARGET="${cflags_for_target}"         \
     LDFLAGS_FOR_TARGET="${CT_TARGET_LDFLAGS}"          \
     ${CONFIG_SHELL}                                    \
     "${CT_SRC_DIR}/gcc/configure"                      \
