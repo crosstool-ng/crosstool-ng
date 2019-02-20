@@ -237,6 +237,15 @@ manage_uClibc_config()
         CT_KconfigEnableOption "ARCH_USE_MMU" "${dst}"
     else
         CT_KconfigDisableOption "ARCH_USE_MMU" "${dst}"
+        CT_KconfigDisableOption "UCLIBC_FORMAT_FDPIC" "${dst}"
+        CT_KconfigDisableOption "UCLIBC_FORMAT_FLAT" "${dst}"
+        CT_KconfigDisableOption "UCLIBC_FORMAT_SHARED_FLAT" "${dst}"
+        case "${CT_ARCH_BINFMT_FLAT},${CT_ARCH_BINFMT_FDPIC},${CT_SHARED_LIBS}" in
+            y,,y) CT_KconfigEnableOption "UCLIBC_FORMAT_SHARED_FLAT" "${dst}";;
+            y,,) CT_KconfigEnableOption "UCLIBC_FORMAT_FLAT" "${dst}";;
+            ,y,*) CT_KconfigEnableOption "UCLIBC_FORMAT_FDPIC" "${dst}";;
+            *) CT_Abort "Unsupported binary format";;
+        esac
     fi
 
     if [ "${CT_SHARED_LIBS}" = "y" ]; then
