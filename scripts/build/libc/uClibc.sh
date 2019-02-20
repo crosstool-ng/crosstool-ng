@@ -404,6 +404,10 @@ manage_uClibc_config()
     # Now allow architecture to tweak as it wants
     CT_DoArchUClibcConfig "${dst}"
     CT_DoArchUClibcCflags "${dst}" "${flags}"
+
+    # Preserve the config we created (before uclibc's `make olddefconfig`
+    # overrides anything).
+    CT_DoExecLog ALL cp "${dst}" "${dst}.created-by-ct-ng"
 }
 
 uClibc_post_cc()
