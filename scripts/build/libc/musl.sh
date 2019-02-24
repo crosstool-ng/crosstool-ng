@@ -76,6 +76,11 @@ musl_backend_once() {
         extra_config+=("--enable-warnings")
     fi
 
+    case "${CT_SHARED_LIBS}" in
+        y) extra_config+=("--enable-shared");;
+        *) extra_config+=("--disable-shared");;
+    esac
+
     extra_config+=( "--enable-optimize=${CT_LIBC_MUSL_OPTIMIZE}" )
 
     # Same problem as with uClibc: different variants sometimes have
