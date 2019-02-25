@@ -8,32 +8,38 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
 
 [Edited: keep libstdc++, drop libcrystax-related modifications]
 ---
- gcc/config.gcc                             |   17 +++++++-
- gcc/config/aarch64/aarch64-linux-android.h |   59 +++++++++++++++++++++++++++++
- gcc/config/aarch64/aarch64-linux.h         |    9 +++-
- gcc/config/arm/arm.h                       |    3 -
- gcc/config/arm/arm.md                      |    2 
- gcc/config/arm/arm.opt                     |    4 +
- gcc/config/arm/elf.h                       |    9 ++--
- gcc/config/arm/linux-eabi.h                |    7 ++-
- gcc/config/i386/gnu-user.h                 |    7 ++-
- gcc/config/i386/gnu-user64.h               |    5 ++
- gcc/config/i386/linux-common.h             |    8 +++
- gcc/config/linux-android.h                 |   13 +++---
- gcc/config/mips/android.h                  |   49 ++++++++++++++++++++++++
- gcc/config/mips/gnu-user.h                 |    6 +-
- gcc/config/mips/linux-common.h             |    2 
- gcc/config/mips/t-linux-android            |    3 +
- gcc/config/mips/t-linux-android64          |    4 +
- libgcc/gthr-posix.h                        |   13 ++++++
- libstdc++-v3/configure                     |   12 +++++
- libstdc++-v3/include/bits/locale_facets.h  |   18 +++++++-
- libstdc++-v3/libsupc++/guard.cc            |    5 ++
+ gcc/config.gcc                             | 17 ++++++-
+ gcc/config/aarch64/aarch64-linux-android.h | 59 ++++++++++++++++++++++
+ gcc/config/aarch64/aarch64-linux.h         |  9 +++-
+ gcc/config/arm/arm.h                       |  3 +-
+ gcc/config/arm/arm.md                      |  2 +-
+ gcc/config/arm/arm.opt                     |  4 ++
+ gcc/config/arm/elf.h                       |  9 ++--
+ gcc/config/arm/linux-eabi.h                |  7 ++-
+ gcc/config/i386/gnu-user.h                 |  7 ++-
+ gcc/config/i386/gnu-user64.h               |  5 ++
+ gcc/config/i386/linux-common.h             |  8 ++-
+ gcc/config/linux-android.h                 | 13 +++--
+ gcc/config/mips/android.h                  | 49 ++++++++++++++++++
+ gcc/config/mips/gnu-user.h                 |  6 ++-
+ gcc/config/mips/linux-common.h             |  2 +-
+ gcc/config/mips/t-linux-android            |  3 ++
+ gcc/config/mips/t-linux-android64          |  4 ++
+ libgcc/gthr-posix.h                        | 13 +++++
+ libstdc++-v3/configure                     | 12 +++++
+ libstdc++-v3/include/bits/locale_facets.h  | 18 ++++++-
+ libstdc++-v3/libsupc++/guard.cc            |  5 ++
  21 files changed, 235 insertions(+), 20 deletions(-)
+ create mode 100644 gcc/config/aarch64/aarch64-linux-android.h
+ create mode 100644 gcc/config/mips/android.h
+ create mode 100644 gcc/config/mips/t-linux-android
+ create mode 100644 gcc/config/mips/t-linux-android64
 
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 7af8e0281..a9ab8cea9 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
-@@ -981,14 +981,18 @@
+@@ -981,14 +981,18 @@ aarch64*-*-freebsd*)
  	tmake_file="${tmake_file} aarch64/t-aarch64 aarch64/t-aarch64-freebsd"
  	;;
  aarch64*-*-linux*)
@@ -53,7 +59,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  	esac
  	aarch64_multilibs="${with_multilib_list}"
  	if test "$aarch64_multilibs" = "default"; then
-@@ -2130,6 +2134,17 @@
+@@ -2133,6 +2137,17 @@ mips*-*-linux*)				# Linux MIPS, either endian.
  	tm_file="dbxelf.h elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h ${tm_file} mips/gnu-user.h mips/linux.h mips/linux-common.h"
  	extra_options="${extra_options} linux-android.opt"
  	case ${target} in
@@ -71,6 +77,9 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  		mipsisa32r6*)
  			default_mips_arch=mips32r6
  			;;
+diff --git a/gcc/config/aarch64/aarch64-linux-android.h b/gcc/config/aarch64/aarch64-linux-android.h
+new file mode 100644
+index 000000000..91d235ff1
 --- /dev/null
 +++ b/gcc/config/aarch64/aarch64-linux-android.h
 @@ -0,0 +1,59 @@
@@ -133,6 +142,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
 +  LINUX_OR_ANDROID_LD (GNU_USER_TARGET_ENDFILE_SPEC, ANDROID_ENDFILE_SPEC)
 +
 +#endif  /* GCC_AARCH64_LINUX_ANDROID_H */
+diff --git a/gcc/config/aarch64/aarch64-linux.h b/gcc/config/aarch64/aarch64-linux.h
+index bf1327e98..54613e4c6 100644
 --- a/gcc/config/aarch64/aarch64-linux.h
 +++ b/gcc/config/aarch64/aarch64-linux.h
 @@ -21,7 +21,14 @@
@@ -151,9 +162,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  
  #undef MUSL_DYNAMIC_LINKER
  #define MUSL_DYNAMIC_LINKER "/lib/ld-musl-aarch64%{mbig-endian:_be}%{mabi=ilp32:_ilp32}.so.1"
+diff --git a/gcc/config/arm/arm.h b/gcc/config/arm/arm.h
+index 2809112f6..753c60f9c 100644
 --- a/gcc/config/arm/arm.h
 +++ b/gcc/config/arm/arm.h
-@@ -1840,10 +1840,11 @@
+@@ -1840,10 +1840,11 @@ enum arm_auto_incmodes
  
  #define CASE_VECTOR_PC_RELATIVE (TARGET_THUMB2				\
  				 || (TARGET_THUMB1			\
@@ -166,6 +179,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
     ? (min >= 0 && max < 512						\
        ? (ADDR_DIFF_VEC_FLAGS (body).offset_unsigned = 1, QImode)	\
        : min >= -256 && max < 256					\
+diff --git a/gcc/config/arm/arm.md b/gcc/config/arm/arm.md
+index 2d5359e53..4942d1ace 100644
 --- a/gcc/config/arm/arm.md
 +++ b/gcc/config/arm/arm.md
 @@ -8640,7 +8640,7 @@
@@ -177,9 +192,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
    "
    {
      enum insn_code code;
+diff --git a/gcc/config/arm/arm.opt b/gcc/config/arm/arm.opt
+index a1286a4a8..7e694df62 100644
 --- a/gcc/config/arm/arm.opt
 +++ b/gcc/config/arm/arm.opt
-@@ -202,6 +202,10 @@
+@@ -202,6 +202,10 @@ mthumb-interwork
  Target Report Mask(INTERWORK)
  Support calls between Thumb and ARM instruction sets.
  
@@ -190,6 +207,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  mtls-dialect=
  Target RejectNegative Joined Enum(tls_type) Var(target_tls_dialect) Init(TLS_GNU)
  Specify thread local storage scheme.
+diff --git a/gcc/config/arm/elf.h b/gcc/config/arm/elf.h
+index ad3651ba8..b74e995b6 100644
 --- a/gcc/config/arm/elf.h
 +++ b/gcc/config/arm/elf.h
 @@ -56,8 +56,7 @@
@@ -222,6 +241,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
      && !target_pure_code)
  
  #ifndef LINK_SPEC
+diff --git a/gcc/config/arm/linux-eabi.h b/gcc/config/arm/linux-eabi.h
+index 8585fde3d..9b6b787f4 100644
 --- a/gcc/config/arm/linux-eabi.h
 +++ b/gcc/config/arm/linux-eabi.h
 @@ -102,11 +102,16 @@
@@ -242,9 +263,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  #undef  LIB_SPEC
  #define LIB_SPEC							\
    LINUX_OR_ANDROID_LD (GNU_USER_TARGET_LIB_SPEC,			\
+diff --git a/gcc/config/i386/gnu-user.h b/gcc/config/i386/gnu-user.h
+index 93a7f8d4c..b05df420a 100644
 --- a/gcc/config/i386/gnu-user.h
 +++ b/gcc/config/i386/gnu-user.h
-@@ -65,9 +65,14 @@
+@@ -65,9 +65,14 @@ along with GCC; see the file COPYING3.  If not see
     When the -shared link option is used a final link is not being
     done.  */
  
@@ -254,15 +277,17 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
 +
  #undef  ASM_SPEC
  #define ASM_SPEC \
--  "--32 %{!mno-sse2avx:%{mavx:-msse2avx}} %{msse2avx:%{!mavx:-msse2avx}}"
-+  "--32 %{!mno-sse2avx:%{mavx:-msse2avx}} %{msse2avx:%{!mavx:-msse2avx}} " \
+-  "--32 %{msse2avx:%{!mavx:-msse2avx}}"
++  "--32 %{msse2avx:%{!mavx:-msse2avx}} " \
 +  LINUX_OR_ANDROID_CC ("", ANDROID_ASM_SPEC)
  
  #undef  SUBTARGET_EXTRA_SPECS
  #define SUBTARGET_EXTRA_SPECS \
+diff --git a/gcc/config/i386/gnu-user64.h b/gcc/config/i386/gnu-user64.h
+index d9400638f..70d6fab1d 100644
 --- a/gcc/config/i386/gnu-user64.h
 +++ b/gcc/config/i386/gnu-user64.h
-@@ -46,6 +46,11 @@
+@@ -46,6 +46,11 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
  #define SPEC_X32 "mx32"
  #endif
  
@@ -274,9 +299,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  #undef ASM_SPEC
  #define ASM_SPEC "%{" SPEC_32 ":--32} \
   %{" SPEC_64 ":--64} \
+diff --git a/gcc/config/i386/linux-common.h b/gcc/config/i386/linux-common.h
+index d87738702..2eea2b664 100644
 --- a/gcc/config/i386/linux-common.h
 +++ b/gcc/config/i386/linux-common.h
-@@ -30,7 +30,13 @@
+@@ -30,7 +30,13 @@ along with GCC; see the file COPYING3.  If not see
  #undef CC1_SPEC
  #define CC1_SPEC \
    LINUX_OR_ANDROID_CC (GNU_USER_TARGET_CC1_SPEC, \
@@ -291,6 +318,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  
  #undef	LINK_SPEC
  #define LINK_SPEC \
+diff --git a/gcc/config/linux-android.h b/gcc/config/linux-android.h
+index 9f3985d23..a58a3d837 100644
 --- a/gcc/config/linux-android.h
 +++ b/gcc/config/linux-android.h
 @@ -38,15 +38,18 @@
@@ -317,6 +346,9 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  
  #define ANDROID_LIB_SPEC \
    "%{!static: -ldl}"
+diff --git a/gcc/config/mips/android.h b/gcc/config/mips/android.h
+new file mode 100644
+index 000000000..32c539c8d
 --- /dev/null
 +++ b/gcc/config/mips/android.h
 @@ -0,0 +1,49 @@
@@ -369,9 +401,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
 +									\
 +  /* Use the standard linux specs for everything else.  */		\
 +  LINUX_DRIVER_SELF_SPECS
+diff --git a/gcc/config/mips/gnu-user.h b/gcc/config/mips/gnu-user.h
+index 22097e285..57cf31da4 100644
 --- a/gcc/config/mips/gnu-user.h
 +++ b/gcc/config/mips/gnu-user.h
-@@ -36,6 +36,7 @@
+@@ -36,6 +36,7 @@ along with GCC; see the file COPYING3.  If not see
      /* The GNU C++ standard library requires this.  */		\
      if (c_dialect_cxx ())					\
        builtin_define ("_GNU_SOURCE");				\
@@ -379,7 +413,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
    } while (0)
  
  #undef SUBTARGET_CPP_SPEC
-@@ -71,7 +72,8 @@
+@@ -71,7 +72,8 @@ along with GCC; see the file COPYING3.  If not see
  
  #undef SUBTARGET_ASM_SPEC
  #define SUBTARGET_ASM_SPEC \
@@ -389,7 +423,7 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  
  /* The MIPS assembler has different syntax for .set. We set it to
     .dummy to trap any errors.  */
-@@ -120,7 +122,7 @@
+@@ -120,7 +122,7 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
  #endif
  
  #define LINUX_DRIVER_SELF_SPECS \
@@ -398,9 +432,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
    MARCH_MTUNE_NATIVE_SPECS,						\
    /* -mplt has no effect without -mno-shared.  Simplify later		\
       specs handling by removing a redundant option.  */			\
+diff --git a/gcc/config/mips/linux-common.h b/gcc/config/mips/linux-common.h
+index 570151f6a..c2f7630a8 100644
 --- a/gcc/config/mips/linux-common.h
 +++ b/gcc/config/mips/linux-common.h
-@@ -35,7 +35,7 @@
+@@ -35,7 +35,7 @@ along with GCC; see the file COPYING3.  If not see
  #undef  SUBTARGET_CC1_SPEC
  #define SUBTARGET_CC1_SPEC						\
    LINUX_OR_ANDROID_CC (GNU_USER_TARGET_CC1_SPEC,			\
@@ -409,12 +445,18 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  
  #undef  CC1PLUS_SPEC
  #define CC1PLUS_SPEC							\
+diff --git a/gcc/config/mips/t-linux-android b/gcc/config/mips/t-linux-android
+new file mode 100644
+index 000000000..39f512c81
 --- /dev/null
 +++ b/gcc/config/mips/t-linux-android
 @@ -0,0 +1,3 @@
 +MULTILIB_OPTIONS = mips32r2/mips32r6
 +MULTILIB_DIRNAMES = mips-r2 mips-r6
 +MULTILIB_OSDIRNAMES = ../libr2 ../libr6
+diff --git a/gcc/config/mips/t-linux-android64 b/gcc/config/mips/t-linux-android64
+new file mode 100644
+index 000000000..55cab7d62
 --- /dev/null
 +++ b/gcc/config/mips/t-linux-android64
 @@ -0,0 +1,4 @@
@@ -422,9 +464,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
 +MULTILIB_DIRNAMES = 32 mips-r1 mips-r2 mips-r6 mips64-r2 mips64-r6
 +MULTILIB_OSDIRNAMES = ../lib ../lib ../libr2 ../libr6 ../lib64r2 ../lib64
 +MULTILIB_REQUIRED = mabi=32/mips32 mabi=32/mips32r2 mabi=32/mips32r6 mips64r2 mips64r6
+diff --git a/libgcc/gthr-posix.h b/libgcc/gthr-posix.h
+index e2f952f6c..a8d638396 100644
 --- a/libgcc/gthr-posix.h
 +++ b/libgcc/gthr-posix.h
-@@ -32,6 +32,19 @@
+@@ -32,6 +32,19 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
  #define __GTHREADS 1
  #define __GTHREADS_CXX0X 1
  
@@ -444,9 +488,11 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  #include <pthread.h>
  
  #if ((defined(_LIBOBJC) || defined(_LIBOBJC_WEAK)) \
+diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
+index 5535bfa2b..52f7e9c0c 100755
 --- a/libstdc++-v3/configure
 +++ b/libstdc++-v3/configure
-@@ -78491,6 +78491,18 @@
+@@ -78491,6 +78491,18 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
  /* end confdefs.h.  */
  #include <sys/syscall.h>
  	   int lk;
@@ -465,6 +511,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  int
  main ()
  {
+diff --git a/libstdc++-v3/include/bits/locale_facets.h b/libstdc++-v3/include/bits/locale_facets.h
+index d5384e146..774a107fb 100644
 --- a/libstdc++-v3/include/bits/locale_facets.h
 +++ b/libstdc++-v3/include/bits/locale_facets.h
 @@ -47,6 +47,20 @@
@@ -488,16 +536,16 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  namespace std _GLIBCXX_VISIBILITY(default)
  {
  _GLIBCXX_BEGIN_NAMESPACE_VERSION
-@@ -1102,7 +1116,7 @@
+@@ -1104,7 +1118,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
         *  @return  @a __hi.
        */
        virtual const char*
 -      do_widen(const char* __lo, const char* __hi, char_type* __to) const
 +      do_widen(const char* __lo, const char* __hi, char_type* __to) const __CRYSTAX_X86_DONT_OPTIMIZE
        {
- 	__builtin_memcpy(__to, __lo, __hi - __lo);
- 	return __hi;
-@@ -1163,7 +1177,7 @@
+ 	if (__builtin_expect(__hi != __lo, true))
+ 	  __builtin_memcpy(__to, __lo, __hi - __lo);
+@@ -1167,7 +1181,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
  
      private:
        void _M_narrow_init() const;
@@ -506,6 +554,8 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
      };
  
  #ifdef _GLIBCXX_USE_WCHAR_T
+diff --git a/libstdc++-v3/libsupc++/guard.cc b/libstdc++-v3/libsupc++/guard.cc
+index 3a2ec3ad0..ffcd22cf1 100644
 --- a/libstdc++-v3/libsupc++/guard.cc
 +++ b/libstdc++-v3/libsupc++/guard.cc
 @@ -34,7 +34,12 @@
@@ -521,3 +571,6 @@ Date:   Wed Jul 29 11:28:29 2015 +0300
  # include <unistd.h>
  # define _GLIBCXX_USE_FUTEX
  # define _GLIBCXX_FUTEX_WAIT 0
+-- 
+2.20.1
+
