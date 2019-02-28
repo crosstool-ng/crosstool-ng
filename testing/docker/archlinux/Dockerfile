@@ -1,6 +1,8 @@
 FROM base/archlinux:latest
 ARG CTNG_UID
 ARG CTNG_GID
+RUN pacman -Sy archlinux-keyring
+RUN pacman -Su
 RUN pacman -Syu --noconfirm
 RUN pacman -S --noconfirm base-devel git help2man python unzip wget audit
 RUN groupadd -g $CTNG_GID ctng
