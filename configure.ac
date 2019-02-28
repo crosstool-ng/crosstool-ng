@@ -122,12 +122,23 @@ CTNG_CHECK_PROGS_REQ([readlink], [readlink])
 CTNG_CHECK_PROGS_REQ([tar], [tar])
 CTNG_CHECK_PROGS_REQ([gzip], [gzip])
 CTNG_CHECK_PROGS_REQ([bzip2], [bzip2])
-CTNG_CHECK_PROGS_REQ([lzip], [lzip])
 CTNG_CHECK_PROGS_REQ([xz], [xz])
 CTNG_CHECK_PROGS_REQ([unzip], [unzip])
 CTNG_CHECK_PROGS_REQ([help2man], [help2man])
 CTNG_CHECK_PROGS_REQ([file], [file])
 CTNG_CHECK_PROGS_REQ([which], [which])
+
+# Lzip is optional; all the packages that provide tarballs in .tar.lz format
+# also provide them in some other format. All other formats are currently
+# mandatory as there is at least one package that has no fallback for each
+# of them.
+# FIXME: this configure.ac should be only used for detecting the dependencies
+# of the ct-ng framework itself; anything needed at build time should be
+# determined by crosstool-NG.sh - perhaps, through another 'configure' that
+# runs during `ct-ng build`.
+AC_CHECK_PROGS([lzip], [lzip])
+CTNG_SET_KCONFIG_OPTION([lzip])
+AC_SUBST([lzip])
 
 # Not a fatal failure even if we have neither - the tarballs may
 # be provided in a local directory.
