@@ -8,4 +8,6 @@ RUN yum install -y autoconf gperf bison flex texinfo help2man gcc-c++ libtool li
 RUN wget -O /sbin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64
 RUN chmod a+x /sbin/dumb-init
 RUN echo 'export PATH=/opt/ctng/bin:$PATH' >> /etc/profile
+# The limits in this file prevent su'ing to ctng user
+RUN rm -f /etc/security/limits.d/90-nproc.conf
 ENTRYPOINT [ "/sbin/dumb-init", "--" ]

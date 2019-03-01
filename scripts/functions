@@ -669,7 +669,9 @@ CT_DoListTarballExt()
 {
     printf ".tar.xz\n"
     printf ".tar.lzma\n"
-    printf ".tar.lz\n"
+    if [ "${CT_CONFIGURE_has_lzip}" = "y" ]; then
+        printf ".tar.lz\n"
+    fi
     printf ".tar.bz2\n"
     printf ".tar.gz\n.tgz\n"
     printf ".tar\n"
@@ -2074,6 +2076,7 @@ CT_PackageRun()
 CT_DoFetch()
 {
     local tmp_dir
+    local extensions e a
 
     if [ "${src_release}" = "y" ]; then
         # Some packages do not contain any directory level at all
@@ -2083,8 +2086,17 @@ CT_DoFetch()
             basename="${pkg_name}-${version}"
         fi
         pkg_dir="${pkg_name}/${version}"
+        # Check which extensions we are allowed to fetch
+        for a in ${archive_formats}; do
+            for e in $(CT_DoListTarballExt); do
+                if [ "${a}" = "${e}" ]; then
+                    extensions="${extensions} ${a}"
+                    break
+                fi
+            done
+        done
         if ! CT_GetFile package="${pkg_name}" pkg_dir="${pkg_dir}" dir_name="${dir_name}" \
-                basename="${archive_filename}" extensions="${archive_formats}" \
+                basename="${archive_filename}" extensions="${extensions}" \
                 digest="${CT_VERIFY_DOWNLOAD_DIGEST}" \
                 signature_format="${CT_VERIFY_DOWNLOAD_SIGNATURE:+${signature_format}}" \
                 mirrors="${mirrors}"; then
