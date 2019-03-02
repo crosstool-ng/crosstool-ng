@@ -23,8 +23,8 @@ endif
 
 # Glibc has some dependencies on the kernel headers:
 config GLIBC_DEP_KERNEL_HEADERS_VERSION
-	def_bool y
-	select LINUX_REQUIRE_3_2_or_later if GLIBC_2_24_or_later
+    def_bool y
+    select LINUX_REQUIRE_3_2_or_later if GLIBC_2_24_or_later
 
 # Glibc 2.26 requires at least binutils 2.25.
 # Also, binutils 2.30 fail while compiling aarch64 glibc; fixed in 2.27
@@ -34,6 +34,19 @@ config GLIBC_DEP_BINUTILS
     def_bool y
     select BINUTILS_REQUIRE_2_25_or_later if GLIBC_2_26_or_later
     select BINUTILS_REQUIRE_older_than_2_30 if GLIBC_older_than_2_26 && ARCH_ARM && ARCH_64
+
+# Glibc 2.29 now requires Python 3.4 or later, and make 4.0 or later. Ensure
+# we build 'make' as a companion tool if host's make isn't new enough.
+config GLIBC_DEP_PYTHON
+    def_bool y
+    select GLIBC_REQUIRE_older_than_2_29 if !CONFIGURE_has_python_3_4_or_newer
+
+config GLIBC_DEP_MAKE_4_0
+    def_bool y
+    depends on GLIBC_2_29_or_later && !CONFIGURE_has_make_4_0_or_newer
+    select COMP_TOOLS_MAKE
+    select MAKE_REQUIRE_4_0_or_later
+    select MAKE_GNUMAKE_SYMLINK # Override old host make in .build/tools/bin
 
 config GLIBC_DEP_GCC
     def_bool y

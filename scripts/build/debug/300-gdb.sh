@@ -64,15 +64,12 @@ do_debug_gdb_build() {
 
         if [ "${CT_GDB_CROSS_PYTHON}" = "y" ]; then
             if [ -z "${CT_GDB_CROSS_PYTHON_BINARY}" ]; then
-                for p in python python3 python2; do
-                    _p=$( which "${p}" || true )
-                    if [ -n "${_p}" ]; then
-                       cross_extra_config+=("--with-python=${_p}")
-                       break
-                    fi
-                done
-                if [ -z "${_p}" ]; then
-                    CT_Abort "Python support requested in cross-gdb, but Python not found. Set CT_GDB_CROSS_PYTHON_BINARY in your config."
+                if [ "${CT_CANADIAN}" = "y" -o "${CT_CROSS_NATIVE}" = "y" ]; then
+                    CT_Abort "For canadian build, Python wrapper runnable on the build machine must be provided. Set CT_GDB_CROSS_PYTHON_BINARY."
+                elif [ "${CT_CONFIGURE_has_python}" = "y" ]; then
+                    cross_extra_config+=("--with-python=${python}")
+                else
+                    CT_Abort "Python support requested in GDB, but Python not found. Set CT_GDB_CROSS_PYTHON_BINARY."
                 fi
             else
                 cross_extra_config+=("--with-python=${CT_GDB_CROSS_PYTHON_BINARY}")

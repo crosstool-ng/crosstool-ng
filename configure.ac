@@ -182,6 +182,13 @@ CTNG_PROG_VERSION_REQ_ANY([MAKE],
     [^GNU Make (3\.8[1-9]|3\.9[0-9]|[4-9]\.)],
     [make_3_81_or_newer])
 
+CTNG_PROG_VERSION_REQ_ANY([MAKE],
+    [GNU make >= 4.0],
+    [make],
+    [gmake make],
+    [^GNU Make [4-9]\.],
+    [make_4_0_or_newer])
+
 # Check other companion tools that we may or may not build.
 CTNG_PROG_VERSION_REQ_ANY([LIBTOOL],
     [GNU libtool >= 2.4],
@@ -224,6 +231,21 @@ CTNG_PROG_VERSION([M4],
     [gm4 m4],
     [\(GNU M4\) ([2-9]\.|1\.[5-9]|1\.[1-4][0-9]|1\.4\.[2-9][0-9]|1\.4\.1[2-9])],
     [gnu_m4_1_4_12_or_newer])
+
+CTNG_PROG_VERSION([PYTHON],
+    [Python],
+    [python],
+    [python37 python3.7 python36 python3.6 python35 python3.5 python34 python3.4 python33 python3.3 python32 python3.2 python31 python3.1 python3 python27 python2.7 python26 python2.6 python2 python],
+    [^Python [23]\.],
+    [python])
+
+CTNG_PROG_VERSION([PYTHON],
+    [Python >= 3.4],
+    [python],
+    [python37 python3.7 python36 python3.6 python35 python3.5 python34 python3.4 python3 python],
+    [^Python 3\.([4-9]|[1-9][0-9]+)\.],
+    [python_3_4_or_newer])
+
 
 AC_SUBST([kconfig_options])
 

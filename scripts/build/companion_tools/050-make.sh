@@ -23,6 +23,9 @@ do_companion_tools_make_for_build()
     if [ "${CT_MAKE_GMAKE_SYMLINK}" = "y" ]; then
         CT_DoExecLog ALL ln -sv make "${CT_BUILD_COMPTOOLS_DIR}/bin/gmake"
     fi
+    if [ "${CT_MAKE_GNUMAKE_SYMLINK}" = "y" ]; then
+        CT_DoExecLog ALL ln -sv make "${CT_BUILD_COMPTOOLS_DIR}/bin/gnumake"
+    fi
     CT_EndStep
 }
 
@@ -38,6 +41,9 @@ do_companion_tools_make_for_host()
     CT_Popd
     if [ "${CT_MAKE_GMAKE_SYMLINK}" = "y" ]; then
         CT_DoExecLog ALL ln -sv make "${CT_PREFIX_DIR}/bin/gmake"
+    fi
+    if [ "${CT_MAKE_GNUMAKE_SYMLINK}" = "y" ]; then
+        CT_DoExecLog ALL ln -sv make "${CT_PREFIX_DIR}/bin/gnumake"
     fi
     CT_EndStep
 }
