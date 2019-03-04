@@ -113,7 +113,6 @@ AC_PROG_RANLIB
 CTNG_PATH_TOOL_REQ([OBJCOPY], [gobjcopy objcopy], [objcopy])
 CTNG_PATH_TOOL_REQ([OBJDUMP], [gobjdump objdump], [objdump])
 CTNG_PATH_TOOL_REQ([READELF], [greadelf readelf], [readelf])
-CTNG_PATH_TOOL_REQ([BISON], [bison], [bison])
 
 CTNG_CHECK_PROGS_REQ([flex], [flex])
 CTNG_CHECK_PROGS_REQ([makeinfo], [makeinfo])
@@ -246,6 +245,12 @@ CTNG_PROG_VERSION([PYTHON],
     [^Python 3\.([4-9]|[1-9][0-9]+)\.],
     [python_3_4_or_newer])
 
+CTNG_PROG_VERSION([BISON],
+    [bison >= 2.7],
+    [bison],
+    [bison],
+    [\(GNU Bison\) (2\.[7-9]|2\.[1-9][0-9]|[3-9]\.)],
+    [bison_2_7_or_newer])
 
 AC_SUBST([kconfig_options])
 

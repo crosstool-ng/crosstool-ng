@@ -35,6 +35,20 @@ config GLIBC_DEP_BINUTILS
     select BINUTILS_REQUIRE_2_25_or_later if GLIBC_2_26_or_later
     select BINUTILS_REQUIRE_older_than_2_30 if GLIBC_older_than_2_26 && ARCH_ARM && ARCH_64
 
+# Glibc 2.29 requires GCC5+ or, for ppc64le, GCC6.2+. We only support the latest
+# release on GCC6 branch, so just assume it is newer than 6.2
+config GLIBC_DEP_GCC
+    def_bool y
+    select GCC_REQUIRE_5_or_later if GLIBC_2_29_or_later
+    select GCC_REQUIRE_6_or_later if GLIBC_2_29_or_later && ARCH_POWERPC && ARCH_64 && ARCH_LE
+
+# Glibc 2.29 requires bison 2.7 or later. All versions in ct-ng satisfy that
+# version requirement.
+config GLIBC_DEP_BISON
+    def_bool y
+    depends on GLIBC_2_29_or_later && !CONFIGURE_has_bison_2_7_or_newer
+    select COMP_TOOLS_BISON
+
 # Glibc 2.29 now requires Python 3.4 or later, and make 4.0 or later. Ensure
 # we build 'make' as a companion tool if host's make isn't new enough.
 config GLIBC_DEP_PYTHON
