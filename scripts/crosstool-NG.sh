@@ -644,6 +644,7 @@ if [ -z "${CT_RESTART}" ]; then
     do_companion_tools_get
     do_kernel_get
     do_companion_libs_get
+    do_overlay_get
     do_binutils_get
     do_cc_get
     do_libc_get
