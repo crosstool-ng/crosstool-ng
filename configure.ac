@@ -97,6 +97,9 @@ AC_PROG_YACC
 AS_IF([test -z "$CC" -o -z "$CXX"],
       [AC_MSG_ERROR([no suitable compiler found])])
 
+AX_CXX_COMPILE_STDCXX([11],, [optional])
+CTNG_SET_KCONFIG_OPTION([has_cxx11], [${HAVE_CXX11}])
+
 # Check to see if the compiler can link statically
 AC_MSG_CHECKING([if $CC can static link])
 echo "int main() {}" | ${CC} -static -o /dev/null -xc - > /dev/null 2>&1
