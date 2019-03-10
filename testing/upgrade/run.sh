@@ -117,19 +117,28 @@ curver=`sed -n 's,export CT_CONFIG_VERSION_CURRENT=,,p' ${CTNG}`
 if [ -z "${curver}" ]; then
     echo "Cannot determine config version" >&${LOG}
     fail
-elif [ ! -r "kconfig-list/${curver}" ]; then
-    echo "No saved kconfig data for version ${curver}" >&${LOG}
-    fail
 else
     grep -hr '^\(menu\)\?config ' "${dirs[@]}" ../../config | \
         grep -v '^Binary ' | \
         sed 's,^.* ,CT_,' | LANG=C sort | uniq > logs/current-kconfig-list
-    diff -U 10000 "kconfig-list/${curver}" logs/current-kconfig-list | \
-        grep '^-CT_' > logs/current-kconfig-retired || true
-    nretired=`wc -l logs/current-kconfig-retired | sed 's/ .*//'`
-    echo "${nretired} kconfig options have been removed without bumping the config version" >&${LOG}
-    if [ "${nretired}" != "0" ]; then
+    if [ ! -r "kconfig-list/${curver}" ]; then
+        echo "No saved kconfig data for version ${curver}" >&${LOG}
+        if [ -r "kconfig-list/$[ curver - 1 ]" ]; then
+            echo "Comparing with previous version $[ curver - 1 ]"
+            echo "Verify that the following options are handled:"
+            diff -U 10000 "kconfig-list/$[ curver - 1 ]" logs/current-kconfig-list | \
+                grep '^-CT_' || true
+            echo "Then rename logs/current-kconfig-list to kconfig-list/${curver}"
+        fi >&${LOG}
         fail
+    else
+        diff -U 10000 "kconfig-list/${curver}" logs/current-kconfig-list | \
+            grep '^-CT_' > logs/current-kconfig-retired || true
+        nretired=`wc -l logs/current-kconfig-retired | sed 's/ .*//'`
+        if [ "${nretired}" != "0" ]; then
+            echo "${nretired} kconfig options have been removed without bumping the config version" >&${LOG}
+            fail
+        fi
     fi
 fi
 finish
