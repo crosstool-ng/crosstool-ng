@@ -122,7 +122,7 @@ do_debug_gdb_build()
                 gdbserver_extra_config+=("--disable-inprocess-agent")
             fi
             if [ "${CT_GDB_NATIVE}" != "y" ]; then
-                subdir=gdbserver/
+                subdir=gdb/gdbserver/
             fi
         fi
 
@@ -174,6 +174,22 @@ do_gdb_backend()
                 ;;
         esac
     done
+
+    # Starting with glibc 2.25, it now provides a <proc_service.h> header. The
+    # problem is that GDB releases prior to 7.12 used to implement one of the
+    # interfaces, ps_get_thread_are with a const qualifier on one of the arguments.
+    # Therefore, such older versions cannot be compiled against a newer glibc.
+    # If we detect such a combination, mitigate by creating a local proc_service.h
+    # with a prototype adjusted for GDB requirements.
+    if [ -r "${CT_HEADERS_DIR}/proc_service.h" -a "${CT_GDB_CONST_GET_THREAD_AREA}" = "y" ]; then
+        CT_DoLog DEBUG "Fixing up the prototype in <proc_service.h>"
+        CT_DoExecLog ALL mkdir -p gdb/gdbserver
+        CT_DoExecLog ALL cp "${CT_HEADERS_DIR}/proc_service.h" gdb/proc_service.h
+        CT_DoExecLog ALL sed -i \
+            "s/\(ps_get_thread_area *(\).*\(struct ps_prochandle\)/\1const \2/" \
+            gdb/proc_service.h
+        CT_DoExecLog ALL cp gdb/proc_service.h gdb/gdbserver/proc_service.h
+    fi
 
     if [ "${CT_GDB_HAS_PKGVERSION_BUGURL}" = "y" ]; then
         [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
