@@ -22,12 +22,9 @@ do_debug_gdb_build()
         local -a cross_extra_config
 
         CT_DoStep INFO "Installing cross-gdb"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-gdb-cross"
 
         cross_extra_config=( "${CT_GDB_CROSS_EXTRA_CONFIG_ARRAY[@]}" )
-
-        mkdir -p "${CT_BUILD_DIR}/build-gdb-cross"
-        cd "${CT_BUILD_DIR}/build-gdb-cross"
-
         if [ "${CT_GDB_CROSS_PYTHON}" = "y" ]; then
             if [ -z "${CT_GDB_CROSS_PYTHON_BINARY}" ]; then
                 if [ "${CT_CANADIAN}" = "y" -o "${CT_CROSS_NATIVE}" = "y" ]; then
@@ -92,6 +89,7 @@ do_debug_gdb_build()
                    >"${CT_PREFIX_DIR}/share/gdb/gdbinit"
         fi # Install gdbinit sample
 
+        CT_Popd
         CT_EndStep
     fi
 
@@ -100,9 +98,9 @@ do_debug_gdb_build()
         local subdir
 
         CT_DoStep INFO "Installing native gdb"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-gdb-native"
 
-        mkdir -p "${CT_BUILD_DIR}/build-gdb-native"
-        cd "${CT_BUILD_DIR}/build-gdb-native"
+        native_extra_config+=("--program-prefix=")
 
         # GDB on Mingw depends on PDcurses, not ncurses
         if [ "${CT_MINGW32}" != "y" ]; then
@@ -155,6 +153,7 @@ do_debug_gdb_build()
 
         unset ac_cv_func_strncmp_works
 
+        CT_Popd
         CT_EndStep # native gdb build
     fi
 }
@@ -252,6 +251,12 @@ do_gdb_backend()
     CT_DoLog EXTRA "Configuring ${buildtype} gdb"
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
+    # Run configure/make in the matching subdirectory so that any fixups
+    # prepared in a given subdirectory apply.
+    if [ -n "${subdir}" ]; then
+        CT_mkdir_pushd "${subdir}"
+    fi
+
     # TBD: is passing CPP/CC/CXX/LD needed? GCC should be determining this automatically from the triplets
     CT_DoExecLog CFG                                \
     CPP="${host}-cpp"                               \
@@ -277,4 +282,8 @@ do_gdb_backend()
 
     CT_DoLog EXTRA "Installing ${buildtype} gdb"
     CT_DoExecLog ALL make install ${destdir:+DESTDIR="${destdir}"}
+
+    if [ -n "${subdir}" ]; then
+        CT_Popd
+    fi
 }
