@@ -1,4 +1,4 @@
-FROM fedora:28
+FROM fedora:29
 ARG CTNG_UID
 ARG CTNG_GID
 RUN groupadd -g $CTNG_GID ctng
