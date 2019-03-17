@@ -18,7 +18,7 @@ AC_DEFUN([CTNG_PROG_VERSION],
          [ac_cv_path_$1="$$1"
           CTNG_PATH_ABSNAME([ac_cv_path_$1])
           CTNG_MSG_LOG_ENVVAR([ac_cv_path_$1])
-          ver=$(eval $ac_cv_path_$1 --version 2>/dev/null)
+          ver=$(eval $ac_cv_path_$1 --version 2>&1)
           CTNG_MSG_LOG([looking for '[$5]' regexp in])
           CTNG_MSG_LOG_ENVVAR([ver], [version info for $ac_cv_path_$1])
           ver=$(AS_ECHO(["$ver"]) | $EGREP '[$5]')
@@ -26,7 +26,7 @@ AC_DEFUN([CTNG_PROG_VERSION],
          [AC_CACHE_CHECK([for $3], [ac_cv_path_$1],
              [AC_PATH_PROGS_FEATURE_CHECK([$1], [$4],
                   [CTNG_MSG_LOG_ENVVAR([ac_path_$1], [checking $1 at])
-                   ver=$($ac_path_$1 --version 2>/dev/null)
+                   ver=$($ac_path_$1 --version 2>&1)
                    CTNG_MSG_LOG([looking for '[$5]' regexp in])
                    CTNG_MSG_LOG_ENVVAR([ver], [version info])
                    ver=$(AS_ECHO(["$ver"]) | $EGREP '[$5]')

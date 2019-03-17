@@ -458,6 +458,7 @@ if [ -z "${CT_RESTART}" ]; then
             fi
 
             # Not all tools are available for all platforms, but some are required.
+            # TBD do we need these as shell wrappers? exec is slow on Cygwin, and this makes exec twice for each compiler/linker run
             if [ -n "${where}" ]; then
                 CT_DoLog DEBUG "  '${!v}-${tool}' -> '${where}'"
                 printf "#${BANG}${CT_CONFIG_SHELL}\nexec '${where}' \"\${@}\"\n" >"${CT_BUILDTOOLS_PREFIX_DIR}/bin/${!v}-${tool}"
@@ -468,7 +469,7 @@ if [ -z "${CT_RESTART}" ]; then
                     ar|as|gcc|ld|nm|objcopy|objdump|ranlib)
                         CT_Abort "Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : either needed!"
                         ;;
-                    # Some are conditionnally required
+                    # Some are conditionally required
                     # Add them in alphabetical (C locale) ordering
                     g++)
                         # g++ (needed for companion lib), only needed for HOST

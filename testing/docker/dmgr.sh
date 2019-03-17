@@ -3,9 +3,17 @@
 # Run from the directory containing this script
 cd `dirname $0`
 
+# Global return code (flags an error if any of the actions fail)
+global_rc=0
+
 msg()
 {
     echo "INFO  :: $*" >&2
+}
+
+warn()
+{
+    echo "WARN  :: $*" >&2
 }
 
 error()
@@ -52,6 +60,8 @@ action_build()
 {
     local cntr=$1
 
+    msg "Cleaning up previous runs for ${cntr}"
+    do_cleanup ${cntr}/{build,install,xtools}
     msg "Building Docker container for ${cntr}"
 set -x
     docker build --no-cache -t "ctng-${cntr}" --build-arg CTNG_GID=`id -g` --build-arg CTNG_UID=`id -u` "${cntr}"
@@ -81,6 +91,9 @@ _dckr()
     else
         $prefix su -l ctng
     fi
+    if [ $? != 0 ]; then
+	global_rc=1
+    fi
 }
 
 # Run the test
@@ -91,8 +104,11 @@ action_install()
     # The test assumes the top directory is bootstrapped, but clean.
     msg "Setting up crosstool-NG in ${cntr}"
     do_cleanup ${cntr}/build
-    _dckr "${cntr}" /common-scripts/ctng-install && \
-        _dckr "${cntr}" /common-scripts/ctng-test-basic
+    if ! _dckr "${cntr}" /common-scripts/ctng-install; then
+	warn "Installation failed"
+    elif !  _dckr "${cntr}" /common-scripts/ctng-test-basic; then
+	warn "Basic tests failed"
+    fi
 }
 
 # Run the test
@@ -164,3 +180,7 @@ case "${action}" in
         usage "Unknown action ${action}."
         ;;
 esac
+if [ "${global_rc}" != 0 ]; then
+    error "Some of the actions failed, see warnings above"
+fi
+exit ${global_rc}

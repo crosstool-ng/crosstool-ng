@@ -125,7 +125,7 @@ do_ncurses_backend() {
     for arg in "$@"; do
         case "$arg" in
             --*)
-                ncurses_opts+=("$arg")
+                ncurses_opts+=("${arg}")
                 ;;
             *)
                 eval "${arg// /\\ }"

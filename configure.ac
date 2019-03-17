@@ -97,6 +97,9 @@ AC_PROG_YACC
 AS_IF([test -z "$CC" -o -z "$CXX"],
       [AC_MSG_ERROR([no suitable compiler found])])
 
+AX_CXX_COMPILE_STDCXX([11],, [optional])
+CTNG_SET_KCONFIG_OPTION([has_cxx11], [${HAVE_CXX11}])
+
 # Check to see if the compiler can link statically
 AC_MSG_CHECKING([if $CC can static link])
 echo "int main() {}" | ${CC} -static -o /dev/null -xc - > /dev/null 2>&1
@@ -113,7 +116,6 @@ AC_PROG_RANLIB
 CTNG_PATH_TOOL_REQ([OBJCOPY], [gobjcopy objcopy], [objcopy])
 CTNG_PATH_TOOL_REQ([OBJDUMP], [gobjdump objdump], [objdump])
 CTNG_PATH_TOOL_REQ([READELF], [greadelf readelf], [readelf])
-CTNG_PATH_TOOL_REQ([BISON], [bison], [bison])
 
 CTNG_CHECK_PROGS_REQ([flex], [flex])
 CTNG_CHECK_PROGS_REQ([makeinfo], [makeinfo])
@@ -182,6 +184,13 @@ CTNG_PROG_VERSION_REQ_ANY([MAKE],
     [^GNU Make (3\.8[1-9]|3\.9[0-9]|[4-9]\.)],
     [make_3_81_or_newer])
 
+CTNG_PROG_VERSION_REQ_ANY([MAKE],
+    [GNU make >= 4.0],
+    [make],
+    [gmake make],
+    [^GNU Make [4-9]\.],
+    [make_4_0_or_newer])
+
 # Check other companion tools that we may or may not build.
 CTNG_PROG_VERSION_REQ_ANY([LIBTOOL],
     [GNU libtool >= 2.4],
@@ -224,6 +233,27 @@ CTNG_PROG_VERSION([M4],
     [gm4 m4],
     [\(GNU M4\) ([2-9]\.|1\.[5-9]|1\.[1-4][0-9]|1\.4\.[2-9][0-9]|1\.4\.1[2-9])],
     [gnu_m4_1_4_12_or_newer])
+
+CTNG_PROG_VERSION([PYTHON],
+    [Python],
+    [python],
+    [python37 python3.7 python36 python3.6 python35 python3.5 python34 python3.4 python33 python3.3 python32 python3.2 python31 python3.1 python3 python27 python2.7 python26 python2.6 python2 python],
+    [^Python [23]\.],
+    [python])
+
+CTNG_PROG_VERSION([PYTHON],
+    [Python >= 3.4],
+    [python],
+    [python37 python3.7 python36 python3.6 python35 python3.5 python34 python3.4 python3 python],
+    [^Python 3\.([4-9]|[1-9][0-9]+)\.],
+    [python_3_4_or_newer])
+
+CTNG_PROG_VERSION([BISON],
+    [bison >= 2.7],
+    [bison],
+    [bison],
+    [\(GNU Bison\) (2\.[7-9]|2\.[1-9][0-9]|[3-9]\.)],
+    [bison_2_7_or_newer])
 
 AC_SUBST([kconfig_options])
 
