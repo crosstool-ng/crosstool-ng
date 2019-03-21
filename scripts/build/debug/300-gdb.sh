@@ -114,14 +114,14 @@ do_debug_gdb_build()
             native_extra_config+=("--disable-gdbserver")
         else
             native_extra_config+=("--enable-gdbserver")
-            if [ "${CT_GDB_NATIVE_BUILD_IPA_LIB}" = "y" ]; then
-                gdbserver_extra_config+=("--enable-inprocess-agent")
-            else
-                gdbserver_extra_config+=("--disable-inprocess-agent")
-            fi
             if [ "${CT_GDB_NATIVE}" != "y" ]; then
                 subdir=gdb/gdbserver/
             fi
+        fi
+        if [ "${CT_GDB_NATIVE_BUILD_IPA_LIB}" = "y" ]; then
+            native_extra_config+=("--enable-inprocess-agent")
+        else
+            native_extra_config+=("--disable-inprocess-agent")
         fi
 
         export ac_cv_func_strncmp_works=yes
