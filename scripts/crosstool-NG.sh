@@ -32,6 +32,8 @@ if [ -z "${CT_ALLOW_BUILD_AS_ROOT_SURE}" ]; then
     fi
 fi
 
+CT_TestAndAbort "Invalid configuration. Run 'ct-ng menuconfig' and check which options select INVALID_CONFIGURATION." -n "${CT_INVALID_CONFIGURATION}"
+
 # If we want an interactive debug-shell, we must ensure these FDs
 # are indeed connected to a terminal (and not redirected in any way).
 if [ "${CT_DEBUG_INTERACTIVE}" = "y" -a ! \( -t 0 -a -t 6 -a -t 2 \) ]; then
