@@ -113,7 +113,7 @@ do_zlib_backend() {
     esac
 
     CT_DoLog EXTRA "Building zlib"
-    CT_DoExecLog ALL make "${extra_make[@]}" ${JOBSFLAGS}
+    CT_DoExecLog ALL make "${extra_make[@]}" ${CT_JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         if [ "${host}" = "${CT_BUILD}" ]; then

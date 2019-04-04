@@ -67,7 +67,7 @@ do_debug_gdb_build()
 
         if [ "${CT_BUILD_MANUALS}" = "y" ]; then
             CT_DoLog EXTRA "Building and installing the cross-GDB manuals"
-            CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} pdf html
             CT_DoExecLog ALL make install-{pdf,html}-gdb
         fi
 
@@ -278,7 +278,7 @@ do_gdb_backend()
         "${extra_config[@]}"                        \
 
     CT_DoLog EXTRA "Building ${buildtype} gdb"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing ${buildtype} gdb"
     CT_DoExecLog ALL make install ${destdir:+DESTDIR="${destdir}"}
