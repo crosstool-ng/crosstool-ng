@@ -321,7 +321,7 @@ glibc_backend_once()
 
         # use the 'install-headers' makefile target to install the
         # headers
-        CT_DoExecLog ALL make ${JOBSFLAGS}                       \
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS}                       \
                          install_root=${multi_root}                 \
                          install-bootstrap-headers=yes              \
                          "${extra_make_args[@]}"                    \
@@ -371,7 +371,7 @@ glibc_backend_once()
             # there are a few object files needed to link shared libraries,
             # which we build and install by hand
             CT_DoExecLog ALL mkdir -p "${startfiles_dir}"
-            CT_DoExecLog ALL make ${JOBSFLAGS} \
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} \
                         "${extra_make_args[@]}" \
                         csu/subdir_lib
             CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o    \
@@ -392,12 +392,12 @@ glibc_backend_once()
 
     if [ "${libc_mode}" = "final" ]; then
         CT_DoLog EXTRA "Building C library"
-        CT_DoExecLog ALL make ${JOBSFLAGS}         \
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS}         \
                               "${extra_make_args[@]}" \
                               all
 
         CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL make ${JOBSFLAGS}                 \
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS}                 \
                               "${extra_make_args[@]}"         \
                               install_root="${multi_root}"    \
                               install
@@ -407,7 +407,7 @@ glibc_backend_once()
             # last multilib target. If it's not multilib, it will happen on the
             # only target.
             CT_DoLog EXTRA "Building and installing the C library manual"
-            # Omit JOBSFLAGS as GLIBC has problems building the
+            # Omit CT_JOBSFLAGS as GLIBC has problems building the
             # manuals in parallel
             CT_DoExecLog ALL make pdf html
             CT_DoExecLog ALL mkdir -p ${CT_PREFIX_DIR}/share/doc
@@ -546,7 +546,7 @@ glibc_locales()
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building C library localedef"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
     # The target's endianness and uint32_t alignment should be passed as options
     # to localedef, but glibc's localedef does not support these options, which
@@ -554,7 +554,7 @@ glibc_locales()
     # only if it has the same endianness and uint32_t alignment as the host's.
 
     CT_DoLog EXTRA "Installing C library locales"
-    CT_DoExecLog ALL make ${JOBSFLAGS}                  \
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}                  \
                           install_root="${CT_SYSROOT_DIR}" \
                           localedata/install-locales
 }

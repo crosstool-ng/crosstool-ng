@@ -108,7 +108,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
         "${CT_LIBC_NEWLIB_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing C library"
     CT_DoExecLog ALL make install

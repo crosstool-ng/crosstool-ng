@@ -128,7 +128,7 @@ musl_backend_once() {
             "${multi_root}${multilib_dir}/libc.so"
 
         CT_DoLog EXTRA "Building C library"
-        CT_DoExecLog ALL make ${JOBSFLAGS}
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
         CT_DoLog EXTRA "Installing C library"
         CT_DoExecLog ALL make DESTDIR="${multi_root}" install

@@ -44,7 +44,7 @@ uClibc_backend_once()
     local libc_mode
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
     local multilib_dir startfiles_dir
-    local jflag=${CT_LIBC_UCLIBC_PARALLEL:+${JOBSFLAGS}}
+    local jflag=${CT_LIBC_UCLIBC_PARALLEL:+${CT_JOBSFLAGS}}
     local -a make_args
     local extra_cflags f cfg_cflags cf
     local hdr_install_subdir

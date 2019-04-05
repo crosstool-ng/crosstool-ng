@@ -110,12 +110,12 @@ do_isl_backend() {
         --with-clang=no
 
     CT_DoLog EXTRA "Building ISL"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
     if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
         if [ "${host}" = "${CT_BUILD}" ]; then
             CT_DoLog EXTRA "Checking ISL"
-            CT_DoExecLog ALL make ${JOBSFLAGS} -s check
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} -s check
         else
             # Cannot run host binaries on build in a canadian cross
             CT_DoLog EXTRA "Skipping check for ISL on the host"

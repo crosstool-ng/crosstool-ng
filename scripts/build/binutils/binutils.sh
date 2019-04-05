@@ -199,11 +199,11 @@ do_binutils_backend() {
     if [ "${static_build}" = "y" ]; then
         extra_make_flags+=("LDFLAGS=${ldflags} -all-static")
         CT_DoLog EXTRA "Prepare binutils for static build"
-        CT_DoExecLog ALL make ${JOBSFLAGS} configure-host
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} configure-host
     fi
 
     CT_DoLog EXTRA "Building binutils"
-    CT_DoExecLog ALL make "${extra_make_flags[@]}" ${JOBSFLAGS}
+    CT_DoExecLog ALL make "${extra_make_flags[@]}" ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing binutils"
     CT_DoExecLog ALL make install
@@ -222,7 +222,7 @@ do_binutils_backend() {
         fi
         manuals_install=( "${manuals_for[@]/#/install-pdf-}" )
         manuals_install+=( "${manuals_for[@]/#/install-html-}" )
-        CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} pdf html
         CT_DoExecLog ALL make "${manuals_install[@]}"
     fi
 
@@ -290,7 +290,7 @@ do_elf2flt_backend() {
         "${CT_ELF2FLT_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building elf2flt"
-    CT_DoExecLog ALL make ${JOBSFLAGS} CPU=${CT_ARCH}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS} CPU=${CT_ARCH}
 
     CT_DoLog EXTRA "Installing elf2flt"
     CT_DoExecLog ALL make install
@@ -349,7 +349,7 @@ do_binutils_for_target() {
             "${CT_BINUTILS_EXTRA_CONFIG_ARRAY[@]}"
 
         CT_DoLog EXTRA "Building binutils' libraries (${targets[*]}) for target"
-        CT_DoExecLog ALL make ${JOBSFLAGS} "${build_targets[@]}"
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} "${build_targets[@]}"
         CT_DoLog EXTRA "Installing binutils' libraries (${targets[*]}) for target"
         CT_DoExecLog ALL make DESTDIR="${CT_SYSROOT_DIR}" "${install_targets[@]}"
 

@@ -618,23 +618,23 @@ do_gcc_core_backend() {
         # Next we have to configure gcc, create libgcc.mk then edit it...
         # So much easier if we just edit the source tree, but hey...
         if [ ! -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
-            CT_DoExecLog CFG make ${JOBSFLAGS} configure-libiberty
-            CT_DoExecLog ALL make ${JOBSFLAGS} -C libiberty libiberty.a
-            CT_DoExecLog CFG make ${JOBSFLAGS} configure-gcc configure-libcpp
-            CT_DoExecLog ALL make ${JOBSFLAGS} all-libcpp
+            CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-libiberty
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C libiberty libiberty.a
+            CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp
         else
-            CT_DoExecLog CFG make ${JOBSFLAGS} configure-gcc configure-libcpp configure-build-libiberty
-            CT_DoExecLog ALL make ${JOBSFLAGS} all-libcpp all-build-libiberty
+            CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp configure-build-libiberty
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
         if [ -d "${CT_SRC_DIR}/gcc/libdecnumber" ]; then
-            CT_DoExecLog CFG make ${JOBSFLAGS} configure-libdecnumber
-            CT_DoExecLog ALL make ${JOBSFLAGS} -C libdecnumber libdecnumber.a
+            CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-libdecnumber
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C libdecnumber libdecnumber.a
         fi
         # HACK: gcc-4.8 uses libbacktrace to make libgcc.mvars, so make it here.
         if [ -d "${CT_SRC_DIR}/gcc/libbacktrace" ]; then
-            CT_DoExecLog CFG make ${JOBSFLAGS} configure-libbacktrace
-            CT_DoExecLog ALL make ${JOBSFLAGS} -C libbacktrace
+            CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-libbacktrace
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C libbacktrace
         fi
 
         libgcc_rule="libgcc.mvars"
@@ -652,7 +652,7 @@ do_gcc_core_backend() {
             repair_cc=""
         fi
 
-        CT_DoExecLog ALL make ${JOBSFLAGS} -C gcc ${libgcc_rule} \
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C gcc ${libgcc_rule} \
                               ${repair_cc}
         sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
@@ -681,9 +681,9 @@ do_gcc_core_backend() {
     esac
 
     CT_DoLog EXTRA "Building ${log_txt}"
-    CT_DoExecLog ALL make ${JOBSFLAGS} ${core_targets_all}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS} ${core_targets_all}
 
-    # Do not pass ${JOBSFLAGS} here: recent GCC builds have been failing
+    # Do not pass ${CT_JOBSFLAGS} here: recent GCC builds have been failing
     # in parallel 'make install' at random locations: libitm, libcilk,
     # always for the files that are installed more than once to the same
     # location (such as libitm.info).
@@ -1169,11 +1169,11 @@ do_gcc_backend() {
 
     if [ "${CT_CANADIAN}" = "y" ]; then
         CT_DoLog EXTRA "Building libiberty"
-        CT_DoExecLog ALL make ${JOBSFLAGS} all-build-libiberty
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-build-libiberty
     fi
 
     CT_DoLog EXTRA "Building final gcc compiler"
-    CT_DoExecLog ALL make ${JOBSFLAGS} all
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS} all
 
     # See the note on issues with parallel 'make install' in GCC above.
     CT_DoLog EXTRA "Installing final gcc compiler"

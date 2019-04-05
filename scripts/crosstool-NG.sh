@@ -32,6 +32,8 @@ if [ -z "${CT_ALLOW_BUILD_AS_ROOT_SURE}" ]; then
     fi
 fi
 
+CT_TestAndAbort "Invalid configuration. Run 'ct-ng menuconfig' and check which options select INVALID_CONFIGURATION." -n "${CT_INVALID_CONFIGURATION}"
+
 # If we want an interactive debug-shell, we must ensure these FDs
 # are indeed connected to a terminal (and not redirected in any way).
 if [ "${CT_DEBUG_INTERACTIVE}" = "y" -a ! \( -t 0 -a -t 6 -a -t 2 \) ]; then
@@ -576,7 +578,7 @@ if [ -z "${CT_RESTART}" ]; then
     CT_DoLog DEBUG "LDFLAGS for host compiler: '${CT_LDFLAGS_FOR_HOST}'"
 
     # And help make go faster
-    JOBSFLAGS=
+    CT_JOBSFLAGS=
     # Override the configured jobs with what's been given on the command line
     if [ -n "${CT_JOBS}" ]; then
         if [ ! -z "`echo "${CT_JOBS}" | ${sed} 's/[0-9]//g'`" ]; then
@@ -587,9 +589,9 @@ if [ -z "${CT_RESTART}" ]; then
     # Use the number of processors+1 when automatically setting the number of
     # parallel jobs.
     AUTO_JOBS=$[ BUILD_NCPUS + 1 ]
-    [ ${CT_PARALLEL_JOBS} -eq 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${AUTO_JOBS}"
-    [ ${CT_PARALLEL_JOBS} -gt 0 ] && JOBSFLAGS="${JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
-    JOBSFLAGS="${JOBSFLAGS} -l${CT_LOAD}"
+    [ ${CT_PARALLEL_JOBS} -eq 0 ] && CT_JOBSFLAGS="${CT_JOBSFLAGS} -j${AUTO_JOBS}"
+    [ ${CT_PARALLEL_JOBS} -gt 0 ] && CT_JOBSFLAGS="${CT_JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
+    CT_JOBSFLAGS="${CT_JOBSFLAGS} -l${CT_LOAD}"
 
     # Override 'download only' option
     [ -n "${CT_SOURCE}" ] && CT_ONLY_DOWNLOAD=y

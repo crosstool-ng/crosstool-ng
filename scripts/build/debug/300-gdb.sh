@@ -67,7 +67,7 @@ do_debug_gdb_build()
 
         if [ "${CT_BUILD_MANUALS}" = "y" ]; then
             CT_DoLog EXTRA "Building and installing the cross-GDB manuals"
-            CT_DoExecLog ALL make ${JOBSFLAGS} pdf html
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} pdf html
             CT_DoExecLog ALL make install-{pdf,html}-gdb
         fi
 
@@ -114,14 +114,14 @@ do_debug_gdb_build()
             native_extra_config+=("--disable-gdbserver")
         else
             native_extra_config+=("--enable-gdbserver")
-            if [ "${CT_GDB_NATIVE_BUILD_IPA_LIB}" = "y" ]; then
-                gdbserver_extra_config+=("--enable-inprocess-agent")
-            else
-                gdbserver_extra_config+=("--disable-inprocess-agent")
-            fi
             if [ "${CT_GDB_NATIVE}" != "y" ]; then
                 subdir=gdb/gdbserver/
             fi
+        fi
+        if [ "${CT_GDB_NATIVE_BUILD_IPA_LIB}" = "y" ]; then
+            native_extra_config+=("--enable-inprocess-agent")
+        else
+            native_extra_config+=("--disable-inprocess-agent")
         fi
 
         export ac_cv_func_strncmp_works=yes
@@ -278,7 +278,7 @@ do_gdb_backend()
         "${extra_config[@]}"                        \
 
     CT_DoLog EXTRA "Building ${buildtype} gdb"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing ${buildtype} gdb"
     CT_DoExecLog ALL make install ${destdir:+DESTDIR="${destdir}"}

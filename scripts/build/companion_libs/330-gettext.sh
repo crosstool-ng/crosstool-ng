@@ -131,7 +131,7 @@ do_gettext_backend() {
         "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building gettext"
-    CT_DoExecLog ALL make ${JOBSFLAGS}
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing gettext"
     CT_DoExecLog ALL make install
