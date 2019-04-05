@@ -153,20 +153,22 @@ uClibc_backend_once()
             CT_DoExecLog ALL make ${jflag} "${make_args[@]}" \
                 lib/crt1.o lib/crti.o lib/crtn.o
 
-            # From:  http://git.openembedded.org/cgit.cgi/openembedded/commit/?id=ad5668a7ac7e0436db92e55caaf3fdf782b6ba3b
-            # libm.so is needed for ppc, as libgcc is linked against libm.so
-            # No problem to create it for other archs.
-            CT_DoLog EXTRA "Building dummy shared libs"
-            CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" -nostdlib -nostartfiles \
-                -shared ${multi_flags} -x c /dev/null -o libdummy.so
+            if [ "${CT_SHARED_LIBS}" = "y" ]; then
+                # From:  http://git.openembedded.org/cgit.cgi/openembedded/commit/?id=ad5668a7ac7e0436db92e55caaf3fdf782b6ba3b
+                # libm.so is needed for ppc, as libgcc is linked against libm.so
+                # No problem to create it for other archs.
+                CT_DoLog EXTRA "Building dummy shared libs"
+                CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" -nostdlib -nostartfiles \
+                    -shared ${multi_flags} -x c /dev/null -o libdummy.so
 
-            CT_DoLog EXTRA "Installing start files"
-            CT_DoExecLog ALL install -m 0644 lib/crt1.o lib/crti.o lib/crtn.o \
-                                             "${startfiles_dir}"
+                CT_DoLog EXTRA "Installing start files"
+                CT_DoExecLog ALL install -m 0644 lib/crt1.o lib/crti.o lib/crtn.o \
+                                                 "${startfiles_dir}"
 
-            CT_DoLog EXTRA "Installing dummy shared libs"
-            CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libc.so"
-            CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libm.so"
+                CT_DoLog EXTRA "Installing dummy shared libs"
+                CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libc.so"
+                CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libm.so"
+            fi # CT_SHARED_LIBS == y
         fi # CT_THREADS == nptl
     fi # libc_mode == startfiles
 

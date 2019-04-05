@@ -9,9 +9,9 @@ CT_DoKernelTupleValues()
         # while others must have a -linux tuple.  Other targets
         # should be added here when someone starts to care about them.
         case "${CT_ARCH}" in
-            arm*)       CT_TARGET_KERNEL="linux" ;;
-            m68k)       CT_TARGET_KERNEL="uclinux" ;;
-            *)          CT_Abort "Unsupported no-mmu arch '${CT_ARCH}'"
+            arm*)               CT_TARGET_KERNEL="linux" ;;
+            m68k|xtensa*)       CT_TARGET_KERNEL="uclinux" ;;
+            *)                  CT_Abort "Unsupported no-mmu arch '${CT_ARCH}'"
         esac
     fi
 }
