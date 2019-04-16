@@ -1,0 +1,71 @@
+From 5664ecf49828edb20f53937ab2e417ba173fc903 Mon Sep 17 00:00:00 2001
+From: claziss <claziss@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date: Wed, 13 Jun 2018 08:54:09 +0000
+Subject: [PATCH] [ARC] Update fma expansions.
+
+Accept at most a single constant for fma patterns.
+
+gcc/
+2018-03-21  Claudiu Zissulescu  <claziss@synopsys.com>
+
+	* config/arc/fpu.md (fmasf4): Force operand to register.
+	(fnmasf4): Likewise.
+
+gcc/testsuite
+2018-03-21  Claudiu Zissulescu  <claziss@synopsys.com>
+
+	* gcc.target/arc/fma-1.c: New test.
+
+git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@261543 138bc75d-0d04-0410-961f-82ee72b054a4
+---
+ gcc/config/arc/fpu.md                |  6 ++++++
+ gcc/testsuite/gcc.target/arc/fma-1.c | 13 +++++++++++++
+ 2 files changed, 19 insertions(+)
+ create mode 100644 gcc/testsuite/gcc.target/arc/fma-1.c
+
+diff --git a/gcc/config/arc/fpu.md b/gcc/config/arc/fpu.md
+index 5c56f76c679..66a4d91616f 100644
+--- a/gcc/config/arc/fpu.md
++++ b/gcc/config/arc/fpu.md
+@@ -64,6 +64,9 @@
+    tmp = gen_rtx_REG (SFmode, ACCL_REGNO);
+    emit_move_insn (tmp, operands[3]);
+    operands[3] = tmp;
++   if (!register_operand (operands[1], SFmode)
++        && !register_operand (operands[2], SFmode))
++     operands[2] = force_reg (SFmode, operands[2]);
+    }")
+ 
+ (define_expand "fnmasf4"
+@@ -77,6 +80,9 @@
+    tmp = gen_rtx_REG (SFmode, ACCL_REGNO);
+    emit_move_insn (tmp, operands[3]);
+    operands[3] = tmp;
++   if (!register_operand (operands[1], SFmode)
++        && !register_operand (operands[2], SFmode))
++     operands[2] = force_reg (SFmode, operands[2]);
+ }")
+ 
+ (define_insn "fmasf4_fpu"
+diff --git a/gcc/testsuite/gcc.target/arc/fma-1.c b/gcc/testsuite/gcc.target/arc/fma-1.c
+new file mode 100644
+index 00000000000..c195ad98127
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/arc/fma-1.c
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-skip-if "FPU not available" { arc700 || arc6xx } } */
++/* { dg-options "-s -std=gnu11  -O2 -frounding-math -mfpu=fpus_all" } */
++
++const float a, b = 7.8539818525e01;
++
++/* Check if the fma operation is generated correctly.  */
++
++int foo (void)
++{
++  return (float)3.0 * b + a;
++}
++/* { dg-final { scan-assembler "fsmadd" } } */
+-- 
+2.16.2
+
