@@ -5,6 +5,30 @@
 # Edited by Martin Lund <mgl@doredevelopment.dk>
 #
 
+newlib_nano_movelibs()
+{
+    local multi_flags multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_index multi_count
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoExecLog ALL mv "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libc.a" \
+                        "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libc_nano.a"
+    CT_DoExecLog ALL mv "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libg.a" \
+                        "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libg_nano.a"
+    if [ -f ${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/librdimon.a ]; then
+        CT_DoExecLog ALL mv "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/librdimon.a" \
+                            "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/librdimon_nano.a"
+    fi
+    if [ "${CT_CC_GCC_STATIC_LIBSTDCXX}" = "y" ]; then
+        CT_DoExecLog ALL mv "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libstdc++.a" \
+                            "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libstdc++_nano.a"
+        CT_DoExecLog ALL mv "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libsupc++.a" \
+                            "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libsupc++_nano.a"
+    fi
+}
+
 newlib_start_files()
 {
     CT_DoStep INFO "Installing C library headers & start files"
@@ -130,4 +154,16 @@ ENABLE_TARGET_OPTSPACE:target-optspace
 
     CT_Popd
     CT_EndStep
+}
+
+newlib_post_cc()
+{
+    if [ "${CT_LIBC_NEWLIB_NANO_SPEC}" = "y" ]; then
+        CT_DoLog EXTRA "Move files to match nano.spec layout"
+        CT_IterateMultilibs newlib_nano_movelibs newlib_nano_libs
+
+        CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/${CT_TARGET}/include/newlib-nano"
+        CT_DoExecLog ALL mv "${CT_PREFIX_DIR}/${CT_TARGET}/include/newlib.h" \
+                            "${CT_PREFIX_DIR}/${CT_TARGET}/include/newlib-nano"
+    fi
 }
