@@ -145,6 +145,23 @@ musl_backend_once() {
             esac
         done
 
+        if [ "${CT_LIBC_MUSL_FTS_REQUIRES}" = "y" ]; then
+            CT_DoExecLog CFG                       \
+                ${CONFIG_SHELL}                    \
+                "${CT_SRC_DIR}/musl-fts/configure" \
+                --host="${multi_target}"           \
+                --target="${multi_target}"         \
+                --libdir="${multilib_dir}"         \
+                --prefix="/usr"                    \
+                "${CT_MUSL_FTS_EXTRA_CONFIG_ARRAY[@]}"
+
+            CT_DoLog EXTRA "Building musl-fts"
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS}
+
+            CT_DoLog EXTRA "Installing musl-fts"
+            CT_DoExecLog ALL make DESTDIR="${multi_root}" install
+        fi
+
         # Any additional actions for this architecture
         CT_DoArchMUSLPostInstall
     fi
