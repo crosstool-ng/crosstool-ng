@@ -83,7 +83,7 @@ do_finish() {
                 case "${_type}" in
                     *script*executable*)
                         ;;
-                    *executable*)
+                    *executable*|*shared*object*)
                         CT_DoExecLog ALL ${CT_HOST}-strip ${strip_args} "${_t}"
                         ;;
                 esac
