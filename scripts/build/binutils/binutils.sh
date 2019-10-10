@@ -158,6 +158,9 @@ do_binutils_backend() {
     elif [ "${CT_BINUTILS_RELRO}" != "m" ]; then
         extra_config+=( --disable-relro )
     fi
+    if [ "${CT_BINUTILS_DETERMINISTIC_ARCHIVES}" = "y" ]; then
+        extra_config+=( --enable-deterministic-archives )
+    fi
     if [ "${CT_BINUTILS_HAS_PKGVERSION_BUGURL}" = "y" ]; then
         [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
