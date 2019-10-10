@@ -153,7 +153,7 @@ do_binutils_backend() {
     if [ "${CT_BINUTILS_PLUGINS}" = "y" ]; then
         extra_config+=( --enable-plugins )
     fi
-    if [ "${CT_BINUTILES_RELRO}" = "y" ]; then
+    if [ "${CT_BINUTILS_RELRO}" = "y" ]; then
         extra_config+=( --enable-relro )
     elif [ "${CT_BINUTILS_RELRO}" != "m" ]; then
         extra_config+=( --disable-relro )
