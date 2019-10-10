@@ -437,7 +437,7 @@ if [ -z "${CT_RESTART}" ]; then
             t="${!r}-"
         fi
 
-        for tool in ar as dlltool gcc g++ gcj gnatbind gdc gnatmake ld libtool nm objcopy objdump ranlib strip windres; do
+        for tool in ar as dlltool gcc gcc-ar gcc-nm gcc-ranlib g++ gcj gnatbind gdc gnatmake ld libtool nm objcopy objdump ranlib strip windres; do
             # First try with prefix + suffix
             # Then try with prefix only
             # Then try with suffix only, but only for BUILD, and HOST iff REAL_BUILD == REAL_HOST
@@ -488,6 +488,16 @@ if [ -z "${CT_RESTART}" ]; then
                         CT_DoLog DEBUG "  Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : not required."
                         ;;
                 esac
+            fi
+        done
+
+        # Incase the toolchain is built using plugins (-flto),
+        # the gcc wrappers are needed for older binutils
+        for tool in ar nm ranlib; do
+            if [ -x "${CT_BUILDTOOLS_PREFIX_DIR}/bin/${!v}-gcc-${tool}" ]; then
+                CT_DoLog DEBUG "  '${!v}-${tool}' -> '${!v}-gcc-${tool}'"
+                # this already is a script, so just copy over
+                CT_DoExecLog ALL cp "${CT_BUILDTOOLS_PREFIX_DIR}/bin/${!v}-gcc-${tool}" "${CT_BUILDTOOLS_PREFIX_DIR}/bin/${!v}-${tool}"
             fi
         done
     done
