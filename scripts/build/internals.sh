@@ -31,6 +31,7 @@ do_finish() {
     local strip_args
     local gcc_version
     local exe_suffix
+    local tarball
 
     CT_DoStep INFO "Finalizing the toolchain's directory"
 
@@ -136,6 +137,17 @@ do_finish() {
 
     if [ "${CT_INSTALL_LICENSES}" = y ]; then
         CT_InstallCopyingInformation
+    fi
+
+    if [ "${CT_TARBALL_RESULT}" = y ]; then
+        tarball="${CT_TARBALL_RESULT_DIR}/${CT_TARBALL_RESULT_FILENAME}.tar.xz"
+        CT_DoLog EXTRA "Creating binary toolchain tarball: ${tarball}"
+        cp "${CT_TOP_DIR}/.config" "${CT_PREFIX_DIR}/${CT_TOOLCHAIN_PKGVERSION}.config"
+        tar -C "${CT_PREFIX_DIR}" -Jcf "${tarball}" \
+            --sort=name --numeric-owner --owner=0 --group=0 \
+            --transform "s,^\./\.,${CT_TARBALL_RESULT_FILENAME},S" ./.
+        CT_DoLog EXTRA "Calculating binary toolchain checksum"
+        sha256sum "${tarball}" > "${tarball}.asc"
     fi
 
     CT_EndStep
