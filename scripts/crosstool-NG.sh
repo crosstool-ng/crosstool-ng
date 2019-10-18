@@ -114,7 +114,6 @@ fi
 
 # Where will we work?
 CT_WORK_DIR="${CT_WORK_DIR:-${CT_TOP_DIR}/.build}"
-CT_BUILD_DIR="${CT_BUILD_TOP_DIR}/build"
 CT_DoExecLog ALL mkdir -p "${CT_WORK_DIR}"
 CT_DoExecLog DEBUG rm -f "${CT_WORK_DIR}/backtrace"
 
