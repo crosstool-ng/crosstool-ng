@@ -29,6 +29,7 @@ musl_backend_once()
     local src_dir="${CT_SRC_DIR}/musl"
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
     local multilib_dir
+    local musl_cflags
     local hdr_install_subdir
     local arg f l
 
@@ -42,7 +43,9 @@ musl_backend_once()
     CT_SanitizeVarDir multilib_dir
     CT_DoExecLog ALL mkdir -p "${multi_root}${multilib_dir}"
 
-    extra_cflags=( ${multi_flags} )
+    musl_cflags+=" ${CT_ALL_TARGET_CFLAGS}"
+    musl_cflags+=" ${CT_LIBC_MUSL_EXTRA_CFLAGS}"
+    musl_cflags+=" ${multi_flags}"
 
     if [ "${CT_LIBC_MUSL_DEBUG}" = "y" ]; then
         extra_config+=("--enable-debug")
@@ -74,7 +77,7 @@ musl_backend_once()
     #   host    : same as --target
     #   target  : the machine musl runs on
     CT_DoExecLog CFG                                      \
-    CFLAGS="${CT_TARGET_CFLAGS} ${extra_cflags[*]}"       \
+    CFLAGS="${musl_cflags}"                               \
     LDFLAGS="${CT_TARGET_LDFLAGS}"                        \
     CROSS_COMPILE="${CT_TARGET}-"                         \
     ${CONFIG_SHELL}                                       \
