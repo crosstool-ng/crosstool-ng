@@ -92,6 +92,19 @@ do_finish() {
         CT_Popd
     fi
 
+    # Strip target toolchain libraries
+    if [ "${CT_STRIP_TARGET_TOOLCHAIN_LIBRARIES}" = "y" ]; then
+        CT_DoLog INFO "Stripping all target toolchain libraries"
+        CT_Pushd "${CT_PREFIX_DIR}"
+
+        strip_target_lib "${CT_PREFIX_DIR}/${CT_TARGET}/lib" "*.a"
+        strip_target_lib "${CT_PREFIX_DIR}/${CT_TARGET}/lib" "*.o"
+        strip_target_lib "${CT_PREFIX_DIR}/lib/gcc/${CT_TARGET}/${gcc_version}" "*.a"
+        strip_target_lib "${CT_PREFIX_DIR}/lib/gcc/${CT_TARGET}/${gcc_version}" "*.o"
+
+        CT_Popd
+    fi
+
     if [ "${CT_BARE_METAL}" != "y" ]; then
         CT_DoLog EXTRA "Installing the populate helper"
         sed -r -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
@@ -139,4 +152,18 @@ do_finish() {
     fi
 
     CT_EndStep
+}
+
+strip_target_lib()
+{
+    local strip_args
+
+    strip_args="-R .comment -R .note -R .debug_info -R .debug_aranges
+    -R .debug_pubnames -R .debug_pubtypes -R .debug_abbrev -R .debug_line
+    -R .debug_str -R .debug_ranges -R .debug_loc
+        "
+
+    find "$1" -name "$2" | while read target_lib; do
+        CT_DoExecLog ALL ${CT_TARGET}-objcopy ${strip_args} "${target_lib}"
+    done
 }
