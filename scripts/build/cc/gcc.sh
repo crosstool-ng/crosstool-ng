@@ -279,8 +279,8 @@ do_cc_core_pass_2() {
 #   build_manuals       : whether to build manuals or not           : bool      : no
 #   cflags              : cflags to use                             : string    : (empty)
 #   ldflags             : ldflags to use                            : string    : (empty)
-#   build_step          : build step 'core1', 'core2', 'gcc_build'
-#                         or 'gcc_host'                             : string    : (none)
+#   build_step          : build step 'core1', 'core2', 'gcc_build',
+#                         'libstdcxx_nano' or 'gcc_host'            : string    : (none)
 # Usage: do_gcc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_gcc_core_backend() {
     local mode
@@ -327,8 +327,16 @@ do_gcc_core_backend() {
             # to inhibit the libiberty and libgcc tricks later on
             build_libgcc=no
             ;;
+        libstdcxx_nano)
+            CT_DoLog EXTRA "Configuring libstdc++ nano"
+            extra_config+=( "${CT_CC_SYSROOT_ARG[@]}" )
+            extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
+            log_txt="libstdc++ nano library"
+            # to inhibit the libiberty and libgcc tricks later on
+            build_libgcc=no
+            ;;
         *)
-            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build' or 'gcc_host', not '${build_step:-(empty)}'"
+            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build', 'gcc_host' or 'libstdcxx_nano', not '${build_step:-(empty)}'"
             ;;
     esac
 
@@ -447,7 +455,8 @@ do_gcc_core_backend() {
         extra_config+=("--with-host-libstdcxx=${host_libstdcxx_flags[*]}")
     fi
 
-    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
+       [ "${build_step}" = "libstdcxx_nano" ]; then
         extra_config+=("--enable-target-optspace")
     fi
     if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
@@ -871,6 +880,74 @@ do_cc_for_host() {
 }
 
 #------------------------------------------------------------------------------
+# Build an additional target libstdc++ with "-Os" (optimise for speed) option
+# flag for libstdc++ "nano" variant.
+do_cc_libstdcxx_nano()
+{
+    local -a final_opts
+    local final_backend
+
+    if [ "${CT_CC_GCC_LIBSTDCXX_NANO}" = "y" ]; then
+        final_opts+=( "host=${CT_HOST}" )
+        final_opts+=( "prefix=${CT_BUILD_DIR}/build-cc-libstdcxx-nano/target-libs" )
+        final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
+        final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+        final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
+        final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
+        final_opts+=( "build_step=libstdcxx_nano" )
+
+        if [ "${CT_BARE_METAL}" = "y" ]; then
+            final_opts+=( "mode=baremetal" )
+            final_opts+=( "build_libgcc=yes" )
+            final_opts+=( "build_libstdcxx=yes" )
+            final_opts+=( "build_libgfortran=yes" )
+            if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+                final_opts+=( "build_staticlinked=yes" )
+            fi
+            final_backend=do_gcc_core_backend
+        else
+            final_backend=do_gcc_backend
+        fi
+
+        CT_DoStep INFO "Installing libstdc++ nano"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-nano"
+        "${final_backend}" "${final_opts[@]}"
+        CT_Popd
+
+        # GCC installs stuff (including libgcc) into its own /lib dir,
+        # outside of sysroot, breaking linking with -static-libgcc.
+        # Fix up by moving the libraries into the sysroot.
+        if [ "${CT_USE_SYSROOT}" = "y" ]; then
+            CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-final-movelibs"
+            CT_IterateMultilibs gcc_movelibs movelibs
+            CT_Popd
+        fi
+
+        # Copy lib{std,sup}c++ as nano libraries
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-nano-copy"
+        CT_IterateMultilibs libstdcxx_nano_copy_multilibs copylibs
+        CT_Popd
+
+        CT_EndStep
+    fi
+}
+
+libstdcxx_nano_copy_multilibs()
+{
+    local nano_lib_dir="${CT_BUILD_DIR}/build-cc-libstdcxx-nano/target-libs"
+    local multi_flags multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_index multi_count
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoExecLog ALL cp -f "${nano_lib_dir}/${CT_TARGET}/lib/${multi_dir}/libstdc++.a" \
+                           "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libstdc++_nano.a"
+    CT_DoExecLog ALL cp -f "${nano_lib_dir}/${CT_TARGET}/lib/${multi_dir}/libsupc++.a" \
+                           "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libsupc++_nano.a"
+}
+
+#------------------------------------------------------------------------------
 # Build the final gcc
 # Usage: do_gcc_backend param=value [...]
 #   Parameter     : Definition                          : Type      : Default
@@ -881,6 +958,8 @@ do_cc_for_host() {
 #   ldflags       : ldflags to use                      : string    : (empty)
 #   lang_list     : the list of languages to build      : string    : (empty)
 #   build_manuals : whether to build manuals or not     : bool      : no
+#   build_step    : build step 'gcc_build', 'gcc_host',
+#                   or 'libstdcxx_nano'                 : string    : (none)
 do_gcc_backend() {
     local host
     local prefix
@@ -890,6 +969,8 @@ do_gcc_backend() {
     local cflags_for_build
     local ldflags
     local build_manuals
+    local build_step
+    local log_txt
     local -a host_libstdcxx_flags
     local -a extra_config
     local -a final_LDFLAGS
@@ -900,7 +981,20 @@ do_gcc_backend() {
         eval "${arg// /\\ }"
     done
 
-    CT_DoLog EXTRA "Configuring final gcc compiler"
+    # This function gets called for both final gcc and libstdcxx_nano.
+    case "${build_step}" in
+        gcc_build|gcc_host)
+            log_txt="final gcc compiler"
+            ;;
+        libstdcxx_nano)
+            log_txt="libstdc++ nano library"
+            ;;
+        *)
+            CT_Abort "Internal Error: 'build_step' must be one of: 'gcc_build', 'gcc_host' or 'libstdcxx_nano', not '${build_step:-(empty)}'"
+            ;;
+    esac
+
+    CT_DoLog EXTRA "Configuring ${log_txt}"
 
     # Enable selected languages
     extra_config+=("--enable-languages=${lang_list}")
@@ -1043,11 +1137,18 @@ do_gcc_backend() {
         fi
     fi
 
-    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
+       [ "${build_step}" = "libstdcxx_nano" ]; then
         extra_config+=("--enable-target-optspace")
     fi
     if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
         extra_config+=("--disable-libstdcxx-pch")
+    fi
+
+    if [ "${build_step}" = "libstdcxx_nano" ]; then
+        extra_config+=("-ffunction-sections")
+        extra_config+=("-fdata-sections")
+        extra_config+=("-fno-exceptions")
     fi
 
     case "${CT_CC_GCC_LDBL_128}" in
@@ -1172,11 +1273,11 @@ do_gcc_backend() {
         CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-build-libiberty
     fi
 
-    CT_DoLog EXTRA "Building final gcc compiler"
+    CT_DoLog EXTRA "Building ${log_txt}"
     CT_DoExecLog ALL make ${CT_JOBSFLAGS} all
 
     # See the note on issues with parallel 'make install' in GCC above.
-    CT_DoLog EXTRA "Installing final gcc compiler"
+    CT_DoLog EXTRA "Installing ${log_txt}"
     if [ "${CT_STRIP_TARGET_TOOLCHAIN_EXECUTABLES}" = "y" ]; then
         CT_DoExecLog ALL make install-strip
     else
@@ -1187,7 +1288,7 @@ do_gcc_backend() {
     # tree makes the libtoolized utilities that are built next assume
     # that, for example, libsupc++ is an "accessory library", and not include
     # -lsupc++ to the link flags. That breaks ltrace, for example.
-    CT_DoLog EXTRA "Housekeeping for final gcc compiler"
+    CT_DoLog EXTRA "Housekeeping for ${log_txt}"
     CT_Pushd "${prefix}"
     find . -type f -name "*.la" -exec rm {} \; |CT_DoLog ALL
     CT_Popd
