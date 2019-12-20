@@ -63,6 +63,7 @@ GLOBAL_ATEXIT:newlib-global-atexit
 LITE_EXIT:lite-exit
 REENT_SMALL:newlib-reent-small
 MULTITHREAD:newlib-multithread
+RETARGETABLE_LOCKING:newlib-retargetable-locking
 WIDE_ORIENT:newlib-wide-orient
 UNBUF_STREAM_OPT:newlib-unbuf-stream-opt
 ENABLE_TARGET_OPTSPACE:target-optspace
