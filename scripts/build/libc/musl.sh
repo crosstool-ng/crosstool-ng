@@ -98,7 +98,8 @@ musl_backend_once() {
     #   host    : same as --target
     #   target  : the machine musl runs on
     CT_DoExecLog CFG                                      \
-    CFLAGS="${extra_cflags[*]}"                           \
+    CFLAGS="${CT_TARGET_CFLAGS} ${extra_cflags[*]}"       \
+    LDFLAGS="${CT_TARGET_LDFLAGS}"                        \
     CROSS_COMPILE="${CT_TARGET}-"                         \
     ${CONFIG_SHELL}                                       \
     ${src_dir}/configure                                  \
