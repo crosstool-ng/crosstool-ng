@@ -2,8 +2,19 @@
 
 CT_DoArchTupleValues()
 {
-    # The architecture part of the tuple:
-    CT_TARGET_ARCH="${CT_ARCH}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
+    case "${CT_ARCH_BITNESS}" in
+        32)
+            CT_TARGET_ARCH="${CT_ARCH}${CT_ARCH_SUFFIX:-${target_endian_eb}}"
+            ;;
+        64)
+            # arc64 is little-endian only for now
+            # and thus "-mlittle-endian" option in GCC is obsolete for arc64
+            CT_TARGET_ARCH="arc64${CT_ARCH_SUFFIX}"
+            CT_ARCH_ENDIAN_CFLAG=""
+            # The same goes to the linker - we only build for little-endian.
+            CT_ARCH_ENDIAN_LDFLAG=""
+            ;;
+    esac
 }
 
 CT_DoArchUClibcConfig()
