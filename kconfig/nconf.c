@@ -488,8 +488,8 @@ static void clean_items(void)
 	int i;
 	for (i = 0; curses_menu_items[i]; i++)
 		free_item(curses_menu_items[i]);
-	bzero(curses_menu_items, sizeof(curses_menu_items));
-	bzero(k_menu_items, sizeof(k_menu_items));
+	memset(curses_menu_items, 0, sizeof(curses_menu_items));
+	memset(k_menu_items, 0, sizeof(k_menu_items));
 	items_num = 0;
 }
 
@@ -532,7 +532,7 @@ static void item_make(struct menu *menu, char tag, const char *fmt, ...)
 	if (items_num > MAX_MENU_ITEMS-1)
 		return;
 
-	bzero(&k_menu_items[items_num], sizeof(k_menu_items[0]));
+	memset(&k_menu_items[items_num], 0, sizeof(k_menu_items[0]));
 	k_menu_items[items_num].tag = tag;
 	k_menu_items[items_num].usrptr = menu;
 	if (menu != NULL)
@@ -1031,7 +1031,7 @@ static int do_match(int key, struct match_state *state, int *ans)
 		refresh();
 		clrtoeol();
 		state->in_search = 1-state->in_search;
-		bzero(state->pattern, sizeof(state->pattern));
+		memset(state->pattern, 0, sizeof(state->pattern));
 		state->match_direction = MATCH_TINKER_PATTERN_DOWN;
 		return 0;
 	} else if (!state->in_search)
@@ -1059,7 +1059,7 @@ static int do_match(int key, struct match_state *state, int *ans)
 
 	if (terminate_search) {
 		state->in_search = 0;
-		bzero(state->pattern, sizeof(state->pattern));
+		memset(state->pattern, 0, sizeof(state->pattern));
 		move(0, 0);
 		refresh();
 		clrtoeol();
