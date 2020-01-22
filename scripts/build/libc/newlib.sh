@@ -55,7 +55,7 @@ newlib_main()
     yn_args="IO_POS_ARGS:newlib-io-pos-args
 IO_C99FMT:newlib-io-c99-formats
 IO_LL:newlib-io-long-long
-NEWLIB_REGISTER_FINI:newlib-register-fini
+REGISTER_FINI:newlib-register-fini
 NANO_MALLOC:newlib-nano-malloc
 NANO_FORMATTED_IO:newlib-nano-formatted-io
 ATEXIT_DYNAMIC_ALLOC:newlib-atexit-dynamic-alloc
@@ -65,6 +65,8 @@ REENT_SMALL:newlib-reent-small
 MULTITHREAD:newlib-multithread
 RETARGETABLE_LOCKING:newlib-retargetable-locking
 WIDE_ORIENT:newlib-wide-orient
+FSEEK_OPTIMIZATION:newlib-fseek-optimization
+FVWRITE_IN_STREAMIO:newlib-fvwrite-in-streamio
 UNBUF_STREAM_OPT:newlib-unbuf-stream-opt
 ENABLE_TARGET_OPTSPACE:target-optspace
     "
