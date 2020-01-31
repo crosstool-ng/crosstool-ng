@@ -1,0 +1,80 @@
+From 761452f12781f2d15a50f2dcd9f40c53bc0ff040 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Tue, 3 Dec 2019 20:26:28 +0100
+Subject: [PATCH] x86: Assume --enable-cet if GCC defaults to CET [BZ #25225]
+
+This links in CET support if GCC defaults to CET.  Otherwise, __CET__
+is defined, yet CET functionality is not compiled and linked into the
+dynamic loader, resulting in a linker failure due to undefined
+references to _dl_cet_check and _dl_open_check.
+---
+ NEWS         |  1 +
+ configure    | 23 ++++++++++++++++++++++-
+ configure.ac |  9 ++++++++-
+ 3 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/configure b/configure
+index c773c487b5..6d26b8246f 100755
+--- a/configure
++++ b/configure
+@@ -3777,11 +3777,32 @@ else
+ fi
+ 
+ 
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++
++int
++main ()
++{
++
++#ifndef __CET__
++#error no CET compiler support
++#endif
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_c_try_compile "$LINENO"; then :
++  libc_cv_compiler_default_cet=yes
++else
++  libc_cv_compiler_default_cet=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++
+ # Check whether --enable-cet was given.
+ if test "${enable_cet+set}" = set; then :
+   enableval=$enable_cet; enable_cet=$enableval
+ else
+-  enable_cet=no
++  enable_cet=$libc_cv_compiler_default_cet
+ fi
+ 
+ 
+diff --git a/configure.ac b/configure.ac
+index 598ba6c4ae..7436485419 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -472,11 +472,18 @@ AC_ARG_ENABLE([mathvec],
+ 	      [build_mathvec=$enableval],
+ 	      [build_mathvec=notset])
+ 
++AC_TRY_COMPILE([], [
++#ifndef __CET__
++# error no CET compiler support
++#endif],
++	       [libc_cv_compiler_default_cet=yes],
++	       [libc_cv_compiler_default_cet=no])
++
+ AC_ARG_ENABLE([cet],
+ 	      AC_HELP_STRING([--enable-cet],
+ 			     [enable Intel Control-flow Enforcement Technology (CET), x86 only]),
+ 	      [enable_cet=$enableval],
+-	      [enable_cet=no])
++	      [enable_cet=$libc_cv_compiler_default_cet])
+ 
+ # We keep the original values in `$config_*' and never modify them, so we
+ # can write them unchanged into config.make.  Everything else uses
+-- 
+2.20.1
+
