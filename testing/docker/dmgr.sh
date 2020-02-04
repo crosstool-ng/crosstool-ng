@@ -170,7 +170,7 @@ fi
 case "${action}" in
     build|install|sample|enter|root|clean|distclean)
         for c in ${selected_containers}; do
-            eval "action_${action} ${c} \"$@\""
+            eval "action_${action} ${c%/} \"$@\""
         done
         ;;
     "")
