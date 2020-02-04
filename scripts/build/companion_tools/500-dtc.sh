@@ -48,11 +48,17 @@ do_dtc_backend()
         eval "${arg// /\\ }"
     done
 
+    # Override PKG_CONFIG: if pkg-config is not installed, DTC's makefile
+    # misinterprets the error code and tries to enable YAML support while
+    # not linking against libyaml. NO_YAML=1 is sufficient to make the build
+    # pass; PKG_CONFIG=/bin/true just suppresses some scary error messages.
     extra_opts=( \
         CC="${host}-gcc" \
         AR="${host}-ar" \
         PREFIX="${prefix}" \
+        PKG_CONFIG=/bin/true \
         NO_PYTHON=1 \
+        NO_YAML=1 \
         BIN=dtc \
         )
     if [ -n "${CT_DTC_VERBOSE}" ]; then
