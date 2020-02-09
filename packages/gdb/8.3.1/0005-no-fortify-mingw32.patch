@@ -1,0 +1,43 @@
+commit 5f23a08201ed01570b34f5cff99a95fc7b9e2fdb
+Author: Christian Biesinger <cbiesinger@google.com>
+Date:   Wed Dec 18 12:06:43 2019 -0600
+
+    Don't define _FORTIFY_SOURCE on MinGW
+    
+    Recent MinGW versions require -lssp when using _FORTIFY_SOURCE, which
+    gdb does (in common-defs.h)
+    https://github.com/msys2/MINGW-packages/issues/5868#issuecomment-544107564
+    
+    To avoid all the complications with checking for -lssp and making sure it's
+    linked statically, just don't define it.
+    
+    gdb/ChangeLog:
+    
+    2020-01-09  Christian Biesinger  <cbiesinger@google.com>
+    
+            * gdbsupport/common-defs.h: Don't define _FORTIFY_SOURCE on MinGW.
+    
+    Change-Id: Ide6870ab57198219a2ef78bc675768a789ca2b1d
+
+---
+ gdb/common/common-defs.h |    8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+--- a/gdb/common/common-defs.h
++++ b/gdb/common/common-defs.h
+@@ -66,9 +66,13 @@
+    plus this seems like a reasonable safety measure.  The check for
+    optimization is required because _FORTIFY_SOURCE only works when
+    optimization is enabled.  If _FORTIFY_SOURCE is already defined,
+-   then we don't do anything.  */
++   then we don't do anything.  Also, on MinGW, fortify requires
++   linking to -lssp, and to avoid the hassle of checking for
++   that and linking to it statically, we just don't define
++   _FORTIFY_SOURCE there.  */
+ 
+-#if !defined _FORTIFY_SOURCE && defined __OPTIMIZE__ && __OPTIMIZE__ > 0
++#if (!defined _FORTIFY_SOURCE && defined __OPTIMIZE__ && __OPTIMIZE__ > 0 \
++     && !defined(__MINGW32__))
+ #define _FORTIFY_SOURCE 2
+ #endif
+ 
