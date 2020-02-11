@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
-ARG CTNG_UID
-ARG CTNG_GID
+ARG CTNG_UID=1000
+ARG CTNG_GID=1000
 RUN groupadd -g $CTNG_GID ctng
 RUN useradd -d /home/ctng -m -g $CTNG_GID -u $CTNG_UID -s /bin/bash ctng
 RUN apt-get update
