@@ -1,0 +1,50 @@
+---
+stages:
+  - build
+  - keystone
+  - world
+  - canadian
+
+cache:
+  paths:
+    - src
+
+# probably worth pushing an image with the required packages to dockerhub.
+image: registry.gitlab.com/cpackham/crosstool-ng/ubuntu18.04-ct-ng-prereq:latest
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+
+# sudo is needed until this is official: https://gitlab.com/gitlab-org/gitlab-runner/issues/2750
+.do_build:
+  - &do_build
+    sudo -u ctng mkdir -p src;
+    sudo -u ctng ./ct-ng "$CI_JOB_NAME";
+    sudo -u ctng sed -i- -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config;
+    sudo -u ctng sed -i- -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config;
+    sudo -u ctng sed -i- -e '/CT_PREFIX_DIR/s/HOME/CT_TOP_DIR/' .config;
+    sudo -u ctng ./ct-ng build
+
+crosstool-ng:
+  stage: build
+  script:
+    - sudo -u ctng ./bootstrap
+    - sudo -u ctng ./configure --enable-local
+    - sudo -u ctng make
+  artifacts:
+    untracked: true
+
+{% for stage in ['keystone', 'world', 'canadian'] %}
+{% for config in configs[stage] %}
+{{ config }}:
+  stage: {{ stage }}
+  script:
+    - *do_build
+  artifacts:
+    when: always
+    paths:
+      - build.log
+      - .config
+{% endfor %}
+{% endfor %}
+
