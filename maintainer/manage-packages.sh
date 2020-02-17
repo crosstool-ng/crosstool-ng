@@ -91,10 +91,11 @@ CT_LIB_DIR=`pwd`
 CT_TOP_DIR=`pwd`
 CT_TARBALLS_DIR=`pwd`/temp.tarballs
 CT_COMMON_SRC_DIR=`pwd`/temp.src
+CT_WORK_DIR=`pwd`/temp.work
 CT_SRC_DIR=`pwd`/temp.src
 CT_LOG_LEVEL_MAX=EXTRA
 CT_TEMP_PATCH_DIR=`pwd`/temp.patches
-mkdir -p ${CT_TARBALLS_DIR}
+mkdir -p "${CT_TARBALLS_DIR}" "${CT_WORK_DIR}"
 
 # Does not matter, just to make the scripts load
 CT_ARCH=arm
@@ -223,6 +224,8 @@ matched=0
 
 run_pkgversion()
 {
+    local descr
+
     while [ -n "${1}" ]; do
         eval "local ${1}"
         shift
@@ -237,8 +240,13 @@ run_pkgversion()
             ;;
         esac
     fi
+    if [ -n "${ver}" ]; then
+        descr="${pkg_name}-${ver}"
+    else
+        descr="${pkg_name} revision ${repository_cset}"
+    fi
 
-    CT_DoStep INFO "Handling ${pkg_name}-${ver}"
+    CT_DoStep INFO "Handling ${descr}"
     matched=$[matched+1]
 
     # Create a temporary configuration head file
@@ -268,30 +276,53 @@ source "config/global/build-behave.in"
 source "config/versions/${master}.in"
 EOF
 
+    # Common part of the config file
     cat >temp.defconfig <<EOF
 CT_${masterpfx}_USE_${originpfx}=y
-CT_${pfx}_SRC_RELEASE=y
-CT_${pfx}_V_${kcfg}=y
 CT_SAVE_TARBALLS=y
+CT_WORK_DIR="${CT_WORK_DIR}"
+# CT_OVERRIDE_CONFIG_GUESS_SUB is not set
 # CT_VERIFY_DOWNLOAD_DIGEST is not set
 ${signature+CT_VERIFY_DOWNLOAD_SIGNATURE=y}
-# CT_OVERRIDE_CONFIG_GUESS_SUB is not set
 EOF
+
+    if [ -n "${kcfg}" ]; then
+        # Regular tarball
+        cat >>temp.defconfig <<EOF
+CT_${pfx}_SRC_RELEASE=y
+CT_${pfx}_V_${kcfg}=y
+EOF
+    else
+        # VCS-based release
+        cat >>temp.defconfig <<EOF
+CT_${pfx}_SRC_DEVEL=y
+CT_${pfx}_DEVEL_VCS="${vcs}"
+CT_${pfx}_DEVEL_URL="${repository_url}"
+CT_${pfx}_DEVEL_BRANCH="${repository_branch}"
+CT_${pfx}_DEVEL_REVISION="${repository_cset}"
+CT_${pfx}_DEVEL_SUBDIR="${repository_subdir}"
+EOF
+    fi
 
     ./kconfig/conf --defconfig=temp.defconfig temp.in >/dev/null
 
     CT_LoadConfig
+    CT_DoExecLog ALL mkdir -p "${CT_BUILD_DIR}"
     rm -f .config .config.old temp.defconfig temp.in
-    if [ -n "${verify_urls}" ]; then
-        CT_DoLog EXTRA "Verifying URLs for ${pkg_name}-${ver}"
-        CT_PackageRun "${masterpfx}" check_pkg_urls
-    fi
-    if [ -n "${create_digests}" ]; then
-        CT_DoLog EXTRA "Creating digests for ${pkg_name}-${ver}"
-        CT_PackageRun "${masterpfx}" create_digests
+    if [ -n "${ver}" ]; then
+        if [ -n "${verify_urls}" ]; then
+            CT_DoLog EXTRA "Verifying URLs for ${descr}"
+            CT_PackageRun "${masterpfx}" check_pkg_urls
+        fi
+        if [ -n "${create_digests}" ]; then
+            CT_DoLog EXTRA "Creating digests for ${descr}"
+            CT_PackageRun "${masterpfx}" create_digests
+        fi
+    else
+        CT_DoLog EXTRA "Not verifying URLs or creating digests for ${descr} (devel release)"
     fi
     if [ -n "${download_pkgs}" ]; then
-        CT_DoLog EXTRA "Downloading ${pkg_name}-${ver}"
+        CT_DoLog EXTRA "Downloading ${descr}"
         CT_Fetch "${masterpfx}"
     fi
     if [ -n "${apply_patches}" ]; then
@@ -315,4 +346,4 @@ CT_EndStep
 CT_DoLog INFO "Handled ${matched} packages/versions"
 [ -r .config-saved ] && mv .config-saved .config
 
-CT_DoExecLog ALL rm -rf ${CT_TARBALLS_DIR} ${CT_COMMON_SRC_DIR} ${CT_TEMP_PATCH_DIR}
+CT_DoExecLog ALL rm -rf "${CT_TARBALLS_DIR}" "${CT_COMMON_SRC_DIR}" "${CT_TEMP_PATCH_DIR}" "${CT_WORK_DIR}"
