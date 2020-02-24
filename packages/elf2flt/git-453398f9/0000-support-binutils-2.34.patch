@@ -1,0 +1,447 @@
+From fa0e77afba7d8d4107af5f8ddc8d38d23c3dd19d Mon Sep 17 00:00:00 2001
+From: Romain Naour <romain.naour@smile.fr>
+Date: Wed, 5 Feb 2020 10:31:32 +0100
+Subject: [PATCH] elf2flt: handle binutils >= 2.34
+
+The latest Binutils release (2.34) is not compatible with elf2flt due
+to a change in bfd_section_* macros. The issue has been reported to
+the Binutils mailing list but Alan Modra recommend to bundle libbfd
+library sources into each projects using it [1]. That's because the
+API is not stable over the time without any backward compatibility
+guaranties.
+
+On the other hand, the elf2flt tools needs to support modified
+version of binutils for specific arch/target [2].
+
+Add two tests in the configure script to detect this API change
+in order to support binutils < 2.34 and binutils >= 2.34.
+
+[1] https://sourceware.org/ml/binutils/2020-02/msg00044.html
+[2] https://github.com/uclinux-dev/elf2flt/issues/14
+
+Signed-off-by: Romain Naour <romain.naour@smile.fr>
+---
+ configure.ac | 25 ++++++++++++++++
+ elf2flt.c    | 81 +++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 71 insertions(+), 35 deletions(-)
+
+[Added: regenerated configure]
+diff --git a/configure.ac b/configure.ac
+index d6b4119..caae869 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -212,6 +212,31 @@ AC_CHECK_FUNCS([ \
+ 	strsignal \
+ ])
+ 
++dnl Various bfd section macros and functions like bfd_section_size() has been
++dnl modified starting binutils >= 2.34.
++dnl Check if the prototype is "bfd_section_size (sec)" or "bfd_section_size(bfd, ptr)"
++if test "$binutils_build_dir" != "NONE"; then
++    CFLAGS="-I$binutils_include_dir -I$bfd_include_dir $CFLAGS"
++fi
++
++AC_TRY_COMPILE([#include <bfd.h>],
++ [const asection *sec; bfd_section_size(sec);],
++ bfd_section_size_macro_has_one_arg=yes,
++ bfd_section_size_macro_has_one_arg=no)
++if test "$bfd_section_size_macro_has_one_arg" = "yes" ; then
++  AC_DEFINE(HAVE_BFD_SECTION_SIZE_MACRO_HAS_ONE_ARG, 1,
++   [define to 1 for binutils >= 2.34])
++fi
++
++AC_TRY_COMPILE([#include <bfd.h>],
++ [const asection *sec; bfd_section_vma(sec);],
++ bfd_section_vma_macro_has_one_arg=yes,
++ bfd_section_vma_macro_has_one_arg=no)
++if test "$bfd_section_vma_macro_has_one_arg" = "yes" ; then
++  AC_DEFINE(HAVE_BFD_SECTION_VMA_MACRO_HAS_ONE_ARG, 1,
++   [define to 1 for binutils >= 2.34])
++fi
++
+ if test "$GCC" = yes ; then
+ 	CFLAGS="-Wall $CFLAGS"
+ 	if test "$werror" = 1 ; then
+diff --git a/elf2flt.c b/elf2flt.c
+index b7c4a49..8dbd9b2 100644
+--- a/elf2flt.c
++++ b/elf2flt.c
+@@ -149,6 +149,17 @@ const char *elf2flt_progname;
+ #define O_BINARY 0
+ #endif
+ 
++#if defined(HAVE_BFD_SECTION_SIZE_MACRO_HAS_ONE_ARG)
++#define elf2flt_bfd_section_size(abs_bfd, s) bfd_section_size(s)
++#else
++#define elf2flt_bfd_section_size(abs_bfd, s) bfd_section_size(abs_bfd, s)
++#endif
++
++#if defined(HAVE_BFD_SECTION_VMA_MACRO_HAS_ONE_ARG)
++#define elf2flt_bfd_section_vma(abs_bfd, s)  bfd_section_vma(s)
++#else
++#define elf2flt_bfd_section_vma(abs_bfd, s)  bfd_section_vma(abs_bfd, s)
++#endif
+ 
+ /* Extra output when running.  */
+ static int verbose = 0;
+@@ -323,9 +334,9 @@ compare_relocs (const void *pa, const void *pb)
+ 	else if (!rb->sym_ptr_ptr || !*rb->sym_ptr_ptr)
+ 		return 1;
+ 
+-	a_vma = bfd_section_vma(compare_relocs_bfd,
++	a_vma = elf2flt_bfd_section_vma(compare_relocs_bfd,
+ 				(*(ra->sym_ptr_ptr))->section);
+-	b_vma = bfd_section_vma(compare_relocs_bfd,
++	b_vma = elf2flt_bfd_section_vma(compare_relocs_bfd,
+ 				(*(rb->sym_ptr_ptr))->section);
+ 	va = (*(ra->sym_ptr_ptr))->value + a_vma + ra->addend;
+ 	vb = (*(rb->sym_ptr_ptr))->value + b_vma + rb->addend;
+@@ -403,7 +414,7 @@ output_relocs (
+   }
+ 
+   for (a = abs_bfd->sections; (a != (asection *) NULL); a = a->next) {
+-  	section_vma = bfd_section_vma(abs_bfd, a);
++	section_vma = elf2flt_bfd_section_vma(abs_bfd, a);
+ 
+ 	if (verbose)
+ 		printf("SECTION: %s [%p]: flags=0x%x vma=0x%"PRIx32"\n",
+@@ -442,7 +453,7 @@ output_relocs (
+ 	  continue;
+ 	if (verbose)
+ 	  printf(" RELOCS: %s [%p]: flags=0x%x vma=0x%"BFD_VMA_FMT"x\n",
+-			r->name, r, r->flags, bfd_section_vma(abs_bfd, r));
++			r->name, r, r->flags, elf2flt_bfd_section_vma(abs_bfd, r));
+   	if ((r->flags & SEC_RELOC) == 0)
+   	  continue;
+ 	relsize = bfd_get_reloc_upper_bound(rel_bfd, r);
+@@ -674,7 +685,7 @@ output_relocs (
+ 				case R_BFIN_RIMM16:
+ 				case R_BFIN_LUIMM16:
+ 				case R_BFIN_HUIMM16:
+-				    sym_vma = bfd_section_vma(abs_bfd, sym_section);
++				    sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 				    sym_addr += sym_vma + q->addend;
+ 
+ 				    if (weak_und_symbol(sym_section->name, (*(q->sym_ptr_ptr))))
+@@ -707,7 +718,7 @@ output_relocs (
+ 				    break;
+ 
+ 				case R_BFIN_BYTE4_DATA:
+-				    sym_vma = bfd_section_vma(abs_bfd, sym_section);
++				    sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 				    sym_addr += sym_vma + q->addend;
+ 
+ 				    if (weak_und_symbol (sym_section->name, (*(q->sym_ptr_ptr))))
+@@ -851,7 +862,7 @@ output_relocs (
+ #if defined(TARGET_m68k)
+ 				case R_68K_32:
+ 					relocation_needed = 1;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					break;
+ 				case R_68K_PC16:
+@@ -876,7 +887,7 @@ output_relocs (
+ 							q->address, sym_addr,
+ 							(*p)->howto->rightshift,
+ 							*(uint32_t *)r_mem);
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					break;
+ 				case R_ARM_GOT32:
+@@ -904,7 +915,7 @@ output_relocs (
+ #ifdef TARGET_v850
+ 				case R_V850_ABS32:
+ 					relocation_needed = 1;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					break;
+ 				case R_V850_ZDA_16_16_OFFSET:
+@@ -926,7 +937,7 @@ output_relocs (
+ 					sym_addr = (*(q->sym_ptr_ptr))->value;
+ 					q->address -= 1;
+ 					r_mem -= 1; /* tracks q->address */
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					sym_addr |= (*(unsigned char *)r_mem<<24);
+ 					break;
+@@ -939,7 +950,7 @@ output_relocs (
+ 					/* Absolute symbol done not relocation */
+ 					relocation_needed = !bfd_is_abs_section(sym_section);
+ 					sym_addr = (*(q->sym_ptr_ptr))->value;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					break;
+ 				case R_H8_DIR32:
+@@ -952,7 +963,7 @@ output_relocs (
+ 					}
+ 					relocation_needed = 1;
+ 					sym_addr = (*(q->sym_ptr_ptr))->value;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					break;
+ 				case R_H8_PCREL16:
+@@ -985,7 +996,7 @@ output_relocs (
+ 					pflags=0x80000000;
+ 
+ 					/* work out the relocation */
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					/* Write relocated pointer back */
+ 					p[2] = (sym_addr >> 24) & 0xff;
+@@ -1001,7 +1012,7 @@ output_relocs (
+ 					relocation_needed = 0;
+ 					pflags = 0;
+ 			sprintf(&addstr[0], "+0x%ld", sym_addr - (*(q->sym_ptr_ptr))->value -
+-					 bfd_section_vma(abs_bfd, sym_section));
++					 elf2flt_bfd_section_vma(abs_bfd, sym_section));
+ 			if (verbose)
+ 				printf("  RELOC[%d]: offset=0x%"BFD_VMA_FMT"x symbol=%s%s "
+ 					"section=%s size=%d "
+@@ -1017,7 +1028,7 @@ output_relocs (
+ 					continue;
+ 				}
+ 				case R_MICROBLAZE_32:
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					relocation_needed = 1;
+ 					break;
+@@ -1042,7 +1053,7 @@ output_relocs (
+ 				case R_NIOS2_BFD_RELOC_32:
+ 					relocation_needed = 1;
+ 					pflags = (FLAT_NIOS2_R_32 << 28);
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					/* modify target, in target order */
+ 					*(unsigned long *)r_mem = htoniosl(sym_addr);
+@@ -1052,7 +1063,7 @@ output_relocs (
+ 					unsigned long exist_val;
+ 					relocation_needed = 1;
+ 					pflags = (FLAT_NIOS2_R_CALL26 << 28);
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					
+ 					/* modify target, in target order */
+@@ -1083,7 +1094,7 @@ output_relocs (
+ 								? FLAT_NIOS2_R_HIADJ_LO : FLAT_NIOS2_R_HI_LO;
+ 							pflags <<= 28;
+ 						
+-							sym_vma = bfd_section_vma(abs_bfd, sym_section);
++							sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 							sym_addr += sym_vma + q->addend;
+ 
+ 							/* modify high 16 bits, in target order */
+@@ -1116,7 +1127,7 @@ output_relocs (
+ 						goto NIOS2_RELOC_ERR;
+ 					}
+ 					/* _gp holds a absolute value, otherwise the ld cannot generate correct code */
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					//printf("sym=%x, %d, _gp=%x, %d\n", sym_addr+sym_vma, sym_addr+sym_vma, gp, gp);
+ 					sym_addr += sym_vma + q->addend;
+ 					sym_addr -= gp;
+@@ -1197,7 +1208,7 @@ output_relocs (
+ 				case R_SPARC_32:
+ 				case R_SPARC_UA32:
+ 					relocation_needed = 1;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					break;
+ 				case R_SPARC_PC22:
+@@ -1216,7 +1227,7 @@ output_relocs (
+ 				case R_SPARC_HI22:
+ 					relocation_needed = 1;
+ 					pflags = 0x80000000;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					sym_addr |= (
+ 						htonl(*(uint32_t *)r_mem)
+@@ -1226,7 +1237,7 @@ output_relocs (
+ 				case R_SPARC_LO10:
+ 					relocation_needed = 1;
+ 					pflags = 0x40000000;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					sym_addr &= 0x000003ff;
+ 					sym_addr |= (
+@@ -1240,7 +1251,7 @@ output_relocs (
+ #ifdef TARGET_sh
+ 				case R_SH_DIR32:
+ 					relocation_needed = 1;
+-					sym_vma = bfd_section_vma(abs_bfd, sym_section);
++					sym_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 					sym_addr += sym_vma + q->addend;
+ 					break;
+ 				case R_SH_REL32:
+@@ -1272,7 +1283,7 @@ output_relocs (
+ 				case R_E1_CONST31:
+ 						relocation_needed = 1;
+ 						DBG_E1("Handling Reloc <CONST31>\n");
+-						sec_vma = bfd_section_vma(abs_bfd, sym_section);
++						sec_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 						DBG_E1("sec_vma : [0x%x], sym_addr : [0x%x], q->address : [0x%x]\n",
+ 										sec_vma, sym_addr, q->address);
+ 						sym_addr = sec_vma + sym_addr;
+@@ -1287,7 +1298,7 @@ output_relocs (
+ 						relocation_needed = 0;
+ 						DBG_E1("Handling Reloc <CONST31_PCREL>\n");
+ 						DBG_E1("DONT RELOCATE AT LOADING\n");
+-						sec_vma = bfd_section_vma(abs_bfd, sym_section);
++						sec_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 						DBG_E1("sec_vma : [0x%x], sym_addr : [0x%x], q->address : [0x%x]\n",
+ 										sec_vma, sym_addr, q->address);
+ 						sym_addr =  sec_vma + sym_addr;
+@@ -1314,7 +1325,7 @@ output_relocs (
+ 						relocation_needed = 0;
+ 						DBG_E1("Handling Reloc <DIS29W_PCREL>\n");
+ 						DBG_E1("DONT RELOCATE AT LOADING\n");
+-						sec_vma = bfd_section_vma(abs_bfd, sym_section);
++						sec_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 						DBG_E1("sec_vma : [0x%x], sym_addr : [0x%x], q->address : [0x%x]\n",
+ 										sec_vma, sym_addr, q->address);
+ 						sym_addr =  sec_vma + sym_addr;
+@@ -1347,7 +1358,7 @@ output_relocs (
+ 						DBG_E1("Handling Reloc <DIS29B>\n");
+ DIS29_RELOCATION:
+ 						relocation_needed = 1;
+-						sec_vma = bfd_section_vma(abs_bfd, sym_section);
++						sec_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 						DBG_E1("sec_vma : [0x%x], sym_addr : [0x%08x]\n",
+ 										sec_vma, sym_addr);
+ 						sym_addr =  sec_vma + sym_addr;
+@@ -1364,7 +1375,7 @@ output_relocs (
+ 						relocation_needed = 0;
+ 						DBG_E1("Handling Reloc <IMM32_PCREL>\n");
+ 						DBG_E1("DONT RELOCATE AT LOADING\n");
+-						sec_vma = bfd_section_vma(abs_bfd, sym_section);
++						sec_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 						DBG_E1("sec_vma : [0x%x], sym_addr : [0x%x]\n",
+ 										sec_vma, sym_addr);
+ 						sym_addr =  sec_vma + sym_addr;
+@@ -1390,7 +1401,7 @@ output_relocs (
+ 				case R_E1_IMM32:
+ 						relocation_needed = 1;
+ 						DBG_E1("Handling Reloc <IMM32>\n");
+-						sec_vma = bfd_section_vma(abs_bfd, sym_section);
++						sec_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 						DBG_E1("sec_vma : [0x%x], sym_addr : [0x%x]\n",
+ 										sec_vma, sym_addr);
+ 						sym_addr =  sec_vma + sym_addr;
+@@ -1406,7 +1417,7 @@ output_relocs (
+ 				case R_E1_WORD:
+ 						relocation_needed = 1;
+ 						DBG_E1("Handling Reloc <WORD>\n");
+-						sec_vma = bfd_section_vma(abs_bfd, sym_section);
++						sec_vma = elf2flt_bfd_section_vma(abs_bfd, sym_section);
+ 						DBG_E1("sec_vma : [0x%x], sym_addr : [0x%x]\n",
+ 										sec_vma, sym_addr);
+ 						sym_addr =  sec_vma + sym_addr;
+@@ -1433,7 +1444,7 @@ output_relocs (
+ 			}
+ 
+ 			sprintf(&addstr[0], "+0x%lx", sym_addr - (*(q->sym_ptr_ptr))->value -
+-					 bfd_section_vma(abs_bfd, sym_section));
++					 elf2flt_bfd_section_vma(abs_bfd, sym_section));
+ 
+ 
+ 			/*
+@@ -1873,8 +1884,8 @@ int main(int argc, char *argv[])
+     } else
+       continue;
+ 
+-    sec_size = bfd_section_size(abs_bfd, s);
+-    sec_vma  = bfd_section_vma(abs_bfd, s);
++    sec_size = elf2flt_bfd_section_size(abs_bfd, s);
++    sec_vma  = elf2flt_bfd_section_vma(abs_bfd, s);
+ 
+     if (sec_vma < *vma) {
+       if (*len > 0)
+@@ -1899,7 +1910,7 @@ int main(int argc, char *argv[])
+     if (s->flags & SEC_CODE) 
+       if (!bfd_get_section_contents(abs_bfd, s,
+ 				   text + (s->vma - text_vma), 0,
+-				   bfd_section_size(abs_bfd, s)))
++				   elf2flt_bfd_section_size(abs_bfd, s)))
+       {
+ 	fatal("read error section %s", s->name);
+       }
+@@ -1925,7 +1936,7 @@ int main(int argc, char *argv[])
+     if (s->flags & SEC_DATA) 
+       if (!bfd_get_section_contents(abs_bfd, s,
+ 				   data + (s->vma - data_vma), 0,
+-				   bfd_section_size(abs_bfd, s)))
++				   elf2flt_bfd_section_size(abs_bfd, s)))
+       {
+ 	fatal("read error section %s", s->name);
+       }
+--- elf2flt-git-453398f9.orig/configure	2020-02-23 19:11:22.383955320 -0800
++++ elf2flt-git-453398f9/configure	2020-02-23 19:13:08.667951575 -0800
+@@ -4310,6 +4310,56 @@
+ done
+ 
+ 
++if test "$binutils_build_dir" != "NONE"; then
++    CFLAGS="-I$binutils_include_dir -I$bfd_include_dir $CFLAGS"
++fi
++
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <bfd.h>
++int
++main ()
++{
++const asection *sec; bfd_section_size(sec);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_c_try_compile "$LINENO"; then :
++  bfd_section_size_macro_has_one_arg=yes
++else
++  bfd_section_size_macro_has_one_arg=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++if test "$bfd_section_size_macro_has_one_arg" = "yes" ; then
++
++$as_echo "#define HAVE_BFD_SECTION_SIZE_MACRO_HAS_ONE_ARG 1" >>confdefs.h
++
++fi
++
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++#include <bfd.h>
++int
++main ()
++{
++const asection *sec; bfd_section_vma(sec);
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_c_try_compile "$LINENO"; then :
++  bfd_section_vma_macro_has_one_arg=yes
++else
++  bfd_section_vma_macro_has_one_arg=no
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
++if test "$bfd_section_vma_macro_has_one_arg" = "yes" ; then
++
++$as_echo "#define HAVE_BFD_SECTION_VMA_MACRO_HAS_ONE_ARG 1" >>confdefs.h
++
++fi
++
+ if test "$GCC" = yes ; then
+ 	CFLAGS="-Wall $CFLAGS"
+ 	if test "$werror" = 1 ; then
