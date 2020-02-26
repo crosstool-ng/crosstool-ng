@@ -1,6 +1,6 @@
 FROM archlinux/base:latest
-ARG CTNG_UID
-ARG CTNG_GID
+ARG CTNG_UID=1000
+ARG CTNG_GID=1000
 RUN pacman -Sy --noconfirm archlinux-keyring
 RUN pacman -Syu --noconfirm
 RUN pacman -S --noconfirm base-devel git help2man python unzip wget audit

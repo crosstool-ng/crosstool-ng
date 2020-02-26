@@ -1,6 +1,6 @@
 FROM alpine:3.8
-ARG CTNG_UID
-ARG CTNG_GID
+ARG CTNG_UID=1000
+ARG CTNG_GID=1000
 RUN addgroup -g $CTNG_GID ctng
 RUN adduser -D -h /home/ctng -G ctng -u $CTNG_UID -s /bin/bash ctng
 # Activate community and testing repositories
