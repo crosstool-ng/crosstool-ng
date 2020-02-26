@@ -14,6 +14,10 @@ CT_DoArchTupleValues() {
     if [ "${CT_KERNEL}" = "linux" -a "${CT_ARCH_64}" = "y" -a -z "${CT_ARCH_CPU}" ]; then
         CT_DoLog WARN "Setting CPU to UltraSPARC-I for sparc64-linux. Set CT_ARCH_CPU if a different CPU is desired."
         CT_ARCH_WITH_CPU="--with-cpu=ultrasparc"
+        if [ -n "${CT_ARCH_SUPPORTS_WITH_32_64}" -a -n "${CT_MULTILIB}" ]; then
+            CT_ARCH_WITH_CPU_32="--with-cpu-32=ultrasparc"
+            CT_ARCH_WITH_CPU_64="--with-cpu-64=ultrasparc"
+        fi
     fi
 }
 

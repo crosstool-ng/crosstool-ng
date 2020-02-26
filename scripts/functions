@@ -1040,7 +1040,8 @@ CT_GetFile()
 # TBD these should not be needed if config.sub/guess is a package
 # Two wrappers to call config.(guess|sub) either from CT_TOP_DIR or CT_LIB_DIR.
 # Those from CT_TOP_DIR, if they exist, will be be more recent than those from CT_LIB_DIR.
-CT_DoConfigGuess() {
+CT_DoConfigGuess()
+{
     if [ -r "${CT_TOP_DIR}/scripts/config.guess" ]; then
         "${CT_CONFIG_SHELL}" "${CT_TOP_DIR}/scripts/config.guess"
     else
@@ -1048,7 +1049,8 @@ CT_DoConfigGuess() {
     fi
 }
 
-CT_DoConfigSub() {
+CT_DoConfigSub()
+{
     if [ -r "${CT_TOP_DIR}/scripts/config.sub" ]; then
         "${CT_CONFIG_SHELL}" "${CT_TOP_DIR}/scripts/config.sub" "$@"
     else
@@ -1060,7 +1062,8 @@ CT_DoConfigSub() {
 # environment for the next step(s). When this is needed, it can do so by
 # invoking this function.
 # Usage: CT_EnvModify [export] VAR VALUE
-CT_EnvModify() {
+CT_EnvModify()
+{
     local e
     if [ "$1" = "export" ]; then
         shift
@@ -1075,7 +1078,10 @@ CT_EnvModify() {
 # In fact this function takes the environment variables to build the target
 # tuple. It is needed both by the normal build sequence, as well as the
 # sample saving sequence.
-CT_DoBuildTargetTuple() {
+CT_DoBuildTargetTuple()
+{
+    local tmp
+
     # Set the endianness suffix, and the default endianness gcc option
     target_endian_eb=
     target_endian_be=
@@ -1137,13 +1143,29 @@ CT_DoBuildTargetTuple() {
     esac
 
     # Set the default values for ARCH, ABI, CPU, TUNE, FPU and FLOAT
-    unset CT_ARCH_ARCH_CFLAG CT_ARCH_ABI_CFLAG CT_ARCH_CPU_CFLAG CT_ARCH_TUNE_CFLAG CT_ARCH_FPU_CFLAG CT_ARCH_FLOAT_CFLAG
-    unset CT_ARCH_WITH_ARCH CT_ARCH_WITH_ABI CT_ARCH_WITH_CPU CT_ARCH_WITH_TUNE CT_ARCH_WITH_FPU CT_ARCH_WITH_FLOAT CT_ARCH_WITH_ENDIAN
-    [ "${CT_ARCH_ARCH}"     ] && { CT_ARCH_ARCH_CFLAG="-march=${CT_ARCH_ARCH}";  CT_ARCH_WITH_ARCH="--with-arch=${CT_ARCH_ARCH}"; }
-    [ "${CT_ARCH_ABI}"      ] && { CT_ARCH_ABI_CFLAG="-mabi=${CT_ARCH_ABI}";     CT_ARCH_WITH_ABI="--with-abi=${CT_ARCH_ABI}";    }
-    [ "${CT_ARCH_CPU}"      ] && { CT_ARCH_CPU_CFLAG="-mcpu=${CT_ARCH_CPU}";     CT_ARCH_WITH_CPU="--with-cpu=${CT_ARCH_CPU}";    }
-    [ "${CT_ARCH_TUNE}"     ] && { CT_ARCH_TUNE_CFLAG="-mtune=${CT_ARCH_TUNE}";  CT_ARCH_WITH_TUNE="--with-tune=${CT_ARCH_TUNE}"; }
-    [ "${CT_ARCH_FPU}"      ] && { CT_ARCH_FPU_CFLAG="-mfpu=${CT_ARCH_FPU}";     CT_ARCH_WITH_FPU="--with-fpu=${CT_ARCH_FPU}";    }
+    for tmp in ARCH ABI CPU TUNE FPU FLOAT ENDIAN; do
+        eval "unset CT_ARCH_${tmp}_CFLAG CT_ARCH_WITH_${tmp} CT_ARCH_WITH_${tmp}_32 CT_ARCH_WITH_${tmp}_64"
+    done
+
+    [ -n "${CT_ARCH_ABI}" ] && { CT_ARCH_ABI_CFLAG="-mabi=${CT_ARCH_ABI}"; CT_ARCH_WITH_ABI="--with-abi=${CT_ARCH_ABI}"; }
+    [ -n "${CT_ARCH_FPU}" ] && { CT_ARCH_FPU_CFLAG="-mfpu=${CT_ARCH_FPU}"; CT_ARCH_WITH_FPU="--with-fpu=${CT_ARCH_FPU}"; }
+
+    # The options below have distinct variants for multilib-enabled toolchain.
+    # At this time, we just always have them equal to the "main" setting; it
+    # seems that most example configurations are built for a specific CPU.
+    # If there's demand for it, we can turn them into separate knobs in
+    # Kconfig later.
+    for tmp in ARCH CPU TUNE; do
+        eval "val=\${CT_ARCH_${tmp}}"
+        if [ -n "${val}" ]; then
+            eval "CT_ARCH_${tmp}_CFLAG=-m${tmp,,}=${val}"
+            eval "CT_ARCH_WITH_${tmp}=--with-${tmp,,}=${val}"
+            if [ -n "${CT_ARCH_SUPPORTS_WITH_32_64}" -a -n "${CT_MULTILIB}" ]; then
+                eval "CT_ARCH_WITH_${tmp}_32=--with-${tmp,,}-32=${val}"
+                eval "CT_ARCH_WITH_${tmp}_64=--with-${tmp,,}-64=${val}"
+            fi
+        fi
+    done
 
     case "${CT_ARCH_FLOAT}" in
         hard)

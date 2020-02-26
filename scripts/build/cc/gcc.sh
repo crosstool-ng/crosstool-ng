@@ -351,7 +351,7 @@ do_gcc_core_backend() {
             ;;
     esac
 
-    for tmp in ARCH ABI CPU TUNE FPU FLOAT ENDIAN; do
+    for tmp in ARCH ABI CPU CPU_32 CPU_64 TUNE FPU FLOAT ENDIAN; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
         if [ -n "${tmp}" ]; then
             extra_config+=("${tmp}")
@@ -905,7 +905,7 @@ do_gcc_backend() {
     # Enable selected languages
     extra_config+=("--enable-languages=${lang_list}")
 
-    for tmp in ARCH ABI CPU TUNE FPU FLOAT; do
+    for tmp in ARCH ARCH_32 ARCH_64 ABI CPU CPU_32 CPU_64 TUNE TUNE_32 TUNE_64 FPU FLOAT; do
         eval tmp="\${CT_ARCH_WITH_${tmp}}"
         if [ -n "${tmp}" ]; then
             extra_config+=("${tmp}")
