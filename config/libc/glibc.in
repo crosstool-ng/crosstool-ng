@@ -35,11 +35,13 @@ config GLIBC_DEP_BINUTILS
     select BINUTILS_REQUIRE_2_25_or_later if GLIBC_2_26_or_later
     select BINUTILS_REQUIRE_older_than_2_30 if GLIBC_older_than_2_26 && ARCH_ARM && ARCH_64
 
+# Glibc 2.26 requires GCC4.9 or newer
 # Glibc 2.29 requires GCC5+ or, for ppc64le, GCC6.2+. We only support the latest
 # release on GCC6 branch, so just assume it is newer than 6.2
 # Glibc 2.30 uncondtionally requires GCC 6.2+
 config GLIBC_DEP_GCC
     def_bool y
+    select GCC_REQUIRE_4_9_or_later if GLIBC_2_26_or_later
     select GCC_REQUIRE_5_or_later if GLIBC_2_29_or_later
     select GCC_REQUIRE_6_or_later if GLIBC_2_29_or_later && ARCH_POWERPC && ARCH_64 && ARCH_LE
     select GCC_REQUIRE_6_or_later if GLIBC_2_30_or_later
@@ -64,9 +66,11 @@ config GLIBC_DEP_MAKE_4_0
     select MAKE_REQUIRE_4_0_or_later
     select MAKE_GNUMAKE_SYMLINK # Override old host make in .build/tools/bin
 
-config GLIBC_DEP_GCC
+# Glibc 2.31 removed support for pre-v8 SPARC in 32-bit mode (64-bit mode always
+# required UltraSPARC)
+config GLIBC_SPARC_ALLOW_V7
     def_bool y
-    select GCC_REQUIRE_4_9_or_later if GLIBC_2_26_or_later
+    depends on GLIBC_2_30_or_older
 
 config THREADS
     default "nptl"
