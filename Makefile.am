@@ -91,8 +91,8 @@ create-symlinks:
 gen-tarball-version:
 	echo $(VERSION) > $(distdir)/.tarball-version
 
-DIGESTS		= md5 sha1 sha512
-USE_GPG		= yes
+DIGESTS		?= md5 sha1 sha512
+USE_GPG		?= yes
 
 dist-create-release: distcheck
 	for a in $(DIST_ARCHIVES); do \
