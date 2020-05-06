@@ -439,6 +439,7 @@ int dialog_inputbox(WINDOW *main_window,
 		case KEY_F(F_EXIT):
 		case KEY_F(F_BACK):
 			break;
+		case 8:
 		case 127:
 		case KEY_BACKSPACE:
 			if (cursor_position > 0) {

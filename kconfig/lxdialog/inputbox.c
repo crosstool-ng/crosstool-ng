@@ -126,6 +126,7 @@ do_resize:
 			case KEY_DOWN:
 				break;
 			case KEY_BACKSPACE:
+			case 8:
 			case 127:
 				if (pos) {
 					wattrset(dialog, dlg.inputbox.atr);
