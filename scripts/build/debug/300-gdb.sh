@@ -98,6 +98,15 @@ do_debug_gdb_build()
 	do_debug_gdb_build_cross
     fi
 
+    if [ "${CT_GDB_CROSS_BUILD_NO_PYTHON}" = "y" ]; then
+        CT_DoStep INFO "Build gdb (w/o python) ${CT_TARGET}"
+        CT_GDB_CROSS_PYTHON="n"
+        CT_GDB_CROSS_EXTRA_CONFIG_ARRAY+=("--program-prefix=${CT_TARGET}-")
+        CT_GDB_CROSS_EXTRA_CONFIG_ARRAY+=("--program-suffix=-no-py")
+        do_debug_gdb_build_cross
+        CT_GDB_CROSS_PYTHON="y"
+    fi
+
     if [ "${CT_GDB_NATIVE}" = "y" -o "${CT_GDB_GDBSERVER}" = "y" ]; then
         local -a native_extra_config
         local subdir
