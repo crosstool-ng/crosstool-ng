@@ -15,82 +15,87 @@ do_debug_gdb_extract()
     chmod a+x "${CT_SRC_DIR}/gdb/gdb/gdbserver/configure"
 }
 
+do_debug_gdb_build_cross()
+{
+    local gcc_version p _p
+    local -a cross_extra_config
+
+    CT_DoStep INFO "Installing cross-gdb"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-gdb-cross"
+
+    cross_extra_config=( "${CT_GDB_CROSS_EXTRA_CONFIG_ARRAY[@]}" )
+    if [ "${CT_GDB_CROSS_PYTHON}" = "y" ]; then
+        if [ -z "${CT_GDB_CROSS_PYTHON_BINARY}" ]; then
+            if [ "${CT_CANADIAN}" = "y" -o "${CT_CROSS_NATIVE}" = "y" ]; then
+                CT_Abort "For canadian build, Python wrapper runnable on the build machine must be provided. Set CT_GDB_CROSS_PYTHON_BINARY."
+            elif [ "${CT_CONFIGURE_has_python}" = "y" ]; then
+                cross_extra_config+=("--with-python=${python}")
+            else
+                CT_Abort "Python support requested in GDB, but Python not found. Set CT_GDB_CROSS_PYTHON_BINARY."
+            fi
+        else
+            cross_extra_config+=("--with-python=${CT_GDB_CROSS_PYTHON_BINARY}")
+        fi
+    else
+        cross_extra_config+=("--with-python=no")
+    fi
+
+    if [ "${CT_GDB_CROSS_SIM}" = "y" ]; then
+        cross_extra_config+=("--enable-sim")
+    else
+        cross_extra_config+=("--disable-sim")
+    fi
+
+    if ${CT_HOST}-gcc --version 2>&1 | grep clang; then
+        # clang detects the line from gettext's _ macro as format string
+        # not being a string literal and produces a lot of warnings - which
+        # ct-ng's logger faithfully relays to user if this happens in the
+        # error() function. Suppress them.
+        cross_extra_config+=("--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security")
+    fi
+
+    do_gdb_backend \
+        buildtype=cross \
+        host="${CT_HOST}" \
+        cflags="${CT_CFLAGS_FOR_HOST}" \
+        ldflags="${CT_LDFLAGS_FOR_HOST}" \
+        prefix="${CT_PREFIX_DIR}" \
+        static="${CT_GDB_CROSS_STATIC}" \
+        --with-sysroot="${CT_SYSROOT_DIR}"          \
+        "${cross_extra_config[@]}"
+
+    if [ "${CT_BUILD_MANUALS}" = "y" ]; then
+        CT_DoLog EXTRA "Building and installing the cross-GDB manuals"
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} pdf html
+        CT_DoExecLog ALL make install-{pdf,html}-gdb
+    fi
+
+    if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
+        CT_DoLog EXTRA "Installing '.gdbinit' template"
+        # See in scripts/build/internals.sh for why we do this
+        # TBD GCC 3.x and older not supported
+        if [ -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
+            gcc_version=$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER")
+        else
+            gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
+                               "${CT_SRC_DIR}/gcc/gcc/version.c"   \
+                         )
+        fi
+        sed -r                                                  \
+               -e "s:@@PREFIX@@:${CT_PREFIX_DIR}:;"             \
+               -e "s:@@VERSION@@:${gcc_version}:;"              \
+               "${CT_LIB_DIR}/scripts/build/debug/gdbinit.in"   \
+               >"${CT_PREFIX_DIR}/share/gdb/gdbinit"
+    fi # Install gdbinit sample
+
+    CT_Popd
+    CT_EndStep
+}
+
 do_debug_gdb_build()
 {
     if [ "${CT_GDB_CROSS}" = "y" ]; then
-        local gcc_version p _p
-        local -a cross_extra_config
-
-        CT_DoStep INFO "Installing cross-gdb"
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-gdb-cross"
-
-        cross_extra_config=( "${CT_GDB_CROSS_EXTRA_CONFIG_ARRAY[@]}" )
-        if [ "${CT_GDB_CROSS_PYTHON}" = "y" ]; then
-            if [ -z "${CT_GDB_CROSS_PYTHON_BINARY}" ]; then
-                if [ "${CT_CANADIAN}" = "y" -o "${CT_CROSS_NATIVE}" = "y" ]; then
-                    CT_Abort "For canadian build, Python wrapper runnable on the build machine must be provided. Set CT_GDB_CROSS_PYTHON_BINARY."
-                elif [ "${CT_CONFIGURE_has_python}" = "y" ]; then
-                    cross_extra_config+=("--with-python=${python}")
-                else
-                    CT_Abort "Python support requested in GDB, but Python not found. Set CT_GDB_CROSS_PYTHON_BINARY."
-                fi
-            else
-                cross_extra_config+=("--with-python=${CT_GDB_CROSS_PYTHON_BINARY}")
-            fi
-        else
-            cross_extra_config+=("--with-python=no")
-        fi
-
-        if [ "${CT_GDB_CROSS_SIM}" = "y" ]; then
-            cross_extra_config+=("--enable-sim")
-        else
-            cross_extra_config+=("--disable-sim")
-        fi
-
-        if ${CT_HOST}-gcc --version 2>&1 | grep clang; then
-            # clang detects the line from gettext's _ macro as format string
-            # not being a string literal and produces a lot of warnings - which
-            # ct-ng's logger faithfully relays to user if this happens in the
-            # error() function. Suppress them.
-            cross_extra_config+=("--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security")
-        fi
-
-        do_gdb_backend \
-            buildtype=cross \
-            host="${CT_HOST}" \
-            cflags="${CT_CFLAGS_FOR_HOST}" \
-            ldflags="${CT_LDFLAGS_FOR_HOST}" \
-            prefix="${CT_PREFIX_DIR}" \
-            static="${CT_GDB_CROSS_STATIC}" \
-            --with-sysroot="${CT_SYSROOT_DIR}"          \
-            "${cross_extra_config[@]}"
-
-        if [ "${CT_BUILD_MANUALS}" = "y" ]; then
-            CT_DoLog EXTRA "Building and installing the cross-GDB manuals"
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} pdf html
-            CT_DoExecLog ALL make install-{pdf,html}-gdb
-        fi
-
-        if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
-            CT_DoLog EXTRA "Installing '.gdbinit' template"
-            # See in scripts/build/internals.sh for why we do this
-            # TBD GCC 3.x and older not supported
-            if [ -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
-                gcc_version=$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER")
-            else
-                gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
-                                   "${CT_SRC_DIR}/gcc/gcc/version.c"   \
-                             )
-            fi
-            sed -r                                                  \
-                   -e "s:@@PREFIX@@:${CT_PREFIX_DIR}:;"             \
-                   -e "s:@@VERSION@@:${gcc_version}:;"              \
-                   "${CT_LIB_DIR}/scripts/build/debug/gdbinit.in"   \
-                   >"${CT_PREFIX_DIR}/share/gdb/gdbinit"
-        fi # Install gdbinit sample
-
-        CT_Popd
-        CT_EndStep
+	do_debug_gdb_build_cross
     fi
 
     if [ "${CT_GDB_NATIVE}" = "y" -o "${CT_GDB_GDBSERVER}" = "y" ]; then
