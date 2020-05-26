@@ -237,6 +237,7 @@ do_gdb_backend()
         ldflags+=" -static"
     fi
     if [ "${static_libstdcxx}" = "y" ]; then
+        ldflags+=" -static-libgcc"
         ldflags+=" -static-libstdc++"
     fi
 
