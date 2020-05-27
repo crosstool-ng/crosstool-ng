@@ -50,6 +50,25 @@ do_debug_gdb_build()
             cross_extra_config+=("--enable-build-warnings=,-Wno-format-nonliteral,-Wno-format-security")
         fi
 
+        # Target libexpat resides in sysroot and does not have
+        # any dependencies, so just passing '-lexpat' to gcc is enough.
+        #
+        # By default gdb configure looks for expat in '$prefix/lib'
+        # directory. In our case '$prefix/lib' resolves to '/usr/lib'
+        # where libexpat for build platform lives, which is
+        # unacceptable for cross-compiling.
+        #
+        # To prevent this '--without-libexpat-prefix' flag must be passed.
+        # Thus configure falls back to '-lexpat', which is exactly what we want.
+        #
+        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
+        # It conflicts with a static build: GDB's configure script will find the shared
+        # version of expat and will attempt to link that, despite the -static flag.
+        # The link will fail, and configure will abort with "expat missing or unusable"
+        # message.
+        extra_config+=("--with-expat")
+        extra_config+=("--without-libexpat-prefix")
+
         do_gdb_backend \
             buildtype=cross \
             host="${CT_HOST}" \
@@ -88,7 +107,7 @@ do_debug_gdb_build()
         CT_EndStep
     fi
 
-    if [ "${CT_GDB_NATIVE}" = "y" -o "${CT_GDB_GDBSERVER}" = "y" ]; then
+    if [ "${CT_GDB_NATIVE}" = "y" ]; then
         local -a native_extra_config
         local subdir
 
@@ -102,17 +121,78 @@ do_debug_gdb_build()
             native_extra_config+=("--with-curses")
         fi
 
-        # Build a native gdbserver if needed. If building only
-        # gdbserver, configure in the subdirectory.
-        # Newer versions enable it automatically for a native target by default.
-        if [ "${CT_GDB_GDBSERVER}" != "y" ]; then
-            native_extra_config+=("--disable-gdbserver")
+        if [ "${CT_GDB_NATIVE_BUILD_IPA_LIB}" = "y" ]; then
+            native_extra_config+=("--enable-inprocess-agent")
         else
-            native_extra_config+=("--enable-gdbserver")
-            if [ "${CT_GDB_NATIVE}" != "y" ]; then
-                subdir=gdb/gdbserver/
-            fi
+            native_extra_config+=("--disable-inprocess-agent")
         fi
+
+        export ac_cv_func_strncmp_works=yes
+
+        # TBD do we need all these? Eg why do we disable TUI if we build curses for target?
+        native_extra_config+=(
+            --without-uiout
+            --disable-tui
+            --disable-gdbtk
+            --without-x
+            --disable-sim
+            --without-included-gettext
+            --without-develop
+            --sysconfdir=/etc
+            --localstatedir=/var
+        )
+
+        # Target libexpat resides in sysroot and does not have
+        # any dependencies, so just passing '-lexpat' to gcc is enough.
+        #
+        # By default gdb configure looks for expat in '$prefix/lib'
+        # directory. In our case '$prefix/lib' resolves to '/usr/lib'
+        # where libexpat for build platform lives, which is
+        # unacceptable for cross-compiling.
+        #
+        # To prevent this '--without-libexpat-prefix' flag must be passed.
+        # Thus configure falls back to '-lexpat', which is exactly what we want.
+        #
+        # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
+        # It conflicts with a static build: GDB's configure script will find the shared
+        # version of expat and will attempt to link that, despite the -static flag.
+        # The link will fail, and configure will abort with "expat missing or unusable"
+        # message.
+        extra_config+=("--with-expat")
+        extra_config+=("--without-libexpat-prefix")
+
+        do_gdb_backend \
+            buildtype=native \
+            subdir=${subdir} \
+            host="${CT_TARGET}" \
+            cflags="${CT_ALL_TARGET_CFLAGS}" \
+            ldflags="${CT_ALL_TARGET_LDFLAGS}" \
+            static="${CT_GDB_NATIVE_STATIC}" \
+            static_libstdc="${CT_GDB_NATIVE_STATIC_LIBSTDC}" \
+            prefix=/usr \
+            destdir="${CT_DEBUGROOT_DIR}" \
+            "${native_extra_config[@]}"
+
+        unset ac_cv_func_strncmp_works
+
+        CT_Popd
+        CT_EndStep # native gdb build
+    fi
+
+    if [ "${CT_GDB_GDBSERVER}" = "y" ]; then
+        local -a native_extra_config
+        local subdir
+
+        if [ "${CT_GDB_GDBSERVER_TOPLEVEL}" != "y" ]; then
+            subdir=gdb/gdbserver/
+        fi
+
+        CT_DoStep INFO "Installing gdb server"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-gdb-server"
+
+        native_extra_config+=("--program-prefix=")
+        native_extra_config+=("--enable-gdbserver")
+
         if [ "${CT_GDB_NATIVE_BUILD_IPA_LIB}" = "y" ]; then
             native_extra_config+=("--enable-inprocess-agent")
         else
@@ -149,7 +229,7 @@ do_debug_gdb_build()
         unset ac_cv_func_strncmp_works
 
         CT_Popd
-        CT_EndStep # native gdb build
+        CT_EndStep # gdb server build
     fi
 }
 
@@ -207,25 +287,6 @@ do_gdb_backend()
     if [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ]; then
         extra_config+=("--disable-nls")
     fi
-
-    # Target libexpat resides in sysroot and does not have
-    # any dependencies, so just passing '-lexpat' to gcc is enough.
-    #
-    # By default gdb configure looks for expat in '$prefix/lib'
-    # directory. In our case '$prefix/lib' resolves to '/usr/lib'
-    # where libexpat for build platform lives, which is
-    # unacceptable for cross-compiling.
-    #
-    # To prevent this '--without-libexpat-prefix' flag must be passed.
-    # Thus configure falls back to '-lexpat', which is exactly what we want.
-    #
-    # NOTE: DO NOT USE --with-libexpat-prefix (until GDB configure is smarter)!!!
-    # It conflicts with a static build: GDB's configure script will find the shared
-    # version of expat and will attempt to link that, despite the -static flag.
-    # The link will fail, and configure will abort with "expat missing or unusable"
-    # message.
-    extra_config+=("--with-expat")
-    extra_config+=("--without-libexpat-prefix")
 
     if [ "${static}" = "y" ]; then
         cflags+=" -static"
