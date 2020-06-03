@@ -158,9 +158,11 @@ strip_target_lib()
 {
     local strip_args
 
-    strip_args="-R .comment -R .note -R .debug_info -R .debug_aranges
-    -R .debug_pubnames -R .debug_pubtypes -R .debug_abbrev -R .debug_line
-    -R .debug_str -R .debug_ranges -R .debug_loc
+    strip_args="
+        --discard-locals
+        -R .comment -R .note -R .debug_info -R .debug_aranges
+        -R .debug_pubnames -R .debug_pubtypes -R .debug_abbrev -R .debug_line
+        -R .debug_str -R .debug_ranges -R .debug_loc
         "
 
     find "$1" -name "$2" | while read target_lib; do
