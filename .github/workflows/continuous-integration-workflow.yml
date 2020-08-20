@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sample: [
+          "arm-unknown-linux-gnueabi",
+          "aarch64-unknown-linux-gnu",
+          "mips-unknown-elf",
+          "powerpc64-unknown-linux-gnu",
+          "powerpc-unknown-linux-gnu",
+          "x86_64-multilib-linux-uclibc"
+        ]
+    steps:
+      - name: "clone"
+        uses: actions/checkout@v2
+      - name: "prereq"
+        run: |
+          sudo apt-get install -y gcc g++ gperf bison flex texinfo help2man \
+                                  make libncurses5-dev python3-dev autoconf \
+                                  automake libtool libtool-bin gawk wget bzip2 \
+                                  xz-utils unzip patch libstdc++6 rsync
+      - name: "build ct-ng"
+        run: |
+          ./bootstrap
+          ./configure --enable-local
+          make
+      - name: "build ${{ matrix.sample }}"
+        run: |
+          mkdir -p src
+          ./ct-ng ${{ matrix.sample }}
+          sed -i -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config
+          sed -i -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config
+          sed -i -e '/CT_PREFIX_DIR/s/HOME/CT_TOP_DIR/' .config
+          sed -i -e '/CT_LOG_EXTRA/d' .config
+          sed -i -e '/CT_LOG_LEVEL_MAX/d' .config
+          echo 'CT_LOG_ALL=y' >>.config
+          echo 'CT_LOG_LEVEL_MAX="ALL"' >>.config
+          ./ct-ng build
