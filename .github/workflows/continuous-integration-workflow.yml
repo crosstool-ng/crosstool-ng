@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  crosstool:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "clone"
+        uses: actions/checkout@v2
+      - name: "prereq"
+        run: |
+          sudo apt-get install -y gperf help2man libtool-bin
+      - name: "build ct-ng"
+        run: |
+          ./bootstrap
+          ./configure --prefix=$PWD/.local/
+          make
+          make install
+          tar -cf ct-ng.tar .local/
+      - name: "upload ct-ng"
+        uses: actions/upload-artifact@v2
+        with:
+          name: crosstool
+          path: ct-ng.tar
+      - name: "upload config.log"
+        uses: actions/upload-artifact@v2
+        with:
+          name: config.log
+          path: config.log
+        if: ${{ always() }}
+
+  toolchains:
+    needs: crosstool
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sample: [
+          "arm-unknown-linux-gnueabi",
+          "aarch64-unknown-linux-gnu",
+          "mips-unknown-elf",
+          "powerpc64-unknown-linux-gnu",
+          "powerpc-unknown-linux-gnu",
+          "x86_64-multilib-linux-uclibc"
+        ]
+    steps:
+      - name: "download ct-ng"
+        uses: actions/download-artifact@v2
+        with:
+          name: crosstool
+      - name: "extract ct-ng"
+        run: |
+          tar -xf ct-ng.tar
+      - name: "prereq"
+        run: |
+          sudo apt-get install -y gperf help2man libtool-bin
+          echo "::add-path::$GITHUB_WORKSPACE/.local/bin"
+      - name: "build ${{ matrix.sample }}"
+        run: |
+          mkdir -p src
+          ct-ng ${{ matrix.sample }}
+          sed -i -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config
+          sed -i -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config
+          sed -i -e '/CT_PREFIX_DIR/s/HOME/CT_TOP_DIR/' .config
+          sed -i -e '/CT_LOG_EXTRA/d' .config
+          sed -i -e '/CT_LOG_LEVEL_MAX/d' .config
+          echo 'CT_LOG_ALL=y' >>.config
+          echo 'CT_LOG_LEVEL_MAX="ALL"' >>.config
+          ct-ng build
+      - name: "upload log"
+        uses: actions/upload-artifact@v2
+        with:
+          name: "${{ matrix.sample }}.log"
+          path: |
+            build.log
+            .config
+        if: ${{ always() }}
