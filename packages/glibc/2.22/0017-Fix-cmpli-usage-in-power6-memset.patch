@@ -1,0 +1,49 @@
+Author: Joseph Myers  <joseph@codesourcery.com>
+Date: 2016-10-24
+
+Building glibc for powerpc64 with recent (2.27.51.20161012) binutils,
+with multi-arch enabled, I get the error:
+
+../sysdeps/powerpc/powerpc64/power6/memset.S: Assembler messages:
+../sysdeps/powerpc/powerpc64/power6/memset.S:254: Error: operand out of range (5 is not between 0 and 1)
+../sysdeps/powerpc/powerpc64/power6/memset.S:254: Error: operand out of range (128 is not between 0 and 31)
+../sysdeps/powerpc/powerpc64/power6/memset.S:254: Error: missing operand
+
+Indeed, cmpli is documented as a four-operand instruction, and looking
+at nearby code it seems likely cmpldi was intended.  This patch fixes
+this powerpc64 code accordingly, and makes a corresponding change to
+the powerpc32 code.
+
+Note: this patch is not tested beyond verifying that the powerpc64
+code builds where it failed to build before the patch.  In particular,
+I have not done execution testing (the systems I usually use for
+testing powerpc are pre-power6 so wouldn't use this code) or tested
+the powerpc32 change.
+
+---
+  sysdeps/powerpc/powerpc32/power6/memset.S (memset): Use cmplwi instead of cmpli.
+  sysdeps/powerpc/powerpc64/power6/memset.S (memset): Use cmpldi instead of cmpli.
+
+--- a/sysdeps/powerpc/powerpc32/power6/memset.S
++++ b/sysdeps/powerpc/powerpc32/power6/memset.S
+@@ -394,7 +394,7 @@ L(cacheAlignedx):
+ /* A simple loop for the longer (>640 bytes) lengths.  This form limits
+    the branch miss-predicted to exactly 1 at loop exit.*/
+ L(cacheAligned512):
+-	cmpli	cr1,rLEN,128
++	cmplwi	cr1,rLEN,128
+ 	blt	cr1,L(cacheAligned1)
+ 	dcbz	0,rMEMP
+ 	addi	rLEN,rLEN,-128
+
+--- a/sysdeps/powerpc/powerpc64/power6/memset.S
++++ b/sysdeps/powerpc/powerpc64/power6/memset.S
+@@ -251,7 +251,7 @@ L(cacheAlignedx):
+ /* A simple loop for the longer (>640 bytes) lengths.  This form limits
+    the branch miss-predicted to exactly 1 at loop exit.*/
+ L(cacheAligned512):
+-	cmpli	cr1,rLEN,128
++	cmpldi	cr1,rLEN,128
+ 	blt	cr1,L(cacheAligned1)
+ 	dcbz	0,rMEMP
+ 	addi	rLEN,rLEN,-128
