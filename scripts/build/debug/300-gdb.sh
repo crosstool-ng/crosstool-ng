@@ -146,7 +146,7 @@ do_debug_gdb_build()
             cflags="${CT_ALL_TARGET_CFLAGS}" \
             ldflags="${CT_ALL_TARGET_LDFLAGS}" \
             static="${CT_GDB_NATIVE_STATIC}" \
-            static_libstdc="${CT_GDB_NATIVE_STATIC_LIBSTDC}" \
+            static_libstdcxx="${CT_GDB_NATIVE_STATIC_LIBSTDCXX}" \
             prefix=/usr \
             destdir="${CT_DEBUGROOT_DIR}" \
             "${native_extra_config[@]}"
@@ -236,7 +236,8 @@ do_gdb_backend()
         cflags+=" -static"
         ldflags+=" -static"
     fi
-    if [ "${static_libstdc}" = "y" ]; then
+    if [ "${static_libstdcxx}" = "y" ]; then
+        ldflags+=" -static-libgcc"
         ldflags+=" -static-libstdc++"
     fi
 
