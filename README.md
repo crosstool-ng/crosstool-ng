@@ -20,6 +20,9 @@ To clone the crosstool-NG repository:
 git clone https://github.com/crosstool-ng/crosstool-ng
 ```
 
+## Build Status
+- ![CI](https://github.com/crosstool-ng/crosstool-ng/workflows/CI/badge.svg)
+
 #### Old repositories
 
 These are the old Mercurial repositories. They are now read-only: [http://crosstool-ng.org/hg/](http://crosstool-ng.org/hg/)
