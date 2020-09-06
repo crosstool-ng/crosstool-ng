@@ -152,6 +152,14 @@ AC_CHECK_PROGS([curl], [curl])
 CTNG_SET_KCONFIG_OPTION([curl])
 AC_SUBST([curl])
 
+AC_CHECK_PROGS([meson], [meson])
+CTNG_SET_KCONFIG_OPTION([meson])
+AC_SUBST([meson])
+
+AC_CHECK_PROGS([ninja], [ninja])
+CTNG_SET_KCONFIG_OPTION([ninja])
+AC_SUBST([ninja])
+
 CTNG_CPU_COUNT
 
 CTNG_PATH_TOOL_REQ([PATCH], [gpatch patch], [patch])
