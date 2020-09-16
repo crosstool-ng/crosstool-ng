@@ -22,7 +22,7 @@ picolibc_main()
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
 
-    CT_DoLog EXTRA "Configuring C library"
+    CT_DoLog EXTRA "Configuring Picolibc library"
 
     # Multilib is the default, so if it is not enabled, disable it.
     if [ "${CT_MULTILIB}" != "y" ]; then
@@ -81,10 +81,10 @@ as = '${CT_TARGET}-as'
 strip = '${CT_TARGET}-strip'
 
 [host_machine]
-system = 'none'
-cpu_family = 'arm'
-cpu = 'arm'
-endian = 'little'
+system = '${CT_TARGET_VENDOR}'
+cpu_family = '${CT_TARGET_ARCH}'
+cpu = '${CT_TARGET_ARCH}'
+endian = '${CT_ARCH_ENDIAN}'
 
 [properties]
 c_args = [ ${meson_cflags} '-nostdlib', '-fno-common', '-ftls-model=local-exec' ]
