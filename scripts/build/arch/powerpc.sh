@@ -7,12 +7,12 @@ CT_DoArchTupleValues () {
     # Only override values when ABI is not the default
     case "${CT_ARCH_powerpc_ABI}" in
         eabi)
-            # EABI is only for bare-metal, so libc ∈ [none,newlib]
+            # EABI is only for bare-metal, so libc ∈ [none,newlib,picolibc]
             CT_TARGET_SYS="eabi"
             ;;
         spe)
             case "${CT_LIBC}" in
-                none|newlib)    CT_TARGET_SYS="elfspe";;
+                none|newlib|picolibc)    CT_TARGET_SYS="elfspe";;
                 *glibc)         CT_TARGET_SYS="gnuspe";;
                 uClibc)         CT_TARGET_SYS="uclibcgnuspe";;
             esac
