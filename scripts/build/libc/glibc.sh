@@ -314,6 +314,8 @@ glibc_backend_once()
             ;;
     esac
 
+    # Make sure glibc build system respects our provided CFLAGS.
+    extra_make_args+=( default_cflags= )
     extra_make_args+=( "BUILD_CFLAGS=${build_cflags}" )
     extra_make_args+=( "BUILD_CPPFLAGS=${build_cppflags}" )
     extra_make_args+=( "BUILD_LDFLAGS=${build_ldflags}" )
