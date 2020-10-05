@@ -42,6 +42,7 @@ do_m4_backend()
     local prefix
     local cflags
     local ldflags
+    local libs
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -54,12 +55,19 @@ do_m4_backend()
             # it includes system <spawn.h> but expects a locally-built
             # posix_spawn().
             ldflags="${ldflags} -lrt"
+            ;;
+        *-mingw32)
+            # m4 is built with stack smashing protection enabled which
+            # is not part of mingw-w64 c library in v7.0.0 and later.
+            libs="${libs} -lssp"
+            ;;
     esac
 
     CT_DoLog EXTRA "Configuring m4"
     CT_DoExecLog CFG \
                      CFLAGS="${cflags}" \
                      LDFLAGS="${ldflags}" \
+                     LIBS="${libs}" \
                      ${CONFIG_SHELL} \
                      "${CT_SRC_DIR}/m4/configure" \
                      --host="${host}" \
