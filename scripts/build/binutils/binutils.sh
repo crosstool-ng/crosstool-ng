@@ -177,6 +177,10 @@ do_binutils_backend() {
 
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
+    # Disable usage of glob for higher compatibility.
+    # Not strictly needed for anything but GDB anyways.
+    export ac_cv_func_glob=no
+
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     CT_DoExecLog CFG                                            \
