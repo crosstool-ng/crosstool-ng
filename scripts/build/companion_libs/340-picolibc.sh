@@ -5,20 +5,30 @@
 # Edited by Keith Packard <keithp@keithp.com>
 #
 
-picolibc_start_files()
-{
-    CT_DoStep INFO "Installing C library headers & start files"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/include/." \
-    "${CT_HEADERS_DIR}"
-    CT_EndStep
+do_picolibc_get() { :; }
+do_picolibc_extract() { :; }
+do_picolibc_for_build() { :; }
+do_picolibc_for_host() { :; }
+do_picolibc_for_target() { :; }
+
+if [ "${CT_COMP_LIBS_PICOLIBC}" = "y" ]; then
+
+# Download picolibc
+do_picolibc_get() {
+    CT_DoStep INFO "Downloading Picolibc library"
+    CT_Fetch PICOLIBC
 }
 
-picolibc_main()
-{
+do_picolibc_extract() {
+    CT_DoStep INFO "Extracting Picolibc library"
+    CT_ExtractPatch PICOLIBC
+}
+
+do_picolibc_for_target() {
     local -a picolibc_opts
     local cflags_for_target
 
-    CT_DoStep INFO "Installing C library"
+    CT_DoStep INFO "Installing Picolibc library"
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
 
@@ -91,11 +101,16 @@ c_args = [ ${meson_cflags} '-nostdlib', '-fno-common', '-ftls-model=local-exec' 
 needs_exe_wrapper = true
 skip_sanity_check = true
 EOF
+    picolibc_prefix="${CT_SYSROOT_DIR}"
+    if [ "${CT_USE_SYSROOT}" != "y" -a "${CT_LIBC_NONE}" != "y" ]; then
+	picolibc_prefix="${picolibc_prefix}"/picolibc
+    fi
+
     CT_DoExecLog CFG                                               \
     meson                                                          \
         --cross-file picolibc-cross.txt                            \
-        --prefix=${CT_SYSROOT_DIR}                                 \
-	-Dspecsdir=${CT_SYSROOT_DIR}/lib                           \
+        --prefix="${picolibc_prefix}"                              \
+	-Dspecsdir="${CT_SYSROOT_DIR}"/lib                         \
         "${CT_SRC_DIR}/picolibc"                                   \
         "${picolibc_opts[@]}"                                      \
         "${CT_LIBC_PICOLIBC_EXTRA_CONFIG_ARRAY[@]}"
@@ -109,3 +124,5 @@ EOF
     CT_Popd
     CT_EndStep
 }
+
+fi
