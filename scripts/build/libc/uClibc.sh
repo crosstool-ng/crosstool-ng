@@ -303,7 +303,6 @@ manage_uClibc_config()
             CT_KconfigEnableOption "UCLIBC_HAS_LOCALE" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_PREGENERATED_LOCALE_DATA" "${dst}"
             CT_KconfigDeleteOption "UCLIBC_DOWNLOAD_PREGENERATED_LOCALE_DATA" "${dst}"
-            CT_KconfigDeleteOption "UCLIBC_HAS_XLOCALE" "${dst}"
     fi
 
     # WCHAR support
