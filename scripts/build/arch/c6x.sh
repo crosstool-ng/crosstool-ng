@@ -68,8 +68,6 @@ CT_DoArchUClibcCflags() {
                     *)   CT_Abort "Unsupported architecture: ${f#-march=}";;
                 esac
                 ;;
-            -mlittle-endian)
-                ;;
             -mbig-endian)
                 CT_KconfigEnableOption "ARCH_BIG_ENDIAN" "${cfg}"
                 CT_KconfigEnableOption "ARCH_WANTS_BIG_ENDIAN" "${cfg}"
