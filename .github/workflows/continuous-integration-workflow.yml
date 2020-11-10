@@ -6,15 +6,32 @@ on:
 
 jobs:
   crosstool:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.host }}
+    strategy:
+      matrix:
+        host: [
+          "ubuntu-latest",
+          "macos-10.15",
+        ]
     steps:
       - name: "clone"
         uses: actions/checkout@v2
-      - name: "prereq"
+      - name: "prereq Linux"
+        if: ${{ runner.os == 'Linux' }}
         run: |
           sudo apt-get install -y gperf help2man libtool-bin
+      - name: "prereq macOS"
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          brew install autoconf automake bash binutils gawk gnu-sed \
+               gnu-tar help2man ncurses
       - name: "build ct-ng"
         run: |
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            export PATH="$PATH:/usr/local/opt/binutils/bin"
+            export CPPFLAGS="-I/usr/local/opt/ncurses/include -I/usr/local/opt/gettext/include"
+            export LDFLAGS="-L/usr/local/opt/ncurses/lib -L/usr/local/opt/gettext/lib"
+          fi
           ./bootstrap
           ./configure --prefix=$PWD/.local/
           make
@@ -23,20 +40,24 @@ jobs:
       - name: "upload ct-ng"
         uses: actions/upload-artifact@v2
         with:
-          name: crosstool
+          name: crosstool.${{ matrix.host }}
           path: ct-ng.tar
       - name: "upload config.log"
         uses: actions/upload-artifact@v2
         with:
-          name: config.log
+          name: config.log.${{ matrix.host }}
           path: config.log
         if: ${{ always() }}
 
   toolchains:
     needs: crosstool
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.host }}
     strategy:
       matrix:
+        host: [
+          "ubuntu-latest",
+          "macos-10.15",
+        ]
         sample: [
           "aarch64-unknown-linux-gnu",
           "arc-multilib-linux-uclibc",
@@ -56,19 +77,40 @@ jobs:
           "x86_64-multilib-linux-uclibc",
           "xtensa-fsf-linux-uclibc"
         ]
+        exclude:
+          # Exclude mips64-*-linux-gnu because of <byteswap.h> usage in
+          # elf-entry.c for linux kernel headers.  <byteswap.h> is a GNU
+          # extension and doesn't exist on MacOS X
+          - host: "macos-10.15"
+            sample: "mips64-unknown-linux-gnu"
     steps:
+      - name: Create case sensitive workspace volume for macOS
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          cd ..
+          rmdir crosstool-ng
+          hdiutil create ${HOME}/Workspace.sparseimage -volname crosstool-ng -type SPARSE -size 20g -fs HFSX
+          hdiutil mount ${HOME}/Workspace.sparseimage -mountroot /Users/runner/work/crosstool-ng
+          cd crosstool-ng
       - name: "download ct-ng"
         uses: actions/download-artifact@v2
         with:
-          name: crosstool
+          name: crosstool.${{ matrix.host }}
       - name: "extract ct-ng"
         run: |
           tar -xf ct-ng.tar
-      - name: "prereq"
+      - name: "prereq Linux"
+        if: ${{ runner.os == 'Linux' }}
         run: |
           sudo apt-get install -y gperf help2man libtool-bin
           echo "$GITHUB_WORKSPACE/.local/bin" >> $GITHUB_PATH
-      - name: "build ${{ matrix.sample }}"
+      - name: "prereq macOS"
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          brew install autoconf automake bash binutils gawk gnu-sed \
+               gnu-tar help2man ncurses pkg-config
+          echo "$GITHUB_WORKSPACE/.local/bin" >> $GITHUB_PATH
+      - name: "build ${{ matrix.sample }} for ${{ matrix.host }}"
         run: |
           mkdir -p src
           ct-ng ${{ matrix.sample }}
@@ -79,7 +121,7 @@ jobs:
       - name: "upload log"
         uses: actions/upload-artifact@v2
         with:
-          name: "${{ matrix.sample }}.log"
+          name: "${{ matrix.sample }}.${{ matrix.host }}.log"
           path: |
             build.log
             .config
