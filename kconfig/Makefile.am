@@ -17,14 +17,14 @@ AM_YFLAGS		= -t -l
 AM_CPPFLAGS		= -include config.h -DCONFIG_=\"CT_\"
 AM_LIBTOOLFLAGS	= --tag CC
 
-conf_SOURCES    = conf.c confdata.c expr.c symbol.c preprocess.c lexer.lex.c parser.tab.c
+conf_SOURCES    = conf.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c
 conf_LDADD      = $(LIBINTL)
 
-nconf_SOURCES	= nconf.c nconf.gui.c confdata.c expr.c symbol.c preprocess.c lexer.lex.c parser.tab.c
+nconf_SOURCES	= nconf.c nconf.gui.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c
 nconf_CFLAGS	= $(CURSES_CFLAGS)
 nconf_LDADD     = $(MENU_LIBS) $(PANEL_LIBS) $(CURSES_LIBS) $(LIBINTL)
 
-mconf_SOURCES	= mconf.c confdata.c expr.c symbol.c preprocess.c lexer.lex.c parser.tab.c \
+mconf_SOURCES	= mconf.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c \
 				  lxdialog/checklist.c lxdialog/inputbox.c \
 				  lxdialog/menubox.c lxdialog/textbox.c lxdialog/util.c \
 				  lxdialog/yesno.c
