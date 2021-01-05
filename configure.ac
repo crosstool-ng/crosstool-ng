@@ -169,7 +169,7 @@ CTNG_PROG_VERSION_REQ_STRICT([BASH_SHELL],
     [GNU bash >= 3.1],
     [bash],
     [bash],
-    [^GNU bash, version (3\.[1-9]|4|5)])
+    [^GNU bash, version ([3-9]\.[1-9]|4|5)])
 
 # We need a awk that *is* GNU awk
 CTNG_PROG_VERSION_REQ_STRICT([AWK],
