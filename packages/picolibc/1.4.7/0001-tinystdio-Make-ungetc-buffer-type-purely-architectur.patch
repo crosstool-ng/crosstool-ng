@@ -1,0 +1,159 @@
+From 2adb30bd8e64bf06fb5366585e305c28c4325e01 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Tue, 3 Nov 2020 16:36:48 -0800
+Subject: [PATCH] tinystdio: Make ungetc buffer type purely
+ architecture-specific
+
+Instead of attempting to figure out what type this object should be
+based on compiler support for atomics, just make it 32-bits on RISC-V
+when using atomic ungetc, otherwise make it 16-bits, then select
+whether there are 'real' atomics based on compiler support for the
+chosen type, which may depend on the compiler options used to build
+the library.
+
+This ensures that the picolibc ABI is consistent for each
+architecture.
+
+This also removes the use of stdatomic.h from stdio.h, which isn't
+supported by C++.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ newlib/libc/tinystdio/exchange.c      |  2 +-
+ newlib/libc/tinystdio/stdio.h         | 39 +++++++++++----------------
+ newlib/libc/tinystdio/stdio_private.h | 24 ++++++++++++-----
+ 3 files changed, 34 insertions(+), 31 deletions(-)
+
+diff --git a/newlib/libc/tinystdio/exchange.c b/newlib/libc/tinystdio/exchange.c
+index 1272ae36e..e8c785f8a 100644
+--- a/newlib/libc/tinystdio/exchange.c
++++ b/newlib/libc/tinystdio/exchange.c
+@@ -39,7 +39,7 @@
+ #if defined(ATOMIC_UNGETC) && !defined(PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP)
+ 
+ __ungetc_t
+-__picolibc_non_atomic_exchange_ungetc(__ungetc_store_t *p, __ungetc_t v)
++__picolibc_non_atomic_exchange_ungetc(__ungetc_t *p, __ungetc_t v)
+ {
+ 	return __non_atomic_exchange_ungetc(p, v);
+ }
+diff --git a/newlib/libc/tinystdio/stdio.h b/newlib/libc/tinystdio/stdio.h
+index 1e36f73e9..8bc0f8843 100644
+--- a/newlib/libc/tinystdio/stdio.h
++++ b/newlib/libc/tinystdio/stdio.h
+@@ -224,38 +224,31 @@
+  * elements of it beyond by using the official interfaces provided.
+  */
+ 
+-/* Use 32-bit ungetc storage when doing atomic ungetc and when
+- * the platform has 4-byte swap intrinsics but not 2-byte swap
+- * intrinsics, as is the case for RISC-V processors. This increases
+- * the size of the __file struct by four bytes.
+- */
+-
+ #ifdef ATOMIC_UNGETC
+-#include <stdatomic.h>
+-# ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
+-
+-#  define PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP
+-typedef atomic_uint_least32_t __ungetc_store_t;
+-typedef uint_least32_t __ungetc_t;
+-
+-# else
+-#  ifdef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2
++#ifdef __riscv
++/*
++ * Use 32-bit ungetc storage when doing atomic ungetc on RISC-V, which
++ * has 4-byte swap intrinsics but not 2-byte swap intrinsics. This
++ * increases the size of the __file struct by four bytes.
++ */
++#define __PICOLIBC_UNGETC_SIZE	4
++#endif
++#endif
+ 
+-#   define PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP
+-typedef atomic_uint_least16_t __ungetc_store_t;
+-typedef uint_least16_t __ungetc_t;
++#ifndef __PICOLIBC_UNGETC_SIZE
++#define __PICOLIBC_UNGETC_SIZE	2
++#endif
+ 
+-#  endif
+-# endif
++#if __PICOLIBC_UNGETC_SIZE == 4
++typedef uint32_t __ungetc_t;
+ #endif
+ 
+-#ifndef PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP
+-typedef uint16_t __ungetc_store_t;
++#if __PICOLIBC_UNGETC_SIZE == 2
+ typedef uint16_t __ungetc_t;
+ #endif
+ 
+ struct __file {
+-	__ungetc_store_t unget;	/* ungetc() buffer */
++	__ungetc_t unget;	/* ungetc() buffer */
+ 	uint8_t	flags;		/* flags, see below */
+ #define __SRD	0x0001		/* OK to read */
+ #define __SWR	0x0002		/* OK to write */
+diff --git a/newlib/libc/tinystdio/stdio_private.h b/newlib/libc/tinystdio/stdio_private.h
+index b8ec66864..1a8b77dc9 100644
+--- a/newlib/libc/tinystdio/stdio_private.h
++++ b/newlib/libc/tinystdio/stdio_private.h
+@@ -141,7 +141,7 @@ float
+ __atof_engine(uint32_t m10, int e10);
+ 
+ static inline uint16_t
+-__non_atomic_exchange_ungetc(__ungetc_store_t *p, __ungetc_t v)
++__non_atomic_exchange_ungetc(__ungetc_t *p, __ungetc_t v)
+ {
+ 	__ungetc_t e = *p;
+ 	*p = v;
+@@ -159,28 +159,38 @@ __non_atomic_compare_exchange_ungetc(__ungetc_t *p, __ungetc_t d, __ungetc_t v)
+ 
+ #ifdef ATOMIC_UNGETC
+ 
++#if __PICOLIBC_UNGETC_SIZE == 4 && defined (__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4)
++#define PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP
++#endif
++
++#if __PICOLIBC_UNGETC_SIZE == 2 && defined (__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2)
++#define PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP
++#endif
++
+ #ifdef PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP
+ 
+ /* Use built-in atomic functions if they exist */
+ #include <stdatomic.h>
+ static inline bool
+-__atomic_compare_exchange_ungetc(__ungetc_store_t *p, __ungetc_t d, __ungetc_t v)
++__atomic_compare_exchange_ungetc(__ungetc_t *p, __ungetc_t d, __ungetc_t v)
+ {
+-	return atomic_compare_exchange_weak(p, &d, v);
++	_Atomic __ungetc_t *pa = (_Atomic __ungetc_t *) p;
++	return atomic_compare_exchange_weak(pa, &d, v);
+ }
+ static inline __ungetc_t
+-__atomic_exchange_ungetc(__ungetc_store_t *p, __ungetc_t v)
++__atomic_exchange_ungetc(__ungetc_t *p, __ungetc_t v)
+ {
+-	return atomic_exchange_explicit(p, v, memory_order_relaxed);
++	_Atomic __ungetc_t *pa = (_Atomic __ungetc_t *) p;
++	return atomic_exchange_explicit(pa, v, memory_order_relaxed);
+ }
+ 
+ #else
+ 
+ bool
+-__atomic_compare_exchange_ungetc(__ungetc_store_t *p, __ungetc_t d, __ungetc_t v);
++__atomic_compare_exchange_ungetc(__ungetc_t *p, __ungetc_t d, __ungetc_t v);
+ 
+ __ungetc_t
+-__atomic_exchange_ungetc(__ungetc_store_t *p, __ungetc_t v);
++__atomic_exchange_ungetc(__ungetc_t *p, __ungetc_t v);
+ 
+ #endif /* PICOLIBC_HAVE_SYNC_COMPARE_AND_SWAP */
+ 
+-- 
+2.29.1
+
