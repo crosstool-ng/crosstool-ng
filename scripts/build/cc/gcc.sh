@@ -279,7 +279,8 @@ do_cc_core_pass_2() {
 #   build_manuals       : whether to build manuals or not           : bool      : no
 #   cflags              : cflags to use                             : string    : (empty)
 #   ldflags             : ldflags to use                            : string    : (empty)
-#   build_step          : build step 'core1', 'core2', 'gcc_build'
+#   build_step          : build step 'core1', 'core2', 'gcc_build',
+#                         'libstdcxx'
 #                         or 'gcc_host'                             : string    : (none)
 # Usage: do_gcc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_gcc_core_backend() {
@@ -291,6 +292,7 @@ do_gcc_core_backend() {
     local build_manuals=no
     local host
     local prefix
+    local enable_optspace
     local complibs
     local lang_list
     local cflags cflags_for_build cflags_for_target
@@ -298,6 +300,9 @@ do_gcc_core_backend() {
     local build_step
     local log_txt
     local tmp
+    local exec_prefix
+    local header_dir
+    local libstdcxx_name
     local -a host_libstdcxx_flags
     local -a extra_config
     local -a core_LDFLAGS
@@ -327,10 +332,29 @@ do_gcc_core_backend() {
             # to inhibit the libiberty and libgcc tricks later on
             build_libgcc=no
             ;;
+        libstdcxx)
+            CT_DoLog EXTRA "Configuring libstdc++ for ${libstdcxx_name}"
+	    if [ "${header_dir}" = "" ]; then
+		header_dir="${CT_PREFIX_DIR}/${libstdcxx_name}/include"
+	    fi
+	    if [ "${exec_prefix}" = "" ]; then
+		exec_prefix="${CT_PREFIX_DIR}/${libstdcxx_name}"
+	    fi
+            extra_config+=( "${CT_CC_SYSROOT_ARG[@]}" )
+	    extra_config+=( "--with-headers=${header_dir}" )
+            extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
+            log_txt="libstdc++ ${libstdcxx_name} library"
+            # to inhibit the libiberty and libgcc tricks later on
+            build_libgcc=no
+            ;;
         *)
-            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build' or 'gcc_host', not '${build_step:-(empty)}'"
+            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build', 'gcc_host' or 'libstdcxx', not '${build_step:-(empty)}'"
             ;;
     esac
+
+    if [ "${exec_prefix}" = "" ]; then
+	exec_prefix="${prefix}"
+    fi
 
     case "${mode}" in
         static)
@@ -387,6 +411,10 @@ do_gcc_core_backend() {
     else
         extra_config+=(--disable-libquadmath)
         extra_config+=(--disable-libquadmath-support)
+    fi
+
+    if [ "${build_libstdcxx}" = "no" ]; then
+        extra_config+=(--disable-libstdcxx)
     fi
 
     core_LDFLAGS+=("${ldflags}")
@@ -447,7 +475,8 @@ do_gcc_core_backend() {
         extra_config+=("--with-host-libstdcxx=${host_libstdcxx_flags[*]}")
     fi
 
-    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
+       [ "${enable_optspace}" = "yes" ]; then
         extra_config+=("--enable-target-optspace")
     fi
     if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
@@ -595,6 +624,7 @@ do_gcc_core_backend() {
         --host=${host}                                 \
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
+	--exec_prefix="${exec_prefix}"                 \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \
         "${extra_config[@]}"                           \
         --enable-languages="${lang_list}"              \
@@ -678,6 +708,11 @@ do_gcc_core_backend() {
             core_targets_all=all
             core_targets_install=install
             ;;
+	libstdcxx)
+	    core_targets=( target-libstdc++-v3 )
+	    core_targets_all="${core_targets[@]/#/all-}"
+	    core_targets_install="${core_targets[@]/#/install-}"
+	    ;;
     esac
 
     CT_DoLog EXTRA "Building ${log_txt}"
@@ -754,7 +789,9 @@ do_cc_for_build() {
         # lack of such a compiler, but better safe than sorry...
         build_final_opts+=( "mode=baremetal" )
         build_final_opts+=( "build_libgcc=yes" )
-        build_final_opts+=( "build_libstdcxx=yes" )
+	if [ "${CT_LIBC_NONE}" != "y" ]; then
+            build_final_opts+=( "build_libstdcxx=yes" )
+	fi
         build_final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             build_final_opts+=( "build_staticlinked=yes" )
@@ -843,7 +880,9 @@ do_cc_for_host() {
     if [ "${CT_BARE_METAL}" = "y" ]; then
         final_opts+=( "mode=baremetal" )
         final_opts+=( "build_libgcc=yes" )
-        final_opts+=( "build_libstdcxx=yes" )
+	if [ "${CT_LIBC_NONE}" != "y" ]; then
+            final_opts+=( "build_libstdcxx=yes" )
+	fi
         final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
@@ -876,20 +915,27 @@ do_cc_for_host() {
 #   Parameter     : Definition                          : Type      : Default
 #   host          : the host we run onto                : tuple     : (none)
 #   prefix        : the runtime prefix                  : dir       : (none)
+#   exec_prefix   : prefix for executables              : dir       : (none)
 #   complibs      : the companion libraries prefix      : dir       : (none)
 #   cflags        : cflags to use                       : string    : (empty)
 #   ldflags       : ldflags to use                      : string    : (empty)
 #   lang_list     : the list of languages to build      : string    : (empty)
 #   build_manuals : whether to build manuals or not     : bool      : no
+#   build_step    : build step 'gcc_build', 'gcc_host'
+#                   or 'libstdcxx'                      : string    : (none)
 do_gcc_backend() {
     local host
     local prefix
+    local exec_prefix
     local complibs
     local lang_list
     local cflags
     local cflags_for_build
     local ldflags
     local build_manuals
+    local exec_prefix
+    local header_dir
+    local libstdcxx_name
     local -a host_libstdcxx_flags
     local -a extra_config
     local -a final_LDFLAGS
@@ -900,7 +946,24 @@ do_gcc_backend() {
         eval "${arg// /\\ }"
     done
 
-    CT_DoLog EXTRA "Configuring final gcc compiler"
+    if [ "${exec_prefix}" = "" ]; then
+	exec_prefix="${prefix}"
+    fi
+
+    # This function gets called for final gcc and libstdcxx.
+    case "${build_step}" in
+        gcc_build|gcc_host)
+            log_txt="final gcc compiler"
+            ;;
+        libstdcxx)
+            log_txt="libstdc++ library for ${libstdcxx_name}"
+            ;;
+        *)
+            CT_Abort "Internal Error: 'build_step' must be one of: 'gcc_build', 'gcc_host' or 'libstdcxx', not '${build_step:-(empty)}'"
+            ;;
+    esac
+
+    CT_DoLog EXTRA "Configuring ${log_txt}"
 
     # Enable selected languages
     extra_config+=("--enable-languages=${lang_list}")
@@ -974,6 +1037,10 @@ do_gcc_backend() {
         fi
     fi
 
+    if [ "${build_libstdcxx}" = "no" ]; then
+        extra_config+=(--disable-libstdcxx)
+    fi
+
     final_LDFLAGS+=("${ldflags}")
 
     # *** WARNING ! ***
@@ -1043,9 +1110,11 @@ do_gcc_backend() {
         fi
     fi
 
-    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+    if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
+       [ "${enable_optspace}" = "yes" ]; then
         extra_config+=("--enable-target-optspace")
     fi
+
     if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
         extra_config+=("--disable-libstdcxx-pch")
     fi
@@ -1161,6 +1230,7 @@ do_gcc_backend() {
         --host=${host}                                 \
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
+	--exec_prefix="${exec_prefix}"                 \
         ${CT_CC_SYSROOT_ARG}                           \
         "${extra_config[@]}"                           \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \
