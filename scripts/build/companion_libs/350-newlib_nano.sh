@@ -121,6 +121,22 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     CT_DoLog EXTRA "Installing Newlib Nano C library"
     CT_DoExecLog ALL make install
 
+    cat > "${CT_SYSROOT_DIR}/lib/nano.specs" <<EOF
+%rename link	newlib_nano_link
+%rename cpp	newlib_nano_cpp
+%rename cc1plus	newlib_nano_cc1plus
+
+*cpp:
+-isystem ${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/include %(newlib_nano_cpp)
+
+*cc1plus:
+-idirafter ${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/include %(newlib_nano_cc1plus)  
+
+*link:
+-L${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib/%M -L${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib
+
+EOF
+
     CT_Popd
     CT_EndStep
 }
