@@ -22,6 +22,49 @@ do_newlib_nano_extract() {
     CT_ExtractPatch NEWLIB_NANO
 }
 
+#------------------------------------------------------------------------------
+# Build an additional target libstdc++ with "-Os" (optimise for speed) option
+# flag for libstdc++ "newlib_nano" variant.
+do_cc_libstdcxx_newlib_nano()
+{
+    local -a final_opts
+    local final_backend
+
+    if [ "${CT_NEWLIB_NANO_GCC_LIBSTDCXX}" = "y" ]; then
+        final_opts+=( "host=${CT_HOST}" )
+	final_opts+=( "libstdcxx_name=newlib-nano" )
+        final_opts+=( "prefix=${CT_PREFIX_DIR}" )
+        final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
+        final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+        final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
+        final_opts+=( "lang_list=c,c++" )
+        final_opts+=( "build_step=libstdcxx" )
+	if [ "${CT_LIBC_NEWLIB_NANO_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+	    final_opts+=( "enable_optspace=yes" )
+	fi
+
+        if [ "${CT_BARE_METAL}" = "y" ]; then
+            final_opts+=( "mode=baremetal" )
+            final_opts+=( "build_libgcc=yes" )
+            final_opts+=( "build_libstdcxx=yes" )
+            final_opts+=( "build_libgfortran=yes" )
+            if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+                final_opts+=( "build_staticlinked=yes" )
+            fi
+            final_backend=do_gcc_core_backend
+        else
+            final_backend=do_gcc_backend
+        fi
+
+        CT_DoStep INFO "Installing libstdc++ newlib-nano"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-newlib-nano"
+        "${final_backend}" "${final_opts[@]}"
+        CT_Popd
+
+        CT_EndStep
+    fi
+}
+
 do_newlib_nano_for_target() {
     local -a newlib_nano_opts
     local cflags_for_target
@@ -139,6 +182,8 @@ EOF
 
     CT_Popd
     CT_EndStep
+
+    do_cc_libstdcxx_newlib_nano
 }
 
 fi
