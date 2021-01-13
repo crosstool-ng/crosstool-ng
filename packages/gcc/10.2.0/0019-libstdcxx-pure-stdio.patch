@@ -1,0 +1,275 @@
+From ce06ad6901b1d24abb90d6baba5fe01c750ffb4e Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Tue, 15 Dec 2020 17:39:24 +0000
+Subject: [PATCH] libstdc++: Support libc with stdio-only I/O in libstdc++
+
+The current libstdc++ basic_file_stdio.cc code assumes a POSIX API
+underneath the stdio implementation provided by the host libc. This
+means that the host must provide a fairly broad POSIX file API,
+including read, write, open, close, lseek and ioctl.
+
+This patch changes basic_file_stdio.cc to only use basic ANSI-C stdio
+functions, allowing it to be used with libc implementations like
+picolibc which may not have a POSIX operating system underneath.
+
+This is enabled by a new --enable-cstdio=stdio_pure configure option.
+
+Aided-by: Jonathan Wakely <jwakely@redhat.com>
+Signed-off-by: Keith Packard <keithp@keithp.com>
+
+libstdc++-v3/ChangeLog:
+
+	* acinclude.m4 (GLIBCXX_ENABLE_CSTDIO): Allow "stdio_pure"
+	option and define _GLIBCXX_USE_PURE_STDIO when it is used. Also
+	add "stdio_posix" option as an alias for "stdio".
+	* config/io/basic_file_stdio.cc [_GLIBCXX_USE_PURE_STDIO]: Only
+	use defined stdio entry points for all I/O operations, without
+	direct calls to underlying POSIX functions.
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+---
+ libstdc++-v3/acinclude.m4                  | 20 ++++++----
+ libstdc++-v3/config.h.in                   |  3 ++
+ libstdc++-v3/config/io/basic_file_stdio.cc | 46 +++++++++++++++++++---
+ libstdc++-v3/configure                     | 17 +++++---
+ 4 files changed, 69 insertions(+), 17 deletions(-)
+
+diff --git a/libstdc++-v3/acinclude.m4 b/libstdc++-v3/acinclude.m4
+index ee5e0336f2c..9604533c306 100644
+--- a/libstdc++-v3/acinclude.m4
++++ b/libstdc++-v3/acinclude.m4
+@@ -2826,24 +2826,30 @@ AC_DEFUN([GLIBCXX_ENABLE_PARALLEL], [
+ 
+ 
+ dnl
+-dnl Check for which I/O library to use:  stdio, or something specific.
++dnl Check for which I/O library to use:  stdio and POSIX, or pure stdio.
+ dnl
+-dnl Default is stdio.
++dnl Default is stdio_posix.
+ dnl
+ AC_DEFUN([GLIBCXX_ENABLE_CSTDIO], [
+   AC_MSG_CHECKING([for underlying I/O to use])
+   GLIBCXX_ENABLE(cstdio,stdio,[[[=PACKAGE]]],
+-    [use target-specific I/O package], [permit stdio])
++    [use target-specific I/O package], [permit stdio|stdio_posix|stdio_pure])
+ 
+-  # Now that libio has been removed, you can have any color you want as long
+-  # as it's black.  This is one big no-op until other packages are added, but
+-  # showing the framework never hurts.
++  # The only available I/O model is based on stdio, via basic_file_stdio.
++  # The default "stdio" is actually "stdio + POSIX" because it uses fdopen(3)
++  # to get a file descriptor and then uses read(3) and write(3) with it.
++  # The "stdio_pure" model doesn't use fdopen and only uses FILE* for I/O.
+   case ${enable_cstdio} in
+-    stdio)
++    stdio*)
+       CSTDIO_H=config/io/c_io_stdio.h
+       BASIC_FILE_H=config/io/basic_file_stdio.h
+       BASIC_FILE_CC=config/io/basic_file_stdio.cc
+       AC_MSG_RESULT(stdio)
++
++      if test "x$enable_cstdio" = "xstdio_pure" ; then
++	AC_DEFINE(_GLIBCXX_USE_STDIO_PURE, 1,
++		  [Define to restrict std::__basic_file<> to stdio APIs.])
++      fi
+       ;;
+   esac
+ 
+diff --git a/libstdc++-v3/config.h.in b/libstdc++-v3/config.h.in
+index 8940e0c7acd..eabcf18b52b 100644
+--- a/libstdc++-v3/config.h.in
++++ b/libstdc++-v3/config.h.in
+@@ -1031,6 +1031,9 @@
+ /* Define if sendfile is available in <sys/sendfile.h>. */
+ #undef _GLIBCXX_USE_SENDFILE
+ 
++/* Define to restrict std::__basic_file<> to stdio APIs. */
++#undef _GLIBCXX_USE_STDIO_PURE
++
+ /* Define if struct stat has timespec members. */
+ #undef _GLIBCXX_USE_ST_MTIM
+ 
+diff --git a/libstdc++-v3/config/io/basic_file_stdio.cc b/libstdc++-v3/config/io/basic_file_stdio.cc
+index ba830fb9e97..eedffb017b6 100644
+--- a/libstdc++-v3/config/io/basic_file_stdio.cc
++++ b/libstdc++-v3/config/io/basic_file_stdio.cc
+@@ -111,13 +111,21 @@ namespace
+ 
+   // Wrapper handling partial write.
+   static std::streamsize
++#ifdef _GLIBCXX_USE_STDIO_PURE
++  xwrite(FILE *__file, const char* __s, std::streamsize __n)
++#else
+   xwrite(int __fd, const char* __s, std::streamsize __n)
++#endif
+   {
+     std::streamsize __nleft = __n;
+ 
+     for (;;)
+       {
++#ifdef _GLIBCXX_USE_STDIO_PURE
++	const std::streamsize __ret = fwrite(__file, 1, __nleft, __file);
++#else
+ 	const std::streamsize __ret = write(__fd, __s, __nleft);
++#endif
+ 	if (__ret == -1L && errno == EINTR)
+ 	  continue;
+ 	if (__ret == -1L)
+@@ -133,7 +141,7 @@ namespace
+     return __n - __nleft;
+   }
+ 
+-#ifdef _GLIBCXX_HAVE_WRITEV
++#if defined(_GLIBCXX_HAVE_WRITEV) && !defined(_GLIBCXX_USE_STDIO_PURE)
+   // Wrapper handling partial writev.
+   static std::streamsize
+   xwritev(int __fd, const char* __s1, std::streamsize __n1,
+@@ -286,9 +294,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   __basic_file<char>::is_open() const throw ()
+   { return _M_cfile != 0; }
+ 
++#ifndef _GLIBCCXX_USE_STDIO_PURE
+   int
+   __basic_file<char>::fd() throw ()
+   { return fileno(_M_cfile); }
++#endif
+ 
+   __c_file*
+   __basic_file<char>::file() throw ()
+@@ -315,28 +325,46 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   {
+     streamsize __ret;
+     do
++#ifdef _GLIBCXX_USE_STDIO_PURE
++      __ret = fread(__s, 1, __n, this->file());
++#else
+       __ret = read(this->fd(), __s, __n);
++#endif
+     while (__ret == -1L && errno == EINTR);
+     return __ret;
+   }
+ 
+   streamsize
+   __basic_file<char>::xsputn(const char* __s, streamsize __n)
+-  { return xwrite(this->fd(), __s, __n); }
++  {
++#ifdef _GLIBCXX_USE_STDIO_PURE
++    return xwrite(this->file(), __s, __n);
++#else
++    return xwrite(this->fd(), __s, __n);
++#endif
++  }
+ 
+   streamsize
+   __basic_file<char>::xsputn_2(const char* __s1, streamsize __n1,
+ 			       const char* __s2, streamsize __n2)
+   {
+     streamsize __ret = 0;
+-#ifdef _GLIBCXX_HAVE_WRITEV
++#if defined(_GLIBCXX_HAVE_WRITEV) && !defined(_GLIBCXX_USE_STDIO_PURE)
+     __ret = xwritev(this->fd(), __s1, __n1, __s2, __n2);
+ #else
+     if (__n1)
++#ifdef _GLIBCXX_USE_STDIO_PURE
++      __ret = xwrite(this->file(), __s1, __n1);
++#else
+       __ret = xwrite(this->fd(), __s1, __n1);
++#endif
+ 
+     if (__ret == __n1)
++#ifdef _GLIBCXX_USE_STDIO_PURE
++      __ret += xwrite(this->file(), __s2, __n2);
++#else
+       __ret += xwrite(this->fd(), __s2, __n2);
++#endif
+ #endif
+     return __ret;
+   }
+@@ -350,7 +378,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     if (__off > numeric_limits<off_t>::max()
+ 	|| __off < numeric_limits<off_t>::min())
+       return -1L;
++#ifdef _GLIBCXX_USE_STDIO_PURE
++    return fseek(this->file(), __off, __way);
++#else
+     return lseek(this->fd(), __off, __way);
++#endif
+ #endif
+   }
+ 
+@@ -361,7 +393,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   streamsize
+   __basic_file<char>::showmanyc()
+   {
+-#ifndef _GLIBCXX_NO_IOCTL
++#if !defined(_GLIBCXX_NO_IOCTL) && !defined(_GLIBCXX_USE_STDIO_PURE)
+ #ifdef FIONREAD
+     // Pipes and sockets.
+     int __num = 0;
+@@ -371,7 +403,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ #endif
+ #endif
+ 
+-#ifdef _GLIBCXX_HAVE_POLL
++#if defined(_GLIBCXX_HAVE_POLL) && !defined(_GLIBCXX_USE_STDIO_PURE)
+     // Cheap test.
+     struct pollfd __pfd[1];
+     __pfd[0].fd = this->fd();
+@@ -395,8 +427,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     struct stat __buffer;
+     const int __err = fstat(this->fd(), &__buffer);
+     if (!__err && _GLIBCXX_ISREG(__buffer.st_mode))
++#ifdef _GLIBCXX_USE_STDIO_PURE
++      return __buffer.st_size - fseek(this->file(), 0, ios_base::cur);
++#else
+       return __buffer.st_size - lseek(this->fd(), 0, ios_base::cur);
+ #endif
++#endif
+ #endif
+     return 0;
+   }
+diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
+index 9f9c5a2419a..50c8f00a41c 100755
+--- a/libstdc++-v3/configure
++++ b/libstdc++-v3/configure
+@@ -16299,7 +16299,7 @@ $as_echo_n "checking for underlying I/O to use... " >&6; }
+ if test "${enable_cstdio+set}" = set; then :
+   enableval=$enable_cstdio;
+       case "$enableval" in
+-       stdio) ;;
++       stdio|stdio_posix|stdio_pure) ;;
+        *) as_fn_error $? "Unknown argument to enable/disable cstdio" "$LINENO" 5 ;;
+ 	  	        esac
+ 
+@@ -16309,16 +16309,23 @@ fi
+ 
+ 
+ 
+-  # Now that libio has been removed, you can have any color you want as long
+-  # as it's black.  This is one big no-op until other packages are added, but
+-  # showing the framework never hurts.
++  # The only available I/O model is based on stdio, via basic_file_stdio.
++  # The default "stdio" is actually "stdio + POSIX" because it uses fdopen(3)
++  # to get a file descriptor and then uses read(3) and write(3) with it.
++  # The "stdio_pure" model doesn't use fdopen and only uses FILE* for I/O.
+   case ${enable_cstdio} in
+-    stdio)
++    stdio*)
+       CSTDIO_H=config/io/c_io_stdio.h
+       BASIC_FILE_H=config/io/basic_file_stdio.h
+       BASIC_FILE_CC=config/io/basic_file_stdio.cc
+       { $as_echo "$as_me:${as_lineno-$LINENO}: result: stdio" >&5
+ $as_echo "stdio" >&6; }
++
++      if test "x$enable_cstdio" = "xstdio_pure" ; then
++
++$as_echo "#define _GLIBCXX_USE_STDIO_PURE 1" >>confdefs.h
++
++      fi
+       ;;
+   esac
+ 
+-- 
+2.29.2
+

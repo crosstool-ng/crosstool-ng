@@ -90,7 +90,7 @@ git checkout -b fix_out_of_date_patch origin/1.22
 ```
  Then when you get to this pull request screen change the base branch from `master` to `1.22`
 
-- By creating a pull request, the PR is entered into the [backlog](https://waffle.io/crosstool-ng/crosstool-ng). A [travis-ci](https://travis-ci.org/crosstool-ng/crosstool-ng/builds) job will run to test your changes against a select set of samples. As they start to get worked, they should be placed in the `Ready` state. PRs that are being worked are `In Progress`. If a questions come up about the commit that might envolve changes to the commit then the PR is placed in `Waiting For Response`, you have two options:
+- By creating a pull request, the PR is entered into the [backlog](https://waffle.io/crosstool-ng/crosstool-ng). A [travis-ci](https://travis-ci.org/crosstool-ng/crosstool-ng/builds) job will run to test your changes against a select set of samples. As they start to get worked, they should be placed in the `Ready` state. PRs that are being worked are `In Progress`. If a questions come up about the commit that might involve changes to the commit then the PR is placed in `Waiting For Response`, you have two options:
  1. Fix the issue with the commit by adding a new commit in the topic branch that fixes the code review. Then push your changes to your branch. This option keeps the comments in the PR, and allows for further code review. I personally dislike this, because people are lazy and fix reviews with `fix more review issues`. Please make good commit messages! All rules about commits from above apply! **THIS IS PREFERED**
 
 

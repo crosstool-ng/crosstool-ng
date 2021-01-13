@@ -87,6 +87,15 @@ do_gmp_backend() {
         extra_config+=("--enable-mpbsd")
     fi
 
+    # To avoind “illegal text-relocation” linking error against
+    # the static library, see:
+    #     https://github.com/Homebrew/homebrew-core/pull/25470
+    case "${host}" in
+        *darwin*)
+            extra_config+=("--with-pic")
+            ;;
+    esac
+
     # FIXME: GMP's configure script doesn't respect the host parameter
     # when not cross-compiling, ie when build == host.
     CT_DoExecLog CFG                                \

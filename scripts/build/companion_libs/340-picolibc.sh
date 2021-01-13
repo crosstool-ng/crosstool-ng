@@ -5,22 +5,74 @@
 # Edited by Keith Packard <keithp@keithp.com>
 #
 
-picolibc_start_files()
-{
-    CT_DoStep INFO "Installing C library headers & start files"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/include/." \
-    "${CT_HEADERS_DIR}"
-    CT_EndStep
+do_picolibc_get() { :; }
+do_picolibc_extract() { :; }
+do_picolibc_for_build() { :; }
+do_picolibc_for_host() { :; }
+do_picolibc_for_target() { :; }
+
+if [ "${CT_COMP_LIBS_PICOLIBC}" = "y" ]; then
+
+# Download picolibc
+do_picolibc_get() {
+    CT_Fetch PICOLIBC
 }
 
-picolibc_main()
+do_picolibc_extract() {
+    CT_ExtractPatch PICOLIBC
+}
+
+#------------------------------------------------------------------------------
+# Build an additional target libstdc++ with "-Os" (optimise for speed) option
+# flag for libstdc++ "picolibc" variant.
+do_cc_libstdcxx_picolibc()
 {
+    local -a final_opts
+    local final_backend
+
+    if [ "${CT_LIBC_PICOLIBC_GCC_LIBSTDCXX}" = "y" ]; then
+        final_opts+=( "host=${CT_HOST}" )
+	final_opts+=( "libstdcxx_name=picolibc" )
+        final_opts+=( "prefix=${CT_PREFIX_DIR}" )
+        final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
+        final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+        final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
+        final_opts+=( "lang_list=c,c++" )
+        final_opts+=( "build_step=libstdcxx" )
+	final_opts+=( "extra_config+=('--enable-stdio=stdio_pure')" )
+	if [ "${CT_LIBC_PICOLIBC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+	    final_opts+=( "enable_optspace=yes" )
+	fi
+
+        if [ "${CT_BARE_METAL}" = "y" ]; then
+            final_opts+=( "mode=baremetal" )
+            final_opts+=( "build_libgcc=yes" )
+            final_opts+=( "build_libstdcxx=yes" )
+            final_opts+=( "build_libgfortran=yes" )
+            if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+                final_opts+=( "build_staticlinked=yes" )
+            fi
+            final_backend=do_gcc_core_backend
+        else
+            final_backend=do_gcc_backend
+        fi
+
+        CT_DoStep INFO "Installing libstdc++ picolibc"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc"
+        "${final_backend}" "${final_opts[@]}"
+        CT_Popd
+
+        CT_EndStep
+    fi
+}
+
+do_picolibc_for_target() {
     local -a picolibc_opts
     local cflags_for_target
 
-    CT_DoStep INFO "Installing C library"
+    CT_DoStep INFO "Installing Picolibc library"
 
-    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-picolibc-build-${CT_BUILD}"
 
     CT_DoLog EXTRA "Configuring Picolibc library"
 
@@ -91,11 +143,14 @@ c_args = [ ${meson_cflags} '-nostdlib', '-fno-common', '-ftls-model=local-exec' 
 needs_exe_wrapper = true
 skip_sanity_check = true
 EOF
+
     CT_DoExecLog CFG                                               \
     meson                                                          \
         --cross-file picolibc-cross.txt                            \
-        --prefix=${CT_SYSROOT_DIR}                                 \
-	-Dspecsdir=${CT_SYSROOT_DIR}/lib                           \
+        --prefix="${CT_PREFIX_DIR}"                                \
+	-Dincludedir=picolibc/include                              \
+	-Dlibdir=picolibc/${CT_TARGET}/lib                         \
+	-Dspecsdir="${CT_SYSROOT_DIR}"/lib                         \
         "${CT_SRC_DIR}/picolibc"                                   \
         "${picolibc_opts[@]}"                                      \
         "${CT_LIBC_PICOLIBC_EXTRA_CONFIG_ARRAY[@]}"
@@ -108,4 +163,8 @@ EOF
 
     CT_Popd
     CT_EndStep
+
+    do_cc_libstdcxx_picolibc
 }
+
+fi
