@@ -1,0 +1,77 @@
+From 9df2d784439720abbf67fa96c6515a5c4a9f230a Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 14 Jan 2021 18:48:44 -0800
+Subject: [PATCH 2/2] tinystdio: Fix snprintf(buf, 0, ...) to not smash buffer
+
+snprintf(buf, 0) should not write anything to the destination, not
+even a trailing '\0'. The tinystdio implementation had a signed
+comparison bug where this case would cause a null to be placed in the
+output buffer at the size of the data that would have been written.
+
+Add a test to make sure snprintf respects the 'len' parameter
+correctly.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ newlib/libc/tinystdio/snprintf.c |  2 +-
+ test/printf_scanf.c              | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/newlib/libc/tinystdio/snprintf.c b/newlib/libc/tinystdio/snprintf.c
+index 52d2f84d3..1052c9338 100644
+--- a/newlib/libc/tinystdio/snprintf.c
++++ b/newlib/libc/tinystdio/snprintf.c
+@@ -56,7 +56,7 @@ snprintf(char *s, size_t n, const char *fmt, ...)
+ 	i = vfprintf(&f.file, fmt, ap);
+ 	va_end(ap);
+ 
+-	if (n >= 0 && i >= 0)
++	if ((int) n >= 0 && i >= 0)
+ 		s[i < n ? i : n] = 0;
+ 
+ 	return i;
+diff --git a/test/printf_scanf.c b/test/printf_scanf.c
+index 2bc83e1d0..f89f46e4f 100644
+--- a/test/printf_scanf.c
++++ b/test/printf_scanf.c
+@@ -96,6 +96,37 @@ main(int argc, char **argv)
+ 		fflush(stdout);
+ 	}
+ #endif
++
++	/*
++	 * test snprintf to make sure it doesn't overwrite the specified buffer
++	 * length (even if that is zero)
++	 */
++	for (x = 0; x <= 6; x++) {
++		char tbuf[10] = "xxxxxxxxx";
++		const char ref[10] = "xxxxxxxxx";
++		int i = snprintf(tbuf, x, "%s", "123");
++		int y = x <= 4 ? x : 4;
++		if (i != 3) {
++			printf("snprintf(tbuf, %d, \"%%s\", \"123\") return %d instead of %d\n",
++			       x, i, 3);
++			errors++;
++		}
++		int l = strlen(tbuf);
++		if (y > 0 && l != y - 1) {
++			printf("returned buffer len want %d got %d\n", y - 1, l);
++			errors++;
++		}
++		if (y > 0 && strncmp(tbuf, "123", y - 1) != 0) {
++			strncpy(buf, "123", y - 1);
++			buf[y-1] = '\0';
++			printf("returned buffer want %s got %s\n", buf, tbuf);
++			errors++;
++		}
++		if (memcmp(tbuf + y, ref + y, sizeof(tbuf) - y) != 0) {
++			printf("tail of buf mangled %s\n", tbuf + y);
++			errors++;
++		}
++	}
+ 	for (x = 0; x < 32; x++) {
+ 		unsigned int v = 0x12345678 >> x;
+ 		unsigned int r;
+-- 
+2.30.0
+
