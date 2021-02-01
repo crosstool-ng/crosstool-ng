@@ -65,7 +65,8 @@ void menu_add_entry(struct symbol *sym)
 struct menu *menu_add_menu(void)
 {
 	last_entry_ptr = &current_entry->list;
-	return current_menu = current_entry;
+	current_menu = current_entry;
+	return current_menu;
 }
 
 void menu_end_menu(void)
@@ -157,13 +158,7 @@ struct property *menu_add_prompt(enum prop_type type, char *prompt,
 {
 	struct property *prop = menu_add_prop(type, NULL, dep);
 
-	/* For crostool-NG, a leading pipe followed with spaces
-	 * means that pipe shall be removed, and the spaces should
-	 * not be trimmed.
-	 */
-	if (*prompt == '|')
-		prompt++;
-	else if (isspace(*prompt)) {
+	if (isspace(*prompt)) {
 		prop_warn(prop, "leading whitespace ignored");
 		while (isspace(*prompt))
 			prompt++;
