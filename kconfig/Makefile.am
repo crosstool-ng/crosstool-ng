@@ -5,26 +5,27 @@ transform		= s,x,x,
 
 pkglibexec_PROGRAMS    = conf nconf mconf
 
-EXTRA_DIST		= zconf.y zconf.l \
+EXTRA_DIST		= parser.y lexer.l \
 				  expr.h list.h lkc.h lkc_proto.h nconf.h lxdialog/dialog.h \
 				  confdata.c expr.c kconf_id.c menu.c symbol.c util.c
 
-CLEANFILES		= zconf.lex.c zconf.c
-BUILT_SOURCES	= zconf.c zconf.lex.c
+CLEANFILES		= lexer.lex.c parser.tab.c parser.tab.h
+BUILT_SOURCES		= lexer.lex.c parser.tab.c
 
-AM_LFLAGS		= -L -Pzconf
-AM_YFLAGS		= -l -b zconf -p zconf
+AM_LFLAGS		= -L
+AM_YFLAGS		= -t -l
 AM_CPPFLAGS		= -include config.h -DCONFIG_=\"CT_\"
 AM_LIBTOOLFLAGS	= --tag CC
 
-conf_SOURCES    = conf.c zconf.c
+conf_SOURCES    = conf.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c
 conf_LDADD      = $(LIBINTL)
 
-nconf_SOURCES	= nconf.c nconf.gui.c zconf.c
+nconf_SOURCES	= nconf.c nconf.gui.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c
 nconf_CFLAGS	= $(CURSES_CFLAGS)
 nconf_LDADD     = $(MENU_LIBS) $(PANEL_LIBS) $(CURSES_LIBS) $(LIBINTL)
 
-mconf_SOURCES	= mconf.c zconf.c lxdialog/checklist.c lxdialog/inputbox.c \
+mconf_SOURCES	= mconf.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c \
+				  lxdialog/checklist.c lxdialog/inputbox.c \
 				  lxdialog/menubox.c lxdialog/textbox.c lxdialog/util.c \
 				  lxdialog/yesno.c
 mconf_LDADD     = $(CURSES_LIBS) $(LIBINTL)
@@ -42,8 +43,8 @@ AM_V_LEX		= $(am__v_LEX_@AM_V@)
 am__v_LEX_		= $(am__v_LEX_@AM_DEFAULT_V@)
 am__v_LEX_0		= @echo "  LEX     " $@;
 
-zconf.c: zconf.y
-	$(AM_V_YACC)$(YACCCOMPILE) -o$@ $<
+parser.tab.c: parser.y
+	$(AM_V_YACC)$(YACCCOMPILE) -o$@ --defines=parser.tab.h $<
 
-zconf.lex.c: zconf.l
+lexer.lex.c: lexer.l
 	$(AM_V_LEX)$(LEXCOMPILE) -o$@ $<

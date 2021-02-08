@@ -18,6 +18,7 @@ AC_CONFIG_MACRO_DIR([m4])
 # - Object files are generated in a subdirectory (new default in automake)
 # - Request new tar format (old, tar-v7, breaks on long paths we have)
 AM_INIT_AUTOMAKE([-Wall -Werror foreign no-dist-gzip dist-xz dist-bzip2 subdir-objects tar-pax])
+AM_SILENT_RULES([yes])
 
 # To avoid stubbing autotools with missing script
 AM_MAINTAINER_MODE([enable])
