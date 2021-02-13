@@ -60,6 +60,8 @@ jobs:
         ]
         sample: [
           "aarch64-unknown-linux-gnu",
+          "arc-multilib-elf32",
+          "arc-multilib-linux-gnu",
           "arc-multilib-linux-uclibc",
           "arm-picolibc-eabi",
           "arm-unknown-linux-gnueabi",
@@ -78,11 +80,17 @@ jobs:
           "xtensa-fsf-linux-uclibc"
         ]
         exclude:
+          # Exclude both glibc & uClibc ARC Linux toolchains as
+          # there's no known use of ARC Linux toolchains on Mac,
+          # and anyway glibc fails to build for ARC700,
+          # see https://github.com/crosstool-ng/crosstool-ng/pull/1456#issuecomment-779150246
+          - {host: "macos-10.15", sample: "arc-multilib-linux-gnu"}
+          - {host: "macos-10.15", sample: "arc-multilib-linux-uclibc"}
+
           # Exclude mips64-*-linux-gnu because of <byteswap.h> usage in
           # elf-entry.c for linux kernel headers.  <byteswap.h> is a GNU
           # extension and doesn't exist on MacOS X
-          - host: "macos-10.15"
-            sample: "mips64-unknown-linux-gnu"
+          - {host: "macos-10.15", sample: "mips64-unknown-linux-gnu"}
     steps:
       - name: Create case sensitive workspace volume for macOS
         if: ${{ runner.os == 'macOS' }}
