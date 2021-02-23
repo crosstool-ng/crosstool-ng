@@ -22,6 +22,31 @@ do_newlib_nano_extract() {
     CT_ExtractPatch NEWLIB_NANO
 }
 
+# Some architectures assume "nano" libs co-exist with normal ones
+# in the same folder, though being suffixed with "_nano".
+do_nano_libc_symlinks() {
+    CT_Pushd "${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib/${multi_dir}"
+
+    CT_DoLog DEBUG "Installing nano libc symlinks in $PWD"
+
+    ln -s libc.a libc_nano.a
+    ln -s libm.a libm_nano.a
+    ln -s libg.a libg_nano.a
+
+    CT_Popd
+}
+
+do_nano_libstdcxx_symlinks() {
+    CT_Pushd "${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib/${multi_dir}"
+
+    CT_DoLog DEBUG "Installing nano libstdc++ symlinks in $PWD"
+
+    ln -s libstdc++.a libstdc++_nano.a
+    ln -s libsupc++.a libsupc++_nano.a
+
+    CT_Popd
+}
+
 #------------------------------------------------------------------------------
 # Build an additional target libstdc++ with "-Os" (optimise for speed) option
 # flag for libstdc++ "newlib_nano" variant.
@@ -59,6 +84,10 @@ do_cc_libstdcxx_newlib_nano()
         CT_DoStep INFO "Installing libstdc++ newlib-nano"
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-newlib-nano"
         "${final_backend}" "${final_opts[@]}"
+
+        # Create "nano" symlinks for libstdc++.a & libsup++.a
+        CT_IterateMultilibs do_nano_libstdcxx_symlinks libstdcxx_symlinks
+
         CT_Popd
 
         CT_EndStep
@@ -179,6 +208,9 @@ ENABLE_TARGET_OPTSPACE:target-optspace
 -L${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib/%M -L${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib
 
 EOF
+
+    # Create "nano" symlinks for libc.a, libg.a & libm.a
+    CT_IterateMultilibs do_nano_libc_symlinks libc_symlinks
 
     CT_Popd
     CT_EndStep
