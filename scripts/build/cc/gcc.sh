@@ -405,11 +405,11 @@ do_gcc_core_backend() {
     extra_config+=(--disable-libmudflap)
     extra_config+=(--disable-libmpx)
 
-    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
-        extra_config+=(--enable-libssp)
-    else
-        extra_config+=(--disable-libssp)
-    fi
+    case "${CT_CC_GCC_LIBSSP}" in
+        y)  extra_config+=(--enable-libssp);;
+        m)  ;;
+        "") extra_config+=(--disable-libssp);;
+    esac
     if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
         extra_config+=(--enable-libquadmath)
         extra_config+=(--enable-libquadmath-support)
@@ -1015,11 +1015,11 @@ do_gcc_backend() {
     else
         extra_config+=(--disable-libgomp)
     fi
-    if [ "${CT_CC_GCC_LIBSSP}" = "y" ]; then
-        extra_config+=(--enable-libssp)
-    else
-        extra_config+=(--disable-libssp)
-    fi
+    case "${CT_CC_GCC_LIBSSP}" in
+        y)  extra_config+=(--enable-libssp);;
+        m)  ;;
+        "") extra_config+=(--disable-libssp);;
+    esac
     if [ "${CT_CC_GCC_LIBQUADMATH}" = "y" ]; then
         extra_config+=(--enable-libquadmath)
         extra_config+=(--enable-libquadmath-support)
