@@ -1,0 +1,67 @@
+From 4591f7e5329dcc6ee9af2f314a050936d470ab5b Mon Sep 17 00:00:00 2001
+From: Jonathan Wakely <jwakely@redhat.com>
+Date: Fri, 12 Feb 2021 10:37:56 +0000
+Subject: [PATCH 1/1] libstdc++: Fix bootstrap with -fno-rtti [PR 99077]
+
+When libstdc++ is built without RTTI the __ios_failure type is just an
+alias for std::ios_failure, so trying to construct it from an int won't
+compile. This changes the RTTI-enabled __ios_failure type to have the
+same constructor parameters as std::ios_failure, so that the constructor
+takes the same arguments whether RTTI is enabled or not.
+
+The __throw_ios_failure function now constructs the error_code, instead
+of the __ios_failure constructor. As a drive-by fix that error_code is
+constructed with std::generic_category() not std::system_category(),
+because the int comes from errno which corresponds to the generic
+category.
+
+libstdc++-v3/ChangeLog:
+
+	PR libstdc++/99077
+	* src/c++11/cxx11-ios_failure.cc (__ios_failure(const char*, int)):
+	Change int parameter to error_code, to match std::ios_failure.
+	(__throw_ios_failure(const char*, int)): Construct error_code
+	from int parameter.
+---
+ libstdc++-v3/src/c++11/cxx11-ios_failure.cc | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/libstdc++-v3/src/c++11/cxx11-ios_failure.cc b/libstdc++-v3/src/c++11/cxx11-ios_failure.cc
+index e82c1aaf63b..a918ab21015 100644
+--- a/libstdc++-v3/src/c++11/cxx11-ios_failure.cc
++++ b/libstdc++-v3/src/c++11/cxx11-ios_failure.cc
+@@ -114,7 +114,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     __ios_failure(const char* s) : failure(s)
+     { __construct_ios_failure(buf, runtime_error::what()); }
+ 
+-    __ios_failure(const char* s, int e) : failure(s, to_error_code(e))
++    __ios_failure(const char* s, const error_code& e) : failure(s, e)
+     { __construct_ios_failure(buf, runtime_error::what()); }
+ 
+     ~__ios_failure()
+@@ -125,10 +125,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     // There are assertions in src/c++98/ios_failure.cc to ensure the size
+     // and alignment assumptions are valid.
+     alignas(runtime_error) unsigned char buf[sizeof(runtime_error)];
+-
+-    static error_code
+-    to_error_code(int e)
+-    { return e ? error_code(e, system_category()) : io_errc::stream; }
+   };
+ 
+   // Custom type info for __ios_failure.
+@@ -171,7 +167,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   void
+   __throw_ios_failure(const char* str __attribute__((unused)),
+ 		      int err __attribute__((unused)))
+-  { _GLIBCXX_THROW_OR_ABORT(__ios_failure(_(str), err)); }
++  {
++    _GLIBCXX_THROW_OR_ABORT(__ios_failure(_(str),
++	  err ? error_code(err, generic_category()) : io_errc::stream));
++  }
+ 
+ _GLIBCXX_END_NAMESPACE_VERSION
+ } // namespace
+-- 
+2.14.5
+
