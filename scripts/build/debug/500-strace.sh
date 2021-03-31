@@ -21,7 +21,7 @@ do_debug_strace_build()
         # <netinet/in.h> and <linux/in6.h>. Kernel's libc-compat.h
         # only cares about GLIBC.  uClibc-ng does the same
         # internally, pretending it's GLIBC for kernel headers inclusion.
-        cflags+=" -D__GLIBC__"
+        cflags+=" -D__GLIBC__ -D__USE_MISC"
     fi
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-strace"
