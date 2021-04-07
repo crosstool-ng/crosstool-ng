@@ -8,11 +8,6 @@ do_debug_gdb_get()
 do_debug_gdb_extract()
 {
     CT_ExtractPatch GDB
-
-    # Workaround for bad versions, where the configure
-    # script for gdbserver is not executable...
-    # Bah, GNU folks strike again... :-(
-    chmod a+x "${CT_SRC_DIR}/gdb/gdb/gdbserver/configure"
 }
 
 do_debug_gdb_build()
