@@ -202,7 +202,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
 -isystem ${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/include %(newlib_nano_cpp)
 
 *cc1plus:
--idirafter ${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/include %(newlib_nano_cc1plus)  
+-idirafter ${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/include %(newlib_nano_cc1plus)
 
 *link:
 -L${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib/%M -L${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib
