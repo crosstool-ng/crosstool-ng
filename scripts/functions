@@ -1951,8 +1951,14 @@ CT_GetVersion_git()
     local branch="${devel_branch:-master}"
 
     if [ -z "${devel_revision}" ]; then
-        local matches=`git ls-remote --exit-code "${devel_url}" --refs "${branch}" \
+        # First try to dereference an annotated tag.
+        local matches=`git ls-remote --exit-code "${devel_url}" --refs "${branch}^{}" \
             || echo "not found"`
+        # If we don't have an annotated tag, let's take the reference as is.
+        if [ "${matches}" = "not found" ]; then
+            matches=`git ls-remote --exit-code "${devel_url}" --refs "${branch}" \
+                || echo "not found"`
+        fi
         local best using ref
 
         # Cannot test $?, setting a trap on ERR prevents bash from returning the
