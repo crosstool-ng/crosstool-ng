@@ -1,0 +1,764 @@
+# commit 8b8a692cfd7d80f1ee7c8b9ab356a259367dd187
+# Author: Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+# Date:   Wed Dec 4 06:55:03 2013 -0600
+# 
+#     PowerPC64 ELFv2 ABI 4/6: Stack frame layout changes
+#     
+#     This updates glibc for the changes in the ELFv2 relating to the
+#     stack frame layout.  These are described in more detail here:
+#     http://gcc.gnu.org/ml/gcc-patches/2013-11/msg01149.html
+#     http://gcc.gnu.org/ml/gcc-patches/2013-11/msg01146.html
+#     
+#     Specifically, the "compiler and linker doublewords" were removed,
+#     which has the effect that the save slot for the TOC register is
+#     now at offset 24 rather than 40 to the stack pointer.
+#     
+#     In addition, a function may now no longer necessarily assume that
+#     its caller has set up a 64-byte register save area its use.
+#     
+#     To address the first change, the patch goes through all assembler
+#     files and replaces immediate offsets in instructions accessing the
+#     ABI-defined stack slots by symbolic offsets.  Those already were
+#     defined in ucontext_i.sym and used in some of the context routines,
+#     but that doesn't really seem like the right place for those defines.
+#     
+#     The patch instead defines those symbolic offsets in sysdeps.h,
+#     in two variants for the old and new ABI, and uses them systematically
+#     in all assembler files, not just the context routines.
+#     
+#     The second change only affected a few assembler files that used
+#     the save area to temporarily store some registers.  In those
+#     cases where this happens within a leaf function, this patch
+#     changes the code to store those registers to the "red zone"
+#     below the stack pointer.  Otherwise, the functions already allocate
+#     a stack frame, and the patch changes them to add extra space in
+#     these frames as temporary space for the ELFv2 ABI.
+# 
+diff -urN glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h
+--- glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h	2014-05-29 14:10:00.000000000 -0500
++++ glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h	2014-05-29 14:10:00.000000000 -0500
+@@ -31,6 +31,14 @@
+ #  define DASHDASHPFX(str) __##str
+ # endif
+ 
++#if _CALL_ELF == 2
++#define CANCEL_FRAMESIZE (FRAME_MIN_SIZE+16+48)
++#define CANCEL_PARM_SAVE (FRAME_MIN_SIZE+16)
++#else
++#define CANCEL_FRAMESIZE (FRAME_MIN_SIZE+16)
++#define CANCEL_PARM_SAVE (CANCEL_FRAMESIZE+FRAME_PARM_SAVE)
++#endif
++
+ # undef PSEUDO
+ # define PSEUDO(name, syscall_name, args)				\
+   .section ".text";							\
+@@ -44,52 +52,52 @@
+     PSEUDO_RET;								\
+   .size DASHDASHPFX(syscall_name##_nocancel),.-DASHDASHPFX(syscall_name##_nocancel);	\
+   .Lpseudo_cancel:							\
+-    stdu 1,-128(1);							\
+-    cfi_adjust_cfa_offset (128);					\
++    stdu 1,-CANCEL_FRAMESIZE(1);					\
++    cfi_adjust_cfa_offset (CANCEL_FRAMESIZE);				\
+     mflr 9;								\
+-    std  9,128+16(1);							\
+-    cfi_offset (lr, 16);						\
++    std  9,CANCEL_FRAMESIZE+FRAME_LR_SAVE(1);				\
++    cfi_offset (lr, FRAME_LR_SAVE);					\
+     DOCARGS_##args;	/* save syscall args around CENABLE.  */	\
+     CENABLE;								\
+-    std  3,112(1);	/* store CENABLE return value (MASK).  */	\
++    std  3,FRAME_MIN_SIZE(1); /* store CENABLE return value (MASK).  */	\
+     UNDOCARGS_##args;	/* restore syscall args.  */			\
+     DO_CALL (SYS_ify (syscall_name));					\
+     mfcr 0;		/* save CR/R3 around CDISABLE.  */		\
+-    std  3,120(1);							\
+-    std  0,128+8(1);							\
+-    cfi_offset (cr, 8);							\
+-    ld   3,112(1);	/* pass MASK to CDISABLE.  */			\
++    std  3,FRAME_MIN_SIZE+8(1);						\
++    std  0,CANCEL_FRAMESIZE+FRAME_CR_SAVE(1);				\
++    cfi_offset (cr, FRAME_CR_SAVE);					\
++    ld   3,FRAME_MIN_SIZE(1); /* pass MASK to CDISABLE.  */		\
+     CDISABLE;								\
+-    ld   9,128+16(1);							\
+-    ld   0,128+8(1);	/* restore CR/R3. */				\
+-    ld   3,120(1);							\
++    ld   9,CANCEL_FRAMESIZE+FRAME_LR_SAVE(1);				\
++    ld   0,CANCEL_FRAMESIZE+FRAME_CR_SAVE(1); /* restore CR/R3. */	\
++    ld   3,FRAME_MIN_SIZE+8(1);						\
+     mtlr 9;								\
+     mtcr 0;								\
+-    addi 1,1,128;							\
+-    cfi_adjust_cfa_offset (-128);					\
++    addi 1,1,CANCEL_FRAMESIZE;						\
++    cfi_adjust_cfa_offset (-CANCEL_FRAMESIZE);				\
+     cfi_restore (lr);							\
+     cfi_restore (cr)
+ 
+ # define DOCARGS_0
+ # define UNDOCARGS_0
+ 
+-# define DOCARGS_1	std 3,128+48(1); DOCARGS_0
+-# define UNDOCARGS_1	ld 3,128+48(1); UNDOCARGS_0
++# define DOCARGS_1	std 3,CANCEL_PARM_SAVE(1); DOCARGS_0
++# define UNDOCARGS_1	ld 3,CANCEL_PARM_SAVE(1); UNDOCARGS_0
+ 
+-# define DOCARGS_2	std 4,128+56(1); DOCARGS_1
+-# define UNDOCARGS_2	ld 4,128+56(1); UNDOCARGS_1
++# define DOCARGS_2	std 4,CANCEL_PARM_SAVE+8(1); DOCARGS_1
++# define UNDOCARGS_2	ld 4,CANCEL_PARM_SAVE+8(1); UNDOCARGS_1
+ 
+-# define DOCARGS_3	std 5,128+64(1); DOCARGS_2
+-# define UNDOCARGS_3	ld 5,128+64(1); UNDOCARGS_2
++# define DOCARGS_3	std 5,CANCEL_PARM_SAVE+16(1); DOCARGS_2
++# define UNDOCARGS_3	ld 5,CANCEL_PARM_SAVE+16(1); UNDOCARGS_2
+ 
+-# define DOCARGS_4	std 6,128+72(1); DOCARGS_3
+-# define UNDOCARGS_4	ld 6,128+72(1); UNDOCARGS_3
++# define DOCARGS_4	std 6,CANCEL_PARM_SAVE+24(1); DOCARGS_3
++# define UNDOCARGS_4	ld 6,CANCEL_PARM_SAVE+24(1); UNDOCARGS_3
+ 
+-# define DOCARGS_5	std 7,128+80(1); DOCARGS_4
+-# define UNDOCARGS_5	ld 7,128+80(1); UNDOCARGS_4
++# define DOCARGS_5	std 7,CANCEL_PARM_SAVE+32(1); DOCARGS_4
++# define UNDOCARGS_5	ld 7,CANCEL_PARM_SAVE+32(1); UNDOCARGS_4
+ 
+-# define DOCARGS_6	std 8,128+88(1); DOCARGS_5
+-# define UNDOCARGS_6	ld 8,128+88(1); UNDOCARGS_5
++# define DOCARGS_6	std 8,CANCEL_PARM_SAVE+40(1); DOCARGS_5
++# define UNDOCARGS_6	ld 8,CANCEL_PARM_SAVE+40(1); UNDOCARGS_5
+ 
+ # ifdef IS_IN_libpthread
+ #  ifdef SHARED
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S	2014-05-29 14:10:00.000000000 -0500
+@@ -133,7 +133,7 @@
+ 	ld r14,((JB_GPRS+0)*8)(r3)
+ 	lfd fp14,((JB_FPRS+0)*8)(r3)
+ #if defined SHARED && !defined IS_IN_rtld
+-	std r2,40(r1)	/* Restore the callers TOC save area.  */
++	std r2,FRAME_TOC_SAVE(r1)	/* Restore the callers TOC save area.  */
+ #endif
+ 	ld r15,((JB_GPRS+1)*8)(r3)
+ 	lfd fp15,((JB_FPRS+1)*8)(r3)
+@@ -151,7 +151,7 @@
+ 	PTR_DEMANGLE2 (r0, r25)
+ #endif
+ 	mtlr r0
+-/* 	std r2,40(r1)	Restore the TOC save area.  */
++/* 	std r2,FRAME_TOC_SAVE(r1)	Restore the TOC save area.  */
+ 	ld r21,((JB_GPRS+7)*8)(r3)
+ 	lfd fp21,((JB_FPRS+7)*8)(r3)
+ 	ld r22,((JB_GPRS+8)*8)(r3)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S	2014-05-29 14:10:00.000000000 -0500
+@@ -66,8 +66,8 @@
+ BODY_LABEL (_init):
+ 	LOCALENTRY(_init)
+ 	mflr 0
+-	std 0, 16(r1)
+-	stdu r1, -112(r1)
++	std 0, FRAME_LR_SAVE(r1)
++	stdu r1, -FRAME_MIN_SIZE_PARM(r1)
+ #if PREINIT_FUNCTION_WEAK
+ 	addis r9, r2, .LC0@toc@ha
+ 	ld r0, .LC0@toc@l(r9)
+@@ -84,5 +84,5 @@
+ BODY_LABEL (_fini):
+ 	LOCALENTRY(_fini)
+ 	mflr 0
+-	std 0, 16(r1)
+-	stdu r1, -112(r1)
++	std 0, FRAME_LR_SAVE(r1)
++	stdu r1, -FRAME_MIN_SIZE_PARM(r1)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S	2014-05-29 14:10:00.000000000 -0500
+@@ -39,13 +39,13 @@
+ #include <sysdep.h>
+ 
+ 	.section .init,"ax",@progbits
+-	addi r1, r1, 112
+-	ld r0, 16(r1)
++	addi r1, r1, FRAME_MIN_SIZE_PARM
++	ld r0, FRAME_LR_SAVE(r1)
+ 	mtlr r0
+ 	blr
+ 
+ 	.section .fini,"ax",@progbits
+-	addi r1, r1, 112
+-	ld r0, 16(r1)
++	addi r1, r1, FRAME_MIN_SIZE_PARM
++	ld r0, FRAME_LR_SAVE(r1)
+ 	mtlr r0
+ 	blr
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:10:00.000000000 -0500
+@@ -26,13 +26,13 @@
+    parm1 (r3) and the index (r0) need to be converted to an offset
+    (index * 24) in parm2 (r4).  */
+ 
+-#define FRAME_SIZE 176
++#define FRAME_SIZE (FRAME_MIN_SIZE+64)
+ /* We need to save the registers used to pass parameters, ie. r3 thru
+    r10;  Use local var space rather than the parameter save area,
+    because gcc as of 2010/05 doesn't allocate a proper stack frame for
+    a function that makes no calls except for __tls_get_addr and we
+    might be here resolving the __tls_get_addr call.  */
+-#define INT_PARMS 112
++#define INT_PARMS FRAME_MIN_SIZE
+ EALIGN(_dl_runtime_resolve, 4, 0)
+ 	stdu	r1,-FRAME_SIZE(r1)
+ 	cfi_adjust_cfa_offset (FRAME_SIZE)
+@@ -48,25 +48,25 @@
+ 	mflr	r0
+ 	std	r8,INT_PARMS+40(r1)
+ /* Store the LR in the LR Save area.  */
+-	std	r0,FRAME_SIZE+16(r1)
+-	cfi_offset (lr, 16)
++	std	r0,FRAME_SIZE+FRAME_LR_SAVE(r1)
++	cfi_offset (lr, FRAME_LR_SAVE)
+ 	mfcr	r0
+ 	std	r9,INT_PARMS+48(r1)
+ 	std	r10,INT_PARMS+56(r1)
+ /* I'm almost certain we don't have to save cr...  be safe.  */
+-	std	r0,FRAME_SIZE+8(r1)
++	std	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	bl	JUMPTARGET(_dl_fixup)
+ #ifndef SHARED
+ 	nop
+ #endif
+ /* Put the registers back.  */
+-	ld	r0,FRAME_SIZE+16(r1)
++	ld	r0,FRAME_SIZE+FRAME_LR_SAVE(r1)
+ 	ld	r10,INT_PARMS+56(r1)
+ 	ld	r9,INT_PARMS+48(r1)
+ 	ld	r8,INT_PARMS+40(r1)
+ 	ld	r7,INT_PARMS+32(r1)
+ 	mtlr	r0
+-	ld	r0,FRAME_SIZE+8(r1)
++	ld	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r6,INT_PARMS+24(r1)
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+@@ -76,7 +76,7 @@
+ 	ld	r3,INT_PARMS+0(r1)
+ #if _CALL_ELF == 2
+ /* Restore the caller's TOC in case we jump to a local entry point.  */
+-	ld	r2,FRAME_SIZE+40(r1)
++	ld	r2,FRAME_SIZE+FRAME_TOC_SAVE(r1)
+ #endif
+ /* Unwind the stack frame, and jump.  */
+ 	addi	r1,r1,FRAME_SIZE
+@@ -86,6 +86,7 @@
+ #undef INT_PARMS
+ 
+ 	/* Stack layout:
++	   (Note: some of these are not required for the ELFv2 ABI.)
+ 	  +592   previous backchain
+ 	  +584   spill_r31
+ 	  +576   spill_r30
+@@ -147,10 +148,11 @@
+ 	  +64    parm3
+ 	  +56    parm2
+ 	  +48    parm1
+-	 * Parameter save area, Allocated by the call, at least 8 double words
+-	  +40    TOC save area
+-	  +32    Reserved for linker
+-	  +24    Reserved for compiler
++	 * Parameter save area
++	 * (v1 ABI: Allocated by the call, at least 8 double words)
++	  +40    v1 ABI: TOC save area
++	  +32    v1 ABI: Reserved for linker
++	  +24    v1 ABI: Reserved for compiler / v2 ABI: TOC save area
+ 	  +16    LR save area
+ 	  +8     CR save area
+ 	r1+0     stack back chain
+@@ -206,15 +208,15 @@
+ /* Store the LR in the LR Save area of the previous frame.  */
+ /* XXX Do we have to do this?  */
+ 	la	r8,FRAME_SIZE(r1)
+-	std	r5,FRAME_SIZE+16(r1)
+-	cfi_offset (lr, 16)
++	std	r5,FRAME_SIZE+FRAME_LR_SAVE(r1)
++	cfi_offset (lr, FRAME_LR_SAVE)
+ 	std	r5,CALLING_LR(r1)
+ 	mfcr	r0
+ 	std	r9,INT_PARMS+48(r1)
+ 	std	r10,INT_PARMS+56(r1)
+ 	std	r8,CALLING_SP(r1)
+ /* I'm almost certain we don't have to save cr...  be safe.  */
+-	std	r0,FRAME_SIZE+8(r1)
++	std	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r12,.LC__dl_hwcap@toc(r2)
+ #ifdef SHARED
+ 	/* Load _rtld_local_ro._dl_hwcap.  */
+@@ -311,13 +313,13 @@
+ 	lvx	v12,r11,r10
+ 	lvx	v13,r11,r9
+ L(restoreFXR):
+-	ld	r0,FRAME_SIZE+16(r1)
++	ld	r0,FRAME_SIZE+FRAME_LR_SAVE(r1)
+ 	ld	r10,INT_PARMS+56(r1)
+ 	ld	r9,INT_PARMS+48(r1)
+ 	ld	r8,INT_PARMS+40(r1)
+ 	ld	r7,INT_PARMS+32(r1)
+ 	mtlr	r0
+-	ld	r0,FRAME_SIZE+8(r1)
++	ld	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r6,INT_PARMS+24(r1)
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+@@ -327,7 +329,7 @@
+ 	ld	r3,INT_PARMS+0(r1)
+ #if _CALL_ELF == 2
+ /* Restore the caller's TOC in case we jump to a local entry point.  */
+-	ld	r2,FRAME_SIZE+40(r1)
++	ld	r2,FRAME_SIZE+FRAME_TOC_SAVE(r1)
+ #endif
+ /* Load the floating point registers.  */
+ 	lfd	fp1,FPR_PARMS+0(r1)
+@@ -375,19 +377,19 @@
+ 	lvx	v12,r11,r10
+ 	lvx	v13,r11,r9
+ L(restoreFXR2):
+-	ld	r0,FRAME_SIZE+16(r1)
++	ld	r0,FRAME_SIZE+FRAME_LR_SAVE(r1)
+ 	ld	r10,INT_PARMS+56(r1)
+ 	ld	r9,INT_PARMS+48(r1)
+ 	ld	r8,INT_PARMS+40(r1)
+ 	ld	r7,INT_PARMS+32(r1)
+ 	mtlr	r0
+-	ld	r0,FRAME_SIZE+8(r1)
++	ld	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r6,INT_PARMS+24(r1)
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+ 	mtcrf	0xFF,r0
+ /* Prepare for calling the function returned by fixup.  */
+-	std	r2,40(r1)
++	std	r2,FRAME_TOC_SAVE(r1)
+ 	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
+ /* Load the floating point registers.  */
+@@ -406,7 +408,7 @@
+ 	lfd	fp13,FPR_PARMS+96(r1)
+ /* Call the target function.  */
+ 	bctrl
+-	ld	r2,40(r1)
++	ld	r2,FRAME_TOC_SAVE(r1)
+ 	lwz	r12,VR_VRSAVE(r1)
+ /* But return here and store the return values.  */
+ 	std	r3,INT_RTN(r1)
+@@ -441,7 +443,7 @@
+ 	beq	L(pltexitreturn)
+ 	lvx	v2,0,r10
+ L(pltexitreturn):
+-	ld	r0,FRAME_SIZE+16(r1)
++	ld	r0,FRAME_SIZE+FRAME_LR_SAVE(r1)
+ 	ld	r31,584(r1)
+ 	ld	r30,576(r1)
+ 	mtlr	r0
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S	2014-05-29 14:10:00.000000000 -0500
+@@ -24,16 +24,16 @@
+ ENTRY(_mcount)
+ 	mflr		 r4
+ 	ld		 r11, 0(r1)
+-	stdu		 r1,-112(r1)
+-	cfi_adjust_cfa_offset (112)
+-	std		 r4, 128(r1)
+-	cfi_offset (lr, 16)
+-	ld		 r3, 16(r11)
++	stdu		 r1,-FRAME_MIN_SIZE(r1)
++	cfi_adjust_cfa_offset (FRAME_MIN_SIZE)
++	std		 r4, FRAME_MIN_SIZE+FRAME_LR_SAVE(r1)
++	cfi_offset (lr, FRAME_LR_SAVE)
++	ld		 r3, FRAME_LR_SAVE(r11)
+ 	bl		 JUMPTARGET(__mcount_internal)
+ 	nop
+-	ld		 r0, 128(r1)
++	ld		 r0, FRAME_MIN_SIZE+FRAME_LR_SAVE(r1)
+ 	mtlr		 r0
+-	addi		 r1,r1,112
++	addi		 r1,r1,FRAME_MIN_SIZE
+ 	blr
+ END(_mcount)
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S	2014-05-29 14:10:00.000000000 -0500
+@@ -56,7 +56,7 @@
+    bugz #269.  __GI__setjmp is used in csu/libc-start.c when
+    HAVE_CLEANUP_JMP_BUF is defined.  */
+ ENTRY (__GI__setjmp)
+-	std r2,40(r1)		/* Save the callers TOC in the save area.  */
++	std r2,FRAME_TOC_SAVE(r1)		/* Save the callers TOC in the save area.  */
+ 	CALL_MCOUNT 1
+ 	li r4,0			/* Set second argument to 0.  */
+ 	b JUMPTARGET (GLUE(__sigsetjmp,_ent))
+@@ -83,7 +83,7 @@
+ #endif
+ 	mflr r0
+ #if defined SHARED && !defined IS_IN_rtld
+-	ld   r5,40(r1)	/* Retrieve the callers TOC.  */
++	ld   r5,FRAME_TOC_SAVE(r1)	/* Retrieve the callers TOC.  */
+ 	std  r5,(JB_GPR2*8)(3)
+ #else
+ 	std  r2,(JB_GPR2*8)(3)
+@@ -219,14 +219,14 @@
+ 	b	JUMPTARGET (__sigjmp_save)
+ #else
+ 	mflr	r0
+-	std	r0,16(r1)
+-	stdu	r1,-112(r1)
+-	cfi_adjust_cfa_offset(112)
+-	cfi_offset(lr,16)
++	std	r0,FRAME_LR_SAVE(r1)
++	stdu	r1,-FRAME_MIN_SIZE(r1)
++	cfi_adjust_cfa_offset(FRAME_MIN_SIZE)
++	cfi_offset(lr,FRAME_LR_SAVE)
+ 	bl	JUMPTARGET (__sigjmp_save)
+ 	nop
+-	ld	r0,112+16(r1)
+-	addi	r1,r1,112
++	ld	r0,FRAME_MIN_SIZE+FRAME_LR_SAVE(r1)
++	addi	r1,r1,FRAME_MIN_SIZE
+ 	mtlr	r0
+ 	blr
+ #endif
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h	2014-05-29 14:10:00.000000000 -0500
+@@ -20,25 +20,67 @@
+ 
+ #ifdef __ASSEMBLER__
+ 
++/* Stack frame offsets.  */
++#if _CALL_ELF != 2
++#define FRAME_MIN_SIZE		112
++#define FRAME_MIN_SIZE_PARM	112
++#define FRAME_BACKCHAIN		0
++#define FRAME_CR_SAVE		8
++#define FRAME_LR_SAVE		16
++#define FRAME_TOC_SAVE		40
++#define FRAME_PARM_SAVE		48
++#define FRAME_PARM1_SAVE	48
++#define FRAME_PARM2_SAVE	56
++#define FRAME_PARM3_SAVE	64
++#define FRAME_PARM4_SAVE	72
++#define FRAME_PARM5_SAVE	80
++#define FRAME_PARM6_SAVE	88
++#define FRAME_PARM7_SAVE	96
++#define FRAME_PARM8_SAVE	104
++#define FRAME_PARM9_SAVE	112
++#else
++#define FRAME_MIN_SIZE		32
++#define FRAME_MIN_SIZE_PARM	96
++#define FRAME_BACKCHAIN		0
++#define FRAME_CR_SAVE		8
++#define FRAME_LR_SAVE		16
++#define FRAME_TOC_SAVE		24
++#define FRAME_PARM_SAVE		32
++#define FRAME_PARM1_SAVE	32
++#define FRAME_PARM2_SAVE	40
++#define FRAME_PARM3_SAVE	48
++#define FRAME_PARM4_SAVE	56
++#define FRAME_PARM5_SAVE	64
++#define FRAME_PARM6_SAVE	72
++#define FRAME_PARM7_SAVE	80
++#define FRAME_PARM8_SAVE	88
++#define FRAME_PARM9_SAVE	96
++#endif
++
+ /* Support macros for CALL_MCOUNT.  */
++#if _CALL_ELF == 2
++#define call_mcount_parm_offset (-64)
++#else
++#define call_mcount_parm_offset FRAME_PARM_SAVE
++#endif
+ 	.macro SAVE_ARG NARG
+ 	.if \NARG
+ 	SAVE_ARG \NARG-1
+-	std	2+\NARG,40+8*(\NARG)(1)
++	std	2+\NARG,call_mcount_parm_offset-8+8*(\NARG)(1)
+ 	.endif
+ 	.endm
+ 
+ 	.macro REST_ARG NARG
+ 	.if \NARG
+ 	REST_ARG \NARG-1
+-	ld	2+\NARG,112+40+8*(\NARG)(1)
++	ld	2+\NARG,FRAME_MIN_SIZE_PARM+call_mcount_parm_offset-8+8*(\NARG)(1)
+ 	.endif
+ 	.endm
+ 
+ 	.macro CFI_SAVE_ARG NARG
+ 	.if \NARG
+ 	CFI_SAVE_ARG \NARG-1
+-	cfi_offset(2+\NARG,40+8*(\NARG))
++	cfi_offset(2+\NARG,call_mcount_parm_offset-8+8*(\NARG))
+ 	.endif
+ 	.endm
+ 
+@@ -55,20 +97,20 @@
+ #ifdef	PROF
+ 	mflr	r0
+ 	SAVE_ARG \NARG
+-	std	r0,16(r1)
+-	stdu	r1,-112(r1)
+-	cfi_adjust_cfa_offset(112)
+-	cfi_offset(lr,16)
++	std	r0,FRAME_LR_SAVE(r1)
++	stdu	r1,-FRAME_MIN_SIZE_PARM(r1)
++	cfi_adjust_cfa_offset(FRAME_MIN_SIZE_PARM)
++	cfi_offset(lr,FRAME_LR_SAVE)
+ 	CFI_SAVE_ARG \NARG
+ 	bl	JUMPTARGET (_mcount)
+ #ifndef SHARED
+ 	nop
+ #endif
+-	ld	r0,128(r1)
++	ld	r0,FRAME_MIN_SIZE_PARM+FRAME_LR_SAVE(r1)
+ 	REST_ARG \NARG
+ 	mtlr	r0
+-	addi	r1,r1,112
+-	cfi_adjust_cfa_offset(-112)
++	addi	r1,r1,FRAME_MIN_SIZE_PARM
++	cfi_adjust_cfa_offset(-FRAME_MIN_SIZE_PARM)
+ 	cfi_restore(lr)
+ 	CFI_REST_ARG \NARG
+ #endif
+@@ -267,15 +309,15 @@
+     .else; \
+ .Local_syscall_error: \
+     mflr 0; \
+-    std 0,16(1); \
+-    stdu 1,-112(1); \
+-    cfi_adjust_cfa_offset(112); \
+-    cfi_offset(lr,16); \
++    std 0,FRAME_LR_SAVE(1); \
++    stdu 1,-FRAME_MIN_SIZE(1); \
++    cfi_adjust_cfa_offset(FRAME_MIN_SIZE); \
++    cfi_offset(lr,FRAME_LR_SAVE); \
+     bl JUMPTARGET(__syscall_error); \
+     nop; \
+-    ld 0,112+16(1); \
+-    addi 1,1,112; \
+-    cfi_adjust_cfa_offset(-112); \
++    ld 0,FRAME_MIN_SIZE+FRAME_LR_SAVE(1); \
++    addi 1,1,FRAME_MIN_SIZE; \
++    cfi_adjust_cfa_offset(-FRAME_MIN_SIZE); \
+     mtlr 0; \
+     cfi_restore(lr); \
+     blr; \
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S	2014-05-29 14:10:00.000000000 -0500
+@@ -33,24 +33,24 @@
+ 	cmpld	reg, r1;				\
+ 	bge+	.Lok;					\
+ 	mflr	r0;					\
+-	std	r0,16(r1);				\
++	std	r0,FRAME_LR_SAVE(r1);			\
+ 	mr	r31,r3;					\
+ 	mr	r30,r4;					\
+-	stdu	r1,-144(r1);				\
++	stdu	r1,-FRAME_MIN_SIZE-32(r1);		\
+ 	cfi_remember_state;				\
+-	cfi_adjust_cfa_offset (144);			\
+-	cfi_offset (lr, 16);				\
++	cfi_adjust_cfa_offset (FRAME_MIN_SIZE+32);	\
++	cfi_offset (lr, FRAME_LR_SAVE);			\
+ 	li	r3,0;					\
+-	addi	r4,r1,112;				\
++	addi	r4,r1,FRAME_MIN_SIZE;			\
+ 	li	r0,__NR_sigaltstack;			\
+ 	sc;						\
+ 	/* Without working sigaltstack we cannot perform the test.  */ \
+ 	bso	.Lok2;					\
+-	lwz	r0,112+8(r1);				\
++	lwz	r0,FRAME_MIN_SIZE+8(r1);		\
+ 	andi.	r4,r0,1;				\
+ 	beq	.Lfail;					\
+-	ld	r0,112+16(r1);				\
+-	ld	r4,112(r1);				\
++	ld	r0,FRAME_MIN_SIZE+16(r1);		\
++	ld	r4,FRAME_MIN_SIZE(r1);			\
+ 	add	r4,r4,r0;				\
+ 	sub	r3,r3,reg;				\
+ 	cmpld	r3,r0;					\
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S	2014-05-29 14:10:00.000000000 -0500
+@@ -31,9 +31,9 @@
+ 	CALL_MCOUNT 1
+ 	DISCARD_BOUNDS (r3)	/* the bounds are meaningless, so toss 'em.  */
+ 
+-	std	r3,48(r1)
++	std	r3,-8(r1)
+ 	DO_CALL(SYS_ify(brk))
+-	ld	r6,48(r1)
++	ld	r6,-8(r1)
+ 	ld	r5,.LC__curbrk@toc(r2)
+ 	std     r3,0(r5)
+ 	cmpld   r6,r3
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S	2014-05-29 14:10:00.000000000 -0500
+@@ -45,22 +45,22 @@
+ 	cror	cr0*4+eq,cr1*4+eq,cr0*4+eq
+ 	beq-	cr0,L(badargs)
+ 
+-	/* Save some regs in parm save area.  */
++	/* Save some regs in the "red zone".  */
+ #ifdef RESET_PID
+-	std	r29,48(r1)
++	std	r29,-24(r1)
+ #endif
+-	std	r30,56(r1)
+-	std	r31,64(r1)
++	std	r30,-16(r1)
++	std	r31,-8(r1)
+ #ifdef RESET_PID
+-	cfi_offset(r29,48)
++	cfi_offset(r29,-24)
+ #endif
+-	cfi_offset(r30,56)
+-	cfi_offset(r31,64)
++	cfi_offset(r30,-16)
++	cfi_offset(r31,-8)
+ 
+ 	/* Set up stack frame for child.  */
+ 	clrrdi	r4,r4,4
+ 	li	r0,0
+-	stdu	r0,-112(r4) /* min stack frame is 112 bytes per ABI */
++	stdu	r0,-FRAME_MIN_SIZE_PARM(r4)
+ 
+ 	/* Save fn, args, stack across syscall.  */
+ 	mr	r30,r3			/* Function in r30.  */
+@@ -102,12 +102,12 @@
+ L(oldpid):
+ #endif
+ 
+-	std	r2,40(r1)
++	std	r2,FRAME_TOC_SAVE(r1)
+ 	/* Call procedure.  */
+ 	PPC64_LOAD_FUNCPTR r30
+ 	mr	r3,r31
+ 	bctrl
+-	ld	r2,40(r1)
++	ld	r2,FRAME_TOC_SAVE(r1)
+ 	/* Call _exit with result from procedure.  */
+ #ifdef SHARED
+ 	b	JUMPTARGET(__GI__exit)
+@@ -126,15 +126,15 @@
+ L(parent):
+ 	/* Parent.  Restore registers & return.  */
+ #ifdef RESET_PID
+-	cfi_offset(r29,48)
++	cfi_offset(r29,-24)
+ #endif
+-	cfi_offset(r30,56)
+-	cfi_offset(r31,64)
++	cfi_offset(r30,-16)
++	cfi_offset(r31,-8)
+ #ifdef RESET_PID
+-	ld	r29,48(r1)
++	ld	r29,-24(r1)
+ #endif
+-	ld	r30,56(r1)
+-	ld	r31,64(r1)
++	ld	r30,-16(r1)
++	ld	r31,-8(r1)
+ #ifdef RESET_PID
+ 	cfi_restore(r29)
+ #endif
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S	2014-05-29 14:10:00.000000000 -0500
+@@ -46,8 +46,13 @@
+ # endif
+ #endif
+ 
+-#define FRAMESIZE 128
+-#define stackblock FRAMESIZE+48 /* offset to parm save area.  */
++#if _CALL_ELF == 2
++#define FRAMESIZE (FRAME_MIN_SIZE+16+64)
++#define stackblock (FRAME_MIN_SIZE+16)
++#else
++#define FRAMESIZE (FRAME_MIN_SIZE+16)
++#define stackblock (FRAMESIZE+FRAME_PARM_SAVE) /* offset to parm save area.  */
++#endif
+ 
+ 	.text
+ ENTRY(__socket)
+@@ -98,22 +103,22 @@
+ .Lsocket_cancel:
+ 	cfi_adjust_cfa_offset(FRAMESIZE)
+ 	mflr	r9
+-	std	r9,FRAMESIZE+16(r1)
+-	cfi_offset (lr, 16)
++	std	r9,FRAMESIZE+FRAME_LR_SAVE(r1)
++	cfi_offset (lr, FRAME_LR_SAVE)
+ 	CENABLE
+-	std	r3,120(r1)
++	std	r3,FRAME_MIN_SIZE+8(r1)
+ 	li	r3,P(SOCKOP_,socket)
+ 	addi	r4,r1,stackblock
+ 	DO_CALL(SYS_ify(socketcall))
+ 	mfcr	r0
+-	std	r3,112(r1)
+-	std	r0,FRAMESIZE+8(r1)
+-	cfi_offset (cr, 8)
+-	ld  	r3,120(r1)
++	std	r3,FRAME_MIN_SIZE(r1)
++	std	r0,FRAMESIZE+FRAME_CR_SAVE(r1)
++	cfi_offset (cr, FRAME_CR_SAVE)
++	ld  	r3,FRAME_MIN_SIZE+8(r1)
+ 	CDISABLE
+-	ld	r4,FRAMESIZE+16(r1)
+-	ld	r0,FRAMESIZE+8(r1)
+-	ld	r3,112(r1)
++	ld	r4,FRAMESIZE+FRAME_LR_SAVE(r1)
++	ld	r0,FRAMESIZE+FRAME_CR_SAVE(r1)
++	ld	r3,FRAME_MIN_SIZE(r1)
+ 	mtlr	r4
+ 	mtcr	r0
+ 	addi	r1,r1,FRAMESIZE
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym	2014-05-29 14:09:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym	2014-05-29 14:10:00.000000000 -0500
+@@ -8,27 +8,6 @@
+ SIG_SETMASK
+ 
+ 
+--- Offsets of the fields in the powerpc64 ABI stack frame.
+--- XXX Do these correspond to some struct?
+-
+-FRAME_BACKCHAIN		0
+-FRAME_CR_SAVE		8
+-FRAME_LR_SAVE		16
+-FRAME_COMPILER_DW	24
+-FRAME_LINKER_DW		32
+-FRAME_TOC_SAVE		40
+-FRAME_PARM_SAVE		48
+-FRAME_PARM1_SAVE	48
+-FRAME_PARM2_SAVE	56
+-FRAME_PARM3_SAVE	64
+-FRAME_PARM4_SAVE	72
+-FRAME_PARM5_SAVE	80
+-FRAME_PARM6_SAVE	88
+-FRAME_PARM7_SAVE	96
+-FRAME_PARM8_SAVE	104
+-FRAME_PARM9_SAVE	112
+-
+-
+ -- Offsets of the fields in the ucontext_t structure.
+ #define ucontext(member)	offsetof (ucontext_t, member)
+ #define mcontext(member)	ucontext (uc_mcontext.member)

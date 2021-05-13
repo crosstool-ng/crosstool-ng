@@ -1,0 +1,31 @@
+# commit b525166bb93b060e1146f0263b76a9c1e7455b06
+# Author: Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+# Date:   Wed Dec 4 06:45:56 2013 -0600
+# 
+#     PowerPC64: Add __private_ss field to TCB header
+#     
+#     The TCB header on Intel contains a field __private_ss that is used
+#     to efficiently implement the -fsplit-stack GCC feature.
+#     
+#     In order to prepare for a possible future implementation of that
+#     feature on powerpc64, we'd like to reserve a similar field in
+#     the TCB header as well.  (It would be good if this went in with
+#     or before the ELFv2 patches to ensure that this field will be
+#     available always in the ELFv2 environment.)
+#     
+#     The field needs to be added at the front of tcbhead_t structure
+#     to avoid changing the ABI; see the recent discussion when adding
+#     the EBB fields.
+# 
+diff -urN glibc-2.17-c758a686/nptl/sysdeps/powerpc/tls.h glibc-2.17-c758a686/nptl/sysdeps/powerpc/tls.h
+--- glibc-2.17-c758a686/nptl/sysdeps/powerpc/tls.h	2014-05-29 13:19:25.000000000 -0500
++++ glibc-2.17-c758a686/nptl/sysdeps/powerpc/tls.h	2014-05-29 13:19:25.000000000 -0500
+@@ -61,6 +61,8 @@
+    are private.  */
+ typedef struct
+ {
++  /* GCC split stack support.  */
++  void *__private_ss;
+   /* Reservation for the Event-Based Branching ABI.  */
+   uintptr_t ebb_handler;
+   uintptr_t ebb_ctx_pointer;

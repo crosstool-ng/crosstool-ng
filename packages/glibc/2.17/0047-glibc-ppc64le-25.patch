@@ -1,0 +1,411 @@
+# commit db9b4570c5dc550074140ac1d1677077fba29a26
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:40:11 2013 +0930
+# 
+#     PowerPC LE strlen
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00097.html
+#     
+#     This is the first of nine patches adding little-endian support to the
+#     existing optimised string and memory functions.  I did spend some
+#     time with a power7 simulator looking at cycle by cycle behaviour for
+#     memchr, but most of these patches have not been run on cpu simulators
+#     to check that we are going as fast as possible.  I'm sure PowerPC can
+#     do better.  However, the little-endian support mostly leaves main
+#     loops unchanged, so I'm banking on previous authors having done a
+#     good job on big-endian..  As with most code you stare at long enough,
+#     I found some improvements for big-endian too.
+#     
+#     Little-endian support for strlen.  Like most of the string functions,
+#     I leave the main word or multiple-word loops substantially unchanged,
+#     just needing to modify the tail.
+#     
+#     Removing the branch in the power7 functions is just a tidy.  .align
+#     produces a branch anyway.  Modifying regs in the non-power7 functions
+#     is to suit the new little-endian tail.
+#     
+#         * sysdeps/powerpc/powerpc64/power7/strlen.S (strlen): Add little-endian
+#         support.  Don't branch over align.
+#         * sysdeps/powerpc/powerpc32/power7/strlen.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/strlen.S (strlen): Add little-endian support.
+#         Rearrange tmp reg use to suit.  Comment.
+#         * sysdeps/powerpc/powerpc32/strlen.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strlen.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strlen.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strlen.S	2014-05-28 12:28:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strlen.S	2014-05-28 12:28:45.000000000 -0500
+@@ -31,7 +31,11 @@
+ 	li	r0,0	      /* Word with null chars to use with cmpb.  */
+ 	li	r5,-1	      /* MASK = 0xffffffffffffffff.  */
+ 	lwz	r12,0(r4)     /* Load word from memory.  */
++#ifdef __LITTLE_ENDIAN__
++	slw	r5,r5,r6
++#else
+ 	srw	r5,r5,r6      /* MASK = MASK >> padding.  */
++#endif
+ 	orc	r9,r12,r5     /* Mask bits that are not part of the string.  */
+ 	cmpb	r10,r9,r0     /* Check for null bytes in WORD1.  */
+ 	cmpwi	cr7,r10,0     /* If r10 == 0, no null's have been found.  */
+@@ -49,9 +53,6 @@
+ 	cmpb	r10,r12,r0
+ 	cmpwi	cr7,r10,0
+ 	bne	cr7,L(done)
+-	b	L(loop)	      /* We branch here (rather than falling through)
+-				 to skip the nops due to heavy alignment
+-				 of the loop below.  */
+ 
+ 	/* Main loop to look for the end of the string.  Since it's a
+ 	   small loop (< 8 instructions), align it to 32-bytes.  */
+@@ -88,9 +89,15 @@
+ 	   0xff in the same position as the null byte in the original
+ 	   word from the string.  Use that to calculate the length.  */
+ L(done):
+-	cntlzw	r0,r10	      /* Count leading zeroes before the match.  */
++#ifdef __LITTLE_ENDIAN__
++	addi	r9, r10, -1   /* Form a mask from trailing zeros.  */
++	andc	r9, r9, r10
++	popcntw r0, r9	      /* Count the bits in the mask.  */
++#else
++	cntlzw	r0,r10	      /* Count leading zeros before the match.  */
++#endif
+ 	subf	r5,r3,r4
+-	srwi	r0,r0,3	      /* Convert leading zeroes to bytes.  */
++	srwi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r5,r0      /* Compute final length.  */
+ 	blr
+ END (BP_SYM (strlen))
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strlen.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strlen.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strlen.S	2014-05-28 12:28:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strlen.S	2014-05-28 12:32:24.000000000 -0500
+@@ -31,7 +31,12 @@
+       1 is subtracted you get a value in the range 0x00-0x7f, none of which
+       have their high bit set. The expression here is
+       (x + 0xfefefeff) & ~(x | 0x7f7f7f7f), which gives 0x00000000 when
+-      there were no 0x00 bytes in the word.
++      there were no 0x00 bytes in the word.  You get 0x80 in bytes that
++      match, but possibly false 0x80 matches in the next more significant
++      byte to a true match due to carries.  For little-endian this is
++      of no consequence since the least significant match is the one
++      we're interested in, but big-endian needs method 2 to find which
++      byte matches.
+ 
+    2) Given a word 'x', we can test to see _which_ byte was zero by
+       calculating ~(((x & 0x7f7f7f7f) + 0x7f7f7f7f) | x | 0x7f7f7f7f).
+@@ -74,7 +79,7 @@
+ 
+ ENTRY (BP_SYM (strlen))
+ 
+-#define rTMP1	r0
++#define rTMP4	r0
+ #define rRTN	r3	/* incoming STR arg, outgoing result */
+ #define rSTR	r4	/* current string position */
+ #define rPADN	r5	/* number of padding bits we prepend to the
+@@ -84,9 +89,9 @@
+ #define rWORD1	r8	/* current string word */
+ #define rWORD2	r9	/* next string word */
+ #define rMASK	r9	/* mask for first string word */
+-#define rTMP2	r10
+-#define rTMP3	r11
+-#define rTMP4	r12
++#define rTMP1	r10
++#define rTMP2	r11
++#define rTMP3	r12
+ 
+ 	CHECK_BOUNDS_LOW (rRTN, rTMP1, rTMP2)
+ 
+@@ -96,15 +101,20 @@
+ 	lwz	rWORD1, 0(rSTR)
+ 	li	rMASK, -1
+ 	addi	r7F7F, r7F7F, 0x7f7f
+-/* That's the setup done, now do the first pair of words.
+-   We make an exception and use method (2) on the first two words, to reduce
+-   overhead.  */
++/* We use method (2) on the first two words, because rFEFE isn't
++   required which reduces setup overhead.  Also gives a faster return
++   for small strings on big-endian due to needing to recalculate with
++   method (2) anyway.  */
++#ifdef __LITTLE_ENDIAN__
++	slw	rMASK, rMASK, rPADN
++#else
+ 	srw	rMASK, rMASK, rPADN
++#endif
+ 	and	rTMP1, r7F7F, rWORD1
+ 	or	rTMP2, r7F7F, rWORD1
+ 	add	rTMP1, rTMP1, r7F7F
+-	nor	rTMP1, rTMP2, rTMP1
+-	and.	rWORD1, rTMP1, rMASK
++	nor	rTMP3, rTMP2, rTMP1
++	and.	rTMP3, rTMP3, rMASK
+ 	mtcrf	0x01, rRTN
+ 	bne	L(done0)
+ 	lis	rFEFE, -0x101
+@@ -113,11 +123,12 @@
+ 	bt	29, L(loop)
+ 
+ /* Handle second word of pair.  */
++/* Perhaps use method (1) here for little-endian, saving one instruction?  */
+ 	lwzu	rWORD1, 4(rSTR)
+ 	and	rTMP1, r7F7F, rWORD1
+ 	or	rTMP2, r7F7F, rWORD1
+ 	add	rTMP1, rTMP1, r7F7F
+-	nor.	rWORD1, rTMP2, rTMP1
++	nor.	rTMP3, rTMP2, rTMP1
+ 	bne	L(done0)
+ 
+ /* The loop.  */
+@@ -131,29 +142,53 @@
+ 	add	rTMP3, rFEFE, rWORD2
+ 	nor	rTMP4, r7F7F, rWORD2
+ 	bne	L(done1)
+-	and.	rTMP1, rTMP3, rTMP4
++	and.	rTMP3, rTMP3, rTMP4
+ 	beq	L(loop)
+ 
++#ifndef __LITTLE_ENDIAN__
+ 	and	rTMP1, r7F7F, rWORD2
+ 	add	rTMP1, rTMP1, r7F7F
+-	andc	rWORD1, rTMP4, rTMP1
++	andc	rTMP3, rTMP4, rTMP1
+ 	b	L(done0)
+ 
+ L(done1):
+ 	and	rTMP1, r7F7F, rWORD1
+ 	subi	rSTR, rSTR, 4
+ 	add	rTMP1, rTMP1, r7F7F
+-	andc	rWORD1, rTMP2, rTMP1
++	andc	rTMP3, rTMP2, rTMP1
+ 
+ /* When we get to here, rSTR points to the first word in the string that
+-   contains a zero byte, and the most significant set bit in rWORD1 is in that
+-   byte.  */
++   contains a zero byte, and rTMP3 has 0x80 for bytes that are zero,
++   and 0x00 otherwise.  */
+ L(done0):
+-	cntlzw	rTMP3, rWORD1
++	cntlzw	rTMP3, rTMP3
+ 	subf	rTMP1, rRTN, rSTR
+ 	srwi	rTMP3, rTMP3, 3
+ 	add	rRTN, rTMP1, rTMP3
+ 	/* GKM FIXME: check high bound.  */
+ 	blr
++#else
++
++L(done0):
++	addi	rTMP1, rTMP3, -1	/* Form a mask from trailing zeros.  */
++	andc	rTMP1, rTMP1, rTMP3
++	cntlzw	rTMP1, rTMP1		/* Count bits not in the mask.  */
++	subf	rTMP3, rRTN, rSTR
++	subfic	rTMP1, rTMP1, 32-7
++	srwi	rTMP1, rTMP1, 3
++	add	rRTN, rTMP1, rTMP3
++	blr
++
++L(done1):
++	addi	rTMP3, rTMP1, -1
++	andc	rTMP3, rTMP3, rTMP1
++	cntlzw	rTMP3, rTMP3
++	subf	rTMP1, rRTN, rSTR
++	subfic	rTMP3, rTMP3, 32-7-32
++	srawi	rTMP3, rTMP3, 3
++	add	rRTN, rTMP1, rTMP3
++	blr
++#endif
++
+ END (BP_SYM (strlen))
+ libc_hidden_builtin_def (strlen)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strlen.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strlen.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strlen.S	2014-05-28 12:28:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strlen.S	2014-05-28 12:28:45.000000000 -0500
+@@ -32,7 +32,11 @@
+ 				 with cmpb.  */
+ 	li	r5,-1	      /* MASK = 0xffffffffffffffff.  */
+ 	ld	r12,0(r4)     /* Load doubleword from memory.  */
++#ifdef __LITTLE_ENDIAN__
++	sld	r5,r5,r6
++#else
+ 	srd	r5,r5,r6      /* MASK = MASK >> padding.  */
++#endif
+ 	orc	r9,r12,r5     /* Mask bits that are not part of the string.  */
+ 	cmpb	r10,r9,r0     /* Check for null bytes in DWORD1.  */
+ 	cmpdi	cr7,r10,0     /* If r10 == 0, no null's have been found.  */
+@@ -50,9 +54,6 @@
+ 	cmpb	r10,r12,r0
+ 	cmpdi	cr7,r10,0
+ 	bne	cr7,L(done)
+-	b	L(loop)	      /* We branch here (rather than falling through)
+-				 to skip the nops due to heavy alignment
+-				 of the loop below.  */
+ 
+ 	/* Main loop to look for the end of the string.  Since it's a
+ 	   small loop (< 8 instructions), align it to 32-bytes.  */
+@@ -89,9 +90,15 @@
+ 	   0xff in the same position as the null byte in the original
+ 	   doubleword from the string.  Use that to calculate the length.  */
+ L(done):
+-	cntlzd	r0,r10	      /* Count leading zeroes before the match.  */
++#ifdef __LITTLE_ENDIAN__
++	addi	r9, r10, -1   /* Form a mask from trailing zeros.  */
++	andc	r9, r9, r10
++	popcntd r0, r9	      /* Count the bits in the mask.  */
++#else
++	cntlzd	r0,r10	      /* Count leading zeros before the match.  */
++#endif
+ 	subf	r5,r3,r4
+-	srdi	r0,r0,3	      /* Convert leading zeroes to bytes.  */
++	srdi	r0,r0,3	      /* Convert leading/trailing zeros to bytes.  */
+ 	add	r3,r5,r0      /* Compute final length.  */
+ 	blr
+ END (BP_SYM (strlen))
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strlen.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strlen.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strlen.S	2014-05-28 12:28:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strlen.S	2014-05-28 12:38:17.000000000 -0500
+@@ -31,7 +31,12 @@
+       1 is subtracted you get a value in the range 0x00-0x7f, none of which
+       have their high bit set. The expression here is
+       (x + 0xfefefeff) & ~(x | 0x7f7f7f7f), which gives 0x00000000 when
+-      there were no 0x00 bytes in the word.
++      there were no 0x00 bytes in the word.  You get 0x80 in bytes that
++      match, but possibly false 0x80 matches in the next more significant
++      byte to a true match due to carries.  For little-endian this is
++      of no consequence since the least significant match is the one
++      we're interested in, but big-endian needs method 2 to find which
++      byte matches.
+ 
+    2) Given a word 'x', we can test to see _which_ byte was zero by
+       calculating ~(((x & 0x7f7f7f7f) + 0x7f7f7f7f) | x | 0x7f7f7f7f).
+@@ -64,7 +69,7 @@
+    Answer:
+    1) Added a Data Cache Block Touch early to prefetch the first 128 
+    byte cache line. Adding dcbt instructions to the loop would not be 
+-   effective since most strings will be shorter than the cache line.*/
++   effective since most strings will be shorter than the cache line.  */
+ 
+ /* Some notes on register usage: Under the SVR4 ABI, we can use registers
+    0 and 3 through 12 (so long as we don't call any procedures) without
+@@ -80,7 +85,7 @@
+ ENTRY (BP_SYM (strlen))
+ 	CALL_MCOUNT 1
+ 
+-#define rTMP1	r0
++#define rTMP4	r0
+ #define rRTN	r3	/* incoming STR arg, outgoing result */
+ #define rSTR	r4	/* current string position */
+ #define rPADN	r5	/* number of padding bits we prepend to the
+@@ -90,9 +95,9 @@
+ #define rWORD1	r8	/* current string doubleword */
+ #define rWORD2	r9	/* next string doubleword */
+ #define rMASK	r9	/* mask for first string doubleword */
+-#define rTMP2	r10
+-#define rTMP3	r11
+-#define rTMP4	r12
++#define rTMP1	r10
++#define rTMP2	r11
++#define rTMP3	r12
+ 
+ /* Note:  The Bounded pointer support in this code is broken.  This code
+    was inherited from PPC32 and that support was never completed.
+@@ -109,30 +114,36 @@
+ 	addi	r7F7F, r7F7F, 0x7f7f
+ 	li	rMASK, -1
+ 	insrdi	r7F7F, r7F7F, 32, 0
+-/* That's the setup done, now do the first pair of doublewords.
+-   We make an exception and use method (2) on the first two doublewords, 
+-   to reduce overhead.  */
+-	srd	rMASK, rMASK, rPADN
++/* We use method (2) on the first two doublewords, because rFEFE isn't
++   required which reduces setup overhead.  Also gives a faster return
++   for small strings on big-endian due to needing to recalculate with
++   method (2) anyway.  */
++#ifdef __LITTLE_ENDIAN__
++	sld	rMASK, rMASK, rPADN
++#else
++ 	srd	rMASK, rMASK, rPADN
++#endif
+ 	and	rTMP1, r7F7F, rWORD1
+ 	or	rTMP2, r7F7F, rWORD1
+ 	lis	rFEFE, -0x101
+ 	add	rTMP1, rTMP1, r7F7F
+ 	addi	rFEFE, rFEFE, -0x101
+-	nor	rTMP1, rTMP2, rTMP1
+-	and.	rWORD1, rTMP1, rMASK
++	nor	rTMP3, rTMP2, rTMP1
++	and.	rTMP3, rTMP3, rMASK
+ 	mtcrf	0x01, rRTN
+ 	bne	L(done0)
+-	sldi  rTMP1, rFEFE, 32
+-	add  rFEFE, rFEFE, rTMP1
++	sldi	rTMP1, rFEFE, 32
++	add	rFEFE, rFEFE, rTMP1
+ /* Are we now aligned to a doubleword boundary?  */
+ 	bt	28, L(loop)
+ 
+ /* Handle second doubleword of pair.  */
++/* Perhaps use method (1) here for little-endian, saving one instruction?  */
+ 	ldu	rWORD1, 8(rSTR)
+ 	and	rTMP1, r7F7F, rWORD1
+ 	or	rTMP2, r7F7F, rWORD1
+ 	add	rTMP1, rTMP1, r7F7F
+-	nor.	rWORD1, rTMP2, rTMP1
++	nor.	rTMP3, rTMP2, rTMP1
+ 	bne	L(done0)
+ 
+ /* The loop.  */
+@@ -146,29 +157,53 @@
+ 	add	rTMP3, rFEFE, rWORD2
+ 	nor	rTMP4, r7F7F, rWORD2
+ 	bne	L(done1)
+-	and.	rTMP1, rTMP3, rTMP4
++	and.	rTMP3, rTMP3, rTMP4
+ 	beq	L(loop)
+ 
++#ifndef __LITTLE_ENDIAN__
+ 	and	rTMP1, r7F7F, rWORD2
+ 	add	rTMP1, rTMP1, r7F7F
+-	andc	rWORD1, rTMP4, rTMP1
++	andc	rTMP3, rTMP4, rTMP1
+ 	b	L(done0)
+ 
+ L(done1):
+ 	and	rTMP1, r7F7F, rWORD1
+ 	subi	rSTR, rSTR, 8
+ 	add	rTMP1, rTMP1, r7F7F
+-	andc	rWORD1, rTMP2, rTMP1
++	andc	rTMP3, rTMP2, rTMP1
+ 
+ /* When we get to here, rSTR points to the first doubleword in the string that
+-   contains a zero byte, and the most significant set bit in rWORD1 is in that
+-   byte.  */
++   contains a zero byte, and rTMP3 has 0x80 for bytes that are zero, and 0x00
++   otherwise.  */
+ L(done0):
+-	cntlzd	rTMP3, rWORD1
++	cntlzd	rTMP3, rTMP3
+ 	subf	rTMP1, rRTN, rSTR
+ 	srdi	rTMP3, rTMP3, 3
+ 	add	rRTN, rTMP1, rTMP3
+ 	/* GKM FIXME: check high bound.  */
+ 	blr
++#else
++
++L(done0):
++	addi	rTMP1, rTMP3, -1	/* Form a mask from trailing zeros.  */
++	andc	rTMP1, rTMP1, rTMP3
++	cntlzd	rTMP1, rTMP1		/* Count bits not in the mask.  */
++	subf	rTMP3, rRTN, rSTR
++	subfic	rTMP1, rTMP1, 64-7
++	srdi	rTMP1, rTMP1, 3
++	add	rRTN, rTMP1, rTMP3
++	blr
++
++L(done1):
++	addi	rTMP3, rTMP1, -1
++	andc	rTMP3, rTMP3, rTMP1
++	cntlzd	rTMP3, rTMP3
++	subf	rTMP1, rRTN, rSTR
++	subfic	rTMP3, rTMP3, 64-7-64
++	sradi	rTMP3, rTMP3, 3
++	add	rRTN, rTMP1, rTMP3
++	blr
++#endif
++
+ END (BP_SYM (strlen))
+ libc_hidden_builtin_def (strlen)

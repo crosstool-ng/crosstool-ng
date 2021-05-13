@@ -1,0 +1,81 @@
+# commit 6a31fe7f9cce72b69fce8fe499a2c6ad492c2311
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:32:18 2013 +0930
+# 
+#     PowerPC floating point little-endian [13 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00088.html
+#     
+#         * sysdeps/powerpc/powerpc32/fpu/s_roundf.S: Increase alignment of
+#         constants to usual value for .cst8 section, and remove redundant
+#         high address load.
+#         * sysdeps/powerpc/powerpc32/power4/fpu/s_llround.S: Use float
+#         constant for 0x1p52.  Load little-endian words of double from
+#         correct stack offsets.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_roundf.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_roundf.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_roundf.S	2014-05-27 22:50:13.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_roundf.S	2014-05-27 22:50:13.000000000 -0500
+@@ -19,7 +19,7 @@
+ #include <sysdep.h>
+ 
+ 	.section	.rodata.cst8,"aM",@progbits,8
+-	.align	2
++	.align	3
+ .LC0:	/* 2**23 */
+ 	.long 0x4b000000
+ .LC1:	/* 0.5 */
+@@ -60,7 +60,6 @@
+ #ifdef SHARED
+ 	lfs	fp10,.LC1-.LC0(r9)
+ #else
+-	lis	r9,.LC1@ha
+ 	lfs	fp10,.LC1@l(r9)
+ #endif
+ 	ble-	cr6,.L4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llround.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llround.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llround.S	2014-05-27 22:50:13.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llround.S	2014-05-27 22:50:13.000000000 -0500
+@@ -19,12 +19,10 @@
+ #include <sysdep.h>
+ #include <math_ldbl_opt.h>
+ 
+- .section .rodata.cst12,"aM",@progbits,12
++ .section .rodata.cst8,"aM",@progbits,8
+  .align 3
+- .LC0:   /* 0x1.0000000000000p+52 == 2^52 */
+-	.long 0x43300000
+-	.long 0x00000000
+-	.long 0x3f000000 /* Use this for 0.5  */
++ .LC0:	.long (52+127)<<23 /* 0x1p+52  */
++	.long (-1+127)<<23 /* 0.5  */
+ 
+ 	.section	".text"
+ 
+@@ -57,12 +55,12 @@
+ 	addi	r9,r9,.LC0-got_label@l
+ 	mtlr	r11
+ 	cfi_same_value (lr)
+-	lfd	fp9,0(r9)
+-	lfs	fp10,8(r9)
++	lfs	fp9,0(r9)
++	lfs	fp10,4(r9)
+ #else
+ 	lis r9,.LC0@ha
+-	lfd fp9,.LC0@l(r9)	/* Load 2^52 into fpr9.  */
+-	lfs fp10,.LC0@l+8(r9)	/* Load 0.5 into fpr10.  */
++	lfs fp9,.LC0@l(r9)	/* Load 2^52 into fpr9.  */
++	lfs fp10,.LC0@l+4(r9)	/* Load 0.5 into fpr10.  */
+ #endif
+ 	fabs	fp2,fp1		/* Get the absolute value of x.  */
+ 	fsub	fp12,fp10,fp10	/* Compute 0.0 into fpr12.  */
+@@ -80,8 +78,8 @@
+ 	nop
+ 	nop
+ 	nop
+-	lwz	r4,12(r1)	/* Load return as integer.  */
+-	lwz	r3,8(r1)
++	lwz	r3,8+HIWORD(r1)	/* Load return as integer.  */
++	lwz	r4,8+LOWORD(r1)
+ .Lout:
+ 	addi	r1,r1,16
+ 	blr

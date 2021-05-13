@@ -1,0 +1,228 @@
+# commit 9b874b2f1eb2550e39d3e9c38772e64a767e9de2
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:35:40 2013 +0930
+# 
+#     PowerPC ugly symbol versioning
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00090.html
+#     
+#     This patch fixes symbol versioning in setjmp/longjmp.  The existing
+#     code uses raw versions, which results in wrong symbol versioning when
+#     you want to build glibc with a base version of 2.19 for LE.
+#     
+#     Note that the merging the 64-bit and 32-bit versions in novmx-lonjmp.c
+#     and pt-longjmp.c doesn't result in GLIBC_2.0 versions for 64-bit, due
+#     to the base in shlib_versions.
+#     
+#         * sysdeps/powerpc/longjmp.c: Use proper symbol versioning macros.
+#         * sysdeps/powerpc/novmx-longjmp.c: Likewise.
+#         * sysdeps/powerpc/powerpc32/bsd-_setjmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/bsd-setjmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/fpu/__longjmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/fpu/setjmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/mcount.c: Likewise.
+#         * sysdeps/powerpc/powerpc32/setjmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/setjmp.S: Likewise.
+#         * nptl/sysdeps/unix/sysv/linux/powerpc/pt-longjmp.c: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/pt-longjmp.c glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/pt-longjmp.c
+--- glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/pt-longjmp.c	2014-05-27 23:22:12.000000000 -0500
++++ glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/pt-longjmp.c	2014-05-27 23:23:44.000000000 -0500
+@@ -41,13 +41,8 @@
+   __novmx__libc_longjmp (env, val);
+ }
+ 
+-# if __WORDSIZE == 64
+-symbol_version (__novmx_longjmp,longjmp,GLIBC_2.3);
+-symbol_version (__novmx_siglongjmp,siglongjmp,GLIBC_2.3);
+-# else
+-symbol_version (__novmx_longjmp,longjmp,GLIBC_2.0);
+-symbol_version (__novmx_siglongjmp,siglongjmp,GLIBC_2.0);
+-# endif
++compat_symbol (libpthread, __novmx_longjmp, longjmp, GLIBC_2_0);
++compat_symbol (libpthread, __novmx_siglongjmp, siglongjmp, GLIBC_2_0);
+ #endif /* defined SHARED && SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_3_4))  */ 
+ 
+ void
+@@ -62,5 +57,5 @@
+   __libc_siglongjmp (env, val);
+ }
+ 
+-versioned_symbol (libc, __vmx_longjmp, longjmp, GLIBC_2_3_4);
+-versioned_symbol (libc, __vmx_siglongjmp, siglongjmp, GLIBC_2_3_4);
++versioned_symbol (libpthread, __vmx_longjmp, longjmp, GLIBC_2_3_4);
++versioned_symbol (libpthread, __vmx_siglongjmp, siglongjmp, GLIBC_2_3_4);
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/longjmp.c glibc-2.17-c758a686/sysdeps/powerpc/longjmp.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/longjmp.c	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/longjmp.c	2014-05-27 23:22:12.000000000 -0500
+@@ -56,6 +56,6 @@
+ 
+ default_symbol_version (__vmx__libc_longjmp, __libc_longjmp, GLIBC_PRIVATE);
+ default_symbol_version (__vmx__libc_siglongjmp, __libc_siglongjmp, GLIBC_PRIVATE);
+-default_symbol_version (__vmx_longjmp, _longjmp, GLIBC_2.3.4);
+-default_symbol_version (__vmxlongjmp, longjmp, GLIBC_2.3.4);
+-default_symbol_version (__vmxsiglongjmp, siglongjmp, GLIBC_2.3.4);
++versioned_symbol (libc, __vmx_longjmp, _longjmp, GLIBC_2_3_4);
++versioned_symbol (libc, __vmxlongjmp, longjmp, GLIBC_2_3_4);
++versioned_symbol (libc, __vmxsiglongjmp, siglongjmp, GLIBC_2_3_4);
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/novmx-longjmp.c glibc-2.17-c758a686/sysdeps/powerpc/novmx-longjmp.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/novmx-longjmp.c	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/novmx-longjmp.c	2014-05-27 23:22:12.000000000 -0500
+@@ -51,13 +51,7 @@
+ weak_alias (__novmx__libc_siglongjmp, __novmxlongjmp)
+ weak_alias (__novmx__libc_siglongjmp, __novmxsiglongjmp)
+ 
+-# if __WORDSIZE == 64
+-symbol_version (__novmx_longjmp,_longjmp,GLIBC_2.3);
+-symbol_version (__novmxlongjmp,longjmp,GLIBC_2.3);
+-symbol_version (__novmxsiglongjmp,siglongjmp,GLIBC_2.3);
+-# else
+-symbol_version (__novmx_longjmp,_longjmp,GLIBC_2.0);
+-symbol_version (__novmxlongjmp,longjmp,GLIBC_2.0);
+-symbol_version (__novmxsiglongjmp,siglongjmp,GLIBC_2.0);
+-# endif
++compat_symbol (libc, __novmx_longjmp, _longjmp, GLIBC_2_0);
++compat_symbol (libc, __novmxlongjmp, longjmp, GLIBC_2_0);
++compat_symbol (libc, __novmxsiglongjmp, siglongjmp, GLIBC_2_0);
+ #endif /* defined SHARED && SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_3_4))  */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-_setjmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-_setjmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-_setjmp.S	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-_setjmp.S	2014-05-27 23:22:12.000000000 -0500
+@@ -32,7 +32,7 @@
+ /* Build a versioned object for libc.  */
+ 
+ # if defined SHARED && SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_3_4)
+-symbol_version (__novmx_setjmp,_setjmp,GLIBC_2.0);
++compat_symbol (libc, __novmx_setjmp, _setjmp, GLIBC_2_0);
+ 
+ ENTRY (BP_SYM (__novmx_setjmp))
+ 	li r4,0			/* Set second argument to 0.  */
+@@ -41,7 +41,7 @@
+ libc_hidden_def (__novmx_setjmp)
+ # endif /* defined SHARED  && SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_3_4) */
+ 
+-default_symbol_version (__vmx_setjmp,_setjmp,GLIBC_2.3.4)
++versioned_symbol (libc, __vmx_setjmp, _setjmp, GLIBC_2_3_4)
+ /* __GI__setjmp prototype is needed for ntpl i.e. _setjmp is defined
+    as a libc_hidden_proto & is used in sysdeps/generic/libc-start.c
+    if HAVE_CLEANUP_JMP_BUF is defined */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-setjmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-setjmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-setjmp.S	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/bsd-setjmp.S	2014-05-27 23:22:12.000000000 -0500
+@@ -27,7 +27,7 @@
+ 	b __novmx__sigsetjmp@local
+ END (__novmxsetjmp)
+ strong_alias (__novmxsetjmp, __novmx__setjmp)
+-symbol_version (__novmxsetjmp, setjmp, GLIBC_2.0)
++compat_symbol (libc, __novmxsetjmp, setjmp, GLIBC_2_0)
+ 
+ #endif  /* defined SHARED && SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_3_4) ) */
+ 
+@@ -37,4 +37,4 @@
+ END (__vmxsetjmp)
+ strong_alias (__vmxsetjmp, __vmx__setjmp)
+ strong_alias (__vmx__setjmp, __setjmp)
+-default_symbol_version (__vmxsetjmp,setjmp,GLIBC_2.3.4)
++versioned_symbol (libc, __vmxsetjmp, setjmp, GLIBC_2_3_4)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp.S	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp.S	2014-05-27 23:22:12.000000000 -0500
+@@ -26,14 +26,14 @@
+ 
+ #else /* !NOT_IN_libc */
+ /* Build a versioned object for libc.  */
+-default_symbol_version (__vmx__longjmp,__longjmp,GLIBC_2.3.4);
++versioned_symbol (libc, __vmx__longjmp, __longjmp, GLIBC_2_3_4);
+ # define __longjmp  __vmx__longjmp
+ # include "__longjmp-common.S"
+ 
+ # if defined SHARED && SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_3_4)
+ #  define __NO_VMX__
+ #  undef JB_SIZE
+-symbol_version (__novmx__longjmp,__longjmp,GLIBC_2.0);
++compat_symbol (libc, __novmx__longjmp, __longjmp, GLIBC_2_0);
+ #  undef __longjmp
+ #  define __longjmp  __novmx__longjmp
+ #  include "__longjmp-common.S"
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp.S	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp.S	2014-05-27 23:22:12.000000000 -0500
+@@ -26,7 +26,7 @@
+ 
+ #else /* !NOT_IN_libc */
+ /* Build a versioned object for libc.  */
+-default_symbol_version (__vmx__sigsetjmp,__sigsetjmp,GLIBC_2.3.4)
++versioned_symbol (libc, __vmx__sigsetjmp, __sigsetjmp, GLIBC_2_3_4)
+ # define __sigsetjmp __vmx__sigsetjmp
+ # define __sigjmp_save __vmx__sigjmp_save
+ # include "setjmp-common.S"
+@@ -36,7 +36,7 @@
+ #  undef __sigsetjmp
+ #  undef __sigjmp_save
+ #  undef JB_SIZE
+-symbol_version (__novmx__sigsetjmp,__sigsetjmp,GLIBC_2.0)
++compat_symbol (libc, __novmx__sigsetjmp, __sigsetjmp, GLIBC_2_0)
+ #  define __sigsetjmp __novmx__sigsetjmp
+ #  define __sigjmp_save __novmx__sigjmp_save
+ #  include "setjmp-common.S"
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/mcount.c glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/mcount.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/mcount.c	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/mcount.c	2014-05-27 23:22:12.000000000 -0500
+@@ -9,7 +9,7 @@
+ /* __mcount_internal was added in glibc 2.15 with version GLIBC_PRIVATE,
+    but it should have been put in version GLIBC_2.15.  Mark the
+    GLIBC_PRIVATE version obsolete and add it to GLIBC_2.16 instead.  */
+-default_symbol_version (___mcount_internal, __mcount_internal, GLIBC_2.16);
++versioned_symbol (libc, ___mcount_internal, __mcount_internal, GLIBC_2_16);
+ 
+ #if SHLIB_COMPAT (libc, GLIBC_2_15, GLIBC_2_16)
+ strong_alias (___mcount_internal, ___mcount_internal_private);
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/setjmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/setjmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/setjmp.S	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/setjmp.S	2014-05-27 23:22:12.000000000 -0500
+@@ -25,7 +25,7 @@
+ 
+ #else /* !NOT_IN_libc */
+ /* Build a versioned object for libc.  */
+-default_symbol_version (__vmx__sigsetjmp,__sigsetjmp,GLIBC_2.3.4)
++versioned_symbol (libc, __vmx__sigsetjmp, __sigsetjmp, GLIBC_2_3_4)
+ # define __sigsetjmp __vmx__sigsetjmp
+ # define __sigjmp_save __vmx__sigjmp_save
+ # include "setjmp-common.S"
+@@ -35,7 +35,7 @@
+ #  undef __sigsetjmp
+ #  undef __sigjmp_save
+ #  undef JB_SIZE
+-symbol_version (__novmx__sigsetjmp,__sigsetjmp,GLIBC_2.0)
++compat_symbol (libc, __novmx__sigsetjmp, __sigsetjmp, GLIBC_2_0)
+ #  define __sigsetjmp __novmx__sigsetjmp
+ #  define __sigjmp_save __novmx__sigjmp_save
+ #  include "setjmp-common.S"
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp.S	2014-05-27 23:22:10.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp.S	2014-05-27 23:22:12.000000000 -0500
+@@ -26,9 +26,9 @@
+ 
+ #else /* !NOT_IN_libc */
+ /* Build a versioned object for libc.  */
+-default_symbol_version (__vmxsetjmp, setjmp, GLIBC_2.3.4)
+-default_symbol_version (__vmx_setjmp,_setjmp,GLIBC_2.3.4)
+-default_symbol_version (__vmx__sigsetjmp,__sigsetjmp,GLIBC_2.3.4)
++versioned_symbol (libc, __vmxsetjmp, setjmp, GLIBC_2_3_4)
++versioned_symbol (libc, __vmx_setjmp, _setjmp, GLIBC_2_3_4)
++versioned_symbol (libc, __vmx__sigsetjmp, __sigsetjmp, GLIBC_2_3_4)
+ # define setjmp __vmxsetjmp
+ # define _setjmp __vmx_setjmp
+ # define __sigsetjmp __vmx__sigsetjmp
+@@ -44,9 +44,9 @@
+ #  undef __sigjmp_save
+ #  undef JB_SIZE
+ #  define __NO_VMX__
+-symbol_version (__novmxsetjmp, setjmp, GLIBC_2.3)
+-symbol_version (__novmx_setjmp,_setjmp,GLIBC_2.3);
+-symbol_version (__novmx__sigsetjmp,__sigsetjmp,GLIBC_2.3)
++compat_symbol (libc, __novmxsetjmp, setjmp, GLIBC_2_3)
++compat_symbol (libc, __novmx_setjmp,_setjmp, GLIBC_2_3);
++compat_symbol (libc, __novmx__sigsetjmp,__sigsetjmp, GLIBC_2_3)
+ #  define setjmp __novmxsetjmp
+ #  define _setjmp __novmx_setjmp
+ #  define __sigsetjmp __novmx__sigsetjmp

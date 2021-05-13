@@ -1,0 +1,163 @@
+# commit 9c008155b7d5d1bd81d909497850a2ece28aec50
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:31:05 2013 +0930
+# 
+#     PowerPC floating point little-endian [11 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-07/msg00202.html
+#     
+#     Another little-endian fix.
+#     
+#         * sysdeps/powerpc/fpu_control.h (_FPU_GETCW): Rewrite using
+#         64-bit int/double union.
+#         (_FPU_SETCW): Likewise.
+#         * sysdeps/powerpc/fpu/tst-setcontext-fpscr.c (_GET_DI_FPSCR): Likewise.
+#         (_SET_DI_FPSCR, _GET_SI_FPSCR, _SET_SI_FPSCR): Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fpu_control.h glibc-2.17-c758a686/sysdeps/powerpc/fpu/fpu_control.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fpu_control.h	2014-05-27 22:40:18.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fpu_control.h	2014-05-27 22:43:40.000000000 -0500
+@@ -45,22 +45,26 @@
+ #define _FPU_IEEE     0x000000f0
+ 
+ /* Type of the control word.  */
+-typedef unsigned int fpu_control_t __attribute__ ((__mode__ (__SI__)));
++typedef unsigned int fpu_control_t;
+ 
+ /* Macros for accessing the hardware control word.  */
+-#define _FPU_GETCW(__cw) ( { \
+-  union { double d; fpu_control_t cw[2]; } \
+-    tmp __attribute__ ((__aligned__(8))); \
+-  __asm__ ("mffs 0; stfd%U0 0,%0" : "=m" (tmp.d) : : "fr0"); \
+-  (__cw)=tmp.cw[1]; \
+-  tmp.cw[1]; } )
+-#define _FPU_SETCW(__cw) { \
+-  union { double d; fpu_control_t cw[2]; } \
+-    tmp __attribute__ ((__aligned__(8))); \
+-  tmp.cw[0] = 0xFFF80000; /* More-or-less arbitrary; this is a QNaN. */ \
+-  tmp.cw[1] = __cw; \
+-  __asm__ ("lfd%U0 0,%0; mtfsf 255,0" : : "m" (tmp.d) : "fr0"); \
+-}
++#define _FPU_GETCW(cw)						\
++  ({union { double __d; unsigned long long __ll; } __u;		\
++    register double __fr;					\
++    __asm__ ("mffs %0" : "=f" (__fr));				\
++    __u.__d = __fr;						\
++    (cw) = (fpu_control_t) __u.__ll;				\
++    (fpu_control_t) __u.__ll;					\
++  })
++
++#define _FPU_SETCW(cw)						\
++  { union { double __d; unsigned long long __ll; } __u;		\
++    register double __fr;					\
++    __u.__ll = 0xfff80000LL << 32; /* This is a QNaN.  */	\
++    __u.__ll |= (cw) & 0xffffffffLL;				\
++    __fr = __u.__d;						\
++    __asm__ ("mtfsf 255,%0" : : "f" (__fr));			\
++  }
+ 
+ /* Default control word set at startup.  */
+ extern fpu_control_t __fpu_control;
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/tst-setcontext-fpscr.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/tst-setcontext-fpscr.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/tst-setcontext-fpscr.c	2014-05-27 22:40:18.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/tst-setcontext-fpscr.c	2014-05-27 22:40:21.000000000 -0500
+@@ -83,7 +83,7 @@
+   return 0;
+ }
+ 
+-typedef unsigned long long di_fpscr_t __attribute__ ((__mode__ (__DI__)));
++typedef unsigned int di_fpscr_t __attribute__ ((__mode__ (__DI__)));
+ typedef unsigned int si_fpscr_t __attribute__ ((__mode__ (__SI__)));
+ 
+ #define _FPSCR_RESERVED 0xfffffff8ffffff04ULL
+@@ -95,50 +95,51 @@
+ #define _FPSCR_TEST1_RN  0x0000000000000002ULL
+ 
+ /* Macros for accessing the hardware control word on Power6[x].  */
+-# define _GET_DI_FPSCR(__fpscr) ({					     \
+-   union { double d;							     \
+-           di_fpscr_t fpscr; }						     \
+-     tmp __attribute__ ((__aligned__(8)));				     \
+-   __asm__ ("mffs 0; stfd%U0 0,%0" : "=m" (tmp.d) : : "fr0");		     \
+-   (__fpscr)=tmp.fpscr;							     \
+-   tmp.fpscr; })
++#define _GET_DI_FPSCR(__fpscr)						\
++  ({union { double d; di_fpscr_t fpscr; } u;				\
++    register double fr;							\
++    __asm__ ("mffs %0" : "=f" (fr));					\
++    u.d = fr;								\
++    (__fpscr) = u.fpscr;						\
++    u.fpscr;								\
++  })
+ 
+-/* We make sure to zero fp0 after we use it in order to prevent stale data
++/* We make sure to zero fp after we use it in order to prevent stale data
+    in an fp register from making a test-case pass erroneously.  */
+-# define _SET_DI_FPSCR(__fpscr) {					     \
+-  union { double d; di_fpscr_t fpscr; }					     \
+-    tmp __attribute__ ((__aligned__(8)));				     \
+-  tmp.fpscr = __fpscr;							     \
+-  /* Set the entire 64-bit FPSCR.  */					     \
+-  __asm__ ("lfd%U0 0,%0; "						     \
+-	   ".machine push; "						     \
+-	   ".machine \"power6\"; "					     \
+-	   "mtfsf 255,0,1,0; "						     \
+-	   ".machine pop" : : "m" (tmp.d) : "fr0");			     \
+-  tmp.d = 0;								     \
+-  __asm__("lfd%U0 0,%0" : : "m" (tmp.d) : "fr0");			     \
+-}
+-
+-# define _GET_SI_FPSCR(__fpscr) ({					     \
+-   union { double d;							     \
+-           si_fpscr_t cw[2]; }						     \
+-     tmp __attribute__ ((__aligned__(8)));				     \
+-   __asm__ ("mffs 0; stfd%U0 0,%0" : "=m" (tmp.d) : : "fr0");		     \
+-   (__fpscr)=tmp.cw[1];							     \
+-   tmp.cw[0]; })
++# define _SET_DI_FPSCR(__fpscr)						\
++  { union { double d; di_fpscr_t fpscr; } u;				\
++    register double fr;							\
++    u.fpscr = __fpscr;							\
++    fr = u.d;								\
++    /* Set the entire 64-bit FPSCR.  */					\
++    __asm__ (".machine push; "						\
++	     ".machine \"power6\"; "					\
++	     "mtfsf 255,%0,1,0; "					\
++	     ".machine pop" : : "f" (fr));				\
++    fr = 0.0;								\
++  }
++
++# define _GET_SI_FPSCR(__fpscr)						\
++  ({union { double d; di_fpscr_t fpscr; } u;				\
++    register double fr;							\
++    __asm__ ("mffs %0" : "=f" (fr));					\
++    u.d = fr;								\
++    (__fpscr) = (si_fpscr_t) u.fpscr;					\
++    (si_fpscr_t) u.fpscr;						\
++  })
+ 
+-/* We make sure to zero fp0 after we use it in order to prevent stale data
++/* We make sure to zero fp after we use it in order to prevent stale data
+    in an fp register from making a test-case pass erroneously.  */
+-# define _SET_SI_FPSCR(__fpscr) {					     \
+-  union { double d; si_fpscr_t fpscr[2]; }				     \
+-    tmp __attribute__ ((__aligned__(8)));				     \
+-  /* More-or-less arbitrary; this is a QNaN. */				     \
+-  tmp.fpscr[0] = 0xFFF80000;						     \
+-  tmp.fpscr[1] = __fpscr;						     \
+-  __asm__ ("lfd%U0 0,%0; mtfsf 255,0" : : "m" (tmp.d) : "fr0");		     \
+-  tmp.d = 0;								     \
+-  __asm__("lfd%U0 0,%0" : : "m" (tmp.d) : "fr0");			     \
+-}
++# define _SET_SI_FPSCR(__fpscr)						\
++  { union { double d; di_fpscr_t fpscr; } u;				\
++    register double fr;							\
++    /* More-or-less arbitrary; this is a QNaN. */			\
++    u.fpscr = 0xfff80000ULL << 32;					\
++    u.fpscr |= __fpscr & 0xffffffffULL;					\
++    fr = u.d;								\
++    __asm__ ("mtfsf 255,%0" : : "f" (fr));				\
++    fr = 0.0;								\
++  }
+ 
+ void prime_special_regs(int which)
+ {

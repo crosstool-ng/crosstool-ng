@@ -1,0 +1,1255 @@
+# commit 466b03933234017473c12dd1d92bda5e7fe49df7
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:48:36 2013 +0930
+# 
+#     PowerPC LE memchr and memrchr
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00105.html
+#     
+#     Like strnlen, memchr and memrchr had a number of defects fixed by this
+#     patch as well as adding little-endian support.  The first one I
+#     noticed was that the entry to the main loop needlessly checked for
+#     "are we done yet?" when we know the size is large enough that we can't
+#     be done.  The second defect I noticed was that the main loop count was
+#     wrong, which in turn meant that the small loop needed to handle an
+#     extra word.  Thirdly, there is nothing to say that the string can't
+#     wrap around zero, except of course that we'd normally hit a segfault
+#     on trying to read from address zero.  Fixing that simplified a number
+#     of places:
+#     
+#     -   /* Are we done already?  */
+#     -   addi    r9,r8,8
+#     -   cmpld   r9,r7
+#     -   bge     L(null)
+#     
+#     becomes
+#     
+#     +   cmpld   r8,r7
+#     +   beqlr
+#     
+#     However, the exit gets an extra test because I test for being on the
+#     last word then if so whether the byte offset is less than the end.
+#     Overall, the change is a win.
+#     
+#     Lastly, memrchr used the wrong cache hint.
+#     
+#         * sysdeps/powerpc/powerpc64/power7/memchr.S: Replace rlwimi with
+#         insrdi.  Make better use of reg selection to speed exit slightly.
+#         Schedule entry path a little better.  Remove useless "are we done"
+#         checks on entry to main loop.  Handle wrapping around zero address.
+#         Correct main loop count.  Handle single left-over word from main
+#         loop inline rather than by using loop_small.  Remove extra word
+#         case in loop_small caused by wrong loop count.  Add little-endian
+#         support.
+#         * sysdeps/powerpc/powerpc32/power7/memchr.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/memrchr.S: Likewise.  Use proper
+#         cache hint.
+#         * sysdeps/powerpc/powerpc32/power7/memrchr.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/rawmemchr.S: Add little-endian
+#         support.  Avoid rlwimi.
+#         * sysdeps/powerpc/powerpc32/power7/rawmemchr.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memchr.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memchr.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memchr.S	2014-05-29 13:09:17.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memchr.S	2014-05-29 13:13:37.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memchr implementation for PowerPC32/POWER7 using cmpb insn.
+-   Copyright (C) 2010-2012 Free Software Foundation, Inc.
++   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+    Contributed by Luis Machado <luisgpm@br.ibm.com>.
+    This file is part of the GNU C Library.
+ 
+@@ -18,116 +18,118 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ /* int [r3] memchr (char *s [r3], int byte [r4], int size [r5])  */
+ 	.machine  power7
+-ENTRY (BP_SYM (__memchr))
++ENTRY (__memchr)
+ 	CALL_MCOUNT
+ 	dcbt	0,r3
+ 	clrrwi  r8,r3,2
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrwi	r4,r4,8,16    /* Replicate byte to word.  */
+ 	add	r7,r3,r5      /* Calculate the last acceptable address.  */
++	insrwi	r4,r4,16,0
+ 	cmplwi	r5,16
++	li	r9, -1
++	rlwinm	r6,r3,3,27,28 /* Calculate padding.  */
++	addi	r7,r7,-1
++#ifdef __LITTLE_ENDIAN__
++	slw	r9,r9,r6
++#else
++	srw	r9,r9,r6
++#endif
+ 	ble	L(small_range)
+ 
+-	cmplw	cr7,r3,r7     /* Compare the starting address (r3) with the
+-				 ending address (r7).  If (r3 >= r7), the size
+-				 passed in is zero or negative.  */
+-	ble	cr7,L(proceed)
+-
+-	li	r7,-1	      /* Artificially set our ending address (r7)
+-				 such that we will exit early. */
+-L(proceed):
+-	rlwinm	r6,r3,3,27,28 /* Calculate padding.  */
+-	cmpli	cr6,r6,0      /* cr6 == Do we have padding?  */
+ 	lwz	r12,0(r8)     /* Load word from memory.  */
+-	cmpb	r10,r12,r4    /* Check for BYTE's in WORD1.  */
+-	beq	cr6,L(proceed_no_padding)
+-	slw	r10,r10,r6
+-	srw	r10,r10,r6
+-L(proceed_no_padding):
+-	cmplwi	cr7,r10,0     /* If r10 == 0, no BYTEs have been found.  */
++	cmpb	r3,r12,r4     /* Check for BYTEs in WORD1.  */
++	and	r3,r3,r9
++	clrlwi	r5,r7,30      /* Byte count - 1 in last word.  */
++	clrrwi	r7,r7,2       /* Address of last word.  */
++	cmplwi	cr7,r3,0      /* If r3 == 0, no BYTEs have been found.  */
+ 	bne	cr7,L(done)
+ 
+-	/* Are we done already?  */
+-	addi	r9,r8,4
+-	cmplw	cr6,r9,r7
+-	bge	cr6,L(null)
+-
+ 	mtcrf   0x01,r8
+ 	/* Are we now aligned to a doubleword boundary?  If so, skip to
+ 	   the main loop.  Otherwise, go through the alignment code.  */
+-
+ 	bt	29,L(loop_setup)
+ 
+ 	/* Handle WORD2 of pair.  */
+ 	lwzu	r12,4(r8)
+-	cmpb	r10,r12,r4
+-	cmplwi	cr7,r10,0
++	cmpb	r3,r12,r4
++	cmplwi	cr7,r3,0
+ 	bne	cr7,L(done)
+ 
+-	/* Are we done already?  */
+-	addi	r9,r8,4
+-	cmplw	cr6,r9,r7
+-	bge	cr6,L(null)
+-
+ L(loop_setup):
+-	sub	r5,r7,r9
+-	srwi	r6,r5,3	      /* Number of loop iterations.  */
++	/* The last word we want to read in the loop below is the one
++	   containing the last byte of the string, ie. the word at
++	   (s + size - 1) & ~3, or r7.  The first word read is at
++	   r8 + 4, we read 2 * cnt words, so the last word read will
++	   be at r8 + 4 + 8 * cnt - 4.  Solving for cnt gives
++	   cnt = (r7 - r8) / 8  */
++	sub	r6,r7,r8
++	srwi	r6,r6,3	      /* Number of loop iterations.  */
+ 	mtctr	r6            /* Setup the counter.  */
+-	b	L(loop)
+-	/* Main loop to look for BYTE backwards in the string.  Since
+-	   it's a small loop (< 8 instructions), align it to 32-bytes.  */
+-	.p2align  5
++
++	/* Main loop to look for BYTE in the string.  Since
++	   it's a small loop (8 instructions), align it to 32-bytes.  */
++	.align	5
+ L(loop):
+ 	/* Load two words, compare and merge in a
+ 	   single register for speed.  This is an attempt
+ 	   to speed up the byte-checking process for bigger strings.  */
+ 	lwz	r12,4(r8)
+ 	lwzu	r11,8(r8)
+-	cmpb	r10,r12,r4
++	cmpb	r3,r12,r4
+ 	cmpb	r9,r11,r4
+-	or	r5,r9,r10     /* Merge everything in one word.  */
+-	cmplwi	cr7,r5,0
++	or	r6,r9,r3      /* Merge everything in one word.  */
++	cmplwi	cr7,r6,0
+ 	bne	cr7,L(found)
+ 	bdnz	L(loop)
+ 
+-	/* We're here because the counter reached 0, and that means we
+-	   didn't have any matches for BYTE in the whole range.  */
+-	subi	r11,r7,4
+-	cmplw	cr6,r8,r11
+-	blt	cr6,L(loop_small)
+-	b	L(null)
++	/* We may have one more dword to read.  */
++	cmplw	r8,r7
++	beqlr
+ 
++	lwzu	r12,4(r8)
++	cmpb	r3,r12,r4
++	cmplwi	cr6,r3,0
++	bne	cr6,L(done)
++	blr
++
++	.align	4
++L(found):
+ 	/* OK, one (or both) of the words contains BYTE.  Check
+ 	   the first word and decrement the address in case the first
+ 	   word really contains BYTE.  */
+-	.align	4
+-L(found):
+-	cmplwi	cr6,r10,0
++	cmplwi	cr6,r3,0
+ 	addi	r8,r8,-4
+ 	bne	cr6,L(done)
+ 
+ 	/* BYTE must be in the second word.  Adjust the address
+-	   again and move the result of cmpb to r10 so we can calculate the
++	   again and move the result of cmpb to r3 so we can calculate the
+ 	   pointer.  */
+ 
+-	mr	r10,r9
++	mr	r3,r9
+ 	addi	r8,r8,4
+ 
+-	/* r10 has the output of the cmpb instruction, that is, it contains
++	/* r3 has the output of the cmpb instruction, that is, it contains
+ 	   0xff in the same position as BYTE in the original
+ 	   word from the string.  Use that to calculate the pointer.
+ 	   We need to make sure BYTE is *before* the end of the range.  */
+ L(done):
+-	cntlzw	r0,r10	      /* Count leading zeroes before the match.  */
+-	srwi	r0,r0,3	      /* Convert leading zeroes to bytes.  */
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r3,-1
++	andc    r0,r0,r3
++	popcntw	r0,r0	      /* Count trailing zeros.  */
++#else
++	cntlzw	r0,r3	      /* Count leading zeros before the match.  */
++#endif
++	cmplw	r8,r7         /* Are we on the last word?  */
++	srwi	r0,r0,3	      /* Convert leading/trailing zeros to bytes.  */
+ 	add	r3,r8,r0
+-	cmplw	r3,r7
+-	bge	L(null)
++	cmplw	cr7,r0,r5     /* If on the last dword, check byte offset.  */
++	bnelr
++	blelr	cr7
++	li	r3,0
+ 	blr
+ 
+ 	.align	4
+@@ -139,69 +141,44 @@
+ 	.align	4
+ L(small_range):
+ 	cmplwi	r5,0
+-	rlwinm	r6,r3,3,27,28 /* Calculate padding.  */
+-	beq	L(null)       /* This branch is for the cmplwi r5,0 above */
++	beq	L(null)
+ 	lwz	r12,0(r8)     /* Load word from memory.  */
+-	cmplwi	cr6,r6,0      /* cr6 == Do we have padding?  */
+-	cmpb	r10,r12,r4    /* Check for BYTE in DWORD1.  */
+-	beq	cr6,L(small_no_padding)
+-	slw	r10,r10,r6
+-	srw	r10,r10,r6
+-L(small_no_padding):
+-	cmplwi	cr7,r10,0
++	cmpb	r3,r12,r4     /* Check for BYTE in DWORD1.  */
++	and	r3,r3,r9
++	cmplwi	cr7,r3,0
++	clrlwi	r5,r7,30      /* Byte count - 1 in last word.  */
++	clrrwi	r7,r7,2       /* Address of last word.  */
++	cmplw	r8,r7         /* Are we done already?  */
+ 	bne	cr7,L(done)
++	beqlr
+ 
+-	/* Are we done already?  */
+-	addi    r9,r8,4
+-	cmplw	r9,r7
+-	bge	L(null)
+-
+-L(loop_small):                /* loop_small has been unrolled.  */
+ 	lwzu	r12,4(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,4
+-	cmplwi	cr6,r10,0
+-	cmplw	r9,r7
++	cmpb	r3,r12,r4
++	cmplwi	cr6,r3,0
++	cmplw	r8,r7
+ 	bne	cr6,L(done)
+-	bge	L(null)
++	beqlr
+ 
+ 	lwzu	r12,4(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,4
+-	cmplwi	cr6,r10,0
+-	cmplw	r9,r7
++	cmpb	r3,r12,r4
++	cmplwi	cr6,r3,0
++	cmplw	r8,r7
+ 	bne	cr6,L(done)
+-	bge	L(null)
++	beqlr
+ 
+ 	lwzu	r12,4(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,4
+-	cmplwi	cr6,r10,0
+-	cmplw	r9,r7
++	cmpb	r3,r12,r4
++	cmplwi	cr6,r3,0
++	cmplw	r8,r7
+ 	bne	cr6,L(done)
+-	bge	L(null)
++	beqlr
+ 
+ 	lwzu	r12,4(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,4
+-	cmplwi	cr6,r10,0
+-	cmplw	r9,r7
++	cmpb	r3,r12,r4
++	cmplwi	cr6,r3,0
+ 	bne	cr6,L(done)
+-	bge	L(null)
+-
+-	/* For most cases we will never get here.  Under some combinations of
+-	   padding + length there is a leftover word that still needs to be
+-	   checked.  */
+-	lwzu	r12,4(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,4
+-	cmplwi	cr6,r10,0
+-	bne	cr6,L(done)
+-
+-	/* save a branch and exit directly */
+-	li	r3,0
+ 	blr
+ 
+-END (BP_SYM (__memchr))
+-weak_alias (BP_SYM (__memchr), BP_SYM(memchr))
++END (__memchr)
++weak_alias (__memchr, memchr)
+ libc_hidden_builtin_def (memchr)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memrchr.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memrchr.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memrchr.S	2014-05-29 13:09:17.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memrchr.S	2014-05-29 13:13:47.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memrchr implementation for PowerPC32/POWER7 using cmpb insn.
+-   Copyright (C) 2010 Free Software Foundation, Inc.
++   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+    Contributed by Luis Machado <luisgpm@br.ibm.com>.
+    This file is part of the GNU C Library.
+ 
+@@ -18,124 +18,136 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ /* int [r3] memrchr (char *s [r3], int byte [r4], int size [r5])  */
+ 	.machine  power7
+-ENTRY (BP_SYM (__memrchr))
++ENTRY (__memrchr)
+ 	CALL_MCOUNT
+-	dcbt	0,r3
+-	mr	r7,r3
+-	add	r3,r7,r5      /* Calculate the last acceptable address.  */
+-	cmplw	cr7,r3,r7     /* Is the address equal or less than r3?  */
++	add	r7,r3,r5      /* Calculate the last acceptable address.  */
++	neg	r0,r7
++	addi	r7,r7,-1
++	mr	r10,r3
++	clrrwi	r6,r7,7
++	li	r9,3<<5
++	dcbt	r9,r6,16      /* Stream hint, decreasing addresses.  */
+ 
+ 	/* Replicate BYTE to word.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
+-	bge	cr7,L(proceed)
+-
+-	li	r3,-1	      /* Make r11 the biggest if r4 <= 0.  */
+-L(proceed):
++	insrwi	r4,r4,8,16
++	insrwi	r4,r4,16,0
+ 	li	r6,-4
+-	addi	r9,r3,-1
+-	clrrwi  r8,r9,2
+-	addi	r8,r8,4
+-	neg	r0,r3
++	li	r9,-1
+ 	rlwinm	r0,r0,3,27,28 /* Calculate padding.  */
+-
++	clrrwi	r8,r7,2
++	srw	r9,r9,r0
+ 	cmplwi	r5,16
++	clrrwi	r0,r10,2
+ 	ble	L(small_range)
+ 
+-	lwbrx	r12,r8,r6     /* Load reversed word from memory.  */
+-	cmpb	r10,r12,r4    /* Check for BYTE in WORD1.  */
+-	slw	r10,r10,r0
+-	srw	r10,r10,r0
+-	cmplwi	cr7,r10,0     /* If r10 == 0, no BYTE's have been found.  */
++#ifdef __LITTLE_ENDIAN__
++	lwzx	r12,0,r8
++#else
++	lwbrx	r12,0,r8      /* Load reversed word from memory.  */
++#endif
++	cmpb	r3,r12,r4     /* Check for BYTE in WORD1.  */
++	and	r3,r3,r9
++	cmplwi	cr7,r3,0      /* If r3 == 0, no BYTEs have been found.  */
+ 	bne	cr7,L(done)
+ 
+-	/* Are we done already?  */
+-	addi	r9,r8,-4
+-	cmplw	cr6,r9,r7
+-	ble	cr6,L(null)
+-
+ 	mtcrf   0x01,r8
+ 	/* Are we now aligned to a doubleword boundary?  If so, skip to
+ 	   the main loop.  Otherwise, go through the alignment code.  */
+-	mr	r8,r9
+-	bt	29,L(loop_setup)
++	bf	29,L(loop_setup)
+ 
+ 	/* Handle WORD2 of pair.  */
++#ifdef __LITTLE_ENDIAN__
++	lwzx	r12,r8,r6
++#else
+ 	lwbrx	r12,r8,r6
+-	cmpb	r10,r12,r4
+-	cmplwi	cr7,r10,0
+-	bne	cr7,L(done)
+-
+-	/* Are we done already?  */
++#endif
+ 	addi	r8,r8,-4
+-	cmplw	cr6,r8,r7
+-	ble	cr6,L(null)
++	cmpb	r3,r12,r4
++	cmplwi	cr7,r3,0
++	bne	cr7,L(done)
+ 
+ L(loop_setup):
+-	li	r0,-8
+-	sub	r5,r8,r7
+-	srwi	r9,r5,3	      /* Number of loop iterations.  */
++	/* The last word we want to read in the loop below is the one
++	   containing the first byte of the string, ie. the word at
++	   s & ~3, or r0.  The first word read is at r8 - 4, we
++	   read 2 * cnt words, so the last word read will be at
++	   r8 - 4 - 8 * cnt + 4.  Solving for cnt gives
++	   cnt = (r8 - r0) / 8  */
++	sub	r5,r8,r0
++	addi	r8,r8,-4
++	srwi	r9,r5,3       /* Number of loop iterations.  */
+ 	mtctr	r9	      /* Setup the counter.  */
+-	b	L(loop)
+-	/* Main loop to look for BYTE backwards in the string.  Since it's a
+-	   small loop (< 8 instructions), align it to 32-bytes.  */
+-	.p2align  5
++
++	/* Main loop to look for BYTE backwards in the string.
++	   FIXME: Investigate whether 32 byte align helps with this
++	   9 instruction loop.  */
++	.align	5
+ L(loop):
+ 	/* Load two words, compare and merge in a
+ 	   single register for speed.  This is an attempt
+ 	   to speed up the byte-checking process for bigger strings.  */
+ 
+-	lwbrx	r12,r8,r6
+-	lwbrx	r11,r8,r0
+-	addi	r8,r8,-4
+-	cmpb	r10,r12,r4
++#ifdef __LITTLE_ENDIAN__
++	lwzx	r12,0,r8
++	lwzx	r11,r8,r6
++#else
++	lwbrx	r12,0,r8
++	lwbrx	r11,r8,r6
++#endif
++	cmpb	r3,r12,r4
+ 	cmpb	r9,r11,r4
+-	or	r5,r9,r10     /* Merge everything in one word.  */
++	or	r5,r9,r3      /* Merge everything in one word.  */
+ 	cmplwi	cr7,r5,0
+ 	bne	cr7,L(found)
+-	addi	r8,r8,-4
++	addi	r8,r8,-8
+ 	bdnz	L(loop)
+-	/* We're here because the counter reached 0, and that means we
+-	   didn't have any matches for BYTE in the whole range.  Just return
+-	   the original range.  */
+-	addi	r9,r8,4
+-	cmplw	cr6,r9,r7
+-	bgt	cr6,L(loop_small)
+-	b	L(null)
+ 
+-	/* OK, one (or both) of the words contains BYTE.  Check
+-	   the first word and decrement the address in case the first
+-	   word really contains BYTE.  */
++	/* We may have one more word to read.  */
++	cmplw	r8,r0
++	bnelr
++
++#ifdef __LITTLE_ENDIAN__
++	lwzx	r12,0,r8
++#else
++	lwbrx	r12,0,r8
++#endif
++	cmpb	r3,r12,r4
++	cmplwi	cr7,r3,0
++	bne	cr7,L(done)
++	blr
++
+ 	.align	4
+ L(found):
+-	cmplwi	cr6,r10,0
+-	addi	r8,r8,4
++	/* OK, one (or both) of the words contains BYTE.  Check
++	   the first word.  */
++	cmplwi	cr6,r3,0
+ 	bne	cr6,L(done)
+ 
+ 	/* BYTE must be in the second word.  Adjust the address
+-	   again and move the result of cmpb to r10 so we can calculate the
++	   again and move the result of cmpb to r3 so we can calculate the
+ 	   pointer.  */
+ 
+-	mr	r10,r9
++	mr	r3,r9
+ 	addi	r8,r8,-4
+ 
+-	/* r10 has the output of the cmpb instruction, that is, it contains
++	/* r3 has the output of the cmpb instruction, that is, it contains
+ 	   0xff in the same position as BYTE in the original
+ 	   word from the string.  Use that to calculate the pointer.
+ 	   We need to make sure BYTE is *before* the end of the
+ 	   range.  */
+ L(done):
+-	cntlzw	r0,r10	      /* Count leading zeroes before the match.  */
+-	srwi	r6,r0,3	      /* Convert leading zeroes to bytes.  */
+-	addi	r0,r6,1
++	cntlzw	r9,r3	      /* Count leading zeros before the match.  */
++	cmplw	r8,r0         /* Are we on the last word?  */
++	srwi	r6,r9,3	      /* Convert leading zeros to bytes.  */
++	addi	r0,r6,-3
+ 	sub	r3,r8,r0
+-	cmplw	r3,r7
+-	blt	L(null)
++	cmplw	cr7,r3,r10
++	bnelr
++	bgelr	cr7
++	li	r3,0
+ 	blr
+ 
+ 	.align	4
+@@ -149,29 +161,36 @@
+ 	cmplwi	r5,0
+ 	beq	L(null)
+ 
+-	lwbrx	r12,r8,r6     /* Load reversed word from memory.  */
+-	cmpb	r10,r12,r4    /* Check for null bytes in WORD1.  */
+-	slw	r10,r10,r0
+-	srw	r10,r10,r0
+-	cmplwi	cr7,r10,0
++#ifdef __LITTLE_ENDIAN__
++	lwzx	r12,0,r8
++#else
++	lwbrx	r12,0,r8      /* Load reversed word from memory.  */
++#endif
++	cmpb	r3,r12,r4     /* Check for BYTE in WORD1.  */
++	and	r3,r3,r9
++	cmplwi	cr7,r3,0
+ 	bne	cr7,L(done)
+ 
++	/* Are we done already?  */
++	cmplw	r8,r0
+ 	addi	r8,r8,-4
+-	cmplw	r8,r7
+-	ble	L(null)
+-	b	L(loop_small)
++	beqlr
+ 
+-	.p2align  5
++	.align	5
+ L(loop_small):
+-	lwbrx	r12,r8,r6
+-	cmpb	r10,r12,r4
+-	cmplwi	cr6,r10,0
+-	bne	cr6,L(done)
++#ifdef __LITTLE_ENDIAN__
++	lwzx	r12,0,r8
++#else
++	lwbrx	r12,0,r8
++#endif
++	cmpb	r3,r12,r4
++	cmplw	r8,r0
++	cmplwi	cr7,r3,0
++	bne	cr7,L(done)
+ 	addi	r8,r8,-4
+-	cmplw	r8,r7
+-	ble	L(null)
+-	b	L(loop_small)
++	bne	L(loop_small)
++	blr
+ 
+-END (BP_SYM (__memrchr))
+-weak_alias (BP_SYM (__memrchr), BP_SYM(memrchr))
++END (__memrchr)
++weak_alias (__memrchr, memrchr)
+ libc_hidden_builtin_def (memrchr)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/rawmemchr.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/rawmemchr.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/rawmemchr.S	2014-05-29 13:09:17.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/rawmemchr.S	2014-05-29 13:09:19.000000000 -0500
+@@ -29,16 +29,21 @@
+ 	clrrwi	r8,r3,2	      /* Align the address to word boundary.  */
+ 
+ 	/* Replicate byte to word.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	rldimi	r4,r4,8,48
++	rldimi	r4,r4,16,32
+ 
+ 	/* Now r4 has a word of c bytes.  */
+ 
+ 	rlwinm	r6,r3,3,27,28 /* Calculate padding.  */
+ 	lwz	r12,0(r8)     /* Load word from memory.  */
+ 	cmpb	r5,r12,r4     /* Compare each byte against c byte.  */
++#ifdef __LITTLE_ENDIAN__
++	srw	r5,r5,r6
++	slw	r5,r5,r6
++#else
+ 	slw	r5,r5,r6      /* Move left to discard ignored bits.  */
+ 	srw	r5,r5,r6      /* Bring the bits back as zeros.  */
++#endif
+ 	cmpwi	cr7,r5,0      /* If r5 == 0, no c bytes have been found.  */
+ 	bne	cr7,L(done)
+ 
+@@ -92,8 +97,14 @@
+ 	   word from the string.  Use that fact to find out what is
+ 	   the position of the byte inside the string.  */
+ L(done):
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r5,-1
++	andc    r0,r0,r5
++	popcntw	r0,r0
++#else
+ 	cntlzw	r0,r5	      /* Count leading zeros before the match.  */
+-	srwi	r0,r0,3	      /* Convert leading zeroes to bytes.  */
++#endif
++	srwi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of the matching char.  */
+ 	blr
+ END (BP_SYM (__rawmemchr))
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memchr.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memchr.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memchr.S	2014-05-29 13:09:17.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memchr.S	2014-05-29 13:13:57.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memchr implementation for PowerPC64/POWER7 using cmpb insn.
+-   Copyright (C) 2010-2012 Free Software Foundation, Inc.
++   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+    Contributed by Luis Machado <luisgpm@br.ibm.com>.
+    This file is part of the GNU C Library.
+ 
+@@ -18,118 +18,119 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ /* int [r3] memchr (char *s [r3], int byte [r4], int size [r5])  */
+ 	.machine  power7
+-ENTRY (BP_SYM (__memchr))
+-	CALL_MCOUNT 2
++ENTRY (__memchr)
++	CALL_MCOUNT 3
+ 	dcbt	0,r3
+ 	clrrdi  r8,r3,3
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrdi	r4,r4,8,48
+ 	add	r7,r3,r5      /* Calculate the last acceptable address.  */
++	insrdi	r4,r4,16,32
+ 	cmpldi	r5,32
++	li	r9, -1
++	rlwinm	r6,r3,3,26,28 /* Calculate padding.  */
+ 	insrdi  r4,r4,32,0
++	addi	r7,r7,-1
++#ifdef __LITTLE_ENDIAN__
++	sld	r9,r9,r6
++#else
++	srd	r9,r9,r6
++#endif
+ 	ble	L(small_range)
+ 
+-	cmpld	cr7,r3,r7     /* Compare the starting address (r3) with the
+-				 ending address (r7).  If (r3 >= r7),
+-				 the size passed in was zero or negative.  */
+-	ble	cr7,L(proceed)
+-
+-	li	r7,-1         /* Artificially set our ending address (r7)
+-				 such that we will exit early.  */
+-
+-L(proceed):
+-	rlwinm	r6,r3,3,26,28 /* Calculate padding.  */
+-	cmpldi	cr6,r6,0      /* cr6 == Do we have padding?  */
+ 	ld	r12,0(r8)     /* Load doubleword from memory.  */
+-	cmpb	r10,r12,r4    /* Check for BYTEs in DWORD1.  */
+-	beq	cr6,L(proceed_no_padding)
+-	sld	r10,r10,r6
+-	srd	r10,r10,r6
+-L(proceed_no_padding):
+-	cmpldi	cr7,r10,0     /* Does r10 indicate we got a hit?  */
++	cmpb	r3,r12,r4     /* Check for BYTEs in DWORD1.  */
++	and	r3,r3,r9
++	clrldi	r5,r7,61      /* Byte count - 1 in last dword.  */
++	clrrdi	r7,r7,3       /* Address of last doubleword.  */
++	cmpldi	cr7,r3,0      /* Does r3 indicate we got a hit?  */
+ 	bne	cr7,L(done)
+ 
+-	/* See if we are at the last acceptable address yet.  */
+-	addi	r9,r8,8
+-	cmpld	cr6,r9,r7
+-	bge	cr6,L(null)
+-
+ 	mtcrf   0x01,r8
+ 	/* Are we now aligned to a quadword boundary?  If so, skip to
+ 	   the main loop.  Otherwise, go through the alignment code.  */
+-
+ 	bt	28,L(loop_setup)
+ 
+ 	/* Handle DWORD2 of pair.  */
+ 	ldu	r12,8(r8)
+-	cmpb	r10,r12,r4
+-	cmpldi	cr7,r10,0
++	cmpb	r3,r12,r4
++	cmpldi	cr7,r3,0
+ 	bne	cr7,L(done)
+ 
+-	/* Are we done already?  */
+-	addi	r9,r8,8
+-	cmpld	cr6,r9,r7
+-	bge	cr6,L(null)
+-
+ L(loop_setup):
+-	sub	r5,r7,r9
+-	srdi	r6,r5,4	      /* Number of loop iterations.  */
++	/* The last dword we want to read in the loop below is the one
++	   containing the last byte of the string, ie. the dword at
++	   (s + size - 1) & ~7, or r7.  The first dword read is at
++	   r8 + 8, we read 2 * cnt dwords, so the last dword read will
++	   be at r8 + 8 + 16 * cnt - 8.  Solving for cnt gives
++	   cnt = (r7 - r8) / 16  */
++	sub	r6,r7,r8
++	srdi	r6,r6,4	      /* Number of loop iterations.  */
+ 	mtctr	r6            /* Setup the counter.  */
+-	b	L(loop)
+-	/* Main loop to look for BYTE backwards in the string.  Since
+-	   it's a small loop (< 8 instructions), align it to 32-bytes.  */
+-	.p2align  5
++
++	/* Main loop to look for BYTE in the string.  Since
++	   it's a small loop (8 instructions), align it to 32-bytes.  */
++	.align	5
+ L(loop):
+ 	/* Load two doublewords, compare and merge in a
+ 	   single register for speed.  This is an attempt
+ 	   to speed up the byte-checking process for bigger strings.  */
+ 	ld	r12,8(r8)
+ 	ldu	r11,16(r8)
+-	cmpb	r10,r12,r4
++	cmpb	r3,r12,r4
+ 	cmpb	r9,r11,r4
+-	or	r5,r9,r10     /* Merge everything in one doubleword.  */
+-	cmpldi	cr7,r5,0
++	or	r6,r9,r3      /* Merge everything in one doubleword.  */
++	cmpldi	cr7,r6,0
+ 	bne	cr7,L(found)
+ 	bdnz	L(loop)
+ 
+-	/* We're here because the counter reached 0, and that means we
+-	   didn't have any matches for BYTE in the whole range.  */
+-	subi	r11,r7,8
+-	cmpld	cr6,r8,r11
+-	blt	cr6,L(loop_small)
+-	b	L(null)
++	/* We may have one more dword to read.  */
++	cmpld	r8,r7
++	beqlr
+ 
++	ldu	r12,8(r8)
++	cmpb	r3,r12,r4
++	cmpldi	cr6,r3,0
++	bne	cr6,L(done)
++	blr
++
++	.align	4
++L(found):
+ 	/* OK, one (or both) of the doublewords contains BYTE.  Check
+ 	   the first doubleword and decrement the address in case the first
+ 	   doubleword really contains BYTE.  */
+-	.align	4
+-L(found):
+-	cmpldi	cr6,r10,0
++	cmpldi	cr6,r3,0
+ 	addi	r8,r8,-8
+ 	bne	cr6,L(done)
+ 
+ 	/* BYTE must be in the second doubleword.  Adjust the address
+-	   again and move the result of cmpb to r10 so we can calculate the
++	   again and move the result of cmpb to r3 so we can calculate the
+ 	   pointer.  */
+ 
+-	mr	r10,r9
++	mr	r3,r9
+ 	addi	r8,r8,8
+ 
+-	/* r10 has the output of the cmpb instruction, that is, it contains
++	/* r3 has the output of the cmpb instruction, that is, it contains
+ 	   0xff in the same position as BYTE in the original
+ 	   doubleword from the string.  Use that to calculate the pointer.
+ 	   We need to make sure BYTE is *before* the end of the range.  */
+ L(done):
+-	cntlzd	r0,r10	      /* Count leading zeroes before the match.  */
+-	srdi	r0,r0,3	      /* Convert leading zeroes to bytes.  */
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r3,-1
++	andc    r0,r0,r3
++	popcntd	r0,r0	      /* Count trailing zeros.  */
++#else
++	cntlzd	r0,r3	      /* Count leading zeros before the match.  */
++#endif
++	cmpld	r8,r7         /* Are we on the last dword?  */
++	srdi	r0,r0,3	      /* Convert leading/trailing zeros to bytes.  */
+ 	add	r3,r8,r0
+-	cmpld	r3,r7
+-	bge	L(null)
++	cmpld	cr7,r0,r5     /* If on the last dword, check byte offset.  */
++	bnelr
++	blelr	cr7
++	li	r3,0
+ 	blr
+ 
+ 	.align	4
+@@ -141,67 +142,44 @@
+ 	.align	4
+ L(small_range):
+ 	cmpldi	r5,0
+-	rlwinm	r6,r3,3,26,28 /* Calculate padding.  */
+-	beq	L(null)       /* This branch is for the cmpldi r5,0 above.  */
++	beq	L(null)
+ 	ld	r12,0(r8)     /* Load word from memory.  */
+-	cmpldi	cr6,r6,0      /* cr6 == Do we have padding?  */
+-	cmpb	r10,r12,r4    /* Check for BYTE in DWORD1.  */
+-			      /* If no padding, skip the shifts.  */
+-	beq	cr6,L(small_no_padding)
+-	sld	r10,r10,r6
+-	srd	r10,r10,r6
+-L(small_no_padding):
+-	cmpldi	cr7,r10,0
++	cmpb	r3,r12,r4     /* Check for BYTE in DWORD1.  */
++	and	r3,r3,r9
++	cmpldi	cr7,r3,0
++	clrldi	r5,r7,61      /* Byte count - 1 in last dword.  */
++	clrrdi	r7,r7,3       /* Address of last doubleword.  */
++	cmpld	r8,r7         /* Are we done already?  */
+ 	bne	cr7,L(done)
+-
+-	/* Are we done already?  */
+-	addi    r9,r8,8
+-	cmpld	r9,r7
+-	bge	L(null)
+-	/* If we're not done, drop through into loop_small.  */
+-
+-L(loop_small):                /* loop_small has been unrolled.  */
+-	ldu	r12,8(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,8
+-	cmpldi	cr6,r10,0
+-	cmpld	r9,r7
+-	bne	cr6,L(done)   /* Found something.  */
+-	bge	L(null)       /* Hit end of string (length).  */
++	beqlr
+ 
+ 	ldu	r12,8(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,8
+-	cmpldi	cr6,r10,0
+-	cmpld	r9,r7
++	cmpb	r3,r12,r4
++	cmpldi	cr6,r3,0
++	cmpld	r8,r7
+ 	bne	cr6,L(done)   /* Found something.  */
+-	bge	L(null)
++	beqlr		      /* Hit end of string (length).  */
+ 
+ 	ldu	r12,8(r8)
+-	subi	r11,r7,8
+-	cmpb	r10,r12,r4
+-	cmpldi	cr6,r10,0
+-	ori	r2,r2,0       /* Force a dispatch group.  */
++	cmpb	r3,r12,r4
++	cmpldi	cr6,r3,0
++	cmpld	r8,r7
+ 	bne	cr6,L(done)
++	beqlr
+ 
+-	cmpld	r8,r11        /* At end of range?  */
+-	bge	L(null)
+-
+-	/* For most cases we will never get here.  Under some combinations of
+-	   padding + length there is a leftover double that still needs to be
+-	   checked.  */
+-	ldu	r12,8(r8)
+-	cmpb	r10,r12,r4
+-	addi	r9,r8,8
+-	cmpldi	cr6,r10,0
+-	cmpld	r9,r7
+-	bne	cr6,L(done)   /* Found something.  */
++	ldu	r12,8(r8)
++	cmpb	r3,r12,r4
++	cmpldi	cr6,r3,0
++	cmpld	r8,r7
++	bne	cr6,L(done)
++	beqlr
+ 
+-	/* Save a branch and exit directly.  */
+-	li	r3,0
++	ldu	r12,8(r8)
++	cmpb	r3,r12,r4
++	cmpldi	cr6,r3,0
++	bne	cr6,L(done)
+ 	blr
+ 
+-
+-END (BP_SYM (__memchr))
+-weak_alias (BP_SYM (__memchr), BP_SYM(memchr))
++END (__memchr)
++weak_alias (__memchr, memchr)
+ libc_hidden_builtin_def (memchr)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memrchr.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memrchr.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memrchr.S	2014-05-29 13:09:17.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memrchr.S	2014-05-29 13:14:06.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memrchr implementation for PowerPC64/POWER7 using cmpb insn.
+-   Copyright (C) 2010 Free Software Foundation, Inc.
++   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+    Contributed by Luis Machado <luisgpm@br.ibm.com>.
+    This file is part of the GNU C Library.
+ 
+@@ -18,125 +18,137 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ /* int [r3] memrchr (char *s [r3], int byte [r4], int size [r5])  */
+ 	.machine  power7
+-ENTRY (BP_SYM (__memrchr))
+-	CALL_MCOUNT
+-	dcbt	0,r3
+-	mr	r7,r3
+-	add	r3,r7,r5      /* Calculate the last acceptable address.  */
+-	cmpld	cr7,r3,r7     /* Is the address equal or less than r3?  */
++ENTRY (__memrchr)
++	CALL_MCOUNT 3
++	add	r7,r3,r5      /* Calculate the last acceptable address.  */
++	neg	r0,r7
++	addi	r7,r7,-1
++	mr	r10,r3
++	clrrdi	r6,r7,7
++	li	r9,3<<5
++	dcbt	r9,r6,8       /* Stream hint, decreasing addresses.  */
+ 
+ 	/* Replicate BYTE to doubleword.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrdi	r4,r4,8,48
++	insrdi	r4,r4,16,32
+ 	insrdi  r4,r4,32,0
+-	bge	cr7,L(proceed)
+-
+-	li	r3,-1	      /* Make r11 the biggest if r4 <= 0.  */
+-L(proceed):
+ 	li	r6,-8
+-	addi	r9,r3,-1
+-	clrrdi  r8,r9,3
+-	addi	r8,r8,8
+-	neg	r0,r3
++	li	r9,-1
+ 	rlwinm	r0,r0,3,26,28 /* Calculate padding.  */
+-
++	clrrdi	r8,r7,3
++	srd	r9,r9,r0
+ 	cmpldi	r5,32
++	clrrdi	r0,r10,3
+ 	ble	L(small_range)
+ 
+-	ldbrx	r12,r8,r6     /* Load reversed doubleword from memory.  */
+-	cmpb	r10,r12,r4    /* Check for BYTE in DWORD1.  */
+-	sld	r10,r10,r0
+-	srd	r10,r10,r0
+-	cmpldi	cr7,r10,0     /* If r10 == 0, no BYTE's have been found.  */
++#ifdef __LITTLE_ENDIAN__
++	ldx	r12,0,r8
++#else
++	ldbrx	r12,0,r8      /* Load reversed doubleword from memory.  */
++#endif
++	cmpb	r3,r12,r4     /* Check for BYTE in DWORD1.  */
++	and	r3,r3,r9
++	cmpldi	cr7,r3,0      /* If r3 == 0, no BYTEs have been found.  */
+ 	bne	cr7,L(done)
+ 
+-	/* Are we done already?  */
+-	addi	r9,r8,-8
+-	cmpld	cr6,r9,r7
+-	ble	cr6,L(null)
+-
+ 	mtcrf   0x01,r8
+-	/* Are we now aligned to a doubleword boundary?  If so, skip to
++	/* Are we now aligned to a quadword boundary?  If so, skip to
+ 	   the main loop.  Otherwise, go through the alignment code.  */
+-	mr	r8,r9
+-	bt	28,L(loop_setup)
++	bf	28,L(loop_setup)
+ 
+ 	/* Handle DWORD2 of pair.  */
++#ifdef __LITTLE_ENDIAN__
++	ldx	r12,r8,r6
++#else
+ 	ldbrx	r12,r8,r6
+-	cmpb	r10,r12,r4
+-	cmpldi	cr7,r10,0
+-	bne	cr7,L(done)
+-
+-	/* Are we done already.  */
++#endif
+ 	addi	r8,r8,-8
+-	cmpld	cr6,r8,r7
+-	ble	cr6,L(null)
++	cmpb	r3,r12,r4
++	cmpldi	cr7,r3,0
++	bne	cr7,L(done)
+ 
+ L(loop_setup):
+-	li	r0,-16
+-	sub	r5,r8,r7
+-	srdi	r9,r5,4	      /* Number of loop iterations.  */
++	/* The last dword we want to read in the loop below is the one
++	   containing the first byte of the string, ie. the dword at
++	   s & ~7, or r0.  The first dword read is at r8 - 8, we
++	   read 2 * cnt dwords, so the last dword read will be at
++	   r8 - 8 - 16 * cnt + 8.  Solving for cnt gives
++	   cnt = (r8 - r0) / 16  */
++	sub	r5,r8,r0
++	addi	r8,r8,-8
++	srdi	r9,r5,4       /* Number of loop iterations.  */
+ 	mtctr	r9	      /* Setup the counter.  */
+-	b	L(loop)
+-	/* Main loop to look for BYTE backwards in the string.  Since it's a
+-	   small loop (< 8 instructions), align it to 32-bytes.  */
+-	.p2align  5
++
++	/* Main loop to look for BYTE backwards in the string.
++	   FIXME: Investigate whether 32 byte align helps with this
++	   9 instruction loop.  */
++	.align	5
+ L(loop):
+ 	/* Load two doublewords, compare and merge in a
+ 	   single register for speed.  This is an attempt
+ 	   to speed up the byte-checking process for bigger strings.  */
+ 
+-	ldbrx	r12,r8,r6
+-	ldbrx	r11,r8,r0
+-	addi	r8,r8,-8
+-	cmpb	r10,r12,r4
++#ifdef __LITTLE_ENDIAN__
++	ldx	r12,0,r8
++	ldx	r11,r8,r6
++#else
++	ldbrx	r12,0,r8
++	ldbrx	r11,r8,r6
++#endif
++	cmpb	r3,r12,r4
+ 	cmpb	r9,r11,r4
+-	or	r5,r9,r10     /* Merge everything in one doubleword.  */
++	or	r5,r9,r3      /* Merge everything in one doubleword.  */
+ 	cmpldi	cr7,r5,0
+ 	bne	cr7,L(found)
+-	addi	r8,r8,-8
++	addi	r8,r8,-16
+ 	bdnz	L(loop)
+-	/* We're here because the counter reached 0, and that means we
+-	   didn't have any matches for BYTE in the whole range.  Just return
+-	   the original range.  */
+-	addi	r9,r8,8
+-	cmpld	cr6,r9,r7
+-	bgt	cr6,L(loop_small)
+-	b	L(null)
+-
+-	/* OK, one (or both) of the words contains BYTE.  Check
+-	   the first word and decrement the address in case the first
+-	   word really contains BYTE.  */
++
++	/* We may have one more word to read.  */
++	cmpld	r8,r0
++	bnelr
++
++#ifdef __LITTLE_ENDIAN__
++	ldx	r12,0,r8
++#else
++	ldbrx	r12,0,r8
++#endif
++	cmpb	r3,r12,r4
++	cmpldi	cr7,r3,0
++	bne	cr7,L(done)
++	blr
++
+ 	.align	4
+ L(found):
+-	cmpldi	cr6,r10,0
+-	addi	r8,r8,8
++	/* OK, one (or both) of the dwords contains BYTE.  Check
++	   the first dword.  */
++	cmpldi	cr6,r3,0
+ 	bne	cr6,L(done)
+ 
+ 	/* BYTE must be in the second word.  Adjust the address
+-	   again and move the result of cmpb to r10 so we can calculate the
++	   again and move the result of cmpb to r3 so we can calculate the
+ 	   pointer.  */
+ 
+-	mr	r10,r9
++	mr	r3,r9
+ 	addi	r8,r8,-8
+ 
+-	/* r10 has the output of the cmpb instruction, that is, it contains
+-	   0xff in the same position as the BYTE in the original
++	/* r3 has the output of the cmpb instruction, that is, it contains
++	   0xff in the same position as BYTE in the original
+ 	   word from the string.  Use that to calculate the pointer.
+ 	   We need to make sure BYTE is *before* the end of the
+ 	   range.  */
+ L(done):
+-	cntlzd	r0,r10	      /* Count leading zeroes before the match.  */
+-	srdi	r6,r0,3	      /* Convert leading zeroes to bytes.  */
+-	addi	r0,r6,1
++	cntlzd	r9,r3	      /* Count leading zeros before the match.  */
++	cmpld	r8,r0         /* Are we on the last word?  */
++	srdi	r6,r9,3	      /* Convert leading zeros to bytes.  */
++	addi	r0,r6,-7
+ 	sub	r3,r8,r0
+-	cmpld	r3,r7
+-	blt	L(null)
++	cmpld	cr7,r3,r10
++	bnelr
++	bgelr	cr7
++	li	r3,0
+ 	blr
+ 
+ 	.align	4
+@@ -150,30 +162,36 @@
+ 	cmpldi	r5,0
+ 	beq	L(null)
+ 
+-	ldbrx	r12,r8,r6     /* Load reversed doubleword from memory.  */
+-	cmpb	r10,r12,r4    /* Check for BYTE in DWORD1.  */
+-	sld	r10,r10,r0
+-	srd	r10,r10,r0
+-	cmpldi	cr7,r10,0
++#ifdef __LITTLE_ENDIAN__
++	ldx	r12,0,r8
++#else
++	ldbrx	r12,0,r8      /* Load reversed doubleword from memory.  */
++#endif
++	cmpb	r3,r12,r4     /* Check for BYTE in DWORD1.  */
++	and	r3,r3,r9
++	cmpldi	cr7,r3,0
+ 	bne	cr7,L(done)
+ 
+ 	/* Are we done already?  */
++	cmpld	r8,r0
+ 	addi	r8,r8,-8
+-	cmpld	r8,r7
+-	ble	L(null)
+-	b	L(loop_small)
++	beqlr
+ 
+-	.p2align  5
++	.align	5
+ L(loop_small):
+-	ldbrx	r12,r8,r6
+-	cmpb	r10,r12,r4
+-	cmpldi	cr6,r10,0
+-	bne	cr6,L(done)
++#ifdef __LITTLE_ENDIAN__
++	ldx	r12,0,r8
++#else
++	ldbrx	r12,0,r8
++#endif
++	cmpb	r3,r12,r4
++	cmpld	r8,r0
++	cmpldi	cr7,r3,0
++	bne	cr7,L(done)
+ 	addi	r8,r8,-8
+-	cmpld	r8,r7
+-	ble	L(null)
+-	b	L(loop_small)
++	bne	L(loop_small)
++	blr
+ 
+-END (BP_SYM (__memrchr))
+-weak_alias (BP_SYM (__memrchr), BP_SYM(memrchr))
++END (__memrchr)
++weak_alias (__memrchr, memrchr)
+ libc_hidden_builtin_def (memrchr)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/rawmemchr.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/rawmemchr.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/rawmemchr.S	2014-05-29 13:09:17.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/rawmemchr.S	2014-05-29 13:09:19.000000000 -0500
+@@ -29,8 +29,8 @@
+ 	clrrdi	r8,r3,3	      /* Align the address to doubleword boundary.  */
+ 
+ 	/* Replicate byte to doubleword.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrdi	r4,r4,8,48
++	insrdi	r4,r4,16,32
+ 	insrdi	r4,r4,32,0
+ 
+ 	/* Now r4 has a doubleword of c bytes.  */
+@@ -38,8 +38,13 @@
+ 	rlwinm	r6,r3,3,26,28 /* Calculate padding.  */
+ 	ld	r12,0(r8)     /* Load doubleword from memory.  */
+ 	cmpb	r5,r12,r4     /* Compare each byte against c byte.  */
++#ifdef __LITTLE_ENDIAN__
++	srd	r5,r5,r6
++	sld	r5,r5,r6
++#else
+ 	sld	r5,r5,r6      /* Move left to discard ignored bits.  */
+ 	srd	r5,r5,r6      /* Bring the bits back as zeros.  */
++#endif
+ 	cmpdi	cr7,r5,0      /* If r5 == 0, no c bytes have been found.  */
+ 	bne	cr7,L(done)
+ 
+@@ -93,8 +98,14 @@
+ 	   doubleword from the string.  Use that fact to find out what is
+ 	   the position of the byte inside the string.  */
+ L(done):
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r5,-1
++	andc    r0,r0,r5
++	popcntd	r0,r0	      /* Count trailing zeros.  */
++#else
+ 	cntlzd	r0,r5	      /* Count leading zeros before the match.  */
+-	srdi	r0,r0,3	      /* Convert leading zeroes to bytes.  */
++#endif
++	srdi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of the matching char.  */
+ 	blr
+ END (BP_SYM (__rawmemchr))

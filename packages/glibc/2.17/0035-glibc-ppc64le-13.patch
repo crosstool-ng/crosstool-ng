@@ -1,0 +1,283 @@
+# commit 4a28b3ca4bc52d9a3ac0d9edb53d3de510e1b77c
+# Author: Anton Blanchard <anton@au1.ibm.com>
+# Date:   Sat Aug 17 18:28:55 2013 +0930
+# 
+#     PowerPC floating point little-endian [8 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-07/msg00199.html
+#     
+#     Corrects floating-point environment code for little-endian.
+#     
+#         * sysdeps/powerpc/fpu/fenv_libc.h (fenv_union_t): Replace int
+#         array with long long.
+#         * sysdeps/powerpc/fpu/e_sqrt.c (__slow_ieee754_sqrt): Adjust.
+#         * sysdeps/powerpc/fpu/e_sqrtf.c (__slow_ieee754_sqrtf): Adjust.
+#         * sysdeps/powerpc/fpu/fclrexcpt.c (__feclearexcept): Adjust.
+#         * sysdeps/powerpc/fpu/fedisblxcpt.c (fedisableexcept): Adjust.
+#         * sysdeps/powerpc/fpu/feenablxcpt.c (feenableexcept): Adjust.
+#         * sysdeps/powerpc/fpu/fegetexcept.c (__fegetexcept): Adjust.
+#         * sysdeps/powerpc/fpu/feholdexcpt.c (feholdexcept): Adjust.
+#         * sysdeps/powerpc/fpu/fesetenv.c (__fesetenv): Adjust.
+#         * sysdeps/powerpc/fpu/feupdateenv.c (__feupdateenv): Adjust.
+#         * sysdeps/powerpc/fpu/fgetexcptflg.c (__fegetexceptflag): Adjust.
+#         * sysdeps/powerpc/fpu/fraiseexcpt.c (__feraiseexcept): Adjust.
+#         * sysdeps/powerpc/fpu/fsetexcptflg.c (__fesetexceptflag): Adjust.
+#         * sysdeps/powerpc/fpu/ftestexcept.c (fetestexcept): Adjust.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrt.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrt.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrt.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrt.c	2014-05-27 22:31:43.000000000 -0500
+@@ -145,7 +145,7 @@
+       feraiseexcept (FE_INVALID_SQRT);
+ 
+       fenv_union_t u = { .fenv = fegetenv_register () };
+-      if ((u.l[1] & FE_INVALID) == 0)
++      if ((u.l & FE_INVALID) == 0)
+ #endif
+ 	feraiseexcept (FE_INVALID);
+       x = a_nan.value;
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrtf.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrtf.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrtf.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/e_sqrtf.c	2014-05-27 22:31:43.000000000 -0500
+@@ -121,7 +121,7 @@
+       feraiseexcept (FE_INVALID_SQRT);
+ 
+       fenv_union_t u = { .fenv = fegetenv_register () };
+-      if ((u.l[1] & FE_INVALID) == 0)
++      if ((u.l & FE_INVALID) == 0)
+ #endif
+ 	feraiseexcept (FE_INVALID);
+       x = a_nan.value;
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fclrexcpt.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/fclrexcpt.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fclrexcpt.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fclrexcpt.c	2014-05-27 22:31:43.000000000 -0500
+@@ -28,8 +28,8 @@
+   u.fenv = fegetenv_register ();
+ 
+   /* Clear the relevant bits.  */
+-  u.l[1] = u.l[1] & ~((-(excepts >> (31 - FPSCR_VX) & 1) & FE_ALL_INVALID)
+-		      | (excepts & FPSCR_STICKY_BITS));
++  u.l = u.l & ~((-(excepts >> (31 - FPSCR_VX) & 1) & FE_ALL_INVALID)
++		| (excepts & FPSCR_STICKY_BITS));
+ 
+   /* Put the new state in effect.  */
+   fesetenv_register (u.fenv);
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fedisblxcpt.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/fedisblxcpt.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fedisblxcpt.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fedisblxcpt.c	2014-05-27 22:31:43.000000000 -0500
+@@ -32,15 +32,15 @@
+ 
+   fe.fenv = fegetenv_register ();
+   if (excepts & FE_INEXACT)
+-    fe.l[1] &= ~(1 << (31 - FPSCR_XE));
++    fe.l &= ~(1 << (31 - FPSCR_XE));
+   if (excepts & FE_DIVBYZERO)
+-    fe.l[1] &= ~(1 << (31 - FPSCR_ZE));
++    fe.l &= ~(1 << (31 - FPSCR_ZE));
+   if (excepts & FE_UNDERFLOW)
+-    fe.l[1] &= ~(1 << (31 - FPSCR_UE));
++    fe.l &= ~(1 << (31 - FPSCR_UE));
+   if (excepts & FE_OVERFLOW)
+-    fe.l[1] &= ~(1 << (31 - FPSCR_OE));
++    fe.l &= ~(1 << (31 - FPSCR_OE));
+   if (excepts & FE_INVALID)
+-    fe.l[1] &= ~(1 << (31 - FPSCR_VE));
++    fe.l &= ~(1 << (31 - FPSCR_VE));
+   fesetenv_register (fe.fenv);
+ 
+   new = __fegetexcept ();
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/feenablxcpt.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/feenablxcpt.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/feenablxcpt.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/feenablxcpt.c	2014-05-27 22:31:43.000000000 -0500
+@@ -32,15 +32,15 @@
+ 
+   fe.fenv = fegetenv_register ();
+   if (excepts & FE_INEXACT)
+-    fe.l[1] |= (1 << (31 - FPSCR_XE));
++    fe.l |= (1 << (31 - FPSCR_XE));
+   if (excepts & FE_DIVBYZERO)
+-    fe.l[1] |= (1 << (31 - FPSCR_ZE));
++    fe.l |= (1 << (31 - FPSCR_ZE));
+   if (excepts & FE_UNDERFLOW)
+-    fe.l[1] |= (1 << (31 - FPSCR_UE));
++    fe.l |= (1 << (31 - FPSCR_UE));
+   if (excepts & FE_OVERFLOW)
+-    fe.l[1] |= (1 << (31 - FPSCR_OE));
++    fe.l |= (1 << (31 - FPSCR_OE));
+   if (excepts & FE_INVALID)
+-    fe.l[1] |= (1 << (31 - FPSCR_VE));
++    fe.l |= (1 << (31 - FPSCR_VE));
+   fesetenv_register (fe.fenv);
+ 
+   new = __fegetexcept ();
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fegetexcept.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/fegetexcept.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fegetexcept.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fegetexcept.c	2014-05-27 22:31:43.000000000 -0500
+@@ -27,15 +27,15 @@
+ 
+   fe.fenv = fegetenv_register ();
+ 
+-  if (fe.l[1] & (1 << (31 - FPSCR_XE)))
++  if (fe.l & (1 << (31 - FPSCR_XE)))
+       result |= FE_INEXACT;
+-  if (fe.l[1] & (1 << (31 - FPSCR_ZE)))
++  if (fe.l & (1 << (31 - FPSCR_ZE)))
+       result |= FE_DIVBYZERO;
+-  if (fe.l[1] & (1 << (31 - FPSCR_UE)))
++  if (fe.l & (1 << (31 - FPSCR_UE)))
+       result |= FE_UNDERFLOW;
+-  if (fe.l[1] & (1 << (31 - FPSCR_OE)))
++  if (fe.l & (1 << (31 - FPSCR_OE)))
+       result |= FE_OVERFLOW;
+-  if (fe.l[1] & (1 << (31 - FPSCR_VE)))
++  if (fe.l & (1 << (31 - FPSCR_VE)))
+       result |= FE_INVALID;
+ 
+   return result;
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/feholdexcpt.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/feholdexcpt.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/feholdexcpt.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/feholdexcpt.c	2014-05-27 22:33:09.000000000 -0500
+@@ -30,13 +30,12 @@
+ 
+   /* Clear everything except for the rounding modes and non-IEEE arithmetic
+      flag.  */
+-  new.l[1] = old.l[1] & 7;
+-  new.l[0] = old.l[0];
++  new.l = old.l & 0xffffffff00000007LL;
+   
+   /* If the old env had any eabled exceptions, then mask SIGFPE in the
+      MSR FE0/FE1 bits.  This may allow the FPU to run faster because it
+      always takes the default action and can not generate SIGFPE. */
+-  if ((old.l[1] & _FPU_MASK_ALL) != 0)
++  if ((old.l & _FPU_MASK_ALL) != 0)
+     (void)__fe_mask_env ();
+ 
+   /* Put the new state in effect.  */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fenv_libc.h glibc-2.17-c758a686/sysdeps/powerpc/fpu/fenv_libc.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fenv_libc.h	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fenv_libc.h	2014-05-27 22:31:43.000000000 -0500
+@@ -69,7 +69,7 @@
+ typedef union
+ {
+   fenv_t fenv;
+-  unsigned int l[2];
++  unsigned long long l;
+ } fenv_union_t;
+ 
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fesetenv.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/fesetenv.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fesetenv.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fesetenv.c	2014-05-27 22:35:18.000000000 -0500
+@@ -36,14 +36,14 @@
+      exceptions, then unmask SIGFPE in the MSR FE0/FE1 bits.  This will put the
+      hardware into "precise mode" and may cause the FPU to run slower on some
+      hardware.  */
+-  if ((old.l[1] & _FPU_MASK_ALL) == 0 && (new.l[1] & _FPU_MASK_ALL) != 0)
++  if ((old.l & _FPU_MASK_ALL) == 0 && (new.l & _FPU_MASK_ALL) != 0)
+     (void)__fe_nomask_env ();
+   
+   /* If the old env had any enabled exceptions and the new env has no enabled
+      exceptions, then mask SIGFPE in the MSR FE0/FE1 bits.  This may allow the
+      FPU to run faster because it always takes the default action and can not 
+      generate SIGFPE. */
+-  if ((old.l[1] & _FPU_MASK_ALL) != 0 && (new.l[1] & _FPU_MASK_ALL) == 0)
++  if ((old.l & _FPU_MASK_ALL) != 0 && (new.l & _FPU_MASK_ALL) == 0)
+     (void)__fe_mask_env ();
+     
+   fesetenv_register (*envp);
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/feupdateenv.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/feupdateenv.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/feupdateenv.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/feupdateenv.c	2014-05-27 22:34:23.000000000 -0500
+@@ -36,20 +36,20 @@
+   /* Restore rounding mode and exception enable from *envp and merge
+      exceptions.  Leave fraction rounded/inexact and FP result/CC bits
+      unchanged.  */
+-  new.l[1] = (old.l[1] & 0x1FFFFF00) | (new.l[1] & 0x1FF80FFF);
++  new.l = (old.l & 0xffffffff1fffff00LL) | (new.l & 0x1ff80fff);
+   
+   /* If the old env has no eabled exceptions and the new env has any enabled
+      exceptions, then unmask SIGFPE in the MSR FE0/FE1 bits.  This will put
+      the hardware into "precise mode" and may cause the FPU to run slower on
+      some hardware.  */
+-  if ((old.l[1] & _FPU_MASK_ALL) == 0 && (new.l[1] & _FPU_MASK_ALL) != 0)
++  if ((old.l & _FPU_MASK_ALL) == 0 && (new.l & _FPU_MASK_ALL) != 0)
+     (void)__fe_nomask_env ();
+   
+   /* If the old env had any eabled exceptions and the new env has no enabled
+      exceptions, then mask SIGFPE in the MSR FE0/FE1 bits.  This may allow the
+      FPU to run faster because it always takes the default action and can not 
+      generate SIGFPE. */
+-  if ((old.l[1] & _FPU_MASK_ALL) != 0 && (new.l[1] & _FPU_MASK_ALL) == 0)
++  if ((old.l & _FPU_MASK_ALL) != 0 && (new.l & _FPU_MASK_ALL) == 0)
+     (void)__fe_mask_env ();
+ 
+   /* Atomically enable and raise (if appropriate) exceptions set in `new'. */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fgetexcptflg.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/fgetexcptflg.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fgetexcptflg.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fgetexcptflg.c	2014-05-27 22:31:43.000000000 -0500
+@@ -28,7 +28,7 @@
+   u.fenv = fegetenv_register ();
+ 
+   /* Return (all of) it.  */
+-  *flagp = u.l[1] & excepts & FE_ALL_EXCEPT;
++  *flagp = u.l & excepts & FE_ALL_EXCEPT;
+ 
+   /* Success.  */
+   return 0;
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fraiseexcpt.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/fraiseexcpt.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fraiseexcpt.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fraiseexcpt.c	2014-05-27 22:31:43.000000000 -0500
+@@ -34,11 +34,11 @@
+   u.fenv = fegetenv_register ();
+ 
+   /* Add the exceptions */
+-  u.l[1] = (u.l[1]
+-	    | (excepts & FPSCR_STICKY_BITS)
+-	    /* Turn FE_INVALID into FE_INVALID_SOFTWARE.  */
+-	    | (excepts >> ((31 - FPSCR_VX) - (31 - FPSCR_VXSOFT))
+-	       & FE_INVALID_SOFTWARE));
++  u.l = (u.l
++	 | (excepts & FPSCR_STICKY_BITS)
++	 /* Turn FE_INVALID into FE_INVALID_SOFTWARE.  */
++	 | (excepts >> ((31 - FPSCR_VX) - (31 - FPSCR_VXSOFT))
++	    & FE_INVALID_SOFTWARE));
+ 
+   /* Store the new status word (along with the rest of the environment),
+      triggering any appropriate exceptions.  */
+@@ -50,7 +50,7 @@
+ 	 don't have FE_INVALID_SOFTWARE implemented.  Detect this
+ 	 case and raise FE_INVALID_SNAN instead.  */
+       u.fenv = fegetenv_register ();
+-      if ((u.l[1] & FE_INVALID) == 0)
++      if ((u.l & FE_INVALID) == 0)
+ 	set_fpscr_bit (FPSCR_VXSNAN);
+     }
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/fsetexcptflg.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/fsetexcptflg.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/fsetexcptflg.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/fsetexcptflg.c	2014-05-27 22:31:43.000000000 -0500
+@@ -32,10 +32,10 @@
+   flag = *flagp & excepts;
+ 
+   /* Replace the exception status */
+-  u.l[1] = ((u.l[1] & ~(FPSCR_STICKY_BITS & excepts))
+-	    | (flag & FPSCR_STICKY_BITS)
+-	    | (flag >> ((31 - FPSCR_VX) - (31 - FPSCR_VXSOFT))
+-	       & FE_INVALID_SOFTWARE));
++  u.l = ((u.l & ~(FPSCR_STICKY_BITS & excepts))
++	 | (flag & FPSCR_STICKY_BITS)
++	 | (flag >> ((31 - FPSCR_VX) - (31 - FPSCR_VXSOFT))
++	    & FE_INVALID_SOFTWARE));
+ 
+   /* Store the new status word (along with the rest of the environment).
+      This may cause floating-point exceptions if the restored state
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/ftestexcept.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/ftestexcept.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/ftestexcept.c	2014-05-27 22:31:42.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/ftestexcept.c	2014-05-27 22:31:43.000000000 -0500
+@@ -28,6 +28,6 @@
+ 
+   /* The FE_INVALID bit is dealt with correctly by the hardware, so we can
+      just:  */
+-  return u.l[1] & excepts;
++  return u.l & excepts;
+ }
+ libm_hidden_def (fetestexcept)

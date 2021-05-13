@@ -1,0 +1,105 @@
+# commit 7ec07d9a7b501f1b7d740fda02ba5f39d6d684e5
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Wed Dec 4 06:44:06 2013 -0600
+# 
+#     PowerPC64: Report overflow on @h and @ha relocations
+#     
+#     This patch updates glibc in accordance with the binutils patch checked in here:
+#     https://sourceware.org/ml/binutils/2013-10/msg00372.html
+#     
+#     This changes the various R_PPC64_..._HI and _HA relocations to report
+#     32-bit overflows.  The motivation is that existing uses of @h / @ha
+#     are to build up 32-bit offsets (for the "medium model" TOC access
+#     that GCC now defaults to), and we'd really like to see failures at
+#     link / load time rather than silent truncations.
+#     
+#     For those rare cases where a modifier is needed to build up a 64-bit
+#     constant, new relocations _HIGH / _HIGHA are supported.
+#     
+#     The patch also fixes a bug in overflow checking for the R_PPC64_ADDR30
+#     and R_PPC64_ADDR32 relocations.
+# 
+diff -urN glibc-2.17-c758a686/elf/elf.h glibc-2.17-c758a686/elf/elf.h
+--- glibc-2.17-c758a686/elf/elf.h	2014-05-29 13:17:35.000000000 -0500
++++ glibc-2.17-c758a686/elf/elf.h	2014-05-29 13:17:35.000000000 -0500
+@@ -2243,6 +2243,17 @@
+ #define R_PPC64_DTPREL16_HIGHERA 104 /* half16	(sym+add)@dtprel@highera */
+ #define R_PPC64_DTPREL16_HIGHEST 105 /* half16	(sym+add)@dtprel@highest */
+ #define R_PPC64_DTPREL16_HIGHESTA 106 /* half16	(sym+add)@dtprel@highesta */
++#define R_PPC64_TLSGD		107 /* none	(sym+add)@tlsgd */
++#define R_PPC64_TLSLD		108 /* none	(sym+add)@tlsld */
++#define R_PPC64_TOCSAVE		109 /* none */
++
++/* Added when HA and HI relocs were changed to report overflows.  */
++#define R_PPC64_ADDR16_HIGH	110
++#define R_PPC64_ADDR16_HIGHA	111
++#define R_PPC64_TPREL16_HIGH	112
++#define R_PPC64_TPREL16_HIGHA	113
++#define R_PPC64_DTPREL16_HIGH	114
++#define R_PPC64_DTPREL16_HIGHA	115
+ 
+ /* GNU extension to support local ifunc.  */
+ #define R_PPC64_JMP_IREL	247
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 13:17:34.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 13:17:35.000000000 -0500
+@@ -663,11 +663,25 @@
+ 
+     case R_PPC64_TPREL16_HI:
+       value = elf_machine_tprel (map, sym_map, sym, reloc);
++      if (dont_expect (value + 0x80000000 >= 0x100000000LL))
++	_dl_reloc_overflow (map, "R_PPC64_TPREL16_HI", reloc_addr, refsym);
++      *(Elf64_Half *) reloc_addr = PPC_HI (value);
++      break;
++
++    case R_PPC64_TPREL16_HIGH:
++      value = elf_machine_tprel (map, sym_map, sym, reloc);
+       *(Elf64_Half *) reloc_addr = PPC_HI (value);
+       break;
+ 
+     case R_PPC64_TPREL16_HA:
+       value = elf_machine_tprel (map, sym_map, sym, reloc);
++      if (dont_expect (value + 0x80008000 >= 0x100000000LL))
++	_dl_reloc_overflow (map, "R_PPC64_TPREL16_HA", reloc_addr, refsym);
++      *(Elf64_Half *) reloc_addr = PPC_HA (value);
++      break;
++
++    case R_PPC64_TPREL16_HIGHA:
++      value = elf_machine_tprel (map, sym_map, sym, reloc);
+       *(Elf64_Half *) reloc_addr = PPC_HA (value);
+       break;
+ 
+@@ -703,17 +717,23 @@
+       break;
+ 
+     case R_PPC64_ADDR16_HI:
++      if (dont_expect (value + 0x80000000 >= 0x100000000LL))
++	_dl_reloc_overflow (map, "R_PPC64_ADDR16_HI", reloc_addr, refsym);
++    case R_PPC64_ADDR16_HIGH:
+       *(Elf64_Half *) reloc_addr = PPC_HI (value);
+       break;
+ 
+     case R_PPC64_ADDR16_HA:
++      if (dont_expect (value + 0x80008000 >= 0x100000000LL))
++	_dl_reloc_overflow (map, "R_PPC64_ADDR16_HA", reloc_addr, refsym);
++    case R_PPC64_ADDR16_HIGHA:
+       *(Elf64_Half *) reloc_addr = PPC_HA (value);
+       break;
+ 
+     case R_PPC64_ADDR30:
+       {
+ 	Elf64_Addr delta = value - (Elf64_Xword) reloc_addr;
+-	if (dont_expect ((delta + 0x80000000) >= 0x10000000
++	if (dont_expect ((delta + 0x80000000) >= 0x100000000LL
+ 			 || (delta & 3) != 0))
+ 	  _dl_reloc_overflow (map, "R_PPC64_ADDR30", reloc_addr, refsym);
+ 	BIT_INSERT (*(Elf64_Word *) reloc_addr, delta, 0xfffffffc);
+@@ -762,7 +782,7 @@
+       return;
+ 
+     case R_PPC64_ADDR32:
+-      if (dont_expect ((value + 0x80000000) >= 0x10000000))
++      if (dont_expect ((value + 0x80000000) >= 0x100000000LL))
+ 	_dl_reloc_overflow (map, "R_PPC64_ADDR32", reloc_addr, refsym);
+       *(Elf64_Word *) reloc_addr = value;
+       return;

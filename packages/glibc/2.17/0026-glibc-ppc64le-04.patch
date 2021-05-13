@@ -1,0 +1,676 @@
+# commit 9605ca6c085a749f29b6866a3e00bce1ba1a2698
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:12:56 2013 +0930
+# 
+#     IBM long double mechanical changes to support little-endian
+#     http://sourceware.org/ml/libc-alpha/2013-07/msg00001.html
+#     
+#     This patch starts the process of supporting powerpc64 little-endian
+#     long double in glibc.  IBM long double is an array of two ieee
+#     doubles, so making union ibm_extended_long_double reflect this fact is
+#     the correct way to access fields of the doubles.
+#     
+#         * sysdeps/ieee754/ldbl-128ibm/ieee754.h
+#         (union ibm_extended_long_double): Define as an array of ieee754_double.
+#         (IBM_EXTENDED_LONG_DOUBLE_BIAS): Delete.
+#         * sysdeps/ieee754/ldbl-128ibm/printf_fphex.c: Update all references
+#         to ibm_extended_long_double and IBM_EXTENDED_LONG_DOUBLE_BIAS.
+#         * sysdeps/ieee754/ldbl-128ibm/e_exp10l.c: Likewise.
+#         * sysdeps/ieee754/ldbl-128ibm/e_expl.c: Likewise.
+#         * sysdeps/ieee754/ldbl-128ibm/ldbl2mpn.c: Likewise.
+#         * sysdeps/ieee754/ldbl-128ibm/math_ldbl.h: Likewise.
+#         * sysdeps/ieee754/ldbl-128ibm/mpn2ldbl.c: Likewise.
+#         * sysdeps/ieee754/ldbl-128ibm/s_nearbyintl.c: Likewise.
+#         * sysdeps/ieee754/ldbl-128ibm/strtold_l.c: Likewise.
+#         * sysdeps/ieee754/ldbl-128ibm/x2y2m1l.c: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_exp10l.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_exp10l.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_exp10l.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_exp10l.c	2014-05-26 21:08:10.000000000 -0500
+@@ -36,9 +36,9 @@
+   else if (arg > LDBL_MAX_10_EXP + 1)
+     return LDBL_MAX * LDBL_MAX;
+ 
+-  u.d = arg;
+-  arg_high = u.dd[0];
+-  arg_low = u.dd[1];
++  u.ld = arg;
++  arg_high = u.d[0].d;
++  arg_low = u.d[1].d;
+   exp_high = arg_high * log10_high;
+   exp_low = arg_high * log10_low + arg_low * M_LN10l;
+   return __ieee754_expl (exp_high) * __ieee754_expl (exp_low);
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_expl.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_expl.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_expl.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_expl.c	2014-05-26 21:08:10.000000000 -0500
+@@ -162,39 +162,39 @@
+       x = x + xl;
+ 
+       /* Compute ex2 = 2^n_0 e^(argtable[tval1]) e^(argtable[tval2]).  */
+-      ex2_u.d = __expl_table[T_EXPL_RES1 + tval1]
+-		* __expl_table[T_EXPL_RES2 + tval2];
++      ex2_u.ld = (__expl_table[T_EXPL_RES1 + tval1]
++		  * __expl_table[T_EXPL_RES2 + tval2]);
+       n_i = (int)n;
+       /* 'unsafe' is 1 iff n_1 != 0.  */
+       unsafe = fabsl(n_i) >= -LDBL_MIN_EXP - 1;
+-      ex2_u.ieee.exponent += n_i >> unsafe;
++      ex2_u.d[0].ieee.exponent += n_i >> unsafe;
+       /* Fortunately, there are no subnormal lowpart doubles in
+ 	 __expl_table, only normal values and zeros.
+ 	 But after scaling it can be subnormal.  */
+-      exponent2 = ex2_u.ieee.exponent2 + (n_i >> unsafe);
+-      if (ex2_u.ieee.exponent2 == 0)
+-	/* assert ((ex2_u.ieee.mantissa2|ex2_u.ieee.mantissa3) == 0) */;
++      exponent2 = ex2_u.d[1].ieee.exponent + (n_i >> unsafe);
++      if (ex2_u.d[1].ieee.exponent == 0)
++	/* assert ((ex2_u.d[1].ieee.mantissa0|ex2_u.d[1].ieee.mantissa1) == 0) */;
+       else if (exponent2 > 0)
+-	ex2_u.ieee.exponent2 = exponent2;
++	ex2_u.d[1].ieee.exponent = exponent2;
+       else if (exponent2 <= -54)
+ 	{
+-	  ex2_u.ieee.exponent2 = 0;
+-	  ex2_u.ieee.mantissa2 = 0;
+-	  ex2_u.ieee.mantissa3 = 0;
++	  ex2_u.d[1].ieee.exponent = 0;
++	  ex2_u.d[1].ieee.mantissa0 = 0;
++	  ex2_u.d[1].ieee.mantissa1 = 0;
+ 	}
+       else
+ 	{
+ 	  static const double
+ 	    two54 = 1.80143985094819840000e+16, /* 4350000000000000 */
+ 	    twom54 = 5.55111512312578270212e-17; /* 3C90000000000000 */
+-	  ex2_u.dd[1] *= two54;
+-	  ex2_u.ieee.exponent2 += n_i >> unsafe;
+-	  ex2_u.dd[1] *= twom54;
++	  ex2_u.d[1].d *= two54;
++	  ex2_u.d[1].ieee.exponent += n_i >> unsafe;
++	  ex2_u.d[1].d *= twom54;
+ 	}
+ 
+       /* Compute scale = 2^n_1.  */
+-      scale_u.d = 1.0L;
+-      scale_u.ieee.exponent += n_i - (n_i >> unsafe);
++      scale_u.ld = 1.0L;
++      scale_u.d[0].ieee.exponent += n_i - (n_i >> unsafe);
+ 
+       /* Approximate e^x2 - 1, using a seventh-degree polynomial,
+ 	 with maximum error in [-2^-16-2^-53,2^-16+2^-53]
+@@ -204,7 +204,7 @@
+       /* Return result.  */
+       fesetenv (&oldenv);
+ 
+-      result = x22 * ex2_u.d + ex2_u.d;
++      result = x22 * ex2_u.ld + ex2_u.ld;
+ 
+       /* Now we can test whether the result is ultimate or if we are unsure.
+ 	 In the later case we should probably call a mpn based routine to give
+@@ -238,7 +238,7 @@
+       if (!unsafe)
+ 	return result;
+       else
+-	return result * scale_u.d;
++	return result * scale_u.ld;
+     }
+   /* Exceptional cases:  */
+   else if (isless (x, himark))
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h	2014-05-26 21:08:10.000000000 -0500
+@@ -180,29 +180,9 @@
+ 
+ union ibm_extended_long_double
+   {
+-    long double d;
+-    double dd[2];
+-
+-    /* This is the IBM extended format long double.  */
+-    struct
+-      { /* Big endian.  There is no other.  */
+-
+-	unsigned int negative:1;
+-	unsigned int exponent:11;
+-	/* Together Mantissa0-3 comprise the mantissa.  */
+-	unsigned int mantissa0:20;
+-	unsigned int mantissa1:32;
+-
+-	unsigned int negative2:1;
+-	unsigned int exponent2:11;
+-	/* There is an implied 1 here?  */
+-	/* Together these comprise the mantissa.  */
+-	unsigned int mantissa2:20;
+-	unsigned int mantissa3:32;
+-      } ieee;
+-   };
+-
+-#define IBM_EXTENDED_LONG_DOUBLE_BIAS 0x3ff /* Added to exponent.  */
++    long double ld;
++    union ieee754_double d[2];
++  };
+ 
+ __END_DECLS
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ldbl2mpn.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ldbl2mpn.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ldbl2mpn.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ldbl2mpn.c	2014-05-26 21:08:10.000000000 -0500
+@@ -36,22 +36,22 @@
+   union ibm_extended_long_double u;
+   unsigned long long hi, lo;
+   int ediff;
+-  u.d = value;
++  u.ld = value;
+ 
+-  *is_neg = u.ieee.negative;
+-  *expt = (int) u.ieee.exponent - IBM_EXTENDED_LONG_DOUBLE_BIAS;
++  *is_neg = u.d[0].ieee.negative;
++  *expt = (int) u.d[0].ieee.exponent - IEEE754_DOUBLE_BIAS;
+ 
+-  lo = ((long long) u.ieee.mantissa2 << 32) | u.ieee.mantissa3;
+-  hi = ((long long) u.ieee.mantissa0 << 32) | u.ieee.mantissa1;
++  lo = ((long long) u.d[1].ieee.mantissa0 << 32) | u.d[1].ieee.mantissa1;
++  hi = ((long long) u.d[0].ieee.mantissa0 << 32) | u.d[0].ieee.mantissa1;
+   /* If the lower double is not a denomal or zero then set the hidden
+      53rd bit.  */
+-  if (u.ieee.exponent2 > 0)
++  if (u.d[1].ieee.exponent > 0)
+     {
+       lo |= 1LL << 52;
+ 
+       /* The lower double is normalized separately from the upper.  We may
+ 	 need to adjust the lower manitissa to reflect this.  */
+-      ediff = u.ieee.exponent - u.ieee.exponent2;
++      ediff = u.d[0].ieee.exponent - u.d[1].ieee.exponent;
+       if (ediff > 53)
+ 	lo = lo >> (ediff-53);
+     }
+@@ -59,8 +59,8 @@
+      difference between the long double and the rounded high double
+      value.  This is indicated by a differnce between the signs of the
+      high and low doubles.  */
+-  if ((u.ieee.negative != u.ieee.negative2)
+-      && ((u.ieee.exponent2 != 0) && (lo != 0L)))
++  if ((u.d[0].ieee.negative != u.d[1].ieee.negative)
++      && ((u.d[1].ieee.exponent != 0) && (lo != 0L)))
+     {
+       lo = (1ULL << 53) - lo;
+       if (hi == 0LL)
+@@ -92,7 +92,7 @@
+ #define NUM_LEADING_ZEROS (BITS_PER_MP_LIMB \
+ 			   - (LDBL_MANT_DIG - ((N - 1) * BITS_PER_MP_LIMB)))
+ 
+-  if (u.ieee.exponent == 0)
++  if (u.d[0].ieee.exponent == 0)
+     {
+       /* A biased exponent of zero is a special case.
+ 	 Either it is a zero or it is a denormal number.  */
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h	2014-05-26 21:08:10.000000000 -0500
+@@ -14,28 +14,28 @@
+      as bit 53 of the mantissa.  */
+   uint64_t hi, lo;
+   int ediff;
+-  union ibm_extended_long_double eldbl;
+-  eldbl.d = x;
+-  *exp = eldbl.ieee.exponent - IBM_EXTENDED_LONG_DOUBLE_BIAS;
++  union ibm_extended_long_double u;
++  u.ld = x;
++  *exp = u.d[0].ieee.exponent - IEEE754_DOUBLE_BIAS;
+ 
+-  lo = ((int64_t)eldbl.ieee.mantissa2 << 32) | eldbl.ieee.mantissa3;
+-  hi = ((int64_t)eldbl.ieee.mantissa0 << 32) | eldbl.ieee.mantissa1;
++  lo = ((uint64_t)u.d[1].ieee.mantissa0 << 32) | u.d[1].ieee.mantissa1;
++  hi = ((uint64_t)u.d[0].ieee.mantissa0 << 32) | u.d[0].ieee.mantissa1;
+   /* If the lower double is not a denomal or zero then set the hidden
+      53rd bit.  */
+-  if (eldbl.ieee.exponent2 > 0x001)
++  if (u.d[1].ieee.exponent > 0x001)
+     {
+       lo |= (1ULL << 52);
+       lo = lo << 7; /* pre-shift lo to match ieee854.  */
+       /* The lower double is normalized separately from the upper.  We
+ 	 may need to adjust the lower manitissa to reflect this.  */
+-      ediff = eldbl.ieee.exponent - eldbl.ieee.exponent2;
++      ediff = u.d[0].ieee.exponent - u.d[1].ieee.exponent;
+       if (ediff > 53)
+ 	lo = lo >> (ediff-53);
+       hi |= (1ULL << 52);
+     }
+   
+-  if ((eldbl.ieee.negative != eldbl.ieee.negative2)
+-      && ((eldbl.ieee.exponent2 != 0) && (lo != 0LL)))
++  if ((u.d[0].ieee.negative != u.d[1].ieee.negative)
++      && ((u.d[1].ieee.exponent != 0) && (lo != 0LL)))
+     {
+       hi--;
+       lo = (1ULL << 60) - lo;
+@@ -58,10 +58,10 @@
+   unsigned long hidden2, lzcount;
+   unsigned long long hi, lo;
+ 
+-  u.ieee.negative = sign;
+-  u.ieee.negative2 = sign;
+-  u.ieee.exponent = exp + IBM_EXTENDED_LONG_DOUBLE_BIAS;
+-  u.ieee.exponent2 = exp-53 + IBM_EXTENDED_LONG_DOUBLE_BIAS;
++  u.d[0].ieee.negative = sign;
++  u.d[1].ieee.negative = sign;
++  u.d[0].ieee.exponent = exp + IEEE754_DOUBLE_BIAS;
++  u.d[1].ieee.exponent = exp-53 + IEEE754_DOUBLE_BIAS;
+   /* Expect 113 bits (112 bits + hidden) right justified in two longs.
+      The low order 53 bits (52 + hidden) go into the lower double */ 
+   lo = (lo64 >> 7)& ((1ULL << 53) - 1);
+@@ -78,7 +78,7 @@
+       if (hidden2)
+ 	{
+ 	  hi++;
+-	  u.ieee.negative2 = !sign;
++	  u.d[1].ieee.negative = !sign;
+ 	  lo = (1ULL << 53) - lo;
+ 	}
+       /* The hidden bit of the lo mantissa is zero so we need to
+@@ -94,32 +94,32 @@
+       lzcount = lzcount - 11;
+       if (lzcount > 0)
+ 	{
+-	  int expnt2 = u.ieee.exponent2 - lzcount;
++	  int expnt2 = u.d[1].ieee.exponent - lzcount;
+ 	  if (expnt2 >= 1)
+ 	    {
+ 	      /* Not denormal.  Normalize and set low exponent.  */
+ 	      lo = lo << lzcount;
+-	      u.ieee.exponent2 = expnt2;
++	      u.d[1].ieee.exponent = expnt2;
+ 	    }
+ 	  else
+ 	    {
+ 	      /* Is denormal.  */
+ 	      lo = lo << (lzcount + expnt2);
+-	      u.ieee.exponent2 = 0;
++	      u.d[1].ieee.exponent = 0;
+ 	    }
+ 	}
+     }
+   else
+     {
+-      u.ieee.negative2 = 0;
+-      u.ieee.exponent2 = 0;
++      u.d[1].ieee.negative = 0;
++      u.d[1].ieee.exponent = 0;
+     }
+ 
+-  u.ieee.mantissa3 = lo & ((1ULL << 32) - 1);
+-  u.ieee.mantissa2 = (lo >> 32) & ((1ULL << 20) - 1);
+-  u.ieee.mantissa1 = hi & ((1ULL << 32) - 1);
+-  u.ieee.mantissa0 = (hi >> 32) & ((1ULL << 20) - 1);
+-  return u.d;
++  u.d[1].ieee.mantissa1 = lo & ((1ULL << 32) - 1);
++  u.d[1].ieee.mantissa0 = (lo >> 32) & ((1ULL << 20) - 1);
++  u.d[0].ieee.mantissa1 = hi & ((1ULL << 32) - 1);
++  u.d[0].ieee.mantissa0 = (hi >> 32) & ((1ULL << 20) - 1);
++  return u.ld;
+ }
+   
+ /* Handy utility functions to pack/unpack/cononicalize and find the nearbyint
+@@ -128,18 +128,18 @@
+ default_ldbl_pack (double a, double aa)
+ {
+   union ibm_extended_long_double u;
+-  u.dd[0] = a;
+-  u.dd[1] = aa;
+-  return u.d;
++  u.d[0].d = a;
++  u.d[1].d = aa;
++  return u.ld;
+ }
+ 
+ static inline void
+ default_ldbl_unpack (long double l, double *a, double *aa)
+ {
+   union ibm_extended_long_double u;
+-  u.d = l;
+-  *a = u.dd[0];
+-  *aa = u.dd[1];
++  u.ld = l;
++  *a = u.d[0].d;
++  *aa = u.d[1].d;
+ }
+ 
+ #ifndef ldbl_pack
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/mpn2ldbl.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/mpn2ldbl.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/mpn2ldbl.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/mpn2ldbl.c	2014-05-26 21:08:10.000000000 -0500
+@@ -34,11 +34,11 @@
+   unsigned long long hi, lo;
+   int exponent2;
+ 
+-  u.ieee.negative = sign;
+-  u.ieee.negative2 = sign;
+-  u.ieee.exponent = expt + IBM_EXTENDED_LONG_DOUBLE_BIAS;
+-  u.ieee.exponent2 = 0;
+-  exponent2 = expt - 53 + IBM_EXTENDED_LONG_DOUBLE_BIAS;
++  u.d[0].ieee.negative = sign;
++  u.d[1].ieee.negative = sign;
++  u.d[0].ieee.exponent = expt + IEEE754_DOUBLE_BIAS;
++  u.d[1].ieee.exponent = 0;
++  exponent2 = expt - 53 + IEEE754_DOUBLE_BIAS;
+ 
+ #if BITS_PER_MP_LIMB == 32
+   /* The low order 53 bits (52 + hidden) go into the lower double */
+@@ -74,15 +74,15 @@
+       else
+ 	lzcount = lzcount + 42;
+ 
+-      if (lzcount > u.ieee.exponent)
++      if (lzcount > u.d[0].ieee.exponent)
+ 	{
+-	  lzcount = u.ieee.exponent;
+-	  u.ieee.exponent = 0;
++	  lzcount = u.d[0].ieee.exponent;
++	  u.d[0].ieee.exponent = 0;
+ 	  exponent2 -= lzcount;
+ 	}
+       else
+ 	{
+-	  u.ieee.exponent -= (lzcount - 1);
++	  u.d[0].ieee.exponent -= (lzcount - 1);
+ 	  exponent2 -= (lzcount - 1);
+ 	}
+ 
+@@ -112,9 +112,9 @@
+ 	    {
+ 	      if ((hi & (1LL << 53)) != 0)
+ 		hi -= 1LL << 52;
+-	      u.ieee.exponent++;
++	      u.d[0].ieee.exponent++;
+ 	    }
+-	  u.ieee.negative2 = !sign;
++	  u.d[1].ieee.negative = !sign;
+ 	  lo = (1LL << 53) - lo;
+ 	}
+ 
+@@ -135,17 +135,17 @@
+ 	  exponent2 = exponent2 - lzcount;
+ 	}
+       if (exponent2 > 0)
+-	u.ieee.exponent2 = exponent2;
++	u.d[1].ieee.exponent = exponent2;
+       else
+ 	lo >>= 1 - exponent2;
+     }
+   else
+-    u.ieee.negative2 = 0;
++    u.d[1].ieee.negative = 0;
+ 
+-  u.ieee.mantissa3 = lo & 0xffffffffLL;
+-  u.ieee.mantissa2 = (lo >> 32) & 0xfffff;
+-  u.ieee.mantissa1 = hi & 0xffffffffLL;
+-  u.ieee.mantissa0 = (hi >> 32) & ((1LL << (LDBL_MANT_DIG - 86)) - 1);
++  u.d[1].ieee.mantissa1 = lo & 0xffffffffLL;
++  u.d[1].ieee.mantissa0 = (lo >> 32) & 0xfffff;
++  u.d[0].ieee.mantissa1 = hi & 0xffffffffLL;
++  u.d[0].ieee.mantissa0 = (hi >> 32) & ((1LL << (LDBL_MANT_DIG - 86)) - 1);
+ 
+-  return u.d;
++  return u.ld;
+ }
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c	2014-05-26 21:08:10.000000000 -0500
+@@ -27,31 +27,31 @@
+       unsigned long long int num0, num1;				      \
+       unsigned long long hi, lo;					      \
+       int ediff;							      \
+-      union ibm_extended_long_double eldbl;				      \
+-      eldbl.d = fpnum.ldbl.d;						      \
++      union ibm_extended_long_double u;					      \
++      u.ld = fpnum.ldbl.d;						      \
+ 									      \
+       assert (sizeof (long double) == 16);				      \
+ 									      \
+-      lo = ((long long)eldbl.ieee.mantissa2 << 32) | eldbl.ieee.mantissa3;    \
+-      hi = ((long long)eldbl.ieee.mantissa0 << 32) | eldbl.ieee.mantissa1;    \
++      lo = ((long long)u.d[1].ieee.mantissa0 << 32) | u.d[1].ieee.mantissa1;  \
++      hi = ((long long)u.d[0].ieee.mantissa0 << 32) | u.d[0].ieee.mantissa1;  \
+       lo <<= 7; /* pre-shift lo to match ieee854.  */			      \
+       /* If the lower double is not a denomal or zero then set the hidden     \
+ 	 53rd bit.  */							      \
+-      if (eldbl.ieee.exponent2 != 0)					      \
++      if (u.d[1].ieee.exponent != 0)					      \
+ 	lo |= (1ULL << (52 + 7));					      \
+       else								      \
+ 	lo <<= 1;							      \
+       /* The lower double is normalized separately from the upper.  We	      \
+ 	 may need to adjust the lower manitissa to reflect this.  */	      \
+-      ediff = eldbl.ieee.exponent - eldbl.ieee.exponent2;		      \
++      ediff = u.d[0].ieee.exponent - u.d[1].ieee.exponent;		      \
+       if (ediff > 53 + 63)						      \
+ 	lo = 0;								      \
+       else if (ediff > 53)						      \
+ 	lo = lo >> (ediff - 53);					      \
+-      else if (eldbl.ieee.exponent2 == 0 && ediff < 53)			      \
++      else if (u.d[1].ieee.exponent == 0 && ediff < 53)			      \
+ 	lo = lo << (53 - ediff);					      \
+-      if (eldbl.ieee.negative != eldbl.ieee.negative2			      \
+-	  && (eldbl.ieee.exponent2 != 0 || lo != 0L))			      \
++      if (u.d[0].ieee.negative != u.d[1].ieee.negative			      \
++	  && (u.d[1].ieee.exponent != 0 || lo != 0L))			      \
+ 	{								      \
+ 	  lo = (1ULL << 60) - lo;					      \
+ 	  if (hi == 0L)							      \
+@@ -59,7 +59,7 @@
+ 	      /* we have a borrow from the hidden bit, so shift left 1.  */   \
+ 	      hi = 0xffffffffffffeLL | (lo >> 59);			      \
+ 	      lo = 0xfffffffffffffffLL & (lo << 1);			      \
+-	      eldbl.ieee.exponent--;					      \
++	      u.d[0].ieee.exponent--;					      \
+ 	    }								      \
+ 	  else								      \
+ 	    hi--;							      \
+@@ -110,9 +110,9 @@
+ 	  *--wnumstr = L'0';						      \
+ 	}								      \
+ 									      \
+-      leading = eldbl.ieee.exponent == 0 ? '0' : '1';			      \
++      leading = u.d[0].ieee.exponent == 0 ? '0' : '1';			      \
+ 									      \
+-      exponent = eldbl.ieee.exponent;					      \
++      exponent = u.d[0].ieee.exponent;					      \
+ 									      \
+       if (exponent == 0)						      \
+ 	{								      \
+@@ -122,18 +122,18 @@
+ 	    {								      \
+ 	      /* This is a denormalized number.  */			      \
+ 	      expnegative = 1;						      \
+-	      exponent = IBM_EXTENDED_LONG_DOUBLE_BIAS - 1;		      \
++	      exponent = IEEE754_DOUBLE_BIAS - 1;			      \
+ 	    }								      \
+ 	}								      \
+-      else if (exponent >= IBM_EXTENDED_LONG_DOUBLE_BIAS)		      \
++      else if (exponent >= IEEE754_DOUBLE_BIAS)				      \
+ 	{								      \
+ 	  expnegative = 0;						      \
+-	  exponent -= IBM_EXTENDED_LONG_DOUBLE_BIAS;			      \
++	  exponent -= IEEE754_DOUBLE_BIAS;				      \
+ 	}								      \
+       else								      \
+ 	{								      \
+ 	  expnegative = 1;						      \
+-	  exponent = -(exponent - IBM_EXTENDED_LONG_DOUBLE_BIAS);	      \
++	  exponent = -(exponent - IEEE754_DOUBLE_BIAS);			      \
+ 	}								      \
+ } while (0)
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_nearbyintl.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_nearbyintl.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_nearbyintl.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_nearbyintl.c	2014-05-26 21:08:10.000000000 -0500
+@@ -33,11 +33,11 @@
+   fenv_t env;
+   static const long double TWO52 = 4503599627370496.0L;
+   union ibm_extended_long_double u;
+-  u.d = x;
++  u.ld = x;
+ 
+-  if (fabs (u.dd[0]) < TWO52)
++  if (fabs (u.d[0].d) < TWO52)
+     {
+-      double high = u.dd[0];
++      double high = u.d[0].d;
+       feholdexcept (&env);
+       if (high > 0.0)
+ 	{
+@@ -51,11 +51,11 @@
+ 	  high += TWO52;
+           if (high == 0.0) high = -0.0;
+ 	}
+-      u.dd[0] = high;
+-      u.dd[1] = 0.0;
++      u.d[0].d = high;
++      u.d[1].d = 0.0;
+       fesetenv (&env);
+     }
+-  else if (fabs (u.dd[1]) < TWO52 && u.dd[1] != 0.0)
++  else if (fabs (u.d[1].d) < TWO52 && u.d[1].d != 0.0)
+     {
+       double high, low, tau;
+       /* In this case we have to round the low double and handle any
+@@ -64,55 +64,55 @@
+          may already be rounded and the low double may have the
+          opposite sign to compensate.  */
+       feholdexcept (&env);
+-      if (u.dd[0] > 0.0)
++      if (u.d[0].d > 0.0)
+ 	{
+-	  if (u.dd[1] > 0.0)
++	  if (u.d[1].d > 0.0)
+ 	    {
+ 	      /* If the high/low doubles are the same sign then simply
+ 	         round the low double.  */
+-	      high = u.dd[0];
+-	      low = u.dd[1];
++	      high = u.d[0].d;
++	      low = u.d[1].d;
+ 	    }
+-	  else if (u.dd[1] < 0.0)
++	  else if (u.d[1].d < 0.0)
+ 	    {
+ 	      /* Else the high double is pre rounded and we need to
+ 	         adjust for that.  */
+ 
+-	      tau = __nextafter (u.dd[0], 0.0);
+-	      tau = (u.dd[0] - tau) * 2.0;
+-	      high = u.dd[0] - tau;
+-	      low = u.dd[1] + tau;
++	      tau = __nextafter (u.d[0].d, 0.0);
++	      tau = (u.d[0].d - tau) * 2.0;
++	      high = u.d[0].d - tau;
++	      low = u.d[1].d + tau;
+ 	    }
+ 	  low += TWO52;
+ 	  low -= TWO52;
+ 	}
+-      else if (u.dd[0] < 0.0)
++      else if (u.d[0].d < 0.0)
+ 	{
+-	  if (u.dd[1] < 0.0)
++	  if (u.d[1].d < 0.0)
+ 	    {
+ 	      /* If the high/low doubles are the same sign then simply
+ 	         round the low double.  */
+-	      high = u.dd[0];
+-	      low = u.dd[1];
++	      high = u.d[0].d;
++	      low = u.d[1].d;
+ 	    }
+-	  else if (u.dd[1] > 0.0)
++	  else if (u.d[1].d > 0.0)
+ 	    {
+ 	      /* Else the high double is pre rounded and we need to
+ 	         adjust for that.  */
+-	      tau = __nextafter (u.dd[0], 0.0);
+-	      tau = (u.dd[0] - tau) * 2.0;
+-	      high = u.dd[0] - tau;
+-	      low = u.dd[1] + tau;
++	      tau = __nextafter (u.d[0].d, 0.0);
++	      tau = (u.d[0].d - tau) * 2.0;
++	      high = u.d[0].d - tau;
++	      low = u.d[1].d + tau;
+ 	    }
+ 	  low = TWO52 - low;
+ 	  low = -(low - TWO52);
+ 	}
+-      u.dd[0] = high + low;
+-      u.dd[1] = high - u.dd[0] + low;
++      u.d[0].d = high + low;
++      u.d[1].d = high - u.d[0].d + low;
+       fesetenv (&env);
+     }
+ 
+-  return u.d;
++  return u.ld;
+ }
+ 
+ long_double_symbol (libm, __nearbyintl, nearbyintl);
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/strtold_l.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/strtold_l.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/strtold_l.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/strtold_l.c	2014-05-26 21:12:01.000000000 -0500
+@@ -43,12 +43,11 @@
+ #define FLOAT_HUGE_VAL	HUGE_VALL
+ # define SET_MANTISSA(flt, mant) \
+   do { union ibm_extended_long_double u;				      \
+-       u.d = (flt);							      \
+-       if ((mant & 0xfffffffffffffULL) == 0)				      \
+-	 mant = 0x8000000000000ULL;					      \
+-       u.ieee.mantissa0 = ((mant) >> 32) & 0xfffff;			      \
+-       u.ieee.mantissa1 = (mant) & 0xffffffff;				      \
+-       (flt) = u.d;							      \
++       u.ld = (flt);							      \
++       u.d[0].ieee_nan.mantissa0 = (mant) >> 32;				      \
++       u.d[0].ieee_nan.mantissa1 = (mant);				   	      \
++       if ((u.d[0].ieee.mantissa0 | u.d[0].ieee.mantissa1) != 0)	      \
++         (flt) = u.ld;							      \
+   } while (0)
+ 
+ #include <strtod_l.c>
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/x2y2m1l.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/x2y2m1l.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/x2y2m1l.c	2014-05-26 21:08:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/x2y2m1l.c	2014-05-26 21:08:10.000000000 -0500
+@@ -89,23 +89,23 @@
+   double vals[12];
+   SET_RESTORE_ROUND (FE_TONEAREST);
+   union ibm_extended_long_double xu, yu;
+-  xu.d = x;
+-  yu.d = y;
+-  if (fabs (xu.dd[1]) < 0x1p-500)
+-    xu.dd[1] = 0.0;
+-  if (fabs (yu.dd[1]) < 0x1p-500)
+-    yu.dd[1] = 0.0;
+-  mul_split (&vals[1], &vals[0], xu.dd[0], xu.dd[0]);
+-  mul_split (&vals[3], &vals[2], xu.dd[0], xu.dd[1]);
++  xu.ld = x;
++  yu.ld = y;
++  if (fabs (xu.d[1].d) < 0x1p-500)
++    xu.d[1].d = 0.0;
++  if (fabs (yu.d[1].d) < 0x1p-500)
++    yu.d[1].d = 0.0;
++  mul_split (&vals[1], &vals[0], xu.d[0].d, xu.d[0].d);
++  mul_split (&vals[3], &vals[2], xu.d[0].d, xu.d[1].d);
+   vals[2] *= 2.0;
+   vals[3] *= 2.0;
+-  mul_split (&vals[5], &vals[4], xu.dd[1], xu.dd[1]);
+-  mul_split (&vals[7], &vals[6], yu.dd[0], yu.dd[0]);
+-  mul_split (&vals[9], &vals[8], yu.dd[0], yu.dd[1]);
++  mul_split (&vals[5], &vals[4], xu.d[1].d, xu.d[1].d);
++  mul_split (&vals[7], &vals[6], yu.d[0].d, yu.d[0].d);
++  mul_split (&vals[9], &vals[8], yu.d[0].d, yu.d[1].d);
+   vals[8] *= 2.0;
+   vals[9] *= 2.0;
+-  mul_split (&vals[11], &vals[10], yu.dd[1], yu.dd[1]);
+-  if (xu.dd[0] >= 0.75)
++  mul_split (&vals[11], &vals[10], yu.d[1].d, yu.d[1].d);
++  if (xu.d[0].d >= 0.75)
+     vals[1] -= 1.0;
+   else
+     {

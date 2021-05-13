@@ -1,0 +1,262 @@
+# commit d31beafa8e4ca69faa4cf362784796ef17299341
+# Author: Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+# Date:   Wed Dec 4 06:49:15 2013 -0600
+# 
+#     PowerPC64 ELFv2 ABI 1/6: Code refactoring
+#     
+#     This is the first patch to support the new ELFv2 ABI in glibc.
+#     
+#     As preparation, this patch simply refactors some of the powerpc64 assembler
+#     code to move all code related to creating function descriptors (.opd section)
+#     or using function descriptors (function pointer call) into a central place
+#     in sysdep.h.
+#     
+#     Note that most locations creating .opd entries were already using macros
+#     in sysdep.h, this patch simply extends this to the remaining places.
+#     
+#     No relevant change in generated code expected.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S	2014-05-29 13:56:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S	2014-05-29 13:56:37.000000000 -0500
+@@ -60,18 +60,8 @@
+ .LC0:
+ 	.tc PREINIT_FUNCTION[TC], PREINIT_FUNCTION
+ #endif
+-	.type BODY_LABEL (_init), @function
+-	.globl _init
+-	.section ".opd", "aw"
+-	.align 3
+-_init:	OPD_ENT (_init)
+-#ifdef HAVE_ASM_GLOBAL_DOT_NAME
+-	.globl BODY_LABEL (_init)
+-	.size _init, 24
+-#else
+-	.type _init, @function
+-#endif
+ 	.section ".init", "ax", @progbits
++	ENTRY_2(_init)
+ 	.align ALIGNARG (2)
+ BODY_LABEL (_init):
+ 	mflr 0
+@@ -87,18 +77,8 @@
+ 	nop
+ 1:
+ 
+-	.type BODY_LABEL (_fini), @function
+-	.globl _fini
+-	.section ".opd", "aw"
+-	.align 3
+-_fini:	OPD_ENT (_fini)
+-#ifdef HAVE_ASM_GLOBAL_DOT_NAME
+-	.globl BODY_LABEL (_fini)
+-	.size _fini, 24
+-#else
+-	.type _fini, @function
+-#endif
+ 	.section ".fini", "ax", @progbits
++	ENTRY_2(_fini)
+ 	.align ALIGNARG (2)
+ BODY_LABEL (_fini):
+ 	mflr 0
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 13:56:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 13:56:37.000000000 -0500
+@@ -122,14 +122,7 @@
+ #define RTLD_START \
+   asm (".pushsection \".text\"\n"					\
+ "	.align	2\n"							\
+-"	.type	" BODY_PREFIX "_start,@function\n"			\
+-"	.pushsection \".opd\",\"aw\"\n"					\
+-"	.align	3\n"							\
+-"	.globl	_start\n"						\
+ "	" ENTRY_2(_start) "\n"						\
+-"_start:\n"								\
+-"	" OPD_ENT(_start) "\n"						\
+-"	.popsection\n"							\
+ BODY_PREFIX "_start:\n"							\
+ /* We start with the following on the stack, from top:			\
+    argc (4 bytes);							\
+@@ -154,11 +147,6 @@
+ ".LT__start_name_end:\n"						\
+ "	.align 2\n"							\
+ "	" END_2(_start) "\n"						\
+-"	.globl	_dl_start_user\n"					\
+-"	.pushsection \".opd\",\"aw\"\n"					\
+-"_dl_start_user:\n"							\
+-"	" OPD_ENT(_dl_start_user) "\n"					\
+-"	.popsection\n"							\
+ "	.pushsection	\".toc\",\"aw\"\n"				\
+ DL_STARTING_UP_DEF							\
+ ".LC__rtld_local:\n"							\
+@@ -170,7 +158,6 @@
+ ".LC__dl_fini:\n"							\
+ "	.tc _dl_fini[TC],_dl_fini\n"					\
+ "	.popsection\n"							\
+-"	.type	" BODY_PREFIX "_dl_start_user,@function\n"		\
+ "	" ENTRY_2(_dl_start_user) "\n"					\
+ /* Now, we do our main work of calling initialisation procedures.	\
+    The ELF ABI doesn't say anything about parameters for these,		\
+@@ -228,10 +215,7 @@
+ /* Now, call the start function descriptor at r30...  */		\
+ "	.globl	._dl_main_dispatch\n"					\
+ "._dl_main_dispatch:\n"							\
+-"	ld	0,0(30)\n"						\
+-"	ld	2,8(30)\n"						\
+-"	mtctr	0\n"							\
+-"	ld	11,16(30)\n"						\
++"	" PPC64_LOAD_FUNCPTR(30) "\n"					\
+ "	bctr\n"								\
+ ".LT__dl_start_user:\n"							\
+ "	.long 0\n"							\
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 13:56:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 13:56:37.000000000 -0500
+@@ -71,12 +71,8 @@
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+ 	mtcrf	0xFF,r0
+-/* Load the target address, toc and static chain reg from the function
+-   descriptor returned by fixup.  */
+-	ld	r0,0(r3)
+-	ld	r2,8(r3)
+-	mtctr	r0
+-	ld	r11,16(r3)
++/* Prepare for calling the function returned by fixup.  */
++	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
+ /* Unwind the stack frame, and jump.  */
+ 	addi	r1,r1,FRAME_SIZE
+@@ -322,13 +318,9 @@
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+ 	mtcrf	0xFF,r0
+-/* Load the target address, toc and static chain reg from the function
+-   descriptor returned by fixup.  */
+-	ld	r0,0(r3)
+-	ld	r2,8(r3)
+-	ld	r11,16(r3)
++/* Prepare for calling the function returned by fixup.  */
++	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
+-	mtctr	r0
+ /* Load the floating point registers.  */
+ 	lfd	fp1,FPR_PARMS+0(r1)
+ 	lfd	fp2,FPR_PARMS+8(r1)
+@@ -386,14 +378,10 @@
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+ 	mtcrf	0xFF,r0
+-/* Load the target address, toc and static chain reg from the function
+-   descriptor returned by fixup.  */
+-	ld	r0,0(r3)
++/* Prepare for calling the function returned by fixup.  */
+ 	std	r2,40(r1)
+-	ld	r2,8(r3)
+-	ld	r11,16(r3)
++	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
+-	mtctr	r0
+ /* Load the floating point registers.  */
+ 	lfd	fp1,FPR_PARMS+0(r1)
+ 	lfd	fp2,FPR_PARMS+8(r1)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h	2014-05-29 13:56:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h	2014-05-29 13:56:37.000000000 -0500
+@@ -74,6 +74,14 @@
+ #endif
+ 	.endm
+ 
++/* Macro to prepare for calling via a function pointer.  */
++	.macro PPC64_LOAD_FUNCPTR PTR
++	ld      r12,0(\PTR)
++	ld      r2,8(\PTR)
++	mtctr   r12
++	ld      r11,16(\PTR)
++	.endm
++
+ #ifdef USE_PPC64_OVERLAPPING_OPD
+ # define OPD_ENT(name)	.quad BODY_LABEL (name), .TOC.@tocbase
+ #else
+@@ -81,7 +89,6 @@
+ #endif
+ 
+ #define ENTRY_1(name)	\
+-	.section	".text";		\
+ 	.type BODY_LABEL(name),@function;	\
+ 	.globl name;				\
+ 	.section ".opd","aw";			\
+@@ -110,6 +117,7 @@
+ #endif
+ 
+ #define ENTRY(name)	\
++	.section	".text";		\
+ 	ENTRY_2(name)				\
+ 	.align ALIGNARG(2);			\
+ BODY_LABEL(name):				\
+@@ -127,6 +135,7 @@
+ /* EALIGN is like ENTRY, but does alignment to 'words'*4 bytes
+    past a 2^alignt boundary.  */
+ #define EALIGN(name, alignt, words) \
++	.section	".text";		\
+ 	ENTRY_2(name)				\
+ 	.align ALIGNARG(alignt);		\
+ 	EALIGN_W_##words;			\
+@@ -286,24 +295,42 @@
+ 
+ #else /* !__ASSEMBLER__ */
+ 
++#define PPC64_LOAD_FUNCPTR(ptr) \
++	"ld 	12,0(" #ptr ");\n"					\
++	"ld	2,8(" #ptr ");\n"					\
++	"mtctr	12;\n"							\
++	"ld	11,16(" #ptr ");"
++
+ #ifdef USE_PPC64_OVERLAPPING_OPD
+ # define OPD_ENT(name)	".quad " BODY_PREFIX #name ", .TOC.@tocbase;"
+ #else
+ # define OPD_ENT(name)	".quad " BODY_PREFIX #name ", .TOC.@tocbase, 0;"
+ #endif
+ 
++#define ENTRY_1(name)	\
++	".type   " BODY_PREFIX #name ",@function;\n"			\
++	".globl " #name ";\n"						\
++	".pushsection \".opd\",\"aw\";\n"				\
++	".align  3;\n"							\
++#name ":\n"								\
++	OPD_ENT (name) "\n"						\
++	".popsection;"
++
+ #ifdef HAVE_ASM_GLOBAL_DOT_NAME
+ # define DOT_PREFIX "."
+ # define BODY_PREFIX "."
+ # define ENTRY_2(name)	\
+ 	".globl " BODY_PREFIX #name ";\n"				\
++	ENTRY_1(name) "\n"						\
+ 	".size  " #name ", 24;"
+ # define END_2(name)	\
+ 	".size " BODY_PREFIX #name ",.-" BODY_PREFIX #name ";"
+ #else
+ # define DOT_PREFIX ""
+ # define BODY_PREFIX ".LY"
+-# define ENTRY_2(name) ".type " #name ",@function;"
++# define ENTRY_2(name)	\
++	".type " #name ",@function;\n"					\
++	ENTRY_1(name)
+ # define END_2(name)	\
+ 	".size " #name ",.-" BODY_PREFIX #name ";\n"			\
+ 	".size " BODY_PREFIX #name ",.-" BODY_PREFIX #name ";"
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S	2014-05-29 13:56:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S	2014-05-29 13:56:37.000000000 -0500
+@@ -104,9 +104,7 @@
+ 
+ 	std	r2,40(r1)
+ 	/* Call procedure.  */
+-	ld	r0,0(r30)
+-	ld	r2,8(r30)
+-	mtctr	r0
++	PPC64_LOAD_FUNCPTR r30
+ 	mr	r3,r31
+ 	bctrl
+ 	ld	r2,40(r1)

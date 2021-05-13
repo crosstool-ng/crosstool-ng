@@ -1,0 +1,312 @@
+# commit 7b88401f3b25325b1381798a0eccb3efe7751fec
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:31:45 2013 +0930
+# 
+#     PowerPC floating point little-endian [12 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00087.html
+#     
+#     Fixes for little-endian in 32-bit assembly.
+#     
+#         * sysdeps/powerpc/sysdep.h (LOWORD, HIWORD, HISHORT): Define.
+#         * sysdeps/powerpc/powerpc32/fpu/s_copysign.S: Load little-endian
+#         words of double from correct stack offsets.
+#         * sysdeps/powerpc/powerpc32/fpu/s_copysignl.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/fpu/s_lrint.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/fpu/s_lround.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power4/fpu/s_llrint.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power4/fpu/s_llrintf.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power5+/fpu/s_llround.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power5+/fpu/s_lround.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power5/fpu/s_isnan.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power6/fpu/s_isnan.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power6/fpu/s_llrint.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power6/fpu/s_llrintf.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power6/fpu/s_llround.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/fpu/s_finite.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/fpu/s_isinf.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/fpu/s_isnan.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/fpu/s_finite.S: Use HISHORT.
+#         * sysdeps/powerpc/powerpc64/power7/fpu/s_isinf.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysign.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysign.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysign.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysign.S	2014-05-27 22:45:46.000000000 -0500
+@@ -29,7 +29,7 @@
+ 	stwu	r1,-16(r1)
+ 	cfi_adjust_cfa_offset (16)
+ 	stfd	fp2,8(r1)
+-	lwz	r3,8(r1)
++	lwz	r3,8+HIWORD(r1)
+ 	cmpwi   r3,0
+ 	addi    r1,r1,16
+ 	cfi_adjust_cfa_offset (-16)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysignl.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysignl.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysignl.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_copysignl.S	2014-05-27 22:45:46.000000000 -0500
+@@ -30,7 +30,7 @@
+ 	fmr	fp0,fp1
+ 	fabs	fp1,fp1
+ 	fcmpu	cr7,fp0,fp1
+-	lwz	r3,8(r1)
++	lwz	r3,8+HIWORD(r1)
+ 	cmpwi	cr6,r3,0
+ 	addi	r1,r1,16
+ 	cfi_adjust_cfa_offset (-16)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lrint.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lrint.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lrint.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lrint.S	2014-05-27 22:45:46.000000000 -0500
+@@ -24,10 +24,10 @@
+ 	stwu	r1,-16(r1)
+ 	fctiw	fp13,fp1
+ 	stfd	fp13,8(r1)
+-	nop	/* Insure the following load is in a different dispatch group */
++	nop	/* Ensure the following load is in a different dispatch group */
+ 	nop	/* to avoid pipe stall on POWER4&5.  */
+ 	nop
+-	lwz	r3,12(r1)
++	lwz	r3,8+LOWORD(r1)
+ 	addi	r1,r1,16
+ 	blr
+ 	END (__lrint)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lround.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lround.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lround.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/s_lround.S	2014-05-27 22:45:46.000000000 -0500
+@@ -67,7 +67,7 @@
+ 	nop	/* Ensure the following load is in a different dispatch  */
+ 	nop	/* group to avoid pipe stall on POWER4&5.  */
+ 	nop
+-	lwz	r3,12(r1)	/* Load return as integer.  */
++	lwz	r3,8+LOWORD(r1)	/* Load return as integer.  */
+ .Lout:
+ 	addi	r1,r1,16
+ 	blr
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrint.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrint.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrint.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrint.S	2014-05-27 22:48:09.000000000 -0500
+@@ -29,8 +29,8 @@
+ 	nop	/* Insure the following load is in a different dispatch group */
+ 	nop	/* to avoid pipe stall on POWER4&5.  */
+ 	nop
+-	lwz	r3,8(r1)
+-	lwz	r4,12(r1)
++	lwz	r3,8+HIWORD(r1)
++	lwz	r4,8+LOWORD(r1)
+ 	addi	r1,r1,16	
+ 	blr
+ 	END (__llrint)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrintf.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrintf.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrintf.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/fpu/s_llrintf.S	2014-05-27 22:48:44.000000000 -0500
+@@ -28,8 +28,8 @@
+ 	nop	/* Insure the following load is in a different dispatch group */
+ 	nop	/* to avoid pipe stall on POWER4&5.  */
+ 	nop
+-	lwz	r3,8(r1)
+-	lwz	r4,12(r1)
++	lwz	r3,8+HIWORD(r1)
++	lwz	r4,8+LOWORD(r1)
+ 	addi	r1,r1,16	
+ 	blr
+ 	END (__llrintf)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5/fpu/s_isnan.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5/fpu/s_isnan.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5/fpu/s_isnan.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5/fpu/s_isnan.S	2014-05-27 22:45:46.000000000 -0500
+@@ -27,8 +27,8 @@
+ 	ori	r1,r1,0
+ 	stfd	fp1,24(r1)	/* copy FPR to GPR */
+ 	ori	r1,r1,0
+-	lwz	r4,24(r1)
+-	lwz	r5,28(r1)
++	lwz	r4,24+HIWORD(r1)
++	lwz	r5,24+LOWORD(r1)
+ 	lis	r0,0x7ff0	/* const long r0 0x7ff00000 00000000 */
+ 	clrlwi	r4,r4,1		/* x = fabs(x) */
+ 	cmpw	cr7,r4,r0	/* if (fabs(x) =< inf) */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_llround.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_llround.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_llround.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_llround.S	2014-05-27 22:45:46.000000000 -0500
+@@ -39,8 +39,8 @@
+ 	nop	/* Ensure the following load is in a different dispatch  */
+ 	nop	/* group to avoid pipe stall on POWER4&5.  */
+ 	nop
+-	lwz	r4,12(r1)
+-	lwz	r3,8(r1)
++	lwz	r3,8+HIWORD(r1)
++	lwz	r4,8+LOWORD(r1)
+ 	addi	r1,r1,16
+ 	blr
+ 	END (__llround)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_lround.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_lround.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_lround.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power5+/fpu/s_lround.S	2014-05-27 22:45:46.000000000 -0500
+@@ -38,7 +38,7 @@
+ 	nop	/* Ensure the following load is in a different dispatch  */
+ 	nop	/* group to avoid pipe stall on POWER4&5.  */
+ 	nop
+-	lwz	r3,12(r1)
++	lwz	r3,8+LOWORD(r1)
+ 	addi	r1,r1,16
+ 	blr
+ 	END (__lround)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_isnan.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_isnan.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_isnan.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_isnan.S	2014-05-27 22:45:46.000000000 -0500
+@@ -27,8 +27,8 @@
+ 	ori	r1,r1,0
+ 	stfd	fp1,24(r1)	/* copy FPR to GPR */
+ 	ori	r1,r1,0
+-	lwz	r4,24(r1)
+-	lwz	r5,28(r1)
++	lwz	r4,24+HIWORD(r1)
++	lwz	r5,24+LOWORD(r1)
+ 	lis	r0,0x7ff0	/* const long r0 0x7ff00000 00000000 */
+ 	clrlwi	r4,r4,1		/* x = fabs(x) */
+ 	cmpw	cr7,r4,r0	/* if (fabs(x) =< inf) */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrint.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrint.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrint.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrint.S	2014-05-27 22:46:52.000000000 -0500
+@@ -29,8 +29,8 @@
+ /* Insure the following load is in a different dispatch group by
+    inserting "group ending nop".  */
+ 	ori	r1,r1,0
+-	lwz	r3,8(r1)
+-	lwz	r4,12(r1)
++	lwz	r3,8+HIWORD(r1)
++	lwz	r4,8+LOWORD(r1)
+ 	addi	r1,r1,16	
+ 	blr
+ 	END (__llrint)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrintf.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrintf.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrintf.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llrintf.S	2014-05-27 22:47:29.000000000 -0500
+@@ -28,8 +28,8 @@
+ /* Insure the following load is in a different dispatch group by
+    inserting "group ending nop".  */
+ 	ori	r1,r1,0
+-	lwz	r3,8(r1)
+-	lwz	r4,12(r1)
++	lwz	r3,8+HIWORD(r1)
++	lwz	r4,8+LOWORD(r1)
+ 	addi	r1,r1,16	
+ 	blr
+ 	END (__llrintf)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llround.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llround.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llround.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/fpu/s_llround.S	2014-05-27 22:45:46.000000000 -0500
+@@ -39,8 +39,8 @@
+ /* Insure the following load is in a different dispatch group by
+    inserting "group ending nop".  */
+ 	ori	r1,r1,0
+-	lwz	r4,12(r1)
+-	lwz	r3,8(r1)
++	lwz	r3,8+HIWORD(r1)
++	lwz	r4,8+LOWORD(r1)
+ 	addi	r1,r1,16
+ 	blr
+ 	END (__llround)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_finite.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_finite.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_finite.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_finite.S	2014-05-27 22:45:46.000000000 -0500
+@@ -54,9 +54,8 @@
+ 	stfd    fp1,8(r1)     /* Transfer FP to GPR's.  */
+ 
+ 	ori	2,2,0	      /* Force a new dispatch group.  */
+-	lhz     r0,8(r1)      /* Fetch the upper portion of the high word of
+-			      the FP value (where the exponent and sign bits
+-			      are).  */
++	lhz	r0,8+HISHORT(r1) /* Fetch the upper 16 bits of the FP value
++				    (biased exponent and sign bit).  */
+ 	clrlwi	r0,r0,17      /* r0 = abs(r0).  */
+ 	addi	r1,r1,16      /* Reset the stack pointer.  */
+ 	cmpwi	cr7,r0,0x7ff0 /* r4 == 0x7ff0?.  */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isinf.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isinf.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isinf.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isinf.S	2014-05-27 22:45:46.000000000 -0500
+@@ -48,14 +48,13 @@
+ 	li	r3,0
+ 	bflr    29	      /* If not INF, return.  */
+ 
+-	/* Either we have -INF/+INF or a denormal.  */
++	/* Either we have +INF or -INF.  */
+ 
+ 	stwu    r1,-16(r1)    /* Allocate stack space.  */
+ 	stfd    fp1,8(r1)     /* Transfer FP to GPR's.  */
+ 	ori	2,2,0	      /* Force a new dispatch group.  */
+-	lhz	r4,8(r1)      /* Fetch the upper portion of the high word of
+-			      the FP value (where the exponent and sign bits
+-			      are).  */
++	lhz	r4,8+HISHORT(r1) /* Fetch the upper 16 bits of the FP value
++				    (biased exponent and sign bit).  */
+ 	addi	r1,r1,16      /* Reset the stack pointer.  */
+ 	cmpwi	cr7,r4,0x7ff0 /* r4 == 0x7ff0?  */
+ 	li	r3,1
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isnan.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isnan.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isnan.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/fpu/s_isnan.S	2014-05-27 22:45:46.000000000 -0500
+@@ -53,8 +53,8 @@
+ 	stwu	r1,-16(r1)    /* Allocate stack space.  */
+ 	stfd	fp1,8(r1)     /* Transfer FP to GPR's.  */
+ 	ori	2,2,0	      /* Force a new dispatch group.  */
+-	lwz     r4,8(r1)      /* Load the upper half of the FP value.  */
+-	lwz     r5,12(r1)     /* Load the lower half of the FP value.  */
++	lwz     r4,8+HIWORD(r1) /* Load the upper half of the FP value.  */
++	lwz     r5,8+LOWORD(r1) /* Load the lower half of the FP value.  */
+ 	addi	r1,r1,16      /* Reset the stack pointer.  */
+ 	lis     r0,0x7ff0     /* Load the upper portion for an INF/NaN.  */
+ 	clrlwi  r4,r4,1	      /* r4 = abs(r4).  */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_finite.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_finite.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_finite.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_finite.S	2014-05-27 22:45:46.000000000 -0500
+@@ -39,10 +39,8 @@
+ 
+ 	stfd    fp1,-16(r1)   /* Transfer FP to GPR's.  */
+ 	ori	2,2,0	      /* Force a new dispatch group.  */
+-
+-	lhz     r4,-16(r1)    /* Fetch the upper portion of the high word of
+-			      the FP value (where the exponent and sign bits
+-			      are).  */
++	lhz     r4,-16+HISHORT(r1)  /* Fetch the upper 16 bits of the FP value
++				    (biased exponent and sign bit).  */
+ 	clrlwi  r4,r4,17      /* r4 = abs(r4).  */
+ 	cmpwi   cr7,r4,0x7ff0 /* r4 == 0x7ff0?  */
+ 	bltlr   cr7	      /* LT means finite, other non-finite.  */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_isinf.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_isinf.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_isinf.S	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/fpu/s_isinf.S	2014-05-27 22:45:46.000000000 -0500
+@@ -38,9 +38,8 @@
+ 
+ 	stfd    fp1,-16(r1)   /* Transfer FP to GPR's.  */
+ 	ori	2,2,0	      /* Force a new dispatch group.  */
+-	lhz	r4,-16(r1)    /* Fetch the upper portion of the high word of
+-			      the FP value (where the exponent and sign bits
+-			      are).  */
++	lhz	r4,-16+HISHORT(r1)  /* Fetch the upper 16 bits of the FP value
++				    (biased exponent and sign bit).  */
+ 	cmpwi	cr7,r4,0x7ff0 /* r4 == 0x7ff0?  */
+ 	li	r3,1
+ 	beqlr   cr7	      /* EQ means INF, otherwise -INF.  */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/sysdep.h glibc-2.17-c758a686/sysdeps/powerpc/sysdep.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/sysdep.h	2014-05-27 22:45:44.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/sysdep.h	2014-05-27 22:45:46.000000000 -0500
+@@ -144,6 +144,21 @@
+ 
+ #define VRSAVE	256
+ 
++/* The 32-bit words of a 64-bit dword are at these offsets in memory.  */
++#if defined __LITTLE_ENDIAN__ || defined _LITTLE_ENDIAN
++# define LOWORD 0
++# define HIWORD 4
++#else
++# define LOWORD 4
++# define HIWORD 0
++#endif
++
++/* The high 16-bit word of a 64-bit dword is at this offset in memory.  */
++#if defined __LITTLE_ENDIAN__ || defined _LITTLE_ENDIAN
++# define HISHORT 6
++#else
++# define HISHORT 0
++#endif
+ 
+ /* This seems to always be the case on PPC.  */
+ #define ALIGNARG(log2) log2

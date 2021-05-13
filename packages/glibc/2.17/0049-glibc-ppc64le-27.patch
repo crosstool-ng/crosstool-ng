@@ -1,0 +1,861 @@
+# commit 8a7413f9b036da83ffde491a37d9d2340bc321a7
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:41:17 2013 +0930
+# 
+#     PowerPC LE strcmp and strncmp
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00099.html
+#     
+#     More little-endian support.  I leave the main strcmp loops unchanged,
+#     (well, except for renumbering rTMP to something other than r0 since
+#     it's needed in an addi insn) and modify the tail for little-endian.
+#     
+#     I noticed some of the big-endian tail code was a little untidy so have
+#     cleaned that up too.
+#     
+#         * sysdeps/powerpc/powerpc64/strcmp.S (rTMP2): Define as r0.
+#         (rTMP): Define as r11.
+#         (strcmp): Add little-endian support.  Optimise tail.
+#         * sysdeps/powerpc/powerpc32/strcmp.S: Similarly.
+#         * sysdeps/powerpc/powerpc64/strncmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/strncmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power4/strncmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power4/strncmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/strncmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/strncmp.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/strncmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/strncmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/strncmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/strncmp.S	2014-05-28 13:27:02.000000000 -0500
+@@ -26,7 +26,7 @@
+ 
+ EALIGN (BP_SYM(strncmp), 4, 0)
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -42,6 +42,7 @@
+ #define r7F7F	r9	/* constant 0x7f7f7f7f */
+ #define rNEG	r10	/* ~(word in s1 | 0x7f7f7f7f) */
+ #define rBITDIF	r11	/* bits that differ in s1 & s2 words */
++#define rTMP	r12
+ 
+ 	dcbt	0,rSTR1
+ 	or	rTMP, rSTR2, rSTR1
+@@ -80,12 +81,45 @@
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
+ 
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	slwi	rTMP, rTMP, 1
++	addi    rTMP2, rTMP, -1
++	andc    rTMP2, rTMP2, rTMP
++	and	rWORD2, rWORD2, rTMP2		/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rldimi	rTMP2, rWORD2, 24, 32
++	rldimi	rTMP, rWORD1, 24, 32
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr+
++	ori	rRTN, rTMP2, 1
++	blr
++
++L(different):
++	lwz	rWORD1, -4(rSTR1)
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rldimi	rTMP2, rWORD2, 24, 32
++	rldimi	rTMP, rWORD1, 24, 32
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr+
++	ori	rRTN, rTMP2, 1
++	blr
++
++#else
+ L(endstring):
+ 	and	rTMP, r7F7F, rWORD1
+ 	beq	cr1, L(equal)
+ 	add	rTMP, rTMP, r7F7F
+ 	xor.	rBITDIF, rWORD1, rWORD2
+-
+ 	andc	rNEG, rNEG, rTMP
+ 	blt-	L(highbit)
+ 	cntlzw	rBITDIF, rBITDIF
+@@ -93,28 +127,20 @@
+ 	addi	rNEG, rNEG, 7
+ 	cmpw	cr1, rNEG, rBITDIF
+ 	sub	rRTN, rWORD1, rWORD2
+-	blt-	cr1, L(equal)
+-	srawi	rRTN, rRTN, 31
+-	ori	rRTN, rRTN, 1
+-	blr
++	bgelr+	cr1
+ L(equal):
+ 	li	rRTN, 0
+ 	blr
+ 
+ L(different):
+-	lwzu	rWORD1, -4(rSTR1)
++	lwz	rWORD1, -4(rSTR1)
+ 	xor.	rBITDIF, rWORD1, rWORD2
+ 	sub	rRTN, rWORD1, rWORD2
+-	blt-	L(highbit)
+-	srawi	rRTN, rRTN, 31
+-	ori	rRTN, rRTN, 1
+-	blr
++	bgelr+
+ L(highbit):
+-	srwi	rWORD2, rWORD2, 24
+-	srwi	rWORD1, rWORD1, 24
+-	sub	rRTN, rWORD1, rWORD2
++	ori	rRTN, rWORD2, 1
+ 	blr
+-
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte comparison.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strncmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strncmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strncmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strncmp.S	2014-05-28 13:27:02.000000000 -0500
+@@ -28,7 +28,7 @@
+ 
+ EALIGN (BP_SYM(strncmp),5,0)
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -44,6 +44,7 @@
+ #define r7F7F	r9	/* constant 0x7f7f7f7f */
+ #define rNEG	r10	/* ~(word in s1 | 0x7f7f7f7f) */
+ #define rBITDIF	r11	/* bits that differ in s1 & s2 words */
++#define rTMP	r12
+ 
+ 	dcbt	0,rSTR1
+ 	nop
+@@ -83,13 +84,45 @@
+ /* OK. We've hit the end of the string. We need to be careful that
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	slwi	rTMP, rTMP, 1
++	addi    rTMP2, rTMP, -1
++	andc    rTMP2, rTMP2, rTMP
++	and	rWORD2, rWORD2, rTMP2		/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rldimi	rTMP2, rWORD2, 24, 32
++	rldimi	rTMP, rWORD1, 24, 32
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr
++	ori	rRTN, rTMP2, 1
++	blr
++
++L(different):
++	lwz	rWORD1, -4(rSTR1)
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rldimi	rTMP2, rWORD2, 24, 32
++	rldimi	rTMP, rWORD1, 24, 32
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr
++	ori	rRTN, rTMP2, 1
++	blr
+ 
++#else
+ L(endstring):
+ 	and	rTMP,r7F7F,rWORD1
+ 	beq	cr1,L(equal)
+ 	add	rTMP,rTMP,r7F7F
+ 	xor.	rBITDIF,rWORD1,rWORD2
+-
+ 	andc	rNEG,rNEG,rTMP
+ 	blt	L(highbit)
+ 	cntlzw	rBITDIF,rBITDIF
+@@ -97,28 +130,20 @@
+ 	addi	rNEG,rNEG,7
+ 	cmpw	cr1,rNEG,rBITDIF
+ 	sub	rRTN,rWORD1,rWORD2
+-	blt	cr1,L(equal)
+-	srawi	rRTN,rRTN,31
+-	ori	rRTN,rRTN,1
+-	blr
++	bgelr	cr1
+ L(equal):
+ 	li	rRTN,0
+ 	blr
+ 
+ L(different):
+-	lwzu	rWORD1,-4(rSTR1)
++	lwz	rWORD1,-4(rSTR1)
+ 	xor.	rBITDIF,rWORD1,rWORD2
+ 	sub	rRTN,rWORD1,rWORD2
+-	blt	L(highbit)
+-	srawi	rRTN,rRTN,31
+-	ori	rRTN,rRTN,1
+-	blr
++	bgelr
+ L(highbit):
+-	srwi	rWORD2,rWORD2,24
+-	srwi	rWORD1,rWORD1,24
+-	sub	rRTN,rWORD1,rWORD2
++	ori	rRTN, rWORD2, 1
+ 	blr
+-
++#endif
+ 
+ /* Oh well. In this case, we just do a byte-by-byte comparison.  */
+ 	.align	4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcmp.S	2014-05-28 13:27:02.000000000 -0500
+@@ -26,7 +26,7 @@
+ 
+ EALIGN (BP_SYM (strcmp), 4, 0)
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -40,6 +40,7 @@
+ #define r7F7F	r8	/* constant 0x7f7f7f7f */
+ #define rNEG	r9	/* ~(word in s1 | 0x7f7f7f7f) */
+ #define rBITDIF	r10	/* bits that differ in s1 & s2 words */
++#define rTMP	r11
+ 
+ 	CHECK_BOUNDS_LOW (rSTR1, rTMP, rHIGH1)
+ 	CHECK_BOUNDS_LOW (rSTR2, rTMP, rHIGH2)
+@@ -64,10 +65,45 @@
+ 	and.	rTMP, rTMP, rNEG
+ 	cmpw	cr1, rWORD1, rWORD2
+ 	beq+	L(g0)
+-L(endstring):
++
+ /* OK. We've hit the end of the string. We need to be careful that
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	addi    rTMP2, rTMP, -1
++	andc    rTMP2, rTMP2, rTMP
++	rlwimi	rTMP2, rTMP2, 1, 0, 30
++	and	rWORD2, rWORD2, rTMP2		/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rlwimi	rTMP2, rWORD2, 24, 0, 7
++	rlwimi	rTMP, rWORD1, 24, 0, 7
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr+
++	ori	rRTN, rTMP2, 1
++	blr
++
++L(different):
++	lwz	rWORD1, -4(rSTR1)
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rlwimi	rTMP2, rWORD2, 24, 0, 7
++	rlwimi	rTMP, rWORD1, 24, 0, 7
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr+
++	ori	rRTN, rTMP2, 1
++	blr
++
++#else
++L(endstring):
+ 	and	rTMP, r7F7F, rWORD1
+ 	beq	cr1, L(equal)
+ 	add	rTMP, rTMP, r7F7F
+@@ -94,7 +130,7 @@
+ 	ori	rRTN, rWORD2, 1
+ 	/* GKM FIXME: check high bounds.  */
+ 	blr
+-
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte comparison.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strncmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strncmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strncmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strncmp.S	2014-05-28 13:27:02.000000000 -0500
+@@ -26,7 +26,7 @@
+ 
+ EALIGN (BP_SYM(strncmp), 4, 0)
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -40,6 +40,7 @@
+ #define r7F7F	r9	/* constant 0x7f7f7f7f */
+ #define rNEG	r10	/* ~(word in s1 | 0x7f7f7f7f) */
+ #define rBITDIF	r11	/* bits that differ in s1 & s2 words */
++#define rTMP	r12
+ 
+ 	dcbt	0,rSTR1
+ 	or	rTMP, rSTR2, rSTR1
+@@ -78,12 +79,45 @@
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
+ 
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	slwi	rTMP, rTMP, 1
++	addi    rTMP2, rTMP, -1
++	andc    rTMP2, rTMP2, rTMP
++	and	rWORD2, rWORD2, rTMP2		/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rlwimi	rTMP2, rWORD2, 24, 0, 7
++	rlwimi	rTMP, rWORD1, 24, 0, 7
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr+
++	ori	rRTN, rTMP2, 1
++	blr
++
++L(different):
++	lwz	rWORD1, -4(rSTR1)
++	rlwinm	rTMP2, rWORD2, 8, 0xffffffff	/* Byte reverse word.  */
++	rlwinm	rTMP, rWORD1, 8, 0xffffffff
++	rlwimi	rTMP2, rWORD2, 24, 0, 7
++	rlwimi	rTMP, rWORD1, 24, 0, 7
++	rlwimi	rTMP2, rWORD2, 24, 16, 23
++	rlwimi	rTMP, rWORD1, 24, 16, 23
++	xor.	rBITDIF, rTMP, rTMP2
++	sub	rRTN, rTMP, rTMP2
++	bgelr+
++	ori	rRTN, rTMP2, 1
++	blr
++
++#else
+ L(endstring):
+ 	and	rTMP, r7F7F, rWORD1
+ 	beq	cr1, L(equal)
+ 	add	rTMP, rTMP, r7F7F
+ 	xor.	rBITDIF, rWORD1, rWORD2
+-
+ 	andc	rNEG, rNEG, rTMP
+ 	blt-	L(highbit)
+ 	cntlzw	rBITDIF, rBITDIF
+@@ -91,28 +125,20 @@
+ 	addi	rNEG, rNEG, 7
+ 	cmpw	cr1, rNEG, rBITDIF
+ 	sub	rRTN, rWORD1, rWORD2
+-	blt-	cr1, L(equal)
+-	srawi	rRTN, rRTN, 31
+-	ori	rRTN, rRTN, 1
+-	blr
++	bgelr+	cr1
+ L(equal):
+ 	li	rRTN, 0
+ 	blr
+ 
+ L(different):
+-	lwzu	rWORD1, -4(rSTR1)
++	lwz	rWORD1, -4(rSTR1)
+ 	xor.	rBITDIF, rWORD1, rWORD2
+ 	sub	rRTN, rWORD1, rWORD2
+-	blt-	L(highbit)
+-	srawi	rRTN, rRTN, 31
+-	ori	rRTN, rRTN, 1
+-	blr
++	bgelr+
+ L(highbit):
+-	srwi	rWORD2, rWORD2, 24
+-	srwi	rWORD1, rWORD1, 24
+-	sub	rRTN, rWORD1, rWORD2
++	ori	rRTN, rWORD2, 1
+ 	blr
+-
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte comparison.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/strncmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/strncmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/strncmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/strncmp.S	2014-05-28 13:27:02.000000000 -0500
+@@ -27,7 +27,7 @@
+ EALIGN (BP_SYM(strncmp), 4, 0)
+ 	CALL_MCOUNT 3
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -43,6 +43,7 @@
+ #define r7F7F	r9	/* constant 0x7f7f7f7f7f7f7f7f */
+ #define rNEG	r10	/* ~(word in s1 | 0x7f7f7f7f7f7f7f7f) */
+ #define rBITDIF	r11	/* bits that differ in s1 & s2 words */
++#define rTMP	r12
+ 
+ 	dcbt	0,rSTR1
+ 	or	rTMP, rSTR2, rSTR1
+@@ -84,12 +85,59 @@
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
+ 
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	addi    rTMP2, rTMP, -1
++	beq	cr1, L(equal)
++	andc    rTMP2, rTMP2, rTMP
++	rldimi	rTMP2, rTMP2, 1, 0
++	and	rWORD2, rWORD2, rTMP2	/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	cmpd	cr1, rWORD1, rWORD2
++	beq	cr1, L(equal)
++	xor	rBITDIF, rWORD1, rWORD2	/* rBITDIF has bits that differ.  */
++	neg	rNEG, rBITDIF
++	and	rNEG, rNEG, rBITDIF	/* rNEG has LS bit that differs.  */
++	cntlzd	rNEG, rNEG		/* bitcount of the bit.  */
++	andi.	rNEG, rNEG, 56		/* bitcount to LS byte that differs. */
++	sld	rWORD1, rWORD1, rNEG	/* shift left to clear MS bytes.  */
++	sld	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt-	L(highbit)
++	sradi	rRTN, rRTN, 63		/* must return an int.  */
++	ori	rRTN, rRTN, 1
++	blr
++L(equal):
++	li	rRTN, 0
++	blr
++
++L(different):
++	ld	rWORD1, -8(rSTR1)
++	xor	rBITDIF, rWORD1, rWORD2	/* rBITDIF has bits that differ.  */
++	neg	rNEG, rBITDIF
++	and	rNEG, rNEG, rBITDIF	/* rNEG has LS bit that differs.  */
++	cntlzd	rNEG, rNEG		/* bitcount of the bit.  */
++	andi.	rNEG, rNEG, 56		/* bitcount to LS byte that differs. */
++	sld	rWORD1, rWORD1, rNEG	/* shift left to clear MS bytes.  */
++	sld	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt-	L(highbit)
++	sradi	rRTN, rRTN, 63
++	ori	rRTN, rRTN, 1
++	blr
++L(highbit):
++	sradi	rRTN, rWORD2, 63
++	ori	rRTN, rRTN, 1
++	blr
++
++#else
+ L(endstring):
+ 	and	rTMP, r7F7F, rWORD1
+ 	beq	cr1, L(equal)
+ 	add	rTMP, rTMP, r7F7F
+ 	xor.	rBITDIF, rWORD1, rWORD2
+-
+ 	andc	rNEG, rNEG, rTMP
+ 	blt-	L(highbit)
+ 	cntlzd	rBITDIF, rBITDIF
+@@ -98,7 +146,7 @@
+ 	cmpd	cr1, rNEG, rBITDIF
+ 	sub	rRTN, rWORD1, rWORD2
+ 	blt-	cr1, L(equal)
+-	sradi	rRTN, rRTN, 63
++	sradi	rRTN, rRTN, 63		/* must return an int.  */
+ 	ori	rRTN, rRTN, 1
+ 	blr
+ L(equal):
+@@ -106,7 +154,7 @@
+ 	blr
+ 
+ L(different):
+-	ldu	rWORD1, -8(rSTR1)
++	ld	rWORD1, -8(rSTR1)
+ 	xor.	rBITDIF, rWORD1, rWORD2
+ 	sub	rRTN, rWORD1, rWORD2
+ 	blt-	L(highbit)
+@@ -114,11 +162,10 @@
+ 	ori	rRTN, rRTN, 1
+ 	blr
+ L(highbit):
+-	srdi	rWORD2, rWORD2, 56
+-	srdi	rWORD1, rWORD1, 56
+-	sub	rRTN, rWORD1, rWORD2
++	sradi	rRTN, rWORD2, 63
++	ori	rRTN, rRTN, 1
+ 	blr
+-
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte comparison.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strncmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strncmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strncmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strncmp.S	2014-05-28 13:27:02.000000000 -0500
+@@ -29,7 +29,7 @@
+ EALIGN (BP_SYM(strncmp),5,0)
+ 	CALL_MCOUNT 3
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -45,6 +45,7 @@
+ #define r7F7F	r9	/* constant 0x7f7f7f7f7f7f7f7f */
+ #define rNEG	r10	/* ~(word in s1 | 0x7f7f7f7f7f7f7f7f) */
+ #define rBITDIF	r11	/* bits that differ in s1 & s2 words */
++#define rTMP	r12
+ 
+ 	dcbt	0,rSTR1
+ 	nop
+@@ -88,12 +89,57 @@
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
+ 
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	addi    rTMP2, rTMP, -1
++	beq	cr1, L(equal)
++	andc    rTMP2, rTMP2, rTMP
++	rldimi	rTMP2, rTMP2, 1, 0
++	and	rWORD2, rWORD2, rTMP2	/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	cmpd	cr1, rWORD1, rWORD2
++	beq	cr1, L(equal)
++	cmpb	rBITDIF, rWORD1, rWORD2	/* 0xff on equal bytes.  */
++	addi	rNEG, rBITDIF, 1
++	orc	rNEG, rNEG, rBITDIF	/* 0's below LS differing byte.  */
++	sldi	rNEG, rNEG, 8		/* 1's above LS differing byte.  */
++	andc	rWORD1, rWORD1, rNEG	/* mask off MS bytes.  */
++	andc	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt	L(highbit)
++	sradi	rRTN, rRTN, 63		/* must return an int.  */
++	ori	rRTN, rRTN, 1
++	blr
++L(equal):
++	li	rRTN, 0
++	blr
++
++L(different):
++	ld	rWORD1, -8(rSTR1)
++	cmpb	rBITDIF, rWORD1, rWORD2	/* 0xff on equal bytes.  */
++	addi	rNEG, rBITDIF, 1
++	orc	rNEG, rNEG, rBITDIF	/* 0's below LS differing byte.  */
++	sldi	rNEG, rNEG, 8		/* 1's above LS differing byte.  */
++	andc	rWORD1, rWORD1, rNEG	/* mask off MS bytes.  */
++	andc	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt	L(highbit)
++	sradi	rRTN, rRTN, 63
++	ori	rRTN, rRTN, 1
++	blr
++L(highbit):
++	sradi	rRTN, rWORD2, 63
++	ori	rRTN, rRTN, 1
++	blr
++
++#else
+ L(endstring):
+ 	and	rTMP,r7F7F,rWORD1
+ 	beq	cr1,L(equal)
+ 	add	rTMP,rTMP,r7F7F
+ 	xor.	rBITDIF,rWORD1,rWORD2
+-
+ 	andc	rNEG,rNEG,rTMP
+ 	blt	L(highbit)
+ 	cntlzd	rBITDIF,rBITDIF
+@@ -102,7 +148,7 @@
+ 	cmpd	cr1,rNEG,rBITDIF
+ 	sub	rRTN,rWORD1,rWORD2
+ 	blt	cr1,L(equal)
+-	sradi	rRTN,rRTN,63
++	sradi	rRTN,rRTN,63		/* must return an int.  */
+ 	ori	rRTN,rRTN,1
+ 	blr
+ L(equal):
+@@ -110,7 +156,7 @@
+ 	blr
+ 
+ L(different):
+-	ldu	rWORD1,-8(rSTR1)
++	ld	rWORD1,-8(rSTR1)
+ 	xor.	rBITDIF,rWORD1,rWORD2
+ 	sub	rRTN,rWORD1,rWORD2
+ 	blt	L(highbit)
+@@ -118,11 +164,10 @@
+ 	ori	rRTN,rRTN,1
+ 	blr
+ L(highbit):
+-	srdi	rWORD2,rWORD2,56
+-	srdi	rWORD1,rWORD1,56
+-	sub	rRTN,rWORD1,rWORD2
++	sradi	rRTN,rWORD2,63
++	ori	rRTN,rRTN,1
+ 	blr
+-
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte comparison.  */
+ 	.align	4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcmp.S	2014-05-28 13:37:15.000000000 -0500
+@@ -27,7 +27,7 @@
+ EALIGN (BP_SYM(strcmp), 4, 0)
+ 	CALL_MCOUNT 2
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -46,6 +46,7 @@
+ #define r7F7F	r8	/* constant 0x7f7f7f7f7f7f7f7f */
+ #define rNEG	r9	/* ~(word in s1 | 0x7f7f7f7f7f7f7f7f) */
+ #define rBITDIF	r10	/* bits that differ in s1 & s2 words */
++#define rTMP	r11
+ 
+ 	CHECK_BOUNDS_LOW (rSTR1, rTMP, rHIGH1)
+ 	CHECK_BOUNDS_LOW (rSTR2, rTMP, rHIGH2)
+@@ -72,19 +73,66 @@
+ 	ldu	rWORD2, 8(rSTR2)
+ L(g1):	add	rTMP, rFEFE, rWORD1
+ 	nor	rNEG, r7F7F, rWORD1
+-
+ 	and.	rTMP, rTMP, rNEG
+ 	cmpd	cr1, rWORD1, rWORD2
+ 	beq+	L(g0)
+-L(endstring):
++
+ /* OK. We've hit the end of the string. We need to be careful that
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	addi    rTMP2, rTMP, -1
++	beq	cr1, L(equal)
++	andc    rTMP2, rTMP2, rTMP
++	rldimi	rTMP2, rTMP2, 1, 0
++	and	rWORD2, rWORD2, rTMP2	/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	cmpd	cr1, rWORD1, rWORD2
++	beq	cr1, L(equal)
++	xor	rBITDIF, rWORD1, rWORD2	/* rBITDIF has bits that differ.  */
++	neg	rNEG, rBITDIF
++	and	rNEG, rNEG, rBITDIF	/* rNEG has LS bit that differs.  */
++	cntlzd	rNEG, rNEG		/* bitcount of the bit.  */
++	andi.	rNEG, rNEG, 56		/* bitcount to LS byte that differs. */
++	sld	rWORD1, rWORD1, rNEG	/* shift left to clear MS bytes.  */
++	sld	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt-	L(highbit)
++	sradi	rRTN, rRTN, 63		/* must return an int.  */
++	ori	rRTN, rRTN, 1
++	blr
++L(equal):
++	li	rRTN, 0
++	blr
++
++L(different):
++	ld	rWORD1, -8(rSTR1)
++	xor	rBITDIF, rWORD1, rWORD2	/* rBITDIF has bits that differ.  */
++	neg	rNEG, rBITDIF
++	and	rNEG, rNEG, rBITDIF	/* rNEG has LS bit that differs.  */
++	cntlzd	rNEG, rNEG		/* bitcount of the bit.  */
++	andi.	rNEG, rNEG, 56		/* bitcount to LS byte that differs. */
++	sld	rWORD1, rWORD1, rNEG	/* shift left to clear MS bytes.  */
++	sld	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt-	L(highbit)
++	sradi	rRTN, rRTN, 63
++	ori	rRTN, rRTN, 1
++	blr
++L(highbit):
++	sradi	rRTN, rWORD2, 63
++	ori	rRTN, rRTN, 1
++	blr
++
++#else
++L(endstring):
+ 	and	rTMP, r7F7F, rWORD1
+ 	beq	cr1, L(equal)
+ 	add	rTMP, rTMP, r7F7F
+ 	xor.	rBITDIF, rWORD1, rWORD2
+-
+ 	andc	rNEG, rNEG, rTMP
+ 	blt-	L(highbit)
+ 	cntlzd	rBITDIF, rBITDIF
+@@ -93,7 +141,7 @@
+ 	cmpd	cr1, rNEG, rBITDIF
+ 	sub	rRTN, rWORD1, rWORD2
+ 	blt-	cr1, L(equal)
+-	sradi	rRTN, rRTN, 63
++	sradi	rRTN, rRTN, 63		/* must return an int.  */
+ 	ori	rRTN, rRTN, 1
+ 	blr
+ L(equal):
+@@ -110,12 +158,11 @@
+ 	ori	rRTN, rRTN, 1
+ 	blr
+ L(highbit):
+-	srdi	rWORD2, rWORD2, 56
+-	srdi	rWORD1, rWORD1, 56
+-	sub	rRTN, rWORD1, rWORD2
++	sradi	rRTN, rWORD2, 63
++	ori	rRTN, rRTN, 1
+ 	/* GKM FIXME: check high bounds.  */
+ 	blr
+-
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte comparison.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strncmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strncmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strncmp.S	2014-05-28 13:26:59.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strncmp.S	2014-05-28 13:38:31.000000000 -0500
+@@ -27,7 +27,7 @@
+ EALIGN (BP_SYM(strncmp), 4, 0)
+ 	CALL_MCOUNT 3
+ 
+-#define rTMP	r0
++#define rTMP2	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -41,6 +41,7 @@
+ #define r7F7F	r9	/* constant 0x7f7f7f7f7f7f7f7f */
+ #define rNEG	r10	/* ~(word in s1 | 0x7f7f7f7f7f7f7f7f) */
+ #define rBITDIF	r11	/* bits that differ in s1 & s2 words */
++#define rTMP	r12
+ 
+ 	dcbt	0,rSTR1
+ 	or	rTMP, rSTR2, rSTR1
+@@ -81,13 +82,60 @@
+ /* OK. We've hit the end of the string. We need to be careful that
+    we don't compare two strings as different because of gunk beyond
+    the end of the strings...  */
+-	
++
++#ifdef __LITTLE_ENDIAN__
++L(endstring):
++	addi    rTMP2, rTMP, -1
++	beq	cr1, L(equal)
++	andc    rTMP2, rTMP2, rTMP
++	rldimi	rTMP2, rTMP2, 1, 0
++	and	rWORD2, rWORD2, rTMP2	/* Mask off gunk.  */
++	and	rWORD1, rWORD1, rTMP2
++	cmpd	cr1, rWORD1, rWORD2
++	beq	cr1, L(equal)
++	xor	rBITDIF, rWORD1, rWORD2	/* rBITDIF has bits that differ.  */
++	neg	rNEG, rBITDIF
++	and	rNEG, rNEG, rBITDIF	/* rNEG has LS bit that differs.  */
++	cntlzd	rNEG, rNEG		/* bitcount of the bit.  */
++	andi.	rNEG, rNEG, 56		/* bitcount to LS byte that differs. */
++	sld	rWORD1, rWORD1, rNEG	/* shift left to clear MS bytes.  */
++	sld	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt-	L(highbit)
++	sradi	rRTN, rRTN, 63		/* must return an int.  */
++	ori	rRTN, rRTN, 1
++	blr
++L(equal):
++	li	rRTN, 0
++	blr
++
++L(different):
++	ld	rWORD1, -8(rSTR1)
++	xor	rBITDIF, rWORD1, rWORD2	/* rBITDIF has bits that differ.  */
++	neg	rNEG, rBITDIF
++	and	rNEG, rNEG, rBITDIF	/* rNEG has LS bit that differs.  */
++	cntlzd	rNEG, rNEG		/* bitcount of the bit.  */
++	andi.	rNEG, rNEG, 56		/* bitcount to LS byte that differs. */
++	sld	rWORD1, rWORD1, rNEG	/* shift left to clear MS bytes.  */
++	sld	rWORD2, rWORD2, rNEG
++	xor.	rBITDIF, rWORD1, rWORD2
++	sub	rRTN, rWORD1, rWORD2
++	blt-	L(highbit)
++	sradi	rRTN, rRTN, 63
++	ori	rRTN, rRTN, 1
++	blr
++L(highbit):
++	sradi	rRTN, rWORD2, 63
++	ori	rRTN, rRTN, 1
++	blr
++
++#else
+ L(endstring):
+ 	and	rTMP, r7F7F, rWORD1
+ 	beq	cr1, L(equal)
+ 	add	rTMP, rTMP, r7F7F
+ 	xor.	rBITDIF, rWORD1, rWORD2
+-
+ 	andc	rNEG, rNEG, rTMP
+ 	blt-	L(highbit)
+ 	cntlzd	rBITDIF, rBITDIF
+@@ -96,7 +144,7 @@
+ 	cmpd	cr1, rNEG, rBITDIF
+ 	sub	rRTN, rWORD1, rWORD2
+ 	blt-	cr1, L(equal)
+-	sradi	rRTN, rRTN, 63
++	sradi	rRTN, rRTN, 63		/* must return an int.  */
+ 	ori	rRTN, rRTN, 1
+ 	blr
+ L(equal):
+@@ -104,7 +152,7 @@
+ 	blr
+ 
+ L(different):
+-	ldu	rWORD1, -8(rSTR1)
++	ld	rWORD1, -8(rSTR1)
+ 	xor.	rBITDIF, rWORD1, rWORD2
+ 	sub	rRTN, rWORD1, rWORD2
+ 	blt-	L(highbit)
+@@ -112,11 +160,10 @@
+ 	ori	rRTN, rRTN, 1
+ 	blr
+ L(highbit):
+-	srdi	rWORD2, rWORD2, 56
+-	srdi	rWORD1, rWORD1, 56
+-	sub	rRTN, rWORD1, rWORD2
++	sradi	rRTN, rWORD2, 63
++	ori	rRTN, rRTN, 1
+ 	blr
+-
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte comparison.  */
+ 	.align 4

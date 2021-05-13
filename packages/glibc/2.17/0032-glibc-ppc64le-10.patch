@@ -1,0 +1,91 @@
+# commit 32c301dfc9b786453e59b61fe4a821a89e1a206b
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:26:39 2013 +0930
+# 
+#     PowerPC floating point little-endian [5 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00085.html
+#     
+#     Rid ourselves of ieee854.
+#     
+#         * sysdeps/ieee754/ldbl-128ibm/ieee754.h (union ieee854_long_double):
+#         Delete.
+#         (IEEE854_LONG_DOUBLE_BIAS): Delete.
+#         * sysdeps/ieee754/ldbl-128ibm/math_ldbl.h: Don't include ieee854
+#         version of math_ldbl.h.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h	2014-05-27 22:10:43.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/ieee754.h	2014-05-27 22:11:10.000000000 -0500
+@@ -112,61 +112,6 @@
+ #define IEEE754_DOUBLE_BIAS	0x3ff /* Added to exponent.  */
+ 
+ 
+-union ieee854_long_double
+-  {
+-    long double d;
+-
+-    /* This is the IEEE 854 quad-precision format.  */
+-    struct
+-      {
+-#if	__BYTE_ORDER == __BIG_ENDIAN
+-	unsigned int negative:1;
+-	unsigned int exponent:15;
+-	/* Together these comprise the mantissa.  */
+-	unsigned int mantissa0:16;
+-	unsigned int mantissa1:32;
+-	unsigned int mantissa2:32;
+-	unsigned int mantissa3:32;
+-#endif				/* Big endian.  */
+-#if	__BYTE_ORDER == __LITTLE_ENDIAN
+-	/* Together these comprise the mantissa.  */
+-	unsigned int mantissa3:32;
+-	unsigned int mantissa2:32;
+-	unsigned int mantissa1:32;
+-	unsigned int mantissa0:16;
+-	unsigned int exponent:15;
+-	unsigned int negative:1;
+-#endif				/* Little endian.  */
+-      } ieee;
+-
+-    /* This format makes it easier to see if a NaN is a signalling NaN.  */
+-    struct
+-      {
+-#if	__BYTE_ORDER == __BIG_ENDIAN
+-	unsigned int negative:1;
+-	unsigned int exponent:15;
+-	unsigned int quiet_nan:1;
+-	/* Together these comprise the mantissa.  */
+-	unsigned int mantissa0:15;
+-	unsigned int mantissa1:32;
+-	unsigned int mantissa2:32;
+-	unsigned int mantissa3:32;
+-#else
+-	/* Together these comprise the mantissa.  */
+-	unsigned int mantissa3:32;
+-	unsigned int mantissa2:32;
+-	unsigned int mantissa1:32;
+-	unsigned int mantissa0:15;
+-	unsigned int quiet_nan:1;
+-	unsigned int exponent:15;
+-	unsigned int negative:1;
+-#endif
+-      } ieee_nan;
+-  };
+-
+-#define IEEE854_LONG_DOUBLE_BIAS 0x3fff /* Added to exponent.  */
+-
+-
+ /* IBM extended format for long double.
+ 
+    Each long double is made up of two IEEE doubles.  The value of the
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h	2014-05-27 22:10:43.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/math_ldbl.h	2014-05-27 22:11:10.000000000 -0500
+@@ -2,7 +2,6 @@
+ #error "Never use <math_ldbl.h> directly; include <math_private.h> instead."
+ #endif
+ 
+-#include <sysdeps/ieee754/ldbl-128/math_ldbl.h>
+ #include <ieee754.h>
+   
+ static inline void

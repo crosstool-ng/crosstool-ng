@@ -1,0 +1,83 @@
+# commit 1695c7737655241e1773bdddc93e82c22d8d1584
+# Author: Adhemerval Zanella <azanella@linux.vnet.ibm.com>
+# Date:   Tue Feb 4 09:48:47 2014 -0200
+#
+#     abilist-pattern configurability
+#    
+#     This patch creates implicit rules to match the abifiles if
+#     abilist-pattern is defined in the architecture Makefile. This allows
+#     machine specific Makefiles to define different abifiles names
+#     (for instance *-le.abilist for powerpc64le).
+#
+diff -urN glibc-2.17-c758a686/Makerules glibc-2.17-c758a686/Makerules
+--- glibc-2.17-c758a686/Makerules	2014-06-02 15:29:42.000000000 +0000
++++ glibc-2.17-c758a686/Makerules	2014-06-02 15:25:21.000000000 +0000
+@@ -1152,6 +1152,14 @@
+ 	LC_ALL=C $(OBJDUMP) --dynamic-syms $< > $@T
+ 	mv -f $@T $@
+ 
++# A sysdeps/.../Makefile can set abilist-pattern to something like
++# %-foo.abilist to look for libc-foo.abilist instead of libc.abilist.
++# This makes sense if multiple ABIs can be most cleanly supported by a
++# configuration without using separate sysdeps directories for each.
++ifdef abilist-pattern
++vpath $(abilist-pattern) $(+sysdep_dirs)
++endif
++
+ vpath %.abilist $(+sysdep_dirs)
+ 
+ # The .PRECIOUS rule prevents the files built by an implicit rule whose
+@@ -1161,18 +1169,42 @@
+ .PRECIOUS: %.symlist
+ generated += $(extra-libs:=.symlist)
+ 
++ifdef abilist-pattern
++check-abi-%: $(common-objpfx)config.make $(abilist-pattern) $(objpfx)%.symlist
++	$(check-abi-pattern)
++check-abi-%: $(common-objpfx)config.make $(abilist-pattern) \
++	     $(common-objpfx)%.symlist
++	$(check-abi-pattern)
++endif
+ check-abi-%: $(common-objpfx)config.make %.abilist $(objpfx)%.symlist
+ 	$(check-abi)
+ check-abi-%: $(common-objpfx)config.make %.abilist $(common-objpfx)%.symlist
+ 	$(check-abi)
++define check-abi-pattern
++	diff -p -U 0 $(filter $(abilist-pattern),$^) $(filter %.symlist,$^)
++endef
+ define check-abi
+ 	diff -p -U 0 $(filter %.abilist,$^) $(filter %.symlist,$^)
+ endef
+ 
++ifdef abilist-pattern
++update-abi-%: $(objpfx)%.symlist $(abilist-pattern)
++	$(update-abi-pattern)
++update-abi-%: $(common-objpfx)%.symlist $(abilist-pattern)
++	$(update-abi-pattern)
++endif
+ update-abi-%: $(objpfx)%.symlist %.abilist
+ 	$(update-abi)
+ update-abi-%: $(common-objpfx)%.symlist %.abilist
+ 	$(update-abi)
++define update-abi-pattern
++@if cmp -s $^ 2> /dev/null; \
++ then \
++      echo '+++ $(filter $(abilist-pattern),$^) is unchanged'; \
++ else cp -f $^; \
++      echo '*** Now check $(filter $(abilist-pattern),$^) changes for correctness ***'; \
++ fi
++endef
+ define update-abi
+ @if cmp -s $^ 2> /dev/null; \
+  then \
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/Makefile glibc-2.17-c758a686/sysdeps/powerpc/Makefile
+--- glibc-2.17-c758a686/sysdeps/powerpc/Makefile	2014-06-02 15:29:42.000000000 +0000
++++ glibc-2.17-c758a686/sysdeps/powerpc/Makefile	2014-06-02 15:25:21.000000000 +0000
+@@ -27,3 +27,7 @@
+ sysdep_headers += sys/platform/ppc.h
+ tests += test-gettimebase
+ endif
++
++ifneq (,$(filter %le,$(config-machine)))
++abilist-pattern = %-le.abilist
++endif
