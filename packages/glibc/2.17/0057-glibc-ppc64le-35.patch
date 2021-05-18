@@ -1,0 +1,106 @@
+# commit 5162e7dd96efcd9b45c1dc1471a964d45278b1e1
+# Author: Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+# Date:   Wed Dec 4 06:41:52 2013 -0600
+# 
+#     PowerPC64: Fix incorrect CFI in *context routines
+#     
+#     The context established by "makecontext" has a link register pointing
+#     back to an error path within the makecontext routine.  This is currently
+#     covered by the CFI FDE for makecontext itself, which is simply wrong
+#     for the stack frame *inside* the context.  When trying to unwind (e.g.
+#     doing a backtrace) in a routine inside a context created by makecontext,
+#     this can lead to uninitialized stack slots being accessed, causing the
+#     unwinder to crash in the worst case.
+#     
+#     Similarly, during parts of the "setcontext" routine, when the stack
+#     pointer has already been switched to point to the new context, the
+#     address range is still covered by the CFI FDE for setcontext.  When
+#     trying to unwind in that situation (e.g. backtrace from an async
+#     signal handler for profiling), it is again possible that the unwinder
+#     crashes.
+#     
+#     Theses are all problems in existing code, but the changes in stack
+#     frame layout appear to make the "worst case" much more likely in
+#     the ELFv2 ABI context.  This causes regressions e.g. in the libgo
+#     testsuite on ELFv2.
+#     
+#     This patch fixes this by ending the makecontext/setcontext FDEs
+#     before those problematic parts of the assembler, similar to what
+#     is already done on other platforms.   This fixes the libgo
+#     regression on ELFv2.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S	2014-05-29 13:16:16.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S	2014-05-29 13:16:17.000000000 -0500
+@@ -129,6 +129,10 @@
+      the cpu link stack used to predict blr return addresses.  */
+   bcl	20,31,L(gotexitcodeaddr);
+ 
++  /* End FDE now, because while executing on the context's stack
++     the unwind info would be wrong otherwise.  */
++  cfi_endproc
++
+ 	/* This is the helper code which gets called if a function which
+ 	   is registered with 'makecontext' returns.  In this case we
+ 	   have to install the context listed in the uc_link element of
+@@ -157,6 +161,11 @@
+ #endif
+ 	b    L(do_exit)
+ 
++  /* Re-establish FDE for the rest of the actual makecontext routine.  */
++  cfi_startproc
++  cfi_offset (lr, FRAME_LR_SAVE)
++  cfi_adjust_cfa_offset (128)
++
+   /* The address of the exit code is in the link register.  Store the lr
+      in the ucontext as LNK so the target function will return to our
+      exit code.  */
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/setcontext.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/setcontext.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/setcontext.S	2014-05-29 13:16:16.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/setcontext.S	2014-05-29 13:16:17.000000000 -0500
+@@ -129,6 +129,10 @@
+   lfd  fp1,(SIGCONTEXT_FP_REGS+(PT_R1*8))(r31)
+   lfd  fp0,(SIGCONTEXT_FP_REGS+(PT_R0*8))(r31)
+ 
++  /* End FDE now, because the unwind info would be wrong while
++     we're reloading registers to switch to the new context.  */
++  cfi_endproc
++
+   ld   r0,(SIGCONTEXT_GP_REGS+(PT_LNK*8))(r31)
+   ld   r1,(SIGCONTEXT_GP_REGS+(PT_R1*8))(r31)
+   mtlr r0
+@@ -177,6 +181,11 @@
+   ld   r31,(SIGCONTEXT_GP_REGS+(PT_R31*8))(r31)
+   bctr
+ 
++  /* Re-establish FDE for the rest of the actual setcontext routine.  */
++  cfi_startproc
++  cfi_offset (lr, FRAME_LR_SAVE)
++  cfi_adjust_cfa_offset (128)
++
+ L(nv_error_exit):
+   ld   r0,128+FRAME_LR_SAVE(r1)
+   addi r1,r1,128
+@@ -403,6 +412,10 @@
+   lfd  fp1,(SIGCONTEXT_FP_REGS+(PT_R1*8))(r31)
+   lfd  fp0,(SIGCONTEXT_FP_REGS+(PT_R0*8))(r31)
+ 
++  /* End FDE now, because the unwind info would be wrong while
++     we're reloading registers to switch to the new context.  */
++  cfi_endproc
++
+   ld   r0,(SIGCONTEXT_GP_REGS+(PT_LNK*8))(r31)
+   ld   r1,(SIGCONTEXT_GP_REGS+(PT_R1*8))(r31)
+   mtlr r0
+@@ -451,6 +464,11 @@
+   ld   r31,(SIGCONTEXT_GP_REGS+(PT_R31*8))(r31)
+   bctr
+ 
++  /* Re-establish FDE for the rest of the actual setcontext routine.  */
++  cfi_startproc
++  cfi_offset (lr, FRAME_LR_SAVE)
++  cfi_adjust_cfa_offset (128)
++
+ L(error_exit):
+   ld   r0,128+FRAME_LR_SAVE(r1)
+   addi r1,r1,128

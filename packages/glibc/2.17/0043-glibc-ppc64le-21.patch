@@ -1,0 +1,294 @@
+# commit be1e5d311342e08ae1f8013342df27b7ded2c156
+# Author: Anton Blanchard <anton@au1.ibm.com>
+# Date:   Sat Aug 17 18:34:40 2013 +0930
+# 
+#     PowerPC LE setjmp/longjmp
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00089.html
+#     
+#     Little-endian fixes for setjmp/longjmp.  When writing these I noticed
+#     the setjmp code corrupts the non volatile VMX registers when using an
+#     unaligned buffer.  Anton fixed this, and also simplified it quite a
+#     bit.
+#     
+#     The current code uses boilerplate for the case where we want to store
+#     16 bytes to an unaligned address.  For that we have to do a
+#     read/modify/write of two aligned 16 byte quantities.  In our case we
+#     are storing a bunch of back to back data (consective VMX registers),
+#     and only the start and end of the region need the read/modify/write.
+#     
+#         [BZ #15723]
+#         * sysdeps/powerpc/jmpbuf-offsets.h: Comment fix.
+#         * sysdeps/powerpc/powerpc32/fpu/__longjmp-common.S: Correct
+#         _dl_hwcap access for little-endian.
+#         * sysdeps/powerpc/powerpc32/fpu/setjmp-common.S: Likewise.  Don't
+#         destroy vmx regs when saving unaligned.
+#         * sysdeps/powerpc/powerpc64/__longjmp-common.S: Correct CR load.
+#         * sysdeps/powerpc/powerpc64/setjmp-common.S: Likewise CR save.  Don't
+#         destroy vmx regs when saving unaligned.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/jmpbuf-offsets.h glibc-2.17-c758a686/sysdeps/powerpc/jmpbuf-offsets.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/jmpbuf-offsets.h	2014-05-27 22:55:23.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/jmpbuf-offsets.h	2014-05-27 22:55:27.000000000 -0500
+@@ -21,12 +21,10 @@
+ #define JB_LR     2  /* The address we will return to */
+ #if __WORDSIZE == 64
+ # define JB_GPRS   3  /* GPRs 14 through 31 are saved, 18*2 words total.  */
+-# define JB_CR     21 /* Condition code registers with the VRSAVE at */
+-                       /* offset 172 (low half of the double word.  */
++# define JB_CR     21 /* Shared dword with VRSAVE.  CR word at offset 172.  */
+ # define JB_FPRS   22 /* FPRs 14 through 31 are saved, 18*2 words total.  */
+ # define JB_SIZE   (64 * 8) /* As per PPC64-VMX ABI.  */
+-# define JB_VRSAVE 21 /* VRSAVE shares a double word with the CR at offset */
+-                       /* 168 (high half of the double word).  */
++# define JB_VRSAVE 21 /* Shared dword with CR.  VRSAVE word at offset 168.  */
+ # define JB_VRS    40 /* VRs 20 through 31 are saved, 12*4 words total.  */
+ #else
+ # define JB_GPRS   3  /* GPRs 14 through 31 are saved, 18 in total.  */
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp-common.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp-common.S	2014-05-27 22:55:23.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/__longjmp-common.S	2014-05-27 22:55:27.000000000 -0500
+@@ -46,16 +46,16 @@
+ #   endif
+ 	mtlr    r6
+ 	cfi_same_value (lr)
+-	lwz     r5,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+4(r5)
++	lwz     r5,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+LOWORD(r5)
+ #  else
+ 	lwz     r5,_dl_hwcap@got(r5)
+ 	mtlr    r6
+ 	cfi_same_value (lr)
+-	lwz     r5,4(r5)
++	lwz     r5,LOWORD(r5)
+ #  endif
+ # else
+-	lis	r5,(_dl_hwcap+4)@ha
+-	lwz     r5,(_dl_hwcap+4)@l(r5)
++	lis	r5,(_dl_hwcap+LOWORD)@ha
++	lwz     r5,(_dl_hwcap+LOWORD)@l(r5)
+ # endif
+ 	andis.	r5,r5,(PPC_FEATURE_HAS_ALTIVEC >> 16)
+ 	beq	L(no_vmx)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp-common.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp-common.S	2014-05-27 22:55:23.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/fpu/setjmp-common.S	2014-05-27 22:55:27.000000000 -0500
+@@ -97,14 +97,14 @@
+ #   else
+ 	lwz     r5,_rtld_global_ro@got(r5)
+ #   endif
+-	lwz     r5,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+4(r5)
++	lwz     r5,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+LOWORD(r5)
+ #  else
+ 	lwz     r5,_dl_hwcap@got(r5)
+-	lwz     r5,4(r5)
++	lwz     r5,LOWORD(r5)
+ #  endif
+ # else
+-	lis	r6,(_dl_hwcap+4)@ha
+-	lwz     r5,(_dl_hwcap+4)@l(r6)
++	lis	r6,(_dl_hwcap+LOWORD)@ha
++	lwz     r5,(_dl_hwcap+LOWORD)@l(r6)
+ # endif
+ 	andis.	r5,r5,(PPC_FEATURE_HAS_ALTIVEC >> 16)
+ 	beq	L(no_vmx)
+@@ -114,44 +114,43 @@
+ 	stw	r0,((JB_VRSAVE)*4)(3)
+ 	addi	r6,r5,16
+ 	beq+	L(aligned_save_vmx)
++
+ 	lvsr	v0,0,r5
+-	vspltisb v1,-1         /* set v1 to all 1's */
+-	vspltisb v2,0          /* set v2 to all 0's */
+-	vperm   v3,v2,v1,v0   /* v3 contains shift mask with num all 1 bytes on left = misalignment  */
+-
+-
+-	/* Special case for v20 we need to preserve what is in save area below v20 before obliterating it */
+-	lvx     v5,0,r5
+-	vperm   v20,v20,v20,v0
+-	vsel    v5,v5,v20,v3
+-	vsel    v20,v20,v2,v3
+-	stvx    v5,0,r5
+-
+-#define save_2vmx_partial(savevr,prev_savevr,hivr,shiftvr,maskvr,savegpr,addgpr) \
+-	addi    addgpr,addgpr,32; \
+-	vperm   savevr,savevr,savevr,shiftvr; \
+-	vsel    hivr,prev_savevr,savevr,maskvr; \
+-	stvx    hivr,0,savegpr;
+-
+-	save_2vmx_partial(v21,v20,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v22,v21,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v23,v22,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v24,v23,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v25,v24,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v26,v25,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v27,v26,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v28,v27,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v29,v28,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v30,v29,v5,v0,v3,r5,r6)
+-
+-	/* Special case for r31 we need to preserve what is in save area above v31 before obliterating it */
+-	addi    r5,r5,32
+-	vperm   v31,v31,v31,v0
+-	lvx     v4,0,r5
+-	vsel    v5,v30,v31,v3
+-	stvx    v5,0,r6
+-	vsel    v4,v31,v4,v3
+-	stvx    v4,0,r5
++	lvsl	v1,0,r5
++	addi	r6,r5,-16
++
++# define save_misaligned_vmx(savevr,prevvr,shiftvr,tmpvr,savegpr,addgpr) \
++	addi	addgpr,addgpr,32;					 \
++	vperm	tmpvr,prevvr,savevr,shiftvr;				 \
++	stvx	tmpvr,0,savegpr
++
++	/*
++	 * We have to be careful not to corrupt the data below v20 and
++	 * above v31. To keep things simple we just rotate both ends in
++	 * the opposite direction to our main permute so we can use
++	 * the common macro.
++	 */
++
++	/* load and rotate data below v20 */
++	lvx	v2,0,r5
++	vperm	v2,v2,v2,v1
++	save_misaligned_vmx(v20,v2,v0,v3,r5,r6)
++	save_misaligned_vmx(v21,v20,v0,v3,r6,r5)
++	save_misaligned_vmx(v22,v21,v0,v3,r5,r6)
++	save_misaligned_vmx(v23,v22,v0,v3,r6,r5)
++	save_misaligned_vmx(v24,v23,v0,v3,r5,r6)
++	save_misaligned_vmx(v25,v24,v0,v3,r6,r5)
++	save_misaligned_vmx(v26,v25,v0,v3,r5,r6)
++	save_misaligned_vmx(v27,v26,v0,v3,r6,r5)
++	save_misaligned_vmx(v28,v27,v0,v3,r5,r6)
++	save_misaligned_vmx(v29,v28,v0,v3,r6,r5)
++	save_misaligned_vmx(v30,v29,v0,v3,r5,r6)
++	save_misaligned_vmx(v31,v30,v0,v3,r6,r5)
++	/* load and rotate data above v31 */
++	lvx	v2,0,r6
++	vperm	v2,v2,v2,v1
++	save_misaligned_vmx(v2,v31,v0,v3,r5,r6)
++
+ 	b	L(no_vmx)
+ 
+ L(aligned_save_vmx):
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S	2014-05-27 22:55:23.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S	2014-05-27 22:55:27.000000000 -0500
+@@ -60,7 +60,7 @@
+ 	beq	L(no_vmx)
+ 	la	r5,((JB_VRS)*8)(3)
+ 	andi.	r6,r5,0xf
+-	lwz	r0,((JB_VRSAVE)*8)(3)
++	lwz	r0,((JB_VRSAVE)*8)(3)	/* 32-bit VRSAVE.  */
+ 	mtspr	VRSAVE,r0
+ 	beq+	L(aligned_restore_vmx)
+ 	addi    r6,r5,16
+@@ -156,7 +156,7 @@
+ 	lfd fp21,((JB_FPRS+7)*8)(r3)
+ 	ld r22,((JB_GPRS+8)*8)(r3)
+ 	lfd fp22,((JB_FPRS+8)*8)(r3)
+-	ld r0,(JB_CR*8)(r3)
++	lwz r0,((JB_CR*8)+4)(r3)	/* 32-bit CR.  */
+ 	ld r23,((JB_GPRS+9)*8)(r3)
+ 	lfd fp23,((JB_FPRS+9)*8)(r3)
+ 	ld r24,((JB_GPRS+10)*8)(r3)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S	2014-05-27 22:55:23.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S	2014-05-27 22:55:27.000000000 -0500
+@@ -98,7 +98,7 @@
+ 	mfcr r0
+ 	std  r16,((JB_GPRS+2)*8)(3)
+ 	stfd fp16,((JB_FPRS+2)*8)(3)
+-	std  r0,(JB_CR*8)(3)
++	stw  r0,((JB_CR*8)+4)(3)	/* 32-bit CR.  */
+ 	std  r17,((JB_GPRS+3)*8)(3)
+ 	stfd fp17,((JB_FPRS+3)*8)(3)
+ 	std  r18,((JB_GPRS+4)*8)(3)
+@@ -142,50 +142,46 @@
+ 	la	r5,((JB_VRS)*8)(3)
+ 	andi.	r6,r5,0xf
+ 	mfspr	r0,VRSAVE
+-	stw	r0,((JB_VRSAVE)*8)(3)
++	stw	r0,((JB_VRSAVE)*8)(3)	/* 32-bit VRSAVE.  */
+ 	addi	r6,r5,16
+ 	beq+	L(aligned_save_vmx)
++
+ 	lvsr	v0,0,r5
+-	vspltisb v1,-1         /* set v1 to all 1's */
+-	vspltisb v2,0          /* set v2 to all 0's */
+-	vperm   v3,v2,v1,v0   /* v3 contains shift mask with num all 1 bytes
+-				 on left = misalignment  */
+-
+-
+-	/* Special case for v20 we need to preserve what is in save area
+-	   below v20 before obliterating it */
+-	lvx     v5,0,r5
+-	vperm   v20,v20,v20,v0
+-	vsel    v5,v5,v20,v3
+-	vsel    v20,v20,v2,v3
+-	stvx    v5,0,r5
+-
+-# define save_2vmx_partial(savevr,prev_savevr,hivr,shiftvr,maskvr,savegpr,addgpr) \
+-	addi    addgpr,addgpr,32; \
+-	vperm   savevr,savevr,savevr,shiftvr; \
+-	vsel    hivr,prev_savevr,savevr,maskvr; \
+-	stvx    hivr,0,savegpr;
+-
+-	save_2vmx_partial(v21,v20,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v22,v21,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v23,v22,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v24,v23,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v25,v24,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v26,v25,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v27,v26,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v28,v27,v5,v0,v3,r5,r6)
+-	save_2vmx_partial(v29,v28,v5,v0,v3,r6,r5)
+-	save_2vmx_partial(v30,v29,v5,v0,v3,r5,r6)
+-
+-	/* Special case for r31 we need to preserve what is in save area
+-	   above v31 before obliterating it */
+-	addi    r5,r5,32
+-	vperm   v31,v31,v31,v0
+-	lvx     v4,0,r5
+-	vsel    v5,v30,v31,v3
+-	stvx    v5,0,r6
+-	vsel    v4,v31,v4,v3
+-	stvx    v4,0,r5
++	lvsl	v1,0,r5
++	addi	r6,r5,-16
++
++# define save_misaligned_vmx(savevr,prevvr,shiftvr,tmpvr,savegpr,addgpr) \
++	addi	addgpr,addgpr,32;					 \
++	vperm	tmpvr,prevvr,savevr,shiftvr;				 \
++	stvx	tmpvr,0,savegpr
++
++	/*
++	 * We have to be careful not to corrupt the data below v20 and
++	 * above v31. To keep things simple we just rotate both ends in
++	 * the opposite direction to our main permute so we can use
++	 * the common macro.
++	 */
++
++	/* load and rotate data below v20 */
++	lvx	v2,0,r5
++	vperm	v2,v2,v2,v1
++	save_misaligned_vmx(v20,v2,v0,v3,r5,r6)
++	save_misaligned_vmx(v21,v20,v0,v3,r6,r5)
++	save_misaligned_vmx(v22,v21,v0,v3,r5,r6)
++	save_misaligned_vmx(v23,v22,v0,v3,r6,r5)
++	save_misaligned_vmx(v24,v23,v0,v3,r5,r6)
++	save_misaligned_vmx(v25,v24,v0,v3,r6,r5)
++	save_misaligned_vmx(v26,v25,v0,v3,r5,r6)
++	save_misaligned_vmx(v27,v26,v0,v3,r6,r5)
++	save_misaligned_vmx(v28,v27,v0,v3,r5,r6)
++	save_misaligned_vmx(v29,v28,v0,v3,r6,r5)
++	save_misaligned_vmx(v30,v29,v0,v3,r5,r6)
++	save_misaligned_vmx(v31,v30,v0,v3,r6,r5)
++	/* load and rotate data above v31 */
++	lvx	v2,0,r6
++	vperm	v2,v2,v2,v1
++	save_misaligned_vmx(v2,v31,v0,v3,r5,r6)
++
+ 	b	L(no_vmx)
+ 
+ L(aligned_save_vmx):

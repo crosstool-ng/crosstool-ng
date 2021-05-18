@@ -1,0 +1,272 @@
+# commit 3be87c77d24c4456ccca4034363b6d1814cd0c84
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:47:59 2013 +0930
+# 
+#     PowerPC LE memset
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00104.html
+#     
+#     One of the things I noticed when looking at power7 timing is that rlwimi
+#     is cracked and the two resulting insns have a register dependency.
+#     That makes it a little slower than the equivalent rldimi.
+#     
+#         * sysdeps/powerpc/powerpc64/memset.S: Replace rlwimi with
+#             insrdi.  Formatting.
+#         * sysdeps/powerpc/powerpc64/power4/memset.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power6/memset.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/memset.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power4/memset.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power6/memset.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/memset.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memset.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memset.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memset.S	2014-05-29 13:07:41.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memset.S	2014-05-29 13:07:46.000000000 -0500
+@@ -52,7 +52,7 @@
+ 
+ /* Align to word boundary.  */
+ 	cmplwi	cr5, rLEN, 31
+-	rlwimi	rCHR, rCHR, 8, 16, 23 /* Replicate byte to halfword.  */
++	insrdi	rCHR, rCHR, 8, 48     /* Replicate byte to halfword.  */
+ 	beq+	L(aligned)
+ 	mtcrf	0x01, rMEMP0
+ 	subfic	rALIGN, rALIGN, 4
+@@ -67,7 +67,7 @@
+ /* Handle the case of size < 31.  */
+ L(aligned):
+ 	mtcrf	0x01, rLEN
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32    /* Replicate halfword to word.  */
+ 	ble	cr5, L(medium)
+ /* Align to 32-byte boundary.  */
+ 	andi.	rALIGN, rMEMP, 0x1C
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memset.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memset.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memset.S	2014-05-29 13:07:41.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memset.S	2014-05-29 13:07:46.000000000 -0500
+@@ -50,7 +50,7 @@
+ 	ble-	cr1, L(small)
+ /* Align to word boundary.  */
+ 	cmplwi	cr5, rLEN, 31
+-	rlwimi	rCHR, rCHR, 8, 16, 23 /* Replicate byte to halfword.  */
++	insrdi	rCHR, rCHR, 8, 48	/* Replicate byte to halfword.  */
+ 	beq+	L(aligned)
+ 	mtcrf	0x01, rMEMP0
+ 	subfic	rALIGN, rALIGN, 4
+@@ -66,7 +66,7 @@
+ /* Handle the case of size < 31.  */
+ L(aligned):
+ 	mtcrf	0x01, rLEN
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32	/* Replicate halfword to word.  */
+ 	ble	cr5, L(medium)
+ /* Align to 32-byte boundary.  */
+ 	andi.	rALIGN, rMEMP, 0x1C
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memset.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memset.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memset.S	2014-05-29 13:07:41.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memset.S	2014-05-29 13:07:46.000000000 -0500
+@@ -37,8 +37,8 @@
+ 	cfi_offset(31,-8)
+ 
+ 	/* Replicate byte to word.  */
+-	rlwimi	4,4,8,16,23
+-	rlwimi	4,4,16,0,15
++	insrdi	4,4,8,48
++	insrdi	4,4,16,32
+ 
+ 	ble	cr6,L(small)	/* If length <= 8, use short copy code.  */
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memset.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memset.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memset.S	2014-05-29 13:07:41.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memset.S	2014-05-29 13:07:46.000000000 -0500
+@@ -73,14 +73,14 @@
+ 
+ /* Align to doubleword boundary.  */
+ 	cmpldi	cr5, rLEN, 31
+-	rlwimi	rCHR, rCHR, 8, 16, 23 /* Replicate byte to halfword.  */
++	insrdi	rCHR, rCHR, 8, 48	/* Replicate byte to halfword.  */
+ 	beq+	L(aligned2)
+ 	mtcrf	0x01, rMEMP0
+ 	subfic	rALIGN, rALIGN, 8
+ 	cror	28,30,31		/* Detect odd word aligned.  */
+ 	add	rMEMP, rMEMP, rALIGN
+ 	sub	rLEN, rLEN, rALIGN
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32	/* Replicate halfword to word.  */
+ 	bt	29, L(g4)
+ /* Process the even word of doubleword.  */
+ 	bf+	31, L(g2)
+@@ -102,14 +102,14 @@
+ 
+ /* Handle the case of size < 31.  */
+ L(aligned2):
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32	/* Replicate halfword to word.  */
+ L(aligned):
+ 	mtcrf	0x01, rLEN
+ 	ble	cr5, L(medium)
+ /* Align to 32-byte boundary.  */
+ 	andi.	rALIGN, rMEMP, 0x18
+ 	subfic	rALIGN, rALIGN, 0x20
+-	insrdi	rCHR,rCHR,32,0 /* Replicate word to double word. */
++	insrdi	rCHR, rCHR, 32, 0	/* Replicate word to double word. */
+ 	beq	L(caligned)
+ 	mtcrf	0x01, rALIGN
+ 	add	rMEMP, rMEMP, rALIGN
+@@ -230,7 +230,7 @@
+ /* Memset of 0-31 bytes.  */
+ 	.align 5
+ L(medium):
+-	insrdi	rCHR,rCHR,32,0 /* Replicate word to double word.  */
++	insrdi	rCHR, rCHR, 32, 0	/* Replicate word to double word.  */
+ 	cmpldi	cr1, rLEN, 16
+ L(medium_tail2):
+ 	add	rMEMP, rMEMP, rLEN
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memset.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memset.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memset.S	2014-05-29 13:07:41.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memset.S	2014-05-29 13:07:46.000000000 -0500
+@@ -68,14 +68,14 @@
+ 
+ /* Align to doubleword boundary.  */
+ 	cmpldi	cr5, rLEN, 31
+-	rlwimi	rCHR, rCHR, 8, 16, 23 /* Replicate byte to halfword.  */
++	insrdi	rCHR, rCHR, 8, 48	/* Replicate byte to halfword.  */
+ 	beq+	L(aligned2)
+ 	mtcrf	0x01, rMEMP0
+ 	subfic	rALIGN, rALIGN, 8
+ 	cror	28,30,31		/* Detect odd word aligned.  */
+ 	add	rMEMP, rMEMP, rALIGN
+ 	sub	rLEN, rLEN, rALIGN
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32	/* Replicate halfword to word.  */
+ 	bt	29, L(g4)
+ /* Process the even word of doubleword.  */
+ 	bf+	31, L(g2)
+@@ -97,14 +97,14 @@
+ 
+ /* Handle the case of size < 31.  */
+ L(aligned2):
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32	/* Replicate halfword to word.  */
+ L(aligned):
+ 	mtcrf	0x01, rLEN
+ 	ble	cr5, L(medium)
+ /* Align to 32-byte boundary.  */
+ 	andi.	rALIGN, rMEMP, 0x18
+ 	subfic	rALIGN, rALIGN, 0x20
+-	insrdi	rCHR,rCHR,32,0 /* Replicate word to double word. */
++	insrdi	rCHR, rCHR, 32, 0	/* Replicate word to double word. */
+ 	beq	L(caligned)
+ 	mtcrf	0x01, rALIGN
+ 	add	rMEMP, rMEMP, rALIGN
+@@ -164,24 +164,24 @@
+ L(getCacheAligned):
+ 	cmpldi	cr1,rLEN,32
+ 	andi.	rTMP,rMEMP,127
+-	blt		cr1,L(handletail32)
+-	beq		L(cacheAligned)
++	blt	cr1,L(handletail32)
++	beq	L(cacheAligned)
+ 	addi	rMEMP,rMEMP,32
+ 	addi	rLEN,rLEN,-32
+-	std		rCHR,-32(rMEMP)
+-	std		rCHR,-24(rMEMP)
+-	std		rCHR,-16(rMEMP)
+-	std		rCHR,-8(rMEMP)
+-	b		L(getCacheAligned)
++	std	rCHR,-32(rMEMP)
++	std	rCHR,-24(rMEMP)
++	std	rCHR,-16(rMEMP)
++	std	rCHR,-8(rMEMP)
++	b	L(getCacheAligned)
+ 
+ /* Now we are aligned to the cache line and can use dcbz.  */
+ L(cacheAligned):
+ 	cmpld	cr1,rLEN,rCLS
+-	blt		cr1,L(handletail32)
++	blt	cr1,L(handletail32)
+ 	dcbz	0,rMEMP
+ 	subf	rLEN,rCLS,rLEN
+-	add		rMEMP,rMEMP,rCLS
+-	b		L(cacheAligned)
++	add	rMEMP,rMEMP,rCLS
++	b	L(cacheAligned)
+ 
+ /* We are here because the cache line size was set and was not 32-bytes
+    and the remainder (rLEN) is less than the actual cache line size.
+@@ -218,7 +218,7 @@
+ /* Memset of 0-31 bytes.  */
+ 	.align 5
+ L(medium):
+-	insrdi	rCHR,rCHR,32,0 /* Replicate word to double word.  */
++	insrdi	rCHR, rCHR, 32, 0	/* Replicate word to double word.  */
+ 	cmpldi	cr1, rLEN, 16
+ L(medium_tail2):
+ 	add	rMEMP, rMEMP, rLEN
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memset.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memset.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memset.S	2014-05-29 13:07:41.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memset.S	2014-05-29 13:07:46.000000000 -0500
+@@ -65,14 +65,14 @@
+ 
+ /* Align to doubleword boundary.  */
+ 	cmpldi	cr5, rLEN, 31
+-	rlwimi	rCHR, rCHR, 8, 16, 23 /* Replicate byte to halfword.  */
++	insrdi	rCHR, rCHR, 8, 48	/* Replicate byte to halfword.  */
+ 	beq+	L(aligned2)
+ 	mtcrf	0x01, rMEMP0
+ 	subfic	rALIGN, rALIGN, 8
+ 	cror	28,30,31		/* Detect odd word aligned.  */
+ 	add	rMEMP, rMEMP, rALIGN
+ 	sub	rLEN, rLEN, rALIGN
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32	/* Replicate halfword to word.  */
+ 	bt	29, L(g4)
+ /* Process the even word of doubleword.  */
+ 	bf+	31, L(g2)
+@@ -94,14 +94,14 @@
+ 
+ /* Handle the case of size < 31.  */
+ L(aligned2):
+-	rlwimi	rCHR, rCHR, 16, 0, 15 /* Replicate halfword to word.  */
++	insrdi	rCHR, rCHR, 16, 32	/* Replicate halfword to word.  */
+ L(aligned):
+ 	mtcrf	0x01, rLEN
+ 	ble	cr5, L(medium)
+ /* Align to 32-byte boundary.  */
+ 	andi.	rALIGN, rMEMP, 0x18
+ 	subfic	rALIGN, rALIGN, 0x20
+-	insrdi	rCHR,rCHR,32,0 /* Replicate word to double word. */
++	insrdi	rCHR, rCHR, 32, 0	/* Replicate word to double word. */
+ 	beq	L(caligned)
+ 	mtcrf	0x01, rALIGN
+ 	add	rMEMP, rMEMP, rALIGN
+@@ -362,7 +362,7 @@
+ /* Memset of 0-31 bytes.  */
+ 	.align 5
+ L(medium):
+-	insrdi	rCHR,rCHR,32,0 /* Replicate word to double word.  */
++	insrdi	rCHR, rCHR, 32, 0	/* Replicate word to double word.  */
+ 	cmpldi	cr1, rLEN, 16
+ L(medium_tail2):
+ 	add	rMEMP, rMEMP, rLEN
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memset.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memset.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memset.S	2014-05-29 13:07:41.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memset.S	2014-05-29 13:07:46.000000000 -0500
+@@ -34,8 +34,8 @@
+ 	mr	10,3
+ 
+ 	/* Replicate byte to word.  */
+-	rlwimi	4,4,8,16,23
+-	rlwimi	4,4,16,0,15
++	insrdi	4,4,8,48
++	insrdi	4,4,16,32
+ 	ble	cr6,L(small)	/* If length <= 8, use short copy code.  */
+ 
+ 	neg	0,3
+@@ -323,7 +323,7 @@
+ 	clrldi	0,0,62
+ 	beq	L(medium_aligned)
+ 
+-	/* Force 4-bytes alignment for SRC.  */
++	/* Force 4-bytes alignment for DST.  */
+ 	mtocrf	0x01,0
+ 	subf	5,0,5
+ 1:	/* Copy 1 byte.  */

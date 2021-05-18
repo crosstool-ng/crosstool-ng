@@ -1,0 +1,102 @@
+# commit 02f04a6c7fea2b474b026bbce721d8c658d71fda
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:36:11 2013 +0930
+# 
+#     PowerPC LE _dl_hwcap access
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00091.html
+#     
+#     More LE support, correcting word accesses to _dl_hwcap.
+#     
+#         * sysdeps/unix/sysv/linux/powerpc/powerpc32/getcontext-common.S: Use
+#         HIWORD/LOWORD.
+#         * sysdeps/unix/sysv/linux/powerpc/powerpc32/setcontext-common.S: Ditto.
+#         * sysdeps/unix/sysv/linux/powerpc/powerpc32/swapcontext-common.S: Ditto.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/getcontext-common.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/getcontext-common.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/getcontext-common.S	2014-05-27 23:25:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/getcontext-common.S	2014-05-27 23:25:38.000000000 -0500
+@@ -151,15 +151,15 @@
+ #   ifdef SHARED
+ 	lwz     r7,_rtld_global_ro@got(r7)
+ 	mtlr    r8
+-	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+4(r7)
++	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+LOWORD(r7)
+ #   else
+ 	lwz     r7,_dl_hwcap@got(r7)
+ 	mtlr    r8
+-	lwz     r7,4(r7)
++	lwz     r7,LOWORD(r7)
+ #   endif
+ #  else
+-	lis	r7,(_dl_hwcap+4)@ha
+-	lwz     r7,(_dl_hwcap+4)@l(r7)
++	lis	r7,(_dl_hwcap+LOWORD)@ha
++	lwz     r7,(_dl_hwcap+LOWORD)@l(r7)
+ #  endif
+ 	andis.	r7,r7,(PPC_FEATURE_HAS_ALTIVEC >> 16)
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/setcontext-common.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/setcontext-common.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/setcontext-common.S	2014-05-27 23:25:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/setcontext-common.S	2014-05-27 23:25:38.000000000 -0500
+@@ -79,15 +79,15 @@
+ # ifdef SHARED
+ 	lwz     r7,_rtld_global_ro@got(r7)
+ 	mtlr    r8
+-	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+4(r7)
++	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+LOWORD(r7)
+ # else
+ 	lwz     r7,_dl_hwcap@got(r7)
+ 	mtlr    r8
+-	lwz     r7,4(r7)
++	lwz     r7,LOWORD(r7)
+ # endif
+ #else
+-	lis	r7,(_dl_hwcap+4)@ha
+-	lwz     r7,(_dl_hwcap+4)@l(r7)
++	lis	r7,(_dl_hwcap+LOWORD)@ha
++	lwz     r7,(_dl_hwcap+LOWORD)@l(r7)
+ #endif
+ 
+ #ifdef __CONTEXT_ENABLE_FPRS
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/swapcontext-common.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/swapcontext-common.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/swapcontext-common.S	2014-05-27 23:25:35.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/swapcontext-common.S	2014-05-27 23:25:38.000000000 -0500
+@@ -152,15 +152,15 @@
+ #  ifdef SHARED
+ 	lwz     r7,_rtld_global_ro@got(r7)
+ 	mtlr    r8
+-	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+4(r7)
++	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+LOWORD(r7)
+ #  else
+ 	lwz     r7,_dl_hwcap@got(r7)
+ 	mtlr    r8
+-	lwz     r7,4(r7)
++	lwz     r7,LOWORD(r7)
+ #  endif
+ # else
+-	lis	r7,(_dl_hwcap+4)@ha
+-	lwz     r7,(_dl_hwcap+4)@l(r7)
++	lis	r7,(_dl_hwcap+LOWORD)@ha
++	lwz     r7,(_dl_hwcap+LOWORD)@l(r7)
+ # endif
+ 
+ # ifdef __CONTEXT_ENABLE_VRS
+@@ -308,14 +308,14 @@
+ 	mtlr    r8
+ #   ifdef SHARED
+ 	lwz     r7,_rtld_global_ro@got(r7)
+-	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+4(r7)
++	lwz     r7,RTLD_GLOBAL_RO_DL_HWCAP_OFFSET+LOWORD(r7)
+ #   else
+ 	lwz     r7,_dl_hwcap@got(r7)
+-	lwz     r7,4(r7)
++	lwz     r7,LOWORD(r7)
+ #   endif
+ #  else
+-	lis	r7,(_dl_hwcap+4)@ha
+-	lwz     r7,(_dl_hwcap+4)@l(r7)
++	lis	r7,(_dl_hwcap+LOWORD)@ha
++	lwz     r7,(_dl_hwcap+LOWORD)@l(r7)
+ #  endif
+ 	andis.	r7,r7,(PPC_FEATURE_HAS_ALTIVEC >> 16)
+ 	la	r10,(_UC_VREGS)(r31)

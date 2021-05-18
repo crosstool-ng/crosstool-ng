@@ -1,0 +1,26 @@
+# commit c859b32e9d76afe8a3f20bb9528961a573c06937
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Tue Apr 1 14:07:42 2014 +1030
+# 
+#     Fix s_copysign stack temp for PowerPC64 ELFv2
+# 
+#         [BZ #16786]
+#         * sysdeps/powerpc/powerpc64/fpu/s_copysign.S: Don't trash stack.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/fpu/s_copysign.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/fpu/s_copysign.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/fpu/s_copysign.S	2014-05-29 14:13:47.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/fpu/s_copysign.S	2014-05-29 14:13:50.000000000 -0500
+@@ -27,11 +27,11 @@
+ /* double [f1] copysign (double [f1] x, double [f2] y);
+    copysign(x,y) returns a value with the magnitude of x and
+    with the sign bit of y.  */
+-	stfd	fp2,56(r1)
++	stfd	fp2,-8(r1)
+ 	nop
+ 	nop
+ 	nop
+-	ld	r3,56(r1)
++	ld	r3,-8(r1)
+ 	cmpdi   r3,0
+ 	blt     L(0)
+ 	fabs    fp1,fp1

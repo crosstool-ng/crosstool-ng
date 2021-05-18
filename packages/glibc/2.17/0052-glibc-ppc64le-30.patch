@@ -1,0 +1,7383 @@
+# commit fe6e95d7171eba5f3e07848f081676fae4e86322
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:46:47 2013 +0930
+# 
+#     PowerPC LE memcmp
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00102.html
+#     
+#     This is a rather large patch due to formatting and renaming.  The
+#     formatting changes were to make it possible to compare power7 and
+#     power4 versions of memcmp.  Using different register defines came
+#     about while I was wrestling with the code, trying to find spare
+#     registers at one stage.  I found it much simpler if we refer to a reg
+#     by the same name throughout a function, so it's better if short-term
+#     multiple use regs like rTMP are referred to using their register
+#     number.  I made the cr field usage changes when attempting to reload
+#     rWORDn regs in the exit path to byte swap before comparing when
+#     little-endian.  That proved a bad idea due to the pipelining involved
+#     in the main loop;  Offsets to reload the regs were different first
+#     time around the loop..  Anyway, I left the cr field usage changes in
+#     place for consistency.
+#     
+#     Aside from these more-or-less cosmetic changes, I fixed a number of
+#     places where an early exit path restores regs unnecessarily, removed
+#     some dead code, and optimised one or two exits.
+#     
+#         * sysdeps/powerpc/powerpc64/power7/memcmp.S: Add little-endian support.
+#         Formatting.  Consistently use rXXX register defines or rN defines.
+#         Use early exit labels that avoid restoring unused non-volatile regs.
+#         Make cr field use more consistent with rWORDn compares.  Rename
+#         regs used as shift registers for unaligned loop, using rN defines
+#         for short lifetime/multiple use regs.
+#         * sysdeps/powerpc/powerpc64/power4/memcmp.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/memcmp.S: Likewise.  Exit with
+#         addi 1,1,64 to pop stack frame.  Simplify return value code.
+#         * sysdeps/powerpc/powerpc32/power4/memcmp.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcmp.S	2014-05-28 19:22:37.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcmp.S	2014-05-28 23:55:52.000000000 -0500
+@@ -1,4 +1,4 @@
+-/* Optimized strcmp implementation for PowerPC64.
++/* Optimized strcmp implementation for PowerPC32.
+    Copyright (C) 2003, 2006 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+@@ -20,13 +20,14 @@
+ #include <bp-sym.h>
+ #include <bp-asm.h>
+ 
+-/* int [r3] memcmp (const char *s1 [r3], const char *s2 [r4], size_t size [r5])  */
+-
++/* int [r3] memcmp (const char *s1 [r3],
++		    const char *s2 [r4],
++		    size_t size [r5])  */
++ 
+ 	.machine power4
+ EALIGN (BP_SYM(memcmp), 4, 0)
+ 	CALL_MCOUNT
+ 
+-#define rTMP	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -37,33 +38,32 @@
+ #define rWORD4	r9	/* next word in s2 */
+ #define rWORD5	r10	/* next word in s1 */
+ #define rWORD6	r11	/* next word in s2 */
+-#define rBITDIF	r12	/* bits that differ in s1 & s2 words */
+ #define rWORD7	r30	/* next word in s1 */
+ #define rWORD8	r31	/* next word in s2 */
+ 
+-	xor	rTMP, rSTR2, rSTR1
++	xor	r0, rSTR2, rSTR1
+ 	cmplwi	cr6, rN, 0
+ 	cmplwi	cr1, rN, 12
+-	clrlwi.	rTMP, rTMP, 30
+-	clrlwi	rBITDIF, rSTR1, 30
+-	cmplwi	cr5, rBITDIF, 0
++	clrlwi.	r0, r0, 30
++	clrlwi	r12, rSTR1, 30
++	cmplwi	cr5, r12, 0
+ 	beq-	cr6, L(zeroLength)
+-	dcbt	0,rSTR1
+-	dcbt	0,rSTR2
++	dcbt	0, rSTR1
++	dcbt	0, rSTR2
+ /* If less than 8 bytes or not aligned, use the unaligned
+    byte loop.  */
+ 	blt	cr1, L(bytealigned)
+-        stwu    1,-64(1)
++	stwu	1, -64(r1)
+ 	cfi_adjust_cfa_offset(64)
+-        stw     r31,48(1)	
+-	cfi_offset(31,(48-64))
+-        stw     r30,44(1)	
+-	cfi_offset(30,(44-64))
++	stw	rWORD8, 48(r1)
++	cfi_offset(rWORD8, (48-64))
++	stw	rWORD7, 44(r1)
++	cfi_offset(rWORD7, (44-64))
+ 	bne	L(unaligned)
+ /* At this point we know both strings have the same alignment and the
+-   compare length is at least 8 bytes.  rBITDIF contains the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    2 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then we are already word 
++   of r12 to 0.  If r12 == 0 then we are already word
+    aligned and can perform the word aligned loop.
+   
+    Otherwise we know the two strings have the same alignment (but not
+@@ -72,74 +72,95 @@
+    eliminate bits preceeding the first byte.  Since we want to join the
+    normal (word aligned) compare loop, starting at the second word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first word. This insures that the loop count is
++   versioning for the first word. This ensures that the loop count is
+    correct and the first word (shifted) is in the expected register pair. */
+-	.align 4
++	.align	4
+ L(samealignment):
+ 	clrrwi	rSTR1, rSTR1, 2
+ 	clrrwi	rSTR2, rSTR2, 2
+ 	beq	cr5, L(Waligned)
+-	add	rN, rN, rBITDIF
+-	slwi	r11, rBITDIF, 3
+-	srwi	rTMP, rN, 4	 /* Divide by 16 */
+-	andi.	rBITDIF, rN, 12  /* Get the word remainder */
++	add	rN, rN, r12
++	slwi	rWORD6, r12, 3
++	srwi	r0, rN, 4	/* Divide by 16 */
++	andi.	r12, rN, 12	/* Get the word remainder */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 0(rSTR1)
+ 	lwz	rWORD2, 0(rSTR2)
+-	cmplwi	cr1, rBITDIF, 8
++#endif
++	cmplwi	cr1, r12, 8
+ 	cmplwi	cr7, rN, 16
+ 	clrlwi	rN, rN, 30
+ 	beq	L(dPs4)
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
+ 	bgt	cr1, L(dPs3)
+ 	beq	cr1, L(dPs2)
+ 
+ /* Remainder is 4 */
+-	.align 3
++	.align	3
+ L(dsP1):
+-	slw	rWORD5, rWORD1, r11
+-	slw	rWORD6, rWORD2, r11
++	slw	rWORD5, rWORD1, rWORD6
++	slw	rWORD6, rWORD2, rWORD6
+ 	cmplw	cr5, rWORD5, rWORD6
+ 	blt	cr7, L(dP1x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 4(rSTR1)
+ 	lwz	rWORD2, 4(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ 	b	L(dP1e)
+ /* Remainder is 8 */
+-	.align 4
++	.align	4
+ L(dPs2):
+-	slw	rWORD5, rWORD1, r11
+-	slw	rWORD6, rWORD2, r11
++	slw	rWORD5, rWORD1, rWORD6
++	slw	rWORD6, rWORD2, rWORD6
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	blt	cr7, L(dP2x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD7, 4(rSTR1)
+ 	lwz	rWORD8, 4(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+ 	b	L(dP2e)
+ /* Remainder is 12 */
+-	.align 4
++	.align	4
+ L(dPs3):
+-	slw	rWORD3, rWORD1, r11
+-	slw	rWORD4, rWORD2, r11
++	slw	rWORD3, rWORD1, rWORD6
++	slw	rWORD4, rWORD2, rWORD6
+ 	cmplw	cr1, rWORD3, rWORD4
+ 	b	L(dP3e)
+ /* Count is a multiple of 16, remainder is 0 */
+-	.align 4
++	.align	4
+ L(dPs4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	slw	rWORD1, rWORD1, r11
+-	slw	rWORD2, rWORD2, r11
+-	cmplw	cr0, rWORD1, rWORD2
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	slw	rWORD1, rWORD1, rWORD6
++	slw	rWORD2, rWORD2, rWORD6
++	cmplw	cr7, rWORD1, rWORD2
+ 	b	L(dP4e)
+ 
+ /* At this point we know both strings are word aligned and the
+    compare length is at least 8 bytes.  */
+-	.align 4
++	.align	4
+ L(Waligned):
+-	andi.	rBITDIF, rN, 12  /* Get the word remainder */
+-	srwi	rTMP, rN, 4	 /* Divide by 16 */
+-	cmplwi	cr1, rBITDIF, 8
++	andi.	r12, rN, 12	/* Get the word remainder */
++	srwi	r0, rN, 4	/* Divide by 16 */
++	cmplwi	cr1, r12, 8
+ 	cmplwi	cr7, rN, 16
+ 	clrlwi	rN, rN, 30
+ 	beq	L(dP4)
+@@ -147,177 +168,352 @@
+ 	beq	cr1, L(dP2)
+ 		
+ /* Remainder is 4 */
+-	.align 4
++	.align	4
+ L(dP1):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
+ /* Normally we'd use rWORD7/rWORD8 here, but since we might exit early
+    (8-15 byte compare), we want to use only volatile registers.  This
+    means we can avoid restoring non-volatile registers since we did not
+    change any on the early exit path.  The key here is the non-early
+    exit path only cares about the condition code (cr5), not about which 
+    register pair was used.  */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 0(rSTR1)
+ 	lwz	rWORD6, 0(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD5, rWORD6
+ 	blt	cr7, L(dP1x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 4(rSTR1)
+ 	lwz	rWORD2, 4(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ L(dP1e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 8(rSTR1)
+ 	lwz	rWORD4, 8(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 12(rSTR1)
+ 	lwz	rWORD6, 12(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+-	bne	cr5, L(dLcr5)
+-	bne	cr0, L(dLcr0)
+-	
++	bne	cr5, L(dLcr5x)
++	bne	cr7, L(dLcr7x)
++
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwzu	rWORD7, 16(rSTR1)
+ 	lwzu	rWORD8, 16(rSTR2)
++#endif
+ 	bne	cr1, L(dLcr1)
+ 	cmplw	cr5, rWORD7, rWORD8
+ 	bdnz	L(dLoop)
+ 	bne	cr6, L(dLcr6)
+-        lwz     r30,44(1)
+-        lwz     r31,48(1)
+-	.align 3
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++	.align	3
+ L(dP1x):
+ 	slwi.	r12, rN, 3
+-	bne	cr5, L(dLcr5)
++	bne	cr5, L(dLcr5x)
+ 	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
+-        lwz     1,0(1)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bne	L(d00)
+ 	li	rRTN, 0
+ 	blr
+ 		
+ /* Remainder is 8 */
+-	.align 4
++	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dP2):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 0(rSTR1)
+ 	lwz	rWORD6, 0(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	blt	cr7, L(dP2x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD7, 4(rSTR1)
+ 	lwz	rWORD8, 4(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+ L(dP2e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 8(rSTR1)
+ 	lwz	rWORD2, 8(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 12(rSTR1)
+ 	lwz	rWORD4, 12(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 4
+ 	addi	rSTR2, rSTR2, 4
++#endif
+ 	bne	cr6, L(dLcr6)
+ 	bne	cr5, L(dLcr5)
+ 	b	L(dLoop2)
+ /* Again we are on a early exit path (16-23 byte compare), we want to
+    only use volatile registers and avoid restoring non-volatile
+    registers.  */
+-	.align 4
++	.align	4
+ L(dP2x):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 4(rSTR1)
+ 	lwz	rWORD4, 4(rSTR2)
+-	cmplw	cr5, rWORD3, rWORD4
++#endif
++	cmplw	cr1, rWORD3, rWORD4
+ 	slwi.	r12, rN, 3
+-	bne	cr6, L(dLcr6)
++	bne	cr6, L(dLcr6x)
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 4
+ 	addi	rSTR2, rSTR2, 4
+-	bne	cr5, L(dLcr5)
++#endif
++	bne	cr1, L(dLcr1x)
+ 	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
+-        lwz     1,0(1)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bne	L(d00)
+ 	li	rRTN, 0
+ 	blr
+ 		
+ /* Remainder is 12 */
+-	.align 4
++	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dP3):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 0(rSTR1)
+ 	lwz	rWORD4, 0(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+ L(dP3e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 4(rSTR1)
+ 	lwz	rWORD6, 4(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	blt	cr7, L(dP3x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD7, 8(rSTR1)
+ 	lwz	rWORD8, 8(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 12(rSTR1)
+ 	lwz	rWORD2, 12(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
++#endif
+ 	bne	cr1, L(dLcr1)
+ 	bne	cr6, L(dLcr6)
+ 	b	L(dLoop1)
+ /* Again we are on a early exit path (24-31 byte compare), we want to
+    only use volatile registers and avoid restoring non-volatile
+    registers.  */
+-	.align 4
++	.align	4
+ L(dP3x):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 8(rSTR1)
+ 	lwz	rWORD2, 8(rSTR2)
+-	cmplw	cr5, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ 	slwi.	r12, rN, 3
+-	bne	cr1, L(dLcr1)
++	bne	cr1, L(dLcr1x)
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
+-	bne	cr6, L(dLcr6)
++#endif
++	bne	cr6, L(dLcr6x)
+ 	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
+-	bne	cr5, L(dLcr5)
+-        lwz     1,0(1)
++	bne	cr7, L(dLcr7x)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bne	L(d00)
+ 	li	rRTN, 0
+ 	blr
+ 	
+ /* Count is a multiple of 16, remainder is 0 */
+-	.align 4
++	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dP4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 0(rSTR1)
+ 	lwz	rWORD2, 0(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ L(dP4e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 4(rSTR1)
+ 	lwz	rWORD4, 4(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 8(rSTR1)
+ 	lwz	rWORD6, 8(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwzu	rWORD7, 12(rSTR1)
+ 	lwzu	rWORD8, 12(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+-	bne	cr0, L(dLcr0)
++	bne	cr7, L(dLcr7)
+ 	bne	cr1, L(dLcr1)
+ 	bdz-	L(d24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+-	.align 4
++	.align	4
+ L(dLoop):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 4(rSTR1)
+ 	lwz	rWORD2, 4(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+ 	bne	cr6, L(dLcr6)
+ L(dLoop1):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 8(rSTR1)
+ 	lwz	rWORD4, 8(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	bne	cr5, L(dLcr5)
+ L(dLoop2):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 12(rSTR1)
+ 	lwz	rWORD6, 12(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+-	bne	cr0, L(dLcr0)
++	bne	cr7, L(dLcr7)
+ L(dLoop3):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwzu	rWORD7, 16(rSTR1)
+ 	lwzu	rWORD8, 16(rSTR2)
++#endif
+ 	bne-	cr1, L(dLcr1)
+-	cmplw	cr0, rWORD1, rWORD2
++	cmplw	cr7, rWORD1, rWORD2
+ 	bdnz+	L(dLoop)	
+ 	
+ L(dL4):
+@@ -327,7 +523,7 @@
+ 	bne	cr5, L(dLcr5)
+ 	cmplw	cr5, rWORD7, rWORD8
+ L(d44):
+-	bne	cr0, L(dLcr0)
++	bne	cr7, L(dLcr7)
+ L(d34):
+ 	bne	cr1, L(dLcr1)
+ L(d24):
+@@ -336,69 +532,82 @@
+ 	slwi.	r12, rN, 3
+ 	bne	cr5, L(dLcr5) 
+ L(d04):
+-        lwz     r30,44(1)
+-        lwz     r31,48(1)
+-        lwz     1,0(1)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
+ 	beq	L(zeroLength)
+ /* At this point we have a remainder of 1 to 3 bytes to compare.  Since
+    we are aligned it is safe to load the whole word, and use
+-   shift right to eliminate bits beyond the compare length. */ 
++   shift right to eliminate bits beyond the compare length.  */
+ L(d00):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 4(rSTR1)
+ 	lwz	rWORD2, 4(rSTR2) 
++#endif
+ 	srw	rWORD1, rWORD1, rN
+ 	srw	rWORD2, rWORD2, rN
+-        cmplw   rWORD1,rWORD2
+-        li      rRTN,0
+-        beqlr
+-        li      rRTN,1
+-        bgtlr
+-        li      rRTN,-1
+-        blr
+-
+-	.align 4
+-L(dLcr0):
+-        lwz     r30,44(1)
+-        lwz     r31,48(1)
++	sub	rRTN, rWORD1, rWORD2
++	blr
++
++	.align	4
++	cfi_adjust_cfa_offset(64)
++L(dLcr7):
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++L(dLcr7x):
+ 	li	rRTN, 1
+-        lwz     1,0(1)
+-	bgtlr	cr0
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
++	bgtlr	cr7
+ 	li	rRTN, -1
+ 	blr
+-	.align 4
++	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dLcr1):
+-        lwz     r30,44(1)
+-        lwz     r31,48(1)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++L(dLcr1x):
+ 	li	rRTN, 1
+-        lwz     1,0(1)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bgtlr	cr1
+ 	li	rRTN, -1
+ 	blr
+-	.align 4
++	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dLcr6):
+-        lwz     r30,44(1)
+-        lwz     r31,48(1)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++L(dLcr6x):
+ 	li	rRTN, 1
+-        lwz     1,0(1)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bgtlr	cr6
+ 	li	rRTN, -1
+ 	blr
+-	.align 4
++	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dLcr5):
+-        lwz     r30,44(1)
+-        lwz     r31,48(1)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
+ L(dLcr5x):
+ 	li	rRTN, 1
+-        lwz     1,0(1)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bgtlr	cr5
+ 	li	rRTN, -1
+ 	blr
+ 	
+-	.align 4
++	.align	4
+ L(bytealigned):
+-	cfi_adjust_cfa_offset(-64)
+-	mtctr   rN	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	rN	/* Power4 wants mtctr 1st in dispatch group */
+ 
+ /* We need to prime this loop.  This loop is swing modulo scheduled
+    to avoid pipe delays.  The dependent instruction latencies (load to 
+@@ -413,7 +622,7 @@
+ 	lbz	rWORD1, 0(rSTR1)
+ 	lbz	rWORD2, 0(rSTR2)
+ 	bdz-	L(b11)
+-	cmplw	cr0, rWORD1, rWORD2
++	cmplw	cr7, rWORD1, rWORD2
+ 	lbz	rWORD3, 1(rSTR1)
+ 	lbz	rWORD4, 1(rSTR2)
+ 	bdz-	L(b12)
+@@ -421,11 +630,11 @@
+ 	lbzu	rWORD5, 2(rSTR1)
+ 	lbzu	rWORD6, 2(rSTR2)
+ 	bdz-	L(b13)
+-	.align 4
++	.align	4
+ L(bLoop):
+ 	lbzu	rWORD1, 1(rSTR1)
+ 	lbzu	rWORD2, 1(rSTR2)
+-	bne-	cr0, L(bLcr0)
++	bne-	cr7, L(bLcr7)
+ 
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	bdz-	L(b3i)
+@@ -434,7 +643,7 @@
+ 	lbzu	rWORD4, 1(rSTR2)
+ 	bne-	cr1, L(bLcr1)
+ 
+-	cmplw	cr0, rWORD1, rWORD2
++	cmplw	cr7, rWORD1, rWORD2
+ 	bdz-	L(b2i)
+ 
+ 	lbzu	rWORD5, 1(rSTR1)
+@@ -451,23 +660,23 @@
+    tested.  In this case we must complete the pending operations
+    before returning.  */
+ L(b1i):
+-	bne-	cr0, L(bLcr0)
++	bne-	cr7, L(bLcr7)
+ 	bne-	cr1, L(bLcr1)
+ 	b	L(bx56)
+-	.align 4
++	.align	4
+ L(b2i):
+ 	bne-	cr6, L(bLcr6)
+-	bne-	cr0, L(bLcr0)
++	bne-	cr7, L(bLcr7)
+ 	b	L(bx34)
+-	.align 4
++	.align	4
+ L(b3i):
+ 	bne-	cr1, L(bLcr1)
+ 	bne-	cr6, L(bLcr6)
+ 	b	L(bx12)
+-	.align 4
+-L(bLcr0):
++	.align	4
++L(bLcr7):
+ 	li	rRTN, 1
+-	bgtlr	cr0
++	bgtlr	cr7
+ 	li	rRTN, -1
+ 	blr
+ L(bLcr1):
+@@ -482,36 +691,31 @@
+ 	blr
+ 
+ L(b13):
+-	bne-	cr0, L(bx12)
++	bne-	cr7, L(bx12)
+ 	bne-	cr1, L(bx34)
+ L(bx56):
+ 	sub	rRTN, rWORD5, rWORD6
+ 	blr
+ 	nop
+ L(b12):
+-	bne-	cr0, L(bx12)
++	bne-	cr7, L(bx12)
+ L(bx34):	
+ 	sub	rRTN, rWORD3, rWORD4
+ 	blr
+-
+ L(b11):
+ L(bx12):
+ 	sub	rRTN, rWORD1, rWORD2
+ 	blr
+-
+-	.align 4 
+-L(zeroLengthReturn):
+-
++	.align	4
+ L(zeroLength):
+ 	li	rRTN, 0
+ 	blr
+ 
+-	cfi_adjust_cfa_offset(64)
+-	.align 4
++	.align	4
+ /* At this point we know the strings have different alignment and the
+-   compare length is at least 8 bytes.  rBITDIF contains the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    2 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then rStr1 is word aligned and can 
++   of r12 to 0.  If r12 == 0 then rStr1 is word aligned and can
+    perform the Wunaligned loop.
+   
+    Otherwise we know that rSTR1 is not aready word aligned yet.
+@@ -520,79 +724,88 @@
+    eliminate bits preceeding the first byte.  Since we want to join the
+    normal (Wualigned) compare loop, starting at the second word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first W. This insures that the loop count is
++   versioning for the first W. This ensures that the loop count is
+    correct and the first W (shifted) is in the expected resister pair.  */
+ #define rSHL		r29	/* Unaligned shift left count.  */
+ #define rSHR		r28	/* Unaligned shift right count.  */
+-#define rB		r27	/* Left rotation temp for rWORD2.  */
+-#define rD		r26	/* Left rotation temp for rWORD4.  */
+-#define rF		r25	/* Left rotation temp for rWORD6.  */
+-#define rH		r24	/* Left rotation temp for rWORD8.  */
+-#define rA		r0	/* Right rotation temp for rWORD2.  */
+-#define rC		r12	/* Right rotation temp for rWORD4.  */
+-#define rE		r0	/* Right rotation temp for rWORD6.  */
+-#define rG		r12	/* Right rotation temp for rWORD8.  */
++#define rWORD8_SHIFT	r27	/* Left rotation temp for rWORD2.  */
++#define rWORD2_SHIFT	r26	/* Left rotation temp for rWORD4.  */
++#define rWORD4_SHIFT	r25	/* Left rotation temp for rWORD6.  */
++#define rWORD6_SHIFT	r24	/* Left rotation temp for rWORD8.  */
++	cfi_adjust_cfa_offset(64)
+ L(unaligned):
+-	stw     r29,40(r1)	
+-	cfi_offset(r29,(40-64))	
++	stw	rSHL, 40(r1)
++	cfi_offset(rSHL, (40-64))
+ 	clrlwi	rSHL, rSTR2, 30
+-        stw     r28,36(r1)	
+-	cfi_offset(r28,(36-64))
++	stw	rSHR, 36(r1)
++	cfi_offset(rSHR, (36-64))
+ 	beq	cr5, L(Wunaligned)
+-        stw     r27,32(r1)	
+-	cfi_offset(r27,(32-64))
++	stw	rWORD8_SHIFT, 32(r1)
++	cfi_offset(rWORD8_SHIFT, (32-64))
+ /* Adjust the logical start of rSTR2 to compensate for the extra bits
+    in the 1st rSTR1 W.  */
+-	sub	r27, rSTR2, rBITDIF
++	sub	rWORD8_SHIFT, rSTR2, r12
+ /* But do not attempt to address the W before that W that contains
+    the actual start of rSTR2.  */
+ 	clrrwi	rSTR2, rSTR2, 2
+-        stw     r26,28(r1)	
+-	cfi_offset(r26,(28-64))
+-/* Compute the left/right shift counts for the unalign rSTR2,
++	stw	rWORD2_SHIFT, 28(r1)
++	cfi_offset(rWORD2_SHIFT, (28-64))
++/* Compute the left/right shift counts for the unaligned rSTR2,
+    compensating for the logical (W aligned) start of rSTR1.  */ 
+-	clrlwi	rSHL, r27, 30
++	clrlwi	rSHL, rWORD8_SHIFT, 30
+ 	clrrwi	rSTR1, rSTR1, 2	
+-        stw     r25,24(r1)	
+-	cfi_offset(r25,(24-64))
++	stw	rWORD4_SHIFT, 24(r1)
++	cfi_offset(rWORD4_SHIFT, (24-64))
+ 	slwi	rSHL, rSHL, 3
+-	cmplw	cr5, r27, rSTR2
+-	add	rN, rN, rBITDIF
+-	slwi	r11, rBITDIF, 3
+-        stw     r24,20(r1)	
+-	cfi_offset(r24,(20-64))
++	cmplw	cr5, rWORD8_SHIFT, rSTR2
++	add	rN, rN, r12
++	slwi	rWORD6, r12, 3
++	stw	rWORD6_SHIFT, 20(r1)
++	cfi_offset(rWORD6_SHIFT, (20-64))
+ 	subfic	rSHR, rSHL, 32
+-	srwi	rTMP, rN, 4      /* Divide by 16 */
+-	andi.	rBITDIF, rN, 12  /* Get the W remainder */
++	srwi	r0, rN, 4	/* Divide by 16 */
++	andi.	r12, rN, 12	/* Get the W remainder */
+ /* We normally need to load 2 Ws to start the unaligned rSTR2, but in
+    this special case those bits may be discarded anyway.  Also we
+    must avoid loading a W where none of the bits are part of rSTR2 as
+    this may cross a page boundary and cause a page fault.  */
+ 	li	rWORD8, 0
+ 	blt	cr5, L(dus0)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD8, 0(rSTR2)
+-	la	rSTR2, 4(rSTR2)
++	addi	rSTR2, rSTR2, 4
++#endif
+ 	slw	rWORD8, rWORD8, rSHL
+ 
+ L(dus0):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 0(rSTR1)
+ 	lwz	rWORD2, 0(rSTR2)
+-	cmplwi	cr1, rBITDIF, 8
++#endif
++	cmplwi	cr1, r12, 8
+ 	cmplwi	cr7, rN, 16
+-	srw	rG, rWORD2, rSHR
++	srw	r12, rWORD2, rSHR
+ 	clrlwi	rN, rN, 30
+ 	beq	L(duPs4)
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	or	rWORD8, rG, rWORD8
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	or	rWORD8, r12, rWORD8
+ 	bgt	cr1, L(duPs3)
+ 	beq	cr1, L(duPs2)
+ 
+ /* Remainder is 4 */
+-	.align 4
++	.align	4
+ L(dusP1):
+-	slw	rB, rWORD2, rSHL
+-	slw	rWORD7, rWORD1, r11
+-	slw	rWORD8, rWORD8, r11
++	slw	rWORD8_SHIFT, rWORD2, rSHL
++	slw	rWORD7, rWORD1, rWORD6
++	slw	rWORD8, rWORD8, rWORD6
+ 	bge	cr7, L(duP1e)
+ /* At this point we exit early with the first word compare
+    complete and remainder of 0 to 3 bytes.  See L(du14) for details on
+@@ -602,95 +815,133 @@
+ 	bne	cr5, L(duLcr5)
+ 	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD2, 4(rSTR2)
+-	srw	rA, rWORD2, rSHR
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 8 */
+-	.align 4
++	.align	4
+ L(duPs2):
+-	slw	rH, rWORD2, rSHL
+-	slw	rWORD5, rWORD1, r11
+-	slw	rWORD6, rWORD8, r11
++	slw	rWORD6_SHIFT, rWORD2, rSHL
++	slw	rWORD5, rWORD1, rWORD6
++	slw	rWORD6, rWORD8, rWORD6
+ 	b	L(duP2e)
+ /* Remainder is 12 */
+-	.align 4
++	.align	4
+ L(duPs3):
+-	slw	rF, rWORD2, rSHL
+-	slw	rWORD3, rWORD1, r11
+-	slw	rWORD4, rWORD8, r11
++	slw	rWORD4_SHIFT, rWORD2, rSHL
++	slw	rWORD3, rWORD1, rWORD6
++	slw	rWORD4, rWORD8, rWORD6
+ 	b	L(duP3e)
+ /* Count is a multiple of 16, remainder is 0 */
+-	.align 4
++	.align	4
+ L(duPs4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	or	rWORD8, rG, rWORD8
+-	slw	rD, rWORD2, rSHL
+-	slw	rWORD1, rWORD1, r11
+-	slw	rWORD2, rWORD8, r11
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	or	rWORD8, r12, rWORD8
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	slw	rWORD1, rWORD1, rWORD6
++	slw	rWORD2, rWORD8, rWORD6
+ 	b	L(duP4e)
+ 
+ /* At this point we know rSTR1 is word aligned and the
+    compare length is at least 8 bytes.  */
+-	.align 4
++	.align	4
+ L(Wunaligned):
+-        stw     r27,32(r1)	
+-	cfi_offset(r27,(32-64))
++	stw	rWORD8_SHIFT, 32(r1)
++	cfi_offset(rWORD8_SHIFT, (32-64))
+ 	clrrwi	rSTR2, rSTR2, 2
+-        stw     r26,28(r1)	
+-	cfi_offset(r26,(28-64))
+-	srwi	rTMP, rN, 4	 /* Divide by 16 */
+-        stw     r25,24(r1)	
+-	cfi_offset(r25,(24-64))
+-	andi.	rBITDIF, rN, 12  /* Get the W remainder */
+-        stw     r24,20(r1)	
+-	cfi_offset(r24,(20-64))
++	stw	rWORD2_SHIFT, 28(r1)
++	cfi_offset(rWORD2_SHIFT, (28-64))
++	srwi	r0, rN, 4	/* Divide by 16 */
++	stw	rWORD4_SHIFT, 24(r1)
++	cfi_offset(rWORD4_SHIFT, (24-64))
++	andi.	r12, rN, 12	/* Get the W remainder */
++	stw	rWORD6_SHIFT, 20(r1)
++	cfi_offset(rWORD6_SHIFT, (20-64))
+ 	slwi	rSHL, rSHL, 3
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD6, 0(rSTR2)
+ 	lwzu	rWORD8, 4(rSTR2)
+-	cmplwi	cr1, rBITDIF, 8
++#endif
++	cmplwi	cr1, r12, 8
+ 	cmplwi	cr7, rN, 16
+ 	clrlwi	rN, rN, 30
+ 	subfic	rSHR, rSHL, 32
+-	slw	rH, rWORD6, rSHL
++	slw	rWORD6_SHIFT, rWORD6, rSHL
+ 	beq	L(duP4)
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
+ 	bgt	cr1, L(duP3)
+ 	beq	cr1, L(duP2)
+ 		
+ /* Remainder is 4 */
+-	.align 4
++	.align	4
+ L(duP1):
+-	srw	rG, rWORD8, rSHR
++	srw	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
+ 	lwz	rWORD7, 0(rSTR1)
+-	slw	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++#endif
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	blt	cr7, L(duP1x)
+ L(duP1e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 4(rSTR1)
+ 	lwz	rWORD2, 4(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+-	srw	rA, rWORD2, rSHR
+-	slw	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 8(rSTR1)
+ 	lwz	rWORD4, 8(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
+-	srw	rC, rWORD4, rSHR
+-	slw	rF, rWORD4, rSHL
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
+ 	bne	cr5, L(duLcr5)
+-	or	rWORD4, rC, rD
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 12(rSTR1)
+ 	lwz	rWORD6, 12(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+-	srw	rE, rWORD6, rSHR
+-	slw	rH, rWORD6, rSHL
+-	bne	cr0, L(duLcr0)
+-	or	rWORD6, rE, rF
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	bne	cr7, L(duLcr7)
++	or	rWORD6, r0, rWORD4_SHIFT
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	b	L(duLoop3)	
+-	.align 4
++	.align	4
+ /* At this point we exit early with the first word compare
+    complete and remainder of 0 to 3 bytes.  See L(du14) for details on
+    how we handle the remaining bytes.  */
+@@ -700,186 +951,321 @@
+ 	bne	cr5, L(duLcr5)
+ 	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
+-	ld	rWORD2, 8(rSTR2)
+-	srw	rA, rWORD2, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD2, 8(rSTR2)
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 8 */
+-	.align 4
++	.align	4
+ L(duP2):
+-	srw	rE, rWORD8, rSHR
++	srw	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
+ 	lwz	rWORD5, 0(rSTR1)
+-	or	rWORD6, rE, rH
+-	slw	rH, rWORD8, rSHL
++#endif
++	or	rWORD6, r0, rWORD6_SHIFT
++	slw	rWORD6_SHIFT, rWORD8, rSHL
+ L(duP2e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD7, 4(rSTR1)
+ 	lwz	rWORD8, 4(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+-	srw	rG, rWORD8, rSHR
+-	slw	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	blt	cr7, L(duP2x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 8(rSTR1)
+ 	lwz	rWORD2, 8(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+ 	bne	cr6, L(duLcr6)
+-	srw	rA, rWORD2, rSHR
+-	slw	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 12(rSTR1)
+ 	lwz	rWORD4, 12(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ 	bne	cr5, L(duLcr5)
+-	srw	rC, rWORD4, rSHR
+-	slw	rF, rWORD4, rSHL
+-	or	rWORD4, rC, rD
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 4
+ 	addi	rSTR2, rSTR2, 4
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+ 	b	L(duLoop2)
+-	.align 4
++	.align	4
+ L(duP2x):
+ 	cmplw	cr5, rWORD7, rWORD8
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 4
+ 	addi	rSTR2, rSTR2, 4
++#endif
+ 	bne	cr6, L(duLcr6)
+ 	slwi.	rN, rN, 3
+ 	bne	cr5, L(duLcr5)
+ 	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD2, 4(rSTR2)
+-	srw	rA, rWORD2, rSHR
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ 		
+ /* Remainder is 12 */
+-	.align 4
++	.align	4
+ L(duP3):
+-	srw	rC, rWORD8, rSHR
++	srw	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
+ 	lwz	rWORD3, 0(rSTR1)
+-	slw	rF, rWORD8, rSHL
+-	or	rWORD4, rC, rH
++#endif
++	slw	rWORD4_SHIFT, rWORD8, rSHL
++	or	rWORD4, r12, rWORD6_SHIFT
+ L(duP3e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 4(rSTR1)
+ 	lwz	rWORD6, 4(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+-	srw	rE, rWORD6, rSHR
+-	slw	rH, rWORD6, rSHL
+-	or	rWORD6, rE, rF
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD7, 8(rSTR1)
+ 	lwz	rWORD8, 8(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	bne	cr1, L(duLcr1)
+-	srw	rG, rWORD8, rSHR
+-	slw	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	blt	cr7, L(duP3x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 12(rSTR1)
+ 	lwz	rWORD2, 12(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+ 	bne	cr6, L(duLcr6)
+-	srw	rA, rWORD2, rSHR
+-	slw	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ 	b	L(duLoop1)
+-	.align 4
++	.align	4
+ L(duP3x):
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
++#endif
++#if 0
++/* Huh?  We've already branched on cr1!  */
+ 	bne	cr1, L(duLcr1)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+ 	bne	cr6, L(duLcr6)
+ 	slwi.	rN, rN, 3
+ 	bne	cr5, L(duLcr5)
+ 	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD2, 4(rSTR2)
+-	srw	rA, rWORD2, rSHR
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ 	
+ /* Count is a multiple of 16, remainder is 0 */
+-	.align 4
++	.align	4
+ L(duP4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	srw	rA, rWORD8, rSHR
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	srw	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
+ 	lwz	rWORD1, 0(rSTR1)
+-	slw	rD, rWORD8, rSHL
+-	or	rWORD2, rA, rH
++#endif
++	slw	rWORD2_SHIFT, rWORD8, rSHL
++	or	rWORD2, r0, rWORD6_SHIFT
+ L(duP4e):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 4(rSTR1)
+ 	lwz	rWORD4, 4(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
+-	srw	rC, rWORD4, rSHR
+-	slw	rF, rWORD4, rSHL
+-	or	rWORD4, rC, rD
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 8(rSTR1)
+ 	lwz	rWORD6, 8(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+-	bne	cr0, L(duLcr0)
+-	srw	rE, rWORD6, rSHR
+-	slw	rH, rWORD6, rSHL
+-	or	rWORD6, rE, rF
++	bne	cr7, L(duLcr7)
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwzu	rWORD7, 12(rSTR1)
+ 	lwzu	rWORD8, 12(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	bne	cr1, L(duLcr1)
+-	srw	rG, rWORD8, rSHR
+-	slw	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	cmplw	cr5, rWORD7, rWORD8
+ 	bdz-	L(du24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+-	.align 4
++	.align	4
+ L(duLoop):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD1, 4(rSTR1)
+ 	lwz	rWORD2, 4(rSTR2)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+ 	bne	cr6, L(duLcr6)
+-	srw	rA, rWORD2, rSHR
+-	slw	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
+ L(duLoop1):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD3, 8(rSTR1)
+ 	lwz	rWORD4, 8(rSTR2)
++#endif
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	bne	cr5, L(duLcr5)
+-	srw	rC, rWORD4, rSHR
+-	slw	rF, rWORD4, rSHL
+-	or	rWORD4, rC, rD
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
+ L(duLoop2):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD5, 12(rSTR1)
+ 	lwz	rWORD6, 12(rSTR2)
++#endif
+ 	cmplw	cr5, rWORD7, rWORD8
+-	bne	cr0, L(duLcr0)
+-	srw	rE, rWORD6, rSHR
+-	slw	rH, rWORD6, rSHL
+-	or	rWORD6, rE, rF
++	bne	cr7, L(duLcr7)
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
+ L(duLoop3):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwzu	rWORD7, 16(rSTR1)
+ 	lwzu	rWORD8, 16(rSTR2)
+-	cmplw	cr0, rWORD1, rWORD2
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ 	bne-	cr1, L(duLcr1)
+-	srw	rG, rWORD8, rSHR
+-	slw	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	bdnz+	L(duLoop)	
+ 	
+ L(duL4):
++#if 0
++/* Huh?  We've already branched on cr1!  */
+ 	bne	cr1, L(duLcr1)
++#endif
+ 	cmplw	cr1, rWORD3, rWORD4
+ 	bne	cr6, L(duLcr6)
+ 	cmplw	cr6, rWORD5, rWORD6
+ 	bne	cr5, L(duLcr5)
+ 	cmplw	cr5, rWORD7, rWORD8
+ L(du44):
+-	bne	cr0, L(duLcr0)
++	bne	cr7, L(duLcr7)
+ L(du34):
+ 	bne	cr1, L(duLcr1)
+ L(du24):
+@@ -889,95 +1275,101 @@
+ 	bne	cr5, L(duLcr5)
+ /* At this point we have a remainder of 1 to 3 bytes to compare.  We use
+    shift right to eliminate bits beyond the compare length. 
++   This allows the use of word subtract to compute the final result.
+ 
+    However it may not be safe to load rWORD2 which may be beyond the 
+    string length. So we compare the bit length of the remainder to
+    the right shift count (rSHR). If the bit count is less than or equal
+    we do not need to load rWORD2 (all significant bits are already in
+-   rB).  */
++   rWORD8_SHIFT).  */
+ 	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
+ 	lwz	rWORD2, 4(rSTR2)
+-	srw	rA, rWORD2, rSHR
+-	.align 4
++#endif
++	srw	r0, rWORD2, rSHR
++	.align	4
+ L(dutrim):
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++#else
+ 	lwz	rWORD1, 4(rSTR1)
+-        lwz     r31,48(1)
++#endif
++	lwz	rWORD8, 48(r1)
+ 	subfic	rN, rN, 32	/* Shift count is 32 - (rN * 8).  */ 
+-	or	rWORD2, rA, rB
+-        lwz     r30,44(1)
+-        lwz     r29,40(r1)
++	or	rWORD2, r0, rWORD8_SHIFT
++	lwz	rWORD7, 44(r1)
++	lwz	rSHL, 40(r1)
+ 	srw	rWORD1, rWORD1, rN
+ 	srw	rWORD2, rWORD2, rN
+-        lwz     r28,36(r1)	
+-        lwz     r27,32(r1)
+-        cmplw   rWORD1,rWORD2
+-        li      rRTN,0
+-        beq     L(dureturn26)
+-        li      rRTN,1
+-        bgt     L(dureturn26)
+-        li      rRTN,-1
+-	b    L(dureturn26)
+-	.align 4
+-L(duLcr0):
+-        lwz     r31,48(1)
+-        lwz     r30,44(1)
+-	li	rRTN, 1
+-	bgt	cr0, L(dureturn29)	
+-	lwz     r29,40(r1)
+-        lwz     r28,36(r1)	
++	lwz	rSHR, 36(r1)
++	lwz	rWORD8_SHIFT, 32(r1)
++	sub	rRTN, rWORD1, rWORD2
++	b	L(dureturn26)
++	.align	4
++L(duLcr7):
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
++	li	rRTN, 1
++	bgt	cr7, L(dureturn29)
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+-	.align 4
++	.align	4
+ L(duLcr1):
+-        lwz     r31,48(1)
+-        lwz     r30,44(1)
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
+ 	li	rRTN, 1
+ 	bgt	cr1, L(dureturn29)	
+-        lwz     r29,40(r1)
+-        lwz     r28,36(r1)	
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+-	.align 4
++	.align	4
+ L(duLcr6):
+-        lwz     r31,48(1)
+-        lwz     r30,44(1)
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
+ 	li	rRTN, 1
+ 	bgt	cr6, L(dureturn29)	
+-        lwz     r29,40(r1)
+-        lwz     r28,36(r1)	
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+-	.align 4
++	.align	4
+ L(duLcr5):
+-        lwz     r31,48(1)
+-        lwz     r30,44(1)
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
+ 	li	rRTN, 1
+ 	bgt	cr5, L(dureturn29)	
+-        lwz     r29,40(r1)
+-        lwz     r28,36(r1)	
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	3
+ L(duZeroReturn):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	.align	4
+ L(dureturn):
+-        lwz     r31,48(1)
+-        lwz     r30,44(1)
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
+ L(dureturn29):	
+-        lwz     r29,40(r1)
+-        lwz     r28,36(r1)	
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
+ L(dureturn27):	
+-        lwz     r27,32(r1)
++	lwz	rWORD8_SHIFT, 32(r1)
+ L(dureturn26):	
+-        lwz     r26,28(r1)
++	lwz	rWORD2_SHIFT, 28(r1)
+ L(dureturn25):	
+-        lwz     r25,24(r1)
+-        lwz     r24,20(r1)
+-        lwz     1,0(1)
++	lwz	rWORD4_SHIFT, 24(r1)
++	lwz	rWORD6_SHIFT, 20(r1)
++	addi	1, 1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	blr
+ END (BP_SYM (memcmp))
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcmp.S	2014-05-28 19:22:37.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcmp.S	2014-05-28 21:44:57.000000000 -0500
+@@ -25,10 +25,9 @@
+ 		    size_t size [r5])  */
+ 
+ 	.machine power7
+-EALIGN (BP_SYM(memcmp),4,0)
++EALIGN (BP_SYM(memcmp), 4, 0)
+ 	CALL_MCOUNT
+ 
+-#define rTMP	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+@@ -39,35 +38,32 @@
+ #define rWORD4	r9	/* next word in s2 */
+ #define rWORD5	r10	/* next word in s1 */
+ #define rWORD6	r11	/* next word in s2 */
+-#define rBITDIF	r12	/* bits that differ in s1 & s2 words */
+ #define rWORD7	r30	/* next word in s1 */
+ #define rWORD8	r31	/* next word in s2 */
+ 
+-	xor	rTMP,rSTR2,rSTR1
+-	cmplwi	cr6,rN,0
+-	cmplwi	cr1,rN,12
+-	clrlwi.	rTMP,rTMP,30
+-	clrlwi	rBITDIF,rSTR1,30
+-	cmplwi	cr5,rBITDIF,0
+-	beq-	cr6,L(zeroLength)
+-	dcbt	0,rSTR1
+-	dcbt	0,rSTR2
+-
+-	/* If less than 8 bytes or not aligned, use the unaligned
+-	   byte loop.  */
+-
+-	blt	cr1,L(bytealigned)
+-	stwu	1,-64(1)
++	xor	r0, rSTR2, rSTR1
++	cmplwi	cr6, rN, 0
++	cmplwi	cr1, rN, 12
++	clrlwi.	r0, r0, 30
++	clrlwi	r12, rSTR1, 30
++	cmplwi	cr5, r12, 0
++	beq-	cr6, L(zeroLength)
++	dcbt	0, rSTR1
++	dcbt	0, rSTR2
++/* If less than 8 bytes or not aligned, use the unaligned
++   byte loop.  */
++	blt	cr1, L(bytealigned)
++	stwu	1, -64(r1)
+ 	cfi_adjust_cfa_offset(64)
+-	stw	r31,48(1)
+-	cfi_offset(31,(48-64))
+-	stw	r30,44(1)
+-	cfi_offset(30,(44-64))
++	stw	rWORD8, 48(r1)
++	cfi_offset(rWORD8, (48-64))
++	stw	rWORD7, 44(r1)
++	cfi_offset(rWORD7, (44-64))
+ 	bne	L(unaligned)
+ /* At this point we know both strings have the same alignment and the
+-   compare length is at least 8 bytes.  rBITDIF contains the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    2 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then we are already word
++   of r12 to 0.  If r12 == 0 then we are already word
+    aligned and can perform the word aligned loop.
+ 
+    Otherwise we know the two strings have the same alignment (but not
+@@ -76,332 +72,541 @@
+    eliminate bits preceeding the first byte.  Since we want to join the
+    normal (word aligned) compare loop, starting at the second word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first word. This insures that the loop count is
++   versioning for the first word. This ensures that the loop count is
+    correct and the first word (shifted) is in the expected register pair. */
+ 	.align	4
+ L(samealignment):
+-	clrrwi	rSTR1,rSTR1,2
+-	clrrwi	rSTR2,rSTR2,2
+-	beq	cr5,L(Waligned)
+-	add	rN,rN,rBITDIF
+-	slwi	r11,rBITDIF,3
+-	srwi	rTMP,rN,4	/* Divide by 16 */
+-	andi.	rBITDIF,rN,12	/* Get the word remainder */
+-	lwz	rWORD1,0(rSTR1)
+-	lwz	rWORD2,0(rSTR2)
+-	cmplwi	cr1,rBITDIF,8
+-	cmplwi	cr7,rN,16
+-	clrlwi	rN,rN,30
++	clrrwi	rSTR1, rSTR1, 2
++	clrrwi	rSTR2, rSTR2, 2
++	beq	cr5, L(Waligned)
++	add	rN, rN, r12
++	slwi	rWORD6, r12, 3
++	srwi	r0, rN, 4	/* Divide by 16 */
++	andi.	r12, rN, 12	/* Get the word remainder */
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 0(rSTR1)
++	lwz	rWORD2, 0(rSTR2)
++#endif
++	cmplwi	cr1, r12, 8
++	cmplwi	cr7, rN, 16
++	clrlwi	rN, rN, 30
+ 	beq	L(dPs4)
+-	mtctr	rTMP
+-	bgt	cr1,L(dPs3)
+-	beq	cr1,L(dPs2)
++	mtctr	r0
++	bgt	cr1, L(dPs3)
++	beq	cr1, L(dPs2)
+ 
+ /* Remainder is 4 */
+ 	.align	3
+ L(dsP1):
+-	slw	rWORD5,rWORD1,r11
+-	slw	rWORD6,rWORD2,r11
+-	cmplw	cr5,rWORD5,rWORD6
+-	blt	cr7,L(dP1x)
++	slw	rWORD5, rWORD1, rWORD6
++	slw	rWORD6, rWORD2, rWORD6
++	cmplw	cr5, rWORD5, rWORD6
++	blt	cr7, L(dP1x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
+-	lwz	rWORD1,4(rSTR1)
+-	lwz	rWORD2,4(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 4(rSTR1)
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ 	b	L(dP1e)
+ /* Remainder is 8 */
+ 	.align	4
+ L(dPs2):
+-	slw	rWORD5,rWORD1,r11
+-	slw	rWORD6,rWORD2,r11
+-	cmplw	cr6,rWORD5,rWORD6
+-	blt	cr7,L(dP2x)
++	slw	rWORD5, rWORD1, rWORD6
++	slw	rWORD6, rWORD2, rWORD6
++	cmplw	cr6, rWORD5, rWORD6
++	blt	cr7, L(dP2x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
+-	lwz	rWORD7,4(rSTR1)
+-	lwz	rWORD8,4(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD7, 4(rSTR1)
++	lwz	rWORD8, 4(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
+ 	b	L(dP2e)
+ /* Remainder is 12 */
+ 	.align	4
+ L(dPs3):
+-	slw	rWORD3,rWORD1,r11
+-	slw	rWORD4,rWORD2,r11
+-	cmplw	cr1,rWORD3,rWORD4
++	slw	rWORD3, rWORD1, rWORD6
++	slw	rWORD4, rWORD2, rWORD6
++	cmplw	cr1, rWORD3, rWORD4
+ 	b	L(dP3e)
+ /* Count is a multiple of 16, remainder is 0 */
+ 	.align	4
+ L(dPs4):
+-	mtctr	rTMP
+-	slw	rWORD1,rWORD1,r11
+-	slw	rWORD2,rWORD2,r11
+-	cmplw	cr0,rWORD1,rWORD2
++	mtctr	r0
++	slw	rWORD1, rWORD1, rWORD6
++	slw	rWORD2, rWORD2, rWORD6
++	cmplw	cr7, rWORD1, rWORD2
+ 	b	L(dP4e)
+ 
+ /* At this point we know both strings are word aligned and the
+    compare length is at least 8 bytes.  */
+ 	.align	4
+ L(Waligned):
+-	andi.	rBITDIF,rN,12	/* Get the word remainder */
+-	srwi	rTMP,rN,4	/* Divide by 16 */
+-	cmplwi	cr1,rBITDIF,8
+-	cmplwi	cr7,rN,16
+-	clrlwi	rN,rN,30
++	andi.	r12, rN, 12	/* Get the word remainder */
++	srwi	r0, rN, 4	/* Divide by 16 */
++	cmplwi	cr1, r12, 8
++	cmplwi	cr7, rN, 16
++	clrlwi	rN, rN, 30
+ 	beq	L(dP4)
+-	bgt	cr1,L(dP3)
+-	beq	cr1,L(dP2)
++	bgt	cr1, L(dP3)
++	beq	cr1, L(dP2)
+ 
+ /* Remainder is 4 */
+ 	.align	4
+ L(dP1):
+-	mtctr	rTMP
++	mtctr	r0
+ /* Normally we'd use rWORD7/rWORD8 here, but since we might exit early
+    (8-15 byte compare), we want to use only volatile registers.  This
+    means we can avoid restoring non-volatile registers since we did not
+    change any on the early exit path.  The key here is the non-early
+    exit path only cares about the condition code (cr5), not about which
+    register pair was used.  */
+-	lwz	rWORD5,0(rSTR1)
+-	lwz	rWORD6,0(rSTR2)
+-	cmplw	cr5,rWORD5,rWORD6
+-	blt	cr7,L(dP1x)
+-	lwz	rWORD1,4(rSTR1)
+-	lwz	rWORD2,4(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 0(rSTR1)
++	lwz	rWORD6, 0(rSTR2)
++#endif
++	cmplw	cr5, rWORD5, rWORD6
++	blt	cr7, L(dP1x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 4(rSTR1)
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ L(dP1e):
+-	lwz	rWORD3,8(rSTR1)
+-	lwz	rWORD4,8(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	lwz	rWORD5,12(rSTR1)
+-	lwz	rWORD6,12(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	bne	cr5,L(dLcr5)
+-	bne	cr0,L(dLcr0)
+-
+-	lwzu	rWORD7,16(rSTR1)
+-	lwzu	rWORD8,16(rSTR2)
+-	bne	cr1,L(dLcr1)
+-	cmplw	cr5,rWORD7,rWORD8
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 8(rSTR1)
++	lwz	rWORD4, 8(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 12(rSTR1)
++	lwz	rWORD6, 12(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	bne	cr5, L(dLcr5x)
++	bne	cr7, L(dLcr7x)
++
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwzu	rWORD7, 16(rSTR1)
++	lwzu	rWORD8, 16(rSTR2)
++#endif
++	bne	cr1, L(dLcr1)
++	cmplw	cr5, rWORD7, rWORD8
+ 	bdnz	L(dLoop)
+-	bne	cr6,L(dLcr6)
+-	lwz	r30,44(1)
+-	lwz	r31,48(1)
++	bne	cr6, L(dLcr6)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
+ 	.align	3
+ L(dP1x):
+-	slwi.	r12,rN,3
+-	bne	cr5,L(dLcr5)
+-	subfic	rN,r12,32	/* Shift count is 32 - (rN * 8).  */
+-	lwz	1,0(1)
++	slwi.	r12, rN, 3
++	bne	cr5, L(dLcr5x)
++	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bne	L(d00)
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+ /* Remainder is 8 */
+ 	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dP2):
+-	mtctr	rTMP
+-	lwz	rWORD5,0(rSTR1)
+-	lwz	rWORD6,0(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	blt	cr7,L(dP2x)
+-	lwz	rWORD7,4(rSTR1)
+-	lwz	rWORD8,4(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
++	mtctr	r0
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 0(rSTR1)
++	lwz	rWORD6, 0(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	blt	cr7, L(dP2x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD7, 4(rSTR1)
++	lwz	rWORD8, 4(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
+ L(dP2e):
+-	lwz	rWORD1,8(rSTR1)
+-	lwz	rWORD2,8(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
+-	lwz	rWORD3,12(rSTR1)
+-	lwz	rWORD4,12(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	addi	rSTR1,rSTR1,4
+-	addi	rSTR2,rSTR2,4
+-	bne	cr6,L(dLcr6)
+-	bne	cr5,L(dLcr5)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 8(rSTR1)
++	lwz	rWORD2, 8(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 12(rSTR1)
++	lwz	rWORD4, 12(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#endif
++	bne	cr6, L(dLcr6)
++	bne	cr5, L(dLcr5)
+ 	b	L(dLoop2)
+ /* Again we are on a early exit path (16-23 byte compare), we want to
+    only use volatile registers and avoid restoring non-volatile
+    registers.  */
+ 	.align	4
+ L(dP2x):
+-	lwz	rWORD3,4(rSTR1)
+-	lwz	rWORD4,4(rSTR2)
+-	cmplw	cr5,rWORD3,rWORD4
+-	slwi.	r12,rN,3
+-	bne	cr6,L(dLcr6)
+-	addi	rSTR1,rSTR1,4
+-	addi	rSTR2,rSTR2,4
+-	bne	cr5,L(dLcr5)
+-	subfic	rN,r12,32	/* Shift count is 32 - (rN * 8).  */
+-	lwz	1,0(1)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 4(rSTR1)
++	lwz	rWORD4, 4(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++	slwi.	r12, rN, 3
++	bne	cr6, L(dLcr6x)
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#endif
++	bne	cr1, L(dLcr1x)
++	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bne	L(d00)
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+ /* Remainder is 12 */
+ 	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dP3):
+-	mtctr	rTMP
+-	lwz	rWORD3,0(rSTR1)
+-	lwz	rWORD4,0(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
++	mtctr	r0
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 0(rSTR1)
++	lwz	rWORD4, 0(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
+ L(dP3e):
+-	lwz	rWORD5,4(rSTR1)
+-	lwz	rWORD6,4(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	blt	cr7,L(dP3x)
+-	lwz	rWORD7,8(rSTR1)
+-	lwz	rWORD8,8(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
+-	lwz	rWORD1,12(rSTR1)
+-	lwz	rWORD2,12(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	bne	cr1,L(dLcr1)
+-	bne	cr6,L(dLcr6)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 4(rSTR1)
++	lwz	rWORD6, 4(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	blt	cr7, L(dP3x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD7, 8(rSTR1)
++	lwz	rWORD8, 8(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 12(rSTR1)
++	lwz	rWORD2, 12(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++	bne	cr1, L(dLcr1)
++	bne	cr6, L(dLcr6)
+ 	b	L(dLoop1)
+ /* Again we are on a early exit path (24-31 byte compare), we want to
+    only use volatile registers and avoid restoring non-volatile
+    registers.  */
+ 	.align	4
+ L(dP3x):
+-	lwz	rWORD1,8(rSTR1)
+-	lwz	rWORD2,8(rSTR2)
+-	cmplw	cr5,rWORD1,rWORD2
+-	slwi.	r12,rN,3
+-	bne	cr1,L(dLcr1)
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	bne	cr6,L(dLcr6)
+-	subfic	rN,r12,32	/* Shift count is 32 - (rN * 8).  */
+-	bne	cr5,L(dLcr5)
+-	lwz	1,0(1)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 8(rSTR1)
++	lwz	rWORD2, 8(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++	slwi.	r12, rN, 3
++	bne	cr1, L(dLcr1x)
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++	bne	cr6, L(dLcr6x)
++	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
++	bne	cr7, L(dLcr7x)
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bne	L(d00)
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+ /* Count is a multiple of 16, remainder is 0 */
+ 	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dP4):
+-	mtctr	rTMP
+-	lwz	rWORD1,0(rSTR1)
+-	lwz	rWORD2,0(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
++	mtctr	r0
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 0(rSTR1)
++	lwz	rWORD2, 0(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ L(dP4e):
+-	lwz	rWORD3,4(rSTR1)
+-	lwz	rWORD4,4(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	lwz	rWORD5,8(rSTR1)
+-	lwz	rWORD6,8(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	lwzu	rWORD7,12(rSTR1)
+-	lwzu	rWORD8,12(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
+-	bne	cr0,L(dLcr0)
+-	bne	cr1,L(dLcr1)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 4(rSTR1)
++	lwz	rWORD4, 4(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 8(rSTR1)
++	lwz	rWORD6, 8(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwzu	rWORD7, 12(rSTR1)
++	lwzu	rWORD8, 12(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++	bne	cr7, L(dLcr7)
++	bne	cr1, L(dLcr1)
+ 	bdz-	L(d24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+ 	.align	4
+ L(dLoop):
+-	lwz	rWORD1,4(rSTR1)
+-	lwz	rWORD2,4(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	bne	cr6,L(dLcr6)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 4(rSTR1)
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++	bne	cr6, L(dLcr6)
+ L(dLoop1):
+-	lwz	rWORD3,8(rSTR1)
+-	lwz	rWORD4,8(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	bne	cr5,L(dLcr5)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 8(rSTR1)
++	lwz	rWORD4, 8(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	bne	cr5, L(dLcr5)
+ L(dLoop2):
+-	lwz	rWORD5,12(rSTR1)
+-	lwz	rWORD6,12(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
+-	bne	cr0,L(dLcr0)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 12(rSTR1)
++	lwz	rWORD6, 12(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++	bne	cr7, L(dLcr7)
+ L(dLoop3):
+-	lwzu	rWORD7,16(rSTR1)
+-	lwzu	rWORD8,16(rSTR2)
+-	bne	cr1,L(dLcr1)
+-	cmplw	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwzu	rWORD7, 16(rSTR1)
++	lwzu	rWORD8, 16(rSTR2)
++#endif
++	bne	cr1, L(dLcr1)
++	cmplw	cr7, rWORD1, rWORD2
+ 	bdnz	L(dLoop)
+ 
+ L(dL4):
+-	cmplw	cr1,rWORD3,rWORD4
+-	bne	cr6,L(dLcr6)
+-	cmplw	cr6,rWORD5,rWORD6
+-	bne	cr5,L(dLcr5)
+-	cmplw	cr5,rWORD7,rWORD8
++	cmplw	cr1, rWORD3, rWORD4
++	bne	cr6, L(dLcr6)
++	cmplw	cr6, rWORD5, rWORD6
++	bne	cr5, L(dLcr5)
++	cmplw	cr5, rWORD7, rWORD8
+ L(d44):
+-	bne	cr0,L(dLcr0)
++	bne	cr7, L(dLcr7)
+ L(d34):
+-	bne	cr1,L(dLcr1)
++	bne	cr1, L(dLcr1)
+ L(d24):
+-	bne	cr6,L(dLcr6)
++	bne	cr6, L(dLcr6)
+ L(d14):
+-	slwi.	r12,rN,3
+-	bne	cr5,L(dLcr5)
++	slwi.	r12, rN, 3
++	bne	cr5, L(dLcr5)
+ L(d04):
+-	lwz	r30,44(1)
+-	lwz	r31,48(1)
+-	lwz	1,0(1)
+-	subfic	rN,r12,32	/* Shift count is 32 - (rN * 8).  */
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
++	subfic	rN, r12, 32	/* Shift count is 32 - (rN * 8).  */
+ 	beq	L(zeroLength)
+ /* At this point we have a remainder of 1 to 3 bytes to compare.  Since
+    we are aligned it is safe to load the whole word, and use
+-   shift right to eliminate bits beyond the compare length. */
++   shift right to eliminate bits beyond the compare length.  */
+ L(d00):
+-	lwz	rWORD1,4(rSTR1)
+-	lwz	rWORD2,4(rSTR2)
+-	srw	rWORD1,rWORD1,rN
+-	srw	rWORD2,rWORD2,rN
+-	cmplw	rWORD1,rWORD2
+-	li	rRTN,0
+-	beqlr
+-	li	rRTN,1
+-	bgtlr
+-	li	rRTN,-1
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 4(rSTR1)
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	srw	rWORD1, rWORD1, rN
++	srw	rWORD2, rWORD2, rN
++	sub	rRTN, rWORD1, rWORD2
+ 	blr
+ 
+ 	.align	4
+-L(dLcr0):
+-	lwz	r30,44(1)
+-	lwz	r31,48(1)
+-	li	rRTN,1
+-	lwz	1,0(1)
+-	bgtlr	cr0
+-	li	rRTN,-1
++	cfi_adjust_cfa_offset(64)
++L(dLcr7):
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++L(dLcr7x):
++	li	rRTN, 1
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
++	bgtlr	cr7
++	li	rRTN, -1
+ 	blr
+ 	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dLcr1):
+-	lwz	r30,44(1)
+-	lwz	r31,48(1)
+-	li	rRTN,1
+-	lwz	1,0(1)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++L(dLcr1x):
++	li	rRTN, 1
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bgtlr	cr1
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dLcr6):
+-	lwz	r30,44(1)
+-	lwz	r31,48(1)
+-	li	rRTN,1
+-	lwz	1,0(1)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
++L(dLcr6x):
++	li	rRTN, 1
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bgtlr	cr6
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 	.align	4
++	cfi_adjust_cfa_offset(64)
+ L(dLcr5):
+-	lwz	r30,44(1)
+-	lwz	r31,48(1)
++	lwz	rWORD7, 44(r1)
++	lwz	rWORD8, 48(r1)
+ L(dLcr5x):
+-	li	rRTN,1
+-	lwz	1,0(1)
++	li	rRTN, 1
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	bgtlr	cr5
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 
+ 	.align	4
+ L(bytealigned):
+-	cfi_adjust_cfa_offset(-64)
+ 	mtctr	rN
+ 
+ /* We need to prime this loop.  This loop is swing modulo scheduled
+@@ -413,38 +618,39 @@
+ 
+    So we must precondition some registers and condition codes so that
+    we don't exit the loop early on the first iteration.  */
+-	lbz	rWORD1,0(rSTR1)
+-	lbz	rWORD2,0(rSTR2)
++
++	lbz	rWORD1, 0(rSTR1)
++	lbz	rWORD2, 0(rSTR2)
+ 	bdz	L(b11)
+-	cmplw	cr0,rWORD1,rWORD2
+-	lbz	rWORD3,1(rSTR1)
+-	lbz	rWORD4,1(rSTR2)
++	cmplw	cr7, rWORD1, rWORD2
++	lbz	rWORD3, 1(rSTR1)
++	lbz	rWORD4, 1(rSTR2)
+ 	bdz	L(b12)
+-	cmplw	cr1,rWORD3,rWORD4
+-	lbzu	rWORD5,2(rSTR1)
+-	lbzu	rWORD6,2(rSTR2)
++	cmplw	cr1, rWORD3, rWORD4
++	lbzu	rWORD5, 2(rSTR1)
++	lbzu	rWORD6, 2(rSTR2)
+ 	bdz	L(b13)
+ 	.align	4
+ L(bLoop):
+-	lbzu	rWORD1,1(rSTR1)
+-	lbzu	rWORD2,1(rSTR2)
+-	bne	cr0,L(bLcr0)
++	lbzu	rWORD1, 1(rSTR1)
++	lbzu	rWORD2, 1(rSTR2)
++	bne	cr7, L(bLcr7)
+ 
+-	cmplw	cr6,rWORD5,rWORD6
++	cmplw	cr6, rWORD5, rWORD6
+ 	bdz	L(b3i)
+ 
+-	lbzu	rWORD3,1(rSTR1)
+-	lbzu	rWORD4,1(rSTR2)
+-	bne	cr1,L(bLcr1)
++	lbzu	rWORD3, 1(rSTR1)
++	lbzu	rWORD4, 1(rSTR2)
++	bne	cr1, L(bLcr1)
+ 
+-	cmplw	cr0,rWORD1,rWORD2
++	cmplw	cr7, rWORD1, rWORD2
+ 	bdz	L(b2i)
+ 
+-	lbzu	rWORD5,1(rSTR1)
+-	lbzu	rWORD6,1(rSTR2)
+-	bne	cr6,L(bLcr6)
++	lbzu	rWORD5, 1(rSTR1)
++	lbzu	rWORD6, 1(rSTR2)
++	bne	cr6, L(bLcr6)
+ 
+-	cmplw	cr1,rWORD3,rWORD4
++	cmplw	cr1, rWORD3, rWORD4
+ 	bdnz	L(bLoop)
+ 
+ /* We speculatively loading bytes before we have tested the previous
+@@ -454,67 +660,62 @@
+    tested.  In this case we must complete the pending operations
+    before returning.  */
+ L(b1i):
+-	bne	cr0,L(bLcr0)
+-	bne	cr1,L(bLcr1)
++	bne	cr7, L(bLcr7)
++	bne	cr1, L(bLcr1)
+ 	b	L(bx56)
+ 	.align	4
+ L(b2i):
+-	bne	cr6,L(bLcr6)
+-	bne	cr0,L(bLcr0)
++	bne	cr6, L(bLcr6)
++	bne	cr7, L(bLcr7)
+ 	b	L(bx34)
+ 	.align	4
+ L(b3i):
+-	bne	cr1,L(bLcr1)
+-	bne	cr6,L(bLcr6)
++	bne	cr1, L(bLcr1)
++	bne	cr6, L(bLcr6)
+ 	b	L(bx12)
+ 	.align	4
+-L(bLcr0):
+-	li	rRTN,1
+-	bgtlr	cr0
+-	li	rRTN,-1
++L(bLcr7):
++	li	rRTN, 1
++	bgtlr	cr7
++	li	rRTN, -1
+ 	blr
+ L(bLcr1):
+-	li	rRTN,1
++	li	rRTN, 1
+ 	bgtlr	cr1
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ L(bLcr6):
+-	li	rRTN,1
++	li	rRTN, 1
+ 	bgtlr	cr6
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 
+ L(b13):
+-	bne	cr0,L(bx12)
+-	bne	cr1,L(bx34)
++	bne	cr7, L(bx12)
++	bne	cr1, L(bx34)
+ L(bx56):
+-	sub	rRTN,rWORD5,rWORD6
++	sub	rRTN, rWORD5, rWORD6
+ 	blr
+ 	nop
+ L(b12):
+-	bne	cr0,L(bx12)
++	bne	cr7, L(bx12)
+ L(bx34):
+-	sub	rRTN,rWORD3,rWORD4
++	sub	rRTN, rWORD3, rWORD4
+ 	blr
+-
+ L(b11):
+ L(bx12):
+-	sub	rRTN,rWORD1,rWORD2
++	sub	rRTN, rWORD1, rWORD2
+ 	blr
+-
+ 	.align	4
+-L(zeroLengthReturn):
+-
+ L(zeroLength):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+-	cfi_adjust_cfa_offset(64)
+ 	.align	4
+ /* At this point we know the strings have different alignment and the
+-   compare length is at least 8 bytes.  rBITDIF contains the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    2 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then rStr1 is word aligned and can
++   of r12 to 0.  If r12 == 0 then rStr1 is word aligned and can
+    perform the Wunaligned loop.
+ 
+    Otherwise we know that rSTR1 is not aready word aligned yet.
+@@ -523,465 +724,654 @@
+    eliminate bits preceeding the first byte.  Since we want to join the
+    normal (Wualigned) compare loop, starting at the second word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first W. This insures that the loop count is
++   versioning for the first W. This ensures that the loop count is
+    correct and the first W (shifted) is in the expected resister pair.  */
+ #define rSHL		r29	/* Unaligned shift left count.  */
+ #define rSHR		r28	/* Unaligned shift right count.  */
+-#define rB		r27	/* Left rotation temp for rWORD2.  */
+-#define rD		r26	/* Left rotation temp for rWORD4.  */
+-#define rF		r25	/* Left rotation temp for rWORD6.  */
+-#define rH		r24	/* Left rotation temp for rWORD8.  */
+-#define rA		r0	/* Right rotation temp for rWORD2.  */
+-#define rC		r12	/* Right rotation temp for rWORD4.  */
+-#define rE		r0	/* Right rotation temp for rWORD6.  */
+-#define rG		r12	/* Right rotation temp for rWORD8.  */
++#define rWORD8_SHIFT	r27	/* Left rotation temp for rWORD2.  */
++#define rWORD2_SHIFT	r26	/* Left rotation temp for rWORD4.  */
++#define rWORD4_SHIFT	r25	/* Left rotation temp for rWORD6.  */
++#define rWORD6_SHIFT	r24	/* Left rotation temp for rWORD8.  */
++	cfi_adjust_cfa_offset(64)
+ L(unaligned):
+-	stw	r29,40(r1)
+-	cfi_offset(r29,(40-64))
+-	clrlwi	rSHL,rSTR2,30
+-	stw	r28,36(r1)
+-	cfi_offset(r28,(36-64))
+-	beq	cr5,L(Wunaligned)
+-	stw	r27,32(r1)
+-	cfi_offset(r27,(32-64))
++	stw	rSHL, 40(r1)
++	cfi_offset(rSHL, (40-64))
++	clrlwi	rSHL, rSTR2, 30
++	stw	rSHR, 36(r1)
++	cfi_offset(rSHR, (36-64))
++	beq	cr5, L(Wunaligned)
++	stw	rWORD8_SHIFT, 32(r1)
++	cfi_offset(rWORD8_SHIFT, (32-64))
+ /* Adjust the logical start of rSTR2 to compensate for the extra bits
+    in the 1st rSTR1 W.  */
+-	sub	r27,rSTR2,rBITDIF
++	sub	rWORD8_SHIFT, rSTR2, r12
+ /* But do not attempt to address the W before that W that contains
+    the actual start of rSTR2.  */
+-	clrrwi	rSTR2,rSTR2,2
+-	stw	r26,28(r1)
+-	cfi_offset(r26,(28-64))
+-/* Compute the left/right shift counts for the unalign rSTR2,
++	clrrwi	rSTR2, rSTR2, 2
++	stw	rWORD2_SHIFT, 28(r1)
++	cfi_offset(rWORD2_SHIFT, (28-64))
++/* Compute the left/right shift counts for the unaligned rSTR2,
+    compensating for the logical (W aligned) start of rSTR1.  */
+-	clrlwi	rSHL,r27,30
+-	clrrwi	rSTR1,rSTR1,2
+-	stw	r25,24(r1)
+-	cfi_offset(r25,(24-64))
+-	slwi	rSHL,rSHL,3
+-	cmplw	cr5,r27,rSTR2
+-	add	rN,rN,rBITDIF
+-	slwi	r11,rBITDIF,3
+-	stw	r24,20(r1)
+-	cfi_offset(r24,(20-64))
+-	subfic	rSHR,rSHL,32
+-	srwi	rTMP,rN,4	/* Divide by 16 */
+-	andi.	rBITDIF,rN,12	/* Get the W remainder */
++	clrlwi	rSHL, rWORD8_SHIFT, 30
++	clrrwi	rSTR1, rSTR1, 2
++	stw	rWORD4_SHIFT, 24(r1)
++	cfi_offset(rWORD4_SHIFT, (24-64))
++	slwi	rSHL, rSHL, 3
++	cmplw	cr5, rWORD8_SHIFT, rSTR2
++	add	rN, rN, r12
++	slwi	rWORD6, r12, 3
++	stw	rWORD6_SHIFT, 20(r1)
++	cfi_offset(rWORD6_SHIFT, (20-64))
++	subfic	rSHR, rSHL, 32
++	srwi	r0, rN, 4	/* Divide by 16 */
++	andi.	r12, rN, 12	/* Get the W remainder */
+ /* We normally need to load 2 Ws to start the unaligned rSTR2, but in
+    this special case those bits may be discarded anyway.  Also we
+    must avoid loading a W where none of the bits are part of rSTR2 as
+    this may cross a page boundary and cause a page fault.  */
+-	li	rWORD8,0
+-	blt	cr5,L(dus0)
+-	lwz	rWORD8,0(rSTR2)
+-	la	rSTR2,4(rSTR2)
+-	slw	rWORD8,rWORD8,rSHL
++	li	rWORD8, 0
++	blt	cr5, L(dus0)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD8, 0(rSTR2)
++	addi	rSTR2, rSTR2, 4
++#endif
++	slw	rWORD8, rWORD8, rSHL
+ 
+ L(dus0):
+-	lwz	rWORD1,0(rSTR1)
+-	lwz	rWORD2,0(rSTR2)
+-	cmplwi	cr1,rBITDIF,8
+-	cmplwi	cr7,rN,16
+-	srw	rG,rWORD2,rSHR
+-	clrlwi	rN,rN,30
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 0(rSTR1)
++	lwz	rWORD2, 0(rSTR2)
++#endif
++	cmplwi	cr1, r12, 8
++	cmplwi	cr7, rN, 16
++	srw	r12, rWORD2, rSHR
++	clrlwi	rN, rN, 30
+ 	beq	L(duPs4)
+-	mtctr	rTMP
+-	or	rWORD8,rG,rWORD8
+-	bgt	cr1,L(duPs3)
+-	beq	cr1,L(duPs2)
++	mtctr	r0
++	or	rWORD8, r12, rWORD8
++	bgt	cr1, L(duPs3)
++	beq	cr1, L(duPs2)
+ 
+ /* Remainder is 4 */
+ 	.align	4
+ L(dusP1):
+-	slw	rB,rWORD2,rSHL
+-	slw	rWORD7,rWORD1,r11
+-	slw	rWORD8,rWORD8,r11
+-	bge	cr7,L(duP1e)
++	slw	rWORD8_SHIFT, rWORD2, rSHL
++	slw	rWORD7, rWORD1, rWORD6
++	slw	rWORD8, rWORD8, rWORD6
++	bge	cr7, L(duP1e)
+ /* At this point we exit early with the first word compare
+    complete and remainder of 0 to 3 bytes.  See L(du14) for details on
+    how we handle the remaining bytes.  */
+-	cmplw	cr5,rWORD7,rWORD8
+-	slwi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmplw	cr7,rN,rSHR
++	cmplw	cr5, rWORD7, rWORD8
++	slwi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	lwz	rWORD2,4(rSTR2)
+-	srw	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 8 */
+ 	.align	4
+ L(duPs2):
+-	slw	rH,rWORD2,rSHL
+-	slw	rWORD5,rWORD1,r11
+-	slw	rWORD6,rWORD8,r11
++	slw	rWORD6_SHIFT, rWORD2, rSHL
++	slw	rWORD5, rWORD1, rWORD6
++	slw	rWORD6, rWORD8, rWORD6
+ 	b	L(duP2e)
+ /* Remainder is 12 */
+ 	.align	4
+ L(duPs3):
+-	slw	rF,rWORD2,rSHL
+-	slw	rWORD3,rWORD1,r11
+-	slw	rWORD4,rWORD8,r11
++	slw	rWORD4_SHIFT, rWORD2, rSHL
++	slw	rWORD3, rWORD1, rWORD6
++	slw	rWORD4, rWORD8, rWORD6
+ 	b	L(duP3e)
+ /* Count is a multiple of 16, remainder is 0 */
+ 	.align	4
+ L(duPs4):
+-	mtctr	rTMP
+-	or	rWORD8,rG,rWORD8
+-	slw	rD,rWORD2,rSHL
+-	slw	rWORD1,rWORD1,r11
+-	slw	rWORD2,rWORD8,r11
++	mtctr	r0
++	or	rWORD8, r12, rWORD8
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	slw	rWORD1, rWORD1, rWORD6
++	slw	rWORD2, rWORD8, rWORD6
+ 	b	L(duP4e)
+ 
+ /* At this point we know rSTR1 is word aligned and the
+    compare length is at least 8 bytes.  */
+ 	.align	4
+ L(Wunaligned):
+-	stw	r27,32(r1)
+-	cfi_offset(r27,(32-64))
+-	clrrwi	rSTR2,rSTR2,2
+-	stw	r26,28(r1)
+-	cfi_offset(r26,(28-64))
+-	srwi	rTMP,rN,4	/* Divide by 16 */
+-	stw	r25,24(r1)
+-	cfi_offset(r25,(24-64))
+-	andi.	rBITDIF,rN,12	/* Get the W remainder */
+-	stw	r24,20(r1)
+-	cfi_offset(r24,(24-64))
+-	slwi	rSHL,rSHL,3
+-	lwz	rWORD6,0(rSTR2)
+-	lwzu	rWORD8,4(rSTR2)
+-	cmplwi	cr1,rBITDIF,8
+-	cmplwi	cr7,rN,16
+-	clrlwi	rN,rN,30
+-	subfic	rSHR,rSHL,32
+-	slw	rH,rWORD6,rSHL
++	stw	rWORD8_SHIFT, 32(r1)
++	cfi_offset(rWORD8_SHIFT, (32-64))
++	clrrwi	rSTR2, rSTR2, 2
++	stw	rWORD2_SHIFT, 28(r1)
++	cfi_offset(rWORD2_SHIFT, (28-64))
++	srwi	r0, rN, 4	/* Divide by 16 */
++	stw	rWORD4_SHIFT, 24(r1)
++	cfi_offset(rWORD4_SHIFT, (24-64))
++	andi.	r12, rN, 12	/* Get the W remainder */
++	stw	rWORD6_SHIFT, 20(r1)
++	cfi_offset(rWORD6_SHIFT, (20-64))
++	slwi	rSHL, rSHL, 3
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD6, 0(rSTR2)
++	lwzu	rWORD8, 4(rSTR2)
++#endif
++	cmplwi	cr1, r12, 8
++	cmplwi	cr7, rN, 16
++	clrlwi	rN, rN, 30
++	subfic	rSHR, rSHL, 32
++	slw	rWORD6_SHIFT, rWORD6, rSHL
+ 	beq	L(duP4)
+-	mtctr	rTMP
+-	bgt	cr1,L(duP3)
+-	beq	cr1,L(duP2)
++	mtctr	r0
++	bgt	cr1, L(duP3)
++	beq	cr1, L(duP2)
+ 
+ /* Remainder is 4 */
+ 	.align	4
+ L(duP1):
+-	srw	rG,rWORD8,rSHR
+-	lwz	rWORD7,0(rSTR1)
+-	slw	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	blt	cr7,L(duP1x)
++	srw	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
++	lwz	rWORD7, 0(rSTR1)
++#endif
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	blt	cr7, L(duP1x)
+ L(duP1e):
+-	lwz	rWORD1,4(rSTR1)
+-	lwz	rWORD2,4(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
+-	srw	rA,rWORD2,rSHR
+-	slw	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
+-	lwz	rWORD3,8(rSTR1)
+-	lwz	rWORD4,8(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
+-	srw	rC,rWORD4,rSHR
+-	slw	rF,rWORD4,rSHL
+-	bne	cr5,L(duLcr5)
+-	or	rWORD4,rC,rD
+-	lwz	rWORD5,12(rSTR1)
+-	lwz	rWORD6,12(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	srw	rE,rWORD6,rSHR
+-	slw	rH,rWORD6,rSHL
+-	bne	cr0,L(duLcr0)
+-	or	rWORD6,rE,rF
+-	cmplw	cr6,rWORD5,rWORD6
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 4(rSTR1)
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 8(rSTR1)
++	lwz	rWORD4, 8(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
++	bne	cr5, L(duLcr5)
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 12(rSTR1)
++	lwz	rWORD6, 12(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	bne	cr7, L(duLcr7)
++	or	rWORD6, r0, rWORD4_SHIFT
++	cmplw	cr6, rWORD5, rWORD6
+ 	b	L(duLoop3)
+ 	.align	4
+ /* At this point we exit early with the first word compare
+    complete and remainder of 0 to 3 bytes.  See L(du14) for details on
+    how we handle the remaining bytes.  */
+ L(duP1x):
+-	cmplw	cr5,rWORD7,rWORD8
+-	slwi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmplw	cr7,rN,rSHR
++	cmplw	cr5, rWORD7, rWORD8
++	slwi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	ld	rWORD2,8(rSTR2)
+-	srw	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD2, 8(rSTR2)
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 8 */
+ 	.align	4
+ L(duP2):
+-	srw	rE,rWORD8,rSHR
+-	lwz	rWORD5,0(rSTR1)
+-	or	rWORD6,rE,rH
+-	slw	rH,rWORD8,rSHL
++	srw	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
++	lwz	rWORD5, 0(rSTR1)
++#endif
++	or	rWORD6, r0, rWORD6_SHIFT
++	slw	rWORD6_SHIFT, rWORD8, rSHL
+ L(duP2e):
+-	lwz	rWORD7,4(rSTR1)
+-	lwz	rWORD8,4(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	srw	rG,rWORD8,rSHR
+-	slw	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	blt	cr7,L(duP2x)
+-	lwz	rWORD1,8(rSTR1)
+-	lwz	rWORD2,8(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
+-	bne	cr6,L(duLcr6)
+-	srw	rA,rWORD2,rSHR
+-	slw	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
+-	lwz	rWORD3,12(rSTR1)
+-	lwz	rWORD4,12(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
+-	bne	cr5,L(duLcr5)
+-	srw	rC,rWORD4,rSHR
+-	slw	rF,rWORD4,rSHL
+-	or	rWORD4,rC,rD
+-	addi	rSTR1,rSTR1,4
+-	addi	rSTR2,rSTR2,4
+-	cmplw	cr1,rWORD3,rWORD4
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD7, 4(rSTR1)
++	lwz	rWORD8, 4(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	blt	cr7, L(duP2x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 8(rSTR1)
++	lwz	rWORD2, 8(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++	bne	cr6, L(duLcr6)
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 12(rSTR1)
++	lwz	rWORD4, 12(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++	bne	cr5, L(duLcr5)
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#endif
++	cmplw	cr1, rWORD3, rWORD4
+ 	b	L(duLoop2)
+ 	.align	4
+ L(duP2x):
+-	cmplw	cr5,rWORD7,rWORD8
+-	addi	rSTR1,rSTR1,4
+-	addi	rSTR2,rSTR2,4
+-	bne	cr6,L(duLcr6)
+-	slwi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmplw	cr7,rN,rSHR
++	cmplw	cr5, rWORD7, rWORD8
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#endif
++	bne	cr6, L(duLcr6)
++	slwi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	lwz	rWORD2,4(rSTR2)
+-	srw	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ 
+ /* Remainder is 12 */
+ 	.align	4
+ L(duP3):
+-	srw	rC,rWORD8,rSHR
+-	lwz	rWORD3,0(rSTR1)
+-	slw	rF,rWORD8,rSHL
+-	or	rWORD4,rC,rH
++	srw	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
++	lwz	rWORD3, 0(rSTR1)
++#endif
++	slw	rWORD4_SHIFT, rWORD8, rSHL
++	or	rWORD4, r12, rWORD6_SHIFT
+ L(duP3e):
+-	lwz	rWORD5,4(rSTR1)
+-	lwz	rWORD6,4(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	srw	rE,rWORD6,rSHR
+-	slw	rH,rWORD6,rSHL
+-	or	rWORD6,rE,rF
+-	lwz	rWORD7,8(rSTR1)
+-	lwz	rWORD8,8(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	bne	cr1,L(duLcr1)
+-	srw	rG,rWORD8,rSHR
+-	slw	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	blt	cr7,L(duP3x)
+-	lwz	rWORD1,12(rSTR1)
+-	lwz	rWORD2,12(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
+-	bne	cr6,L(duLcr6)
+-	srw	rA,rWORD2,rSHR
+-	slw	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	cmplw	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 4(rSTR1)
++	lwz	rWORD6, 4(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD7, 8(rSTR1)
++	lwz	rWORD8, 8(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	bne	cr1, L(duLcr1)
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	blt	cr7, L(duP3x)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 12(rSTR1)
++	lwz	rWORD2, 12(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++	bne	cr6, L(duLcr6)
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++	cmplw	cr7, rWORD1, rWORD2
+ 	b	L(duLoop1)
+ 	.align	4
+ L(duP3x):
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	bne	cr1,L(duLcr1)
+-	cmplw	cr5,rWORD7,rWORD8
+-	bne	cr6,L(duLcr6)
+-	slwi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmplw	cr7,rN,rSHR
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++#if 0
++/* Huh?  We've already branched on cr1!  */
++	bne	cr1, L(duLcr1)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++	bne	cr6, L(duLcr6)
++	slwi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	lwz	rWORD2,4(rSTR2)
+-	srw	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	srw	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ 
+ /* Count is a multiple of 16, remainder is 0 */
+ 	.align	4
+ L(duP4):
+-	mtctr	rTMP
+-	srw	rA,rWORD8,rSHR
+-	lwz	rWORD1,0(rSTR1)
+-	slw	rD,rWORD8,rSHL
+-	or	rWORD2,rA,rH
++	mtctr	r0
++	srw	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	addi	rSTR1, rSTR1, 4
++#else
++	lwz	rWORD1, 0(rSTR1)
++#endif
++	slw	rWORD2_SHIFT, rWORD8, rSHL
++	or	rWORD2, r0, rWORD6_SHIFT
+ L(duP4e):
+-	lwz	rWORD3,4(rSTR1)
+-	lwz	rWORD4,4(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
+-	srw	rC,rWORD4,rSHR
+-	slw	rF,rWORD4,rSHL
+-	or	rWORD4,rC,rD
+-	lwz	rWORD5,8(rSTR1)
+-	lwz	rWORD6,8(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	bne	cr0,L(duLcr0)
+-	srw	rE,rWORD6,rSHR
+-	slw	rH,rWORD6,rSHL
+-	or	rWORD6,rE,rF
+-	lwzu	rWORD7,12(rSTR1)
+-	lwzu	rWORD8,12(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	bne	cr1,L(duLcr1)
+-	srw	rG,rWORD8,rSHR
+-	slw	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	cmplw	cr5,rWORD7,rWORD8
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 4(rSTR1)
++	lwz	rWORD4, 4(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 8(rSTR1)
++	lwz	rWORD6, 8(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++	bne	cr7, L(duLcr7)
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwzu	rWORD7, 12(rSTR1)
++	lwzu	rWORD8, 12(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	bne	cr1, L(duLcr1)
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	cmplw	cr5, rWORD7, rWORD8
+ 	bdz	L(du24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+ 	.align	4
+ L(duLoop):
+-	lwz	rWORD1,4(rSTR1)
+-	lwz	rWORD2,4(rSTR2)
+-	cmplw	cr1,rWORD3,rWORD4
+-	bne	cr6,L(duLcr6)
+-	srw	rA,rWORD2,rSHR
+-	slw	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD1, 4(rSTR1)
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++	bne	cr6, L(duLcr6)
++	srw	r0, rWORD2, rSHR
++	slw	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
+ L(duLoop1):
+-	lwz	rWORD3,8(rSTR1)
+-	lwz	rWORD4,8(rSTR2)
+-	cmplw	cr6,rWORD5,rWORD6
+-	bne	cr5,L(duLcr5)
+-	srw	rC,rWORD4,rSHR
+-	slw	rF,rWORD4,rSHL
+-	or	rWORD4,rC,rD
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD3, 0, rSTR1
++	lwbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD3, 8(rSTR1)
++	lwz	rWORD4, 8(rSTR2)
++#endif
++	cmplw	cr6, rWORD5, rWORD6
++	bne	cr5, L(duLcr5)
++	srw	r12, rWORD4, rSHR
++	slw	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
+ L(duLoop2):
+-	lwz	rWORD5,12(rSTR1)
+-	lwz	rWORD6,12(rSTR2)
+-	cmplw	cr5,rWORD7,rWORD8
+-	bne	cr0,L(duLcr0)
+-	srw	rE,rWORD6,rSHR
+-	slw	rH,rWORD6,rSHL
+-	or	rWORD6,rE,rF
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD5, 0, rSTR1
++	lwbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD5, 12(rSTR1)
++	lwz	rWORD6, 12(rSTR2)
++#endif
++	cmplw	cr5, rWORD7, rWORD8
++	bne	cr7, L(duLcr7)
++	srw	r0, rWORD6, rSHR
++	slw	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
+ L(duLoop3):
+-	lwzu	rWORD7,16(rSTR1)
+-	lwzu	rWORD8,16(rSTR2)
+-	cmplw	cr0,rWORD1,rWORD2
+-	bne	cr1,L(duLcr1)
+-	srw	rG,rWORD8,rSHR
+-	slw	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD7, 0, rSTR1
++	lwbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 4
++	addi	rSTR2, rSTR2, 4
++#else
++	lwzu	rWORD7, 16(rSTR1)
++	lwzu	rWORD8, 16(rSTR2)
++#endif
++	cmplw	cr7, rWORD1, rWORD2
++	bne	cr1, L(duLcr1)
++	srw	r12, rWORD8, rSHR
++	slw	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	bdnz	L(duLoop)
+ 
+ L(duL4):
+-	bne	cr1,L(duLcr1)
+-	cmplw	cr1,rWORD3,rWORD4
+-	bne	cr6,L(duLcr6)
+-	cmplw	cr6,rWORD5,rWORD6
+-	bne	cr5,L(duLcr5)
+-	cmplw	cr5,rWORD7,rWORD8
++#if 0
++/* Huh?  We've already branched on cr1!  */
++	bne	cr1, L(duLcr1)
++#endif
++	cmplw	cr1, rWORD3, rWORD4
++	bne	cr6, L(duLcr6)
++	cmplw	cr6, rWORD5, rWORD6
++	bne	cr5, L(duLcr5)
++	cmplw	cr5, rWORD7, rWORD8
+ L(du44):
+-	bne	cr0,L(duLcr0)
++	bne	cr7, L(duLcr7)
+ L(du34):
+-	bne	cr1,L(duLcr1)
++	bne	cr1, L(duLcr1)
+ L(du24):
+-	bne	cr6,L(duLcr6)
++	bne	cr6, L(duLcr6)
+ L(du14):
+-	slwi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
++	slwi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
+ /* At this point we have a remainder of 1 to 3 bytes to compare.  We use
+    shift right to eliminate bits beyond the compare length.
++   This allows the use of word subtract to compute the final result.
+ 
+    However it may not be safe to load rWORD2 which may be beyond the
+    string length. So we compare the bit length of the remainder to
+    the right shift count (rSHR). If the bit count is less than or equal
+    we do not need to load rWORD2 (all significant bits are already in
+-   rB).  */
+-	cmplw	cr7,rN,rSHR
++   rWORD8_SHIFT).  */
++	cmplw	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	lwz	rWORD2,4(rSTR2)
+-	srw	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 4
++#else
++	lwz	rWORD2, 4(rSTR2)
++#endif
++	srw	r0, rWORD2, rSHR
+ 	.align	4
+ L(dutrim):
+-	lwz	rWORD1,4(rSTR1)
+-	lwz	r31,48(1)
+-	subfic	rN,rN,32	/* Shift count is 32 - (rN * 8).  */
+-	or	rWORD2,rA,rB
+-	lwz	r30,44(1)
+-	lwz	r29,40(r1)
+-	srw	rWORD1,rWORD1,rN
+-	srw	rWORD2,rWORD2,rN
+-	lwz	r28,36(r1)
+-	lwz	r27,32(r1)
+-	cmplw	rWORD1,rWORD2
+-	li	rRTN,0
+-	beq	L(dureturn26)
+-	li	rRTN,1
+-	bgt	L(dureturn26)
+-	li	rRTN,-1
++#ifdef __LITTLE_ENDIAN__
++	lwbrx	rWORD1, 0, rSTR1
++#else
++	lwz	rWORD1, 4(rSTR1)
++#endif
++	lwz	rWORD8, 48(r1)
++	subfic	rN, rN, 32	/* Shift count is 32 - (rN * 8).  */
++	or	rWORD2, r0, rWORD8_SHIFT
++	lwz	rWORD7, 44(r1)
++	lwz	rSHL, 40(r1)
++	srw	rWORD1, rWORD1, rN
++	srw	rWORD2, rWORD2, rN
++	lwz	rSHR, 36(r1)
++	lwz	rWORD8_SHIFT, 32(r1)
++	sub	rRTN, rWORD1, rWORD2
+ 	b	L(dureturn26)
+ 	.align	4
+-L(duLcr0):
+-	lwz	r31,48(1)
+-	lwz	r30,44(1)
+-	li	rRTN,1
+-	bgt	cr0,L(dureturn29)
+-	lwz	r29,40(r1)
+-	lwz	r28,36(r1)
+-	li	rRTN,-1
++L(duLcr7):
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
++	li	rRTN, 1
++	bgt	cr7, L(dureturn29)
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	4
+ L(duLcr1):
+-	lwz	r31,48(1)
+-	lwz	r30,44(1)
+-	li	rRTN,1
+-	bgt	cr1,L(dureturn29)
+-	lwz	r29,40(r1)
+-	lwz	r28,36(r1)
+-	li	rRTN,-1
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
++	li	rRTN, 1
++	bgt	cr1, L(dureturn29)
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	4
+ L(duLcr6):
+-	lwz	r31,48(1)
+-	lwz	r30,44(1)
+-	li	rRTN,1
+-	bgt	cr6,L(dureturn29)
+-	lwz	r29,40(r1)
+-	lwz	r28,36(r1)
+-	li	rRTN,-1
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
++	li	rRTN, 1
++	bgt	cr6, L(dureturn29)
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	4
+ L(duLcr5):
+-	lwz	r31,48(1)
+-	lwz	r30,44(1)
+-	li	rRTN,1
+-	bgt	cr5,L(dureturn29)
+-	lwz	r29,40(r1)
+-	lwz	r28,36(r1)
+-	li	rRTN,-1
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
++	li	rRTN, 1
++	bgt	cr5, L(dureturn29)
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	3
+ L(duZeroReturn):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	.align	4
+ L(dureturn):
+-	lwz	r31,48(1)
+-	lwz	r30,44(1)
++	lwz	rWORD8, 48(r1)
++	lwz	rWORD7, 44(r1)
+ L(dureturn29):
+-	lwz	r29,40(r1)
+-	lwz	r28,36(r1)
++	lwz	rSHL, 40(r1)
++	lwz	rSHR, 36(r1)
+ L(dureturn27):
+-	lwz	r27,32(r1)
++	lwz	rWORD8_SHIFT, 32(r1)
+ L(dureturn26):
+-	lwz	r26,28(r1)
++	lwz	rWORD2_SHIFT, 28(r1)
+ L(dureturn25):
+-	lwz	r25,24(r1)
+-	lwz	r24,20(r1)
+-	lwz	1,0(1)
++	lwz	rWORD4_SHIFT, 24(r1)
++	lwz	rWORD6_SHIFT, 20(r1)
++	addi	r1, r1, 64
++	cfi_adjust_cfa_offset(-64)
+ 	blr
+ END (BP_SYM (memcmp))
++
+ libc_hidden_builtin_def (memcmp)
+ weak_alias (memcmp,bcmp)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcmp.S	2014-05-28 19:22:37.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcmp.S	2014-05-29 09:35:25.000000000 -0500
+@@ -1,5 +1,5 @@
+-/* Optimized strcmp implementation for PowerPC64.
+-   Copyright (C) 2003, 2006, 2011 Free Software Foundation, Inc.
++/* Optimized memcmp implementation for PowerPC64.
++   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -17,307 +17,492 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+-/* int [r3] memcmp (const char *s1 [r3], const char *s2 [r4], size_t size [r5])  */
++/* int [r3] memcmp (const char *s1 [r3],
++		    const char *s2 [r4],
++		    size_t size [r5])  */
+ 
+ 	.machine power4
+-EALIGN (BP_SYM(memcmp), 4, 0)
++EALIGN (memcmp, 4, 0)
+ 	CALL_MCOUNT 3
+ 
+-#define rTMP	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+ #define rN	r5	/* max string length */
+-/* Note:  The Bounded pointer support in this code is broken.  This code
+-   was inherited from PPC32 and that support was never completed.
+-   Current PPC gcc does not support -fbounds-check or -fbounded-pointers.  */
+ #define rWORD1	r6	/* current word in s1 */
+ #define rWORD2	r7	/* current word in s2 */
+ #define rWORD3	r8	/* next word in s1 */
+ #define rWORD4	r9	/* next word in s2 */
+ #define rWORD5	r10	/* next word in s1 */
+ #define rWORD6	r11	/* next word in s2 */
+-#define rBITDIF	r12	/* bits that differ in s1 & s2 words */
+ #define rWORD7	r30	/* next word in s1 */
+ #define rWORD8	r31	/* next word in s2 */
+ 
+-	xor	rTMP, rSTR2, rSTR1
++	xor	r0, rSTR2, rSTR1
+ 	cmpldi	cr6, rN, 0
+ 	cmpldi	cr1, rN, 12
+-	clrldi.	rTMP, rTMP, 61
+-	clrldi	rBITDIF, rSTR1, 61
+-	cmpldi	cr5, rBITDIF, 0
++	clrldi.	r0, r0, 61
++	clrldi	r12, rSTR1, 61
++	cmpldi	cr5, r12, 0
+ 	beq-	cr6, L(zeroLength)
+-	dcbt	0,rSTR1
+-	dcbt	0,rSTR2
+-/* If less than 8 bytes or not aligned, use the unalligned
++	dcbt	0, rSTR1
++	dcbt	0, rSTR2
++/* If less than 8 bytes or not aligned, use the unaligned
+    byte loop.  */
+ 	blt	cr1, L(bytealigned)
+-	std	rWORD8,-8(r1)	
+-	cfi_offset(rWORD8,-8)
+-	std	rWORD7,-16(r1)	
+-	cfi_offset(rWORD7,-16)
++	std	rWORD8, -8(r1)
++	cfi_offset(rWORD8, -8)
++	std	rWORD7, -16(r1)
++	cfi_offset(rWORD7, -16)
+ 	bne	L(unaligned)
+ /* At this point we know both strings have the same alignment and the
+-   compare length is at least 8 bytes.  rBITDIF containes the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    3 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then we are already double word 
+-   aligned and can perform the DWaligned loop.
+-  
++   of r12 to 0.  If r12 == 0 then we are already double word
++   aligned and can perform the DW aligned loop.
++
+    Otherwise we know the two strings have the same alignment (but not
+-   yet DW).  So we can force the string addresses to the next lower DW
+-   boundary and special case this first DW word using shift left to
+-   ellimiate bits preceeding the first byte.  Since we want to join the
+-   normal (DWaligned) compare loop, starting at the second double word,
++   yet DW).  So we force the string addresses to the next lower DW
++   boundary and special case this first DW using shift left to
++   eliminate bits preceding the first byte.  Since we want to join the
++   normal (DW aligned) compare loop, starting at the second double word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first DW. This insures that the loop count is
+-   correct and the first DW (shifted) is in the expected resister pair.  */
+-	.align 4
++   versioning for the first DW. This ensures that the loop count is
++   correct and the first DW (shifted) is in the expected register pair.  */
++	.align	4
+ L(samealignment):
+ 	clrrdi	rSTR1, rSTR1, 3
+ 	clrrdi	rSTR2, rSTR2, 3
+ 	beq	cr5, L(DWaligned)
+-	add	rN, rN, rBITDIF
+-	sldi	r11, rBITDIF, 3
+-	srdi	rTMP, rN, 5	/* Divide by 32 */
+-	andi.	rBITDIF, rN, 24	/* Get the DW remainder */
++	add	rN, rN, r12
++	sldi	rWORD6, r12, 3
++	srdi	r0, rN, 5	/* Divide by 32 */
++	andi.	r12, rN, 24	/* Get the DW remainder */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 0(rSTR1)
+ 	ld	rWORD2, 0(rSTR2)
+-	cmpldi	cr1, rBITDIF, 16
++#endif
++	cmpldi	cr1, r12, 16
+ 	cmpldi	cr7, rN, 32
+ 	clrldi	rN, rN, 61
+ 	beq	L(dPs4)
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
+ 	bgt	cr1, L(dPs3)
+ 	beq	cr1, L(dPs2)
+ 
+ /* Remainder is 8 */
+-	.align 3
++	.align	3
+ L(dsP1):
+-	sld	rWORD5, rWORD1, r11
+-	sld	rWORD6, rWORD2, r11
++	sld	rWORD5, rWORD1, rWORD6
++	sld	rWORD6, rWORD2, rWORD6
+ 	cmpld	cr5, rWORD5, rWORD6
+ 	blt	cr7, L(dP1x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 8(rSTR1)
+ 	ld	rWORD2, 8(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ 	b	L(dP1e)
+ /* Remainder is 16 */
+-	.align 4
++	.align	4
+ L(dPs2):
+-	sld	rWORD5, rWORD1, r11
+-	sld	rWORD6, rWORD2, r11
++	sld	rWORD5, rWORD1, rWORD6
++	sld	rWORD6, rWORD2, rWORD6
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	blt	cr7, L(dP2x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD7, 8(rSTR1)
+ 	ld	rWORD8, 8(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+ 	b	L(dP2e)
+ /* Remainder is 24 */
+-	.align 4
++	.align	4
+ L(dPs3):
+-	sld	rWORD3, rWORD1, r11
+-	sld	rWORD4, rWORD2, r11
++	sld	rWORD3, rWORD1, rWORD6
++	sld	rWORD4, rWORD2, rWORD6
+ 	cmpld	cr1, rWORD3, rWORD4
+ 	b	L(dP3e)
+ /* Count is a multiple of 32, remainder is 0 */
+-	.align 4
++	.align	4
+ L(dPs4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	sld	rWORD1, rWORD1, r11
+-	sld	rWORD2, rWORD2, r11
+-	cmpld	cr0, rWORD1, rWORD2
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	sld	rWORD1, rWORD1, rWORD6
++	sld	rWORD2, rWORD2, rWORD6
++	cmpld	cr7, rWORD1, rWORD2
+ 	b	L(dP4e)
+ 
+ /* At this point we know both strings are double word aligned and the
+    compare length is at least 8 bytes.  */
+-	.align 4
++	.align	4
+ L(DWaligned):
+-	andi.	rBITDIF, rN, 24	/* Get the DW remainder */
+-	srdi	rTMP, rN, 5	/* Divide by 32 */
+-	cmpldi	cr1, rBITDIF, 16
++	andi.	r12, rN, 24	/* Get the DW remainder */
++	srdi	r0, rN, 5	/* Divide by 32 */
++	cmpldi	cr1, r12, 16
+ 	cmpldi	cr7, rN, 32
+ 	clrldi	rN, rN, 61
+ 	beq	L(dP4)
+ 	bgt	cr1, L(dP3)
+ 	beq	cr1, L(dP2)
+-		
++
+ /* Remainder is 8 */
+-	.align 4
++	.align	4
+ L(dP1):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
+ /* Normally we'd use rWORD7/rWORD8 here, but since we might exit early
+-   (8-15 byte compare), we want to use only volitile registers.  This
+-   means we can avoid restoring non-volitile registers since we did not
++   (8-15 byte compare), we want to use only volatile registers.  This
++   means we can avoid restoring non-volatile registers since we did not
+    change any on the early exit path.  The key here is the non-early
+-   exit path only cares about the condition code (cr5), not about which 
++   exit path only cares about the condition code (cr5), not about which
+    register pair was used.  */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 0(rSTR1)
+ 	ld	rWORD6, 0(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD5, rWORD6
+ 	blt	cr7, L(dP1x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 8(rSTR1)
+ 	ld	rWORD2, 8(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ L(dP1e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 16(rSTR1)
+ 	ld	rWORD4, 16(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 24(rSTR1)
+ 	ld	rWORD6, 24(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+-	bne	cr5, L(dLcr5)
+-	bne	cr0, L(dLcr0)
+-	
++	bne	cr5, L(dLcr5x)
++	bne	cr7, L(dLcr7x)
++
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ldu	rWORD7, 32(rSTR1)
+ 	ldu	rWORD8, 32(rSTR2)
++#endif
+ 	bne	cr1, L(dLcr1)
+ 	cmpld	cr5, rWORD7, rWORD8
+ 	bdnz	L(dLoop)
+ 	bne	cr6, L(dLcr6)
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	.align 3
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++	.align	3
+ L(dP1x):
+ 	sldi.	r12, rN, 3
+-	bne	cr5, L(dLcr5)
++	bne	cr5, L(dLcr5x)
+ 	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
+ 	bne	L(d00)
+ 	li	rRTN, 0
+ 	blr
+-		
++
+ /* Remainder is 16 */
+-	.align 4
++	.align	4
+ L(dP2):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 0(rSTR1)
+ 	ld	rWORD6, 0(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	blt	cr7, L(dP2x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD7, 8(rSTR1)
+ 	ld	rWORD8, 8(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+ L(dP2e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 16(rSTR1)
+ 	ld	rWORD2, 16(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 24(rSTR1)
+ 	ld	rWORD4, 24(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
++#endif
+ 	bne	cr6, L(dLcr6)
+ 	bne	cr5, L(dLcr5)
+ 	b	L(dLoop2)
+ /* Again we are on a early exit path (16-23 byte compare), we want to
+-   only use volitile registers and avoid restoring non-volitile
++   only use volatile registers and avoid restoring non-volatile
+    registers.  */
+-	.align 4
++	.align	4
+ L(dP2x):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 8(rSTR1)
+ 	ld	rWORD4, 8(rSTR2)
+-	cmpld	cr5, rWORD3, rWORD4
++#endif
++	cmpld	cr1, rWORD3, rWORD4
+ 	sldi.	r12, rN, 3
+-	bne	cr6, L(dLcr6)
++	bne	cr6, L(dLcr6x)
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
+-	bne	cr5, L(dLcr5)
++#endif
++	bne	cr1, L(dLcr1x)
+ 	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
+ 	bne	L(d00)
+ 	li	rRTN, 0
+ 	blr
+-		
++
+ /* Remainder is 24 */
+-	.align 4
++	.align	4
+ L(dP3):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 0(rSTR1)
+ 	ld	rWORD4, 0(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+ L(dP3e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 8(rSTR1)
+ 	ld	rWORD6, 8(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	blt	cr7, L(dP3x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD7, 16(rSTR1)
+ 	ld	rWORD8, 16(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 24(rSTR1)
+ 	ld	rWORD2, 24(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 16
+ 	addi	rSTR2, rSTR2, 16
++#endif
+ 	bne	cr1, L(dLcr1)
+ 	bne	cr6, L(dLcr6)
+ 	b	L(dLoop1)
+ /* Again we are on a early exit path (24-31 byte compare), we want to
+-   only use volitile registers and avoid restoring non-volitile
++   only use volatile registers and avoid restoring non-volatile
+    registers.  */
+-	.align 4
++	.align	4
+ L(dP3x):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 16(rSTR1)
+ 	ld	rWORD2, 16(rSTR2)
+-	cmpld	cr5, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ 	sldi.	r12, rN, 3
+-	bne	cr1, L(dLcr1)
++	bne	cr1, L(dLcr1x)
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 16
+ 	addi	rSTR2, rSTR2, 16
+-	bne	cr6, L(dLcr6)
++#endif
++	bne	cr6, L(dLcr6x)
+ 	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
+-	bne	cr5, L(dLcr5)
++	bne	cr7, L(dLcr7x)
+ 	bne	L(d00)
+ 	li	rRTN, 0
+ 	blr
+-	
++
+ /* Count is a multiple of 32, remainder is 0 */
+-	.align 4
++	.align	4
+ L(dP4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 0(rSTR1)
+ 	ld	rWORD2, 0(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ L(dP4e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 8(rSTR1)
+ 	ld	rWORD4, 8(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 16(rSTR1)
+ 	ld	rWORD6, 16(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ldu	rWORD7, 24(rSTR1)
+ 	ldu	rWORD8, 24(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+-	bne	cr0, L(dLcr0)
++	bne	cr7, L(dLcr7)
+ 	bne	cr1, L(dLcr1)
+ 	bdz-	L(d24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+-	.align 4
++	.align	4
+ L(dLoop):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 8(rSTR1)
+ 	ld	rWORD2, 8(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+ 	bne	cr6, L(dLcr6)
+ L(dLoop1):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 16(rSTR1)
+ 	ld	rWORD4, 16(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	bne	cr5, L(dLcr5)
+ L(dLoop2):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 24(rSTR1)
+ 	ld	rWORD6, 24(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+-	bne	cr0, L(dLcr0)
++	bne	cr7, L(dLcr7)
+ L(dLoop3):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ldu	rWORD7, 32(rSTR1)
+ 	ldu	rWORD8, 32(rSTR2)
++#endif
+ 	bne-	cr1, L(dLcr1)
+-	cmpld	cr0, rWORD1, rWORD2
+-	bdnz+	L(dLoop)	
+-	
++	cmpld	cr7, rWORD1, rWORD2
++	bdnz+	L(dLoop)
++
+ L(dL4):
+ 	cmpld	cr1, rWORD3, rWORD4
+ 	bne	cr6, L(dLcr6)
+@@ -325,84 +510,98 @@
+ 	bne	cr5, L(dLcr5)
+ 	cmpld	cr5, rWORD7, rWORD8
+ L(d44):
+-	bne	cr0, L(dLcr0)
++	bne	cr7, L(dLcr7)
+ L(d34):
+ 	bne	cr1, L(dLcr1)
+ L(d24):
+ 	bne	cr6, L(dLcr6)
+ L(d14):
+ 	sldi.	r12, rN, 3
+-	bne	cr5, L(dLcr5) 
++	bne	cr5, L(dLcr5)
+ L(d04):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ 	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
+ 	beq	L(zeroLength)
+ /* At this point we have a remainder of 1 to 7 bytes to compare.  Since
+    we are aligned it is safe to load the whole double word, and use
+-   shift right double to elliminate bits beyond the compare length.  */ 
++   shift right double to eliminate bits beyond the compare length.  */
+ L(d00):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 8(rSTR1)
+-	ld	rWORD2, 8(rSTR2) 
++	ld	rWORD2, 8(rSTR2)
++#endif
+ 	srd	rWORD1, rWORD1, rN
+ 	srd	rWORD2, rWORD2, rN
+-	cmpld	cr5, rWORD1, rWORD2
+- 	bne	cr5, L(dLcr5x)
++	cmpld	cr7, rWORD1, rWORD2
++	bne	cr7, L(dLcr7x)
+ 	li	rRTN, 0
+ 	blr
+-	.align 4
+-L(dLcr0):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++
++	.align	4
++L(dLcr7):
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++L(dLcr7x):
+ 	li	rRTN, 1
+-	bgtlr	cr0
++	bgtlr	cr7
+ 	li	rRTN, -1
+ 	blr
+-	.align 4
++	.align	4
+ L(dLcr1):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++L(dLcr1x):
+ 	li	rRTN, 1
+ 	bgtlr	cr1
+ 	li	rRTN, -1
+ 	blr
+-	.align 4
++	.align	4
+ L(dLcr6):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++L(dLcr6x):
+ 	li	rRTN, 1
+ 	bgtlr	cr6
+ 	li	rRTN, -1
+ 	blr
+-	.align 4
++	.align	4
+ L(dLcr5):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ L(dLcr5x):
+ 	li	rRTN, 1
+ 	bgtlr	cr5
+ 	li	rRTN, -1
+ 	blr
+-	
+-	.align 4
++
++	.align	4
+ L(bytealigned):
+-	mtctr   rN	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	rN	/* Power4 wants mtctr 1st in dispatch group */
++#if 0
++/* Huh?  We've already branched on cr6!  */
+ 	beq-	cr6, L(zeroLength)
++#endif
+ 
+ /* We need to prime this loop.  This loop is swing modulo scheduled
+-   to avoid pipe delays.  The dependent instruction latencies (load to 
++   to avoid pipe delays.  The dependent instruction latencies (load to
+    compare to conditional branch) is 2 to 3 cycles.  In this loop each
+    dispatch group ends in a branch and takes 1 cycle.  Effectively
+-   the first iteration of the loop only serves to load operands and 
+-   branches based on compares are delayed until the next loop. 
++   the first iteration of the loop only serves to load operands and
++   branches based on compares are delayed until the next loop.
+ 
+    So we must precondition some registers and condition codes so that
+    we don't exit the loop early on the first iteration.  */
+-   
++
+ 	lbz	rWORD1, 0(rSTR1)
+ 	lbz	rWORD2, 0(rSTR2)
+ 	bdz-	L(b11)
+-	cmpld	cr0, rWORD1, rWORD2
++	cmpld	cr7, rWORD1, rWORD2
+ 	lbz	rWORD3, 1(rSTR1)
+ 	lbz	rWORD4, 1(rSTR2)
+ 	bdz-	L(b12)
+@@ -410,20 +609,20 @@
+ 	lbzu	rWORD5, 2(rSTR1)
+ 	lbzu	rWORD6, 2(rSTR2)
+ 	bdz-	L(b13)
+-	.align 4
++	.align	4
+ L(bLoop):
+ 	lbzu	rWORD1, 1(rSTR1)
+ 	lbzu	rWORD2, 1(rSTR2)
+-	bne-	cr0, L(bLcr0)
++	bne-	cr7, L(bLcr7)
+ 
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	bdz-	L(b3i)
+-	
++
+ 	lbzu	rWORD3, 1(rSTR1)
+ 	lbzu	rWORD4, 1(rSTR2)
+ 	bne-	cr1, L(bLcr1)
+ 
+-	cmpld	cr0, rWORD1, rWORD2
++	cmpld	cr7, rWORD1, rWORD2
+ 	bdz-	L(b2i)
+ 
+ 	lbzu	rWORD5, 1(rSTR1)
+@@ -432,31 +631,31 @@
+ 
+ 	cmpld	cr1, rWORD3, rWORD4
+ 	bdnz+	L(bLoop)
+-	
++
+ /* We speculatively loading bytes before we have tested the previous
+    bytes.  But we must avoid overrunning the length (in the ctr) to
+-   prevent these speculative loads from causing a segfault.  In this 
++   prevent these speculative loads from causing a segfault.  In this
+    case the loop will exit early (before the all pending bytes are
+    tested.  In this case we must complete the pending operations
+    before returning.  */
+ L(b1i):
+-	bne-	cr0, L(bLcr0)
++	bne-	cr7, L(bLcr7)
+ 	bne-	cr1, L(bLcr1)
+ 	b	L(bx56)
+-	.align 4
++	.align	4
+ L(b2i):
+ 	bne-	cr6, L(bLcr6)
+-	bne-	cr0, L(bLcr0)
++	bne-	cr7, L(bLcr7)
+ 	b	L(bx34)
+-	.align 4
++	.align	4
+ L(b3i):
+ 	bne-	cr1, L(bLcr1)
+ 	bne-	cr6, L(bLcr6)
+ 	b	L(bx12)
+-	.align 4
+-L(bLcr0):
++	.align	4
++L(bLcr7):
+ 	li	rRTN, 1
+-	bgtlr	cr0
++	bgtlr	cr7
+ 	li	rRTN, -1
+ 	blr
+ L(bLcr1):
+@@ -471,116 +670,121 @@
+ 	blr
+ 
+ L(b13):
+-	bne-	cr0, L(bx12)
++	bne-	cr7, L(bx12)
+ 	bne-	cr1, L(bx34)
+ L(bx56):
+ 	sub	rRTN, rWORD5, rWORD6
+ 	blr
+ 	nop
+ L(b12):
+-	bne-	cr0, L(bx12)
+-L(bx34):	
++	bne-	cr7, L(bx12)
++L(bx34):
+ 	sub	rRTN, rWORD3, rWORD4
+ 	blr
+ L(b11):
+ L(bx12):
+ 	sub	rRTN, rWORD1, rWORD2
+ 	blr
+-	.align 4 
+-L(zeroLengthReturn):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	.align	4
+ L(zeroLength):
+ 	li	rRTN, 0
+ 	blr
+ 
+-	.align 4
++	.align	4
+ /* At this point we know the strings have different alignment and the
+-   compare length is at least 8 bytes.  rBITDIF containes the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    3 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then rStr1 is double word 
++   of r12 to 0.  If r12 == 0 then rStr1 is double word
+    aligned and can perform the DWunaligned loop.
+-  
+-   Otherwise we know that rSTR1 is not aready DW aligned yet.
++
++   Otherwise we know that rSTR1 is not already DW aligned yet.
+    So we can force the string addresses to the next lower DW
+-   boundary and special case this first DW word using shift left to
+-   ellimiate bits preceeding the first byte.  Since we want to join the
++   boundary and special case this first DW using shift left to
++   eliminate bits preceding the first byte.  Since we want to join the
+    normal (DWaligned) compare loop, starting at the second double word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first DW. This insures that the loop count is
++   versioning for the first DW. This ensures that the loop count is
+    correct and the first DW (shifted) is in the expected resister pair.  */
+-#define rSHL	r29	/* Unaligned shift left count.  */
+-#define rSHR	r28	/* Unaligned shift right count.  */
+-#define rB		r27	/* Left rotation temp for rWORD2.  */
+-#define rD		r26	/* Left rotation temp for rWORD4.  */
+-#define rF		r25	/* Left rotation temp for rWORD6.  */
+-#define rH		r24	/* Left rotation temp for rWORD8.  */
+-#define rA		r0	/* Right rotation temp for rWORD2.  */
+-#define rC		r12	/* Right rotation temp for rWORD4.  */
+-#define rE		r0	/* Right rotation temp for rWORD6.  */
+-#define rG		r12	/* Right rotation temp for rWORD8.  */
++#define rSHL		r29	/* Unaligned shift left count.  */
++#define rSHR		r28	/* Unaligned shift right count.  */
++#define rWORD8_SHIFT	r27	/* Left rotation temp for rWORD2.  */
++#define rWORD2_SHIFT	r26	/* Left rotation temp for rWORD4.  */
++#define rWORD4_SHIFT	r25	/* Left rotation temp for rWORD6.  */
++#define rWORD6_SHIFT	r24	/* Left rotation temp for rWORD8.  */
+ L(unaligned):
+-	std	r29,-24(r1)	
+-	cfi_offset(r29,-24)
++	std	rSHL, -24(r1)
++	cfi_offset(rSHL, -24)
+ 	clrldi	rSHL, rSTR2, 61
+ 	beq-	cr6, L(duzeroLength)
+-	std	r28,-32(r1)	
+-	cfi_offset(r28,-32)
++	std	rSHR, -32(r1)
++	cfi_offset(rSHR, -32)
+ 	beq	cr5, L(DWunaligned)
+-	std	r27,-40(r1)	
+-	cfi_offset(r27,-40)
+-/* Adjust the logical start of rSTR2 ro compensate for the extra bits
++	std	rWORD8_SHIFT, -40(r1)
++	cfi_offset(rWORD8_SHIFT, -40)
++/* Adjust the logical start of rSTR2 to compensate for the extra bits
+    in the 1st rSTR1 DW.  */
+-	sub	r27, rSTR2, rBITDIF
++	sub	rWORD8_SHIFT, rSTR2, r12
+ /* But do not attempt to address the DW before that DW that contains
+    the actual start of rSTR2.  */
+ 	clrrdi	rSTR2, rSTR2, 3
+-	std	r26,-48(r1)	
+-	cfi_offset(r26,-48)
+-/* Compute the leaft/right shift counts for the unalign rSTR2,
+-   compensating for the logical (DW aligned) start of rSTR1.  */ 
+-	clrldi	rSHL, r27, 61
+-	clrrdi	rSTR1, rSTR1, 3	
+-	std	r25,-56(r1)	
+-	cfi_offset(r25,-56)
++	std	rWORD2_SHIFT, -48(r1)
++	cfi_offset(rWORD2_SHIFT, -48)
++/* Compute the left/right shift counts for the unaligned rSTR2,
++   compensating for the logical (DW aligned) start of rSTR1.  */
++	clrldi	rSHL, rWORD8_SHIFT, 61
++	clrrdi	rSTR1, rSTR1, 3
++	std	rWORD4_SHIFT, -56(r1)
++	cfi_offset(rWORD4_SHIFT, -56)
+ 	sldi	rSHL, rSHL, 3
+-	cmpld	cr5, r27, rSTR2
+-	add	rN, rN, rBITDIF
+-	sldi	r11, rBITDIF, 3
+-	std	r24,-64(r1)	
+-	cfi_offset(r24,-64)
++	cmpld	cr5, rWORD8_SHIFT, rSTR2
++	add	rN, rN, r12
++	sldi	rWORD6, r12, 3
++	std	rWORD6_SHIFT, -64(r1)
++	cfi_offset(rWORD6_SHIFT, -64)
+ 	subfic	rSHR, rSHL, 64
+-	srdi	rTMP, rN, 5	/* Divide by 32 */
+-	andi.	rBITDIF, rN, 24	/* Get the DW remainder */
++	srdi	r0, rN, 5	/* Divide by 32 */
++	andi.	r12, rN, 24	/* Get the DW remainder */
+ /* We normally need to load 2 DWs to start the unaligned rSTR2, but in
+    this special case those bits may be discarded anyway.  Also we
+    must avoid loading a DW where none of the bits are part of rSTR2 as
+    this may cross a page boundary and cause a page fault.  */
+ 	li	rWORD8, 0
+ 	blt	cr5, L(dus0)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD8, 0(rSTR2)
+-	la	rSTR2, 8(rSTR2)
++	addi	rSTR2, rSTR2, 8
++#endif
+ 	sld	rWORD8, rWORD8, rSHL
+ 
+ L(dus0):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 0(rSTR1)
+ 	ld	rWORD2, 0(rSTR2)
+-	cmpldi	cr1, rBITDIF, 16
++#endif
++	cmpldi	cr1, r12, 16
+ 	cmpldi	cr7, rN, 32
+-	srd	rG, rWORD2, rSHR
++	srd	r12, rWORD2, rSHR
+ 	clrldi	rN, rN, 61
+ 	beq	L(duPs4)
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	or	rWORD8, rG, rWORD8
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	or	rWORD8, r12, rWORD8
+ 	bgt	cr1, L(duPs3)
+ 	beq	cr1, L(duPs2)
+ 
+ /* Remainder is 8 */
+-	.align 4
++	.align	4
+ L(dusP1):
+-	sld	rB, rWORD2, rSHL
+-	sld	rWORD7, rWORD1, r11
+-	sld	rWORD8, rWORD8, r11
++	sld	rWORD8_SHIFT, rWORD2, rSHL
++	sld	rWORD7, rWORD1, rWORD6
++	sld	rWORD8, rWORD8, rWORD6
+ 	bge	cr7, L(duP1e)
+ /* At this point we exit early with the first double word compare
+    complete and remainder of 0 to 7 bytes.  See L(du14) for details on
+@@ -590,95 +794,133 @@
+ 	bne	cr5, L(duLcr5)
+ 	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD2, 8(rSTR2)
+-	srd	rA, rWORD2, rSHR
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 16 */
+-	.align 4
++	.align	4
+ L(duPs2):
+-	sld	rH, rWORD2, rSHL
+-	sld	rWORD5, rWORD1, r11
+-	sld	rWORD6, rWORD8, r11
++	sld	rWORD6_SHIFT, rWORD2, rSHL
++	sld	rWORD5, rWORD1, rWORD6
++	sld	rWORD6, rWORD8, rWORD6
+ 	b	L(duP2e)
+ /* Remainder is 24 */
+-	.align 4
++	.align	4
+ L(duPs3):
+-	sld	rF, rWORD2, rSHL
+-	sld	rWORD3, rWORD1, r11
+-	sld	rWORD4, rWORD8, r11
++	sld	rWORD4_SHIFT, rWORD2, rSHL
++	sld	rWORD3, rWORD1, rWORD6
++	sld	rWORD4, rWORD8, rWORD6
+ 	b	L(duP3e)
+ /* Count is a multiple of 32, remainder is 0 */
+-	.align 4
++	.align	4
+ L(duPs4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	or	rWORD8, rG, rWORD8
+-	sld	rD, rWORD2, rSHL
+-	sld	rWORD1, rWORD1, r11
+-	sld	rWORD2, rWORD8, r11
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	or	rWORD8, r12, rWORD8
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	sld	rWORD1, rWORD1, rWORD6
++	sld	rWORD2, rWORD8, rWORD6
+ 	b	L(duP4e)
+ 
+ /* At this point we know rSTR1 is double word aligned and the
+    compare length is at least 8 bytes.  */
+-	.align 4
++	.align	4
+ L(DWunaligned):
+-	std	r27,-40(r1)	
+-	cfi_offset(r27,-40)
++	std	rWORD8_SHIFT, -40(r1)
++	cfi_offset(rWORD8_SHIFT, -40)
+ 	clrrdi	rSTR2, rSTR2, 3
+-	std	r26,-48(r1)	
+-	cfi_offset(r26,-48)
+-	srdi	rTMP, rN, 5	/* Divide by 32 */
+-	std	r25,-56(r1)	
+-	cfi_offset(r25,-56)
+-	andi.	rBITDIF, rN, 24	/* Get the DW remainder */
+-	std	r24,-64(r1)	
+-	cfi_offset(r24,-64)
++	std	rWORD2_SHIFT, -48(r1)
++	cfi_offset(rWORD2_SHIFT, -48)
++	srdi	r0, rN, 5	/* Divide by 32 */
++	std	rWORD4_SHIFT, -56(r1)
++	cfi_offset(rWORD4_SHIFT, -56)
++	andi.	r12, rN, 24	/* Get the DW remainder */
++	std	rWORD6_SHIFT, -64(r1)
++	cfi_offset(rWORD6_SHIFT, -64)
+ 	sldi	rSHL, rSHL, 3
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD6, 0(rSTR2)
+ 	ldu	rWORD8, 8(rSTR2)
+-	cmpldi	cr1, rBITDIF, 16
++#endif
++	cmpldi	cr1, r12, 16
+ 	cmpldi	cr7, rN, 32
+ 	clrldi	rN, rN, 61
+ 	subfic	rSHR, rSHL, 64
+-	sld	rH, rWORD6, rSHL
++	sld	rWORD6_SHIFT, rWORD6, rSHL
+ 	beq	L(duP4)
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
+ 	bgt	cr1, L(duP3)
+ 	beq	cr1, L(duP2)
+-		
++
+ /* Remainder is 8 */
+-	.align 4
++	.align	4
+ L(duP1):
+-	srd	rG, rWORD8, rSHR
++	srd	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
+ 	ld	rWORD7, 0(rSTR1)
+-	sld	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++#endif
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	blt	cr7, L(duP1x)
+ L(duP1e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 8(rSTR1)
+ 	ld	rWORD2, 8(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+-	srd	rA, rWORD2, rSHR
+-	sld	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 16(rSTR1)
+ 	ld	rWORD4, 16(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
+-	srd	rC, rWORD4, rSHR
+-	sld	rF, rWORD4, rSHL
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
+ 	bne	cr5, L(duLcr5)
+-	or	rWORD4, rC, rD
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 24(rSTR1)
+ 	ld	rWORD6, 24(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+-	srd	rE, rWORD6, rSHR
+-	sld	rH, rWORD6, rSHL
+-	bne	cr0, L(duLcr0)
+-	or	rWORD6, rE, rF
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	bne	cr7, L(duLcr7)
++	or	rWORD6, r0, rWORD4_SHIFT
+ 	cmpld	cr6, rWORD5, rWORD6
+-	b	L(duLoop3)	
+-	.align 4
++	b	L(duLoop3)
++	.align	4
+ /* At this point we exit early with the first double word compare
+    complete and remainder of 0 to 7 bytes.  See L(du14) for details on
+    how we handle the remaining bytes.  */
+@@ -688,186 +930,321 @@
+ 	bne	cr5, L(duLcr5)
+ 	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD2, 8(rSTR2)
+-	srd	rA, rWORD2, rSHR
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 16 */
+-	.align 4
++	.align	4
+ L(duP2):
+-	srd	rE, rWORD8, rSHR
++	srd	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
+ 	ld	rWORD5, 0(rSTR1)
+-	or	rWORD6, rE, rH
+-	sld	rH, rWORD8, rSHL
++#endif
++	or	rWORD6, r0, rWORD6_SHIFT
++	sld	rWORD6_SHIFT, rWORD8, rSHL
+ L(duP2e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD7, 8(rSTR1)
+ 	ld	rWORD8, 8(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+-	srd	rG, rWORD8, rSHR
+-	sld	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	blt	cr7, L(duP2x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 16(rSTR1)
+ 	ld	rWORD2, 16(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+ 	bne	cr6, L(duLcr6)
+-	srd	rA, rWORD2, rSHR
+-	sld	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 24(rSTR1)
+ 	ld	rWORD4, 24(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ 	bne	cr5, L(duLcr5)
+-	srd	rC, rWORD4, rSHR
+-	sld	rF, rWORD4, rSHL
+-	or	rWORD4, rC, rD
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+ 	b	L(duLoop2)
+-	.align 4
++	.align	4
+ L(duP2x):
+ 	cmpld	cr5, rWORD7, rWORD8
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 8
+ 	addi	rSTR2, rSTR2, 8
++#endif
+ 	bne	cr6, L(duLcr6)
+ 	sldi.	rN, rN, 3
+ 	bne	cr5, L(duLcr5)
+ 	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD2, 8(rSTR2)
+-	srd	rA, rWORD2, rSHR
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+-		
++
+ /* Remainder is 24 */
+-	.align 4
++	.align	4
+ L(duP3):
+-	srd	rC, rWORD8, rSHR
++	srd	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
+ 	ld	rWORD3, 0(rSTR1)
+-	sld	rF, rWORD8, rSHL
+-	or	rWORD4, rC, rH
++#endif
++	sld	rWORD4_SHIFT, rWORD8, rSHL
++	or	rWORD4, r12, rWORD6_SHIFT
+ L(duP3e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 8(rSTR1)
+ 	ld	rWORD6, 8(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+-	srd	rE, rWORD6, rSHR
+-	sld	rH, rWORD6, rSHL
+-	or	rWORD6, rE, rF
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD7, 16(rSTR1)
+ 	ld	rWORD8, 16(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	bne	cr1, L(duLcr1)
+-	srd	rG, rWORD8, rSHR
+-	sld	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	blt	cr7, L(duP3x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 24(rSTR1)
+ 	ld	rWORD2, 24(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+ 	bne	cr6, L(duLcr6)
+-	srd	rA, rWORD2, rSHR
+-	sld	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 16
+ 	addi	rSTR2, rSTR2, 16
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ 	b	L(duLoop1)
+-	.align 4
++	.align	4
+ L(duP3x):
++#ifndef __LITTLE_ENDIAN__
+ 	addi	rSTR1, rSTR1, 16
+ 	addi	rSTR2, rSTR2, 16
++#endif
++#if 0
++/* Huh?  We've already branched on cr1!  */
+ 	bne	cr1, L(duLcr1)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+ 	bne	cr6, L(duLcr6)
+ 	sldi.	rN, rN, 3
+ 	bne	cr5, L(duLcr5)
+ 	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD2, 8(rSTR2)
+-	srd	rA, rWORD2, rSHR
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+-	
++
+ /* Count is a multiple of 32, remainder is 0 */
+-	.align 4
++	.align	4
+ L(duP4):
+-	mtctr   rTMP	/* Power4 wants mtctr 1st in dispatch group */
+-	srd	rA, rWORD8, rSHR
++	mtctr	r0	/* Power4 wants mtctr 1st in dispatch group */
++	srd	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
+ 	ld	rWORD1, 0(rSTR1)
+-	sld	rD, rWORD8, rSHL
+-	or	rWORD2, rA, rH
++#endif
++	sld	rWORD2_SHIFT, rWORD8, rSHL
++	or	rWORD2, r0, rWORD6_SHIFT
+ L(duP4e):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 8(rSTR1)
+ 	ld	rWORD4, 8(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
+-	srd	rC, rWORD4, rSHR
+-	sld	rF, rWORD4, rSHL
+-	or	rWORD4, rC, rD
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 16(rSTR1)
+ 	ld	rWORD6, 16(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+-	bne	cr0, L(duLcr0)
+-	srd	rE, rWORD6, rSHR
+-	sld	rH, rWORD6, rSHL
+-	or	rWORD6, rE, rF
++	bne	cr7, L(duLcr7)
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ldu	rWORD7, 24(rSTR1)
+ 	ldu	rWORD8, 24(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	bne	cr1, L(duLcr1)
+-	srd	rG, rWORD8, rSHR
+-	sld	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	cmpld	cr5, rWORD7, rWORD8
+ 	bdz-	L(du24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+-	.align 4
++	.align	4
+ L(duLoop):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD1, 8(rSTR1)
+ 	ld	rWORD2, 8(rSTR2)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+ 	bne	cr6, L(duLcr6)
+-	srd	rA, rWORD2, rSHR
+-	sld	rD, rWORD2, rSHL
+-	or	rWORD2, rA, rB
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
+ L(duLoop1):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD3, 16(rSTR1)
+ 	ld	rWORD4, 16(rSTR2)
++#endif
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	bne	cr5, L(duLcr5)
+-	srd	rC, rWORD4, rSHR
+-	sld	rF, rWORD4, rSHL
+-	or	rWORD4, rC, rD
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
+ L(duLoop2):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD5, 24(rSTR1)
+ 	ld	rWORD6, 24(rSTR2)
++#endif
+ 	cmpld	cr5, rWORD7, rWORD8
+-	bne	cr0, L(duLcr0)
+-	srd	rE, rWORD6, rSHR
+-	sld	rH, rWORD6, rSHL
+-	or	rWORD6, rE, rF
++	bne	cr7, L(duLcr7)
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
+ L(duLoop3):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ldu	rWORD7, 32(rSTR1)
+ 	ldu	rWORD8, 32(rSTR2)
+-	cmpld	cr0, rWORD1, rWORD2
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ 	bne-	cr1, L(duLcr1)
+-	srd	rG, rWORD8, rSHR
+-	sld	rB, rWORD8, rSHL
+-	or	rWORD8, rG, rH
+-	bdnz+	L(duLoop)	
+-	
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	bdnz+	L(duLoop)
++
+ L(duL4):
++#if 0
++/* Huh?  We've already branched on cr1!  */
+ 	bne	cr1, L(duLcr1)
++#endif
+ 	cmpld	cr1, rWORD3, rWORD4
+ 	bne	cr6, L(duLcr6)
+ 	cmpld	cr6, rWORD5, rWORD6
+ 	bne	cr5, L(duLcr5)
+ 	cmpld	cr5, rWORD7, rWORD8
+ L(du44):
+-	bne	cr0, L(duLcr0)
++	bne	cr7, L(duLcr7)
+ L(du34):
+ 	bne	cr1, L(duLcr1)
+ L(du24):
+@@ -876,106 +1253,113 @@
+ 	sldi.	rN, rN, 3
+ 	bne	cr5, L(duLcr5)
+ /* At this point we have a remainder of 1 to 7 bytes to compare.  We use
+-   shift right double to elliminate bits beyond the compare length. 
+-   This allows the use of double word subtract to compute the final
+-   result.
++   shift right double to eliminate bits beyond the compare length.
+ 
+-   However it may not be safe to load rWORD2 which may be beyond the 
++   However it may not be safe to load rWORD2 which may be beyond the
+    string length. So we compare the bit length of the remainder to
+    the right shift count (rSHR). If the bit count is less than or equal
+    we do not need to load rWORD2 (all significant bits are already in
+-   rB).  */
++   rWORD8_SHIFT).  */
+ 	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA, 0
++	li	r0, 0
+ 	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
+ 	ld	rWORD2, 8(rSTR2)
+-	srd	rA, rWORD2, rSHR
+-	.align 4
++#endif
++	srd	r0, rWORD2, rSHR
++	.align	4
+ L(dutrim):
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++#else
+ 	ld	rWORD1, 8(rSTR1)
+-	ld	rWORD8,-8(r1)
+-	subfic	rN, rN, 64	/* Shift count is 64 - (rN * 8).  */ 
+-	or	rWORD2, rA, rB
+-	ld	rWORD7,-16(r1)	
+-	ld	r29,-24(r1)
++#endif
++	ld	rWORD8, -8(r1)
++	subfic	rN, rN, 64	/* Shift count is 64 - (rN * 8).  */
++	or	rWORD2, r0, rWORD8_SHIFT
++	ld	rWORD7, -16(r1)
++	ld	rSHL, -24(r1)
+ 	srd	rWORD1, rWORD1, rN
+ 	srd	rWORD2, rWORD2, rN
+-	ld	r28,-32(r1)	
+-	ld	r27,-40(r1)
++	ld	rSHR, -32(r1)
++	ld	rWORD8_SHIFT, -40(r1)
+ 	li	rRTN, 0
+-	cmpld	cr0, rWORD1, rWORD2	
+-	ld	r26,-48(r1)
+-	ld	r25,-56(r1)
+- 	beq	cr0, L(dureturn24)
+-	li	rRTN, 1
+-	ld	r24,-64(r1)
+-	bgtlr	cr0
+-	li	rRTN, -1
+-	blr
+-	.align 4
+-L(duLcr0):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN, 1
+-	bgt	cr0, L(dureturn29)	
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
++	cmpld	cr7, rWORD1, rWORD2
++	ld	rWORD2_SHIFT, -48(r1)
++	ld	rWORD4_SHIFT, -56(r1)
++	beq	cr7, L(dureturn24)
++	li	rRTN, 1
++	ld	rWORD6_SHIFT, -64(r1)
++	bgtlr	cr7
++	li	rRTN, -1
++	blr
++	.align	4
++L(duLcr7):
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++	li	rRTN, 1
++	bgt	cr7, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+-	.align 4
++	.align	4
+ L(duLcr1):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ 	li	rRTN, 1
+-	bgt	cr1, L(dureturn29)	
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
++	bgt	cr1, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+-	.align 4
++	.align	4
+ L(duLcr6):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ 	li	rRTN, 1
+-	bgt	cr6, L(dureturn29)	
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
++	bgt	cr6, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+-	.align 4
++	.align	4
+ L(duLcr5):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ 	li	rRTN, 1
+-	bgt	cr5, L(dureturn29)	
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
++	bgt	cr5, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
+ 	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	3
+ L(duZeroReturn):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	.align	4
+ L(dureturn):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-L(dureturn29):	
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
+-L(dureturn27):	
+-	ld	r27,-40(r1)
+-L(dureturn26):	
+-	ld	r26,-48(r1)
+-L(dureturn25):	
+-	ld	r25,-56(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++L(dureturn29):
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
++L(dureturn27):
++	ld	rWORD8_SHIFT, -40(r1)
++L(dureturn26):
++	ld	rWORD2_SHIFT, -48(r1)
++L(dureturn25):
++	ld	rWORD4_SHIFT, -56(r1)
+ L(dureturn24):
+-	ld	r24,-64(r1)
++	ld	rWORD6_SHIFT, -64(r1)
+ 	blr
+ L(duzeroLength):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+-END (BP_SYM (memcmp))
++END (memcmp)
+ libc_hidden_builtin_def (memcmp)
+ weak_alias (memcmp, bcmp)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcmp.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcmp.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcmp.S	2014-05-28 19:22:37.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcmp.S	2014-05-29 09:35:08.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memcmp implementation for POWER7/PowerPC64.
+-   Copyright (C) 2010, 2011 Free Software Foundation, Inc.
++   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -17,379 +17,576 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ /* int [r3] memcmp (const char *s1 [r3],
+ 		    const char *s2 [r4],
+ 		    size_t size [r5])  */
+ 
+ 	.machine power7
+-EALIGN (BP_SYM(memcmp),4,0)
++EALIGN (memcmp, 4, 0)
+ 	CALL_MCOUNT 3
+ 
+-#define rTMP	r0
+ #define rRTN	r3
+ #define rSTR1	r3	/* first string arg */
+ #define rSTR2	r4	/* second string arg */
+ #define rN	r5	/* max string length */
+-/* Note:  The Bounded pointer support in this code is broken.  This code
+-   was inherited from PPC32 and that support was never completed.
+-   Current PPC gcc does not support -fbounds-check or -fbounded-pointers.  */
+ #define rWORD1	r6	/* current word in s1 */
+ #define rWORD2	r7	/* current word in s2 */
+ #define rWORD3	r8	/* next word in s1 */
+ #define rWORD4	r9	/* next word in s2 */
+ #define rWORD5	r10	/* next word in s1 */
+ #define rWORD6	r11	/* next word in s2 */
+-#define rBITDIF	r12	/* bits that differ in s1 & s2 words */
+ #define rWORD7	r30	/* next word in s1 */
+ #define rWORD8	r31	/* next word in s2 */
+ 
+-	xor	rTMP,rSTR2,rSTR1
+-	cmpldi	cr6,rN,0
+-	cmpldi	cr1,rN,12
+-	clrldi.	rTMP,rTMP,61
+-	clrldi	rBITDIF,rSTR1,61
+-	cmpldi	cr5,rBITDIF,0
+-	beq-	cr6,L(zeroLength)
+-	dcbt	0,rSTR1
+-	dcbt	0,rSTR2
+-/* If less than 8 bytes or not aligned, use the unalligned
++	xor	r0, rSTR2, rSTR1
++	cmpldi	cr6, rN, 0
++	cmpldi	cr1, rN, 12
++	clrldi.	r0, r0, 61
++	clrldi	r12, rSTR1, 61
++	cmpldi	cr5, r12, 0
++	beq-	cr6, L(zeroLength)
++	dcbt	0, rSTR1
++	dcbt	0, rSTR2
++/* If less than 8 bytes or not aligned, use the unaligned
+    byte loop.  */
+-	blt	cr1,L(bytealigned)
+-	std	rWORD8,-8(r1)
+-	cfi_offset(rWORD8,-8)
+-	std	rWORD7,-16(r1)
+-	cfi_offset(rWORD7,-16)
++	blt	cr1, L(bytealigned)
++	std	rWORD8, -8(r1)
++	cfi_offset(rWORD8, -8)
++	std	rWORD7, -16(r1)
++	cfi_offset(rWORD7, -16)
+ 	bne	L(unaligned)
+ /* At this point we know both strings have the same alignment and the
+-   compare length is at least 8 bytes.  rBITDIF containes the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    3 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then we are already double word
+-   aligned and can perform the DWaligned loop.
++   of r12 to 0.  If r12 == 0 then we are already double word
++   aligned and can perform the DW aligned loop.
+ 
+    Otherwise we know the two strings have the same alignment (but not
+-   yet DW).  So we can force the string addresses to the next lower DW
+-   boundary and special case this first DW word using shift left to
+-   ellimiate bits preceeding the first byte.  Since we want to join the
+-   normal (DWaligned) compare loop, starting at the second double word,
++   yet DW).  So we force the string addresses to the next lower DW
++   boundary and special case this first DW using shift left to
++   eliminate bits preceding the first byte.  Since we want to join the
++   normal (DW aligned) compare loop, starting at the second double word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first DW. This insures that the loop count is
+-   correct and the first DW (shifted) is in the expected resister pair.  */
++   versioning for the first DW. This ensures that the loop count is
++   correct and the first DW (shifted) is in the expected register pair.  */
+ 	.align	4
+ L(samealignment):
+-	clrrdi	rSTR1,rSTR1,3
+-	clrrdi	rSTR2,rSTR2,3
+-	beq	cr5,L(DWaligned)
+-	add	rN,rN,rBITDIF
+-	sldi	r11,rBITDIF,3
+-	srdi	rTMP,rN,5	/* Divide by 32 */
+-	andi.	rBITDIF,rN,24	/* Get the DW remainder */
+-	ld	rWORD1,0(rSTR1)
+-	ld	rWORD2,0(rSTR2)
+-	cmpldi	cr1,rBITDIF,16
+-	cmpldi	cr7,rN,32
+-	clrldi	rN,rN,61
++	clrrdi	rSTR1, rSTR1, 3
++	clrrdi	rSTR2, rSTR2, 3
++	beq	cr5, L(DWaligned)
++	add	rN, rN, r12
++	sldi	rWORD6, r12, 3
++	srdi	r0, rN, 5	/* Divide by 32 */
++	andi.	r12, rN, 24	/* Get the DW remainder */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 0(rSTR1)
++	ld	rWORD2, 0(rSTR2)
++#endif
++	cmpldi	cr1, r12, 16
++	cmpldi	cr7, rN, 32
++	clrldi	rN, rN, 61
+ 	beq	L(dPs4)
+-	mtctr	rTMP
+-	bgt	cr1,L(dPs3)
+-	beq	cr1,L(dPs2)
++	mtctr	r0
++	bgt	cr1, L(dPs3)
++	beq	cr1, L(dPs2)
+ 
+ /* Remainder is 8 */
+ 	.align	3
+ L(dsP1):
+-	sld	rWORD5,rWORD1,r11
+-	sld	rWORD6,rWORD2,r11
+-	cmpld	cr5,rWORD5,rWORD6
+-	blt	cr7,L(dP1x)
++	sld	rWORD5, rWORD1, rWORD6
++	sld	rWORD6, rWORD2, rWORD6
++	cmpld	cr5, rWORD5, rWORD6
++	blt	cr7, L(dP1x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
+-	ld	rWORD1,8(rSTR1)
+-	ld	rWORD2,8(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 8(rSTR1)
++	ld	rWORD2, 8(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ 	b	L(dP1e)
+ /* Remainder is 16 */
+ 	.align	4
+ L(dPs2):
+-	sld	rWORD5,rWORD1,r11
+-	sld	rWORD6,rWORD2,r11
+-	cmpld	cr6,rWORD5,rWORD6
+-	blt	cr7,L(dP2x)
++	sld	rWORD5, rWORD1, rWORD6
++	sld	rWORD6, rWORD2, rWORD6
++	cmpld	cr6, rWORD5, rWORD6
++	blt	cr7, L(dP2x)
+ /* Do something useful in this cycle since we have to branch anyway.  */
+-	ld	rWORD7,8(rSTR1)
+-	ld	rWORD8,8(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD7, 8(rSTR1)
++	ld	rWORD8, 8(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
+ 	b	L(dP2e)
+ /* Remainder is 24 */
+ 	.align	4
+ L(dPs3):
+-	sld	rWORD3,rWORD1,r11
+-	sld	rWORD4,rWORD2,r11
+-	cmpld	cr1,rWORD3,rWORD4
++	sld	rWORD3, rWORD1, rWORD6
++	sld	rWORD4, rWORD2, rWORD6
++	cmpld	cr1, rWORD3, rWORD4
+ 	b	L(dP3e)
+ /* Count is a multiple of 32, remainder is 0 */
+ 	.align	4
+ L(dPs4):
+-	mtctr	rTMP
+-	sld	rWORD1,rWORD1,r11
+-	sld	rWORD2,rWORD2,r11
+-	cmpld	cr0,rWORD1,rWORD2
++	mtctr	r0
++	sld	rWORD1, rWORD1, rWORD6
++	sld	rWORD2, rWORD2, rWORD6
++	cmpld	cr7, rWORD1, rWORD2
+ 	b	L(dP4e)
+ 
+ /* At this point we know both strings are double word aligned and the
+    compare length is at least 8 bytes.  */
+ 	.align	4
+ L(DWaligned):
+-	andi.	rBITDIF,rN,24	/* Get the DW remainder */
+-	srdi	rTMP,rN,5	/* Divide by 32 */
+-	cmpldi	cr1,rBITDIF,16
+-	cmpldi	cr7,rN,32
+-	clrldi	rN,rN,61
++	andi.	r12, rN, 24	/* Get the DW remainder */
++	srdi	r0, rN, 5	/* Divide by 32 */
++	cmpldi	cr1, r12, 16
++	cmpldi	cr7, rN, 32
++	clrldi	rN, rN, 61
+ 	beq	L(dP4)
+-	bgt	cr1,L(dP3)
+-	beq	cr1,L(dP2)
++	bgt	cr1, L(dP3)
++	beq	cr1, L(dP2)
+ 
+ /* Remainder is 8 */
+ 	.align	4
+ L(dP1):
+-	mtctr	rTMP
++	mtctr	r0
+ /* Normally we'd use rWORD7/rWORD8 here, but since we might exit early
+-   (8-15 byte compare), we want to use only volitile registers.  This
+-   means we can avoid restoring non-volitile registers since we did not
++   (8-15 byte compare), we want to use only volatile registers.  This
++   means we can avoid restoring non-volatile registers since we did not
+    change any on the early exit path.  The key here is the non-early
+    exit path only cares about the condition code (cr5), not about which
+    register pair was used.  */
+-	ld	rWORD5,0(rSTR1)
+-	ld	rWORD6,0(rSTR2)
+-	cmpld	cr5,rWORD5,rWORD6
+-	blt	cr7,L(dP1x)
+-	ld	rWORD1,8(rSTR1)
+-	ld	rWORD2,8(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 0(rSTR1)
++	ld	rWORD6, 0(rSTR2)
++#endif
++	cmpld	cr5, rWORD5, rWORD6
++	blt	cr7, L(dP1x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 8(rSTR1)
++	ld	rWORD2, 8(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ L(dP1e):
+-	ld	rWORD3,16(rSTR1)
+-	ld	rWORD4,16(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	ld	rWORD5,24(rSTR1)
+-	ld	rWORD6,24(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	bne	cr5,L(dLcr5)
+-	bne	cr0,L(dLcr0)
+-
+-	ldu	rWORD7,32(rSTR1)
+-	ldu	rWORD8,32(rSTR2)
+-	bne	cr1,L(dLcr1)
+-	cmpld	cr5,rWORD7,rWORD8
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 16(rSTR1)
++	ld	rWORD4, 16(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 24(rSTR1)
++	ld	rWORD6, 24(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	bne	cr5, L(dLcr5x)
++	bne	cr7, L(dLcr7x)
++
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ldu	rWORD7, 32(rSTR1)
++	ldu	rWORD8, 32(rSTR2)
++#endif
++	bne	cr1, L(dLcr1)
++	cmpld	cr5, rWORD7, rWORD8
+ 	bdnz	L(dLoop)
+-	bne	cr6,L(dLcr6)
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	bne	cr6, L(dLcr6)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ 	.align	3
+ L(dP1x):
+-	sldi.	r12,rN,3
+-	bne	cr5,L(dLcr5)
+-	subfic	rN,r12,64	/* Shift count is 64 - (rN * 8).  */
++	sldi.	r12, rN, 3
++	bne	cr5, L(dLcr5x)
++	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
+ 	bne	L(d00)
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+ /* Remainder is 16 */
+ 	.align	4
+ L(dP2):
+-	mtctr	rTMP
+-	ld	rWORD5,0(rSTR1)
+-	ld	rWORD6,0(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	blt	cr7,L(dP2x)
+-	ld	rWORD7,8(rSTR1)
+-	ld	rWORD8,8(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
++	mtctr	r0
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 0(rSTR1)
++	ld	rWORD6, 0(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	blt	cr7, L(dP2x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD7, 8(rSTR1)
++	ld	rWORD8, 8(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
+ L(dP2e):
+-	ld	rWORD1,16(rSTR1)
+-	ld	rWORD2,16(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
+-	ld	rWORD3,24(rSTR1)
+-	ld	rWORD4,24(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	bne	cr6,L(dLcr6)
+-	bne	cr5,L(dLcr5)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 16(rSTR1)
++	ld	rWORD2, 16(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 24(rSTR1)
++	ld	rWORD4, 24(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++	bne	cr6, L(dLcr6)
++	bne	cr5, L(dLcr5)
+ 	b	L(dLoop2)
+ /* Again we are on a early exit path (16-23 byte compare), we want to
+-   only use volitile registers and avoid restoring non-volitile
++   only use volatile registers and avoid restoring non-volatile
+    registers.  */
+ 	.align	4
+ L(dP2x):
+-	ld	rWORD3,8(rSTR1)
+-	ld	rWORD4,8(rSTR2)
+-	cmpld	cr5,rWORD3,rWORD4
+-	sldi.	r12,rN,3
+-	bne	cr6,L(dLcr6)
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	bne	cr5,L(dLcr5)
+-	subfic	rN,r12,64	/* Shift count is 64 - (rN * 8).  */
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 8(rSTR1)
++	ld	rWORD4, 8(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++	sldi.	r12, rN, 3
++	bne	cr6, L(dLcr6x)
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++	bne	cr1, L(dLcr1x)
++	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
+ 	bne	L(d00)
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+ /* Remainder is 24 */
+ 	.align	4
+ L(dP3):
+-	mtctr	rTMP
+-	ld	rWORD3,0(rSTR1)
+-	ld	rWORD4,0(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
++	mtctr	r0
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 0(rSTR1)
++	ld	rWORD4, 0(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
+ L(dP3e):
+-	ld	rWORD5,8(rSTR1)
+-	ld	rWORD6,8(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	blt	cr7,L(dP3x)
+-	ld	rWORD7,16(rSTR1)
+-	ld	rWORD8,16(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
+-	ld	rWORD1,24(rSTR1)
+-	ld	rWORD2,24(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
+-	addi	rSTR1,rSTR1,16
+-	addi	rSTR2,rSTR2,16
+-	bne	cr1,L(dLcr1)
+-	bne	cr6,L(dLcr6)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 8(rSTR1)
++	ld	rWORD6, 8(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	blt	cr7, L(dP3x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD7, 16(rSTR1)
++	ld	rWORD8, 16(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 24(rSTR1)
++	ld	rWORD2, 24(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 16
++	addi	rSTR2, rSTR2, 16
++#endif
++	bne	cr1, L(dLcr1)
++	bne	cr6, L(dLcr6)
+ 	b	L(dLoop1)
+ /* Again we are on a early exit path (24-31 byte compare), we want to
+-   only use volitile registers and avoid restoring non-volitile
++   only use volatile registers and avoid restoring non-volatile
+    registers.  */
+ 	.align	4
+ L(dP3x):
+-	ld	rWORD1,16(rSTR1)
+-	ld	rWORD2,16(rSTR2)
+-	cmpld	cr5,rWORD1,rWORD2
+-	sldi.	r12,rN,3
+-	bne	cr1,L(dLcr1)
+-	addi	rSTR1,rSTR1,16
+-	addi	rSTR2,rSTR2,16
+-	bne	cr6,L(dLcr6)
+-	subfic	rN,r12,64	/* Shift count is 64 - (rN * 8).  */
+-	bne	cr5,L(dLcr5)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 16(rSTR1)
++	ld	rWORD2, 16(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++	sldi.	r12, rN, 3
++	bne	cr1, L(dLcr1x)
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 16
++	addi	rSTR2, rSTR2, 16
++#endif
++	bne	cr6, L(dLcr6x)
++	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
++	bne	cr7, L(dLcr7x)
+ 	bne	L(d00)
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+ /* Count is a multiple of 32, remainder is 0 */
+ 	.align	4
+ L(dP4):
+-	mtctr	rTMP
+-	ld	rWORD1,0(rSTR1)
+-	ld	rWORD2,0(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
++	mtctr	r0
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 0(rSTR1)
++	ld	rWORD2, 0(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ L(dP4e):
+-	ld	rWORD3,8(rSTR1)
+-	ld	rWORD4,8(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	ld	rWORD5,16(rSTR1)
+-	ld	rWORD6,16(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	ldu	rWORD7,24(rSTR1)
+-	ldu	rWORD8,24(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
+-	bne	cr0,L(dLcr0)
+-	bne	cr1,L(dLcr1)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 8(rSTR1)
++	ld	rWORD4, 8(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 16(rSTR1)
++	ld	rWORD6, 16(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ldu	rWORD7, 24(rSTR1)
++	ldu	rWORD8, 24(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++	bne	cr7, L(dLcr7)
++	bne	cr1, L(dLcr1)
+ 	bdz-	L(d24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+ 	.align	4
+ L(dLoop):
+-	ld	rWORD1,8(rSTR1)
+-	ld	rWORD2,8(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	bne	cr6,L(dLcr6)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 8(rSTR1)
++	ld	rWORD2, 8(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++	bne	cr6, L(dLcr6)
+ L(dLoop1):
+-	ld	rWORD3,16(rSTR1)
+-	ld	rWORD4,16(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	bne	cr5,L(dLcr5)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 16(rSTR1)
++	ld	rWORD4, 16(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	bne	cr5, L(dLcr5)
+ L(dLoop2):
+-	ld	rWORD5,24(rSTR1)
+-	ld	rWORD6,24(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
+-	bne	cr0,L(dLcr0)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 24(rSTR1)
++	ld	rWORD6, 24(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++	bne	cr7, L(dLcr7)
+ L(dLoop3):
+-	ldu	rWORD7,32(rSTR1)
+-	ldu	rWORD8,32(rSTR2)
+-	bne	cr1,L(dLcr1)
+-	cmpld	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ldu	rWORD7, 32(rSTR1)
++	ldu	rWORD8, 32(rSTR2)
++#endif
++	bne	cr1, L(dLcr1)
++	cmpld	cr7, rWORD1, rWORD2
+ 	bdnz	L(dLoop)
+ 
+ L(dL4):
+-	cmpld	cr1,rWORD3,rWORD4
+-	bne	cr6,L(dLcr6)
+-	cmpld	cr6,rWORD5,rWORD6
+-	bne	cr5,L(dLcr5)
+-	cmpld	cr5,rWORD7,rWORD8
++	cmpld	cr1, rWORD3, rWORD4
++	bne	cr6, L(dLcr6)
++	cmpld	cr6, rWORD5, rWORD6
++	bne	cr5, L(dLcr5)
++	cmpld	cr5, rWORD7, rWORD8
+ L(d44):
+-	bne	cr0,L(dLcr0)
++	bne	cr7, L(dLcr7)
+ L(d34):
+-	bne	cr1,L(dLcr1)
++	bne	cr1, L(dLcr1)
+ L(d24):
+-	bne	cr6,L(dLcr6)
++	bne	cr6, L(dLcr6)
+ L(d14):
+-	sldi.	r12,rN,3
+-	bne	cr5,L(dLcr5)
++	sldi.	r12, rN, 3
++	bne	cr5, L(dLcr5)
+ L(d04):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	subfic	rN,r12,64	/* Shift count is 64 - (rN * 8).  */
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++	subfic	rN, r12, 64	/* Shift count is 64 - (rN * 8).  */
+ 	beq	L(zeroLength)
+ /* At this point we have a remainder of 1 to 7 bytes to compare.  Since
+    we are aligned it is safe to load the whole double word, and use
+-   shift right double to elliminate bits beyond the compare length.  */
++   shift right double to eliminate bits beyond the compare length.  */
+ L(d00):
+-	ld	rWORD1,8(rSTR1)
+-	ld	rWORD2,8(rSTR2)
+-	srd	rWORD1,rWORD1,rN
+-	srd	rWORD2,rWORD2,rN
+-	cmpld	cr5,rWORD1,rWORD2
+-	bne	cr5,L(dLcr5x)
+-	li	rRTN,0
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 8(rSTR1)
++	ld	rWORD2, 8(rSTR2)
++#endif
++	srd	rWORD1, rWORD1, rN
++	srd	rWORD2, rWORD2, rN
++	cmpld	cr7, rWORD1, rWORD2
++	bne	cr7, L(dLcr7x)
++	li	rRTN, 0
+ 	blr
++
+ 	.align	4
+-L(dLcr0):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN,1
+-	bgtlr	cr0
+-	li	rRTN,-1
++L(dLcr7):
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++L(dLcr7x):
++	li	rRTN, 1
++	bgtlr	cr7
++	li	rRTN, -1
+ 	blr
+ 	.align	4
+ L(dLcr1):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN,1
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++L(dLcr1x):
++	li	rRTN, 1
+ 	bgtlr	cr1
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 	.align	4
+ L(dLcr6):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN,1
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++L(dLcr6x):
++	li	rRTN, 1
+ 	bgtlr	cr6
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 	.align	4
+ L(dLcr5):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ L(dLcr5x):
+-	li	rRTN,1
++	li	rRTN, 1
+ 	bgtlr	cr5
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 
+ 	.align	4
+ L(bytealigned):
+ 	mtctr	rN
+-	beq	cr6,L(zeroLength)
++#if 0
++/* Huh?  We've already branched on cr6!  */
++	beq	cr6, L(zeroLength)
++#endif
+ 
+ /* We need to prime this loop.  This loop is swing modulo scheduled
+    to avoid pipe delays.  The dependent instruction latencies (load to
+@@ -401,38 +598,38 @@
+    So we must precondition some registers and condition codes so that
+    we don't exit the loop early on the first iteration.  */
+ 
+-	lbz	rWORD1,0(rSTR1)
+-	lbz	rWORD2,0(rSTR2)
++	lbz	rWORD1, 0(rSTR1)
++	lbz	rWORD2, 0(rSTR2)
+ 	bdz	L(b11)
+-	cmpld	cr0,rWORD1,rWORD2
+-	lbz	rWORD3,1(rSTR1)
+-	lbz	rWORD4,1(rSTR2)
++	cmpld	cr7, rWORD1, rWORD2
++	lbz	rWORD3, 1(rSTR1)
++	lbz	rWORD4, 1(rSTR2)
+ 	bdz	L(b12)
+-	cmpld	cr1,rWORD3,rWORD4
+-	lbzu	rWORD5,2(rSTR1)
+-	lbzu	rWORD6,2(rSTR2)
++	cmpld	cr1, rWORD3, rWORD4
++	lbzu	rWORD5, 2(rSTR1)
++	lbzu	rWORD6, 2(rSTR2)
+ 	bdz	L(b13)
+ 	.align	4
+ L(bLoop):
+-	lbzu	rWORD1,1(rSTR1)
+-	lbzu	rWORD2,1(rSTR2)
+-	bne	cr0,L(bLcr0)
++	lbzu	rWORD1, 1(rSTR1)
++	lbzu	rWORD2, 1(rSTR2)
++	bne	cr7, L(bLcr7)
+ 
+-	cmpld	cr6,rWORD5,rWORD6
++	cmpld	cr6, rWORD5, rWORD6
+ 	bdz	L(b3i)
+ 
+-	lbzu	rWORD3,1(rSTR1)
+-	lbzu	rWORD4,1(rSTR2)
+-	bne	cr1,L(bLcr1)
++	lbzu	rWORD3, 1(rSTR1)
++	lbzu	rWORD4, 1(rSTR2)
++	bne	cr1, L(bLcr1)
+ 
+-	cmpld	cr0,rWORD1,rWORD2
++	cmpld	cr7, rWORD1, rWORD2
+ 	bdz	L(b2i)
+ 
+-	lbzu	rWORD5,1(rSTR1)
+-	lbzu	rWORD6,1(rSTR2)
+-	bne	cr6,L(bLcr6)
++	lbzu	rWORD5, 1(rSTR1)
++	lbzu	rWORD6, 1(rSTR2)
++	bne	cr6, L(bLcr6)
+ 
+-	cmpld	cr1,rWORD3,rWORD4
++	cmpld	cr1, rWORD3, rWORD4
+ 	bdnz	L(bLoop)
+ 
+ /* We speculatively loading bytes before we have tested the previous
+@@ -442,542 +639,727 @@
+    tested.  In this case we must complete the pending operations
+    before returning.  */
+ L(b1i):
+-	bne	cr0,L(bLcr0)
+-	bne	cr1,L(bLcr1)
++	bne	cr7, L(bLcr7)
++	bne	cr1, L(bLcr1)
+ 	b	L(bx56)
+ 	.align	4
+ L(b2i):
+-	bne	cr6,L(bLcr6)
+-	bne	cr0,L(bLcr0)
++	bne	cr6, L(bLcr6)
++	bne	cr7, L(bLcr7)
+ 	b	L(bx34)
+ 	.align	4
+ L(b3i):
+-	bne	cr1,L(bLcr1)
+-	bne	cr6,L(bLcr6)
++	bne	cr1, L(bLcr1)
++	bne	cr6, L(bLcr6)
+ 	b	L(bx12)
+ 	.align	4
+-L(bLcr0):
+-	li	rRTN,1
+-	bgtlr	cr0
+-	li	rRTN,-1
++L(bLcr7):
++	li	rRTN, 1
++	bgtlr	cr7
++	li	rRTN, -1
+ 	blr
+ L(bLcr1):
+-	li	rRTN,1
++	li	rRTN, 1
+ 	bgtlr	cr1
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ L(bLcr6):
+-	li	rRTN,1
++	li	rRTN, 1
+ 	bgtlr	cr6
+-	li	rRTN,-1
++	li	rRTN, -1
+ 	blr
+ 
+ L(b13):
+-	bne	cr0,L(bx12)
+-	bne	cr1,L(bx34)
++	bne	cr7, L(bx12)
++	bne	cr1, L(bx34)
+ L(bx56):
+-	sub	rRTN,rWORD5,rWORD6
++	sub	rRTN, rWORD5, rWORD6
+ 	blr
+ 	nop
+ L(b12):
+-	bne	cr0,L(bx12)
++	bne	cr7, L(bx12)
+ L(bx34):
+-	sub	rRTN,rWORD3,rWORD4
++	sub	rRTN, rWORD3, rWORD4
+ 	blr
+ L(b11):
+ L(bx12):
+-	sub	rRTN,rWORD1,rWORD2
++	sub	rRTN, rWORD1, rWORD2
+ 	blr
+ 	.align	4
+-L(zeroLengthReturn):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+ L(zeroLength):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+ 	.align	4
+ /* At this point we know the strings have different alignment and the
+-   compare length is at least 8 bytes.  rBITDIF containes the low order
++   compare length is at least 8 bytes.  r12 contains the low order
+    3 bits of rSTR1 and cr5 contains the result of the logical compare
+-   of rBITDIF to 0.  If rBITDIF == 0 then rStr1 is double word
++   of r12 to 0.  If r12 == 0 then rStr1 is double word
+    aligned and can perform the DWunaligned loop.
+ 
+-   Otherwise we know that rSTR1 is not aready DW aligned yet.
++   Otherwise we know that rSTR1 is not already DW aligned yet.
+    So we can force the string addresses to the next lower DW
+-   boundary and special case this first DW word using shift left to
+-   ellimiate bits preceeding the first byte.  Since we want to join the
++   boundary and special case this first DW using shift left to
++   eliminate bits preceding the first byte.  Since we want to join the
+    normal (DWaligned) compare loop, starting at the second double word,
+    we need to adjust the length (rN) and special case the loop
+-   versioning for the first DW. This insures that the loop count is
++   versioning for the first DW. This ensures that the loop count is
+    correct and the first DW (shifted) is in the expected resister pair.  */
+-#define rSHL	r29	/* Unaligned shift left count.  */
+-#define rSHR	r28	/* Unaligned shift right count.  */
+-#define rB		r27	/* Left rotation temp for rWORD2.  */
+-#define rD		r26	/* Left rotation temp for rWORD4.  */
+-#define rF		r25	/* Left rotation temp for rWORD6.  */
+-#define rH		r24	/* Left rotation temp for rWORD8.  */
+-#define rA		r0	/* Right rotation temp for rWORD2.  */
+-#define rC		r12	/* Right rotation temp for rWORD4.  */
+-#define rE		r0	/* Right rotation temp for rWORD6.  */
+-#define rG		r12	/* Right rotation temp for rWORD8.  */
++#define rSHL		r29	/* Unaligned shift left count.  */
++#define rSHR		r28	/* Unaligned shift right count.  */
++#define rWORD8_SHIFT	r27	/* Left rotation temp for rWORD2.  */
++#define rWORD2_SHIFT	r26	/* Left rotation temp for rWORD4.  */
++#define rWORD4_SHIFT	r25	/* Left rotation temp for rWORD6.  */
++#define rWORD6_SHIFT	r24	/* Left rotation temp for rWORD8.  */
+ L(unaligned):
+-	std	r29,-24(r1)
+-	cfi_offset(r29,-24)
+-	clrldi	rSHL,rSTR2,61
+-	beq	cr6,L(duzeroLength)
+-	std	r28,-32(r1)
+-	cfi_offset(r28,-32)
+-	beq	cr5,L(DWunaligned)
+-	std	r27,-40(r1)
+-	cfi_offset(r27,-40)
+-/* Adjust the logical start of rSTR2 ro compensate for the extra bits
++	std	rSHL, -24(r1)
++	cfi_offset(rSHL, -24)
++	clrldi	rSHL, rSTR2, 61
++	beq	cr6, L(duzeroLength)
++	std	rSHR, -32(r1)
++	cfi_offset(rSHR, -32)
++	beq	cr5, L(DWunaligned)
++	std	rWORD8_SHIFT, -40(r1)
++	cfi_offset(rWORD8_SHIFT, -40)
++/* Adjust the logical start of rSTR2 to compensate for the extra bits
+    in the 1st rSTR1 DW.  */
+-	sub	r27,rSTR2,rBITDIF
++	sub	rWORD8_SHIFT, rSTR2, r12
+ /* But do not attempt to address the DW before that DW that contains
+    the actual start of rSTR2.  */
+-	clrrdi	rSTR2,rSTR2,3
+-	std	r26,-48(r1)
+-	cfi_offset(r26,-48)
+-/* Compute the leaft/right shift counts for the unalign rSTR2,
++	clrrdi	rSTR2, rSTR2, 3
++	std	rWORD2_SHIFT, -48(r1)
++	cfi_offset(rWORD2_SHIFT, -48)
++/* Compute the left/right shift counts for the unaligned rSTR2,
+    compensating for the logical (DW aligned) start of rSTR1.  */
+-	clrldi	rSHL,r27,61
+-	clrrdi	rSTR1,rSTR1,3
+-	std	r25,-56(r1)
+-	cfi_offset(r25,-56)
+-	sldi	rSHL,rSHL,3
+-	cmpld	cr5,r27,rSTR2
+-	add	rN,rN,rBITDIF
+-	sldi	r11,rBITDIF,3
+-	std	r24,-64(r1)
+-	cfi_offset(r24,-64)
+-	subfic	rSHR,rSHL,64
+-	srdi	rTMP,rN,5	/* Divide by 32 */
+-	andi.	rBITDIF,rN,24	/* Get the DW remainder */
++	clrldi	rSHL, rWORD8_SHIFT, 61
++	clrrdi	rSTR1, rSTR1, 3
++	std	rWORD4_SHIFT, -56(r1)
++	cfi_offset(rWORD4_SHIFT, -56)
++	sldi	rSHL, rSHL, 3
++	cmpld	cr5, rWORD8_SHIFT, rSTR2
++	add	rN, rN, r12
++	sldi	rWORD6, r12, 3
++	std	rWORD6_SHIFT, -64(r1)
++	cfi_offset(rWORD6_SHIFT, -64)
++	subfic	rSHR, rSHL, 64
++	srdi	r0, rN, 5	/* Divide by 32 */
++	andi.	r12, rN, 24	/* Get the DW remainder */
+ /* We normally need to load 2 DWs to start the unaligned rSTR2, but in
+    this special case those bits may be discarded anyway.  Also we
+    must avoid loading a DW where none of the bits are part of rSTR2 as
+    this may cross a page boundary and cause a page fault.  */
+-	li	rWORD8,0
+-	blt	cr5,L(dus0)
+-	ld	rWORD8,0(rSTR2)
+-	la	rSTR2,8(rSTR2)
+-	sld	rWORD8,rWORD8,rSHL
++	li	rWORD8, 0
++	blt	cr5, L(dus0)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD8, 0(rSTR2)
++	addi	rSTR2, rSTR2, 8
++#endif
++	sld	rWORD8, rWORD8, rSHL
+ 
+ L(dus0):
+-	ld	rWORD1,0(rSTR1)
+-	ld	rWORD2,0(rSTR2)
+-	cmpldi	cr1,rBITDIF,16
+-	cmpldi	cr7,rN,32
+-	srd	rG,rWORD2,rSHR
+-	clrldi	rN,rN,61
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 0(rSTR1)
++	ld	rWORD2, 0(rSTR2)
++#endif
++	cmpldi	cr1, r12, 16
++	cmpldi	cr7, rN, 32
++	srd	r12, rWORD2, rSHR
++	clrldi	rN, rN, 61
+ 	beq	L(duPs4)
+-	mtctr	rTMP
+-	or	rWORD8,rG,rWORD8
+-	bgt	cr1,L(duPs3)
+-	beq	cr1,L(duPs2)
++	mtctr	r0
++	or	rWORD8, r12, rWORD8
++	bgt	cr1, L(duPs3)
++	beq	cr1, L(duPs2)
+ 
+ /* Remainder is 8 */
+ 	.align	4
+ L(dusP1):
+-	sld	rB,rWORD2,rSHL
+-	sld	rWORD7,rWORD1,r11
+-	sld	rWORD8,rWORD8,r11
+-	bge	cr7,L(duP1e)
++	sld	rWORD8_SHIFT, rWORD2, rSHL
++	sld	rWORD7, rWORD1, rWORD6
++	sld	rWORD8, rWORD8, rWORD6
++	bge	cr7, L(duP1e)
+ /* At this point we exit early with the first double word compare
+    complete and remainder of 0 to 7 bytes.  See L(du14) for details on
+    how we handle the remaining bytes.  */
+-	cmpld	cr5,rWORD7,rWORD8
+-	sldi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmpld	cr7,rN,rSHR
++	cmpld	cr5, rWORD7, rWORD8
++	sldi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	ld	rWORD2,8(rSTR2)
+-	srd	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD2, 8(rSTR2)
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 16 */
+ 	.align	4
+ L(duPs2):
+-	sld	rH,rWORD2,rSHL
+-	sld	rWORD5,rWORD1,r11
+-	sld	rWORD6,rWORD8,r11
++	sld	rWORD6_SHIFT, rWORD2, rSHL
++	sld	rWORD5, rWORD1, rWORD6
++	sld	rWORD6, rWORD8, rWORD6
+ 	b	L(duP2e)
+ /* Remainder is 24 */
+ 	.align	4
+ L(duPs3):
+-	sld	rF,rWORD2,rSHL
+-	sld	rWORD3,rWORD1,r11
+-	sld	rWORD4,rWORD8,r11
++	sld	rWORD4_SHIFT, rWORD2, rSHL
++	sld	rWORD3, rWORD1, rWORD6
++	sld	rWORD4, rWORD8, rWORD6
+ 	b	L(duP3e)
+ /* Count is a multiple of 32, remainder is 0 */
+ 	.align	4
+ L(duPs4):
+-	mtctr	rTMP
+-	or	rWORD8,rG,rWORD8
+-	sld	rD,rWORD2,rSHL
+-	sld	rWORD1,rWORD1,r11
+-	sld	rWORD2,rWORD8,r11
++	mtctr	r0
++	or	rWORD8, r12, rWORD8
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	sld	rWORD1, rWORD1, rWORD6
++	sld	rWORD2, rWORD8, rWORD6
+ 	b	L(duP4e)
+ 
+ /* At this point we know rSTR1 is double word aligned and the
+    compare length is at least 8 bytes.  */
+ 	.align	4
+ L(DWunaligned):
+-	std	r27,-40(r1)
+-	cfi_offset(r27,-40)
+-	clrrdi	rSTR2,rSTR2,3
+-	std	r26,-48(r1)
+-	cfi_offset(r26,-48)
+-	srdi	rTMP,rN,5	/* Divide by 32 */
+-	std	r25,-56(r1)
+-	cfi_offset(r25,-56)
+-	andi.	rBITDIF,rN,24	/* Get the DW remainder */
+-	std	r24,-64(r1)
+-	cfi_offset(r24,-64)
+-	sldi	rSHL,rSHL,3
+-	ld	rWORD6,0(rSTR2)
+-	ldu	rWORD8,8(rSTR2)
+-	cmpldi	cr1,rBITDIF,16
+-	cmpldi	cr7,rN,32
+-	clrldi	rN,rN,61
+-	subfic	rSHR,rSHL,64
+-	sld	rH,rWORD6,rSHL
++	std	rWORD8_SHIFT, -40(r1)
++	cfi_offset(rWORD8_SHIFT, -40)
++	clrrdi	rSTR2, rSTR2, 3
++	std	rWORD2_SHIFT, -48(r1)
++	cfi_offset(rWORD2_SHIFT, -48)
++	srdi	r0, rN, 5	/* Divide by 32 */
++	std	rWORD4_SHIFT, -56(r1)
++	cfi_offset(rWORD4_SHIFT, -56)
++	andi.	r12, rN, 24	/* Get the DW remainder */
++	std	rWORD6_SHIFT, -64(r1)
++	cfi_offset(rWORD6_SHIFT, -64)
++	sldi	rSHL, rSHL, 3
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD6, 0(rSTR2)
++	ldu	rWORD8, 8(rSTR2)
++#endif
++	cmpldi	cr1, r12, 16
++	cmpldi	cr7, rN, 32
++	clrldi	rN, rN, 61
++	subfic	rSHR, rSHL, 64
++	sld	rWORD6_SHIFT, rWORD6, rSHL
+ 	beq	L(duP4)
+-	mtctr	rTMP
+-	bgt	cr1,L(duP3)
+-	beq	cr1,L(duP2)
++	mtctr	r0
++	bgt	cr1, L(duP3)
++	beq	cr1, L(duP2)
+ 
+ /* Remainder is 8 */
+ 	.align	4
+ L(duP1):
+-	srd	rG,rWORD8,rSHR
+-	ld	rWORD7,0(rSTR1)
+-	sld	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	blt	cr7,L(duP1x)
++	srd	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
++	ld	rWORD7, 0(rSTR1)
++#endif
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	blt	cr7, L(duP1x)
+ L(duP1e):
+-	ld	rWORD1,8(rSTR1)
+-	ld	rWORD2,8(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
+-	srd	rA,rWORD2,rSHR
+-	sld	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
+-	ld	rWORD3,16(rSTR1)
+-	ld	rWORD4,16(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
+-	srd	rC,rWORD4,rSHR
+-	sld	rF,rWORD4,rSHL
+-	bne	cr5,L(duLcr5)
+-	or	rWORD4,rC,rD
+-	ld	rWORD5,24(rSTR1)
+-	ld	rWORD6,24(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	srd	rE,rWORD6,rSHR
+-	sld	rH,rWORD6,rSHL
+-	bne	cr0,L(duLcr0)
+-	or	rWORD6,rE,rF
+-	cmpld	cr6,rWORD5,rWORD6
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 8(rSTR1)
++	ld	rWORD2, 8(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 16(rSTR1)
++	ld	rWORD4, 16(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
++	bne	cr5, L(duLcr5)
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 24(rSTR1)
++	ld	rWORD6, 24(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	bne	cr7, L(duLcr7)
++	or	rWORD6, r0, rWORD4_SHIFT
++	cmpld	cr6, rWORD5, rWORD6
+ 	b	L(duLoop3)
+ 	.align	4
+ /* At this point we exit early with the first double word compare
+    complete and remainder of 0 to 7 bytes.  See L(du14) for details on
+    how we handle the remaining bytes.  */
+ L(duP1x):
+-	cmpld	cr5,rWORD7,rWORD8
+-	sldi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmpld	cr7,rN,rSHR
++	cmpld	cr5, rWORD7, rWORD8
++	sldi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	ld	rWORD2,8(rSTR2)
+-	srd	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD2, 8(rSTR2)
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ /* Remainder is 16 */
+ 	.align	4
+ L(duP2):
+-	srd	rE,rWORD8,rSHR
+-	ld	rWORD5,0(rSTR1)
+-	or	rWORD6,rE,rH
+-	sld	rH,rWORD8,rSHL
++	srd	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
++	ld	rWORD5, 0(rSTR1)
++#endif
++	or	rWORD6, r0, rWORD6_SHIFT
++	sld	rWORD6_SHIFT, rWORD8, rSHL
+ L(duP2e):
+-	ld	rWORD7,8(rSTR1)
+-	ld	rWORD8,8(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	srd	rG,rWORD8,rSHR
+-	sld	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	blt	cr7,L(duP2x)
+-	ld	rWORD1,16(rSTR1)
+-	ld	rWORD2,16(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
+-	bne	cr6,L(duLcr6)
+-	srd	rA,rWORD2,rSHR
+-	sld	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
+-	ld	rWORD3,24(rSTR1)
+-	ld	rWORD4,24(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
+-	bne	cr5,L(duLcr5)
+-	srd	rC,rWORD4,rSHR
+-	sld	rF,rWORD4,rSHL
+-	or	rWORD4,rC,rD
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	cmpld	cr1,rWORD3,rWORD4
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD7, 8(rSTR1)
++	ld	rWORD8, 8(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	blt	cr7, L(duP2x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 16(rSTR1)
++	ld	rWORD2, 16(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++	bne	cr6, L(duLcr6)
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 24(rSTR1)
++	ld	rWORD4, 24(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++	bne	cr5, L(duLcr5)
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++	cmpld	cr1, rWORD3, rWORD4
+ 	b	L(duLoop2)
+ 	.align	4
+ L(duP2x):
+-	cmpld	cr5,rWORD7,rWORD8
+-	addi	rSTR1,rSTR1,8
+-	addi	rSTR2,rSTR2,8
+-	bne	cr6,L(duLcr6)
+-	sldi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmpld	cr7,rN,rSHR
++	cmpld	cr5, rWORD7, rWORD8
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#endif
++	bne	cr6, L(duLcr6)
++	sldi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	ld	rWORD2,8(rSTR2)
+-	srd	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD2, 8(rSTR2)
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ 
+ /* Remainder is 24 */
+ 	.align	4
+ L(duP3):
+-	srd	rC,rWORD8,rSHR
+-	ld	rWORD3,0(rSTR1)
+-	sld	rF,rWORD8,rSHL
+-	or	rWORD4,rC,rH
++	srd	r12, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
++	ld	rWORD3, 0(rSTR1)
++#endif
++	sld	rWORD4_SHIFT, rWORD8, rSHL
++	or	rWORD4, r12, rWORD6_SHIFT
+ L(duP3e):
+-	ld	rWORD5,8(rSTR1)
+-	ld	rWORD6,8(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	srd	rE,rWORD6,rSHR
+-	sld	rH,rWORD6,rSHL
+-	or	rWORD6,rE,rF
+-	ld	rWORD7,16(rSTR1)
+-	ld	rWORD8,16(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	bne	cr1,L(duLcr1)
+-	srd	rG,rWORD8,rSHR
+-	sld	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	blt	cr7,L(duP3x)
+-	ld	rWORD1,24(rSTR1)
+-	ld	rWORD2,24(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
+-	bne	cr6,L(duLcr6)
+-	srd	rA,rWORD2,rSHR
+-	sld	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
+-	addi	rSTR1,rSTR1,16
+-	addi	rSTR2,rSTR2,16
+-	cmpld	cr0,rWORD1,rWORD2
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 8(rSTR1)
++	ld	rWORD6, 8(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD7, 16(rSTR1)
++	ld	rWORD8, 16(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	bne	cr1, L(duLcr1)
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	blt	cr7, L(duP3x)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 24(rSTR1)
++	ld	rWORD2, 24(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++	bne	cr6, L(duLcr6)
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 16
++	addi	rSTR2, rSTR2, 16
++#endif
++	cmpld	cr7, rWORD1, rWORD2
+ 	b	L(duLoop1)
+ 	.align	4
+ L(duP3x):
+-	addi	rSTR1,rSTR1,16
+-	addi	rSTR2,rSTR2,16
+-	bne	cr1,L(duLcr1)
+-	cmpld	cr5,rWORD7,rWORD8
+-	bne	cr6,L(duLcr6)
+-	sldi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
+-	cmpld	cr7,rN,rSHR
++#ifndef __LITTLE_ENDIAN__
++	addi	rSTR1, rSTR1, 16
++	addi	rSTR2, rSTR2, 16
++#endif
++#if 0
++/* Huh?  We've already branched on cr1!  */
++	bne	cr1, L(duLcr1)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++	bne	cr6, L(duLcr6)
++	sldi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
++	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	ld	rWORD2,8(rSTR2)
+-	srd	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD2, 8(rSTR2)
++#endif
++	srd	r0, rWORD2, rSHR
+ 	b	L(dutrim)
+ 
+ /* Count is a multiple of 32, remainder is 0 */
+ 	.align	4
+ L(duP4):
+-	mtctr	rTMP
+-	srd	rA,rWORD8,rSHR
+-	ld	rWORD1,0(rSTR1)
+-	sld	rD,rWORD8,rSHL
+-	or	rWORD2,rA,rH
++	mtctr	r0
++	srd	r0, rWORD8, rSHR
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	addi	rSTR1, rSTR1, 8
++#else
++	ld	rWORD1, 0(rSTR1)
++#endif
++	sld	rWORD2_SHIFT, rWORD8, rSHL
++	or	rWORD2, r0, rWORD6_SHIFT
+ L(duP4e):
+-	ld	rWORD3,8(rSTR1)
+-	ld	rWORD4,8(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
+-	srd	rC,rWORD4,rSHR
+-	sld	rF,rWORD4,rSHL
+-	or	rWORD4,rC,rD
+-	ld	rWORD5,16(rSTR1)
+-	ld	rWORD6,16(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	bne	cr0,L(duLcr0)
+-	srd	rE,rWORD6,rSHR
+-	sld	rH,rWORD6,rSHL
+-	or	rWORD6,rE,rF
+-	ldu	rWORD7,24(rSTR1)
+-	ldu	rWORD8,24(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	bne	cr1,L(duLcr1)
+-	srd	rG,rWORD8,rSHR
+-	sld	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
+-	cmpld	cr5,rWORD7,rWORD8
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 8(rSTR1)
++	ld	rWORD4, 8(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 16(rSTR1)
++	ld	rWORD6, 16(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++	bne	cr7, L(duLcr7)
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ldu	rWORD7, 24(rSTR1)
++	ldu	rWORD8, 24(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	bne	cr1, L(duLcr1)
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
++	cmpld	cr5, rWORD7, rWORD8
+ 	bdz	L(du24)		/* Adjust CTR as we start with +4 */
+ /* This is the primary loop */
+ 	.align	4
+ L(duLoop):
+-	ld	rWORD1,8(rSTR1)
+-	ld	rWORD2,8(rSTR2)
+-	cmpld	cr1,rWORD3,rWORD4
+-	bne	cr6,L(duLcr6)
+-	srd	rA,rWORD2,rSHR
+-	sld	rD,rWORD2,rSHL
+-	or	rWORD2,rA,rB
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD1, 8(rSTR1)
++	ld	rWORD2, 8(rSTR2)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++	bne	cr6, L(duLcr6)
++	srd	r0, rWORD2, rSHR
++	sld	rWORD2_SHIFT, rWORD2, rSHL
++	or	rWORD2, r0, rWORD8_SHIFT
+ L(duLoop1):
+-	ld	rWORD3,16(rSTR1)
+-	ld	rWORD4,16(rSTR2)
+-	cmpld	cr6,rWORD5,rWORD6
+-	bne	cr5,L(duLcr5)
+-	srd	rC,rWORD4,rSHR
+-	sld	rF,rWORD4,rSHL
+-	or	rWORD4,rC,rD
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD3, 0, rSTR1
++	ldbrx	rWORD4, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD3, 16(rSTR1)
++	ld	rWORD4, 16(rSTR2)
++#endif
++	cmpld	cr6, rWORD5, rWORD6
++	bne	cr5, L(duLcr5)
++	srd	r12, rWORD4, rSHR
++	sld	rWORD4_SHIFT, rWORD4, rSHL
++	or	rWORD4, r12, rWORD2_SHIFT
+ L(duLoop2):
+-	ld	rWORD5,24(rSTR1)
+-	ld	rWORD6,24(rSTR2)
+-	cmpld	cr5,rWORD7,rWORD8
+-	bne	cr0,L(duLcr0)
+-	srd	rE,rWORD6,rSHR
+-	sld	rH,rWORD6,rSHL
+-	or	rWORD6,rE,rF
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD5, 0, rSTR1
++	ldbrx	rWORD6, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD5, 24(rSTR1)
++	ld	rWORD6, 24(rSTR2)
++#endif
++	cmpld	cr5, rWORD7, rWORD8
++	bne	cr7, L(duLcr7)
++	srd	r0, rWORD6, rSHR
++	sld	rWORD6_SHIFT, rWORD6, rSHL
++	or	rWORD6, r0, rWORD4_SHIFT
+ L(duLoop3):
+-	ldu	rWORD7,32(rSTR1)
+-	ldu	rWORD8,32(rSTR2)
+-	cmpld	cr0,rWORD1,rWORD2
+-	bne-	cr1,L(duLcr1)
+-	srd	rG,rWORD8,rSHR
+-	sld	rB,rWORD8,rSHL
+-	or	rWORD8,rG,rH
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD7, 0, rSTR1
++	ldbrx	rWORD8, 0, rSTR2
++	addi	rSTR1, rSTR1, 8
++	addi	rSTR2, rSTR2, 8
++#else
++	ldu	rWORD7, 32(rSTR1)
++	ldu	rWORD8, 32(rSTR2)
++#endif
++	cmpld	cr7, rWORD1, rWORD2
++	bne	cr1, L(duLcr1)
++	srd	r12, rWORD8, rSHR
++	sld	rWORD8_SHIFT, rWORD8, rSHL
++	or	rWORD8, r12, rWORD6_SHIFT
+ 	bdnz	L(duLoop)
+ 
+ L(duL4):
+-	bne	cr1,L(duLcr1)
+-	cmpld	cr1,rWORD3,rWORD4
+-	bne	cr6,L(duLcr6)
+-	cmpld	cr6,rWORD5,rWORD6
+-	bne	cr5,L(duLcr5)
+-	cmpld	cr5,rWORD7,rWORD8
++#if 0
++/* Huh?  We've already branched on cr1!  */
++	bne	cr1, L(duLcr1)
++#endif
++	cmpld	cr1, rWORD3, rWORD4
++	bne	cr6, L(duLcr6)
++	cmpld	cr6, rWORD5, rWORD6
++	bne	cr5, L(duLcr5)
++	cmpld	cr5, rWORD7, rWORD8
+ L(du44):
+-	bne	cr0,L(duLcr0)
++	bne	cr7, L(duLcr7)
+ L(du34):
+-	bne	cr1,L(duLcr1)
++	bne	cr1, L(duLcr1)
+ L(du24):
+-	bne	cr6,L(duLcr6)
++	bne	cr6, L(duLcr6)
+ L(du14):
+-	sldi.	rN,rN,3
+-	bne	cr5,L(duLcr5)
++	sldi.	rN, rN, 3
++	bne	cr5, L(duLcr5)
+ /* At this point we have a remainder of 1 to 7 bytes to compare.  We use
+-   shift right double to elliminate bits beyond the compare length.
+-   This allows the use of double word subtract to compute the final
+-   result.
++   shift right double to eliminate bits beyond the compare length.
+ 
+    However it may not be safe to load rWORD2 which may be beyond the
+    string length. So we compare the bit length of the remainder to
+    the right shift count (rSHR). If the bit count is less than or equal
+    we do not need to load rWORD2 (all significant bits are already in
+-   rB).  */
+-	cmpld	cr7,rN,rSHR
++   rWORD8_SHIFT).  */
++	cmpld	cr7, rN, rSHR
+ 	beq	L(duZeroReturn)
+-	li	rA,0
+-	ble	cr7,L(dutrim)
+-	ld	rWORD2,8(rSTR2)
+-	srd	rA,rWORD2,rSHR
++	li	r0, 0
++	ble	cr7, L(dutrim)
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD2, 0, rSTR2
++	addi	rSTR2, rSTR2, 8
++#else
++	ld	rWORD2, 8(rSTR2)
++#endif
++	srd	r0, rWORD2, rSHR
+ 	.align	4
+ L(dutrim):
+-	ld	rWORD1,8(rSTR1)
+-	ld	rWORD8,-8(r1)
+-	subfic	rN,rN,64	/* Shift count is 64 - (rN * 8).  */
+-	or	rWORD2,rA,rB
+-	ld	rWORD7,-16(r1)
+-	ld	r29,-24(r1)
+-	srd	rWORD1,rWORD1,rN
+-	srd	rWORD2,rWORD2,rN
+-	ld	r28,-32(r1)
+-	ld	r27,-40(r1)
+-	li	rRTN,0
+-	cmpld	cr0,rWORD1,rWORD2
+-	ld	r26,-48(r1)
+-	ld	r25,-56(r1)
+-	beq	cr0,L(dureturn24)
+-	li	rRTN,1
+-	ld	r24,-64(r1)
+-	bgtlr	cr0
+-	li	rRTN,-1
+-	blr
+-	.align	4
+-L(duLcr0):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN,1
+-	bgt	cr0,L(dureturn29)
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
+-	li	rRTN,-1
++#ifdef __LITTLE_ENDIAN__
++	ldbrx	rWORD1, 0, rSTR1
++#else
++	ld	rWORD1, 8(rSTR1)
++#endif
++	ld	rWORD8, -8(r1)
++	subfic	rN, rN, 64	/* Shift count is 64 - (rN * 8).  */
++	or	rWORD2, r0, rWORD8_SHIFT
++	ld	rWORD7, -16(r1)
++	ld	rSHL, -24(r1)
++	srd	rWORD1, rWORD1, rN
++	srd	rWORD2, rWORD2, rN
++	ld	rSHR, -32(r1)
++	ld	rWORD8_SHIFT, -40(r1)
++	li	rRTN, 0
++	cmpld	cr7, rWORD1, rWORD2
++	ld	rWORD2_SHIFT, -48(r1)
++	ld	rWORD4_SHIFT, -56(r1)
++	beq	cr7, L(dureturn24)
++	li	rRTN, 1
++	ld	rWORD6_SHIFT, -64(r1)
++	bgtlr	cr7
++	li	rRTN, -1
++	blr
++	.align	4
++L(duLcr7):
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++	li	rRTN, 1
++	bgt	cr7, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	4
+ L(duLcr1):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN,1
+-	bgt	cr1,L(dureturn29)
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
+-	li	rRTN,-1
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++	li	rRTN, 1
++	bgt	cr1, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	4
+ L(duLcr6):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN,1
+-	bgt	cr6,L(dureturn29)
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
+-	li	rRTN,-1
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++	li	rRTN, 1
++	bgt	cr6, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	4
+ L(duLcr5):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
+-	li	rRTN,1
+-	bgt	cr5,L(dureturn29)
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
+-	li	rRTN,-1
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
++	li	rRTN, 1
++	bgt	cr5, L(dureturn29)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
++	li	rRTN, -1
+ 	b	L(dureturn27)
+ 	.align	3
+ L(duZeroReturn):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	.align	4
+ L(dureturn):
+-	ld	rWORD8,-8(r1)
+-	ld	rWORD7,-16(r1)
++	ld	rWORD8, -8(r1)
++	ld	rWORD7, -16(r1)
+ L(dureturn29):
+-	ld	r29,-24(r1)
+-	ld	r28,-32(r1)
++	ld	rSHL, -24(r1)
++	ld	rSHR, -32(r1)
+ L(dureturn27):
+-	ld	r27,-40(r1)
++	ld	rWORD8_SHIFT, -40(r1)
+ L(dureturn26):
+-	ld	r26,-48(r1)
++	ld	rWORD2_SHIFT, -48(r1)
+ L(dureturn25):
+-	ld	r25,-56(r1)
++	ld	rWORD4_SHIFT, -56(r1)
+ L(dureturn24):
+-	ld	r24,-64(r1)
++	ld	rWORD6_SHIFT, -64(r1)
+ 	blr
+ L(duzeroLength):
+-	li	rRTN,0
++	li	rRTN, 0
+ 	blr
+ 
+-END (BP_SYM (memcmp))
++END (memcmp)
+ libc_hidden_builtin_def (memcmp)
+-weak_alias (memcmp,bcmp)
++weak_alias (memcmp, bcmp)

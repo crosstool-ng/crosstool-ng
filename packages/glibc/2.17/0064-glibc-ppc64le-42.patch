@@ -1,0 +1,404 @@
+# commit 61cd8fe4017c251617dd300818917e61a12ab48e
+# Author: Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+# Date:   Wed Dec 4 06:59:37 2013 -0600
+# 
+#     PowerPC64 ELFv2 ABI 5/6: LD_AUDIT interface changes
+#     
+#     The ELFv2 ABI changes the calling convention by passing and returning
+#     structures in registers in more cases than the old ABI:
+#     http://gcc.gnu.org/ml/gcc-patches/2013-11/msg01145.html
+#     http://gcc.gnu.org/ml/gcc-patches/2013-11/msg01147.html
+#     
+#     For the most part, this does not affect glibc, since glibc assembler
+#     files do not use structure parameters / return values.  However, one
+#     place is affected: the LD_AUDIT interface provides a structure to
+#     the audit routine that contains all registers holding function
+#     argument and return values for the intercepted PLT call.
+#     
+#     Since the new ABI now sometimes uses registers to return values
+#     that were never used for this purpose in the old ABI, this structure
+#     has to be extended.  To force audit routines to be modified for the
+#     new ABI if necessary, the patch defines v2 variants of the la_ppc64
+#     types and routines.
+#     
+#     In addition, the patch contains two unrelated changes to the
+#     PLT trampoline routines: it fixes a bug where FPR return values
+#     were stored in the wrong place, and it removes the unnecessary
+#     save/restore of CR.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/bits/link.h glibc-2.17-c758a686/sysdeps/powerpc/bits/link.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/bits/link.h	2014-05-29 14:11:12.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/bits/link.h	2014-05-29 14:11:20.000000000 -0500
+@@ -63,7 +63,7 @@
+ 
+ __END_DECLS
+ 
+-#else
++#elif _CALL_ELF != 2
+ 
+ /* Registers for entry into PLT on PPC64.  */
+ typedef struct La_ppc64_regs
+@@ -107,4 +107,48 @@
+ 
+ __END_DECLS
+ 
++#else
++
++/* Registers for entry into PLT on PPC64 in the ELFv2 ABI.  */
++typedef struct La_ppc64v2_regs
++{
++  uint64_t lr_reg[8];
++  double lr_fp[13];
++  uint32_t __padding;
++  uint32_t lr_vrsave;
++  uint32_t lr_vreg[12][4] __attribute__ ((aligned (16)));
++  uint64_t lr_r1;
++  uint64_t lr_lr;
++} La_ppc64v2_regs;
++
++/* Return values for calls from PLT on PPC64 in the ELFv2 ABI.  */
++typedef struct La_ppc64v2_retval
++{
++  uint64_t lrv_r3;
++  uint64_t lrv_r4;
++  double lrv_fp[10];
++  uint32_t lrv_vreg[8][4] __attribute__ ((aligned (16)));
++} La_ppc64v2_retval;
++
++
++__BEGIN_DECLS
++
++extern Elf64_Addr la_ppc64v2_gnu_pltenter (Elf64_Sym *__sym,
++					   unsigned int __ndx,
++					   uintptr_t *__refcook,
++					   uintptr_t *__defcook,
++					   La_ppc64v2_regs *__regs,
++					   unsigned int *__flags,
++					   const char *__symname,
++					   long int *__framesizep);
++extern unsigned int la_ppc64v2_gnu_pltexit (Elf64_Sym *__sym,
++					    unsigned int __ndx,
++					    uintptr_t *__refcook,
++					    uintptr_t *__defcook,
++					    const La_ppc64v2_regs *__inregs,
++					    La_ppc64v2_retval *__outregs,
++					    const char *__symname);
++
++__END_DECLS
++
+ #endif
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/ldsodefs.h glibc-2.17-c758a686/sysdeps/powerpc/ldsodefs.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/ldsodefs.h	2014-05-29 14:11:12.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/ldsodefs.h	2014-05-29 14:11:20.000000000 -0500
+@@ -25,6 +25,8 @@
+ struct La_ppc32_retval;
+ struct La_ppc64_regs;
+ struct La_ppc64_retval;
++struct La_ppc64v2_regs;
++struct La_ppc64v2_retval;
+ 
+ #define ARCH_PLTENTER_MEMBERS						\
+     Elf32_Addr (*ppc32_gnu_pltenter) (Elf32_Sym *, unsigned int, uintptr_t *, \
+@@ -34,7 +36,12 @@
+     Elf64_Addr (*ppc64_gnu_pltenter) (Elf64_Sym *, unsigned int, uintptr_t *, \
+ 				      uintptr_t *, struct La_ppc64_regs *, \
+ 				      unsigned int *, const char *name,	\
+-				      long int *framesizep)
++				      long int *framesizep);		\
++    Elf64_Addr (*ppc64v2_gnu_pltenter) (Elf64_Sym *, unsigned int,	\
++					uintptr_t *,  uintptr_t *,	\
++					struct La_ppc64v2_regs *,	\
++					unsigned int *, const char *name, \
++					long int *framesizep)
+ 
+ #define ARCH_PLTEXIT_MEMBERS						\
+     unsigned int (*ppc32_gnu_pltexit) (Elf32_Sym *, unsigned int,	\
+@@ -47,7 +54,14 @@
+ 				       uintptr_t *,			\
+ 				       uintptr_t *,			\
+ 				       const struct La_ppc64_regs *,	\
+-				       struct La_ppc64_retval *, const char *)
++				       struct La_ppc64_retval *,	\
++				       const char *);			\
++    unsigned int (*ppc64v2_gnu_pltexit) (Elf64_Sym *, unsigned int,	\
++					 uintptr_t *,			\
++					 uintptr_t *,			\
++					 const struct La_ppc64v2_regs *,\
++					 struct La_ppc64v2_retval *,	\
++					 const char *)
+ 
+ #include_next <ldsodefs.h>
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 14:11:12.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 14:11:20.000000000 -0500
+@@ -546,8 +546,13 @@
+ 
+ 
+ /* Names of the architecture-specific auditing callback functions.  */
++#if _CALL_ELF != 2
+ #define ARCH_LA_PLTENTER ppc64_gnu_pltenter
+ #define ARCH_LA_PLTEXIT ppc64_gnu_pltexit
++#else
++#define ARCH_LA_PLTENTER ppc64v2_gnu_pltenter
++#define ARCH_LA_PLTEXIT ppc64v2_gnu_pltexit
++#endif
+ 
+ #endif /* dl_machine_h */
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:11:12.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:11:20.000000000 -0500
+@@ -50,11 +50,8 @@
+ /* Store the LR in the LR Save area.  */
+ 	std	r0,FRAME_SIZE+FRAME_LR_SAVE(r1)
+ 	cfi_offset (lr, FRAME_LR_SAVE)
+-	mfcr	r0
+ 	std	r9,INT_PARMS+48(r1)
+ 	std	r10,INT_PARMS+56(r1)
+-/* I'm almost certain we don't have to save cr...  be safe.  */
+-	std	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	bl	JUMPTARGET(_dl_fixup)
+ #ifndef SHARED
+ 	nop
+@@ -66,11 +63,9 @@
+ 	ld	r8,INT_PARMS+40(r1)
+ 	ld	r7,INT_PARMS+32(r1)
+ 	mtlr	r0
+-	ld	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r6,INT_PARMS+24(r1)
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+-	mtcrf	0xFF,r0
+ /* Prepare for calling the function returned by fixup.  */
+ 	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
+@@ -85,18 +80,30 @@
+ #undef FRAME_SIZE
+ #undef INT_PARMS
+ 
+-	/* Stack layout:
+-	   (Note: some of these are not required for the ELFv2 ABI.)
+-	  +592   previous backchain
+-	  +584   spill_r31
+-	  +576   spill_r30
+-	  +560   v1
+-	  +552   fp4
+-	  +544   fp3
+-	  +536   fp2
+-	  +528   fp1
+-	  +520   r4
+-	  +512   r3
++	/* Stack layout:		ELFv2 ABI.
++					+752   previous backchain
++					+744   spill_r31
++					+736   spill_r30
++					+720   v8
++					+704   v7
++					+688   v6
++					+672   v5
++					+656   v4
++					+640   v3
++					+624   v2
++					+608   v1
++					+600   fp10
++	  ELFv1 ABI			+592   fp9
++	  +592   previous backchain	+584   fp8
++	  +584   spill_r31		+576   fp7
++	  +576   spill_r30		+568   fp6
++	  +560   v1			+560   fp5
++	  +552   fp4			+552   fp4
++	  +544   fp3			+544   fp3
++	  +536   fp2			+536   fp2
++	  +528   fp1			+528   fp1
++	  +520   r4			+520   r4
++	  +512   r3			+512   r3
+ 	   return values
+           +504   free
+ 	  +496   stackframe
+@@ -157,10 +164,15 @@
+ 	  +8     CR save area
+ 	r1+0     stack back chain
+ 	*/
+-#define FRAME_SIZE 592
++#if _CALL_ELF == 2
++# define FRAME_SIZE 752
++# define VR_RTN 608
++#else
++# define FRAME_SIZE 592
++# define VR_RTN 560
++#endif
+ #define INT_RTN 512
+ #define FPR_RTN 528
+-#define VR_RTN 560
+ #define STACK_FRAME 496
+ #define CALLING_LR 488
+ #define CALLING_SP 480
+@@ -205,18 +217,14 @@
+ 	mflr	r5
+ 	std	r7,INT_PARMS+32(r1)
+ 	std	r8,INT_PARMS+40(r1)
+-/* Store the LR in the LR Save area of the previous frame.  */
+-/* XXX Do we have to do this?  */
++/* Store the LR in the LR Save area.  */
+ 	la	r8,FRAME_SIZE(r1)
+ 	std	r5,FRAME_SIZE+FRAME_LR_SAVE(r1)
+ 	cfi_offset (lr, FRAME_LR_SAVE)
+ 	std	r5,CALLING_LR(r1)
+-	mfcr	r0
+ 	std	r9,INT_PARMS+48(r1)
+ 	std	r10,INT_PARMS+56(r1)
+ 	std	r8,CALLING_SP(r1)
+-/* I'm almost certain we don't have to save cr...  be safe.  */
+-	std	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r12,.LC__dl_hwcap@toc(r2)
+ #ifdef SHARED
+ 	/* Load _rtld_local_ro._dl_hwcap.  */
+@@ -319,11 +327,9 @@
+ 	ld	r8,INT_PARMS+40(r1)
+ 	ld	r7,INT_PARMS+32(r1)
+ 	mtlr	r0
+-	ld	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r6,INT_PARMS+24(r1)
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+-	mtcrf	0xFF,r0
+ /* Prepare for calling the function returned by fixup.  */
+ 	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
+@@ -346,10 +352,11 @@
+ 	lfd	fp12,FPR_PARMS+88(r1)
+ 	lfd	fp13,FPR_PARMS+96(r1)
+ /* Unwind the stack frame, and jump.  */
+-	ld	r31,584(r1)
+-	ld	r30,576(r1)
++	ld	r31,FRAME_SIZE-8(r1)
++	ld	r30,FRAME_SIZE-16(r1)
+ 	addi	r1,r1,FRAME_SIZE
+ 	bctr
++
+ L(do_pltexit):
+ 	la	r10,(VR_PARMS+0)(r1)
+ 	la	r9,(VR_PARMS+16)(r1)
+@@ -383,11 +390,9 @@
+ 	ld	r8,INT_PARMS+40(r1)
+ 	ld	r7,INT_PARMS+32(r1)
+ 	mtlr	r0
+-	ld	r0,FRAME_SIZE+FRAME_CR_SAVE(r1)
+ 	ld	r6,INT_PARMS+24(r1)
+ 	ld	r5,INT_PARMS+16(r1)
+ 	ld	r4,INT_PARMS+8(r1)
+-	mtcrf	0xFF,r0
+ /* Prepare for calling the function returned by fixup.  */
+ 	std	r2,FRAME_TOC_SAVE(r1)
+ 	PPC64_LOAD_FUNCPTR r3
+@@ -413,16 +418,37 @@
+ /* But return here and store the return values.  */
+ 	std	r3,INT_RTN(r1)
+ 	std	r4,INT_RTN+8(r1)
+-	stfd	fp1,FPR_PARMS+0(r1)
+-	stfd	fp2,FPR_PARMS+8(r1)
++	stfd	fp1,FPR_RTN+0(r1)
++	stfd	fp2,FPR_RTN+8(r1)
+ 	cmpdi	cr0,r12,0
+ 	la	r10,VR_RTN(r1)
+-	stfd	fp3,FPR_PARMS+16(r1)
+-	stfd	fp4,FPR_PARMS+24(r1)
++	stfd	fp3,FPR_RTN+16(r1)
++	stfd	fp4,FPR_RTN+24(r1)
++#if _CALL_ELF == 2
++	la	r12,VR_RTN+16(r1)
++	stfd	fp5,FPR_RTN+32(r1)
++	stfd	fp6,FPR_RTN+40(r1)
++	li	r5,32
++	li	r6,64
++	stfd	fp7,FPR_RTN+48(r1)
++	stfd	fp8,FPR_RTN+56(r1)
++	stfd	fp9,FPR_RTN+64(r1)
++	stfd	fp10,FPR_RTN+72(r1)
++#endif
+ 	mr	r3,r31
+ 	mr	r4,r30
+ 	beq	L(callpltexit)
+ 	stvx	v2,0,r10
++#if _CALL_ELF == 2
++	stvx	v3,0,r12
++	stvx	v4,r5,r10
++	stvx	v5,r5,r12
++	addi	r5,r5,64
++	stvx	v6,r6,r10
++	stvx	v7,r6,r12
++	stvx	v8,r5,r10
++	stvx	v9,r5,r12
++#endif
+ L(callpltexit):
+ 	addi	r5,r1,INT_PARMS
+ 	addi	r6,r1,INT_RTN
+@@ -434,18 +460,39 @@
+ 	lwz	r12,VR_VRSAVE(r1)
+ 	ld	r3,INT_RTN(r1)
+ 	ld	r4,INT_RTN+8(r1)
+-	lfd	fp1,FPR_PARMS+0(r1)
+-	lfd	fp2,FPR_PARMS+8(r1)
++	lfd	fp1,FPR_RTN+0(r1)
++	lfd	fp2,FPR_RTN+8(r1)
+ 	cmpdi	cr0,r12,0
+-	la	r10,VR_RTN(r1)
+-	lfd	fp3,FPR_PARMS+16(r1)
+-	lfd	fp4,FPR_PARMS+24(r1)
++	la	r11,VR_RTN(r1)
++	lfd	fp3,FPR_RTN+16(r1)
++	lfd	fp4,FPR_RTN+24(r1)
++#if _CALL_ELF == 2
++	la	r12,VR_RTN+16(r1)
++	lfd	fp5,FPR_RTN+32(r1)
++	lfd	fp6,FPR_RTN+40(r1)
++	li	r30,32
++	li	r31,64
++	lfd	fp7,FPR_RTN+48(r1)
++	lfd	fp8,FPR_RTN+56(r1)
++	lfd	fp9,FPR_RTN+64(r1)
++	lfd	fp10,FPR_RTN+72(r1)
++#endif
+ 	beq	L(pltexitreturn)
+-	lvx	v2,0,r10
++	lvx	v2,0,r11
++#if _CALL_ELF == 2
++	lvx	v3,0,r12
++	lvx	v4,r30,r11
++	lvx	v5,r30,r12
++	addi	r30,r30,64
++	lvx	v6,r31,r11
++	lvx	v7,r31,r12
++	lvx	v8,r30,r11
++	lvx	v9,r30,r12
++#endif
+ L(pltexitreturn):
+ 	ld	r0,FRAME_SIZE+FRAME_LR_SAVE(r1)
+-	ld	r31,584(r1)
+-	ld	r30,576(r1)
++	ld	r31,FRAME_SIZE-8(r1)
++	ld	r30,FRAME_SIZE-16(r1)
+ 	mtlr	r0
+ 	ld	r1,0(r1)
+ 	blr
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/tst-audit.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/tst-audit.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/tst-audit.h	2014-05-29 14:11:12.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/tst-audit.h	2014-05-29 14:11:20.000000000 -0500
+@@ -18,8 +18,16 @@
+    License along with the GNU C Library.  If not, see
+    <http://www.gnu.org/licenses/>.  */
+ 
++#if _CALL_ELF != 2
+ #define pltenter la_ppc64_gnu_pltenter
+ #define pltexit la_ppc64_gnu_pltexit
+ #define La_regs La_ppc64_regs
+ #define La_retval La_ppc64_retval
+ #define int_retval lrv_r3
++#else
++#define pltenter la_ppc64v2_gnu_pltenter
++#define pltexit la_ppc64v2_gnu_pltexit
++#define La_regs La_ppc64v2_regs
++#define La_retval La_ppc64v2_retval
++#define int_retval lrv_r3
++#endif

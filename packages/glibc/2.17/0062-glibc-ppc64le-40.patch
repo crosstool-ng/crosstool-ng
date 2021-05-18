@@ -1,0 +1,159 @@
+# commit 122b66defdb9e4ded3ccc5c2b290f0520c6fa3cd
+# Author: Ulrich Weigand <Ulrich.Weigand@de.ibm.com>
+# Date:   Wed Dec 4 06:52:40 2013 -0600
+# 
+#     PowerPC64 ELFv2 ABI 3/6: PLT local entry point optimization
+#     
+#     This is a follow-on to the previous patch to support the ELFv2 ABI in the
+#     dynamic loader, split off into its own patch since it is just an optional
+#     optimization.
+#     
+#     In the ELFv2 ABI, most functions define both a global and a local entry
+#     point; the local entry requires r2 to be already set up by the caller
+#     to point to the callee's TOC; while the global entry does not require
+#     the caller to know about the callee's TOC, but it needs to set up r12
+#     to the callee's entry point address.
+#     
+#     Now, when setting up a PLT slot, the dynamic linker will usually need
+#     to enter the target function's global entry point.  However, if the
+#     linker can prove that the target function is in the same DSO as the
+#     PLT slot itself, and the whole DSO only uses a single TOC (which the
+#     linker will let ld.so know via a DT_PPC64_OPT entry), then it is
+#     possible to actually enter the local entry point address into the
+#     PLT slot, for a slight improvement in performance.
+#     
+#     Note that this uncovered a problem on the first call via _dl_runtime_resolve,
+#     because that routine neglected to restore the caller's TOC before calling
+#     the target function for the first time, since it assumed that function
+#     would always reload its own TOC anyway ...
+# 
+diff -urN glibc-2.17-c758a686/elf/elf.h glibc-2.17-c758a686/elf/elf.h
+--- glibc-2.17-c758a686/elf/elf.h	2014-05-29 14:08:44.000000000 -0500
++++ glibc-2.17-c758a686/elf/elf.h	2014-05-29 14:08:44.000000000 -0500
+@@ -2273,8 +2273,19 @@
+ #define DT_PPC64_GLINK  (DT_LOPROC + 0)
+ #define DT_PPC64_OPD	(DT_LOPROC + 1)
+ #define DT_PPC64_OPDSZ	(DT_LOPROC + 2)
++#define DT_PPC64_OPT	(DT_LOPROC + 3)
+ #define DT_PPC64_NUM    3
+ 
++/* PowerPC64 specific values for the DT_PPC64_OPT Dyn entry.  */
++#define PPC64_OPT_TLS		1
++#define PPC64_OPT_MULTI_TOC	2
++
++/* PowerPC64 specific values for the Elf64_Sym st_other field.  */
++#define STO_PPC64_LOCAL_BIT	5
++#define STO_PPC64_LOCAL_MASK	(7 << STO_PPC64_LOCAL_BIT)
++#define PPC64_LOCAL_ENTRY_OFFSET(other)				\
++ (((1 << (((other) & STO_PPC64_LOCAL_MASK) >> STO_PPC64_LOCAL_BIT)) >> 2) << 2)
++
+ 
+ /* ARM specific declarations */
+ 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 14:08:40.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-machine.h	2014-05-29 14:08:44.000000000 -0500
+@@ -425,6 +425,42 @@
+   return lazy;
+ }
+ 
++#if _CALL_ELF == 2
++/* If the PLT entry whose reloc is 'reloc' resolves to a function in
++   the same object, return the target function's local entry point
++   offset if usable.  */
++static inline Elf64_Addr __attribute__ ((always_inline))
++ppc64_local_entry_offset (struct link_map *map, lookup_t sym_map,
++			  const Elf64_Rela *reloc)
++{
++  const Elf64_Sym *symtab;
++  const Elf64_Sym *sym;
++
++  /* If the target function is in a different object, we cannot
++     use the local entry point.  */
++  if (sym_map != map)
++    return 0;
++
++  /* If the linker inserted multiple TOCs, we cannot use the
++     local entry point.  */
++  if (map->l_info[DT_PPC64(OPT)]
++      && (map->l_info[DT_PPC64(OPT)]->d_un.d_val & PPC64_OPT_MULTI_TOC))
++    return 0;
++
++  /* Otherwise, we can use the local entry point.  Retrieve its offset
++     from the symbol's ELF st_other field.  */
++  symtab = (const void *) D_PTR (map, l_info[DT_SYMTAB]);
++  sym = &symtab[ELFW(R_SYM) (reloc->r_info)];
++
++  /* If the target function is an ifunc then the local entry offset is
++     for the resolver, not the final destination.  */
++  if (__builtin_expect (ELFW(ST_TYPE) (sym->st_info) == STT_GNU_IFUNC, 0))
++    return 0;
++
++  return PPC64_LOCAL_ENTRY_OFFSET (sym->st_other);
++}
++#endif
++
+ /* Change the PLT entry whose reloc is 'reloc' to call the actual
+    routine.  */
+ static inline Elf64_Addr __attribute__ ((always_inline))
+@@ -471,6 +507,7 @@
+   PPC_DCBST (&plt->fd_func);
+   PPC_ISYNC;
+ #else
++  finaladdr += ppc64_local_entry_offset (map, sym_map, reloc);
+   *reloc_addr = finaladdr;
+ #endif
+ 
+@@ -478,7 +515,9 @@
+ }
+ 
+ static inline void __attribute__ ((always_inline))
+-elf_machine_plt_conflict (Elf64_Addr *reloc_addr, Elf64_Addr finaladdr)
++elf_machine_plt_conflict (struct link_map *map, lookup_t sym_map,
++			  const Elf64_Rela *reloc,
++			  Elf64_Addr *reloc_addr, Elf64_Addr finaladdr)
+ {
+ #if _CALL_ELF != 2
+   Elf64_FuncDesc *plt = (Elf64_FuncDesc *) reloc_addr;
+@@ -492,6 +531,7 @@
+   PPC_DCBST (&plt->fd_toc);
+   PPC_SYNC;
+ #else
++  finaladdr += ppc64_local_entry_offset (map, sym_map, reloc);
+   *reloc_addr = finaladdr;
+ #endif
+ }
+@@ -641,7 +681,7 @@
+       /* Fall thru */
+     case R_PPC64_JMP_SLOT:
+ #ifdef RESOLVE_CONFLICT_FIND_MAP
+-      elf_machine_plt_conflict (reloc_addr, value);
++      elf_machine_plt_conflict (map, sym_map, reloc, reloc_addr, value);
+ #else
+       elf_machine_fixup_plt (map, sym_map, reloc, reloc_addr, value);
+ #endif
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:08:40.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:08:44.000000000 -0500
+@@ -74,6 +74,10 @@
+ /* Prepare for calling the function returned by fixup.  */
+ 	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
++#if _CALL_ELF == 2
++/* Restore the caller's TOC in case we jump to a local entry point.  */
++	ld	r2,FRAME_SIZE+40(r1)
++#endif
+ /* Unwind the stack frame, and jump.  */
+ 	addi	r1,r1,FRAME_SIZE
+ 	bctr
+@@ -321,6 +325,10 @@
+ /* Prepare for calling the function returned by fixup.  */
+ 	PPC64_LOAD_FUNCPTR r3
+ 	ld	r3,INT_PARMS+0(r1)
++#if _CALL_ELF == 2
++/* Restore the caller's TOC in case we jump to a local entry point.  */
++	ld	r2,FRAME_SIZE+40(r1)
++#endif
+ /* Load the floating point registers.  */
+ 	lfd	fp1,FPR_PARMS+0(r1)
+ 	lfd	fp2,FPR_PARMS+8(r1)

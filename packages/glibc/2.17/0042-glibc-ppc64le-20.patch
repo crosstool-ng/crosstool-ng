@@ -1,0 +1,43 @@
+# commit fef13a78ea30d4c26d6bab48d731ebe864ee31b0
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:33:45 2013 +0930
+# 
+#     PowerPC floating point little-endian [15 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-07/msg00206.html
+#     
+#     The union loses when little-endian.
+#     
+#         * sysdeps/powerpc/powerpc32/power4/hp-timing.h (HP_TIMING_NOW):
+#         Don't use a union to pack hi/low value.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/hp-timing.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/hp-timing.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/hp-timing.h	2014-05-27 22:53:37.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/hp-timing.h	2014-05-27 22:53:39.000000000 -0500
+@@ -87,18 +87,15 @@
+ 
+ #define HP_TIMING_NOW(Var)						\
+   do {									\
+-        union { long long ll; long ii[2]; } _var;			\
+-	long tmp;							\
+-        __asm__ __volatile__ (						\
+-		"1:	mfspr	%0,269;"				\
+-		"	mfspr	%1,268;"				\
+-		"	mfspr	%2,269;"				\
+-		"	cmpw	%0,%2;"					\
+-		"	bne	1b;"					\
+-		: "=r" (_var.ii[0]), "=r" (_var.ii[1]) , "=r" (tmp)	\
+-		: : "cr0"						\
+-		);							\
+-	Var = _var.ll;							\
++    unsigned int hi, lo, tmp;						\
++    __asm__ __volatile__ ("1:	mfspr	%0,269;"			\
++			  "	mfspr	%1,268;"			\
++			  "	mfspr	%2,269;"			\
++			  "	cmpw	%0,%2;"				\
++			  "	bne	1b;"				\
++			  : "=&r" (hi), "=&r" (lo), "=&r" (tmp)		\
++			  : : "cr0");					\
++    Var = ((hp_timing_t) hi << 32) | lo;				\
+   } while (0)
+ 
+ 

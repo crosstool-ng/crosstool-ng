@@ -1,0 +1,75 @@
+# commit 2ca85d2bbbaa60b9c83bf1f57a2801c84e0a3625
+# Author: Anton Blanchard <anton@au1.ibm.com>
+# Date:   Sat Aug 17 18:28:06 2013 +0930
+# 
+#     PowerPC floating point little-endian [7 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00086.html
+#     
+#         * sysdeps/powerpc/bits/mathinline.h (__signbitf): Use builtin.
+#         (__signbit): Likewise.  Correct for little-endian.
+#         (__signbitl): Call __signbit.
+#         (lrint): Correct for little-endian.
+#         (lrintf): Call lrint.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/bits/mathinline.h glibc-2.17-c758a686/sysdeps/powerpc/fpu/bits/mathinline.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/bits/mathinline.h	2014-05-27 22:28:12.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/bits/mathinline.h	2014-05-27 22:28:37.000000000 -0500
+@@ -62,21 +62,28 @@
+ __MATH_INLINE int
+ __NTH (__signbitf (float __x))
+ {
++#if __GNUC_PREREQ (4, 0)
++  return __builtin_signbitf (__x);
++#else
+   __extension__ union { float __f; int __i; } __u = { __f: __x };
+   return __u.__i < 0;
++#endif
+ }
+ __MATH_INLINE int
+ __NTH (__signbit (double __x))
+ {
+-  __extension__ union { double __d; int __i[2]; } __u = { __d: __x };
+-  return __u.__i[0] < 0;
++#if __GNUC_PREREQ (4, 0)
++  return __builtin_signbit (__x);
++#else
++  __extension__ union { double __d; long long __i; } __u = { __d: __x };
++  return __u.__i < 0;
++#endif
+ }
+ #  ifdef __LONG_DOUBLE_128__
+ __MATH_INLINE int
+ __NTH (__signbitl (long double __x))
+ {
+-  __extension__ union { long double __d; int __i[4]; } __u = { __d: __x };
+-  return __u.__i[0] < 0;
++  return __signbit ((double) __x);
+ }
+ #  endif
+ # endif
+@@ -93,22 +100,17 @@
+ {
+   union {
+     double __d;
+-    int __ll[2];
++    long long __ll;
+   } __u;
+   __asm__ ("fctiw %0,%1" : "=f"(__u.__d) : "f"(__x));
+-  return __u.__ll[1];
++  return __u.__ll;
+ }
+ 
+ __MATH_INLINE long int lrintf (float __x) __THROW;
+ __MATH_INLINE long int
+ __NTH (lrintf (float __x))
+ {
+-  union {
+-    double __d;
+-    int __ll[2];
+-  } __u;
+-  __asm__ ("fctiw %0,%1" : "=f"(__u.__d) : "f"(__x));
+-  return __u.__ll[1];
++  return lrint ((double) __x);
+ }
+ # endif
+ 

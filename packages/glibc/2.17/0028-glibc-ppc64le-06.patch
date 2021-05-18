@@ -1,0 +1,652 @@
+# commit 1b6adf888de14675bc3207578dcb7132ed5f8ecc
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:21:58 2013 +0930
+# 
+#     PowerPC floating point little-endian [1 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00081.html
+#     
+#     This is the first of a series of patches to ban ieee854_long_double
+#     and the ieee854_long_double macros when using IBM long double.  union
+#     ieee854_long_double just isn't correct for IBM long double, especially
+#     when little-endian, and pretending it is OK has allowed a number of
+#     bugs to remain undetected in sysdeps/ieee754/ldbl-128ibm/.
+#     
+#     This changes the few places in generic code that use it.
+#     
+#         * stdio-common/printf_size.c (__printf_size): Don't use
+#         union ieee854_long_double in fpnum union.
+#         * stdio-common/printf_fphex.c (__printf_fphex): Likewise.  Use
+#         signbit macro to retrieve sign from long double.
+#         * stdio-common/printf_fp.c (___printf_fp): Use signbit macro to
+#         retrieve sign from long double.
+#         * sysdeps/ieee754/ldbl-128ibm/printf_fphex.c: Adjust for fpnum change.
+#         * sysdeps/ieee754/ldbl-128/printf_fphex.c: Likewise.
+#         * sysdeps/ieee754/ldbl-96/printf_fphex.c: Likewise.
+#         * sysdeps/x86_64/fpu/printf_fphex.c: Likewise.
+#         * math/test-misc.c (main): Don't use union ieee854_long_double.
+#     ports/
+#         * sysdeps/ia64/fpu/printf_fphex.c: Adjust for fpnum change.
+# 
+diff -urN glibc-2.17-c758a686/math/test-misc.c glibc-2.17-c758a686/math/test-misc.c
+--- glibc-2.17-c758a686/math/test-misc.c	2014-05-27 19:53:22.000000000 -0500
++++ glibc-2.17-c758a686/math/test-misc.c	2014-05-27 19:53:45.000000000 -0500
+@@ -721,300 +721,161 @@
+ 
+ #ifndef NO_LONG_DOUBLE
+   {
+-    union ieee854_long_double v1;
+-    union ieee854_long_double v2;
+-    long double ld;
++    long double v1, v2;
+ 
+-    v1.d = ld = LDBL_MIN;
+-    if (fpclassify (ld) != FP_NORMAL)
++    v1 = LDBL_MIN;
++    if (fpclassify (v1) != FP_NORMAL)
+       {
+-	printf ("fpclassify (LDBL_MIN) failed: %d\n", fpclassify (ld));
++	printf ("fpclassify (LDBL_MIN) failed: %d (%La)\n",
++		fpclassify (v1), v1);
+ 	result = 1;
+       }
+-    ld = nextafterl (ld, LDBL_MIN / 2.0);
+-    if (fpclassify (ld) != FP_SUBNORMAL)
++    v2 = nextafterl (v1, LDBL_MIN / 2.0);
++    if (fpclassify (v2) != FP_SUBNORMAL)
+       {
+ 	printf ("fpclassify (LDBL_MIN-epsilon) failed: %d (%La)\n",
+-		fpclassify (ld), ld);
++		fpclassify (v2), v2);
+ 	result = 1;
+       }
+-    v2.d = ld = nextafterl (ld, LDBL_MIN);
+-    if (fpclassify (ld) != FP_NORMAL)
++    v2 = nextafterl (v2, LDBL_MIN);
++    if (fpclassify (v2) != FP_NORMAL)
+       {
+ 	printf ("fpclassify (LDBL_MIN-epsilon+epsilon) failed: %d (%La)\n",
+-		fpclassify (ld), ld);
++		fpclassify (v2), v2);
+ 	result = 1;
+       }
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
++    if (v1 != v2)
+       {
+-	printf ("LDBL_MIN: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
+-      {
+-	printf ("LDBL_MIN: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
+-      {
+-	printf ("LDBL_MIN: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
+-	result = 1;
+-      }
+-    if (v1.ieee.negative != v2.ieee.negative)
+-      {
+-	printf ("LDBL_MIN: negative differs: %d vs %d\n",
+-		v1.ieee.negative, v2.ieee.negative);
++	printf ("LDBL_MIN-epsilon+epsilon != LDBL_MIN: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+ 
+-    v1.d = ld = -LDBL_MIN;
+-    if (fpclassify (ld) != FP_NORMAL)
++    v1 = -LDBL_MIN;
++    if (fpclassify (v1) != FP_NORMAL)
+       {
+-	printf ("fpclassify (-LDBL_MIN) failed: %d\n", fpclassify (ld));
++	printf ("fpclassify (-LDBL_MIN) failed: %d (%La)\n",
++		fpclassify (v1), v1);
+ 	result = 1;
+       }
+-    ld = nextafterl (ld, -LDBL_MIN / 2.0);
+-    if (fpclassify (ld) != FP_SUBNORMAL)
++    v2 = nextafterl (v1, -LDBL_MIN / 2.0);
++    if (fpclassify (v2) != FP_SUBNORMAL)
+       {
+ 	printf ("fpclassify (-LDBL_MIN-epsilon) failed: %d (%La)\n",
+-		fpclassify (ld), ld);
++		fpclassify (v2), v2);
+ 	result = 1;
+       }
+-    v2.d = ld = nextafterl (ld, -LDBL_MIN);
+-    if (fpclassify (ld) != FP_NORMAL)
++    v2 = nextafterl (v2, -LDBL_MIN);
++    if (fpclassify (v2) != FP_NORMAL)
+       {
+ 	printf ("fpclassify (-LDBL_MIN-epsilon+epsilon) failed: %d (%La)\n",
+-		fpclassify (ld), ld);
++		fpclassify (v2), v2);
+ 	result = 1;
+       }
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
++    if (v1 != v2)
+       {
+-	printf ("-LDBL_MIN: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
+-      {
+-	printf ("-LDBL_MIN: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
+-      {
+-	printf ("-LDBL_MIN: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
+-	result = 1;
+-      }
+-    if (v1.ieee.negative != v2.ieee.negative)
+-      {
+-	printf ("-LDBL_MIN: negative differs: %d vs %d\n",
+-		v1.ieee.negative, v2.ieee.negative);
++	printf ("-LDBL_MIN-epsilon+epsilon != -LDBL_MIN: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+ 
+-    ld = LDBL_MAX;
+-    if (fpclassify (ld) != FP_NORMAL)
++    v1 = LDBL_MAX;
++    if (fpclassify (v1) != FP_NORMAL)
+       {
+-	printf ("fpclassify (LDBL_MAX) failed: %d\n", fpclassify (ld));
++	printf ("fpclassify (LDBL_MAX) failed: %d (%La)\n",
++		fpclassify (v1), v1);
+ 	result = 1;
+       }
+-    ld = nextafterl (ld, INFINITY);
+-    if (fpclassify (ld) != FP_INFINITE)
++    v2 = nextafterl (v1, INFINITY);
++    if (fpclassify (v2) != FP_INFINITE)
+       {
+-	printf ("fpclassify (LDBL_MAX+epsilon) failed: %d\n", fpclassify (ld));
++	printf ("fpclassify (LDBL_MAX+epsilon) failed: %d (%La)\n",
++		fpclassify (v2), v2);
+ 	result = 1;
+       }
+ 
+-    ld = -LDBL_MAX;
+-    if (fpclassify (ld) != FP_NORMAL)
++    v1 = -LDBL_MAX;
++    if (fpclassify (v1) != FP_NORMAL)
+       {
+-	printf ("fpclassify (-LDBL_MAX) failed: %d\n", fpclassify (ld));
++	printf ("fpclassify (-LDBL_MAX) failed: %d (%La)\n",
++		fpclassify (v1), v1);
+ 	result = 1;
+       }
+-    ld = nextafterl (ld, -INFINITY);
+-    if (fpclassify (ld) != FP_INFINITE)
++    v2 = nextafterl (v1, -INFINITY);
++    if (fpclassify (v2) != FP_INFINITE)
+       {
+-	printf ("fpclassify (-LDBL_MAX-epsilon) failed: %d\n",
+-		fpclassify (ld));
++	printf ("fpclassify (-LDBL_MAX-epsilon) failed: %d (%La)\n",
++		fpclassify (v2), v2);
+ 	result = 1;
+       }
+ 
+-    v1.d = ld = 0.0625;
+-    ld = nextafterl (ld, 0.0);
+-    v2.d = ld = nextafterl (ld, 1.0);
++    v1 = 0.0625;
++    v2 = nextafterl (v1, 0.0);
++    v2 = nextafterl (v2, 1.0);
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
+-      {
+-	printf ("0.0625L down: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
+-      {
+-	printf ("0.0625L down: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
+-      {
+-	printf ("0.0625L down: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
+-	result = 1;
+-      }
+-    if (v1.ieee.negative != v2.ieee.negative)
++    if (v1 != v2)
+       {
+-	printf ("0.0625L down: negative differs: %d vs %d\n",
+-		v1.ieee.negative, v2.ieee.negative);
++	printf ("0.0625L-epsilon+epsilon != 0.0625L: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+ 
+-    v1.d = ld = 0.0625;
+-    ld = nextafterl (ld, 1.0);
+-    v2.d = ld = nextafterl (ld, 0.0);
++    v1 = 0.0625;
++    v2 = nextafterl (v1, 1.0);
++    v2 = nextafterl (v2, 0.0);
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
+-      {
+-	printf ("0.0625L up: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
+-      {
+-	printf ("0.0625L up: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
++    if (v1 != v2)
+       {
+-	printf ("0.0625L up: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
+-	result = 1;
+-      }
+-    if (v1.ieee.negative != v2.ieee.negative)
+-      {
+-	printf ("0.0625L up: negative differs: %d vs %d\n",
+-		v1.ieee.negative, v2.ieee.negative);
++	printf ("0.0625L+epsilon-epsilon != 0.0625L: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+ 
+-    v1.d = ld = -0.0625;
+-    ld = nextafterl (ld, 0.0);
+-    v2.d = ld = nextafterl (ld, -1.0);
++    v1 = -0.0625;
++    v2 = nextafterl (v1, 0.0);
++    v2 = nextafterl (v2, -1.0);
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
+-      {
+-	printf ("-0.0625L up: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
+-      {
+-	printf ("-0.0625L up: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
++    if (v1 != v2)
+       {
+-	printf ("-0.0625L up: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
+-	result = 1;
+-      }
+-    if (v1.ieee.negative != v2.ieee.negative)
+-      {
+-	printf ("-0.0625L up: negative differs: %d vs %d\n",
+-		v1.ieee.negative, v2.ieee.negative);
++	printf ("-0.0625L+epsilon-epsilon != -0.0625L: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+ 
+-    v1.d = ld = -0.0625;
+-    ld = nextafterl (ld, -1.0);
+-    v2.d = ld = nextafterl (ld, 0.0);
++    v1 = -0.0625;
++    v2 = nextafterl (v1, -1.0);
++    v2 = nextafterl (v2, 0.0);
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
+-      {
+-	printf ("-0.0625L down: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
++    if (v1 != v2)
+       {
+-	printf ("-0.0625L down: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
+-      {
+-	printf ("-0.0625L down: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
+-	result = 1;
+-      }
+-    if (v1.ieee.negative != v2.ieee.negative)
+-      {
+-	printf ("-0.0625L down: negative differs: %d vs %d\n",
+-		v1.ieee.negative, v2.ieee.negative);
++	printf ("-0.0625L-epsilon+epsilon != -0.0625L: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+ 
+-    v1.d = ld = 0.0;
+-    ld = nextafterl (ld, 1.0);
+-    v2.d = nextafterl (ld, -1.0);
++    v1 = 0.0;
++    v2 = nextafterl (v1, 1.0);
++    v2 = nextafterl (v2, -1.0);
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
+-      {
+-	printf ("0.0L up: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
+-      {
+-	printf ("0.0L up: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
++    if (v1 != v2)
+       {
+-	printf ("0.0L up: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
++	printf ("0.0+epsilon-epsilon != 0.0L: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+-    if (0 != v2.ieee.negative)
++    if (signbit (v2))
+       {
+-	printf ("0.0L up: negative differs: 0 vs %d\n",
+-		v2.ieee.negative);
++	printf ("0.0+epsilon-epsilon is negative\n");
+ 	result = 1;
+       }
+ 
+-    v1.d = ld = 0.0;
+-    ld = nextafterl (ld, -1.0);
+-    v2.d = nextafterl (ld, 1.0);
++    v1 = 0.0;
++    v2 = nextafterl (v1, -1.0);
++    v2 = nextafterl (v2, 1.0);
+ 
+-    if (v1.ieee.mantissa0 != v2.ieee.mantissa0)
+-      {
+-	printf ("0.0L down: mantissa0 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa0, v2.ieee.mantissa0);
+-	result = 1;
+-      }
+-    if (v1.ieee.mantissa1 != v2.ieee.mantissa1)
+-      {
+-	printf ("0.0L down: mantissa1 differs: %8x vs %8x\n",
+-		v1.ieee.mantissa1, v2.ieee.mantissa1);
+-	result = 1;
+-      }
+-    if (v1.ieee.exponent != v2.ieee.exponent)
++    if (v1 != v2)
+       {
+-	printf ("0.0L down: exponent differs: %4x vs %4x\n",
+-		v1.ieee.exponent, v2.ieee.exponent);
++	printf ("0.0-epsilon+epsilon != 0.0L: %La vs %La\n", v2, v1);
+ 	result = 1;
+       }
+-    if (1 != v2.ieee.negative)
++    if (!signbit (v2))
+       {
+-	printf ("0.0L down: negative differs: 1 vs %d\n",
+-		v2.ieee.negative);
++	printf ("0.0-epsilon+epsilon is positive\n");
+ 	result = 1;
+       }
+ 
+diff -urN glibc-2.17-c758a686/ports/sysdeps/ia64/fpu/printf_fphex.c glibc-2.17-c758a686/ports/sysdeps/ia64/fpu/printf_fphex.c
+--- glibc-2.17-c758a686/ports/sysdeps/ia64/fpu/printf_fphex.c	2014-05-27 19:53:21.000000000 -0500
++++ glibc-2.17-c758a686/ports/sysdeps/ia64/fpu/printf_fphex.c	2014-05-27 19:53:45.000000000 -0500
+@@ -25,9 +25,11 @@
+       /* The "strange" 80 bit format on ia64 has an explicit		      \
+ 	 leading digit in the 64 bit mantissa.  */			      \
+       unsigned long long int num;					      \
++      union ieee854_long_double u;					      \
++      u.d = fpnum.ldbl;							      \
+ 									      \
+-      num = (((unsigned long long int) fpnum.ldbl.ieee.mantissa0) << 32	      \
+-	     | fpnum.ldbl.ieee.mantissa1);				      \
++      num = (((unsigned long long int) u.ieee.mantissa0) << 32		      \
++	     | u.ieee.mantissa1);					      \
+ 									      \
+       zero_mantissa = num == 0;						      \
+ 									      \
+@@ -49,8 +51,8 @@
+ 									      \
+       /* We have 3 bits from the mantissa in the leading nibble.	      \
+ 	 Therefore we are here using `IEEE854_LONG_DOUBLE_BIAS + 3'.  */      \
+-      exponent = fpnum.ldbl.ieee.exponent;				      \
+-									     \
++      exponent = u.ieee.exponent;					      \
++									      \
+       if (exponent == 0)						      \
+ 	{								      \
+ 	  if (zero_mantissa)						      \
+diff -urN glibc-2.17-c758a686/stdio-common/printf_fp.c glibc-2.17-c758a686/stdio-common/printf_fp.c
+--- glibc-2.17-c758a686/stdio-common/printf_fp.c	2014-05-27 19:53:22.000000000 -0500
++++ glibc-2.17-c758a686/stdio-common/printf_fp.c	2014-05-27 19:53:45.000000000 -0500
+@@ -335,8 +335,7 @@
+       int res;
+       if (__isnanl (fpnum.ldbl))
+ 	{
+-	  union ieee854_long_double u = { .d = fpnum.ldbl };
+-	  is_neg = u.ieee.negative != 0;
++	  is_neg = signbit (fpnum.ldbl);
+ 	  if (isupper (info->spec))
+ 	    {
+ 	      special = "NAN";
+diff -urN glibc-2.17-c758a686/stdio-common/printf_fphex.c glibc-2.17-c758a686/stdio-common/printf_fphex.c
+--- glibc-2.17-c758a686/stdio-common/printf_fphex.c	2014-05-27 19:53:22.000000000 -0500
++++ glibc-2.17-c758a686/stdio-common/printf_fphex.c	2014-05-27 19:53:45.000000000 -0500
+@@ -93,7 +93,7 @@
+   union
+     {
+       union ieee754_double dbl;
+-      union ieee854_long_double ldbl;
++      long double ldbl;
+     }
+   fpnum;
+ 
+@@ -162,12 +162,11 @@
+ #ifndef __NO_LONG_DOUBLE_MATH
+   if (info->is_long_double && sizeof (long double) > sizeof (double))
+     {
+-      fpnum.ldbl.d = *(const long double *) args[0];
++      fpnum.ldbl = *(const long double *) args[0];
+ 
+       /* Check for special values: not a number or infinity.  */
+-      if (__isnanl (fpnum.ldbl.d))
++      if (__isnanl (fpnum.ldbl))
+ 	{
+-	  negative = fpnum.ldbl.ieee.negative != 0;
+ 	  if (isupper (info->spec))
+ 	    {
+ 	      special = "NAN";
+@@ -181,8 +180,7 @@
+ 	}
+       else
+ 	{
+-	  int res = __isinfl (fpnum.ldbl.d);
+-	  if (res)
++	  if (__isinfl (fpnum.ldbl))
+ 	    {
+ 	      if (isupper (info->spec))
+ 		{
+@@ -194,11 +192,9 @@
+ 		  special = "inf";
+ 		  wspecial = L"inf";
+ 		}
+-	      negative = res < 0;
+ 	    }
+-	  else
+-	    negative = signbit (fpnum.ldbl.d);
+ 	}
++      negative = signbit (fpnum.ldbl);
+     }
+   else
+ #endif	/* no long double */
+diff -urN glibc-2.17-c758a686/stdio-common/printf_size.c glibc-2.17-c758a686/stdio-common/printf_size.c
+--- glibc-2.17-c758a686/stdio-common/printf_size.c	2014-05-27 19:53:22.000000000 -0500
++++ glibc-2.17-c758a686/stdio-common/printf_size.c	2014-05-27 19:53:45.000000000 -0500
+@@ -103,7 +103,7 @@
+   union
+     {
+       union ieee754_double dbl;
+-      union ieee854_long_double ldbl;
++      long double ldbl;
+     }
+   fpnum;
+   const void *ptr = &fpnum;
+@@ -123,25 +123,25 @@
+ #ifndef __NO_LONG_DOUBLE_MATH
+   if (info->is_long_double && sizeof (long double) > sizeof (double))
+     {
+-      fpnum.ldbl.d = *(const long double *) args[0];
++      fpnum.ldbl = *(const long double *) args[0];
+ 
+       /* Check for special values: not a number or infinity.  */
+-      if (__isnanl (fpnum.ldbl.d))
++      if (__isnanl (fpnum.ldbl))
+ 	{
+ 	  special = "nan";
+ 	  wspecial = L"nan";
+ 	  // fpnum_sign = 0;	Already zero
+ 	}
+-      else if ((res = __isinfl (fpnum.ldbl.d)))
++      else if ((res = __isinfl (fpnum.ldbl)))
+ 	{
+ 	  fpnum_sign = res;
+ 	  special = "inf";
+ 	  wspecial = L"inf";
+ 	}
+       else
+-	while (fpnum.ldbl.d >= divisor && tag[1] != '\0')
++	while (fpnum.ldbl >= divisor && tag[1] != '\0')
+ 	  {
+-	    fpnum.ldbl.d /= divisor;
++	    fpnum.ldbl /= divisor;
+ 	    ++tag;
+ 	  }
+     }
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128/printf_fphex.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128/printf_fphex.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128/printf_fphex.c	2014-05-27 19:53:20.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128/printf_fphex.c	2014-05-27 19:53:45.000000000 -0500
+@@ -24,13 +24,15 @@
+ 	 digits we use only the implicit digits for the number before	      \
+ 	 the decimal point.  */						      \
+       unsigned long long int num0, num1;				      \
++      union ieee854_long_double u;					      \
++      u.d = fpnum.ldbl;							      \
+ 									      \
+       assert (sizeof (long double) == 16);				      \
+ 									      \
+-      num0 = (((unsigned long long int) fpnum.ldbl.ieee.mantissa0) << 32      \
+-	     | fpnum.ldbl.ieee.mantissa1);				      \
+-      num1 = (((unsigned long long int) fpnum.ldbl.ieee.mantissa2) << 32      \
+-	     | fpnum.ldbl.ieee.mantissa3);				      \
++      num0 = (((unsigned long long int) u.ieee.mantissa0) << 32		      \
++	     | u.ieee.mantissa1);					      \
++      num1 = (((unsigned long long int) u.ieee.mantissa2) << 32		      \
++	     | u.ieee.mantissa3);					      \
+ 									      \
+       zero_mantissa = (num0|num1) == 0;					      \
+ 									      \
+@@ -75,9 +77,9 @@
+ 	  *--wnumstr = L'0';						      \
+ 	}								      \
+ 									      \
+-      leading = fpnum.ldbl.ieee.exponent == 0 ? '0' : '1';		      \
++      leading = u.ieee.exponent == 0 ? '0' : '1';			      \
+ 									      \
+-      exponent = fpnum.ldbl.ieee.exponent;				      \
++      exponent = u.ieee.exponent;					      \
+ 									      \
+       if (exponent == 0)						      \
+ 	{								      \
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c	2014-05-27 19:53:20.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/printf_fphex.c	2014-05-27 19:53:45.000000000 -0500
+@@ -28,14 +28,14 @@
+       unsigned long long hi, lo;					      \
+       int ediff;							      \
+       union ibm_extended_long_double u;					      \
+-      u.ld = fpnum.ldbl.d;						      \
++      u.ld = fpnum.ldbl;						      \
+ 									      \
+       assert (sizeof (long double) == 16);				      \
+ 									      \
+       lo = ((long long)u.d[1].ieee.mantissa0 << 32) | u.d[1].ieee.mantissa1;  \
+       hi = ((long long)u.d[0].ieee.mantissa0 << 32) | u.d[0].ieee.mantissa1;  \
+       lo <<= 7; /* pre-shift lo to match ieee854.  */			      \
+-      /* If the lower double is not a denomal or zero then set the hidden     \
++      /* If the lower double is not a denormal or zero then set the hidden    \
+ 	 53rd bit.  */							      \
+       if (u.d[1].ieee.exponent != 0)					      \
+ 	lo |= (1ULL << (52 + 7));					      \
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-96/printf_fphex.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-96/printf_fphex.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-96/printf_fphex.c	2014-05-27 19:53:20.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-96/printf_fphex.c	2014-05-27 19:53:45.000000000 -0500
+@@ -25,11 +25,13 @@
+       /* The "strange" 80 bit format on ix86 and m68k has an explicit	      \
+ 	 leading digit in the 64 bit mantissa.  */			      \
+       unsigned long long int num;					      \
++      union ieee854_long_double u;					      \
++      u.d = fpnum.ldbl;							      \
+ 									      \
+       assert (sizeof (long double) == 12);				      \
+ 									      \
+-      num = (((unsigned long long int) fpnum.ldbl.ieee.mantissa0) << 32	      \
+-	     | fpnum.ldbl.ieee.mantissa1);				      \
++      num = (((unsigned long long int) u.ieee.mantissa0) << 32		      \
++	     | u.ieee.mantissa1);					      \
+ 									      \
+       zero_mantissa = num == 0;						      \
+ 									      \
+@@ -62,7 +64,7 @@
+ 									      \
+       /* We have 3 bits from the mantissa in the leading nibble.	      \
+ 	 Therefore we are here using `IEEE854_LONG_DOUBLE_BIAS + 3'.  */      \
+-      exponent = fpnum.ldbl.ieee.exponent;				      \
++      exponent = u.ieee.exponent;					      \
+ 									      \
+       if (exponent == 0)						      \
+ 	{								      \
+diff -urN glibc-2.17-c758a686/sysdeps/x86_64/fpu/printf_fphex.c glibc-2.17-c758a686/sysdeps/x86_64/fpu/printf_fphex.c
+--- glibc-2.17-c758a686/sysdeps/x86_64/fpu/printf_fphex.c	2014-05-27 19:53:20.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/x86_64/fpu/printf_fphex.c	2014-05-27 19:53:45.000000000 -0500
+@@ -25,10 +25,11 @@
+       /* The "strange" 80 bit format on ix86 and m68k has an explicit	      \
+ 	 leading digit in the 64 bit mantissa.  */			      \
+       unsigned long long int num;					      \
++      union ieee854_long_double u;					      \
++      u.d = fpnum.ldbl;							      \
+ 									      \
+-									      \
+-      num = (((unsigned long long int) fpnum.ldbl.ieee.mantissa0) << 32	      \
+-	     | fpnum.ldbl.ieee.mantissa1);				      \
++      num = (((unsigned long long int) u.ieee.mantissa0) << 32		      \
++	     | u.ieee.mantissa1);					      \
+ 									      \
+       zero_mantissa = num == 0;						      \
+ 									      \
+@@ -61,7 +62,7 @@
+ 									      \
+       /* We have 3 bits from the mantissa in the leading nibble.	      \
+ 	 Therefore we are here using `IEEE854_LONG_DOUBLE_BIAS + 3'.  */      \
+-      exponent = fpnum.ldbl.ieee.exponent;				      \
++      exponent = u.ieee.exponent;					      \
+ 									      \
+       if (exponent == 0)						      \
+ 	{								      \

@@ -1,0 +1,2943 @@
+# commit 759cfef3ac4c07dba1ece0bbc1207e099348816d
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:47:22 2013 +0930
+# 
+#     PowerPC LE memcpy
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00103.html
+#     
+#     LIttle-endian support for memcpy.  I spent some time cleaning up the
+#     64-bit power7 memcpy, in order to avoid the extra alignment traps
+#     power7 takes for little-endian.  It probably would have been better
+#     to copy the linux kernel version of memcpy.
+#     
+#         * sysdeps/powerpc/powerpc32/power4/memcpy.S: Add little endian support.
+#         * sysdeps/powerpc/powerpc32/power6/memcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/memcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/power7/mempcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/memcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power4/memcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power6/memcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/memcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/mempcpy.S: Likewise.  Make better
+#         use of regs.  Use power7 mtocrf.  Tidy function tails.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+@@ -205,15 +205,28 @@
+     blt   cr6,5f
+     srwi  7,6,16
+     bgt	  cr6,3f
++#ifdef __LITTLE_ENDIAN__
++    sth   7,0(3)
++#else
+     sth   6,0(3)
++#endif
+     b     7f
+     .align  4
+ 3:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,24
++    stb   6,0(3)
++    sth   7,1(3)
++#else
+     stb   7,0(3)
+     sth   6,1(3)
++#endif
+     b     7f
+     .align  4
+ 5:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,8
++#endif
+     stb   6,0(3)
+ 7:
+     cmplwi	cr1,10,16
+@@ -341,13 +354,23 @@
+     bf      30,1f
+ 
+     /* there are at least two words to copy, so copy them */
++#ifdef __LITTLE_ENDIAN__
++    srw   0,6,10
++    slw   8,7,9
++#else
+     slw   0,6,10  /* shift 1st src word to left align it in R0 */
+     srw   8,7,9   /* shift 2nd src word to right align it in R8 */
++#endif
+     or    0,0,8   /* or them to get word to store */
+     lwz   6,8(5)  /* load the 3rd src word */
+     stw   0,0(4)  /* store the 1st dst word */
++#ifdef __LITTLE_ENDIAN__
++    srw   0,7,10
++    slw   8,6,9
++#else
+     slw   0,7,10  /* now left align 2nd src word into R0 */
+     srw   8,6,9   /* shift 3rd src word to right align it in R8 */
++#endif
+     or    0,0,8   /* or them to get word to store */
+     lwz   7,12(5)
+     stw   0,4(4)  /* store the 2nd dst word */
+@@ -355,8 +378,13 @@
+     addi  5,5,16
+     bf    31,4f
+     /* there is a third word to copy, so copy it */
++#ifdef __LITTLE_ENDIAN__
++    srw   0,6,10
++    slw   8,7,9
++#else
+     slw   0,6,10  /* shift 3rd src word to left align it in R0 */
+     srw   8,7,9   /* shift 4th src word to right align it in R8 */
++#endif
+     or    0,0,8   /* or them to get word to store */
+     stw   0,0(4)  /* store 3rd dst word */
+     mr    6,7
+@@ -366,8 +394,13 @@
+     b     4f
+     .align 4
+ 1:
++#ifdef __LITTLE_ENDIAN__
++    srw     0,6,10
++    slw     8,7,9
++#else
+     slw     0,6,10  /* shift 1st src word to left align it in R0 */
+     srw     8,7,9   /* shift 2nd src word to right align it in R8 */
++#endif
+     addi  5,5,8
+     or    0,0,8   /* or them to get word to store */
+     bf    31,4f
+@@ -380,23 +413,43 @@
+     .align  4
+ 4:
+     /* copy 16 bytes at a time */
++#ifdef __LITTLE_ENDIAN__
++    srw   0,6,10
++    slw   8,7,9
++#else
+     slw   0,6,10
+     srw   8,7,9
++#endif
+     or    0,0,8
+     lwz   6,0(5)
+     stw   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srw   0,7,10
++    slw   8,6,9
++#else
+     slw   0,7,10
+     srw   8,6,9
++#endif
+     or    0,0,8
+     lwz   7,4(5)
+     stw   0,4(4)
++#ifdef __LITTLE_ENDIAN__
++    srw   0,6,10
++    slw   8,7,9
++#else
+     slw   0,6,10
+     srw   8,7,9
++#endif
+     or    0,0,8
+     lwz   6,8(5)
+     stw   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srw   0,7,10
++    slw   8,6,9
++#else
+     slw   0,7,10
+     srw   8,6,9
++#endif
+     or    0,0,8
+     lwz   7,12(5)
+     stw   0,12(4)
+@@ -405,8 +458,13 @@
+     bdnz+ 4b
+ 8:
+     /* calculate and store the final word */
++#ifdef __LITTLE_ENDIAN__
++    srw   0,6,10
++    slw   8,7,9
++#else
+     slw   0,6,10
+     srw   8,7,9
++#endif
+     or    0,0,8
+     stw   0,0(4)
+ 3:
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+@@ -221,15 +221,28 @@
+     blt   cr6,5f
+     srwi  7,6,16
+     bgt	  cr6,3f
++#ifdef __LITTLE_ENDIAN__
++    sth   7,0(3)
++#else
+     sth   6,0(3)
++#endif
+     b     7f
+     .align  4
+ 3:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,24
++    stb   6,0(3)
++    sth   7,1(3)
++#else
+     stb   7,0(3)
+     sth   6,1(3)
++#endif
+     b     7f
+     .align  4
+ 5:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,8
++#endif
+     stb   6,0(3)
+ 7:
+     cmplwi	cr1,10,16
+@@ -579,7 +592,11 @@
+     lwz     6,-1(4)
+     cmplwi  cr6,31,4
+     srwi    8,31,5    /* calculate the 32 byte loop count */
++#ifdef __LITTLE_ENDIAN__
++    srwi    6,6,8
++#else
+     slwi    6,6,8
++#endif
+     clrlwi  31,31,27   /* The remaining bytes, < 32.  */
+     blt     cr5,L(wdu1_32tail)
+     mtctr   8
+@@ -587,8 +604,12 @@
+ 
+     lwz   8,3(4)
+     lwz   7,4(4)
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,24,32
++#else
+ /*  Equivalent to: srwi   8,8,32-8;  or    6,6,8 */
+     rlwimi 6,8,8,(32-8),31
++#endif
+     b      L(wdu1_loop32x)
+     .align  4
+ L(wdu1_loop32):
+@@ -597,8 +618,12 @@
+     lwz   7,4(4)
+     stw   10,-8(3)
+     stw   11,-4(3)
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,24,32
++#else
+ /*  Equivalent to  srwi   8,8,32-8; or    6,6,8 */
+     rlwimi 6,8,8,(32-8),31
++#endif
+ L(wdu1_loop32x):
+     lwz   10,8(4)
+     lwz   11,12(4)
+@@ -615,7 +640,11 @@
+     stw   6,16(3)
+     stw   7,20(3)
+     addi  3,3,32
++#ifdef __LITTLE_ENDIAN__
++    srwi  6,8,8
++#else
+     slwi  6,8,8
++#endif
+     bdnz+ L(wdu1_loop32)
+     stw   10,-8(3)
+     stw   11,-4(3)
+@@ -626,8 +655,12 @@
+     blt     cr6,L(wdu_4tail)
+     /* calculate and store the final word */
+     lwz   8,3(4)
+-/*  Equivalent to: srwi   8,8,32-9;  or    6,6,8  */
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,24,32
++#else
++/*  Equivalent to: srwi   8,8,32-8;  or    6,6,8  */
+     rlwimi 6,8,8,(32-8),31
++#endif
+     b     L(wdu_32tailx)
+ 
+ L(wdu2_32):
+@@ -635,7 +668,11 @@
+     lwz     6,-2(4)
+     cmplwi  cr6,31,4
+     srwi    8,31,5    /* calculate the 32 byte loop count */
++#ifdef __LITTLE_ENDIAN__
++    srwi    6,6,16
++#else
+     slwi    6,6,16
++#endif
+     clrlwi  31,31,27   /* The remaining bytes, < 32.  */
+     blt     cr5,L(wdu2_32tail)
+     mtctr   8
+@@ -643,8 +680,11 @@
+ 
+     lwz   8,2(4)
+     lwz   7,4(4)
+-/*  Equivalent to: srwi   8,8,32-8;  or    6,6,8 */
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,16,32
++#else
+     rlwimi 6,8,16,(32-16),31
++#endif
+     b      L(wdu2_loop32x)
+     .align  4
+ L(wdu2_loop32):
+@@ -653,8 +693,11 @@
+     lwz   7,4(4)
+     stw   10,-8(3)
+     stw   11,-4(3)
+-/*  Equivalent to  srwi   8,8,32-8; or    6,6,8 */
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,16,32
++#else
+     rlwimi 6,8,16,(32-16),31
++#endif
+ L(wdu2_loop32x):
+     lwz   10,8(4)
+     lwz   11,12(4)
+@@ -672,7 +715,11 @@
+     stw   6,16(3)
+     stw   7,20(3)
+     addi  3,3,32
++#ifdef __LITTLE_ENDIAN__
++    srwi  6,8,16
++#else
+     slwi  6,8,16
++#endif
+     bdnz+ L(wdu2_loop32)
+     stw   10,-8(3)
+     stw   11,-4(3)
+@@ -683,8 +730,11 @@
+     blt     cr6,L(wdu_4tail)
+     /* calculate and store the final word */
+     lwz   8,2(4)
+-/*  Equivalent to: srwi   8,8,32-9;  or    6,6,8  */
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,16,32
++#else
+     rlwimi 6,8,16,(32-16),31
++#endif
+     b     L(wdu_32tailx)
+ 
+ L(wdu3_32):
+@@ -692,7 +742,11 @@
+     lwz     6,-3(4)
+     cmplwi  cr6,31,4
+     srwi    8,31,5    /* calculate the 32 byte loop count */
++#ifdef __LITTLE_ENDIAN__
++    srwi    6,6,24
++#else
+     slwi    6,6,24
++#endif
+     clrlwi  31,31,27   /* The remaining bytes, < 32.  */
+     blt     cr5,L(wdu3_32tail)
+     mtctr   8
+@@ -700,8 +754,11 @@
+ 
+     lwz   8,1(4)
+     lwz   7,4(4)
+-/*  Equivalent to: srwi   8,8,32-8;  or    6,6,8 */
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,8,32
++#else
+     rlwimi 6,8,24,(32-24),31
++#endif
+     b      L(wdu3_loop32x)
+     .align  4
+ L(wdu3_loop32):
+@@ -710,8 +767,11 @@
+     lwz   7,4(4)
+     stw   10,-8(3)
+     stw   11,-4(3)
+-/*  Equivalent to  srwi   8,8,32-8; or    6,6,8 */
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,8,32
++#else
+     rlwimi 6,8,24,(32-24),31
++#endif
+ L(wdu3_loop32x):
+     lwz   10,8(4)
+     lwz   11,12(4)
+@@ -728,7 +788,11 @@
+     stw   6,16(3)
+     stw   7,20(3)
+     addi  3,3,32
++#ifdef __LITTLE_ENDIAN__
++    srwi  6,8,24
++#else
+     slwi  6,8,24
++#endif
+     bdnz+ L(wdu3_loop32)
+     stw   10,-8(3)
+     stw   11,-4(3)
+@@ -739,8 +803,11 @@
+     blt     cr6,L(wdu_4tail)
+     /* calculate and store the final word */
+     lwz   8,1(4)
+-/*  Equivalent to: srwi   8,8,32-9;  or    6,6,8  */
++#ifdef __LITTLE_ENDIAN__
++    rldimi 6,8,8,32
++#else
+     rlwimi 6,8,24,(32-24),31
++#endif
+     b     L(wdu_32tailx)
+     .align  4
+ L(wdu_32tailx):
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+@@ -385,7 +385,7 @@
+ 
+ 	beq    L(copy_GE_32_unaligned_cont)
+ 
+-	/* SRC is not quadword aligned, get it aligned.  */
++	/* DST is not quadword aligned, get it aligned.  */
+ 
+ 	mtcrf   0x01,0
+ 	subf    31,0,5
+@@ -437,13 +437,21 @@
+ 	mr      11,12
+ 	mtcrf   0x01,9
+ 	cmplwi  cr6,9,1
++#ifdef __LITTLE_ENDIAN__
++	lvsr    5,0,12
++#else
+ 	lvsl    5,0,12
++#endif
+ 	lvx     3,0,12
+ 	bf      31,L(setup_unaligned_loop)
+ 
+ 	/* Copy another 16 bytes to align to 32-bytes due to the loop .  */
+ 	lvx     4,12,6
++#ifdef __LITTLE_ENDIAN__
++	vperm   6,4,3,5
++#else
+ 	vperm   6,3,4,5
++#endif
+ 	addi    11,12,16
+ 	addi    10,3,16
+ 	stvx    6,0,3
+@@ -463,11 +471,17 @@
+ 	vector instructions though.  */
+ 
+ 	lvx	4,11,6	      /* vr4 = r11+16.  */
+-	vperm   6,3,4,5	      /* Merge the correctly-aligned portions
+-			      of vr3/vr4 into vr6.  */
++#ifdef __LITTLE_ENDIAN__
++	vperm   6,4,3,5
++#else
++	vperm   6,3,4,5
++#endif
+ 	lvx	3,11,7	      /* vr3 = r11+32.  */
+-	vperm   10,4,3,5      /* Merge the correctly-aligned portions
+-			      of vr3/vr4 into vr10.  */
++#ifdef __LITTLE_ENDIAN__
++	vperm   10,3,4,5
++#else
++	vperm   10,4,3,5
++#endif
+ 	addi    11,11,32
+ 	stvx    6,0,10
+ 	stvx    10,10,6
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
+@@ -327,7 +327,7 @@
+ 
+ 	beq	L(copy_GE_32_unaligned_cont)
+ 
+-	/* SRC is not quadword aligned, get it aligned.  */
++	/* DST is not quadword aligned, get it aligned.  */
+ 
+ 	mtcrf	0x01,0
+ 	subf	31,0,5
+@@ -379,13 +379,21 @@
+ 	mr	11,12
+ 	mtcrf	0x01,9
+ 	cmplwi	cr6,9,1
+-	lvsl	5,0,12
++#ifdef __LITTLE_ENDIAN__
++	lvsr    5,0,12
++#else
++	lvsl    5,0,12
++#endif
+ 	lvx	3,0,12
+ 	bf	31,L(setup_unaligned_loop)
+ 
+ 	/* Copy another 16 bytes to align to 32-bytes due to the loop .  */
+ 	lvx	4,12,6
+-	vperm	6,3,4,5
++#ifdef __LITTLE_ENDIAN__
++	vperm   6,4,3,5
++#else
++	vperm   6,3,4,5
++#endif
+ 	addi	11,12,16
+ 	addi	10,3,16
+ 	stvx	6,0,3
+@@ -405,11 +413,17 @@
+ 	vector instructions though.  */
+ 
+ 	lvx	4,11,6	      /* vr4 = r11+16.  */
+-	vperm	6,3,4,5	      /* Merge the correctly-aligned portions
+-				 of vr3/vr4 into vr6.  */
++#ifdef __LITTLE_ENDIAN__
++	vperm   6,4,3,5
++#else
++	vperm   6,3,4,5
++#endif
+ 	lvx	3,11,7	      /* vr3 = r11+32.  */
+-	vperm	10,4,3,5      /* Merge the correctly-aligned portions
+-				 of vr3/vr4 into vr10.  */
++#ifdef __LITTLE_ENDIAN__
++	vperm   10,3,4,5
++#else
++	vperm   10,4,3,5
++#endif
+ 	addi	11,11,32
+ 	stvx	6,0,10
+ 	stvx	10,10,6
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+@@ -214,15 +214,28 @@
+     blt   cr6,5f
+     srdi  7,6,16
+     bgt	  cr6,3f
++#ifdef __LITTLE_ENDIAN__
++    sth   7,0(3)
++#else
+     sth   6,0(3)
++#endif
+     b     7f
+     .align  4
+ 3:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,24
++    stb   6,0(3)
++    sth   7,1(3)
++#else
+     stb   7,0(3)
+     sth   6,1(3)
++#endif
+     b     7f
+     .align  4
+ 5:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,8
++#endif
+     stb   6,0(3)
+ 7:
+     cmpldi	cr1,10,16
+@@ -330,7 +343,11 @@
+     ld    7,8(5)
+     subfic  9,10,64
+     beq   2f
++#ifdef __LITTLE_ENDIAN__
++    srd   0,6,10
++#else
+     sld   0,6,10
++#endif
+     cmpldi  11,1
+     mr    6,7
+     addi  4,4,-8
+@@ -338,15 +355,25 @@
+     b     1f
+ 2:  addi  5,5,8
+     .align  4
++#ifdef __LITTLE_ENDIAN__
++0:  srd   0,6,10
++    sld   8,7,9
++#else
+ 0:  sld   0,6,10
+     srd   8,7,9
++#endif
+     cmpldi  11,2
+     ld    6,8(5)
+     or    0,0,8
+     addi  11,11,-2
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srd   0,7,10
++1:  sld   8,6,9
++#else
+     sld   0,7,10
+ 1:  srd   8,6,9
++#endif
+     or    0,0,8
+     beq   8f
+     ld    7,16(5)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S	2014-05-29 13:05:51.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memcpy implementation for PowerPC64.
+-   Copyright (C) 2003, 2006, 2011 Free Software Foundation, Inc.
++   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -17,26 +17,24 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ /* __ptr_t [r3] memcpy (__ptr_t dst [r3], __ptr_t src [r4], size_t len [r5]);
+    Returns 'dst'.
+ 
+-   Memcpy handles short copies (< 32-bytes) using a binary move blocks 
+-   (no loops) of lwz/stw.  The tail (remaining 1-3) bytes is handled 
+-   with the appropriate combination of byte and halfword load/stores. 
+-   There is minimal effort to optimize the alignment of short moves.  
++   Memcpy handles short copies (< 32-bytes) using a binary move blocks
++   (no loops) of lwz/stw.  The tail (remaining 1-3) bytes is handled
++   with the appropriate combination of byte and halfword load/stores.
++   There is minimal effort to optimize the alignment of short moves.
+    The 64-bit implementations of POWER3 and POWER4 do a reasonable job
+-   of handling unligned load/stores that do not cross 32-byte boundries.
++   of handling unaligned load/stores that do not cross 32-byte boundaries.
+ 
+    Longer moves (>= 32-bytes) justify the effort to get at least the
+    destination doubleword (8-byte) aligned.  Further optimization is
+-   posible when both source and destination are doubleword aligned.
++   possible when both source and destination are doubleword aligned.
+    Each case has a optimized unrolled loop.   */
+ 
+ 	.machine power4
+-EALIGN (BP_SYM (memcpy), 5, 0)
++EALIGN (memcpy, 5, 0)
+ 	CALL_MCOUNT 3
+ 
+     cmpldi cr1,5,31
+@@ -44,20 +42,20 @@
+     std   3,-16(1)
+     std   31,-8(1)
+     cfi_offset(31,-8)
+-    andi. 11,3,7	/* check alignement of dst.  */
++    andi. 11,3,7	/* check alignment of dst.  */
+     clrldi 0,0,61	/* Number of bytes until the 1st doubleword of dst.  */
+-    clrldi 10,4,61	/* check alignement of src.  */
++    clrldi 10,4,61	/* check alignment of src.  */
+     cmpldi cr6,5,8
+     ble-  cr1,.L2	/* If move < 32 bytes use short move code.  */
+-    cmpld cr6,10,11     
++    cmpld cr6,10,11
+     mr    12,4
+     srdi  9,5,3		/* Number of full double words remaining.  */
+     mtcrf 0x01,0
+     mr    31,5
+     beq   .L0
+-  
++
+     subf  31,0,5
+-  /* Move 0-7 bytes as needed to get the destination doubleword alligned.  */
++  /* Move 0-7 bytes as needed to get the destination doubleword aligned.  */
+ 1:  bf    31,2f
+     lbz   6,0(12)
+     addi  12,12,1
+@@ -74,17 +72,17 @@
+     stw   6,0(3)
+     addi  3,3,4
+ 0:
+-    clrldi 10,12,61	/* check alignement of src again.  */     
++    clrldi 10,12,61	/* check alignment of src again.  */
+     srdi  9,31,3	/* Number of full double words remaining.  */
+-    
+-  /* Copy doublewords from source to destination, assumpting the
++
++  /* Copy doublewords from source to destination, assuming the
+      destination is aligned on a doubleword boundary.
+ 
+      At this point we know there are at least 25 bytes left (32-7) to copy.
+-     The next step is to determine if the source is also doubleword aligned. 
++     The next step is to determine if the source is also doubleword aligned.
+      If not branch to the unaligned move code at .L6. which uses
+      a load, shift, store strategy.
+-     
++
+      Otherwise source and destination are doubleword aligned, and we can
+      the optimized doubleword copy loop.  */
+ .L0:
+@@ -97,14 +95,14 @@
+      Use a unrolled loop to copy 4 doubleword (32-bytes) per iteration.
+      If the copy is not an exact multiple of 32 bytes, 1-3
+      doublewords are copied as needed to set up the main loop.  After
+-     the main loop exits there may be a tail of 1-7 bytes. These byte are 
++     the main loop exits there may be a tail of 1-7 bytes. These byte are
+      copied a word/halfword/byte at a time as needed to preserve alignment.  */
+ 
+     srdi  8,31,5
+     cmpldi	cr1,9,4
+     cmpldi	cr6,11,0
+     mr    11,12
+-    
++
+     bf    30,1f
+     ld    6,0(12)
+     ld    7,8(12)
+@@ -115,7 +113,7 @@
+     addi  10,3,16
+     bf    31,4f
+     ld    0,16(12)
+-    std   0,16(3)    
++    std   0,16(3)
+     blt   cr1,3f
+     addi  11,12,24
+     addi  10,3,24
+@@ -129,7 +127,7 @@
+     addi  11,12,8
+     std   6,0(3)
+     addi  10,3,8
+-    
++
+     .align  4
+ 4:
+     ld    6,0(11)
+@@ -144,7 +142,7 @@
+     std   0,24(10)
+     addi  10,10,32
+     bdnz  4b
+-3:  
++3:
+ 
+     rldicr 0,31,0,60
+     mtcrf 0x01,31
+@@ -152,9 +150,9 @@
+ .L9:
+     add   3,3,0
+     add   12,12,0
+-    
++
+ /*  At this point we have a tail of 0-7 bytes and we know that the
+-    destiniation is double word aligned.  */
++    destination is double word aligned.  */
+ 4:  bf    29,2f
+     lwz   6,0(12)
+     addi  12,12,4
+@@ -173,29 +171,29 @@
+     ld 31,-8(1)
+     ld 3,-16(1)
+     blr
+-       
+-/* Copy up to 31 bytes.  This divided into two cases 0-8 bytes and 9-31 
+-   bytes.  Each case is handled without loops, using binary (1,2,4,8) 
+-   tests.  
+-   
++
++/* Copy up to 31 bytes.  This divided into two cases 0-8 bytes and 9-31
++   bytes.  Each case is handled without loops, using binary (1,2,4,8)
++   tests.
++
+    In the short (0-8 byte) case no attempt is made to force alignment
+-   of either source or destination.  The hardware will handle the 
+-   unaligned load/stores with small delays for crossing 32- 64-byte, and 
++   of either source or destination.  The hardware will handle the
++   unaligned load/stores with small delays for crossing 32- 64-byte, and
+    4096-byte boundaries. Since these short moves are unlikely to be
+-   unaligned or cross these boundaries, the overhead to force 
++   unaligned or cross these boundaries, the overhead to force
+    alignment is not justified.
+-   
++
+    The longer (9-31 byte) move is more likely to cross 32- or 64-byte
+    boundaries.  Since only loads are sensitive to the 32-/64-byte
+-   boundaries it is more important to align the source then the 
++   boundaries it is more important to align the source then the
+    destination.  If the source is not already word aligned, we first
+-   move 1-3 bytes as needed.  Since we are only word aligned we don't 
+-   use double word load/stores to insure that all loads are aligned. 
++   move 1-3 bytes as needed.  Since we are only word aligned we don't
++   use double word load/stores to insure that all loads are aligned.
+    While the destination and stores may still be unaligned, this
+    is only an issue for page (4096 byte boundary) crossing, which
+    should be rare for these short moves.  The hardware handles this
+-   case automatically with a small delay.  */ 
+-   
++   case automatically with a small delay.  */
++
+     .align  4
+ .L2:
+     mtcrf 0x01,5
+@@ -216,15 +214,28 @@
+     blt   cr6,5f
+     srdi  7,6,16
+     bgt	  cr6,3f
++#ifdef __LITTLE_ENDIAN__
++    sth   7,0(3)
++#else
+     sth   6,0(3)
++#endif
+     b     7f
+     .align  4
+ 3:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,24
++    stb   6,0(3)
++    sth   7,1(3)
++#else
+     stb   7,0(3)
+     sth   6,1(3)
++#endif
+     b     7f
+     .align  4
+ 5:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,8
++#endif
+     stb   6,0(3)
+ 7:
+     cmpldi	cr1,10,16
+@@ -258,11 +269,11 @@
+     lwz   6,0(12)
+     addi  12,12,4
+     stw   6,0(3)
+-    addi  3,3,4    
++    addi  3,3,4
+ 2:  /* Move 2-3 bytes.  */
+     bf    30,1f
+     lhz   6,0(12)
+-    sth   6,0(3) 
++    sth   6,0(3)
+     bf    31,0f
+     lbz   7,2(12)
+     stb   7,2(3)
+@@ -283,8 +294,8 @@
+     mr    12,4
+     bne   cr6,4f
+ /* Would have liked to use use ld/std here but the 630 processors are
+-   slow for load/store doubles that are not at least word aligned.  
+-   Unaligned Load/Store word execute with only a 1 cycle penaltity.  */
++   slow for load/store doubles that are not at least word aligned.
++   Unaligned Load/Store word execute with only a 1 cycle penalty.  */
+     lwz   6,0(4)
+     lwz   7,4(4)
+     stw   6,0(3)
+@@ -299,14 +310,14 @@
+ 6:
+     bf    30,5f
+     lhz   7,4(4)
+-    sth   7,4(3) 
++    sth   7,4(3)
+     bf    31,0f
+     lbz   8,6(4)
+     stb   8,6(3)
+     ld 3,-16(1)
+     blr
+     .align  4
+-5:  
++5:
+     bf    31,0f
+     lbz   6,4(4)
+     stb   6,4(3)
+@@ -336,13 +347,23 @@
+     bf      30,1f
+ 
+     /* there are at least two DWs to copy */
++#ifdef __LITTLE_ENDIAN__
++    srd     0,6,10
++    sld     8,7,9
++#else
+     sld     0,6,10
+     srd     8,7,9
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srd     0,7,10
++    sld     8,6,9
++#else
+     sld     0,7,10
+     srd     8,6,9
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -351,8 +372,13 @@
+     blt     cr6,8f  /* if total DWs = 3, then bypass loop */
+     bf      31,4f
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srd     0,6,10
++    sld     8,7,9
++#else
+     sld     0,6,10
+     srd     8,7,9
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -363,8 +389,13 @@
+     b       4f
+     .align 4
+ 1:
++#ifdef __LITTLE_ENDIAN__
++    srd     0,6,10
++    sld     8,7,9
++#else
+     sld     0,6,10
+     srd     8,7,9
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,4f
+@@ -375,23 +406,44 @@
+     addi    4,4,8
+     .align 4
+ /* copy 32 bytes at a time */
+-4:  sld   0,6,10
++4:
++#ifdef __LITTLE_ENDIAN__
++    srd   0,6,10
++    sld   8,7,9
++#else
++    sld   0,6,10
+     srd   8,7,9
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srd   0,7,10
++    sld   8,6,9
++#else
+     sld   0,7,10
+     srd   8,6,9
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srd   0,6,10
++    sld   8,7,9
++#else
+     sld   0,6,10
+     srd   8,7,9
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srd   0,7,10
++    sld   8,6,9
++#else
+     sld   0,7,10
+     srd   8,6,9
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -401,9 +453,14 @@
+     .align 4
+ 8:
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srd   0,6,10
++    sld   8,7,9
++#else
+     sld   0,6,10
+     srd   8,7,9
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+ 3:
+     rldicr 0,31,0,60
+@@ -413,5 +470,5 @@
+     ld 31,-8(1)
+     ld 3,-16(1)
+     blr
+-END_GEN_TB (BP_SYM (memcpy),TB_TOCLESS)
++END_GEN_TB (memcpy,TB_TOCLESS)
+ libc_hidden_builtin_def (memcpy)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S	2014-05-29 13:05:27.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memcpy implementation for PowerPC64.
+-   Copyright (C) 2003, 2006, 2007, 2011 Free Software Foundation, Inc.
++   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -17,52 +17,50 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ /* __ptr_t [r3] memcpy (__ptr_t dst [r3], __ptr_t src [r4], size_t len [r5]);
+    Returns 'dst'.
+ 
+-   Memcpy handles short copies (< 32-bytes) using a binary move blocks 
+-   (no loops) of lwz/stw.  The tail (remaining 1-3) bytes is handled 
+-   with the appropriate combination of byte and halfword load/stores. 
+-   There is minimal effort to optimize the alignment of short moves.  
++   Memcpy handles short copies (< 32-bytes) using a binary move blocks
++   (no loops) of lwz/stw.  The tail (remaining 1-3) bytes is handled
++   with the appropriate combination of byte and halfword load/stores.
++   There is minimal effort to optimize the alignment of short moves.
+    The 64-bit implementations of POWER3 and POWER4 do a reasonable job
+-   of handling unligned load/stores that do not cross 32-byte boundries.
++   of handling unaligned load/stores that do not cross 32-byte boundaries.
+ 
+    Longer moves (>= 32-bytes) justify the effort to get at least the
+    destination doubleword (8-byte) aligned.  Further optimization is
+-   posible when both source and destination are doubleword aligned.
+-   Each case has a optimized unrolled loop.  
+-     
+-   For POWER6 unaligned loads will take a 20+ cycle hicup for any
++   possible when both source and destination are doubleword aligned.
++   Each case has a optimized unrolled loop.
++
++   For POWER6 unaligned loads will take a 20+ cycle hiccup for any
+    L1 cache miss that crosses a 32- or 128-byte boundary.  Store
+-   is more forgiving and does not take a hicup until page or 
+-   segment boundaries.  So we require doubleword alignment for 
++   is more forgiving and does not take a hiccup until page or
++   segment boundaries.  So we require doubleword alignment for
+    the source but may take a risk and only require word alignment
+    for the destination.  */
+ 
+ 	.machine	"power6"
+-EALIGN (BP_SYM (memcpy), 7, 0)
++EALIGN (memcpy, 7, 0)
+ 	CALL_MCOUNT 3
+ 
+     cmpldi cr1,5,31
+     neg   0,3
+     std   3,-16(1)
+     std   31,-8(1)
+-    andi. 11,3,7	/* check alignement of dst.  */
++    andi. 11,3,7	/* check alignment of dst.  */
+     clrldi 0,0,61	/* Number of bytes until the 1st doubleword of dst.  */
+-    clrldi 10,4,61	/* check alignement of src.  */
++    clrldi 10,4,61	/* check alignment of src.  */
+     cmpldi cr6,5,8
+     ble-  cr1,.L2	/* If move < 32 bytes use short move code.  */
+     mtcrf 0x01,0
+-    cmpld cr6,10,11  
++    cmpld cr6,10,11
+     srdi  9,5,3		/* Number of full double words remaining.  */
+     beq   .L0
+-  
++
+     subf  5,0,5
+-  /* Move 0-7 bytes as needed to get the destination doubleword alligned.
+-     Duplicate some code to maximize fall-throught and minimize agen delays.  */
++  /* Move 0-7 bytes as needed to get the destination doubleword aligned.
++     Duplicate some code to maximize fall-through and minimize agen delays.  */
+ 1:  bf    31,2f
+     lbz   6,0(4)
+     stb   6,0(3)
+@@ -78,7 +76,7 @@
+     lwz   6,1(4)
+     stw   6,1(3)
+     b     0f
+-    
++
+ 2:  bf    30,4f
+     lhz   6,0(4)
+     sth   6,0(3)
+@@ -86,26 +84,26 @@
+     lwz   6,2(4)
+     stw   6,2(3)
+     b     0f
+-    
++
+ 4:  bf    29,0f
+     lwz   6,0(4)
+     stw   6,0(3)
+-0: 
++0:
+ /* Add the number of bytes until the 1st doubleword of dst to src and dst.  */
+     add   4,4,0
+     add   3,3,0
+-    
+-    clrldi 10,4,61	/* check alignement of src again.  */     
++
++    clrldi 10,4,61	/* check alignment of src again.  */
+     srdi  9,5,3	/* Number of full double words remaining.  */
+-    
+-  /* Copy doublewords from source to destination, assumpting the
++
++  /* Copy doublewords from source to destination, assuming the
+      destination is aligned on a doubleword boundary.
+ 
+      At this point we know there are at least 25 bytes left (32-7) to copy.
+-     The next step is to determine if the source is also doubleword aligned. 
++     The next step is to determine if the source is also doubleword aligned.
+      If not branch to the unaligned move code at .L6. which uses
+      a load, shift, store strategy.
+-     
++
+      Otherwise source and destination are doubleword aligned, and we can
+      the optimized doubleword copy loop.  */
+     .align  4
+@@ -123,14 +121,14 @@
+      the main loop exits there may be a tail of 1-7 bytes. These byte
+      are copied a word/halfword/byte at a time as needed to preserve
+      alignment.
+-     
++
+      For POWER6 the L1 is store-through and the L2 is store-in.  The
+      L2 is clocked at half CPU clock so we can store 16 bytes every
+      other cycle.  POWER6 also has a load/store bypass so we can do
+-     load, load, store, store every 2 cycles.  
+-     
++     load, load, store, store every 2 cycles.
++
+      The following code is sensitive to cache line alignment.  Do not
+-     make any change with out first making sure thay don't result in
++     make any change with out first making sure they don't result in
+      splitting ld/std pairs across a cache line.  */
+ 
+     mtcrf 0x02,5
+@@ -273,7 +271,7 @@
+     std   8,16+96(10)
+     std   0,24+96(10)
+     ble   cr5,L(das_loop_e)
+-    
++
+     mtctr   12
+     .align  4
+ L(das_loop2):
+@@ -326,10 +324,10 @@
+     .align  4
+ L(das_tail):
+     beq   cr1,0f
+-    
++
+ L(das_tail2):
+ /*  At this point we have a tail of 0-7 bytes and we know that the
+-    destiniation is double word aligned.  */
++    destination is double word aligned.  */
+ 4:  bf    29,2f
+     lwz   6,0(4)
+     stw   6,0(3)
+@@ -344,7 +342,7 @@
+     lbz   6,4(4)
+     stb   6,4(3)
+     b     0f
+-  
++
+ 2:  bf    30,1f
+     lhz   6,0(4)
+     sth   6,0(3)
+@@ -352,7 +350,7 @@
+     lbz   6,2(4)
+     stb   6,2(3)
+     b     0f
+-    
++
+ 1:  bf    31,0f
+     lbz   6,0(4)
+     stb   6,0(3)
+@@ -361,7 +359,7 @@
+     ld 3,-16(1)
+     blr
+ 
+-/* Copy up to 31 bytes.  This divided into two cases 0-8 bytes and 9-31 
++/* Copy up to 31 bytes.  This divided into two cases 0-8 bytes and 9-31
+    bytes.  Each case is handled without loops, using binary (1,2,4,8)
+    tests.
+ 
+@@ -402,15 +400,28 @@
+     blt   cr6,5f
+     srdi  7,6,16
+     bgt	  cr6,3f
++#ifdef __LITTLE_ENDIAN__
++    sth   7,0(3)
++#else
+     sth   6,0(3)
++#endif
+     b     7f
+     .align  4
+ 3:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,24
++    stb   6,0(3)
++    sth   7,1(3)
++#else
+     stb   7,0(3)
+     sth   6,1(3)
++#endif
+     b     7f
+     .align  4
+ 5:
++#ifdef __LITTLE_ENDIAN__
++    rotlwi 6,6,8
++#endif
+     stb   6,0(3)
+ 7:
+     cmpldi	cr1,10,16
+@@ -421,7 +432,7 @@
+ /* At least 6 bytes left and the source is word aligned.  This allows
+    some speculative loads up front.  */
+ /* We need to special case the fall-through because the biggest delays
+-   are due to address computation not being ready in time for the 
++   are due to address computation not being ready in time for the
+    AGEN.  */
+     lwz   6,0(12)
+     lwz   7,4(12)
+@@ -452,7 +463,7 @@
+     ld    3,-16(1)
+     blr
+     .align  4
+-L(dus_tail16p8):  /* less then 8 bytes left.  */
++L(dus_tail16p8):  /* less than 8 bytes left.  */
+     beq   cr1,L(dus_tailX) /* exactly 16 bytes, early exit.  */
+     cmpldi	cr1,10,20
+     bf    29,L(dus_tail16p2)
+@@ -466,7 +477,7 @@
+     ld    3,-16(1)
+     blr
+     .align  4
+-L(dus_tail16p4):  /* less then 4 bytes left.  */
++L(dus_tail16p4):  /* less than 4 bytes left.  */
+     addi  12,12,24
+     addi  3,3,24
+     bgt   cr0,L(dus_tail2)
+@@ -474,7 +485,7 @@
+     ld    3,-16(1)
+     blr
+     .align  4
+-L(dus_tail16p2):  /* 16 bytes moved, less then 4 bytes left.  */
++L(dus_tail16p2):  /* 16 bytes moved, less than 4 bytes left.  */
+     addi  12,12,16
+     addi  3,3,16
+     b     L(dus_tail2)
+@@ -499,7 +510,7 @@
+     ld    3,-16(1)
+     blr
+     .align  4
+-L(dus_tail8p4):  /* less then 4 bytes left.  */
++L(dus_tail8p4):  /* less than 4 bytes left.  */
+     addi  12,12,8
+     addi  3,3,8
+     bgt   cr1,L(dus_tail2)
+@@ -510,14 +521,14 @@
+     .align  4
+ L(dus_tail4):  /* Move 4 bytes.  */
+ /*  r6 already loaded speculatively.  If we are here we know there is
+-    more then 4 bytes left.  So there is no need to test.  */
++    more than 4 bytes left.  So there is no need to test.  */
+     addi  12,12,4
+     stw   6,0(3)
+     addi  3,3,4
+ L(dus_tail2):  /* Move 2-3 bytes.  */
+     bf    30,L(dus_tail1)
+     lhz   6,0(12)
+-    sth   6,0(3) 
++    sth   6,0(3)
+     bf    31,L(dus_tailX)
+     lbz   7,2(12)
+     stb   7,2(3)
+@@ -537,7 +548,7 @@
+ .LE8:
+     mr    12,4
+     bne   cr6,L(dus_4)
+-/* Exactly 8 bytes.  We may cross a 32-/128-byte boundry and take a ~20
++/* Exactly 8 bytes.  We may cross a 32-/128-byte boundary and take a ~20
+    cycle delay.  This case should be rare and any attempt to avoid this
+    would take most of 20 cycles any way.  */
+     ld   6,0(4)
+@@ -552,7 +563,7 @@
+     stw   6,0(3)
+     bf    30,L(dus_5)
+     lhz   7,4(4)
+-    sth   7,4(3) 
++    sth   7,4(3)
+     bf    31,L(dus_0)
+     lbz   8,6(4)
+     stb   8,6(3)
+@@ -590,20 +601,31 @@
+     bge     cr0, L(du4_do)
+     blt     cr5, L(du1_do)
+     beq     cr5, L(du2_do)
+-    b       L(du3_do) 
+-       
++    b       L(du3_do)
++
+     .align 4
+ L(du1_do):
+     bf      30,L(du1_1dw)
+ 
+     /* there are at least two DWs to copy */
++    /* FIXME: can combine last shift and "or" into "rldimi" */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 8
++    sldi     8,7, 64-8
++#else
+     sldi     0,6, 8
+     srdi     8,7, 64-8
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,7, 8
++    sldi     8,6, 64-8
++#else
+     sldi     0,7, 8
+     srdi     8,6, 64-8
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -612,8 +634,13 @@
+     blt     cr6,L(du1_fini)  /* if total DWs = 3, then bypass loop */
+     bf      31,L(du1_loop)
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 8
++    sldi     8,7, 64-8
++#else
+     sldi     0,6, 8
+     srdi     8,7, 64-8
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -624,8 +651,13 @@
+     b       L(du1_loop)
+     .align 4
+ L(du1_1dw):
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 8
++    sldi     8,7, 64-8
++#else
+     sldi     0,6, 8
+     srdi     8,7, 64-8
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,L(du1_loop)
+@@ -637,23 +669,43 @@
+     .align 4
+ /* copy 32 bytes at a time */
+ L(du1_loop):
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 8
++    sldi   8,7, 64-8
++#else
+     sldi   0,6, 8
+     srdi   8,7, 64-8
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 8
++    sldi   8,6, 64-8
++#else
+     sldi   0,7, 8
+     srdi   8,6, 64-8
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 8
++    sldi   8,7, 64-8
++#else
+     sldi   0,6, 8
+     srdi   8,7, 64-8
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 8
++    sldi   8,6, 64-8
++#else
+     sldi   0,7, 8
+     srdi   8,6, 64-8
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -663,9 +715,14 @@
+     .align 4
+ L(du1_fini):
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 8
++    sldi   8,7, 64-8
++#else
+     sldi   0,6, 8
+     srdi   8,7, 64-8
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+     b     L(du_done)
+ 
+@@ -674,13 +731,23 @@
+     bf      30,L(du2_1dw)
+ 
+     /* there are at least two DWs to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 16
++    sldi     8,7, 64-16
++#else
+     sldi     0,6, 16
+     srdi     8,7, 64-16
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,7, 16
++    sldi     8,6, 64-16
++#else
+     sldi     0,7, 16
+     srdi     8,6, 64-16
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -689,8 +756,13 @@
+     blt     cr6,L(du2_fini)  /* if total DWs = 3, then bypass loop */
+     bf      31,L(du2_loop)
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 16
++    sldi     8,7, 64-16
++#else
+     sldi     0,6, 16
+     srdi     8,7, 64-16
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -701,8 +773,13 @@
+     b       L(du2_loop)
+     .align 4
+ L(du2_1dw):
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 16
++    sldi     8,7, 64-16
++#else
+     sldi     0,6, 16
+     srdi     8,7, 64-16
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,L(du2_loop)
+@@ -714,23 +791,43 @@
+     .align 4
+ /* copy 32 bytes at a time */
+ L(du2_loop):
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 16
++    sldi   8,7, 64-16
++#else
+     sldi   0,6, 16
+     srdi   8,7, 64-16
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 16
++    sldi   8,6, 64-16
++#else
+     sldi   0,7, 16
+     srdi   8,6, 64-16
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 16
++    sldi   8,7, 64-16
++#else
+     sldi   0,6, 16
+     srdi   8,7, 64-16
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 16
++    sldi   8,6, 64-16
++#else
+     sldi   0,7, 16
+     srdi   8,6, 64-16
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -740,9 +837,14 @@
+     .align 4
+ L(du2_fini):
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 16
++    sldi   8,7, 64-16
++#else
+     sldi   0,6, 16
+     srdi   8,7, 64-16
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+     b     L(du_done)
+ 
+@@ -751,13 +853,23 @@
+     bf      30,L(du3_1dw)
+ 
+     /* there are at least two DWs to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 24
++    sldi     8,7, 64-24
++#else
+     sldi     0,6, 24
+     srdi     8,7, 64-24
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,7, 24
++    sldi     8,6, 64-24
++#else
+     sldi     0,7, 24
+     srdi     8,6, 64-24
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -766,8 +878,13 @@
+     blt     cr6,L(du3_fini)  /* if total DWs = 3, then bypass loop */
+     bf      31,L(du3_loop)
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 24
++    sldi     8,7, 64-24
++#else
+     sldi     0,6, 24
+     srdi     8,7, 64-24
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -778,8 +895,13 @@
+     b       L(du3_loop)
+     .align 4
+ L(du3_1dw):
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 24
++    sldi     8,7, 64-24
++#else
+     sldi     0,6, 24
+     srdi     8,7, 64-24
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,L(du3_loop)
+@@ -791,23 +913,43 @@
+     .align 4
+ /* copy 32 bytes at a time */
+ L(du3_loop):
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 24
++    sldi   8,7, 64-24
++#else
+     sldi   0,6, 24
+     srdi   8,7, 64-24
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 24
++    sldi   8,6, 64-24
++#else
+     sldi   0,7, 24
+     srdi   8,6, 64-24
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 24
++    sldi   8,7, 64-24
++#else
+     sldi   0,6, 24
+     srdi   8,7, 64-24
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 24
++    sldi   8,6, 64-24
++#else
+     sldi   0,7, 24
+     srdi   8,6, 64-24
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -817,9 +959,14 @@
+     .align 4
+ L(du3_fini):
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 24
++    sldi   8,7, 64-24
++#else
+     sldi   0,6, 24
+     srdi   8,7, 64-24
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+     b     L(du_done)
+ 
+@@ -834,13 +981,23 @@
+     bf      30,L(du4_1dw)
+ 
+     /* there are at least two DWs to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 32
++    sldi     8,7, 64-32
++#else
+     sldi     0,6, 32
+     srdi     8,7, 64-32
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,7, 32
++    sldi     8,6, 64-32
++#else
+     sldi     0,7, 32
+     srdi     8,6, 64-32
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -849,8 +1006,13 @@
+     blt     cr6,L(du4_fini)  /* if total DWs = 3, then bypass loop */
+     bf      31,L(du4_loop)
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 32
++    sldi     8,7, 64-32
++#else
+     sldi     0,6, 32
+     srdi     8,7, 64-32
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -861,8 +1023,13 @@
+     b       L(du4_loop)
+     .align 4
+ L(du4_1dw):
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 32
++    sldi     8,7, 64-32
++#else
+     sldi     0,6, 32
+     srdi     8,7, 64-32
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,L(du4_loop)
+@@ -874,23 +1041,43 @@
+     .align 4
+ /* copy 32 bytes at a time */
+ L(du4_loop):
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 32
++    sldi   8,7, 64-32
++#else
+     sldi   0,6, 32
+     srdi   8,7, 64-32
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 32
++    sldi   8,6, 64-32
++#else
+     sldi   0,7, 32
+     srdi   8,6, 64-32
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 32
++    sldi   8,7, 64-32
++#else
+     sldi   0,6, 32
+     srdi   8,7, 64-32
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 32
++    sldi   8,6, 64-32
++#else
+     sldi   0,7, 32
+     srdi   8,6, 64-32
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -900,9 +1087,14 @@
+     .align 4
+ L(du4_fini):
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 32
++    sldi   8,7, 64-32
++#else
+     sldi   0,6, 32
+     srdi   8,7, 64-32
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+     b     L(du_done)
+ 
+@@ -911,13 +1103,23 @@
+     bf      30,L(du5_1dw)
+ 
+     /* there are at least two DWs to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 40
++    sldi     8,7, 64-40
++#else
+     sldi     0,6, 40
+     srdi     8,7, 64-40
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,7, 40
++    sldi     8,6, 64-40
++#else
+     sldi     0,7, 40
+     srdi     8,6, 64-40
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -926,8 +1128,13 @@
+     blt     cr6,L(du5_fini)  /* if total DWs = 3, then bypass loop */
+     bf      31,L(du5_loop)
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 40
++    sldi     8,7, 64-40
++#else
+     sldi     0,6, 40
+     srdi     8,7, 64-40
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -938,8 +1145,13 @@
+     b       L(du5_loop)
+     .align 4
+ L(du5_1dw):
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 40
++    sldi     8,7, 64-40
++#else
+     sldi     0,6, 40
+     srdi     8,7, 64-40
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,L(du5_loop)
+@@ -951,23 +1163,43 @@
+     .align 4
+ /* copy 32 bytes at a time */
+ L(du5_loop):
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 40
++    sldi   8,7, 64-40
++#else
+     sldi   0,6, 40
+     srdi   8,7, 64-40
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 40
++    sldi   8,6, 64-40
++#else
+     sldi   0,7, 40
+     srdi   8,6, 64-40
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 40
++    sldi   8,7, 64-40
++#else
+     sldi   0,6, 40
+     srdi   8,7, 64-40
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 40
++    sldi   8,6, 64-40
++#else
+     sldi   0,7, 40
+     srdi   8,6, 64-40
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -977,9 +1209,14 @@
+     .align 4
+ L(du5_fini):
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 40
++    sldi   8,7, 64-40
++#else
+     sldi   0,6, 40
+     srdi   8,7, 64-40
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+     b     L(du_done)
+ 
+@@ -988,13 +1225,23 @@
+     bf      30,L(du6_1dw)
+ 
+     /* there are at least two DWs to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 48
++    sldi     8,7, 64-48
++#else
+     sldi     0,6, 48
+     srdi     8,7, 64-48
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,7, 48
++    sldi     8,6, 64-48
++#else
+     sldi     0,7, 48
+     srdi     8,6, 64-48
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -1003,8 +1250,13 @@
+     blt     cr6,L(du6_fini)  /* if total DWs = 3, then bypass loop */
+     bf      31,L(du6_loop)
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 48
++    sldi     8,7, 64-48
++#else
+     sldi     0,6, 48
+     srdi     8,7, 64-48
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -1015,8 +1267,13 @@
+     b       L(du6_loop)
+     .align 4
+ L(du6_1dw):
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 48
++    sldi     8,7, 64-48
++#else
+     sldi     0,6, 48
+     srdi     8,7, 64-48
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,L(du6_loop)
+@@ -1028,23 +1285,43 @@
+     .align 4
+ /* copy 32 bytes at a time */
+ L(du6_loop):
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 48
++    sldi   8,7, 64-48
++#else
+     sldi   0,6, 48
+     srdi   8,7, 64-48
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 48
++    sldi   8,6, 64-48
++#else
+     sldi   0,7, 48
+     srdi   8,6, 64-48
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 48
++    sldi   8,7, 64-48
++#else
+     sldi   0,6, 48
+     srdi   8,7, 64-48
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 48
++    sldi   8,6, 64-48
++#else
+     sldi   0,7, 48
+     srdi   8,6, 64-48
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -1054,9 +1331,14 @@
+     .align 4
+ L(du6_fini):
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 48
++    sldi   8,7, 64-48
++#else
+     sldi   0,6, 48
+     srdi   8,7, 64-48
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+     b     L(du_done)
+ 
+@@ -1065,13 +1347,23 @@
+     bf      30,L(du7_1dw)
+ 
+     /* there are at least two DWs to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 56
++    sldi     8,7, 64-56
++#else
+     sldi     0,6, 56
+     srdi     8,7, 64-56
++#endif
+     or      0,0,8
+     ld      6,16(5)
+     std     0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,7, 56
++    sldi     8,6, 64-56
++#else
+     sldi     0,7, 56
+     srdi     8,6, 64-56
++#endif
+     or      0,0,8
+     ld      7,24(5)
+     std     0,8(4)
+@@ -1080,8 +1372,13 @@
+     blt     cr6,L(du7_fini)  /* if total DWs = 3, then bypass loop */
+     bf      31,L(du7_loop)
+     /* there is a third DW to copy */
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 56
++    sldi     8,7, 64-56
++#else
+     sldi     0,6, 56
+     srdi     8,7, 64-56
++#endif
+     or      0,0,8
+     std     0,0(4)
+     mr      6,7
+@@ -1092,8 +1389,13 @@
+     b       L(du7_loop)
+     .align 4
+ L(du7_1dw):
++#ifdef __LITTLE_ENDIAN__
++    srdi     0,6, 56
++    sldi     8,7, 64-56
++#else
+     sldi     0,6, 56
+     srdi     8,7, 64-56
++#endif
+     addi    5,5,16
+     or      0,0,8
+     bf      31,L(du7_loop)
+@@ -1105,23 +1407,43 @@
+     .align 4
+ /* copy 32 bytes at a time */
+ L(du7_loop):
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 56
++    sldi   8,7, 64-56
++#else
+     sldi   0,6, 56
+     srdi   8,7, 64-56
++#endif
+     or    0,0,8
+     ld    6,0(5)
+     std   0,0(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 56
++    sldi   8,6, 64-56
++#else
+     sldi   0,7, 56
+     srdi   8,6, 64-56
++#endif
+     or    0,0,8
+     ld    7,8(5)
+     std   0,8(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 56
++    sldi   8,7, 64-56
++#else
+     sldi   0,6, 56
+     srdi   8,7, 64-56
++#endif
+     or    0,0,8
+     ld    6,16(5)
+     std   0,16(4)
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,7, 56
++    sldi   8,6, 64-56
++#else
+     sldi   0,7, 56
+     srdi   8,6, 64-56
++#endif
+     or    0,0,8
+     ld    7,24(5)
+     std   0,24(4)
+@@ -1131,12 +1453,17 @@
+     .align 4
+ L(du7_fini):
+     /* calculate and store the final DW */
++#ifdef __LITTLE_ENDIAN__
++    srdi   0,6, 56
++    sldi   8,7, 64-56
++#else
+     sldi   0,6, 56
+     srdi   8,7, 64-56
+-    or    0,0,8  
++#endif
++    or    0,0,8
+     std   0,0(4)
+     b     L(du_done)
+-    
++
+     .align 4
+ L(du_done):
+     rldicr 0,31,0,60
+@@ -1144,9 +1471,9 @@
+     beq   cr1,0f	/* If the tail is 0 bytes we are done!  */
+ 
+     add   3,3,0
+-    add   12,12,0    
++    add   12,12,0
+ /*  At this point we have a tail of 0-7 bytes and we know that the
+-    destiniation is double word aligned.  */
++    destination is double word aligned.  */
+ 4:  bf    29,2f
+     lwz   6,0(12)
+     addi  12,12,4
+@@ -1165,5 +1492,5 @@
+     ld 31,-8(1)
+     ld 3,-16(1)
+     blr
+-END_GEN_TB (BP_SYM (memcpy),TB_TOCLESS)
++END_GEN_TB (memcpy,TB_TOCLESS)
+ libc_hidden_builtin_def (memcpy)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S	2014-05-29 13:05:40.000000000 -0500
+@@ -1,5 +1,5 @@
+ /* Optimized memcpy implementation for PowerPC64/POWER7.
+-   Copyright (C) 2010, 2011 Free Software Foundation, Inc.
++   Copyright (C) 2010-2014 Free Software Foundation, Inc.
+    Contributed by Luis Machado <luisgpm@br.ibm.com>.
+    This file is part of the GNU C Library.
+ 
+@@ -18,425 +18,366 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <sysdep.h>
+-#include <bp-sym.h>
+-#include <bp-asm.h>
+ 
+ 
+ /* __ptr_t [r3] memcpy (__ptr_t dst [r3], __ptr_t src [r4], size_t len [r5]);
+    Returns 'dst'.  */
+ 
++#define dst 11		/* Use r11 so r3 kept unchanged.  */
++#define src 4
++#define cnt 5
++
+ 	.machine power7
+-EALIGN (BP_SYM (memcpy), 5, 0)
++EALIGN (memcpy, 5, 0)
+ 	CALL_MCOUNT 3
+ 
+-	cmpldi  cr1,5,31
++	cmpldi	cr1,cnt,31
+ 	neg	0,3
+-	std	3,-16(1)
+-	std	31,-8(1)
+-	cfi_offset(31,-8)
+ 	ble	cr1, L(copy_LT_32)  /* If move < 32 bytes use short move
+ 				    code.  */
+ 
+-	andi.   11,3,7	      /* Check alignment of DST.  */
+-
++#ifdef __LITTLE_ENDIAN__
++/* In little-endian mode, power7 takes an alignment trap on any lxvd2x
++   or stxvd2x crossing a 32-byte boundary, so ensure the aligned_copy
++   loop is only used for quadword aligned copies.  */
++	andi.	10,3,15
++	clrldi	11,4,60
++#else
++	andi.	10,3,7		/* Check alignment of DST.  */
++	clrldi	11,4,61		/* Check alignment of SRC.  */
++#endif
++	cmpld	cr6,10,11	/* SRC and DST alignments match?  */
+ 
+-	clrldi  10,4,61       /* Check alignment of SRC.  */
+-	cmpld   cr6,10,11     /* SRC and DST alignments match?  */
+-	mr	12,4
+-	mr	31,5
++	mr	dst,3
+ 	bne	cr6,L(copy_GE_32_unaligned)
++	beq	L(aligned_copy)
+ 
+-	srdi    9,5,3	      /* Number of full quadwords remaining.  */
+-
+-	beq    L(copy_GE_32_aligned_cont)
+-
+-	clrldi  0,0,61
+-	mtcrf   0x01,0
+-	subf    31,0,5
+-
+-	/* Get the SRC aligned to 8 bytes.  */
+-
+-1:	bf	31,2f
+-	lbz	6,0(12)
+-	addi    12,12,1
+-	stb	6,0(3)
+-	addi    3,3,1
+-2:	bf      30,4f
+-	lhz     6,0(12)
+-	addi    12,12,2
+-	sth     6,0(3)
+-	addi    3,3,2
+-4:	bf      29,0f
+-	lwz     6,0(12)
+-	addi    12,12,4
+-	stw     6,0(3)
+-	addi    3,3,4
+-0:
+-	clrldi  10,12,61      /* Check alignment of SRC again.  */
+-	srdi    9,31,3	      /* Number of full doublewords remaining.  */
+-
+-L(copy_GE_32_aligned_cont):
+-
+-	clrldi  11,31,61
+-	mtcrf   0x01,9
+-
+-	srdi    8,31,5
+-	cmpldi  cr1,9,4
+-	cmpldi  cr6,11,0
+-	mr	11,12
++	mtocrf	0x01,0
++#ifdef __LITTLE_ENDIAN__
++	clrldi	0,0,60
++#else
++	clrldi	0,0,61
++#endif
+ 
+-	/* Copy 1~3 doublewords so the main loop starts
+-	at a multiple of 32 bytes.  */
+-
+-	bf	30,1f
+-	ld      6,0(12)
+-	ld      7,8(12)
+-	addi    11,12,16
+-	mtctr   8
+-	std     6,0(3)
+-	std     7,8(3)
+-	addi    10,3,16
+-	bf      31,4f
+-	ld      0,16(12)
+-	std     0,16(3)
+-	blt     cr1,3f
+-	addi    11,12,24
+-	addi    10,3,24
+-	b       4f
+-
+-	.align  4
+-1:	/* Copy 1 doubleword and set the counter.  */
+-	mr	10,3
+-	mtctr   8
+-	bf      31,4f
+-	ld      6,0(12)
+-	addi    11,12,8
+-	std     6,0(3)
+-	addi    10,3,8
++/* Get the DST and SRC aligned to 8 bytes (16 for little-endian).  */
++1:
++	bf	31,2f
++	lbz	6,0(src)
++	addi	src,src,1
++	stb	6,0(dst)
++	addi	dst,dst,1
++2:
++	bf	30,4f
++	lhz	6,0(src)
++	addi	src,src,2
++	sth	6,0(dst)
++	addi	dst,dst,2
++4:
++	bf	29,8f
++	lwz	6,0(src)
++	addi	src,src,4
++	stw	6,0(dst)
++	addi	dst,dst,4
++8:
++#ifdef __LITTLE_ENDIAN__
++	bf	28,16f
++	ld	6,0(src)
++	addi	src,src,8
++	std	6,0(dst)
++	addi	dst,dst,8
++16:
++#endif
++	subf	cnt,0,cnt
+ 
++/* Main aligned copy loop. Copies 128 bytes at a time. */
+ L(aligned_copy):
+-	/* Main aligned copy loop. Copies up to 128-bytes at a time. */
+-	.align  4
+-4:
+-	/* check for any 32-byte or 64-byte lumps that are outside of a
+-	   nice 128-byte range.  R8 contains the number of 32-byte
+-	   lumps, so drop this into the CR, and use the SO/EQ bits to help
+-	   handle the 32- or 64- byte lumps.  Then handle the rest with an
+-	   unrolled 128-bytes-at-a-time copy loop. */
+-	mtocrf	1,8
+-	li	6,16	# 16() index
+-	li	7,32	# 32() index
+-	li	8,48	# 48() index
+-
+-L(aligned_32byte):
+-	/* if the SO bit (indicating a 32-byte lump) is not set, move along. */
+-	bns	cr7,L(aligned_64byte)
+-	lxvd2x	6,0,11
+-	lxvd2x	7,11,6
+-	addi	11,11,32
+-	stxvd2x	6,0,10
+-	stxvd2x	7,10,6
+-	addi	10,10,32
+-
+-L(aligned_64byte):
+-	/* if the EQ bit (indicating a 64-byte lump) is not set, move along. */
+-	bne	cr7,L(aligned_128setup)
+-	lxvd2x	6,0,11
+-	lxvd2x	7,11,6
+-	lxvd2x	8,11,7
+-	lxvd2x	9,11,8
+-	addi	11,11,64
+-	stxvd2x	6,0,10
+-	stxvd2x	7,10,6
+-	stxvd2x	8,10,7
+-	stxvd2x	9,10,8
+-	addi	10,10,64
+-
+-L(aligned_128setup):
+-	/* Set up for the 128-byte at a time copy loop.  */
+-	srdi	8,31,7
+-	cmpdi	8,0	# Any 4x lumps left?
+-	beq	3f	# if not, move along.
+-	lxvd2x	6,0,11
+-	lxvd2x	7,11,6
+-	mtctr	8	# otherwise, load the ctr and begin.
+-	li	8,48	# 48() index
++	li	6,16
++	li	7,32
++	li	8,48
++	mtocrf	0x02,cnt
++	srdi	12,cnt,7
++	cmpdi	12,0
++	beq	L(aligned_tail)
++	lxvd2x	6,0,src
++	lxvd2x	7,src,6
++	mtctr	12
+ 	b	L(aligned_128loop)
+ 
++	.align  4
+ L(aligned_128head):
+ 	/* for the 2nd + iteration of this loop. */
+-	lxvd2x	6,0,11
+-	lxvd2x	7,11,6
++	lxvd2x	6,0,src
++	lxvd2x	7,src,6
+ L(aligned_128loop):
+-	lxvd2x	8,11,7
+-	lxvd2x	9,11,8
+-	stxvd2x	6,0,10
+-	addi	11,11,64
+-	stxvd2x	7,10,6
+-	stxvd2x	8,10,7
+-	stxvd2x	9,10,8
+-	lxvd2x	6,0,11
+-	lxvd2x	7,11,6
+-	addi	10,10,64
+-	lxvd2x	8,11,7
+-	lxvd2x	9,11,8
+-	addi	11,11,64
+-	stxvd2x	6,0,10
+-	stxvd2x	7,10,6
+-	stxvd2x	8,10,7
+-	stxvd2x	9,10,8
+-	addi	10,10,64
++	lxvd2x	8,src,7
++	lxvd2x	9,src,8
++	stxvd2x	6,0,dst
++	addi	src,src,64
++	stxvd2x	7,dst,6
++	stxvd2x	8,dst,7
++	stxvd2x	9,dst,8
++	lxvd2x	6,0,src
++	lxvd2x	7,src,6
++	addi	dst,dst,64
++	lxvd2x	8,src,7
++	lxvd2x	9,src,8
++	addi	src,src,64
++	stxvd2x	6,0,dst
++	stxvd2x	7,dst,6
++	stxvd2x	8,dst,7
++	stxvd2x	9,dst,8
++	addi	dst,dst,64
+ 	bdnz	L(aligned_128head)
+ 
+-3:
+-	/* Check for tail bytes.  */
+-	rldicr  0,31,0,60
+-	mtcrf   0x01,31
+-	beq	cr6,0f
+-
+-.L9:
+-	add	3,3,0
+-	add	12,12,0
+-
+-	/*  At this point we have a tail of 0-7 bytes and we know that the
+-	destination is doubleword-aligned.  */
+-4:	/* Copy 4 bytes.  */
+-	bf	29,2f
+-
+-	lwz     6,0(12)
+-	addi    12,12,4
+-	stw     6,0(3)
+-	addi    3,3,4
+-2:	/* Copy 2 bytes.  */
+-	bf	30,1f
+-
+-	lhz     6,0(12)
+-	addi    12,12,2
+-	sth     6,0(3)
+-	addi    3,3,2
+-1:	/* Copy 1 byte.  */
+-	bf	31,0f
+-
+-	lbz	6,0(12)
+-	stb	6,0(3)
+-0:	/* Return original DST pointer.  */
+-	ld	31,-8(1)
+-	ld	3,-16(1)
++L(aligned_tail):
++	mtocrf	0x01,cnt
++	bf	25,32f
++	lxvd2x	6,0,src
++	lxvd2x	7,src,6
++	lxvd2x	8,src,7
++	lxvd2x	9,src,8
++	addi	src,src,64
++	stxvd2x	6,0,dst
++	stxvd2x	7,dst,6
++	stxvd2x	8,dst,7
++	stxvd2x	9,dst,8
++	addi	dst,dst,64
++32:
++	bf	26,16f
++	lxvd2x	6,0,src
++	lxvd2x	7,src,6
++	addi	src,src,32
++	stxvd2x	6,0,dst
++	stxvd2x	7,dst,6
++	addi	dst,dst,32
++16:
++	bf	27,8f
++	lxvd2x	6,0,src
++	addi	src,src,16
++	stxvd2x	6,0,dst
++	addi	dst,dst,16
++8:
++	bf	28,4f
++	ld	6,0(src)
++	addi	src,src,8
++	std     6,0(dst)
++	addi	dst,dst,8
++4:	/* Copies 4~7 bytes.  */
++	bf	29,L(tail2)
++	lwz	6,0(src)
++	stw     6,0(dst)
++	bf      30,L(tail5)
++	lhz     7,4(src)
++	sth     7,4(dst)
++	bflr	31
++	lbz     8,6(src)
++	stb     8,6(dst)
++	/* Return original DST pointer.  */
+ 	blr
+ 
+-	/* Handle copies of 0~31 bytes.  */
+-	.align  4
++
++/* Handle copies of 0~31 bytes.  */
++	.align	4
+ L(copy_LT_32):
+-	cmpldi  cr6,5,8
+-	mr	12,4
+-	mtcrf   0x01,5
++	mr	dst,3
++	cmpldi	cr6,cnt,8
++	mtocrf	0x01,cnt
+ 	ble	cr6,L(copy_LE_8)
+ 
+ 	/* At least 9 bytes to go.  */
+ 	neg	8,4
+-	clrrdi  11,4,2
+-	andi.   0,8,3
+-	cmpldi  cr1,5,16
+-	mr	10,5
++	andi.	0,8,3
++	cmpldi	cr1,cnt,16
+ 	beq	L(copy_LT_32_aligned)
+ 
+-	/* Force 4-bytes alignment for SRC.  */
+-	mtocrf  0x01,0
+-	subf    10,0,5
+-2:	bf	30,1f
+-
+-	lhz	6,0(12)
+-	addi    12,12,2
+-	sth	6,0(3)
+-	addi    3,3,2
+-1:	bf	31,L(end_4bytes_alignment)
+-
+-	lbz	6,0(12)
+-	addi    12,12,1
+-	stb	6,0(3)
+-	addi    3,3,1
++	/* Force 4-byte alignment for SRC.  */
++	mtocrf	0x01,0
++	subf	cnt,0,cnt
++2:
++	bf	30,1f
++	lhz	6,0(src)
++	addi	src,src,2
++	sth	6,0(dst)
++	addi	dst,dst,2
++1:
++	bf	31,L(end_4bytes_alignment)
++	lbz	6,0(src)
++	addi	src,src,1
++	stb	6,0(dst)
++	addi	dst,dst,1
+ 
+-	.align  4
++	.align	4
+ L(end_4bytes_alignment):
+-	cmpldi  cr1,10,16
+-	mtcrf   0x01,10
++	cmpldi	cr1,cnt,16
++	mtocrf	0x01,cnt
+ 
+ L(copy_LT_32_aligned):
+ 	/* At least 6 bytes to go, and SRC is word-aligned.  */
+ 	blt	cr1,8f
+ 
+ 	/* Copy 16 bytes.  */
+-	lwz	6,0(12)
+-	lwz     7,4(12)
+-	stw     6,0(3)
+-	lwz     8,8(12)
+-	stw     7,4(3)
+-	lwz     6,12(12)
+-	addi    12,12,16
+-	stw     8,8(3)
+-	stw     6,12(3)
+-	addi    3,3,16
++	lwz	6,0(src)
++	lwz	7,4(src)
++	stw	6,0(dst)
++	lwz	8,8(src)
++	stw	7,4(dst)
++	lwz	6,12(src)
++	addi	src,src,16
++	stw	8,8(dst)
++	stw	6,12(dst)
++	addi	dst,dst,16
+ 8:	/* Copy 8 bytes.  */
+-	bf	28,4f
++	bf	28,L(tail4)
++	lwz	6,0(src)
++	lwz	7,4(src)
++	addi	src,src,8
++	stw	6,0(dst)
++	stw	7,4(dst)
++	addi	dst,dst,8
++
++	.align	4
++/* Copies 4~7 bytes.  */
++L(tail4):
++	bf	29,L(tail2)
++	lwz	6,0(src)
++	stw	6,0(dst)
++	bf	30,L(tail5)
++	lhz	7,4(src)
++	sth	7,4(dst)
++	bflr	31
++	lbz	8,6(src)
++	stb	8,6(dst)
++	/* Return original DST pointer.  */
++	blr
+ 
+-	lwz     6,0(12)
+-	lwz     7,4(12)
+-	addi    12,12,8
+-	stw     6,0(3)
+-	stw     7,4(3)
+-	addi    3,3,8
+-4:	/* Copy 4 bytes.  */
+-	bf	29,2f
+-
+-	lwz     6,0(12)
+-	addi    12,12,4
+-	stw     6,0(3)
+-	addi    3,3,4
+-2:	/* Copy 2-3 bytes.  */
++	.align	4
++/* Copies 2~3 bytes.  */
++L(tail2):
+ 	bf	30,1f
+-
+-	lhz     6,0(12)
+-	sth     6,0(3)
+-	bf      31,0f
+-	lbz     7,2(12)
+-	stb     7,2(3)
+-	ld	3,-16(1)
++	lhz	6,0(src)
++	sth	6,0(dst)
++	bflr	31
++	lbz	7,2(src)
++	stb	7,2(dst)
+ 	blr
+ 
+-	.align  4
+-1:	/* Copy 1 byte.  */
+-	bf	31,0f
++	.align	4
++L(tail5):
++	bflr	31
++	lbz	6,4(src)
++	stb	6,4(dst)
++	blr
+ 
+-	lbz	6,0(12)
+-	stb	6,0(3)
+-0:	/* Return original DST pointer.  */
+-	ld	3,-16(1)
++	.align	4
++1:
++	bflr	31
++	lbz	6,0(src)
++	stb	6,0(dst)
++	/* Return original DST pointer.  */
+ 	blr
+ 
+-	/* Handles copies of 0~8 bytes.  */
+-	.align  4
++
++/* Handles copies of 0~8 bytes.  */
++	.align	4
+ L(copy_LE_8):
+-	bne	cr6,4f
++	bne	cr6,L(tail4)
+ 
+ 	/* Though we could've used ld/std here, they are still
+ 	slow for unaligned cases.  */
+ 
+-	lwz	6,0(4)
+-	lwz     7,4(4)
+-	stw     6,0(3)
+-	stw     7,4(3)
+-	ld      3,-16(1)      /* Return original DST pointers.  */
++	lwz	6,0(src)
++	lwz	7,4(src)
++	stw	6,0(dst)
++	stw	7,4(dst)
+ 	blr
+ 
+-	.align  4
+-4:	/* Copies 4~7 bytes.  */
+-	bf	29,2b
+ 
+-	lwz	6,0(4)
+-	stw     6,0(3)
+-	bf      30,5f
+-	lhz     7,4(4)
+-	sth     7,4(3)
+-	bf      31,0f
+-	lbz     8,6(4)
+-	stb     8,6(3)
+-	ld	3,-16(1)
+-	blr
+-
+-	.align  4
+-5:	/* Copy 1 byte.  */
+-	bf	31,0f
+-
+-	lbz	6,4(4)
+-	stb	6,4(3)
+-
+-0:	/* Return original DST pointer.  */
+-	ld	3,-16(1)
+-	blr
+-
+-	/* Handle copies of 32+ bytes where DST is aligned (to quadword) but
+-	SRC is not.  Use aligned quadword loads from SRC, shifted to realign
+-	the data, allowing for aligned DST stores.  */
+-	.align  4
++/* Handle copies of 32+ bytes where DST is aligned (to quadword) but
++   SRC is not.	Use aligned quadword loads from SRC, shifted to realign
++   the data, allowing for aligned DST stores.  */
++	.align	4
+ L(copy_GE_32_unaligned):
+-	clrldi  0,0,60	      /* Number of bytes until the 1st
+-			      quadword.  */
+-	andi.   11,3,15       /* Check alignment of DST (against
+-			      quadwords).  */
+-	srdi    9,5,4	      /* Number of full quadwords remaining.  */
++	clrldi	0,0,60	      /* Number of bytes until the 1st dst quadword.  */
++#ifndef __LITTLE_ENDIAN__
++	andi.	10,3,15	      /* Check alignment of DST (against quadwords).  */
++#endif
++	srdi	9,cnt,4	      /* Number of full quadwords remaining.  */
+ 
+ 	beq	L(copy_GE_32_unaligned_cont)
+ 
+-	/* SRC is not quadword aligned, get it aligned.  */
++	/* DST is not quadword aligned, get it aligned.  */
+ 
+-	mtcrf   0x01,0
+-	subf    31,0,5
++	mtocrf	0x01,0
++	subf	cnt,0,cnt
+ 
+ 	/* Vector instructions work best when proper alignment (16-bytes)
+ 	is present.  Move 0~15 bytes as needed to get DST quadword-aligned.  */
+-1:	/* Copy 1 byte.  */
++1:
+ 	bf	31,2f
+-
+-	lbz	6,0(12)
+-	addi    12,12,1
+-	stb	6,0(3)
+-	addi    3,3,1
+-2:	/* Copy 2 bytes.  */
++	lbz	6,0(src)
++	addi	src,src,1
++	stb	6,0(dst)
++	addi	dst,dst,1
++2:
+ 	bf	30,4f
+-
+-	lhz     6,0(12)
+-	addi    12,12,2
+-	sth     6,0(3)
+-	addi    3,3,2
+-4:	/* Copy 4 bytes.  */
++	lhz	6,0(src)
++	addi	src,src,2
++	sth	6,0(dst)
++	addi	dst,dst,2
++4:
+ 	bf	29,8f
+-
+-	lwz     6,0(12)
+-	addi    12,12,4
+-	stw     6,0(3)
+-	addi    3,3,4
+-8:	/* Copy 8 bytes.  */
++	lwz	6,0(src)
++	addi	src,src,4
++	stw	6,0(dst)
++	addi	dst,dst,4
++8:
+ 	bf	28,0f
+-
+-	ld	6,0(12)
+-	addi    12,12,8
+-	std	6,0(3)
+-	addi    3,3,8
++	ld	6,0(src)
++	addi	src,src,8
++	std	6,0(dst)
++	addi	dst,dst,8
+ 0:
+-	clrldi  10,12,60      /* Check alignment of SRC.  */
+-	srdi    9,31,4	      /* Number of full quadwords remaining.  */
++	srdi	9,cnt,4	      /* Number of full quadwords remaining.  */
+ 
+ 	/* The proper alignment is present, it is OK to copy the bytes now.  */
+ L(copy_GE_32_unaligned_cont):
+ 
+ 	/* Setup two indexes to speed up the indexed vector operations.  */
+-	clrldi  11,31,60
+-	li      6,16	      /* Index for 16-bytes offsets.  */
++	clrldi	10,cnt,60
++	li	6,16	      /* Index for 16-bytes offsets.  */
+ 	li	7,32	      /* Index for 32-bytes offsets.  */
+-	cmpldi  cr1,11,0
+-	srdi    8,31,5	      /* Setup the loop counter.  */
+-	mr      10,3
+-	mr      11,12
+-	mtcrf   0x01,9
+-	cmpldi  cr6,9,1
+-	lvsl    5,0,12
+-	lvx     3,0,12
+-	bf      31,L(setup_unaligned_loop)
+-
+-	/* Copy another 16 bytes to align to 32-bytes due to the loop .  */
+-	lvx     4,12,6
+-	vperm   6,3,4,5
+-	addi    11,12,16
+-	addi    10,3,16
+-	stvx    6,0,3
++	cmpldi	cr1,10,0
++	srdi	8,cnt,5	      /* Setup the loop counter.  */
++	mtocrf	0x01,9
++	cmpldi	cr6,9,1
++#ifdef __LITTLE_ENDIAN__
++	lvsr	5,0,src
++#else
++	lvsl	5,0,src
++#endif
++	lvx	3,0,src
++	li	0,0
++	bf	31,L(setup_unaligned_loop)
++
++	/* Copy another 16 bytes to align to 32-bytes due to the loop.  */
++	lvx	4,src,6
++#ifdef __LITTLE_ENDIAN__
++	vperm	6,4,3,5
++#else
++	vperm	6,3,4,5
++#endif
++	addi	src,src,16
++	stvx	6,0,dst
++	addi	dst,dst,16
+ 	vor	3,4,4
++	clrrdi	0,src,60
+ 
+ L(setup_unaligned_loop):
+-	mtctr   8
+-	ble     cr6,L(end_unaligned_loop)
++	mtctr	8
++	ble	cr6,L(end_unaligned_loop)
+ 
+ 	/* Copy 32 bytes at a time using vector instructions.  */
+-	.align  4
++	.align	4
+ L(unaligned_loop):
+ 
+ 	/* Note: vr6/vr10 may contain data that was already copied,
+@@ -444,63 +385,56 @@
+ 	some portions again. This is faster than having unaligned
+ 	vector instructions though.  */
+ 
+-	lvx	4,11,6	      /* vr4 = r11+16.  */
+-	vperm   6,3,4,5	      /* Merge the correctly-aligned portions
+-			      of vr3/vr4 into vr6.  */
+-	lvx	3,11,7	      /* vr3 = r11+32.  */
+-	vperm   10,4,3,5      /* Merge the correctly-aligned portions
+-			      of vr3/vr4 into vr10.  */
+-	addi    11,11,32
+-	stvx    6,0,10
+-	stvx    10,10,6
+-	addi    10,10,32
+-
++	lvx	4,src,6
++#ifdef __LITTLE_ENDIAN__
++	vperm	6,4,3,5
++#else
++	vperm	6,3,4,5
++#endif
++	lvx	3,src,7
++#ifdef __LITTLE_ENDIAN__
++	vperm	10,3,4,5
++#else
++	vperm	10,4,3,5
++#endif
++	addi	src,src,32
++	stvx	6,0,dst
++	stvx	10,dst,6
++	addi	dst,dst,32
+ 	bdnz	L(unaligned_loop)
+ 
+-	.align  4
++	clrrdi	0,src,60
++
++	.align	4
+ L(end_unaligned_loop):
+ 
+ 	/* Check for tail bytes.  */
+-	rldicr  0,31,0,59
+-	mtcrf   0x01,31
+-	beq	cr1,0f
++	mtocrf	0x01,cnt
++	beqlr	cr1
+ 
+-	add	3,3,0
+-	add	12,12,0
++	add	src,src,0
+ 
+ 	/*  We have 1~15 tail bytes to copy, and DST is quadword aligned.  */
+-8:	/* Copy 8 bytes.  */
++	/* Copy 8 bytes.  */
+ 	bf	28,4f
+-
+-	lwz	6,0(12)
+-	lwz	7,4(12)
+-	addi    12,12,8
+-	stw	6,0(3)
+-	stw	7,4(3)
+-	addi    3,3,8
+-4:	/* Copy 4 bytes.  */
+-	bf	29,2f
+-
+-	lwz	6,0(12)
+-	addi    12,12,4
+-	stw	6,0(3)
+-	addi    3,3,4
+-2:	/* Copy 2~3 bytes.  */
+-	bf	30,1f
+-
+-	lhz	6,0(12)
+-	addi    12,12,2
+-	sth	6,0(3)
+-	addi    3,3,2
+-1:	/* Copy 1 byte.  */
+-	bf	31,0f
+-
+-	lbz	6,0(12)
+-	stb	6,0(3)
+-0:	/* Return original DST pointer.  */
+-	ld	31,-8(1)
+-	ld	3,-16(1)
++	lwz	6,0(src)
++	lwz	7,4(src)
++	addi	src,src,8
++	stw	6,0(dst)
++	stw	7,4(dst)
++	addi	dst,dst,8
++4:	/* Copy 4~7 bytes.  */
++	bf	29,L(tail2)
++	lwz	6,0(src)
++	stw	6,0(dst)
++	bf	30,L(tail5)
++	lhz	7,4(src)
++	sth	7,4(dst)
++	bflr	31
++	lbz	8,6(src)
++	stb	8,6(dst)
++	/* Return original DST pointer.  */
+ 	blr
+ 
+-END_GEN_TB (BP_SYM (memcpy),TB_TOCLESS)
++END_GEN_TB (memcpy,TB_TOCLESS)
+ libc_hidden_builtin_def (memcpy)
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
+@@ -367,13 +367,21 @@
+ 	mr	11,12
+ 	mtcrf	0x01,9
+ 	cmpldi	cr6,9,1
+-	lvsl	5,0,12
++#ifdef __LITTLE_ENDIAN__
++	lvsr    5,0,12
++#else
++	lvsl    5,0,12
++#endif
+ 	lvx	3,0,12
+ 	bf	31,L(setup_unaligned_loop)
+ 
+ 	/* Copy another 16 bytes to align to 32-bytes due to the loop .  */
+ 	lvx	4,12,6
+-	vperm	6,3,4,5
++#ifdef __LITTLE_ENDIAN__
++	vperm   6,4,3,5
++#else
++	vperm   6,3,4,5
++#endif
+ 	addi	11,12,16
+ 	addi	10,3,16
+ 	stvx	6,0,3
+@@ -393,11 +401,17 @@
+ 	vector instructions though.  */
+ 
+ 	lvx	4,11,6	      /* vr4 = r11+16.  */
+-	vperm	6,3,4,5	      /* Merge the correctly-aligned portions
+-				 of vr3/vr4 into vr6.  */
++#ifdef __LITTLE_ENDIAN__
++	vperm   6,4,3,5
++#else
++	vperm   6,3,4,5
++#endif
+ 	lvx	3,11,7	      /* vr3 = r11+32.  */
+-	vperm	10,4,3,5      /* Merge the correctly-aligned portions
+-				 of vr3/vr4 into vr10.  */
++#ifdef __LITTLE_ENDIAN__
++	vperm   10,3,4,5
++#else
++	vperm   10,4,3,5
++#endif
+ 	addi	11,11,32
+ 	stvx	6,0,10
+ 	stvx	10,10,6

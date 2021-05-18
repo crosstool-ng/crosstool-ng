@@ -1,0 +1,120 @@
+# commit 603e84104cdc709c8e7dcbac54b9a585bf8dff78
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:29:43 2013 +0930
+# 
+#     PowerPC floating point little-endian [9 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-07/msg00200.html
+#     
+#     This works around the fact that vsx is disabled in current
+#     little-endian gcc.  Also, float constants take 4 bytes in memory
+#     vs. 16 bytes for vector constants, and we don't need to write one lot
+#     of masks for double (register format) and another for float (mem
+#     format).
+#     
+#         * sysdeps/powerpc/fpu/s_float_bitwise.h (__float_and_test28): Don't
+#         use vector int constants.
+#         (__float_and_test24, __float_and8, __float_get_exp): Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_float_bitwise.h glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_float_bitwise.h
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_float_bitwise.h	2014-05-27 22:37:18.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_float_bitwise.h	2014-05-27 22:37:20.000000000 -0500
+@@ -23,18 +23,19 @@
+ #include <math_private.h>
+ 
+ /* Returns (int)(num & 0x7FFFFFF0 == value) */
+-static inline
+-int __float_and_test28 (float num, float value)
++static inline int
++__float_and_test28 (float num, float value)
+ {
+   float ret;
+ #ifdef _ARCH_PWR7
+-  vector int mask = (vector int) {
+-    0x7ffffffe, 0x00000000, 0x00000000, 0x0000000
+-  };
++  union {
++    int i;
++    float f;
++  } mask = { .i = 0x7ffffff0 };
+   __asm__ (
+-  /* the 'f' constrain is use on mask because we just need
++  /* the 'f' constraint is used on mask because we just need
+    * to compare floats, not full vector */
+-    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask)
++    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask.f)
+   );
+ #else
+   int32_t inum;
+@@ -46,16 +47,17 @@
+ }
+ 
+ /* Returns (int)(num & 0x7FFFFF00 == value) */
+-static inline
+-int __float_and_test24 (float num, float value)
++static inline int
++__float_and_test24 (float num, float value)
+ {
+   float ret;
+ #ifdef _ARCH_PWR7
+-  vector int mask = (vector int) {
+-    0x7fffffe0, 0x00000000, 0x00000000, 0x0000000
+-  };
++  union {
++    int i;
++    float f;
++  } mask = { .i = 0x7fffff00 };
+   __asm__ (
+-    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask)
++    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask.f)
+   );
+ #else
+   int32_t inum;
+@@ -67,16 +69,17 @@
+ }
+ 
+ /* Returns (float)(num & 0x7F800000) */
+-static inline
+-float __float_and8 (float num)
++static inline float
++__float_and8 (float num)
+ {
+   float ret;
+ #ifdef _ARCH_PWR7
+-  vector int mask = (vector int) {
+-    0x7ff00000, 0x00000000, 0x00000000, 0x00000000
+-  };
++  union {
++    int i;
++    float f;
++  } mask = { .i = 0x7f800000 };
+   __asm__ (
+-    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask)
++    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask.f)
+   );
+ #else
+   int32_t inum;
+@@ -88,17 +91,18 @@
+ }
+ 
+ /* Returns ((int32_t)(num & 0x7F800000) >> 23) */
+-static inline
+-int32_t __float_get_exp (float num)
++static inline int32_t
++__float_get_exp (float num)
+ {
+   int32_t inum;
+ #ifdef _ARCH_PWR7
+   float ret;
+-  vector int mask = (vector int) {
+-    0x7ff00000, 0x00000000, 0x00000000, 0x00000000
+-  };
++  union {
++    int i;
++    float f;
++  } mask = { .i = 0x7f800000 };
+   __asm__ (
+-    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask)
++    "xxland %x0,%x1,%x2" : "=f" (ret) : "f" (num), "f" (mask.f)
+   );
+   GET_FLOAT_WORD(inum, ret);
+ #else

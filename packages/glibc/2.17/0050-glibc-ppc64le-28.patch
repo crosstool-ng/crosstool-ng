@@ -1,0 +1,167 @@
+# commit 43b84013714c46e6dcae4a5564c5527777ad5e08
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:45:31 2013 +0930
+# 
+#     PowerPC LE strcpy
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00100.html
+#     
+#     The strcpy changes for little-endian are quite straight-forward, just
+#     a matter of rotating the last word differently.
+#     
+#     I'll note that the powerpc64 version of stpcpy is just begging to be
+#     converted to use 64-bit loads and stores..
+#     
+#         * sysdeps/powerpc/powerpc64/strcpy.S: Add little-endian support:
+#         * sysdeps/powerpc/powerpc32/strcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/stpcpy.S: Likewise.
+#         * sysdeps/powerpc/powerpc32/stpcpy.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/stpcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/stpcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/stpcpy.S	2014-05-28 13:40:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/stpcpy.S	2014-05-28 13:40:01.000000000 -0500
+@@ -74,7 +74,22 @@
+ 
+ 	mr	rALT, rWORD
+ /* We've hit the end of the string.  Do the rest byte-by-byte.  */
+-L(g1):	rlwinm.	rTMP, rALT, 8, 24, 31
++L(g1):
++#ifdef __LITTLE_ENDIAN__
++	rlwinm.	rTMP, rALT, 0, 24, 31
++	stbu	rALT, 4(rDEST)
++	beqlr-
++	rlwinm.	rTMP, rALT, 24, 24, 31
++	stbu	rTMP, 1(rDEST)
++	beqlr-
++	rlwinm.	rTMP, rALT, 16, 24, 31
++	stbu	rTMP, 1(rDEST)
++	beqlr-
++	rlwinm	rTMP, rALT, 8, 24, 31
++	stbu	rTMP, 1(rDEST)
++	blr
++#else
++	rlwinm.	rTMP, rALT, 8, 24, 31
+ 	stbu	rTMP, 4(rDEST)
+ 	beqlr-
+ 	rlwinm.	rTMP, rALT, 16, 24, 31
+@@ -87,6 +102,7 @@
+ 	CHECK_BOUNDS_HIGH (rDEST, rHIGH, twlgt)
+ 	STORE_RETURN_VALUE (rDEST)
+ 	blr
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte copy.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcpy.S	2014-05-28 13:40:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strcpy.S	2014-05-28 13:40:01.000000000 -0500
+@@ -78,7 +78,22 @@
+ 
+ 	mr	rALT, rWORD
+ /* We've hit the end of the string.  Do the rest byte-by-byte.  */
+-L(g1):	rlwinm.	rTMP, rALT, 8, 24, 31
++L(g1):
++#ifdef __LITTLE_ENDIAN__
++	rlwinm.	rTMP, rALT, 0, 24, 31
++	stb	rALT, 4(rDEST)
++	beqlr-
++	rlwinm.	rTMP, rALT, 24, 24, 31
++	stb	rTMP, 5(rDEST)
++	beqlr-
++	rlwinm.	rTMP, rALT, 16, 24, 31
++	stb	rTMP, 6(rDEST)
++	beqlr-
++	rlwinm	rTMP, rALT, 8, 24, 31
++	stb	rTMP, 7(rDEST)
++	blr
++#else
++	rlwinm.	rTMP, rALT, 8, 24, 31
+ 	stb	rTMP, 4(rDEST)
+ 	beqlr-
+ 	rlwinm.	rTMP, rALT, 16, 24, 31
+@@ -90,6 +105,7 @@
+ 	stb	rALT, 7(rDEST)
+ 	/* GKM FIXME: check high bound.  */
+ 	blr
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte copy.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/stpcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/stpcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/stpcpy.S	2014-05-28 13:40:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/stpcpy.S	2014-05-28 13:40:01.000000000 -0500
+@@ -75,7 +75,22 @@
+ 
+ 	mr	rALT, rWORD
+ /* We've hit the end of the string.  Do the rest byte-by-byte.  */
+-L(g1):	rlwinm.	rTMP, rALT, 8, 24, 31
++L(g1):
++#ifdef __LITTLE_ENDIAN__
++	rlwinm.	rTMP, rALT, 0, 24, 31
++	stbu	rALT, 4(rDEST)
++	beqlr-
++	rlwinm.	rTMP, rALT, 24, 24, 31
++	stbu	rTMP, 1(rDEST)
++	beqlr-
++	rlwinm.	rTMP, rALT, 16, 24, 31
++	stbu	rTMP, 1(rDEST)
++	beqlr-
++	rlwinm	rTMP, rALT, 8, 24, 31
++	stbu	rTMP, 1(rDEST)
++	blr
++#else
++	rlwinm.	rTMP, rALT, 8, 24, 31
+ 	stbu	rTMP, 4(rDEST)
+ 	beqlr-
+ 	rlwinm.	rTMP, rALT, 16, 24, 31
+@@ -88,6 +103,7 @@
+ 	CHECK_BOUNDS_HIGH (rDEST, rHIGH, twlgt)
+ 	STORE_RETURN_VALUE (rDEST)
+ 	blr
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte copy.  */
+ 	.align 4
+diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcpy.S
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcpy.S	2014-05-28 13:40:01.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strcpy.S	2014-05-28 13:40:01.000000000 -0500
+@@ -90,6 +90,32 @@
+ 	mr	rALT, rWORD
+ /* We've hit the end of the string.  Do the rest byte-by-byte.  */
+ L(g1):
++#ifdef __LITTLE_ENDIAN__
++	extrdi.	rTMP, rALT, 8, 56
++	stb	rALT, 8(rDEST)
++	beqlr-
++	extrdi.	rTMP, rALT, 8, 48
++	stb	rTMP, 9(rDEST)
++	beqlr-
++	extrdi.	rTMP, rALT, 8, 40
++	stb	rTMP, 10(rDEST)
++	beqlr-
++	extrdi.	rTMP, rALT, 8, 32
++	stb	rTMP, 11(rDEST)
++	beqlr-
++	extrdi.	rTMP, rALT, 8, 24
++	stb	rTMP, 12(rDEST)
++	beqlr-
++	extrdi.	rTMP, rALT, 8, 16
++	stb	rTMP, 13(rDEST)
++	beqlr-
++	extrdi.	rTMP, rALT, 8, 8
++	stb	rTMP, 14(rDEST)
++	beqlr-
++	extrdi	rTMP, rALT, 8, 0
++	stb	rTMP, 15(rDEST)
++	blr
++#else
+ 	extrdi.	rTMP, rALT, 8, 0
+ 	stb	rTMP, 8(rDEST)
+ 	beqlr-
+@@ -114,6 +140,7 @@
+ 	stb	rALT, 15(rDEST)
+ 	/* GKM FIXME: check high bound.  */
+ 	blr
++#endif
+ 
+ /* Oh well.  In this case, we just do a byte-by-byte copy.  */
+ 	.align 4

@@ -1,0 +1,53 @@
+Combination of the following two commits:
+
+From 45045c44fabde9152ab1a0b4ed06419a3621f535 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <azanella@linux.vnet.ibm.com>
+Date: Thu, 21 Mar 2013 14:15:45 -0300
+Subject: [PATCH 20/42] PowerPC: fix sqrtl ABI issue
+
+This patch fixes a sqrtl ABI issue when building for powerpc64.
+(cherry picked from commit b5784d95bb94eda59b08aca735406908e209f638)
+
+From dad835a11f370afd2dae4bac554fa64fac5a8c6e Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <azanella@linux.vnet.ibm.com>
+Date: Tue, 26 Mar 2013 10:01:57 -0300
+Subject: [PATCH 21/42] PowerPC: fix libm ABI issue for llroundl (cherry
+ picked from commit
+ fce14d4e9c6e08ad8c825fe88d8cbdac5c739565)
+
+diff -pruN glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_llround.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_llround.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_llround.c	2012-12-25 08:32:13.000000000 +0530
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/s_llround.c	2013-08-06 17:45:56.719534470 +0530
+@@ -17,6 +17,7 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <math.h>
++#include <math_ldbl_opt.h>
+ 
+ /* I think that what this routine is supposed to do is round a value
+    to the nearest integer, with values exactly on the boundary rounded
+@@ -47,3 +48,6 @@ weak_alias (__llround, llround)
+ strong_alias (__llround, __llroundl)
+ weak_alias (__llround, llroundl)
+ #endif
++#if LONG_DOUBLE_COMPAT (libm, GLIBC_2_1)
++compat_symbol (libm, __llround, llroundl, GLIBC_2_1);
++#endif
+diff -pruN glibc-2.17-c758a686/sysdeps/powerpc/fpu/w_sqrt.c glibc-2.17-c758a686/sysdeps/powerpc/fpu/w_sqrt.c
+--- glibc-2.17-c758a686/sysdeps/powerpc/fpu/w_sqrt.c	2012-12-25 08:32:13.000000000 +0530
++++ glibc-2.17-c758a686/sysdeps/powerpc/fpu/w_sqrt.c	2013-08-06 17:45:53.459534613 +0530
+@@ -19,6 +19,7 @@
+ #include <math.h>
+ #include <math_private.h>
+ #include <fenv_libc.h>
++#include <math_ldbl_opt.h>
+ 
+ double
+ __sqrt (double x)		/* wrapper sqrt */
+@@ -42,3 +43,6 @@ weak_alias (__sqrt, sqrt)
+ #ifdef NO_LONG_DOUBLE
+   strong_alias (__sqrt, __sqrtl) weak_alias (__sqrt, sqrtl)
+ #endif
++#if LONG_DOUBLE_COMPAT(libm, GLIBC_2_0)
++compat_symbol (libm, __sqrt, sqrtl, GLIBC_2_0);
++#endif

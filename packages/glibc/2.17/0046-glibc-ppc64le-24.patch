@@ -1,0 +1,55 @@
+# commit 0b2c2ace3601d5d59cf89130b16840e7f132f7a6
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:36:45 2013 +0930
+# 
+#     PowerPC makecontext
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00092.html
+#     
+#     Use conditional form of branch and link to avoid destroying the cpu
+#     link stack used to predict blr return addresses.
+#     
+#         * sysdeps/unix/sysv/linux/powerpc/powerpc32/makecontext.S: Use
+#         conditional form of branch and link when obtaining pc.
+#         * sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S: Likewise.
+# 
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/makecontext.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/makecontext.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/makecontext.S	2014-05-28 12:25:49.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc32/makecontext.S	2014-05-28 12:25:51.000000000 -0500
+@@ -47,7 +47,9 @@
+ #ifdef PIC
+ 	mflr	r0
+ 	cfi_register(lr,r0)
+-	bl	1f
++	/* Use this conditional form of branch and link to avoid destroying
++	   the cpu link stack used to predict blr return addresses.  */
++	bcl	20,31,1f
+ 1:	mflr	r6
+ 	addi	r6,r6,L(exitcode)-1b
+ 	mtlr	r0
+@@ -136,7 +138,9 @@
+ #ifdef PIC
+ 	mflr	r0
+ 	cfi_register(lr,r0)
+-	bl	1f
++	/* Use this conditional form of branch and link to avoid destroying
++	   the cpu link stack used to predict blr return addresses.  */
++	bcl	20,31,1f
+ 1:	mflr	r6
+ 	addi	r6,r6,L(novec_exitcode)-1b
+ 	mtlr	r0
+diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S
+--- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S	2014-05-28 12:25:49.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/makecontext.S	2014-05-28 12:25:51.000000000 -0500
+@@ -124,8 +124,10 @@
+ 
+   /* If the target function returns we need to do some cleanup.  We use a
+      code trick to get the address of our cleanup function into the link
+-     register.  Do not add any code between here and L(exitcode).  */
+-  bl  L(gotexitcodeaddr);
++     register.  Do not add any code between here and L(exitcode).
++     Use this conditional form of branch and link to avoid destroying
++     the cpu link stack used to predict blr return addresses.  */
++  bcl	20,31,L(gotexitcodeaddr);
+ 
+ 	/* This is the helper code which gets called if a function which
+ 	   is registered with 'makecontext' returns.  In this case we

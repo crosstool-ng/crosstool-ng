@@ -1,0 +1,567 @@
+# commit 650ef4bd7976e36831cba22d838b567d3b5f6e8f
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:25:51 2013 +0930
+# 
+#     PowerPC floating point little-endian [4 of 15]
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00084.html
+#     
+#     Another batch of ieee854 macros and union replacement.  These four
+#     files also have bugs fixed with this patch.  The fact that the two
+#     doubles in an IBM long double may have different signs means that
+#     negation and absolute value operations can't just twiddle one sign bit
+#     as you can with ieee864 style extended double.  fmodl, remainderl,
+#     erfl and erfcl all had errors of this type.  erfl also returned +1 for
+#     large magnitude negative input where it should return -1.  The hypotl
+#     error is innocuous since the value adjusted twice is only used as a
+#     flag.  The e_hypotl.c tests for large "a" and small "b" are mutually
+#     exclusive because we've already exited when x/y > 2**120.  That allows
+#     some further small simplifications.
+#     
+#         [BZ #15734], [BZ #15735]
+#         * sysdeps/ieee754/ldbl-128ibm/e_fmodl.c (__ieee754_fmodl): Rewrite
+#         all uses of ieee875 long double macros and unions.  Simplify test
+#         for 0.0L.  Correct |x|<|y| and |x|=|y| test.  Use
+#         ldbl_extract_mantissa value for ix,iy exponents.  Properly
+#         normalize after ldbl_extract_mantissa, and don't add hidden bit
+#         already handled.  Don't treat low word of ieee854 mantissa like
+#         low word of IBM long double and mask off bit when testing for
+#         zero.
+#         * sysdeps/ieee754/ldbl-128ibm/e_hypotl.c (__ieee754_hypotl): Rewrite
+#         all uses of ieee875 long double macros and unions.  Simplify tests
+#         for 0.0L and inf.  Correct double adjustment of k.  Delete dead code
+#         adjusting ha,hb.  Simplify code setting kld.  Delete two600 and
+#         two1022, instead use their values.  Recognise that tests for large
+#         "a" and small "b" are mutually exclusive.  Rename vars.  Comment.
+#         * sysdeps/ieee754/ldbl-128ibm/e_remainderl.c (__ieee754_remainderl):
+#         Rewrite all uses of ieee875 long double macros and unions.  Simplify
+#         test for 0.0L and nan.  Correct negation.
+#         * sysdeps/ieee754/ldbl-128ibm/s_erfl.c (__erfl): Rewrite all uses of
+#         ieee875 long double macros and unions.  Correct output for large
+#         magnitude x.  Correct absolute value calculation.
+#         (__erfcl): Likewise.
+#         * math/libm-test.inc: Add tests for errors discovered in IBM long
+#         double versions of fmodl, remainderl, erfl and erfcl.
+# 
+diff -urN glibc-2.17-c758a686/math/libm-test.inc glibc-2.17-c758a686/math/libm-test.inc
+--- glibc-2.17-c758a686/math/libm-test.inc	2014-05-27 20:02:29.000000000 -0500
++++ glibc-2.17-c758a686/math/libm-test.inc	2014-05-27 20:09:59.000000000 -0500
+@@ -4040,6 +4040,10 @@
+   TEST_f_f (erf, 2.0L, 0.995322265018952734162069256367252929L);
+   TEST_f_f (erf, 4.125L, 0.999999994576599200434933994687765914L);
+   TEST_f_f (erf, 27.0L, 1.0L);
++#if defined TEST_LDOUBLE && LDBL_MANT_DIG >= 54
++  /* The input is not exactly representable as a double.  */
++  TEST_f_f (erf, -0x1.fffffffffffff8p-2L, -0.5204998778130465132916303345518417673509L);
++#endif
+ 
+   END (erf);
+ }
+@@ -4071,6 +4075,10 @@
+   TEST_f_f (erfc, 0x1.ffa002p+2L, 1.233585992097580296336099501489175967033e-29L);
+   TEST_f_f (erfc, 0x1.ffffc8p+2L, 1.122671365033056305522366683719541099329e-29L);
+ #ifdef TEST_LDOUBLE
++# if LDBL_MANT_DIG >= 54
++  /* The input is not exactly representable as a double.  */
++  TEST_f_f (erfc, -0x1.fffffffffffff8p-2L, 1.52049987781304651329163033455184176735L);
++# endif
+   /* The result can only be represented in long double.  */
+ # if LDBL_MIN_10_EXP < -319
+   TEST_f_f (erfc, 27.0L, 0.523704892378925568501606768284954709e-318L);
+@@ -5634,6 +5642,13 @@
+ #if defined TEST_LDOUBLE && LDBL_MIN_EXP <= -16381
+   TEST_ff_f (fmod, 0x0.fffffffffffffffep-16382L, 0x1p-16445L, plus_zero);
+ #endif
++#if defined TEST_LDOUBLE && LDBL_MANT_DIG >= 56
++  TEST_ff_f (fmod, -0x1.00000000000004p+0L, 0x1.fffffffffffff8p-1L, -0x1p-53L);
++  TEST_ff_f (fmod, 0x1.fffffffffffffap-1L, 0x1.fffffffffffff8p-1L, 0x1p-56L);
++  TEST_ff_f (fmod, -0x1.fffffffffffffap-1L, 0x1.fffffffffffff8p-1L, -0x1p-56L);
++  TEST_ff_f (fmod, 0x1.fffffffffffffap-1L, -0x1.fffffffffffff8p-1L, 0x1p-56L);
++  TEST_ff_f (fmod, -0x1.fffffffffffffap-1L, -0x1.fffffffffffff8p-1L, -0x1p-56L);
++#endif
+ 
+   END (fmod);
+ }
+@@ -8642,6 +8657,9 @@
+   TEST_ff_f (remainder, -1.625, -1.0, 0.375);
+   TEST_ff_f (remainder, 5.0, 2.0, 1.0);
+   TEST_ff_f (remainder, 3.0, 2.0, -1.0);
++#if defined TEST_LDOUBLE && LDBL_MANT_DIG >= 56
++  TEST_ff_f (remainder, -0x1.80000000000002p1L, 2.0, 0x1.fffffffffffff8p-1L);
++#endif
+ 
+   END (remainder);
+ }
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_fmodl.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_fmodl.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_fmodl.c	2014-05-27 20:02:27.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_fmodl.c	2014-05-27 20:04:08.000000000 -0500
+@@ -27,76 +27,83 @@
+ long double
+ __ieee754_fmodl (long double x, long double y)
+ {
+-	int64_t n,hx,hy,hz,ix,iy,sx, i;
+-	u_int64_t lx,ly,lz;
+-	int temp;
+-
+-	GET_LDOUBLE_WORDS64(hx,lx,x);
+-	GET_LDOUBLE_WORDS64(hy,ly,y);
++	int64_t hx, hy, hz, sx, sy;
++	uint64_t lx, ly, lz;
++	int n, ix, iy;
++	double xhi, xlo, yhi, ylo;
++
++	ldbl_unpack (x, &xhi, &xlo);
++	EXTRACT_WORDS64 (hx, xhi);
++	EXTRACT_WORDS64 (lx, xlo);
++	ldbl_unpack (y, &yhi, &ylo);
++	EXTRACT_WORDS64 (hy, yhi);
++	EXTRACT_WORDS64 (ly, ylo);
+ 	sx = hx&0x8000000000000000ULL;		/* sign of x */
+-	hx ^=sx;				/* |x| */
+-	hy &= 0x7fffffffffffffffLL;		/* |y| */
++	hx ^= sx;				/* |x| */
++	sy = hy&0x8000000000000000ULL;		/* sign of y */
++	hy ^= sy;				/* |y| */
+ 
+     /* purge off exception values */
+-	if(__builtin_expect((hy|(ly&0x7fffffffffffffff))==0 ||
++	if(__builtin_expect(hy==0 ||
+ 			    (hx>=0x7ff0000000000000LL)|| /* y=0,or x not finite */
+ 			    (hy>0x7ff0000000000000LL),0))	/* or y is NaN */
+ 	    return (x*y)/(x*y);
+-	if(__builtin_expect(hx<=hy,0)) {
+-	    if((hx<hy)||(lx<ly)) return x;	/* |x|<|y| return x */
+-	    if(lx==ly)
+-		return Zero[(u_int64_t)sx>>63];	/* |x|=|y| return x*0*/
++	if (__builtin_expect (hx <= hy, 0))
++	  {
++	    /* If |x| < |y| return x.  */
++	    if (hx < hy)
++	      return x;
++	    /* At this point the absolute value of the high doubles of
++	       x and y must be equal.  */
++	    /* If the low double of y is the same sign as the high
++	       double of y (ie. the low double increases |y|)...  */
++	    if (((ly ^ sy) & 0x8000000000000000LL) == 0
++		/* ... then a different sign low double to high double
++		   for x or same sign but lower magnitude...  */
++		&& (int64_t) (lx ^ sx) < (int64_t) (ly ^ sy))
++	      /* ... means |x| < |y|.  */
++	      return x;
++	    /* If the low double of x differs in sign to the high
++	       double of x (ie. the low double decreases |x|)...  */
++	    if (((lx ^ sx) & 0x8000000000000000LL) != 0
++		/* ... then a different sign low double to high double
++		   for y with lower magnitude (we've already caught
++		   the same sign for y case above)...  */
++		&& (int64_t) (lx ^ sx) > (int64_t) (ly ^ sy))
++	      /* ... means |x| < |y|.  */
++	      return x;
++	    /* If |x| == |y| return x*0.  */
++	    if ((lx ^ sx) == (ly ^ sy))
++	      return Zero[(uint64_t) sx >> 63];
+ 	}
+ 
+-    /* determine ix = ilogb(x) */
+-	if(__builtin_expect(hx<0x0010000000000000LL,0)) {	/* subnormal x */
+-	    if(hx==0) {
+-		for (ix = -1043, i=lx; i>0; i<<=1) ix -=1;
+-	    } else {
+-		for (ix = -1022, i=(hx<<11); i>0; i<<=1) ix -=1;
+-	    }
+-	} else ix = (hx>>52)-0x3ff;
+-
+-    /* determine iy = ilogb(y) */
+-	if(__builtin_expect(hy<0x0010000000000000LL,0)) {	/* subnormal y */
+-	    if(hy==0) {
+-		for (iy = -1043, i=ly; i>0; i<<=1) iy -=1;
+-	    } else {
+-		for (iy = -1022, i=(hy<<11); i>0; i<<=1) iy -=1;
+-	    }
+-	} else iy = (hy>>52)-0x3ff;
+-
+     /* Make the IBM extended format 105 bit mantissa look like the ieee854 112
+        bit mantissa so the following operations will give the correct
+        result.  */
+-	ldbl_extract_mantissa(&hx, &lx, &temp, x);
+-	ldbl_extract_mantissa(&hy, &ly, &temp, y);
++	ldbl_extract_mantissa(&hx, &lx, &ix, x);
++	ldbl_extract_mantissa(&hy, &ly, &iy, y);
+ 
+-    /* set up {hx,lx}, {hy,ly} and align y to x */
+-	if(__builtin_expect(ix >= -1022, 1))
+-	    hx = 0x0001000000000000LL|(0x0000ffffffffffffLL&hx);
+-	else {		/* subnormal x, shift x to normal */
+-	    n = -1022-ix;
+-	    if(n<=63) {
+-		hx = (hx<<n)|(lx>>(64-n));
+-		lx <<= n;
+-	    } else {
+-		hx = lx<<(n-64);
+-		lx = 0;
+-	    }
+-	}
+-	if(__builtin_expect(iy >= -1022, 1))
+-	    hy = 0x0001000000000000LL|(0x0000ffffffffffffLL&hy);
+-	else {		/* subnormal y, shift y to normal */
+-	    n = -1022-iy;
+-	    if(n<=63) {
+-		hy = (hy<<n)|(ly>>(64-n));
+-		ly <<= n;
+-	    } else {
+-		hy = ly<<(n-64);
+-		ly = 0;
+-	    }
+-	}
++	if (__builtin_expect (ix == -IEEE754_DOUBLE_BIAS, 0))
++	  {
++	    /* subnormal x, shift x to normal.  */
++	    while ((hx & (1LL << 48)) == 0)
++	      {
++		hx = (hx << 1) | (lx >> 63);
++		lx = lx << 1;
++		ix -= 1;
++	      }
++	  }
++
++	if (__builtin_expect (iy == -IEEE754_DOUBLE_BIAS, 0))
++	  {
++	    /* subnormal y, shift y to normal.  */
++	    while ((hy & (1LL << 48)) == 0)
++	      {
++		hy = (hy << 1) | (ly >> 63);
++		ly = ly << 1;
++		iy -= 1;
++	      }
++	  }
+ 
+     /* fix point fmod */
+ 	n = ix - iy;
+@@ -104,7 +111,7 @@
+ 	    hz=hx-hy;lz=lx-ly; if(lx<ly) hz -= 1;
+ 	    if(hz<0){hx = hx+hx+(lx>>63); lx = lx+lx;}
+ 	    else {
+-		if((hz|(lz&0x7fffffffffffffff))==0)		/* return sign(x)*0 */
++		if((hz|lz)==0)		/* return sign(x)*0 */
+ 		    return Zero[(u_int64_t)sx>>63];
+ 		hx = hz+hz+(lz>>63); lx = lz+lz;
+ 	    }
+@@ -113,7 +120,7 @@
+ 	if(hz>=0) {hx=hz;lx=lz;}
+ 
+     /* convert back to floating value and restore the sign */
+-	if((hx|(lx&0x7fffffffffffffff))==0)			/* return sign(x)*0 */
++	if((hx|lx)==0)			/* return sign(x)*0 */
+ 	    return Zero[(u_int64_t)sx>>63];
+ 	while(hx<0x0001000000000000LL) {	/* normalize x */
+ 	    hx = hx+hx+(lx>>63); lx = lx+lx;
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_hypotl.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_hypotl.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_hypotl.c	2014-05-27 20:02:27.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_hypotl.c	2014-05-27 20:04:08.000000000 -0500
+@@ -45,76 +45,84 @@
+ #include <math.h>
+ #include <math_private.h>
+ 
+-static const long double two600 = 0x1.0p+600L;
+-static const long double two1022 = 0x1.0p+1022L;
+-
+ long double
+ __ieee754_hypotl(long double x, long double y)
+ {
+-	long double a,b,t1,t2,y1,y2,w,kld;
++	long double a,b,a1,a2,b1,b2,w,kld;
+ 	int64_t j,k,ha,hb;
++	double xhi, yhi, hi, lo;
+ 
+-	GET_LDOUBLE_MSW64(ha,x);
++	xhi = ldbl_high (x);
++	EXTRACT_WORDS64 (ha, xhi);
++	yhi = ldbl_high (y);
++	EXTRACT_WORDS64 (hb, yhi);
+ 	ha &= 0x7fffffffffffffffLL;
+-	GET_LDOUBLE_MSW64(hb,y);
+ 	hb &= 0x7fffffffffffffffLL;
+ 	if(hb > ha) {a=y;b=x;j=ha; ha=hb;hb=j;} else {a=x;b=y;}
+ 	a = fabsl(a);	/* a <- |a| */
+ 	b = fabsl(b);	/* b <- |b| */
+-	if((ha-hb)>0x780000000000000LL) {return a+b;} /* x/y > 2**120 */
++	if((ha-hb)>0x0780000000000000LL) {return a+b;} /* x/y > 2**120 */
+ 	k=0;
+ 	kld = 1.0L;
+ 	if(ha > 0x5f30000000000000LL) {	/* a>2**500 */
+ 	   if(ha >= 0x7ff0000000000000LL) {	/* Inf or NaN */
+-	       u_int64_t low;
+ 	       w = a+b;			/* for sNaN */
+-	       GET_LDOUBLE_LSW64(low,a);
+-	       if(((ha&0xfffffffffffffLL)|(low&0x7fffffffffffffffLL))==0)
++	       if(ha == 0x7ff0000000000000LL)
+ 		 w = a;
+-	       GET_LDOUBLE_LSW64(low,b);
+-	       if(((hb^0x7ff0000000000000LL)|(low&0x7fffffffffffffffLL))==0)
++	       if(hb == 0x7ff0000000000000LL)
+ 		 w = b;
+ 	       return w;
+ 	   }
+ 	   /* scale a and b by 2**-600 */
+-	   ha -= 0x2580000000000000LL; hb -= 0x2580000000000000LL; k += 600;
+-	   a /= two600;
+-	   b /= two600;
+-	   k += 600;
+-	   kld = two600;
++	   a *= 0x1p-600L;
++	   b *= 0x1p-600L;
++	   k = 600;
++	   kld = 0x1p+600L;
+ 	}
+-	if(hb < 0x23d0000000000000LL) {	/* b < 2**-450 */
++	else if(hb < 0x23d0000000000000LL) {	/* b < 2**-450 */
+ 	    if(hb <= 0x000fffffffffffffLL) {	/* subnormal b or 0 */
+-		u_int64_t low;
+-		GET_LDOUBLE_LSW64(low,b);
+-		if((hb|(low&0x7fffffffffffffffLL))==0) return a;
+-		t1=two1022;	/* t1=2^1022 */
+-		b *= t1;
+-		a *= t1;
+-		k -= 1022;
+-		kld = kld / two1022;
++		if(hb==0) return a;
++		a *= 0x1p+1022L;
++		b *= 0x1p+1022L;
++		k = -1022;
++		kld = 0x1p-1022L;
+ 	    } else {		/* scale a and b by 2^600 */
+-		ha += 0x2580000000000000LL;	/* a *= 2^600 */
+-		hb += 0x2580000000000000LL;	/* b *= 2^600 */
+-		k -= 600;
+-		a *= two600;
+-		b *= two600;
+-		kld = kld / two600;
++		a *= 0x1p+600L;
++		b *= 0x1p+600L;
++		k = -600;
++		kld = 0x1p-600L;
+ 	    }
+ 	}
+     /* medium size a and b */
+ 	w = a-b;
+ 	if (w>b) {
+-	    SET_LDOUBLE_WORDS64(t1,ha,0);
+-	    t2 = a-t1;
+-	    w  = __ieee754_sqrtl(t1*t1-(b*(-b)-t2*(a+t1)));
++	    ldbl_unpack (a, &hi, &lo);
++	    a1 = hi;
++	    a2 = lo;
++	    /* a*a + b*b
++	       = (a1+a2)*a + b*b
++	       = a1*a + a2*a + b*b
++	       = a1*(a1+a2) + a2*a + b*b
++	       = a1*a1 + a1*a2 + a2*a + b*b
++	       = a1*a1 + a2*(a+a1) + b*b  */
++	    w  = __ieee754_sqrtl(a1*a1-(b*(-b)-a2*(a+a1)));
+ 	} else {
+ 	    a  = a+a;
+-	    SET_LDOUBLE_WORDS64(y1,hb,0);
+-	    y2 = b - y1;
+-	    SET_LDOUBLE_WORDS64(t1,ha+0x0010000000000000LL,0);
+-	    t2 = a - t1;
+-	    w  = __ieee754_sqrtl(t1*y1-(w*(-w)-(t1*y2+t2*b)));
++	    ldbl_unpack (b, &hi, &lo);
++	    b1 = hi;
++	    b2 = lo;
++	    ldbl_unpack (a, &hi, &lo);
++	    a1 = hi;
++	    a2 = lo;
++	    /* a*a + b*b
++	       = a*a + (a-b)*(a-b) - (a-b)*(a-b) + b*b
++	       = a*a + w*w  - (a*a - 2*a*b + b*b) + b*b
++	       = w*w + 2*a*b
++	       = w*w + (a1+a2)*b
++	       = w*w + a1*b + a2*b
++	       = w*w + a1*(b1+b2) + a2*b
++	       = w*w + a1*b1 + a1*b2 + a2*b  */
++	    w  = __ieee754_sqrtl(a1*b1-(w*(-w)-(a1*b2+a2*b)));
+ 	}
+ 	if(k!=0)
+ 	    return w*kld;
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_remainderl.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_remainderl.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_remainderl.c	2014-05-27 20:02:27.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/e_remainderl.c	2014-05-27 20:04:08.000000000 -0500
+@@ -33,18 +33,22 @@
+ 	int64_t hx,hp;
+ 	u_int64_t sx,lx,lp;
+ 	long double p_half;
++	double xhi, xlo, phi, plo;
+ 
+-	GET_LDOUBLE_WORDS64(hx,lx,x);
+-	GET_LDOUBLE_WORDS64(hp,lp,p);
++	ldbl_unpack (x, &xhi, &xlo);
++	EXTRACT_WORDS64 (hx, xhi);
++	EXTRACT_WORDS64 (lx, xlo);
++	ldbl_unpack (p, &phi, &plo);
++	EXTRACT_WORDS64 (hp, phi);
++	EXTRACT_WORDS64 (lp, plo);
+ 	sx = hx&0x8000000000000000ULL;
+ 	hp &= 0x7fffffffffffffffLL;
+ 	hx &= 0x7fffffffffffffffLL;
+ 
+     /* purge off exception values */
+-	if((hp|(lp&0x7fffffffffffffff))==0) return (x*p)/(x*p);	/* p = 0 */
++	if(hp==0) return (x*p)/(x*p);	/* p = 0 */
+ 	if((hx>=0x7ff0000000000000LL)||			/* x not finite */
+-	  ((hp>=0x7ff0000000000000LL)&&			/* p is NaN */
+-	  (((hp-0x7ff0000000000000LL)|lp)!=0)))
++	   (hp>0x7ff0000000000000LL))			/* p is NaN */
+ 	    return (x*p)/(x*p);
+ 
+ 
+@@ -64,8 +68,8 @@
+ 		if(x>=p_half) x -= p;
+ 	    }
+ 	}
+-	GET_LDOUBLE_MSW64(hx,x);
+-	SET_LDOUBLE_MSW64(x,hx^sx);
++	if (sx)
++	  x = -x;
+ 	return x;
+ }
+ strong_alias (__ieee754_remainderl, __remainderl_finite)
+diff -urN glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_erfl.c glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_erfl.c
+--- glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_erfl.c	2014-05-27 20:02:27.000000000 -0500
++++ glibc-2.17-c758a686/sysdeps/ieee754/ldbl-128ibm/s_erfl.c	2014-05-27 20:04:08.000000000 -0500
+@@ -760,16 +760,16 @@
+ __erfl (long double x)
+ {
+   long double a, y, z;
+-  int32_t i, ix, sign;
+-  ieee854_long_double_shape_type u;
++  int32_t i, ix, hx;
++  double xhi;
+ 
+-  u.value = x;
+-  sign = u.parts32.w0;
+-  ix = sign & 0x7fffffff;
++  xhi = ldbl_high (x);
++  GET_HIGH_WORD (hx, xhi);
++  ix = hx & 0x7fffffff;
+ 
+   if (ix >= 0x7ff00000)
+     {				/* erf(nan)=nan */
+-      i = ((sign & 0xfff00000) >> 31) << 1;
++      i = ((uint32_t) hx >> 31) << 1;
+       return (long double) (1 - i) + one / x;	/* erf(+-inf)=+-1 */
+     }
+ 
+@@ -778,7 +778,7 @@
+       if (ix >= 0x4039A0DE)
+ 	{
+ 	/* __erfcl (x) underflows if x > 25.6283 */
+-	  if (sign)
++	  if ((hx & 0x80000000) == 0)
+ 	    return one-tiny;
+ 	  else
+ 	    return tiny-one;
+@@ -789,8 +789,9 @@
+ 	  return (one - y);
+ 	}
+     }
+-  u.parts32.w0 = ix;
+-  a = u.value;
++  a = x;
++  if ((hx & 0x80000000) != 0)
++    a = -a;
+   z = x * x;
+   if (ix < 0x3fec0000)  /* a < 0.875 */
+     {
+@@ -814,7 +815,7 @@
+       y = erf_const + neval (a, TN2, NTN2) / deval (a, TD2, NTD2);
+     }
+ 
+-  if (sign & 0x80000000) /* x < 0 */
++  if (hx & 0x80000000) /* x < 0 */
+     y = -y;
+   return( y );
+ }
+@@ -824,18 +825,18 @@
+ __erfcl (long double x)
+ {
+   long double y, z, p, r;
+-  int32_t i, ix, sign;
+-  ieee854_long_double_shape_type u;
+-
+-  u.value = x;
+-  sign = u.parts32.w0;
+-  ix = sign & 0x7fffffff;
+-  u.parts32.w0 = ix;
++  int32_t i, ix;
++  uint32_t hx;
++  double xhi;
++
++  xhi = ldbl_high (x);
++  GET_HIGH_WORD (hx, xhi);
++  ix = hx & 0x7fffffff;
+ 
+   if (ix >= 0x7ff00000)
+     {				/* erfc(nan)=nan */
+       /* erfc(+-inf)=0,2 */
+-      return (long double) (((u_int32_t) sign >> 31) << 1) + one / x;
++      return (long double) ((hx >> 31) << 1) + one / x;
+     }
+ 
+   if (ix < 0x3fd00000) /* |x| <1/4 */
+@@ -846,7 +847,8 @@
+     }
+   if (ix < 0x3ff40000) /* 1.25 */
+     {
+-      x = u.value;
++      if ((hx & 0x80000000) != 0)
++	x = -x;
+       i = 8.0 * x;
+       switch (i)
+ 	{
+@@ -891,7 +893,7 @@
+ 	  y += C20a;
+ 	  break;
+ 	}
+-      if (sign & 0x80000000)
++      if (hx & 0x80000000)
+ 	y = 2.0L - y;
+       return y;
+     }
+@@ -899,10 +901,11 @@
+   if (ix < 0x405ac000)
+     {
+       /* x < -9 */
+-      if ((ix >= 0x40220000) && (sign & 0x80000000))
++      if (hx >= 0xc0220000)
+ 	return two - tiny;
+ 
+-      x = fabsl (x);
++      if ((hx & 0x80000000) != 0)
++	x = -x;
+       z = one / (x * x);
+       i = 8.0 / x;
+       switch (i)
+@@ -933,21 +936,17 @@
+ 	  p = neval (z, RNr8, NRNr8) / deval (z, RDr8, NRDr8);
+ 	  break;
+ 	}
+-      u.value = x;
+-      u.parts32.w3 = 0;
+-      u.parts32.w2 = 0;
+-      u.parts32.w1 &= 0xf8000000;
+-      z = u.value;
++      z = (float) x;
+       r = __ieee754_expl (-z * z - 0.5625) *
+ 	__ieee754_expl ((z - x) * (z + x) + p);
+-      if ((sign & 0x80000000) == 0)
++      if ((hx & 0x80000000) == 0)
+ 	return r / x;
+       else
+ 	return two - r / x;
+     }
+   else
+     {
+-      if ((sign & 0x80000000) == 0)
++      if ((hx & 0x80000000) == 0)
+ 	return tiny * tiny;
+       else
+ 	return two - tiny;

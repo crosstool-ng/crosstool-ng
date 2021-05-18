@@ -1,0 +1,642 @@
+# commit 664318c3eb07032e2bfcf47cb2aa3c89280c19e7
+# Author: Alan Modra <amodra@gmail.com>
+# Date:   Sat Aug 17 18:46:05 2013 +0930
+# 
+#     PowerPC LE strchr
+#     http://sourceware.org/ml/libc-alpha/2013-08/msg00101.html
+#     
+#     Adds little-endian support to optimised strchr assembly.  I've also
+#     tweaked the big-endian code a little.  In power7/strchr.S there's a
+#     check in the tail of the function that we didn't match 0 before
+#     finding a c match, done by comparing leading zero counts.  It's just
+#     as valid, and quicker, to compare the raw output from cmpb.
+#     
+#     Another little tweak is to use rldimi/insrdi in place of rlwimi for
+#     the power7 strchr functions.  Since rlwimi is cracked, it is a few
+#     cycles slower.  rldimi can be used on the 32-bit power7 functions
+#     too.
+#     
+#         * sysdeps/powerpc/powerpc64/power7/strchr.S (strchr): Add little-endian
+#         support.  Correct typos, formatting.  Optimize tail.  Use insrdi
+#         rather than rlwimi.
+#         * sysdeps/powerpc/powerpc32/power7/strchr.S: Likewise.
+#         * sysdeps/powerpc/powerpc64/power7/strchrnul.S (__strchrnul): Add
+#         little-endian support.  Correct typos.
+#         * sysdeps/powerpc/powerpc32/power7/strchrnul.S: Likewise.  Use insrdi
+#         rather than rlwimi.
+#         * sysdeps/powerpc/powerpc64/strchr.S (rTMP4, rTMP5): Define.  Use
+#         in loop and entry code to keep "and." results.
+#         (strchr): Add little-endian support.  Comment.  Move cntlzd
+#         earlier in tail.
+#         * sysdeps/powerpc/powerpc32/strchr.S: Likewise.
+# 
+Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
+===================================================================
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S.orig
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
+@@ -37,8 +37,8 @@ ENTRY (BP_SYM(strchr))
+ 	beq	cr7,L(null_match)
+ 
+ 	/* Replicate byte to word.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrdi	r4,r4,8,48
++	insrdi	r4,r4,16,32
+ 
+ 	/* Now r4 has a word of c bytes and r0 has
+ 	   a word of null bytes.  */
+@@ -48,11 +48,17 @@ ENTRY (BP_SYM(strchr))
+ 
+ 	/* Move the words left and right to discard the bits that are
+ 	   not part of the string and to bring them back as zeros.  */
+-
++#ifdef __LITTLE_ENDIAN__
++	srw	r10,r10,r6
++	srw	r11,r11,r6
++	slw	r10,r10,r6
++	slw	r11,r11,r6
++#else
+ 	slw	r10,r10,r6
+ 	slw	r11,r11,r6
+ 	srw	r10,r10,r6
+ 	srw	r11,r11,r6
++#endif
+ 	or	r5,r10,r11    /* OR the results to speed things up.  */
+ 	cmpwi	cr7,r5,0      /* If r5 == 0, no c or null bytes
+ 				 have been found.  */
+@@ -67,7 +73,7 @@ ENTRY (BP_SYM(strchr))
+ 
+ 	/* Handle WORD2 of pair.  */
+ 	lwzu	r12,4(r8)
+-	cmpb    r10,r12,r4
++	cmpb	r10,r12,r4
+ 	cmpb	r11,r12,r0
+ 	or	r5,r10,r11
+ 	cmpwi	cr7,r5,0
+@@ -102,22 +108,31 @@ L(loop):
+ 	bne	cr6,L(done)
+ 
+ 	/* The c/null byte must be in the second word.  Adjust the address
+-	   again and move the result of cmpb to r10 so we can calculate the
+-	   pointer.  */
++	   again and move the result of cmpb to r10/r11 so we can calculate
++	   the pointer.  */
+ 
+ 	mr	r10,r6
+ 	mr	r11,r7
+ 	addi	r8,r8,4
+ 
+-	/* r5 has the output of the cmpb instruction, that is, it contains
++	/* r10/r11 have the output of the cmpb instructions, that is,
+ 	   0xff in the same position as the c/null byte in the original
+ 	   word from the string.  Use that to calculate the pointer.  */
+ L(done):
+-	cntlzw	r4,r10	      /* Count leading zeroes before c matches.  */
+-	cntlzw	r0,r11	      /* Count leading zeroes before null matches.  */
+-	cmplw	cr7,r4,r0
++#ifdef __LITTLE_ENDIAN__
++	addi    r3,r10,-1
++	andc    r3,r3,r10
++	popcntw	r0,r3
++	addi    r4,r11,-1
++	andc    r4,r4,r11
++	cmplw	cr7,r3,r4
++	bgt	cr7,L(no_match)
++#else
++	cntlzw	r0,r10	      /* Count leading zeros before c matches.  */
++	cmplw	cr7,r11,r10
+ 	bgt	cr7,L(no_match)
+-	srwi	r0,r4,3	      /* Convert leading zeroes to bytes.  */
++#endif
++	srwi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of the matching c byte
+ 				 or null in case c was not found.  */
+ 	blr
+@@ -135,10 +150,14 @@ L(null_match):
+ 	cmpb	r5,r12,r0     /* Compare each byte against null bytes.  */
+ 
+ 	/* Move the words left and right to discard the bits that are
+-	   not part of the string and to bring them back as zeros.  */
+-
++	   not part of the string and bring them back as zeros.  */
++#ifdef __LITTLE_ENDIAN__
++	srw	r5,r5,r6
++	slw	r5,r5,r6
++#else
+ 	slw	r5,r5,r6
+ 	srw	r5,r5,r6
++#endif
+ 	cmpwi	cr7,r5,0      /* If r10 == 0, no c or null bytes
+ 				 have been found.  */
+ 	bne	cr7,L(done_null)
+@@ -193,7 +212,13 @@ L(loop_null):
+ 	   0xff in the same position as the null byte in the original
+ 	   word from the string.  Use that to calculate the pointer.  */
+ L(done_null):
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r5,-1
++	andc    r0,r0,r5
++	popcntw	r0,r0
++#else
+ 	cntlzw	r0,r5	      /* Count leading zeros before the match.  */
++#endif
+ 	srwi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of the matching null byte.  */
+ 	blr
+Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
+===================================================================
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S.orig
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
+@@ -29,8 +29,8 @@ ENTRY (BP_SYM(__strchrnul))
+ 	clrrwi	r8,r3,2	      /* Align the address to word boundary.  */
+ 
+ 	/* Replicate byte to word.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrdi	r4,r4,8,48
++	insrdi	r4,r4,16,32
+ 
+ 	rlwinm	r6,r3,3,27,28 /* Calculate padding.  */
+ 	lwz	r12,0(r8)     /* Load word from memory.  */
+@@ -45,10 +45,17 @@ ENTRY (BP_SYM(__strchrnul))
+ 
+ 	/* Move the words left and right to discard the bits that are
+ 	   not part of the string and bring them back as zeros.  */
++#ifdef __LITTLE_ENDIAN__
++	srw	r10,r10,r6
++	srw	r9,r9,r6
++	slw	r10,r10,r6
++	slw	r9,r9,r6
++#else
+ 	slw	r10,r10,r6
+ 	slw	r9,r9,r6
+ 	srw	r10,r10,r6
+ 	srw	r9,r9,r6
++#endif
+ 	or	r5,r9,r10     /* OR the results to speed things up.  */
+ 	cmpwi	cr7,r5,0      /* If r5 == 0, no c or null bytes
+ 				 have been found.  */
+@@ -56,7 +63,7 @@ ENTRY (BP_SYM(__strchrnul))
+ 
+ 	mtcrf   0x01,r8
+ 
+-	/* Are we now aligned to a quadword boundary?  If so, skip to
++	/* Are we now aligned to a doubleword boundary?  If so, skip to
+ 	   the main loop.  Otherwise, go through the alignment code.  */
+ 
+ 	bt	29,L(loop)
+@@ -78,7 +85,7 @@ L(loop):
+ 	   single register for speed.  This is an attempt
+ 	   to speed up the null-checking process for bigger strings.  */
+ 	lwz	r12,4(r8)
+-	lwzu     r11,8(r8)
++	lwzu	r11,8(r8)
+ 	cmpb	r10,r12,r0
+ 	cmpb	r9,r12,r4
+ 	cmpb	r6,r11,r0
+@@ -97,9 +104,9 @@ L(loop):
+ 	addi	r8,r8,-4
+ 	bne	cr6,L(done)
+ 
+-	/* The c/null byte must be in the second word.  Adjust the
+-	   address again and move the result of cmpb to r10 so we can calculate
+-	   the pointer.  */
++	/* The c/null byte must be in the second word.  Adjust the address
++	   again and move the result of cmpb to r5 so we can calculate the
++	   pointer.  */
+ 	mr	r5,r10
+ 	addi	r8,r8,4
+ 
+@@ -107,7 +114,13 @@ L(loop):
+ 	   0xff in the same position as the c/null byte in the original
+ 	   word from the string.  Use that to calculate the pointer.  */
+ L(done):
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r5,-1
++	andc    r0,r0,r5
++	popcntw	r0,r0
++#else
+ 	cntlzw	r0,r5	      /* Count leading zeros before the match.  */
++#endif
+ 	srwi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of matching c/null byte.  */
+ 	blr
+Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S
+===================================================================
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S.orig
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S
+@@ -44,6 +44,8 @@ ENTRY (BP_SYM (strchr))
+ #define rIGN	r10	/* number of bits we should ignore in the first word */
+ #define rMASK	r11	/* mask with the bits to ignore set to 0 */
+ #define rTMP3	r12
++#define rTMP4	rIGN
++#define rTMP5	rMASK
+ 
+ 	CHECK_BOUNDS_LOW (rSTR, rTMP1, rTMP2)
+ 	STORE_RETURN_BOUNDS (rTMP1, rTMP2)
+@@ -59,53 +61,74 @@ ENTRY (BP_SYM (strchr))
+ 	addi	r7F7F, r7F7F, 0x7f7f
+ /* Test the first (partial?) word.  */
+ 	lwz	rWORD, 0(rSTR)
++#ifdef __LITTLE_ENDIAN__
++	slw	rMASK, rMASK, rIGN
++#else
+ 	srw	rMASK, rMASK, rIGN
++#endif
+ 	orc	rWORD, rWORD, rMASK
+ 	add	rTMP1, rFEFE, rWORD
+ 	nor	rTMP2, r7F7F, rWORD
+-	and.	rTMP1, rTMP1, rTMP2
++	and.	rTMP4, rTMP1, rTMP2
+ 	xor	rTMP3, rCHR, rWORD
+ 	orc	rTMP3, rTMP3, rMASK
+ 	b	L(loopentry)
+ 
+ /* The loop.  */
+ 
+-L(loop):lwzu rWORD, 4(rSTR)
+-	and.	rTMP1, rTMP1, rTMP2
++L(loop):
++	lwzu	rWORD, 4(rSTR)
++	and.	rTMP5, rTMP1, rTMP2
+ /* Test for 0.	*/
+-	add	rTMP1, rFEFE, rWORD
+-	nor	rTMP2, r7F7F, rWORD
++	add	rTMP1, rFEFE, rWORD /* x - 0x01010101.  */
++	nor	rTMP2, r7F7F, rWORD /* ~(x | 0x7f7f7f7f) == ~x & 0x80808080.  */
+ 	bne	L(foundit)
+-	and.	rTMP1, rTMP1, rTMP2
++	and.	rTMP4, rTMP1, rTMP2 /* (x - 0x01010101) & ~x & 0x80808080.  */
+ /* Start test for the bytes we're looking for.  */
+ 	xor	rTMP3, rCHR, rWORD
+ L(loopentry):
+ 	add	rTMP1, rFEFE, rTMP3
+ 	nor	rTMP2, r7F7F, rTMP3
+ 	beq	L(loop)
++
+ /* There is a zero byte in the word, but may also be a matching byte (either
+    before or after the zero byte).  In fact, we may be looking for a
+-   zero byte, in which case we return a match.  We guess that this hasn't
+-   happened, though.  */
+-L(missed):
+-	and.	rTMP1, rTMP1, rTMP2
++   zero byte, in which case we return a match.  */
++	and.	rTMP5, rTMP1, rTMP2
+ 	li	rRTN, 0
+ 	STORE_RETURN_VALUE (rSTR)
+ 	beqlr
+-/* It did happen. Decide which one was first...
+-   I'm not sure if this is actually faster than a sequence of
+-   rotates, compares, and branches (we use it anyway because it's shorter).  */
++/* At this point:
++   rTMP5 bytes are 0x80 for each match of c, 0 otherwise.
++   rTMP4 bytes are 0x80 for each match of 0, 0 otherwise.
++   But there may be false matches in the next most significant byte from
++   a true match due to carries.  This means we need to recalculate the
++   matches using a longer method for big-endian.  */
++#ifdef __LITTLE_ENDIAN__
++	addi	rTMP1, rTMP5, -1
++	andc	rTMP1, rTMP1, rTMP5
++	cntlzw	rCLZB, rTMP1
++	addi	rTMP2, rTMP4, -1
++	andc	rTMP2, rTMP2, rTMP4
++	cmplw	rTMP1, rTMP2
++	bgtlr
++	subfic	rCLZB, rCLZB, 32-7
++#else
++/* I think we could reduce this by two instructions by keeping the "nor"
++   results from the loop for reuse here.  See strlen.S tail.  Similarly
++   one instruction could be pruned from L(foundit).  */
+ 	and	rFEFE, r7F7F, rWORD
+-	or	rMASK, r7F7F, rWORD
++	or	rTMP5, r7F7F, rWORD
+ 	and	rTMP1, r7F7F, rTMP3
+-	or	rIGN, r7F7F, rTMP3
++	or	rTMP4, r7F7F, rTMP3
+ 	add	rFEFE, rFEFE, r7F7F
+ 	add	rTMP1, rTMP1, r7F7F
+-	nor	rWORD, rMASK, rFEFE
+-	nor	rTMP2, rIGN, rTMP1
++	nor	rWORD, rTMP5, rFEFE
++	nor	rTMP2, rTMP4, rTMP1
++	cntlzw	rCLZB, rTMP2
+ 	cmplw	rWORD, rTMP2
+ 	bgtlr
+-	cntlzw	rCLZB, rTMP2
++#endif
+ 	srwi	rCLZB, rCLZB, 3
+ 	add	rRTN, rSTR, rCLZB
+ 	CHECK_BOUNDS_HIGH_RTN (rSTR, rTMP2, twlge)
+@@ -113,13 +136,21 @@ L(missed):
+ 	blr
+ 
+ L(foundit):
++#ifdef __LITTLE_ENDIAN__
++	addi	rTMP1, rTMP5, -1
++	andc	rTMP1, rTMP1, rTMP5
++	cntlzw	rCLZB, rTMP1
++	subfic	rCLZB, rCLZB, 32-7-32
++	srawi	rCLZB, rCLZB, 3
++#else
+ 	and	rTMP1, r7F7F, rTMP3
+-	or	rIGN, r7F7F, rTMP3
++	or	rTMP4, r7F7F, rTMP3
+ 	add	rTMP1, rTMP1, r7F7F
+-	nor	rTMP2, rIGN, rTMP1
++	nor	rTMP2, rTMP4, rTMP1
+ 	cntlzw	rCLZB, rTMP2
+ 	subi	rSTR, rSTR, 4
+ 	srwi	rCLZB, rCLZB, 3
++#endif
+ 	add	rRTN, rSTR, rCLZB
+ 	CHECK_BOUNDS_HIGH_RTN (rSTR, rTMP2, twlge)
+ 	STORE_RETURN_VALUE (rSTR)
+Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
+===================================================================
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S.orig
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
+@@ -37,8 +37,8 @@ ENTRY (BP_SYM(strchr))
+ 	beq	cr7,L(null_match)
+ 
+ 	/* Replicate byte to doubleword.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrdi	r4,r4,8,48
++	insrdi	r4,r4,16,32
+ 	insrdi  r4,r4,32,0
+ 
+ 	/* Now r4 has a doubleword of c bytes and r0 has
+@@ -49,11 +49,17 @@ ENTRY (BP_SYM(strchr))
+ 
+ 	/* Move the doublewords left and right to discard the bits that are
+ 	   not part of the string and bring them back as zeros.  */
+-
++#ifdef __LITTLE_ENDIAN__
++	srd	r10,r10,r6
++	srd	r11,r11,r6
++	sld	r10,r10,r6
++	sld	r11,r11,r6
++#else
+ 	sld	r10,r10,r6
+ 	sld	r11,r11,r6
+ 	srd	r10,r10,r6
+ 	srd	r11,r11,r6
++#endif
+ 	or	r5,r10,r11    /* OR the results to speed things up.  */
+ 	cmpdi	cr7,r5,0      /* If r5 == 0, no c or null bytes
+ 				 have been found.  */
+@@ -110,15 +116,24 @@ L(loop):
+ 	mr	r11,r7
+ 	addi	r8,r8,8
+ 
+-	/* r5 has the output of the cmpb instruction, that is, it contains
++	/* r10/r11 have the output of the cmpb instructions, that is,
+ 	   0xff in the same position as the c/null byte in the original
+ 	   doubleword from the string.  Use that to calculate the pointer.  */
+ L(done):
+-	cntlzd	r4,r10	      /* Count leading zeroes before c matches.  */
+-	cntlzd	r0,r11	      /* Count leading zeroes before null matches.  */
+-	cmpld	cr7,r4,r0
++#ifdef __LITTLE_ENDIAN__
++	addi    r3,r10,-1
++	andc    r3,r3,r10
++	popcntd	r0,r3
++	addi    r4,r11,-1
++	andc    r4,r4,r11
++	cmpld	cr7,r3,r4
+ 	bgt	cr7,L(no_match)
+-	srdi	r0,r4,3	      /* Convert leading zeroes to bytes.  */
++#else
++	cntlzd	r0,r10	      /* Count leading zeros before c matches.  */
++	cmpld	cr7,r11,r10
++	bgt	cr7,L(no_match)
++#endif
++	srdi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of the matching c byte
+ 				 or null in case c was not found.  */
+ 	blr
+@@ -137,9 +152,13 @@ L(null_match):
+ 
+ 	/* Move the doublewords left and right to discard the bits that are
+ 	   not part of the string and bring them back as zeros.  */
+-
++#ifdef __LITTLE_ENDIAN__
++	srd	r5,r5,r6
++	sld	r5,r5,r6
++#else
+ 	sld	r5,r5,r6
+ 	srd	r5,r5,r6
++#endif
+ 	cmpdi	cr7,r5,0      /* If r10 == 0, no c or null bytes
+ 				 have been found.  */
+ 	bne	cr7,L(done_null)
+@@ -194,7 +213,13 @@ L(loop_null):
+ 	   0xff in the same position as the null byte in the original
+ 	   doubleword from the string.  Use that to calculate the pointer.  */
+ L(done_null):
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r5,-1
++	andc    r0,r0,r5
++	popcntd	r0,r0
++#else
+ 	cntlzd	r0,r5	      /* Count leading zeros before the match.  */
++#endif
+ 	srdi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of the matching null byte.  */
+ 	blr
+Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
+===================================================================
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S.orig
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
+@@ -29,8 +29,8 @@ ENTRY (BP_SYM(__strchrnul))
+ 	clrrdi	r8,r3,3	      /* Align the address to doubleword boundary.  */
+ 
+ 	/* Replicate byte to doubleword.  */
+-	rlwimi	r4,r4,8,16,23
+-	rlwimi	r4,r4,16,0,15
++	insrdi	r4,r4,8,48
++	insrdi	r4,r4,16,32
+ 	insrdi	r4,r4,32,0
+ 
+ 	rlwinm	r6,r3,3,26,28 /* Calculate padding.  */
+@@ -46,10 +46,17 @@ ENTRY (BP_SYM(__strchrnul))
+ 
+ 	/* Move the doublewords left and right to discard the bits that are
+ 	   not part of the string and to bring them back as zeros.  */
++#ifdef __LITTLE_ENDIAN__
++	srd	r10,r10,r6
++	srd	r9,r9,r6
++	sld	r10,r10,r6
++	sld	r9,r9,r6
++#else
+ 	sld	r10,r10,r6
+ 	sld	r9,r9,r6
+ 	srd	r10,r10,r6
+ 	srd	r9,r9,r6
++#endif
+ 	or	r5,r9,r10     /* OR the results to speed things up.  */
+ 	cmpdi	cr7,r5,0      /* If r5 == 0, no c or null bytes
+ 				 have been found.  */
+@@ -99,7 +106,7 @@ L(loop):
+ 	bne	cr6,L(done)
+ 
+ 	/* The c/null byte must be in the second doubleword.  Adjust the
+-	   address again and move the result of cmpb to r10 so we can calculate
++	   address again and move the result of cmpb to r5 so we can calculate
+ 	   the pointer.  */
+ 	mr	r5,r10
+ 	addi	r8,r8,8
+@@ -108,7 +115,13 @@ L(loop):
+ 	   0xff in the same position as the c/null byte in the original
+ 	   doubleword from the string.  Use that to calculate the pointer.  */
+ L(done):
++#ifdef __LITTLE_ENDIAN__
++	addi    r0,r5,-1
++	andc    r0,r0,r5
++	popcntd	r0,r0
++#else
+ 	cntlzd	r0,r5	      /* Count leading zeros before the match.  */
++#endif
+ 	srdi	r0,r0,3	      /* Convert leading zeros to bytes.  */
+ 	add	r3,r8,r0      /* Return address of matching c/null byte.  */
+ 	blr
+Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S
+===================================================================
+--- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S.orig
++++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S
+@@ -50,14 +50,16 @@ ENTRY (BP_SYM (strchr))
+ #define rIGN	r10	/* number of bits we should ignore in the first word */
+ #define rMASK	r11	/* mask with the bits to ignore set to 0 */
+ #define rTMP3	r12
++#define rTMP4	rIGN
++#define rTMP5	rMASK
+ 
+ 	CHECK_BOUNDS_LOW (rSTR, rTMP1, rTMP2)
+ 	STORE_RETURN_BOUNDS (rTMP1, rTMP2)
+ 
+ 	dcbt	0,rRTN
+-	rlwimi	rCHR, rCHR, 8, 16, 23
++	insrdi	rCHR, rCHR, 8, 48
+ 	li	rMASK, -1
+-	rlwimi	rCHR, rCHR, 16, 0, 15
++	insrdi	rCHR, rCHR, 16, 32
+ 	rlwinm	rIGN, rRTN, 3, 26, 28
+ 	insrdi	rCHR, rCHR, 32, 0
+ 	lis	rFEFE, -0x101
+@@ -70,53 +72,74 @@ ENTRY (BP_SYM (strchr))
+ 	add	rFEFE, rFEFE, rTMP1
+ /* Test the first (partial?) word.  */
+ 	ld	rWORD, 0(rSTR)
++#ifdef __LITTLE_ENDIAN__
++	sld	rMASK, rMASK, rIGN
++#else
+ 	srd	rMASK, rMASK, rIGN
++#endif
+ 	orc	rWORD, rWORD, rMASK
+ 	add	rTMP1, rFEFE, rWORD
+ 	nor	rTMP2, r7F7F, rWORD
+-	and.	rTMP1, rTMP1, rTMP2
++	and.	rTMP4, rTMP1, rTMP2
+ 	xor	rTMP3, rCHR, rWORD
+ 	orc	rTMP3, rTMP3, rMASK
+ 	b	L(loopentry)
+ 
+ /* The loop.  */
+ 
+-L(loop):ldu rWORD, 8(rSTR)
+-	and.	rTMP1, rTMP1, rTMP2
++L(loop):
++	ldu	rWORD, 8(rSTR)
++	and.	rTMP5, rTMP1, rTMP2
+ /* Test for 0.	*/
+-	add	rTMP1, rFEFE, rWORD
+-	nor	rTMP2, r7F7F, rWORD
++	add	rTMP1, rFEFE, rWORD /* x - 0x01010101.  */
++	nor	rTMP2, r7F7F, rWORD /* ~(x | 0x7f7f7f7f) == ~x & 0x80808080.  */
+ 	bne	L(foundit)
+-	and.	rTMP1, rTMP1, rTMP2
++	and.	rTMP4, rTMP1, rTMP2 /* (x - 0x01010101) & ~x & 0x80808080.  */
+ /* Start test for the bytes we're looking for.  */
+ 	xor	rTMP3, rCHR, rWORD
+ L(loopentry):
+ 	add	rTMP1, rFEFE, rTMP3
+ 	nor	rTMP2, r7F7F, rTMP3
+ 	beq	L(loop)
++
+ /* There is a zero byte in the word, but may also be a matching byte (either
+    before or after the zero byte).  In fact, we may be looking for a
+-   zero byte, in which case we return a match.  We guess that this hasn't
+-   happened, though.  */
+-L(missed):
+-	and.	rTMP1, rTMP1, rTMP2
++   zero byte, in which case we return a match.  */
++	and.	rTMP5, rTMP1, rTMP2
+ 	li	rRTN, 0
+ 	STORE_RETURN_VALUE (rSTR)
+ 	beqlr
+-/* It did happen. Decide which one was first...
+-   I'm not sure if this is actually faster than a sequence of
+-   rotates, compares, and branches (we use it anyway because it's shorter).  */
++/* At this point:
++   rTMP5 bytes are 0x80 for each match of c, 0 otherwise.
++   rTMP4 bytes are 0x80 for each match of 0, 0 otherwise.
++   But there may be false matches in the next most significant byte from
++   a true match due to carries.  This means we need to recalculate the
++   matches using a longer method for big-endian.  */
++#ifdef __LITTLE_ENDIAN__
++	addi	rTMP1, rTMP5, -1
++	andc	rTMP1, rTMP1, rTMP5
++	cntlzd	rCLZB, rTMP1
++	addi	rTMP2, rTMP4, -1
++	andc	rTMP2, rTMP2, rTMP4
++	cmpld	rTMP1, rTMP2
++	bgtlr
++	subfic	rCLZB, rCLZB, 64-7
++#else
++/* I think we could reduce this by two instructions by keeping the "nor"
++   results from the loop for reuse here.  See strlen.S tail.  Similarly
++   one instruction could be pruned from L(foundit).  */
+ 	and	rFEFE, r7F7F, rWORD
+-	or	rMASK, r7F7F, rWORD
++	or	rTMP5, r7F7F, rWORD
+ 	and	rTMP1, r7F7F, rTMP3
+-	or	rIGN, r7F7F, rTMP3
++	or	rTMP4, r7F7F, rTMP3
+ 	add	rFEFE, rFEFE, r7F7F
+ 	add	rTMP1, rTMP1, r7F7F
+-	nor	rWORD, rMASK, rFEFE
+-	nor	rTMP2, rIGN, rTMP1
++	nor	rWORD, rTMP5, rFEFE
++	nor	rTMP2, rTMP4, rTMP1
++	cntlzd	rCLZB, rTMP2
+ 	cmpld	rWORD, rTMP2
+ 	bgtlr
+-	cntlzd	rCLZB, rTMP2
++#endif
+ 	srdi	rCLZB, rCLZB, 3
+ 	add	rRTN, rSTR, rCLZB
+ 	CHECK_BOUNDS_HIGH_RTN (rSTR, rTMP2, tdlge)
+@@ -124,13 +147,21 @@ L(missed):
+ 	blr
+ 
+ L(foundit):
++#ifdef __LITTLE_ENDIAN__
++	addi	rTMP1, rTMP5, -1
++	andc	rTMP1, rTMP1, rTMP5
++	cntlzd	rCLZB, rTMP1
++	subfic	rCLZB, rCLZB, 64-7-64
++	sradi	rCLZB, rCLZB, 3
++#else
+ 	and	rTMP1, r7F7F, rTMP3
+-	or	rIGN, r7F7F, rTMP3
++	or	rTMP4, r7F7F, rTMP3
+ 	add	rTMP1, rTMP1, r7F7F
+-	nor	rTMP2, rIGN, rTMP1
++	nor	rTMP2, rTMP4, rTMP1
+ 	cntlzd	rCLZB, rTMP2
+ 	subi	rSTR, rSTR, 8
+ 	srdi	rCLZB, rCLZB, 3
++#endif
+ 	add	rRTN, rSTR, rCLZB
+ 	CHECK_BOUNDS_HIGH_RTN (rSTR, rTMP2, tdlge)
+ 	STORE_RETURN_VALUE (rSTR)
