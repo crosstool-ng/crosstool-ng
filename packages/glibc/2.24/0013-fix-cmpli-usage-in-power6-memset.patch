@@ -1,0 +1,56 @@
+From 78b7adbaea643f2f213bb113e3ec933416a769a8 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Tue, 25 Oct 2016 15:54:16 +0000
+Subject: [PATCH] Fix cmpli usage in power6 memset.
+
+Building glibc for powerpc64 with recent (2.27.51.20161012) binutils,
+with multi-arch enabled, I get the error:
+
+../sysdeps/powerpc/powerpc64/power6/memset.S: Assembler messages:
+../sysdeps/powerpc/powerpc64/power6/memset.S:254: Error: operand out of range (5 is not between 0 and 1)
+../sysdeps/powerpc/powerpc64/power6/memset.S:254: Error: operand out of range (128 is not between 0 and 31)
+../sysdeps/powerpc/powerpc64/power6/memset.S:254: Error: missing operand
+
+Indeed, cmpli is documented as a four-operand instruction, and looking
+at nearby code it seems likely cmpldi was intended.  This patch fixes
+this powerpc64 code accordingly, and makes a corresponding change to
+the powerpc32 code.
+
+Tested for powerpc, powerpc64 and powerpc64le by Tulio Magno Quites
+Machado Filho
+
+	* sysdeps/powerpc/powerpc32/power6/memset.S (memset): Use cmplwi
+	instead of cmpli.
+	* sysdeps/powerpc/powerpc64/power6/memset.S (memset): Use cmpldi
+	instead of cmpli.
+---
+ sysdeps/powerpc/powerpc32/power6/memset.S | 2 +-
+ sysdeps/powerpc/powerpc64/power6/memset.S | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/powerpc/powerpc32/power6/memset.S b/sysdeps/powerpc/powerpc32/power6/memset.S
+index b2a222edd22..d5dbe83af2f 100644
+--- a/sysdeps/powerpc/powerpc32/power6/memset.S
++++ b/sysdeps/powerpc/powerpc32/power6/memset.S
+@@ -394,7 +394,7 @@ L(cacheAlignedx):
+ /* A simple loop for the longer (>640 bytes) lengths.  This form limits
+    the branch miss-predicted to exactly 1 at loop exit.*/
+ L(cacheAligned512):
+-	cmpli	cr1,rLEN,128
++	cmplwi	cr1,rLEN,128
+ 	blt	cr1,L(cacheAligned1)
+ 	dcbz	0,rMEMP
+ 	addi	rLEN,rLEN,-128
+diff --git a/sysdeps/powerpc/powerpc64/power6/memset.S b/sysdeps/powerpc/powerpc64/power6/memset.S
+index c2d1c4e600c..d445b1e1ef1 100644
+--- a/sysdeps/powerpc/powerpc64/power6/memset.S
++++ b/sysdeps/powerpc/powerpc64/power6/memset.S
+@@ -251,7 +251,7 @@ L(cacheAlignedx):
+ /* A simple loop for the longer (>640 bytes) lengths.  This form limits
+    the branch miss-predicted to exactly 1 at loop exit.*/
+ L(cacheAligned512):
+-	cmpli	cr1,rLEN,128
++	cmpldi	cr1,rLEN,128
+ 	blt	cr1,L(cacheAligned1)
+ 	dcbz	0,rMEMP
+ 	addi	rLEN,rLEN,-128
