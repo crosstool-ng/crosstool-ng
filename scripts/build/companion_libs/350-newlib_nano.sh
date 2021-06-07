@@ -67,6 +67,9 @@ do_cc_libstdcxx_newlib_nano()
 	if [ "${CT_LIBC_NEWLIB_NANO_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
 	    final_opts+=( "enable_optspace=yes" )
 	fi
+        if [ -n "${CT_NEWLIB_NANO_GCC_LIBSTDCXX_TARGET_CXXFLAGS}" ]; then
+            final_opts+=( "extra_cxxflags_for_target=${CT_NEWLIB_NANO_GCC_LIBSTDCXX_TARGET_CXXFLAGS}" )
+        fi
 
         if [ "${CT_BARE_METAL}" = "y" ]; then
             final_opts+=( "mode=baremetal" )
