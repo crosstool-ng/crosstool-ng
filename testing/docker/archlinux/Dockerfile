@@ -1,4 +1,4 @@
-FROM archlinux/base:latest
+FROM archlinux:latest
 ARG CTNG_UID=1000
 ARG CTNG_GID=1000
 RUN pacman -Sy --noconfirm archlinux-keyring
