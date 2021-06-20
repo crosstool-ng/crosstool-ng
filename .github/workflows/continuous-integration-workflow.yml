@@ -49,8 +49,47 @@ jobs:
           path: config.log
         if: ${{ always() }}
 
-  toolchains:
+  tarballs:
     needs: crosstool
+    runs-on: ${{ matrix.host }}
+    strategy:
+      matrix:
+        host: [
+          "ubuntu-latest",
+        ]
+    steps:
+      - name: "download ct-ng"
+        uses: actions/download-artifact@v2
+        with:
+          name: crosstool.${{ matrix.host }}
+      - name: "extract ct-ng"
+        run: |
+          tar -xf ct-ng.tar
+      - name: "prereq Linux"
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt-get install -y gperf help2man libtool-bin
+          echo "$GITHUB_WORKSPACE/.local/bin" >> $GITHUB_PATH
+      - name: "ct-ng source"
+        run: |
+          mkdir -p src
+          for sample in aarch64-unknown-linux-gnu arm-picolibc-eabi \
+                arm-unknown-linux-musleabi armv6-nommu-linux-uclibcgnueabi; do \
+                ct-ng $sample; \
+                sed -i -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config; \
+                sed -i -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config; \
+                sed -i -e '/CT_PREFIX_DIR/s/HOME/CT_TOP_DIR/' .config; \
+                ct-ng source; \
+          done
+          tar -cvf src.tar src
+      - name: "upload sources"
+        uses: actions/upload-artifact@v2
+        with:
+          name: src.tar
+          path: src.tar
+
+  toolchains:
+    needs: [crosstool, tarballs]
     runs-on: ${{ matrix.host }}
     strategy:
       matrix:
@@ -108,6 +147,13 @@ jobs:
       - name: "extract ct-ng"
         run: |
           tar -xf ct-ng.tar
+      - name: "download tarballs"
+        uses: actions/download-artifact@v2
+        with:
+          name: src.tar
+      - name: "extract tarballs"
+        run: |
+          tar -xvf src.tar
       - name: "prereq Linux"
         if: ${{ runner.os == 'Linux' }}
         run: |
