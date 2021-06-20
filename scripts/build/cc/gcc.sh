@@ -397,11 +397,11 @@ do_gcc_core_backend() {
         extra_config+=("--disable-__cxa_atexit")
     fi
 
-    if [ "${CT_CC_GCC_TM_CLONE_REGISTRY}" = "y" ]; then
-        extra_config+=("--enable-tm-clone-registry")
-    else
-        extra_config+=("--disable-tm-clone-registry")
-    fi
+    case "${CT_CC_GCC_TM_CLONE_REGISTRY}" in
+        y) extra_config+=("--enable-tm-clone-registry");;
+        m) ;;
+        "") extra_config+=("--disable-tm-clone-registry");;
+    esac
 
     if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}" \
             -a "${mode}" = "baremetal" ]; then
@@ -1021,11 +1021,11 @@ do_gcc_backend() {
         extra_config+=("--disable-__cxa_atexit")
     fi
 
-    if [ "${CT_CC_GCC_TM_CLONE_REGISTRY}" = "y" ]; then
-        extra_config+=("--enable-tm-clone-registry")
-    else
-        extra_config+=("--disable-tm-clone-registry")
-    fi
+    case "${CT_CC_GCC_TM_CLONE_REGISTRY}" in
+        y) extra_config+=("--enable-tm-clone-registry");;
+        m) ;;
+        "") extra_config+=("--disable-tm-clone-registry");;
+    esac
 
     if [ -n "${CT_CC_GCC_ENABLE_CXX_FLAGS}" ]; then
         extra_config+=("--enable-cxx-flags=${CT_CC_GCC_ENABLE_CXX_FLAGS}")
