@@ -181,6 +181,7 @@ config GLIBC_CONFIGPARMS
 config GLIBC_EXTRA_CFLAGS
     string
     prompt "extra target CFLAGS"
+    default "-Wno-missing-attributes -Wno-array-bounds -Wno-array-parameter -Wno-stringop-overflow -Wno-maybe-uninitialized" if GLIBC_2_29_or_older && GCC_11_or_later
     default ""
     help
       Extra target CFLAGS to use when building.
@@ -415,5 +416,13 @@ config GLIBC_ENABLE_WERROR
       release (because newer compilers typically have better diagnostics).
 
 endif
+
+config GLIBC_ENABLE_COMMON_FLAG
+    bool "Enable -fcommon flag for older version of glibc when using GCC >=10"
+    default y if GLIBC_2_29_or_older && GCC_10_or_later
+    default n if GLIBC_2_30_or_later || GCC_9_or_older
+    help
+      Starting from GCC 10, the default behavior is changed to -fno-common.
+      That leads to linking errors in GLibc versions older than 2.30.
 
 endif # KERNEL_LINUX

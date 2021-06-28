@@ -201,6 +201,10 @@ glibc_backend_once()
     # glibc can't be built without -O2 (reference needed!)
     glibc_cflags+=" -g -O2"
 
+    if [ "${CT_GLIBC_ENABLE_COMMON_FLAG}" = "y" ]; then
+        glibc_cflags+=" -fcommon"
+    fi
+
     case "${CT_GLIBC_ENABLE_FORTIFIED_BUILD}" in
         y)  ;;
         *)  glibc_cflags+=" -U_FORTIFY_SOURCE";;
