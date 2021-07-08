@@ -1,0 +1,35 @@
+From 769efb97889e45df2601f4351259c127d5e9dfbb Mon Sep 17 00:00:00 2001
+From: Abraao de Santana <abraaocsantana@gmail.com>
+Date: Thu, 8 Jul 2021 15:26:04 -0300
+Subject: [PATCH] [android] Disables large files when unsupported
+
+libstdc++-v3/config/os/bionic
+        * os_defines.h: Undefines _FILE_OFFSET_BITS when it's 64-bit and Api Level < 24
+---
+ libstdc++-v3/config/os/bionic/os_defines.h | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/libstdc++-v3/config/os/bionic/os_defines.h b/libstdc++-v3/config/os/bionic/os_defines.h
+index c534838aea3..27605fa8baa 100644
+--- a/libstdc++-v3/config/os/bionic/os_defines.h
++++ b/libstdc++-v3/config/os/bionic/os_defines.h
+@@ -33,4 +33,16 @@
+ // System-specific #define, typedefs, corrections, etc, go here.  This
+ // file will come before all others.
+ 
++// If _FILE_OFFSET_BITS is 64 and __ANDROID_API__ < 24, there will be
++// errors of undefined fgetpos, fsetpos, fseeko and ftello because their
++// 64 bit versions are only available from Api Level 24 onwards.
++//
++// See https://github.com/android/ndk/issues/480
++//
++// See also
++// https://android.googlesource.com/platform/bionic/+/master/docs/32-bit-abi.md
++#if (_FILE_OFFSET_BITS == 64) && (__ANDROID_API__ < 24)
++#undef _FILE_OFFSET_BITS
++#endif
++
+ #endif
+-- 
+2.25.1
+
