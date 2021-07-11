@@ -186,10 +186,10 @@ do_binutils_backend() {
     CT_DoExecLog CFG                                            \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                              \
     CFLAGS_FOR_BUILD="${CT_CFLAGS_FOR_BUILD}"                   \
-    CXXFLAGS_FOR_BUILD="${CT_CFLAGS_FOR_BUILD}"                 \
+    CXXFLAGS_FOR_BUILD="${CT_CFLAGS_FOR_BUILD} ${CT_CXXFLAGS_FOR_BUILD}" \
     LDFLAGS_FOR_BUILD="${CT_LDFLAGS_FOR_BUILD}"                 \
     CFLAGS="${cflags}"                                          \
-    CXXFLAGS="${cflags}"                                        \
+    CXXFLAGS="${cflags} ${CT_CXXFLAGS_FOR_BUILD}"               \
     LDFLAGS="${ldflags}"                                        \
     ${CONFIG_SHELL}                                             \
     "${CT_SRC_DIR}/binutils/configure"                          \

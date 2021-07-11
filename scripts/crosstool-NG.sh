@@ -530,6 +530,7 @@ if [ -z "${CT_RESTART}" ]; then
     # package's default optimisation flags
     CT_CFLAGS_FOR_BUILD="-O2 -g -I${CT_BUILDTOOLS_PREFIX_DIR}/include"
     CT_CFLAGS_FOR_BUILD+=" ${CT_EXTRA_CFLAGS_FOR_BUILD}"
+    CT_CXXFLAGS_FOR_BUILD="${CT_EXTRA_CXXFLAGS_FOR_BUILD}"
     CT_LDFLAGS_FOR_BUILD="-L${CT_BUILDTOOLS_PREFIX_DIR}/lib"
     CT_LDFLAGS_FOR_BUILD+=" ${CT_EXTRA_LDFLAGS_FOR_BUILD}"
 
@@ -552,6 +553,7 @@ if [ -z "${CT_RESTART}" ]; then
     esac
 
     CT_DoLog DEBUG "CFLAGS for build compiler: '${CT_CFLAGS_FOR_BUILD}'"
+    CT_DoLog DEBUG "CXXFLAGS for build compiler: '${CT_CXXFLAGS_FOR_BUILD}'"
     CT_DoLog DEBUG "LDFLAGS for build compiler: '${CT_LDFLAGS_FOR_BUILD}'"
 
     # Help host gcc

@@ -295,7 +295,7 @@ do_gcc_core_backend() {
     local enable_optspace
     local complibs
     local lang_list
-    local cflags cflags_for_build cflags_for_target cxxflags_for_target
+    local cflags cflags_for_build cxxflags_for_build cflags_for_target cxxflags_for_target
     local extra_cxxflags_for_target
     local ldflags
     local build_step
@@ -587,6 +587,7 @@ do_gcc_core_backend() {
     # that ${cflags} may refer either to build or host CFLAGS; they are provided
     # by the caller.
     cflags_for_build="${CT_CFLAGS_FOR_BUILD}"
+    cxxflags_for_build="${CT_CXXFLAGS_FOR_BUILD}"
     cflags_for_target="${CT_TARGET_CFLAGS}"
 
     # Clang's default bracket-depth is 256, and building GCC
@@ -637,8 +638,8 @@ do_gcc_core_backend() {
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
     CFLAGS="${cflags}"                                 \
     CFLAGS_FOR_BUILD="${cflags_for_build}"             \
-    CXXFLAGS="${cflags}"                               \
-    CXXFLAGS_FOR_BUILD="${cflags_for_build}"           \
+    CXXFLAGS="${cflags} ${cxxflags_for_build}"         \
+    CXXFLAGS_FOR_BUILD="${cflags_for_build} ${cxxflags_for_build}" \
     LDFLAGS="${core_LDFLAGS[*]}"                       \
     CFLAGS_FOR_TARGET="${cflags_for_target}"           \
     CXXFLAGS_FOR_TARGET="${cxxflags_for_target}"       \
@@ -956,6 +957,7 @@ do_gcc_backend() {
     local lang_list
     local cflags
     local cflags_for_build
+    local cxxflags_for_build
     local cflags_for_target
     local cxxflags_for_target
     local extra_cxxflags_for_target
@@ -1231,6 +1233,7 @@ do_gcc_backend() {
 
     # We may need to modify host/build/target CFLAGS separately below
     cflags_for_build="${cflags}"
+    cxxflags_for_build="${CT_CXXFLAGS_FOR_BUILD}"
     cflags_for_target="${CT_TARGET_CFLAGS}"
 
     # Clang's default bracket-depth is 256, and building GCC
@@ -1266,8 +1269,8 @@ do_gcc_backend() {
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
     CFLAGS="${cflags}"                                 \
     CFLAGS_FOR_BUILD="${cflags_for_build}"             \
-    CXXFLAGS="${cflags}"                               \
-    CXXFLAGS_FOR_BUILD="${cflags_for_build}"           \
+    CXXFLAGS="${cflags} ${cxxflags_for_build}"         \
+    CXXFLAGS_FOR_BUILD="${cflags_for_build} ${cxxflags_for_build}" \
     LDFLAGS="${final_LDFLAGS[*]}"                      \
     CFLAGS_FOR_TARGET="${cflags_for_target}"           \
     CXXFLAGS_FOR_TARGET="${cxxflags_for_target}"       \
