@@ -7,7 +7,7 @@ pkglibexec_PROGRAMS    = conf nconf mconf
 
 EXTRA_DIST		= parser.y lexer.l \
 				  expr.h list.h lkc.h lkc_proto.h nconf.h lxdialog/dialog.h \
-				  confdata.c expr.c kconf_id.c menu.c symbol.c util.c
+				  menu.c
 
 CLEANFILES		= lexer.lex.c parser.tab.c parser.tab.h
 BUILT_SOURCES		= lexer.lex.c parser.tab.c
@@ -17,17 +17,20 @@ AM_YFLAGS		= -t -l
 AM_CPPFLAGS		= -include config.h -DCONFIG_=\"CT_\"
 AM_LIBTOOLFLAGS	= --tag CC
 
-conf_SOURCES    = conf.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c
+conf_SOURCES    = conf.c confdata.c expr.c symbol.c preprocess.c util.c
+nodist_conf_SOURCES = parser.tab.c lexer.lex.c
 conf_LDADD      = $(LIBINTL)
 
-nconf_SOURCES	= nconf.c nconf.gui.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c
+nconf_SOURCES	= nconf.c nconf.gui.c confdata.c expr.c symbol.c preprocess.c util.c
+nodist_nconf_SOURCES = parser.tab.c lexer.lex.c
 nconf_CFLAGS	= $(CURSES_CFLAGS)
 nconf_LDADD     = $(MENU_LIBS) $(PANEL_LIBS) $(CURSES_LIBS) $(LIBINTL)
 
-mconf_SOURCES	= mconf.c confdata.c expr.c symbol.c preprocess.c util.c lexer.lex.c parser.tab.c \
+mconf_SOURCES	= mconf.c confdata.c expr.c symbol.c preprocess.c util.c \
 				  lxdialog/checklist.c lxdialog/inputbox.c \
 				  lxdialog/menubox.c lxdialog/textbox.c lxdialog/util.c \
 				  lxdialog/yesno.c
+nodist_mconf_SOURCES = parser.tab.c lexer.lex.c
 mconf_LDADD     = $(CURSES_LIBS) $(LIBINTL)
 
 # automake's support for yacc/lex/gperf is too idiosyncratic. It doesn't
