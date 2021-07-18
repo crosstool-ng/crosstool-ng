@@ -230,10 +230,16 @@ do_gdb_backend()
     if [ "${static}" = "y" ]; then
         cflags+=" -static"
         ldflags+=" -static"
+        # There is no static libsource-highlight
+        extra_config+=("--disable-source-highlight")
     fi
     if [ "${static_libstdcxx}" = "y" ]; then
         ldflags+=" -static-libgcc"
         ldflags+=" -static-libstdc++"
+        # libsource-highlight is a dynamic library that uses exception
+        # exceptions are handled by libstdc++
+        # this combination is very buggy, so configure don't use it and abort
+        extra_config+=("--disable-source-highlight")
     fi
 
 
