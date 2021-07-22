@@ -24,7 +24,7 @@ do_gnuprumcu_for_target() {
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-gnuprumcu-target-${CT_TARGET}"
 
     gnuprumcu_opts+=( "destdir=${CT_SYSROOT_DIR}" )
-    gnuprumcu_opts+=( "host=${CT_HOST}" )
+    gnuprumcu_opts+=( "host=${CT_TARGET}" )
 
     gnuprumcu_opts+=( "cflags=${CT_ALL_TARGET_CFLAGS}" )
     gnuprumcu_opts+=( "prefix=${CT_PREFIX_DIR}" )
@@ -60,15 +60,14 @@ do_gnuprumcu_backend() {
     CT_DoLog EXTRA "Configuring gnuprumcu"
 
     CT_DoExecLog CFG                                        \
-    CC="${host}-gcc"                                        \
-    RANLIB="${host}-ranlib"                                 \
+    CC="${CT_TARGET}-${CT_CC}"                              \
+    RANLIB="${CT_TARGET}-ranlib"                            \
     CFLAGS="${cflags}"                                      \
     LDFLAGS="${ldflags}"                                    \
     ${CONFIG_SHELL}                                         \
     "${CT_SRC_DIR}/gnuprumcu/configure"                     \
         --build=${CT_BUILD}                                 \
-        --host=${host}                                      \
-        --target=${CT_TARGET}                               \
+        --host=${CT_TARGET}                                 \
         --prefix="${prefix}"                                \
         "${extra_config[@]}"
 
