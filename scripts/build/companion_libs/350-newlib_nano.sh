@@ -196,7 +196,33 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     CT_DoLog EXTRA "Installing Newlib Nano C library"
     CT_DoExecLog ALL make install
 
-    cat > "${CT_SYSROOT_DIR}/lib/nano.specs" <<EOF
+    if [ "${CT_NEWLIB_NANO_INSTALL_IN_TARGET}" = "y" ]; then
+        cat > "${CT_SYSROOT_DIR}/lib/nano.specs" <<EOF
+%rename link                nano_link
+%rename link_gcc_c_sequence nano_link_gcc_c_sequence
+%rename cpp_unique_options  nano_cpp_unique_options
+
+*cpp_unique_options:
+-isystem =/include/newlib-nano %(nano_cpp_unique_options)
+
+*nano_libc:
+-lc_nano
+
+*nano_libgloss:
+%{specs=rdimon.specs:-lrdimon_nano} %{specs=nosys.specs:-lnosys}
+
+*link_gcc_c_sequence:
+%(nano_link_gcc_c_sequence) --start-group %G %(nano_libc) %(nano_libgloss) --end-group
+
+*link:
+%(nano_link) %:replace-outfile(-lc -lc_nano) %:replace-outfile(-lg -lg_nano) %:replace-outfile(-lm -lm_nano) %:replace-outfile(-lstdc++ -lstdc++_nano) %:replace-outfile(-lsupc++ -lsupc++_nano) %:replace-outfile(-lrdimon -lrdimon_nano)
+
+*lib:
+%{!shared:%{g*:-lg_nano} %{!p:%{!pg:-lc_nano}}%{p:-lc_p}%{pg:-lc_p}}
+
+EOF
+    else
+        cat > "${CT_SYSROOT_DIR}/lib/nano.specs" <<EOF
 %rename link	newlib_nano_link
 %rename cpp	newlib_nano_cpp
 %rename cc1plus	newlib_nano_cc1plus
@@ -211,6 +237,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
 -L%:getenv(GCC_EXEC_PREFIX ../../newlib-nano/${CT_TARGET}/lib/%M) -L%:getenv(GCC_EXEC_PREFIX ../../newlib-nano/${CT_TARGET}/lib)
 
 EOF
+    fi
 
     # Create "nano" symlinks for libc.a, libg.a & libm.a
     CT_IterateMultilibs do_nano_libc_symlinks libc_symlinks
