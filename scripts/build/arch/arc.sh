@@ -13,23 +13,6 @@ CT_DoArchUClibcConfig()
     CT_DoArchUClibcSelectArch "${cfg}" "arc"
 }
 
-CT_DoArchUClibcCflags()
-{
-    local cfg="${1}"
-    local cflags="${2}"
-    local f
-
-    CT_KconfigDisableOption "CONFIG_ARC_HAS_ATOMICS" "${cfg}"
-
-    for f in ${cflags}; do
-        case "${f}" in
-            -matomic)
-                CT_KconfigEnableOption "CONFIG_ARC_HAS_ATOMICS" "${cfg}"
-                ;;
-        esac
-    done
-}
-
 # Multilib: Adjust configure arguments for GLIBC
 # Usage: CT_DoArchGlibcAdjustConfigure <configure-args-array-name> <cflags>
 #
