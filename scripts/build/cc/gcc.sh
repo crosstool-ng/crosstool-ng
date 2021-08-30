@@ -1130,6 +1130,11 @@ do_gcc_backend() {
     else
         extra_config+=("--disable-lto")
     fi
+    case "${CT_CC_GCC_LTO_ZSTD}" in
+        y) extra_config+=("--with-zstd");;
+        m) ;;
+        *) extra_config+=("--without-zstd");;
+    esac
 
     if [ ${#host_libstdcxx_flags[@]} -ne 0 ]; then
         extra_config+=("--with-host-libstdcxx=${host_libstdcxx_flags[*]}")
