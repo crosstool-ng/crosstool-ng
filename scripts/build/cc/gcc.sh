@@ -696,20 +696,8 @@ do_gcc_core_backend() {
         libgcc_rule="libgcc.mvars"
         core_targets=( gcc target-libgcc )
 
-        # On bare metal and canadian build the host-compiler is used when
-        # actually the build-system compiler is required. Choose the correct
-        # compilers for canadian build and use the defaults on other
-        # configurations.
-        if [ "${CT_BARE_METAL},${CT_CANADIAN}" = "y,y" ]; then
-            repair_cc="CC_FOR_BUILD=${CT_BUILD}-gcc \
-                       CXX_FOR_BUILD=${CT_BUILD}-g++ \
-                       GCC_FOR_TARGET=${CT_TARGET}-${CT_CC}"
-        else
-            repair_cc=""
-        fi
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C gcc ${libgcc_rule}
 
-        CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C gcc ${libgcc_rule} \
-                              ${repair_cc}
         sed -r -i -e 's@-lc@@g' gcc/${libgcc_rule}
     else # build_libgcc
         core_targets=( gcc )
