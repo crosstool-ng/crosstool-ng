@@ -1,0 +1,67 @@
+From 4bbb306263d4258b279d64a6012f5817aff87e56 Mon Sep 17 00:00:00 2001
+From: Shahab Vahedi <shahab@synopsys.com>
+Date: Wed, 15 Jan 2020 00:14:24 +0100
+Subject: [PATCH 15/20] gdb: Add default reggroups for ARC
+
+There is no reggroups set in ARC.  If a "maintenance print reggroups"
+command is issued, the default register set is dumped (which is fine).
+
+However, if a new group is added via an XML file, then that will
+become the _only_ group.  This behavior causes gdb.xml/tdesc-regs.exp
+to fail.
+
+Fixes gdb.xml/tdesc-regs.exp on ARC.
+
+gdb/ChangeLog:
+2020-01-15  Shahab Vahedi  <shahab@synopsys.com>
+
+	* arc-tdep.c (arc_add_reggroups): New function.
+	(arc_gdbarch_init): Call arc_add_reggroups.
+
+Will be a part of GDB 11:
+https://sourceware.org/git?p=binutils-gdb.git;a=commit;h=d0cc52bdf2e6a586cac70000518c95619970619b
+---
+ gdb/arc-tdep.c |   18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+--- a/gdb/arc-tdep.c
++++ b/gdb/arc-tdep.c
+@@ -27,6 +27,7 @@
+ #include "frame-base.h"
+ #include "frame-unwind.h"
+ #include "gdbcore.h"
++#include "reggroups.h"
+ #include "gdbcmd.h"
+ #include "objfiles.h"
+ #include "osabi.h"
+@@ -1979,6 +1980,20 @@
+   arc_frame_base_address
+ };
+ 
++/* Add all the expected register sets into GDBARCH.  */
++
++static void
++arc_add_reggroups (struct gdbarch *gdbarch)
++{
++  reggroup_add (gdbarch, general_reggroup);
++  reggroup_add (gdbarch, float_reggroup);
++  reggroup_add (gdbarch, system_reggroup);
++  reggroup_add (gdbarch, vector_reggroup);
++  reggroup_add (gdbarch, all_reggroup);
++  reggroup_add (gdbarch, save_reggroup);
++  reggroup_add (gdbarch, restore_reggroup);
++}
++
+ static enum arc_isa
+ mach_type_to_arc_isa (const unsigned long mach)
+ {
+@@ -2382,6 +2397,9 @@
+   /* This doesn't include possible long-immediate value.  */
+   set_gdbarch_max_insn_length (gdbarch, 4);
+ 
++  /* Add default register groups.  */
++  arc_add_reggroups (gdbarch);
++
+   /* Frame unwinders and sniffers.  */
+   dwarf2_frame_set_init_reg (gdbarch, arc_dwarf2_frame_init_reg);
+   dwarf2_append_unwinders (gdbarch);
