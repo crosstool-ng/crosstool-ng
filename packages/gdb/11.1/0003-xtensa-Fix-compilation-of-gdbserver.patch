@@ -1,0 +1,30 @@
+From 6f110500ed04148e3734f5b6a4fc573477c8398a Mon Sep 17 00:00:00 2001
+From: Alexey Brodkin <abrodkin@synopsys.com>
+Date: Tue, 24 Aug 2021 12:29:18 -0700
+Subject: [PATCH] xtensa: Fix compilation of gdbserver
+
+Otherwise a lot of errors like the following happen:
+--------------------------->8---------------------------------
+Error:     .../gdb/xtensa-linux-nat.c:66:17: error: 'gdbarch_pc_regnum' was not declared in this scope
+Error:     .../gdb/xtensa-linux-nat.c:68:17: error: 'gdbarch_ps_regnum' was not declared in this scope
+Error:     .../gdb/xtensa-linux-nat.c:71:38: error: no matching function for call to 'gdbarch_tdep::gdbarch_tdep(gdbarch*&)'
+...
+--------------------------->8---------------------------------
+
+Initially caught by https://github.com/crosstool-ng/crosstool-ng/pull/1573/checks?check_run_id=3361561567
+
+Signed-off-by: Alexey Brodkin <abrodkin@synopsys.com>
+---
+ gdb/xtensa-linux-nat.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+--- a/gdb/xtensa-linux-nat.c
++++ b/gdb/xtensa-linux-nat.c
+@@ -34,6 +34,7 @@
+ #include "nat/gdb_ptrace.h"
+ #include <asm/ptrace.h>
+ 
++#include "gdbarch.h"
+ #include "gregset.h"
+ #include "xtensa-tdep.h"
+ 
