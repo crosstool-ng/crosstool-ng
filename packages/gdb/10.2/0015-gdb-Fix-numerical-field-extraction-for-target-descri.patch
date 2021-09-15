@@ -1,0 +1,101 @@
+From b99b999fc7a0d0888b62e3bdedd0b4855bdf955c Mon Sep 17 00:00:00 2001
+From: Shahab Vahedi <shahab@synopsys.com>
+Date: Fri, 16 Jul 2021 16:49:15 +0200
+Subject: [PATCH 18/20] gdb: Fix numerical field extraction for target
+ description "flags"
+
+The "val_print_type_code_flags ()" function is responsible for
+extraction of fields for "flags" data type.  These data types are
+used when describing a custom register type in a target description
+XML.  The logic used for the extraction though is not sound:
+
+    unsigned field_len = TYPE_FIELD_BITSIZE (type, field);
+    ULONGEST field_val
+      = val >> (TYPE_FIELD_BITPOS (type, field) - field_len + 1);
+
+TYPE_FIELD_BITSIZE: The bit length of the field to be extracted.
+TYPE_FIELD_BITPOS:  The starting position of the field; 0 is LSB.
+val:                The register value.
+
+Imagine you have a field that starts at position 1 and its length
+is 4 bits.  According to the third line of the code snippet the
+shifting right would become "val >> -2", or "val >> 0xfff...fe"
+to be precise.  That will result in a "field_val" of 0.
+
+The correct extraction should be:
+
+    ULONGEST field_val = val >> TYPE_FIELD_BITPOS (type, field);
+
+The rest of the algorithm that masks out the higher bits is OK.
+
+Co-Authored-By: Simon Marchi <simon.marchi@efficios.com>
+
+Will be a part of GDB 11:
+https://sourceware.org/git?p=binutils-gdb.git;a=commit;h=c9bd98593b785d9bf5f39c7aa74ed0226a23b830
+---
+ gdb/valprint.c |   36 ++++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)
+
+--- a/gdb/valprint.c
++++ b/gdb/valprint.c
+@@ -40,6 +40,8 @@
+ #include "gdbarch.h"
+ #include "cli/cli-style.h"
+ #include "count-one-bits.h"
++#include "gdbsupport/selftest.h"
++#include "selftest-arch.h"
+ 
+ /* Maximum number of wchars returned from wchar_iterate.  */
+ #define MAX_WCHARS 4
+@@ -1157,8 +1159,7 @@
+ 	  else
+ 	    {
+ 	      unsigned field_len = TYPE_FIELD_BITSIZE (type, field);
+-	      ULONGEST field_val
+-		= val >> (TYPE_FIELD_BITPOS (type, field) - field_len + 1);
++	      ULONGEST field_val = val >> TYPE_FIELD_BITPOS (type, field);
+ 
+ 	      if (field_len < sizeof (ULONGEST) * TARGET_CHAR_BIT)
+ 		field_val &= ((ULONGEST) 1 << field_len) - 1;
+@@ -3100,10 +3101,41 @@
+   return {{value_print_option_defs}, opts};
+ }
+ 
++#if GDB_SELF_TEST
++
++/* Test printing of TYPE_CODE_FLAGS values.  */
++
++static void
++test_print_flags (gdbarch *arch)
++{
++  type *flags_type = arch_flags_type (arch, "test_type", 32);
++  type *field_type = builtin_type (arch)->builtin_uint32;
++
++  /* Value:  1010 1010
++     Fields: CCCB BAAA */
++  append_flags_type_field (flags_type, 0, 3, field_type, "A");
++  append_flags_type_field (flags_type, 3, 2, field_type, "B");
++  append_flags_type_field (flags_type, 5, 3, field_type, "C");
++
++  value *val = allocate_value (flags_type);
++  gdb_byte *contents = value_contents_writeable (val);
++  store_unsigned_integer (contents, 4, gdbarch_byte_order (arch), 0xaa);
++
++  string_file out;
++  val_print_type_code_flags (flags_type, val, 0, &out);
++  SELF_CHECK (out.string () == "[ A=2 B=1 C=5 ]");
++}
++
++#endif
++
+ void _initialize_valprint ();
+ void
+ _initialize_valprint ()
+ {
++#if GDB_SELF_TEST
++  selftests::register_test_foreach_arch ("print-flags", test_print_flags);
++#endif
++
+   cmd_list_element *cmd;
+ 
+   add_basic_prefix_cmd ("print", no_class,

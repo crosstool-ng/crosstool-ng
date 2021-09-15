@@ -1,0 +1,157 @@
+From 440ea08bbf4c81f97852785642c6a6f18bdd28a9 Mon Sep 17 00:00:00 2001
+From: Shahab Vahedi <shahab@synopsys.com>
+Date: Mon, 19 Jul 2021 16:13:47 +0200
+Subject: [PATCH 19/20] gdb: Make the builtin "boolean" type an unsigned type
+
+When printing the fields of a register that is of a custom struct type,
+the "unpack_bits_as_long ()" function is used:
+
+    do_val_print (...)
+      cp_print_value_fields (...)
+        value_field_bitfield (...)
+          unpack_value_bitfield (...)
+            unpack_bits_as_long (...)
+
+This function may sign-extend the extracted field while returning it:
+
+    val >>= lsbcount;
+
+    if (...)
+      {
+        valmask = (((ULONGEST) 1) << bitsize) - 1;
+        val &= valmask;
+        if (!field_type->is_unsigned ())
+  	  if (val & (valmask ^ (valmask >> 1)))
+  	      val |= ~valmask;
+      }
+
+    return val;
+
+lsbcount:   Number of lower bits to get rid of.
+bitsize:    The bit length of the field to be extracted.
+val:        The register value.
+field_type: The type of field that is being handled.
+
+While the logic here is correct, there is a problem when it is
+handling "field_type"s of "boolean".  Those types are NOT marked
+as "unsigned" and therefore they end up being sign extended.
+Although this is not a problem for "false" (0), it definitely
+causes trouble for "true".
+
+This patch constructs the builtin boolean type as such that it is
+marked as an "unsigned" entity.
+
+The issue tackled here was first encountered for arc-elf32 target
+running on an x86_64 machine.  The unit-test introduced in this change
+has passed for all the targets (--enable-targets=all) running on the
+same x86_64 host.
+
+Fixes: https://sourceware.org/PR28104
+
+Will be a part of GDB 11:
+https://sourceware.org/git?p=binutils-gdb.git;a=commit;h=91254b918f1b35359d44b567a15013c42a931460
+---
+ gdb/cp-valprint.c |   68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ gdb/gdbtypes.c    |    2 -
+ 2 files changed, 69 insertions(+), 1 deletion(-)
+
+--- a/gdb/cp-valprint.c
++++ b/gdb/cp-valprint.c
+@@ -38,6 +38,8 @@
+ #include "gdbsupport/byte-vector.h"
+ #include "gdbarch.h"
+ #include "cli/cli-style.h"
++#include "gdbsupport/selftest.h"
++#include "selftest-arch.h"
+ 
+ static struct obstack dont_print_vb_obstack;
+ static struct obstack dont_print_statmem_obstack;
+@@ -721,11 +723,77 @@
+     fprintf_filtered (stream, "%ld", (long) val);
+ }
+ 
++#if GDB_SELF_TEST
++
++/* Test printing of TYPE_CODE_STRUCT values.  */
++
++static void
++test_print_fields (gdbarch *arch)
++{
++  struct field *f;
++  type *uint8_type = builtin_type (arch)->builtin_uint8;
++  type *bool_type = builtin_type (arch)->builtin_bool;
++  type *the_struct = arch_composite_type (arch, NULL, TYPE_CODE_STRUCT);
++  TYPE_LENGTH (the_struct) = 4;
++
++  /* Value:  1110 1001
++     Fields: C-BB B-A- */
++  if (gdbarch_byte_order (arch) == BFD_ENDIAN_LITTLE)
++    {
++      f = append_composite_type_field_raw (the_struct, "A", bool_type);
++      SET_FIELD_BITPOS (*f, 1);
++      FIELD_BITSIZE (*f) = 1;
++      f = append_composite_type_field_raw (the_struct, "B", uint8_type);
++      SET_FIELD_BITPOS (*f, 3);
++      FIELD_BITSIZE (*f) = 3;
++      f = append_composite_type_field_raw (the_struct, "C", bool_type);
++      SET_FIELD_BITPOS (*f, 7);
++      FIELD_BITSIZE (*f) = 1;
++    }
++  /* According to the logic commented in "make_gdb_type_struct ()" of
++   * target-descriptions.c, bit positions are numbered differently for
++   * little and big endians.  */
++  else
++    {
++      f = append_composite_type_field_raw (the_struct, "A", bool_type);
++      SET_FIELD_BITPOS (*f, 30);
++      FIELD_BITSIZE (*f) = 1;
++      f = append_composite_type_field_raw (the_struct, "B", uint8_type);
++      SET_FIELD_BITPOS (*f, 26);
++      FIELD_BITSIZE (*f) = 3;
++      f = append_composite_type_field_raw (the_struct, "C", bool_type);
++      SET_FIELD_BITPOS (*f, 24);
++      FIELD_BITSIZE (*f) = 1;
++    }
++
++  value *val = allocate_value (the_struct);
++  gdb_byte *contents = value_contents_writeable (val);
++  store_unsigned_integer (contents, TYPE_LENGTH (value_enclosing_type (val)),
++			  gdbarch_byte_order (arch), 0xe9);
++
++  string_file out;
++  struct value_print_options opts;
++  get_no_prettyformat_print_options (&opts);
++  cp_print_value_fields(val, &out, 0, &opts, NULL, 0);
++  SELF_CHECK (out.string () == "{A = false, B = 5, C = true}");
++
++  out.clear();
++  opts.format = 'x';
++  cp_print_value_fields(val, &out, 0, &opts, NULL, 0);
++  SELF_CHECK (out.string () == "{A = 0x0, B = 0x5, C = 0x1}");
++}
++
++#endif
++
+ 
+ void _initialize_cp_valprint ();
+ void
+ _initialize_cp_valprint ()
+ {
++#if GDB_SELF_TEST
++  selftests::register_test_foreach_arch ("print-fields", test_print_fields);
++#endif
++
+   obstack_begin (&dont_print_stat_array_obstack,
+ 		 32 * sizeof (struct type *));
+   obstack_begin (&dont_print_statmem_obstack,
+--- a/gdb/gdbtypes.c
++++ b/gdb/gdbtypes.c
+@@ -5854,7 +5854,7 @@
+   builtin_type->builtin_string
+     = arch_type (gdbarch, TYPE_CODE_STRING, TARGET_CHAR_BIT, "string");
+   builtin_type->builtin_bool
+-    = arch_type (gdbarch, TYPE_CODE_BOOL, TARGET_CHAR_BIT, "bool");
++    = arch_boolean_type (gdbarch, TARGET_CHAR_BIT, 1, "bool");
+ 
+   /* The following three are about decimal floating point types, which
+      are 32-bits, 64-bits and 128-bits respectively.  */
