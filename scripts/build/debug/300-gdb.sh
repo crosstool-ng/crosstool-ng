@@ -129,10 +129,9 @@ do_debug_gdb_build()
 
         export ac_cv_func_strncmp_works=yes
 
-        # TBD do we need all these? Eg why do we disable TUI if we build curses for target?
+        # TBD do we need all these?
         native_extra_config+=(
             --without-uiout
-            --disable-tui
             --disable-gdbtk
             --without-x
             --disable-sim
@@ -201,10 +200,9 @@ do_debug_gdb_build()
 
         export ac_cv_func_strncmp_works=yes
 
-        # TBD do we need all these? Eg why do we disable TUI if we build curses for target?
+        # TBD do we need all these?
         native_extra_config+=(
             --without-uiout
-            --disable-tui
             --disable-gdbtk
             --without-x
             --disable-sim
