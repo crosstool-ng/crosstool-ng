@@ -1,0 +1,47 @@
+From 7f13ba28a4aac454ada29552acdf9a44697ad5a8 Mon Sep 17 00:00:00 2001
+From: Alexey Brodkin <abrodkin@synopsys.com>
+Date: Wed, 15 Sep 2021 01:08:06 -0700
+Subject: [PATCH] Fix cross-native/cross-caandian builds
+
+See upstream bug report [1] for more details.
+Basically when we do cross-canadian build with
+use of the same GCC11 as a "host" compiler we're seeing
+an error like that:
+------------------->8-------------------
+mingw-w64-cross/gcc/x86_64-w64-mingw32/libstdc++-v3/include/fenv.h:58:11: error: 'fenv_t' has not been declared in '::'
+   58 |   using ::fenv_t;
+------------------->8-------------------
+
+This is a solution proposed by Yujie Yang in [2]
+
+[1] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100017
+[2] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100017#c20
+
+Signed-off-by: Alexey Brodkin <abrodkin@synopsys.com>
+---
+ configure    |    2 +-
+ configure.ac |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+--- a/configure
++++ b/configure
+@@ -16478,7 +16478,7 @@
+ fi
+ 
+ 
+-RAW_CXX_FOR_TARGET="$CXX_FOR_TARGET"
++RAW_CXX_FOR_TARGET="$CXX_FOR_TARGET -nostdinc++"
+ 
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking where to find the target ar" >&5
+ $as_echo_n "checking where to find the target ar... " >&6; }
+--- a/configure.ac
++++ b/configure.ac
+@@ -3520,7 +3520,7 @@
+ ACX_CHECK_INSTALLED_TARGET_TOOL(WINDRES_FOR_TARGET, windres)
+ ACX_CHECK_INSTALLED_TARGET_TOOL(WINDMC_FOR_TARGET, windmc)
+ 
+-RAW_CXX_FOR_TARGET="$CXX_FOR_TARGET"
++RAW_CXX_FOR_TARGET="$CXX_FOR_TARGET -nostdinc++"
+ 
+ GCC_TARGET_TOOL(ar, AR_FOR_TARGET, AR, [binutils/ar])
+ GCC_TARGET_TOOL(as, AS_FOR_TARGET, AS, [gas/as-new])
