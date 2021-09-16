@@ -9,7 +9,7 @@ do_gmp_for_host() { :; }
 do_gmp_for_target() { :; }
 
 # Overide functions depending on configuration
-if [ "${CT_GMP}" = "y" ]; then
+if [ "${CT_GMP_TARGET}" = "y" -o  "${CT_GMP}" = "y" ]; then
 
 # Download GMP
 do_gmp_get() {
@@ -61,12 +61,40 @@ do_gmp_for_host() {
     CT_EndStep
 }
 
+if [ "${CT_GMP_TARGET}" = "y" ]; then
+do_gmp_for_target() {
+    local -a gmp_opts
+
+    CT_DoStep INFO "Installing GMP for target"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-gmp-target-${CT_HOST}"
+
+    gmp_opts+=( "host=${CT_TARGET}" )
+    case "${CT_TARGET}" in
+        *-*-mingw*)
+            prefix="/mingw"
+            ;;
+        *)
+            prefix="/usr"
+            ;;
+    esac
+    gmp_opts+=( "cflags=${CT_ALL_TARGET_CFLAGS}" )
+    gmp_opts+=( "prefix=${prefix}" )
+    gmp_opts+=( "destdir=${CT_SYSROOT_DIR}" )
+    gmp_opts+=( "shared=${CT_SHARED_LIBS}" )
+    do_gmp_backend "${gmp_opts[@]}"
+
+    CT_Popd
+    CT_EndStep
+}
+fi
+
 # Build GMP
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
+#     destdir       : install destination       : dir       : (none)
 do_gmp_backend() {
     local host
     local prefix
@@ -127,7 +155,7 @@ do_gmp_backend() {
     fi
 
     CT_DoLog EXTRA "Installing GMP"
-    CT_DoExecLog ALL make install
+    CT_DoExecLog ALL make install DESTDIR="${destdir}"
 }
 
 fi # CT_GMP
