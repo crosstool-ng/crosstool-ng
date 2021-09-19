@@ -116,6 +116,12 @@ do_debug_gdb_build()
 
         native_extra_config+=("--program-prefix=")
 
+        # gdbserver gets enabled by default with gdb
+        # since gdbserver was promoted to top-level
+        if [ "${CT_GDB_GDBSERVER_TOPLEVEL}" = "y" ]; then
+            native_extra_config+=("--disable-gdbserver")
+        fi
+
         # GDB on Mingw depends on PDcurses, not ncurses
         if [ "${CT_MINGW32}" != "y" ]; then
             native_extra_config+=("--with-curses")
@@ -185,6 +191,8 @@ do_debug_gdb_build()
 
         if [ "${CT_GDB_GDBSERVER_TOPLEVEL}" != "y" ]; then
             subdir=gdb/gdbserver/
+        else
+            native_extra_config+=("--disable-gdb")
         fi
 
         CT_DoStep INFO "Installing gdb server"
