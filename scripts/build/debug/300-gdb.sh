@@ -85,23 +85,21 @@ do_debug_gdb_build()
             CT_DoExecLog ALL make install-{pdf,html}-gdb
         fi
 
-        if [ "${CT_GDB_INSTALL_GDBINIT}" = "y" ]; then
-            CT_DoLog EXTRA "Installing '.gdbinit' template"
-            # See in scripts/build/internals.sh for why we do this
-            # TBD GCC 3.x and older not supported
-            if [ -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
-                gcc_version=$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER")
-            else
-                gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
-                                   "${CT_SRC_DIR}/gcc/gcc/version.c"   \
-                             )
-            fi
-            sed -r                                                  \
-                   -e "s:@@PREFIX@@:${CT_PREFIX_DIR}:;"             \
-                   -e "s:@@VERSION@@:${gcc_version}:;"              \
-                   "${CT_LIB_DIR}/scripts/build/debug/gdbinit.in"   \
-                   >"${CT_PREFIX_DIR}/share/gdb/gdbinit"
-        fi # Install gdbinit sample
+        CT_DoLog EXTRA "Installing '.gdbinit' template"
+        # See in scripts/build/internals.sh for why we do this
+        # TBD GCC 3.x and older not supported
+        if [ -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
+            gcc_version=$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER")
+        else
+            gcc_version=$(sed -r -e '/version_string/!d; s/^.+= "([^"]+)".*$/\1/;'   \
+                               "${CT_SRC_DIR}/gcc/gcc/version.c"   \
+                         )
+        fi
+        sed -r                                                  \
+               -e "s:@@PREFIX@@:${CT_PREFIX_DIR}:;"             \
+               -e "s:@@VERSION@@:${gcc_version}:;"              \
+               "${CT_LIB_DIR}/scripts/build/debug/gdbinit.in"   \
+               >"${CT_PREFIX_DIR}/share/gdb/gdbinit"
 
         CT_Popd
         CT_EndStep
@@ -271,10 +269,8 @@ do_gdb_backend()
         CT_DoExecLog ALL cp gdb/proc_service.h gdb/gdbserver/proc_service.h
     fi
 
-    if [ "${CT_GDB_HAS_PKGVERSION_BUGURL}" = "y" ]; then
-        [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
-        [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
-    fi
+    [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
+    [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
 
     # Disable binutils options when building from the binutils-gdb repo.
     extra_config+=("--disable-binutils")
