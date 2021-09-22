@@ -143,9 +143,10 @@ do_finish() {
         tarball="${CT_TARBALL_RESULT_DIR}/${CT_TARBALL_RESULT_FILENAME}.tar.xz"
         CT_DoLog EXTRA "Creating binary toolchain tarball: ${tarball}"
         cp "${CT_TOP_DIR}/.config" "${CT_PREFIX_DIR}/${CT_TOOLCHAIN_PKGVERSION}.config"
-        tar -C "${CT_PREFIX_DIR}" -Jcf "${tarball}" \
-            --sort=name --numeric-owner --owner=0 --group=0 \
-            --transform "s,^\./\.,${CT_TARBALL_RESULT_FILENAME},S" ./.
+        find "${CT_PREFIX_DIR}" -print0 | LC_ALL=C sort -z \
+            | tar --numeric-owner --owner=0 --group=0 \
+                  --transform "s,^\./\.,${CT_TARBALL_RESULT_FILENAME},S" \
+                  --no-recursion --null -T - -Jcf "${tarball}"
         CT_DoLog EXTRA "Calculating binary toolchain checksum"
         sha256sum "${tarball}" > "${tarball}.asc"
     fi
