@@ -202,6 +202,8 @@ do_cc_core_pass_1() {
     core_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     core_opts+=( "lang_list=c" )
     core_opts+=( "build_step=core1" )
+    core_opts+=( "mode=static" )
+    core_opts+=( "build_libgcc=yes" )
 
     CT_DoStep INFO "Installing pass-1 core C gcc compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core-pass-1"
