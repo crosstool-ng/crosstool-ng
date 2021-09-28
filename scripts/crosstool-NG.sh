@@ -733,11 +733,11 @@ if [ "${CT_LOG_TO_FILE}" = "y" ]; then
     fi
 fi
 if [ "${CT_PREFIX_DIR_RO}" = "y" ]; then
-    chmod -R a-w "${CT_PREFIX_DIR}"
+    chmod -R a-w "${CT_PREFIX_DIR}" || true
 fi
 # CT_TEST_SUITE_DIR may not exist if only downloading or extracting
 if [ "${CT_TEST_SUITE}" = "y" -a -d "${CT_TEST_SUITE_DIR}" ]; then
-    chmod -R u+w "${CT_TEST_SUITE_DIR}"
+    chmod -R u+w "${CT_TEST_SUITE_DIR}" || true
 fi
 
 trap - EXIT
