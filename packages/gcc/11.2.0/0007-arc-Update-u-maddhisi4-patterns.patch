@@ -1,0 +1,115 @@
+From b3873d67e4e8a1f16efbfa6ad7d73b9809bb2dd2 Mon Sep 17 00:00:00 2001
+From: Claudiu Zissulescu <claziss@synopsys.com>
+Date: Thu, 30 Sep 2021 14:08:39 +0300
+Subject: [PATCH] arc: Update (u)maddhisi4 patterns
+
+The (u)maddsihi4 patterns are using the ARC's VMAC2H(U)
+instruction with null destination, however, VMAC2H(U) doesn't
+rewrite the accumulator.  This patch solves the destination issue
+of VMAC2H by using the accumulator, and is using a
+define_insn_and_split to generate the extra move from the
+accumulator to the destination register.
+
+gcc/
+
+	* config/arc/arc.md (maddhisi4): Use a single move to accumulator.
+	(umaddhisi4): Likewise.
+	(machi): Convert it to an define_insn_and_split pattern.
+	(umachi): Likewise.
+
+See for more details: https://github.com/foss-for-synopsys-dwc-arc-processors/toolchain/issues/427
+
+Signed-off-by: Claudiu Zissulescu <claziss@synopsys.com>
+---
+ gcc/config/arc/arc.md |   57 +++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 40 insertions(+), 17 deletions(-)
+
+--- a/gcc/config/arc/arc.md
++++ b/gcc/config/arc/arc.md
+@@ -6051,26 +6051,37 @@
+ (define_expand "maddhisi4"
+   [(match_operand:SI 0 "register_operand" "")
+    (match_operand:HI 1 "register_operand" "")
+-   (match_operand:HI 2 "extend_operand"   "")
++   (match_operand:HI 2 "register_operand" "")
+    (match_operand:SI 3 "register_operand" "")]
+   "TARGET_PLUS_MACD"
+   "{
+    rtx acc_reg = gen_rtx_REG (SImode, ACC_REG_FIRST);
+ 
+    emit_move_insn (acc_reg, operands[3]);
+-   emit_insn (gen_machi (operands[1], operands[2]));
+-   emit_move_insn (operands[0], acc_reg);
++   emit_insn (gen_machi (operands[0], operands[1], operands[2]));
+    DONE;
+   }")
+ 
+-(define_insn "machi"
+-  [(set (reg:SI ARCV2_ACC)
++(define_insn_and_split "machi"
++  [(set (match_operand:SI 0 "register_operand" "=Ral,r")
+ 	(plus:SI
+-	 (mult:SI (sign_extend:SI (match_operand:HI 0 "register_operand" "%r"))
+-		  (sign_extend:SI (match_operand:HI 1 "register_operand" "r")))
+-	 (reg:SI ARCV2_ACC)))]
++	 (mult:SI (sign_extend:SI (match_operand:HI 1 "register_operand" "%r,r"))
++		  (sign_extend:SI (match_operand:HI 2 "register_operand" "r,r")))
++	 (reg:SI ARCV2_ACC)))
++   (clobber (reg:DI ARCV2_ACC))]
+   "TARGET_PLUS_MACD"
+-  "vmac2h\\t0,%0,%1"
++  "@
++   vmac2h\\t%0,%1,%2
++   #"
++  "&& reload_completed && (REGNO (operands[0]) != ACCL_REGNO)"
++  [(parallel
++    [(set (reg:SI ARCV2_ACC)
++	  (plus:SI (mult:SI (sign_extend:SI (match_dup 1))
++			    (sign_extend:SI (match_dup 2)))
++		   (reg:SI ARCV2_ACC)))
++     (clobber (reg:DI ARCV2_ACC))])
++   (set (match_dup 0) (reg:SI ARCV2_ACC))]
++  ""
+   [(set_attr "length" "4")
+    (set_attr "type" "multi")
+    (set_attr "predicable" "no")
+@@ -6087,19 +6098,31 @@
+    rtx acc_reg = gen_rtx_REG (SImode, ACC_REG_FIRST);
+ 
+    emit_move_insn (acc_reg, operands[3]);
+-   emit_insn (gen_umachi (operands[1], operands[2]));
+-   emit_move_insn (operands[0], acc_reg);
++   emit_insn (gen_umachi (operands[0], operands[1], operands[2]));
+    DONE;
+   }")
+ 
+-(define_insn "umachi"
+-  [(set (reg:SI ARCV2_ACC)
++
++(define_insn_and_split "umachi"
++  [(set (match_operand:SI 0 "register_operand" "=Ral,r")
+ 	(plus:SI
+-	 (mult:SI (zero_extend:SI (match_operand:HI 0 "register_operand" "%r"))
+-		  (zero_extend:SI (match_operand:HI 1 "register_operand" "r")))
+-	 (reg:SI ARCV2_ACC)))]
++	 (mult:SI (zero_extend:SI (match_operand:HI 1 "register_operand" "%r,r"))
++		  (zero_extend:SI (match_operand:HI 2 "register_operand" "r,r")))
++	 (reg:SI ARCV2_ACC)))
++   (clobber (reg:DI ARCV2_ACC))]
+   "TARGET_PLUS_MACD"
+-  "vmac2hu\\t0,%0,%1"
++  "@
++   vmac2hu\\t%0,%1,%2
++   #"
++  "&& reload_completed && (REGNO (operands[0]) != ACCL_REGNO)"
++  [(parallel
++    [(set (reg:SI ARCV2_ACC)
++	  (plus:SI (mult:SI (zero_extend:SI (match_dup 1))
++			    (zero_extend:SI (match_dup 2)))
++		   (reg:SI ARCV2_ACC)))
++     (clobber (reg:DI ARCV2_ACC))])
++   (set (match_dup 0) (reg:SI ARCV2_ACC))]
++  ""
+   [(set_attr "length" "4")
+    (set_attr "type" "multi")
+    (set_attr "predicable" "no")

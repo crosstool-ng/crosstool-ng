@@ -1,0 +1,126 @@
+From e73e3c3eaf2c3ea45083dda5dc4b7d29f6a03238 Mon Sep 17 00:00:00 2001
+From: Claudiu Zissulescu <claziss@synopsys.com>
+Date: Wed, 6 Oct 2021 09:47:50 +0300
+Subject: [PATCH] arc: Fix maddhisi patterns
+
+See for more details: https://github.com/foss-for-synopsys-dwc-arc-processors/toolchain/issues/429
+
+---
+ gcc/config/arc/arc.md                 |   43 +++++++---------------------------
+ gcc/testsuite/gcc.target/arc/tmac-4.c |   29 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 33 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/arc/tmac-4.c
+
+--- a/gcc/config/arc/arc.md
++++ b/gcc/config/arc/arc.md
+@@ -6055,33 +6055,22 @@
+    (match_operand:SI 3 "register_operand" "")]
+   "TARGET_PLUS_MACD"
+   "{
+-   rtx acc_reg = gen_rtx_REG (SImode, ACC_REG_FIRST);
++   rtx acc_reg = gen_rtx_REG (SImode, ACCL_REGNO);
+ 
+    emit_move_insn (acc_reg, operands[3]);
+-   emit_insn (gen_machi (operands[0], operands[1], operands[2]));
++   emit_insn (gen_machi (operands[0], operands[1], operands[2], acc_reg));
+    DONE;
+   }")
+ 
+-(define_insn_and_split "machi"
++(define_insn "machi"
+   [(set (match_operand:SI 0 "register_operand" "=Ral,r")
+ 	(plus:SI
+ 	 (mult:SI (sign_extend:SI (match_operand:HI 1 "register_operand" "%r,r"))
+ 		  (sign_extend:SI (match_operand:HI 2 "register_operand" "r,r")))
+-	 (reg:SI ARCV2_ACC)))
++	 (match_operand:SI 3 "accl_operand" "")))
+    (clobber (reg:DI ARCV2_ACC))]
+   "TARGET_PLUS_MACD"
+-  "@
+-   vmac2h\\t%0,%1,%2
+-   #"
+-  "&& reload_completed && (REGNO (operands[0]) != ACCL_REGNO)"
+-  [(parallel
+-    [(set (reg:SI ARCV2_ACC)
+-	  (plus:SI (mult:SI (sign_extend:SI (match_dup 1))
+-			    (sign_extend:SI (match_dup 2)))
+-		   (reg:SI ARCV2_ACC)))
+-     (clobber (reg:DI ARCV2_ACC))])
+-   (set (match_dup 0) (reg:SI ARCV2_ACC))]
+-  ""
++  "dmach\\t%0,%1,%2"
+   [(set_attr "length" "4")
+    (set_attr "type" "multi")
+    (set_attr "predicable" "no")
+@@ -6095,34 +6084,22 @@
+    (match_operand:SI 3 "register_operand" "")]
+   "TARGET_PLUS_MACD"
+   "{
+-   rtx acc_reg = gen_rtx_REG (SImode, ACC_REG_FIRST);
++   rtx acc_reg = gen_rtx_REG (SImode, ACCL_REGNO);
+ 
+    emit_move_insn (acc_reg, operands[3]);
+-   emit_insn (gen_umachi (operands[0], operands[1], operands[2]));
++   emit_insn (gen_umachi (operands[0], operands[1], operands[2], acc_reg));
+    DONE;
+   }")
+ 
+-
+-(define_insn_and_split "umachi"
++(define_insn "umachi"
+   [(set (match_operand:SI 0 "register_operand" "=Ral,r")
+ 	(plus:SI
+ 	 (mult:SI (zero_extend:SI (match_operand:HI 1 "register_operand" "%r,r"))
+ 		  (zero_extend:SI (match_operand:HI 2 "register_operand" "r,r")))
+-	 (reg:SI ARCV2_ACC)))
++	 (match_operand:SI 3 "accl_operand" "")))
+    (clobber (reg:DI ARCV2_ACC))]
+   "TARGET_PLUS_MACD"
+-  "@
+-   vmac2hu\\t%0,%1,%2
+-   #"
+-  "&& reload_completed && (REGNO (operands[0]) != ACCL_REGNO)"
+-  [(parallel
+-    [(set (reg:SI ARCV2_ACC)
+-	  (plus:SI (mult:SI (zero_extend:SI (match_dup 1))
+-			    (zero_extend:SI (match_dup 2)))
+-		   (reg:SI ARCV2_ACC)))
+-     (clobber (reg:DI ARCV2_ACC))])
+-   (set (match_dup 0) (reg:SI ARCV2_ACC))]
+-  ""
++  "dmachu\\t%0,%1,%2"
+   [(set_attr "length" "4")
+    (set_attr "type" "multi")
+    (set_attr "predicable" "no")
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/arc/tmac-4.c
+@@ -0,0 +1,29 @@
++/* { dg-do compile } */
++/* { dg-skip-if "" { ! { clmcpu } } } */
++/* { dg-options "-O3 -mbig-endian -mcpu=hs38" } */
++
++struct a {};
++struct b {
++  int c;
++  int d;
++};
++
++struct {
++  struct a e;
++  struct b f[];
++} g;
++short h;
++
++extern void bar (int *);
++
++int foo(void)
++{
++  struct b *a;
++  for (;;)
++    {
++      a = &g.f[h];
++      bar(&a->d);
++    }
++}
++
++/* { dg-final { scan-assembler "dmach" } } */
