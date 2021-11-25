@@ -1,0 +1,39 @@
+Fix build on MacOS 12 (Xcode 13)
+see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=92061 for details
+
+---
+ gcc/genconditions.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+--- a/gcc/genconditions.c
++++ b/gcc/genconditions.c
+@@ -57,8 +57,9 @@ write_header (void)
+ \n\
+ /* It is necessary, but not entirely safe, to include the headers below\n\
+    in a generator program.  As a defensive measure, don't do so when the\n\
+-   table isn't going to have anything in it.  */\n\
+-#if GCC_VERSION >= 3001\n\
++   table isn't going to have anything in it.\n\
++   Clang 9 is buggy and doesn't handle __builtin_constant_p correctly.  */\n\
++#if GCC_VERSION >= 3001 && __clang_major__ < 9\n\
+ \n\
+ /* Do not allow checking to confuse the issue.  */\n\
+ #undef CHECKING_P\n\
+@@ -170,7 +171,7 @@ struct c_test\n\
+    vary at run time.  It works in 3.0.1 and later; 3.0 only when not\n\
+    optimizing.  */\n\
+ \n\
+-#if GCC_VERSION >= 3001\n\
++#if GCC_VERSION >= 3001 && __clang_major__ < 9\n\
+ static const struct c_test insn_conditions[] = {\n");
+
+   traverse_c_tests (write_one_condition, 0);
+@@ -191,7 +192,7 @@ write_writer (void)
+ 	"  unsigned int i;\n"
+         "  const char *p;\n"
+         "  puts (\"(define_conditions [\");\n"
+-	"#if GCC_VERSION >= 3001\n"
++	"#if GCC_VERSION >= 3001 && __clang_major__ < 9\n"
+ 	"  for (i = 0; i < ARRAY_SIZE (insn_conditions); i++)\n"
+ 	"    {\n"
+ 	"      printf (\"  (%d \\\"\", insn_conditions[i].value);\n"
