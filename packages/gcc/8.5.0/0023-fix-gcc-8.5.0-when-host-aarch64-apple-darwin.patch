@@ -1,0 +1,95 @@
+From 77b59ee11bfb93856acd4cd4e912d93da304e0e2 Mon Sep 17 00:00:00 2001
+From: Meepo <NightBalance@yeah.net>
+Date: Sat, 25 Dec 2021 18:22:10 +0800
+Subject: [PATCH] fix: gcc 8.5.0 when host aarch64-apple-darwin
+
+---
+ gcc/config.host                          |  8 ++++-
+ gcc/config/aarch64/host-aarch64-darwin.c | 37 ++++++++++++++++++++++++
+ gcc/config/aarch64/x-darwin              |  4 +++
+ 3 files changed, 48 insertions(+), 1 deletion(-)
+ create mode 100644 gcc/config/aarch64/host-aarch64-darwin.c
+ create mode 100644 gcc/config/aarch64/x-darwin
+
+diff --git a/gcc/config.host b/gcc/config.host
+index c65569da2e9..380571389bb 100644
+--- a/gcc/config.host
++++ b/gcc/config.host
+@@ -99,7 +99,7 @@ case ${host} in
+ esac
+ 
+ case ${host} in
+-  aarch64*-*-freebsd* | aarch64*-*-linux* | aarch64*-*-fuchsia*)
++  aarch64*-*-freebsd* | aarch64*-*-linux* | aarch64*-*-fuchsia* | aarch64*-*-darwin*)
+     case ${target} in
+       aarch64*-*-*)
+ 	host_extra_gcc_objs="driver-aarch64.o"
+@@ -255,6 +255,12 @@ case ${host} in
+     host_extra_gcc_objs="${host_extra_gcc_objs} driver-mingw32.o"
+     host_lto_plugin_soname=liblto_plugin-0.dll
+     ;;
++  
++  aarch64*-*-darwin*)
++    out_host_hook_obj="${out_host_hook_obj} host-aarch64-darwin.o"
++    host_xmake_file="${host_xmake_file} aarch64/x-darwin"
++    ;;
++
+   i[34567]86-*-darwin* | x86_64-*-darwin*)
+     out_host_hook_obj="${out_host_hook_obj} host-i386-darwin.o"
+     host_xmake_file="${host_xmake_file} i386/x-darwin"
+diff --git a/gcc/config/aarch64/host-aarch64-darwin.c b/gcc/config/aarch64/host-aarch64-darwin.c
+new file mode 100644
+index 00000000000..741e7feaea6
+--- /dev/null
++++ b/gcc/config/aarch64/host-aarch64-darwin.c
+@@ -0,0 +1,37 @@
++
++/* aarch64/arm64-darwin host-specific hook definitions.
++
++   Copyright The GNU Toolchain Authors.
++
++   This file is part of GCC.
++
++   GCC is free software; you can redistribute it and/or modify it under
++   the terms of the GNU General Public License as published by the Free
++   Software Foundation; either version 3, or (at your option) any later
++   version.
++
++   GCC is distributed in the hope that it will be useful, but WITHOUT ANY
++   WARRANTY; without even the implied warranty of MERCHANTABILITY or
++   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++   for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with GCC; see the file COPYING3.  If not see
++   <http://www.gnu.org/licenses/>. 
++ */
++
++#define IN_TARGET_CODE 1
++
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "hosthooks.h"
++#include "hosthooks-def.h"
++#include "config/host-darwin.h"
++
++/* Darwin doesn't do anything special for arm64/aarch64 hosts; this file
++   exists just to include the generic config/host-darwin.h.
++ */
++
++const struct host_hooks host_hooks = HOST_HOOKS_INITIALIZER;
++
+diff --git a/gcc/config/aarch64/x-darwin b/gcc/config/aarch64/x-darwin
+new file mode 100644
+index 00000000000..62324999b2f
+--- /dev/null
++++ b/gcc/config/aarch64/x-darwin
+@@ -0,0 +1,4 @@
++host-aarch64-darwin.o : $(srcdir)/config/aarch64/host-aarch64-darwin.c \
++       $(COMPILE) $<
++       $(POSTCOMPILE)
++
+-- 
+2.32.0 (Apple Git-132)
+
