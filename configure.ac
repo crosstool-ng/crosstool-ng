@@ -169,6 +169,12 @@ CTNG_CPU_COUNT
 
 CTNG_PATH_TOOL_REQ([PATCH], [gpatch patch], [patch])
 
+# Ensure the detected patch supports --no-backup-if-mismatch (BSD patch does not)
+AC_MSG_CHECKING([whether patch supports --no-backup-if-mismatch])
+AS_IF([$PATCH --no-backup-if-mismatch </dev/null >/dev/null 2>&1],
+      AC_MSG_RESULT([yes]),
+      AC_MSG_ERROR([$PATCH does not support --no-backup-if-mismatch]))
+
 # We need a bash that is >= 3.1
 CTNG_PROG_VERSION_REQ_STRICT([BASH_SHELL],
     [GNU bash >= 3.1],
