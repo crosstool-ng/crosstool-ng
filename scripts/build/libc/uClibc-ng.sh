@@ -3,21 +3,21 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 # Build and install headers and start files
-uClibc_start_files()
+uClibc_ng_start_files()
 {
     # Start files and Headers should be configured the same way as the
     # final libc, but built and installed differently.
-    uClibc_backend libc_mode=startfiles
+    uClibc_ng_backend libc_mode=startfiles
 }
 
 # This function builds and install the full C library
-uClibc_main()
+uClibc_ng_main()
 {
-    uClibc_backend libc_mode=final
+    uClibc_ng_backend libc_mode=final
 }
 
 # Common backend for 1st and 2nd passes.
-uClibc_backend()
+uClibc_ng_backend()
 {
     local libc_mode
     local arg
@@ -33,32 +33,25 @@ uClibc_backend()
     esac
 
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs uClibc_backend_once multilib libc_mode="${libc_mode}"
+    CT_IterateMultilibs uClibc_ng_backend_once multilib libc_mode="${libc_mode}"
     CT_Popd
     CT_EndStep
 }
 
 # Common backend for 1st and 2nd passes, once per multilib.
-uClibc_backend_once()
+uClibc_ng_backend_once()
 {
     local libc_mode
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
     local multilib_dir startfiles_dir
-    local jflag=${CT_LIBC_UCLIBC_PARALLEL:+${CT_JOBSFLAGS}}
+    local jflag=${CT_JOBSFLAGS}
     local -a make_args
     local extra_cflags f cfg_cflags cf
     local hdr_install_subdir
-    local uClibc_name
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
-
-    if [ "${CT_UCLIBC_USE_UCLIBC_NG_ORG}" = "y" ]; then
-        uClibc_name="uClibc-ng"
-    elif [ "${CT_UCLIBC_USE_UCLIBC_ORG}" = "y" ]; then
-        uClibc_name="uClibc"
-    fi
 
     CT_DoStep INFO "Building for multilib ${multi_index}/${multi_count}: '${multi_flags}'"
 
@@ -86,7 +79,7 @@ uClibc_backend_once()
 
     # Simply copy files until uClibc has the ability to build out-of-tree
     CT_DoLog EXTRA "Copying sources to build dir"
-    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc/." .
+    CT_DoExecLog ALL cp -av "${CT_SRC_DIR}/uClibc-ng/." .
 
     # Force the date of the pregen locale data, as the
     # newer ones that are referenced are not available
@@ -94,7 +87,7 @@ uClibc_backend_once()
 
     # Use the default config if the user did not provide one.
     if [ -z "${CT_LIBC_UCLIBC_CONFIG_FILE}" ]; then
-        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/packages/${uClibc_name}/config"
+        CT_LIBC_UCLIBC_CONFIG_FILE="${CT_LIB_DIR}/packages/uClibc-ng/config"
     fi
 
     manage_uClibc_config "${CT_LIBC_UCLIBC_CONFIG_FILE}" .config "${multi_flags}"
@@ -350,28 +343,19 @@ manage_uClibc_config()
     CT_KconfigDisableOption "LINUXTHREADS_OLD" "${dst}"
     CT_KconfigDisableOption "LINUXTHREADS_NEW" "${dst}"
     CT_KconfigDisableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
-    case "${CT_THREADS}:${CT_LIBC_UCLIBC_LNXTHRD}" in
-        none:)
+    case "${CT_THREADS}" in
+        none)
             ;;
-        linuxthreads:)
-            # Newer version of uClibc-ng, no old/new dichotomy
+        linuxthreads)
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
             CT_KconfigEnableOption "UCLIBC_HAS_LINUXTHREADS" "${dst}"
             ;;
-        linuxthreads:old)
-            CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
-            CT_KconfigEnableOption "LINUXTHREADS_OLD" "${dst}"
-            ;;
-        linuxthreads:new)
-            CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
-            CT_KconfigEnableOption "LINUXTHREADS_NEW" "${dst}"
-            ;;
-        nptl:)
+        nptl)
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS" "${dst}"
             CT_KconfigEnableOption "UCLIBC_HAS_THREADS_NATIVE" "${dst}"
             ;;
         *)
-            CT_Abort "Incorrect thread settings: CT_THREADS='${CT_THREAD}' CT_LIBC_UCLIBC_LNXTHRD='${CT_LIBC_UCLIBC_LNXTHRD}'"
+            CT_Abort "Incorrect thread settings: CT_THREADS='${CT_THREADS}'"
             ;;
     esac
 
@@ -420,7 +404,7 @@ manage_uClibc_config()
     CT_DoExecLog ALL cp "${dst}" "${dst}.created-by-ct-ng"
 }
 
-uClibc_post_cc()
+uClibc_ng_post_cc()
 {
     # uClibc and GCC disagree where the dynamic linker lives. uClibc always
     # places it in the MULTILIB_DIR, while gcc does that for *some* variants
