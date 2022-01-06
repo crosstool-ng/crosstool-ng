@@ -128,7 +128,7 @@ samples:
 
 # Save a sample
 saveconfig: .config samples
-	$(SILENT)CT_VCHECK=save CONF=$(CONF) $(bash) $(CT_LIB_DIR)/scripts/saveSample.sh
+	$(SILENT)CONF=$(CONF) $(bash) $(CT_LIB_DIR)/scripts/saveSample.sh
 
 # The 'sample_dir' function prints the directory in which the sample is,
 # searching first in local samples, then in global samples
