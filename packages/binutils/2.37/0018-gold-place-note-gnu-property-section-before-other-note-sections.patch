@@ -1,0 +1,57 @@
+From bd711d6329ebb9328a99bd4be501932082248e44 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Mon, 25 Oct 2021 08:42:24 -0700
+Subject: [PATCH] gold: Place .note.gnu.property section before other note
+ sections
+
+Place the .note.gnu.property section before all other note sections to
+avoid being placed between other note sections with different alignments.
+
+	PR gold/28494
+	* layout.cc (Layout::create_note): Set order to ORDER_PROPERTY_NOTE
+	for the .note.gnu.property section.
+	* layout.h (Output_section_order): Add ORDER_PROPERTY_NOTE.
+
+(cherry picked from commit f85dcfc3af9cf7c2859241253f1d37b1133abea2)
+---
+ gold/layout.cc | 3 ++-
+ gold/layout.h  | 9 +++++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/gold/layout.cc b/gold/layout.cc
+index a27cb071c75..38e9bceec7e 100644
+--- a/gold/layout.cc
++++ b/gold/layout.cc
+@@ -3245,7 +3245,8 @@ Layout::create_note(const char* name, int note_type,
+   if (allocate)
+     {
+       flags = elfcpp::SHF_ALLOC;
+-      order = ORDER_RO_NOTE;
++      order = (note_type == elfcpp::NT_GNU_PROPERTY_TYPE_0
++	       ?  ORDER_PROPERTY_NOTE : ORDER_RO_NOTE);
+     }
+   Output_section* os = this->choose_output_section(NULL, section_name,
+ 						   elfcpp::SHT_NOTE,
+diff --git a/gold/layout.h b/gold/layout.h
+index 0b378003679..05c31714e47 100644
+--- a/gold/layout.h
++++ b/gold/layout.h
+@@ -399,8 +399,13 @@ enum Output_section_order
+   // linker can pick it up quickly.
+   ORDER_INTERP,
+ 
+-  // Loadable read-only note sections come next so that the PT_NOTE
+-  // segment is on the first page of the executable.
++  // The .note.gnu.property section comes next so that the PT_NOTE
++  // segment is on the first page of the executable and it won't be
++  // placed between other note sections with different alignments.
++  ORDER_PROPERTY_NOTE,
++
++  // Loadable read-only note sections come after the .note.gnu.property
++  // section.
+   ORDER_RO_NOTE,
+ 
+   // Put read-only sections used by the dynamic linker early in the
+-- 
+2.27.0
+
