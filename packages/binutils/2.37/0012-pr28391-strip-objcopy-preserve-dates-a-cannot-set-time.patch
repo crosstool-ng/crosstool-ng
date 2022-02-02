@@ -1,0 +1,51 @@
+From 6b02746a0e29b1007efd4feb137e2da3e681fc68 Mon Sep 17 00:00:00 2001
+From: Gleb Fotengauer-Malinovskiy <glebfm@altlinux.org>
+Date: Tue, 28 Sep 2021 20:11:26 +0930
+Subject: [PATCH] PR28391, strip/objcopy --preserve-dates *.a: cannot set time
+
+After commit 985e0264516 copy_archive function began to pass invalid
+values to the utimensat(2) function when it tries to preserve
+timestamps in ar archives.  This happens because the bfd_stat_arch_elt
+implementation for ar archives fills only the st_mtim.tv_sec part of
+the st_mtim timespec structure, but leaves the st_mtim.tv_nsec part
+and the whole st_atim timespec untouched leaving them uninitialized
+
+	PR 28391
+	* ar.c (extract_file): Clear buf for preserve_dates.
+	* objcopy.c (copy_archive): Likewise.
+
+(cherry picked from commit 0d62064867c74286360e821b75ef6799bedc4b34)
+---
+ binutils/ar.c      | 3 +++
+ binutils/objcopy.c | 1 +
+ 2 files changed, 4 insertions(+)
+
+diff --git a/binutils/ar.c b/binutils/ar.c
+index 5d6976c7027..8885585ef75 100644
+--- a/binutils/ar.c
++++ b/binutils/ar.c
+@@ -1180,6 +1180,9 @@ extract_file (bfd *abfd)
+   bfd_size_type size;
+   struct stat buf;
+ 
++  if (preserve_dates)
++    memset (&buf, 0, sizeof (buf));
++
+   if (bfd_stat_arch_elt (abfd, &buf) != 0)
+     /* xgettext:c-format */
+     fatal (_("internal stat error on %s"), bfd_get_filename (abfd));
+diff --git a/binutils/objcopy.c b/binutils/objcopy.c
+index a6c2e0dcc26..fd7557fe433 100644
+--- a/binutils/objcopy.c
++++ b/binutils/objcopy.c
+@@ -3600,6 +3600,7 @@ copy_archive (bfd *ibfd, bfd *obfd, const char *output_target,
+ 
+       if (preserve_dates)
+ 	{
++	  memset (&buf, 0, sizeof (buf));
+ 	  stat_status = bfd_stat_arch_elt (this_element, &buf);
+ 
+ 	  if (stat_status != 0)
+-- 
+2.27.0
+

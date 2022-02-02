@@ -1,0 +1,60 @@
+From a9c3934f6cb4407c5aaae82ada3b859d8ca9df83 Mon Sep 17 00:00:00 2001
+From: Dimitar Dimitrov <dimitar@dinux.eu>
+Date: Mon, 27 Sep 2021 22:43:24 +0300
+Subject: [PATCH] ld: pru: Fix resource_table output section alignment
+
+My commit 261980de18b added alignment for the resource table symbol.
+But it is wrong.  The Linux remoteproc driver loads and interprets the
+contents of the .resource_table ELF section, not of a table symbol.
+
+Without this patch, if the linker happens to output padding for symbol
+alignment, then the resource table contents as viewed by the kernel
+loader would "shift" and look corrupted.
+
+ld/ChangeLog:
+
+	* scripttempl/pru.sc  (.resource_table): Align the output
+	section, not the first symbol.
+
+Signed-off-by: Dimitar Dimitrov <dimitar@dinux.eu>
+(cherry picked from commit 5109a7bd9b87bdad530f2ebf97036e6087b4504d)
+---
+ ld/ChangeLog          | 5 +++++
+ ld/scripttempl/pru.sc | 7 +++----
+ 2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/ld/ChangeLog b/ld/ChangeLog
+index 5048b5b6a17..ee3259a06de 100644
+--- a/ld/ChangeLog
++++ b/ld/ChangeLog
+@@ -1,3 +1,8 @@
++2021-09-30  Dimitar Dimitrov  <dimitar@dinux.eu>
++
++	* scripttempl/pru.sc (.resource_table): Align the output
++	section, not the first symbol.
++
+ 2021-07-18  Nick Clifton  <nickc@redhat.com>
+ 
+ 	* 2.37 release.
+diff --git a/ld/scripttempl/pru.sc b/ld/scripttempl/pru.sc
+index b2c941b7911..97d8be0a0a4 100644
+--- a/ld/scripttempl/pru.sc
++++ b/ld/scripttempl/pru.sc
+@@ -151,11 +151,10 @@ SECTIONS
+     ${RELOCATING+ PROVIDE (_data_end = .) ; }
+   } ${RELOCATING+ > dmem }
+ 
+-  .resource_table ${RELOCATING-0} :
++  /* Linux remoteproc loader requires the resource_table section
++     start address to be aligned to 8 bytes.  */
++  .resource_table ${RELOCATING-0} ${RELOCATING+ ALIGN(8)} :
+   {
+-    /* Linux remoteproc loader requires the resource table address
+-       to be aligned to 8 bytes.  */
+-    ${RELOCATING+. = ALIGN(8);}
+     KEEP (*(.resource_table))
+   } ${RELOCATING+ > dmem}
+ 
+-- 
+2.27.0
+

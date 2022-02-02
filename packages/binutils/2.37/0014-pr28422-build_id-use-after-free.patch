@@ -1,0 +1,31 @@
+From c20c7adbeaa3af18a58ba1e20e6c33e7186356e3 Mon Sep 17 00:00:00 2001
+From: Alan Modra <amodra@gmail.com>
+Date: Wed, 6 Oct 2021 18:28:47 +1030
+Subject: [PATCH] PR28422, build_id use-after-free
+
+This fixes a bug in commit 5d9bbb73c1df.  All fields preserved from a
+bfd in struct bfd_preserve need to be cleared in bfd_reinit.
+
+	PR 28422
+	* format.c (bfd_reinit): Clear build_id.
+
+(cherry picked from commit 6d661cdc5be46e890ed9255e749806f46a88e26c)
+---
+ bfd/format.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/bfd/format.c b/bfd/format.c
+index 5d08d1d642c..408c984690e 100644
+--- a/bfd/format.c
++++ b/bfd/format.c
+@@ -151,6 +151,7 @@ bfd_reinit (bfd *abfd, unsigned int section_id, bfd_cleanup cleanup)
+   abfd->tdata.any = NULL;
+   abfd->arch_info = &bfd_default_arch_struct;
+   abfd->flags &= BFD_FLAGS_SAVED;
++  abfd->build_id = NULL;
+   bfd_section_list_clear (abfd);
+ }
+ 
+-- 
+2.27.0
+

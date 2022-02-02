@@ -1,0 +1,36 @@
+From c912b88e003a43e10020f56675fbd7e180d255ab Mon Sep 17 00:00:00 2001
+From: Alan Modra <amodra@gmail.com>
+Date: Thu, 21 Oct 2021 19:18:34 +1030
+Subject: [PATCH] -Waddress warning in ldelf.c
+
+ldelf.c: In function 'ldelf_after_open':
+ldelf.c:1049:43: warning: the comparison will always evaluate as 'true' for the address of 'elf_header' will never be NULL [-Waddress]
+ 1049 |           && elf_tdata (abfd)->elf_header != NULL
+      |                                           ^~
+In file included from ldelf.c:37:
+../bfd/elf-bfd.h:1957:21: note: 'elf_header' declared here
+ 1957 |   Elf_Internal_Ehdr elf_header[1];      /* Actual data, but ref like ptr */
+
+	PR ld/28734
+	* ldelf.c (ldelf_after_open): Remove useless elf_header test.
+
+(cherry picked from commit ced10cb78d01652f9e1bb1d1e465327dfe1debaa)
+---
+ ld/ldelf.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/ld/ldelf.c b/ld/ldelf.c
+index 21e655bb55c..0c39eb6024f 100644
+--- a/ld/ldelf.c
++++ b/ld/ldelf.c
+@@ -1046,7 +1046,6 @@ ldelf_after_open (int use_libpath, int native, int is_linux, int is_freebsd,
+       if (abfd->xvec->flavour == bfd_target_elf_flavour
+ 	  && !bfd_input_just_syms (abfd)
+ 	  && elf_tdata (abfd) != NULL
+-	  && elf_tdata (abfd)->elf_header != NULL
+ 	  /* FIXME: Maybe check for other non-supportable types as well ?  */
+ 	  && (elf_tdata (abfd)->elf_header->e_type == ET_EXEC
+ 	      || (elf_tdata (abfd)->elf_header->e_type == ET_DYN
+-- 
+2.27.0
+

@@ -1,0 +1,40 @@
+From 61b08178e4cafca911bf909f54f8c373f16f0a70 Mon Sep 17 00:00:00 2001
+From: Alan Modra <amodra@gmail.com>
+Date: Sun, 17 Oct 2021 17:34:46 +1030
+Subject: [PATCH] PR28459, readelf issues bogus warning
+
+I'd missed the fact that the .debug_rnglists dump doesn't exactly
+display the contents of the section.  Instead readelf rummages through
+.debug_info looking for DW_AT_ranges entries, then displays the
+entries in .debug_rnglists pointed at, sorted.  A simpler dump of the
+actual section contents might be more useful and robust, but it was
+likely done that way to detect overlap and holes.
+
+Anyway, the headers in .debug_rnglists besides the first are ignored,
+and limiting to the unit length of the first header fails if there is
+more than one unit.
+
+	PR 28459
+	* dwarf.c (display_debug_ranges): Don't constrain data to length
+	in header.
+
+(cherry picked from commit e7f024765a48fba4452535a5fc006a7e858730fd)
+---
+ binutils/dwarf.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/binutils/dwarf.c b/binutils/dwarf.c
+index 1e7f4db7b7c..e73078f496f 100644
+--- a/binutils/dwarf.c
++++ b/binutils/dwarf.c
+@@ -7727,7 +7727,6 @@ display_debug_ranges (struct dwarf_section *section,
+ 	      return 0;
+ 	    }
+ 	}
+-      finish = start + initial_length;
+ 
+       /* Get and check the version number.  */
+       SAFE_BYTE_GET_AND_INC (version, start, 2, finish);
+-- 
+2.27.0
+
