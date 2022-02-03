@@ -1,0 +1,82 @@
+From 6349ae7c3d96c8d00179e290d1ccf8a2d8438cc8 Mon Sep 17 00:00:00 2001
+From: Rosen Penev <rosenp@gmail.com>
+Date: Sat, 13 Feb 2021 17:08:21 +0300
+Subject: [PATCH] Add ARC700 support
+
+glibc does not officially support ARC700 so this adds the missing
+pieces. I looked at uClibc-ng and a patch by Synopsis for glibc.
+
+[Alexey] Taken from https://github.com/openwrt/openwrt/commit/33646a51abcf15ff5c5363848287e1ed778b7467
+
+Signed-off-by: Rosen Penev <rosenp@gmail.com>
+Signed-off-by: Alexey Brodkin <abrodkin@synopsys.com>
+---
+ sysdeps/arc/atomic-machine.h          | 4 ++++
+ sysdeps/unix/sysv/linux/arc/syscall.S | 5 +++++
+ sysdeps/unix/sysv/linux/arc/sysdep.h  | 8 ++++++++
+ 3 files changed, 17 insertions(+)
+
+diff --git a/sysdeps/arc/atomic-machine.h b/sysdeps/arc/atomic-machine.h
+index 1c8638bb44..bde66ae137 100644
+--- a/sysdeps/arc/atomic-machine.h
++++ b/sysdeps/arc/atomic-machine.h
+@@ -64,6 +64,10 @@ typedef uintmax_t uatomic_max_t;
+   __atomic_val_bysize (__arch_compare_and_exchange_val, int,		\
+ 		       mem, new, old, __ATOMIC_ACQUIRE)
+ 
++#ifdef __ARC700__
++#define atomic_full_barrier()  ({ asm volatile ("sync":::"memory"); })
++#else
+ #define atomic_full_barrier()  ({ asm volatile ("dmb 3":::"memory"); })
++#endif
+ 
+ #endif /* _ARC_BITS_ATOMIC_H */
+diff --git a/sysdeps/unix/sysv/linux/arc/syscall.S b/sysdeps/unix/sysv/linux/arc/syscall.S
+index 6227dbf499..0609dbeeba 100644
+--- a/sysdeps/unix/sysv/linux/arc/syscall.S
++++ b/sysdeps/unix/sysv/linux/arc/syscall.S
+@@ -24,8 +24,13 @@ ENTRY (syscall)
+ 	mov_s	r1, r2
+ 	mov_s	r2, r3
+ 	mov_s	r3, r4
++#ifdef __ARC700__
++	mov	r4, r5
++	mov	r5, r6
++#else
+ 	mov_s	r4, r5
+ 	mov_s	r5, r6
++#endif
+ 
+ 	ARC_TRAP_INSN
+ 	brhi	r0, -4096, L (call_syscall_err)
+diff --git a/sysdeps/unix/sysv/linux/arc/sysdep.h b/sysdeps/unix/sysv/linux/arc/sysdep.h
+index 8465a2f623..3faff27b1c 100644
+--- a/sysdeps/unix/sysv/linux/arc/sysdep.h
++++ b/sysdeps/unix/sysv/linux/arc/sysdep.h
+@@ -128,7 +128,11 @@ L (call_syscall_err):			ASM_LINE_SEP	\
+     mov    r8, __NR_##syscall_name	ASM_LINE_SEP	\
+     ARC_TRAP_INSN			ASM_LINE_SEP
+ 
++# ifdef __ARC700__
++# define ARC_TRAP_INSN	trap0
++# else
+ # define ARC_TRAP_INSN	trap_s 0
++# endif
+ 
+ #else  /* !__ASSEMBLER__ */
+ 
+@@ -139,7 +143,11 @@ extern long int __syscall_error (long int);
+ hidden_proto (__syscall_error)
+ # endif
+ 
++# ifdef __ARC700__
++# define ARC_TRAP_INSN	"trap0		\n\t"
++# else
+ # define ARC_TRAP_INSN	"trap_s 0	\n\t"
++#endif
+ 
+ # undef INTERNAL_SYSCALL_NCS
+ # define INTERNAL_SYSCALL_NCS(number, nr_args, args...)	\
+-- 
+2.16.2
+
