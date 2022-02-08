@@ -9,7 +9,7 @@ mingw_w64_set_install_prefix()
     fi
 }
 
-mingw_w64_start_files() {
+mingw_w64_headers() {
     local -a sdk_opts
 
     CT_DoStep INFO "Installing C library headers"

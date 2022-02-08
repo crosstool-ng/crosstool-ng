@@ -2,38 +2,12 @@
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-# Build and install headers and start files
-uClibc_ng_start_files()
-{
-    # Start files and Headers should be configured the same way as the
-    # final libc, but built and installed differently.
-    uClibc_ng_backend libc_mode=startfiles
-}
-
 # This function builds and install the full C library
 uClibc_ng_main()
 {
-    uClibc_ng_backend libc_mode=final
-}
-
-# Common backend for 1st and 2nd passes.
-uClibc_ng_backend()
-{
-    local libc_mode
-    local arg
-
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    case "${libc_mode}" in
-        startfiles)     CT_DoStep INFO "Installing C library headers & start files";;
-        final)          CT_DoStep INFO "Installing C library";;
-        *)              CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
-    esac
-
-    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs uClibc_ng_backend_once multilib libc_mode="${libc_mode}"
+    CT_DoStep INFO "Installing C library"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
+    CT_IterateMultilibs uClibc_ng_backend_once multilib
     CT_Popd
     CT_EndStep
 }
@@ -41,7 +15,6 @@ uClibc_ng_backend()
 # Common backend for 1st and 2nd passes, once per multilib.
 uClibc_ng_backend_once()
 {
-    local libc_mode
     local multi_dir multi_os_dir multi_root multi_flags multi_index multi_count
     local multilib_dir startfiles_dir
     local jflag=${CT_JOBSFLAGS}
@@ -129,65 +102,11 @@ uClibc_ng_backend_once()
         CT_DoExecLog ALL cp -a "${multi_root}/usr/include" "${multi_root}/usr/include.saved"
     fi
 
-    if [ "${libc_mode}" = "startfiles" ]; then
-        CT_DoLog EXTRA "Building headers"
-        CT_DoExecLog ALL make "${make_args[@]}" headers
-
-        # Ensure the directory for installing multilib-specific binaries exists.
-        CT_DoExecLog ALL mkdir -p "${startfiles_dir}"
-
-        CT_DoLog EXTRA "Installing headers"
-        CT_DoExecLog ALL make "${make_args[@]}" install_headers
-
-        # The check might look bogus, but it is the same condition as is used
-        # by GCC build script to enable/disable shared library support.
-        if [ "${CT_THREADS}" = "nptl" ]; then
-            CT_DoLog EXTRA "Building start files"
-            CT_DoExecLog ALL make ${jflag} "${make_args[@]}" \
-                lib/crt1.o lib/crti.o lib/crtn.o
-
-            if [ "${CT_SHARED_LIBS}" = "y" ]; then
-                # From:  http://git.openembedded.org/cgit.cgi/openembedded/commit/?id=ad5668a7ac7e0436db92e55caaf3fdf782b6ba3b
-                # libm.so is needed for ppc, as libgcc is linked against libm.so
-                # No problem to create it for other archs.
-                CT_DoLog EXTRA "Building dummy shared libs"
-                CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" -nostdlib -nostartfiles \
-                    -shared ${multi_flags} -x c /dev/null -o libdummy.so
-
-                CT_DoLog EXTRA "Installing start files"
-                CT_DoExecLog ALL install -m 0644 lib/crt1.o lib/crti.o lib/crtn.o \
-                                                 "${startfiles_dir}"
-
-                CT_DoLog EXTRA "Installing dummy shared libs"
-                CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libc.so"
-                CT_DoExecLog ALL install -m 0755 libdummy.so "${startfiles_dir}/libm.so"
-            fi # CT_SHARED_LIBS == y
-        fi # CT_THREADS == nptl
-    fi # libc_mode == startfiles
-
-    if [ "${libc_mode}" = "final" ]; then
-        CT_DoLog EXTRA "Cleaning up startfiles"
-        CT_DoExecLog ALL rm -f "${startfiles_dir}/crt1.o" \
-                    "${startfiles_dir}/crti.o" \
-                    "${startfiles_dir}/crtn.o" \
-                    "${startfiles_dir}/libc.so" \
-                    "${startfiles_dir}/libm.so"
-
-        CT_DoLog EXTRA "Building C library"
-        CT_DoExecLog ALL make "${make_args[@]}" pregen
-        CT_DoExecLog ALL make ${jflag} "${make_args[@]}" all
-
-        # YEM-FIXME:
-        # - we want to install 'runtime' files, eg. lib*.{a,so*}, crti.o and
-        #   such files, except the headers as they already are installed
-        # - "make install_dev" installs the headers, the crti.o... and the
-        #   static libs, but not the dynamic libs
-        # - "make install_runtime" installs the dynamic libs only
-        # - "make install" calls install_runtime and install_dev
-        # - so we're left with re-installing the headers... Sigh...
-        CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL make "${make_args[@]}" install install_utils
-    fi # libc_mode == final
+    CT_DoLog EXTRA "Building C library"
+    CT_DoExecLog ALL make "${make_args[@]}" pregen
+    CT_DoExecLog ALL make ${jflag} "${make_args[@]}" all
+    CT_DoLog EXTRA "Installing C library"
+    CT_DoExecLog ALL make "${make_args[@]}" install install_utils
 
     # Now, if installing headers into a subdirectory, put everything in its place.
     # Remove the header subdirectory if it existed already.

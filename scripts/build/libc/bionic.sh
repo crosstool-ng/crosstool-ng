@@ -3,7 +3,7 @@
 # Licensed under the GPL v2. See COPYING in the root of this package
 
 # Install Unified headers
-bionic_start_files()
+bionic_headers()
 {
     CT_DoStep INFO "Installing C library headers"
     CT_DoExecLog ALL cp -r "${CT_SRC_DIR}/android-ndk/sysroot/usr" "${CT_SYSROOT_DIR}"
