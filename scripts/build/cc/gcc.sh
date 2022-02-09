@@ -134,7 +134,7 @@ evaluate_multilib_cflags()
 # 1. On MIPS target, gcc (or rather, ld, which it invokes under the hood) chokes
 # if supplied with two -mabi=* options. I.e., 'gcc -mabi=n32' and 'gcc -mabi=32' both
 # work, but 'gcc -mabi=32 -mabi=n32' produces an internal error in ld. Thus we do
-# not supply target's CFLAGS in multilib builds - and after compiling pass-1 gcc,
+# not supply target's CFLAGS in multilib builds - and after compiling core gcc,
 # attempt to determine which CFLAGS need to be filtered out.
 #
 # 2. If "demultilibing" is in effect, create top-level directories for any
@@ -186,11 +186,10 @@ cc_gcc_multilib_housekeeping() {
 }
 
 #------------------------------------------------------------------------------
-# Core gcc pass 1
-do_cc_core_pass_1() {
+do_cc_core() {
     local -a core_opts
 
-    if [ "${CT_CC_CORE_PASS_1_NEEDED}" != "y" ]; then
+    if [ "${CT_CC_CORE_NEEDED}" != "y" ]; then
         return 0
     fi
 
@@ -201,62 +200,12 @@ do_cc_core_pass_1() {
     core_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     core_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
     core_opts+=( "lang_list=c" )
-    core_opts+=( "build_step=core1" )
+    core_opts+=( "build_step=core" )
     core_opts+=( "mode=static" )
     core_opts+=( "build_libgcc=yes" )
 
-    CT_DoStep INFO "Installing pass-1 core C gcc compiler"
-    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core-pass-1"
-
-    do_gcc_core_backend "${core_opts[@]}"
-
-    CT_Popd
-    CT_EndStep
-}
-
-# Core gcc pass 2
-do_cc_core_pass_2() {
-    local -a core_opts
-
-    if [ "${CT_CC_CORE_PASS_2_NEEDED}" != "y" ]; then
-        return 0
-    fi
-
-    # Common options:
-    core_opts+=( "host=${CT_BUILD}" )
-    core_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
-    core_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
-    core_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
-    core_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
-    core_opts+=( "lang_list=c" )
-    core_opts+=( "build_step=core2" )
-
-    # Different conditions are at stake here:
-    #   - In case the threading model is NPTL, we need a shared-capable core
-    #     gcc; in all other cases, we need a static-only core gcc.
-    #   - In case the threading model is NPTL or win32, or gcc is 4.3 or
-    #     later, we need to build libgcc
-    case "${CT_THREADS}" in
-        nptl)
-            if [ "${CT_SHARED_LIBS}" = "y" ]; then
-                core_opts+=( "mode=shared" )
-            else
-                core_opts+=( "mode=static" )
-            fi
-            core_opts+=( "build_libgcc=yes" )
-            ;;
-        win32)
-            core_opts+=( "mode=static" )
-            core_opts+=( "build_libgcc=yes" )
-            ;;
-        *)
-            core_opts+=( "mode=static" )
-            core_opts+=( "build_libgcc=yes" )
-            ;;
-    esac
-
-    CT_DoStep INFO "Installing pass-2 core C gcc compiler"
-    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core-pass-2"
+    CT_DoStep INFO "Installing core C gcc compiler"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core"
 
     do_gcc_core_backend "${core_opts[@]}"
 
@@ -281,9 +230,8 @@ do_cc_core_pass_2() {
 #   build_manuals       : whether to build manuals or not           : bool      : no
 #   cflags              : cflags to use                             : string    : (empty)
 #   ldflags             : ldflags to use                            : string    : (empty)
-#   build_step          : build step 'core1', 'core2', 'gcc_build',
-#                         'libstdcxx'
-#                         or 'gcc_host'                             : string    : (none)
+#   build_step          : build step 'core', 'gcc_build',
+#                         'libstdcxx' or 'gcc_host'                 : string    : (none)
 # Usage: do_gcc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_gcc_core_backend() {
     local mode
@@ -321,7 +269,7 @@ do_gcc_core_backend() {
 
     # This function gets called in case of a bare metal compiler for the final gcc, too.
     case "${build_step}" in
-        core1|core2)
+        core)
             CT_DoLog EXTRA "Configuring core C gcc compiler"
             log_txt="gcc"
             extra_config+=( "${CT_CC_CORE_SYSROOT_ARG[@]}" )
@@ -351,7 +299,7 @@ do_gcc_core_backend() {
             build_libgcc=no
             ;;
         *)
-            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build', 'gcc_host' or 'libstdcxx', not '${build_step:-(empty)}'"
+            CT_Abort "Internal Error: 'build_step' must be one of: 'core', 'gcc_build', 'gcc_host' or 'libstdcxx', not '${build_step:-(empty)}'"
             ;;
     esac
 
@@ -501,8 +449,6 @@ do_gcc_core_backend() {
 
     if [ "${CT_LIBC_GLIBC}" = "y" ]; then
         # Report GLIBC's version to GCC, it affects the defaults on other options.
-        # Pass-2 should be able to get it from the headers, but for some options
-        # (such as --with-long-double-128) we need to get it right even in pass-1.
         # GCC expects just two numbers separated by a dot.
         local glibc_version
 
@@ -571,11 +517,10 @@ do_gcc_core_backend() {
 
     # Some versions of gcc have a defective --enable-multilib.
     # Since that's the default, only pass --disable-multilib. For multilib,
-    # also enable multiarch. Without explicit --enable-multiarch, pass-1
-    # compiler is configured as multilib/no-multiarch and pass-2/final
-    # are multilib/multiarch (because gcc autodetects multiarch based on
-    # multiple instances of crt*.o in the install directory - which do
-    # not exist in pass-1).
+    # also enable multiarch. Without explicit --enable-multiarch, core
+    # compiler is configured as multilib/no-multiarch (because gcc autodetects
+    # multiarch based on multiple instances of crt*.o in the install directory
+    # which do not exist in the core pass).
     if [ "${CT_MULTILIB}" != "y" ]; then
         extra_config+=("--disable-multilib")
     else
@@ -609,7 +554,7 @@ do_gcc_core_backend() {
     fi
 
     # For non-sysrooted toolchain, GCC doesn't search except at the installation
-    # prefix; in core-1/2 stage we use a temporary installation prefix - but
+    # prefix; in core stage we use a temporary installation prefix - but
     # we may have installed something into the final prefix. This is less than ideal:
     # in the installation prefix GCC also handles subdirectories for multilibs
     # (e.g. first trying ${prefix}/include/${arch-triplet}) but
