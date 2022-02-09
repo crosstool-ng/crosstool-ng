@@ -56,7 +56,7 @@ do_bison_backend()
                      "${CT_SRC_DIR}/bison/configure" \
                      --host="${host}" \
                      --prefix="${prefix}" \
-		     "${extra_config[@]}"
+                     "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building bison"
     CT_DoExecLog ALL make

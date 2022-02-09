@@ -337,14 +337,14 @@ do_gcc_core_backend() {
             ;;
         libstdcxx)
             CT_DoLog EXTRA "Configuring libstdc++ for ${libstdcxx_name}"
-	    if [ "${header_dir}" = "" ]; then
-		header_dir="${CT_PREFIX_DIR}/${libstdcxx_name}/include"
-	    fi
-	    if [ "${exec_prefix}" = "" ]; then
-		exec_prefix="${CT_PREFIX_DIR}/${libstdcxx_name}"
-	    fi
+            if [ "${header_dir}" = "" ]; then
+                header_dir="${CT_PREFIX_DIR}/${libstdcxx_name}/include"
+            fi
+            if [ "${exec_prefix}" = "" ]; then
+                exec_prefix="${CT_PREFIX_DIR}/${libstdcxx_name}"
+            fi
             extra_config+=( "${CT_CC_SYSROOT_ARG[@]}" )
-	    extra_config+=( "--with-headers=${header_dir}" )
+            extra_config+=( "--with-headers=${header_dir}" )
             extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
             log_txt="libstdc++ ${libstdcxx_name} library"
             # to inhibit the libiberty and libgcc tricks later on
@@ -356,7 +356,7 @@ do_gcc_core_backend() {
     esac
 
     if [ "${exec_prefix}" = "" ]; then
-	exec_prefix="${prefix}"
+        exec_prefix="${prefix}"
     fi
 
     case "${mode}" in
@@ -654,7 +654,7 @@ do_gcc_core_backend() {
         --host=${host}                                 \
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
-	--exec_prefix="${exec_prefix}"                 \
+        --exec_prefix="${exec_prefix}"                 \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \
         "${extra_config[@]}"                           \
         --enable-languages="${lang_list}"              \
@@ -726,11 +726,11 @@ do_gcc_core_backend() {
             core_targets_all=all
             core_targets_install=install
             ;;
-	libstdcxx)
-	    core_targets=( target-libstdc++-v3 )
-	    core_targets_all="${core_targets[@]/#/all-}"
-	    core_targets_install="${core_targets[@]/#/install-}"
-	    ;;
+        libstdcxx)
+            core_targets=( target-libstdc++-v3 )
+            core_targets_all="${core_targets[@]/#/all-}"
+            core_targets_install="${core_targets[@]/#/install-}"
+            ;;
     esac
 
     CT_DoLog EXTRA "Building ${log_txt}"
@@ -807,9 +807,9 @@ do_cc_for_build() {
         # lack of such a compiler, but better safe than sorry...
         build_final_opts+=( "mode=baremetal" )
         build_final_opts+=( "build_libgcc=yes" )
-	if [ "${CT_LIBC_NONE}" != "y" ]; then
+        if [ "${CT_LIBC_NONE}" != "y" ]; then
             build_final_opts+=( "build_libstdcxx=yes" )
-	fi
+        fi
         build_final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             build_final_opts+=( "build_staticlinked=yes" )
@@ -898,9 +898,9 @@ do_cc_for_host() {
     if [ "${CT_BARE_METAL}" = "y" ]; then
         final_opts+=( "mode=baremetal" )
         final_opts+=( "build_libgcc=yes" )
-	if [ "${CT_LIBC_NONE}" != "y" ]; then
+        if [ "${CT_LIBC_NONE}" != "y" ]; then
             final_opts+=( "build_libstdcxx=yes" )
-	fi
+        fi
         final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
@@ -969,7 +969,7 @@ do_gcc_backend() {
     done
 
     if [ "${exec_prefix}" = "" ]; then
-	exec_prefix="${prefix}"
+        exec_prefix="${prefix}"
     fi
 
     # This function gets called for final gcc and libstdcxx.
@@ -1280,7 +1280,7 @@ do_gcc_backend() {
         --host=${host}                                 \
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
-	--exec_prefix="${exec_prefix}"                 \
+        --exec_prefix="${exec_prefix}"                 \
         ${CT_CC_SYSROOT_ARG}                           \
         "${extra_config[@]}"                           \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \

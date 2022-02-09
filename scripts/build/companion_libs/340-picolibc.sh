@@ -32,18 +32,18 @@ do_cc_libstdcxx_picolibc()
 
     if [ "${CT_LIBC_PICOLIBC_GCC_LIBSTDCXX}" = "y" ]; then
         final_opts+=( "host=${CT_HOST}" )
-	final_opts+=( "libstdcxx_name=picolibc" )
+        final_opts+=( "libstdcxx_name=picolibc" )
         final_opts+=( "prefix=${CT_PREFIX_DIR}" )
         final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
         final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
         final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
         final_opts+=( "lang_list=c,c++" )
         final_opts+=( "build_step=libstdcxx" )
-	final_opts+=( "extra_config+=('--enable-stdio=stdio_pure')" )
-	final_opts+=( "extra_config+=('--disable-wchar_t')" )
-	if [ "${CT_LIBC_PICOLIBC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
-	    final_opts+=( "enable_optspace=yes" )
-	fi
+        final_opts+=( "extra_config+=('--enable-stdio=stdio_pure')" )
+        final_opts+=( "extra_config+=('--disable-wchar_t')" )
+        if [ "${CT_LIBC_PICOLIBC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+            final_opts+=( "enable_optspace=yes" )
+        fi
 
         if [ "${CT_BARE_METAL}" = "y" ]; then
             final_opts+=( "mode=baremetal" )
@@ -107,7 +107,7 @@ RETARGETABLE_LOCKING:newlib-retargetable-locking
     done
 
     [ "${CT_USE_SYSROOT}" = "y" ] && \
-	picolibc_opts+=( "-Dsysroot-install=true" )
+        picolibc_opts+=( "-Dsysroot-install=true" )
 
     [ "${CT_LIBC_PICOLIBC_EXTRA_SECTIONS}" = "y" ] && \
         CT_LIBC_PICOLIBC_TARGET_CFLAGS="${CT_LIBC_PICOLIBC_TARGET_CFLAGS} -ffunction-sections -fdata-sections"
@@ -122,11 +122,11 @@ RETARGETABLE_LOCKING:newlib-retargetable-locking
     #   build  : not used
     #   host   : the machine building picolibc
     #   target : the machine picolibc runs on
-	meson_cflags=""
-	for cflag in ${cflags_for_target}; do
-		meson_cflags="${meson_cflags} '${cflag}',"
-	done
-	cat << EOF > picolibc-cross.txt
+        meson_cflags=""
+        for cflag in ${cflags_for_target}; do
+            meson_cflags="${meson_cflags} '${cflag}',"
+        done
+        cat << EOF > picolibc-cross.txt
 [binaries]
 c = '${CT_TARGET}-gcc'
 ar = '${CT_TARGET}-ar'
@@ -149,9 +149,9 @@ EOF
     meson                                                          \
         --cross-file picolibc-cross.txt                            \
         --prefix="${CT_PREFIX_DIR}"                                \
-	-Dincludedir=picolibc/include                              \
-	-Dlibdir=picolibc/${CT_TARGET}/lib                         \
-	-Dspecsdir="${CT_SYSROOT_DIR}"/lib                         \
+        -Dincludedir=picolibc/include                              \
+        -Dlibdir=picolibc/${CT_TARGET}/lib                         \
+        -Dspecsdir="${CT_SYSROOT_DIR}"/lib                         \
         "${CT_SRC_DIR}/picolibc"                                   \
         "${picolibc_opts[@]}"                                      \
         "${CT_LIBC_PICOLIBC_EXTRA_CONFIG_ARRAY[@]}"

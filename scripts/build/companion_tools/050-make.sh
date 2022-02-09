@@ -72,7 +72,7 @@ do_make_backend()
                      "${CT_SRC_DIR}/make/configure" \
                      --host="${host}" \
                      --prefix="${prefix}" \
-		     "${extra_config[@]}"
+                     "${extra_config[@]}"
 
     CT_DoLog EXTRA "Building make"
     CT_DoExecLog ALL make
