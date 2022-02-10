@@ -37,6 +37,8 @@ Action is one of:
    enter     Spawn a shell in the specified container.
    root      Spawn a root shell in the specified container.
    clean     Clean up in the specified container.
+   distclean Same as clean but also remove installed versions of
+             Crosstool-NG and the previously built toolchains.
 
 If a special container name 'all' is used, the action is performed
 on all the containers.
@@ -63,7 +65,7 @@ action_build()
     msg "Cleaning up previous runs for ${cntr}"
     do_cleanup ${cntr}/{build,install,xtools}
     msg "Building Docker container for ${cntr}"
-set -x
+    set -x
     docker build --no-cache -t "ctng-${cntr}" --build-arg CTNG_GID=`id -g` --build-arg CTNG_UID=`id -u` "${cntr}"
 }
 
@@ -92,8 +94,9 @@ _dckr()
         $prefix su -l ctng
     fi
     if [ $? != 0 ]; then
-	global_rc=1
+        global_rc=1
     fi
+    return $global_rc
 }
 
 # Run the test
@@ -105,9 +108,9 @@ action_install()
     msg "Setting up crosstool-NG in ${cntr}"
     do_cleanup ${cntr}/build
     if ! _dckr "${cntr}" /common-scripts/ctng-install; then
-	warn "Installation failed"
+        warn "Installation failed"
     elif !  _dckr "${cntr}" /common-scripts/ctng-test-basic; then
-	warn "Basic tests failed"
+        warn "Basic tests failed"
     fi
 }
 

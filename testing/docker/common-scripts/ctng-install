@@ -1,23 +1,25 @@
 #!/bin/bash
 
 set -e
-# Mounted directory may already be configured - or may not
-# even had bootstrapped.
+# Mounted directory may already be configured. Trying to install from
+# such directory would cause a failure in the container due to mismatch in
+# command names/paths detected by configure on the host.
+if [ -e /crosstool-ng/Makefile \
+        -o -e /crosstool-ng/.build \
+        -o -e /crosstool-ng/.build-all \
+        -o -e /crosstool-ng/config.status ]; then
+    echo "ERROR :: The host directory must not be configured/built. Run 'git clean -fxd' before" >&2
+    echo "ERROR ::   installing crosstool-NG in the container." >&2
+    exit 1
+fi
 tar cf - -C / \
-        --exclude=crosstool-ng/.build \
-        --exclude=crosstool-ng/.build.all \
         --exclude=crosstool-ng/.git \
         --exclude=crosstool-ng/testing/docker \
         crosstool-ng | \
     tar xf -
 cd crosstool-ng
-if [ -r Makefile ]; then
-    make distclean
-elif [ ! -r configure ]; then
-    ./bootstrap
-fi
-cd ..
-cd work
+./bootstrap
+cd ../work
 ~/crosstool-ng/configure --prefix=/opt/ctng
 make
 make install
