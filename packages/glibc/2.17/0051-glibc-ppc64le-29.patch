@@ -30,11 +30,18 @@
 #         earlier in tail.
 #         * sysdeps/powerpc/powerpc32/strchr.S: Likewise.
 # 
-Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
-===================================================================
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S.orig
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
-@@ -37,8 +37,8 @@ ENTRY (BP_SYM(strchr))
+---
+# sysdeps/powerpc/powerpc32/power7/strchr.S    |   51 +++++++++++++-----
+# sysdeps/powerpc/powerpc32/power7/strchrnul.S |   27 +++++++--
+# sysdeps/powerpc/powerpc32/strchr.S           |   71 ++++++++++++++++++-------
+# sysdeps/powerpc/powerpc64/power7/strchr.S    |   43 ++++++++++++---
+# sysdeps/powerpc/powerpc64/power7/strchrnul.S |   19 +++++-
+# sysdeps/powerpc/powerpc64/strchr.S           |   75 +++++++++++++++++++--------
+# 6 files changed, 212 insertions(+), 74 deletions(-)
+#
+--- a/sysdeps/powerpc/powerpc32/power7/strchr.S
++++ b/sysdeps/powerpc/powerpc32/power7/strchr.S
+@@ -37,8 +37,8 @@
  	beq	cr7,L(null_match)
  
  	/* Replicate byte to word.  */
@@ -45,7 +52,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
  
  	/* Now r4 has a word of c bytes and r0 has
  	   a word of null bytes.  */
-@@ -48,11 +48,17 @@ ENTRY (BP_SYM(strchr))
+@@ -48,11 +48,17 @@
  
  	/* Move the words left and right to discard the bits that are
  	   not part of the string and to bring them back as zeros.  */
@@ -64,7 +71,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
  	or	r5,r10,r11    /* OR the results to speed things up.  */
  	cmpwi	cr7,r5,0      /* If r5 == 0, no c or null bytes
  				 have been found.  */
-@@ -67,7 +73,7 @@ ENTRY (BP_SYM(strchr))
+@@ -67,7 +73,7 @@
  
  	/* Handle WORD2 of pair.  */
  	lwzu	r12,4(r8)
@@ -73,7 +80,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
  	cmpb	r11,r12,r0
  	or	r5,r10,r11
  	cmpwi	cr7,r5,0
-@@ -102,22 +108,31 @@ L(loop):
+@@ -102,22 +108,31 @@
  	bne	cr6,L(done)
  
  	/* The c/null byte must be in the second word.  Adjust the address
@@ -112,7 +119,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
  	add	r3,r8,r0      /* Return address of the matching c byte
  				 or null in case c was not found.  */
  	blr
-@@ -135,10 +150,14 @@ L(null_match):
+@@ -135,10 +150,14 @@
  	cmpb	r5,r12,r0     /* Compare each byte against null bytes.  */
  
  	/* Move the words left and right to discard the bits that are
@@ -129,7 +136,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
  	cmpwi	cr7,r5,0      /* If r10 == 0, no c or null bytes
  				 have been found.  */
  	bne	cr7,L(done_null)
-@@ -193,7 +212,13 @@ L(loop_null):
+@@ -193,7 +212,13 @@
  	   0xff in the same position as the null byte in the original
  	   word from the string.  Use that to calculate the pointer.  */
  L(done_null):
@@ -143,11 +150,9 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchr.S
  	srwi	r0,r0,3	      /* Convert leading zeros to bytes.  */
  	add	r3,r8,r0      /* Return address of the matching null byte.  */
  	blr
-Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
-===================================================================
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S.orig
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
-@@ -29,8 +29,8 @@ ENTRY (BP_SYM(__strchrnul))
+--- a/sysdeps/powerpc/powerpc32/power7/strchrnul.S
++++ b/sysdeps/powerpc/powerpc32/power7/strchrnul.S
+@@ -29,8 +29,8 @@
  	clrrwi	r8,r3,2	      /* Align the address to word boundary.  */
  
  	/* Replicate byte to word.  */
@@ -158,7 +163,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
  
  	rlwinm	r6,r3,3,27,28 /* Calculate padding.  */
  	lwz	r12,0(r8)     /* Load word from memory.  */
-@@ -45,10 +45,17 @@ ENTRY (BP_SYM(__strchrnul))
+@@ -45,10 +45,17 @@
  
  	/* Move the words left and right to discard the bits that are
  	   not part of the string and bring them back as zeros.  */
@@ -176,7 +181,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
  	or	r5,r9,r10     /* OR the results to speed things up.  */
  	cmpwi	cr7,r5,0      /* If r5 == 0, no c or null bytes
  				 have been found.  */
-@@ -56,7 +63,7 @@ ENTRY (BP_SYM(__strchrnul))
+@@ -56,7 +63,7 @@
  
  	mtcrf   0x01,r8
  
@@ -185,7 +190,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
  	   the main loop.  Otherwise, go through the alignment code.  */
  
  	bt	29,L(loop)
-@@ -78,7 +85,7 @@ L(loop):
+@@ -78,7 +85,7 @@
  	   single register for speed.  This is an attempt
  	   to speed up the null-checking process for bigger strings.  */
  	lwz	r12,4(r8)
@@ -194,7 +199,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
  	cmpb	r10,r12,r0
  	cmpb	r9,r12,r4
  	cmpb	r6,r11,r0
-@@ -97,9 +104,9 @@ L(loop):
+@@ -97,9 +104,9 @@
  	addi	r8,r8,-4
  	bne	cr6,L(done)
  
@@ -207,7 +212,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
  	mr	r5,r10
  	addi	r8,r8,4
  
-@@ -107,7 +114,13 @@ L(loop):
+@@ -107,7 +114,13 @@
  	   0xff in the same position as the c/null byte in the original
  	   word from the string.  Use that to calculate the pointer.  */
  L(done):
@@ -221,11 +226,9 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/strchrnul.S
  	srwi	r0,r0,3	      /* Convert leading zeros to bytes.  */
  	add	r3,r8,r0      /* Return address of matching c/null byte.  */
  	blr
-Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S
-===================================================================
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S.orig
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S
-@@ -44,6 +44,8 @@ ENTRY (BP_SYM (strchr))
+--- a/sysdeps/powerpc/powerpc32/strchr.S
++++ b/sysdeps/powerpc/powerpc32/strchr.S
+@@ -44,6 +44,8 @@
  #define rIGN	r10	/* number of bits we should ignore in the first word */
  #define rMASK	r11	/* mask with the bits to ignore set to 0 */
  #define rTMP3	r12
@@ -234,7 +237,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S
  
  	CHECK_BOUNDS_LOW (rSTR, rTMP1, rTMP2)
  	STORE_RETURN_BOUNDS (rTMP1, rTMP2)
-@@ -59,53 +61,74 @@ ENTRY (BP_SYM (strchr))
+@@ -59,53 +61,74 @@
  	addi	r7F7F, r7F7F, 0x7f7f
  /* Test the first (partial?) word.  */
  	lwz	rWORD, 0(rSTR)
@@ -327,7 +330,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S
  	srwi	rCLZB, rCLZB, 3
  	add	rRTN, rSTR, rCLZB
  	CHECK_BOUNDS_HIGH_RTN (rSTR, rTMP2, twlge)
-@@ -113,13 +136,21 @@ L(missed):
+@@ -113,13 +136,21 @@
  	blr
  
  L(foundit):
@@ -351,11 +354,9 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/strchr.S
  	add	rRTN, rSTR, rCLZB
  	CHECK_BOUNDS_HIGH_RTN (rSTR, rTMP2, twlge)
  	STORE_RETURN_VALUE (rSTR)
-Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
-===================================================================
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S.orig
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
-@@ -37,8 +37,8 @@ ENTRY (BP_SYM(strchr))
+--- a/sysdeps/powerpc/powerpc64/power7/strchr.S
++++ b/sysdeps/powerpc/powerpc64/power7/strchr.S
+@@ -37,8 +37,8 @@
  	beq	cr7,L(null_match)
  
  	/* Replicate byte to doubleword.  */
@@ -366,7 +367,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
  	insrdi  r4,r4,32,0
  
  	/* Now r4 has a doubleword of c bytes and r0 has
-@@ -49,11 +49,17 @@ ENTRY (BP_SYM(strchr))
+@@ -49,11 +49,17 @@
  
  	/* Move the doublewords left and right to discard the bits that are
  	   not part of the string and bring them back as zeros.  */
@@ -385,7 +386,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
  	or	r5,r10,r11    /* OR the results to speed things up.  */
  	cmpdi	cr7,r5,0      /* If r5 == 0, no c or null bytes
  				 have been found.  */
-@@ -110,15 +116,24 @@ L(loop):
+@@ -110,15 +116,24 @@
  	mr	r11,r7
  	addi	r8,r8,8
  
@@ -415,7 +416,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
  	add	r3,r8,r0      /* Return address of the matching c byte
  				 or null in case c was not found.  */
  	blr
-@@ -137,9 +152,13 @@ L(null_match):
+@@ -137,9 +152,13 @@
  
  	/* Move the doublewords left and right to discard the bits that are
  	   not part of the string and bring them back as zeros.  */
@@ -430,7 +431,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
  	cmpdi	cr7,r5,0      /* If r10 == 0, no c or null bytes
  				 have been found.  */
  	bne	cr7,L(done_null)
-@@ -194,7 +213,13 @@ L(loop_null):
+@@ -194,7 +213,13 @@
  	   0xff in the same position as the null byte in the original
  	   doubleword from the string.  Use that to calculate the pointer.  */
  L(done_null):
@@ -444,11 +445,9 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchr.S
  	srdi	r0,r0,3	      /* Convert leading zeros to bytes.  */
  	add	r3,r8,r0      /* Return address of the matching null byte.  */
  	blr
-Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
-===================================================================
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S.orig
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
-@@ -29,8 +29,8 @@ ENTRY (BP_SYM(__strchrnul))
+--- a/sysdeps/powerpc/powerpc64/power7/strchrnul.S
++++ b/sysdeps/powerpc/powerpc64/power7/strchrnul.S
+@@ -29,8 +29,8 @@
  	clrrdi	r8,r3,3	      /* Align the address to doubleword boundary.  */
  
  	/* Replicate byte to doubleword.  */
@@ -459,7 +458,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
  	insrdi	r4,r4,32,0
  
  	rlwinm	r6,r3,3,26,28 /* Calculate padding.  */
-@@ -46,10 +46,17 @@ ENTRY (BP_SYM(__strchrnul))
+@@ -46,10 +46,17 @@
  
  	/* Move the doublewords left and right to discard the bits that are
  	   not part of the string and to bring them back as zeros.  */
@@ -477,7 +476,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
  	or	r5,r9,r10     /* OR the results to speed things up.  */
  	cmpdi	cr7,r5,0      /* If r5 == 0, no c or null bytes
  				 have been found.  */
-@@ -99,7 +106,7 @@ L(loop):
+@@ -99,7 +106,7 @@
  	bne	cr6,L(done)
  
  	/* The c/null byte must be in the second doubleword.  Adjust the
@@ -486,7 +485,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
  	   the pointer.  */
  	mr	r5,r10
  	addi	r8,r8,8
-@@ -108,7 +115,13 @@ L(loop):
+@@ -108,7 +115,13 @@
  	   0xff in the same position as the c/null byte in the original
  	   doubleword from the string.  Use that to calculate the pointer.  */
  L(done):
@@ -500,11 +499,9 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/strchrnul.S
  	srdi	r0,r0,3	      /* Convert leading zeros to bytes.  */
  	add	r3,r8,r0      /* Return address of matching c/null byte.  */
  	blr
-Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S
-===================================================================
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S.orig
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S
-@@ -50,14 +50,16 @@ ENTRY (BP_SYM (strchr))
+--- a/sysdeps/powerpc/powerpc64/strchr.S
++++ b/sysdeps/powerpc/powerpc64/strchr.S
+@@ -50,14 +50,16 @@
  #define rIGN	r10	/* number of bits we should ignore in the first word */
  #define rMASK	r11	/* mask with the bits to ignore set to 0 */
  #define rTMP3	r12
@@ -523,7 +520,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S
  	rlwinm	rIGN, rRTN, 3, 26, 28
  	insrdi	rCHR, rCHR, 32, 0
  	lis	rFEFE, -0x101
-@@ -70,53 +72,74 @@ ENTRY (BP_SYM (strchr))
+@@ -70,53 +72,74 @@
  	add	rFEFE, rFEFE, rTMP1
  /* Test the first (partial?) word.  */
  	ld	rWORD, 0(rSTR)
@@ -616,7 +613,7 @@ Index: glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/strchr.S
  	srdi	rCLZB, rCLZB, 3
  	add	rRTN, rSTR, rCLZB
  	CHECK_BOUNDS_HIGH_RTN (rSTR, rTMP2, tdlge)
-@@ -124,13 +147,21 @@ L(missed):
+@@ -124,13 +147,21 @@
  	blr
  
  L(foundit):
