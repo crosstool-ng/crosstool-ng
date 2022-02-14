@@ -7,7 +7,7 @@ RUN yum install -y epel-release
 RUN yum install -y autoconf gperf bison file flex texinfo help2man gcc-c++ libtool make patch \
     ncurses-devel python36-devel perl-Thread-Queue bzip2 git wget which xz unzip rsync
 RUN ln -sf python36 /usr/bin/python3
-RUN wget -O /sbin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.1/dumb-init_1.2.1_amd64
+RUN wget -O /sbin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64
 RUN chmod a+x /sbin/dumb-init
 RUN echo 'export PATH=/opt/ctng/bin:$PATH' >> /etc/profile
 ENTRYPOINT [ "/sbin/dumb-init", "--" ]

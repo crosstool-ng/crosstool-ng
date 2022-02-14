@@ -57,16 +57,16 @@ do_cc_libstdcxx_newlib_nano()
 
     if [ "${CT_NEWLIB_NANO_GCC_LIBSTDCXX}" = "y" ]; then
         final_opts+=( "host=${CT_HOST}" )
-	final_opts+=( "libstdcxx_name=newlib-nano" )
+        final_opts+=( "libstdcxx_name=newlib-nano" )
         final_opts+=( "prefix=${CT_PREFIX_DIR}" )
         final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
         final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
         final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
         final_opts+=( "lang_list=c,c++" )
         final_opts+=( "build_step=libstdcxx" )
-	if [ "${CT_LIBC_NEWLIB_NANO_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
-	    final_opts+=( "enable_optspace=yes" )
-	fi
+        if [ "${CT_LIBC_NEWLIB_NANO_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
+            final_opts+=( "enable_optspace=yes" )
+        fi
         if [ -n "${CT_NEWLIB_NANO_GCC_LIBSTDCXX_TARGET_CXXFLAGS}" ]; then
             final_opts+=( "extra_cxxflags_for_target=${CT_NEWLIB_NANO_GCC_LIBSTDCXX_TARGET_CXXFLAGS}" )
         fi
@@ -185,8 +185,8 @@ ENABLE_TARGET_OPTSPACE:target-optspace
         --host=${CT_BUILD}                                         \
         --target=${CT_TARGET}                                      \
         --prefix=${CT_PREFIX_DIR}                                  \
-	--exec-prefix=${CT_PREFIX_DIR}/newlib-nano                 \
-	--libdir=${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib     \
+        --exec-prefix=${CT_PREFIX_DIR}/newlib-nano                 \
+        --libdir=${CT_PREFIX_DIR}/newlib-nano/${CT_TARGET}/lib     \
         "${newlib_opts[@]}"                                        \
         "${CT_LIBC_NEWLIB_NANO_EXTRA_CONFIG_ARRAY[@]}"
 

@@ -6,7 +6,7 @@
 # The actual implementation can override just what it needs then.
 eval "${CT_LIBC//[^A-Za-z0-9]/_}_get() { CT_Fetch \"\${CT_LIBC_${CT_LIBC_CHOICE_KSYM}_PKG_KSYM}\"; }"
 eval "${CT_LIBC//[^A-Za-z0-9]/_}_extract() { CT_ExtractPatch \"\${CT_LIBC_${CT_LIBC_CHOICE_KSYM}_PKG_KSYM}\"; }"
-for _m in start_files main post_cc; do
+for _m in headers main post_cc; do
     eval "${CT_LIBC//[^A-Za-z0-9]/_}_${_m}() { :; }"
 done
 
@@ -23,9 +23,9 @@ do_libc_extract()
     eval "${CT_LIBC//[^A-Za-z0-9]/_}_extract"
 }
 
-do_libc_start_files()
+do_libc_headers()
 {
-    eval "${CT_LIBC//[^A-Za-z0-9]/_}_start_files"
+    eval "${CT_LIBC//[^A-Za-z0-9]/_}_headers"
 }
 
 do_libc_main()

@@ -11,6 +11,10 @@
 
 CT_LoadConfig
 
+# Override CT_VCHECK: we're going to be saving it so need to force saving of
+# the config version.
+export CT_VCHECK=save
+
 # We can not reliably save a sample which either uses local patches
 # and/or custom Linux kernel headers. Warn the user about this issue
 # and continue if he/she confirms sving the sample.

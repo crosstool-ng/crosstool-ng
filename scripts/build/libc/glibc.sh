@@ -30,48 +30,14 @@ glibc_extract()
     fi
 }
 
-# Build and install headers and start files
-glibc_start_files()
-{
-    # Start files and Headers should be configured the same way as the
-    # final libc, but built and installed differently.
-    glibc_backend libc_mode=startfiles
-}
-
 # This function builds and install the full C library
 glibc_main()
 {
-    glibc_backend libc_mode=final
-}
-
-# This backend builds the C library once for each multilib
-# variant the compiler gives us
-# Usage: glibc_backend param=value [...]
-#   Parameter           : Definition                            : Type      : Default
-#   libc_mode           : 'startfiles' or 'final'               : string    : (none)
-glibc_backend()
-{
-    local libc_mode
     local arg
 
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    case "${libc_mode}" in
-        startfiles)
-            CT_DoStep INFO "Installing C library headers & start files"
-            ;;
-        final)
-            CT_DoStep INFO "Installing C library"
-            ;;
-        *)
-            CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'"
-            ;;
-    esac
-
-    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs glibc_backend_once multilib libc_mode="${libc_mode}"
+    CT_DoStep INFO "Installing C library"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
+    CT_IterateMultilibs glibc_backend_once multilib
     CT_Popd
     CT_EndStep
 }
@@ -79,13 +45,14 @@ glibc_backend()
 # This backend builds the C library once
 # Usage: glibc_backend_once param=value [...]
 #   Parameter           : Definition                            : Type
-#   libc_mode           : 'startfiles' or 'final'               : string    : (empty)
 #   multi_*             : as defined in CT_IterateMultilibs     : (varies)  :
 glibc_backend_once()
 {
+    # Glibc seems to be smart enough to know about the cases that can coexist
+    # in the same root and installs them into proper multilib-os directory; all
+    # we need is to point to the right root.
     local multi_flags multi_dir multi_os_dir multi_root multi_index multi_count multi_target
     local build_cflags build_cppflags build_ldflags
-    local startfiles_dir
     local src_dir="${CT_SRC_DIR}/glibc"
     local -a extra_config
     local -a extra_make_args
@@ -104,29 +71,9 @@ glibc_backend_once()
     # Adjust target tuple according GLIBC quirks
     CT_DoArchGlibcAdjustTuple multi_target
 
-    # Glibc seems to be smart enough to know about the cases that can coexist
-    # in the same root and installs them into proper multilib-os directory; all
-    # we need is to point to the right root. We do need to handle multilib-os
-    # here, though, for the first pass where we install crt*.o and a dummy
-    # libc.so; we therefore install it to the most specific location of
-    # <sysroot>/<suffix>/usr/lib/<multilib-os> where it is least likely to clash
-    # with other multilib variants. We then remove these temporary files at
-    # the beginning of the libc-final step and allow glibc to install them
-    # where it thinks is proper.
-    startfiles_dir="${multi_root}/usr/lib/${multi_os_dir}"
-    CT_SanitizeVarDir startfiles_dir
-
-    if [ "${libc_mode}" = "final" ]; then
-        CT_DoLog EXTRA "Cleaning up start files"
-        CT_DoExecLog ALL rm -f "${startfiles_dir}/crt1.o" \
-            "${startfiles_dir}/crti.o" \
-            "${startfiles_dir}/crtn.o" \
-            "${startfiles_dir}/libc.so"
-    fi
-
     CT_DoLog EXTRA "Configuring C library"
 
-    # Also, if those two are missing, iconv build breaks
+    # If those two are missing, iconv build breaks
     extra_config+=( --disable-debug --disable-sanity-checks )
 
     if [ "${CT_GLIBC_ENABLE_OBSOLETE_RPC}" = "y" ]; then
@@ -259,7 +206,6 @@ glibc_backend_once()
     CT_DoLog DEBUG "Configuring with addons  : '$(glibc_add_ons_list ,)'"
     CT_DoLog DEBUG "Extra config args passed : '${extra_config[*]}'"
     CT_DoLog DEBUG "Extra CFLAGS passed      : '${glibc_cflags}'"
-    CT_DoLog DEBUG "Placing startfiles into  : '${startfiles_dir}'"
     CT_DoLog DEBUG "Configuring with --host  : '${multi_target}'"
 
     # CFLAGS are only applied when compiling .c files. .S files are compiled with ASFLAGS,
@@ -324,111 +270,34 @@ glibc_backend_once()
     extra_make_args+=( "BUILD_CPPFLAGS=${build_cppflags}" )
     extra_make_args+=( "BUILD_LDFLAGS=${build_ldflags}" )
 
-    if [ "${libc_mode}" = "startfiles" -a ! -r "${multi_root}/.libc_headers_installed" ]; then
-        CT_DoLog EXTRA "Installing C library headers"
-        CT_DoExecLog ALL touch "${multi_root}/.libc_headers_installed"
+    CT_DoLog EXTRA "Building C library"
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}         \
+                          "${extra_make_args[@]}" \
+                          all
 
-        # use the 'install-headers' makefile target to install the
-        # headers
-        CT_DoExecLog ALL make ${CT_JOBSFLAGS}                       \
-                         install_root=${multi_root}                 \
-                         install-bootstrap-headers=yes              \
-                         "${extra_make_args[@]}"                    \
-                         install-headers
+    CT_DoLog EXTRA "Installing C library"
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}                 \
+                          "${extra_make_args[@]}"         \
+                          install_root="${multi_root}"    \
+                          install
 
-        # Two headers -- stubs.h and features.h -- aren't installed by install-headers,
-        # so do them by hand.  We can tolerate an empty stubs.h for the moment.
-        # See e.g. http://gcc.gnu.org/ml/gcc/2002-01/msg00900.html
-        mkdir -p "${CT_HEADERS_DIR}/gnu"
-        CT_DoExecLog ALL touch "${CT_HEADERS_DIR}/gnu/stubs.h"
-        CT_DoExecLog ALL cp -v "${CT_SRC_DIR}/glibc/include/features.h"  \
-                               "${CT_HEADERS_DIR}/features.h"
+    if [ "${CT_BUILD_MANUALS}" = "y" -a "${multi_index}" = "${multi_count}" ]; then
+        # We only need to build the manuals once. Only build them on the
+        # last multilib target. If it's not multilib, it will happen on the
+        # only target.
+        CT_DoLog EXTRA "Building and installing the C library manual"
+        # Omit CT_JOBSFLAGS as GLIBC has problems building the
+        # manuals in parallel
+        CT_DoExecLog ALL make pdf html
+        CT_DoExecLog ALL mkdir -p ${CT_PREFIX_DIR}/share/doc
+        CT_DoExecLog ALL cp -av manual/*.pdf    \
+                                manual/libc     \
+                                ${CT_PREFIX_DIR}/share/doc
+    fi
 
-        # Building the bootstrap gcc requires either setting inhibit_libc, or
-        # having a copy of stdio_lim.h... see
-        # http://sources.redhat.com/ml/libc-alpha/2003-11/msg00045.html
-        CT_DoExecLog ALL cp -v bits/stdio_lim.h "${CT_HEADERS_DIR}/bits/stdio_lim.h"
-
-        # Following error building gcc-4.0.0's gcj:
-        #  error: bits/syscall.h: No such file or directory
-        # solved by following copy; see http://sourceware.org/ml/crossgcc/2005-05/msg00168.html
-        # but it breaks arm, see http://sourceware.org/ml/crossgcc/2006-01/msg00091.html
-        # Of course, only copy it if it does not already exist
-        case "${CT_ARCH}" in
-            arm)    ;;
-            *)  if [ -f "${CT_HEADERS_DIR}/bits/syscall.h" ]; then
-                    CT_DoLog ALL "Not over-writing existing bits/syscall.h"
-                elif [ -f "misc/bits/syscall.h" ]; then
-                    CT_DoExecLog ALL cp -v "misc/bits/syscall.h"            \
-                                           "${CT_HEADERS_DIR}/bits/syscall.h"
-                else
-                    # "Old" glibces do not have the above file,
-                    # but provide this one:
-                    CT_DoExecLog ALL cp -v "misc/syscall-list.h"            \
-                                           "${CT_HEADERS_DIR}/bits/syscall.h"
-                fi
-                ;;
-        esac
-    elif [ "${libc_mode}" = "final" -a -r "${multi_root}/.libc_headers_installed" ]; then
-        CT_DoExecLog ALL rm -f "${multi_root}/.libc_headers_installed"
-    fi # installing headers
-
-    if [ "${libc_mode}" = "startfiles" ]; then
-        if [ "${CT_THREADS}" = "nptl" ]; then
-            CT_DoLog EXTRA "Installing C library start files"
-
-            # there are a few object files needed to link shared libraries,
-            # which we build and install by hand
-            CT_DoExecLog ALL mkdir -p "${startfiles_dir}"
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} \
-                        "${extra_make_args[@]}" \
-                        csu/subdir_lib
-            CT_DoExecLog ALL cp csu/crt1.o csu/crti.o csu/crtn.o    \
-                                "${startfiles_dir}"
-
-            # Finally, 'libgcc_s.so' requires a 'libc.so' to link against.
-            # However, since we will never actually execute its code,
-            # it doesn't matter what it contains.  So, treating '/dev/null'
-            # as a C source file, we produce a dummy 'libc.so' in one step
-            CT_DoExecLog ALL "${CT_TARGET}-${CT_CC}" ${multi_flags}   \
-                                           -nostdlib                  \
-                                           -nostartfiles              \
-                                           -shared                    \
-                                           -x c /dev/null             \
-                                           -o "${startfiles_dir}/libc.so"
-        fi # threads == nptl
-    fi # libc_mode = startfiles
-
-    if [ "${libc_mode}" = "final" ]; then
-        CT_DoLog EXTRA "Building C library"
-        CT_DoExecLog ALL make ${CT_JOBSFLAGS}         \
-                              "${extra_make_args[@]}" \
-                              all
-
-        CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL make ${CT_JOBSFLAGS}                 \
-                              "${extra_make_args[@]}"         \
-                              install_root="${multi_root}"    \
-                              install
-
-        if [ "${CT_BUILD_MANUALS}" = "y" -a "${multi_index}" = "${multi_count}" ]; then
-            # We only need to build the manuals once. Only build them on the
-            # last multilib target. If it's not multilib, it will happen on the
-            # only target.
-            CT_DoLog EXTRA "Building and installing the C library manual"
-            # Omit CT_JOBSFLAGS as GLIBC has problems building the
-            # manuals in parallel
-            CT_DoExecLog ALL make pdf html
-            CT_DoExecLog ALL mkdir -p ${CT_PREFIX_DIR}/share/doc
-            CT_DoExecLog ALL cp -av manual/*.pdf    \
-                                    manual/libc     \
-                                    ${CT_PREFIX_DIR}/share/doc
-        fi
-
-        if [ "${CT_GLIBC_LOCALES}" = "y" -a "${multi_index}" = "${multi_count}" ]; then
-            glibc_locales
-        fi
-    fi # libc_mode = final
+    if [ "${CT_GLIBC_LOCALES}" = "y" -a "${multi_index}" = "${multi_count}" ]; then
+        glibc_locales
+    fi
 
     CT_EndStep
 }

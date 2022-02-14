@@ -2,42 +2,18 @@
 # Copyright 2013 Timo TerÃ¤s
 # Licensed under the GPL v2. See COPYING in the root of this package
 
-# Build and install headers and start files
-musl_start_files()
+musl_post_cc()
 {
-    # Start files and Headers should be configured the same way as the
-    # final libc, but built and installed differently.
-    musl_backend libc_mode=startfiles
-}
-
-# This function builds and install the full C library
-musl_main()
-{
-    musl_backend libc_mode=final
-}
-
-musl_post_cc() {
     # MUSL creates dynamic linker symlink with absolute path - which works on the
     # target but not on the host. We want our cross-ldd tool to work.
     CT_MultilibFixupLDSO
 }
 
-musl_backend() {
-    local libc_mode
-    local arg
-
-    for arg in "$@"; do
-        eval "${arg// /\\ }"
-    done
-
-    case "${libc_mode}" in
-        startfiles)     CT_DoStep INFO "Installing C library headers & start files";;
-        final)          CT_DoStep INFO "Installing C library";;
-        *)              CT_Abort "Unsupported (or unset) libc_mode='${libc_mode}'";;
-    esac
-
-    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc-${libc_mode}"
-    CT_IterateMultilibs musl_backend_once multilib libc_mode="${libc_mode}"
+musl_main()
+{
+    CT_DoStep INFO "Installing C library"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
+    CT_IterateMultilibs musl_backend_once multilib
     CT_Popd
     CT_EndStep
 }
@@ -45,9 +21,9 @@ musl_backend() {
 # This backend builds the C library
 # Usage: musl_backend param=value [...]
 #   Parameter           : Definition                      : Type      : Default
-#   libc_mode           : 'startfiles' or 'final'         : string    : (none)
-musl_backend_once() {
-    local libc_mode
+#   multi_*             : as defined in CT_IterateMultilibs     : (varies)  :
+musl_backend_once()
+{
     local -a extra_cflags
     local -a extra_config
     local src_dir="${CT_SRC_DIR}/musl"
@@ -110,45 +86,26 @@ musl_backend_once() {
         --disable-gcc-wrapper                             \
         "${extra_config[@]}"
 
-    if [ "${libc_mode}" = "startfiles" ]; then
-        CT_DoLog EXTRA "Installing C library headers"
-        CT_DoExecLog ALL make DESTDIR="${multi_root}" install-headers
-        CT_DoLog EXTRA "Building C library start files"
-        CT_DoExecLog ALL make DESTDIR="${multi_root}" \
-            obj/crt/crt1.o obj/crt/crti.o obj/crt/crtn.o
-        CT_DoLog EXTRA "Installing C library start files"
-        CT_DoExecLog ALL cp -av obj/crt/crt*.o "${multi_root}${multilib_dir}"
-        CT_DoExecLog ALL ${CT_TARGET}-${CT_CC} -nostdlib \
-            -nostartfiles -shared -x c /dev/null -o "${multi_root}${multilib_dir}/libc.so"
-    fi
-    if [ "${libc_mode}" = "final" ]; then
-        CT_DoLog EXTRA "Cleaning up start files"
-        CT_DoExecLog ALL rm -f "${multi_root}${multilib_dir}/crt1.o" \
-            "${multi_root}${multilib_dir}/crti.o" \
-            "${multi_root}${multilib_dir}/crtn.o" \
-            "${multi_root}${multilib_dir}/libc.so"
+    CT_DoLog EXTRA "Building C library"
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
 
-        CT_DoLog EXTRA "Building C library"
-        CT_DoExecLog ALL make ${CT_JOBSFLAGS}
+    CT_DoLog EXTRA "Installing C library"
+    CT_DoExecLog ALL make DESTDIR="${multi_root}" install
 
-        CT_DoLog EXTRA "Installing C library"
-        CT_DoExecLog ALL make DESTDIR="${multi_root}" install
+    # Convert /lib/ld-* symlinks to relative paths so that they are valid
+    # both on the host and on the target.
+    for f in ${multi_root}/ld-musl-*; do
+        [ -L "${f}" ] || continue
+        l=$( readlink ${f} )
+        case "${l}" in
+            ${multilib_dir}/*)
+                CT_DoExecLog ALL ln -sf "../${l}" "${f}"
+                ;;
+        esac
+    done
 
-        # Convert /lib/ld-* symlinks to relative paths so that they are valid
-        # both on the host and on the target.
-        for f in ${multi_root}/ld-musl-*; do
-            [ -L "${f}" ] || continue
-            l=$( readlink ${f} )
-            case "${l}" in
-                ${multilib_dir}/*)
-                    CT_DoExecLog ALL ln -sf "../${l}" "${f}"
-                    ;;
-            esac
-        done
-
-        # Any additional actions for this architecture
-        CT_DoArchMUSLPostInstall
-    fi
+    # Any additional actions for this architecture
+    CT_DoArchMUSLPostInstall
 
     CT_EndStep
 }

@@ -14,9 +14,9 @@ moxiebox_extract()
     CT_ExtractPatch MOXIEBOX
 }
 
-moxiebox_start_files()
+moxiebox_headers()
 {
-    newlib_start_files
+    newlib_headers
 }
 
 moxiebox_main()

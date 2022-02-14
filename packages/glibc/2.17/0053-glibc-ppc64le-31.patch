@@ -21,9 +21,20 @@
 #         * sysdeps/powerpc/powerpc64/power7/mempcpy.S: Likewise.  Make better
 #         use of regs.  Use power7 mtocrf.  Tidy function tails.
 # 
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+---
+# sysdeps/powerpc/powerpc32/power4/memcpy.S  |   58 ++
+# sysdeps/powerpc/powerpc32/power6/memcpy.S  |   81 +++
+# sysdeps/powerpc/powerpc32/power7/memcpy.S  |   24 
+# sysdeps/powerpc/powerpc32/power7/mempcpy.S |   28 -
+# sysdeps/powerpc/powerpc64/memcpy.S         |   27 +
+# sysdeps/powerpc/powerpc64/power4/memcpy.S  |  157 ++++--
+# sysdeps/powerpc/powerpc64/power6/memcpy.S  |  451 +++++++++++++++---
+# sysdeps/powerpc/powerpc64/power7/memcpy.S  |  706 +++++++++++++----------------
+# sysdeps/powerpc/powerpc64/power7/mempcpy.S |   26 -
+# 9 files changed, 1035 insertions(+), 523 deletions(-)
+#
+--- a/sysdeps/powerpc/powerpc32/power4/memcpy.S
++++ b/sysdeps/powerpc/powerpc32/power4/memcpy.S
 @@ -205,15 +205,28 @@
      blt   cr6,5f
      srwi  7,6,16
@@ -163,9 +174,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power4/memcpy.S glibc-2.
      or    0,0,8
      stw   0,0(4)
  3:
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+--- a/sysdeps/powerpc/powerpc32/power6/memcpy.S
++++ b/sysdeps/powerpc/powerpc32/power6/memcpy.S
 @@ -221,15 +221,28 @@
      blt   cr6,5f
      srwi  7,6,16
@@ -385,9 +395,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power6/memcpy.S glibc-2.
      b     L(wdu_32tailx)
      .align  4
  L(wdu_32tailx):
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+--- a/sysdeps/powerpc/powerpc32/power7/memcpy.S
++++ b/sysdeps/powerpc/powerpc32/power7/memcpy.S
 @@ -385,7 +385,7 @@
  
  	beq    L(copy_GE_32_unaligned_cont)
@@ -441,9 +450,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/memcpy.S glibc-2.
  	addi    11,11,32
  	stvx    6,0,10
  	stvx    10,10,6
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
+--- a/sysdeps/powerpc/powerpc32/power7/mempcpy.S
++++ b/sysdeps/powerpc/powerpc32/power7/mempcpy.S
 @@ -327,7 +327,7 @@
  
  	beq	L(copy_GE_32_unaligned_cont)
@@ -499,9 +507,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc32/power7/mempcpy.S glibc-2
  	addi	11,11,32
  	stvx	6,0,10
  	stvx	10,10,6
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S	2014-05-29 13:04:56.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/memcpy.S
++++ b/sysdeps/powerpc/powerpc64/memcpy.S
 @@ -214,15 +214,28 @@
      blt   cr6,5f
      srdi  7,6,16
@@ -569,9 +576,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/memcpy.S glibc-2.17-c758
      or    0,0,8
      beq   8f
      ld    7,16(5)
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S	2014-05-29 13:05:51.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/power4/memcpy.S
++++ b/sysdeps/powerpc/powerpc64/power4/memcpy.S
 @@ -1,5 +1,5 @@
  /* Optimized memcpy implementation for PowerPC64.
 -   Copyright (C) 2003, 2006, 2011 Free Software Foundation, Inc.
@@ -954,9 +960,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power4/memcpy.S glibc-2.
 -END_GEN_TB (BP_SYM (memcpy),TB_TOCLESS)
 +END_GEN_TB (memcpy,TB_TOCLESS)
  libc_hidden_builtin_def (memcpy)
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S	2014-05-29 13:05:27.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/power6/memcpy.S
++++ b/sysdeps/powerpc/powerpc64/power6/memcpy.S
 @@ -1,5 +1,5 @@
  /* Optimized memcpy implementation for PowerPC64.
 -   Copyright (C) 2003, 2006, 2007, 2011 Free Software Foundation, Inc.
@@ -2073,9 +2078,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power6/memcpy.S glibc-2.
 -END_GEN_TB (BP_SYM (memcpy),TB_TOCLESS)
 +END_GEN_TB (memcpy,TB_TOCLESS)
  libc_hidden_builtin_def (memcpy)
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S	2014-05-29 13:05:40.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/power7/memcpy.S
++++ b/sysdeps/powerpc/powerpc64/power7/memcpy.S
 @@ -1,5 +1,5 @@
  /* Optimized memcpy implementation for PowerPC64/POWER7.
 -   Copyright (C) 2010, 2011 Free Software Foundation, Inc.
@@ -2892,9 +2896,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/memcpy.S glibc-2.
 -END_GEN_TB (BP_SYM (memcpy),TB_TOCLESS)
 +END_GEN_TB (memcpy,TB_TOCLESS)
  libc_hidden_builtin_def (memcpy)
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/power7/mempcpy.S	2014-05-29 13:04:56.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/power7/mempcpy.S
++++ b/sysdeps/powerpc/powerpc64/power7/mempcpy.S
 @@ -367,13 +367,21 @@
  	mr	11,12
  	mtcrf	0x01,9

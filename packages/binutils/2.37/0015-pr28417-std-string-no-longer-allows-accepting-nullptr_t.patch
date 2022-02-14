@@ -1,0 +1,38 @@
+From 0effb90eb7c9a50408d98ce174f1b4bc5562f017 Mon Sep 17 00:00:00 2001
+From: Alan Modra <amodra@gmail.com>
+Date: Wed, 20 Oct 2021 10:09:57 +1030
+Subject: [PATCH] PR28417, std::string no longer allows accepting nullptr_t
+
+	PR 28417
+	* incremental.cc (Sized_relobj_incr::do_section_name): Avoid
+	std:string undefined behaviour.
+	* options.h (Search_directory::Search_directory): Likewise.
+
+(cherry picked from commit 068a039b8bd7c7386bb0d88f0ae245b0fe4132e9)
+---
+ gold/incremental.cc |    2 +-
+ gold/options.h      |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+--- a/gold/incremental.cc
++++ b/gold/incremental.cc
+@@ -2280,7 +2280,7 @@
+   const Output_sections& out_sections(this->output_sections());
+   const Output_section* os = out_sections[shndx];
+   if (os == NULL)
+-    return NULL;
++    return std::string();
+   return os->name();
+ }
+ 
+--- a/gold/options.h
++++ b/gold/options.h
+@@ -611,7 +611,7 @@
+   // We need a default constructor because we put this in a
+   // std::vector.
+   Search_directory()
+-    : name_(NULL), put_in_sysroot_(false), is_in_sysroot_(false)
++    : name_(), put_in_sysroot_(false), is_in_sysroot_(false)
+   { }
+ 
+   // This is the usual constructor.

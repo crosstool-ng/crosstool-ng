@@ -34,9 +34,24 @@
 #     a stack frame, and the patch changes them to add extra space in
 #     these frames as temporary space for the ELFv2 ABI.
 # 
-diff -urN glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h
---- glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h	2014-05-29 14:10:00.000000000 -0500
-+++ glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h	2014-05-29 14:10:00.000000000 -0500
+---
+# nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h |   60 ++++---
+# sysdeps/powerpc/powerpc64/__longjmp-common.S                   |    4 
+# sysdeps/powerpc/powerpc64/crti.S                               |    8 -
+# sysdeps/powerpc/powerpc64/crtn.S                               |    8 -
+# sysdeps/powerpc/powerpc64/dl-trampoline.S                      |   48 +++---
+# sysdeps/powerpc/powerpc64/ppc-mcount.S                         |   14 -
+# sysdeps/powerpc/powerpc64/setjmp-common.S                      |   16 +-
+# sysdeps/powerpc/powerpc64/sysdep.h                             |   76 +++++++---
+# sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S    |   16 +-
+# sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S                |    4 
+# sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S              |   32 ++--
+# sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S             |   29 ++-
+# sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym       |   21 --
+# 13 files changed, 186 insertions(+), 150 deletions(-)
+#
+--- a/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h
++++ b/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sysdep-cancel.h
 @@ -31,6 +31,14 @@
  #  define DASHDASHPFX(str) __##str
  # endif
@@ -131,9 +146,8 @@ diff -urN glibc-2.17-c758a686/nptl/sysdeps/unix/sysv/linux/powerpc/powerpc64/sys
  
  # ifdef IS_IN_libpthread
  #  ifdef SHARED
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/__longjmp-common.S
++++ b/sysdeps/powerpc/powerpc64/__longjmp-common.S
 @@ -133,7 +133,7 @@
  	ld r14,((JB_GPRS+0)*8)(r3)
  	lfd fp14,((JB_FPRS+0)*8)(r3)
@@ -152,9 +166,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/__longjmp-common.S glibc
  	ld r21,((JB_GPRS+7)*8)(r3)
  	lfd fp21,((JB_FPRS+7)*8)(r3)
  	ld r22,((JB_GPRS+8)*8)(r3)
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/crti.S
++++ b/sysdeps/powerpc/powerpc64/crti.S
 @@ -66,8 +66,8 @@
  BODY_LABEL (_init):
  	LOCALENTRY(_init)
@@ -174,9 +187,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crti.S glibc-2.17-c758a6
 -	stdu r1, -112(r1)
 +	std 0, FRAME_LR_SAVE(r1)
 +	stdu r1, -FRAME_MIN_SIZE_PARM(r1)
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/crtn.S
++++ b/sysdeps/powerpc/powerpc64/crtn.S
 @@ -39,13 +39,13 @@
  #include <sysdep.h>
  
@@ -195,9 +207,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/crtn.S glibc-2.17-c758a6
 +	ld r0, FRAME_LR_SAVE(r1)
  	mtlr r0
  	blr
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/dl-trampoline.S
++++ b/sysdeps/powerpc/powerpc64/dl-trampoline.S
 @@ -26,13 +26,13 @@
     parm1 (r3) and the index (r0) need to be converted to an offset
     (index * 24) in parm2 (r4).  */
@@ -363,9 +374,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/dl-trampoline.S glibc-2.
  	ld	r31,584(r1)
  	ld	r30,576(r1)
  	mtlr	r0
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/ppc-mcount.S
++++ b/sysdeps/powerpc/powerpc64/ppc-mcount.S
 @@ -24,16 +24,16 @@
  ENTRY(_mcount)
  	mflr		 r4
@@ -390,9 +400,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/ppc-mcount.S glibc-2.17-
  	blr
  END(_mcount)
  
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/setjmp-common.S
++++ b/sysdeps/powerpc/powerpc64/setjmp-common.S
 @@ -56,7 +56,7 @@
     bugz #269.  __GI__setjmp is used in csu/libc-start.c when
     HAVE_CLEANUP_JMP_BUF is defined.  */
@@ -432,9 +441,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/setjmp-common.S glibc-2.
  	mtlr	r0
  	blr
  #endif
-diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h
---- glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/powerpc/powerpc64/sysdep.h
++++ b/sysdeps/powerpc/powerpc64/sysdep.h
 @@ -20,25 +20,67 @@
  
  #ifdef __ASSEMBLER__
@@ -557,9 +565,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/powerpc/powerpc64/sysdep.h glibc-2.17-c758
      mtlr 0; \
      cfi_restore(lr); \
      blr; \
-diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S
---- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/____longjmp_chk.S
 @@ -33,24 +33,24 @@
  	cmpld	reg, r1;				\
  	bge+	.Lok;					\
@@ -593,9 +600,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/____long
  	add	r4,r4,r0;				\
  	sub	r3,r3,reg;				\
  	cmpld	r3,r0;					\
-diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S
---- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S
 @@ -31,9 +31,9 @@
  	CALL_MCOUNT 1
  	DISCARD_BOUNDS (r3)	/* the bounds are meaningless, so toss 'em.  */
@@ -608,9 +614,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/brk.S gl
  	ld	r5,.LC__curbrk@toc(r2)
  	std     r3,0(r5)
  	cmpld   r6,r3
-diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S
---- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S
 @@ -45,22 +45,22 @@
  	cror	cr0*4+eq,cr1*4+eq,cr0*4+eq
  	beq-	cr0,L(badargs)
@@ -679,9 +684,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/clone.S 
  #ifdef RESET_PID
  	cfi_restore(r29)
  #endif
-diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S
---- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S
 @@ -46,8 +46,13 @@
  # endif
  #endif
@@ -731,9 +735,8 @@ diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/socket.S
  	mtlr	r4
  	mtcr	r0
  	addi	r1,r1,FRAMESIZE
-diff -urN glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym
---- glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym	2014-05-29 14:09:56.000000000 -0500
-+++ glibc-2.17-c758a686/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym	2014-05-29 14:10:00.000000000 -0500
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/ucontext_i.sym
 @@ -8,27 +8,6 @@
  SIG_SETMASK
  

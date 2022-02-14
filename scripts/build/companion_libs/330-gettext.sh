@@ -80,6 +80,28 @@ do_gettext_backend() {
             return
             ;;
 
+        # Starting with 0.21, gettext cannot build against uClibc-NG: gettext
+        # checks if it needs to use fopen wrapper (using gnulib) and newer versions
+        # of gnulib also check if fopen provided by the system supports 'e' and 'x'
+        # modes. In cross-compile environment, gnulib falls back to assuming fopen
+        # does not support these modes unless the target tuple is glibc or musl
+        # (rightly so, since these fopen modes are optional in uClibc-NG).
+        # Unfortunately, the fopen() wrapper does not compile against uClibc-NG's
+        # stdio.h then because it includes <stdio.h> after defining __need_FILE macro.
+        # It looks like two bugs, one in each of uClibc-ng and gnulib:
+        # - uClibc-ng does not include its internal headers with the definitions for the
+        #   __BEGIN_NAMESPACE_STD/__END_NAMESPACE_STD macros, which therefore escape
+        #   unsubstituted into the including code.
+        # - gnulib shouldn't expect the fopen() prototype if it only asked for FILE
+        #   structure definition by defining the __need_FILE macro.
+        # Until the maintainers sort this out, disallow newer gettext versions if
+        # linking against uClibc-NG.
+        *-uclibc*)
+            if [ "${CT_GETTEXT_INCOMPATIBLE_WITH_UCLIBC_NG}" = "y" ]; then
+                CT_Abort "This version of gettext is incompatible with uClibc-NG"
+            fi
+            ;;
+
         # A bit ugly. D__USE_MINGW_ANSI_STDIO=1 has its own {v}asprintf functions
         # but gettext configure doesn't see this flag when it checks for that. An
         # alternative may be to use CC="${host}-gcc ${cflags}" but that didn't
