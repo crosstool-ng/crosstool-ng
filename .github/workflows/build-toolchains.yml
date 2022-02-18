@@ -1,0 +1,113 @@
+name: Build toolchains
+
+on:
+  workflow_call:
+    inputs:
+      samples:
+        description: Stringified JSON list of samples
+        required: true
+        type: string
+      canadian-cross:
+        description: Build Canadian Cross toolchain(x86_64-w64-mingw32)
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ${{ matrix.host }}
+    strategy:
+      matrix:
+        host: [ "ubuntu-latest", "macos-10.15" ]
+        sample: ${{ fromJSON(inputs.samples) }}
+        exclude:
+          # Exclude both glibc & uClibc ARC Linux toolchains as
+          # there's no known use of ARC Linux toolchains on Mac,
+          # and anyway glibc fails to build for ARC700,
+          # see https://github.com/crosstool-ng/crosstool-ng/pull/1456#issuecomment-779150246
+          - { host: "macos-10.15", sample: "arc-multilib-linux-gnu" }
+          - { host: "macos-10.15", sample: "arc-multilib-linux-uclibc" }
+
+          # Exclude mips*-*-linux-gnu because of <byteswap.h> usage in
+          # elf-entry.c for linux kernel headers.  <byteswap.h> is a GNU
+          # extension and doesn't exist on MacOS X
+          - { host: "macos-10.15", sample: "mips-unknown-linux-gnu" }
+          - { host: "macos-10.15", sample: "mips64-unknown-linux-gnu" }
+
+          # Exclude x86_64-w64-mingw32,x86_64-pc-linux-gnu because it crashes on m4 build with
+          # a Segmentation fault
+          - { host: "macos-10.15", sample: "x86_64-w64-mingw32,x86_64-pc-linux-gnu" }
+    steps:
+      - name: create case sensitive workspace volume for macOS
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          cd ..
+          rmdir crosstool-ng
+          hdiutil create ${HOME}/Workspace.sparseimage -volname crosstool-ng -type SPARSE -size 20g -fs HFSX
+          hdiutil mount ${HOME}/Workspace.sparseimage -mountroot /Users/runner/work/crosstool-ng
+          cd crosstool-ng
+      - name: download ct-ng
+        uses: actions/download-artifact@v2
+        with:
+          name: crosstool.${{ matrix.host }}
+      - name: extract ct-ng
+        run: |
+          tar -xf ct-ng.tar
+      - name: download tarballs
+        uses: actions/download-artifact@v2
+        with:
+          name: src.tar
+      - name: extract tarballs
+        run: |
+          tar -xvf src.tar
+      - name: prereq Linux
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt-get install -y gperf help2man libtool-bin
+          echo "${{ github.workspace }}/.local/bin" >> $GITHUB_PATH
+      - name: prereq macOS
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          brew install autoconf automake bash binutils gawk gnu-sed \
+               gnu-tar help2man make ncurses pkg-config
+          echo "${{ github.workspace }}/.local/bin" >> $GITHUB_PATH
+      - name: download x86_64-w64-mingw32.${{ matrix.host }} tarball
+        if: ${{ inputs.canadian-cross }}
+        uses: actions/download-artifact@v2
+        with:
+          name: x86_64-w64-mingw32.${{ matrix.host }}.tar
+      - name: install x86_64-w64-mingw32.${{ matrix.host }} toolchain
+        if: ${{ inputs.canadian-cross }}
+        run: |
+          mkdir -p ${{ github.workspace }}/x86_64-w64-mingw32
+          tar -C ${{ github.workspace }}/x86_64-w64-mingw32 \
+              -xf x86_64-w64-mingw32.${{ matrix.host }}.tar
+          echo "${{ github.workspace }}/x86_64-w64-mingw32/bin" >> $GITHUB_PATH
+      - name: build ${{ matrix.sample }} for ${{ matrix.host }}
+        run: |
+          mkdir -p src
+          ct-ng ${{ matrix.sample }}
+          sed -i -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config
+          sed -i -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config
+          sed -i -e '/CT_PREFIX_DIR/s/HOME/CT_TOP_DIR/' .config
+          ct-ng build
+      - name: create ${{ matrix.sample }}.${{ matrix.host }} tarball
+        if: ${{ matrix.sample == 'x86_64-w64-mingw32' }}
+        run: |
+          tar -C ${{ github.workspace }}/x-tools/${{ matrix.sample }} \
+              -cf ${{ matrix.sample }}.${{ matrix.host }}.tar .
+      - name: upload ${{ matrix.sample }}.${{ matrix.host }} tarball
+        if: ${{ matrix.sample == 'x86_64-w64-mingw32' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: x86_64-w64-mingw32.${{ matrix.host }}.tar
+          path: |
+            x86_64-w64-mingw32.${{ matrix.host }}.tar
+      - name: upload log
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.sample }}.${{ matrix.host }}.log
+          path: |
+            build.log
+            .config
+        if: ${{ always() }}

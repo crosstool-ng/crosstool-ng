@@ -89,97 +89,40 @@ jobs:
 
   toolchains:
     needs: [ crosstool, tarballs ]
-    runs-on: ${{ matrix.host }}
-    strategy:
-      matrix:
-        host: [ "ubuntu-latest", "macos-10.15" ]
-        sample:
-          [
-            "aarch64-unknown-linux-gnu",
-            "arc-multilib-elf32",
-            "arc-multilib-linux-gnu",
-            "arc-multilib-linux-uclibc",
-            "arm-picolibc-eabi",
-            "arm-unknown-linux-gnueabi",
-            "arm-unknown-linux-musleabi",
-            "armv6-nommu-linux-uclibcgnueabi",
-            "avr",
-            "i686-w64-mingw32",
-            "mips-unknown-elf",
-            "mips-unknown-linux-gnu",
-            "mips64-unknown-linux-gnu",
-            "powerpc-unknown-linux-gnu",
-            "powerpc64-unknown-linux-gnu",
-            "riscv32-unknown-elf",
-            "riscv64-unknown-elf",
-            "s390-unknown-linux-gnu",
-            "sh-unknown-elf",
-            "sparc-unknown-linux-gnu",
-            "x86_64-multilib-linux-uclibc",
-            "x86_64-unknown-linux-gnu",
-            "x86_64-w64-mingw32",
-            "xtensa-fsf-linux-uclibc",
-          ]
-        exclude:
-          # Exclude both glibc & uClibc ARC Linux toolchains as
-          # there's no known use of ARC Linux toolchains on Mac,
-          # and anyway glibc fails to build for ARC700,
-          # see https://github.com/crosstool-ng/crosstool-ng/pull/1456#issuecomment-779150246
-          - { host: "macos-10.15", sample: "arc-multilib-linux-gnu" }
-          - { host: "macos-10.15", sample: "arc-multilib-linux-uclibc" }
+    uses: ./.github/workflows/build-toolchains.yml
+    with:
+      samples: >-
+        [
+          "aarch64-unknown-linux-gnu",
+          "arc-multilib-elf32",
+          "arc-multilib-linux-gnu",
+          "arc-multilib-linux-uclibc",
+          "arm-picolibc-eabi",
+          "arm-unknown-linux-gnueabi",
+          "arm-unknown-linux-musleabi",
+          "armv6-nommu-linux-uclibcgnueabi",
+          "avr",
+          "i686-w64-mingw32",
+          "mips-unknown-elf",
+          "mips-unknown-linux-gnu",
+          "mips64-unknown-linux-gnu",
+          "powerpc-unknown-linux-gnu",
+          "powerpc64-unknown-linux-gnu",
+          "riscv32-unknown-elf",
+          "riscv64-unknown-elf",
+          "s390-unknown-linux-gnu",
+          "sh-unknown-elf",
+          "sparc-unknown-linux-gnu",
+          "x86_64-multilib-linux-uclibc",
+          "x86_64-unknown-linux-gnu",
+          "x86_64-w64-mingw32",
+          "xtensa-fsf-linux-uclibc"
+        ]
 
-          # Exclude mips*-*-linux-gnu because of <byteswap.h> usage in
-          # elf-entry.c for linux kernel headers.  <byteswap.h> is a GNU
-          # extension and doesn't exist on MacOS X
-          - { host: "macos-10.15", sample: "mips-unknown-linux-gnu" }
-          - { host: "macos-10.15", sample: "mips64-unknown-linux-gnu" }
-    steps:
-      - name: Create case sensitive workspace volume for macOS
-        if: ${{ runner.os == 'macOS' }}
-        run: |
-          cd ..
-          rmdir crosstool-ng
-          hdiutil create ${HOME}/Workspace.sparseimage -volname crosstool-ng -type SPARSE -size 20g -fs HFSX
-          hdiutil mount ${HOME}/Workspace.sparseimage -mountroot /Users/runner/work/crosstool-ng
-          cd crosstool-ng
-      - name: "download ct-ng"
-        uses: actions/download-artifact@v2
-        with:
-          name: crosstool.${{ matrix.host }}
-      - name: "extract ct-ng"
-        run: |
-          tar -xf ct-ng.tar
-      - name: "download tarballs"
-        uses: actions/download-artifact@v2
-        with:
-          name: src.tar
-      - name: "extract tarballs"
-        run: |
-          tar -xvf src.tar
-      - name: "prereq Linux"
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          sudo apt-get install -y gperf help2man libtool-bin
-          echo "$GITHUB_WORKSPACE/.local/bin" >> $GITHUB_PATH
-      - name: "prereq macOS"
-        if: ${{ runner.os == 'macOS' }}
-        run: |
-          brew install autoconf automake bash binutils gawk gnu-sed \
-               gnu-tar help2man make ncurses pkg-config
-          echo "$GITHUB_WORKSPACE/.local/bin" >> $GITHUB_PATH
-      - name: "build ${{ matrix.sample }} for ${{ matrix.host }}"
-        run: |
-          mkdir -p src
-          ct-ng ${{ matrix.sample }}
-          sed -i -e '/CT_LOG_PROGRESS_BAR/s/y$/n/' .config
-          sed -i -e '/CT_LOCAL_TARBALLS_DIR/s/HOME/CT_TOP_DIR/' .config
-          sed -i -e '/CT_PREFIX_DIR/s/HOME/CT_TOP_DIR/' .config
-          ct-ng build
-      - name: "upload log"
-        uses: actions/upload-artifact@v2
-        with:
-          name: "${{ matrix.sample }}.${{ matrix.host }}.log"
-          path: |
-            build.log
-            .config
-        if: ${{ always() }}
+  canadian-cross:
+    needs: [ toolchains ]
+    uses: ./.github/workflows/build-toolchains.yml
+    with:
+      samples: >-
+        ["x86_64-w64-mingw32,x86_64-pc-linux-gnu"]
+      canadian-cross: true
