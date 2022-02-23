@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ncurses.h>
-#include <menu.h>
+#include CURSES_LOC
+#include MENU_LOC
 #include <panel.h>
 #include <form.h>
 
