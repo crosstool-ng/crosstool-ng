@@ -396,12 +396,6 @@ do_gcc_core_backend() {
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++")
             host_libstdcxx_flags+=("-lm")
         fi
-        # Companion libraries are build static (eg !shared), so
-        # the libstdc++ is not pulled automatically, although it
-        # is needed. Shoe-horn it in our LDFLAGS
-        # Ditto libm on some Fedora boxen
-        core_LDFLAGS+=("-lstdc++")
-        core_LDFLAGS+=("-lm")
     else
         if [ "${CT_CC_GCC_STATIC_LIBSTDCXX}" = "y" -a "${CT_GCC_older_than_6}" = "y" ]; then
             # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
@@ -412,12 +406,6 @@ do_gcc_core_backend() {
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
         fi
-        # When companion libraries are build static (eg !shared),
-        # the libstdc++ is not pulled automatically, although it
-        # is needed. Shoe-horn it in our LDFLAGS
-        # Ditto libm on some Fedora boxen
-        core_LDFLAGS+=("-lstdc++")
-        core_LDFLAGS+=("-lm")
     fi
 
     extra_config+=("--with-gmp=${complibs}")
@@ -1036,12 +1024,6 @@ do_gcc_backend() {
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++")
             host_libstdcxx_flags+=("-lm")
         fi
-        # Companion libraries are build static (eg !shared), so
-        # the libstdc++ is not pulled automatically, although it
-        # is needed. Shoe-horn it in our LDFLAGS
-        # Ditto libm on some Fedora boxen
-        final_LDFLAGS+=("-lstdc++")
-        final_LDFLAGS+=("-lm")
     else
         if [ "${CT_CC_GCC_STATIC_LIBSTDCXX}" = "y" -a "${CT_GCC_older_than_6}" = "y" ]; then
             # this is from CodeSourcery arm-2010q1-202-arm-none-linux-gnueabi.src.tar.bz2
@@ -1052,12 +1034,6 @@ do_gcc_backend() {
             host_libstdcxx_flags+=("-Wl,-Bstatic,-lstdc++,-Bdynamic")
             host_libstdcxx_flags+=("-lm")
         fi
-        # When companion libraries are build static (eg !shared),
-        # the libstdc++ is not pulled automatically, although it
-        # is needed. Shoe-horn it in our LDFLAGS
-        # Ditto libm on some Fedora boxen
-        final_LDFLAGS+=("-lstdc++")
-        final_LDFLAGS+=("-lm")
     fi
 
     extra_config+=("--with-gmp=${complibs}")
