@@ -262,6 +262,8 @@ do_gcc_core_backend() {
     local -a core_targets_install
     local -a extra_user_config
     local arg
+    local file
+    local ext
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
@@ -901,6 +903,8 @@ do_gcc_backend() {
     local -a final_LDFLAGS
     local tmp
     local arg
+    local file
+    local ext
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
