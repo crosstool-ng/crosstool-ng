@@ -707,7 +707,7 @@ do_gcc_core_backend() {
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
     file="$( ls -1 "${prefix}/bin/${CT_TARGET}-${CT_CC}."* 2>/dev/null || true )"
-    [ -z "${file}" ] || ext=".${file##*.}"
+    [ -z "${file}" ] && ext="" || ext=".${file##*.}"
     if [ -f "${prefix}/bin/${CT_TARGET}-${CT_CC}${ext}" ]; then
         CT_DoExecLog ALL ln -sfv "${CT_TARGET}-${CT_CC}${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
@@ -1258,7 +1258,7 @@ do_gcc_backend() {
     # to call the C compiler with the same, somewhat canonical name.
     # check whether compiler has an extension
     file="$( ls -1 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}."* 2>/dev/null || true )"
-    [ -z "${file}" ] || ext=".${file##*.}"
+    [ -z "${file}" ] && ext="" || ext=".${file##*.}"
     if [ -f "${CT_PREFIX_DIR}/bin/${CT_TARGET}-${CT_CC}${ext}" ]; then
         CT_DoExecLog ALL ln -sfv "${CT_TARGET}-${CT_CC}${ext}" "${prefix}/bin/${CT_TARGET}-cc${ext}"
     fi
