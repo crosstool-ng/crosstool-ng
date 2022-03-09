@@ -76,6 +76,7 @@ do_debug_gdb_build()
             ldflags="${CT_LDFLAGS_FOR_HOST}" \
             prefix="${CT_PREFIX_DIR}" \
             static="${CT_GDB_CROSS_STATIC}" \
+            static_libstdcxx="${CT_GDB_CROSS_STATIC_LIBSTDCXX}" \
             --with-sysroot="${CT_SYSROOT_DIR}"          \
             "${cross_extra_config[@]}"
 
@@ -297,8 +298,18 @@ do_gdb_backend()
         extra_config+=("--disable-source-highlight")
     fi
     if [ "${static_libstdcxx}" = "y" ]; then
-        ldflags+=" -static-libgcc"
-        ldflags+=" -static-libstdc++"
+        case "$CT_HOST" in
+            *darwin*)
+                # macOS builds with clang and provides a well known execution
+                # environment, so there is little point in static linking the
+                # C++ runtime library -- ignore this option for now.
+                ;;
+            *)
+                ldflags+=" -static-libgcc"
+                ldflags+=" -static-libstdc++"
+                ;;
+        esac
+
         # libsource-highlight is a dynamic library that uses exception
         # exceptions are handled by libstdc++
         # this combination is very buggy, so configure don't use it and abort
