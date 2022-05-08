@@ -621,10 +621,10 @@ do_gcc_core_backend() {
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-libiberty
             CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C libiberty libiberty.a
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp all-build-libcpp
         else
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp configure-build-libiberty
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp all-build-libiberty
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp all-build-libcpp all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
         if [ -d "${CT_SRC_DIR}/gcc/libdecnumber" ]; then
