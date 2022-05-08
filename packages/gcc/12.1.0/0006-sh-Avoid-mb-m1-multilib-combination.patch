@@ -1,0 +1,64 @@
+From 497bbd01e39ca21091c0e3bb83c83f49319d3cab Mon Sep 17 00:00:00 2001
+From: Chris Packham <chris.packham@alliedtelesis.co.nz>
+Date: Tue, 17 May 2022 21:36:05 +1200
+Subject: [PATCH] sh: Avoid mb/m1 multilib combination
+
+https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105607
+
+It's not entirely clear why but the mb/m1 combination fails when
+building libgcc.
+
+ gcc/libgcc/config/sh/lib1funcs.S: Assembler messages:
+ gcc/libgcc/config/sh/lib1funcs.S:933: Error: opcode not valid for this cpu variant
+ gcc/libgcc/config/sh/lib1funcs.S:935: Error: opcode not valid for this cpu variant
+ gcc/libgcc/config/sh/lib1funcs.S:942: Error: opcode not valid for this cpu variant
+ gcc/libgcc/config/sh/lib1funcs.S:944: Error: opcode not valid for this cpu variant
+ make[4]: *** [Makefile:491: _movmem_i4_s.o] Error 1
+
+The assembly that is being complained about is
+
+ 931 L_movmem_loop:
+ 932         mov.l   r3,@(12,r4)
+ 933         dt      r6
+ 934         mov.l   @r5+,r0
+ 935         bt/s    L_movmem_2mod4_end
+ 936         mov.l   @r5+,r1
+ 937         add     #16,r4
+ 938 L_movmem_start_even:
+ 939         mov.l   @r5+,r2
+ 940         mov.l   @r5+,r3
+ 941         mov.l   r0,@r4
+ 942         dt      r6
+ 943         mov.l   r1,@(4,r4)
+ 944         bf/s    L_movmem_loop
+ 945         mov.l   r2,@(8,r4)
+ 946         rts
+ 947         mov.l   r3,@(12,r4)
+
+Under GCC11 the combination was not built but somehow under GCC12 it is.
+As a workaround add mb/m1 to the list of excluded combinations.
+
+Signed-off-by: Chris Packham <chris.packham@alliedtelesis.co.nz>
+---
+ gcc/config/sh/t-sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/gcc/config/sh/t-sh b/gcc/config/sh/t-sh
+index dd5652e11bfb..fa901201e5e6 100644
+--- a/gcc/config/sh/t-sh
++++ b/gcc/config/sh/t-sh
+@@ -63,9 +63,9 @@ MULTILIB_MATCHES = $(shell \
+ 
+ # SH1 and SH2A support big endian only.
+ ifeq ($(DEFAULT_ENDIAN),ml)
+-MULTILIB_EXCEPTIONS = m1 ml/m1 m2a* ml/m2a* $(TM_MULTILIB_EXCEPTIONS_CONFIG)
++MULTILIB_EXCEPTIONS = m1 ml/m1 mb/m1 m2a* ml/m2a* $(TM_MULTILIB_EXCEPTIONS_CONFIG)
+ else
+-MULTILIB_EXCEPTIONS = ml/m1 ml/m2a* $(TM_MULTILIB_EXCEPTIONS_CONFIG)
++MULTILIB_EXCEPTIONS = ml/m1 mb/m1 ml/m2a* $(TM_MULTILIB_EXCEPTIONS_CONFIG)
+ endif
+ 
+ MULTILIB_OSDIRNAMES = \
+-- 
+2.36.1
+
