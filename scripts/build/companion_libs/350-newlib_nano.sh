@@ -264,6 +264,8 @@ newlib_nano_copy_multilibs()
         eval "${arg// /\\ }"
     done
 
+    CT_DoExecLog ALL mkdir -p "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}"
+
     for lib_a in "${nano_lib_dir}/${CT_TARGET}/lib/${multi_dir}/"*.a; do
        if [ -f ${lib_a} ] && [ ! -L ${lib_a} ]; then
           _f=$(basename "${lib_a}")
