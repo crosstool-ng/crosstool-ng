@@ -203,7 +203,7 @@ ENABLE_TARGET_OPTSPACE:target-optspace
 %rename cpp_unique_options  nano_cpp_unique_options
 
 *cpp_unique_options:
--isystem =/include/newlib-nano %(nano_cpp_unique_options)
+-isystem %:getenv(GCC_EXEC_PREFIX ../../${CT_TARGET}/include/newlib-nano) %(nano_cpp_unique_options)
 
 *nano_libc:
 -lc_nano
