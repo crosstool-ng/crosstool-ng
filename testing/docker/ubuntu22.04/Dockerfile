@@ -1,4 +1,4 @@
-FROM ubuntu:21.10
+FROM ubuntu:22.04
 ARG CTNG_UID=1000
 ARG CTNG_GID=1000
 RUN groupadd -g $CTNG_GID ctng
