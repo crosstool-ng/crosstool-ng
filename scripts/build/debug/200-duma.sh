@@ -19,6 +19,7 @@ do_debug_duma_build() {
     make_args=(
         prefix="${CT_DEBUGROOT_DIR}/usr"
         HOSTCC="${CT_BUILD}-gcc"
+        CC_FOR_BUILD="${CT_BUILD}-gcc"
         CC="${CT_TARGET}-${CT_CC} ${CT_ALL_TARGET_CFLAGS}"
         CXX="${CT_TARGET}-g++ ${CT_ALL_TARGET_CFLAGS}"
         RANLIB="${CT_TARGET}-ranlib"
