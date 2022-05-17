@@ -294,6 +294,9 @@ glibc_add_ons_list()
     local sep="$1"
     local addons_list
 
+    if [ "${CT_GLIBC_USE_PORTS_ADDON}" = "y" ]; then
+        addons_list="${addons_list}${sep}ports"
+    fi
     if [ "${CT_GLIBC_USE_NPTL_ADDON}" = "y" ]; then
         addons_list="${addons_list}${sep}nptl"
     fi
