@@ -617,14 +617,21 @@ do_gcc_core_backend() {
         # so we configure then build it.
         # Next we have to configure gcc, create libgcc.mk then edit it...
         # So much easier if we just edit the source tree, but hey...
+
+	# For GCC 12+ we need to call the make target all-build-libcpp.
+	libcpp_targets=all-libcpp
+        if [ "${CT_GCC_later_than_12}" = "y" ]; then
+            libcpp_targets="$libcpp_targets all-build-libcpp"
+        fi
+
         if [ ! -f "${CT_SRC_DIR}/gcc/gcc/BASE-VER" ]; then
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-libiberty
             CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C libiberty libiberty.a
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} ${libcpp_targets}
         else
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp configure-build-libiberty
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp all-build-libiberty
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} ${libcpp_targets} all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
         if [ -d "${CT_SRC_DIR}/gcc/libdecnumber" ]; then
