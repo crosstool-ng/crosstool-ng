@@ -1,0 +1,87 @@
+This patch is a backport from binutils-gdb.
+
+This code is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 3, or (at your option) any
+later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+diff -urN binutils-gdb/bfd/elf.c binutils-gdb-oracle/bfd/elf.c
+--- binutils-gdb/bfd/elf.c	2022-05-19 12:47:05.117663521 -0500
++++ binutils-gdb-oracle/bfd/elf.c	2022-05-19 12:49:00.128035105 -0500
+@@ -11705,7 +11705,7 @@
+   bfd_vma (*r_sym) (bfd_vma);
+ 
+ 
+-#ifdef BFD64
++#if BFD_DEFAULT_TARGET_SIZE > 32
+   if (bfd_arch_bits_per_address (abfd) != 32)
+     r_sym = elf64_r_sym;
+   else
+@@ -11897,7 +11897,7 @@
+   asection * relsec;
+   bfd_vma (*r_info) (bfd_vma, bfd_vma);
+ 
+-#ifdef BFD64
++#if BFD_DEFAULT_TARGET_SIZE > 32
+   if (bfd_arch_bits_per_address (abfd) != 32)
+     r_info = elf64_r_info;
+   else
+diff -urN binutils-gdb/gold/errors.h binutils-gdb-oracle/gold/errors.h
+--- binutils-gdb/gold/errors.h	2022-05-19 12:47:05.549657405 -0500
++++ binutils-gdb-oracle/gold/errors.h	2022-05-19 12:49:04.931967084 -0500
+@@ -24,6 +24,7 @@
+ #define GOLD_ERRORS_H
+ 
+ #include <cstdarg>
++#include <string>
+ 
+ #include "gold-threads.h"
+ 
+diff -urN binutils-gdb/gold/i386.cc binutils-gdb-oracle/gold/i386.cc
+--- binutils-gdb/gold/i386.cc	2022-05-19 12:47:05.549657405 -0500
++++ binutils-gdb-oracle/gold/i386.cc	2022-05-19 12:49:08.803912259 -0500
+@@ -865,7 +865,7 @@
+   // Record a target-specific program property in the .note.gnu.property
+   // section.
+   void
+-  record_gnu_property(int, int, size_t,
++  record_gnu_property(unsigned int, unsigned int, size_t,
+ 		      const unsigned char*, const Object*);
+ 
+   // Merge the target-specific program properties from the current object.
+@@ -1075,7 +1075,7 @@
+ // section.
+ void
+ Target_i386::record_gnu_property(
+-    int, int pr_type,
++    unsigned int, unsigned int pr_type,
+     size_t pr_datasz, const unsigned char* pr_data,
+     const Object* object)
+ {
+diff -urN binutils-gdb/gold/x86_64.cc binutils-gdb-oracle/gold/x86_64.cc
+--- binutils-gdb/gold/x86_64.cc	2022-05-19 12:47:05.549657405 -0500
++++ binutils-gdb-oracle/gold/x86_64.cc	2022-05-19 12:49:08.803912259 -0500
+@@ -1192,7 +1192,8 @@
+   // Record a target-specific program property in the .note.gnu.property
+   // section.
+   void
+-  record_gnu_property(int, int, size_t, const unsigned char*, const Object*);
++  record_gnu_property(unsigned int, unsigned int, size_t,
++      const unsigned char*, const Object*);
+ 
+   // Merge the target-specific program properties from the current object.
+   void
+@@ -1462,7 +1463,7 @@
+ template<int size>
+ void
+ Target_x86_64<size>::record_gnu_property(
+-    int, int pr_type,
++    unsigned int, unsigned int pr_type,
+     size_t pr_datasz, const unsigned char* pr_data,
+     const Object* object)
+ {
