@@ -1,0 +1,142 @@
+From 8fa135ba742545c97a0f9207f2568257cafc157f Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Sat, 18 Jun 2016 19:11:23 +0200
+Subject: [PATCH] MIPS, SPARC: fix wrong vfork aliases in libpthread.so
+
+With recent binutils versions the GNU libc fails to build on at least
+MISP and SPARC, with this kind of error:
+
+  /home/aurel32/glibc/glibc-build/nptl/libpthread.so:(*IND*+0x0): multiple definition of `vfork@GLIBC_2.0'
+  /home/aurel32/glibc/glibc-build/nptl/libpthread.so::(.text+0xee50): first defined here
+
+It appears that on these architectures pt-vfork.S includes vfork.S
+(through the alpha version of pt-vfork.S) and that the __vfork aliases
+are not conditionalized on IS_IN (libc) like on other architectures.
+Therefore the aliases are also wrongly included in libpthread.so.
+
+Fix this by properly conditionalizing the aliases like on other
+architectures.
+
+Changelog:
+	* sysdeps/unix/sysv/linux/mips/vfork.S (__vfork): Conditionalize
+	hidden_def, weak_alias and strong_alias on [IS_IN (libc)].
+	* sysdeps/unix/sysv/linux/sparc/sparc32/vfork.S: Likewise.
+	* sysdeps/unix/sysv/linux/sparc/sparc64/vfork.S: Likewise.
+
+---
+
+MIPS, SPARC: more fixes to the vfork aliases in libpthread.so
+
+Commit 43c29487 tried to fix the vfork aliases in libpthread.so on MIPS
+and SPARC, but failed to do it correctly, introducing an ABI change.
+
+This patch does the remaining changes needed to align the MIPS and SPARC
+vfork implementations with the other architectures. That way the the
+alpha version of pt-vfork.S works correctly for MIPS and SPARC. The
+changes for alpha were done in 82aab97c.
+
+Changelog:
+	* sysdeps/unix/sysv/linux/mips/vfork.S (__vfork): Rename into
+	__libc_vfork.
+	(__vfork) [IS_IN (libc)]: Remove alias.
+	(__libc_vfork) [IS_IN (libc)]: Define as an alias.
+	* sysdeps/unix/sysv/linux/sparc/sparc32/vfork.S: Likewise.
+	* sysdeps/unix/sysv/linux/sparc/sparc64/vfork.S: Likewise.
+---
+ sysdeps/unix/sysv/linux/mips/vfork.S          | 14 ++++++++------
+ sysdeps/unix/sysv/linux/sparc/sparc32/vfork.S | 10 ++++++----
+ sysdeps/unix/sysv/linux/sparc/sparc64/vfork.S | 10 ++++++----
+ 3 files changed, 20 insertions(+), 14 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/mips/vfork.S b/sysdeps/unix/sysv/linux/mips/vfork.S
+index 8c66151437..1867c8626e 100644
+--- a/sysdeps/unix/sysv/linux/mips/vfork.S
++++ b/sysdeps/unix/sysv/linux/mips/vfork.S
+@@ -31,13 +31,13 @@
+ LOCALSZ= 1
+ FRAMESZ= (((NARGSAVE+LOCALSZ)*SZREG)+ALSZ)&ALMASK
+ GPOFF= FRAMESZ-(1*SZREG)
+-NESTED(__vfork,FRAMESZ,sp)
++NESTED(__libc_vfork,FRAMESZ,sp)
+ #ifdef __PIC__
+ 	SETUP_GP
+ #endif
+ 	PTR_SUBU sp, FRAMESZ
+ 	cfi_adjust_cfa_offset (FRAMESZ)
+-	SETUP_GP64_REG (a5, __vfork)
++	SETUP_GP64_REG (a5, __libc_vfork)
+ #ifdef __PIC__
+ 	SAVE_GP (GPOFF)
+ #endif
+@@ -104,8 +104,10 @@ L(error):
+ 	RESTORE_GP64_REG
+ 	j		__syscall_error
+ #endif
+-	END(__vfork)
++	END(__libc_vfork)
+ 
+-libc_hidden_def(__vfork)
+-weak_alias (__vfork, vfork)
+-strong_alias (__vfork, __libc_vfork)
++#if IS_IN (libc)
++weak_alias (__libc_vfork, vfork)
++strong_alias (__libc_vfork, __vfork)
++libc_hidden_def (__vfork)
++#endif
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc32/vfork.S b/sysdeps/unix/sysv/linux/sparc/sparc32/vfork.S
+index dc32e0af67..0d0a3b5298 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc32/vfork.S
++++ b/sysdeps/unix/sysv/linux/sparc/sparc32/vfork.S
+@@ -21,7 +21,7 @@
+ 
+ 	.text
+ 	.globl		__syscall_error
+-ENTRY(__vfork)
++ENTRY(__libc_vfork)
+ 	ld	[%g7 + PID], %o5
+ 	cmp	%o5, 0
+ 	bne	1f
+@@ -42,8 +42,10 @@ ENTRY(__vfork)
+ 	 st	%o5, [%g7 + PID]
+ 1:	retl
+ 	 nop
+-END(__vfork)
++END(__libc_vfork)
+ 
++#if IS_IN (libc)
++weak_alias (__libc_vfork, vfork)
++strong_alias (__libc_vfork, __vfork)
+ libc_hidden_def (__vfork)
+-weak_alias (__vfork, vfork)
+-strong_alias (__vfork, __libc_vfork)
++#endif
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc64/vfork.S b/sysdeps/unix/sysv/linux/sparc/sparc64/vfork.S
+index 05be3c2809..0818eba02e 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc64/vfork.S
++++ b/sysdeps/unix/sysv/linux/sparc/sparc64/vfork.S
+@@ -21,7 +21,7 @@
+ 
+ 	.text
+ 	.globl	__syscall_error
+-ENTRY(__vfork)
++ENTRY(__libc_vfork)
+ 	ld	[%g7 + PID], %o5
+ 	sethi	%hi(0x80000000), %o3
+ 	cmp	%o5, 0
+@@ -42,8 +42,10 @@ ENTRY(__vfork)
+ 	 st	%o5, [%g7 + PID]
+ 1:	retl
+ 	 nop
+-END(__vfork)
++END(__libc_vfork)
+ 
++#if IS_IN (libc)
++weak_alias (__libc_vfork, vfork)
++strong_alias (__libc_vfork, __vfork)
+ libc_hidden_def (__vfork)
+-weak_alias (__vfork, vfork)
+-strong_alias (__vfork, __libc_vfork)
++#endif
+-- 
+2.36.1
+
