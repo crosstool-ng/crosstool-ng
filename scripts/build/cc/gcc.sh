@@ -600,6 +600,12 @@ do_gcc_core_backend() {
         --enable-languages="${lang_list}"              \
         "${extra_user_config[@]}"
 
+    gcc_core_build_libcpp=all-build-libcpp
+    # disable target all-build-libcpp in gcc older verions
+    if [ "${CT_GCC_older_than_5}" = "y" ]; then
+        gcc_core_build_libcpp=""
+    fi
+
     if [ "${build_libgcc}" = "yes" ]; then
         # HACK: we need to override SHLIB_LC from gcc/config/t-slibgcc-elf-ver or
         # gcc/config/t-libunwind so -lc is removed from the link for
@@ -621,10 +627,10 @@ do_gcc_core_backend() {
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-libiberty
             CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C libiberty libiberty.a
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp all-build-libcpp
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp ${gcc_core_build_libcpp}
         else
             CT_DoExecLog CFG make ${CT_JOBSFLAGS} configure-gcc configure-libcpp configure-build-libiberty
-            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp all-build-libcpp all-build-libiberty
+            CT_DoExecLog ALL make ${CT_JOBSFLAGS} all-libcpp ${gcc_core_build_libcpp} all-build-libiberty
         fi
         # HACK: gcc-4.2 uses libdecnumber to build libgcc.mk, so build it here.
         if [ -d "${CT_SRC_DIR}/gcc/libdecnumber" ]; then
