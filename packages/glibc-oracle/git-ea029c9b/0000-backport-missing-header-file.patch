@@ -1,0 +1,34 @@
+This patch is a backport from glibc commits:
+0b8dedd38f: Add-sys-auxv.h-wrapper-to-include-sys
+d6bd839b9a: Add-a-way-to-bypass-the-PLT-when-calling-getauxval
+
+This code is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 3, or (at your option) any
+later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+diff -Nur glibc/include/sys/auxv.h glibc-oracle/include/sys/auxv.h
+--- glibc/include/sys/auxv.h	1969-12-31 18:00:00.000000000 -0600
++++ glibc-oracle/include/sys/auxv.h	2022-06-16 12:25:09.112414961 -0500
+@@ -0,0 +1,8 @@
++#include <misc/sys/auxv.h>
++
++#ifndef _ISOMAC
++
++extern __typeof (getauxval) __getauxval;
++libc_hidden_proto (__getauxval)
++
++#endif  /* !_ISOMAC */
+diff -Nur glibc/misc/getauxval.c glibc-oracle/misc/getauxval.c
+--- glibc/misc/getauxval.c	2022-06-16 11:52:08.728852269 -0500
++++ glibc-oracle/misc/getauxval.c	2022-06-16 12:25:09.112414961 -0500
+@@ -36,3 +36,4 @@
+ }
+ 
+ weak_alias (__getauxval, getauxval)
++libc_hidden_def (__getauxval)
