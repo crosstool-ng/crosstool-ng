@@ -380,6 +380,7 @@ do_gcc_core_backend() {
 
     case "${CT_CC_GCC_LIBSTDCXX_VERBOSE}" in
         y)  extra_config+=("--enable-libstdcxx-verbose");;
+        m)  ;;
         "") extra_config+=("--disable-libstdcxx-verbose");;
     esac
 
@@ -1020,6 +1021,7 @@ do_gcc_backend() {
 
     case "${CT_CC_GCC_LIBSTDCXX_VERBOSE}" in
         y)  extra_config+=("--enable-libstdcxx-verbose");;
+        m)  ;;
         "") extra_config+=("--disable-libstdcxx-verbose");;
     esac
     
