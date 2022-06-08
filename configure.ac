@@ -267,7 +267,7 @@ CTNG_PROG_VERSION([PYTHON],
     [^Python 3\.([4-9]|[1-9][0-9]+)\.],
     [python_3_4_or_newer])
 
-CTNG_PROG_VERSION([BISON],
+CTNG_PROG_VERSION_REQ_ANY([BISON],
     [bison >= 2.7],
     [bison],
     [bison],
