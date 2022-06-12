@@ -17,10 +17,6 @@
 # are still using quite ancient versions. Please do not retire versions
 # (including versions in between) until the EOL dates indicated in version.desc.
 
-if GLIBC_USE_PORTS_EXTERNAL
-source "config/versions/glibc-ports.in"
-endif
-
 # Glibc has some dependencies on the kernel headers:
 config GLIBC_DEP_KERNEL_HEADERS_VERSION
     def_bool y
@@ -125,10 +121,6 @@ config GLIBC_USE_PORTS_ADDON
     depends on ARCH_ALPHA || ARCH_ARM || ARCH_M68K || ARCH_MIPS || ARCH_POWERPC
     depends on GLIBC_HAS_PORTS_ADDON
     depends on !GLIBC_USE_ORACLE
-
-config GLIBC_USE_PORTS_EXTERNAL
-    def_bool y
-    depends on GLIBC_USE_PORTS_ADDON && GLIBC_HAS_PORTS_ADDON_EXTERNAL
 
 config GLIBC_USE_NPTL_ADDON
     def_bool y
@@ -403,11 +395,18 @@ config GLIBC_SSP
     default "strong" if GLIBC_SSP_STRONG
 
 # All supported versions of glibc build cleanly with GCC7 and earlier.
-# GCC8-related fixes were only available in glibc 2.27.
+# GCC8-related fixes were only available in glibc 2.27
+# GCC9-related fixes were available in glibc 2.29
+# GCC10-related fixes were available in glibc 2.31
+# GCC11-related fixes were available in glibc 2.34
 config GLIBC_ENABLE_WERROR
     bool "Enable -Werror during the build"
-    default y if GCC_7_or_older
-    default y if GCC_8_or_later && GLIBC_2_27_or_later
+    depends on GCC_7_or_older || \
+        (GCC_8_or_later && !GCC_9_or_later && GLIBC_2_27_or_later) || \
+        (GCC_9_or_later && !GCC_10_or_later && GLIBC_2_29_or_later) || \
+        (GCC_10_or_later && !GCC_11_or_later && GLIBC_2_31_or_later) || \
+        (GCC_11_or_later && GLIBC_2_34_or_later)
+    default y
     help
       By default, glibc enables strict warning checks during the build.
       However, older version of glibc may not build with newer versions

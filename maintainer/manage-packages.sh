@@ -204,7 +204,7 @@ update_patches()
         # By now we know we have a non-empty set of patches
         CT_DoExecLog ALL quilt --quiltrc - import "${p}"
         CT_DoExecLog ALL quilt --quiltrc - push
-        CT_DoExecLog ALL quilt --quiltrc - refresh -p ab --no-timestamps --no-index --diffstat
+        CT_DoExecLog ALL quilt --quiltrc - refresh -p ab -u --no-timestamps --no-index --diffstat
     done
     # Now publish the patches back into the package's directory, renumbering them
     # in the process.

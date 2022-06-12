@@ -6,32 +6,12 @@ source "config/debug/gdb.in.cross"
 source "config/debug/gdb.in.native"
 
 
-# GDB 8.0 now requires C++ for build. GDB 7.12 offered a configure
-# switch to fall back to C. We want to use that option because
-# the conversion in 7.12 was incomplete and had some breakages.
-config GDB_HAS_DISABLE_CXX_BUILD
-    def_bool y
-    depends on GDB_7_12_or_later && !GDB_8_0_or_later
-
-# GDB 8.0 requires not just any C++, but recent enough to support C++11.
-# Yes, in 2019 there are still LTS systems still lacking such support.
-# I am looking at you, CentOS 6: no cookie for you, use an older GDB.
-config GDB_DEP_CXX11
-    def_bool y
-    depends on !CONFIGURE_has_cxx11
-    select GDB_REQUIRE_older_than_8_0
-
 # GDB10 and newer require std::future<> which was not implemented on some
 # architectures until GCC9; see GCC PR 64735.
 config GDB_DEP_NO_STD_FUTURE
     def_bool y
     depends on !GCC_9_or_later
     select GDB_REQUIRE_older_than_10
-
-# Does GDB need ps_get_thread_area with const qualifier?
-config GDB_CONST_GET_THREAD_AREA
-    bool
-    default y if GDB_older_than_7_12
 
 # As of GDB 10.x gdbserver is now at the toplevel of the distributed
 # tarball (instead of a subdirectory of gdb)

@@ -8,26 +8,12 @@ glibc_get()
     local version
 
     CT_Fetch GLIBC
-    if [ "${CT_GLIBC_USE_PORTS_EXTERNAL}" = "y" ]; then
-        CT_Fetch GLIBC_PORTS
-    fi
     return 0
 }
 
 glibc_extract()
 {
     CT_ExtractPatch GLIBC
-    if [ "${CT_GLIBC_USE_PORTS_EXTERNAL}" = "y" ]; then
-        CT_ExtractPatch GLIBC_PORTS
-
-        # This may create a bogus symlink if glibc-ports is using custom
-        # sources or has an overlay (and glibc is shared). However,
-        # we do not support concurrent use of the source directory
-        # and next run, if using different glibc-ports source, will override
-        # this symlink anyway.
-        CT_DoExecLog ALL ln -sf "${CT_SRC_DIR}/${CT_GLIBC_PORTS_DIR_NAME}" \
-                "${CT_SRC_DIR}/${CT_GLIBC_DIR_NAME}/ports"
-    fi
 }
 
 # This function builds and install the full C library
