@@ -12,14 +12,32 @@ do_debug_gdb_extract()
 
 do_debug_gdb_build_cross()
 {
+    local progprefix progsuffix usepython
     local gcc_version p _p
     local -a cross_extra_config
 
-    CT_DoStep INFO "Installing cross-gdb"
-    CT_mkdir_pushd "${CT_BUILD_DIR}/build-gdb-cross"
+    for arg in "$@"; do
+        case "$arg" in
+            *)
+                eval "${arg// /\\ }"
+                ;;
+        esac
+    done
+
+    CT_DoStep INFO "Installing cross-${progprefix}gdb${progsuffix}"
+    CT_mkdir_pushd "${CT_BUILD_DIR}/build-${progprefix}gdb${progsuffix}-cross"
 
     cross_extra_config=( "${CT_GDB_CROSS_EXTRA_CONFIG_ARRAY[@]}" )
-    if [ "${CT_GDB_CROSS_PYTHON}" = "y" ]; then
+
+    if [ -n "${progprefix}" ]; then
+        cross_extra_config+=("--program-prefix=${progprefix}")
+    fi
+
+    if [ -n "${progsuffix}" ]; then
+        cross_extra_config+=("--program-suffix=${progsuffix}")
+    fi
+
+    if [ "${usepython}" = "y" ]; then
         if [ -z "${CT_GDB_CROSS_PYTHON_BINARY}" ]; then
             if [ "${CT_CANADIAN}" = "y" -o "${CT_CROSS_NATIVE}" = "y" ]; then
                 CT_Abort "For canadian build, Python wrapper runnable on the build machine must be provided. Set CT_GDB_CROSS_PYTHON_BINARY."
@@ -108,7 +126,18 @@ do_debug_gdb_build_cross()
 do_debug_gdb_build()
 {
     if [ "${CT_GDB_CROSS}" = "y" ]; then
-        do_debug_gdb_build_cross
+        if [ "${CT_GDB_CROSS_PYTHON_VARIANT}" = "y" ]; then
+            do_debug_gdb_build_cross \
+                usepython=n
+
+            do_debug_gdb_build_cross \
+                usepython=y \
+                progprefix="${CT_TARGET}-" \
+                progsuffix="-py"
+        else
+            do_debug_gdb_build_cross \
+                usepython="${CT_GDB_CROSS_PYTHON}"
+        fi
     fi
 
     if [ "${CT_GDB_NATIVE}" = "y" ]; then
