@@ -131,8 +131,12 @@ glibc_backend_once()
     # Pre-seed the configparms file with values from the config option
     printf "%s\n" "${CT_GLIBC_CONFIGPARMS}" > configparms
 
+   if [ "${CT_GLIBC_ENABLE_DEBUG}" = "y" ]; then
+        glibc_cflags+=" -g"
+   fi
+
     # glibc can't be built without -O2 (reference needed!)
-    glibc_cflags+=" -g -O2"
+    glibc_cflags+=" -O2"
 
     if [ "${CT_GLIBC_ENABLE_COMMON_FLAG}" = "y" ]; then
         glibc_cflags+=" -fcommon"
