@@ -683,21 +683,30 @@ gen_packages()
     # definitions. As a byproduct, generate a list of all package
     # versions for maintenance purposes.
     exec 3>"maintainer/package-versions"
-    for p in "${pkg_masters[@]}"; do
-        msg "Generating '${config_versions_dir}/${p}.in'"
-        exec >"${config_versions_dir}/${p}.in"
+
+    gen_package()
+    {
+        msg "Generating '${config_versions_dir}/$1.in'"
+        exec >"${config_versions_dir}/$1.in"
         # Base definitions for the whole config file
         info=( \
-            [master]=${p} \
-            [nforks]=${pkg_nforks[${p}]} \
-            [relevantpattern]=${pkg_relevantpattern[${p}]} \
+            [master]=$1 \
+            [nforks]=${pkg_nforks[$1]} \
+            [relevantpattern]=${pkg_relevantpattern[$1]} \
             )
-        set_iter fork ${pkg_forks[${p}]}
-        set_iter milestone ${pkg_milestones[${p}]}
+        set_iter fork ${pkg_forks[$1]}
+        set_iter milestone ${pkg_milestones[$1]}
 
         run_template "maintainer/kconfig-versions.template"
         run_template "maintainer/package-versions.template" >&3
+    }
+
+    N=`nproc`
+    for p in "${pkg_masters[@]}"; do
+        gen_package $p &
+        if [[ $(jobs -r -p | wc -l) -ge $N ]]; then wait -n; fi
     done
+    wait
 }
 
 msg "*** Generating package version descriptions"
