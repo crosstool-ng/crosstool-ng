@@ -684,6 +684,8 @@ gen_packages()
     # versions for maintenance purposes.
     exec 3>"maintainer/package-versions"
 
+    tmpFoler=`mktemp -d`
+    trap "wait; rm -rf $tmpFoler" EXIT
     gen_package()
     {
         msg "Generating '${config_versions_dir}/$1.in'"
@@ -698,7 +700,7 @@ gen_packages()
         set_iter milestone ${pkg_milestones[$1]}
 
         run_template "maintainer/kconfig-versions.template"
-        run_template "maintainer/package-versions.template" >&3
+        run_template "maintainer/package-versions.template" >$tmpFoler/$1.package-version
     }
 
     N=`nproc`
@@ -707,6 +709,7 @@ gen_packages()
         if [[ $(jobs -r -p | wc -l) -ge $N ]]; then wait -n; fi
     done
     wait
+    cat $tmpFoler/*.package-version >&3
 }
 
 msg "*** Generating package version descriptions"
