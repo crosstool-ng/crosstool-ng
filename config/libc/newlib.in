@@ -55,6 +55,7 @@ config LIBC_NEWLIB_IO_LDBL
 config LIBC_NEWLIB_IO_POS_ARGS
     bool
     prompt "Enable printf-family positional arg support"
+    depends on !LIBC_NEWLIB_NANO_FORMATTED_IO
     help
         Enable printf-family positional arg support.
 
@@ -198,6 +199,29 @@ config LIBC_NEWLIB_NANO_FORMATTED_IO
       functions, designed to lower the size of application on small systems
       with size constraint issues.  This option does not affect wide-char
       formatted I/O functions.
+
+      Some notes about this feature:
+      1) Floating-point support is split out of the formatted I/O code into
+         weak functions which are not linked by default.  Programs that need
+         floating-point I/O support must explicitly request linking of one or
+         both of the floating-point functions: _printf_float or _scanf_float.
+         This can be done at link time using the -u option which can be passed
+         to either gcc or ld.
+
+      2) The following configuration options are ignored for non-wide-char
+         formatted I/O functions, and can be thought of as disabled.
+
+         "Enable printf-family positional arg support"
+         "Enable IOs on C99 formats"
+         "Enable IOs on long long"
+         "Enable IOs on long doubles"
+
+         Additionally, "Enable IOs on floats and doubles" is supported in this
+         specific implementation, one can disable it to further reduce code size.
+         In this case, the floating-point specifiers will not be recognized or
+         handled, and the -u option will not work either.
+
+      Learn more: https://sourceware.org/newlib/README
 
 config LIBC_NEWLIB_EXTRA_CONFIG_ARRAY
     string
