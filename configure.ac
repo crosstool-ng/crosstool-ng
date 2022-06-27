@@ -300,7 +300,6 @@ CTNG_SET_KCONFIG_OPTION([sha512sum])
 
 # FIXME why checking if not using the result? We don't provide replacemant malloc/alloca/...
 AC_C_INLINE
-AC_HEADER_STDC
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_FUNC_ALLOCA
