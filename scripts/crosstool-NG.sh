@@ -345,8 +345,8 @@ if [ -z "${CT_RESTART}" ]; then
         CT_HEADERS_DIR="${CT_SYSROOT_DIR}/usr/include"
         CT_SanitizeVarDir CT_SYSROOT_DIR CT_DEBUGROOT_DIR CT_HEADERS_DIR
         CT_BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
-        CT_CC_CORE_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
-        CT_CC_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
+        CT_CC_CORE_SYSROOT_ARG=("--with-sysroot=${CT_SYSROOT_DIR}")
+        CT_CC_SYSROOT_ARG=("--with-sysroot=${CT_SYSROOT_DIR}")
         # glibc's prefix must be exactly /usr, else --with-sysroot'd gcc will get
         # confused when $sysroot/usr/include is not present.
         # Note: --prefix=/usr is magic!
@@ -363,8 +363,8 @@ if [ -z "${CT_RESTART}" ]; then
         CT_BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
         # Use --with-headers, else final gcc will define disable_glibc while
         # building libgcc, and you'll have no profiling
-        CT_CC_CORE_SYSROOT_ARG="--without-headers"
-        CT_CC_SYSROOT_ARG="--with-headers=${CT_HEADERS_DIR}"
+        CT_CC_CORE_SYSROOT_ARG=("--without-headers")
+        CT_CC_SYSROOT_ARG=("--with-headers=${CT_HEADERS_DIR}")
     fi
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}"
     CT_DoExecLog ALL mkdir -p "${CT_DEBUGROOT_DIR}"

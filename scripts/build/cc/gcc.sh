@@ -1227,7 +1227,7 @@ do_gcc_backend() {
         --target=${CT_TARGET}                          \
         --prefix="${prefix}"                           \
         --exec_prefix="${exec_prefix}"                 \
-        ${CT_CC_SYSROOT_ARG}                           \
+        "${CT_CC_SYSROOT_ARG[@]}"                      \
         "${extra_config[@]}"                           \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \
         --enable-long-long                             \
