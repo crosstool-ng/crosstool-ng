@@ -1004,11 +1004,11 @@ do_gcc_backend() {
         extra_config+=(--disable-libquadmath-support)
     fi
 
-    if [ "${CT_CC_GCC_LIBSANITIZER}" = "y" ]; then
-        extra_config+=(--enable-libsanitizer)
-    else
-        extra_config+=(--disable-libsanitizer)
-    fi
+    case "${CT_CC_GCC_LIBSANITIZER}" in
+        y) extra_config+=(--enable-libsanitizer);;
+        m) ;;
+        "") extra_config+=(--disable-libsanitizer);;
+    esac
 
     if [ "${CT_CC_GCC_HAS_LIBMPX}" = "y" ]; then
         if [ "${CT_CC_GCC_LIBMPX}" = "y" ]; then
