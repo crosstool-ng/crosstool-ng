@@ -65,6 +65,12 @@ do_debug_gdb_build_cross()
         cross_extra_config+=("--without-lzma")
     fi
 
+    if [ "${CT_GDB_CROSS_GUILE}" = "y" ]; then
+        cross_extra_config+=("--with-guile")
+    else
+        cross_extra_config+=("--without-guile")
+    fi
+
     if ${CT_HOST}-gcc --version 2>&1 | grep clang; then
         # clang detects the line from gettext's _ macro as format string
         # not being a string literal and produces a lot of warnings - which
