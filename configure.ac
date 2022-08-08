@@ -274,6 +274,13 @@ CTNG_PROG_VERSION_REQ_ANY([BISON],
     [\(GNU Bison\) (2\.[7-9]|2\.[1-9][0-9]|[3-9]\.)],
     [bison_2_7_or_newer])
 
+CTNG_PROG_VERSION_REQ_ANY([BISON],
+    [bison >= 3.0.4],
+    [bison],
+    [bison],
+    [\(GNU Bison\) (3\.0\.[4-9]|3\.[1-9]|[4-9]\.)],
+    [bison_3_0_4_or_newer])
+
 AC_SUBST([kconfig_options])
 
 AC_CHECK_PROGS([dtc], [dtc])
