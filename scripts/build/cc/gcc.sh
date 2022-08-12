@@ -436,6 +436,10 @@ do_gcc_core_backend() {
         extra_config+=("--with-host-libstdcxx=${host_libstdcxx_flags[*]}")
     fi
 
+    if [ "${CT_CC_GCC_ENABLE_DEFAULT_PIE}" = "y" ]; then
+        extra_config+=("--enable-default-pie")
+    fi
+
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
        [ "${enable_optspace}" = "yes" ]; then
         extra_config+=("--enable-target-optspace")
