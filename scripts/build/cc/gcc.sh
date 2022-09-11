@@ -804,7 +804,7 @@ gcc_movelibs()
 
     # Move only files, directories are for other multilibs. We're looking inside
     # GCC's directory structure, thus use unmangled multi_os_dir that GCC reports.
-    gcc_dir="${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_os_dir_gcc}"
+    gcc_dir="${canon_prefix}/${CT_TARGET}/lib/${multi_os_dir_gcc}"
     if [ ! -d "${gcc_dir}" ]; then
         # GCC didn't install anything outside of sysroot
         return
@@ -817,7 +817,7 @@ gcc_movelibs()
         dst_dir="${canon_root}/lib/${multi_os_dir}"
     fi
     CT_SanitizeVarDir dst_dir gcc_dir
-    rel=$( echo "${gcc_dir#${CT_PREFIX_DIR}/}" | sed 's#[^/]\{1,\}#..#g' )
+    rel=$( echo "${gcc_dir#${canon_prefix}/}" | sed 's#[^/]\{1,\}#..#g' )
 
     ls "${gcc_dir}" | while read f; do
         case "${f}" in
