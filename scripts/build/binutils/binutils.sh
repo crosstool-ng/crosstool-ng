@@ -310,8 +310,9 @@ do_binutils_for_target() {
     local -a install_targets
     local t
 
-    [ "${CT_BINUTILS_FOR_TARGET_IBERTY}" = "y" ] && targets+=("libiberty")
-    [ "${CT_BINUTILS_FOR_TARGET_BFD}"    = "y" ] && targets+=("bfd")
+    [ "${CT_BINUTILS_FOR_TARGET_IBERTY}"  = "y" ] && targets+=("libiberty")
+    [ "${CT_BINUTILS_FOR_TARGET_BFD}"     = "y" ] && targets+=("bfd")
+    [ "${CT_BINUTILS_FOR_TARGET_OPCODES}" = "y" ] && targets+=("opcodes")
     for t in "${targets[@]}"; do
         build_targets+=("all-${t}")
         install_targets+=("install-${t}")
