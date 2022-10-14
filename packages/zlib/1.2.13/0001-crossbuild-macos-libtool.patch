@@ -1,0 +1,34 @@
+From: Heiko Lewin <heiko.lewin@worldiety.de>
+Date: Fri, 22 May 2020 03:32:33 +0200
+Subject: configure: use LIBTOOL variable for Darwin builds
+
+---
+ configure |   10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+--- a/configure
++++ b/configure
+@@ -69,6 +69,12 @@
+ else
+     NM=${NM-"nm"}
+ fi
++if "${CROSS_PREFIX}libtool" --version >/dev/null 2>/dev/null || test $? -lt 126; then
++    LIBTOOL=${LIBTOOL-"${CROSS_PREFIX}libtool"}
++    test -n "${CROSS_PREFIX}" && echo Using ${LIBTOOL} | tee -a configure.log
++else
++    LIBTOOL=${LIBTOOL-"libtool"}
++fi
+ 
+ # set defaults before processing command line options
+ LDCONFIG=${LDCONFIG-"ldconfig"}
+@@ -260,8 +266,8 @@
+         SHAREDLIBV=libz.$VER$shared_ext
+         SHAREDLIBM=libz.$VER1$shared_ext
+         LDSHARED=${LDSHARED-"$cc -dynamiclib -install_name $libdir/$SHAREDLIBM -compatibility_version $VER1 -current_version $VER3"}
+-        if libtool -V 2>&1 | grep Apple > /dev/null; then
+-            AR="libtool"
++        if ${LIBTOOL} -V 2>&1 | grep Apple > /dev/null; then
++            AR="${LIBTOOL}"
+         else
+             AR="/usr/bin/libtool"
+         fi
