@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.71])
 
 AC_INIT(
     [crosstool-NG],
@@ -226,25 +226,25 @@ CTNG_PROG_VERSION_REQ_ANY([LIBTOOLIZE],
     [libtoolize_2_4_or_newer])
 
 CTNG_PROG_VERSION([AUTOCONF],
-    [GNU autoconf >= 2.65],
+    [GNU autoconf >= 2.71],
     [autoconf],
     [autoconf],
     [\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])],
-    [autoconf_2_65_or_newer])
+    [autoconf_2_71_or_newer])
 
 CTNG_PROG_VERSION([AUTORECONF],
-    [GNU autoreconf >= 2.63],
+    [GNU autoreconf >= 2.71],
     [autoreconf],
     [autoreconf],
     [\(GNU Autoconf\) ([3-9]\.|2\.[7-9][0-9]|2\.6[5-9])],
-    [autoreconf_2_65_or_newer])
+    [autoreconf_2_71_or_newer])
 
 CTNG_PROG_VERSION([AUTOMAKE],
-    [GNU automake >= 1.15],
+    [GNU automake >= 1.16],
     [automake],
     [automake],
     [\(GNU automake\) ([2-9]\.|1\.[2-9][0-9]|1\.1[5-9])],
-    [automake_1_15_or_newer])
+    [automake_1_16_or_newer])
 
 CTNG_PROG_VERSION([M4],
     [GNU m4 >= 1.4.12],
