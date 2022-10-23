@@ -94,7 +94,7 @@ AM_PROG_CC_C_O
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_LEX([noyywrap])
-AC_PROG_YACC
+AX_PROG_BISON
 AS_IF([test -z "$CC" -o -z "$CXX"],
       [AC_MSG_ERROR([no suitable compiler found])])
 
