@@ -128,7 +128,7 @@ RETARGETABLE_LOCKING:newlib-retargetable-locking
         done
         cat << EOF > picolibc-cross.txt
 [binaries]
-c = '${CT_TARGET}-gcc'
+c = '${CT_TARGET}-${CT_CC}'
 ar = '${CT_TARGET}-ar'
 as = '${CT_TARGET}-as'
 strip = '${CT_TARGET}-strip'
