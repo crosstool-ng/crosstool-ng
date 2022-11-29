@@ -132,6 +132,7 @@ c = '${CT_TARGET}-gcc'
 ar = '${CT_TARGET}-ar'
 as = '${CT_TARGET}-as'
 strip = '${CT_TARGET}-strip'
+objcopy = '${CT_TARGET}-objcopy'
 
 [host_machine]
 system = '${CT_TARGET_VENDOR}'
