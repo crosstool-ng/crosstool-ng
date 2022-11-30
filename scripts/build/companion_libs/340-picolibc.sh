@@ -41,6 +41,7 @@ do_cc_libstdcxx_picolibc()
         final_opts+=( "build_step=libstdcxx" )
         final_opts+=( "extra_config+=('--enable-stdio=stdio_pure')" )
         final_opts+=( "extra_config+=('--disable-wchar_t')" )
+        final_opts+=( "extra_config+=('--with-gxx-include-dir=${CT_PREFIX_DIR}/picolibc/include/c++/$(cat "${CT_SRC_DIR}/gcc/gcc/BASE-VER")')" )
         if [ "${CT_LIBC_PICOLIBC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
             final_opts+=( "enable_optspace=yes" )
         fi
