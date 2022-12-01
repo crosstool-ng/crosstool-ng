@@ -295,7 +295,6 @@ do_gcc_core_backend() {
                 exec_prefix="${CT_PREFIX_DIR}/${libstdcxx_name}"
             fi
             extra_config+=( "${CT_CC_SYSROOT_ARG[@]}" )
-            extra_config+=( "--with-headers=${header_dir}" )
             extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
             log_txt="libstdc++ ${libstdcxx_name} library"
             # to inhibit the libiberty and libgcc tricks later on
@@ -552,6 +551,13 @@ do_gcc_core_backend() {
         if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
             cflags_for_build="$cflags_for_build -fbracket-depth=512"
         fi
+    fi
+
+    # Add an extra system include dir if we have one. This is especially useful
+    # when building libstdc++ with a libc other than the system libc (e.g.
+    # picolibc)
+    if [ -n "${header_dir}" ]; then
+        cflags_for_target="${cflags_for_target} -idirafter ${header_dir}"
     fi
 
     # For non-sysrooted toolchain, GCC doesn't search except at the installation
@@ -1198,6 +1204,13 @@ do_gcc_backend() {
         if ${CT_BUILD}-gcc --version 2>&1 | grep clang; then
             cflags_for_build="$cflags_for_build "-fbracket-depth=512
         fi
+    fi
+
+    # Add an extra system include dir if we have one. This is especially useful
+    # when building libstdc++ with a libc other than the system libc (e.g.
+    # picolibc)
+    if [ -n "${header_dir}" ]; then
+        cflags_for_target="${cflags_for_target} -idirafter ${header_dir}"
     fi
 
     # Assume '-O2' by default for building target libraries.
