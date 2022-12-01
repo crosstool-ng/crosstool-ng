@@ -288,10 +288,10 @@ do_gcc_core_backend() {
             ;;
         libstdcxx)
             CT_DoLog EXTRA "Configuring libstdc++ for ${libstdcxx_name}"
-            if [ "${header_dir}" = "" ]; then
+            if [ -z "${header_dir}" ]; then
                 header_dir="${CT_PREFIX_DIR}/${libstdcxx_name}/include"
             fi
-            if [ "${exec_prefix}" = "" ]; then
+            if [ -z "${exec_prefix}" ]; then
                 exec_prefix="${CT_PREFIX_DIR}/${libstdcxx_name}"
             fi
             extra_config+=( "${CT_CC_SYSROOT_ARG[@]}" )
@@ -306,7 +306,7 @@ do_gcc_core_backend() {
             ;;
     esac
 
-    if [ "${exec_prefix}" = "" ]; then
+    if [ -z "${exec_prefix}" ]; then
         exec_prefix="${prefix}"
     fi
 
@@ -911,7 +911,6 @@ do_gcc_backend() {
     local extra_cxxflags_for_target
     local ldflags
     local build_manuals
-    local exec_prefix
     local header_dir
     local libstdcxx_name
     local -a host_libstdcxx_flags
@@ -926,7 +925,7 @@ do_gcc_backend() {
         eval "${arg// /\\ }"
     done
 
-    if [ "${exec_prefix}" = "" ]; then
+    if [ -z "${exec_prefix}" ]; then
         exec_prefix="${prefix}"
     fi
 
