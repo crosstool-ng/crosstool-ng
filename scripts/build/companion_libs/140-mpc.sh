@@ -38,6 +38,11 @@ do_mpc_for_build() {
     mpc_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
     mpc_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     mpc_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
+
+    if [ "${CT_CC_LANG_JIT}" = "y" ]; then
+        mpc_opts+=("--with-pic")
+    fi
+
     do_mpc_backend "${mpc_opts[@]}"
 
     CT_Popd
@@ -73,10 +78,16 @@ do_mpc_backend() {
     local cflags
     local ldflags
     local arg
+    local -a extra_config
 
     for arg in "$@"; do
         eval "${arg// /\\ }"
     done
+
+    if [ "${CT_CC_LANG_JIT}" = "y" ]; then
+        extra_config+=("--with-pic")
+    fi
+
 
     CT_DoLog EXTRA "Configuring MPC"
 
@@ -87,6 +98,7 @@ do_mpc_backend() {
     "${CT_SRC_DIR}/mpc/configure"                   \
         --build=${CT_BUILD}                         \
         --host=${host}                              \
+        "${extra_config[@]}"                        \
         --prefix="${prefix}"                        \
         --with-gmp="${prefix}"                      \
         --with-mpfr="${prefix}"                     \

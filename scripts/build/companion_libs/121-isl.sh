@@ -82,6 +82,10 @@ do_isl_backend() {
         eval "${arg// /\\ }"
     done
 
+    if [ "${CT_CC_LANG_JIT}" = "y" ]; then
+        extra_config+=("--with-pic")
+    fi
+
     CT_DoLog EXTRA "Configuring ISL"
 
     CT_DoExecLog CFG                                \

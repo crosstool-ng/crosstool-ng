@@ -83,6 +83,10 @@ do_cloog_backend() {
     cloog_opts+=( --with-isl=system --with-isl-prefix="${prefix}" )
     cloog_opts+=( --without-osl )
 
+    if [ "${CT_CC_LANG_JIT}" = "y" ]; then
+        cloog_opts+=("--with-pic")
+    fi
+
     CT_DoLog EXTRA "Configuring CLooG"
 
     CT_DoExecLog CFG                                    \

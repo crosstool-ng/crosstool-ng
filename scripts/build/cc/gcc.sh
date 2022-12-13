@@ -45,6 +45,7 @@ cc_gcc_lang_list() {
     [ "${CT_CC_LANG_ADA}" = "y"      ] && lang_list+=",ada"
     [ "${CT_CC_LANG_D}" = "y"      ] && lang_list+=",d"
     [ "${CT_CC_LANG_JAVA}" = "y"     ] && lang_list+=",java"
+    [ "${CT_CC_LANG_JIT}" = "y"      ] && lang_list+=",jit"
     [ "${CT_CC_LANG_OBJC}" = "y"     ] && lang_list+=",objc"
     [ "${CT_CC_LANG_OBJCXX}" = "y"   ] && lang_list+=",obj-c++"
     [ "${CT_CC_LANG_GOLANG}" = "y"   ] && lang_list+=",go"
@@ -341,6 +342,10 @@ do_gcc_core_backend() {
     # Hint GCC we'll use a bit special version of Newlib
     if [ "${CT_LIBC_NEWLIB_NANO_FORMATTED_IO}" = "y" ]; then
         extra_config+=("--enable-newlib-nano-formatted-io")
+    fi
+
+    if [ "${CT_CC_LANG_JIT}" = "y" ]; then
+        extra_config+=("--enable-host-shared")
     fi
 
     if [ "${CT_CC_CXA_ATEXIT}" = "y" ]; then
