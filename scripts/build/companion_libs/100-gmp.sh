@@ -109,7 +109,7 @@ do_gmp_backend() {
 
     CT_DoLog EXTRA "Configuring GMP"
 
-    # To avoind “illegal text-relocation” linking error against
+    # To avoid “illegal text-relocation” linking error against
     # the static library, see:
     #     https://github.com/Homebrew/homebrew-core/pull/25470
     case "${host}" in
@@ -117,6 +117,10 @@ do_gmp_backend() {
             extra_config+=("--with-pic")
             ;;
     esac
+
+    if [ "${CT_CC_LANG_JIT}" = "y" ]; then
+        extra_config+=("--with-pic")
+    fi
 
     # GMP's configure script doesn't respect the host parameter
     # when not cross-compiling, ie when build == host so set

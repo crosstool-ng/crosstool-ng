@@ -80,6 +80,10 @@ do_zlib_backend() {
         eval "${arg// /\\ }"
     done
 
+    if [ "${CT_CC_LANG_JIT}" = "y" ]; then
+        cflags="${cflags} -fPIC"
+    fi
+
     case "${host}" in
     *-mingw32)
         # zlib treats mingw host differently and requires using a different
