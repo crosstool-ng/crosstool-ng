@@ -1,0 +1,105 @@
+From 2d7ed98add14f75041499ac189696c9bd3d757fe Mon Sep 17 00:00:00 2001
+From: Sergei Trofimovich <slyich@gmail.com>
+Date: Tue, 13 Sep 2022 13:39:13 -0400
+Subject: [PATCH] Makerules: fix MAKEFLAGS assignment for upcoming make-4.4
+ [BZ# 29564]
+
+make-4.4 will add long flags to MAKEFLAGS variable:
+
+    * WARNING: Backward-incompatibility!
+      Previously only simple (one-letter) options were added to the MAKEFLAGS
+      variable that was visible while parsing makefiles.  Now, all options
+      are available in MAKEFLAGS.
+
+This causes locale builds to fail when long options are used:
+
+    $ make --shuffle
+    ...
+    make  -C localedata install-locales
+    make: invalid shuffle mode: '1662724426r'
+
+The change fixes it by passing eash option via whitespace and dashes.
+That way option is appended to both single-word form and whitespace
+separated form.
+
+While at it fixed --silent mode detection in $(MAKEFLAGS) by filtering
+out --long-options. Otherwise options like --shuffle flag enable silent
+mode unintentionally. $(silent-make) variable consolidates the checks.
+
+Resolves: BZ# 29564
+
+CC: Paul Smith <psmith@gnu.org>
+CC: Siddhesh Poyarekar <siddhesh@gotplt.org>
+Signed-off-by: Sergei Trofimovich <slyich@gmail.com>
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+---
+ Makeconfig     |   18 +++++++++++++++++-
+ Makerules      |    4 ++--
+ elf/rtld-Rules |    2 +-
+ 3 files changed, 20 insertions(+), 4 deletions(-)
+
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -42,6 +42,22 @@
+ objdir must be defined by the build-directory Makefile.
+ endif
+ 
++# Did we request 'make -s' run? "yes" or "no".
++# Starting from make-4.4 MAKEFLAGS now contains long
++# options like '--shuffle'. To detect presence of 's'
++# we pick first word with short options. Long options
++# are guaranteed to come after whitespace. We use '-'
++# prefix to always have a word before long options
++# even if no short options were passed.
++# Typical MAKEFLAGS values to watch for:
++#   "rs --shuffle=42" (silent)
++#   " --shuffle" (not silent)
++ifeq ($(findstring s, $(firstword -$(MAKEFLAGS))),)
++silent-make := no
++else
++silent-make := yes
++endif
++
+ # Root of the sysdeps tree.
+ sysdep_dir := $(..)sysdeps
+ export sysdep_dir := $(sysdep_dir)
+@@ -858,7 +874,7 @@
+ # umpteen zillion filenames along with it (we use `...' instead)
+ # but we don't want this echoing done when the user has said
+ # he doesn't want to see commands echoed by using -s.
+-ifneq	"$(findstring s,$(MAKEFLAGS))" ""	# if -s
++ifeq ($(silent-make),yes)			# if -s
+ +cmdecho	:= echo >/dev/null
+ else						# not -s
+ +cmdecho	:= echo
+--- a/Makerules
++++ b/Makerules
+@@ -868,7 +868,7 @@
+ # Maximize efficiency by minimizing the number of rules.
+ .SUFFIXES:	# Clear the suffix list.  We don't use suffix rules.
+ # Don't define any builtin rules.
+-MAKEFLAGS := $(MAKEFLAGS)r
++MAKEFLAGS := $(MAKEFLAGS) -r
+ 
+ # Generic rule for making directories.
+ %/:
+@@ -885,7 +885,7 @@
+ .PRECIOUS: $(foreach l,$(libtypes),$(patsubst %,$(common-objpfx)$l,c))
+ 
+ # Use the verbose option of ar and tar when not running silently.
+-ifeq	"$(findstring s,$(MAKEFLAGS))" ""	# if not -s
++ifeq ($(silent-make),no)			# if not -s
+ verbose := v
+ else	   					# -s
+ verbose	:=
+--- a/elf/rtld-Rules
++++ b/elf/rtld-Rules
+@@ -52,7 +52,7 @@
+ 	mv -f $@T $@
+ 
+ # Use the verbose option of ar and tar when not running silently.
+-ifeq	"$(findstring s,$(MAKEFLAGS))" ""	# if not -s
++ifeq ($(silent-make),no)			# if not -s
+ verbose := v
+ else						# -s
+ verbose	:=
