@@ -8,7 +8,7 @@ usage()
 $0 -- Test packages in crosstool-NG
 
 Verifies that the release tarballs can be downloaded for the packages
-available in crosstoo-NG and check that the patches apply cleanly.
+available in crosstool-NG and check that the patches apply cleanly.
 Requires crosstool-NG to be configured and built prior to running.
 
 Options:
