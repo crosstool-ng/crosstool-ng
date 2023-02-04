@@ -1087,7 +1087,7 @@ do_gcc_backend() {
         extra_config+=("--disable-lto")
     fi
     case "${CT_CC_GCC_LTO_ZSTD}" in
-        y) extra_config+=("--with-zstd");;
+        y) extra_config+=("--with-zstd=${complibs}");;
         m) ;;
         *) extra_config+=("--without-zstd");;
     esac
