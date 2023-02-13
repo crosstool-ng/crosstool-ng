@@ -392,6 +392,12 @@ do_gcc_core_backend() {
         extra_config+=(--disable-libstdcxx)
     fi
 
+    if [ "${CT_LIBC_PICOLIBC}" = "y" ]; then
+	extra_config+=("--with-default-libc=picolibc")
+	extra_config+=("--enable-stdio=pure")
+	extra_config+=("--disable-wchar_t")
+    fi
+
     core_LDFLAGS+=("${ldflags}")
 
     # *** WARNING ! ***
@@ -1041,6 +1047,12 @@ do_gcc_backend() {
     
     if [ "${build_libstdcxx}" = "no" ]; then
         extra_config+=(--disable-libstdcxx)
+    fi
+
+    if [ "${CT_LIBC_PICOLIBC}" = "y" ]; then
+	extra_config+=("--with-default-libc=picolibc")
+	extra_config+=("--enable-stdio=pure")
+	extra_config+=("--disable-wchar_t")
     fi
 
     final_LDFLAGS+=("${ldflags}")
