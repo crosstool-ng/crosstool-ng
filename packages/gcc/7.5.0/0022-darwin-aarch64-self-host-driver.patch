@@ -1,0 +1,96 @@
+From 834c8749ced550af3f17ebae4072fb7dfb90d271 Mon Sep 17 00:00:00 2001
+From: Iain Sandoe <iain@sandoe.co.uk>
+Date: Tue, 18 Aug 2020 22:29:51 +0100
+Subject: [PATCH] Darwin, aarch64 : Initial support for the self-host driver.
+
+At present, there is no special action needed for aarch64-darwin
+this just pulls in generic Darwin code.
+
+Signed-off-by: Iain Sandoe <iain@sandoe.co.uk>
+
+gcc/ChangeLog:
+
+	* config.host: Add support for aarch64-*-darwin.
+	* config/aarch64/host-aarch64-darwin.c: New file.
+	* config/aarch64/x-darwin: New file.
+---
+ gcc/config.host                          |  7 ++++-
+ gcc/config/aarch64/host-aarch64-darwin.c | 33 ++++++++++++++++++++++++
+ gcc/config/aarch64/x-darwin              |  3 +++
+ 3 files changed, 42 insertions(+), 1 deletion(-)
+ create mode 100644 gcc/config/aarch64/host-aarch64-darwin.c
+ create mode 100644 gcc/config/aarch64/x-darwin
+
+diff --git a/gcc/config.host b/gcc/config.host
+index 0a02c33cc8044..81ff7ed1043e2 100644
+--- a/gcc/config.host
++++ b/gcc/config.host
+@@ -99,7 +99,8 @@ case ${host} in
+ esac
+
+ case ${host} in
+-  aarch64*-*-freebsd* | aarch64*-*-linux* | aarch64*-*-fuchsia*)
++  aarch64*-*-freebsd* | aarch64*-*-linux* | aarch64*-*-fuchsia* |\
++  aarch64*-*-darwin*)
+     case ${target} in
+       aarch64*-*-*)
+ 	host_extra_gcc_objs="driver-aarch64.o"
+@@ -249,6 +250,10 @@ case ${host} in
+     out_host_hook_obj=host-mingw32.o
+     host_lto_plugin_soname=liblto_plugin-0.dll
+     ;;
++  aarch64*-*-darwin*)
++    out_host_hook_obj="${out_host_hook_obj} host-aarch64-darwin.o"
++    host_xmake_file="${host_xmake_file} aarch64/x-darwin"
++    ;;
+   i[34567]86-*-darwin* | x86_64-*-darwin*)
+     out_host_hook_obj="${out_host_hook_obj} host-i386-darwin.o"
+     host_xmake_file="${host_xmake_file} i386/x-darwin"
+diff --git a/gcc/config/aarch64/host-aarch64-darwin.c b/gcc/config/aarch64/host-aarch64-darwin.c
+new file mode 100644
+index 0000000000000..d70f2df3bf1b3
+--- /dev/null
++++ b/gcc/config/aarch64/host-aarch64-darwin.c
+@@ -0,0 +1,33 @@
++/* aarch64/arm64-darwin host-specific hook definitions.
++
++Copyright The GNU Toolchain Authors.
++
++This file is part of GCC.
++
++GCC is free software; you can redistribute it and/or modify it under
++the terms of the GNU General Public License as published by the Free
++Software Foundation; either version 3, or (at your option) any later
++version.
++
++GCC is distributed in the hope that it will be useful, but WITHOUT ANY
++WARRANTY; without even the implied warranty of MERCHANTABILITY or
++FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++for more details.
++
++You should have received a copy of the GNU General Public License
++along with GCC; see the file COPYING3.  If not see
++<http://www.gnu.org/licenses/>.  */
++
++#define IN_TARGET_CODE 1
++
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "hosthooks.h"
++#include "hosthooks-def.h"
++#include "config/host-darwin.h"
++
++/* Darwin doesn't do anything special for arm64/aarch64 hosts; this file
++   exists just to include the generic config/host-darwin.h.  */
++
++const struct host_hooks host_hooks = HOST_HOOKS_INITIALIZER;
+diff --git a/gcc/config/aarch64/x-darwin b/gcc/config/aarch64/x-darwin
+new file mode 100644
+index 0000000000000..6d788d5e89cfb
+--- /dev/null
++++ b/gcc/config/aarch64/x-darwin
+@@ -0,0 +1,3 @@
++host-aarch64-darwin.o : $(srcdir)/config/aarch64/host-aarch64-darwin.c
++	$(COMPILE) $<
++	$(POSTCOMPILE)
