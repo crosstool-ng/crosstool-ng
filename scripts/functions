@@ -1,6 +1,6 @@
-# -*- mode: sh; tab-width: 4 -*-
+# -*- mode: bash; tab-width: 4 -*-
 # vi: ts=4:sw=4:sts=4:et
-# vim: filetype=sh :
+# vim: filetype=bash
 # This file contains some useful common functions
 # Copyright 2007 Yann E. MORIN
 # Licensed under the GPL v2. See COPYING in the root of this package
@@ -174,8 +174,9 @@ CT_OnError() {
             CT_DoLog ERROR ">> NOTE: You configuration uses non-default patch sets. Please"
             CT_DoLog ERROR ">> select 'bundled' as the set of patches applied and attempt"
             CT_DoLog ERROR ">> to reproduce this issue. Issues reported with other patch"
-            CT_DoLog ERROR ">> set selections (none, local, bundled+local) are going to be"
-            CT_DoLog ERROR ">> closed without explanation."
+            CT_DoLog ERROR ">> set selections (none, local, bundled+local,"
+            CT_DoLog ERROR ">> bundled+bundled_exp bundled+bundled_exp+local) are going to"
+            CT_DoLog ERROR ">> be closed without explanation."
             CT_DoLog ERROR ">>"
         fi
         CT_DoLog ERROR ">>  If you feel this is a bug in crosstool-NG, report it at:"
@@ -214,23 +215,23 @@ set +o hashall
 #    FIXME: it doesn't look like anyone is overriding stdin/stderr. Do we need
 #    to save/restore them?
 CT_LogEnable() {
-	local clean=no
-	local arg
+    local clean=no
+    local arg
 
-	for arg in "$@"; do eval "$arg"; done
-	exec 6>&1 7>&2 8<&0
-	CT_BUILD_LOG="${CT_TOP_DIR}/build.log"
-	CT_LOG_ENABLED=y
+    for arg in "$@"; do eval "$arg"; done
+    exec 6>&1 7>&2 8<&0
+    CT_BUILD_LOG="${CT_TOP_DIR}/build.log"
+    CT_LOG_ENABLED=y
     if [ "$clean" = "yes" ]; then
-		rm -f "${CT_BUILD_LOG}"
-	fi
-	exec >>"${CT_BUILD_LOG}"
+        rm -f "${CT_BUILD_LOG}"
+    fi
+    exec >>"${CT_BUILD_LOG}"
 }
 
 # Restore original stdout, stderr and stdin
 CT_LogDisable() {
-	exec >&6 2>&7 <&8
-	CT_LOG_ENABLED=
+    exec >&6 2>&7 <&8
+    CT_LOG_ENABLED=
 }
 
 # The different log levels:
@@ -1352,7 +1353,7 @@ CT_DoExtractTarballIfExists() {
 # at any one point
 # Usage: CT_DoSaveState <next_step_name>
 CT_DoSaveState() {
-	[ "${CT_DEBUG_CT_SAVE_STEPS}" = "y" ] || return 0
+    [ "${CT_DEBUG_CT_SAVE_STEPS}" = "y" ] || return 0
     local state_name="$1"
     local state_dir="${CT_STATE_DIR}/${state_name}"
     local v
@@ -2237,6 +2238,7 @@ CT_DoExtractPatch()
     local archive ext
     local -a patch_dirs
     local bundled_patch_dir
+    local bundled_exp_patch_dir
     local bundled_common_patch_dir
     local local_patch_dir
     local local_common_patch_dir
@@ -2265,9 +2267,9 @@ CT_DoExtractPatch()
     # Can use common location only if using non-custom source, only bundled patches
     # and no overlays. Otherwise, this source directory is custom-tailored for this
     # particular configuration and cannot be reused by different configurations.
-    if [ "${src_custom}" != "y" -a \
-            "${patch_order}" = "bundled" -a \
-            ! -d "${CT_BUILD_DIR}/overlay/${dir_name}" ]; then
+    if test "${src_custom}" != "y" -a \
+            \( "${patch_order}" = 'bundled' -o "${patch_order}" = 'bundled,bundled_exp' \) -a \
+            ! -d "${CT_BUILD_DIR}/overlay/${dir_name}"; then
         src_dir="${CT_COMMON_SRC_DIR}"
     else
         src_dir="${CT_SRC_DIR}"
@@ -2314,16 +2316,20 @@ CT_DoExtractPatch()
             CT_DoExecLog ALL touch "${src_dir}/.${basename}.patching"
 
             bundled_patch_dir="${CT_LIB_DIR}/packages/${pkg_dir}"
+            bundled_exp_patch_dir="${CT_LIB_DIR}/packages/${pkg_dir}/experimental"
             bundled_common_patch_dir="${CT_LIB_DIR}/packages/${pkg_name}"
             local_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkg_dir}"
             local_common_patch_dir="${CT_LOCAL_PATCH_DIR}/${pkg_name}"
 
             case "${patch_order}" in
-                bundled)        patch_dirs=("${bundled_patch_dir}" "${bundled_common_patch_dir}");;
-                local)          patch_dirs=("${local_patch_dir}" "${local_common_patch_dir}");;
-                bundled,local)  patch_dirs=("${bundled_patch_dir}" "${bundled_common_patch_dir}" "${local_patch_dir}" "${local_common_patch_dir}");;
-                local,bundled)  patch_dirs=("${local_patch_dir}" "${local_common_patch_dir}" "${bundled_patch_dir}" "${bundled_common_patch_dir}");;
-                none)           patch_dirs=;;
+                bundled)                    patch_dirs=("${bundled_patch_dir}" "${bundled_common_patch_dir}");;
+                local)                      patch_dirs=("${local_patch_dir}" "${local_common_patch_dir}");;
+                bundled,local)              patch_dirs=("${bundled_patch_dir}" "${bundled_common_patch_dir}" "${local_patch_dir}" "${local_common_patch_dir}");;
+                local,bundled)              patch_dirs=("${local_patch_dir}" "${local_common_patch_dir}" "${bundled_patch_dir}" "${bundled_common_patch_dir}");;
+                bundled,bundled_exp)        patch_dirs=("${bundled_patch_dir}" "${bundled_common_patch_dir}" "${bundled_exp_patch_dir}");;
+                bundled,bundled_exp,local)  patch_dirs=("${bundled_patch_dir}" "${bundled_common_patch_dir}" "${bundled_exp_patch_dir}" "${local_patch_dir}" "${local_common_patch_dir}");;
+                local,bundled,bundled_exp)  patch_dirs=("${local_patch_dir}" "${local_common_patch_dir}" "${bundled_patch_dir}" "${bundled_common_patch_dir}" "${bundled_exp_patch_dir}");;
+                none)                       patch_dirs=;;
             esac
 
             CT_Pushd "${src_dir}/${basename}"
