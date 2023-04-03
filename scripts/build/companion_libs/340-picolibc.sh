@@ -82,6 +82,10 @@ endian = '${CT_ARCH_ENDIAN}'
 c_args = [ ${meson_cflags} '-nostdlib', '-fno-common', '-ftls-model=local-exec' ]
 needs_exe_wrapper = true
 skip_sanity_check = true
+default_flash_addr = '${CT_LIBC_PICOLIBC_DEFAULT_FLASH_ADDR}'
+default_flash_size = '${CT_LIBC_PICOLIBC_DEFAULT_FLASH_SIZE}'
+default_ram_addr = '${CT_LIBC_PICOLIBC_DEFAULT_RAM_ADDR}'
+default_ram_size = '${CT_LIBC_PICOLIBC_DEFAULT_RAM_SIZE}'
 EOF
 
     local picolibc_sysroot_dir
