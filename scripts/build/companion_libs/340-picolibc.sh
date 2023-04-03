@@ -146,7 +146,9 @@ do_cc_libstdcxx_picolibc()
     final_opts+=( "lang_list=c,c++" )
     final_opts+=( "build_step=libstdcxx" )
     final_opts+=( "extra_config+=('--enable-stdio=stdio_pure')" )
-    final_opts+=( "extra_config+=('--disable-wchar_t')" )
+    if [ "${CT_PICOLIBC_older_than_1_8}" = "y" ]; then
+	final_opts+=( "extra_config+=('--disable-wchar_t')" )
+    fi
     if [ "${CT_LIBC_PICOLIBC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
         final_opts+=( "enable_optspace=yes" )
     fi
