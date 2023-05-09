@@ -167,8 +167,8 @@ do_debug_gdb_build()
         # version of expat and will attempt to link that, despite the -static flag.
         # The link will fail, and configure will abort with "expat missing or unusable"
         # message.
-        extra_config+=("--with-expat")
-        extra_config+=("--without-libexpat-prefix")
+        native_extra_config+=("--with-expat")
+        native_extra_config+=("--without-libexpat-prefix")
 
         do_gdb_backend \
             buildtype=native \
