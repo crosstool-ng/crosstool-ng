@@ -234,7 +234,7 @@ EOF
 -idirafter %:getenv(GCC_EXEC_PREFIX ../../newlib-nano/${CT_TARGET}/include) %(newlib_nano_cc1plus)
 
 *link:
--L%:getenv(GCC_EXEC_PREFIX ../../newlib-nano/${CT_TARGET}/lib/%M) -L%:getenv(GCC_EXEC_PREFIX ../../newlib-nano/${CT_TARGET}/lib)
+-L%:getenv(GCC_EXEC_PREFIX ../../newlib-nano/${CT_TARGET}/lib/%M) -L%:getenv(GCC_EXEC_PREFIX ../../newlib-nano/${CT_TARGET}/lib) %(newlib_nano_link)
 
 EOF
     fi
