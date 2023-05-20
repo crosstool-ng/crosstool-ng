@@ -1,0 +1,221 @@
+From 48d864a060ae79a809b5dc12c298d1e2e4a29026 Mon Sep 17 00:00:00 2001
+From: Richard Biener <rguenther@suse.de>
+Date: Thu, 16 Feb 2017 07:53:53 +0000
+Subject: [PATCH 5/5] graphite.h: Do not include isl/isl_val_gmp.h, instead
+ include isl/isl_val.h.
+
+2017-02-16  Richard Biener  <rguenther@suse.de>
+
+	* graphite.h: Do not include isl/isl_val_gmp.h, instead include
+	isl/isl_val.h.
+	* graphite-isl-ast-to-gimple.c (gmp_cst_to_tree): Remove.
+	(gcc_expression_from_isl_expr_int): Use generic isl_val interface.
+	* graphite-sese-to-poly.c: Do not include isl/isl_val_gmp.h.
+	(isl_val_int_from_wi): New function.
+	(extract_affine_gmp): Rename to ...
+	(extract_affine_wi): ... this, take a widest_int.
+	(extract_affine_int): Just wrap extract_affine_wi.
+	(add_param_constraints): Use isl_val_int_from_wi.
+	(add_loop_constraints): Likewise, and extract_affine_wi.
+
+From-SVN: r245501
+---
+ gcc/graphite-isl-ast-to-gimple.c |   30 ++++++--------------
+ gcc/graphite-sese-to-poly.c      |   58 +++++++++++++++++----------------------
+ gcc/graphite.h                   |    1 
+ 3 files changed, 36 insertions(+), 53 deletions(-)
+
+--- a/gcc/graphite-isl-ast-to-gimple.c
++++ b/gcc/graphite-isl-ast-to-gimple.c
+@@ -73,22 +73,6 @@
+   bool is_parallelizable;
+ };
+ 
+-/* Converts a GMP constant VAL to a tree and returns it.  */
+-
+-static tree
+-gmp_cst_to_tree (tree type, mpz_t val)
+-{
+-  tree t = type ? type : integer_type_node;
+-  mpz_t tmp;
+-
+-  mpz_init (tmp);
+-  mpz_set (tmp, val);
+-  wide_int wi = wi::from_mpz (t, tmp, true);
+-  mpz_clear (tmp);
+-
+-  return wide_int_to_tree (t, wi);
+-}
+-
+ /* Verifies properties that GRAPHITE should maintain during translation.  */
+ 
+ static inline void
+@@ -339,16 +323,20 @@
+ {
+   gcc_assert (isl_ast_expr_get_type (expr) == isl_ast_expr_int);
+   isl_val *val = isl_ast_expr_get_val (expr);
+-  mpz_t val_mpz_t;
+-  mpz_init (val_mpz_t);
++  size_t n = isl_val_n_abs_num_chunks (val, sizeof (HOST_WIDE_INT));
++  HOST_WIDE_INT *chunks = XALLOCAVEC (HOST_WIDE_INT, n);
+   tree res;
+-  if (isl_val_get_num_gmp (val, val_mpz_t) == -1)
++  if (isl_val_get_abs_num_chunks (val, sizeof (HOST_WIDE_INT), chunks) == -1)
+     res = NULL_TREE;
+   else
+-    res = gmp_cst_to_tree (type, val_mpz_t);
++    {
++      widest_int wi = widest_int::from_array (chunks, n, true);
++      if (isl_val_is_neg (val))
++	wi = -wi;
++      res = wide_int_to_tree (type, wi);
++    }
+   isl_val_free (val);
+   isl_ast_expr_free (expr);
+-  mpz_clear (val_mpz_t);
+   return res;
+ }
+ 
+--- a/gcc/graphite-sese-to-poly.c
++++ b/gcc/graphite-sese-to-poly.c
+@@ -55,7 +55,6 @@
+ #include <isl/constraint.h>
+ #include <isl/aff.h>
+ #include <isl/val.h>
+-#include <isl/val_gmp.h>
+ 
+ #include "graphite.h"
+ 
+@@ -301,16 +300,32 @@
+   return isl_pw_aff_alloc (dom, aff);
+ }
+ 
++/* Convert WI to a isl_val with CTX.  */
++
++static __isl_give isl_val *
++isl_val_int_from_wi (isl_ctx *ctx, const widest_int &wi)
++{
++  if (wi::neg_p (wi, SIGNED))
++    {
++      widest_int mwi = -wi;
++      return isl_val_neg (isl_val_int_from_chunks (ctx, mwi.get_len (),
++						   sizeof (HOST_WIDE_INT),
++						   mwi.get_val ()));
++    }
++  return isl_val_int_from_chunks (ctx, wi.get_len (), sizeof (HOST_WIDE_INT),
++				  wi.get_val ());
++}
++
+ /* Extract an affine expression from the gmp constant G.  */
+ 
+ static isl_pw_aff *
+-extract_affine_gmp (mpz_t g, __isl_take isl_space *space)
++extract_affine_wi (const widest_int &g, __isl_take isl_space *space)
+ {
+   isl_local_space *ls = isl_local_space_from_space (isl_space_copy (space));
+   isl_aff *aff = isl_aff_zero_on_domain (ls);
+   isl_set *dom = isl_set_universe (space);
+   isl_ctx *ct = isl_aff_get_ctx (aff);
+-  isl_val *v = isl_val_int_from_gmp (ct, g);
++  isl_val *v = isl_val_int_from_wi (ct, g);
+   aff = isl_aff_add_constant_val (aff, v);
+ 
+   return isl_pw_aff_alloc (dom, aff);
+@@ -321,13 +336,7 @@
+ static isl_pw_aff *
+ extract_affine_int (tree e, __isl_take isl_space *space)
+ {
+-  mpz_t g;
+-
+-  mpz_init (g);
+-  tree_int_to_gmp (e, g);
+-  isl_pw_aff *res = extract_affine_gmp (g, space);
+-  mpz_clear (g);
+-
++  isl_pw_aff *res = extract_affine_wi (wi::to_widest (e), space);
+   return res;
+ }
+ 
+@@ -558,15 +567,11 @@
+     {
+       isl_space *space = isl_set_get_space (scop->param_context);
+       isl_constraint *c;
+-      mpz_t g;
+       isl_val *v;
+ 
+       c = isl_inequality_alloc (isl_local_space_from_space (space));
+-      mpz_init (g);
+-      tree_int_to_gmp (lb, g);
+-      v = isl_val_int_from_gmp (scop->isl_context, g);
++      v = isl_val_int_from_wi (scop->isl_context, wi::to_widest (lb));
+       v = isl_val_neg (v);
+-      mpz_clear (g);
+       c = isl_constraint_set_constant_val (c, v);
+       c = isl_constraint_set_coefficient_si (c, isl_dim_param, p, 1);
+ 
+@@ -578,15 +583,11 @@
+     {
+       isl_space *space = isl_set_get_space (scop->param_context);
+       isl_constraint *c;
+-      mpz_t g;
+       isl_val *v;
+ 
+       c = isl_inequality_alloc (isl_local_space_from_space (space));
+ 
+-      mpz_init (g);
+-      tree_int_to_gmp (ub, g);
+-      v = isl_val_int_from_gmp (scop->isl_context, g);
+-      mpz_clear (g);
++      v = isl_val_int_from_wi (scop->isl_context, wi::to_widest (ub));
+       c = isl_constraint_set_constant_val (c, v);
+       c = isl_constraint_set_coefficient_si (c, isl_dim_param, p, -1);
+ 
+@@ -920,11 +921,8 @@
+       isl_local_space *ls = isl_local_space_from_space (space);
+       isl_constraint *c = isl_inequality_alloc (ls);
+       c = isl_constraint_set_coefficient_si (c, isl_dim_set, loop_index, -1);
+-      mpz_t g;
+-      mpz_init (g);
+-      tree_int_to_gmp (nb_iters, g);
+-      isl_val *v = isl_val_int_from_gmp (scop->isl_context, g);
+-      mpz_clear (g);
++      isl_val *v
++	= isl_val_int_from_wi (scop->isl_context, wi::to_widest (nb_iters));
+       c = isl_constraint_set_constant_val (c, v);
+       return isl_set_add_constraint (domain, c);
+     }
+@@ -964,12 +962,9 @@
+ 
+   /* NIT is an upper bound to NB_ITERS: "NIT >= NB_ITERS", although we
+      do not know whether the loop executes at least once.  */
+-  mpz_t g;
+-  mpz_init (g);
+-  wi::to_mpz (nit, g, SIGNED);
+-  mpz_sub_ui (g, g, 1);
++  --nit;
+ 
+-  isl_pw_aff *approx = extract_affine_gmp (g, isl_space_copy (space));
++  isl_pw_aff *approx = extract_affine_wi (nit, isl_space_copy (space));
+   isl_set *x = isl_pw_aff_ge_set (approx, aff_nb_iters);
+   x = isl_set_project_out (x, isl_dim_set, 0,
+ 			   isl_set_dim (x, isl_dim_set));
+@@ -978,8 +973,7 @@
+   ls = isl_local_space_from_space (space);
+   c = isl_inequality_alloc (ls);
+   c = isl_constraint_set_coefficient_si (c, isl_dim_set, loop_index, -1);
+-  isl_val *v = isl_val_int_from_gmp (scop->isl_context, g);
+-  mpz_clear (g);
++  isl_val *v = isl_val_int_from_wi (scop->isl_context, nit);
+   c = isl_constraint_set_constant_val (c, v);
+ 
+   if (dump_file)
+--- a/gcc/graphite.h
++++ b/gcc/graphite.h
+@@ -26,6 +26,7 @@
+ #include <isl/options.h>
+ #include <isl/ctx.h>
+ #include <isl/val_gmp.h>
++#include <isl/val.h>
+ #include <isl/id.h>
+ #include <isl/space.h>
+ #include <isl/set.h>
