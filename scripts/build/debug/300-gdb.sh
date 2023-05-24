@@ -245,7 +245,7 @@ do_debug_gdb_build()
 
 do_gdb_backend()
 {
-    local host prefix destdir cflags ldflags static buildtype subdir
+    local host prefix destdir cflags ldflags static buildtype subdir includedir
     local -a extra_config
 
     for arg in "$@"; do
@@ -308,6 +308,17 @@ do_gdb_backend()
         CT_mkdir_pushd "${subdir}"
     fi
 
+    # Use a relative path for include directory if gdb or gdbserver
+    # is being built and installed for a target. Otherwise headers
+    # are installed in ${destdir}${CT_HEADERS_DIR} - a concatenation
+    # of ${destdir} and an absolute path to sysroot's include directory.
+    # As a result debug-root may contain wrong paths for includes.
+    if [ -n "${destdir}" ]; then
+        includedir="/usr/include"
+    else
+        includedir=${CT_HEADERS_DIR}
+    fi
+
     # TBD: is passing CPP/CC/CXX/LD needed? GCC should be determining this automatically from the triplets
     CT_DoExecLog CFG                                \
     CPP="${host}-cpp"                               \
@@ -324,7 +335,7 @@ do_gdb_backend()
         --target=${CT_TARGET}                       \
         --prefix="${prefix}"                        \
         --with-build-sysroot="${CT_SYSROOT_DIR}"    \
-        --includedir="${CT_HEADERS_DIR}"            \
+        --includedir="${includedir}"                \
         --disable-werror                            \
         "${extra_config[@]}"                        \
 
