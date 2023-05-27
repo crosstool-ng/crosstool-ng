@@ -76,6 +76,7 @@ do_debug_gdb_build()
             ldflags="${CT_LDFLAGS_FOR_HOST}" \
             prefix="${CT_PREFIX_DIR}" \
             static="${CT_GDB_CROSS_STATIC}" \
+            static_libstdcxx="${CT_GDB_CROSS_STATIC}" \
             --with-sysroot="${CT_SYSROOT_DIR}"          \
             "${cross_extra_config[@]}"
 
@@ -177,7 +178,7 @@ do_debug_gdb_build()
             cflags="${CT_ALL_TARGET_CFLAGS}" \
             ldflags="${CT_ALL_TARGET_LDFLAGS}" \
             static="${CT_GDB_NATIVE_STATIC}" \
-            static_libstdc="${CT_GDB_NATIVE_STATIC_LIBSTDC}" \
+            static_libstdcxx="${CT_GDB_NATIVE_STATIC_LIBSTDCXX}" \
             prefix=/usr \
             destdir="${CT_DEBUGROOT_DIR}" \
             "${native_extra_config[@]}"
