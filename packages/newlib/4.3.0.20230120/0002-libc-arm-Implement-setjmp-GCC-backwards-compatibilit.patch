@@ -1,0 +1,55 @@
+From c6e601de84ea9f2be2b026c609cc3c1fe82a3103 Mon Sep 17 00:00:00 2001
+From: "Victor L. Do Nascimento" <victor.donascimento@arm.com>
+Date: Fri, 3 Feb 2023 11:15:26 +0000
+Subject: [PATCH] libc: arm: Implement setjmp GCC backwards compatibility.
+
+When compiling Newlib for arm targets with GCC 12.1 onward, the
+passing of architecture extension information to the assembler is
+automatic, making the use of .fpu and .arch_extension directives
+in assembly files redundant.
+
+With older versions of GCC, however, these directives must be
+hard-coded into the `arm/setjmp.S' file to allow the assembly of
+instructions concerning the storage and subsequent reloading of the
+floating point registers to/from the jump buffer, respectively.
+
+This patch conditionally adds the `.fpu vfpxd' and `.arch_extension
+mve' directives based on compile-time preprocessor macros concerning
+GCC version and target architectural features, such that both the
+assembly and linking of setjmp.S succeeds for older versions of
+Newlib.
+---
+ newlib/libc/machine/arm/setjmp.S |   22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+--- a/newlib/libc/machine/arm/setjmp.S
++++ b/newlib/libc/machine/arm/setjmp.S
+@@ -64,6 +64,28 @@
+ 
+ 	.syntax unified
+ 
++/*  GCC 12.1 and later will tell the assembler exactly which floating
++    point (or MVE) unit is required and we don't want to override
++    that.  Conversely, older versions of the compiler don't pass this
++    information so we need to enable the VFP version that is most
++    appropriate.  The choice here should support all suitable VFP
++    versions that the older toolchains can handle.  */
++#if __GNUC__ && __GNUC__ < 12
++/*  Ensure that FPU instructions are correctly compiled and, likewise,
++    the appropriate build attributes are added to the resulting object
++    file.  Check whether the MVE extension is present and whether
++    we have support for hardware floating point-operations.  VFPxd
++    covers all the cases we need in this file for hardware
++    floating-point and should be compatible with all required FPUs
++    that we need to support.  */
++# if __ARM_FP
++	.fpu vfpxd
++# endif
++# if __ARM_FEATURE_MVE
++	.arch_extension mve
++# endif
++#endif
++
+ #if __ARM_ARCH_ISA_THUMB == 1 && !__ARM_ARCH_ISA_ARM
+ /* ARMv6-M-like has to be implemented in Thumb mode.  */
+ 
