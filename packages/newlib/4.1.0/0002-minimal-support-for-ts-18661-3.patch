@@ -1,0 +1,50 @@
+From 91f99d323b39dc0c06c40038791db9861d4b76b9 Mon Sep 17 00:00:00 2001
+From: Kito Cheng <kito.cheng@sifive.com>
+Date: Mon, 12 Jul 2021 17:17:21 +0800
+Subject: [PATCH] Minimal support for ISO/IEC TS 18661-3.
+
+ - GCC will set __FLT_EVAL_METHOD__ to 16 if __fp16 supported, e.g.
+   cortex-a55/aarch64.
+   - $ aarch64-unknown-elf-gcc -v 2>&1 |grep version
+     gcc version 9.2.0 (GCC)
+   - $ aarch64-unknown-elf-gcc  -E -dM -mcpu=cortex-a55 - < /dev/null  |grep FLT_EVAL_METHOD
+     #define __FLT_EVAL_METHOD__ 16
+     #define __FLT_EVAL_METHOD_TS_18661_3__ 16
+     #define __FLT_EVAL_METHOD_C99__ 16
+ - The behavior of __FLT_EVAL_METHOD__ == 16 is same as
+   __FLT_EVAL_METHOD__ == 0 except for float16_t, but newlib didn't
+   support float16_t.
+
+ISO/IEC TS 18661-3:
+http://www.open-std.org/jtc1/sc22/wg14/www/docs/n2405.pdf
+
+V2 Changes:
+- List Howland, Craig D as co-author since he provide the draft of comment
+  in math.h.
+
+Co-authored-by: "Howland, Craig D" <howland@LGSInnovations.com>
+---
+ newlib/libc/include/math.h |   12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+--- a/newlib/libc/include/math.h
++++ b/newlib/libc/include/math.h
+@@ -146,7 +146,17 @@
+   #define __TMP_FLT_EVAL_METHOD
+ #endif /* FLT_EVAL_METHOD */
+ #if defined FLT_EVAL_METHOD
+-  #if FLT_EVAL_METHOD == 0
++/* FLT_EVAL_METHOD == 16 has meaning as defined in ISO/IEC TS 18661-3,
++ * which provides non-compliant extensions to C and POSIX (by adding
++ * additional positive values for FLT_EVAL_METHOD).  It effectively has
++ * same meaning as the C99 and C11 definitions for value 0, while also
++ * serving as a flag that the _Float16 (float16_t) type exists.
++ *
++ * FLT_EVAL_METHOD could be any number of bits of supported floating point
++ * format (e.g. 32, 64, 128), but currently only AArch64 and few other targets
++ * might define that as 16.  */
++  #if (FLT_EVAL_METHOD == 0) \
++      || (FLT_EVAL_METHOD == 16)
+     typedef float  float_t;
+     typedef double double_t;
+    #elif FLT_EVAL_METHOD == 1

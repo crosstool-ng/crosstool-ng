@@ -1,0 +1,65 @@
+From 27f0913c17c216548b2f5eea79037ee90038f375 Mon Sep 17 00:00:00 2001
+From: Andrea Corallo <andrea.corallo@arm.com>
+Date: Wed, 30 Mar 2022 15:40:59 +0200
+Subject: [PATCH] Aarch32/64: Support __FLT_EVAL_METHOD__ values other than 0,
+ 1, 2
+
+2022-03-30  Andrea Corallo  <andrea.corallo@arm.com>
+
+	* libc/include/machine/ieeefp.h (__FLOAT_TYPE, __DOUBLE_TYPE): New
+	macros.
+	* libc/include/math.h: Uses __DOUBLE_TYPE __FLOAT_TYPE to define
+	double_t float_t if possible.
+---
+ newlib/libc/include/machine/ieeefp.h |   14 ++++++++++++++
+ newlib/libc/include/math.h           |    9 +++++++++
+ 2 files changed, 23 insertions(+)
+
+--- a/newlib/libc/include/machine/ieeefp.h
++++ b/newlib/libc/include/machine/ieeefp.h
+@@ -90,6 +90,13 @@
+ #ifndef __SOFTFP__
+ # define _SUPPORTS_ERREXCEPT
+ #endif
++/* As per ISO/IEC TS 18661 '__FLT_EVAL_METHOD__' will be defined to 16
++   (if compiling with +fp16 support) so it can't be used by math.h to
++   define float_t and double_t.  For values of '__FLT_EVAL_METHOD__'
++   other than 0, 1, 2 the definition of float_t and double_t is
++   implementation-defined.  */
++#define __DOUBLE_TYPE double
++#define __FLOAT_TYPE float
+ #endif
+ 
+ #if defined (__aarch64__)
+@@ -102,6 +109,13 @@
+ #ifdef __ARM_FP
+ # define _SUPPORTS_ERREXCEPT
+ #endif
++/* As per ISO/IEC TS 18661 '__FLT_EVAL_METHOD__' will be defined to 16
++   (if compiling with +fp16 support) so it can't be used by math.h to
++   define float_t and double_t.  For values of '__FLT_EVAL_METHOD__'
++   other than 0, 1, 2 the definition of float_t and double_t is
++   implementation-defined.  */
++#define __DOUBLE_TYPE double
++#define __FLOAT_TYPE float
+ #endif
+ 
+ #ifdef __epiphany__
+--- a/newlib/libc/include/math.h
++++ b/newlib/libc/include/math.h
+@@ -168,6 +168,15 @@
+    #else
+     /* Implementation-defined.  Assume float_t and double_t have been
+      * defined previously for this configuration (e.g. config.h). */
++
++   /* If __DOUBLE_TYPE is defined (__FLOAT_TYPE is then supposed to be
++      defined as well) float_t and double_t definition is suggested by
++      an arch specific header.  */
++   #ifdef __DOUBLE_TYPE
++    typedef __DOUBLE_TYPE double_t;
++    typedef __FLOAT_TYPE float_t;
++   #endif
++   /* Assume config.h has provided these types.  */
+   #endif
+ #else
+     /* Assume basic definitions.  */
