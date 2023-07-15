@@ -210,6 +210,13 @@ CTNG_PROG_VERSION_REQ_ANY([MAKE],
     [^GNU Make [4-9]\.],
     [make_4_0_or_newer])
 
+CTNG_PROG_VERSION_REQ_ANY([MAKE],
+    [GNU make >= 4.4],
+    [make],
+    [gmake make],
+    [^GNU Make (4\.[4-9]|[5-9]\.)],
+    [make_4_4_or_newer])
+
 # Check other companion tools that we may or may not build.
 CTNG_PROG_VERSION_REQ_ANY([LIBTOOL],
     [GNU libtool >= 2.4],
