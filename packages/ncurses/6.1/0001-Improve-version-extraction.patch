@@ -1,0 +1,30 @@
+This patch is cherry-picked from the following upstream commit:
+
+From fbd79f88d0de057053bd9658499f4e87c10ff2f4 Mon Sep 17 00:00:00 2001
+From: "Thomas E. Dickey" <dickey@invisible-island.net>
+Date: Sun, 23 Aug 2020 01:24:28 +0000
+Subject: [PATCH] ncurses 6.2 - patch 20200822
+
++ improve version-number extraction in MKlib_gen.sh
++ make the test-package for manpages installable by adjusting the
+  man_db.renames file.
++ correct an off-by-one loop-limit in convert_strings function
+  (report by Yue Tai).
++ add CF_SHARED_OPTS cases for HPE NonStop systems (Randall S Becker).
++ modify CF_SHARED_OPTS case for NetBSD to use the same "-shared"
+  option for the non-rpath case as for the rpath case, to allow gcc to
+  provide suitable runtime initialization (report by Rajeev V Pillai).
+
+diff --git a/ncurses/base/MKlib_gen.sh b/ncurses/base/MKlib_gen.sh
+index 5a3770e..c7af51c 100755
+--- a/ncurses/base/MKlib_gen.sh
++++ b/ncurses/base/MKlib_gen.sh
+@@ -76,7 +76,7 @@ USE="$3"
+ PRG=`echo "$1" | $AWK '{ sub(/^[ 	]*/,""); sub(/[ 	].*$/, ""); print; }' || exit 0`
+ FSF=`"$PRG" --version 2>/dev/null || exit 0 | fgrep "Free Software Foundation" | head -n 1`
+ ALL=`"$PRG" -dumpversion 2>/dev/null || exit 0`
+-ONE=`echo "$ALL" | sed -e 's/\..*$//'`
++ONE=`echo "$ALL" | sed -e 's/[^0-9].*$//'`
+ if test -n "$FSF" && test -n "$ALL" && test -n "$ONE" ; then
+ 	if test $ONE -ge 5 ; then
+ 		echo ".. adding -P option to work around $PRG $ALL" >&2
