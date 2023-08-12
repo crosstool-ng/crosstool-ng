@@ -1052,6 +1052,8 @@ do_gcc_backend() {
     
     if [ "${build_libstdcxx}" = "no" ]; then
         extra_config+=(--disable-libstdcxx)
+    elif [ "${CT_CC_GCC_EXTRA_LIBSTDCXX}" = "y" ]; then
+        extra_config+=(--enable-libstdcxx)
     fi
 
     if [ "${CT_LIBC_PICOLIBC}" = "y" ]; then
