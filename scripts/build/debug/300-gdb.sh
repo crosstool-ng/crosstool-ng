@@ -69,10 +69,17 @@ do_debug_gdb_build()
         extra_config+=("--with-expat")
         extra_config+=("--without-libexpat-prefix")
 
+        # ct-ng always builds ncurses in cross mode as a static library.
+        # Starting from the patchset 20200718 ncurses defines a special macro
+        # NCURSES_STATIC for a static library. This is critical for mingw host
+        # platform.
+        #
+        # The problem is that the macro must be defined in a user program too,
+        # not just in ncurses. It won't hurt if we define it here.
         do_gdb_backend \
             buildtype=cross \
             host="${CT_HOST}" \
-            cflags="${CT_CFLAGS_FOR_HOST}" \
+            cflags="${CT_CFLAGS_FOR_HOST} -DNCURSES_STATIC" \
             ldflags="${CT_LDFLAGS_FOR_HOST}" \
             prefix="${CT_PREFIX_DIR}" \
             static="${CT_GDB_CROSS_STATIC}" \
