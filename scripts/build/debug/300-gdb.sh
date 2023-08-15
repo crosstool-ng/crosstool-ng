@@ -255,6 +255,7 @@ do_gdb_backend()
 {
     local host prefix destdir cflags ldflags static buildtype subdir includedir
     local -a extra_config
+    local -a extra_make_flags
 
     for arg in "$@"; do
         case "$arg" in
@@ -285,7 +286,6 @@ do_gdb_backend()
     fi
 
     if [ "${static}" = "y" ]; then
-        cflags+=" -static"
         ldflags+=" -static"
         # There is no static libsource-highlight
         extra_config+=("--disable-source-highlight")
@@ -347,8 +347,14 @@ do_gdb_backend()
         --disable-werror                            \
         "${extra_config[@]}"                        \
 
+    if [ "${static}" = "y" ]; then
+        extra_make_flags+=("LDFLAGS=${ldflags} -all-static")
+        CT_DoLog EXTRA "Prepare gdb for static build"
+        CT_DoExecLog ALL make ${CT_JOBSFLAGS} configure-host
+    fi
+
     CT_DoLog EXTRA "Building ${buildtype} gdb"
-    CT_DoExecLog ALL make ${CT_JOBSFLAGS}
+    CT_DoExecLog ALL make "${extra_make_flags[@]}" ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing ${buildtype} gdb"
     CT_DoExecLog ALL make install ${destdir:+DESTDIR="${destdir}"}
