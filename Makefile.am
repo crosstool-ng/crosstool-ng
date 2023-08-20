@@ -8,7 +8,7 @@ SUBDIRS		= kconfig
 bin_SCRIPTS		= ct-ng
 CLEANFILES		= ct-ng bash-completion/ct-ng docs/ct-ng.1
 EXTRA_DIST		= bootstrap ct-ng.in bash-completion/ct-ng.in \
-				  docs/ct-ng.1.in packages maintainer testing
+				  docs/ct-ng.1.in maintainer testing
 
 if INSTALL_BASH_COMPLETION
 compdir				= @BASH_COMPLETION_DIR@
