@@ -66,6 +66,10 @@ glibc_backend_once()
         extra_config+=( --enable-obsolete-rpc )
     fi
 
+    if [ "${CT_GLIBC_ENABLE_OBSOLETE_LIBCRYPT}" = "y" ]; then
+        extra_config+=( --enable-crypt )
+    fi
+
     # Add some default glibc config options if not given by user.
     # We don't need to be conditional on whether the user did set different
     # values, as they CT_GLIBC_EXTRA_CONFIG_ARRAY is passed after
