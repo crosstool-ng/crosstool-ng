@@ -1,0 +1,348 @@
+From 3393fcce1e6b18e580b712c0855bba13fb622531 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Tue, 22 Aug 2023 12:28:53 -0700
+Subject: [PATCH] libgcc/m68k: Fixes for soft float
+
+Check for non-zero denorm in __adddf3. Need to check both the upper and
+lower 32-bit chunks of a 64-bit float for a non-zero value when
+checking to see if the value is -0.
+
+Fix __addsf3 when the sum exponent is exactly 0xff to ensure that
+produces infinity and not nan.
+
+Handle converting NaN/inf values between formats.
+
+Handle underflow and overflow when truncating.
+
+Write a replacement for __fixxfsi so that it does not raise extra
+exceptions during an extra conversion from long double to double.
+
+Return correctly signed zero on float and double divide underflow
+
+Return positive qNaN instead of negative.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ libgcc/config/m68k/fpgnulib.c | 162 +++++++++++++++++++++++++++-------
+ libgcc/config/m68k/lb1sf68.S  |  20 +++--
+ 2 files changed, 143 insertions(+), 39 deletions(-)
+
+diff --git a/libgcc/config/m68k/fpgnulib.c b/libgcc/config/m68k/fpgnulib.c
+index fe41edf26aa..eaa7858493c 100644
+--- a/libgcc/config/m68k/fpgnulib.c
++++ b/libgcc/config/m68k/fpgnulib.c
+@@ -54,6 +54,7 @@
+ #define SIGNBIT		0x80000000L
+ #define HIDDEN		(1L << 23L)
+ #define SIGN(fp)	((fp) & SIGNBIT)
++#define EXPMASK		0xFFL
+ #define EXP(fp)		(((fp) >> 23L) & 0xFF)
+ #define MANT(fp)	(((fp) & 0x7FFFFFL) | HIDDEN)
+ #define PACK(s,e,m)	((s) | ((e) << 23L) | (m))
+@@ -262,6 +263,9 @@ __extendsfdf2 (float a1)
+       mant &= ~HIDDEN;
+     }
+   exp = exp - EXCESS + EXCESSD;
++  /* Handle inf and NaN */
++  if (exp == EXPMASK - EXCESS + EXCESSD)
++    exp = EXPDMASK;
+   dl.l.upper |= exp << 20;
+   dl.l.upper |= mant >> 3;
+   dl.l.lower = mant << 29;
+@@ -295,40 +299,52 @@ __truncdfsf2 (double a1)
+   /* shift double mantissa 6 bits so we can round */
+   sticky |= mant & ((1 << 6) - 1);
+   mant >>= 6;
+-
+-  /* Check for underflow and denormals.  */
+-  if (exp <= 0)
++  if (exp == EXPDMASK - EXCESSD + EXCESS)
++    {
++      exp = EXPMASK;
++      mant = mant >> 1 | (mant & 1) | !!sticky;
++    }
++  else
+     {
+-      if (exp < -24)
++      /* Check for underflow and denormals.  */
++      if (exp <= 0)
+ 	{
+-	  sticky |= mant;
+-	  mant = 0;
++	  if (exp < -24)
++	    {
++	      sticky |= mant;
++	      mant = 0;
++	    }
++	  else
++	    {
++	      sticky |= mant & ((1 << (1 - exp)) - 1);
++	      mant >>= 1 - exp;
++	    }
++	  exp = 0;
+ 	}
+-      else
++
++      /* now round */
++      shift = 1;
++      if ((mant & 1) && (sticky || (mant & 2)))
+ 	{
+-	  sticky |= mant & ((1 << (1 - exp)) - 1);
+-	  mant >>= 1 - exp;
+-	}
+-      exp = 0;
+-    }
+-  
+-  /* now round */
+-  shift = 1;
+-  if ((mant & 1) && (sticky || (mant & 2)))
+-    {
+-      int rounding = exp ? 2 : 1;
++	  int rounding = exp ? 2 : 1;
+ 
+-      mant += 1;
++	  mant += 1;
+ 
+-      /* did the round overflow? */
+-      if (mant >= (HIDDEN << rounding))
++	  /* did the round overflow? */
++	  if (mant >= (HIDDEN << rounding))
++	    {
++	      exp++;
++	      shift = rounding;
++	    }
++	}
++      /* shift down */
++      mant >>= shift;
++      if (exp >= EXPMASK)
+ 	{
+-	  exp++;
+-	  shift = rounding;
++	  exp = EXPMASK;
++	  mant = 0;
+ 	}
+     }
+-  /* shift down */
+-  mant >>= shift;
+ 
+   mant &= ~HIDDEN;
+ 
+@@ -432,8 +448,31 @@ __extenddfxf2 (double d)
+     }
+ 
+   exp = EXPD (dl) - EXCESSD + EXCESSX;
+-  ldl.l.upper |= exp << 16;
++  dl.l.upper &= MANTDMASK;
+   ldl.l.middle = HIDDENX;
++
++  /* Recover from a denorm. */
++  if (exp == -EXCESSD + EXCESSX)
++    {
++      exp++;
++      while ((dl.l.upper & HIDDEND) == 0)
++	{
++	  exp--;
++	  dl.l.upper = (dl.l.upper << 1) | (dl.l.lower >> 31);
++	  dl.l.lower = dl.l.lower << 1;
++	}
++    }
++
++  /* Handle inf and NaN */
++  else if (exp == EXPDMASK - EXCESSD + EXCESSX)
++    {
++      exp = EXPXMASK;
++      /* No hidden one bit for INF */
++      if (dl.l.upper == 0 && dl.l.lower == 0)
++	ldl.l.middle = 0;
++    }
++
++  ldl.l.upper |= exp << 16;
+   /* 31-20: # mantissa bits in ldl.l.middle - # mantissa bits in dl.l.upper */
+   ldl.l.middle |= (dl.l.upper & MANTDMASK) << (31 - 20);
+   /* 1+20: explicit-integer-bit + # mantissa bits in dl.l.upper */
+@@ -464,9 +503,38 @@ __truncxfdf2 (long double ld)
+     }
+ 
+   exp = EXPX (ldl) - EXCESSX + EXCESSD;
+-  /* ??? quick and dirty: keep `exp' sane */
+-  if (exp >= EXPDMASK)
+-    exp = EXPDMASK - 1;
++  /* Check for underflow and denormals. */
++  if (exp <= 0)
++    {
++      if (exp < -53)
++        {
++	  ldl.l.middle = 0;
++	  ldl.l.lower = 0;
++	}
++      else if (exp < -30)
++        {
++	  ldl.l.lower = (ldl.l.middle & MANTXMASK) >> ((1 - exp) - 32);
++	  ldl.l.middle &= ~MANTXMASK;
++	}
++      else
++        {
++	  ldl.l.lower >>= 1 - exp;
++	  ldl.l.lower |= (ldl.l.middle & MANTXMASK) << (32 - (1 - exp));
++	  ldl.l.middle = (ldl.l.middle & ~MANTXMASK) | (ldl.l.middle & MANTXMASK >> (1 - exp));
++	}
++      exp = 0;
++    }
++  else if (exp == EXPXMASK - EXCESSX + EXCESSD)
++    {
++      exp = EXPDMASK;
++      ldl.l.middle |= ldl.l.lower;
++    }
++  else if (exp >= EXPDMASK)
++    {
++      exp = EXPDMASK;
++      ldl.l.middle = 0;
++      ldl.l.lower = 0;
++    }
+   dl.l.upper |= exp << (32 - (EXPDBITS + 1));
+   /* +1-1: add one for sign bit, but take one off for explicit-integer-bit */
+   dl.l.upper |= (ldl.l.middle & MANTXMASK) >> (EXPDBITS + 1 - 1);
+@@ -511,10 +579,40 @@ __floatunsixf (unsigned long l)
+ 
+ /* convert a long double to an int */
+ long
+-__fixxfsi (long double ld)
++__fixxfsi (long double a)
+ {
+-  long foo = __fixdfsi ((double) ld);
+-  return foo;
++  union long_double_long ldl;
++  long exp;
++  long l;
++
++  ldl.ld = a;
++
++  exp = EXPX(ldl);
++  if (exp == 0 && ldl.l.middle == 0 && ldl.l.lower == 0)
++    return 0;
++
++  exp = exp - EXCESSX - 64;
++
++  if (exp > 0) 
++    {
++      /* Return largest integer.  */
++      return SIGNX (ldl) ? 0x80000000L : 0x7fffffffL;
++    }
++
++  if (exp <= -64)
++    return 0;
++
++  if (exp <= -32)
++    {
++      ldl.l.lower = ldl.l.middle >> (-exp - 32);
++    }
++  else if (exp < 0)
++    {
++      ldl.l.lower = ldl.l.lower >> -exp;
++      ldl.l.lower |= ldl.l.middle << (32 + exp);
++    }
++
++  return SIGNX(ldl) ? -ldl.l.lower : ldl.l.lower;
+ }
+ 
+ /* The remaining provide crude math support by working in double precision.  */
+diff --git a/libgcc/config/m68k/lb1sf68.S b/libgcc/config/m68k/lb1sf68.S
+index 8ba85c53656..e12888bd7f8 100644
+--- a/libgcc/config/m68k/lb1sf68.S
++++ b/libgcc/config/m68k/lb1sf68.S
+@@ -635,7 +635,7 @@ SYM (__modsi3):
+ 	.globl	SYM (_fpCCR)
+ 	.globl  $_exception_handler
+ 
+-QUIET_NaN      = 0xffffffff
++QUIET_NaN      = 0x7fffffff
+ 
+ D_MAX_EXP      = 0x07ff
+ D_BIAS         = 1022
+@@ -700,9 +700,10 @@ Ld$overflow:
+ 	PICJUMP	$_exception_handler
+ 
+ Ld$underflow:
+-| Return 0 and set the exception flags 
++| Return a properly signed 0 and set the exception flags 
+ 	movel	IMM (0),d0
+ 	movel	d0,d1
++	orl	d7,d0
+ 	movew	IMM (INEXACT_RESULT+UNDERFLOW),d7
+ 	moveq	IMM (DOUBLE_FLOAT),d6
+ 	PICJUMP	$_exception_handler
+@@ -711,6 +712,7 @@ Ld$inop:
+ | Return a quiet NaN and set the exception flags
+ 	movel	IMM (QUIET_NaN),d0
+ 	movel	d0,d1
++	bset	IMM (31),d1
+ 	movew	IMM (INEXACT_RESULT+INVALID_OPERATION),d7
+ 	moveq	IMM (DOUBLE_FLOAT),d6
+ 	PICJUMP	$_exception_handler
+@@ -1383,6 +1385,8 @@ Ladddf$a:
+ 	bge	2f			|
+ 	movel	d0,d0           	| check for zero, since we don't  '
+ 	bne	Ladddf$ret		| want to return -0 by mistake
++	movel	d1,d1			|
++	bne	Ladddf$ret		|
+ 	bclr	IMM (31),d7		|
+ 	bra	Ladddf$ret		|
+ 2:
+@@ -2080,6 +2084,7 @@ Ldivdf$b$nf:
+ | If d2 == 0x7ff00000 we have to check d3.
+ 	tstl	d3		|
+ 	bne	Ld$inop		| if d3 <> 0, b is NaN
++	movel	a0,d7		| put a's sign
+ 	bra	Ld$underflow	| else b is +/-INFINITY, so signal underflow
+ 
+ Ldivdf$a$nf:
+@@ -2090,8 +2095,7 @@ Ldivdf$a$nf:
+ | If a is INFINITY we have to check b
+ 	cmpl	d7,d2		| compare b with INFINITY 
+ 	bge	Ld$inop		| if b is NaN or INFINITY return NaN
+-	tstl	d3		|
+-	bne	Ld$inop		| 
++	movl	a0,d7		| restore sign bit to d7
+ 	bra	Ld$overflow	| else return overflow
+ 
+ | If a number is denormalized we put an exponent of 1 but do not put the 
+@@ -2186,6 +2190,7 @@ Lround$exit:
+ #endif
+ 	beq	2f		| if not loop back
+ 	bra	1b              |
++	movel	a0,d7
+ 	bra	Ld$underflow	| safety check, shouldn't execute '
+ 2:	orl	d6,d2		| this is a trick so we don't lose  '
+ 	orl	d7,d3		| the bits which were flushed right
+@@ -2548,7 +2553,7 @@ Lround$to$minus:
+ 	.globl	SYM (_fpCCR)
+ 	.globl  $_exception_handler
+ 
+-QUIET_NaN    = 0xffffffff
++QUIET_NaN    = 0x7fffffff
+ SIGNL_NaN    = 0x7f800001
+ INFINITY     = 0x7f800000
+ 
+@@ -2614,8 +2619,9 @@ Lf$overflow:
+ 	PICJUMP	$_exception_handler
+ 
+ Lf$underflow:
+-| Return 0 and set the exception flags 
++| Return a properly signed 0 and set the exception flags 
+ 	moveq	IMM (0),d0
++	orl	d7,d0
+ 	moveq	IMM (INEXACT_RESULT+UNDERFLOW),d7
+ 	moveq	IMM (SINGLE_FLOAT),d6
+ 	PICJUMP	$_exception_handler
+@@ -2936,7 +2942,7 @@ Laddsf$4:
+ #else
+ 	cmpl	IMM (0xff),d2
+ #endif
+-	bhi	1f
++	bge	1f
+ 	bclr	IMM (FLT_MANT_DIG-1),d0
+ #ifndef __mcoldfire__
+ 	lslw	IMM (7),d2
+-- 
+2.40.1
+
