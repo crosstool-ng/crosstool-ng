@@ -1,0 +1,254 @@
+From 12517baf6c88447e3bda3a459ac4c29d61f84e6c Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 27 Jun 2023 15:12:55 +0100
+Subject: [PATCH 28/30] aarch64: Put LR save probe in first 16 bytes
+
+-fstack-clash-protection uses the save of LR as a probe for the next
+allocation.  The next allocation could be:
+
+* another part of the static frame, e.g. when allocating SVE save slots
+  or outgoing arguments
+
+* an alloca in the same function
+
+* an allocation made by a callee function
+
+However, when -fomit-frame-pointer is used, the LR save slot is placed
+above the other GPR save slots.  It could therefore be up to 80 bytes
+above the base of the GPR save area (which is also the hard fp address).
+
+aarch64_allocate_and_probe_stack_space took this into account when
+deciding how much subsequent space could be allocated without needing
+a probe.  However, it interacted badly with:
+
+      /* If doing a small final adjustment, we always probe at offset 0.
+	 This is done to avoid issues when LR is not at position 0 or when
+	 the final adjustment is smaller than the probing offset.  */
+      else if (final_adjustment_p && rounded_size == 0)
+	residual_probe_offset = 0;
+
+which forces any allocation that is smaller than the guard page size
+to be probed at offset 0 rather than the usual offset 1024.  It was
+therefore possible to construct cases in which we had:
+
+* a probe using LR at SP + 80 bytes (or some other value >= 16)
+* an allocation of the guard page size - 16 bytes
+* a probe at SP + 0
+
+which allocates guard page size + 64 consecutive unprobed bytes.
+
+This patch requires the LR probe to be in the first 16 bytes of the
+save area when stack clash protection is active.  Doing it
+unconditionally would cause code-quality regressions.
+
+gcc/
+	* config/aarch64/aarch64.c (aarch64_layout_frame): Ensure that
+	the LR save slot is in the first 16 bytes of the register save area.
+	(aarch64_allocate_and_probe_stack_space): Remove workaround for
+	when LR was not in the first 16 bytes.
+
+gcc/testsuite/
+	* gcc.target/aarch64/stack-check-prologue-18.c: New test.
+---
+ gcc/config/aarch64/aarch64.c                  |  50 +++++----
+ .../aarch64/stack-check-prologue-18.c         | 100 ++++++++++++++++++
+ 2 files changed, 127 insertions(+), 23 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index 4c9e11cd7cff..1e8467fdd03f 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -4686,15 +4686,31 @@ aarch64_layout_frame (void)
+ 
+   cfun->machine->frame.bytes_below_hard_fp = crtl->outgoing_args_size;
+ 
++#define ALLOCATE_GPR_SLOT(REGNO)					\
++  do									\
++    {									\
++      cfun->machine->frame.reg_offset[REGNO] = offset;			\
++      if (cfun->machine->frame.wb_candidate1 == INVALID_REGNUM)		\
++	cfun->machine->frame.wb_candidate1 = (REGNO);			\
++      else if (cfun->machine->frame.wb_candidate2 == INVALID_REGNUM)	\
++	cfun->machine->frame.wb_candidate2 = (REGNO);			\
++      offset += UNITS_PER_WORD;						\
++    }									\
++  while (0)
++
+   if (cfun->machine->frame.emit_frame_chain)
+     {
+       /* FP and LR are placed in the linkage record.  */
+-      cfun->machine->frame.reg_offset[R29_REGNUM] = 0;
+-      cfun->machine->frame.wb_candidate1 = R29_REGNUM;
+-      cfun->machine->frame.reg_offset[R30_REGNUM] = UNITS_PER_WORD;
+-      cfun->machine->frame.wb_candidate2 = R30_REGNUM;
+-      offset = 2 * UNITS_PER_WORD;
++      ALLOCATE_GPR_SLOT (R29_REGNUM);
++      ALLOCATE_GPR_SLOT (R30_REGNUM);
+     }
++  else if (flag_stack_clash_protection
++	   && cfun->machine->frame.reg_offset[R30_REGNUM] == SLOT_REQUIRED)
++    /* Put the LR save slot first, since it makes a good choice of probe
++       for stack clash purposes.  The idea is that the link register usually
++       has to be saved before a call anyway, and so we lose little by
++       stopping it from being individually shrink-wrapped.  */
++    ALLOCATE_GPR_SLOT (R30_REGNUM);
+ 
+   /* With stack-clash, LR must be saved in non-leaf functions.  */
+   gcc_assert (crtl->is_leaf
+@@ -4704,14 +4720,9 @@ aarch64_layout_frame (void)
+   /* Now assign stack slots for them.  */
+   for (regno = R0_REGNUM; regno <= R30_REGNUM; regno++)
+     if (cfun->machine->frame.reg_offset[regno] == SLOT_REQUIRED)
+-      {
+-	cfun->machine->frame.reg_offset[regno] = offset;
+-	if (cfun->machine->frame.wb_candidate1 == INVALID_REGNUM)
+-	  cfun->machine->frame.wb_candidate1 = regno;
+-	else if (cfun->machine->frame.wb_candidate2 == INVALID_REGNUM)
+-	  cfun->machine->frame.wb_candidate2 = regno;
+-	offset += UNITS_PER_WORD;
+-      }
++      ALLOCATE_GPR_SLOT (regno);
++
++#undef ALLOCATE_GPR_SLOT
+ 
+   HOST_WIDE_INT max_int_offset = offset;
+   offset = ROUND_UP (offset, STACK_BOUNDARY / BITS_PER_UNIT);
+@@ -5508,16 +5519,9 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+   HOST_WIDE_INT guard_used_by_caller = STACK_CLASH_CALLER_GUARD;
+   HOST_WIDE_INT byte_sp_alignment = STACK_BOUNDARY / BITS_PER_UNIT;
+   gcc_assert (multiple_p (poly_size, byte_sp_alignment));
+-  /* When doing the final adjustment for the outgoing argument size we can't
+-     assume that LR was saved at position 0.  So subtract it's offset from the
+-     ABI safe buffer so that we don't accidentally allow an adjustment that
+-     would result in an allocation larger than the ABI buffer without
+-     probing.  */
+   HOST_WIDE_INT min_probe_threshold
+     = final_adjustment_p
+-      ? (guard_used_by_caller
+-	 + byte_sp_alignment
+-	 - cfun->machine->frame.reg_offset[LR_REGNUM])
++      ? guard_used_by_caller + byte_sp_alignment
+       : guard_size - guard_used_by_caller;
+ 
+   poly_int64 frame_size = cfun->machine->frame.frame_size;
+@@ -5697,8 +5701,8 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+       if (final_adjustment_p && rounded_size != 0)
+ 	min_probe_threshold = 0;
+       /* If doing a small final adjustment, we always probe at offset 0.
+-	 This is done to avoid issues when LR is not at position 0 or when
+-	 the final adjustment is smaller than the probing offset.  */
++	 This is done to avoid issues when the final adjustment is smaller
++	 than the probing offset.  */
+       else if (final_adjustment_p && rounded_size == 0)
+ 	residual_probe_offset = 0;
+ 
+diff --git a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c
+new file mode 100644
+index 000000000000..82447d20fff5
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c
+@@ -0,0 +1,100 @@
++/* { dg-options "-O2 -fstack-clash-protection -fomit-frame-pointer --param stack-clash-protection-guard-size=12" } */
++/* { dg-final { check-function-bodies "**" "" } } */
++
++void f(int, ...);
++void g();
++
++/*
++** test1:
++**	...
++**	str	x30, \[sp\]
++**	sub	sp, sp, #4064
++**	str	xzr, \[sp\]
++**	cbnz	w0, .*
++**	bl	g
++**	...
++**	str	x26, \[sp, #?4128\]
++**	...
++*/
++int test1(int z) {
++  __uint128_t x = 0;
++  int y[0x400];
++  if (z)
++    {
++      asm volatile ("" :::
++		    "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26");
++      f(0, 0, 0, 0, 0, 0, 0, &y,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x);
++    }
++  g();
++  return 1;
++}
++
++/*
++** test2:
++**	...
++**	str	x30, \[sp\]
++**	sub	sp, sp, #1040
++**	str	xzr, \[sp\]
++**	cbnz	w0, .*
++**	bl	g
++**	...
++*/
++int test2(int z) {
++  __uint128_t x = 0;
++  int y[0x400];
++  if (z)
++    {
++      asm volatile ("" :::
++		    "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26");
++      f(0, 0, 0, 0, 0, 0, 0, &y,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x);
++    }
++  g();
++  return 1;
++}
++
++/*
++** test3:
++**	...
++**	str	x30, \[sp\]
++**	sub	sp, sp, #1024
++**	cbnz	w0, .*
++**	bl	g
++**	...
++*/
++int test3(int z) {
++  __uint128_t x = 0;
++  int y[0x400];
++  if (z)
++    {
++      asm volatile ("" :::
++		    "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26");
++      f(0, 0, 0, 0, 0, 0, 0, &y,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x);
++    }
++  g();
++  return 1;
++}
+-- 
+2.42.0
+

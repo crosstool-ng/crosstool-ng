@@ -1,0 +1,91 @@
+From 82fb69e75c21010f7afc72bb842751164fe8fc72 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 12 Sep 2023 16:19:46 +0100
+Subject: [PATCH 18/29] aarch64: Rename locals_offset to bytes_above_locals
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+locals_offset was described as:
+
+  /* Offset from the base of the frame (incomming SP) to the
+     top of the locals area.  This value is always a multiple of
+     STACK_BOUNDARY.  */
+
+This is implicitly an “upside down” view of the frame: the incoming
+SP is at offset 0, and anything N bytes below the incoming SP is at
+offset N (rather than -N).
+
+However, reg_offset instead uses a “right way up” view; that is,
+it views offsets in address terms.  Something above X is at a
+positive offset from X and something below X is at a negative
+offset from X.
+
+Also, even on FRAME_GROWS_DOWNWARD targets like AArch64,
+target-independent code views offsets in address terms too:
+locals are allocated at negative offsets to virtual_stack_vars.
+
+It seems confusing to have *_offset fields of the same structure
+using different polarities like this.  This patch tries to avoid
+that by renaming locals_offset to bytes_above_locals.
+
+gcc/
+	* config/aarch64/aarch64.h (aarch64_frame::locals_offset): Rename to...
+	(aarch64_frame::bytes_above_locals): ...this.
+	* config/aarch64/aarch64.c (aarch64_layout_frame)
+	(aarch64_initial_elimination_offset): Update accordingly.
+---
+ gcc/config/aarch64/aarch64.c | 6 +++---
+ gcc/config/aarch64/aarch64.h | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index cf5244b7ec08..d54f7a89306f 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -7596,7 +7596,7 @@ aarch64_layout_frame (void)
+ 			  STACK_BOUNDARY / BITS_PER_UNIT));
+   frame.frame_size = saved_regs_and_above + frame.bytes_below_saved_regs;
+ 
+-  frame.locals_offset = frame.saved_varargs_size;
++  frame.bytes_above_locals = frame.saved_varargs_size;
+ 
+   frame.initial_adjust = 0;
+   frame.final_adjust = 0;
+@@ -11758,13 +11758,13 @@ aarch64_initial_elimination_offset (unsigned from, unsigned to)
+ 	return frame.hard_fp_offset;
+ 
+       if (from == FRAME_POINTER_REGNUM)
+-	return frame.hard_fp_offset - frame.locals_offset;
++	return frame.hard_fp_offset - frame.bytes_above_locals;
+     }
+ 
+   if (to == STACK_POINTER_REGNUM)
+     {
+       if (from == FRAME_POINTER_REGNUM)
+-	return frame.frame_size - frame.locals_offset;
++	return frame.frame_size - frame.bytes_above_locals;
+     }
+ 
+   return frame.frame_size;
+diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
+index 57e672177456..3c5e3dd429dc 100644
+--- a/gcc/config/aarch64/aarch64.h
++++ b/gcc/config/aarch64/aarch64.h
+@@ -851,10 +851,10 @@ struct GTY (()) aarch64_frame
+      always a multiple of STACK_BOUNDARY.  */
+   poly_int64 bytes_below_hard_fp;
+ 
+-  /* Offset from the base of the frame (incomming SP) to the
+-     top of the locals area.  This value is always a multiple of
++  /* The number of bytes between the top of the locals area and the top
++     of the frame (the incomming SP).  This value is always a multiple of
+      STACK_BOUNDARY.  */
+-  poly_int64 locals_offset;
++  poly_int64 bytes_above_locals;
+ 
+   /* Offset from the base of the frame (incomming SP) to the
+      hard_frame_pointer.  This value is always a multiple of
+-- 
+2.42.0
+

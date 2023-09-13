@@ -1,0 +1,125 @@
+From af6bac9775e7d2bc94e4e3600740c3c475e117b5 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 27 Jun 2023 15:11:44 +0100
+Subject: [PATCH 37/42] aarch64: Tweak stack clash boundary condition
+
+The AArch64 ABI says that, when stack clash protection is used,
+there can be a maximum of 1KiB of unprobed space at sp on entry
+to a function.  Therefore, we need to probe when allocating
+>= guard_size - 1KiB of data (>= rather than >).  This is what
+GCC does.
+
+If an allocation is exactly guard_size bytes, it is enough to allocate
+those bytes and probe once at offset 1024.  It isn't possible to use a
+single probe at any other offset: higher would conmplicate later code,
+by leaving more unprobed space than usual, while lower would risk
+leaving an entire page unprobed.  For simplicity, the code probes all
+allocations at offset 1024.
+
+Some register saves also act as probes.  If we need to allocate
+more space below the last such register save probe, we need to
+probe the allocation if it is > 1KiB.  Again, this allocation is
+then sometimes (but not always) probed at offset 1024.  This sort of
+allocation is currently only used for outgoing arguments, which are
+rarely this big.
+
+However, the code also probed if this final outgoing-arguments
+allocation was == 1KiB, rather than just > 1KiB.  This isn't
+necessary, since the register save then probes at offset 1024
+as required.  Continuing to probe allocations of exactly 1KiB
+would complicate later patches.
+
+gcc/
+	* config/aarch64/aarch64.c (aarch64_allocate_and_probe_stack_space):
+	Don't probe final allocations that are exactly 1KiB in size (after
+	unprobed space above the final allocation has been deducted).
+
+gcc/testsuite/
+	* gcc.target/aarch64/stack-check-prologue-17.c: New test.
+---
+ gcc/config/aarch64/aarch64.c                  |  4 +-
+ .../aarch64/stack-check-prologue-17.c         | 55 +++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)
+ create mode 100644 gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index 08a8667bbc18..43240af8ae43 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -7962,9 +7962,11 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+   HOST_WIDE_INT guard_size
+     = 1 << param_stack_clash_protection_guard_size;
+   HOST_WIDE_INT guard_used_by_caller = STACK_CLASH_CALLER_GUARD;
++  HOST_WIDE_INT byte_sp_alignment = STACK_BOUNDARY / BITS_PER_UNIT;
++  gcc_assert (multiple_p (poly_size, byte_sp_alignment));
+   HOST_WIDE_INT min_probe_threshold
+     = (final_adjustment_p
+-       ? guard_used_by_caller
++       ? guard_used_by_caller + byte_sp_alignment
+        : guard_size - guard_used_by_caller);
+   /* When doing the final adjustment for the outgoing arguments, take into
+      account any unprobed space there is above the current SP.  There are
+diff --git a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c
+new file mode 100644
+index 000000000000..0d8a25d73a24
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c
+@@ -0,0 +1,55 @@
++/* { dg-options "-O2 -fstack-clash-protection -fomit-frame-pointer --param stack-clash-protection-guard-size=12" } */
++/* { dg-final { check-function-bodies "**" "" } } */
++
++void f(int, ...);
++void g();
++
++/*
++** test1:
++**	...
++**	str	x30, \[sp\]
++**	sub	sp, sp, #1024
++**	cbnz	w0, .*
++**	bl	g
++**	...
++*/
++int test1(int z) {
++  __uint128_t x = 0;
++  int y[0x400];
++  if (z)
++    {
++      f(0, 0, 0, 0, 0, 0, 0, &y,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x);
++    }
++  g();
++  return 1;
++}
++
++/*
++** test2:
++**	...
++**	str	x30, \[sp\]
++**	sub	sp, sp, #1040
++**	str	xzr, \[sp\]
++**	cbnz	w0, .*
++**	bl	g
++**	...
++*/
++int test2(int z) {
++  __uint128_t x = 0;
++  int y[0x400];
++  if (z)
++    {
++      f(0, 0, 0, 0, 0, 0, 0, &y,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x, x, x, x, x, x, x, x, x, x, x, x, x, x, x, x,
++	x);
++    }
++  g();
++  return 1;
++}
+-- 
+2.42.0
+
