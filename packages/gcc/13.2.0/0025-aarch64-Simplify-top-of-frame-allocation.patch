@@ -1,0 +1,55 @@
+From 79faabda181d0d9fd29a3cf5726ba65bdee945b5 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 12 Sep 2023 16:07:17 +0100
+Subject: [PATCH 25/32] aarch64: Simplify top of frame allocation
+
+After previous patches, it no longer really makes sense to allocate
+the top of the frame in terms of varargs_and_saved_regs_size and
+saved_regs_and_above.
+
+gcc/
+	* config/aarch64/aarch64.cc (aarch64_layout_frame): Simplify
+	the allocation of the top of the frame.
+---
+ gcc/config/aarch64/aarch64.cc | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
+index af99807ef8ab..31b00094c2a7 100644
+--- a/gcc/config/aarch64/aarch64.cc
++++ b/gcc/config/aarch64/aarch64.cc
+@@ -8586,23 +8586,16 @@ aarch64_layout_frame (void)
+ 
+   frame.saved_regs_size = offset - frame.bytes_below_saved_regs;
+ 
+-  poly_int64 varargs_and_saved_regs_size
+-    = frame.saved_regs_size + frame.saved_varargs_size;
++  offset += get_frame_size ();
++  offset = aligned_upper_bound (offset, STACK_BOUNDARY / BITS_PER_UNIT);
++  auto top_of_locals = offset;
+ 
+-  poly_int64 saved_regs_and_above
+-    = aligned_upper_bound (varargs_and_saved_regs_size
+-			   + get_frame_size (),
+-			   STACK_BOUNDARY / BITS_PER_UNIT);
++  offset += frame.saved_varargs_size;
++  gcc_assert (multiple_p (offset, STACK_BOUNDARY / BITS_PER_UNIT));
++  frame.frame_size = offset;
+ 
+-  frame.bytes_above_hard_fp
+-    = saved_regs_and_above - frame.below_hard_fp_saved_regs_size;
+-
+-  /* Both these values are already aligned.  */
+-  gcc_assert (multiple_p (frame.bytes_below_saved_regs,
+-			  STACK_BOUNDARY / BITS_PER_UNIT));
+-  frame.frame_size = saved_regs_and_above + frame.bytes_below_saved_regs;
+-
+-  frame.bytes_above_locals = frame.saved_varargs_size;
++  frame.bytes_above_hard_fp = frame.frame_size - frame.bytes_below_hard_fp;
++  frame.bytes_above_locals = frame.frame_size - top_of_locals;
+ 
+   frame.initial_adjust = 0;
+   frame.final_adjust = 0;
+-- 
+2.42.0
+

@@ -1,0 +1,41 @@
+From 04553281f42e5c4340d554a93d1a73006365d8fb Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Fri, 16 Jun 2023 17:00:51 +0100
+Subject: [PATCH 24/30] aarch64: Explicitly handle frames with no saved
+ registers
+
+If a frame has no saved registers, it can be allocated in one go.
+There is no need to treat the areas below and above the saved
+registers as separate.
+
+This is a no-op as thing stand, since a leaf function will have
+no outgoing arguments, and so all the frame will be above where
+the saved registers normally go.
+
+gcc/
+	* config/aarch64/aarch64.c (aarch64_layout_frame): Explicitly
+	allocate the frame in one go if there are no saved registers.
+---
+ gcc/config/aarch64/aarch64.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index 4e94be3b0b4d..bb4f6020e5df 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -2901,8 +2901,10 @@ aarch64_layout_frame (void)
+   else if (cfun->machine->frame.wb_candidate1 != INVALID_REGNUM)
+     max_push_offset = 256;
+ 
+-  if (cfun->machine->frame.frame_size < max_push_offset
+-      && crtl->outgoing_args_size == 0)
++  if (cfun->machine->frame.saved_regs_size == 0)
++    cfun->machine->frame.initial_adjust = cfun->machine->frame.frame_size;
++  else if (cfun->machine->frame.frame_size < max_push_offset
++	   && crtl->outgoing_args_size == 0)
+     {
+       /* Simple, small frame with no outgoing arguments:
+ 	 stp reg1, reg2, [sp, -frame_size]!
+-- 
+2.42.0
+

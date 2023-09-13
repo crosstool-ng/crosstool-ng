@@ -1,0 +1,130 @@
+From 16016465ff28a75f5e0540cbaeb4eb102fdc3230 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 27 Jun 2023 11:28:11 +0100
+Subject: [PATCH 24/30] aarch64: Rename hard_fp_offset to bytes_above_hard_fp
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Similarly to the previous locals_offset patch, hard_fp_offset
+was described as:
+
+  /* Offset from the base of the frame (incomming SP) to the
+     hard_frame_pointer.  This value is always a multiple of
+     STACK_BOUNDARY.  */
+  poly_int64 hard_fp_offset;
+
+which again took an “upside-down” view: higher offsets meant lower
+addresses.  This patch renames the field to bytes_above_hard_fp instead.
+
+gcc/
+	* config/aarch64/aarch64.h (aarch64_frame::hard_fp_offset): Rename
+	to...
+	(aarch64_frame::bytes_above_hard_fp): ...this.
+	* config/aarch64/aarch64.c (aarch64_layout_frame)
+	(aarch64_expand_prologue): Update accordingly.
+	(aarch64_initial_elimination_offset): Likewise.
+---
+ gcc/config/aarch64/aarch64.c | 21 +++++++++++----------
+ gcc/config/aarch64/aarch64.h |  6 +++---
+ 2 files changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index dcaf491af428..2681e0c2bb90 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -4747,7 +4747,7 @@ aarch64_layout_frame (void)
+   HOST_WIDE_INT varargs_and_saved_regs_size
+     = offset + cfun->machine->frame.saved_varargs_size;
+ 
+-  cfun->machine->frame.hard_fp_offset
++  cfun->machine->frame.bytes_above_hard_fp
+     = aligned_upper_bound (varargs_and_saved_regs_size
+ 			   + get_frame_size (),
+ 			   STACK_BOUNDARY / BITS_PER_UNIT);
+@@ -4756,7 +4756,7 @@ aarch64_layout_frame (void)
+   gcc_assert (multiple_p (cfun->machine->frame.bytes_below_hard_fp,
+ 			  STACK_BOUNDARY / BITS_PER_UNIT));
+   cfun->machine->frame.frame_size
+-    = (cfun->machine->frame.hard_fp_offset
++    = (cfun->machine->frame.bytes_above_hard_fp
+        + cfun->machine->frame.bytes_below_hard_fp);
+ 
+   cfun->machine->frame.bytes_above_locals
+@@ -4788,7 +4788,7 @@ aarch64_layout_frame (void)
+   else if (known_lt (cfun->machine->frame.bytes_below_hard_fp
+ 		     + cfun->machine->frame.saved_regs_size, 512)
+ 	   && !(cfun->calls_alloca
+-		&& known_lt (cfun->machine->frame.hard_fp_offset,
++		&& known_lt (cfun->machine->frame.bytes_above_hard_fp,
+ 			     max_push_offset)))
+     {
+       /* Frame with small area below the saved registers:
+@@ -4797,14 +4797,14 @@ aarch64_layout_frame (void)
+ 	 stp reg3, reg4, [sp, bytes_below_hard_fp + 16]  */
+       cfun->machine->frame.initial_adjust = cfun->machine->frame.frame_size;
+       cfun->machine->frame.callee_offset
+-	= cfun->machine->frame.frame_size - cfun->machine->frame.hard_fp_offset;
++	= cfun->machine->frame.frame_size - cfun->machine->frame.bytes_above_hard_fp;
+     }
+-  else if (cfun->machine->frame.hard_fp_offset.is_constant (&const_fp_offset)
++  else if (cfun->machine->frame.bytes_above_hard_fp.is_constant (&const_fp_offset)
+ 	   && const_fp_offset < max_push_offset)
+     {
+       /* Frame with large area below the saved registers, but with a
+ 	 small area above:
+-	 stp reg1, reg2, [sp, -hard_fp_offset]!
++	 stp reg1, reg2, [sp, -bytes_above_hard_fp]!
+ 	 stp reg3, reg4, [sp, 16]
+ 	 sub sp, sp, bytes_below_hard_fp  */
+       cfun->machine->frame.callee_adjust = const_fp_offset;
+@@ -4814,12 +4814,13 @@ aarch64_layout_frame (void)
+   else
+     {
+       /* General case:
+-	 sub sp, sp, hard_fp_offset
++	 sub sp, sp, bytes_above_hard_fp
+ 	 stp x29, x30, [sp, 0]
+ 	 add x29, sp, 0
+ 	 stp reg3, reg4, [sp, 16]
+ 	 sub sp, sp, bytes_below_hard_fp  */
+-      cfun->machine->frame.initial_adjust = cfun->machine->frame.hard_fp_offset;
++      cfun->machine->frame.initial_adjust
++	= cfun->machine->frame.bytes_above_hard_fp;
+       cfun->machine->frame.final_adjust
+ 	= cfun->machine->frame.frame_size - cfun->machine->frame.initial_adjust;
+     }
+@@ -8563,10 +8564,10 @@ aarch64_initial_elimination_offset (unsigned from, unsigned to)
+   if (to == HARD_FRAME_POINTER_REGNUM)
+     {
+       if (from == ARG_POINTER_REGNUM)
+-	return cfun->machine->frame.hard_fp_offset;
++	return cfun->machine->frame.bytes_above_hard_fp;
+ 
+       if (from == FRAME_POINTER_REGNUM)
+-	return cfun->machine->frame.hard_fp_offset
++	return cfun->machine->frame.bytes_above_hard_fp
+ 	       - cfun->machine->frame.bytes_above_locals;
+     }
+ 
+diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
+index a079a88b4f46..eab6da84a02e 100644
+--- a/gcc/config/aarch64/aarch64.h
++++ b/gcc/config/aarch64/aarch64.h
+@@ -724,10 +724,10 @@ struct GTY (()) aarch64_frame
+      STACK_BOUNDARY.  */
+   poly_int64 bytes_above_locals;
+ 
+-  /* Offset from the base of the frame (incomming SP) to the
+-     hard_frame_pointer.  This value is always a multiple of
++  /* The number of bytes between the hard_frame_pointer and the top of
++     the frame (the incomming SP).  This value is always a multiple of
+      STACK_BOUNDARY.  */
+-  poly_int64 hard_fp_offset;
++  poly_int64 bytes_above_hard_fp;
+ 
+   /* The size of the frame.  This value is the offset from base of the
+      frame (incomming SP) to the stack_pointer.  This value is always
+-- 
+2.42.0
+

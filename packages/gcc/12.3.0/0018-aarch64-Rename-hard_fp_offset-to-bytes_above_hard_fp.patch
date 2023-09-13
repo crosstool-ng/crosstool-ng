@@ -1,0 +1,148 @@
+From 3fbf0789202b30a67b12e1fb785c7130f098d665 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 12 Sep 2023 16:08:52 +0100
+Subject: [PATCH 18/28] aarch64: Rename hard_fp_offset to bytes_above_hard_fp
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Similarly to the previous locals_offset patch, hard_fp_offset
+was described as:
+
+  /* Offset from the base of the frame (incomming SP) to the
+     hard_frame_pointer.  This value is always a multiple of
+     STACK_BOUNDARY.  */
+  poly_int64 hard_fp_offset;
+
+which again took an “upside-down” view: higher offsets meant lower
+addresses.  This patch renames the field to bytes_above_hard_fp instead.
+
+gcc/
+	* config/aarch64/aarch64.h (aarch64_frame::hard_fp_offset): Rename
+	to...
+	(aarch64_frame::bytes_above_hard_fp): ...this.
+	* config/aarch64/aarch64.cc (aarch64_layout_frame)
+	(aarch64_expand_prologue): Update accordingly.
+	(aarch64_initial_elimination_offset): Likewise.
+---
+ gcc/config/aarch64/aarch64.cc | 26 +++++++++++++-------------
+ gcc/config/aarch64/aarch64.h  |  6 +++---
+ 2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
+index d4ec352ba98a..3c4052740e7a 100644
+--- a/gcc/config/aarch64/aarch64.cc
++++ b/gcc/config/aarch64/aarch64.cc
+@@ -8329,7 +8329,7 @@ aarch64_layout_frame (void)
+ 			   + get_frame_size (),
+ 			   STACK_BOUNDARY / BITS_PER_UNIT);
+ 
+-  frame.hard_fp_offset
++  frame.bytes_above_hard_fp
+     = saved_regs_and_above - frame.below_hard_fp_saved_regs_size;
+ 
+   /* Both these values are already aligned.  */
+@@ -8378,13 +8378,13 @@ aarch64_layout_frame (void)
+   else if (frame.wb_pop_candidate1 != INVALID_REGNUM)
+     max_push_offset = 256;
+ 
+-  HOST_WIDE_INT const_size, const_below_saved_regs, const_fp_offset;
++  HOST_WIDE_INT const_size, const_below_saved_regs, const_above_fp;
+   HOST_WIDE_INT const_saved_regs_size;
+   if (known_eq (frame.saved_regs_size, 0))
+     frame.initial_adjust = frame.frame_size;
+   else if (frame.frame_size.is_constant (&const_size)
+ 	   && const_size < max_push_offset
+-	   && known_eq (frame.hard_fp_offset, const_size))
++	   && known_eq (frame.bytes_above_hard_fp, const_size))
+     {
+       /* Simple, small frame with no data below the saved registers.
+ 
+@@ -8401,8 +8401,8 @@ aarch64_layout_frame (void)
+ 	      case that it hardly seems worth the effort though.  */
+ 	   && (!saves_below_hard_fp_p || const_below_saved_regs == 0)
+ 	   && !(cfun->calls_alloca
+-		&& frame.hard_fp_offset.is_constant (&const_fp_offset)
+-		&& const_fp_offset < max_push_offset))
++		&& frame.bytes_above_hard_fp.is_constant (&const_above_fp)
++		&& const_above_fp < max_push_offset))
+     {
+       /* Frame with small area below the saved registers:
+ 
+@@ -8420,12 +8420,12 @@ aarch64_layout_frame (void)
+ 	 sub sp, sp, hard_fp_offset + below_hard_fp_saved_regs_size
+ 	 save SVE registers relative to SP
+ 	 sub sp, sp, bytes_below_saved_regs  */
+-      frame.initial_adjust = (frame.hard_fp_offset
++      frame.initial_adjust = (frame.bytes_above_hard_fp
+ 			      + frame.below_hard_fp_saved_regs_size);
+       frame.final_adjust = frame.bytes_below_saved_regs;
+     }
+-  else if (frame.hard_fp_offset.is_constant (&const_fp_offset)
+-	   && const_fp_offset < max_push_offset)
++  else if (frame.bytes_above_hard_fp.is_constant (&const_above_fp)
++	   && const_above_fp < max_push_offset)
+     {
+       /* Frame with large area below the saved registers, or with SVE saves,
+ 	 but with a small area above:
+@@ -8435,7 +8435,7 @@ aarch64_layout_frame (void)
+ 	 [sub sp, sp, below_hard_fp_saved_regs_size]
+ 	 [save SVE registers relative to SP]
+ 	 sub sp, sp, bytes_below_saved_regs  */
+-      frame.callee_adjust = const_fp_offset;
++      frame.callee_adjust = const_above_fp;
+       frame.sve_callee_adjust = frame.below_hard_fp_saved_regs_size;
+       frame.final_adjust = frame.bytes_below_saved_regs;
+     }
+@@ -8450,7 +8450,7 @@ aarch64_layout_frame (void)
+ 	 [sub sp, sp, below_hard_fp_saved_regs_size]
+ 	 [save SVE registers relative to SP]
+ 	 sub sp, sp, bytes_below_saved_regs  */
+-      frame.initial_adjust = frame.hard_fp_offset;
++      frame.initial_adjust = frame.bytes_above_hard_fp;
+       frame.sve_callee_adjust = frame.below_hard_fp_saved_regs_size;
+       frame.final_adjust = frame.bytes_below_saved_regs;
+     }
+@@ -9754,7 +9754,7 @@ aarch64_expand_prologue (void)
+     {
+       /* The offset of the frame chain record (if any) from the current SP.  */
+       poly_int64 chain_offset = (initial_adjust + callee_adjust
+-				 - frame.hard_fp_offset);
++				 - frame.bytes_above_hard_fp);
+       gcc_assert (known_ge (chain_offset, 0));
+ 
+       if (callee_adjust == 0)
+@@ -12575,10 +12575,10 @@ aarch64_initial_elimination_offset (unsigned from, unsigned to)
+   if (to == HARD_FRAME_POINTER_REGNUM)
+     {
+       if (from == ARG_POINTER_REGNUM)
+-	return frame.hard_fp_offset;
++	return frame.bytes_above_hard_fp;
+ 
+       if (from == FRAME_POINTER_REGNUM)
+-	return frame.hard_fp_offset - frame.bytes_above_locals;
++	return frame.bytes_above_hard_fp - frame.bytes_above_locals;
+     }
+ 
+   if (to == STACK_POINTER_REGNUM)
+diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
+index bf46e6124aa9..dd1f403f9393 100644
+--- a/gcc/config/aarch64/aarch64.h
++++ b/gcc/config/aarch64/aarch64.h
+@@ -890,10 +890,10 @@ struct GTY (()) aarch64_frame
+      STACK_BOUNDARY.  */
+   poly_int64 bytes_above_locals;
+ 
+-  /* Offset from the base of the frame (incomming SP) to the
+-     hard_frame_pointer.  This value is always a multiple of
++  /* The number of bytes between the hard_frame_pointer and the top of
++     the frame (the incomming SP).  This value is always a multiple of
+      STACK_BOUNDARY.  */
+-  poly_int64 hard_fp_offset;
++  poly_int64 bytes_above_hard_fp;
+ 
+   /* The size of the frame.  This value is the offset from base of the
+      frame (incomming SP) to the stack_pointer.  This value is always
+-- 
+2.42.0
+

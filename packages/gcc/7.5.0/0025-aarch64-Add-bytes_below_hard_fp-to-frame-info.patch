@@ -1,0 +1,166 @@
+From e97c93de7ceadad75774f897424a50ece3215129 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Fri, 16 Jun 2023 16:55:12 +0100
+Subject: [PATCH 25/30] aarch64: Add bytes_below_hard_fp to frame info
+
+The frame layout code currently hard-codes the assumption that
+the number of bytes below the saved registers is equal to the
+size of the outgoing arguments.  This patch abstracts that
+value into a new field of aarch64_frame.
+
+gcc/
+	* config/aarch64/aarch64.h (aarch64_frame::bytes_below_hard_fp): New
+	field.
+	* config/aarch64/aarch64.c (aarch64_layout_frame): Initialize it,
+	and use it instead of crtl->outgoing_args_size.
+	(aarch64_get_separate_components): Use bytes_below_hard_fp instead
+	of outgoing_args_size.
+	(aarch64_process_components): Likewise.
+---
+ gcc/config/aarch64/aarch64.c | 40 +++++++++++++++++++++---------------
+ gcc/config/aarch64/aarch64.h |  6 +++++-
+ 2 files changed, 28 insertions(+), 18 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index bb4f6020e5df..12df8bb783c7 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -2826,6 +2826,8 @@ aarch64_layout_frame (void)
+ 	last_fp_reg = regno;
+       }
+ 
++  cfun->machine->frame.bytes_below_hard_fp = crtl->outgoing_args_size;
++
+   if (frame_pointer_needed)
+     {
+       /* FP and LR are placed in the linkage record.  */
+@@ -2885,7 +2887,7 @@ aarch64_layout_frame (void)
+ 
+   cfun->machine->frame.frame_size
+     = ROUND_UP (cfun->machine->frame.hard_fp_offset
+-		+ crtl->outgoing_args_size,
++		+ cfun->machine->frame.bytes_below_hard_fp,
+ 		STACK_BOUNDARY / BITS_PER_UNIT);
+ 
+   cfun->machine->frame.locals_offset = cfun->machine->frame.saved_varargs_size;
+@@ -2904,32 +2906,33 @@ aarch64_layout_frame (void)
+   if (cfun->machine->frame.saved_regs_size == 0)
+     cfun->machine->frame.initial_adjust = cfun->machine->frame.frame_size;
+   else if (cfun->machine->frame.frame_size < max_push_offset
+-	   && crtl->outgoing_args_size == 0)
++	   && cfun->machine->frame.bytes_below_hard_fp == 0)
+     {
+-      /* Simple, small frame with no outgoing arguments:
++      /* Simple, small frame with no data below the saved registers.
+ 	 stp reg1, reg2, [sp, -frame_size]!
+ 	 stp reg3, reg4, [sp, 16]  */
+       cfun->machine->frame.callee_adjust = cfun->machine->frame.frame_size;
+     }
+-  else if ((crtl->outgoing_args_size
++  else if ((cfun->machine->frame.bytes_below_hard_fp
+ 	    + cfun->machine->frame.saved_regs_size < 512)
+ 	   && !(cfun->calls_alloca
+ 		&& cfun->machine->frame.hard_fp_offset < max_push_offset))
+     {
+-      /* Frame with small outgoing arguments:
++      /* Frame with small area below the saved registers:
+ 	 sub sp, sp, frame_size
+-	 stp reg1, reg2, [sp, outgoing_args_size]
+-	 stp reg3, reg4, [sp, outgoing_args_size + 16]  */
++	 stp reg1, reg2, [sp, bytes_below_hard_fp]
++	 stp reg3, reg4, [sp, bytes_below_hard_fp + 16]  */
+       cfun->machine->frame.initial_adjust = cfun->machine->frame.frame_size;
+       cfun->machine->frame.callee_offset
+ 	= cfun->machine->frame.frame_size - cfun->machine->frame.hard_fp_offset;
+     }
+   else if (cfun->machine->frame.hard_fp_offset < max_push_offset)
+     {
+-      /* Frame with large outgoing arguments but a small local area:
++      /* Frame with large area below the saved registers, but with a
++	 small area above:
+ 	 stp reg1, reg2, [sp, -hard_fp_offset]!
+ 	 stp reg3, reg4, [sp, 16]
+-	 sub sp, sp, outgoing_args_size  */
++	 sub sp, sp, bytes_below_hard_fp  */
+       cfun->machine->frame.callee_adjust = cfun->machine->frame.hard_fp_offset;
+       cfun->machine->frame.final_adjust
+ 	= cfun->machine->frame.frame_size - cfun->machine->frame.callee_adjust;
+@@ -2945,17 +2948,19 @@ aarch64_layout_frame (void)
+       cfun->machine->frame.callee_adjust = varargs_and_saved_regs_size;
+       cfun->machine->frame.final_adjust
+ 	= cfun->machine->frame.frame_size - cfun->machine->frame.callee_adjust;
++      cfun->machine->frame.bytes_below_hard_fp
++	= cfun->machine->frame.final_adjust;
+       cfun->machine->frame.hard_fp_offset = cfun->machine->frame.callee_adjust;
+       cfun->machine->frame.locals_offset = cfun->machine->frame.hard_fp_offset;
+     }
+   else
+     {
+-      /* Frame with large local area and outgoing arguments using frame pointer:
++      /* General case:
+ 	 sub sp, sp, hard_fp_offset
+ 	 stp x29, x30, [sp, 0]
+ 	 add x29, sp, 0
+ 	 stp reg3, reg4, [sp, 16]
+-	 sub sp, sp, outgoing_args_size  */
++	 sub sp, sp, bytes_below_hard_fp  */
+       cfun->machine->frame.initial_adjust = cfun->machine->frame.hard_fp_offset;
+       cfun->machine->frame.final_adjust
+ 	= cfun->machine->frame.frame_size - cfun->machine->frame.initial_adjust;
+@@ -3313,9 +3318,11 @@ aarch64_get_separate_components (void)
+     if (aarch64_register_saved_on_entry (regno))
+       {
+ 	HOST_WIDE_INT offset = cfun->machine->frame.reg_offset[regno];
++
++	/* Get the offset relative to the register we'll use.  */
+ 	if (!frame_pointer_needed)
+-	  offset += cfun->machine->frame.frame_size
+-		    - cfun->machine->frame.hard_fp_offset;
++	  offset += cfun->machine->frame.bytes_below_hard_fp;
++
+ 	/* Check that we can access the stack slot of the register with one
+ 	   direct load with no adjustments needed.  */
+ 	if (offset_12bit_unsigned_scaled_p (DImode, offset))
+@@ -3418,8 +3425,8 @@ aarch64_process_components (sbitmap components, bool prologue_p)
+       rtx reg = gen_rtx_REG (mode, regno);
+       HOST_WIDE_INT offset = cfun->machine->frame.reg_offset[regno];
+       if (!frame_pointer_needed)
+-	offset += cfun->machine->frame.frame_size
+-		  - cfun->machine->frame.hard_fp_offset;
++	offset += cfun->machine->frame.bytes_below_hard_fp;
++
+       rtx addr = plus_constant (Pmode, ptr_reg, offset);
+       rtx mem = gen_frame_mem (mode, addr);
+ 
+@@ -3460,8 +3467,7 @@ aarch64_process_components (sbitmap components, bool prologue_p)
+       /* REGNO2 can be saved/restored in a pair with REGNO.  */
+       rtx reg2 = gen_rtx_REG (mode, regno2);
+       if (!frame_pointer_needed)
+-	offset2 += cfun->machine->frame.frame_size
+-		  - cfun->machine->frame.hard_fp_offset;
++	offset2 += cfun->machine->frame.bytes_below_hard_fp;
+       rtx addr2 = plus_constant (Pmode, ptr_reg, offset2);
+       rtx mem2 = gen_frame_mem (mode, addr2);
+       rtx set2 = prologue_p ? gen_rtx_SET (mem2, reg2)
+diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
+index ddf833ebfe85..6dc6ef2b989b 100644
+--- a/gcc/config/aarch64/aarch64.h
++++ b/gcc/config/aarch64/aarch64.h
+@@ -558,9 +558,13 @@ struct GTY (()) aarch64_frame
+   HOST_WIDE_INT saved_varargs_size;
+ 
+   /* The size of the saved callee-save int/FP registers.  */
+-
+   HOST_WIDE_INT saved_regs_size;
+ 
++  /* The number of bytes between the bottom of the static frame (the bottom
++     of the outgoing arguments) and the hard frame pointer.  This value is
++     always a multiple of STACK_BOUNDARY.  */
++  HOST_WIDE_INT bytes_below_hard_fp;
++
+   /* Offset from the base of the frame (incomming SP) to the
+      top of the locals area.  This value is always a multiple of
+      STACK_BOUNDARY.  */
+-- 
+2.42.0
+

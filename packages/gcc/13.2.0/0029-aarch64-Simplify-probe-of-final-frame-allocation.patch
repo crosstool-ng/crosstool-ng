@@ -1,0 +1,123 @@
+From eea1759073e09dd1aefbc9a881601ab1eebfdd18 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 12 Sep 2023 16:07:19 +0100
+Subject: [PATCH 29/32] aarch64: Simplify probe of final frame allocation
+
+Previous patches ensured that the final frame allocation only needs
+a probe when the size is strictly greater than 1KiB.  It's therefore
+safe to use the normal 1024 probe offset in all cases.
+
+The main motivation for doing this is to simplify the code and
+remove the number of special cases.
+
+gcc/
+	* config/aarch64/aarch64.cc (aarch64_allocate_and_probe_stack_space):
+	Always probe the residual allocation at offset 1024, asserting
+	that that is in range.
+
+gcc/testsuite/
+	* gcc.target/aarch64/stack-check-prologue-17.c: Expect the probe
+	to be at offset 1024 rather than offset 0.
+	* gcc.target/aarch64/stack-check-prologue-18.c: Likewise.
+	* gcc.target/aarch64/stack-check-prologue-19.c: Likewise.
+---
+ gcc/config/aarch64/aarch64.cc                        | 12 ++++--------
+ .../gcc.target/aarch64/stack-check-prologue-17.c     |  2 +-
+ .../gcc.target/aarch64/stack-check-prologue-18.c     |  4 ++--
+ .../gcc.target/aarch64/stack-check-prologue-19.c     |  4 ++--
+ 4 files changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
+index a765f92329d3..37809a306f79 100644
+--- a/gcc/config/aarch64/aarch64.cc
++++ b/gcc/config/aarch64/aarch64.cc
+@@ -9838,16 +9838,12 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+      are still safe.  */
+   if (residual)
+     {
+-      HOST_WIDE_INT residual_probe_offset = guard_used_by_caller;
++      gcc_assert (guard_used_by_caller + byte_sp_alignment <= size);
++
+       /* If we're doing final adjustments, and we've done any full page
+ 	 allocations then any residual needs to be probed.  */
+       if (final_adjustment_p && rounded_size != 0)
+ 	min_probe_threshold = 0;
+-      /* If doing a small final adjustment, we always probe at offset 0.
+-	 This is done to avoid issues when the final adjustment is smaller
+-	 than the probing offset.  */
+-      else if (final_adjustment_p && rounded_size == 0)
+-	residual_probe_offset = 0;
+ 
+       aarch64_sub_sp (temp1, temp2, residual, frame_related_p);
+       if (residual >= min_probe_threshold)
+@@ -9858,8 +9854,8 @@ aarch64_allocate_and_probe_stack_space (rtx temp1, rtx temp2,
+ 		     HOST_WIDE_INT_PRINT_DEC " bytes, probing will be required."
+ 		     "\n", residual);
+ 
+-	    emit_stack_probe (plus_constant (Pmode, stack_pointer_rtx,
+-					     residual_probe_offset));
++	  emit_stack_probe (plus_constant (Pmode, stack_pointer_rtx,
++					   guard_used_by_caller));
+ 	  emit_insn (gen_blockage ());
+ 	}
+     }
+diff --git a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c
+index 0d8a25d73a24..f0ec1389771d 100644
+--- a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c
++++ b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-17.c
+@@ -33,7 +33,7 @@ int test1(int z) {
+ **	...
+ **	str	x30, \[sp\]
+ **	sub	sp, sp, #1040
+-**	str	xzr, \[sp\]
++**	str	xzr, \[sp, #?1024\]
+ **	cbnz	w0, .*
+ **	bl	g
+ **	...
+diff --git a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c
+index 82447d20fff5..6383bec5ebcd 100644
+--- a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c
++++ b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-18.c
+@@ -9,7 +9,7 @@ void g();
+ **	...
+ **	str	x30, \[sp\]
+ **	sub	sp, sp, #4064
+-**	str	xzr, \[sp\]
++**	str	xzr, \[sp, #?1024\]
+ **	cbnz	w0, .*
+ **	bl	g
+ **	...
+@@ -50,7 +50,7 @@ int test1(int z) {
+ **	...
+ **	str	x30, \[sp\]
+ **	sub	sp, sp, #1040
+-**	str	xzr, \[sp\]
++**	str	xzr, \[sp, #?1024\]
+ **	cbnz	w0, .*
+ **	bl	g
+ **	...
+diff --git a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-19.c b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-19.c
+index 73ac3e4e4eb0..562039b5e9b8 100644
+--- a/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-19.c
++++ b/gcc/testsuite/gcc.target/aarch64/stack-check-prologue-19.c
+@@ -9,7 +9,7 @@ void g();
+ **	...
+ **	str	x30, \[sp\]
+ **	sub	sp, sp, #4064
+-**	str	xzr, \[sp\]
++**	str	xzr, \[sp, #?1024\]
+ **	cbnz	w0, .*
+ **	bl	g
+ **	...
+@@ -50,7 +50,7 @@ int test1(int z) {
+ **	...
+ **	str	x30, \[sp\]
+ **	sub	sp, sp, #1040
+-**	str	xzr, \[sp\]
++**	str	xzr, \[sp, #?1024\]
+ **	cbnz	w0, .*
+ **	bl	g
+ **	...
+-- 
+2.42.0
+

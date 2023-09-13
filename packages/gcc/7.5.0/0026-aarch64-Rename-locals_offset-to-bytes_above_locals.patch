@@ -1,0 +1,104 @@
+From e628f34ef3a7db3a75aa146b3e75099a9c431d20 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 27 Jun 2023 11:25:40 +0100
+Subject: [PATCH 26/30] aarch64: Rename locals_offset to bytes_above_locals
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+locals_offset was described as:
+
+  /* Offset from the base of the frame (incomming SP) to the
+     top of the locals area.  This value is always a multiple of
+     STACK_BOUNDARY.  */
+
+This is implicitly an “upside down” view of the frame: the incoming
+SP is at offset 0, and anything N bytes below the incoming SP is at
+offset N (rather than -N).
+
+However, reg_offset instead uses a “right way up” view; that is,
+it views offsets in address terms.  Something above X is at a
+positive offset from X and something below X is at a negative
+offset from X.
+
+Also, even on FRAME_GROWS_DOWNWARD targets like AArch64,
+target-independent code views offsets in address terms too:
+locals are allocated at negative offsets to virtual_stack_vars.
+
+It seems confusing to have *_offset fields of the same structure
+using different polarities like this.  This patch tries to avoid
+that by renaming locals_offset to bytes_above_locals.
+
+gcc/
+	* config/aarch64/aarch64.h (aarch64_frame::locals_offset): Rename to...
+	(aarch64_frame::bytes_above_locals): ...this.
+	* config/aarch64/aarch64.c (aarch64_layout_frame)
+	(aarch64_initial_elimination_offset): Update accordingly.
+---
+ gcc/config/aarch64/aarch64.c | 12 +++++++-----
+ gcc/config/aarch64/aarch64.h |  6 +++---
+ 2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index 12df8bb783c7..27dd3b7a62b3 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -2890,7 +2890,8 @@ aarch64_layout_frame (void)
+ 		+ cfun->machine->frame.bytes_below_hard_fp,
+ 		STACK_BOUNDARY / BITS_PER_UNIT);
+ 
+-  cfun->machine->frame.locals_offset = cfun->machine->frame.saved_varargs_size;
++  cfun->machine->frame.bytes_above_locals
++    = cfun->machine->frame.saved_varargs_size;
+ 
+   cfun->machine->frame.initial_adjust = 0;
+   cfun->machine->frame.final_adjust = 0;
+@@ -2951,7 +2952,8 @@ aarch64_layout_frame (void)
+       cfun->machine->frame.bytes_below_hard_fp
+ 	= cfun->machine->frame.final_adjust;
+       cfun->machine->frame.hard_fp_offset = cfun->machine->frame.callee_adjust;
+-      cfun->machine->frame.locals_offset = cfun->machine->frame.hard_fp_offset;
++      cfun->machine->frame.bytes_above_locals
++	= cfun->machine->frame.hard_fp_offset;
+     }
+   else
+     {
+@@ -5653,14 +5655,14 @@ aarch64_initial_elimination_offset (unsigned from, unsigned to)
+ 
+       if (from == FRAME_POINTER_REGNUM)
+ 	return cfun->machine->frame.hard_fp_offset
+-	       - cfun->machine->frame.locals_offset;
++	       - cfun->machine->frame.bytes_above_locals;
+     }
+ 
+   if (to == STACK_POINTER_REGNUM)
+     {
+       if (from == FRAME_POINTER_REGNUM)
+-	  return cfun->machine->frame.frame_size
+-		 - cfun->machine->frame.locals_offset;
++	return cfun->machine->frame.frame_size
++	       - cfun->machine->frame.bytes_above_locals;
+     }
+ 
+   return cfun->machine->frame.frame_size;
+diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
+index 6dc6ef2b989b..79af237ada67 100644
+--- a/gcc/config/aarch64/aarch64.h
++++ b/gcc/config/aarch64/aarch64.h
+@@ -565,10 +565,10 @@ struct GTY (()) aarch64_frame
+      always a multiple of STACK_BOUNDARY.  */
+   HOST_WIDE_INT bytes_below_hard_fp;
+ 
+-  /* Offset from the base of the frame (incomming SP) to the
+-     top of the locals area.  This value is always a multiple of
++  /* The number of bytes between the top of the locals area and the top
++     of the frame (the incomming SP).  This value is always a multiple of
+      STACK_BOUNDARY.  */
+-  HOST_WIDE_INT locals_offset;
++  HOST_WIDE_INT bytes_above_locals;
+ 
+   /* Offset from the base of the frame (incomming SP) to the
+      hard_frame_pointer.  This value is always a multiple of
+-- 
+2.42.0
+

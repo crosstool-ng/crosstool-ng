@@ -1,0 +1,38 @@
+From 5854b895a92e9fe8b26a051442d44a6fd685512a Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Thu, 22 Jun 2023 22:18:45 +0100
+Subject: [PATCH 36/42] aarch64: Minor initial adjustment tweak
+
+This patch just changes a calculation of initial_adjust
+to one that makes it slightly more obvious that the total
+adjustment is frame.frame_size.
+
+gcc/
+	* config/aarch64/aarch64.c (aarch64_layout_frame): Tweak
+	calculation of initial_adjust for frames in which all saves
+	are SVE saves.
+---
+ gcc/config/aarch64/aarch64.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index 70542c6e13f5..08a8667bbc18 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -7071,11 +7071,10 @@ aarch64_layout_frame (void)
+     {
+       /* Frame in which all saves are SVE saves:
+ 
+-	 sub sp, sp, hard_fp_offset + below_hard_fp_saved_regs_size
++	 sub sp, sp, frame_size - bytes_below_saved_regs
+ 	 save SVE registers relative to SP
+ 	 sub sp, sp, bytes_below_saved_regs  */
+-      frame.initial_adjust = (frame.bytes_above_hard_fp
+-			      + frame.below_hard_fp_saved_regs_size);
++      frame.initial_adjust = frame.frame_size - frame.bytes_below_saved_regs;
+       frame.final_adjust = frame.bytes_below_saved_regs;
+     }
+   else if (frame.bytes_above_hard_fp.is_constant (&const_above_fp)
+-- 
+2.42.0
+

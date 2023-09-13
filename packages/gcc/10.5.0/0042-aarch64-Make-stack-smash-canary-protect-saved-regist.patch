@@ -1,0 +1,299 @@
+From dad1c82acf67a8a1cc68e2acf3ec89a503e361fc Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Thu, 15 Jun 2023 19:16:52 +0100
+Subject: [PATCH 42/42] aarch64: Make stack smash canary protect saved
+ registers
+
+AArch64 normally puts the saved registers near the bottom of the frame,
+immediately above any dynamic allocations.  But this means that a
+stack-smash attack on those dynamic allocations could overwrite the
+saved registers without needing to reach as far as the stack smash
+canary.
+
+The same thing could also happen for variable-sized arguments that are
+passed by value, since those are allocated before a call and popped on
+return.
+
+This patch avoids that by putting the locals (and thus the canary) below
+the saved registers when stack smash protection is active.
+
+The patch fixes CVE-2023-4039.
+
+gcc/
+	* config/aarch64/aarch64.c (aarch64_save_regs_above_locals_p):
+	New function.
+	(aarch64_layout_frame): Use it to decide whether locals should
+	go above or below the saved registers.
+	(aarch64_expand_prologue): Update stack layout comment.
+	Emit a stack tie after the final adjustment.
+
+gcc/testsuite/
+	* gcc.target/aarch64/stack-protector-8.c: New test.
+	* gcc.target/aarch64/stack-protector-9.c: Likewise.
+---
+ gcc/config/aarch64/aarch64.c                  | 47 +++++++--
+ .../gcc.target/aarch64/stack-protector-8.c    | 95 +++++++++++++++++++
+ .../gcc.target/aarch64/stack-protector-9.c    | 33 +++++++
+ 3 files changed, 169 insertions(+), 6 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/aarch64/stack-protector-8.c
+ create mode 100644 gcc/testsuite/gcc.target/aarch64/stack-protector-9.c
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index 91833473c751..ce701b91a3f2 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -6820,6 +6820,20 @@ aarch64_needs_frame_chain (void)
+   return aarch64_use_frame_pointer;
+ }
+ 
++/* Return true if the current function should save registers above
++   the locals area, rather than below it.  */
++
++static bool
++aarch64_save_regs_above_locals_p ()
++{
++  /* When using stack smash protection, make sure that the canary slot
++     comes between the locals and the saved registers.  Otherwise,
++     it would be possible for a carefully sized smash attack to change
++     the saved registers (particularly LR and FP) without reaching the
++     canary.  */
++  return crtl->stack_protect_guard;
++}
++
+ /* Mark the registers that need to be saved by the callee and calculate
+    the size of the callee-saved registers area and frame record (both FP
+    and LR may be omitted).  */
+@@ -6831,6 +6845,7 @@ aarch64_layout_frame (void)
+   poly_int64 vector_save_size = GET_MODE_SIZE (vector_save_mode);
+   bool frame_related_fp_reg_p = false;
+   aarch64_frame &frame = cfun->machine->frame;
++  poly_int64 top_of_locals = -1;
+ 
+   frame.emit_frame_chain = aarch64_needs_frame_chain ();
+ 
+@@ -6897,8 +6912,16 @@ aarch64_layout_frame (void)
+ 	&& !crtl->abi->clobbers_full_reg_p (regno))
+       frame.reg_offset[regno] = SLOT_REQUIRED;
+ 
++  bool regs_at_top_p = aarch64_save_regs_above_locals_p ();
++
+   poly_int64 offset = crtl->outgoing_args_size;
+   gcc_assert (multiple_p (offset, STACK_BOUNDARY / BITS_PER_UNIT));
++  if (regs_at_top_p)
++    {
++      offset += get_frame_size ();
++      offset = aligned_upper_bound (offset, STACK_BOUNDARY / BITS_PER_UNIT);
++      top_of_locals = offset;
++    }
+   frame.bytes_below_saved_regs = offset;
+   frame.sve_save_and_probe = INVALID_REGNUM;
+ 
+@@ -7043,15 +7066,18 @@ aarch64_layout_frame (void)
+      at expand_prologue.  */
+   gcc_assert (crtl->is_leaf || maybe_ne (saved_regs_size, 0));
+ 
+-  offset += get_frame_size ();
+-  offset = aligned_upper_bound (offset, STACK_BOUNDARY / BITS_PER_UNIT);
+-  poly_int64 top_of_locals = offset;
+-
++  if (!regs_at_top_p)
++    {
++      offset += get_frame_size ();
++      offset = aligned_upper_bound (offset, STACK_BOUNDARY / BITS_PER_UNIT);
++      top_of_locals = offset;
++    }
+   offset += frame.saved_varargs_size;
+   gcc_assert (multiple_p (offset, STACK_BOUNDARY / BITS_PER_UNIT));
+   frame.frame_size = offset;
+ 
+   frame.bytes_above_hard_fp = frame.frame_size - frame.bytes_below_hard_fp;
++  gcc_assert (known_ge (top_of_locals, 0));
+   frame.bytes_above_locals = frame.frame_size - top_of_locals;
+ 
+   frame.initial_adjust = 0;
+@@ -8247,10 +8273,10 @@ aarch64_epilogue_uses (int regno)
+ 	|  for register varargs         |
+ 	|                               |
+ 	+-------------------------------+
+-	|  local variables              | <-- frame_pointer_rtx
++	|  local variables (1)          | <-- frame_pointer_rtx
+ 	|                               |
+ 	+-------------------------------+
+-	|  padding                      |
++	|  padding (1)                  |
+ 	+-------------------------------+
+ 	|  callee-saved registers       |
+ 	+-------------------------------+
+@@ -8262,6 +8288,10 @@ aarch64_epilogue_uses (int regno)
+ 	+-------------------------------+
+ 	|  SVE predicate registers      |
+ 	+-------------------------------+
++	|  local variables (2)          |
++	+-------------------------------+
++	|  padding (2)                  |
++	+-------------------------------+
+ 	|  dynamic allocation           |
+ 	+-------------------------------+
+ 	|  padding                      |
+@@ -8271,6 +8301,9 @@ aarch64_epilogue_uses (int regno)
+ 	+-------------------------------+
+ 	|                               | <-- stack_pointer_rtx (aligned)
+ 
++   The regions marked (1) and (2) are mutually exclusive.  (2) is used
++   when aarch64_save_regs_above_locals_p is true.
++
+    Dynamic stack allocations via alloca() decrease stack_pointer_rtx
+    but leave frame_pointer_rtx and hard_frame_pointer_rtx
+    unchanged.
+@@ -8462,6 +8495,8 @@ aarch64_expand_prologue (void)
+   gcc_assert (known_eq (bytes_below_sp, final_adjust));
+   aarch64_allocate_and_probe_stack_space (tmp1_rtx, tmp0_rtx, final_adjust,
+ 					  !frame_pointer_needed, true);
++  if (emit_frame_chain && maybe_ne (final_adjust, 0))
++    emit_insn (gen_stack_tie (stack_pointer_rtx, hard_frame_pointer_rtx));
+ }
+ 
+ /* Return TRUE if we can use a simple_return insn.
+diff --git a/gcc/testsuite/gcc.target/aarch64/stack-protector-8.c b/gcc/testsuite/gcc.target/aarch64/stack-protector-8.c
+new file mode 100644
+index 000000000000..e71d820e3654
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/stack-protector-8.c
+@@ -0,0 +1,95 @@
++/* { dg-options " -O -fstack-protector-strong -mstack-protector-guard=sysreg -mstack-protector-guard-reg=tpidr2_el0 -mstack-protector-guard-offset=16" } */
++/* { dg-final { check-function-bodies "**" "" } } */
++
++void g(void *);
++__SVBool_t *h(void *);
++
++/*
++** test1:
++**	sub	sp, sp, #288
++**	stp	x29, x30, \[sp, #?272\]
++**	add	x29, sp, #?272
++**	mrs	(x[0-9]+), tpidr2_el0
++**	ldr	(x[0-9]+), \[\1, #?16\]
++**	str	\2, \[sp, #?264\]
++**	mov	\2, #?0
++**	add	x0, sp, #?8
++**	bl	g
++**	...
++**	mrs	.*
++**	...
++**	bne	.*
++**	...
++**	ldp	x29, x30, \[sp, #?272\]
++**	add	sp, sp, #?288
++**	ret
++**	bl	__stack_chk_fail
++*/
++int test1() {
++  int y[0x40];
++  g(y);
++  return 1;
++}
++
++/*
++** test2:
++**	stp	x29, x30, \[sp, #?-16\]!
++**	mov	x29, sp
++**	sub	sp, sp, #1040
++**	mrs	(x[0-9]+), tpidr2_el0
++**	ldr	(x[0-9]+), \[\1, #?16\]
++**	str	\2, \[sp, #?1032\]
++**	mov	\2, #?0
++**	add	x0, sp, #?8
++**	bl	g
++**	...
++**	mrs	.*
++**	...
++**	bne	.*
++**	...
++**	add	sp, sp, #?1040
++**	ldp	x29, x30, \[sp\], #?16
++**	ret
++**	bl	__stack_chk_fail
++*/
++int test2() {
++  int y[0x100];
++  g(y);
++  return 1;
++}
++
++#pragma GCC target "+sve"
++
++/*
++** test3:
++**	stp	x29, x30, \[sp, #?-16\]!
++**	mov	x29, sp
++**	addvl	sp, sp, #-18
++**	...
++**	str	p4, \[sp\]
++**	...
++**	sub	sp, sp, #272
++**	mrs	(x[0-9]+), tpidr2_el0
++**	ldr	(x[0-9]+), \[\1, #?16\]
++**	str	\2, \[sp, #?264\]
++**	mov	\2, #?0
++**	add	x0, sp, #?8
++**	bl	h
++**	...
++**	mrs	.*
++**	...
++**	bne	.*
++**	...
++**	add	sp, sp, #?272
++**	...
++**	ldr	p4, \[sp\]
++**	...
++**	addvl	sp, sp, #18
++**	ldp	x29, x30, \[sp\], #?16
++**	ret
++**	bl	__stack_chk_fail
++*/
++__SVBool_t test3() {
++  int y[0x40];
++  return *h(y);
++}
+diff --git a/gcc/testsuite/gcc.target/aarch64/stack-protector-9.c b/gcc/testsuite/gcc.target/aarch64/stack-protector-9.c
+new file mode 100644
+index 000000000000..58f322aa480a
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/stack-protector-9.c
+@@ -0,0 +1,33 @@
++/* { dg-options "-O2 -mcpu=neoverse-v1 -fstack-protector-all" } */
++/* { dg-final { check-function-bodies "**" "" } } */
++
++/*
++** main:
++**	...
++**	stp	x29, x30, \[sp, #?-[0-9]+\]!
++**	...
++**	sub	sp, sp, #[0-9]+
++**	...
++**	str	x[0-9]+, \[x29, #?-8\]
++**	...
++*/
++int f(const char *);
++void g(void *);
++int main(int argc, char* argv[])
++{
++  int a;
++  int b;
++  char c[2+f(argv[1])];
++  int d[0x100];
++  char y;
++
++  y=42; a=4; b=10;
++  c[0] = 'h'; c[1] = '\0';
++
++  c[f(argv[2])] = '\0';
++
++  __builtin_printf("%d %d\n%s\n", a, b, c);
++  g(d);
++
++  return 0;
++}
+-- 
+2.42.0
+

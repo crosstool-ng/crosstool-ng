@@ -1,0 +1,84 @@
+From d3f6ceecc8a7f128a9e6cb7d8aecf0de81ed9705 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 12 Sep 2023 16:19:45 +0100
+Subject: [PATCH 15/29] aarch64: Add bytes_below_hard_fp to frame info
+
+Following on from the previous bytes_below_saved_regs patch, this one
+records the number of bytes that are below the hard frame pointer.
+This eventually replaces below_hard_fp_saved_regs_size.
+
+If a frame pointer is not needed, the epilogue adds final_adjust
+to the stack pointer before restoring registers:
+
+     aarch64_add_sp (tmp1_rtx, tmp0_rtx, final_adjust, true);
+
+Therefore, if the epilogue needs to restore the stack pointer from
+the hard frame pointer, the directly corresponding offset is:
+
+     -bytes_below_hard_fp + final_adjust
+
+i.e. go from the hard frame pointer to the bottom of the frame,
+then add the same amount as if we were using the stack pointer
+from the outset.
+
+gcc/
+	* config/aarch64/aarch64.h (aarch64_frame::bytes_below_hard_fp): New
+	field.
+	* config/aarch64/aarch64.c (aarch64_layout_frame): Initialize it.
+	(aarch64_expand_epilogue): Use it instead of
+	below_hard_fp_saved_regs_size.
+---
+ gcc/config/aarch64/aarch64.c | 6 +++---
+ gcc/config/aarch64/aarch64.h | 5 +++++
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64.c b/gcc/config/aarch64/aarch64.c
+index 8fa5a0b25455..e03adf57226f 100644
+--- a/gcc/config/aarch64/aarch64.c
++++ b/gcc/config/aarch64/aarch64.c
+@@ -7528,6 +7528,7 @@ aarch64_layout_frame (void)
+      of the callee save area.  */
+   bool saves_below_hard_fp_p = maybe_ne (offset, 0);
+   frame.below_hard_fp_saved_regs_size = offset;
++  frame.bytes_below_hard_fp = offset + frame.bytes_below_saved_regs;
+   if (frame.emit_frame_chain)
+     {
+       /* FP and LR are placed in the linkage record.  */
+@@ -9083,8 +9084,7 @@ aarch64_expand_epilogue (bool for_sibcall)
+   poly_int64 final_adjust = frame.final_adjust;
+   poly_int64 callee_offset = frame.callee_offset;
+   poly_int64 sve_callee_adjust = frame.sve_callee_adjust;
+-  poly_int64 below_hard_fp_saved_regs_size
+-    = frame.below_hard_fp_saved_regs_size;
++  poly_int64 bytes_below_hard_fp = frame.bytes_below_hard_fp;
+   unsigned reg1 = frame.wb_candidate1;
+   unsigned reg2 = frame.wb_candidate2;
+   rtx cfi_ops = NULL;
+@@ -9140,7 +9140,7 @@ aarch64_expand_epilogue (bool for_sibcall)
+        is restored on the instruction doing the writeback.  */
+     aarch64_add_offset (Pmode, stack_pointer_rtx,
+ 			hard_frame_pointer_rtx,
+-			-callee_offset - below_hard_fp_saved_regs_size,
++			-bytes_below_hard_fp + final_adjust,
+ 			tmp1_rtx, tmp0_rtx, callee_adjust == 0);
+   else
+      /* The case where we need to re-use the register here is very rare, so
+diff --git a/gcc/config/aarch64/aarch64.h b/gcc/config/aarch64/aarch64.h
+index 6f0b8c7107e7..21ac920a3fe1 100644
+--- a/gcc/config/aarch64/aarch64.h
++++ b/gcc/config/aarch64/aarch64.h
+@@ -846,6 +846,11 @@ struct GTY (()) aarch64_frame
+      are saved below the hard frame pointer.  */
+   poly_int64 below_hard_fp_saved_regs_size;
+ 
++  /* The number of bytes between the bottom of the static frame (the bottom
++     of the outgoing arguments) and the hard frame pointer.  This value is
++     always a multiple of STACK_BOUNDARY.  */
++  poly_int64 bytes_below_hard_fp;
++
+   /* Offset from the base of the frame (incomming SP) to the
+      top of the locals area.  This value is always a multiple of
+      STACK_BOUNDARY.  */
+-- 
+2.42.0
+
