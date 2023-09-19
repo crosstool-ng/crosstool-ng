@@ -96,6 +96,7 @@ dump_single_sample()
         dump_pkgs_desc KERNEL "OS"
         dump_pkgs_desc BINUTILS "Binutils"
         dump_pkgs_desc CC "Compiler"
+        dump_pkgs_desc LINKER "Linkers"
         dump_pkgs_desc LIBC "C library"
         dump_pkgs_desc DEBUG "Debug tools"
         dump_pkgs_desc COMP_LIBS "Companion libs"
