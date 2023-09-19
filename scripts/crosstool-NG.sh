@@ -660,6 +660,7 @@ if [ -z "${CT_RESTART}" ]; then
     do_companion_libs_get
     do_binutils_get
     do_cc_get
+    do_linker_get
     do_libc_get
     do_debug_get
     do_test_suite_get
@@ -677,6 +678,7 @@ if [ -z "${CT_RESTART}" ]; then
         do_companion_libs_extract
         do_binutils_extract
         do_cc_extract
+        do_linker_extract
         do_libc_extract
         do_debug_extract
         do_test_suite_extract
