@@ -61,6 +61,19 @@ jobs:
       - name: "extract ct-ng"
         run: |
           tar -xf ct-ng.tar
+      - name: cache tarballs
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: src.tar
+          key: src.tar-${{ hashFiles('.local/share/crosstool-ng/packages') }}-${{ hashFiles('.local/share/crosstool-ng/samples') }}
+          restore-keys: |
+            src.tar-${{ hashFiles('.local/share/crosstool-ng/packages') }}-
+            src.tar-
+      - name: extract tarballs
+        run: |
+          tar -xvf src.tar || true
+          touch stamp
       - name: "prereq Linux"
         if: ${{ runner.os == 'Linux' }}
         run: |
@@ -82,12 +95,8 @@ jobs:
                 ct-ng olddefconfig; \
                 ct-ng source; \
           done
+          find src -type f -not -newer stamp -delete -print
           tar -cvf src.tar src
-      - name: "upload sources"
-        uses: actions/upload-artifact@v3
-        with:
-          name: src.tar
-          path: src.tar
 
   toolchains:
     needs: [crosstool, tarballs]
