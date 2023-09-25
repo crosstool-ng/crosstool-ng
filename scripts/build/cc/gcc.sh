@@ -43,7 +43,7 @@ cc_gcc_lang_list() {
     [ "${CT_CC_LANG_CXX}" = "y"      ] && lang_list+=",c++"
     [ "${CT_CC_LANG_FORTRAN}" = "y"  ] && lang_list+=",fortran"
     [ "${CT_CC_LANG_ADA}" = "y"      ] && lang_list+=",ada"
-    [ "${CT_CC_LANG_D}" = "y"      ] && lang_list+=",d"
+    [ "${CT_CC_LANG_D}" = "y"        ] && lang_list+=",d"
     [ "${CT_CC_LANG_JAVA}" = "y"     ] && lang_list+=",java"
     [ "${CT_CC_LANG_JIT}" = "y"      ] && lang_list+=",jit"
     [ "${CT_CC_LANG_OBJC}" = "y"     ] && lang_list+=",objc"
@@ -528,6 +528,22 @@ do_gcc_core_backend() {
         "") extra_config+=("--disable-tls");;
     esac
 
+    # In baremetal, we only build the Ada compiler without its runtime.
+    # The runtime will need to be provided externaly by the user.
+    if [    "${mode}" = "baremetal"    \
+         -a "${CT_CC_LANG_ADA}"  = "y"    \
+       ]; then
+        extra_config+=("--disable-libada" )
+    fi
+
+    # In baremetal, we only build the D compiler without its runtime.
+    # The runtime will need to be provided externaly by the user.
+    if [    "${mode}" = "baremetal"    \
+         -a "${CT_CC_LANG_D}"  = "y"    \
+       ]; then
+        extra_config+=("--disable-libphobos" )
+    fi
+
     # Some versions of gcc have a defective --enable-multilib.
     # Since that's the default, only pass --disable-multilib. For multilib,
     # also enable multiarch. Without explicit --enable-multiarch, core
@@ -709,6 +725,14 @@ do_gcc_core_backend() {
 
     CT_DoLog EXTRA "Building ${log_txt}"
     CT_DoExecLog ALL make ${CT_JOBSFLAGS} ${core_targets_all}
+
+    # In case of baremetal, the gnat* tools are not built automatically.
+    if [    "${mode}" = "baremetal"    \
+         -a "${CT_CC_LANG_ADA}"  = "y"    \
+       ]; then
+        CT_DoLog EXTRA "Building gnattools for baremetal"
+        CT_DoExecLog ALL make -C gcc ${CT_JOBSFLAGS} cross-gnattools
+    fi
 
     # Do not pass ${CT_JOBSFLAGS} here: recent GCC builds have been failing
     # in parallel 'make install' at random locations: libitm, libcilk,
