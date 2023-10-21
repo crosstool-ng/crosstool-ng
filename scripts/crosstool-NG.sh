@@ -437,7 +437,7 @@ if [ -z "${CT_RESTART}" ]; then
             t="${!r}-"
         fi
 
-        for tool in ar as dlltool gcc gcc-ar gcc-nm gcc-ranlib g++ gcj gnatbind gdc gnatmake ld libtool nm objcopy objdump ranlib strip windres; do
+        for tool in ar as dlltool gcc gcc-ar gcc-nm gcc-ranlib g++ gcj gnatbind gdc gnatmake gnatls gnatlink ld libtool nm objcopy objdump ranlib strip windres; do
             # First try with prefix + suffix
             # Then try with prefix only
             # Then try with suffix only, but only for BUILD, and HOST iff REAL_BUILD == REAL_HOST
@@ -485,6 +485,7 @@ if [ -z "${CT_RESTART}" ]; then
                     # If any other is missing, only warn at low level
                     *)
                         # It does not deserve a WARN level.
+                        # TBD Do we want to check for tools required by specific languages here? i.e gnat* if Ada is selected.
                         CT_DoLog DEBUG "  Missing: '${t}${tool}${!s}' or '${t}${tool}' or '${tool}' : not required."
                         ;;
                 esac
