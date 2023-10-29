@@ -1,5 +1,5 @@
 # ===========================================================================
-#   Based on:  https://www.gnu.org/software/autoconf-archive/ctng_python.html
+#   Based on:  https://www.gnu.org/software/autoconf-archive/ax_python.html
 # ===========================================================================
 #
 # SYNOPSIS
