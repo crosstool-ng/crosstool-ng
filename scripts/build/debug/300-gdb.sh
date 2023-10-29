@@ -348,7 +348,11 @@ do_gdb_backend()
         "${extra_config[@]}"                        \
 
     if [ "${static}" = "y" ]; then
-        extra_make_flags+=("LDFLAGS=${ldflags} -all-static")
+        if [ "${GDB_CC_LD_LIBTOOL}" = "y" ]; then
+            extra_make_flags+=("LDFLAGS=${ldflags} -all-static")
+        else
+            extra_make_flags+=("LDFLAGS=${ldflags} -static")
+        fi
         CT_DoLog EXTRA "Prepare gdb for static build"
         CT_DoExecLog ALL make ${CT_JOBSFLAGS} configure-host
     fi
