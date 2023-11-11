@@ -1112,15 +1112,17 @@ EOF
 	GUESS=sparc-unknown-linux-$LIBC
 	;;
     parisc64:Linux:*:* | hppa64:Linux:*:*)
-	GUESS=hppa64-unknown-linux-$LIBC
+	# We have a 64-bit kernel supporting 32 and 64-bit code.
+	if echo __LP64__ | (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) |
+	    grep -q __LP64__
+	then
+	    GUESS=hppa-unknown-linux-$LIBC
+	else
+	    GUESS=hppa64-unknown-linux-$LIBC
+	fi
 	;;
     parisc:Linux:*:* | hppa:Linux:*:*)
-	# Look for CPU level
-	case `grep '^cpu[^a-z]*:' /proc/cpuinfo 2>/dev/null | cut -d' ' -f2` in
-	  PA7*) GUESS=hppa1.1-unknown-linux-$LIBC ;;
-	  PA8*) GUESS=hppa2.0-unknown-linux-$LIBC ;;
-	  *)    GUESS=hppa-unknown-linux-$LIBC ;;
-	esac
+	GUESS=hppa-unknown-linux-$LIBC
 	;;
     ppc64:Linux:*:*)
 	GUESS=powerpc64-unknown-linux-$LIBC
