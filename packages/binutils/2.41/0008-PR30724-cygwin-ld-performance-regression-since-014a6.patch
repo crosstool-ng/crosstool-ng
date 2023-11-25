@@ -1,0 +1,156 @@
+From 226f2e6b924612ecbdb7dfe4f3ca611116ed77f4 Mon Sep 17 00:00:00 2001
+From: Alan Modra <amodra@gmail.com>
+Date: Mon, 7 Aug 2023 08:28:55 +0930
+Subject: [PATCH] PR30724, cygwin ld performance regression since 014a602b86
+
+According to the reporter of this bug the newlib fseek implementation
+is likely slowed down by locking and fflush, only attempting to
+optimise seeks when the file is opened read-only.  Thus when writing
+the output we get a dramatic slowdown due to commit 014a602b86.
+
+	PR 30724
+	* bfd.c (enum bfd_last_io): New.
+	(struct bfd): Add last_io field.
+	* bfd-in2.h: Regenerate.
+	* bfd-io.c (bfd_bread, bfd_bwrite): Force seek if last_io is
+	opposite direction.
+	(bfd_seek): Reinstate optimisation for seek to same position.
+
+(cherry picked from commit f82ee0c8dc4ee32556e23e6cd83ef083618f704f)
+---
+ bfd/bfd-in2.h | 22 ++++++++++++++++++++++
+ bfd/bfd.c     | 22 ++++++++++++++++++++++
+ bfd/bfdio.c   | 23 +++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)
+
+diff --git a/bfd/bfd-in2.h b/bfd/bfd-in2.h
+index b34c8ef9fc9..4128972fe49 100644
+--- a/bfd/bfd-in2.h
++++ b/bfd/bfd-in2.h
+@@ -1913,6 +1913,14 @@ enum bfd_direction
+     both_direction = 3
+   };
+ 
++enum bfd_last_io
++  {
++    bfd_io_seek = 0,
++    bfd_io_read = 1,
++    bfd_io_write = 2,
++    bfd_io_force = 3
++  };
++
+ enum bfd_plugin_format
+   {
+     bfd_plugin_unknown = 0,
+@@ -2065,6 +2073,20 @@ struct bfd
+   /* The direction with which the BFD was opened.  */
+   ENUM_BITFIELD (bfd_direction) direction : 2;
+ 
++  /* POSIX.1-2017 (IEEE Std 1003.1) says of fopen : "When a file is
++     opened with update mode ('+' as the second or third character in
++     the mode argument), both input and output may be performed on
++     the associated stream.  However, the application shall ensure
++     that output is not directly followed by input without an
++     intervening call to fflush() or to a file positioning function
++     (fseek(), fsetpos(), or rewind()), and input is not directly
++     followed by output without an intervening call to a file
++     positioning function, unless the input operation encounters
++     end-of-file."
++     This field tracks the last IO operation, so that bfd can insert
++     a seek when IO direction changes.  */
++  ENUM_BITFIELD (bfd_last_io) last_io : 2;
++
+   /* Is the file descriptor being cached?  That is, can it be closed as
+      needed, and re-opened when accessed later?  */
+   unsigned int cacheable : 1;
+diff --git a/bfd/bfd.c b/bfd/bfd.c
+index e43a388ac72..88943a042d6 100644
+--- a/bfd/bfd.c
++++ b/bfd/bfd.c
+@@ -53,6 +53,14 @@ EXTERNAL
+ .    both_direction = 3
+ .  };
+ .
++.enum bfd_last_io
++.  {
++.    bfd_io_seek = 0,
++.    bfd_io_read = 1,
++.    bfd_io_write = 2,
++.    bfd_io_force = 3
++.  };
++.
+ .enum bfd_plugin_format
+ .  {
+ .    bfd_plugin_unknown = 0,
+@@ -208,6 +216,20 @@ CODE_FRAGMENT
+ .  {* The direction with which the BFD was opened.  *}
+ .  ENUM_BITFIELD (bfd_direction) direction : 2;
+ .
++.  {* POSIX.1-2017 (IEEE Std 1003.1) says of fopen : "When a file is
++.     opened with update mode ('+' as the second or third character in
++.     the mode argument), both input and output may be performed on
++.     the associated stream.  However, the application shall ensure
++.     that output is not directly followed by input without an
++.     intervening call to fflush() or to a file positioning function
++.     (fseek(), fsetpos(), or rewind()), and input is not directly
++.     followed by output without an intervening call to a file
++.     positioning function, unless the input operation encounters
++.     end-of-file."
++.     This field tracks the last IO operation, so that bfd can insert
++.     a seek when IO direction changes.  *}
++.  ENUM_BITFIELD (bfd_last_io) last_io : 2;
++.
+ .  {* Is the file descriptor being cached?  That is, can it be closed as
+ .     needed, and re-opened when accessed later?  *}
+ .  unsigned int cacheable : 1;
+diff --git a/bfd/bfdio.c b/bfd/bfdio.c
+index 22c39a7b0cc..e0d47b3ee1c 100644
+--- a/bfd/bfdio.c
++++ b/bfd/bfdio.c
+@@ -279,6 +279,14 @@ bfd_bread (void *ptr, bfd_size_type size, bfd *abfd)
+       return -1;
+     }
+ 
++  if (abfd->last_io == bfd_io_write)
++    {
++      abfd->last_io = bfd_io_force;
++      if (bfd_seek (abfd, 0, SEEK_CUR) != 0)
++	return -1;
++    }
++  abfd->last_io = bfd_io_read;
++
+   nread = abfd->iovec->bread (abfd, ptr, size);
+   if (nread != -1)
+     abfd->where += nread;
+@@ -313,6 +321,14 @@ bfd_bwrite (const void *ptr, bfd_size_type size, bfd *abfd)
+       return -1;
+     }
+ 
++  if (abfd->last_io == bfd_io_read)
++    {
++      abfd->last_io = bfd_io_force;
++      if (bfd_seek (abfd, 0, SEEK_CUR) != 0)
++	return -1;
++    }
++  abfd->last_io = bfd_io_write;
++
+   nwrote = abfd->iovec->bwrite (abfd, ptr, size);
+   if (nwrote != -1)
+     abfd->where += nwrote;
+@@ -456,6 +472,13 @@ bfd_seek (bfd *abfd, file_ptr position, int direction)
+   if (direction != SEEK_CUR)
+     position += offset;
+ 
++  if (((direction == SEEK_CUR && position == 0)
++       || (direction == SEEK_SET && (ufile_ptr) position == abfd->where))
++      && abfd->last_io != bfd_io_force)
++    return 0;
++
++  abfd->last_io = bfd_io_seek;
++
+   result = abfd->iovec->bseek (abfd, position, direction);
+   if (result != 0)
+     {
+-- 
+2.43.0
+
