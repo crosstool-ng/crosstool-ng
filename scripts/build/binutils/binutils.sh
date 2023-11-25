@@ -295,7 +295,7 @@ do_elf2flt_backend() {
         --prefix=${prefix}                                      \
         --with-bfd-include-dir=${binutils_bld}/bfd              \
         --with-binutils-include-dir=${binutils_src}/include     \
-        --with-libbfd=${binutils_bld}/bfd/libbfd.a              \
+        --with-libbfd=${binutils_bld}/bfd/.libs/libbfd.a        \
         --with-libiberty=${binutils_bld}/libiberty/libiberty.a  \
         --disable-werror                                        \
         ${elf2flt_opts}                                         \
