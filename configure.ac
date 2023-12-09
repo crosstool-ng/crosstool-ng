@@ -161,10 +161,6 @@ AC_CHECK_PROGS([ninja], [ninja])
 CTNG_SET_KCONFIG_OPTION([ninja])
 AC_SUBST([ninja])
 
-AC_CHECK_PROGS([rsync], [rsync])
-CTNG_SET_KCONFIG_OPTION([rsync])
-AC_SUBST([rsync])
-
 CTNG_CPU_COUNT
 
 CTNG_PATH_TOOL_REQ([PATCH], [gpatch patch], [patch])
