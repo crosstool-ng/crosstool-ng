@@ -92,8 +92,6 @@ do_zlib_backend() {
         cp -av "${CT_SRC_DIR}/zlib/." .
         extra_make=( -f win32/Makefile.gcc \
             PREFIX="${host}-" \
-            SHAREDLIB= \
-            IMPLIB= \
             LIBRARY_PATH="${prefix}/lib" \
             INCLUDE_PATH="${prefix}/include" \
             BINARY_PATH="${prefix}/bin" \
