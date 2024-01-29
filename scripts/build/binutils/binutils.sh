@@ -182,10 +182,6 @@ do_binutils_backend() {
         extra_config+=("--without-zstd")
     fi
 
-    # Disable usage of glob for higher compatibility.
-    # Not strictly needed for anything but GDB anyways.
-    export ac_cv_func_glob=no
-
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
     CT_DoExecLog CFG                                            \
