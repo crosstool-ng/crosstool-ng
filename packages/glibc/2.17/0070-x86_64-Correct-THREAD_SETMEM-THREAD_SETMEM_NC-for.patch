@@ -1,0 +1,60 @@
+From e812eaa1ce27f2a7d07f75b2306c263b53d35816 Mon Sep 17 00:00:00 2001
+From: Artem Panfilov <artem.panfilov@nokia.com>
+Date: Wed, 31 Jan 2024 16:02:06 +0200
+Subject: [PATCH] x86_64: Correct THREAD_SETMEM/THREAD_SETMEM_NC for movq [BZ
+ #27591]
+
+config/i386/constraints.md in GCC has
+
+(define_constraint "e"
+  "32-bit signed integer constant, or a symbolic reference known
+   to fit that range (for immediate operands in sign-extending x86-64
+   instructions)."
+  (match_operand 0 "x86_64_immediate_operand"))
+
+Since movq takes a signed 32-bit immediate or a register source operand,
+use "er", instead of "nr"/"ir", constraint for 32-bit signed integer
+constant or register on movq.
+
+Note: this patch is backported from:
+https://github.com/bminor/glibc/commit/b1ec623ed50bb8c7b9b6333fa350c3866dbde87f
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+Signed-off-by: Artem Panfilov <artem.panfilov@nokia.com>
+---
+ nptl/sysdeps/x86_64/tls.h | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/nptl/sysdeps/x86_64/tls.h b/nptl/sysdeps/x86_64/tls.h
+index f3b76495b3..ec14b70b6f 100644
+--- a/nptl/sysdeps/x86_64/tls.h
++++ b/nptl/sysdeps/x86_64/tls.h
+@@ -263,8 +263,11 @@ typedef struct
+ 	      4 or 8.  */						      \
+ 	   abort ();							      \
+ 									      \
++	 /* Since movq takes a signed 32-bit immediate or a register source   \
++	    operand, use "er" constraint for 32-bit signed integer constant   \
++	    or register.  */						      \
+ 	 asm volatile ("movq %q0,%%fs:%P1" :				      \
+-		       : IMM_MODE ((uint64_t) cast_to_integer (value)),	      \
++		       : "er" ((uint64_t) cast_to_integer (value)),	      \
+ 			 "i" (offsetof (struct pthread, member)));	      \
+        }})
+ 
+@@ -288,8 +291,11 @@ typedef struct
+ 	      4 or 8.  */						      \
+ 	   abort ();							      \
+ 									      \
++	 /* Since movq takes a signed 32-bit immediate or a register source   \
++	    operand, use "er" constraint for 32-bit signed integer constant   \
++	    or register.  */						      \
+ 	 asm volatile ("movq %q0,%%fs:%P1(,%q2,8)" :			      \
+-		       : IMM_MODE ((uint64_t) cast_to_integer (value)),	      \
++		       : "er" ((uint64_t) cast_to_integer (value)),	      \
+ 			 "i" (offsetof (struct pthread, member[0])),	      \
+ 			 "r" (idx));					      \
+        }})
+-- 
+2.39.2
+
