@@ -264,7 +264,7 @@ fi
 
 # Good, now grab a bit of informations on the system we're being run on,
 # just in case something goes awok, and it's not our fault:
-CT_SYS_USER=$(id -un)
+CT_SYS_USER=$(id -un 2>/dev/null || echo "unknown")
 CT_SYS_HOSTNAME=$(hostname -f 2>/dev/null || true)
 # Hmmm. Some non-DHCP-enabled machines do not have an FQDN... Fall back to node name.
 CT_SYS_HOSTNAME="${CT_SYS_HOSTNAME:-$(uname -n)}"
