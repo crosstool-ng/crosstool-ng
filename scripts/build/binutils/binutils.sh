@@ -182,6 +182,16 @@ do_binutils_backend() {
         extra_config+=("--without-zstd")
     fi
 
+    # gold links with CXXLINK/g++, not libtool, and does not understand
+    # -all-static
+    if [ "${static_build}" = "y" ]; then
+        case "${CT_BINUTILS_LINKERS_LIST}" in
+            *gold*)
+                extra_config+=("--with-gold-ldflags=--static")
+                ;;
+        esac
+    fi
+
     # Disable usage of glob for higher compatibility.
     # Not strictly needed for anything but GDB anyways.
     export ac_cv_func_glob=no
@@ -215,6 +225,13 @@ do_binutils_backend() {
     fi
 
     CT_DoLog EXTRA "Building binutils"
+    if [ "${static_build}" = "y" ]; then
+        case "${CT_BINUTILS_LINKERS_LIST}" in
+            *gold*)
+                CT_DoExecLog ALL make -C gold ${CT_JOBSFLAGS}
+                ;;
+        esac
+    fi
     CT_DoExecLog ALL make "${extra_make_flags[@]}" ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing binutils"
