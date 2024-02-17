@@ -361,11 +361,16 @@ if [ -z "${CT_RESTART}" ]; then
         # binutils 2.14 and later obey it, older binutils ignore it.
         # Lets you build a working 32->64 bit cross gcc
         CT_BINUTILS_SYSROOT_ARG="--with-sysroot=${CT_SYSROOT_DIR}"
-        CT_CC_CORE_SYSROOT_ARG=("--without-headers")
-        if [ "${CT_LIBC_GLIBC}" = "y" ]; then
-            # Use --with-headers, else final gcc will define disable_glibc while
-            # building libgcc, and you'll have no profiling
-            CT_CC_SYSROOT_ARG=("--with-headers=${CT_HEADERS_DIR}")
+        if [ "${CT_CANADIAN}" = "y" -o "${CT_CROSS_NATIVE}" = "y" ]; then
+            CT_CC_CORE_SYSROOT_ARG=("--with-sysroot=${CT_SYSROOT_DIR}" "--with-native-system-header-dir=/include")
+            CT_CC_SYSROOT_ARG=("--with-sysroot=${CT_SYSROOT_DIR}" "--with-native-system-header-dir=/include")
+        else
+            CT_CC_CORE_SYSROOT_ARG=("--without-headers")
+            if [ "${CT_LIBC_GLIBC}" = "y" ]; then
+                # Use --with-headers, else final gcc will define disable_glibc while
+                # building libgcc, and you'll have no profiling
+                CT_CC_SYSROOT_ARG=("--with-headers=${CT_HEADERS_DIR}")
+            fi
         fi
     fi
     CT_DoExecLog ALL mkdir -p "${CT_SYSROOT_DIR}"
