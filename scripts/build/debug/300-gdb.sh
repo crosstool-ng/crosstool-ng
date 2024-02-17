@@ -66,8 +66,8 @@ do_debug_gdb_build()
         # version of expat and will attempt to link that, despite the -static flag.
         # The link will fail, and configure will abort with "expat missing or unusable"
         # message.
-        extra_config+=("--with-expat")
-        extra_config+=("--without-libexpat-prefix")
+        cross_extra_config+=("--with-expat")
+        cross_extra_config+=("--without-libexpat-prefix")
 
         # ct-ng always builds ncurses in cross mode as a static library.
         # Starting from the patchset 20200718 ncurses defines a special macro
