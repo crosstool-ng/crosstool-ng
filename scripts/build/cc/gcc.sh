@@ -1073,16 +1073,21 @@ do_gcc_backend() {
         extra_config+=("--with-host-libstdcxx=${host_libstdcxx_flags[*]}")
     fi
 
-    if [ "${CT_THREADS}" = "none" ]; then
+    case "${CT_THREADS}" in
+    none)
         extra_config+=("--disable-threads")
-    else
-        if [ "${CT_THREADS}" = "win32" ]; then
-            extra_config+=("--enable-threads=win32")
-            extra_config+=("--disable-win32-registry")
-        else
-            extra_config+=("--enable-threads=posix")
-        fi
-    fi
+        ;;
+    win32)
+        extra_config+=("--enable-threads=win32")
+        extra_config+=("--disable-win32-registry")
+        ;;
+    c11)
+        extra_config+=("--enable-threads=c11")
+        ;;
+    *)
+        extra_config+=("--enable-threads=posix")
+        ;;
+    esac
 
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
        [ "${enable_optspace}" = "yes" ]; then
