@@ -249,8 +249,8 @@ glibc_backend_once()
             build_cppflags="${build_cppflags} -I${CT_BUILDTOOLS_PREFIX_DIR}/include/"
             build_ldflags="${build_ldflags} -lintl -liconv"
             case "$CT_BUILD" in
-                *cygwin*|*freebsd*)
-                # Additionally, stat in FreeBSD, Cygwin, and possibly others
+                *cygwin*|*freebsd*|aarch64*darwin*)
+                # Additionally, stat in FreeBSD, Cygwin, Darwin arm64 and possibly others
                 # is always 64bit, so replace struct stat64 with stat.
                 build_cppflags="${build_cppflags} -Dstat64=stat"
                 ;;
