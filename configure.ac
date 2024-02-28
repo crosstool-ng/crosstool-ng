@@ -171,12 +171,12 @@ AS_IF([$PATCH --no-backup-if-mismatch </dev/null >/dev/null 2>&1],
       AC_MSG_RESULT([yes]),
       AC_MSG_ERROR([$PATCH does not support --no-backup-if-mismatch]))
 
-# We need a bash that is >= 3.1
+# We need a bash that is >= 4.0
 CTNG_PROG_VERSION_REQ_STRICT([BASH_SHELL],
-    [GNU bash >= 3.1],
+    [GNU bash >= 4.0],
     [bash],
     [bash],
-    [^GNU bash, version (3\.[1-9]|4|5)])
+    [^GNU bash, version (4|5)])
 
 # We need a awk that *is* GNU awk
 CTNG_PROG_VERSION_REQ_STRICT([AWK],
