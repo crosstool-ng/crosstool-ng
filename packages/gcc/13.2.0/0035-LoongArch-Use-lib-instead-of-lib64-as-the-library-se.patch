@@ -1,0 +1,80 @@
+From 2f7d4728dbfd976788f77b8f43d4dc3c718b71b7 Mon Sep 17 00:00:00 2001
+From: Yang Yujie <yangyujie@loongson.cn>
+Date: Wed, 6 Mar 2024 09:19:59 +0800
+Subject: [PATCH] LoongArch: Use /lib instead of /lib64 as the library search
+ path for MUSL.
+
+gcc/ChangeLog:
+
+	* config.gcc: Add a case for loongarch*-*-linux-musl*.
+	* config/loongarch/linux.h: Disable the multilib-compatible
+	treatment for *musl* targets.
+	* config/loongarch/musl.h: New file.
+---
+ gcc/config.gcc               |  3 +++
+ gcc/config/loongarch/linux.h |  4 +++-
+ gcc/config/loongarch/musl.h  | 23 +++++++++++++++++++++++
+ 3 files changed, 29 insertions(+), 1 deletion(-)
+ create mode 100644 gcc/config/loongarch/musl.h
+
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 648b3dc21..73ce82698 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -2478,6 +2478,9 @@ riscv*-*-freebsd*)
+ 
+ loongarch*-*-linux*)
+ 	tm_file="elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h ${tm_file}"
++	case ${target} in
++	  *-linux-musl*) tm_file="${tm_file} loongarch/musl.h"
++	esac
+ 	tm_file="${tm_file} loongarch/gnu-user.h loongarch/linux.h"
+ 	extra_options="${extra_options} linux-android.opt"
+ 	tmake_file="${tmake_file} loongarch/t-linux"
+diff --git a/gcc/config/loongarch/linux.h b/gcc/config/loongarch/linux.h
+index 9059d2441..f01d6f750 100644
+--- a/gcc/config/loongarch/linux.h
++++ b/gcc/config/loongarch/linux.h
+@@ -21,7 +21,9 @@ along with GCC; see the file COPYING3.  If not see
+  * This ensures that a compiler configured with --disable-multilib
+  * can work in a multilib environment.  */
+ 
+-#if defined(LA_DISABLE_MULTILIB) && defined(LA_DISABLE_MULTIARCH)
++#if !defined(LA_DEFAULT_TARGET_MUSL) \
++  && defined(LA_DISABLE_MULTILIB) \
++  && defined(LA_DISABLE_MULTIARCH)
+ 
+   #if DEFAULT_ABI_BASE == ABI_BASE_LP64D
+     #define ABI_LIBDIR "lib64"
+diff --git a/gcc/config/loongarch/musl.h b/gcc/config/loongarch/musl.h
+new file mode 100644
+index 000000000..fa43bc866
+--- /dev/null
++++ b/gcc/config/loongarch/musl.h
+@@ -0,0 +1,23 @@
++/* Definitions for MUSL C library support.
++   Copyright (C) 2024 Free Software Foundation, Inc.
++
++This file is part of GCC.
++
++GCC is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; either version 3, or (at your option)
++any later version.
++
++GCC is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with GCC; see the file COPYING3.  If not see
++<http://www.gnu.org/licenses/>.  */
++
++
++#ifndef LA_DEFAULT_TARGET_MUSL
++#define LA_DEFAULT_TARGET_MUSL
++#endif
+-- 
+2.44.0
+
