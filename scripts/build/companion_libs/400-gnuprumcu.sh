@@ -19,6 +19,22 @@ do_gnuprumcu_extract() {
 
 do_gnuprumcu_for_target() {
     local -a gnuprumcu_opts
+    local -a cflags
+
+    cflags=${CT_ALL_TARGET_CFLAGS}
+
+    # When building a canadian, newlib is installed
+    # only in the host' sysroot.  Thus the build toolchain
+    # lacks CRT0 and LibC objects.  Consequently the
+    # gnuprumcu configure script fails with:
+    #      .../ld: cannot find crt0.o: No such file or directory
+    #      configure:3738: error: C compiler cannot create executables
+    #
+    # Fix by pointing the build toolchain to the host sysroot,
+    # where the necessary target runtime files are available.
+    case "${CT_TOOLCHAIN_TYPE}" in
+        canadian)   cflags="${cflags} --sysroot=${CT_SYSROOT_DIR}";;
+    esac
 
     CT_DoStep INFO "Installing gnuprumcu for the target"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-gnuprumcu-target-${CT_TARGET}"
@@ -26,7 +42,8 @@ do_gnuprumcu_for_target() {
     gnuprumcu_opts+=( "destdir=${CT_SYSROOT_DIR}" )
     gnuprumcu_opts+=( "host=${CT_TARGET}" )
 
-    gnuprumcu_opts+=( "cflags=${CT_ALL_TARGET_CFLAGS}" )
+    gnuprumcu_opts+=( "cflags=${cflags}" )
+    gnuprumcu_opts+=( "ldflags=${CT_ALL_TARGET_LDFLAGS}" )
     gnuprumcu_opts+=( "prefix=${CT_PREFIX_DIR}" )
     do_gnuprumcu_backend "${gnuprumcu_opts[@]}"
 
