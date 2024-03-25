@@ -65,7 +65,7 @@ bash-completion/ct-ng: bash-completion/ct-ng.in Makefile
 # Also, lintian is picky about execute-bit on the scripts
 install-data-hook:
 	rm -f $(DESTDIR)$(man1dir)/$(ctng_progname).1.gz
-	gzip -9 $(DESTDIR)$(man1dir)/$(ctng_progname).1
+	gzip -n -9 $(DESTDIR)$(man1dir)/$(ctng_progname).1
 	chmod a+x $(DESTDIR)$(pkgdatadir)/scripts/config.guess
 	chmod a+x $(DESTDIR)$(pkgdatadir)/scripts/config.sub
 	rm -f $(DESTDIR)$(pkgdatadir)/LICENSE
