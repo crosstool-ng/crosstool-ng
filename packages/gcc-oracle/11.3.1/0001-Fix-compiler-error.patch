@@ -1,0 +1,92 @@
+This patch is a backport from gcc
+
+This code is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 3, or (at your option) any
+later version.
+
+This code is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+diff -Nur gcc/gcc/doc/gcc.texi gcc-oracle/gcc/doc/gcc.texi
+--- gcc/gcc/doc/gcc.texi	2022-05-31 22:24:28.784639836 -0500
++++ gcc-oracle/gcc/doc/gcc.texi	2022-05-31 22:25:14.695834317 -0500
+@@ -85,9 +85,9 @@
+ @item GNU Press
+ @tab Website: www.gnupress.org
+ @item a division of the
+-@tab General: @tex press@@gnu.org @end tex
++@tab General: @email{press@@gnu.org}
+ @item Free Software Foundation
+-@tab Orders:  @tex sales@@gnu.org @end tex
++@tab Orders:  @email{sales@@gnu.org}
+ @item 51 Franklin Street, Fifth Floor
+ @tab Tel 617-542-5942
+ @item Boston, MA 02110-1301 USA
+diff -Nur gcc/gcc/reload.h gcc-oracle/gcc/reload.h
+--- gcc/gcc/reload.h	2022-05-31 22:24:27.924654669 -0500
++++ gcc-oracle/gcc/reload.h	2022-05-31 22:25:14.695834317 -0500
+@@ -166,7 +166,7 @@
+      value indicates the level of indirect addressing supported, e.g., two
+      means that (MEM (MEM (REG n))) is also valid if (REG n) does not get
+      a hard register.  */
+-  bool x_spill_indirect_levels;
++  unsigned char x_spill_indirect_levels;
+ 
+   /* True if caller-save has been reinitialized.  */
+   bool x_caller_save_initialized_p;
+diff -Nur gcc/libgcc/config/i386/linux-unwind.h gcc-oracle/libgcc/config/i386/linux-unwind.h
+--- gcc/libgcc/config/i386/linux-unwind.h	2022-05-31 22:24:27.100668870 -0500
++++ gcc-oracle/libgcc/config/i386/linux-unwind.h	2022-05-31 22:25:14.695834317 -0500
+@@ -58,7 +58,7 @@
+   if (*(unsigned char *)(pc+0) == 0x48
+       && *(unsigned long long *)(pc+1) == RT_SIGRETURN_SYSCALL)
+     {
+-      struct ucontext *uc_ = context->cfa;
++      struct ucontext_t *uc_ = context->cfa;
+       /* The void * cast is necessary to avoid an aliasing warning.
+          The aliasing warning is correct, but should not be a problem
+          because it does not alias anything.  */
+@@ -138,7 +138,7 @@
+ 	siginfo_t *pinfo;
+ 	void *puc;
+ 	siginfo_t info;
+-	struct ucontext uc;
++	struct ucontext_t uc;
+       } *rt_ = context->cfa;
+       /* The void * cast is necessary to avoid an aliasing warning.
+          The aliasing warning is correct, but should not be a problem
+diff -Nur gcc/libgcc/unwind-dw2.c gcc-oracle/libgcc/unwind-dw2.c
+--- gcc/libgcc/unwind-dw2.c	2022-05-31 22:24:27.088669076 -0500
++++ gcc-oracle/libgcc/unwind-dw2.c	2022-05-31 22:25:14.695834317 -0500
+@@ -931,6 +931,17 @@
+   return stack[stack_elt];
+ }
+ 
++#define DWARF_REGNUM_AARCH64_RA_STATE 34
++
++#define MD_POST_EXTRACT_ROOT_ADDR(addr) \
++   ({ void *__addr; asm ("mov x30, %0; hint 7; mov %0, x30" \
++                              : "=r" (__addr) : "0" (addr) : "x30", "cc"); __addr; })
++#define MD_POST_EXTRACT_FRAME_ADDR(context, fs, addr) \
++   aarch64_post_extract_frame_addr (context, fs, addr)
++#define MD_POST_FROB_EH_HANDLER_ADDR(current, target, addr) \
++   aarch64_post_frob_eh_handler_addr (current, target, addr)
++#define MD_FROB_UPDATE_CONTEXT(context, fs) \
++   aarch64_frob_update_context (context, fs)
+ 
+ /* Decode DWARF 2 call frame information. Takes pointers the
+    instruction sequence to decode, current register information and
+diff -Nur gcc/libsanitizer/asan/asan_linux.cc gcc-oracle/libsanitizer/asan/asan_linux.cc
+--- gcc/libsanitizer/asan/asan_linux.cc	2022-05-31 22:24:28.852638665 -0500
++++ gcc-oracle/libsanitizer/asan/asan_linux.cc	2022-05-31 22:25:14.695834317 -0500
+@@ -28,6 +28,7 @@
+ #include <stdio.h>
+ #include <unistd.h>
+ #include <unwind.h>
++#include <signal.h>
+ 
+ #if !ASAN_ANDROID
+ // FIXME: where to get ucontext on Android?
