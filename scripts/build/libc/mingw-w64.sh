@@ -208,6 +208,7 @@ mingw_w64_main()
         --prefix=${MINGW_INSTALL_PREFIX} \
         --build=${CT_BUILD} \
         --host=${CT_TARGET} \
+        --enable-wildcard \
         "${crt_opts[@]}"
 
     # mingw-w64-crt has a missing dependency occasionally breaking the
