@@ -31,6 +31,7 @@ do_binutils_for_build() {
 
     binutils_opts+=( "host=${CT_BUILD}" )
     binutils_opts+=( "prefix=${CT_BUILDTOOLS_PREFIX_DIR}" )
+    binutils_opts+=( "complibs=${CT_BUILDTOOLS_PREFIX_DIR}" )
     binutils_opts+=( "cflags=${CT_CFLAGS_FOR_BUILD}" )
     binutils_opts+=( "ldflags=${CT_LDFLAGS_FOR_BUILD}" )
 
@@ -62,6 +63,7 @@ do_binutils_for_host() {
 
     binutils_opts+=( "host=${CT_HOST}" )
     binutils_opts+=( "prefix=${CT_PREFIX_DIR}" )
+    binutils_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
     binutils_opts+=( "static_build=${CT_STATIC_TOOLCHAIN}" )
     binutils_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
     binutils_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
@@ -108,6 +110,7 @@ do_binutils_for_host() {
 #     Parameter     : description               : type      : default
 #     host          : machine to run on         : tuple     : (none)
 #     prefix        : prefix to install into    : dir       : (none)
+#     complibs      : the companion libraries   : dir       : (none)
 #     static_build  : build statcially          : bool      : no
 #     cflags        : cflags to use             : string    : (empty)
 #     ldflags       : ldflags to use            : string    : (empty)
@@ -115,6 +118,7 @@ do_binutils_for_host() {
 do_binutils_backend() {
     local host
     local prefix
+    local complibs
     local static_build
     local cflags
     local ldflags

@@ -148,7 +148,7 @@ do_debug_gdb_build()
         fi
 
         if [ "${CT_COMP_LIBS_ZSTD}" = "y" ]; then
-            native_extra_config+=("--with-zstd=${complibs}")
+            native_extra_config+=("--with-zstd=${CT_HOST_COMPLIBS_DIR}")
         else
             native_extra_config+=("--without-zstd")
         fi
