@@ -1,0 +1,95 @@
+From fd6aa8e67aec185b0d84ba9551fd38c90c9d6d8a Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Fri, 26 Aug 2022 14:30:03 -0700
+Subject: [PATCH] driver: Extend 'getenv' function to allow default value
+
+Right now, a missing environment variable provided to the 'getenv'
+function in a .specs file causes a fatal error. That makes writing a
+spec file that uses the GCC_EXEC_PREFIX value difficult as that
+variable is only set when the driver has been relocated, but not when
+run from the defined location. This makes building a relocatable
+toolchain difficult to extend to other ancilary pieces which use specs
+files to locate header and library files adjacent to the toolchain.
+
+This patch adds an optional third argument to the getenv function that
+can be used to fall back to the standard installation path when the
+driver hasn't set GCC_EXEC_PREFIX in the environment.
+
+For example, if an alternate C library is installed in
+${prefix}/extra, then this change allows the specs file to locate that
+relative to the gcc directory, if gcc is located in the original
+installation directory (which would leave GCC_EXEC_PREFIX unset), or
+if the gcc tree has been moved to a different location (where gcc
+would set GCC_EXEC_PREFIX itself):
+
+*cpp:
+-isystem %:getenv(GCC_EXEC_PREFIX ../../extra/include ${prefix}/extra/include)
+
+I considered changing the behavior of either the %R sequence so that
+it had a defined behavior when there was no sysroot defined, or making
+the driver always set the GCC_EXEC_PREFIX environment variable and
+decided that the approach of adding functionality to getenv where it
+was previously invalid would cause the least potential for affecting
+existing usage.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/doc/invoke.texi |   18 +++++++++++-------
+ gcc/gcc.cc          |   10 +++++++++-
+ 2 files changed, 20 insertions(+), 8 deletions(-)
+
+--- a/gcc/doc/invoke.texi
++++ b/gcc/doc/invoke.texi
+@@ -34814,17 +34814,21 @@
+ 
+ @table @code
+ @item @code{getenv}
+-The @code{getenv} spec function takes two arguments: an environment
+-variable name and a string.  If the environment variable is not
+-defined, a fatal error is issued.  Otherwise, the return value is the
+-value of the environment variable concatenated with the string.  For
+-example, if @env{TOPDIR} is defined as @file{/path/to/top}, then:
++
++The @code{getenv} spec function takes two or three arguments: an
++environment variable name, a string and an optional default value.  If
++the environment variable is not defined and a default value is
++provided, that is used as the return value; otherwise a fatal error is
++issued.  Otherwise, the return value is the value of the environment
++variable concatenated with the string.  For example, if @env{TOPDIR}
++is defined as @file{/path/to/top}, then:
+ 
+ @smallexample
+-%:getenv(TOPDIR /include)
++%:getenv(TOPDIR /include /path/to/default/include)
+ @end smallexample
+ 
+-expands to @file{/path/to/top/include}.
++expands to @file{/path/to/top/include}. If @env{TOPDIR} is not
++defined, then this expands to @file{/path/to/default/include}.
+ 
+ @item @code{if-exists}
+ The @code{if-exists} spec function takes one argument, an absolute
+--- a/gcc/gcc.cc
++++ b/gcc/gcc.cc
+@@ -10155,12 +10155,20 @@
+   char *ptr;
+   size_t len;
+ 
+-  if (argc != 2)
++  if (argc != 2 && argc != 3)
+     return NULL;
+ 
+   varname = argv[0];
+   value = env.get (varname);
+ 
++  if (!value && argc == 3)
++    {
++      value = argv[2];
++      result = XNEWVAR(char, strlen(value) + 1);
++      strcpy(result, value);
++      return result;
++    }
++
+   /* If the variable isn't defined and this is allowed, craft our expected
+      return value.  Assume variable names used in specs strings don't contain
+      any active spec character so don't need escaping.  */
