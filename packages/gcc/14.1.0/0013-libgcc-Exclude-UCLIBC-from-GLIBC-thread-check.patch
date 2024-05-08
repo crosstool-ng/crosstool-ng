@@ -1,0 +1,35 @@
+From d901175d36221fbf79a0eb8305823b88243b829c Mon Sep 17 00:00:00 2001
+From: Chris Packham <chris.packham@alliedtelesis.co.nz>
+Date: Thu, 7 Sep 2023 19:26:49 +1200
+Subject: [PATCH] libgcc: Exclude UCLIBC from GLIBC thread check
+
+UBLIBC defines __GLIBC__ but also marks __pthread_key_create() as
+protected. Leading to link errors with newer binutils such as:
+
+  ld.bfd: isl_test_cpp17.o: non-canonical reference to canonical protected function `__pthread_key_create' in x86_64-multilib-linux-uclibc/sysroot/lib64/libc.so.1
+  ld.bfd: failed to set dynamic section sizes: bad value
+
+Add a condition on !__UCLIBC__ when selecting a symbol to detect pthread
+usage so it picks the intended pthread_cancel().
+
+Signed-off-by: Chris Packham <chris.packham@alliedtelesis.co.nz>
+---
+ libgcc/gthr-posix.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libgcc/gthr-posix.h b/libgcc/gthr-posix.h
+index aebcfdd9f4ca..087a631d308d 100644
+--- a/libgcc/gthr-posix.h
++++ b/libgcc/gthr-posix.h
+@@ -233,7 +233,7 @@ __gthread_active_p (void)
+    library does not provide pthread_cancel, so we do use pthread_create
+    there (and interceptor libraries lose).  */
+ 
+-#ifdef __GLIBC__
++#if defined(__GLIBC__) && !defined(__UCLIBC__)
+ __gthrw2(__gthrw_(__pthread_key_create),
+ 	 __pthread_key_create,
+ 	 pthread_key_create)
+-- 
+2.42.0
+
