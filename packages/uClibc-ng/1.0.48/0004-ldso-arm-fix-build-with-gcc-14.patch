@@ -1,0 +1,55 @@
+From 44aee04d7864da97a79fc41eeac0695d5f21f861 Mon Sep 17 00:00:00 2001
+From: Max Filippov <jcmvbkbc@gmail.com>
+Date: Wed, 1 May 2024 04:35:20 -0700
+Subject: [PATCH 4/7] ldso: arm: fix build with gcc-14
+
+With gcc-14 warnings caused by type mismatches turn to errors:
+- got_entry is a pointer in the _dl_linux_resolver(), but the function
+  _dl_linux_resolver() returns unsigned long. Convert got_entry to
+  unsigned long when returning
+- first argument of _dl_funcdesc_for() is a pointer, but (symbol_addr +
+  reloc_value) is unsigned long in the _dl_do_reloc(). Convert function
+  argument to (void *)
+- struct funcdesc_value::entry_point is a pointer, but DL_RELOC_ADDR
+  returns ElfW(Addr). Convert DL_RELOC_ADDR result to (void *) before
+  assigning to funcdesc_value::entry_point
+
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ ldso/ldso/arm/elfinterp.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/ldso/ldso/arm/elfinterp.c b/ldso/ldso/arm/elfinterp.c
+index 4c268356f..9c9a3e8ca 100644
+--- a/ldso/ldso/arm/elfinterp.c
++++ b/ldso/ldso/arm/elfinterp.c
+@@ -92,7 +92,7 @@ unsigned long _dl_linux_resolver (struct elf_resolve *tpnt, int reloc_offet)
+ 	*got_entry = funcval;
+ #endif
+ 
+-	return got_entry;
++	return (unsigned long)got_entry;
+ }
+ #else
+ unsigned long _dl_linux_resolver(struct elf_resolve *tpnt, int reloc_entry)
+@@ -362,7 +362,7 @@ _dl_do_reloc (struct elf_resolve *tpnt,struct r_scope_elem *scope,
+ 				  unsigned long reloc_value = *reloc_addr;
+ 
+ 				  if (symbol_addr)
+-					reloc_value = (unsigned long) _dl_funcdesc_for(symbol_addr + reloc_value, sym_ref.tpnt->loadaddr.got_value);
++					reloc_value = (unsigned long) _dl_funcdesc_for((void *)(symbol_addr + reloc_value), sym_ref.tpnt->loadaddr.got_value);
+ 				  else
+ 					/* Relocation against an
+ 					   undefined weak symbol:
+@@ -429,7 +429,7 @@ _dl_do_lazy_reloc (struct elf_resolve *tpnt, struct r_scope_elem *scope,
+ 				{
+ 					struct funcdesc_value *dst = (struct funcdesc_value *) reloc_addr;
+ 
+-					dst->entry_point = DL_RELOC_ADDR(tpnt->loadaddr, dst->entry_point);
++					dst->entry_point = (void *)DL_RELOC_ADDR(tpnt->loadaddr, dst->entry_point);
+ 					dst->got_value = tpnt->loadaddr.got_value;
+ 				}
+ 				break;
+-- 
+2.43.2
+

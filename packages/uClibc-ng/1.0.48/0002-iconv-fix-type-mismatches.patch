@@ -1,0 +1,45 @@
+From 04eae467796a784c79d016d8bc18cbb23ddffb74 Mon Sep 17 00:00:00 2001
+From: Max Filippov <jcmvbkbc@gmail.com>
+Date: Wed, 1 May 2024 04:35:18 -0700
+Subject: [PATCH 2/7] iconv: fix type mismatches
+
+With gcc-14 warnings caused by type mismatches turn to errors:
+- iconv_t is not a pointer type, convert the result directly to iconv_t
+  in combine_to_from()
+- unsigned int is not the same as wchar_t, use temporary wchar_t wc as
+  an argument for utf8dec_wchar()
+
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ libiconv/iconv.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/libiconv/iconv.c b/libiconv/iconv.c
+index ec01f381d..0462f6e10 100644
+--- a/libiconv/iconv.c
++++ b/libiconv/iconv.c
+@@ -142,7 +142,7 @@ struct stateful_cd {
+ 
+ static iconv_t combine_to_from(size_t t, size_t f)
+ {
+-	return (void *)(f<<16 | t<<1 | 1);
++	return (iconv_t)(f<<16 | t<<1 | 1);
+ }
+ 
+ static size_t extract_from(iconv_t cd)
+@@ -382,7 +382,11 @@ size_t iconv(iconv_t cd, char **restrict in, size_t *restrict inb, char **restri
+ 		switch (type) {
+ 		case UTF_8:
+ 			if (c < 128) break;
+-			l = utf8dec_wchar(&c, *in, *inb);
++			else {
++				wchar_t wc;
++				l = utf8dec_wchar(&wc, *in, *inb);
++				c = wc;
++			}
+ 			if (!l) l++;
+ 			else if (l == (size_t)-1) goto ilseq;
+ 			else if (l == (size_t)-2) goto starved;
+-- 
+2.43.2
+

@@ -1,0 +1,55 @@
+From ac395a9d0c9ffb4ada09baf0b3f49e01087bf06e Mon Sep 17 00:00:00 2001
+From: Max Filippov <jcmvbkbc@gmail.com>
+Date: Wed, 1 May 2024 04:35:19 -0700
+Subject: [PATCH 3/7] ldso: FDPIC: fix type mismatches
+
+With gcc-14 warnings caused by type mismatches turn to errors:
+- (void **) needs explicit conversion operator to become
+  struct funcdesc_value **entry
+- both subexpressions of the ternary operator must be pointers
+- %p should be used instead of %x to print a pointer
+
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ ldso/ldso/fdpic/dl-inlines.h | 4 ++--
+ ldso/ldso/fdpic/dl-sysdep.h  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/ldso/ldso/fdpic/dl-inlines.h b/ldso/ldso/fdpic/dl-inlines.h
+index 89e7a9a68..6a31ef3e6 100644
+--- a/ldso/ldso/fdpic/dl-inlines.h
++++ b/ldso/ldso/fdpic/dl-inlines.h
+@@ -102,7 +102,7 @@ __dl_update_loadaddr_hdr(struct elf32_fdpic_loadaddr loadaddr, void *addr,
+ 
+ #if defined (__SUPPORT_LD_DEBUG__)
+ 	if (_dl_debug)
+-		_dl_dprintf(_dl_debug_file, "%i: changed mapping %x at %x (old %x), size %x\n",
++		_dl_dprintf(_dl_debug_file, "%i: changed mapping %x at %x (old %p), size %x\n",
+ 			loadaddr.map->nsegs - 1,
+ 			segdata->p_vaddr, segdata->addr, oldaddr, segdata->p_memsz);
+ #endif
+@@ -177,7 +177,7 @@ _dl_funcdesc_for (void *entry_point, void *got_value)
+ 		tpnt->funcdesc_ht = ht;
+ 	}
+ 
+-	entry = htab_find_slot(ht, entry_point, 1, hash_pointer, eq_pointer);
++	entry = (struct funcdesc_value **)htab_find_slot(ht, entry_point, 1, hash_pointer, eq_pointer);
+ 
+ 	if (entry == NULL)
+ 		_dl_exit(1);
+diff --git a/ldso/ldso/fdpic/dl-sysdep.h b/ldso/ldso/fdpic/dl-sysdep.h
+index 6ab303b37..81694dc76 100644
+--- a/ldso/ldso/fdpic/dl-sysdep.h
++++ b/ldso/ldso/fdpic/dl-sysdep.h
+@@ -108,7 +108,7 @@ struct funcdesc_ht;
+    && ELF32_ST_TYPE((SYM)->st_info) == STT_FUNC \
+    ? _dl_funcdesc_for ((void *)DL_RELOC_ADDR ((TPNT)->loadaddr, (SYM)->st_value), \
+  		       (TPNT)->loadaddr.got_value)			     \
+-   : DL_RELOC_ADDR ((TPNT)->loadaddr, (SYM)->st_value))
++   : (void*)DL_RELOC_ADDR ((TPNT)->loadaddr, (SYM)->st_value))
+ 
+ #define DL_GET_READY_TO_RUN_EXTRA_PARMS \
+     , struct elf32_fdpic_loadmap *dl_boot_progmap, Elf32_Addr dl_boot_got_pointer
+-- 
+2.43.2
+
