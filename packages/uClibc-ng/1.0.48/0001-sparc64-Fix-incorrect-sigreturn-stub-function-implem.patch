@@ -1,0 +1,91 @@
+From 035e048fd68141779c147e387f608e8da6713d57 Mon Sep 17 00:00:00 2001
+From: Waldemar Brodkorb <wbx@openadk.org>
+Date: Wed, 8 May 2024 11:12:30 +0200
+Subject: [PATCH 1/7] sparc64: Fix incorrect sigreturn stub function
+ implementation
+
+---
+ libc/sysdeps/linux/sparc64/Makefile.arch    |  2 +-
+ libc/sysdeps/linux/sparc64/sigaction.c      | 10 +---------
+ libc/sysdeps/linux/sparc64/sigreturn_stub.S | 10 ++++++++++
+ libc/sysdeps/linux/sparc64/sysdep.h         |  9 +++++++++
+ 4 files changed, 21 insertions(+), 10 deletions(-)
+ create mode 100644 libc/sysdeps/linux/sparc64/sigreturn_stub.S
+
+diff --git a/libc/sysdeps/linux/sparc64/Makefile.arch b/libc/sysdeps/linux/sparc64/Makefile.arch
+index 37b539b3b..cc4000b78 100644
+--- a/libc/sysdeps/linux/sparc64/Makefile.arch
++++ b/libc/sysdeps/linux/sparc64/Makefile.arch
+@@ -5,7 +5,7 @@
+ 
+ CSRC-y := __syscall_error.c sigaction.c
+ SSRC-y := __longjmp.S setjmp.S bsd-setjmp.S bsd-_setjmp.S brk.S fork.S \
+-	syscall.S pipe.S vfork.S clone.S
++	syscall.S pipe.S vfork.S clone.S sigreturn_stub.S
+ 
+ CSRC-y += $(addprefix soft-fp/, \
+ 	qp_add.c qp_cmp.c qp_cmpe.c qp_div.c qp_dtoq.c qp_feq.c qp_fge.c \
+diff --git a/libc/sysdeps/linux/sparc64/sigaction.c b/libc/sysdeps/linux/sparc64/sigaction.c
+index d8aaad0fb..b28fa659a 100644
+--- a/libc/sysdeps/linux/sparc64/sigaction.c
++++ b/libc/sysdeps/linux/sparc64/sigaction.c
+@@ -26,7 +26,7 @@
+ 
+ /* SPARC 64bit userland requires a kernel that has rt signals anyway. */
+ 
+-static void __rt_sigreturn_stub (void);
++void __rt_sigreturn_stub (void);
+ 
+ int __libc_sigaction (int sig, const struct sigaction *act, struct sigaction *oact)
+ {
+@@ -67,11 +67,3 @@ libc_hidden_weak(sigaction)
+ # endif
+ #endif
+ 
+-static void
+-__rt_sigreturn_stub (void)
+-{
+-  __asm__ ("mov %0, %%g1\n\t"
+-	   "ta	0x6d\n\t"
+-	   : /* no outputs */
+-	   : "i" (__NR_rt_sigreturn));
+-}
+diff --git a/libc/sysdeps/linux/sparc64/sigreturn_stub.S b/libc/sysdeps/linux/sparc64/sigreturn_stub.S
+new file mode 100644
+index 000000000..a5c9bb47f
+--- /dev/null
++++ b/libc/sysdeps/linux/sparc64/sigreturn_stub.S
+@@ -0,0 +1,10 @@
++#include <sysdep.h>
++
++        nop
++        nop
++
++ENTRY_NOCFI (__rt_sigreturn_stub)
++        mov     __NR_rt_sigreturn, %g1
++        ta      0x6d
++END_NOCFI (__rt_sigreturn_stub)
++
+diff --git a/libc/sysdeps/linux/sparc64/sysdep.h b/libc/sysdeps/linux/sparc64/sysdep.h
+index 31008c34b..5a4c36348 100644
+--- a/libc/sysdeps/linux/sparc64/sysdep.h
++++ b/libc/sysdeps/linux/sparc64/sysdep.h
+@@ -83,6 +83,15 @@ C_LABEL(name)                       \
+     cfi_endproc;                    \
+     .size name, . - name
+ 
++#define ENTRY_NOCFI(name)			\
++	.align	4;			\
++	.global	C_SYMBOL_NAME(name);	\
++	.type	name, @function;	    \
++C_LABEL(name)
++
++#define END_NOCFI(name)			    \
++	.size name, . - name
++
+ #define LOC(name) .L##name
+ 
+ #undef PSEUDO
+-- 
+2.43.2
+
