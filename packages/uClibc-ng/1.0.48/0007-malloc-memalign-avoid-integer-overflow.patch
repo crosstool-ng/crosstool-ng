@@ -1,0 +1,41 @@
+From 7343bd6a49c5e3fe622f0bf473c124947d5e1210 Mon Sep 17 00:00:00 2001
+From: Max Filippov <jcmvbkbc@gmail.com>
+Date: Sun, 12 May 2024 17:36:50 -0700
+Subject: [PATCH 7/8] malloc/memalign: avoid integer overflow
+
+Check that the size passed to memalign() is not greater than PTRDIFF_MAX
+before adjusting it, otherwise it may wrap around in the adjustment.
+This fixes gcc testsuite test gcc.dg/torture/pr60092.c
+
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ libc/stdlib/malloc/memalign.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/libc/stdlib/malloc/memalign.c b/libc/stdlib/malloc/memalign.c
+index 665f20cfb..54f6dbc6c 100644
+--- a/libc/stdlib/malloc/memalign.c
++++ b/libc/stdlib/malloc/memalign.c
+@@ -11,6 +11,7 @@
+  * Written by Miles Bader <miles@gnu.org>
+  */
+ 
++#include <errno.h>
+ #include <stdlib.h>
+ #include <unistd.h>
+ #include <sys/mman.h>
+@@ -38,6 +39,11 @@ memalign (size_t alignment, size_t size)
+   unsigned long tot_addr, tot_end_addr, addr, end_addr;
+   struct heap_free_area **heap = &__malloc_heap;
+ 
++  if (unlikely(size > PTRDIFF_MAX)) {
++    __set_errno(ENOMEM);
++    return NULL;
++  }
++
+   /* Make SIZE something we like.  */
+   size = HEAP_ADJUST_SIZE (size);
+ 
+-- 
+2.43.2
+
