@@ -89,6 +89,9 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     [ "${CT_LIBC_NEWLIB_LTO}" = "y" ] && \
         CT_LIBC_NEWLIB_TARGET_CFLAGS="${CT_LIBC_NEWLIB_TARGET_CFLAGS} -flto"
 
+    [ "${CT_GCC_14_or_later}" = "y" ] && \
+        CT_LIBC_NEWLIB_TARGET_CFLAGS="${CT_LIBC_NEWLIB_TARGET_CFLAGS} -Wno-error=implicit-function-declaration -Wno-implicit-int"
+
     cflags_for_target="${CT_ALL_TARGET_CFLAGS} ${CT_LIBC_NEWLIB_TARGET_CFLAGS}"
 
     # Note: newlib handles the build/host/target a little bit differently
