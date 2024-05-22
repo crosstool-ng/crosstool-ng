@@ -1,4 +1,4 @@
-From 3393fcce1e6b18e580b712c0855bba13fb622531 Mon Sep 17 00:00:00 2001
+From 51345476fc2f83c77736fab8e29ff4ac358d0f2e Mon Sep 17 00:00:00 2001
 From: Keith Packard <keithp@keithp.com>
 Date: Tue, 22 Aug 2023 12:28:53 -0700
 Subject: [PATCH] libgcc/m68k: Fixes for soft float
@@ -23,12 +23,12 @@ Return positive qNaN instead of negative.
 
 Signed-off-by: Keith Packard <keithp@keithp.com>
 ---
- libgcc/config/m68k/fpgnulib.c | 162 +++++++++++++++++++++++++++-------
- libgcc/config/m68k/lb1sf68.S  |  20 +++--
- 2 files changed, 143 insertions(+), 39 deletions(-)
+ libgcc/config/m68k/fpgnulib.c | 170 +++++++++++++++++++++++++++-------
+ libgcc/config/m68k/lb1sf68.S  |  20 ++--
+ 2 files changed, 147 insertions(+), 43 deletions(-)
 
 diff --git a/libgcc/config/m68k/fpgnulib.c b/libgcc/config/m68k/fpgnulib.c
-index fe41edf26aa..eaa7858493c 100644
+index fe41edf26aa0..eaa7858493c9 100644
 --- a/libgcc/config/m68k/fpgnulib.c
 +++ b/libgcc/config/m68k/fpgnulib.c
 @@ -54,6 +54,7 @@
@@ -57,18 +57,17 @@ index fe41edf26aa..eaa7858493c 100644
 -  /* Check for underflow and denormals.  */
 -  if (exp <= 0)
 +  if (exp == EXPDMASK - EXCESSD + EXCESS)
-+    {
+     {
+-      if (exp < -24)
 +      exp = EXPMASK;
 +      mant = mant >> 1 | (mant & 1) | !!sticky;
 +    }
 +  else
-     {
--      if (exp < -24)
++    {
 +      /* Check for underflow and denormals.  */
 +      if (exp <= 0)
  	{
 -	  sticky |= mant;
--	  mant = 0;
 +	  if (exp < -24)
 +	    {
 +	      sticky |= mant;
@@ -80,31 +79,16 @@ index fe41edf26aa..eaa7858493c 100644
 +	      mant >>= 1 - exp;
 +	    }
 +	  exp = 0;
- 	}
--      else
++	}
 +
 +      /* now round */
 +      shift = 1;
 +      if ((mant & 1) && (sticky || (mant & 2)))
- 	{
--	  sticky |= mant & ((1 << (1 - exp)) - 1);
--	  mant >>= 1 - exp;
--	}
--      exp = 0;
--    }
--  
--  /* now round */
--  shift = 1;
--  if ((mant & 1) && (sticky || (mant & 2)))
--    {
--      int rounding = exp ? 2 : 1;
++	{
 +	  int rounding = exp ? 2 : 1;
- 
--      mant += 1;
++
 +	  mant += 1;
- 
--      /* did the round overflow? */
--      if (mant >= (HIDDEN << rounding))
++
 +	  /* did the round overflow? */
 +	  if (mant >= (HIDDEN << rounding))
 +	    {
@@ -115,13 +99,33 @@ index fe41edf26aa..eaa7858493c 100644
 +      /* shift down */
 +      mant >>= shift;
 +      if (exp >= EXPMASK)
- 	{
++	{
++	  exp = EXPMASK;
+ 	  mant = 0;
+ 	}
+-      else
+-	{
+-	  sticky |= mant & ((1 << (1 - exp)) - 1);
+-	  mant >>= 1 - exp;
+-	}
+-      exp = 0;
+     }
+-  
+-  /* now round */
+-  shift = 1;
+-  if ((mant & 1) && (sticky || (mant & 2)))
+-    {
+-      int rounding = exp ? 2 : 1;
+-
+-      mant += 1;
+-
+-      /* did the round overflow? */
+-      if (mant >= (HIDDEN << rounding))
+-	{
 -	  exp++;
 -	  shift = rounding;
-+	  exp = EXPMASK;
-+	  mant = 0;
- 	}
-     }
+-	}
+-    }
 -  /* shift down */
 -  mant >>= shift;
  
@@ -247,7 +251,7 @@ index fe41edf26aa..eaa7858493c 100644
  
  /* The remaining provide crude math support by working in double precision.  */
 diff --git a/libgcc/config/m68k/lb1sf68.S b/libgcc/config/m68k/lb1sf68.S
-index 8ba85c53656..e12888bd7f8 100644
+index 8ba85c53656d..e12888bd7f89 100644
 --- a/libgcc/config/m68k/lb1sf68.S
 +++ b/libgcc/config/m68k/lb1sf68.S
 @@ -635,7 +635,7 @@ SYM (__modsi3):
@@ -343,6 +347,3 @@ index 8ba85c53656..e12888bd7f8 100644
  	bclr	IMM (FLT_MANT_DIG-1),d0
  #ifndef __mcoldfire__
  	lslw	IMM (7),d2
--- 
-2.40.1
-

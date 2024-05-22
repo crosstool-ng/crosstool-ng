@@ -1,4 +1,4 @@
-From ffb10db6fa080e4c225e16928aec052d4c0baa95 Mon Sep 17 00:00:00 2001
+From bba1f4101084e296e5bfcc9a2f9e91242928ad10 Mon Sep 17 00:00:00 2001
 From: Keith Packard <keithp@keithp.com>
 Date: Fri, 2 Sep 2022 23:07:05 -0700
 Subject: [PATCH] Allow default libc to be specified to configure
@@ -15,13 +15,15 @@ and stop.
 
 Signed-off-by: Keith Packard <keithp@keithp.com>
 ---
- gcc/config.gcc   |   48 ++++++++++++++++++++++++++++++++++++++++--------
- gcc/configure.ac |    4 ++++
+ gcc/config.gcc   | 48 ++++++++++++++++++++++++++++++++++++++++--------
+ gcc/configure.ac |  4 ++++
  2 files changed, 44 insertions(+), 8 deletions(-)
 
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index c3b73d05eb72..0672d94535b9 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
-@@ -664,6 +664,8 @@
+@@ -664,6 +664,8 @@ esac
  # Common C libraries.
  tm_defines="$tm_defines LIBC_GLIBC=1 LIBC_UCLIBC=2 LIBC_BIONIC=3 LIBC_MUSL=4"
  
@@ -30,7 +32,7 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
  # 32-bit x86 processors supported by --with-arch=.  Each processor
  # MUST be separated by exactly one space.
  x86_archs="athlon athlon-4 athlon-fx athlon-mp athlon-tbird \
-@@ -870,16 +872,16 @@
+@@ -870,16 +872,16 @@ case ${target} in
    esac
    case $target in
      *-*-*android*)
@@ -51,7 +53,7 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
        ;;
    esac
    # Assume that glibc or uClibc or Bionic are being used and so __cxa_atexit
-@@ -988,7 +990,8 @@
+@@ -988,7 +990,8 @@ case ${target} in
    case ${enable_threads} in
      "" | yes | posix) thread_file='posix' ;;
    esac
@@ -61,7 +63,7 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
    ;;
  *-*-rdos*)
    use_gcc_stdint=wrap
-@@ -1652,13 +1655,13 @@
+@@ -1653,13 +1656,13 @@ csky-*-*)
  
  		case ${target} in
  		    csky-*-linux-gnu*)
@@ -77,7 +79,7 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
  			default_use_cxa_atexit=no
  			;;
  		    *)
-@@ -3038,7 +3041,7 @@
+@@ -3039,7 +3042,7 @@ powerpc*-wrs-vxworks7r*)
  	tmake_file="${tmake_file} t-linux rs6000/t-linux64 rs6000/t-fprules rs6000/t-ppccomm"
  	tmake_file="${tmake_file} rs6000/t-vxworks"
  
@@ -86,7 +88,7 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
  	extra_objs="$extra_objs linux.o rs6000-linux.o"
  	;;
  powerpc-wrs-vxworks*)
-@@ -5879,3 +5882,32 @@
+@@ -5880,3 +5883,32 @@ i[34567]86-*-* | x86_64-*-*)
  	fi
  	;;
  esac
@@ -119,9 +121,11 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
 +	tm_defines="$tm_defines DEFAULT_LIBC=$default_libc"
 +	;;
 +esac
+diff --git a/gcc/configure.ac b/gcc/configure.ac
+index bf8ff4d63906..b1c2944775d1 100644
 --- a/gcc/configure.ac
 +++ b/gcc/configure.ac
-@@ -2502,6 +2502,10 @@
+@@ -2541,6 +2541,10 @@ if { { test x$host != x$target && test "x$with_sysroot" = x ; } ||
  fi
  AC_SUBST(inhibit_libc)
  
