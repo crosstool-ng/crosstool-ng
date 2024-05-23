@@ -153,6 +153,10 @@ AC_CHECK_PROGS([curl], [curl])
 CTNG_SET_KCONFIG_OPTION([curl])
 AC_SUBST([curl])
 
+AC_CHECK_PROGS([cmake], [cmake])
+CTNG_SET_KCONFIG_OPTION([cmake])
+AC_SUBST([cmake])
+
 AC_CHECK_PROGS([meson], [meson])
 CTNG_SET_KCONFIG_OPTION([meson])
 AC_SUBST([meson])
