@@ -1,0 +1,53 @@
+From 10d51e3990092af7279b8ba86906984eace216ae Mon Sep 17 00:00:00 2001
+From: Bruno Haible <bruno@clisp.org>
+Date: Sat, 27 Apr 2024 16:09:55 +0200
+Subject: [PATCH] ctime, localtime, tzset, wcsftime: Fix env access (regr.
+ 2024-02-09).
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Reported by Markus MÃ¼tzel <markus.muetzel@gmx.de> in
+<https://lists.gnu.org/archive/html/bug-gnulib/2024-04/msg00457.html>.
+
+* lib/ctime.c (rpl_ctime): Fix logic of environment traversal.
+* lib/localtime.c (rpl_localtime): Likewise.
+* lib/tzset.c (rpl_tzset): Likewise.
+* lib/wcsftime.c (rpl_wcsftime): Likewise.
+---
+ gettext-tools/gnulib-lib/localtime.c | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/gettext-tools/gnulib-lib/localtime.c b/gettext-tools/gnulib-lib/localtime.c
+index f0e91ac..df0278e 100644
+--- a/gettext-tools/gnulib-lib/localtime.c
++++ b/gettext-tools/gnulib-lib/localtime.c
+@@ -63,13 +63,19 @@ rpl_localtime (const time_t *tp)
+       char **env = _environ;
+       wchar_t **wenv = _wenviron;
+       if (env != NULL)
+-        for (char *s = env; *s != NULL; s++)
+-          if (s[0] == 'T' && s[1] == 'Z' && s[2] == '=')
+-            s[0] = '$';
++        for (char **ep = env; *ep != NULL; ep++)
++          {
++            char *s = *ep;
++            if (s[0] == 'T' && s[1] == 'Z' && s[2] == '=')
++              s[0] = '$';
++          }
+       if (wenv != NULL)
+-        for (wchar_t *ws = wenv; *ws != NULL; ws++)
+-          if (ws[0] == L'T' && ws[1] == L'Z' && ws[2] == L'=')
+-            ws[0] = L'$';
++        for (wchar_t **wep = wenv; *wep != NULL; wep++)
++          {
++            wchar_t *ws = *wep;
++            if (ws[0] == L'T' && ws[1] == L'Z' && ws[2] == L'=')
++              ws[0] = L'$';
++          }
+     }
+ #endif
+ 
+-- 
+2.45.1
+
