@@ -81,19 +81,9 @@ do_zstd_backend() {
     done
 
     CT_DoLog EXTRA "Building zstd"
-    CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C "${CT_SRC_DIR}/zstd/lib" libzstd.a BUILD_DIR="${PWD}" CC="${host}-gcc" AS="${host}-as" CFLAGS="${cflags}" LDFLAGS="${ldflags}"
+    CT_DoExecLog ALL make ${CT_JOBSFLAGS} -C "${CT_SRC_DIR}/zstd/lib" libzstd.a-mt-release BUILD_DIR="${PWD}" CC="${host}-gcc" AS="${host}-as" CFLAGS="${cflags}" LDFLAGS="${ldflags}"
 
-    # TODO: Has to be tested
-
-    #if [ "${CT_COMPLIBS_CHECK}" = "y" ]; then
-    #    if [ "${host}" = "${CT_BUILD}" ]; then
-    #        CT_DoLog EXTRA "Checking zstd"
-    #        CT_DoExecLog ALL make ${CT_JOBSFLAGS} -s check
-    #    else
-    #        # Cannot run host binaries on build in a canadian cross
-    #        CT_DoLog EXTRA "Skipping check for zstd on the host"
-    #    fi
-    #fi
+    # There is no library only check in zstd
 
     CT_DoLog EXTRA "Installing zstd"
     CT_DoExecLog ALL make -C "${CT_SRC_DIR}/zstd/lib" install-static install-includes BUILD_DIR="${PWD}" PREFIX="$prefix"
