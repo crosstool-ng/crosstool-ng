@@ -1,0 +1,114 @@
+From 12d860b5b700b5218461a0b9e4a1a3ddb55eb211 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 18 Jun 2024 12:22:30 +0100
+Subject: [PATCH 12/16] aarch64: Use force_subreg in more places
+
+This patch makes the aarch64 code use force_subreg instead of
+simplify_gen_subreg in more places.  The criteria were:
+
+(1) The code is obviously specific to expand (where new pseudos
+    can be created).
+
+(2) The value is obviously an rvalue rather than an lvalue.
+
+(3) The offset wasn't a simple lowpart or highpart calculation;
+    a later patch will deal with those.
+
+gcc/
+	* config/aarch64/aarch64-builtins.cc (aarch64_expand_fcmla_builtin):
+	Use force_subreg instead of simplify_gen_subreg.
+	* config/aarch64/aarch64-simd.md (ctz<mode>2): Likewise.
+	* config/aarch64/aarch64-sve-builtins-base.cc
+	(svget_impl::expand): Likewise.
+	(svget_neonq_impl::expand): Likewise.
+	* config/aarch64/aarch64-sve-builtins-functions.h
+	(multireg_permute::expand): Likewise.
+
+(cherry picked from commit 1474a8eead4ab390e59ee014befa8c40346679f4)
+---
+ gcc/config/aarch64/aarch64-builtins.cc              | 4 ++--
+ gcc/config/aarch64/aarch64-simd.md                  | 4 ++--
+ gcc/config/aarch64/aarch64-sve-builtins-base.cc     | 8 +++-----
+ gcc/config/aarch64/aarch64-sve-builtins-functions.h | 6 +++---
+ 4 files changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/gcc/config/aarch64/aarch64-builtins.cc b/gcc/config/aarch64/aarch64-builtins.cc
+index 75d21de1401..b2e46a073a8 100644
+--- a/gcc/config/aarch64/aarch64-builtins.cc
++++ b/gcc/config/aarch64/aarch64-builtins.cc
+@@ -2510,12 +2510,12 @@ aarch64_expand_fcmla_builtin (tree exp, rtx target, int fcode)
+       rtx temp2 = gen_reg_rtx (DImode);
+       temp1 = simplify_gen_subreg (d->mode, op2, quadmode,
+ 				   subreg_lowpart_offset (d->mode, quadmode));
+-      temp1 = simplify_gen_subreg (V2DImode, temp1, d->mode, 0);
++      temp1 = force_subreg (V2DImode, temp1, d->mode, 0);
+       if (BYTES_BIG_ENDIAN)
+ 	emit_insn (gen_aarch64_get_lanev2di (temp2, temp1, const0_rtx));
+       else
+ 	emit_insn (gen_aarch64_get_lanev2di (temp2, temp1, const1_rtx));
+-      op2 = simplify_gen_subreg (d->mode, temp2, GET_MODE (temp2), 0);
++      op2 = force_subreg (d->mode, temp2, GET_MODE (temp2), 0);
+ 
+       /* And recalculate the index.  */
+       lane -= nunits / 4;
+diff --git a/gcc/config/aarch64/aarch64-simd.md b/gcc/config/aarch64/aarch64-simd.md
+index 33ab0741e87..5b9efe0b165 100644
+--- a/gcc/config/aarch64/aarch64-simd.md
++++ b/gcc/config/aarch64/aarch64-simd.md
+@@ -412,8 +412,8 @@
+   "TARGET_SIMD"
+   {
+      emit_insn (gen_bswap<mode>2 (operands[0], operands[1]));
+-     rtx op0_castsi2qi = simplify_gen_subreg(<VS:VSI2QI>mode, operands[0],
+-					     <MODE>mode, 0);
++     rtx op0_castsi2qi = force_subreg (<VS:VSI2QI>mode, operands[0],
++				       <MODE>mode, 0);
+      emit_insn (gen_aarch64_rbit<VS:vsi2qi> (op0_castsi2qi, op0_castsi2qi));
+      emit_insn (gen_clz<mode>2 (operands[0], operands[0]));
+      DONE;
+diff --git a/gcc/config/aarch64/aarch64-sve-builtins-base.cc b/gcc/config/aarch64/aarch64-sve-builtins-base.cc
+index c9182594bc1..2c95da79572 100644
+--- a/gcc/config/aarch64/aarch64-sve-builtins-base.cc
++++ b/gcc/config/aarch64/aarch64-sve-builtins-base.cc
+@@ -1121,9 +1121,8 @@ public:
+   expand (function_expander &e) const override
+   {
+     /* Fold the access into a subreg rvalue.  */
+-    return simplify_gen_subreg (e.vector_mode (0), e.args[0],
+-				GET_MODE (e.args[0]),
+-				INTVAL (e.args[1]) * BYTES_PER_SVE_VECTOR);
++    return force_subreg (e.vector_mode (0), e.args[0], GET_MODE (e.args[0]),
++			 INTVAL (e.args[1]) * BYTES_PER_SVE_VECTOR);
+   }
+ };
+ 
+@@ -1157,8 +1156,7 @@ public:
+ 	e.add_fixed_operand (indices);
+ 	return e.generate_insn (icode);
+       }
+-    return simplify_gen_subreg (e.result_mode (), e.args[0],
+-				GET_MODE (e.args[0]), 0);
++    return force_subreg (e.result_mode (), e.args[0], GET_MODE (e.args[0]), 0);
+   }
+ };
+ 
+diff --git a/gcc/config/aarch64/aarch64-sve-builtins-functions.h b/gcc/config/aarch64/aarch64-sve-builtins-functions.h
+index 3b8e575e98e..7d06a57ff83 100644
+--- a/gcc/config/aarch64/aarch64-sve-builtins-functions.h
++++ b/gcc/config/aarch64/aarch64-sve-builtins-functions.h
+@@ -639,9 +639,9 @@ public:
+       {
+ 	machine_mode elt_mode = e.vector_mode (0);
+ 	rtx arg = e.args[0];
+-	e.args[0] = simplify_gen_subreg (elt_mode, arg, GET_MODE (arg), 0);
+-	e.args.safe_push (simplify_gen_subreg (elt_mode, arg, GET_MODE (arg),
+-					       GET_MODE_SIZE (elt_mode)));
++	e.args[0] = force_subreg (elt_mode, arg, GET_MODE (arg), 0);
++	e.args.safe_push (force_subreg (elt_mode, arg, GET_MODE (arg),
++					GET_MODE_SIZE (elt_mode)));
+       }
+     return e.use_exact_insn (icode);
+   }
+-- 
+2.44.2
+

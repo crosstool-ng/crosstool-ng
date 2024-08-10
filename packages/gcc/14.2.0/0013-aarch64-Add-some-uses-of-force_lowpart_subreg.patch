@@ -1,0 +1,167 @@
+From eb49bbb886ef374eddb93e866c9c9f5f314c8014 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 18 Jun 2024 12:22:31 +0100
+Subject: [PATCH 13/16] aarch64: Add some uses of force_lowpart_subreg
+
+This patch makes more use of force_lowpart_subreg, similarly
+to the recent patch for force_subreg.  The criteria were:
+
+(1) The code is obviously specific to expand (where new pseudos
+    can be created).
+
+(2) The value is obviously an rvalue rather than an lvalue.
+
+gcc/
+	PR target/115464
+	* config/aarch64/aarch64-builtins.cc (aarch64_expand_fcmla_builtin)
+	(aarch64_expand_rwsr_builtin): Use force_lowpart_subreg instead of
+	simplify_gen_subreg and lowpart_subreg.
+	* config/aarch64/aarch64-sve-builtins-base.cc
+	(svset_neonq_impl::expand): Likewise.
+	* config/aarch64/aarch64-sve-builtins-sme.cc
+	(add_load_store_slice_operand): Likewise.
+	* config/aarch64/aarch64.cc (aarch64_sve_reinterpret): Likewise.
+	(aarch64_addti_scratch_regs, aarch64_subvti_scratch_regs): Likewise.
+
+gcc/testsuite/
+	PR target/115464
+	* gcc.target/aarch64/sve/acle/general/pr115464_2.c: New test.
+
+(cherry picked from commit 6bd4fbae45d11795a9a6f54b866308d4d7134def)
+---
+ gcc/config/aarch64/aarch64-builtins.cc             | 11 +++++------
+ gcc/config/aarch64/aarch64-sve-builtins-base.cc    |  2 +-
+ gcc/config/aarch64/aarch64-sve-builtins-sme.cc     |  2 +-
+ gcc/config/aarch64/aarch64.cc                      | 14 +++++---------
+ .../aarch64/sve/acle/general/pr115464_2.c          | 11 +++++++++++
+ 5 files changed, 23 insertions(+), 17 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/aarch64/sve/acle/general/pr115464_2.c
+
+diff --git a/gcc/config/aarch64/aarch64-builtins.cc b/gcc/config/aarch64/aarch64-builtins.cc
+index b2e46a073a8..264b9560709 100644
+--- a/gcc/config/aarch64/aarch64-builtins.cc
++++ b/gcc/config/aarch64/aarch64-builtins.cc
+@@ -2497,8 +2497,7 @@ aarch64_expand_fcmla_builtin (tree exp, rtx target, int fcode)
+   int lane = INTVAL (lane_idx);
+ 
+   if (lane < nunits / 4)
+-    op2 = simplify_gen_subreg (d->mode, op2, quadmode,
+-			       subreg_lowpart_offset (d->mode, quadmode));
++    op2 = force_lowpart_subreg (d->mode, op2, quadmode);
+   else
+     {
+       /* Select the upper 64 bits, either a V2SF or V4HF, this however
+@@ -2508,8 +2507,7 @@ aarch64_expand_fcmla_builtin (tree exp, rtx target, int fcode)
+ 	 gen_highpart_mode generates code that isn't optimal.  */
+       rtx temp1 = gen_reg_rtx (d->mode);
+       rtx temp2 = gen_reg_rtx (DImode);
+-      temp1 = simplify_gen_subreg (d->mode, op2, quadmode,
+-				   subreg_lowpart_offset (d->mode, quadmode));
++      temp1 = force_lowpart_subreg (d->mode, op2, quadmode);
+       temp1 = force_subreg (V2DImode, temp1, d->mode, 0);
+       if (BYTES_BIG_ENDIAN)
+ 	emit_insn (gen_aarch64_get_lanev2di (temp2, temp1, const0_rtx));
+@@ -2754,7 +2752,7 @@ aarch64_expand_rwsr_builtin (tree exp, rtx target, int fcode)
+ 	case AARCH64_WSR64:
+ 	case AARCH64_WSRF64:
+ 	case AARCH64_WSR128:
+-	  subreg = lowpart_subreg (sysreg_mode, input_val, mode);
++	  subreg = force_lowpart_subreg (sysreg_mode, input_val, mode);
+ 	  break;
+ 	case AARCH64_WSRF:
+ 	  subreg = gen_lowpart_SUBREG (SImode, input_val);
+@@ -2789,7 +2787,8 @@ aarch64_expand_rwsr_builtin (tree exp, rtx target, int fcode)
+     case AARCH64_RSR64:
+     case AARCH64_RSRF64:
+     case AARCH64_RSR128:
+-      return lowpart_subreg (TYPE_MODE (TREE_TYPE (exp)), target, sysreg_mode);
++      return force_lowpart_subreg (TYPE_MODE (TREE_TYPE (exp)),
++				   target, sysreg_mode);
+     case AARCH64_RSRF:
+       subreg = gen_lowpart_SUBREG (SImode, target);
+       return gen_lowpart_SUBREG (SFmode, subreg);
+diff --git a/gcc/config/aarch64/aarch64-sve-builtins-base.cc b/gcc/config/aarch64/aarch64-sve-builtins-base.cc
+index 2c95da79572..3c970e9c5f8 100644
+--- a/gcc/config/aarch64/aarch64-sve-builtins-base.cc
++++ b/gcc/config/aarch64/aarch64-sve-builtins-base.cc
+@@ -1183,7 +1183,7 @@ public:
+     if (BYTES_BIG_ENDIAN)
+       return e.use_exact_insn (code_for_aarch64_sve_set_neonq (mode));
+     insn_code icode = code_for_vcond_mask (mode, mode);
+-    e.args[1] = lowpart_subreg (mode, e.args[1], GET_MODE (e.args[1]));
++    e.args[1] = force_lowpart_subreg (mode, e.args[1], GET_MODE (e.args[1]));
+     e.add_output_operand (icode);
+     e.add_input_operand (icode, e.args[1]);
+     e.add_input_operand (icode, e.args[0]);
+diff --git a/gcc/config/aarch64/aarch64-sve-builtins-sme.cc b/gcc/config/aarch64/aarch64-sve-builtins-sme.cc
+index f4c91bcbb95..b66b35ae60b 100644
+--- a/gcc/config/aarch64/aarch64-sve-builtins-sme.cc
++++ b/gcc/config/aarch64/aarch64-sve-builtins-sme.cc
+@@ -112,7 +112,7 @@ add_load_store_slice_operand (function_expander &e, insn_code icode,
+   rtx base = e.args[argno];
+   if (e.mode_suffix_id == MODE_vnum)
+     {
+-      rtx vnum = lowpart_subreg (SImode, e.args[vnum_argno], DImode);
++      rtx vnum = force_lowpart_subreg (SImode, e.args[vnum_argno], DImode);
+       base = simplify_gen_binary (PLUS, SImode, base, vnum);
+     }
+   e.add_input_operand (icode, base);
+diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
+index 1beec94629d..a064aeecbc0 100644
+--- a/gcc/config/aarch64/aarch64.cc
++++ b/gcc/config/aarch64/aarch64.cc
+@@ -3284,7 +3284,7 @@ aarch64_sve_reinterpret (machine_mode mode, rtx x)
+   /* can_change_mode_class must only return true if subregs and svreinterprets
+      have the same semantics.  */
+   if (targetm.can_change_mode_class (GET_MODE (x), mode, FP_REGS))
+-    return lowpart_subreg (mode, x, GET_MODE (x));
++    return force_lowpart_subreg (mode, x, GET_MODE (x));
+ 
+   rtx res = gen_reg_rtx (mode);
+   x = force_reg (GET_MODE (x), x);
+@@ -26979,9 +26979,8 @@ aarch64_addti_scratch_regs (rtx op1, rtx op2, rtx *low_dest,
+ 			    rtx *high_in2)
+ {
+   *low_dest = gen_reg_rtx (DImode);
+-  *low_in1 = gen_lowpart (DImode, op1);
+-  *low_in2 = simplify_gen_subreg (DImode, op2, TImode,
+-				  subreg_lowpart_offset (DImode, TImode));
++  *low_in1 = force_lowpart_subreg (DImode, op1, TImode);
++  *low_in2 = force_lowpart_subreg (DImode, op2, TImode);
+   *high_dest = gen_reg_rtx (DImode);
+   *high_in1 = gen_highpart (DImode, op1);
+   *high_in2 = simplify_gen_subreg (DImode, op2, TImode,
+@@ -27013,11 +27012,8 @@ aarch64_subvti_scratch_regs (rtx op1, rtx op2, rtx *low_dest,
+ 			     rtx *high_in2)
+ {
+   *low_dest = gen_reg_rtx (DImode);
+-  *low_in1 = simplify_gen_subreg (DImode, op1, TImode,
+-				  subreg_lowpart_offset (DImode, TImode));
+-
+-  *low_in2 = simplify_gen_subreg (DImode, op2, TImode,
+-				  subreg_lowpart_offset (DImode, TImode));
++  *low_in1 = force_lowpart_subreg (DImode, op1, TImode);
++  *low_in2 = force_lowpart_subreg (DImode, op2, TImode);
+   *high_dest = gen_reg_rtx (DImode);
+ 
+   *high_in1 = simplify_gen_subreg (DImode, op1, TImode,
+diff --git a/gcc/testsuite/gcc.target/aarch64/sve/acle/general/pr115464_2.c b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/pr115464_2.c
+new file mode 100644
+index 00000000000..f561c34f732
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/aarch64/sve/acle/general/pr115464_2.c
+@@ -0,0 +1,11 @@
++/* { dg-options "-O2" } */
++
++#include <arm_neon.h>
++#include <arm_sve.h>
++#include <arm_neon_sve_bridge.h>
++
++svuint16_t
++convolve4_4_x (uint16x8x2_t permute_tbl, svuint16_t a)
++{
++    return svset_neonq_u16 (a, permute_tbl.val[1]);
++}
+-- 
+2.44.2
+

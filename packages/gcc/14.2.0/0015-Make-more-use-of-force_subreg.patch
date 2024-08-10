@@ -1,0 +1,194 @@
+From d02fe5a6bfdfcae086e5374db3f8fd076df9b1a5 Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 18 Jun 2024 12:22:30 +0100
+Subject: [PATCH 15/16] Make more use of force_subreg
+
+This patch makes target-independent code use force_subreg instead
+of simplify_gen_subreg in some places.  The criteria were:
+
+(1) The code is obviously specific to expand (where new pseudos
+    can be created), or at least would be invalid to call when
+    !can_create_pseudo_p () and temporaries are needed.
+
+(2) The value is obviously an rvalue rather than an lvalue.
+
+(3) The offset wasn't a simple lowpart or highpart calculation;
+    a later patch will deal with those.
+
+Doing this should reduce the likelihood of bugs like PR115464
+occuring in other situations.
+
+gcc/
+	* expmed.cc (store_bit_field_using_insv): Use force_subreg
+	instead of simplify_gen_subreg.
+	(store_bit_field_1): Likewise.
+	(extract_bit_field_as_subreg): Likewise.
+	(extract_integral_bit_field): Likewise.
+	(emit_store_flag_1): Likewise.
+	* expr.cc (convert_move): Likewise.
+	(convert_modes): Likewise.
+	(emit_group_load_1): Likewise.
+	(emit_group_store): Likewise.
+	(expand_assignment): Likewise.
+
+(cherry picked from commit d4047da6a070175aae7121c739d1cad6b08ff4b2)
+---
+ gcc/expmed.cc | 22 ++++++++--------------
+ gcc/expr.cc   | 27 ++++++++++++---------------
+ 2 files changed, 20 insertions(+), 29 deletions(-)
+
+diff --git a/gcc/expmed.cc b/gcc/expmed.cc
+index 19765311b95..bd190722de6 100644
+--- a/gcc/expmed.cc
++++ b/gcc/expmed.cc
+@@ -695,13 +695,7 @@ store_bit_field_using_insv (const extraction_insn *insv, rtx op0,
+ 	     if we must narrow it, be sure we do it correctly.  */
+ 
+ 	  if (GET_MODE_SIZE (value_mode) < GET_MODE_SIZE (op_mode))
+-	    {
+-	      tmp = simplify_subreg (op_mode, value1, value_mode, 0);
+-	      if (! tmp)
+-		tmp = simplify_gen_subreg (op_mode,
+-					   force_reg (value_mode, value1),
+-					   value_mode, 0);
+-	    }
++	    tmp = force_subreg (op_mode, value1, value_mode, 0);
+ 	  else
+ 	    {
+ 	      tmp = gen_lowpart_if_possible (op_mode, value1);
+@@ -800,7 +794,7 @@ store_bit_field_1 (rtx str_rtx, poly_uint64 bitsize, poly_uint64 bitnum,
+       if (known_eq (bitnum, 0U)
+ 	  && known_eq (bitsize, GET_MODE_BITSIZE (GET_MODE (op0))))
+ 	{
+-	  sub = simplify_gen_subreg (GET_MODE (op0), value, fieldmode, 0);
++	  sub = force_subreg (GET_MODE (op0), value, fieldmode, 0);
+ 	  if (sub)
+ 	    {
+ 	      if (reverse)
+@@ -1627,7 +1621,7 @@ extract_bit_field_as_subreg (machine_mode mode, rtx op0,
+       && known_eq (bitsize, GET_MODE_BITSIZE (mode))
+       && lowpart_bit_field_p (bitnum, bitsize, op0_mode)
+       && TRULY_NOOP_TRUNCATION_MODES_P (mode, op0_mode))
+-    return simplify_gen_subreg (mode, op0, op0_mode, bytenum);
++    return force_subreg (mode, op0, op0_mode, bytenum);
+   return NULL_RTX;
+ }
+ 
+@@ -1994,11 +1988,11 @@ extract_integral_bit_field (rtx op0, opt_scalar_int_mode op0_mode,
+ 	  return convert_extracted_bit_field (target, mode, tmode, unsignedp);
+ 	}
+       /* If OP0 is a hard register, copy it to a pseudo before calling
+-	 simplify_gen_subreg.  */
++	 force_subreg.  */
+       if (REG_P (op0) && HARD_REGISTER_P (op0))
+ 	op0 = copy_to_reg (op0);
+-      op0 = simplify_gen_subreg (word_mode, op0, op0_mode.require (),
+-				 bitnum / BITS_PER_WORD * UNITS_PER_WORD);
++      op0 = force_subreg (word_mode, op0, op0_mode.require (),
++			  bitnum / BITS_PER_WORD * UNITS_PER_WORD);
+       op0_mode = word_mode;
+       bitnum %= BITS_PER_WORD;
+     }
+@@ -5759,8 +5753,8 @@ emit_store_flag_1 (rtx target, enum rtx_code code, rtx op0, rtx op1,
+ 
+ 	  /* Do a logical OR or AND of the two words and compare the
+ 	     result.  */
+-	  op00 = simplify_gen_subreg (word_mode, op0, int_mode, 0);
+-	  op01 = simplify_gen_subreg (word_mode, op0, int_mode, UNITS_PER_WORD);
++	  op00 = force_subreg (word_mode, op0, int_mode, 0);
++	  op01 = force_subreg (word_mode, op0, int_mode, UNITS_PER_WORD);
+ 	  tem = expand_binop (word_mode,
+ 			      op1 == const0_rtx ? ior_optab : and_optab,
+ 			      op00, op01, NULL_RTX, unsignedp,
+diff --git a/gcc/expr.cc b/gcc/expr.cc
+index 9f66d479445..8ffa76b1bb8 100644
+--- a/gcc/expr.cc
++++ b/gcc/expr.cc
+@@ -302,7 +302,7 @@ convert_move (rtx to, rtx from, int unsignedp)
+ 			    GET_MODE_BITSIZE (to_mode)));
+ 
+       if (VECTOR_MODE_P (to_mode))
+-	from = simplify_gen_subreg (to_mode, from, GET_MODE (from), 0);
++	from = force_subreg (to_mode, from, GET_MODE (from), 0);
+       else
+ 	to = simplify_gen_subreg (from_mode, to, GET_MODE (to), 0);
+ 
+@@ -936,7 +936,7 @@ convert_modes (machine_mode mode, machine_mode oldmode, rtx x, int unsignedp)
+     {
+       gcc_assert (known_eq (GET_MODE_BITSIZE (mode),
+ 			    GET_MODE_BITSIZE (oldmode)));
+-      return simplify_gen_subreg (mode, x, oldmode, 0);
++      return force_subreg (mode, x, oldmode, 0);
+     }
+ 
+   temp = gen_reg_rtx (mode);
+@@ -3076,8 +3076,8 @@ emit_group_load_1 (rtx *tmps, rtx dst, rtx orig_src, tree type,
+ 	    }
+ 	}
+       else if (CONSTANT_P (src) && GET_MODE (dst) != BLKmode
+-               && XVECLEN (dst, 0) > 1)
+-        tmps[i] = simplify_gen_subreg (mode, src, GET_MODE (dst), bytepos);
++	       && XVECLEN (dst, 0) > 1)
++	tmps[i] = force_subreg (mode, src, GET_MODE (dst), bytepos);
+       else if (CONSTANT_P (src))
+ 	{
+ 	  if (known_eq (bytelen, ssize))
+@@ -3301,7 +3301,7 @@ emit_group_store (rtx orig_dst, rtx src, tree type ATTRIBUTE_UNUSED,
+ 	  if (known_eq (rtx_to_poly_int64 (XEXP (XVECEXP (src, 0, start), 1)),
+ 			bytepos))
+ 	    {
+-	      temp = simplify_gen_subreg (outer, tmps[start], inner, 0);
++	      temp = force_subreg (outer, tmps[start], inner, 0);
+ 	      if (temp)
+ 		{
+ 		  emit_move_insn (dst, temp);
+@@ -3321,7 +3321,7 @@ emit_group_store (rtx orig_dst, rtx src, tree type ATTRIBUTE_UNUSED,
+ 							  finish - 1), 1)),
+ 			bytepos))
+ 	    {
+-	      temp = simplify_gen_subreg (outer, tmps[finish - 1], inner, 0);
++	      temp = force_subreg (outer, tmps[finish - 1], inner, 0);
+ 	      if (temp)
+ 		{
+ 		  emit_move_insn (dst, temp);
+@@ -6195,11 +6195,9 @@ expand_assignment (tree to, tree from, bool nontemporal)
+ 		  to_mode = GET_MODE_INNER (to_mode);
+ 		  machine_mode from_mode = GET_MODE_INNER (GET_MODE (result));
+ 		  rtx from_real
+-		    = simplify_gen_subreg (to_mode, XEXP (result, 0),
+-					   from_mode, 0);
++		    = force_subreg (to_mode, XEXP (result, 0), from_mode, 0);
+ 		  rtx from_imag
+-		    = simplify_gen_subreg (to_mode, XEXP (result, 1),
+-					   from_mode, 0);
++		    = force_subreg (to_mode, XEXP (result, 1), from_mode, 0);
+ 		  if (!from_real || !from_imag)
+ 		    goto concat_store_slow;
+ 		  emit_move_insn (XEXP (to_rtx, 0), from_real);
+@@ -6215,8 +6213,7 @@ expand_assignment (tree to, tree from, bool nontemporal)
+ 		  if (MEM_P (result))
+ 		    from_rtx = change_address (result, to_mode, NULL_RTX);
+ 		  else
+-		    from_rtx
+-		      = simplify_gen_subreg (to_mode, result, from_mode, 0);
++		    from_rtx = force_subreg (to_mode, result, from_mode, 0);
+ 		  if (from_rtx)
+ 		    {
+ 		      emit_move_insn (XEXP (to_rtx, 0),
+@@ -6228,10 +6225,10 @@ expand_assignment (tree to, tree from, bool nontemporal)
+ 		    {
+ 		      to_mode = GET_MODE_INNER (to_mode);
+ 		      rtx from_real
+-			= simplify_gen_subreg (to_mode, result, from_mode, 0);
++			= force_subreg (to_mode, result, from_mode, 0);
+ 		      rtx from_imag
+-			= simplify_gen_subreg (to_mode, result, from_mode,
+-					       GET_MODE_SIZE (to_mode));
++			= force_subreg (to_mode, result, from_mode,
++					GET_MODE_SIZE (to_mode));
+ 		      if (!from_real || !from_imag)
+ 			goto concat_store_slow;
+ 		      emit_move_insn (XEXP (to_rtx, 0), from_real);
+-- 
+2.44.2
+

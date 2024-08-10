@@ -1,0 +1,121 @@
+From 2dcdf9d026ed2e881b0bd8b378ed072e410490fe Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 18 Jun 2024 12:22:31 +0100
+Subject: [PATCH 14/16] Add force_lowpart_subreg
+
+optabs had a local function called lowpart_subreg_maybe_copy
+that is very similar to the lowpart version of force_subreg.
+This patch adds a force_lowpart_subreg wrapper around
+force_subreg and uses it in optabs.cc.
+
+The only difference between the old and new functions is that
+the old one asserted success while the new one doesn't.
+It's common not to assert elsewhere when taking subregs;
+normally a null result is enough.
+
+Later patches will make more use of the new function.
+
+gcc/
+	* explow.h (force_lowpart_subreg): Declare.
+	* explow.cc (force_lowpart_subreg): New function.
+	* optabs.cc (lowpart_subreg_maybe_copy): Delete.
+	(expand_absneg_bit): Use force_lowpart_subreg instead of
+	lowpart_subreg_maybe_copy.
+	(expand_copysign_bit): Likewise.
+
+(cherry picked from commit 5f40d1c0cc6ce91ef28d326b8707b3f05e6f239c)
+---
+ gcc/explow.cc | 14 ++++++++++++++
+ gcc/explow.h  |  1 +
+ gcc/optabs.cc | 24 ++----------------------
+ 3 files changed, 17 insertions(+), 22 deletions(-)
+
+diff --git a/gcc/explow.cc b/gcc/explow.cc
+index f6843398c4b..5fdfa81f69b 100644
+--- a/gcc/explow.cc
++++ b/gcc/explow.cc
+@@ -760,6 +760,20 @@ force_subreg (machine_mode outermode, rtx op,
+   return simplify_gen_subreg (outermode, op, innermode, byte);
+ }
+ 
++/* Try to return an rvalue expression for the OUTERMODE lowpart of OP,
++   which has mode INNERMODE.  Allow OP to be forced into a new register
++   if necessary.
++
++   Return null on failure.  */
++
++rtx
++force_lowpart_subreg (machine_mode outermode, rtx op,
++		      machine_mode innermode)
++{
++  auto byte = subreg_lowpart_offset (outermode, innermode);
++  return force_subreg (outermode, op, innermode, byte);
++}
++
+ /* If X is a memory ref, copy its contents to a new temp reg and return
+    that reg.  Otherwise, return X.  */
+ 
+diff --git a/gcc/explow.h b/gcc/explow.h
+index cbd1fcb7eb3..dd654649b06 100644
+--- a/gcc/explow.h
++++ b/gcc/explow.h
+@@ -43,6 +43,7 @@ extern rtx copy_to_suggested_reg (rtx, rtx, machine_mode);
+ extern rtx force_reg (machine_mode, rtx);
+ 
+ extern rtx force_subreg (machine_mode, rtx, machine_mode, poly_uint64);
++extern rtx force_lowpart_subreg (machine_mode, rtx, machine_mode);
+ 
+ /* Return given rtx, copied into a new temp reg if it was in memory.  */
+ extern rtx force_not_mem (rtx);
+diff --git a/gcc/optabs.cc b/gcc/optabs.cc
+index ce91f94ed43..804c0dc73ba 100644
+--- a/gcc/optabs.cc
++++ b/gcc/optabs.cc
+@@ -3096,26 +3096,6 @@ expand_ffs (scalar_int_mode mode, rtx op0, rtx target)
+   return 0;
+ }
+ 
+-/* Extract the OMODE lowpart from VAL, which has IMODE.  Under certain
+-   conditions, VAL may already be a SUBREG against which we cannot generate
+-   a further SUBREG.  In this case, we expect forcing the value into a
+-   register will work around the situation.  */
+-
+-static rtx
+-lowpart_subreg_maybe_copy (machine_mode omode, rtx val,
+-			   machine_mode imode)
+-{
+-  rtx ret;
+-  ret = lowpart_subreg (omode, val, imode);
+-  if (ret == NULL)
+-    {
+-      val = force_reg (imode, val);
+-      ret = lowpart_subreg (omode, val, imode);
+-      gcc_assert (ret != NULL);
+-    }
+-  return ret;
+-}
+-
+ /* Expand a floating point absolute value or negation operation via a
+    logical operation on the sign bit.  */
+ 
+@@ -3204,7 +3184,7 @@ expand_absneg_bit (enum rtx_code code, scalar_float_mode mode,
+ 			   gen_lowpart (imode, op0),
+ 			   immed_wide_int_const (mask, imode),
+ 		           gen_lowpart (imode, target), 1, OPTAB_LIB_WIDEN);
+-      target = lowpart_subreg_maybe_copy (mode, temp, imode);
++      target = force_lowpart_subreg (mode, temp, imode);
+ 
+       set_dst_reg_note (get_last_insn (), REG_EQUAL,
+ 			gen_rtx_fmt_e (code, mode, copy_rtx (op0)),
+@@ -4043,7 +4023,7 @@ expand_copysign_bit (scalar_float_mode mode, rtx op0, rtx op1, rtx target,
+ 
+       temp = expand_binop (imode, ior_optab, op0, op1,
+ 			   gen_lowpart (imode, target), 1, OPTAB_LIB_WIDEN);
+-      target = lowpart_subreg_maybe_copy (mode, temp, imode);
++      target = force_lowpart_subreg (mode, temp, imode);
+     }
+ 
+   return target;
+-- 
+2.44.2
+
