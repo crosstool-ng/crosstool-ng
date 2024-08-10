@@ -1,0 +1,46 @@
+From 5468439a1f987b7d801c6c76d6c989e57af8916a Mon Sep 17 00:00:00 2001
+From: Richard Sandiford <richard.sandiford@arm.com>
+Date: Tue, 25 Jun 2024 09:41:21 +0100
+Subject: [PATCH 16/16] Revert one of the force_subreg changes
+
+One of the changes in g:d4047da6a070175aae7121c739d1cad6b08ff4b2
+caused a regression in ft32-elf; see:
+
+    https://gcc.gnu.org/pipermail/gcc-patches/2024-June/655418.html
+
+for details.  This change was different from the others in that the
+original call was to simplify_subreg rather than simplify_lowpart_subreg.
+The old code would therefore go on to do the force_reg for more cases
+than the new code would.
+
+gcc/
+	* expmed.cc (store_bit_field_using_insv): Revert earlier change
+	to use force_subreg instead of simplify_gen_subreg.
+
+(cherry picked from commit b694bf417cdd7d0a4d78e9927bab6bc202b7df6c)
+---
+ gcc/expmed.cc | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/gcc/expmed.cc b/gcc/expmed.cc
+index bd190722de6..85ec2614a3f 100644
+--- a/gcc/expmed.cc
++++ b/gcc/expmed.cc
+@@ -695,7 +695,13 @@ store_bit_field_using_insv (const extraction_insn *insv, rtx op0,
+ 	     if we must narrow it, be sure we do it correctly.  */
+ 
+ 	  if (GET_MODE_SIZE (value_mode) < GET_MODE_SIZE (op_mode))
+-	    tmp = force_subreg (op_mode, value1, value_mode, 0);
++	    {
++	      tmp = simplify_subreg (op_mode, value1, value_mode, 0);
++	      if (! tmp)
++		tmp = simplify_gen_subreg (op_mode,
++					   force_reg (value_mode, value1),
++					   value_mode, 0);
++	    }
+ 	  else
+ 	    {
+ 	      tmp = gen_lowpart_if_possible (op_mode, value1);
+-- 
+2.44.2
+
