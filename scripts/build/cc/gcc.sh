@@ -282,6 +282,7 @@ do_gcc_core_backend() {
         gcc_build|gcc_host)
             CT_DoLog EXTRA "Configuring final gcc compiler"
             extra_config+=( "${CT_CC_SYSROOT_ARG[@]}" )
+            extra_config+=( "--with-headers=${CT_PREFIX_DIR}/${CT_TARGET}/include" )
             extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
             log_txt="final gcc compiler"
             # to inhibit the libiberty and libgcc tricks later on
