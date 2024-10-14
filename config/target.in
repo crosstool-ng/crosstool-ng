@@ -62,10 +62,24 @@ config MULTILIB
       NOTE: The multilib feature in crosstool-NG is not well-tested.
             Use at your own risk, and report success and/or failure.
 
+config MULTILIB_SPACE
+    bool
+    prompt "Build both speed and space optimized multilibs"
+    help
+      If you say 'y' here, then the toolchain will contain two versions
+      of every multilib, one optimized for speed (the default) and another
+      optimized for space. When building with the toolchain, linking with
+      -Os or -Oz will automatically select the space optimized variant.
+
+# either MULTILIB or MULTILIB_SPACE is set
+config MULTILIB_ANY
+     bool
+     default y if MULTILIB || MULTILIB_SPACE
+
 config DEMULTILIB
     bool "Attempt to combine libraries into a single directory"
-    default y if !MULTILIB
-    depends on !MULTILIB || EXPERIMENTAL
+    default y if !MULTILIB_ANY
+    depends on !MULTILIB_ANY || EXPERIMENTAL
     help
       Normally, Crosstool-NG installs the libraries into the directories
       as the configure for these libraries determines appropriate. For

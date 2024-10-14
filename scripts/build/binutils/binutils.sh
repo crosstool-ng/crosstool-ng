@@ -326,7 +326,7 @@ do_binutils_for_target() {
 
         [ -n "${CT_PKGVERSION}" ] && extra_config+=("--with-pkgversion=${CT_PKGVERSION}")
         [ -n "${CT_TOOLCHAIN_BUGURL}" ] && extra_config+=("--with-bugurl=${CT_TOOLCHAIN_BUGURL}")
-        if [ "${CT_MULTILIB}" = "y" ]; then
+        if [ "${CT_MULTILIB_ANY}" = "y" ]; then
             extra_config+=("--enable-multilib")
         else
             extra_config+=("--disable-multilib")

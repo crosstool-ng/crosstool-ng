@@ -29,7 +29,7 @@ newlib_main()
     CT_DoLog EXTRA "Configuring C library"
 
     # Multilib is the default, so if it is not enabled, disable it.
-    if [ "${CT_MULTILIB}" != "y" ]; then
+    if [ "${CT_MULTILIB_ANY}" != "y" ]; then
         newlib_opts+=("--disable-multilib")
     fi
 

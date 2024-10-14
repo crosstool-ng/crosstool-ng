@@ -108,7 +108,7 @@ do_newlib_nano_for_target() {
     CT_DoLog EXTRA "Configuring Newlib Nano library"
 
     # Multilib is the default, so if it is not enabled, disable it.
-    if [ "${CT_MULTILIB}" != "y" ]; then
+    if [ "${CT_MULTILIB_ANY}" != "y" ]; then
         newlib_nano_opts+=("-Dmultilib=false")
     fi
 

@@ -525,6 +525,9 @@ do_gcc_core_backend() {
             extra_config+=("--with-multilib-list=${CT_CC_GCC_MULTILIB_LIST}")
         fi
     fi
+    if [ "${CT_MULTILIB_SPACE}" = "y" ]; then
+	extra_config+=("--enable-multilib-space")
+    fi
 
     CT_DoLog DEBUG "Extra config passed: '${extra_config[*]}'"
 
