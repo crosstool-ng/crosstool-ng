@@ -347,7 +347,7 @@ do_gdb_backend()
         "${extra_config[@]}"                        \
 
     if [ "${static}" = "y" ]; then
-        if [ "${GDB_CC_LD_LIBTOOL}" = "y" ]; then
+        if [ "${CT_GDB_CC_LD_LIBTOOL}" = "y" ]; then
             extra_make_flags+=("LDFLAGS=${ldflags} -all-static")
         else
             extra_make_flags+=("LDFLAGS=${ldflags} -static")
