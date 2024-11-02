@@ -16,6 +16,8 @@ do_linker_mold_build() {
 
     CT_DoLog EXTRA "Configuring mold for host"
     CT_DoExecLog CFG                                           \
+    CC="${CT_HOST}-gcc"                                        \
+    CXX="${CT_HOST}-g++"                                       \
     CFLAGS="${CT_CFLAGS_FOR_HOST}"                             \
     LDFLAGS="${CT_LDFLAGS_FOR_HOST}"                           \
     cmake "${CT_SRC_DIR}/mold"                                 \
