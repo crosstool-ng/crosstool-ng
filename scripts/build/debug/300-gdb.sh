@@ -175,8 +175,14 @@ do_debug_gdb_build()
         # where libexpat for build platform lives, which is
         # unacceptable for cross-compiling.
         #
-        native_extra_config+=("--with-expat=${CT_BUILDTOOLS_PREFIX_DIR}")
+        native_extra_config+=("--with-expat=y")
+        native_extra_config+=("--with-libexpat-prefix=${CT_BUILDTOOLS_PREFIX_DIR}")
 
+        # Without specifying libexpat type, configure would look for -lexpat
+        # and try to link with shared library, set library type explicitly.
+        if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
+            native_extra_config+=("--with-libexpat-type=static")
+        fi
         do_gdb_backend \
             buildtype=native \
             subdir=${subdir} \
