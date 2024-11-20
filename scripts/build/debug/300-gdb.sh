@@ -354,7 +354,9 @@ do_gdb_backend()
 
     if [ "${static}" = "y" ]; then
         if [ "${CT_GDB_CC_LD_LIBTOOL}" = "y" ]; then
-            extra_make_flags+=("LDFLAGS=${ldflags} -all-static")
+            # gdb is linked with libtool, but gdbserver is not
+            # Both linker accept -static --static and create static binaries
+            extra_make_flags+=("LDFLAGS=${ldflags} -static --static")
         else
             extra_make_flags+=("LDFLAGS=${ldflags} -static")
         fi
