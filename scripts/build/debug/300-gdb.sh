@@ -175,8 +175,14 @@ do_debug_gdb_build()
         # where libexpat for build platform lives, which is
         # unacceptable for cross-compiling.
         #
-        native_extra_config+=("--with-expat=${CT_BUILDTOOLS_PREFIX_DIR}")
+        native_extra_config+=("--with-expat=y")
+        native_extra_config+=("--with-libexpat-prefix=${CT_BUILDTOOLS_PREFIX_DIR}")
 
+        # Without specifying libexpat type, configure would look for -lexpat
+        # and try to link with shared library, set library type explicitly.
+        if [ "${CT_GDB_NATIVE_STATIC}" = "y" ]; then
+            native_extra_config+=("--with-libexpat-type=static")
+        fi
         do_gdb_backend \
             buildtype=native \
             subdir=${subdir} \
@@ -348,7 +354,9 @@ do_gdb_backend()
 
     if [ "${static}" = "y" ]; then
         if [ "${CT_GDB_CC_LD_LIBTOOL}" = "y" ]; then
-            extra_make_flags+=("LDFLAGS=${ldflags} -all-static")
+            # gdb is linked with libtool, but gdbserver is not
+            # Both linker accept -static --static and create static binaries
+            extra_make_flags+=("LDFLAGS=${ldflags} -static --static")
         else
             extra_make_flags+=("LDFLAGS=${ldflags} -static")
         fi
