@@ -2,7 +2,7 @@
 
 avr_libc_post_cc()
 {
-    if [ "${CT_CC_CORE_PASS_2_NEEDED}" != "y" ]; then
+    if [ "${CT_CC_CORE_NEEDED}" != "y" ]; then
         CT_DoStep INFO "Installing C library"
 
         CT_DoLog EXTRA "Copying sources to build directory"
@@ -32,7 +32,7 @@ avr_libc_post_cc()
 
 avr_libc_main()
 {
-    if [ "${CT_CC_CORE_PASS_2_NEEDED}" = "y" ]; then
+    if [ "${CT_CC_CORE_NEEDED}" = "y" ]; then
         CT_DoStep INFO "Installing C library"
 
         CT_DoLog EXTRA "Copying sources to build directory"
