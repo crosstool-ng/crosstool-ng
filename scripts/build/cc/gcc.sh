@@ -389,16 +389,32 @@ do_gcc_core_backend() {
         "") extra_config+=("--disable-libstdcxx-verbose");;
     esac
 
+    if [ "${build_libstdcxx}" = "yes" ]; then
+        if [ "${CT_CC_GCC_LIBSTDCXX}" = "n" ]; then
+            build_libstdcxx="no"
+        elif [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
+            extra_config+=("--enable-libstdcxx")
+        fi
+
+        if [ "${CT_LIBC_AVR_LIBC}" = "y" ]; then
+            extra_config+=("--enable-cstdio=stdio_pure")
+        fi
+
+        if [ "${CT_CC_GCC_LIBSTDCXX_HOSTED_DISABLE}" = "y" ]; then
+            extra_config+=("--disable-libstdcxx-hosted")
+        fi
+    fi
+
     if [ "${build_libstdcxx}" = "no" ]; then
         extra_config+=(--disable-libstdcxx)
     fi
 
     if [ "${CT_LIBC_PICOLIBC}" = "y" ]; then
-	extra_config+=("--with-default-libc=picolibc")
-	extra_config+=("--enable-stdio=pure")
-	if [ "${CT_PICOLIBC_older_than_1_8}" = "y" ]; then
-	    extra_config+=("--disable-wchar_t")
-	fi
+        extra_config+=("--with-default-libc=picolibc")
+        extra_config+=("--enable-stdio=pure")
+        if [ "${CT_PICOLIBC_older_than_1_8}" = "y" ]; then
+            extra_config+=("--disable-wchar_t")
+        fi
     fi
 
     core_LDFLAGS+=("${ldflags}")
@@ -697,9 +713,7 @@ do_gcc_core_backend() {
     else # build_libgcc
         core_targets=( gcc )
     fi   # ! build libgcc
-    if [    "${build_libstdcxx}" = "yes"    \
-         -a "${CT_CC_LANG_CXX}"  = "y"      \
-       ]; then
+    if [ "${build_libstdcxx}" = "yes" ]; then
         core_targets+=( target-libstdc++-v3 )
     fi
 
@@ -810,9 +824,7 @@ do_cc_for_build() {
         # lack of such a compiler, but better safe than sorry...
         build_final_opts+=( "mode=baremetal" )
         build_final_opts+=( "build_libgcc=yes" )
-        if [ "${CT_LIBC_NONE}" != "y" ]; then
-            build_final_opts+=( "build_libstdcxx=yes" )
-        fi
+        build_final_opts+=( "build_libstdcxx=yes" )
         build_final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             build_final_opts+=( "build_staticlinked=yes" )
@@ -901,9 +913,7 @@ do_cc_for_host() {
     if [ "${CT_BARE_METAL}" = "y" ]; then
         final_opts+=( "mode=baremetal" )
         final_opts+=( "build_libgcc=yes" )
-        if [ "${CT_LIBC_NONE}" != "y" ]; then
-            final_opts+=( "build_libstdcxx=yes" )
-        fi
+        final_opts+=( "build_libstdcxx=yes" )
         final_opts+=( "build_libgfortran=yes" )
         if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
             final_opts+=( "build_staticlinked=yes" )
@@ -1075,16 +1085,24 @@ do_gcc_backend() {
         "") extra_config+=("--disable-libstdcxx-verbose");;
     esac
     
-    if [ "${build_libstdcxx}" = "no" ]; then
+    if [ "${CT_CC_GCC_LIBSTDCXX}" = "n" ]; then
         extra_config+=(--disable-libstdcxx)
-    elif [ "${CT_CC_GCC_EXTRA_LIBSTDCXX}" = "y" ]; then
+    elif [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
         extra_config+=(--enable-libstdcxx)
     fi
 
+    if [ "${CT_CC_GCC_LIBSTDCXX_HOSTED_DISABLE}" = "y" ]; then
+        extra_config+=("--disable-libstdcxx-hosted")
+    fi
+
+    if [ "${CT_LIBC_AVR_LIBC}" = "y" ]; then
+        extra_config+=("--enable-cstdio=stdio_pure")
+    fi
+
     if [ "${CT_LIBC_PICOLIBC}" = "y" ]; then
-	extra_config+=("--with-default-libc=picolibc")
-	extra_config+=("--enable-stdio=pure")
-	extra_config+=("--disable-wchar_t")
+        extra_config+=("--with-default-libc=picolibc")
+        extra_config+=("--enable-stdio=pure")
+        extra_config+=("--disable-wchar_t")
     fi
 
     final_LDFLAGS+=("${ldflags}")

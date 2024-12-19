@@ -53,15 +53,6 @@ config CC_GCC_ENABLE_CXX_FLAGS
       Note: just pass in the option _value_, that is only the part that goes
       after the '=' sign.
 
-config CC_GCC_EXTRA_LIBSTDCXX
-    bool "Re-enable libstdcxx"
-    default n
-    depends on LIBC_AVR_LIBC
-    select CC_CORE_PASS_2_NEEDED
-    help
-      libstdcxx is normally disabled on avr systems due to size limitations.
-      Set this option to re-enable libstdcxx support.
-
 config CC_GCC_CORE_EXTRA_CONFIG_ARRAY
     string "Core gcc extra config"
     default ""
@@ -239,6 +230,40 @@ config CC_GCC_ENABLE_TARGET_OPTSPACE
       Pass --enable-target-optspace to crossgcc's configure.
       
       This will compile crossgcc's libs with -Os.
+
+config CC_GCC_LIBSTDCXX
+    tristate "Build libstdcxx"
+    default n if ARCH_AVR || LIBC_NONE
+    default m
+    depends on CC_LANG_CXX
+    select CC_CORE_NEEDED if ARCH_AVR
+    help
+      libstdcxx is normally disabled on some systems, like avr, due to size
+      limitations or it being not supported.
+      Set this option to force libstdcxx support.
+
+       Option  | libstdcxx build    | Associated ./configure switch
+      ---------+--------------------+--------------------------------
+         Y     | forcibly           | --enable-libstdcxx
+         M     | auto               | (none, ./configure decides)
+         N     | forcibly not       | --disable-libstdcxx
+
+config CC_GCC_LIBSTDCXX_HOSTED_DISABLE
+    bool "Build freestanding libstdcxx"
+    default y if LIBC_AVR_LIBC
+    default n
+    depends on CC_GCC_LIBSTDCXX
+    help
+      libstdcxx can be compiled in two modes: hosted and freestanding.
+      Hosted mode is the default, and is used when the OS is available.
+      Freestanding mode is used when the OS is not available, like in
+      bare-metal systems.
+
+      Some architectures, like avr, do not support hosted mode, but default
+      to it, and will fail to build libstdcxx in hosted mode.
+
+      Answer 'y' here to force freestanding mode, otherwise answer let
+      ./configure decide. 
 
 config CC_GCC_LIBMUDFLAP
     bool
