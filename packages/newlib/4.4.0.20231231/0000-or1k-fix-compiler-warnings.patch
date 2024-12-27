@@ -1,0 +1,150 @@
+From 8e53c587597a33fec5f41a540a9b1b20d53fb439 Mon Sep 17 00:00:00 2001
+From: Stafford Horne <shorne@gmail.com>
+Date: Thu, 12 Dec 2024 16:23:03 +0000
+Subject: [PATCH] or1k: Fix compiler warnings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In my build the below are treated as error now and causing failures.  I
+have described the fixes of each warning below.
+
+In newlib/libc/sys/or1k/mlock.c:
+
+      CC       libc/sys/or1k/libc_a-mlock.o
+    newlib/libc/sys/or1k/mlock.c: In function ‘__malloc_lock’:
+    newlib/libc/sys/or1k/mlock.c:56:19: warning: implicit declaration of function ‘or1k_critical_begin’ [-Wimplicit-function-declaration]
+       56 |         restore = or1k_critical_begin();
+	  |                   ^~~~~~~~~~~~~~~~~~~
+    newlib/libc/sys/or1k/mlock.c: In function ‘__malloc_unlock’:
+    newlib/libc/sys/or1k/mlock.c:93:17: warning: implicit declaration of function ‘or1k_critical_end’ [-Wimplicit-function-declaration]
+       93 |                 or1k_critical_end(restore);
+	  |                 ^~~~~~~~~~~~~~~~~
+
+This patch adds prototypes for functions or1k_critical_begin and
+or1k_critical_end to suppress the warning, inline with what we do for
+or1k_sync_cas.
+
+In libgloss/or1k/or1k_uart.c:
+
+    libgloss/or1k/or1k_uart.c: In function ‘or1k_uart_set_read_cb’:
+    libgloss/or1k/or1k_uart.c:163:25: warning: passing argument 2 of ‘or1k_interrupt_handler_add’ from incompatible pointer type [-Wincompatible-pointer-types]
+      163 |                         _or1k_uart_interrupt_handler, 0);
+	  |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	  |                         |
+	  |                         void (*)(uint32_t) {aka void (*)(long unsigned int)}
+    In file included from libgloss/or1k/or1k_uart.c:19:
+    libgloss/or1k/include/or1k-support.h:97:45: note: expected ‘or1k_interrupt_handler_fptr’ {aka ‘void (*)(void *)’} but argument is of type ‘void (*)(uint32_t)’ {aka ‘void (*)(long unsigned int)’}
+       97 |                 or1k_interrupt_handler_fptr handler,
+	  |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~
+
+The public API is ‘void (*)(void *)' for our interrupt handlers.  The
+function _or1k_uart_interrupt_hander is the internal default
+implementation of the uart IRQ handler and it doesn't use the data
+argument.
+
+This patch updates the _or1k_uart_interrupt_handler argument type from
+uint32_t to void* allowing the function prototype to match the required
+prototype.
+
+If we did have a 64-bit implementation it would be an ABI issue. But,
+there never has been one, or1k is only 32-bit.
+
+In libgloss/or1k/interrupts.c:
+
+    libgloss/or1k/interrupts.c: In function ‘or1k_interrupt_handler_add’:
+    libgloss/or1k/interrupts.c:41:52: warning: assignment to ‘void *’ from ‘long unsigned int’ makes pointer from integer without a cast [-Wint-conversion]
+       41 |         _or1k_interrupt_handler_data_ptr_table[id] = (uint32_t) data_ptr;
+	  |                                                    ^
+
+The table _or1k_interrupt_handler_data_ptr_table is an array of void*
+and data_ptr is void*.  There is no need for the cast so remove it.
+
+In libgloss/or1k/sbrk.c:
+
+    libgloss/or1k/sbrk.c:23:29: warning: initialization of ‘uint32_t’ {aka ‘long unsigned int’} from ‘uint32_t *’ {aka ‘long unsigned int *’} makes integer from pointer without a cast [-Wint-conversion]
+       23 | uint32_t _or1k_heap_start = &end;
+	  |
+
+This patch adds a cast, which is safe in or1k as the architecture in
+32-bit only.  But this code would not be 64-compatible.
+
+Signed-off-by: Stafford Horne <shorne@gmail.com>
+---
+ libgloss/or1k/interrupts.c   | 4 ++--
+ libgloss/or1k/or1k_uart.c    | 2 +-
+ libgloss/or1k/or1k_uart.h    | 2 +-
+ libgloss/or1k/sbrk.c         | 2 +-
+ newlib/libc/sys/or1k/mlock.c | 3 +++
+ 5 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/libgloss/or1k/interrupts.c b/libgloss/or1k/interrupts.c
+index 6badc497c1..516d74be38 100644
+--- a/libgloss/or1k/interrupts.c
++++ b/libgloss/or1k/interrupts.c
+@@ -35,10 +35,10 @@ void or1k_interrupt_handler_add(uint32_t id,
+ {
+ #ifdef __OR1K_MULTICORE__
+ 	_or1k_interrupt_handler_table[or1k_coreid()][id] = handler;
+-	_or1k_interrupt_handler_data_ptr_table[or1k_coreid()][id] = (uint32_t) data_ptr;
++	_or1k_interrupt_handler_data_ptr_table[or1k_coreid()][id] = data_ptr;
+ #else
+ 	_or1k_interrupt_handler_table[id] = handler;
+-	_or1k_interrupt_handler_data_ptr_table[id] = (uint32_t) data_ptr;
++	_or1k_interrupt_handler_data_ptr_table[id] = data_ptr;
+ #endif
+ }
+ 
+diff --git a/libgloss/or1k/or1k_uart.c b/libgloss/or1k/or1k_uart.c
+index 0a991e6baf..1391d565c6 100644
+--- a/libgloss/or1k/or1k_uart.c
++++ b/libgloss/or1k/or1k_uart.c
+@@ -90,7 +90,7 @@ void (*_or1k_uart_read_cb)(char c);
+  * This is the interrupt handler that is registered for the callback
+  * function.
+  */
+-void _or1k_uart_interrupt_handler(uint32_t data)
++void _or1k_uart_interrupt_handler(void *data)
+ {
+ 	uint8_t iir = REG8(IIR);
+ 
+diff --git a/libgloss/or1k/or1k_uart.h b/libgloss/or1k/or1k_uart.h
+index 4cbb68350d..201b7749f6 100644
+--- a/libgloss/or1k/or1k_uart.h
++++ b/libgloss/or1k/or1k_uart.h
+@@ -30,7 +30,7 @@ extern void (*_or1k_uart_read_cb)(char c);
+ /**
+  * The UART interrupt handler
+  */
+-void _or1k_uart_interrupt_handler(uint32_t data);
++void _or1k_uart_interrupt_handler(void *data);
+ 
+ /**
+  * Initialize UART
+diff --git a/libgloss/or1k/sbrk.c b/libgloss/or1k/sbrk.c
+index 0c3e66e876..ca196d2282 100644
+--- a/libgloss/or1k/sbrk.c
++++ b/libgloss/or1k/sbrk.c
+@@ -20,7 +20,7 @@
+ #include "include/or1k-support.h"
+ 
+ extern uint32_t	end; /* Set by linker.  */
+-uint32_t _or1k_heap_start = &end;
++uint32_t _or1k_heap_start = (uint32_t) &end;
+ uint32_t _or1k_heap_end;
+ 
+ void *
+diff --git a/newlib/libc/sys/or1k/mlock.c b/newlib/libc/sys/or1k/mlock.c
+index ccb8401611..a0c0383356 100644
+--- a/newlib/libc/sys/or1k/mlock.c
++++ b/newlib/libc/sys/or1k/mlock.c
+@@ -38,6 +38,9 @@ volatile uint32_t _or1k_malloc_lock_restore;
+ 
+ extern uint32_t or1k_sync_cas(void *address, uint32_t compare, uint32_t swap);
+ 
++extern uint32_t or1k_critical_begin();
++extern void or1k_critical_end(uint32_t restore);
++
+ /**
+  * Recursive lock of the malloc
+  */
