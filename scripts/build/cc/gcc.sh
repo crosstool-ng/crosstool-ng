@@ -511,6 +511,12 @@ do_gcc_core_backend() {
         *)  extra_config+=( "--enable-decimal-float=${CT_CC_GCC_DEC_FLOATS}" );;
     esac
 
+    if [ "${CT_CC_GCC_ENABLE_PLUGINS}" = "y" ]; then
+        extra_config+=( --enable-plugin )
+    else
+        extra_config+=( --disable-plugin )
+    fi
+
     case "${CT_ARCH}" in
         mips)
             case "${CT_CC_GCC_mips_llsc}" in
