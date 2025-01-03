@@ -150,6 +150,7 @@ do_cc_libstdcxx_picolibc()
     final_opts+=( "lang_list=c,c++" )
     final_opts+=( "build_step=libstdcxx" )
     final_opts+=( "extra_config+=('--enable-stdio=stdio_pure')" )
+    final_opts+=( "extra_config+=('--with-headers=${CT_PREFIX_DIR}/picolibc/include')" )
     if [ "${CT_PICOLIBC_older_than_1_8}" = "y" ]; then
 	final_opts+=( "extra_config+=('--disable-wchar_t')" )
     fi
