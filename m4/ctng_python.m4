@@ -60,15 +60,17 @@ AC_DEFUN([CTNG_PYTHON],
 [
   AC_MSG_CHECKING(for python build information)
   AC_MSG_RESULT([])
-  for python in python3.12 python3.11 python3.10 python3.9 python3.8 python3.7 dnl
+  for python in python3.13 python3.12 python3.11 python3.10 python3.9 python3.8 python3.7 dnl
 python3.6 python3.5 python3.4 python3.3 python3.2 python3.1 python3.0 python2.7 dnl
 python2.6 python2.5 python2.4 python2.3 python2.2 python2.1 python; do
     AC_PATH_PROGS(PYTHON_BIN, [$python])
+    AC_CHECK_PROGS(PYTHON_BIN_, [$python])
     ctng_python_bin=$PYTHON_BIN
+    ctng_python_bin_=$PYTHON_BIN_
     if test "$ctng_python_bin" != ""; then
-      AC_CHECK_LIB($ctng_python_bin, main, ctng_python_lib=$ctng_python_bin, ctng_python_lib=no)
+      AC_CHECK_LIB($ctng_python_bin_, main, ctng_python_lib=$ctng_python_bin_, ctng_python_lib=no)
       if test "$ctng_python_lib" = "no"; then
-        AC_CHECK_LIB(${ctng_python_bin}m, main, ctng_python_lib=${ctng_python_bin}m, ctng_python_lib=no)
+        AC_CHECK_LIB(${ctng_python_bin_}m, main, ctng_python_lib=${ctng_python_bin_}m, ctng_python_lib=no)
       fi
       if test "$ctng_python_lib" != "no"; then
         $ctng_python_bin -c 'import sysconfig' 2>&1
