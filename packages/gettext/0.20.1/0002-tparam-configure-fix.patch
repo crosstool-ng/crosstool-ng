@@ -1,0 +1,49 @@
+[PATCH] tparam configure fix
+
+With a newer compiler the configure check for tparam/tparm fails with
+
+conftest.c: In function 'main':
+conftest.c:95:8: error: returning 'char *' from a function with return type 'int' makes integer from pointer without a cast [-Wint-conversion]
+   95 | return tparam ("\033\133%dm", &buf, 1, 8);
+      |        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+configure:23675: $? = 1
+conftest.c: In function 'main':
+conftest.c:94:8: error: returning 'char *' from a function with return type 'int' makes integer from pointer without a cast [-Wint-conversion]
+   94 | return tparm ("\033\133%dm", 8);
+      |        ^~~~~~~~~~~~~~~~~~~~~~~~
+configure:23719: $? = 1
+
+This causes libtextstyle to backfill these two functions from gnulib which
+eventually causes a link error
+
+ld.bfd: buildtools/complibs-host/lib/libncurses.a(lib_tparm.o): in function `tparm':
+src/ncurses/ncurses/tinfo/lib_tparm.c:1093: multiple definition of `tparm'; ../lib/.libs/libtextstyle.a(tparm.o):src/gettext/libtextstyle/lib/tparm.c:256: first defined here
+
+Update the configure check to something that will correctly determine if
+tparam/tparm need to be back-filled.
+
+Signed-off-by: Chris Packham <judge.packham@gmail.com>
+---
+ libtextstyle/configure |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- a/libtextstyle/configure
++++ b/libtextstyle/configure
+@@ -23667,7 +23667,7 @@
+ int
+ main ()
+ {
+-return tparam ("\033\133%dm", &buf, 1, 8);
++return ! tparam ("\033\133%dm", &buf, 1, 8);
+   ;
+   return 0;
+ }
+@@ -23711,7 +23711,7 @@
+ int
+ main ()
+ {
+-return tparm ("\033\133%dm", 8);
++return ! tparm ("\033\133%dm", 8);
+   ;
+   return 0;
+ }
