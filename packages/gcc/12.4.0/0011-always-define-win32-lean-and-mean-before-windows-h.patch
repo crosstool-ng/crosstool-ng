@@ -1,0 +1,379 @@
+Original patch for GCC 13 by LIU Hao <lh_mouse@126.com>
+
+Recently, mingw-w64 has got updated <msxml.h> from Wine which is included
+indirectly by <windows.h> if `WIN32_LEAN_AND_MEAN` is not defined. The
+`IXMLDOMDocument` class has a member function named `abort()`, which gets
+affected by our `abort()` macro in "system.h".
+
+`WIN32_LEAN_AND_MEAN` should, nevertheless, always be defined. This
+can exclude 'APIs such as Cryptography, DDE, RPC, Shell, and Windows
+Sockets' [1], and speed up compilation of these files a bit.
+
+[1] https://learn.microsoft.com/en-us/windows/win32/winprog/using-the-windows-headers
+
+--- a/gcc/ada/adaint.c
++++ b/gcc/ada/adaint.c
+@@ -227,6 +227,7 @@ UINT __gnat_current_ccs_encoding;
+ 
+ #elif defined (_WIN32)
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <accctrl.h>
+ #include <aclapi.h>
+--- a/gcc/ada/cio.c
++++ b/gcc/ada/cio.c
+@@ -67,6 +67,7 @@ extern "C" {
+ #endif
+ 
+ #ifdef RTX
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <Rtapi.h>
+ #endif
+--- a/gcc/ada/ctrl_c.c
++++ b/gcc/ada/ctrl_c.c
+@@ -126,6 +126,7 @@ __gnat_uninstall_int_handler (void)
+ 
+ #elif defined (__MINGW32__)
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include "mingw32.h"
+ #include <windows.h>
+ 
+--- a/gcc/ada/expect.c
++++ b/gcc/ada/expect.c
+@@ -71,6 +71,7 @@
+ 
+ #ifdef _WIN32
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <process.h>
+ #include <signal.h>
+--- a/gcc/ada/gsocket.h
++++ b/gcc/ada/gsocket.h
+@@ -167,6 +167,7 @@
+ 
+ #endif
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ #elif defined(VMS)
+--- a/gcc/ada/mingw32.h
++++ b/gcc/ada/mingw32.h
+@@ -53,6 +53,7 @@
+ #define _X86INTRIN_H_INCLUDED
+ #define _EMMINTRIN_H_INCLUDED
+ #endif
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ /* After including this file it is possible to use the character t as prefix
+--- a/gcc/ada/mkdir.c
++++ b/gcc/ada/mkdir.c
+@@ -43,6 +43,7 @@
+ #endif
+ 
+ #ifdef __MINGW32__
++#define WIN32_LEAN_AND_MEAN
+ #include "mingw32.h"
+ #include <windows.h>
+ #ifdef MAXPATHLEN
+--- a/gcc/ada/rtfinal.c
++++ b/gcc/ada/rtfinal.c
+@@ -46,6 +46,7 @@ extern int __gnat_rt_init_count;
+ /*  see initialize.c  */
+ 
+ #if defined (__MINGW32__)
++#define WIN32_LEAN_AND_MEAN
+ #include "mingw32.h"
+ #include <windows.h>
+ 
+--- a/gcc/ada/rtinit.c
++++ b/gcc/ada/rtinit.c
+@@ -70,6 +70,7 @@ int __gnat_rt_init_count = 0;
+    and finalize properly the run-time. */
+ 
+ #if defined (__MINGW32__)
++#define WIN32_LEAN_AND_MEAN
+ #include "mingw32.h"
+ #include <windows.h>
+ 
+--- a/gcc/ada/seh_init.c
++++ b/gcc/ada/seh_init.c
+@@ -34,6 +34,7 @@
+ 
+ #if defined (_WIN32) || (defined (__CYGWIN__) && defined (__SEH__))
+ /* Include system headers, before system.h poisons malloc.  */
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <excpt.h>
+ #endif
+--- a/gcc/ada/sysdep.c
++++ b/gcc/ada/sysdep.c
+@@ -217,6 +217,7 @@ __gnat_ttyname (int filedes)
+ #endif /* __CYGWIN__ */
+ 
+ #if defined (__CYGWIN__) || defined (__MINGW32__)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ int __gnat_is_windows_xp (void);
+@@ -589,6 +590,7 @@ getc_immediate_common (FILE *stream,
+    Ada programs.  */
+ 
+ #ifdef WINNT
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ /* Provide functions to echo the values passed to WinMain (windows bindings
+--- a/gcc/ada/terminals.c
++++ b/gcc/ada/terminals.c
+@@ -151,6 +151,7 @@ __gnat_setup_winsize (void *desc ATTRIBUTE_UNUSED,
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <winternl.h>
+ #include <io.h>
+--- a/gcc/ada/tracebak.c
++++ b/gcc/ada/tracebak.c
+@@ -93,6 +93,7 @@ extern void (*Unlock_Task) (void);
+ 
+ #if defined (_WIN64) && defined (__SEH__)
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ #define IS_BAD_PTR(ptr) (IsBadCodePtr((FARPROC)ptr))
+@@ -455,6 +456,7 @@ struct layout
+ #elif defined (__i386__) || defined (__x86_64__)
+ 
+ #if defined (__WIN32)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #define IS_BAD_PTR(ptr) (IsBadCodePtr((FARPROC)ptr))
+ #elif defined (__sun__)
+--- a/gcc/diagnostic-color.cc
++++ b/gcc/diagnostic-color.cc
+@@ -22,6 +22,7 @@
+ #include "diagnostic-url.h"
+ 
+ #ifdef __MINGW32__
++#  define WIN32_LEAN_AND_MEAN
+ #  include <windows.h>
+ #endif
+ 
+--- a/gcc/jit/jit-w32.h
++++ b/gcc/jit/jit-w32.h
+@@ -20,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
+ 
+ #include "config.h"
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ namespace gcc {
+--- a/gcc/plugin.cc
++++ b/gcc/plugin.cc
+@@ -41,6 +41,7 @@ along with GCC; see the file COPYING3.  If not see
+ #ifndef NOMINMAX
+ #define NOMINMAX
+ #endif
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #endif
+ 
+--- a/gcc/prefix.cc
++++ b/gcc/prefix.cc
+@@ -67,6 +67,7 @@ License along with GCC; see the file COPYING3.  If not see
+ #include "system.h"
+ #include "coretypes.h"
+ #if defined(_WIN32) && defined(ENABLE_WIN32_REGISTRY)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #endif
+ #include "prefix.h"
+--- a/libatomic/config/mingw/lock.c
++++ b/libatomic/config/mingw/lock.c
+@@ -23,6 +23,7 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #define UWORD __shadow_UWORD
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #undef UWORD
+ #include "libatomic_i.h"
+--- a/libffi/src/aarch64/ffi.c
++++ b/libffi/src/aarch64/ffi.c
+@@ -28,6 +28,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
+ #include <ffi_common.h>
+ #include "internal.h"
+ #ifdef _WIN32
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h> /* FlushInstructionCache */
+ #endif
+ #include <tramp.h>
+--- a/libgcc/config/i386/enable-execute-stack-mingw32.c
++++ b/libgcc/config/i386/enable-execute-stack-mingw32.c
+@@ -22,6 +22,7 @@
+    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+    <http://www.gnu.org/licenses/>.  */
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ extern void __enable_execute_stack (void *);
+--- a/libgcc/libgcc2.c
++++ b/libgcc/libgcc2.c
+@@ -2273,6 +2273,7 @@ __clear_cache (void *beg __attribute__((__unused__)),
+ /* Jump to a trampoline, loading the static chain address.  */
+ 
+ #if defined(WINNT) && ! defined(__CYGWIN__)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ int getpagesize (void);
+ int mprotect (char *,int, int);
+--- a/libgcc/unwind-generic.h
++++ b/libgcc/unwind-generic.h
+@@ -30,6 +30,7 @@
+ 
+ #if defined (__SEH__) && !defined (__USING_SJLJ_EXCEPTIONS__)
+ /* Only for _GCC_specific_handler.  */
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #endif
+ 
+--- a/libgfortran/intrinsics/sleep.c
++++ b/libgfortran/intrinsics/sleep.c
+@@ -30,6 +30,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ #endif
+ 
+ #ifdef __MINGW32__
++# define WIN32_LEAN_AND_MEAN
+ # include <windows.h>
+ # undef sleep
+ # define sleep(x) Sleep(1000*(x))
+--- a/libgo/misc/cgo/test/callback_c.c
++++ b/libgo/misc/cgo/test/callback_c.c
+@@ -32,6 +32,7 @@ IntoC(void)
+ }
+ 
+ #ifdef WIN32
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ long long
+ mysleep(int seconds) {
+--- a/libgomp/config/mingw32/proc.c
++++ b/libgomp/config/mingw32/proc.c
+@@ -30,6 +30,7 @@
+    The following implementation uses win32 API routines.  */
+ 
+ #include "libgomp.h"
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ /* Count the CPU's currently available to this process.  */
+--- a/libiberty/make-temp-file.c
++++ b/libiberty/make-temp-file.c
+@@ -37,6 +37,7 @@ Boston, MA 02110-1301, USA.  */
+ #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
+ #endif
+ #if defined(_WIN32) && !defined(__CYGWIN__)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #endif
+ #if HAVE_SYS_STAT_H
+--- a/libiberty/pex-win32.c
++++ b/libiberty/pex-win32.c
+@@ -20,6 +20,7 @@ Boston, MA 02110-1301, USA.  */
+ 
+ #include "pex-common.h"
+ 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ #ifdef HAVE_STDLIB_H
+--- a/libssp/ssp.c
++++ b/libssp/ssp.c
+@@ -55,6 +55,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ /* Native win32 apps don't know about /dev/tty but can print directly
+    to the console using  "CONOUT$"   */
+ #if defined (_WIN32) && !defined (__CYGWIN__)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <wincrypt.h>
+ # define _PATH_TTY "CONOUT$"
+--- a/libstdc++-v3/src/c++11/system_error.cc
++++ b/libstdc++-v3/src/c++11/system_error.cc
+@@ -33,6 +33,7 @@
+ #undef __sso_string
+ 
+ #if defined(_WIN32) && !defined(__CYGWIN__)
++#define WIN32_LEAN_AND_MEAN
+ #include <memory>
+ #include <windows.h>
+ #endif
+--- a/libstdc++-v3/src/c++11/thread.cc
++++ b/libstdc++-v3/src/c++11/thread.cc
+@@ -34,6 +34,7 @@
+ # ifdef _GLIBCXX_HAVE_SLEEP
+ #  include <unistd.h>
+ # elif defined(_GLIBCXX_HAVE_WIN32_SLEEP)
++#  define WIN32_LEAN_AND_MEAN
+ #  include <windows.h>
+ # elif defined _GLIBCXX_NO_SLEEP && defined _GLIBCXX_HAS_GTHREADS
+ // We expect to be able to sleep for targets that support multiple threads:
+--- a/libstdc++-v3/src/c++17/fs_ops.cc
++++ b/libstdc++-v3/src/c++17/fs_ops.cc
+@@ -54,6 +54,7 @@
+ # include <utime.h> // utime
+ #endif
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++# define WIN32_LEAN_AND_MEAN
+ # include <windows.h>
+ #endif
+ 
+--- a/libstdc++-v3/src/filesystem/ops.cc
++++ b/libstdc++-v3/src/filesystem/ops.cc
+@@ -55,6 +55,7 @@
+ # include <utime.h> // utime
+ #endif
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++# define WIN32_LEAN_AND_MEAN
+ # include <windows.h>
+ #endif
+ 
+--- a/libvtv/vtv_malloc.cc
++++ b/libvtv/vtv_malloc.cc
+@@ -33,6 +33,7 @@
+ #include <stdlib.h>
+ #include <unistd.h>
+ #if defined (__CYGWIN__) || defined (__MINGW32__)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #else
+ #include <sys/mman.h>
+--- a/libvtv/vtv_rts.cc
++++ b/libvtv/vtv_rts.cc
+@@ -121,6 +121,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ #if defined (__CYGWIN__) || defined (__MINGW32__)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <winternl.h>
+ #include <psapi.h>
+--- a/libvtv/vtv_utils.cc
++++ b/libvtv/vtv_utils.cc
+@@ -33,6 +33,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #if defined (__CYGWIN__) || defined (__MINGW32__)
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #else
+ #include <execinfo.h>
