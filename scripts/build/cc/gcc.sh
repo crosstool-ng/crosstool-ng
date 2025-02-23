@@ -390,7 +390,7 @@ do_gcc_core_backend() {
     esac
 
     if [ "${build_libstdcxx}" = "yes" ]; then
-        if [ "${CT_CC_GCC_LIBSTDCXX}" = "n" ]; then
+        if [ "x${CT_CC_GCC_LIBSTDCXX}" = "x" ]; then
             build_libstdcxx="no"
         elif [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
             extra_config+=("--enable-libstdcxx")
@@ -1091,7 +1091,7 @@ do_gcc_backend() {
         "") extra_config+=("--disable-libstdcxx-verbose");;
     esac
     
-    if [ "${CT_CC_GCC_LIBSTDCXX}" = "n" ]; then
+    if [ "x${CT_CC_GCC_LIBSTDCXX}" = "x" ]; then
         extra_config+=(--disable-libstdcxx)
     elif [ "${CT_CC_GCC_LIBSTDCXX}" = "y" ]; then
         extra_config+=(--enable-libstdcxx)
