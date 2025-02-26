@@ -13,15 +13,22 @@
 #
 
 # Internal configuration
-TARGET:=@@DG_TARGET@@
 TOPDIR:=$(shell pwd)
 LOGDIR:=$(TOPDIR)/tmp
 
 # Include default configuration
 include default.cfg
 
+TARGET:=$(DG_TARGET)
+
 # Add toolchain to path
 PATH:=$(shell cd ../../bin && pwd):$(PATH)
+
+# Set sysroot
+SYSROOT:=$(shell cd ../../$(TARGET)/sysroot && pwd)
+
+# Set qemu
+DG_QEMU_PROGRAM:=qemu-$(shell echo $(TARGET) | sed 's/-.*$$//')
 
 # Select test set
 ifeq ($(DG_TOOLNAME),gcc)
@@ -29,6 +36,12 @@ ifeq ($(DG_TOOLNAME),gcc)
 endif
 ifeq ($(DG_TOOLNAME),g++)
 	DG_TESTS:=$(DG_CPP_TESTS)
+endif
+
+ifeq ($(DG_QEMU),y)
+    TARGET_BOARD=unix
+else
+    TARGET_BOARD=board
 endif
 
 # Check that we have 'runtest' installed
@@ -48,6 +61,7 @@ $(LOGDIR)/site.exp: $(TOPDIR)/default.cfg $(LOGDIR)
 	   echo 'set tmpdir "$(TOPDIR)"'; \
 	   echo 'set target_alias $(TARGET)';     } > $@
 
+# Create config for remote execution
 $(LOGDIR)/board.exp: $(TOPDIR)/default.cfg $(LOGDIR)
 	@{ echo 'load_generic_config "unix"';                    \
 	   echo 'process_multilib_options ""';                   \
@@ -57,19 +71,26 @@ $(LOGDIR)/board.exp: $(TOPDIR)/default.cfg $(LOGDIR)
 	   echo 'set_board_info hostname $(DG_TARGET_HOSTNAME)'; \
 	   echo 'set_board_info username $(DG_TARGET_USERNAME)'; } > $@
 
+# create config for local execution via qemu
+$(LOGDIR)/unix.exp: $(TOPDIR)/default.cfg $(LOGDIR)
+	@{ echo 'load_generic_config "unix"';                    \
+	   echo 'process_multilib_options ""';                   \
+	   echo 'set_board_info bmk,use_alarm 1';                \
+	   echo 'set_board_info exec_shell "$(DG_QEMU_PROGRAM) $(DG_QEMU_ARGS)"'; } > $@
+
 # As Martin puts it:
 #  > The thing is that when you run 50k+ test cases the odds are that at
 #  > least one will fail and thus runtest basically always return an error
 #  > despite the fact that the test session has executed successfully.
 # So just ignore any error reported by runtest
-test: $(LOGDIR)/board.exp $(LOGDIR)/site.exp $(LOGDIR)
+test: $(LOGDIR)/$(TARGET_BOARD).exp $(LOGDIR)/site.exp $(LOGDIR)
 	@runtest --tool $(DG_TOOLNAME)          \
 	         --srcdir $(TOPDIR)/testsuite   \
 	         --objdir $(LOGDIR)             \
 	         --outdir $(LOGDIR)             \
 	         --all                          \
 	         --target $(TARGET)             \
-	         --target_board board           \
+	         --target_board $(TARGET_BOARD) \
 	         $(DG_TESTS)                    \
 	         GXX_UNDER_TEST=$(TARGET)-g++   || true
 	@printf "Result files available in '%s'\n" "$(LOGDIR)"

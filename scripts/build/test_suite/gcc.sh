@@ -21,8 +21,17 @@ do_test_suite_gcc_build() {
                             "${CT_SRC_DIR}/gcc/gcc/testsuite"  \
                             "${CT_TEST_SUITE_DIR}/gcc"
 
-    CT_DoExecLog ALL sed -i -r -e "s/@@DG_TARGET@@/${CT_TARGET}/g;"     \
-                         "${CT_TEST_SUITE_DIR}/gcc/Makefile"
+    DG_QEMU_ARGS=`echo "${CT_TEST_SUITE_GCC_QEMU_ARGS}" | sed 's/@SYSROOT@/$(SYSROOT)/'`
+
+    CT_DoExecLog ALL sed -i -r \
+		 -e "s/@@DG_TARGET@@/${CT_TARGET}/g"     \
+		 -e "s/@@DG_SSH@@/${CT_TEST_SUITE_GCC_SSH}/g" \
+		 -e "s/@@DG_QEMU@@/${CT_TEST_SUITE_GCC_QEMU}/g" \
+		 -e "s/@@DG_TARGET_HOSTNAME@@/${CT_TEST_SUITE_GCC_TARGET_HOSTNAME}/g" \
+		 -e "s/@@DG_TARGET_USERNAME@@/${CT_TEST_SUITE_GCC_TARGET_USERNAME}/g" \
+		 -e "s/@@DG_QEMU_PROGRAM@@/${CT_TEST_SUITE_GCC_QEMU_PROGRAM}/g" \
+		 -e "s/@@DG_QEMU_ARGS@@/${DG_QEMU_ARGS}/g" \
+			 "${CT_TEST_SUITE_DIR}/gcc/default.cfg"
 
     CT_EndStep
 }
