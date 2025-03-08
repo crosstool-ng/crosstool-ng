@@ -1,0 +1,197 @@
+From 192474ab593fe550feab093ae9ade47b575778f6 Mon Sep 17 00:00:00 2001
+From: Quentin Boswank <qubos@outlook.de>
+Date: Wed, 5 Jun 2024 18:21:34 +0200
+Subject: [PATCH] Fix $filter and Msys/Cygwin
+
+- switched the patter and input of $filter into the right places
+- added pattern wildcard to MSYS_NT & CYGWIN_NT as they change with windows versions
+- correctly identify MSYS2, even in an env like MINGW64
+---
+ Makefile                         | 8 ++++----
+ doc/educational_decoder/Makefile | 2 +-
+ lib/Makefile                     | 6 +++---
+ lib/libzstd.mk                   | 2 +-
+ programs/Makefile                | 6 +++---
+ tests/Makefile                   | 8 ++++----
+ tests/fuzz/Makefile              | 2 +-
+ tests/gzip/Makefile              | 2 +-
+ 8 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 11eca19c..42c8f646 100644
+--- a/Makefile
++++ b/Makefile
+@@ -151,7 +151,7 @@ clean:
+ #------------------------------------------------------------------------------
+ # make install is validated only for Linux, macOS, Hurd and some BSD targets
+ #------------------------------------------------------------------------------
+-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT CYGWIN_NT Haiku AIX))
++ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT% CYGWIN_NT% Haiku AIX,$(shell sh -c 'MSYSTEM="MSYS" uname') ))
+ 
+ HOST_OS = POSIX
+ 
+@@ -390,19 +390,19 @@ lz4install:
+ endif
+ 
+ 
+-ifneq (,$(filter MSYS%,$(shell uname)))
++ifneq (,$(filter MSYS%,$(shell sh -c 'MSYSTEM="MSYS" uname') ))
+ HOST_OS = MSYS
+ endif
+ 
+ #------------------------------------------------------------------------
+ # target specific tests
+ #------------------------------------------------------------------------
+-ifneq (,$(filter $(HOST_OS),MSYS POSIX))
++ifneq (,$(filter MSYS POSIX,$(HOST_OS)))
+ 
+ CMAKE ?= cmake
+ CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
+ 
+-ifneq (,$(filter MSYS%,$(shell uname)))
++ifneq (,$(filter MSYS%,$(shell sh -c 'MSYSTEM="MSYS" uname')))
+ CMAKE_PARAMS = -G"MSYS Makefiles" -DZSTD_MULTITHREAD_SUPPORT:BOOL=OFF -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
+ endif
+ 
+diff --git a/doc/educational_decoder/Makefile b/doc/educational_decoder/Makefile
+index f6deeb13..faf757f0 100644
+--- a/doc/educational_decoder/Makefile
++++ b/doc/educational_decoder/Makefile
+@@ -10,7 +10,7 @@
+ 
+ ZSTD ?= zstd   # note: requires zstd installation on local system
+ 
+-UNAME?= $(shell uname)
++UNAME?= $(shell sh -c 'MSYSTEM="MSYS" uname')
+ ifeq ($(UNAME), SunOS)
+ DIFF ?= gdiff
+ else
+diff --git a/lib/Makefile b/lib/Makefile
+index 8bfdade9..f61a233a 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -261,7 +261,7 @@ clean:
+ #-----------------------------------------------------------------------------
+ # make install is validated only for below listed environments
+ #-----------------------------------------------------------------------------
+-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT CYGWIN_NT))
++ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT% CYGWIN_NT%,$(UNAME)))
+ 
+ lib: libzstd.pc
+ 
+@@ -292,13 +292,13 @@ PCLIBPREFIX := $(if $(findstring $(LIBDIR),$(PCLIBDIR)),,$${exec_prefix})
+ # to PREFIX, rather than as a resolved value.
+ PCEXEC_PREFIX := $(if $(HAS_EXPLICIT_EXEC_PREFIX),$(EXEC_PREFIX),$${prefix})
+ 
+-ifneq (,$(filter $(UNAME),FreeBSD NetBSD DragonFly))
++ifneq (,$(filter FreeBSD NetBSD DragonFly,$(UNAME)))
+   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
+ else
+   PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
+ endif
+ 
+-ifneq (,$(filter $(UNAME),SunOS))
++ifneq (,$(filter SunOS,$(UNAME)))
+   INSTALL ?= ginstall
+ else
+   INSTALL ?= install
+diff --git a/lib/libzstd.mk b/lib/libzstd.mk
+index a308a6ef..199fa43c 100644
+--- a/lib/libzstd.mk
++++ b/lib/libzstd.mk
+@@ -206,7 +206,7 @@ endif
+ endif
+ CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+ 
+-UNAME := $(shell uname)
++UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname')
+ 
+ ifndef BUILD_DIR
+ ifeq ($(UNAME), Darwin)
+diff --git a/programs/Makefile b/programs/Makefile
+index 4dcd8410..e1a30fc2 100644
+--- a/programs/Makefile
++++ b/programs/Makefile
+@@ -345,7 +345,7 @@ include $(wildcard $(DEPFILES))
+ #-----------------------------------------------------------------------------
+ # make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
+ #-----------------------------------------------------------------------------
+-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT CYGWIN_NT))
++ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT% CYGWIN_NT%,$(UNAME)))
+ 
+ HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
+ EGREP_OPTIONS ?=
+@@ -388,14 +388,14 @@ datarootdir ?= $(PREFIX)/share
+ mandir      ?= $(datarootdir)/man
+ man1dir     ?= $(mandir)/man1
+ 
+-ifneq (,$(filter $(UNAME),OpenBSD FreeBSD NetBSD DragonFly SunOS))
++ifneq (,$(filter OpenBSD FreeBSD NetBSD DragonFly SunOS,$(UNAME)))
+   MANDIR  ?= $(PREFIX)/man
+   MAN1DIR ?= $(MANDIR)/man1
+ else
+   MAN1DIR ?= $(man1dir)
+ endif
+ 
+-ifneq (,$(filter $(UNAME),SunOS))
++ifneq (,$(filter SunOS,$(UNAME)))
+   INSTALL ?= ginstall
+ else
+   INSTALL ?= install
+diff --git a/tests/Makefile b/tests/Makefile
+index ed3692a2..6f46bead 100644
+--- a/tests/Makefile
++++ b/tests/Makefile
+@@ -271,8 +271,8 @@ clean:
+ #----------------------------------------------------------------------------------
+ # valgrind tests validated only for some posix platforms
+ #----------------------------------------------------------------------------------
+-UNAME := $(shell uname)
+-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX CYGWIN_NT))
++UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname')
++ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX CYGWIN_NT%,$(UNAME)))
+ HOST_OS = POSIX
+ 
+ .PHONY: test-valgrind
+@@ -300,10 +300,10 @@ endif
+ #-----------------------------------------------------------------------------
+ # make tests validated only for below targets
+ #-----------------------------------------------------------------------------
+-ifneq (,$(filter $(HOST_OS),MSYS POSIX))
++ifneq (,$(filter MSYS POSIX,$(HOST_OS)))
+ 
+ DIFF:=diff
+-ifneq (,$(filter $(UNAME),SunOS))
++ifneq (,$(filter SunOS,$(UNAME)))
+   DIFF:=gdiff
+ endif
+ 
+diff --git a/tests/fuzz/Makefile b/tests/fuzz/Makefile
+index 430f6df1..06b8aa4c 100644
+--- a/tests/fuzz/Makefile
++++ b/tests/fuzz/Makefile
+@@ -17,7 +17,7 @@ LDFLAGS ?=
+ ARFLAGS ?=
+ LIB_FUZZING_ENGINE ?= libregression.a
+ PYTHON ?= python
+-ifeq ($(shell uname), Darwin)
++ifeq ($(shell sh -c 'MSYSTEM="MSYS" uname'), Darwin)
+ 	DOWNLOAD?=curl -L -o
+ else
+ 	DOWNLOAD?=wget -O
+diff --git a/tests/gzip/Makefile b/tests/gzip/Makefile
+index cca31096..837ba435 100644
+--- a/tests/gzip/Makefile
++++ b/tests/gzip/Makefile
+@@ -36,7 +36,7 @@ clean:
+ #------------------------------------------------------------------------------
+ # validated only for Linux, macOS, Hurd and some BSD targets
+ #------------------------------------------------------------------------------
+-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
++ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD,$(shell sh -c 'MSYSTEM="MSYS" uname')))
+ 
+ test-%: zstd
+ 	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$*.sh
+-- 
+2.47.1
+
