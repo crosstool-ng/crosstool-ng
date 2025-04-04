@@ -1,0 +1,602 @@
+From 3a4c600f389e8c5aa6dcbd6cd14bd0c546af0bb2 Mon Sep 17 00:00:00 2001
+From: Jim Wilson <jimw@sifive.com>
+Date: Sat, 9 Dec 2017 03:00:57 +0000
+Subject: [PATCH] Add .type and .size directives to riscv libgcc functions.
+
+	libgcc/
+	* config/riscv/div.S: Use FUNC_* macros.
+	* config/riscv/muldi3.S, config/riscv/multi3.S: Likewise
+	* config/riscv/save-restore.S: Likewise.
+	* config/riscv/riscv-asm.h: New.
+
+From-SVN: r255521
+---
+ libgcc/ChangeLog                   |   7 ++
+ libgcc/config/riscv/div.S          |  33 ++---
+ libgcc/config/riscv/muldi3.S       |   6 +-
+ libgcc/config/riscv/multi3.S       |  13 +-
+ libgcc/config/riscv/riscv-asm.h    |  35 ++++++
+ libgcc/config/riscv/save-restore.S | 190 ++++++++++++++++-------------
+ 6 files changed, 182 insertions(+), 102 deletions(-)
+ create mode 100644 libgcc/config/riscv/riscv-asm.h
+
+diff --git a/libgcc/config/riscv/div.S b/libgcc/config/riscv/div.S
+index 63d542e846..4366c5ce1d 100644
+--- a/libgcc/config/riscv/div.S
++++ b/libgcc/config/riscv/div.S
+@@ -23,6 +23,8 @@ a copy of the GCC Runtime Library Exception along with this program;
+ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ <http://www.gnu.org/licenses/>.  */
+ 
++#include "riscv-asm.h"
++
+   .text
+   .align 2
+ 
+@@ -33,8 +35,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ # define __divdi3 __divsi3
+ # define __moddi3 __modsi3
+ #else
+-  .globl __udivsi3
+-__udivsi3:
++FUNC_BEGIN (__udivsi3)
+   /* Compute __udivdi3(a0 << 32, a1 << 32); cast result to uint32_t.  */
+   sll    a0, a0, 32
+   sll    a1, a1, 32
+@@ -42,9 +43,9 @@ __udivsi3:
+   jal    __udivdi3
+   sext.w a0, a0
+   jr     t0
++FUNC_END (__udivsi3)
+ 
+-  .globl __umodsi3
+-__umodsi3:
++FUNC_BEGIN (__umodsi3)
+   /* Compute __udivdi3((uint32_t)a0, (uint32_t)a1); cast a1 to uint32_t.  */
+   sll    a0, a0, 32
+   sll    a1, a1, 32
+@@ -54,25 +55,22 @@ __umodsi3:
+   jal    __udivdi3
+   sext.w a0, a1
+   jr     t0
++FUNC_END (__umodsi3)
+ 
+-  .globl __modsi3
+-  __modsi3 = __moddi3
++FUNC_ALIAS (__modsi3, __moddi3)
+ 
+-  .globl __divsi3
+-__divsi3:
++FUNC_BEGIN( __divsi3)
+   /* Check for special case of INT_MIN/-1. Otherwise, fall into __divdi3.  */
+   li    t0, -1
+   beq   a1, t0, .L20
+ #endif
+ 
+-  .globl __divdi3
+-__divdi3:
++FUNC_BEGIN (__divdi3)
+   bltz  a0, .L10
+   bltz  a1, .L11
+   /* Since the quotient is positive, fall into __udivdi3.  */
+ 
+-  .globl __udivdi3
+-__udivdi3:
++FUNC_BEGIN (__udivdi3)
+   mv    a2, a1
+   mv    a1, a0
+   li    a0, -1
+@@ -96,14 +94,15 @@ __udivdi3:
+   bnez  a3, .L3
+ .L5:
+   ret
++FUNC_END (__udivdi3)
+ 
+-  .globl __umoddi3
+-__umoddi3:
++FUNC_BEGIN (__umoddi3)
+   /* Call __udivdi3(a0, a1), then return the remainder, which is in a1.  */
+   move  t0, ra
+   jal   __udivdi3
+   move  a0, a1
+   jr    t0
++FUNC_END (__umoddi3)
+ 
+   /* Handle negative arguments to __divdi3.  */
+ .L10:
+@@ -118,9 +117,9 @@ __umoddi3:
+   jal   __udivdi3
+   neg   a0, a0
+   jr    t0
++FUNC_END (__divdi3)
+ 
+-  .globl __moddi3
+-__moddi3:
++FUNC_BEGIN (__moddi3)
+   move   t0, ra
+   bltz   a1, .L31
+   bltz   a0, .L32
+@@ -136,6 +135,7 @@ __moddi3:
+   jal    __udivdi3    /* The dividend is hella negative.  */
+   neg    a0, a1
+   jr     t0
++FUNC_END (__moddi3)
+ 
+ #if __riscv_xlen == 64
+   /* continuation of __divsi3 */
+@@ -143,4 +143,5 @@ __moddi3:
+   sll   t0, t0, 31
+   bne   a0, t0, __divdi3
+   ret
++FUNC_END (__divsi3)
+ #endif
+diff --git a/libgcc/config/riscv/muldi3.S b/libgcc/config/riscv/muldi3.S
+index eb3d9b0df3..7c07878eea 100644
+--- a/libgcc/config/riscv/muldi3.S
++++ b/libgcc/config/riscv/muldi3.S
+@@ -23,6 +23,8 @@ a copy of the GCC Runtime Library Exception along with this program;
+ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ <http://www.gnu.org/licenses/>.  */
+ 
++#include "riscv-asm.h"
++
+   .text
+   .align 2
+ 
+@@ -31,8 +33,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ # define __muldi3 __mulsi3
+ #endif
+ 
+-  .globl __muldi3
+-__muldi3:
++FUNC_BEGIN (__muldi3)
+   mv     a2, a0
+   li     a0, 0
+ .L1:
+@@ -44,3 +45,4 @@ __muldi3:
+   slli   a2, a2, 1
+   bnez   a1, .L1
+   ret
++FUNC_END (__muldi3)
+diff --git a/libgcc/config/riscv/multi3.S b/libgcc/config/riscv/multi3.S
+index 4d454e6501..a3b89c6520 100644
+--- a/libgcc/config/riscv/multi3.S
++++ b/libgcc/config/riscv/multi3.S
+@@ -23,6 +23,8 @@ a copy of the GCC Runtime Library Exception along with this program;
+ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ <http://www.gnu.org/licenses/>.  */
+ 
++#include "riscv-asm.h"
++
+   .text
+   .align 2
+ 
+@@ -31,8 +33,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ # define __multi3 __muldi3
+ #endif
+ 
+-  .globl __multi3
+-__multi3:
++FUNC_BEGIN (__multi3)
+ 
+ #if __riscv_xlen == 32
+ /* Our RV64 64-bit routines are equivalent to our RV32 32-bit routines.  */
+@@ -79,3 +80,11 @@ __multi3:
+   mv  a0, t2
+   mv  a1, t4
+   jr  t0
++
++#if __riscv_xlen == 32
++/* Our RV64 64-bit routines are equivalent to our RV32 32-bit routines.  */
++# undef __muldi3
++#endif
++
++FUNC_END (__multi3)
++	
+diff --git a/libgcc/config/riscv/riscv-asm.h b/libgcc/config/riscv/riscv-asm.h
+new file mode 100644
+index 0000000000..fbfe5f0dbf
+--- /dev/null
++++ b/libgcc/config/riscv/riscv-asm.h
+@@ -0,0 +1,35 @@
++/* Copyright (C) 2017 Free Software Foundation, Inc.
++
++This file is free software; you can redistribute it and/or modify it
++under the terms of the GNU General Public License as published by the
++Free Software Foundation; either version 3, or (at your option) any
++later version.
++
++This file is distributed in the hope that it will be useful, but
++WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++General Public License for more details.
++
++Under Section 7 of GPL version 3, you are granted additional
++permissions described in the GCC Runtime Library Exception, version
++3.1, as published by the Free Software Foundation.
++
++You should have received a copy of the GNU General Public License and
++a copy of the GCC Runtime Library Exception along with this program;
++see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++<http://www.gnu.org/licenses/>.  */
++
++#define FUNC_TYPE(X)	.type X,@function
++#define FUNC_SIZE(X)	.size X,.-X
++
++#define FUNC_BEGIN(X)		\
++	.globl X;		\
++	FUNC_TYPE (X);		\
++X:
++
++#define FUNC_END(X)		\
++	FUNC_SIZE(X)
++
++#define FUNC_ALIAS(X,Y)		\
++	.globl X;		\
++	X = Y
+diff --git a/libgcc/config/riscv/save-restore.S b/libgcc/config/riscv/save-restore.S
+index 2073a73089..c2f1740f42 100644
+--- a/libgcc/config/riscv/save-restore.S
++++ b/libgcc/config/riscv/save-restore.S
+@@ -23,39 +23,13 @@ a copy of the GCC Runtime Library Exception along with this program;
+ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ <http://www.gnu.org/licenses/>.  */
+ 
+-  .text
++#include "riscv-asm.h"
+ 
+-  .globl __riscv_save_12
+-  .globl __riscv_save_11
+-  .globl __riscv_save_10
+-  .globl __riscv_save_9
+-  .globl __riscv_save_8
+-  .globl __riscv_save_7
+-  .globl __riscv_save_6
+-  .globl __riscv_save_5
+-  .globl __riscv_save_4
+-  .globl __riscv_save_3
+-  .globl __riscv_save_2
+-  .globl __riscv_save_1
+-  .globl __riscv_save_0
+-
+-  .globl __riscv_restore_12
+-  .globl __riscv_restore_11
+-  .globl __riscv_restore_10
+-  .globl __riscv_restore_9
+-  .globl __riscv_restore_8
+-  .globl __riscv_restore_7
+-  .globl __riscv_restore_6
+-  .globl __riscv_restore_5
+-  .globl __riscv_restore_4
+-  .globl __riscv_restore_3
+-  .globl __riscv_restore_2
+-  .globl __riscv_restore_1
+-  .globl __riscv_restore_0
++  .text
+ 
+ #if __riscv_xlen == 64
+ 
+-__riscv_save_12:
++FUNC_BEGIN (__riscv_save_12)
+   .cfi_startproc
+   # __riscv_save_* routine use t0/x5 as return address
+   .cfi_return_column 5
+@@ -66,8 +40,8 @@ __riscv_save_12:
+   .cfi_offset 27, -104
+   j .Ls10
+ 
+-__riscv_save_11:
+-__riscv_save_10:
++FUNC_BEGIN (__riscv_save_11)
++FUNC_BEGIN (__riscv_save_10)
+   .cfi_restore 27
+   addi sp, sp, -112
+   .cfi_def_cfa_offset 112
+@@ -79,8 +53,8 @@ __riscv_save_10:
+   .cfi_offset 25, -88
+   j .Ls8
+ 
+-__riscv_save_9:
+-__riscv_save_8:
++FUNC_BEGIN (__riscv_save_9)
++FUNC_BEGIN (__riscv_save_8)
+   .cfi_restore 25
+   .cfi_restore 26
+   .cfi_restore 27
+@@ -94,8 +68,8 @@ __riscv_save_8:
+   .cfi_offset 23, -72
+   j .Ls6
+ 
+-__riscv_save_7:
+-__riscv_save_6:
++FUNC_BEGIN (__riscv_save_7)
++FUNC_BEGIN (__riscv_save_6)
+   .cfi_restore 23
+   .cfi_restore 24
+   .cfi_restore 25
+@@ -111,8 +85,8 @@ __riscv_save_6:
+   .cfi_offset 21, -56
+   j .Ls4
+ 
+-__riscv_save_5:
+-__riscv_save_4:
++FUNC_BEGIN (__riscv_save_5)
++FUNC_BEGIN (__riscv_save_4)
+   .cfi_restore 21
+   .cfi_restore 22
+   .cfi_restore 24
+@@ -133,8 +107,8 @@ __riscv_save_4:
+   .cfi_offset 19, -40
+   j .Ls2
+ 
+-__riscv_save_3:
+-__riscv_save_2:
++FUNC_BEGIN (__riscv_save_3)
++FUNC_BEGIN (__riscv_save_2)
+   .cfi_restore 19
+   .cfi_restore 20
+   .cfi_restore 21
+@@ -164,9 +138,20 @@ __riscv_save_2:
+   sub sp, sp, t1
+   jr t0
+   .cfi_endproc
+-
+-__riscv_save_1:
+-__riscv_save_0:
++FUNC_END (__riscv_save_12)
++FUNC_END (__riscv_save_11)
++FUNC_END (__riscv_save_10)
++FUNC_END (__riscv_save_9)
++FUNC_END (__riscv_save_8)
++FUNC_END (__riscv_save_7)
++FUNC_END (__riscv_save_6)
++FUNC_END (__riscv_save_5)
++FUNC_END (__riscv_save_4)
++FUNC_END (__riscv_save_3)
++FUNC_END (__riscv_save_2)
++
++FUNC_BEGIN (__riscv_save_1)
++FUNC_BEGIN (__riscv_save_0)
+   .cfi_startproc
+   # __riscv_save_* routine use t0/x5 as return address
+   .cfi_return_column 5
+@@ -178,8 +163,10 @@ __riscv_save_0:
+   .cfi_offset 1, -8
+   jr t0
+   .cfi_endproc
++FUNC_END (__riscv_save_1)
++FUNC_END (__riscv_save_0)
+ 
+-__riscv_restore_12:
++FUNC_BEGIN (__riscv_restore_12)
+   .cfi_startproc
+   .cfi_def_cfa_offset 112
+   .cfi_offset 27, -104
+@@ -199,8 +186,8 @@ __riscv_restore_12:
+   .cfi_restore 27
+   addi sp, sp, 16
+ 
+-__riscv_restore_11:
+-__riscv_restore_10:
++FUNC_BEGIN (__riscv_restore_11)
++FUNC_BEGIN (__riscv_restore_10)
+   .cfi_restore 27
+   .cfi_def_cfa_offset 96
+   ld s10, 0(sp)
+@@ -209,8 +196,8 @@ __riscv_restore_10:
+   .cfi_restore 25
+   addi sp, sp, 16
+ 
+-__riscv_restore_9:
+-__riscv_restore_8:
++FUNC_BEGIN (__riscv_restore_9)
++FUNC_BEGIN (__riscv_restore_8)
+   .cfi_restore 25
+   .cfi_restore 26
+   .cfi_restore 27
+@@ -221,8 +208,8 @@ __riscv_restore_8:
+   .cfi_restore 23
+   addi sp, sp, 16
+ 
+-__riscv_restore_7:
+-__riscv_restore_6:
++FUNC_BEGIN (__riscv_restore_7)
++FUNC_BEGIN (__riscv_restore_6)
+   .cfi_restore 23
+   .cfi_restore 24
+   .cfi_restore 25
+@@ -235,8 +222,8 @@ __riscv_restore_6:
+   .cfi_restore 21
+   addi sp, sp, 16
+ 
+-__riscv_restore_5:
+-__riscv_restore_4:
++FUNC_BEGIN (__riscv_restore_5)
++FUNC_BEGIN (__riscv_restore_4)
+   .cfi_restore 21
+   .cfi_restore 22
+   .cfi_restore 23
+@@ -251,8 +238,8 @@ __riscv_restore_4:
+   .cfi_restore 19
+   addi sp, sp, 16
+ 
+-__riscv_restore_3:
+-__riscv_restore_2:
++FUNC_BEGIN (__riscv_restore_3)
++FUNC_BEGIN (__riscv_restore_2)
+   .cfi_restore 19
+   .cfi_restore 20
+   .cfi_restore 21
+@@ -269,8 +256,8 @@ __riscv_restore_2:
+   .cfi_restore 9
+   addi sp, sp, 16
+ 
+-__riscv_restore_1:
+-__riscv_restore_0:
++FUNC_BEGIN (__riscv_restore_1)
++FUNC_BEGIN (__riscv_restore_0)
+   .cfi_restore 9
+   .cfi_restore 18
+   .cfi_restore 19
+@@ -291,10 +278,23 @@ __riscv_restore_0:
+   .cfi_def_cfa_offset 0
+   ret
+   .cfi_endproc
++FUNC_END (__riscv_restore_12)
++FUNC_END (__riscv_restore_11)
++FUNC_END (__riscv_restore_10)
++FUNC_END (__riscv_restore_9)
++FUNC_END (__riscv_restore_8)
++FUNC_END (__riscv_restore_7)
++FUNC_END (__riscv_restore_6)
++FUNC_END (__riscv_restore_5)
++FUNC_END (__riscv_restore_4)
++FUNC_END (__riscv_restore_3)
++FUNC_END (__riscv_restore_2)
++FUNC_END (__riscv_restore_1)
++FUNC_END (__riscv_restore_0)
+ 
+ #else
+ 
+-__riscv_save_12:
++FUNC_BEGIN (__riscv_save_12)
+   .cfi_startproc
+   # __riscv_save_* routine use t0/x5 as return address
+   .cfi_return_column 5
+@@ -305,10 +305,10 @@ __riscv_save_12:
+   .cfi_offset 27, -52
+   j .Ls10
+ 
+-__riscv_save_11:
+-__riscv_save_10:
+-__riscv_save_9:
+-__riscv_save_8:
++FUNC_BEGIN (__riscv_save_11)
++FUNC_BEGIN (__riscv_save_10)
++FUNC_BEGIN (__riscv_save_9)
++FUNC_BEGIN (__riscv_save_8)
+   .cfi_restore 27
+   addi sp, sp, -64
+   .cfi_def_cfa_offset 64
+@@ -324,10 +324,10 @@ __riscv_save_8:
+   .cfi_offset 23, -36
+   j .Ls6
+ 
+-__riscv_save_7:
+-__riscv_save_6:
+-__riscv_save_5:
+-__riscv_save_4:
++FUNC_BEGIN (__riscv_save_7)
++FUNC_BEGIN (__riscv_save_6)
++FUNC_BEGIN (__riscv_save_5)
++FUNC_BEGIN (__riscv_save_4)
+   .cfi_restore 23
+   .cfi_restore 24
+   .cfi_restore 25
+@@ -358,11 +358,20 @@ __riscv_save_4:
+   sub sp, sp, t1
+   jr t0
+   .cfi_endproc
+-
+-__riscv_save_3:
+-__riscv_save_2:
+-__riscv_save_1:
+-__riscv_save_0:
++FUNC_END (__riscv_save_12)
++FUNC_END (__riscv_save_11)
++FUNC_END (__riscv_save_10)
++FUNC_END (__riscv_save_9)
++FUNC_END (__riscv_save_8)
++FUNC_END (__riscv_save_7)
++FUNC_END (__riscv_save_6)
++FUNC_END (__riscv_save_5)
++FUNC_END (__riscv_save_4)
++
++FUNC_BEGIN (__riscv_save_3)
++FUNC_BEGIN (__riscv_save_2)
++FUNC_BEGIN (__riscv_save_1)
++FUNC_BEGIN (__riscv_save_0)
+   .cfi_startproc
+   # __riscv_save_* routine use t0/x5 as return address
+   .cfi_return_column 5
+@@ -377,8 +386,12 @@ __riscv_save_0:
+   .cfi_offset 1, -4
+   jr t0
+   .cfi_endproc
++FUNC_END (__riscv_save_3)
++FUNC_END (__riscv_save_2)
++FUNC_END (__riscv_save_1)
++FUNC_END (__riscv_save_0)
+ 
+-__riscv_restore_12:
++FUNC_BEGIN (__riscv_restore_12)
+   .cfi_startproc
+   .cfi_def_cfa_offset 64
+   .cfi_offset 27, -52
+@@ -398,10 +411,10 @@ __riscv_restore_12:
+   .cfi_restore 27
+   addi sp, sp, 16
+ 
+-__riscv_restore_11:
+-__riscv_restore_10:
+-__riscv_restore_9:
+-__riscv_restore_8:
++FUNC_BEGIN (__riscv_restore_11)
++FUNC_BEGIN (__riscv_restore_10)
++FUNC_BEGIN (__riscv_restore_9)
++FUNC_BEGIN (__riscv_restore_8)
+   .cfi_restore 27
+   .cfi_def_cfa_offset 48
+   lw s10, 0(sp)
+@@ -414,10 +427,10 @@ __riscv_restore_8:
+   .cfi_restore 23
+   addi sp, sp, 16
+ 
+-__riscv_restore_7:
+-__riscv_restore_6:
+-__riscv_restore_5:
+-__riscv_restore_4:
++FUNC_BEGIN (__riscv_restore_7)
++FUNC_BEGIN (__riscv_restore_6)
++FUNC_BEGIN (__riscv_restore_5)
++FUNC_BEGIN (__riscv_restore_4)
+   .cfi_restore 23
+   .cfi_restore 24
+   .cfi_restore 25
+@@ -434,10 +447,10 @@ __riscv_restore_4:
+   .cfi_restore 19
+   addi sp, sp, 16
+ 
+-__riscv_restore_3:
+-__riscv_restore_2:
+-__riscv_restore_1:
+-__riscv_restore_0:
++FUNC_BEGIN (__riscv_restore_3)
++FUNC_BEGIN (__riscv_restore_2)
++FUNC_BEGIN (__riscv_restore_1)
++FUNC_BEGIN (__riscv_restore_0)
+   .cfi_restore 19
+   .cfi_restore 20
+   .cfi_restore 21
+@@ -459,5 +472,18 @@ __riscv_restore_0:
+   .cfi_def_cfa_offset 0
+   ret
+   .cfi_endproc
++FUNC_END (__riscv_restore_12)
++FUNC_END (__riscv_restore_11)
++FUNC_END (__riscv_restore_10)
++FUNC_END (__riscv_restore_9)
++FUNC_END (__riscv_restore_8)
++FUNC_END (__riscv_restore_7)
++FUNC_END (__riscv_restore_6)
++FUNC_END (__riscv_restore_5)
++FUNC_END (__riscv_restore_4)
++FUNC_END (__riscv_restore_3)
++FUNC_END (__riscv_restore_2)
++FUNC_END (__riscv_restore_1)
++FUNC_END (__riscv_restore_0)
+ 
+ #endif
+-- 
+2.49.0
+
