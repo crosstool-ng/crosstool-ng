@@ -3,8 +3,6 @@
 ## no-package
 ## select ARCH_SUPPORTS_32
 ## select ARCH_DEFAULT_32
-## select ARCH_SUPPORTS_BOTH_MMU
-## select ARCH_DEFAULT_HAS_MMU
 ## select ARCH_SUPPORTS_FLAT_FORMAT
 ## select ARCH_SUPPORTS_EITHER_ENDIAN
 ## select ARCH_DEFAULT_LE
@@ -21,6 +19,8 @@ choice
 # GCC supports both endiannesses even if a specific CPU is selected (so long
 # as that CPU can be both BE/LE), but the binutils (or specifically, ld)
 # configures for both endiannesses only if sh-*-linux target is selected.
+# --with-cpu can be used to set the mmu and precision options,
+# so dont include the options aswell
 config ARCH_SH_SH
     bool
     prompt "unspecified"
@@ -62,16 +62,45 @@ config ARCH_SH_SH4A
     bool
     prompt "sh4a"
 
+config ARCH_SH_SH4AL
+    bool
+    prompt "sh4al"
+
 endchoice
 
 config ARCH_SH_VARIANT
     string
-    default "sh"   if ARCH_SH_SH
+    default "sh"    if ARCH_SH_SH
     default "sh1"   if ARCH_SH_SH1
     default "sh2"   if ARCH_SH_SH2
-    default "sh2e"   if ARCH_SH_SH2E
-    default "sh2a"   if ARCH_SH_SH2A
+    default "sh2e"  if ARCH_SH_SH2E
+    default "sh2a"  if ARCH_SH_SH2A
     default "sh3"   if ARCH_SH_SH3
-    default "sh3e"   if ARCH_SH_SH3E
+    default "sh3e"  if ARCH_SH_SH3E
     default "sh4"   if ARCH_SH_SH4
     default "sh4a"  if ARCH_SH_SH4A
+    default "sh4al" if ARCH_SH_SH4AL
+
+config ARCH_SH_ENABLE_FPU_OPTIONS
+    bool
+    default y if ARCH_SH_SH2A
+    default y if ARCH_SH_SH4
+    default y if ARCH_SH_SH4A
+    select ARCH_SUPPORTS_BOTH_MMU
+    select ARCH_DEFAULT_HAS_MMU
+
+config ARCH_SH_ENABLE_PRECISION_OPTIONS
+    bool
+    default y if ARCH_USE_MMU
+    select ARCH_SUPPORTS_WITH_FLOATING_PRECISION
+    select ARCH_SUPPORTS_PRECISION_UNSPECIFIED
+    select ARCH_SUPPORTS_PRECISION_SINGLE_ONLY
+    select ARCH_SUPPORTS_PRECISION_SINGLE_WITH_DOUBLE
+    select ARCH_DEFAULT_PRECISION_UNSPECIFIED
+
+config ARCH_SH_FLOAT_SUFFIX
+    string
+    default "" if !ARCH_SH_ENABLE_FPU_OPTIONS
+    default "_nofpu" if !ARCH_USE_MMU
+    default "_single" if ARCH_FLOATING_PRECISION_SINGLE_WITH_DOUBLE
+    default "_single_only" if ARCH_FLOATING_PRECISION_SINGLE_ONLY
