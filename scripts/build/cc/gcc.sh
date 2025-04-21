@@ -913,6 +913,7 @@ do_cc_for_host() {
     final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
     final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
     final_opts+=( "build_step=gcc_host" )
+    final_opts+=( "extra_cxxflags_for_target=${CT_CC_GCC_LIBSTDCXX_TARGET_CXXFLAGS}" )
     if [ "${CT_BUILD_MANUALS}" = "y" ]; then
         final_opts+=( "build_manuals=yes" )
     fi
