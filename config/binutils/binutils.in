@@ -13,10 +13,16 @@ config BINUTILS_GOLD_SUPPORTS_ARCH
     default y if ARCH_SPARC
     default y if ARCH_X86
 
+# Support for gold was deprecated and removed from binutils 2.44.
+config BINUTILS_HAS_GOLD
+    bool
+    default y if !BINUTILS_2_44_or_later
+    default y if !BINUTILS_SRC_RELEASE
+
 config BINUTILS_GOLD_SUPPORT
     bool
     default y
-    depends on BINUTILS_GOLD_SUPPORTS_ARCH
+    depends on BINUTILS_GOLD_SUPPORTS_ARCH && BINUTILS_HAS_GOLD
 
 # Force using the BFD linker if needed. There are two options:
 # - For some C libraries (eg. glibc at least), BFD ld must be
@@ -33,6 +39,11 @@ config BINUTILS_DEP_BISON
     def_bool y
     depends on BINUTILS_2_39_or_later && !CONFIGURE_has_bison_3_0_4_or_newer && (ARCH_X86 || (ARCH_ARM && ARCH_64))
     select COMP_TOOLS_BISON
+
+if BINUTILS_2_44_or_later && BINUTILS_GOLD_SUPPORT && !BINUTILS_SRC_RELEASE
+comment "WARNING! For binutils >= 2.44 only enable gold support if supplied"
+comment "|        through custom source tree."
+endif
 
 choice
     bool
