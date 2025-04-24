@@ -112,13 +112,13 @@ EOF
     fi
 
     CT_DoExecLog CFG                                               \
-    meson                                                          \
+    meson setup .                                                  \
+        "${CT_SRC_DIR}/picolibc"                                   \
         --cross-file picolibc-cross.txt                            \
         --prefix="${picolibc_sysroot_dir}"                         \
         -Dincludedir=include                                       \
         -Dlibdir="${picolibc_lib_dir}"                             \
         -Dspecsdir="${CT_SYSROOT_DIR}/lib"                         \
-        "${CT_SRC_DIR}/picolibc"                                   \
         "${picolibc_opts[@]}"                                      \
         "${CT_LIBC_PICOLIBC_EXTRA_CONFIG_ARRAY[@]}"
 
