@@ -88,7 +88,7 @@ strip = '${CT_TARGET}-strip'
 system = '${CT_TARGET_VENDOR}'
 cpu_family = '${CT_TARGET_ARCH}'
 cpu = '${CT_TARGET_ARCH}'
-endian = '${CT_ARCH_ENDIAN}'
+endian = 'little'
 
 [properties]
 c_args = [ ${meson_cflags} '-nostdlib', '-fno-common', '-ftls-model=local-exec' ]
