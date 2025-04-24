@@ -122,6 +122,17 @@ EOF
         "${picolibc_opts[@]}"                                      \
         "${CT_LIBC_PICOLIBC_EXTRA_CONFIG_ARRAY[@]}"
 
+    if [ "${CT_LIBC_PICOLIBC_OBSOLETE_FLOAT}" = 'y' ]; then
+        cat << EOF >> picolibc.h
+#if (__riscv_flen < 64) && !defined(__riscv_zdinx)
+#undef __OBSOLETE_MATH
+#undef __OBSOLETE_MATH_FLOAT
+#undef __OBSOLETE_MATH_DOUBLE
+#define __OBSOLETE_MATH 1
+#endif
+EOF
+    fi
+
     CT_DoLog EXTRA "Building C library"
     CT_DoExecLog ALL ninja
 
