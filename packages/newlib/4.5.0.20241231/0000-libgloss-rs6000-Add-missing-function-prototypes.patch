@@ -1,0 +1,109 @@
+From a4a94cf963d74970ec053dc7ecaddc9f2dc24f6d Mon Sep 17 00:00:00 2001
+From: Chris Packham <judge.packham@gmail.com>
+Date: Thu, 24 Apr 2025 17:31:36 +1200
+Subject: [PATCH] libgloss: rs6000: Add missing function prototypes
+
+With recent GCC changes that have elevated some warnings to error by
+default the rs6000 sim code errors out with:
+
+  libgloss/rs6000/sim-inbyte.c:22:7: error: implicit declaration of function 'read' [-Wimplicit-function-declaration]
+  libgloss/rs6000/sim-sbrk.c:26:7: error: implicit declaration of function 'brk'; did you mean 'sbrk'?  [-Wimplicit-function-declaration]
+  libgloss/rs6000/sim-abort.c:19:3: error: implicit declaration of function 'write' [-Wimplicit-function-declaration]
+  libgloss/rs6000/sim-abort.c:20:3: error: implicit declaration of function 'exit' [-Wimplicit-function-declaration]
+  libgloss/rs6000/sim-print.c:29:3: error: implicit declaration of function 'write' [-Wimplicit-function-declaration]
+  libgloss/rs6000/mvme-print.c:34:11: error: implicit declaration of function '__pcrlf' [-Wimplicit-function-declaration]
+  libgloss/rs6000/mvme-print.c:44:19: error: implicit declaration of function '__outln' [-Wimplicit-function-declaration]
+  libgloss/rs6000/mvme-print.c:53:15: error: implicit declaration of function '__outstr' [-Wimplicit-function-declaration]
+  libgloss/rs6000/mbx-print.c:29:3: error: implicit declaration of function 'write' [-Wimplicit-function-declaration]
+
+Add extern declarations to avoid the errors.
+---
+ libgloss/rs6000/mbx-print.c  | 2 ++
+ libgloss/rs6000/mvme-print.c | 3 +++
+ libgloss/rs6000/sim-abort.c  | 3 +++
+ libgloss/rs6000/sim-inbyte.c | 1 +
+ libgloss/rs6000/sim-print.c  | 2 ++
+ libgloss/rs6000/sim-sbrk.c   | 1 +
+ 6 files changed, 12 insertions(+)
+
+diff --git a/libgloss/rs6000/mbx-print.c b/libgloss/rs6000/mbx-print.c
+index 64472ee68..591ca2d3e 100644
+--- a/libgloss/rs6000/mbx-print.c
++++ b/libgloss/rs6000/mbx-print.c
+@@ -13,6 +13,8 @@
+  * they apply.
+  */
+ 
++extern int write(int fd, const void *buf, unsigned int count);
++
+ /*
+  * print -- do a raw print of a string
+  */ 
+diff --git a/libgloss/rs6000/mvme-print.c b/libgloss/rs6000/mvme-print.c
+index 8d195424e..d8f4c50d8 100644
+--- a/libgloss/rs6000/mvme-print.c
++++ b/libgloss/rs6000/mvme-print.c
+@@ -12,6 +12,9 @@
+  * the new terms are clearly indicated on the first page of each file where
+  * they apply.
+  */
++extern void __pcrlf(void);
++extern void __outln(char *, char *);
++extern void __outstr(char *, char *);
+ 
+ /*
+  * write -- write some bytes to the output device.
+diff --git a/libgloss/rs6000/sim-abort.c b/libgloss/rs6000/sim-abort.c
+index e1b59cf19..931f886ed 100644
+--- a/libgloss/rs6000/sim-abort.c
++++ b/libgloss/rs6000/sim-abort.c
+@@ -14,6 +14,9 @@
+  * they apply.
+  */
+ 
++extern int write(int fd, const void *buf, unsigned int count);
++extern void exit(int status);
++
+ void abort(void)
+ {
+   write (2, "Abort called.\n", sizeof("Abort called.\n")-1);
+diff --git a/libgloss/rs6000/sim-inbyte.c b/libgloss/rs6000/sim-inbyte.c
+index 787b68976..fe1ac2a8b 100644
+--- a/libgloss/rs6000/sim-inbyte.c
++++ b/libgloss/rs6000/sim-inbyte.c
+@@ -13,6 +13,7 @@
+  * the new terms are clearly indicated on the first page of each file where
+  * they apply.
+  */
++extern int read(int fd, void *buf, unsigned int count);
+ 
+ int
+ inbyte ()
+diff --git a/libgloss/rs6000/sim-print.c b/libgloss/rs6000/sim-print.c
+index c0b9adced..49596aff6 100644
+--- a/libgloss/rs6000/sim-print.c
++++ b/libgloss/rs6000/sim-print.c
+@@ -13,6 +13,8 @@
+  * they apply.
+  */
+ 
++extern int write(int fd, const void *buf, unsigned int count);
++
+ /*
+  * print -- do a raw print of a string
+  */ 
+diff --git a/libgloss/rs6000/sim-sbrk.c b/libgloss/rs6000/sim-sbrk.c
+index 5c8bd6522..0bbfe334b 100644
+--- a/libgloss/rs6000/sim-sbrk.c
++++ b/libgloss/rs6000/sim-sbrk.c
+@@ -13,6 +13,7 @@
+  * the new terms are clearly indicated on the first page of each file where
+  * they apply.
+  */
++extern int brk(void *addr);
+ 
+ extern char _end[];
+ static char *curbrk = _end;
+-- 
+2.49.0
+
