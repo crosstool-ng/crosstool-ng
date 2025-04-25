@@ -1,0 +1,60 @@
+From ef327a7c2a36b63e8a372bef88e3700460b51c34 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sat, 11 Feb 2023 23:07:08 -0800
+Subject: [PATCH] gcc: Allow g++ to work differently from gcc
+
+Compile gcc.cc with -DIN_GPP defined when building g++ so that the
+code can respond appropriately for the default target language. This
+allows the driver to customize the specs used, selecting different
+linker scripts, adjusting the use of crtbegin.o/crtend.o etc.
+
+By default, this change has no effect; targets need to explicitly
+check for IN_GPP to have alternate behavior.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/cp/Make-lang.in |    7 ++++++-
+ gcc/gpp.cc          |   21 +++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)
+ create mode 100644 gcc/gpp.cc
+
+--- a/gcc/cp/Make-lang.in
++++ b/gcc/cp/Make-lang.in
+@@ -77,7 +77,12 @@ CFLAGS-cp/module.o += -DMODULE_VERSION='
+ endif
+ 
+ # Create the compiler driver for g++.
+-GXX_OBJS = $(GCC_OBJS) cp/g++spec.o
++GXX_OBJS = $(GCC_OBJS:gcc.o=gpp.o) cp/g++spec.o
++
++CFLAGS-gpp.o = $(CFLAGS-gcc.o)
++gpp.o: $(BASEVER)
++gpp.o: gcc.o
++
+ xg++$(exeext): $(GXX_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS)
+ 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
+ 	  $(GXX_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
+--- /dev/null
++++ b/gcc/gpp.cc
+@@ -0,0 +1,21 @@
++/* Compiler driver program that can handle many languages.
++   Copyright (C) 1987-2022 Free Software Foundation, Inc.
++
++This file is part of GCC.
++
++GCC is free software; you can redistribute it and/or modify it under
++the terms of the GNU General Public License as published by the Free
++Software Foundation; either version 3, or (at your option) any later
++version.
++
++GCC is distributed in the hope that it will be useful, but WITHOUT ANY
++WARRANTY; without even the implied warranty of MERCHANTABILITY or
++FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++for more details.
++
++You should have received a copy of the GNU General Public License
++along with GCC; see the file COPYING3.  If not see
++<http://www.gnu.org/licenses/>.  */
++
++#define IN_GPP
++#include "gcc.cc"
