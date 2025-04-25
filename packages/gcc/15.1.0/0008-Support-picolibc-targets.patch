@@ -1,0 +1,33 @@
+From c9c22fe9ce182e48282e2bf0a8830381d3c55dd4 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sun, 12 Feb 2023 14:23:32 -0800
+Subject: [PATCH] Support picolibc targets
+
+Match *-picolibc-* and select picolibc as the default C library, plus continuing to use
+the newlib-based logic for other configuration items.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config.gcc |   11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -1165,6 +1165,17 @@ case ${target} in
+       ;;
+   esac
+   ;;
++*-picolibc-*)
++  # __cxa_atexit is provided.
++  default_use_cxa_atexit=yes
++  use_gcc_stdint=wrap
++  default_libc=LIBC_PICOLIBC
++  case "${with_newlib}-${with_headers}" in
++  no-no) use_gcc_stdint=provide ;;
++  *) ;;
++  esac
++  ;;
++
+ *-*-elf|arc*-*-elf*)
+   # Assume that newlib is being used and so __cxa_atexit is provided.
+   default_use_cxa_atexit=yes

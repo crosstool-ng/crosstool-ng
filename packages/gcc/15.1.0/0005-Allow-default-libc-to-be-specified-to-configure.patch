@@ -1,0 +1,134 @@
+From ffb10db6fa080e4c225e16928aec052d4c0baa95 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Fri, 2 Sep 2022 23:07:05 -0700
+Subject: [PATCH] Allow default libc to be specified to configure
+
+The default C library is normally computed based on the target
+triplet. However, for embedded systems, it can be useful to leave the
+triplet alone while changing which C library is used by default. Other
+C libraries may still be available on the system so the compiler and
+can be used by specifying suitable include and library paths at build
+time.
+
+If an unknown --with-default-libc= value is provided, emit an error
+and stop.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config.gcc   |   48 ++++++++++++++++++++++++++++++++++++++++--------
+ gcc/configure.ac |    4 ++++
+ 2 files changed, 44 insertions(+), 8 deletions(-)
+
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -696,6 +696,8 @@ esac
+ # Common C libraries.
+ tm_defines="$tm_defines LIBC_GLIBC=1 LIBC_UCLIBC=2 LIBC_BIONIC=3 LIBC_MUSL=4"
+ 
++default_libc=""
++
+ # 32-bit x86 processors supported by --with-arch=.  Each processor
+ # MUST be separated by exactly one space.
+ x86_archs="athlon athlon-4 athlon-fx athlon-mp athlon-tbird \
+@@ -912,16 +914,16 @@ case ${target} in
+   esac
+   case $target in
+     *-*-*android*)
+-      tm_defines="$tm_defines DEFAULT_LIBC=LIBC_BIONIC"
++      default_libc=LIBC_BIONIC
+       ;;
+     *-*-*uclibc* | *-*-uclinuxfdpiceabi)
+-      tm_defines="$tm_defines DEFAULT_LIBC=LIBC_UCLIBC"
++      default_libc=LIBC_UCLIBC
+       ;;
+     *-*-*musl*)
+-      tm_defines="$tm_defines DEFAULT_LIBC=LIBC_MUSL"
++      default_libc=LIBC_MUSL
+       ;;
+     *)
+-      tm_defines="$tm_defines DEFAULT_LIBC=LIBC_GLIBC"
++      default_libc=LIBC_GLIBC
+       ;;
+   esac
+   # Assume that glibc or uClibc or Bionic are being used and so __cxa_atexit
+@@ -1036,7 +1038,8 @@ case ${target} in
+   case ${enable_threads} in
+     "" | yes | posix) thread_file='posix' ;;
+   esac
+-  tm_defines="$tm_defines DEFAULT_LIBC=LIBC_UCLIBC SINGLE_LIBC"
++  tm_defines="$tm_defines SINGLE_LIBC"
++  default_libc=LIBC_UCLIBC
+   ;;
+ *-*-rdos*)
+   use_gcc_stdint=wrap
+@@ -1747,13 +1750,13 @@ csky-*-*)
+ 
+ 		case ${target} in
+ 		    csky-*-linux-gnu*)
+-			tm_defines="$tm_defines DEFAULT_LIBC=LIBC_GLIBC"
++			default_libc=LIBC_GLIBC
+ 			# Force .init_array support.  The configure script cannot always
+ 			# automatically detect that GAS supports it, yet we require it.
+ 			gcc_cv_initfini_array=yes
+ 			;;
+ 		    csky-*-linux-uclibc*)
+-			tm_defines="$tm_defines DEFAULT_LIBC=LIBC_UCLIBC"
++			default_libc=LIBC_UCLIBC
+ 			default_use_cxa_atexit=no
+ 			;;
+ 		    *)
+@@ -3144,7 +3147,7 @@ powerpc*-wrs-vxworks7r*)
+ 	tmake_file="${tmake_file} t-linux rs6000/t-linux64 rs6000/t-fprules rs6000/t-ppccomm"
+ 	tmake_file="${tmake_file} rs6000/t-vxworks"
+ 
+-	tm_defines="$tm_defines DEFAULT_LIBC=LIBC_GLIBC"
++	default_libc=LIBC_GLIBC
+ 	extra_objs="$extra_objs linux.o rs6000-linux.o"
+ 	;;
+ powerpc-wrs-vxworks*)
+@@ -6161,3 +6164,32 @@ i[34567]86-*-* | x86_64-*-*)
+ 	fi
+ 	;;
+ esac
++
++case "${with_default_libc}" in
++glibc)
++    default_libc=LIBC_GLIBC
++    ;;
++uclibc)
++    default_libc=LIBC_UCLIBC
++    ;;
++bionic)
++    default_libc=LIBC_BIONIC
++    ;;
++musl)
++    default_libc=LIBC_MUSL
++    ;;
++"")
++    ;;
++*)
++    echo "Unknown libc in --with-default-libc=$with_default_libc" 1>&2
++    exit 1
++    ;;
++esac
++
++case "$default_libc" in
++"")
++        ;;
++*)
++	tm_defines="$tm_defines DEFAULT_LIBC=$default_libc"
++	;;
++esac
+--- a/gcc/configure.ac
++++ b/gcc/configure.ac
+@@ -2582,6 +2582,10 @@ if { { test x$host != x$target && test "
+ fi
+ AC_SUBST(inhibit_libc)
+ 
++AC_ARG_WITH(default-libc,
++	[AS_HELP_STRING([--with-default-libc],
++			[Use specified default C library])])
++
+ # When building gcc with a cross-compiler, we need to adjust things so
+ # that the generator programs are still built with the native compiler.
+ # Also, we cannot run fixincludes.
