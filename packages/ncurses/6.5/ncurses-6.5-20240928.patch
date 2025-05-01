@@ -1,0 +1,491 @@
+# ncurses 6.5 - patch 20240928 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20240928.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Sep 28 22:43:54 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |   10 +++++++++-
+# VERSION                          |    2 +-
+# dist.mk                          |    4 ++--
+# misc/gen-pkgconfig.in            |   10 +++++-----
+# misc/ncurses-config.in           |   10 +++++-----
+# ncurses/base/lib_newwin.c        |   13 +++----------
+# ncurses/base/lib_pad.c           |    8 ++++----
+# ncurses/base/wresize.c           |    8 +++++---
+# ncurses/curses.priv.h            |    4 +++-
+# ncurses/tinfo/write_entry.c      |   10 +++++++---
+# package/debian-mingw/changelog   |    4 ++--
+# package/debian-mingw64/changelog |    4 ++--
+# package/debian/changelog         |    4 ++--
+# package/mingw-ncurses.nsi        |    4 ++--
+# package/mingw-ncurses.spec       |    2 +-
+# package/ncurses.spec             |    2 +-
+# package/ncursest.spec            |    2 +-
+# progs/infocmp.c                  |   32 +++++++++++++++++++++++++++-----
+# test/back_ground.c               |    4 ++--
+# 19 files changed, 84 insertions(+), 53 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4182 
+--- ncurses-6.5-20240922+/NEWS	2024-09-22 20:50:07.000000000 +0000
++++ ncurses-6.5-20240928/NEWS	2024-09-28 20:27:44.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4182 2024/09/22 20:50:07 tom Exp $
++-- $Id: NEWS,v 1.4185 2024/09/28 20:27:44 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,14 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20240928
++	+ improve error-message from infocmp when a terminal entry cannot be
++	  opened (patch by Branden Robinson).
++	+ improve filtering of -L options in misc/gen-pkgconfig.in and in
++	  misc/ncurses-config.in
++	+ add check in wresize() for out-of-range dimensions (report by Peter
++	  Bierma). 
++
+ 20240922
+ 	+ add a few null-pointer checks in ncurses
+ 	+ improve test-driver in ncurses/link_test.c
+Index: VERSION
+--- ncurses-6.5-20240922+/VERSION	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/VERSION	2024-09-28 09:53:21.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20240922
++5:0:10	6.5	20240928
+Index: dist.mk
+Prereq:  1.1633 
+--- ncurses-6.5-20240922+/dist.mk	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/dist.mk	2024-09-28 09:53:21.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1633 2024/09/22 18:38:38 tom Exp $
++# $Id: dist.mk,v 1.1634 2024/09/28 09:53:21 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20240922
++NCURSES_PATCH = 20240928
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/gen-pkgconfig.in
+Prereq:  1.57 
+--- ncurses-6.5-20240922+/misc/gen-pkgconfig.in	2024-06-22 21:02:53.000000000 +0000
++++ ncurses-6.5-20240928/misc/gen-pkgconfig.in	2024-09-28 20:21:23.000000000 +0000
+@@ -1,5 +1,5 @@
+ #!@SHELL@
+-# $Id: gen-pkgconfig.in,v 1.57 2024/06/22 21:02:53 tom Exp $
++# $Id: gen-pkgconfig.in,v 1.58 2024/09/28 20:21:23 tom Exp $
+ ##############################################################################
+ # Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+ # Copyright 2009-2015,2018 Free Software Foundation, Inc.                    #
+@@ -112,7 +112,7 @@
+ 		@LD_SEARCHPATH@) # skip standard libdir
+ 			if [ "$lib_check" = "$libdir" ]
+ 			then
+-				lib_first=yes
++				lib_first=no
+ 				IFS_save="$IFS"
+ 				IFS='|'
+ 				LIBDIRS="@LD_SEARCHPATH@"
+@@ -120,11 +120,11 @@
+ 				do
+ 					if [ -d "$lib_check" ]
+ 					then
+-						if [ "$lib_check" != "$libdir" ]
++						if [ "$lib_check" = "$libdir" ]
+ 						then
+-							lib_first=no
++							lib_first=yes
++							break
+ 						fi
+-						break
+ 					fi
+ 				done
+ 				IFS="$IFS_save"
+Index: misc/ncurses-config.in
+Prereq:  1.56 
+--- ncurses-6.5-20240922+/misc/ncurses-config.in	2024-09-21 17:24:52.000000000 +0000
++++ ncurses-6.5-20240928/misc/ncurses-config.in	2024-09-28 20:18:19.000000000 +0000
+@@ -1,5 +1,5 @@
+ #!@SHELL@
+-# $Id: ncurses-config.in,v 1.56 2024/09/21 17:24:52 tom Exp $
++# $Id: ncurses-config.in,v 1.57 2024/09/28 20:18:19 tom Exp $
+ ##############################################################################
+ # Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+ # Copyright 2006-2015,2017 Free Software Foundation, Inc.                    #
+@@ -132,7 +132,7 @@
+ 		@LD_SEARCHPATH@) # skip standard libdir
+ 			if [ "$lib_check" = "$libdir" ]
+ 			then
+-				lib_first=yes
++				lib_first=no
+ 				IFS_save="$IFS"
+ 				IFS='|'
+ 				LIBDIRS="@LD_SEARCHPATH@"
+@@ -140,11 +140,11 @@
+ 				do
+ 					if [ -d "$lib_check" ]
+ 					then
+-						if [ "$lib_check" != "$libdir" ]
++						if [ "$lib_check" = "$libdir" ]
+ 						then
+-							lib_first=no
++							lib_first=yes
++							break
+ 						fi
+-						break
+ 					fi
+ 				done
+ 				IFS="$IFS_save"
+Index: ncurses/base/lib_newwin.c
+Prereq:  1.76 
+--- ncurses-6.5-20240922+/ncurses/base/lib_newwin.c	2021-10-23 18:53:38.000000000 +0000
++++ ncurses-6.5-20240928/ncurses/base/lib_newwin.c	2024-09-28 15:55:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2021 Thomas E. Dickey                                     *
++ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -44,7 +44,7 @@
+ #include <curses.priv.h>
+ #include <stddef.h>
+ 
+-MODULE_ID("$Id: lib_newwin.c,v 1.76 2021/10/23 18:53:38 tom Exp $")
++MODULE_ID("$Id: lib_newwin.c,v 1.77 2024/09/28 15:55:56 tom Exp $")
+ 
+ #define window_is(name) ((sp)->_##name == win)
+ 
+@@ -255,13 +255,6 @@
+     returnWin(result);
+ }
+ 
+-static bool
+-dimension_limit(int value)
+-{
+-    NCURSES_SIZE_T test = (NCURSES_SIZE_T) value;
+-    return (test == value && value > 0);
+-}
+-
+ NCURSES_EXPORT(WINDOW *)
+ NCURSES_SP_NAME(_nc_makenew) (NCURSES_SP_DCLx
+ 			      int num_lines,
+@@ -281,7 +274,7 @@
+     if (SP_PARM == 0)
+ 	returnWin(0);
+ 
+-    if (!dimension_limit(num_lines) || !dimension_limit(num_columns))
++    if (!OK_DIMENSION(num_lines) || !OK_DIMENSION(num_columns))
+ 	returnWin(0);
+ 
+     if ((wp = typeCalloc(WINDOWLIST, 1)) == 0)
+Index: ncurses/base/lib_pad.c
+Prereq:  1.50 
+--- ncurses-6.5-20240922+/ncurses/base/lib_pad.c	2021-10-23 22:57:27.000000000 +0000
++++ ncurses-6.5-20240928/ncurses/base/lib_pad.c	2024-09-28 15:40:42.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2021 Thomas E. Dickey                                     *
++ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2010,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -43,7 +43,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_pad.c,v 1.50 2021/10/23 22:57:27 tom Exp $")
++MODULE_ID("$Id: lib_pad.c,v 1.51 2024/09/28 15:40:42 tom Exp $")
+ 
+ NCURSES_EXPORT(WINDOW *)
+ NCURSES_SP_NAME(newpad) (NCURSES_SP_DCLx int l, int c)
+@@ -197,8 +197,8 @@
+ #endif /* TRACE */
+ #if USE_SCROLL_HINTS
+     if (win->_pad._pad_y >= 0) {
+-	displaced = pminrow - win->_pad._pad_y
+-	    - (sminrow - win->_pad._pad_top);
++	displaced = ((pminrow - win->_pad._pad_y) -
++		     (sminrow - win->_pad._pad_top));
+ 	T(("pad being shifted by %d line(s)", displaced));
+     } else
+ 	displaced = 0;
+Index: ncurses/base/wresize.c
+Prereq:  1.43 
+--- ncurses-6.5-20240922+/ncurses/base/wresize.c	2023-10-21 11:13:03.000000000 +0000
++++ ncurses-6.5-20240928/ncurses/base/wresize.c	2024-09-28 15:56:07.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2021,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2010,2011 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -34,7 +34,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: wresize.c,v 1.43 2023/10/21 11:13:03 tom Exp $")
++MODULE_ID("$Id: wresize.c,v 1.44 2024/09/28 15:56:07 tom Exp $")
+ 
+ static int
+ cleanup_lines(struct ldat *data, int length)
+@@ -125,9 +125,11 @@
+     }
+ #endif
+ 
+-    if (!win || --ToLines < 0 || --ToCols < 0)
++    if (!win || !OK_DIMENSION(ToLines) || !OK_DIMENSION(ToCols))
+ 	returnCode(ERR);
+ 
++    ToLines--;
++    ToCols--;
+     size_x = win->_maxx;
+     size_y = win->_maxy;
+ 
+Index: ncurses/curses.priv.h
+Prereq:  1.690 
+--- ncurses-6.5-20240922+/ncurses/curses.priv.h	2024-08-31 10:46:01.000000000 +0000
++++ ncurses-6.5-20240928/ncurses/curses.priv.h	2024-09-28 15:35:01.000000000 +0000
+@@ -35,7 +35,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: curses.priv.h,v 1.690 2024/08/31 10:46:01 Rafael.Kitover Exp $
++ * $Id: curses.priv.h,v 1.691 2024/09/28 15:35:01 tom Exp $
+  *
+  *	curses.priv.h
+  *
+@@ -1550,6 +1550,8 @@
+ 		((x) >= 0 && (x) <= (w)->_maxx && \
+ 		 (y) >= 0 && (y) <= (w)->_maxy))
+ 
++#define OK_DIMENSION(n)	((NCURSES_SIZE_T)(n) == (n) && (n) > 0)
++
+ #define CHANGED_CELL(line,col) \
+ 	if (line->firstchar == _NOCHANGE) \
+ 		line->firstchar = line->lastchar = (NCURSES_SIZE_T) (col); \
+Index: ncurses/tinfo/write_entry.c
+Prereq:  1.134 
+--- ncurses-6.5-20240922+/ncurses/tinfo/write_entry.c	2024-08-31 10:46:01.000000000 +0000
++++ ncurses-6.5-20240928/ncurses/tinfo/write_entry.c	2024-09-28 17:31:09.000000000 +0000
+@@ -42,7 +42,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: write_entry.c,v 1.134 2024/08/31 10:46:01 Rafael.Kitover Exp $")
++MODULE_ID("$Id: write_entry.c,v 1.135 2024/09/28 17:31:09 tom Exp $")
+ 
+ #if 1
+ #define TRACE_OUT(p) DEBUG(2, p)
+@@ -153,8 +153,12 @@
+ 	    rc = 0;
+ 	}
+     } else {
+-	if ((strlen(top) + strlen(src) + 6) <= limit) {
+-	    _nc_SPRINTF(dst, _nc_SLIMIT(limit) "%s/%s", top, src);
++	size_t len_top = strlen(top);
++	size_t len_src = strlen(src);
++	if ((len_top + len_src + 6) <= limit) {
++	    _nc_SPRINTF(dst, _nc_SLIMIT(limit) "%.*s/%.*s",
++			(int) len_top, top,
++			(int) len_src, src);
+ 	    rc = 0;
+ 	}
+     }
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20240922+/package/debian-mingw/changelog	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/package/debian-mingw/changelog	2024-09-28 09:53:21.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240922) unstable; urgency=low
++ncurses6td (6.5+20240928) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 22 Sep 2024 14:38:38 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Sep 2024 05:53:21 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20240922+/package/debian-mingw64/changelog	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/package/debian-mingw64/changelog	2024-09-28 09:53:21.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240922) unstable; urgency=low
++ncurses6td (6.5+20240928) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 22 Sep 2024 14:38:38 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Sep 2024 05:53:21 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20240922+/package/debian/changelog	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/package/debian/changelog	2024-09-28 09:53:21.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240922) unstable; urgency=low
++ncurses6td (6.5+20240928) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 22 Sep 2024 14:38:38 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Sep 2024 05:53:21 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.668 
+--- ncurses-6.5-20240922+/package/mingw-ncurses.nsi	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/package/mingw-ncurses.nsi	2024-09-28 09:53:21.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.668 2024/09/22 18:38:38 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.669 2024/09/28 09:53:21 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "0922"
++!define VERSION_MMDD  "0928"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20240922+/package/mingw-ncurses.spec	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/package/mingw-ncurses.spec	2024-09-28 09:53:21.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20240922
++Release: 20240928
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20240922+/package/ncurses.spec	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/package/ncurses.spec	2024-09-28 09:53:21.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20240922
++Release: 20240928
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20240922+/package/ncursest.spec	2024-09-22 18:38:38.000000000 +0000
++++ ncurses-6.5-20240928/package/ncursest.spec	2024-09-28 09:53:21.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20240922
++Release: 20240928
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/infocmp.c
+Prereq:  1.164 
+--- ncurses-6.5-20240922+/progs/infocmp.c	2024-08-24 22:57:24.000000000 +0000
++++ ncurses-6.5-20240928/progs/infocmp.c	2024-09-28 20:26:22.000000000 +0000
+@@ -43,7 +43,7 @@
+ 
+ #include <dump_entry.h>
+ 
+-MODULE_ID("$Id: infocmp.c,v 1.164 2024/08/24 22:57:24 tom Exp $")
++MODULE_ID("$Id: infocmp.c,v 1.165 2024/09/28 20:26:22 Branden.Robinson Exp $")
+ 
+ #ifndef ACTUAL_TIC
+ #define ACTUAL_TIC "tic"
+@@ -1878,10 +1878,32 @@
+ 	    }
+ 
+ 	    if (status <= 0) {
+-		(void) fprintf(stderr,
+-			       "%s: couldn't open terminfo file %s.\n",
+-			       _nc_progname,
+-			       tfile[termcount]);
++		switch (status) {
++		case TGETENT_NO:
++		    (void) fprintf(stderr,
++				   "%s: error: no match in terminfo"
++				   " database for terminal type"
++				   " \"%s\"\n",
++				   _nc_progname,
++				   tname[termcount]);
++		    break;
++		case TGETENT_ERR:
++		    /*
++		     * Several database files might be checked; their
++		     * file names are not exposed via this API.  The
++		     * best we can do is report how the final one
++		     * attempted failed.  Also, tfile[termcount] is
++		     * deeply misleading when a hashed database is used.
++		     */
++		    (void) fprintf(stderr,
++				   "%s: error: unable to open terminfo"
++				   " database: %s\n",
++				   _nc_progname,
++				   strerror(errno));
++		    break;
++		default:
++		    assert(0 == "unhandled _nc_read_entry2 return");
++		}
+ 		MAIN_LEAKS();
+ 		ExitProgram(EXIT_FAILURE);
+ 	    }
+Index: test/back_ground.c
+Prereq:  1.11 
+--- ncurses-6.5-20240922+/test/back_ground.c	2024-09-22 21:33:17.000000000 +0000
++++ ncurses-6.5-20240928/test/back_ground.c	2024-09-28 16:19:19.000000000 +0000
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: back_ground.c,v 1.11 2024/09/22 21:33:17 tom Exp $
++ * $Id: back_ground.c,v 1.12 2024/09/28 16:19:19 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -233,7 +233,7 @@
+ 		    usage(FALSE);
+ 		fill_char = (wchar_t) value;
+ 	    } else {
+-		fill_char = *optarg;
++		fill_char = (wchar_t) *optarg;
+ 	    }
+ 	    break;
+ #if HAVE_USE_DEFAULT_COLORS

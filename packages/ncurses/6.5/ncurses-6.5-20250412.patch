@@ -1,0 +1,1732 @@
+# ncurses 6.5 - patch 20250412 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250412.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Apr 12 23:35:07 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    7 
+# VERSION                          |    2 
+# dist.mk                          |    4 
+# misc/terminfo.src                |  769 +++++++++++++++++++------------------
+# package/debian-mingw/changelog   |    4 
+# package/debian-mingw64/changelog |    4 
+# package/debian/changelog         |    4 
+# package/mingw-ncurses.nsi        |    4 
+# package/mingw-ncurses.spec       |    2 
+# package/ncurses.spec             |    2 
+# package/ncursest.spec            |    2 
+# 11 files changed, 432 insertions(+), 372 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4271 
+--- ncurses-6.5-20250405+/NEWS	2025-04-05 22:31:28.000000000 +0000
++++ ncurses-6.5-20250412/NEWS	2025-04-12 21:08:43.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4271 2025/04/05 22:31:28 tom Exp $
++-- $Id: NEWS,v 1.4273 2025/04/12 21:08:43 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,11 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250412
++	+ add pangoterm -TD
++	+ add kf1 to kf5 to sclp (report by Werner Fink)
++	+ add vt100+pf1-pf4 -TD
++
+ 20250405
+ 	+ improve formatting/style of manpages (patches by Branden Robinson).
+ 	+ improve infocmp -E/-e fallback feature (report by Ville Rissanen):
+Index: VERSION
+--- ncurses-6.5-20250405+/VERSION	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/VERSION	2025-04-12 10:27:36.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250405
++5:0:10	6.5	20250412
+Index: dist.mk
+Prereq:  1.1663 
+--- ncurses-6.5-20250405+/dist.mk	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/dist.mk	2025-04-12 10:27:36.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1663 2025/04/05 09:48:54 tom Exp $
++# $Id: dist.mk,v 1.1664 2025/04/12 10:27:36 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250405
++NCURSES_PATCH = 20250412
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/terminfo.src
+--- ncurses-6.5-20250405+/misc/terminfo.src	2025-04-05 20:08:00.000000000 +0000
++++ ncurses-6.5-20250412/misc/terminfo.src	2025-04-12 21:05:39.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1180 $
+-#	$Date: 2025/04/05 20:08:00 $
++#	$Revision: 1.1184 $
++#	$Date: 2025/04/12 21:05:39 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -836,14 +836,13 @@
+ 	cuf1=\EC, cup=\E[%i%p1%d;%p2%dH, cuu1=\EA, dch1=\Ea,
+ 	dim=\E[2m, dl=\E[%p1%dM, dl1=\E[M, ed=\E[J, el=\E[K,
+ 	el1=\E[1K, home=\E[H, ht=^I, hts=\EH, ich=\E[%p1%d@, il1=\EL,
+-	ind=\n, is2=\E<\E)0, kdch1=^?, kf1=\EOP, kf10=\EOY, kf11=\Ep,
+-	kf12=\Eq, kf13=\Er, kf14=\Es, kf15=\Et, kf16=\Eu, kf17=\Ev,
+-	kf18=\Ew, kf19=\Ex, kf2=\EOQ, kf20=\Ey, kf3=\EOR, kf4=\EOS,
+-	kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW, kf9=\EOX, khlp=\EH,
+-	khome=\E\EE, kich1=\EI, knp=\Eb, kpp=\E\Ea, kund=\EK,
+-	ll=\E[24H, nel=\EE, oc=\E[30;47m, op=\E[30;47m, rev=\E[7m,
+-	ri=\EM, rmacs=^O, rmcup=\E[?7h, rmir=\Ei, rmkx=\E[?1l\E>,
+-	rmso=\E[m, rmul=\E[m,
++	ind=\n, is2=\E<\E)0, kdch1=^?, kf10=\EOY, kf11=\Ep, kf12=\Eq,
++	kf13=\Er, kf14=\Es, kf15=\Et, kf16=\Eu, kf17=\Ev, kf18=\Ew,
++	kf19=\Ex, kf20=\Ey, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW,
++	kf9=\EOX, khlp=\EH, khome=\E\EE, kich1=\EI, knp=\Eb,
++	kpp=\E\Ea, kund=\EK, ll=\E[24H, nel=\EE, oc=\E[30;47m,
++	op=\E[30;47m, rev=\E[7m, ri=\EM, rmacs=^O, rmcup=\E[?7h,
++	rmir=\Ei, rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
+ 	rs1=\E<\E[20l\E[?3;6;9l\E[r\Eq\E(B\017\E)0\E>,
+ 	setb=\E[4%p1%'0'%+%Pa%?%ga%'0'%=%t0%e%ga%'1'%=%t4%e%ga%'2'%=
+ 	     %t2%e%ga%'3'%=%t6%e%ga%'4'%=%t1%e%ga%'5'%=%t5%e%ga%'6'
+@@ -854,6 +853,7 @@
+ 	sgr0=\E[m, smacs=^N, smcup=\E[?7l, smir=\Eh,
+ 	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, tbc=\E[3g,
+ 	use=ansi+apparrows, use=ansi+csr, use=ansi+local,
++	use=vt100+pf1-pf4,
+ 
+ # The entries for stv52 and stv52pc probably need a revision.
+ stv52|MiNT virtual console,
+@@ -1255,13 +1255,14 @@
+ 	dl=\E[%p1%dM, dl1=\E[M, ech=\E[%p1%dX, ed=\E[J, el1=\E[1K,
+ 	enacs=\E)0, ht=^I, ich=\E[%p1%d@, ind=\ED, is2=\Ec, kbs=^H,
+ 	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kdch1=\E[3~, kf5=\E[E, nel=\EE, rc=\E8, rev=\E[7m, ri=\EM,
++	kdch1=\E[3~, kf5=\E[15~, nel=\EE, rc=\E8, rev=\E[7m, ri=\EM,
+ 	rmacs=\E(B$<4>, rmso=\E[27m, rmul=\E[24m, sc=\E7,
+ 	sgr=\E[0%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;m%?%p9%t\E(0%e
+ 	    \E(B%;$<2>,
+ 	sgr0=\E[m\E(B, smacs=\E(0$<2>, smso=\E[7m, smul=\E[4m,
+ 	use=klone+color, use=ansi+cpr, use=ansi+erase,
+-	use=ansi+local, use=linux+sfkeys, use=vt220+ufkeys,
++	use=ansi+local, use=linux+sfkeys, use=vt100+pf1-pf4,
++	use=vt220+ufkeys,
+ 
+ #### Mach
+ #
+@@ -1273,11 +1274,11 @@
+ 	bel=^G, blink=\E[5m, bold=\E[1m, clear=\Ec, cr=\r, cub1=^H,
+ 	cud1=\n, cup=\E[%i%p1%d;%p2%dH, ed=\E[J, el=\E[K,
+ 	home=\E[H, ht=^I, ind=\n, kbs=^?, kdch1=\E[9, kend=\E[Y,
+-	kf1=\EOP, kf10=\EOY, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\EOT,
+-	kf6=\EOU, kf7=\EOV, kf8=\EOW, kf9=\EOX, kich1=\E[@, kll=\E[F,
+-	knp=\E[U, kpp=\E[V, rev=\E[7m, rmso=\E[0m, rmul=\E[24m,
+-	sgr0=\E[0m, smso=\E[7m, smul=\E[4m, use=ansi+arrows,
+-	use=ansi+idl, use=ansi+local,
++	kf10=\EOY, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW, kf9=\EOX,
++	kich1=\E[@, kll=\E[F, knp=\E[U, kpp=\E[V, rev=\E[7m,
++	rmso=\E[0m, rmul=\E[24m, sgr0=\E[0m, smso=\E[7m,
++	smul=\E[4m, use=ansi+arrows, use=ansi+idl,
++	use=ansi+local, use=vt100+pf1-pf4,
+ 
+ mach-bold|Mach console with bold instead of underline,
+ 	rmul=\E[0m, smul=\E[1m, use=mach,
+@@ -1342,10 +1343,9 @@
+ 	bel=^G, cbt=\E[Z, clear=\Ec, cr=\r, cub1=^H, cvvis=\E[34l,
+ 	dch=\E[%p1%dP, dch1=\E[P, dim=\E[2m, ech=\E[%p1%dX,
+ 	el1=\E[1K, flash=\Eg, ht=^I, ich=\E[%p1%d@, ind=\E[S,
+-	kb2=\E[G, kbs=^?, kcbt=\E[Z, kf1=\EOP, kf2=\EOQ, kf3=\EOR,
+-	kf4=\EOS, khome=\E[1~, kmous=\E[M, kspd=^Z, nel=\r\n,
+-	op=\E[39;49m, ri=\E[T, rmir=\E[4l, rmso=\E[27m,
+-	rmul=\E[24m, rs1=\EM\E[?1000l,
++	kb2=\E[G, kbs=^?, kcbt=\E[Z, khome=\E[1~, kmous=\E[M,
++	kspd=^Z, nel=\r\n, op=\E[39;49m, ri=\E[T, rmir=\E[4l,
++	rmso=\E[27m, rmul=\E[24m, rs1=\EM\E[?1000l,
+ 	sgr=\E[0%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5%t;
+ 	    2%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;11%;m,
+ 	smir=\E[4h, grbom=\E[>1l, gsbom=\E[>1h,
+@@ -1353,8 +1353,8 @@
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local,
+ 	use=ansi+rca2, use=ansi+sgrbold, use=vt220+pcedit,
+ 	use=ecma+index, use=ecma+italics, use=klone+acs,
+-	use=klone+color, use=linux+sfkeys, use=xterm+r5+fkeys,
+-	use=vt220+cvis,
++	use=klone+color, use=linux+sfkeys, use=vt100+pf1-pf4,
++	use=vt220+cvis, use=xterm+r5+fkeys,
+ 
+ #### QNX
+ #
+@@ -1472,14 +1472,13 @@
+ 	kLFT=\E[d, kNXT=\E[u, kOPT=\ENz, kPRV=\E[v, kRIT=\E[c,
+ 	kcan=\E[S, kcbt=\E[Z, kclo=\ENc, kclr=\ENa, kcmd=\E[G,
+ 	kcpy=\E[g, kctab=\E[z, kdch1=\E[P, kdl1=\E[p, kend=\E[Y,
+-	kext=\E[y, kf1=\EOP, kf10=\EOY, kf11=\EOZ, kf12=\EOA,
+-	kf13=\EOp, kf14=\EOq, kf15=\EOr, kf16=\EOs, kf17=\EOt,
+-	kf18=\EOu, kf19=\EOv, kf2=\EOQ, kf20=\EOw, kf21=\EOx,
+-	kf22=\EOy, kf23=\EOz, kf24=\EOa, kf25=\E[1~, kf26=\E[2~,
+-	kf27=\E[3~, kf28=\E[4~, kf29=\E[5~, kf3=\EOR, kf30=\E[6~,
+-	kf31=\E[7~, kf32=\E[8~, kf33=\E[9~, kf34=\E[10~,
+-	kf35=\E[11~, kf36=\E[12~, kf37=\E[17~, kf38=\E[18~,
+-	kf39=\E[19~, kf4=\EOS, kf40=\E[20~, kf41=\E[21~,
++	kext=\E[y, kf10=\EOY, kf11=\EOZ, kf12=\EOA, kf13=\EOp,
++	kf14=\EOq, kf15=\EOr, kf16=\EOs, kf17=\EOt, kf18=\EOu,
++	kf19=\EOv, kf20=\EOw, kf21=\EOx, kf22=\EOy, kf23=\EOz,
++	kf24=\EOa, kf25=\E[1~, kf26=\E[2~, kf27=\E[3~, kf28=\E[4~,
++	kf29=\E[5~, kf30=\E[6~, kf31=\E[7~, kf32=\E[8~, kf33=\E[9~,
++	kf34=\E[10~, kf35=\E[11~, kf36=\E[12~, kf37=\E[17~,
++	kf38=\E[18~, kf39=\E[19~, kf40=\E[20~, kf41=\E[21~,
+ 	kf42=\E[22~, kf43=\E[23~, kf44=\E[24~, kf45=\E[25~,
+ 	kf46=\E[26~, kf47=\E[27~, kf48=\E[28~, kf5=\EOT, kf6=\EOU,
+ 	kf7=\EOV, kf8=\EOW, kf9=\EOX, kfnd=\ENf, khlp=\ENh,
+@@ -1501,7 +1500,7 @@
+ 	tsl=\E7\E1;24r\E[?6l\E[25;%i%p1%dH, use=ansi+arrows,
+ 	use=ansi+local, use=ansi+rep, use=ansi+inittabs,
+ 	use=ansi+sgrbold, use=att610+cvis0, use=decid+cpr,
+-	use=ecma+index,
++	use=ecma+index, use=vt100+pf1-pf4,
+ #
+ qansi|QNX ANSI with console writes,
+ 	daisy, xhpa, use=qansi-g,
+@@ -1813,9 +1812,9 @@
+ #	OpenBSD implements a color variation
+ pcvt25-color|DEC VT220 emulation with 25 lines and color,
+ 	cols#80, lines#25,
+-	is2=\E[1;25r\E[25;1H, kf1=\EOP, kf10=\E[29~, kf11=\E[23~,
+-	kf12=\E[24~, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\E[17~,
+-	kf6=\E[18~, kf7=\E[19~, kf8=\E[20~, kf9=\E[21~, use=pcvtXX,
++	is2=\E[1;25r\E[25;1H, kf10=\E[29~, kf11=\E[23~,
++	kf12=\E[24~, kf5=\E[17~, kf6=\E[18~, kf7=\E[19~,
++	kf8=\E[20~, kf9=\E[21~, use=vt100+pf1-pf4, use=pcvtXX,
+ 	use=ecma+color, use=vt220+sfkeys,
+ 
+ # Terminfo entries to enable the use of the ncurses library in colour on a
+@@ -2183,11 +2182,10 @@
+ 	acsc=0\333a\260f\370g\361h\261j\331k\277l\332m\300n\305q
+ 	     \304t\303u\264v\301w\302x\263y\363z\362~\371,
+ 	cvvis@, hpa=\E[%i%p1%dG, hts=\EH, kdch1=\E[3~, kent=\r,
+-	kf1=\EOP, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, kich1=\E[2~, knp=\E[6~, kpp=\E[5~,
+-	rmir=\E[4l, smir=\E[4h, tbc=\E[3g, use=vt220+cvis,
+-	use=cons25,
++	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf5=\E[15~,
++	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++	kich1=\E[2~, knp=\E[6~, kpp=\E[5~, rmir=\E[4l, smir=\E[4h,
++	tbc=\E[3g, use=vt100+pf1-pf4, use=vt220+cvis, use=cons25,
+ 
+ teken-2022|teken as of 2022,
+ 	am, bce, eo, mir, msgr, npc, NQ,
+@@ -2203,8 +2201,8 @@
+ 	use=ansi+tabs, use=klone+color,
+ 
+ teken-vt+fkeys|teken's xterm special keys,
+-	kend=\E[F, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	khome=\E[H, use=vt220+pcedit, use=xterm+r5+fkeys,
++	kend=\E[F, khome=\E[H, use=vt100+pf1-pf4,
++	use=vt220+pcedit, use=xterm+r5+fkeys,
+ 
+ teken-sc+fkeys|teken's syscons special keys,
+ 	kdch1=^?, kend=\E[F, kf1=\E[M, kf10=\E[V, kf11=\E[W,
+@@ -2439,9 +2437,10 @@
+ # support:
+ vt100+keypad|DEC VT100 numeric keypad no fkeys,
+ 	ka1=\EOq, ka3=\EOs, kb2=\EOr, kc1=\EOp, kc3=\EOn,
++vt100+pf1-pf4|DEC VT100 PF1-PF4,
++	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+ vt100+pfkeys|DEC VT100 numeric keypad (kf1-kf4),
+-	kent=\EOM, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	use=vt100+keypad,
++	kent=\EOM, use=vt100+pf1-pf4, use=vt100+keypad,
+ vt100+fnkeys|DEC VT100 numeric keypad (kf0-kf10),
+ 	kf0=\EOy, kf10=\EOx, kf5=\EOt, kf6=\EOu, kf7=\EOv, kf8=\EOl,
+ 	kf9=\EOw, use=vt100+pfkeys,
+@@ -2616,13 +2615,13 @@
+ 	cuf1=\E[C$<2/>, cup=\E[%i%p1%d;%p2%dH$<5/>,
+ 	cuu1=\E[A$<2/>, ed=\E[J$<50/>, el=\E[K$<3/>, home=\E[H,
+ 	ht=^I, is2=\E[1;24r\E[24;1H, kbs=^H, kcub1=\EOD,
+-	kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, nel=\r\n, rev=\E[7m$<2/>, ri=\EM$<5/>,
+-	rmam=\E[?7h, rmkx=\E[?1l\E>, rmso=\E[m$<2/>,
+-	rmul=\E[m$<2/>,
++	kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, nel=\r\n,
++	rev=\E[7m$<2/>, ri=\EM$<5/>, rmam=\E[?7h, rmkx=\E[?1l\E>,
++	rmso=\E[m$<2/>, rmul=\E[m$<2/>,
+ 	rs1=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
+ 	sgr0=\E[m$<2/>, smam=\E[?7h, smkx=\E[?1h\E=,
+ 	smso=\E[7m$<2/>, smul=\E[4m$<2/>, use=ansi+csr,
++	use=vt100+pf1-pf4,
+ 
+ # vt132 - like vt100 but slower and has ins/del line and such.
+ # I'm told that <smir>/<rmir> are backwards in the terminal from the
+@@ -2651,19 +2650,18 @@
+ 	cup=\E[%i%p1%d;%p2%dH$<10>, dch1=\E[P, ed=\E[J$<50>,
+ 	el=\E[K$<3>, home=\E[H, ht=^I,
+ 	if=/usr/share/tabset/vt100, ind=\ED$<20/>,
+-	is2=\E[1;24r\E[24;1H, kf1=\EOP, kf10=\E[29~, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\E[17~, kf6=\E[18~, kf7=\E[19~,
+-	kf8=\E[20~, kf9=\E[21~, khome=\E[1~, kich1=\E[2~,
+-	rev=\E[7m$<2>, rf=/usr/share/tabset/vt100,
+-	ri=\EM$<14/>, rmacs=\E(B$<4>, rmam=\E[?7l, rmir=\E[4l,
+-	rmso=\E[27m, rmul=\E[24m,
+-	rs2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
++	is2=\E[1;24r\E[24;1H, kf10=\E[29~, kf5=\E[17~,
++	kf6=\E[18~, kf7=\E[19~, kf8=\E[20~, kf9=\E[21~,
++	khome=\E[1~, kich1=\E[2~, rev=\E[7m$<2>,
++	rf=/usr/share/tabset/vt100, ri=\EM$<14/>,
++	rmacs=\E(B$<4>, rmam=\E[?7l, rmir=\E[4l, rmso=\E[27m,
++	rmul=\E[24m, rs2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;m%?
+ 	    %p9%t\E(0%e\E(B%;$<2>,
+ 	sgr0=\E[m$<2>, smacs=\E(0$<2>, smam=\E[?7h, smir=\E[4h,
+ 	smso=\E[7m, smul=\E[4m, use=ansi+arrows, use=ansi+csr,
+-	use=ansi+idl1, use=ansi+local1, use=vt220+pcedit,
+-	use=vt220+cvis,
++	use=ansi+idl1, use=ansi+local1, use=vt100+pf1-pf4,
++	use=vt220+pcedit, use=vt220+cvis,
+ 
+ # Here's a picture of the Sun/PC editing keypad:
+ #	+--------+--------+--------+
+@@ -2711,19 +2709,19 @@
+ 	enacs=\E)0, flash=\E[?5h$<200/>\E[?5l, ht=^I, hts=\EH,
+ 	ich=\E[%p1%d@, if=/usr/share/tabset/vt100, ind=\ED,
+ 	is2=\E[?7h\E[>\E[?1l\E F\E[?4l, kbs=^H, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf13=\E[25~,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf13=\E[25~,
+ 	kf14=\E[26~, kf17=\E[31~, kf18=\E[32~, kf19=\E[33~,
+-	kf2=\EOQ, kf20=\E[34~, kf3=\EOR, kf4=\EOS, khlp=\E[28~,
+-	krdo=\E[29~, lf1=pf1, lf2=pf2, lf3=pf3, lf4=pf4, nel=\EE,
+-	rev=\E[7m, ri=\EM, rmacs=\E(B$<4>, rmam=\E[?7l, rmir=\E[4l,
+-	rmso=\E[27m, rmul=\E[24m, rs1=\E[?3l,
++	kf20=\E[34~, khlp=\E[28~, krdo=\E[29~, lf1=pf1, lf2=pf2,
++	lf3=pf3, lf4=pf4, nel=\EE, rev=\E[7m, ri=\EM, rmacs=\E(B$<4>,
++	rmam=\E[?7l, rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
++	rs1=\E[?3l,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;m%?
+ 	    %p9%t\E(0%e\E(B%;$<2>,
+ 	sgr0=\E[m\E(B, smacs=\E(0$<2>, smam=\E[?7h, smir=\E[4h,
+ 	smso=\E[7m, smul=\E[4m, tbc=\E[3g, use=ansi+csr,
+ 	use=ansi+cup, use=ansi+pp, use=ansi+enq, use=ansi+erase,
+-	use=ansi+idl, use=ansi+local, use=vt220+vtedit,
+-	use=vt220+ufkeys,
++	use=ansi+idl, use=ansi+local, use=vt100+pf1-pf4,
++	use=vt220+vtedit, use=vt220+ufkeys,
+ 
+ vt220|vt200|DEC VT220,
+ 	use=vt220+cvis, use=vt220-base,
+@@ -2745,20 +2743,20 @@
+ 	il=\233%p1%dL, il1=\233L, ind=\ED,
+ 	is2=\233?7h\233>\233?1l\E F\233?4l, kbs=^H,
+ 	kcub1=\233D, kcud1=\233B, kcuf1=\233C, kcuu1=\233A,
+-	kdch1=\2333~, kf1=\EOP, kf10=\23321~, kf11=\23323~,
+-	kf12=\23324~, kf13=\23325~, kf14=\23326~, kf17=\23331~,
+-	kf18=\23332~, kf19=\23333~, kf2=\EOQ, kf20=\23334~,
+-	kf3=\EOR, kf4=\EOS, kf6=\23317~, kf7=\23318~, kf8=\23319~,
+-	kf9=\23320~, kfnd=\2331~, khlp=\23328~, khome=\233H,
+-	kich1=\2332~, knp=\2336~, kpp=\2335~, krdo=\23329~,
+-	kslt=\2334~, lf1=pf1, lf2=pf2, lf3=pf3, lf4=pf4, mc0=\233i,
+-	mc4=\2334i, mc5=\2335i, nel=\EE, rc=\E8, rev=\2337m, ri=\EM,
+-	rmacs=\E(B, rmam=\233?7l, rmir=\2334l, rmso=\23327m,
+-	rmul=\23324m, rs1=\233?3l, sc=\E7,
++	kdch1=\2333~, kf10=\23321~, kf11=\23323~, kf12=\23324~,
++	kf13=\23325~, kf14=\23326~, kf17=\23331~, kf18=\23332~,
++	kf19=\23333~, kf20=\23334~, kf6=\23317~, kf7=\23318~,
++	kf8=\23319~, kf9=\23320~, kfnd=\2331~, khlp=\23328~,
++	khome=\233H, kich1=\2332~, knp=\2336~, kpp=\2335~,
++	krdo=\23329~, kslt=\2334~, lf1=pf1, lf2=pf2, lf3=pf3,
++	lf4=pf4, mc0=\233i, mc4=\2334i, mc5=\2335i, nel=\EE, rc=\E8,
++	rev=\2337m, ri=\EM, rmacs=\E(B, rmam=\233?7l, rmir=\2334l,
++	rmso=\23327m, rmul=\23324m, rs1=\233?3l, sc=\E7,
+ 	sgr=\2330%?%p6%t;1%;%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;m
+ 	    %?%p9%t\E(0%e\E(B%;$<2>,
+ 	sgr0=\2330m\E(B, smacs=\E(0, smam=\233?7h, smir=\2334h,
+-	smso=\2337m, smul=\2334m, tbc=\2333g, use=vt220+cvis8,
++	smso=\2337m, smul=\2334m, tbc=\2333g, use=vt100+pf1-pf4,
++	use=vt220+cvis8,
+ 
+ # vt220d:
+ # This VT220 description regards F6--F10 as the second block of function keys
+@@ -2809,12 +2807,12 @@
+ 	is2=\E[61"p\E[H\E[?3l\E[?4l\E[?1h\E[?5l\E[?6l\E[?7h\E[?8h\E[
+ 	    ?25h\E>\E[m,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, nel=\r\ED,
+-	rf=/usr/share/tabset/vt100, ri=\EM, rmdc=, rmir=\E[4l,
+-	rmkx=\E[?1l\E>, rmso=\E[27m$<5/>, rmul=\E[24m,
+-	rs1=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h, smdc=,
+-	smir=\E[4h, smkx=\E[?1h\E=, smso=\E[7m$<5/>, smul=\E[4m,
+-	use=ansi+csr, use=ansi+erase, use=vt220+cvis,
++	nel=\r\ED, rf=/usr/share/tabset/vt100, ri=\EM, rmdc=,
++	rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[27m$<5/>,
++	rmul=\E[24m, rs1=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
++	smdc=, smir=\E[4h, smkx=\E[?1h\E=, smso=\E[7m$<5/>,
++	smul=\E[4m, use=ansi+csr, use=ansi+erase,
++	use=vt100+pf1-pf4, use=vt220+cvis,
+ 
+ # This was DEC's VT320.  Use the purpose-built one below instead
+ #vt320|DEC VT320 in VT100 emulation mode,
+@@ -2909,9 +2907,8 @@
+ 	is2=\E<\E\sF\E>\E[?1h\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r
+ 	    \E[24;1H,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, lf1=pf1, lf2=pf2,
+-	lf3=pf3, lf4=pf4, nel=\r\ED, rev=\E[7m,
++	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, lf1=pf1,
++	lf2=pf2, lf3=pf3, lf4=pf4, nel=\r\ED, rev=\E[7m,
+ 	rf=/usr/share/tabset/vt300, ri=\EM, rmacs=\E(B,
+ 	rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[27m,
+ 	rmul=\E[24m, rs1=\E[?3l,
+@@ -2920,7 +2917,8 @@
+ 	sgr0=\E[m\E(B, smacs=\E(0, smam=\E[?7h, smir=\E[4h,
+ 	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, tbc=\E[3g,
+ 	tsl=\E[2$~\E[1$}\E[1;%dH, use=ansi+csr, use=ansi+erase,
+-	use=ansi+idl, use=ansi+local, use=vt220+cvis,
++	use=ansi+idl, use=ansi+local, use=vt100+pf1-pf4,
++	use=vt220+cvis,
+ 
+ # Left/right margins are supported in xterm since patch #279 (2012/05/10)
+ vt420+lrmm|VT420 left/right margins,
+@@ -2960,9 +2958,8 @@
+ 	is2=\E<\E\sF\E>\E[?1h\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r
+ 	    \E[24;1H,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, lf1=pf1, lf2=pf2,
+-	lf3=pf3, lf4=pf4, nel=\r\ED, rev=\E[7m,
++	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, lf1=pf1,
++	lf2=pf2, lf3=pf3, lf4=pf4, nel=\r\ED, rev=\E[7m,
+ 	rf=/usr/share/tabset/vt300, ri=\EM, rmacs=\E(B,
+ 	rmam=\E[?7l, rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m,
+ 	rs1=\E<\E[?3l\E[!p\E[?7h,
+@@ -2972,7 +2969,7 @@
+ 	smso=\E[7m, smul=\E[4m, tbc=\E[3g,
+ 	tsl=\E[2$~\E[1$}\E[1;%dH, use=ansi+csr, use=ansi+cup,
+ 	use=ansi+idc, use=ansi+idl, use=ansi+local, use=dec+sl,
+-	use=vt220+cvis,
++	use=vt100+pf1-pf4, use=vt220+cvis,
+ 
+ # (vt420: I removed <kf0>, it collided with <kf10>.  I also restored
+ # a missing <sc> -- esr)
+@@ -2989,10 +2986,10 @@
+ 	hts=\EH, ich=\E[%p1%d@, if=/usr/share/tabset/vt300,
+ 	ind=\ED, is2=\E[1;24r\E[24;1H, is3=\E[?67h\E[64;1"p,
+ 	kbs=^H, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kf1=\EOP, kf10=\E[29~, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	kf5=\E[17~, kf6=\E[18~, kf7=\E[19~, kf8=\E[20~, kf9=\E[21~,
+-	nel=\EE, rev=\E[7m$<2>, rf=/usr/share/tabset/vt300,
+-	ri=\EM, rmacs=\E(B$<4>, rmam=\E[?7l, rmir=\E[4l, rmkx=\E>,
++	kf10=\E[29~, kf5=\E[17~, kf6=\E[18~, kf7=\E[19~,
++	kf8=\E[20~, kf9=\E[21~, nel=\EE, rev=\E[7m$<2>,
++	rf=/usr/share/tabset/vt300, ri=\EM, rmacs=\E(B$<4>,
++	rmam=\E[?7l, rmir=\E[4l, rmkx=\E>,
+ 	rmsc=\E[?0;0r\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
+ 	rmso=\E[27m, rmul=\E[24m, rs3=\E[?67h\E[64;1"p,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;m%?
+@@ -3000,8 +2997,8 @@
+ 	sgr0=\E[m\E(B$<2>, smacs=\E(0$<2>, smam=\E[?7h,
+ 	smir=\E[4h, smkx=\E=, smso=\E[7m, smul=\E[4m, tbc=\E[3g,
+ 	use=ansi+csr, use=ansi+enq, use=ansi+idl, use=ansi+pp,
+-	use=ansi+local, use=dec+sl, use=vt220+cvis,
+-	use=vt420+lrmm, use=vt220+vtedit,
++	use=ansi+local, use=dec+sl, use=vt100+pf1-pf4,
++	use=vt220+cvis, use=vt420+lrmm, use=vt220+vtedit,
+ 
+ # DEC VT220 and up support DECUDK (user-defined keys).  DECUDK (i.e., pfx)
+ # takes two parameters, the key and the string.  Translating the key is
+@@ -3079,7 +3076,7 @@
+ 	cols#132, use=vt520,
+ 
+ # See "4.7.5 Visual Attributes Control Functions" and
+-# "Table 5–15 (Cont.) Visual Character Attribute Values"
++# "Table 5-15 (Cont.) Visual Character Attribute Values"
+ # in EK-VT520-RM
+ vt525|DEC VT525,
+ 	colors#8, pairs#64,
+@@ -3135,10 +3132,9 @@
+ # The missing "=" in smkx is not a typo (here), but an error in tkterm.
+ tt|tkterm|Don Libes' tk text widget terminal emulator,
+ 	clear=\E[H\E[J, cr=\r, cub1=^H, cud1=\n, cuf1=\E[C,
+-	cup=\E[%p1%d;%p2%dH, cuu1=\E[A, ind=\n, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW,
+-	kf9=\EOX, rmkx=\E[?1l\E>, rmso=\E[m, smkx=\E[?1h\E,
+-	smso=\E[7m,
++	cup=\E[%p1%d;%p2%dH, cuu1=\E[A, ind=\n, kf5=\EOT, kf6=\EOU,
++	kf7=\EOV, kf8=\EOW, kf9=\EOX, rmkx=\E[?1l\E>, rmso=\E[m,
++	smkx=\E[?1h\E, smso=\E[7m, use=vt100+pf1-pf4,
+ 
+ ######## APPLE
+ 
+@@ -4292,8 +4288,7 @@
+ 	use=putty+fnkeys+esc,
+ 
+ putty+fnkeys+xterm|Xterm R6 fn-keys for PuTTY,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	use=putty+fnkeys+esc,
++	use=vt100+pf1-pf4, use=putty+fnkeys+esc,
+ 
+ putty+fnkeys+vt400|VT400 fn-keys for PuTTY,
+ 	use=putty+fnkeys+esc,
+@@ -4301,9 +4296,9 @@
+ # Shifted F1 is F11.  F13-F20 inherit from the defaults, and the last distinct
+ # key is F20.
+ putty+fnkeys+vt100|VT100+ fn-keys for PuTTY,
+-	kf1=\EOP, kf10=\EOY, kf11=\EOZ, kf12=\EO[, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW,
+-	kf9=\EOX, use=putty+fnkeys+esc,
++	kf10=\EOY, kf11=\EOZ, kf12=\EO[, kf5=\EOT, kf6=\EOU,
++	kf7=\EOV, kf8=\EOW, kf9=\EOX, use=vt100+pf1-pf4,
++	use=putty+fnkeys+esc,
+ 
+ # Unlike xterm-sco, this leaves kmous ambiguous with kf1.
+ #
+@@ -4314,8 +4309,7 @@
+ # F37-F48 - control/shift
+ #
+ putty+fnkeys+sco|SCO fn-keys for PuTTY,
+-	kbeg=\E[E, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kdch1=^?, kend=\E[F, kf1=\E[M, kf10=\E[V, kf11=\E[W,
++	kbeg=\E[E, kdch1=^?, kf1=\E[M, kf10=\E[V, kf11=\E[W,
+ 	kf12=\E[X, kf13=\E[Y, kf14=\E[Z, kf15=\E[a, kf16=\E[b,
+ 	kf17=\E[c, kf18=\E[d, kf19=\E[e, kf2=\E[N, kf20=\E[f,
+ 	kf21=\E[g, kf22=\E[h, kf23=\E[i, kf24=\E[j, kf25=\E[k,
+@@ -4324,8 +4318,8 @@
+ 	kf35=\E[u, kf36=\E[v, kf37=\E[w, kf38=\E[x, kf39=\E[y,
+ 	kf4=\E[P, kf40=\E[z, kf41=\E[@, kf42=\E[[, kf43=\E[\\,
+ 	kf44=\E[], kf45=\E[\^, kf46=\E[_, kf47=\E[`, kf48=\E[{,
+-	kf5=\E[Q, kf6=\E[R, kf7=\E[S, kf8=\E[T, kf9=\E[U, khome=\E[H,
+-	kich1=\E[L, knp=\E[G, kpp=\E[I,
++	kf5=\E[Q, kf6=\E[R, kf7=\E[S, kf8=\E[T, kf9=\E[U, kich1=\E[L,
++	knp=\E[G, kpp=\E[I, use=vt100+noapp,
+ 
+ #### mintty
+ # https://github.com/mintty/mintty
+@@ -4863,11 +4857,11 @@
+ 	cub1=^H, cud1=\n, cuf1=\E[C, cup=\E[%i%p1%d;%p2%dH,
+ 	cuu1=\E[A, dch=\E[%p1%dP, dch1=\E[P, ed=\E[J, el=\E[K,
+ 	home=\E[H, ht=^I, ind=\n, is2=\E\E[m\E[?7h\E[?1;4l, kbs=^H,
+-	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, rev=\E[7m, ri=\EM, rmam=\E[?7l,
+-	rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
+-	sgr0=\E[m, smam=\E[?7h, smir=\E[4h, smkx=\E[?1h\E=,
+-	smso=\E[7m, smul=\E[4m, use=ansi+idl,
++	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, rev=\E[7m,
++	ri=\EM, rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[m,
++	rmul=\E[m, sgr0=\E[m, smam=\E[?7h, smir=\E[4h,
++	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, use=ansi+idl,
++	use=vt100+pf1-pf4,
+ 
+ # csl is extension which clears the status line
+ x10term+sl|status-line for X10 xterm,
+@@ -4970,7 +4964,7 @@
+ # This is the stock xterm entry supplied with XFree86 3.3, which uses VT100
+ # codes for F1-F4 except while in VT220 mode.
+ xterm-xf86-v33|xterm terminal emulator (XFree86 3.3 Window System),
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, use=xterm-xf86-v32,
++	use=vt100+pf1-pf4, use=xterm-xf86-v32,
+ 
+ # This version was released in XFree86 3.3.3 (November 1998).
+ # Besides providing printer support, it exploits a new feature that allows
+@@ -5065,7 +5059,7 @@
+ 	kbs=^H,
+ 
+ # Use this fragment for terminals that always use DEL for "backspace".
+-linux+kbs|fragment for "backspace" key,
++linux+kbs|Linux fragment for "backspace" key,
+ 	kbs=^?,
+ #
+ # This fragment describes as much of XFree86 xterm's "pc-style" function
+@@ -5108,9 +5102,8 @@
+ 	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+ 	use=vt100+noapp+pc,
+ 
+-xterm+noapp|fragment with cursor keys in normal mode,
+-	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kend=\E[F,
+-	khome=\E[H,
++xterm+noapp|alias for vt100+noapp,
++	use=vt100+noapp,
+ 
+ xterm+app|fragment with cursor keys in application mode,
+ 	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+@@ -5193,41 +5186,39 @@
+ # Here are corresponding fragments from xterm patch #216:
+ #
+ xterm+pcf0|fragment with modifyFunctionKeys:0,
+-	kf1=\EOP, kf13=\EO2P, kf14=\EO2Q, kf15=\EO2R, kf16=\EO2S,
+-	kf17=\E[15;2~, kf18=\E[17;2~, kf19=\E[18;2~, kf2=\EOQ,
++	kf13=\EO2P, kf14=\EO2Q, kf15=\EO2R, kf16=\EO2S,
++	kf17=\E[15;2~, kf18=\E[17;2~, kf19=\E[18;2~,
+ 	kf20=\E[19;2~, kf21=\E[20;2~, kf22=\E[21;2~,
+ 	kf23=\E[23;2~, kf24=\E[24;2~, kf25=\EO5P, kf26=\EO5Q,
+-	kf27=\EO5R, kf28=\EO5S, kf29=\E[15;5~, kf3=\EOR,
+-	kf30=\E[17;5~, kf31=\E[18;5~, kf32=\E[19;5~,
+-	kf33=\E[20;5~, kf34=\E[21;5~, kf35=\E[23;5~,
+-	kf36=\E[24;5~, kf37=\EO6P, kf38=\EO6Q, kf39=\EO6R,
+-	kf4=\EOS, kf40=\EO6S, kf41=\E[15;6~, kf42=\E[17;6~,
+-	kf43=\E[18;6~, kf44=\E[19;6~, kf45=\E[20;6~,
+-	kf46=\E[21;6~, kf47=\E[23;6~, kf48=\E[24;6~, kf49=\EO3P,
+-	kf50=\EO3Q, kf51=\EO3R, kf52=\EO3S, kf53=\E[15;3~,
+-	kf54=\E[17;3~, kf55=\E[18;3~, kf56=\E[19;3~,
+-	kf57=\E[20;3~, kf58=\E[21;3~, kf59=\E[23;3~,
+-	kf60=\E[24;3~, kf61=\EO4P, kf62=\EO4Q, kf63=\EO4R,
+-	use=xterm+nopcfkeys,
+-#
+-xterm+pcf2|fragment with modifyFunctionKeys:2,
+-	kf1=\EOP, kf13=\E[1;2P, kf14=\E[1;2Q, kf15=\E[1;2R,
+-	kf16=\E[1;2S, kf17=\E[15;2~, kf18=\E[17;2~,
+-	kf19=\E[18;2~, kf2=\EOQ, kf20=\E[19;2~, kf21=\E[20;2~,
+-	kf22=\E[21;2~, kf23=\E[23;2~, kf24=\E[24;2~,
+-	kf25=\E[1;5P, kf26=\E[1;5Q, kf27=\E[1;5R, kf28=\E[1;5S,
+-	kf29=\E[15;5~, kf3=\EOR, kf30=\E[17;5~, kf31=\E[18;5~,
+-	kf32=\E[19;5~, kf33=\E[20;5~, kf34=\E[21;5~,
+-	kf35=\E[23;5~, kf36=\E[24;5~, kf37=\E[1;6P, kf38=\E[1;6Q,
+-	kf39=\E[1;6R, kf4=\EOS, kf40=\E[1;6S, kf41=\E[15;6~,
++	kf27=\EO5R, kf28=\EO5S, kf29=\E[15;5~, kf30=\E[17;5~,
++	kf31=\E[18;5~, kf32=\E[19;5~, kf33=\E[20;5~,
++	kf34=\E[21;5~, kf35=\E[23;5~, kf36=\E[24;5~, kf37=\EO6P,
++	kf38=\EO6Q, kf39=\EO6R, kf40=\EO6S, kf41=\E[15;6~,
+ 	kf42=\E[17;6~, kf43=\E[18;6~, kf44=\E[19;6~,
+ 	kf45=\E[20;6~, kf46=\E[21;6~, kf47=\E[23;6~,
+-	kf48=\E[24;6~, kf49=\E[1;3P, kf50=\E[1;3Q, kf51=\E[1;3R,
+-	kf52=\E[1;3S, kf53=\E[15;3~, kf54=\E[17;3~,
++	kf48=\E[24;6~, kf49=\EO3P, kf50=\EO3Q, kf51=\EO3R,
++	kf52=\EO3S, kf53=\E[15;3~, kf54=\E[17;3~, kf55=\E[18;3~,
++	kf56=\E[19;3~, kf57=\E[20;3~, kf58=\E[21;3~,
++	kf59=\E[23;3~, kf60=\E[24;3~, kf61=\EO4P, kf62=\EO4Q,
++	kf63=\EO4R, use=vt100+pf1-pf4, use=xterm+nopcfkeys,
++#
++xterm+pcf2|fragment with modifyFunctionKeys:2,
++	kf13=\E[1;2P, kf14=\E[1;2Q, kf15=\E[1;2R, kf16=\E[1;2S,
++	kf17=\E[15;2~, kf18=\E[17;2~, kf19=\E[18;2~,
++	kf20=\E[19;2~, kf21=\E[20;2~, kf22=\E[21;2~,
++	kf23=\E[23;2~, kf24=\E[24;2~, kf25=\E[1;5P, kf26=\E[1;5Q,
++	kf27=\E[1;5R, kf28=\E[1;5S, kf29=\E[15;5~, kf30=\E[17;5~,
++	kf31=\E[18;5~, kf32=\E[19;5~, kf33=\E[20;5~,
++	kf34=\E[21;5~, kf35=\E[23;5~, kf36=\E[24;5~,
++	kf37=\E[1;6P, kf38=\E[1;6Q, kf39=\E[1;6R, kf40=\E[1;6S,
++	kf41=\E[15;6~, kf42=\E[17;6~, kf43=\E[18;6~,
++	kf44=\E[19;6~, kf45=\E[20;6~, kf46=\E[21;6~,
++	kf47=\E[23;6~, kf48=\E[24;6~, kf49=\E[1;3P, kf50=\E[1;3Q,
++	kf51=\E[1;3R, kf52=\E[1;3S, kf53=\E[15;3~, kf54=\E[17;3~,
+ 	kf55=\E[18;3~, kf56=\E[19;3~, kf57=\E[20;3~,
+ 	kf58=\E[21;3~, kf59=\E[23;3~, kf60=\E[24;3~,
+ 	kf61=\E[1;4P, kf62=\E[1;4Q, kf63=\E[1;4R,
+-	use=xterm+nopcfkeys,
++	use=vt100+pf1-pf4, use=xterm+nopcfkeys,
+ #
+ # Chunks from xterm #230:
+ xterm+pce2|fragment with modifyCursorKeys:2 editing-keys,
+@@ -5424,6 +5415,10 @@
+ 	      ;%p1%d%;m,
+ 	setb@, setf@,
+ 
++xterm+256setaf2|xterm 256-color (set-only with colon),
++	ccc@,
++	initc@, use=xterm+256setaf,
++
+ # 88-colors is a compile-time feature of XFree86 xterm beginning with
+ # xterm patch #115 (1999/9/18) -TD
+ #
+@@ -6168,8 +6163,8 @@
+ # this describes the alpha-version of GNOME terminal shipped with Redhat 6.0
+ gnome-rh62|GNOME terminal,
+ 	bce,
+-	kdch1=^?, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	use=linux+kbs, use=xterm-color,
++	kdch1=^?, use=linux+kbs, use=vt100+pf1-pf4,
++	use=xterm-color,
+ 
+ # GNOME Terminal 1.4.0.4 (Redhat 7.2)
+ #
+@@ -6191,11 +6186,11 @@
+ #	it hangs in tack after running function-keys test.
+ gnome-rh72|GNOME Terminal in RedHat 7,
+ 	bce, km@,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, rmam=\E[?7l,
++	rmam=\E[?7l,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;m%?%p9%t\016%e
+ 	    \017%;,
+-	sgr0=\E[0m\017, smam=\E[?7h, tbc@, use=vt220+cvis,
+-	use=linux+kbs, use=xterm-color,
++	sgr0=\E[0m\017, smam=\E[?7h, tbc@, use=linux+kbs,
++	use=vt100+pf1-pf4, use=vt220+cvis, use=xterm-color,
+ 
+ # GNOME Terminal 2.0.1 (Redhat 8.0)
+ #
+@@ -6871,8 +6866,7 @@
+ # Removed kDN6, etc (control+shift) since rxvt does not implement this -TD
+ rxvt+pcfkeys|rxvt fragment for PC-style fkeys,
+ 	kDC=\E[3$, kEND=\E[8$, kHOM=\E[7$, kIC=\E[2$, kLFT=\E[d,
+-	kNXT=\E[6$, kPRV=\E[5$, kRIT=\E[c, kcub1=\E[D, kcud1=\E[B,
+-	kcuf1=\E[C, kcuu1=\E[A, kel=\E[8\^, kend=\E[8~,
++	kNXT=\E[6$, kPRV=\E[5$, kRIT=\E[c, kel=\E[8\^, kend=\E[8~,
+ 	kf21=\E[23$, kf22=\E[24$, kf23=\E[11\^, kf24=\E[12\^,
+ 	kf25=\E[13\^, kf26=\E[14\^, kf27=\E[15\^, kf28=\E[17\^,
+ 	kf29=\E[18\^, kf30=\E[19\^, kf31=\E[20\^, kf32=\E[21\^,
+@@ -6884,7 +6878,7 @@
+ 	kHOM5=\E[7\^, kHOM6=\E[7@, kIC5=\E[2\^, kIC6=\E[2@,
+ 	kLFT5=\EOd, kNXT5=\E[6\^, kNXT6=\E[6@, kPRV5=\E[5\^,
+ 	kPRV6=\E[5@, kRIT5=\EOc, kUP=\E[a, kUP5=\EOa,
+-	use=vt220+vtedit, use=xterm+nopcfkeys,
++	use=vt100+noapp, use=vt220+vtedit, use=xterm+nopcfkeys,
+ 
+ # rxvt was originally "xvt", first announced in April 1993:
+ #------------------------------------------------------------------------------
+@@ -7038,7 +7032,7 @@
+ # Based on rxvt 2.4.8, it has a few differences in key bindings
+ aterm|AfterStep terminal,
+ 	XT,
+-	kbs=^?, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, use=rxvt,
++	kbs=^?, use=vt100+pf1-pf4, use=rxvt,
+ 
+ #### XITERM
+ # xiterm  0.5-5.2
+@@ -7284,16 +7278,16 @@
+ 	acsc=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+ 	bel=^G, bold=\E[1m, cr=\r, cub1=^H, cup=\E[%i%p1%d;%p2%dH,
+ 	cvvis=\E[?25h, dim=\E[2m, home=\E[H, il1=\E[L, ind=\n,
+-	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+ 	kdch1=\E[3~, kend=\E[4~, kf11=\E[22~, kf12=\E[23~,
+-	khome=\E[1~, knp=\E[6~, kpp=\E[5~, rmacs=\E[10m,
+-	rmam=\E[?7l, rs1=\E[H\E[J\E[m\Ec, setab=\E[4%p1%dm,
++	khome=\E[1~, knp=\E[6~, kpp=\E[5~, rmam=\E[?7l,
++	rs1=\E[H\E[J\E[m\Ec, setab=\E[4%p1%dm,
+ 	setaf=\E[3%p1%dm,
+ 	sgr=\E[0;10%?%p1%t;3%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5
+ 	    %t;2%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;11%;m,
+-	sgr0=\E[0;10m, smacs=\E[11m, smam=\E[?7h, smso=\E[3m,
+-	smul=\E[4m, use=ansi+erase, use=ansi+local, use=ansi+sgr,
+-	use=linux+lockeys, use=vt220+cvis, use=vt220+ufkeys,
++	sgr0=\E[0;10m, smam=\E[?7h, smso=\E[3m, smul=\E[4m,
++	use=ansi+cup, use=ansi+erase, use=ansi+local,
++	use=ansi+sgr, use=klone+acs, use=linux+lockeys,
++	use=vt100+noapp, use=vt220+cvis, use=vt220+ufkeys,
+ 	use=xterm+alt1049,
+ 
+ #### MGR
+@@ -7481,15 +7475,14 @@
+ 	cup=\E[%i%p1%d;%p2%dH, cuu=\E[%p1%dA, cuu1=\E[A,
+ 	dch1=\E[P, ed=\E[J, el=\E[K, home=\E[H, hpa=\E[%i%p1%dG,
+ 	ht=^I, ich=\E[%p1%d@, ind=\n, kbs=^?, kdch1=\E[3~,
+-	kend=\E[4~, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	khome=\E[1~, knp=\E[6~, kpp=\E[5~, rev=\E[7m, rmso=\E[m,
+-	rmul=\E[m,
++	kend=\E[4~, khome=\E[1~, knp=\E[6~, kpp=\E[5~, rev=\E[7m,
++	rmso=\E[m, rmul=\E[m,
+ 	sgr=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|
+ 	    %t;7%;m,
+ 	sgr0=\E[0m, smso=\E[7m, smul=\E[4m, use=ansi+arrows,
+ 	use=ansi+csr, use=ansi+idl, use=vt220+cvis,
+-	use=ecma+index, use=klone+color, use=xterm+r5+fkeys,
+-	use=xterm+acs,
++	use=ecma+index, use=klone+color, use=vt100+pf1-pf4,
++	use=xterm+r5+fkeys, use=xterm+acs,
+ 
+ st-16color|stterm-16color|simpleterm with 16-colors,
+ 	use=ibm+16color, use=st,
+@@ -7586,20 +7579,19 @@
+ 	flash=^G, home=\E[H, hpa=\E[%i%p1%dG, ht=^I, hts=\EH, ind=\n,
+ 	is1=\E[?47l\E=\E[?1l,
+ 	is2=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l, kbs=^?,
+-	kf1=\EOP, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
+-	kf16=\E[29~, kf2=\EOQ, kf3=\EOR, kf4=\EOS, khome=\E[1~,
+-	rev=\E[7m, ri=\EM, rmacs=\E(B, rmir=\E[4l, rmso=\E[27m,
+-	rmul=\E[24m, rs1=\Ec, rs2=\E[!p\E[?3;4l\E[4l\E>,
+-	s0ds=\E(B, s1ds=\E(0,
++	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
++	khome=\E[1~, rev=\E[7m, ri=\EM, rmacs=\E(B, rmir=\E[4l,
++	rmso=\E[27m, rmul=\E[24m, rs1=\Ec,
++	rs2=\E[!p\E[?3;4l\E[4l\E>, s0ds=\E(B, s1ds=\E(0,
+ 	sgr=\E[0%?%p1%p6%|%t;1%;%?%p2%t;4%;%?%p5%t;2%;%?%p1%p3%|%t;7
+ 	    %;m%?%p9%t\E(0%e\E(B%;,
+ 	sgr0=\E[m\E(B, smacs=\E(0, smir=\E[4h, smso=\E[7m,
+ 	smul=\E[4m, tbc=\E[3g, vpa=\E[%i%p1%dd, use=ansi+arrows,
+ 	use=ansi+csr, use=ansi+enq, use=ansi+idl, use=ansi+local,
+ 	use=bracketed+paste, use=ecma+italics, use=ecma+index,
+-	use=vt220+cvis, use=vt220+pcedit, use=xterm+r5+fkeys,
+-	use=xterm+256setaf, use=xterm+sl-twm,
+-	use=xterm+alt1049,
++	use=vt100+pf1-pf4, use=vt220+cvis, use=vt220+pcedit,
++	use=xterm+r5+fkeys, use=xterm+256setaf,
++	use=xterm+sl-twm, use=xterm+alt1049,
+ 
+ #### TERMINOLOGY
+ # https://www.enlightenment.org/about-terminology
+@@ -7791,7 +7783,7 @@
+ # derived from alacritty
+ rio|fork of alacritty,
+ 	use=alacritty,
+-rio-direct|fork of alacritty,
++rio-direct|rio with direct-colors,
+ 	use=alacritty-direct,
+ 
+ #### Kitty
+@@ -8091,6 +8083,78 @@
+ 
+ ######## Miscellaneous
+ 
++#### pangoterm
++# https://www.leonerd.org.uk/code/pangoterm/
++# https://github.com/bfredl/pangoterm
++# https://github.com/neovim/libvterm
++#
++# which says:
++# "A GTK/Pango-based terminal that uses libvterm to provide terminal
++# emulation."
++#
++# This probably has few users, because it cannot put the cursor reliably in the
++# right place (i.e., it appears several columns to the right).  It is included
++# here because it implements what Evans refers to as "fixterms" but sets TERM
++# to "xterm".
++#
++# vttest:
++# - no 80/132 column mode
++# - no blink mode
++# - no protected modes
++# - fails wrapping tests
++# - no VT52
++# - responds to ENQ with illegal character
++# - no SRM
++# - no origin mode
++# - identifies as VT100 with AVO
++# - responds to secondary DA as \E[>0;100;0c
++# - responds to DECREQTPARM with illegal character
++# - no application-keypad
++# - has application cursor-keys
++# - backspace key sends DEL, does not support toggle for BS
++# - keyboard does not provide LF
++# - has DECTCEM and ECH
++# - has REP, SD and SL
++# - has CBT, CHT, CNL, CPL
++# - has ISO 6429 colors
++# - BCE tests partially work (text is cleared incorrectly)
++# - lacks any other VT220 or higher features.
++# - xterm mouse except for modes 9 and 1001
++# wraptest:
++# - 6/25 differences from xterm
++# tack:
++# - no dim mode
++# - no invisible mode
++# - has italics
++# - has strike-out mode
++pangoterm|terminal using libvterm,
++	am, bce, mir, msgr, npc, xenl, AX, XT,
++	colors#8, cols#80, lines#24, pairs#64,
++	bel=^G, blink@, clear=\E[H\E[2J, cr=\r, cub1=^H, cud1=\n,
++	cup=\E[%i%p1%d;%p2%dH, dch=\E[%p1%dP, dch1=\E[P,
++	ech=\E[%p1%dX, ed=\E[J, el=\E[K, el1=\E[1K,
++	flash=\E[?5h$<100/>\E[?5l, home=\E[H, hpa=\E[%i%p1%dG,
++	ich=\E[%p1%d@, ind=\n, invis@, is2=\E[!p, kbs=^?, kcbt=\E[Z,
++	nel=\EE, op=\E[39;49m, ri=\EM, rmam=\E[?7l, rmir=\E[4l,
++	rmkx=\E[?1l, rmso=\E[27m, rmul=\E[24m, rs1=\Ec, rs2=\E[!p,
++	setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
++	sgr=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|
++	    %t;7%;m,
++	sgr0=\E(B\E[m, smam=\E[?7h, smir=\E[4h, smkx=\E[?1h,
++	vpa=\E[%i%p1%dd, rv=\E\\[>0;100;0c, use=ecma+index,
++	use=ansi+rep, use=ecma+strikeout, use=xterm+pcfkeys,
++	use=bracketed+paste, use=vt420+lrmm, use=xterm+focus,
++	use=xterm+sm+1006, use=ecma+italics, use=ansi+csr,
++	use=ansi+enq, use=ansi+idl, use=ansi+inittabs,
++	use=ansi+local, use=ansi+sgrbold, use=xterm+alt+title,
++	use=att610+cvis, use=xterm+acs,
++
++pangoterm-256color|pangoterm with 256-colors,
++	use=xterm+256setaf2, use=pangoterm,
++
++pangoterm-direct|pangoterm with direct-colors,
++	use=xterm+direct, use=pangoterm,
++
+ #### WezTerm
+ # https://wezfurlong.org/wezterm/
+ # https://github.com/wez/wezterm
+@@ -8599,19 +8663,18 @@
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\EM, cvvis=\E[34l,
+ 	dch=\E[%p1%dP, dch1=\E[P, dim=\E[2m, el1=\E[1K, flash=\Eg,
+ 	hpa=\E[%i%p1%dG, ich=\E[%p1%d@, indn=\E[%p1%dS, is2=\E)0,
+-	kbs=^?, kcbt=\E[Z, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	khome=\E[1~, kmous=\E[M, nel=\EE, rev=\E[7m, ri=\EM,
+-	rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[23m, rmul=\E[24m,
+-	rs2=\Ec\E[?1000l\E[?25h,
++	kbs=^?, kcbt=\E[Z, khome=\E[1~, kmous=\E[M, nel=\EE,
++	rev=\E[7m, ri=\EM, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[23m,
++	rmul=\E[24m, rs2=\Ec\E[?1000l\E[?25h,
+ 	sgr=\E[0%?%p6%t;1%;%?%p1%t;3%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;
+ 	    5%;%?%p5%t;2%;m%?%p9%t\016%e\017%;,
+ 	sgr0=\E[m\017, smir=\E[4h, smkx=\E[?1h\E=, smso=\E[3m,
+ 	smul=\E[4m, vpa=\E[%i%p1%dd, E0=\E(B, S0=\E(%p1%c,
+ 	use=ansi+apparrows, use=ansi+csr, use=ansi+erase,
+ 	use=ansi+idl, use=ansi+inittabs, use=ansi+local,
+-	use=xterm+kbs, use=vt220+pcedit, use=xterm+alt1049,
+-	use=ecma+color, use=vt100+enq, use=vt100+4bsd,
+-	use=xterm+r5+fkeys,
++	use=ecma+color, use=vt100+pf1-pf4, use=vt220+pcedit,
++	use=xterm+alt1049, use=xterm+kbs, use=vt100+enq,
++	use=vt100+4bsd, use=xterm+r5+fkeys,
+ 
+ screen|VT 100/ANSI X3.64 virtual terminal,
+ 	use=screen4,
+@@ -8691,8 +8754,7 @@
+ # and some keys from "screen.<term>" are ignored.  Here is an entry which
+ # covers those (tested with screen 4.00.02) -TD
+ screen+fkeys|function-keys according to screen,
+-	kend=\E[4~, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kfnd@,
+-	khome=\E[1~, kslt@,
++	kend=\E[4~, kfnd@, khome=\E[1~, kslt@, use=vt100+pf1-pf4,
+ 
+ # See explanation before "screen" entry.  Cancel italics so that applications
+ # do not assume screen supports the feature.  Add this tweak to entries which
+@@ -8830,11 +8892,11 @@
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\EM, dch=\E[%p1%dP,
+ 	dch1=\E[P, home=\E[H, ich=\E[%p1%d@, ind=\n, is2=\E)0,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, nel=\EE, rev=\E[7m,
+-	ri=\EM, rmir=\E[4l, rmkx=\E>, rmso=\E[23m, rmul=\E[24m,
+-	rs1=\Ec, sgr0=\E[m, smir=\E[4h, smkx=\E=, smso=\E[3m,
+-	smul=\E[4m, use=ansi+csr, use=ansi+erase, use=ansi+idl,
+-	use=ansi+inittabs, use=ansi+local,
++	nel=\EE, rev=\E[7m, ri=\EM, rmir=\E[4l, rmkx=\E>,
++	rmso=\E[23m, rmul=\E[24m, rs1=\Ec, sgr0=\E[m, smir=\E[4h,
++	smkx=\E=, smso=\E[3m, smul=\E[4m, use=ansi+csr,
++	use=ansi+erase, use=ansi+idl, use=ansi+inittabs,
++	use=ansi+local, use=vt100+pf1-pf4,
+ 
+ # screen 4.0 was released 2003-07-21, and as of March 2019, its terminfo file
+ # was last updated in 2009 to include 256-color support.  The most recent
+@@ -9050,7 +9112,7 @@
+ 	smso=\E[7m, smul=\E[4m, tbc=\E[3g, u8=\E[?62;1;6c,
+ 	use=ansi+arrows, use=ansi+csr, use=ansi+idl,
+ 	use=ansi+local, use=vt220+cvis, use=xterm+acs,
+-	use=xterm+sl, use=ansi+enq,
++	use=vt100+pf1-pf4, use=xterm+sl, use=ansi+enq,
+ 
+ ncsa|NCSA Telnet 2.7 for Macintosh in VT220-8 mode (color),
+ 	use=ncsa-m, use=klone+color,
+@@ -9067,10 +9129,10 @@
+ # some keyboards and many applications require these as F1-F4.
+ #
+ ncsa-vt220|NCSA Telnet using VT220-compatible function keys,
+-	kf1=\EOP, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf2=\EOQ, kf3=\EOR,
+-	kf4=\EOS, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	use=ncsa, use=vt220+sfkeys,
++	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
++	kf14=\E[26~, kf15=\E[28~, kf6=\E[17~, kf7=\E[18~,
++	kf8=\E[19~, kf9=\E[20~, use=vt100+pf1-pf4, use=ncsa,
++	use=vt220+sfkeys,
+ 
+ #### Pilot Pro Palm-Top
+ #
+@@ -9148,9 +9210,9 @@
+ 	bel=^G, clear=^L, cr=\r, cub1=^H, cup=\E[%i%p1%d;%p2%dH,
+ 	dch=\E[%p1%dP, dch1=\E[P, ed=\E[J, el=\E[K, ht=^I,
+ 	ich=\E[%p1%d@, ich1=\E[@, ind=\n, is1=\E[1r, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, khome=\E[H, rmso=\E[m, sgr0=\E[m,
+-	smso=\E[7m, use=ansi+idl, use=ansi+local1,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, khome=\E[H, rmso=\E[m,
++	sgr0=\E[m, smso=\E[7m, use=ansi+idl, use=ansi+local1,
++	use=vt100+pf1-pf4,
+ 
+ # From: Alexander Lukyanov <lav@video.yars.free.net>, 14 Nov 1995
+ # <lines> capability later corrected by J.T. Conklin <jtc@cygnus.com>
+@@ -9349,17 +9411,15 @@
+ 	OTbs, OTpt, am, xenl,
+ 	cols#80,
+ 	OTnl=\n, bel=^G, blink=\E[5m, bold=\E[1m, clear=\E[H\E[2J,
+-	cr=\r, cub1=^H, cud1=\n, cuf1=\E[C, cup=\E[%i%p1%d;%p2%dH,
+-	cuu1=\E[A, ed=\E[J, el=\E[K, home=\E[H, ht=^I,
+-	if=/usr/share/tabset/vt100,
++	cr=\r, cub1=^H, cud1=\n, ht=^I, if=/usr/share/tabset/vt100,
+ 	is2=\E[?7h\E[?1h\E[?3l\E7\E8, kbs=^H, kcub1=\EOD,
+-	kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf0=\EOY, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\EOU, kf7=\EOV,
+-	kf8=\EOW, kf9=\EOX, rev=\E[7m, ri=\EM, rmkx=\E[?1l\E>,
+-	rmso=\E[m, rmul=\E[m,
++	kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf0=\EOY, kf3=\EOR,
++	kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW, kf9=\EOX, rev=\E[7m,
++	ri=\EM, rmkx=\E[?1l\E>,
+ 	rs2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[r, sgr0=\E[m,
+-	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, use=ansi+csr,
+-	use=ansi+idl,
++	smkx=\E[?1h\E=, use=ansi+csr, use=ansi+cup,
++	use=ansi+erase, use=ansi+idl, use=ansi+local1,
++	use=ansi+sgrul, use=ansi+sgrso, use=vt100+pf1-pf4,
+ #
+ # (news-29: this had :TY=ascii: --esr)
+ news-29|Sony NEWS VT100 emulator with 29 lines,
+@@ -9401,11 +9461,11 @@
+ 	cr=\r, cub1=^H, cud1=\n, cuf1=\E[C, cup=\E[%i%p1%d;%p2%dH,
+ 	cuu1=\E[A, ed=\E[J, el=\E[K, home=\E[H, ht=^I,
+ 	if=/usr/share/tabset/vt100, kbs=^H, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, rev=\E[7m, ri=\EM, rmkx=\E[?1l\E>,
+-	rmso=\E[m, rmul=\E[m,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, rev=\E[7m, ri=\EM,
++	rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
+ 	rs2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h, sgr0=\E[m,
+ 	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, use=ansi+csr,
++	use=vt100+pf1-pf4,
+ #
+ # (nwp512: this had :DE=^H:, which I think means <OTbs> --esr)
+ nwp512|news|nwp514|news40|vt100-bm|nwp512-o|nwp514-o|news-o|news40-o|vt100-bm-o|old Sony VT100 emulator 40 lines,
+@@ -9461,11 +9521,11 @@
+ 	cuu1=\E[A$<2/>, dl1=\E[M, ed=\E[J$<30/>, el=\E[K$<3/>,
+ 	flash=\E[?5h\0\0\0\0\0\0\0\0\0\0\0\0\0\E[?5l,
+ 	il1=\E[L, is2=\E[?5l\E[?1l\E>\E[?7h\E[?8h, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\E#W, khome=\E[H,
+-	ri=\EM$<5/>, rmso=\E[m$<2/>, rmul=\E[m$<2/>,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf5=\EOT, kf6=\E#W,
++	khome=\E[H, ri=\EM$<5/>, rmso=\E[m$<2/>, rmul=\E[m$<2/>,
+ 	rs2=\E7\E[r\E8\E[?5l\E[?1l\E>\E[?7h\E[?8h,
+ 	smso=\E[7m$<2/>, smul=\E[4m$<2/>, use=ansi+local1,
++	use=vt100+pf1-pf4,
+ # (news517: this had :TY=sjis:. --esr)
+ nwp517|nwp-517|nwp-517 VT200 80 cols 30 rows,
+ 	cols#80, lines#30,
+@@ -9856,15 +9916,14 @@
+ 	bel=^G, blink=\E[5m, bold=\E[1m, cr=\r, cub1=^H, cud1=\n,
+ 	cuf1=\E[C, cup=\E[%i%p1%d;%p2%dH, cuu1=\E[A, dim=\E[2m,
+ 	ech=\E[%p1%dX, el1=\E[1K, home=\E[H, ht=^I, hts=\EH,
+-	kdch1=^?, kend=\E[Y, kf1=\EOP, kf10=\EOY, kf11=\EOZ,
+-	kf12=\EOA, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\EOU,
+-	kf7=\EOV, kf8=\EOW, kf9=\EOX, kich1=\E[@, nel=\r\n,
+-	op=\E[39;49m, rc=\E8, rev=\E[7m, rmacs=\E[10m,
++	kdch1=^?, kend=\E[Y, kf10=\EOY, kf11=\EOZ, kf12=\EOA,
++	kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW, kf9=\EOX, kich1=\E[@,
++	nel=\r\n, op=\E[39;49m, rc=\E8, rev=\E[7m, rmacs=\E[10m,
+ 	rmpch=\E[10m, rmso=\E[27m, rmul=\E[m, rs1=\Ec\E]R, sc=\E7,
+ 	sgr0=\E[0;10m, smacs=\E[11m, smpch=\E[11m, smso=\E[7m,
+ 	smul=\E[4m, tbc=\E[3g, use=ansi+arrows, use=ansi+cpr,
+ 	use=ansi+erase, use=ansi+idc, use=klone+color,
+-	use=vt220+cvis,
++	use=vt100+pf1-pf4, use=vt220+cvis,
+ 
+ #### Microsoft (miscellaneous)
+ 
+@@ -9920,12 +9979,12 @@
+ 	cuu1=\E[A$<2/>, ed=\E[J$<50/>, el=\E[K$<3/>, home=\E[H,
+ 	ht=^I, hts=\EH$<2/>, ind=\ED$<5/>, is2=\E[1;24r\E[24;1H,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, nel=\r\ED$<5/>,
+-	rc=\E8, rev=\E[7m$<2/>, rf=/usr/share/tabset/vt100,
+-	ri=\EM$<5/>, rmso=\E[m$<2/>, rmul=\E[m$<2/>,
++	nel=\r\ED$<5/>, rc=\E8, rev=\E[7m$<2/>,
++	rf=/usr/share/tabset/vt100, ri=\EM$<5/>,
++	rmso=\E[m$<2/>, rmul=\E[m$<2/>,
+ 	rs2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h, sc=\E7,
+ 	sgr0=\E[m$<2/>, smso=\E[7m$<2/>, smul=\E[4m$<2/>,
+-	tbc=\E[3g$<2/>,
++	tbc=\E[3g$<2/>, use=vt100+pf1-pf4,
+ 
+ # From: Federico Bianchi
+ # This is the entry for the OpenNT terminal.
+@@ -11261,15 +11320,14 @@
+ 	cuf1=\E[C$<2>, cup=\E[%i%p1%d;%p2%dH$<5>,
+ 	cuu1=\E[A$<2>, ed=\E[J$<50>, el=\E[K$<3>, home=\E[H, ht=^I,
+ 	hts=\EH, ind=\n, kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC,
+-	kcuu1=\EOA, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	rev=\E[7m$<2>, ri=\EM$<5>, rmam=\E[?7l, rmkx=\E[?1l\E>,
+-	rmso=\E[m$<2>, rmul=\E[m$<2>,
++	kcuu1=\EOA, rev=\E[7m$<2>, ri=\EM$<5>, rmam=\E[?7l,
++	rmkx=\E[?1l\E>, rmso=\E[m$<2>, rmul=\E[m$<2>,
+ 	rs2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
+ 	sgr=\E[%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1
+ 	    %;m$<2>,
+ 	sgr0=\E[m$<2>, smam=\E[?7h, smkx=\E[?1h\E=,
+ 	smso=\E[7m$<2>, smul=\E[4m$<2>, tbc=\E[3g, use=ansi+csr,
+-	use=ansi+local,
++	use=ansi+local, use=vt100+pf1-pf4,
+ 
+ qvt103-w|Qume qvt103 132 cols,
+ 	cols#132, lines#24,
+@@ -12992,12 +13050,11 @@
+ 	is2=\E7\E[1r\E8\E[2;3;4;13;20;34;39;36l\E[12;16;34h\E[?1;3;4
+ 	    ;5;10;18l\E[?7;8;25h\E>\E[?5W\E(B\017\E[4i,
+ 	kbs=^H, kcbt=\E[z, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC,
+-	kcuu1=\EOA, kf1=\EOP, kf17=\E[K, kf18=\E[31~, kf19=\E[32~,
+-	kf2=\EOQ, kf20=\E[33~, kf21=\E[34~, kf22=\E[35~,
+-	kf23=\E[1~, kf24=\E[2~, kf3=\EOR, kf4=\EOS, kf5=\E[M,
+-	ll=\E[24E, mc0=\E[?19h, nel=\EE, prot=\E[1"q, ri=\EM,
+-	rmacs=^O, rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l,
+-	rmso=\E[27m, rmul=\E[24m,
++	kcuu1=\EOA, kf17=\E[K, kf18=\E[31~, kf19=\E[32~,
++	kf20=\E[33~, kf21=\E[34~, kf22=\E[35~, kf23=\E[1~,
++	kf24=\E[2~, kf5=\E[M, ll=\E[24E, mc0=\E[?19h, nel=\EE,
++	prot=\E[1"q, ri=\EM, rmacs=^O, rmam=\E[?7l, rmir=\E[4l,
++	rmkx=\E[?1l, rmso=\E[27m, rmul=\E[24m,
+ 	rs2=\E[61"p\E[40h\E[?6l\E[1r\E[2;3;4;13;20;34;39;36l\E[12;16
+ 	    ;34h\E[?1;3;4;5;10;18l\E[?7;8;25h\E>\E[?5W\E(B\017\E[24E
+ 	    \E[4i,
+@@ -13005,7 +13062,8 @@
+ 	    %p5%t;2%;%?%p7%t;8%;m\E[%?%p8%t1%;"q%?%p9%t\016%e\017%;,
+ 	sgr0=\E[m\017\E["q, smacs=^N, smam=\E[?7h, smir=\E[4h,
+ 	smkx=\E[?1h, vpa=\E[%i%p1%dd, use=ansi+csr, use=ansi+idl,
+-	use=ansi+pp, use=ansi+sgrbold, use=vt220+ufkeys,
++	use=ansi+pp, use=ansi+sgrbold, use=vt100+pf1-pf4,
++	use=vt220+ufkeys,
+ 
+ #   This is the american terminal. Here tabs work fine.
+ # From: Francesco Potorti` <F.Potorti@cnuce.cnr.it>, 24 Aug 1998
+@@ -13545,10 +13603,9 @@
+ #	Function key set for the PC compatible keyboard
+ #
+ wy370-EPC|Wyse 370 with 102 key keyboard,
+-	kcbt=\E[Z, kend=\E[1~, kent=\EOM, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\E[M, kich1=\E[2~, knp=\E[U,
+-	kpp=\E[V, use=ansi+arrows, use=vt220+ufkeys,
+-	use=wy370-nk,
++	kcbt=\E[Z, kend=\E[1~, kent=\EOM, kf5=\E[M, kich1=\E[2~,
++	knp=\E[U, kpp=\E[V, use=ansi+arrows, use=vt100+pf1-pf4,
++	use=vt220+ufkeys, use=wy370-nk,
+ #
+ #	Wyse 370 with visual bell.
+ wy370-vb|Wyse 370 with visible bell,
+@@ -13910,8 +13967,7 @@
+ 	home=\E[H, hpa=\E[%i%p1%dG, ht=^I, hts=\EH, ich=\E[%p1%d@,
+ 	ind=\n, is2=\E>\E F\E[?1h\E[?7h\E[r\E[2$~, kbs=^H,
+ 	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kdl1=\E[3~,
+-	kf0=\E[21~, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++	kf0=\E[21~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+ 	kich1=\E[2~, knp=\E[6~, kpp=\E[5~, mc0=\E[0i, mc4=\E[4i,
+ 	mc5=\E[5i, nel=\r\n, rev=\E[7m, ri=\EM, rin=\E[%p1%dL,
+ 	rmacs=\E(B, rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>,
+@@ -13922,7 +13978,7 @@
+ 	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, tbc=\E[3g,
+ 	tsl=\E[1$}\r\E[K, vpa=\E[%i%p1%dd, use=ansi+csr,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local, use=dec+sl,
+-	use=vt220+cvis,
++	use=vt100+pf1-pf4, use=vt220+cvis,
+ 
+ # From: Joseph Gil <yogi@cs.ubc.ca> 13 Dec 1991
+ # ACS capabilities from Philippe De Muyter  <phdm@info.ucl.ac.be> 30 May 1996
+@@ -13938,15 +13994,15 @@
+ 	hts=\EH, ich=\E[%p1%d@, il1=\E[L$<3/>, ind=\ED,
+ 	is2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r\E[24;1H,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, lf1=pf1, lf2=pf2,
+-	lf3=pf3, lf4=pf4, nel=\r\ED, rev=\E[7m,
++	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, lf1=pf1,
++	lf2=pf2, lf3=pf3, lf4=pf4, nel=\r\ED, rev=\E[7m,
+ 	rf=/usr/share/tabset/vt100, ri=\EM, rmacs=^O,
+ 	rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[27m,
+ 	rmul=\E[24m, rs1=\E[?3l, sgr0=\E[m, smacs=^N, smam=\E[?7h,
+ 	smir=\E[4h, smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m,
+ 	tbc=\E[3g, tsl=\E[2$~\E[1$}\E[1;%dH, use=ansi+csr,
+-	use=ansi+idl, use=ansi+local, use=vt220+cvis,
++	use=ansi+idl, use=ansi+local, use=vt100+pf1-pf4,
++	use=vt220+cvis,
+ 
+ ######## NON-ANSI TERMINAL EMULATIONS
+ #
+@@ -14162,9 +14218,8 @@
+ 	    \s\s\sf6\s\s\s\s\s\s\s\s\s\s\s\EOU\E[7;03q\s\s\sf7\s\s
+ 	    \s\s\s\s\s\s\s\s\s\EOV\E[8;03q\s\s\sf8\s\s\s\s\s\s\s\s
+ 	    \s\s\s\EOW,
+-	kclr=\E[2J, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\EOT,
+-	kf6=\EOU, kf7=\EOV, kf8=\EOW, kll=\E[24;1H, ll=\E[24H,
+-	nel=\r\n,
++	kclr=\E[2J, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW,
++	kll=\E[24;1H, ll=\E[24H, nel=\r\n,
+ 	pfx=\E[%p1%1d;%p2%l%2.2dq\s\s\sf%p1%1d\s\s\s\s\s\s\s\s\s\s
+ 	    \s%p2%s,
+ 	pln=\E[%p1%d;00q%p2%:-16s, ri=\EM, rmacs=^O,
+@@ -14174,6 +14229,7 @@
+ 	sgr0=\E[m\017, smacs=^N, tsl=\E7\E[25;%p1%{1}%+%dH,
+ 	use=ansi+arrows, use=ansi+csr, use=ansi+cup,
+ 	use=ansi+erase, use=ansi+local1, use=ansi+sgrbold,
++	use=vt100+pf1-pf4,
+ 
+ att4410v1-w|att5410v1-w|tty5410v1-w|AT&T 4410/5410 132 columns - version 1,
+ 	cols#132, wsl#132,
+@@ -14409,13 +14465,13 @@
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\EA, dch=\E[%p1%dP, dch1=\EP,
+ 	dim=\EW, dl=\E[%p1%dM, dl1=\EM, ed=\EJ, el=\Ez, home=\E[H,
+ 	ht=^I, hts=\EH, ich=\E[%p1%d@, ich1=\E\^, il=\E[%p1%dL,
+-	il1=\EL, ind=\n, is2=\E[20l\E[?7h, kclr=\EJ, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, nel=\EE, rev=\E}, ri=\ET,
+-	rmacs=\E(B, rmso=\E~, rmul=\EZ,
++	il1=\EL, ind=\n, is2=\E[20l\E[?7h, kclr=\EJ, nel=\EE,
++	rev=\E}, ri=\ET, rmacs=\E(B, rmso=\E~, rmul=\EZ,
+ 	sgr=\EX\E~\EZ\E4\E(B%?%p1%p3%|%t\E}%;%?%p2%t\E\\%;%?%p4%p6%|
+ 	    %t\E3%;%?%p5%t\EW%;%?%p9%t\E(0%;,
+ 	sgr0=\EX\E~\EZ\E4\E(B, smacs=\E(0, smso=\E}, smul=\E\\,
+ 	tbc=\EF, use=ansi+arrows, use=ansi+local,
++	use=vt100+pf1-pf4,
+ 
+ att4424-1|tty4424-1|Teletype 4424 in display function group I,
+ 	kclr@, kcub1=\ED, kcud1=\EB, kcuf1=\EC, kcuu1=\EA, khome@,
+@@ -14433,9 +14489,9 @@
+ 	bel=^G, clear=\E[2;H\E[J, cr=\r, cub1=^H, cud1=\n, cuf1=\E[C,
+ 	cup=\E[%i%p1%2d;%p2%2dH\E[B, cuu1=\E[A, dch1=\EP,
+ 	dl1=\EM, el=\E[K, ht=^I, ich1=\E\^, il1=\EL, ind=\n, ip=$<2/>,
+-	is2=\E[m\E[2;24r, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	nel=\r\n, ri=\ET, rmso=\E[m, rmul=\E[m, sgr0=\E[m,
+-	smso=\E[7m, smul=\E[4m, use=ansi+arrows,
++	is2=\E[m\E[2;24r, nel=\r\n, ri=\ET, rmso=\E[m, rmul=\E[m,
++	sgr0=\E[m, smso=\E[7m, smul=\E[4m, use=ansi+arrows,
++	use=vt100+pf1-pf4,
+ 
+ # The Teletype 5425 is really version 2 of the Teletype 5420. It
+ # is quite similar, except for some minor differences. No page
+@@ -14492,14 +14548,14 @@
+ 	cr=\r, cup=\E[%i%p1%d;%p2%dH, dch=\E[%p1%dP, dch1=\EP,
+ 	ed=\E[J, el=\E[0K, home=\E[H, hpa=\E[%p1%dG, ht=^I, hts=\E1,
+ 	ich=\E[%p1%d@, ich1=\E\^, il1=\EL, ind=\n, is1=\Ec\E[?7h,
+-	is2=\E[m\E[1;24r, kbs=^H, kcbt=\EO, kclr=\E[2J, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\EOU, kf7=\EOV,
+-	kf8=\EOW, khome=\E[H, kll=\E[24;1H, ll=\E[24H, nel=\r\n,
+-	rc=\E8, rev=\E[7m, ri=\ET, rmacs=\E(B, rmam=\E[?7l,
+-	rmso=\E[m, rmul=\E[m, rs2=\Ec\E[?3l\E[2;0y, sc=\E7,
+-	sgr0=\E[m\E(B, smacs=\E(0, smam=\E[?7h, smso=\E[5m,
++	is2=\E[m\E[1;24r, kbs=^H, kcbt=\EO, kclr=\E[2J, kf5=\EOT,
++	kf6=\EOU, kf7=\EOV, kf8=\EOW, khome=\E[H, kll=\E[24;1H,
++	ll=\E[24H, nel=\r\n, rc=\E8, rev=\E[7m, ri=\ET, rmacs=\E(B,
++	rmam=\E[?7l, rmso=\E[m, rmul=\E[m, rs2=\Ec\E[?3l\E[2;0y,
++	sc=\E7, sgr0=\E[m\E(B, smacs=\E(0, smam=\E[?7h, smso=\E[5m,
+ 	smul=\E[4m, tbc=\E[3g, vpa=\E[%p1%dd, use=ansi+idl,
+-	use=ansi+local, use=ecma+index, use=vt52+arrows,
++	use=ansi+local, use=ecma+index, use=vt100+pf1-pf4,
++	use=vt52+arrows,
+ 
+ # Terminfo entry for the AT&T 510 A Personal Terminal
+ # Function keys 9 - 16 are available only after the
+@@ -15968,11 +16024,11 @@
+ 	cup=\E[%i%p1%2d;%p2%2dH, cvvis=\E[?1l\E[?4l\E[?7h,
+ 	dch1=\E[P, dl1=\E[M, if=/usr/share/tabset/vt100,
+ 	il1=\E[L, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kf0=\EOT, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\EOm,
+-	kf6=\EOl, kf7=\EOM, kf8=\EOn, rc=\E8, ri=\EM, rmacs=^O,
+-	rmir=\E[4l, rmkx=\E>, rmso=\E[m, rmul=\E[m, sc=\E7, smacs=^N,
+-	smir=\E[4h, smkx=\E=, smso=\E[7m, smul=\E[4m,
+-	use=ansi+erase, use=ansi+local1,
++	kf0=\EOT, kf5=\EOm, kf6=\EOl, kf7=\EOM, kf8=\EOn, rc=\E8,
++	ri=\EM, rmacs=^O, rmir=\E[4l, rmkx=\E>, rmso=\E[m, rmul=\E[m,
++	sc=\E7, smacs=^N, smir=\E[4h, smkx=\E=, smso=\E[7m,
++	smul=\E[4m, use=ansi+erase, use=ansi+local1,
++	use=vt100+pf1-pf4,
+ 
+ # From: David S. Lawyer, June 1997:
+ # The CIT 101-e was made in Japan in 1983-4 and imported by CIE
+@@ -16001,13 +16057,13 @@
+ 	is2=\E<\E>\E[?1l\E[?3l\E[?4l\E[?5h\E[?7h\E[?8h\E[3g\E[>5g\E(
+ 	    B\E[m\E[20l\E[1;24r\E[24;1H,
+ 	kbs=^?, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, nel=\EE, rev=\E[7m,
+-	ri=\EM, rmcup=, rmso=\E[m, rmul=\E[m, rs1=\Ec\E[?7h\E[>5g,
+-	sgr0=\E[m, smcup=\E[>5g\E[?7h\E[?5h, smso=\E[7m,
+-	smul=\E[4m, u6=\E[%i%p1%d;%p2%dR, u8=\E[?6c,
+-	use=ansi+enq, use=ansi+csr, use=ansi+erase, use=ansi+idc,
+-	use=ansi+idl, use=ansi+inittabs, use=ansi+local,
+-	use=ecma+index,
++	nel=\EE, rev=\E[7m, ri=\EM, rmcup=, rmso=\E[m, rmul=\E[m,
++	rs1=\Ec\E[?7h\E[>5g, sgr0=\E[m,
++	smcup=\E[>5g\E[?7h\E[?5h, smso=\E[7m, smul=\E[4m,
++	u6=\E[%i%p1%d;%p2%dR, u8=\E[?6c, use=ansi+enq,
++	use=ansi+csr, use=ansi+erase, use=ansi+idc, use=ansi+idl,
++	use=ansi+inittabs, use=ansi+local, use=ecma+index,
++	use=vt100+pf1-pf4,
+ 
+ cit101e-n|CIT-101e w/o am,
+ 	am@,
+@@ -16640,9 +16696,8 @@
+ 	is2=\E[1*q\E[2!t\E[7!t\E[=4;101;119;122l\E[=107;118;207h\E)1
+ 	    \E[1Q\EW\E[!y\E[!z\E>\E[0:0:32!r\E[0*w\E[w\E2\r\n\E[2;27
+ 	    !t,
+-	kdch1=\E\002\r, ked=\E\004\r, kf1=\EOP, kf2=\EOQ, kf3=\EOR,
+-	kf4=\EOS, kich1=\E\001\r, kil1=\E\003\r, ll=\E[24H,
+-	mc0=\E[0i, mc4=\E[4i, mc5=\E[5i,
++	kdch1=\E\002\r, ked=\E\004\r, kich1=\E\001\r,
++	kil1=\E\003\r, ll=\E[24H, mc0=\E[0i, mc4=\E[4i, mc5=\E[5i,
+ 	pfloc=\E[%p1%d;0u#%p2%s#, pfx=\E[%p1%d;1u#%p2%s#,
+ 	prot=\E[99m, ri=\EM$<4>, rmacs=\016$<1>,
+ 	rmcup=\E[w\E2\r\n, rmkx=\E[!z\E[0;2u, rmso=\E[7!{,
+@@ -16654,7 +16709,7 @@
+ 	smcup=\E[=4l\E[1;24w\E2\r, smkx=\E[1!z\E[0;3u,
+ 	vpa=\E[%p1%{1}%+%dd, use=ansi+arrows, use=ansi+csr,
+ 	use=ansi+idc1, use=ansi+inittabs, use=ansi+local,
+-	use=ansi+rep, use=ansi+sgrbold,
++	use=ansi+rep, use=ansi+sgrbold, use=vt100+pf1-pf4,
+ 
+ avt-rv-ns|Concept AVT in reverse video mode/no status line,
+ 	flash=\E[=205l$<200>\E[=205h, is1=\E[=103l\E[=205h,
+@@ -17491,9 +17546,9 @@
+ 	cols#80, lines#24,
+ 	bel=^G, cr=\r, cub1=^H, cud1=\n, cuf1=\E[C,
+ 	cup=\E[%i%p1%02d;%p2%02dH, cuu1=\E[A, ind=\n, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, rmso=\E[m, rmul=\E[m, sgr0=\E[m,
+-	smso=\E[7m, smul=\E[4m, use=ansi+erase,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, rmso=\E[m, rmul=\E[m,
++	sgr0=\E[m, smso=\E[7m, smul=\E[4m, use=ansi+erase,
++	use=vt100+pf1-pf4,
+ 
+ cs10-w|Datamedia Color Scan 10 with 132 columns,
+ 	cols#132,
+@@ -17819,11 +17874,11 @@
+ 	ed=\E[J$<10/>, el=\E[K, ht=^I,
+ 	if=/usr/share/tabset/vt100, il1=\E[L,
+ 	is2=\E<\E=\E[?3l\E[?7l\E(B\E[J\E7\E[;r\E8\E[m\E[q,
+-	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, khome=\E[H, ri=\EM,
+-	rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[m,
++	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, khome=\E[H,
++	ri=\EM, rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[m,
+ 	rmul=\E[m, sgr0=\E[m, smam=\E[?7h, smir=\E[4h,
+ 	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, use=ansi+local1,
++	use=vt100+pf1-pf4,
+ 
+ go140w|graphon go-140 in 132 column mode,
+ 	am,
+@@ -17839,14 +17894,14 @@
+ 	blink=\E[5m, bold=\E[1m, cub1=^H, cud1=\n, cuf1=\E[C,
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\E[A, dch1=\E[P, dl1=\E[M,
+ 	home=\E[H, ht=^I, il1=\E[L, ind=\ED,
+-	is2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, rev=\E[7m,
++	is2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h, rev=\E[7m,
+ 	rf=/usr/share/tabset/vt100, ri=\EM, rmam=\E[?7l,
+ 	rmcup=\E[!p\E[?7h\E[2;1;1#w, rmir=\E[4l, rmkx=\E>,
+ 	rmso=\E[27m, rmul=\E[24m, rs1=\E[!p\E[?7h\E[2;1;1#w,
+ 	sgr0=\E[m, smam=\E[?7h, smcup=\E[2;0#w\E[1;25r,
+ 	smir=\E[4h, smkx=\E=, smso=\E[7m, smul=\E[4m,
+ 	use=ansi+arrows, use=ansi+csr, use=ansi+erase,
++	use=vt100+pf1-pf4,
+ 
+ #### Harris (Beehive)
+ #
+@@ -18176,13 +18231,12 @@
+ 	cuf1=\E[C$<2/>, cup=\E[%i%p1%d;%p2%dH$<5/>,
+ 	cuu1=\E[A$<2/>, ed=\E[J$<50/>, el=\E[K$<3/>, home=\E[H,
+ 	ht=^I, is2=\E[1;24r\E[24;1H, kbs=^H, kcub1=\EOD,
+-	kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, rev=\E[7m$<2/>,
++	kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, rev=\E[7m$<2/>,
+ 	rf=/usr/share/tabset/vt100, ri=\EM$<5/>,
+ 	rmkx=\E[?1l\E>, rmso=\E[m$<2/>, rmul=\E[m$<2/>,
+ 	rs1=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
+ 	sgr0=\E[m$<2/>, smkx=\E[?1h\E=, smso=\E[7m$<2/>,
+-	smul=\E[4m$<2/>, use=ansi+csr,
++	smul=\E[4m$<2/>, use=ansi+csr, use=vt100+pf1-pf4,
+ 
+ #### IBM
+ #
+@@ -19372,13 +19426,13 @@
+ 	ht=^I, hts=\EH, ich=\E[%p1%d@, ich1=\E[@, ind=\ED,
+ 	is2=\E(B\E[2l\E>\E[20l\E[?3l\E[?5h\E[?7h\E[1;24r\E[24;1H\E[H
+ 	    \E[J,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, ll=\E[24;1H, nel=\EE,
+-	rf=/usr/share/tabset/vt100, ri=\EM, rmam=\E[?7l,
+-	rmso=\E[0m, rmul=\E[24m,
++	ll=\E[24;1H, nel=\EE, rf=/usr/share/tabset/vt100, ri=\EM,
++	rmam=\E[?7l, rmso=\E[0m, rmul=\E[24m,
+ 	rs1=\E(B\E[2l\E>\E[20l\E[?3l\E[?5h\E[?7h\E[H\E[J,
+ 	sgr0=\E[m, smam=\E[?7h, smso=\E[7m, smul=\E[4m, tbc=\E[g,
+ 	tsl=\E[25;1H, use=ansi+arrows, use=ansi+csr,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local,
++	use=vt100+pf1-pf4,
+ 
+ # Fri Aug  5 08:11:57 1983
+ # This entry works for the ergo 4000 with the following setups:
+@@ -19397,12 +19451,11 @@
+ 	ed=\E[0J$<15>, el=\E[0K$<13>, ht=^I, il1=\E[1L$<5*>,
+ 	ind=\ED$<20*>,
+ 	is2=\E<\E=\E[?1l\E[?4l\E[?5l\E[?7h\E[?8h$<300>,
+-	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, lf1=pf1, lf2=pf2, lf3=pf3,
+-	lf4=pf4, ri=\EM$<20*>, rmam=\E[?7l, rmir=\E[4l,
+-	rmkx=\E=$<4>, rmso=\E[m$<20>, sgr0=\E[m$<20>,
++	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, lf1=pf1,
++	lf2=pf2, lf3=pf3, lf4=pf4, ri=\EM$<20*>, rmam=\E[?7l,
++	rmir=\E[4l, rmkx=\E=$<4>, rmso=\E[m$<20>, sgr0=\E[m$<20>,
+ 	smam=\E[?7m, smir=\E[4h$<6>, smkx=\E=$<4>,
+-	smso=\E[7m$<20>, use=ansi+local1,
++	smso=\E[7m$<20>, use=ansi+local1, use=vt100+pf1-pf4,
+ 
+ #### NCR
+ #
+@@ -19902,10 +19955,10 @@
+ 	home=\E[H$<2>$<80>, il=\E[%p1%dL$<80>,
+ 	il1=\E[B\E[L$<80>, ind=\ED,
+ 	is2=\E[12h\E[?10l\E%/0n\E[P\031\E[?3l\E(B\E)0$<200>,
+-	kLFT=\E[D, kRIT=\E[C, ka1=\E[H, kent=\r, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, mc0=\E[i$<100>, nel=\EE, rc=\E8,
+-	rev=\E[7m$<30>, ri=\EM$<50>, rmacs=\017$<90>,
+-	rmir=\E[4l$<80>, rmso=\E[0m$<30>, rmul=\E[0m$<30>,
++	kLFT=\E[D, kRIT=\E[C, ka1=\E[H, kent=\r, mc0=\E[i$<100>,
++	nel=\EE, rc=\E8, rev=\E[7m$<30>, ri=\EM$<50>,
++	rmacs=\017$<90>, rmir=\E[4l$<80>, rmso=\E[0m$<30>,
++	rmul=\E[0m$<30>,
+ 	rs2=\Ec\E[12;31h\E[?3;4;5;10l\E[?6;7;19;25h\E[33;34l\E[0m\E(
+ 	    B\E)0\E%/0n\E[P\031$<200>,
+ 	sc=\E7,
+@@ -19914,6 +19967,7 @@
+ 	sgr0=\017\E[0m$<120>, smacs=\016$<90>, smir=\E[4h$<80>,
+ 	smso=\E[7m$<30>, smul=\E[4m$<30>, tbc=\E[3g$<40>,
+ 	tsl=\E[>+1$<70>, use=decid+cpr, use=vt100+4bsd,
++	use=vt100+pf1-pf4,
+ ncrvt100wan|NCRVT100WPP|ncrvt100wpp|NCR VT100 emulation of the 2900 terminal,
+ 	cols#132,
+ 	is2=\E[12h\E[?10l\E%/0n\E[P\031\E[?3h\E(B\E)0$<200>,
+@@ -20237,14 +20291,13 @@
+ 	cup=\010\E[%i%p1%d;%p2%dH, dch1=\E[0P, dl1=\E[0M,
+ 	ed=\E[0J, el=\E[0K, enacs=\E(B\E)0, home=\E[H, ht=^I,
+ 	ich1=\E[0@, il1=\E[0L, ind=\n, is2=\E[?3l\E)0\E(B,
+-	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kend=\E[K,
+-	kf1=\E[1~, kf10=\E[10~, kf2=\E[2~, kf3=\E[3~, kf4=\E[4~,
+-	kf5=\E[5~, kf6=\E[6~, kf7=\E[7~, kf8=\E[8~, kf9=\E[9~,
+-	khome=\E[G, kich1=\E[@, knp=\E[26~, kpp=\E[25~, lf0=f1,
+-	lf1=f2, lf2=f3, lf3=f4, lf4=f5, lf5=f6, lf6=f7, lf7=f8, lf8=f9,
+-	lf9=f10, ri=\EM, rmacs=^O, rmso=\E[m, rmul=\E[m, sgr0=\E[m,
+-	smacs=^N, smso=\E[7m, smul=\E[4m, use=ansi+local1,
+-	use=vt220+cvis,
++	kend=\E[K, kf1=\E[1~, kf10=\E[10~, kf2=\E[2~, kf3=\E[3~,
++	kf4=\E[4~, kf5=\E[5~, kf6=\E[6~, kf7=\E[7~, kf8=\E[8~,
++	kf9=\E[9~, khome=\E[G, kich1=\E[@, knp=\E[26~, kpp=\E[25~,
++	lf0=f1, lf1=f2, lf2=f3, lf3=f4, lf4=f5, lf5=f6, lf6=f7, lf7=f8,
++	lf8=f9, lf9=f10, ri=\EM, rmacs=^O, sgr0=\E[m, smacs=^N,
++	use=ansi+cup, use=ansi+local1, use=ansi+sgrso,
++	use=ansi+sgrul, use=vt100+noapp, use=vt220+cvis,
+ pt210|TRS-80 PT-210 printing terminal,
+ 	hc, os,
+ 	cols#80,
+@@ -21466,10 +21519,10 @@
+ 	ind=\ED,
+ 	is2=\E>\E[?1h\E[?7h\E[?5l\017\E(B\E[m\E[20l\E[1;24r\E[24;1H,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\EOU,
+-	kf7=\EOV, kf8=\EOW, nel=\r\ED, rev=\E[7m, ri=\E[T,
+-	rmir=\E[4l, rmso=\E[m, rmul=\E[m, sgr0=\E[m, smir=\E[4h,
+-	smso=\E[7m, smul=\E[4m, use=ansi+csr,
++	kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW, nel=\r\ED, rev=\E[7m,
++	ri=\E[T, rmir=\E[4l, rmso=\E[m, rmul=\E[m, sgr0=\E[m,
++	smir=\E[4h, smso=\E[7m, smul=\E[4m, use=ansi+csr,
++	use=vt100+pf1-pf4,
+ 
+ # basis from Peter Harrison, Computer Graphics Lab, San Francisco
+ #   ucbvax!ucsfmis!harrison ...uucp / ucbvax!ucsfmis!harrison@BERKELEY ...ARPA
+@@ -22076,10 +22129,10 @@
+ 	bel=^G, clear=\E[H\E[J$<150>, cr=\r, cub1=^H,
+ 	cup=%i\E[%p1%d;%p2%dH, dl1=\E[M$<2*>, ed=\E[J$<150>,
+ 	el=\E[K$<2>, ht=^I, il1=\E[L$<2*>, ind=\n$<280>,
+-	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, lf1=PF1, lf2=PF2, lf3=PF3,
+-	lf4=PF4, rmkx=\E>, rmso=\E[m, sgr0=\E[m, smkx=\E=,
+-	smso=\E[7m, use=ansi+csr, use=ansi+local1,
++	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, lf1=PF1,
++	lf2=PF2, lf3=PF3, lf4=PF4, rmkx=\E>, rmso=\E[m, sgr0=\E[m,
++	smkx=\E=, smso=\E[7m, use=ansi+csr, use=ansi+local1,
++	use=vt100+pf1-pf4,
+ 
+ bg1.25rv|BBN BitGraph 1.25 (reverse video),
+ 	flash=\E[?5l$<200/>\E[?5h, is2=\E>\E[?5h\E[?7h,
+@@ -22296,20 +22349,20 @@
+ 	is2=\E[?2h\E[?3l\E[?5l\E[?7h\E[?8h\E>\E[?1l\E\sF\E[?42l\E[?4
+ 	    l,
+ 	is3=\E[0$}\E[?25h\E[2l\E[H\E[J, ka1=\EOw, ka3=\EOy,
+-	kb2=\EOu, kc1=\EOq, kc3=\EOs, kf1=\EOP, kf2=\EOQ, kf3=\EOR,
+-	kf4=\EOS, khlp=\E[28~, krdo=\E[29~, lf1=pf1, lf2=pf2,
+-	lf3=pf3, lf4=pf4, nel=\EE, rev=\E[7m, ri=\EM, rmacs=\E(B,
+-	rmam=\E[?7l, rmcup=\E[?7h, rmir=\E[4l, rmkx=\E[?1l\E>,
+-	rmso=\E[27m, rmul=\E[24m, rs1=\E[!p, rs2=\E[?3l, s0ds=\E(B,
+-	s1ds=\E(0,
++	kb2=\EOu, kc1=\EOq, kc3=\EOs, khlp=\E[28~, krdo=\E[29~,
++	lf1=pf1, lf2=pf2, lf3=pf3, lf4=pf4, nel=\EE, rev=\E[7m, ri=\EM,
++	rmacs=\E(B, rmam=\E[?7l, rmcup=\E[?7h, rmir=\E[4l,
++	rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m, rs1=\E[!p,
++	rs2=\E[?3l, s0ds=\E(B, s1ds=\E(0,
+ 	sgr=\E[%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1
+ 	    %;m%?%p9%t\E(0%e\E(B%;,
+ 	sgr0=\E[0m\E(B, smacs=\E(0, smam=\E[?7h,
+ 	smcup=\E[?7l\E[?1l\E(B, smir=\E[4h, smso=\E[7m,
+ 	smul=\E[4m, tsl=\E[1$}\E[2$~, use=ansi+enq, use=ansi+csr,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local,
+-	use=ansi+pp, use=dec+sl, use=vt100+4bsd, use=vt220+cvis,
+-	use=vt220+vtedit, use=vt220+sfkeys, use=vt220+ufkeys,
++	use=ansi+pp, use=dec+sl, use=vt100+4bsd,
++	use=vt100+pf1-pf4, use=vt220+cvis, use=vt220+vtedit,
++	use=vt220+sfkeys, use=vt220+ufkeys,
+ 
+ bq300-rv|Bull VT320 reverse 80 columns,
+ 	flash=\E[?5l$<50>\E[?5h,
+@@ -22762,11 +22815,10 @@
+ 	bel=^G, clear=\E[H\E[2J, cr=\r, cub1=^H, cud1=\n,
+ 	cup=\E[%i%p1%d;%p2%dH, ed=\E[J, el=\E[K, ht=^I, ind=\n,
+ 	is2=\E>\E[?3l\E[?4l\E[?5l\E[?20l\E[?7h\E[?8h,
+-	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf1=\EOP,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, khome=\E[H, ri=\EM,
+-	rmam=\E[?7l, rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
++	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, khome=\E[H,
++	ri=\EM, rmam=\E[?7l, rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
+ 	sgr0=\E[m, smam=\E[?7h, smkx=\E[?1h\E=, smso=\E[7;31m,
+-	smul=\E[4m, use=ansi+local,
++	smul=\E[4m, use=ansi+local, use=vt100+pf1-pf4,
+ 
+ # DEC PRO-350 console (VT220-style).  The 350 was DEC's attempt to produce
+ # a PC differentiated from the IBM clones.  It was a total, ludicrous,
+@@ -22860,13 +22912,12 @@
+ 	cup=\E[%i%p1%d;%p2%dH$<5/>, cuu1=\E[A$<2/>,
+ 	ed=\E[J$<50/>, el=\E[K$<3/>, home=\E[H, ht=^I,
+ 	ind=\ED$<5/>, is2=\E[1;24r\E[24;1H, kbs=^H, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, rev=\E[7m$<2/>,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, rev=\E[7m$<2/>,
+ 	rf=/usr/share/tabset/vt100, ri=\EM$<5/>, rmam=\E[7l,
+ 	rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m$<2/>,
+ 	rs1=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h,
+ 	sgr0=\E[m$<2/>, smam=\E[7l, smkx=\E[?1h\E=, smso=\E[7m,
+-	smul=\E[4m$<2/>, use=ansi+csr,
++	smul=\E[4m$<2/>, use=ansi+csr, use=vt100+pf1-pf4,
+ 
+ #### Evans & Sutherland
+ #
+@@ -23215,11 +23266,11 @@
+ 	cols#80, it#8, lines#24,
+ 	clear=\E[H\E[2J, cnorm=\Ez56;2;0;0z\Ez73z\Ez4;1;1z,
+ 	cr=\r, cub1=^H, cvvis=\Ez4;2;1z\Ez56;2;80;24z, dch1=\E[P,
+-	ht=^I, ind=\ED, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	nel=\r\ED, rc=\E8, ri=\EM, rmdc=\E[4l, rmir=\E[4l, sc=\E7,
+-	sgr0=\E[m, smdc=\E[4h, smir=\E[4h, use=ansi+arrows,
+-	use=ansi+cup, use=ansi+erase, use=ansi+idl,
+-	use=ansi+local, use=ansi+sgrso,
++	ht=^I, ind=\ED, nel=\r\ED, rc=\E8, ri=\EM, rmdc=\E[4l,
++	rmir=\E[4l, sc=\E7, sgr0=\E[m, smdc=\E[4h, smir=\E[4h,
++	use=ansi+arrows, use=ansi+cup, use=ansi+erase,
++	use=ansi+idl, use=ansi+local, use=ansi+sgrso,
++	use=vt100+pf1-pf4,
+ 
+ graphos-30|graphos III with 30 lines,
+ 	lines#30,
+@@ -23289,10 +23340,9 @@
+ 	flash=\E[?5h\E[0q\E[1;2q\E[?5l\E[0q\E[4;3q,
+ 	home=\E[H, ht=^I, is2=\E<\E[1;48r\E[0q\E[3;4q\E=\E[?1h,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, rev=\E[7m, ri=\EM,
+-	rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m, rs1=\E=\E[0q\E>,
+-	sgr0=\E[m, smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m,
+-	use=ansi+csr,
++	rev=\E[7m, ri=\EM, rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
++	rs1=\E=\E[0q\E>, sgr0=\E[m, smkx=\E[?1h\E=, smso=\E[7m,
++	smul=\E[4m, use=ansi+csr, use=vt100+pf1-pf4,
+ 
+ #### Morrow Designs
+ #
+@@ -23737,11 +23787,11 @@
+ 	csr=%i\E[%p1%d;%p2%dr, cup=%i\E[%p1%d;%p2%dH,
+ 	cvvis=\E[?31h, dl1=\E[M, ed=\E[J, el=\E[K, home=\E[H, ht=^I,
+ 	hts=\EH, il1=\E[L, ind=\ED, kbs=^H, kcub1=\E[D, kcud1=\E[B,
+-	kcuf1=\E[C, kcuu1=\E[A, kdch1=\E[P, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\E[16~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, kich1=\E[@, rc=\E8, rev=\E[7m,
+-	ri=\EM, rmso=\E[m, rmul=\E[m, sc=\E7, sgr0=\E[m, smso=\E[7m,
+-	smul=\E[4m, tbc=\E[3g, use=ansi+local1, use=vt220+cvis,
++	kcuf1=\E[C, kcuu1=\E[A, kdch1=\E[P, kf5=\E[16~, kf6=\E[17~,
++	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, kich1=\E[@, rc=\E8,
++	rev=\E[7m, ri=\EM, rmso=\E[m, rmul=\E[m, sc=\E7, sgr0=\E[m,
++	smso=\E[7m, smul=\E[4m, tbc=\E[3g, use=ansi+local1,
++	use=vt100+pf1-pf4, use=vt220+cvis,
+ ti924-8|Texas Instruments 924 VDT 8859/1 8 bit CTRL,
+ 	am, xon,
+ 	cols#80, it#8, lines#24,
+@@ -23894,16 +23944,16 @@
+ 	dim=\E[2m, dl=\E[%p1%dM, dl1=\E[1M, ech=\E[%p1%dX, ed=\E[J,
+ 	el=\E[K, home=\E[H, hpa=\E[%i%p1%dG, ich=\E[%p1%d@,
+ 	ich1=\E[1@, il=\E[%p1%dL, il1=\E[1L, ind=\E[S, invis=\E[9m,
+-	is2=\E[0;10;39m, kcbt=^], kdch1=\E[P, kend=\E[Y, kf1=\EOP,
+-	kf10=\EOY, kf11=\EOZ, kf12=\EOA, kf2=\EOQ, kf3=\EOR,
+-	kf4=\EOS, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW, kf9=\EOX,
+-	kich1=\E[@, knp=\E[U, kpp=\E[V, krmir=\E0, nel=\r\E[S,
+-	rc=\E8, ri=\E[T, rmacs=\E[10m, sc=\E7,
++	is2=\E[0;10;39m, kcbt=^], kdch1=\E[P, kend=\E[Y, kf10=\EOY,
++	kf11=\EOZ, kf12=\EOA, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW,
++	kf9=\EOX, kich1=\E[@, knp=\E[U, kpp=\E[V, krmir=\E0,
++	nel=\r\E[S, rc=\E8, ri=\E[T, rmacs=\E[10m, sc=\E7,
+ 	sgr=\E[10m\E[0%?%p1%p3%|%t;7%;%?%p2%t;4%;%?%p4%t;5%;%?%p5%t;
+ 	    2%;%?%p6%t;1%;%?%p9%t;12%e;10%;%?%p7%t;9%;m,
+ 	sgr0=\E[0;10m, smacs=\E[12m, vpa=\E[%i%p1%dd,
+ 	use=ansi+arrows, use=ansi+inittabs, use=ansi+local,
+ 	use=ansi+sgrbold, use=ecma+index, use=klone+color,
++	use=vt100+pf1-pf4,
+ 
+ # (pc6300plus: removed ":KM=/usr/lib/ua/kmap.s5:"; renamed BO/EE/CI/CV -- esr)
+ pc6300plus|AT&T 6300 plus,
+@@ -24174,7 +24224,7 @@
+ 	cols#128, lines#57,
+ 	bel=^G, clear=^L, cr=\r, cub1=^H, cud1=\n, cuu1=^K, ht=^I,
+ 	ind=\n, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
++	use=vt100+pf1-pf4,
+ 
+ #### Other consoles
+ # The following is a version of the ibm-pc entry distributed with PC/IX,
+@@ -24319,11 +24369,11 @@
+ 	ed=\E[J$<50/>, el=\E[K$<3/>, home=\E[H, ht=^I,
+ 	ich1=\E[1@$<7/>, il1=\E[1L$<9/>, is2=\E[1;24r\E[24;1H,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS, nel=\r\n,
+-	rev=\E[7m$<2/>, rf=/usr/share/tabset/vt100,
++	nel=\r\n, rev=\E[7m$<2/>, rf=/usr/share/tabset/vt100,
+ 	ri=\EM$<5/>, rmkx=\E>\E[?1l, rmso=\E[m$<2/>,
+ 	rmul=\E[m$<2/>, rs1=\E>, sgr0=\E[m$<2/>, smkx=\E=\E[?1h,
+ 	smso=\E[7m$<2/>, smul=\E[4m$<2/>, use=ansi+csr,
++	use=vt100+pf1-pf4,
+ 
+ # From: Rick Thomas <ihnp4!btlunix!rbt>
+ # (xtalk: I added <rmam>/<smam> based on the init string.
+@@ -24493,10 +24543,10 @@
+ 	bel=^G, clear=\E[1;1H\E[2J, cnorm=\E[>12h, cr=\r, cub1=^H,
+ 	cud1=\n, cuf1=\E[C, cup=\E[%i%p1%d;%p2%dH, cuu1=\E[A,
+ 	cvvis=\E[>12l, ed=\E[J, el=\E[K, ht=^I, ind=\ED, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf2=\EOQ,
+-	kf3=\EOR, kf4=\EOS, kf5=\EOT, kf6=\EOU, kf7=\EOV, kf8=\EOW,
+-	ri=\EM, rmacs=\E[m, rmso=\E[m, rmul=\E[m, sgr0=\E[m,
+-	smacs=\E[1m, smso=\E[7m, smul=\E[4m,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf5=\EOT, kf6=\EOU,
++	kf7=\EOV, kf8=\EOW, ri=\EM, rmacs=\E[m, rmso=\E[m, rmul=\E[m,
++	sgr0=\E[m, smacs=\E[1m, smso=\E[7m, smul=\E[4m,
++	use=vt100+pf1-pf4,
+ digilog|digilog 333,
+ 	OTbs,
+ 	cols#80, lines#16,
+@@ -27855,7 +27905,12 @@
+ #	+ add sclp -TD
+ #	+ add op to vt525 -TD
+ #
+-# 2025-0405
++# 2025-04-05
+ #	+ update contour -TD
+ #
++# 2025-04-12
++#	+ add pangoterm -TD
++#	+ add kf1 to kf5 to sclp (report by Werner Fink)
++#	+ add vt100+pf1-pf4 -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250405+/package/debian-mingw/changelog	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/package/debian-mingw/changelog	2025-04-12 10:27:36.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250405) unstable; urgency=low
++ncurses6td (6.5+20250412) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 05 Apr 2025 05:48:54 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 12 Apr 2025 06:27:36 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250405+/package/debian-mingw64/changelog	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/package/debian-mingw64/changelog	2025-04-12 10:27:36.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250405) unstable; urgency=low
++ncurses6td (6.5+20250412) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 05 Apr 2025 05:48:54 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 12 Apr 2025 06:27:36 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250405+/package/debian/changelog	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/package/debian/changelog	2025-04-12 10:27:36.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250405) unstable; urgency=low
++ncurses6td (6.5+20250412) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 05 Apr 2025 05:48:54 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 12 Apr 2025 06:27:36 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.697 
+--- ncurses-6.5-20250405+/package/mingw-ncurses.nsi	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/package/mingw-ncurses.nsi	2025-04-12 10:27:36.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.697 2025/04/05 09:48:54 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.698 2025/04/12 10:27:36 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0405"
++!define VERSION_MMDD  "0412"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250405+/package/mingw-ncurses.spec	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/package/mingw-ncurses.spec	2025-04-12 10:27:36.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250405
++Release: 20250412
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250405+/package/ncurses.spec	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/package/ncurses.spec	2025-04-12 10:27:36.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250405
++Release: 20250412
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250405+/package/ncursest.spec	2025-04-05 09:48:54.000000000 +0000
++++ ncurses-6.5-20250412/package/ncursest.spec	2025-04-12 10:27:36.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250405
++Release: 20250412
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

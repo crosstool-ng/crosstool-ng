@@ -1,0 +1,727 @@
+# ncurses 6.5 - patch 20240629 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20240629.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Jun 30 00:08:16 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |   12 ++++++++-
+# VERSION                          |    2 -
+# dist.mk                          |    4 +--
+# ncurses/base/lib_delwin.c        |   21 ++++++++--------
+# package/debian-mingw/changelog   |    4 +--
+# package/debian-mingw64/changelog |    4 +--
+# package/debian/changelog         |    4 +--
+# package/mingw-ncurses.nsi        |    4 +--
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# test/chgat.c                     |    7 +++--
+# test/demo_new_pair.c             |   17 ++++++++++---
+# test/dup_field.c                 |    6 ++--
+# test/edit_field.c                |    6 ++--
+# test/gdc.c                       |   48 +++++++++++++++++++++++++++----------
+# test/move_field.c                |    6 ++--
+# test/popup_msg.c                 |    7 +++--
+# test/programs                    |    8 +++---
+# test/test_instr.c                |   38 ++++++++++++++++++++++++++---
+# test/test_inwstr.c               |   39 ++++++++++++++++++++++++++----
+# 21 files changed, 175 insertions(+), 68 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4143 
+--- ncurses-6.5-20240622+/NEWS	2024-06-22 22:59:44.000000000 +0000
++++ ncurses-6.5-20240629/NEWS	2024-06-29 19:31:28.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4143 2024/06/22 22:59:44 tom Exp $
++-- $Id: NEWS,v 1.4145 2024/06/29 19:31:28 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,16 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20240629
++	+ build-fix for ncurses-examples with newer PDCurses, which no longer
++	  has stubs for unimplemented features.
++	+ add help-popup for test_instr.c, test_inwstr.c
++	+ modify checks in delwin to avoid checking if the window is a pad
++	  until first checking if it is still on the active window-list
++	  (cf: 20211115).
++	+ improve -t option of test/gdc.c, allowing hours only, or hours and
++	  minutes only.
++
+ 20240622
+ 	+ improve test/gdc.c (patch by Branden Robinson).
+ 	+ improve formatting/style of manpages (patches by Branden Robinson).
+Index: VERSION
+--- ncurses-6.5-20240622+/VERSION	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/VERSION	2024-06-29 10:00:32.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20240622
++5:0:10	6.5	20240629
+Index: dist.mk
+Prereq:  1.1619 
+--- ncurses-6.5-20240622+/dist.mk	2024-06-22 09:24:38.000000000 +0000
++++ ncurses-6.5-20240629/dist.mk	2024-06-29 10:00:32.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1619 2024/06/22 09:24:38 tom Exp $
++# $Id: dist.mk,v 1.1620 2024/06/29 10:00:32 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20240622
++NCURSES_PATCH = 20240629
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: ncurses/base/lib_delwin.c
+Prereq:  1.25 
+--- ncurses-6.5-20240622+/ncurses/base/lib_delwin.c	2023-10-21 11:12:44.000000000 +0000
++++ ncurses-6.5-20240629/ncurses/base/lib_delwin.c	2024-06-29 16:51:40.000000000 +0000
+@@ -43,30 +43,31 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_delwin.c,v 1.25 2023/10/21 11:12:44 tom Exp $")
++MODULE_ID("$Id: lib_delwin.c,v 1.26 2024/06/29 16:51:40 tom Exp $")
+ 
+ static bool
+ cannot_delete(WINDOW *win)
+ {
+     bool result = TRUE;
++    bool found = FALSE;
++    SCREEN *scan;
++    WINDOWLIST *p;
+ 
+-    if (IS_PAD(win)) {
+-	result = FALSE;
+-    } else {
+-	WINDOWLIST *p;
+-#if NCURSES_SP_FUNCS && defined(USE_SP_WINDOWLIST)
+-	SCREEN *sp = _nc_screen_of(win);
+-#endif
+-
+-	for (each_window(SP_PARM, p)) {
++    for (each_screen(scan)) {
++	for (each_window(scan, p)) {
+ 	    if (&(p->win) == win) {
+ 		result = FALSE;
++		found = TRUE;
++		break;
+ 	    } else if (IS_SUBWIN(&(p->win))
+ 		       && p->win._parent == win) {
+ 		result = TRUE;
++		found = TRUE;
+ 		break;
+ 	    }
+ 	}
++	if (found)
++	    break;
+     }
+     return result;
+ }
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20240622+/package/debian-mingw/changelog	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/package/debian-mingw/changelog	2024-06-29 10:00:32.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240622) unstable; urgency=low
++ncurses6td (6.5+20240629) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 21 Jun 2024 18:24:47 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Jun 2024 06:00:32 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20240622+/package/debian-mingw64/changelog	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/package/debian-mingw64/changelog	2024-06-29 10:00:32.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240622) unstable; urgency=low
++ncurses6td (6.5+20240629) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 21 Jun 2024 18:24:47 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Jun 2024 06:00:32 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20240622+/package/debian/changelog	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/package/debian/changelog	2024-06-29 10:00:32.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240622) unstable; urgency=low
++ncurses6td (6.5+20240629) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 21 Jun 2024 18:24:47 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Jun 2024 06:00:32 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.654 
+--- ncurses-6.5-20240622+/package/mingw-ncurses.nsi	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/package/mingw-ncurses.nsi	2024-06-29 10:00:32.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.654 2024/06/21 22:24:47 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.655 2024/06/29 10:00:32 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "0622"
++!define VERSION_MMDD  "0629"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20240622+/package/mingw-ncurses.spec	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/package/mingw-ncurses.spec	2024-06-29 10:00:32.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20240622
++Release: 20240629
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20240622+/package/ncurses.spec	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/package/ncurses.spec	2024-06-29 10:00:32.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20240622
++Release: 20240629
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20240622+/package/ncursest.spec	2024-06-21 22:24:47.000000000 +0000
++++ ncurses-6.5-20240629/package/ncursest.spec	2024-06-29 10:00:32.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20240622
++Release: 20240629
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: test/chgat.c
+Prereq:  1.20 
+--- ncurses-6.5-20240622+/test/chgat.c	2022-12-10 23:31:31.000000000 +0000
++++ ncurses-6.5-20240629/test/chgat.c	2024-06-29 17:45:32.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,16 +27,17 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: chgat.c,v 1.20 2022/12/10 23:31:31 tom Exp $
++ * $Id: chgat.c,v 1.21 2024/06/29 17:45:32 tom Exp $
+  *
+  * test-driver for chgat/wchgat/mvchgat/mvwchgat
+  */
+ 
+ #include <test.priv.h>
+-#include <popup_msg.h>
+ 
+ #if HAVE_CHGAT
+ 
++#include <popup_msg.h>
++
+ #define SHOW(n) ((n) == ERR ? "ERR" : "OK")
+ #define COLOR_DEFAULT (-1)
+ 
+Index: test/demo_new_pair.c
+Prereq:  1.27 
+--- ncurses-6.5-20240622+/test/demo_new_pair.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20240629/test/demo_new_pair.c	2024-06-29 19:30:26.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2018-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2017 Free Software Foundation, Inc.                            *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_new_pair.c,v 1.27 2022/12/04 00:40:11 tom Exp $
++ * $Id: demo_new_pair.c,v 1.28 2024/06/29 19:30:26 tom Exp $
+  *
+  * Demonstrate the alloc_pair() function.
+  */
+@@ -36,6 +36,7 @@
+ #include <time.h>
+ #include <popup_msg.h>
+ 
++#if HAVE_TIGETSTR
+ #if HAVE_ALLOC_PAIR && USE_WIDEC_SUPPORT
+ 
+ #include <sys/types.h>
+@@ -391,11 +392,19 @@
+     ExitProgram(EXIT_SUCCESS);
+ }
+ 
+-#else
++#else /* !(HAVE_ALLOC_PAIR && USE_WIDEC_SUPPORT) */
+ int
+ main(void)
+ {
+     printf("This program requires the ncurses alloc_pair function\n");
+     ExitProgram(EXIT_FAILURE);
+ }
+-#endif
++#endif /* HAVE_ALLOC_PAIR && USE_WIDEC_SUPPORT */
++#else /* !HAVE_TIGETSTR */
++int
++main(void)
++{
++    printf("This program requires the terminfo functions such as tigetstr\n");
++    ExitProgram(EXIT_FAILURE);
++}
++#endif /* HAVE_TIGETSTR */
+Index: test/dup_field.c
+Prereq:  1.8 
+--- ncurses-6.5-20240622+/test/dup_field.c	2023-11-11 00:29:10.000000000 +0000
++++ ncurses-6.5-20240629/test/dup_field.c	2024-06-29 17:45:32.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: dup_field.c,v 1.8 2023/11/11 00:29:10 tom Exp $
++ * $Id: dup_field.c,v 1.9 2024/06/29 17:45:32 tom Exp $
+  *
+  * Demonstrate dup_field().
+  */
+@@ -62,7 +62,7 @@
+     { CTRL('W'),     REQ_NEXT_WORD,   "go to next word" },
+     { CTRL('X'),     REQ_CLR_FIELD,   "clear field" },
+     { CTRL('['),     MY_QUIT,         "exit form" },
+-    { KEY_F(1),      MY_HELP,         "show this screen", },
++    { HELP_KEY_2,    MY_HELP,         "show this screen", },
+     { KEY_BACKSPACE, REQ_DEL_PREV,    "delete previous character" },
+     { KEY_BTAB,      REQ_PREV_FIELD,  "go to previous field" },
+     { KEY_DOWN,      REQ_DOWN_CHAR,   "move down 1 character" },
+Index: test/edit_field.c
+Prereq:  1.31 
+--- ncurses-6.5-20240622+/test/edit_field.c	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20240629/test/edit_field.c	2024-06-29 17:49:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019,2020 Thomas E. Dickey                                     *
++ * Copyright 2019-2020,2024 Thomas E. Dickey                                *
+  * Copyright 2003-2014,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: edit_field.c,v 1.31 2020/02/02 23:34:34 tom Exp $
++ * $Id: edit_field.c,v 1.32 2024/06/29 17:49:56 tom Exp $
+  *
+  * A wrapper for form_driver() which keeps track of the user's editing changes
+  * for each field, and makes the resulting length available as a
+@@ -131,7 +131,7 @@
+ 	CTRL(']'), MY_INS_MODE, "toggle REQ_INS_MODE/REQ_OVL_MODE",
+     },
+     {
+-	KEY_F(1), MY_HELP, "show this screen",
++	HELP_KEY_2, MY_HELP, "show this screen",
+     },
+     {
+ 	KEY_BACKSPACE, REQ_DEL_PREV, "delete previous character"
+Index: test/gdc.c
+Prereq:  1.58 
+--- ncurses-6.5-20240622+/test/gdc.c	2024-06-22 22:27:52.000000000 +0000
++++ ncurses-6.5-20240629/test/gdc.c	2024-06-29 19:59:06.000000000 +0000
+@@ -34,7 +34,7 @@
+  * modified 10-18-89 for curses (jrl)
+  * 10-18-89 added signal handling
+  *
+- * $Id: gdc.c,v 1.58 2024/06/22 22:27:52 tom Exp $
++ * $Id: gdc.c,v 1.60 2024/06/29 19:59:06 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -150,24 +150,23 @@
+ 	mask |= m;
+ }
+ 
+-static void
++static GCC_NORETURN void
+ usage(int ok)
+ {
+     static const char *msg[] =
+     {
+ 	"usage: gdc [-dns] -[t HH:MM:SS] [COUNT]"
+ 	,""
+-	,"Display a digital clock, running indefinitely or for COUNT"
+-	" seconds."
++	,"Display a digital clock, running indefinitely or for COUNT seconds."
+ 	,""
+ 	,USAGE_COMMON
+ 	,"Options:"
+ #if HAVE_USE_DEFAULT_COLORS
+-	," -d           uses the terminal's default background color"
++	," -d       uses the terminal's default background color"
+ #endif
+-	," -n           reads input from /dev/null"
+-	," -s           scrolls each digit into place"
+-	," -t HH:MM:SS  starts clock at specified time"
++	," -n       reads input from /dev/null"
++	," -s       scrolls each digit into place"
++	," -t TIME  specify starting time as hh:mm:ss (default is ``now'')"
+     };
+     unsigned j;
+     for (j = 0; j < SIZEOF(msg); j++)
+@@ -181,13 +180,38 @@
+     int hh, mm, ss;
+     int check;
+     time_t result;
+-    char c;
++    char c = 0;
+     struct tm *tm;
+ 
+-    if (sscanf(value, "%d:%d:%d%c", &hh, &mm, &ss, &c) != 3) {
+-	if (sscanf(value, "%02d%02d%02d%c", &hh, &mm, &ss, &c) != 3) {
+-	    usage(FALSE);
++    switch (sscanf(value, "%d:%d:%d%c", &hh, &mm, &ss, &c)) {
++    default:
++	usage(FALSE);
++	/* NOTREACHED */
++    case 1:
++	if (strspn(value, "0123456789") >= 2) {
++	    switch (sscanf(value, "%02d%02d%02d%c", &hh, &mm, &ss, &c)) {
++	    default:
++		usage(FALSE);
++		/* NOTREACHED */
++	    case 1:
++		mm = 0;
++		/* FALLTHRU */
++	    case 2:
++		ss = 0;
++		/* FALLTHRU */
++	    case 3:
++		break;
++	    }
++	    break;
++	} else {
++	    mm = 0;
+ 	}
++	/* FALLTHRU */
++    case 2:
++	ss = 0;
++	/* FALLTHRU */
++    case 3:
++	break;
+     }
+ 
+     if ((hh < 0) || (hh >= 24) ||
+Index: test/move_field.c
+Prereq:  1.15 
+--- ncurses-6.5-20240622+/test/move_field.c	2023-11-11 00:28:19.000000000 +0000
++++ ncurses-6.5-20240629/test/move_field.c	2024-06-29 17:45:02.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: move_field.c,v 1.15 2023/11/11 00:28:19 tom Exp $
++ * $Id: move_field.c,v 1.16 2024/06/29 17:45:02 tom Exp $
+  *
+  * Demonstrate move_field().
+  */
+@@ -62,7 +62,7 @@
+     { CTRL('W'),     REQ_NEXT_WORD,   "go to next word" },
+     { CTRL('X'),     REQ_CLR_FIELD,   "clear field" },
+     { CTRL('['),     MY_QUIT,         "exit form" },
+-    { KEY_F(1),      MY_HELP,         "show this screen", },
++    { HELP_KEY_2,    MY_HELP,         "show this screen", },
+     { KEY_BACKSPACE, REQ_DEL_PREV,    "delete previous character" },
+     { KEY_BTAB,      REQ_PREV_FIELD,  "go to previous field" },
+     { KEY_DOWN,      REQ_DOWN_CHAR,   "move down 1 character" },
+Index: test/popup_msg.c
+Prereq:  1.11 
+--- ncurses-6.5-20240622+/test/popup_msg.c	2021-12-18 21:19:19.000000000 +0000
++++ ncurses-6.5-20240629/test/popup_msg.c	2024-06-29 18:34:58.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
++ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
+  * Copyright 2017 Free Software Foundation, Inc.                            *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: popup_msg.c,v 1.11 2021/12/18 21:19:19 tom Exp $
++ * $Id: popup_msg.c,v 1.12 2024/06/29 18:34:58 tom Exp $
+  *
+  * Show a multi-line message in a window which may extend beyond the screen.
+  *
+@@ -83,7 +83,7 @@
+ 	if (width < check)
+ 	    width = check;
+     }
+-    length = n;
++    length = n + 2;
+ 
+     if ((help = newwin(high, wide, y0, x0)) == 0)
+ 	return;
+@@ -96,6 +96,7 @@
+ 
+     keypad(data, TRUE);
+ 
++    waddstr(data, "Press ^[ or ^Q to exit this window.\n\n");
+     for (n = 0; n < length; ++n) {
+ 	waddstr(data, msg[n]);
+ 	if ((n + 1) < length) {
+Index: test/programs
+Prereq:  1.57 
+--- ncurses-6.5-20240622+/test/programs	2023-11-10 11:48:38.000000000 +0000
++++ ncurses-6.5-20240629/test/programs	2024-06-29 18:49:58.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: programs,v 1.57 2023/11/10 11:48:38 tom Exp $
++# $Id: programs,v 1.58 2024/06/29 18:49:58 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2022,2023 Thomas E. Dickey                                  #
++# Copyright 2018-2023,2024 Thomas E. Dickey                                  #
+ # Copyright 2006-2016,2017 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -100,8 +100,8 @@
+ test_endwin	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_endwin
+ test_get_wstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_get_wstr popup_msg
+ test_getstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_getstr popup_msg
+-test_instr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_instr
+-test_inwstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_inwstr
++test_instr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_instr popup_msg
++test_inwstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_inwstr popup_msg
+ test_mouse	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_mouse
+ test_opaque	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_opaque
+ test_setupterm	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_setupterm
+Index: test/test_instr.c
+Prereq:  1.12 
+--- ncurses-6.5-20240622+/test/test_instr.c	2022-12-10 23:58:01.000000000 +0000
++++ ncurses-6.5-20240629/test/test_instr.c	2024-06-29 18:42:53.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_instr.c,v 1.12 2022/12/10 23:58:01 tom Exp $
++ * $Id: test_instr.c,v 1.13 2024/06/29 18:42:53 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -44,6 +44,7 @@
+  */
+ 
+ #include <test.priv.h>
++#include <popup_msg.h>
+ 
+ #define BASE_Y 6
+ #define MAX_COLS 1024
+@@ -68,6 +69,26 @@
+     show_1st(win, line, buffer);
+ }
+ 
++static void
++show_help(WINDOW *win)
++{
++    static const char *msgs[] =
++    {
++	"Show file contents and a viewport from the variants of winstr."
++	,"Use h/j/k/l or arrow keys to move the viewport."
++	,""
++	,"Other commands:"
++	,"+     increases the buffer-size used."
++	,"-     decreases the buffer-size used."
++	,"w     opens new window on the next filename."
++	,"q     quits the current file/window."
++	,"?     shows this help-window"
++	,0
++    };
++
++    popup_msg(win, msgs);
++}
++
+ static int
+ recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
+ {
+@@ -169,8 +190,15 @@
+ 	    }
+ 	    break;
+ 	case '+':
+-	    ++limit;
++	    if (limit + 2 < MAX_COLS) {
++		++limit;
++	    } else {
++		beep();
++	    }
+ 	    break;
++	case HELP_KEY_1:
++	    show_help(txtwin);
++	    continue;
+ 	default:
+ 	    beep();
+ 	    break;
+@@ -273,8 +301,10 @@
+ 
+     setlocale(LC_ALL, "");
+ 
+-    if (optind + 1 > argc)
++    if (optind + 1 > argc) {
++	fprintf(stderr, "At least one text-file is needed\n");
+ 	usage(FALSE);
++    }
+ 
+     initscr();
+ 
+Index: test/test_inwstr.c
+Prereq:  1.8 
+--- ncurses-6.5-20240622+/test/test_inwstr.c	2022-12-10 23:56:39.000000000 +0000
++++ ncurses-6.5-20240629/test/test_inwstr.c	2024-06-29 18:40:02.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_inwstr.c,v 1.8 2022/12/10 23:56:39 tom Exp $
++ * $Id: test_inwstr.c,v 1.9 2024/06/29 18:40:02 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -47,6 +47,8 @@
+ 
+ #if USE_WIDEC_SUPPORT
+ 
++#include <popup_msg.h>
++
+ #define BASE_Y 6
+ #define MAX_COLS 1024
+ 
+@@ -70,6 +72,26 @@
+     show_1st(win, line, buffer);
+ }
+ 
++static void
++show_help(WINDOW *win)
++{
++    static const char *msgs[] =
++    {
++	"Show file contents and a viewport from the variants of winwstr."
++	,"Use h/j/k/l or arrow keys to move the viewport."
++	,""
++	,"Other commands:"
++	,"+     increases the buffer-size used."
++	,"-     decreases the buffer-size used."
++	,"w     opens new window on the next filename."
++	,"q     quits the current file/window."
++	,"?     shows this help-window"
++	,0
++    };
++
++    popup_msg(win, msgs);
++}
++
+ static int
+ recursive_test(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
+ {
+@@ -169,8 +191,15 @@
+ 	    }
+ 	    break;
+ 	case '+':
+-	    ++limit;
++	    if (limit + 2 < MAX_COLS) {
++		++limit;
++	    } else {
++		beep();
++	    }
+ 	    break;
++	case HELP_KEY_1:
++	    show_help(txtwin);
++	    continue;
+ 	default:
+ 	    beep();
+ 	    break;
+@@ -273,8 +302,10 @@
+ 
+     setlocale(LC_ALL, "");
+ 
+-    if (optind + 1 > argc)
++    if (optind + 1 > argc) {
++	fprintf(stderr, "At least one text-file is needed\n");
+ 	usage(FALSE);
++    }
+ 
+     initscr();
+ 

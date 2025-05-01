@@ -1,0 +1,1400 @@
+# ncurses 6.5 - patch 20250111 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250111.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Jan 12 01:47:24 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    8 +++++++-
+# VERSION                          |    2 +-
+# dist.mk                          |    4 ++--
+# include/curses.wide              |    4 ++--
+# include/term_entry.h             |    9 +++++----
+# ncurses/base/lib_screen.c        |    8 ++++----
+# ncurses/base/lib_set_term.c      |   10 +++++-----
+# ncurses/curses.priv.h            |    6 +++---
+# ncurses/tinfo/alloc_entry.c      |    6 +++---
+# ncurses/tinfo/comp_parse.c       |   33 ++++++++++++++++++++++++++++-----
+# ncurses/tinfo/db_iterator.c      |    8 ++++----
+# ncurses/tinfo/hashed_db.c        |   18 +++++++++---------
+# ncurses/tinfo/lib_termname.c     |    6 +++---
+# ncurses/tinfo/lib_tgoto.c        |   18 +++++++++---------
+# ncurses/tinfo/lib_tputs.c        |    6 +++---
+# ncurses/tinfo/name_match.c       |    6 +++---
+# ncurses/tinfo/parse_entry.c      |   11 ++++++++---
+# ncurses/tinfo/read_entry.c       |    8 ++++----
+# ncurses/tinfo/read_termcap.c     |   36 ++++++++++++++++++------------------
+# package/debian-mingw/changelog   |    4 ++--
+# package/debian-mingw64/changelog |    4 ++--
+# package/debian/changelog         |    4 ++--
+# package/mingw-ncurses.nsi        |    4 ++--
+# package/mingw-ncurses.spec       |    2 +-
+# package/ncurses.spec             |    2 +-
+# package/ncursest.spec            |    2 +-
+# progs/tic.c                      |    6 +++---
+# progs/toe.c                      |   14 +++++++-------
+# progs/tput.c                     |    4 ++--
+# test/demo_altkeys.c              |   12 +++++++-----
+# test/demo_termcap.c              |   11 +++++++----
+# test/demo_terminfo.c             |   11 +++++++----
+# test/dup_field.c                 |   10 ++++++----
+# test/edit_field.c                |   10 ++++++----
+# test/foldkeys.c                  |    6 ++++--
+# test/move_field.c                |   10 ++++++----
+# test/movewindow.c                |   16 ++++++++++------
+# test/test_sgr.c                  |   11 +++++++----
+# 38 files changed, 204 insertions(+), 146 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4226 
+--- ncurses-6.5-20250104+/NEWS	2025-01-05 00:18:47.000000000 +0000
++++ ncurses-6.5-20250111/NEWS	2025-01-11 21:55:20.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4226 2025/01/05 00:18:47 tom Exp $
++-- $Id: NEWS,v 1.4229 2025/01/11 21:55:20 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250111
++	+ add check for infinite loop in tic's use-resolution.
++	+ increase limit on use-clauses from 32 to 40, warn but allow entries
++	  which exceed the old limit.
++	+ add some null-pointer checks after mallocs in test-programs.
++
+ 20250104
+ 	+ modify tput to warn about capabilities which expect parameters where
+ 	  none are given; also repair the feature where multiple capabilities
+Index: VERSION
+--- ncurses-6.5-20250104+/VERSION	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/VERSION	2025-01-11 12:30:15.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250104
++5:0:10	6.5	20250111
+Index: dist.mk
+Prereq:  1.1649 
+--- ncurses-6.5-20250104+/dist.mk	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/dist.mk	2025-01-11 12:30:15.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1649 2025/01/04 09:55:25 tom Exp $
++# $Id: dist.mk,v 1.1650 2025/01/11 12:30:15 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250104
++NCURSES_PATCH = 20250111
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: include/curses.wide
+Prereq:  1.51 
+--- ncurses-6.5-20250104+/include/curses.wide	2021-05-22 20:28:29.000000000 +0000
++++ ncurses-6.5-20250111/include/curses.wide	2025-01-12 00:39:32.000000000 +0000
+@@ -1,4 +1,4 @@
+-/* $Id: curses.wide,v 1.51 2021/05/22 20:28:29 tom Exp $ */
++/* $Id: curses.wide,v 1.52 2025/01/12 00:39:32 tom Exp $ */
+ /*
+  * vile:cmode:
+  * This file is part of ncurses, designed to be appended after curses.h.in
+@@ -240,7 +240,7 @@
+ #define bkgrnd(c)			wbkgrnd(stdscr,(c))
+ #define bkgrndset(c)			wbkgrndset(stdscr,(c))
+ #define border_set(l,r,t,b,tl,tr,bl,br) wborder_set(stdscr,(l),(r),(t),(b),tl,tr,bl,br)
+-#define box_set(w,v,h)			wborder_set((w),(v),(v),(h),(h),0,0,0,0)
++#define box_set(w,v,h)			wborder_set((w),(v),(v),(h),(h),NULL,NULL,NULL,NULL)
+ #define echo_wchar(c)			wecho_wchar(stdscr,(c))
+ #define get_wch(c)			wget_wch(stdscr,(c))
+ #define get_wstr(t)			wget_wstr(stdscr,(t))
+Index: include/term_entry.h
+Prereq:  1.64 
+--- ncurses-6.5-20250104+/include/term_entry.h	2023-04-22 13:37:14.000000000 +0000
++++ ncurses-6.5-20250111/include/term_entry.h	2025-01-11 20:37:28.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -33,7 +33,7 @@
+  *     and: Thomas E. Dickey                        1998-on                 *
+  ****************************************************************************/
+ 
+-/* $Id: term_entry.h,v 1.64 2023/04/22 13:37:14 tom Exp $ */
++/* $Id: term_entry.h,v 1.65 2025/01/11 20:37:28 tom Exp $ */
+ 
+ /*
+  *	term_entry.h -- interface to entry-manipulation code
+@@ -108,7 +108,8 @@
+ 	dbdLAST
+ } DBDIRS;
+ 
+-#define MAX_USES	32
++#define WARN_MAX_USES	32
++#define HARD_MAX_USES	40
+ #define MAX_CROSSLINKS	16
+ 
+ typedef struct entry ENTRY;
+@@ -122,7 +123,7 @@
+ struct entry {
+ 	TERMTYPE2 tterm;
+ 	unsigned nuses;
+-	ENTRY_USES uses[MAX_USES];
++	ENTRY_USES uses[HARD_MAX_USES];
+ 	int ncrosslinks;
+ 	ENTRY *crosslinks[MAX_CROSSLINKS];
+ 	long cstart;
+Index: ncurses/base/lib_screen.c
+Prereq:  1.110 
+--- ncurses-6.5-20250104+/ncurses/base/lib_screen.c	2024-12-07 17:46:49.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/base/lib_screen.c	2025-01-12 00:31:03.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -42,7 +42,7 @@
+ #define CUR SP_TERMTYPE
+ #endif
+ 
+-MODULE_ID("$Id: lib_screen.c,v 1.110 2024/12/07 17:46:49 tom Exp $")
++MODULE_ID("$Id: lib_screen.c,v 1.112 2025/01/12 00:31:03 tom Exp $")
+ 
+ #define MAX_SIZE 0x3fff		/* 16k is big enough for a window or pad */
+ 
+@@ -58,7 +58,7 @@
+ #define ARG_SLIMIT(name)	/* nothing */
+ #endif
+ 
+-#define CUR_SLIMIT _nc_SLIMIT(limit - (size_t) (target - base))
++#define CUR_SLIMIT _nc_SLIMIT(limit - (size_t) (target + 1 - base))
+ #define TOP_SLIMIT _nc_SLIMIT(sizeof(buffer))
+ 
+ /*
+@@ -917,7 +917,7 @@
+      * ncurses is compiled with wide-character support, and also may depend
+      * on the version of ncurses, e.g., if the WINDOW structure is extended.
+      */
+-    if (win != 0) {
++    if (win != NULL) {
+ 	size_t len = (size_t) (win->_maxx + 1);
+ 	int y;
+ 
+Index: ncurses/base/lib_set_term.c
+Prereq:  1.191 
+--- ncurses-6.5-20250104+/ncurses/base/lib_set_term.c	2024-12-15 00:04:13.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/base/lib_set_term.c	2025-01-12 00:41:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -57,7 +57,7 @@
+ #undef CUR
+ #define CUR SP_TERMTYPE
+ 
+-MODULE_ID("$Id: lib_set_term.c,v 1.191 2024/12/15 00:04:13 tom Exp $")
++MODULE_ID("$Id: lib_set_term.c,v 1.192 2025/01/12 00:41:56 tom Exp $")
+ 
+ #ifdef USE_TERM_DRIVER
+ #define MaxColors      InfoOf(sp).maxcolors
+@@ -362,8 +362,8 @@
+     }
+ #else
+     if (!_nc_alloc_screen()
+-	|| ((SP->_acs_map = typeCalloc(chtype, ACS_LEN)) == 0)
+-	|| ((SP->_screen_acs_map = typeCalloc(bool, ACS_LEN)) == 0)) {
++	|| ((SP->_acs_map = typeCalloc(chtype, ACS_LEN)) == NULL)
++	|| ((SP->_screen_acs_map = typeCalloc(bool, ACS_LEN)) == NULL)) {
+ 	returnCode(ERR);
+     }
+ 
+@@ -373,7 +373,7 @@
+     sp->_next_screen = _nc_screen_chain;
+     _nc_screen_chain = sp;
+ 
+-    if ((sp->_current_attr = typeCalloc(NCURSES_CH_T, 1)) == 0) {
++    if ((sp->_current_attr = typeCalloc(NCURSES_CH_T, 1)) == NULL) {
+ 	returnCode(ERR);
+     }
+ #endif
+Index: ncurses/curses.priv.h
+Prereq:  1.698 
+--- ncurses-6.5-20250104+/ncurses/curses.priv.h	2024-12-15 00:04:23.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/curses.priv.h	2025-01-12 00:41:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -35,7 +35,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: curses.priv.h,v 1.698 2024/12/15 00:04:23 tom Exp $
++ * $Id: curses.priv.h,v 1.699 2025/01/12 00:41:56 tom Exp $
+  *
+  *	curses.priv.h
+  *
+@@ -2329,7 +2329,7 @@
+ /* current screen is private data; avoid possible linking conflicts too */
+ extern NCURSES_EXPORT_VAR(SCREEN *) SP;
+ #define CURRENT_SCREEN SP
+-#define _nc_alloc_screen()      ((SP = _nc_alloc_screen_sp()) != 0)
++#define _nc_alloc_screen()      ((SP = _nc_alloc_screen_sp()) != NULL)
+ #define _nc_set_screen(sp)      SP = sp
+ #endif
+ 
+Index: ncurses/tinfo/alloc_entry.c
+Prereq:  1.81 
+--- ncurses-6.5-20250104+/ncurses/tinfo/alloc_entry.c	2024-12-07 21:12:53.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/alloc_entry.c	2025-01-11 20:37:19.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -48,7 +48,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: alloc_entry.c,v 1.81 2024/12/07 21:12:53 tom Exp $")
++MODULE_ID("$Id: alloc_entry.c,v 1.82 2025/01/11 20:37:19 tom Exp $")
+ 
+ #define ABSENT_OFFSET    -1
+ #define CANCELLED_OFFSET -2
+@@ -140,7 +140,7 @@
+ /* copy the string parts to allocated storage, preserving pointers to it */
+ {
+     int offsets[MAX_ENTRY_SIZE / sizeof(short)];
+-    int useoffsets[MAX_USES];
++    int useoffsets[HARD_MAX_USES];
+     unsigned i, n;
+     unsigned nuses;
+     TERMTYPE2 *tp;
+Index: ncurses/tinfo/comp_parse.c
+Prereq:  1.136 
+--- ncurses-6.5-20250104+/ncurses/tinfo/comp_parse.c	2024-12-07 21:12:53.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/comp_parse.c	2025-01-12 00:36:01.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -48,7 +48,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: comp_parse.c,v 1.136 2024/12/07 21:12:53 tom Exp $")
++MODULE_ID("$Id: comp_parse.c,v 1.138 2025/01/12 00:36:01 tom Exp $")
+ 
+ static void sanity_check2(TERMTYPE2 *, bool);
+ NCURSES_IMPEXP void (NCURSES_API *_nc_check_termtype2) (TERMTYPE2 *, bool) = sanity_check2;
+@@ -99,7 +99,7 @@
+ {
+     char *bar = strchr(name, '|');
+ 
+-    if (bar != 0 && (bar - name) == 2)
++    if (bar != NULL && (bar - name) == 2)
+ 	name = bar + 1;
+ 
+     return name;
+@@ -538,12 +538,18 @@
+      */
+     if (fullresolve) {
+ 	do {
++	    bool attempts;
++	    bool progress;
+ 	    ENTRY merged;
+ 
++	    attempts = FALSE;
++	    progress = FALSE;
+ 	    keepgoing = FALSE;
+ 
+ 	    for_entry_list(qp) {
+ 		if (qp->nuses > 0) {
++		    attempts = TRUE;
++
+ 		    DEBUG(2, ("%s: attempting merge of %d entries",
+ 			      _nc_first_name(qp->tterm.term_names),
+ 			      qp->nuses));
+@@ -599,16 +605,33 @@
+ #endif
+ 		    qp->tterm = merged.tterm;
+ 		    _nc_wrap_entry(qp, TRUE);
++		    progress = TRUE;
+ 
+ 		    /*
+-		     * We know every entry is resolvable because name resolution
+-		     * didn't bomb.  So go back for another pass.
++		     * Every entry should be resolvable because name resolution
++		     * did not fail.  Continue if we have just made a change,
++		     * or another entry may be changeable.
+ 		     */
+ 		    /* FALLTHRU */
+ 		  incomplete:
+ 		    keepgoing = TRUE;
+ 		}
+ 	    }
++
++	    /*
++	     * If we went all the way through the list without making any
++	     * changes, while there were remaining use-linkages, something went
++	     * wrong.  Give up.
++	     */
++	    if (!progress && attempts) {
++		for_entry_list(qp) {
++		    for (i = 0; i < qp->nuses; ++i) {
++			_nc_warning("problem with use=%s", qp->uses[i].name);
++		    }
++		}
++		_nc_warning("merge failed, infinite loop");
++		return FALSE;
++	    }
+ 	} while
+ 	    (keepgoing);
+ 
+Index: ncurses/tinfo/db_iterator.c
+Prereq:  1.52 
+--- ncurses-6.5-20250104+/ncurses/tinfo/db_iterator.c	2024-12-07 18:23:25.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/db_iterator.c	2025-01-12 00:41:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2006-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -44,7 +44,7 @@
+ #include <hashed_db.h>
+ #endif
+ 
+-MODULE_ID("$Id: db_iterator.c,v 1.52 2024/12/07 18:23:25 tom Exp $")
++MODULE_ID("$Id: db_iterator.c,v 1.53 2025/01/12 00:41:56 tom Exp $")
+ 
+ #define HaveTicDirectory _nc_globals.have_tic_directory
+ #define KeepTicDirectory _nc_globals.keep_tic_directory
+@@ -335,9 +335,9 @@
+ #if NCURSES_USE_TERMCAP
+ 	    values[dbdEnvOnce2] = cache_getenv("TERMCAP", dbdEnvOnce2);
+ 	    /* only use $TERMCAP if it is an absolute path */
+-	    if (values[dbdEnvOnce2] != 0
++	    if (values[dbdEnvOnce2] != NULL
+ 		&& *values[dbdEnvOnce2] != '/') {
+-		values[dbdEnvOnce2] = 0;
++		values[dbdEnvOnce2] = NULL;
+ 	    }
+ 	    values[dbdEnvList2] = cache_getenv("TERMPATH", dbdEnvList2);
+ #endif /* NCURSES_USE_TERMCAP */
+Index: ncurses/tinfo/hashed_db.c
+Prereq:  1.21 
+--- ncurses-6.5-20250104+/ncurses/tinfo/hashed_db.c	2024-11-30 21:16:41.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/hashed_db.c	2025-01-11 23:52:18.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2006-2011,2013 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -37,7 +37,7 @@
+ 
+ #if USE_HASHED_DB
+ 
+-MODULE_ID("$Id: hashed_db.c,v 1.21 2024/11/30 21:16:41 tom Exp $")
++MODULE_ID("$Id: hashed_db.c,v 1.22 2025/01/11 23:52:18 tom Exp $")
+ 
+ #if HASHED_DB_API >= 2
+ static DBC *cursor;
+@@ -55,7 +55,7 @@
+ static void
+ cleanup(void)
+ {
+-    while (connections != 0) {
++    while (connections != NULL) {
+ 	_nc_db_close(connections->db);
+     }
+ }
+@@ -63,10 +63,10 @@
+ static DB *
+ find_connection(const char *path, bool modify)
+ {
+-    DB *result = 0;
++    DB *result = NULL;
+     MYCONN *p;
+ 
+-    for (p = connections; p != 0; p = p->next) {
++    for (p = connections; p != NULL; p = p->next) {
+ 	if (!strcmp(p->path, path) && p->modify == modify) {
+ 	    result = p->db;
+ 	    break;
+@@ -81,9 +81,9 @@
+ {
+     MYCONN *p, *q;
+ 
+-    for (p = connections, q = 0; p != 0; q = p, p = p->next) {
++    for (p = connections, q = NULL; p != NULL; q = p, p = p->next) {
+ 	if (p->db == db) {
+-	    if (q != 0)
++	    if (q != NULL)
+ 		q->next = p->next;
+ 	    else
+ 		connections = p->next;
+@@ -124,7 +124,7 @@
+     DB *result = NULL;
+     int code;
+ 
+-    if (connections == 0)
++    if (connections == NULL)
+ 	atexit(cleanup);
+ 
+     if ((result = find_connection(path, modify)) == NULL) {
+@@ -165,7 +165,7 @@
+ 			     modify ? (O_CREAT | O_RDWR) : O_RDONLY,
+ 			     0644,
+ 			     DB_HASH,
+-			     NULL)) == 0) {
++			     NULL)) == NULL) {
+ 	    code = errno;
+ 	} else {
+ 	    code = 0;
+Index: ncurses/tinfo/lib_termname.c
+Prereq:  1.14 
+--- ncurses-6.5-20250104+/ncurses/tinfo/lib_termname.c	2024-12-07 20:05:27.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/lib_termname.c	2025-01-12 00:41:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2024 Thomas E. Dickey                                     *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2003,2009 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -29,7 +29,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_termname.c,v 1.14 2024/12/07 20:05:27 tom Exp $")
++MODULE_ID("$Id: lib_termname.c,v 1.15 2025/01/12 00:41:56 tom Exp $")
+ 
+ NCURSES_EXPORT(char *)
+ NCURSES_SP_NAME(termname) (NCURSES_SP_DCL0)
+@@ -43,7 +43,7 @@
+ 	name = TerminalOf(SP_PARM)->_termname;
+     }
+ #else
+-    if (cur_term != 0)
++    if (cur_term != NULL)
+ 	name = cur_term->_termname;
+ #endif
+ 
+Index: ncurses/tinfo/lib_tgoto.c
+Prereq:  1.23 
+--- ncurses-6.5-20250104+/ncurses/tinfo/lib_tgoto.c	2023-04-16 17:19:40.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/lib_tgoto.c	2025-01-12 00:41:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
+  * Copyright 2000-2008,2012 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ #include <ctype.h>
+ #include <termcap.h>
+ 
+-MODULE_ID("$Id: lib_tgoto.c,v 1.23 2023/04/16 17:19:40 tom Exp $")
++MODULE_ID("$Id: lib_tgoto.c,v 1.24 2025/01/12 00:41:56 tom Exp $")
+ 
+ #if !PURE_TERMINFO
+ static bool
+@@ -44,7 +44,7 @@
+ {
+     bool result = TRUE;
+ 
+-    if (string == 0 || *string == '\0') {
++    if (string == NULL || *string == '\0') {
+ 	result = FALSE;		/* tparm() handles empty strings */
+     } else {
+ 	while ((*string != '\0') && result) {
+@@ -89,13 +89,13 @@
+     while (*string != 0) {
+ 	if ((used + need) > length) {
+ 	    length += (used + need);
+-	    if ((result = typeRealloc(char, length, result)) == 0) {
++	    if ((result = typeRealloc(char, length, result)) == NULL) {
+ 		length = 0;
+ 		break;
+ 	    }
+ 	}
+ 	if (*string == '%') {
+-	    const char *fmt = 0;
++	    const char *fmt = NULL;
+ 
+ 	    switch (*++string) {
+ 	    case '\0':
+@@ -122,7 +122,7 @@
+ 		 * and \r, but I don't see that it could work -TD
+ 		 */
+ 		if (*value == 0) {
+-		    if (BC != 0) {
++		    if (BC != NULL) {
+ 			*value += 1;
+ 			need_BC = TRUE;
+ 		    } else {
+@@ -166,11 +166,11 @@
+ 		*value -= 2 * (*value % 16);
+ 		break;
+ 	    }
+-	    if (fmt != 0) {
++	    if (fmt != NULL) {
+ 		_nc_SPRINTF(result + used, _nc_SLIMIT(length - used)
+ 			    fmt, *value++);
+ 		used += strlen(result + used);
+-		fmt = 0;
++		fmt = NULL;
+ 	    }
+ 	    if (value - param > 2) {
+ 		value = param + 2;
+@@ -181,7 +181,7 @@
+ 	}
+ 	string++;
+     }
+-    if (result != 0) {
++    if (result != NULL) {
+ 	if (need_BC) {
+ 	    _nc_STRCPY(result + used, BC, length - used);
+ 	    used += strlen(BC);
+Index: ncurses/tinfo/lib_tputs.c
+Prereq:  1.115 
+--- ncurses-6.5-20250104+/ncurses/tinfo/lib_tputs.c	2024-12-07 21:04:53.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/lib_tputs.c	2025-01-12 00:41:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -52,7 +52,7 @@
+ #include <termcap.h>		/* ospeed */
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: lib_tputs.c,v 1.115 2024/12/07 21:04:53 tom Exp $")
++MODULE_ID("$Id: lib_tputs.c,v 1.116 2025/01/12 00:41:56 tom Exp $")
+ 
+ NCURSES_EXPORT_VAR(char) PC = 0;              /* used by termcap library */
+ NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed = 0;        /* used by termcap library */
+@@ -319,7 +319,7 @@
+ #if NCURSES_SP_FUNCS
+ 	       (SP_PARM != NULL && SP_PARM->_term == NULL)
+ #else
+-	       cur_term == 0
++	       cur_term == NULL
+ #endif
+ 	    ) {
+ 	    always_delay = FALSE;
+Index: ncurses/tinfo/name_match.c
+Prereq:  1.26 
+--- ncurses-6.5-20250104+/ncurses/tinfo/name_match.c	2024-12-07 21:24:18.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/name_match.c	2025-01-12 00:41:56.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2024 Thomas E. Dickey                                     *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2013,2016 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -34,7 +34,7 @@
+ #include <curses.priv.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: name_match.c,v 1.26 2024/12/07 21:24:18 tom Exp $")
++MODULE_ID("$Id: name_match.c,v 1.27 2025/01/12 00:41:56 tom Exp $")
+ 
+ #define FirstName _nc_globals.first_name
+ 
+@@ -44,7 +44,7 @@
+ {
+     if ((_nc_syntax == SYN_TERMCAP) && _nc_user_definable) {
+ 	const char *bar = strchr(name, '|');
+-	if (bar != 0 && (bar - name) == 2)
++	if (bar != NULL && (bar - name) == 2)
+ 	    name = bar + 1;
+     }
+     return name;
+Index: ncurses/tinfo/parse_entry.c
+Prereq:  1.112 
+--- ncurses-6.5-20250104+/ncurses/tinfo/parse_entry.c	2024-12-07 21:13:36.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/parse_entry.c	2025-01-11 20:19:34.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -48,7 +48,7 @@
+ #include <ctype.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: parse_entry.c,v 1.112 2024/12/07 21:13:36 tom Exp $")
++MODULE_ID("$Id: parse_entry.c,v 1.113 2025/01/11 20:19:34 tom Exp $")
+ 
+ #ifdef LINT
+ static short const parametrized[] =
+@@ -379,10 +379,15 @@
+ 		_nc_warning("invalid name for use-clause \"%s\"",
+ 			    _nc_curr_token.tk_valstring);
+ 		continue;
+-	    } else if (entryp->nuses >= MAX_USES) {
++	    } else if (entryp->nuses >= HARD_MAX_USES) {
+ 		_nc_warning("too many use-clauses, ignored \"%s\"",
+ 			    _nc_curr_token.tk_valstring);
+ 		continue;
++	    } else if (entryp->nuses >= WARN_MAX_USES) {
++		_nc_warning("possibly too many use-clauses (%d vs %d), \"%s\"",
++			    entryp->nuses,
++			    WARN_MAX_USES,
++			    _nc_curr_token.tk_valstring);
+ 	    }
+ 	    if ((saved = _nc_save_str(_nc_curr_token.tk_valstring)) != NULL) {
+ 		entryp->uses[entryp->nuses].name = saved;
+Index: ncurses/tinfo/read_entry.c
+Prereq:  1.174 
+--- ncurses-6.5-20250104+/ncurses/tinfo/read_entry.c	2024-12-07 21:02:00.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/read_entry.c	2025-01-11 23:52:18.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -42,7 +42,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: read_entry.c,v 1.174 2024/12/07 21:02:00 tom Exp $")
++MODULE_ID("$Id: read_entry.c,v 1.175 2025/01/11 23:52:18 tom Exp $")
+ 
+ #define MyNumber(n) (short) LOW_MSB(n)
+ 
+@@ -797,13 +797,13 @@
+     } else
+ #if USE_HASHED_DB
+ 	if (make_db_filename(filename, limit, path)
+-	    && (capdbp = _nc_db_open(filename, FALSE)) != 0) {
++	    && (capdbp = _nc_db_open(filename, FALSE)) != NULL) {
+ 
+ 	DBT key, data;
+ 	int reccnt = 0;
+ 	char *save = strdup(name);
+ 
+-	if (save == 0)
++	if (save == NULL)
+ 	    returnDB(code);
+ 
+ 	memset(&key, 0, sizeof(key));
+Index: ncurses/tinfo/read_termcap.c
+Prereq:  1.104 
+--- ncurses-6.5-20250104+/ncurses/tinfo/read_termcap.c	2023-06-24 21:53:16.000000000 +0000
++++ ncurses-6.5-20250111/ncurses/tinfo/read_termcap.c	2025-01-12 00:42:58.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2021,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -57,7 +57,7 @@
+ #include <sys/types.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: read_termcap.c,v 1.104 2023/06/24 21:53:16 tom Exp $")
++MODULE_ID("$Id: read_termcap.c,v 1.105 2025/01/12 00:42:58 tom Exp $")
+ 
+ #if !PURE_TERMINFO
+ 
+@@ -72,7 +72,7 @@
+ {
+     const char *result;
+ 
+-    if (!use_terminfo_vars() || (result = getenv("TERMPATH")) == 0)
++    if (!use_terminfo_vars() || (result = getenv("TERMPATH")) == NULL)
+ 	result = TERMPATH;
+     TR(TRACE_DATABASE, ("TERMPATH is %s", result));
+     return result;
+@@ -720,7 +720,7 @@
+     int ch;
+     bool found = FALSE;
+     char *s, *base;
+-    char *tok = 0;
++    char *tok = NULL;
+ 
+     *endp = TRUE;
+     for (s = base = *srcp; *s != '\0';) {
+@@ -749,7 +749,7 @@
+     }
+ 
+     /* malformed entry may end without a ':' */
+-    if (tok == 0 && found) {
++    if (tok == NULL && found) {
+ 	tok = base;
+     }
+ 
+@@ -768,7 +768,7 @@
+ 	    continue;
+ 	}
+ 	if (--len == 0) {
+-	    dst = 0;
++	    dst = NULL;
+ 	    break;
+ 	}
+ 	*dst++ = (char) ch;
+@@ -813,13 +813,13 @@
+     if (cp == NULL) {
+ 	_nc_safe_strcpy(&desc, get_termpath());
+     } else if (!_nc_is_abs_path(cp)) {	/* TERMCAP holds an entry */
+-	if ((termpath = get_termpath()) != 0) {
++	if ((termpath = get_termpath()) != NULL) {
+ 	    _nc_safe_strcat(&desc, termpath);
+ 	} else {
+ 	    char temp[PBUFSIZ];
+ 	    temp[0] = 0;
+-	    if ((home = getenv("HOME")) != 0 && *home != '\0'
+-		&& strchr(home, ' ') == 0
++	    if ((home = getenv("HOME")) != NULL && *home != '\0'
++		&& strchr(home, ' ') == NULL
+ 		&& strlen(home) < sizeof(temp) - 10) {	/* setup path */
+ 		_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
+ 			    "%s/", home);	/* $HOME first */
+@@ -850,7 +850,7 @@
+ 	    }
+ 	}
+     }
+-    *fname = 0;			/* mark end of vector */
++    *fname = NULL;		/* mark end of vector */
+ #if !HAVE_BSD_CGETENT
+     (void) _nc_cgetset(0);
+ #endif
+@@ -875,7 +875,7 @@
+ 
+ 	pd = bp;
+ 	ps = dummy;
+-	while (!endflag && (tok = get_tc_token(&ps, &endflag)) != 0) {
++	while (!endflag && (tok = get_tc_token(&ps, &endflag)) != NULL) {
+ 	    bool ignore = FALSE;
+ 
+ 	    for (n = 1; n < count; n++) {
+@@ -889,7 +889,7 @@
+ 	    if (ignore != TRUE) {
+ 		list[count++] = tok;
+ 		pd = copy_tc_token(pd, tok, (size_t) (TBUFSIZ - (2 + pd - bp)));
+-		if (pd == 0) {
++		if (pd == NULL) {
+ 		    i = -1;
+ 		    break;
+ 		}
+@@ -901,7 +901,7 @@
+ 
+     FreeIfNeeded(dummy);
+     FreeIfNeeded(the_source);
+-    the_source = 0;
++    the_source = NULL;
+ 
+     /* This is not related to the BSD cgetent(), but to fake up a suitable
+      * filename for ncurses' error reporting.  (If we are not using BSD
+@@ -917,7 +917,7 @@
+ 	if (_nc_access(temp, R_OK) == 0) {
+ 	    _nc_safe_strcpy(&desc, pathvec[i]);
+ 	}
+-	if ((the_source = strdup(temp)) != 0)
++	if ((the_source = strdup(temp)) != NULL)
+ 	    *sourcename = the_source;
+ #else
+ 	if ((the_source = strdup(pathvec[i])) != 0)
+@@ -966,7 +966,7 @@
+ #endif
+ #if USE_GETCAP
+     char *p, tc[TBUFSIZ];
+-    char *tc_buf = 0;
++    char *tc_buf = NULL;
+ #define MY_SIZE sizeof(tc) - 1
+     int status;
+     static char *source;
+@@ -982,7 +982,7 @@
+ 	return TGETENT_NO;
+     }
+ 
+-    if (use_terminfo_vars() && (p = getenv("TERMCAP")) != 0
++    if (use_terminfo_vars() && (p = getenv("TERMCAP")) != NULL
+ 	&& !_nc_is_abs_path(p) && _nc_name_match(p, tn, "|:")) {
+ 	/* TERMCAP holds a termcap entry */
+ 	tc_buf = strdup(p);
+@@ -996,7 +996,7 @@
+ 	_nc_set_source(source);
+ 	tc_buf = tc;
+     }
+-    if (tc_buf == 0)
++    if (tc_buf == NULL)
+ 	return (TGETENT_ERR);
+     _nc_read_entry_source((FILE *) 0, tc_buf, FALSE, TRUE, NULLHOOK);
+     if (tc_buf != tc)
+@@ -1144,7 +1144,7 @@
+ 	free(copied);
+ #endif /* USE_GETCAP */
+ 
+-    if (_nc_head == 0)
++    if (_nc_head == NULL)
+ 	return (TGETENT_ERR);
+ 
+     /* resolve all use references */
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250104+/package/debian-mingw/changelog	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/package/debian-mingw/changelog	2025-01-11 12:30:15.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250104) unstable; urgency=low
++ncurses6td (6.5+20250111) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 29 Dec 2024 04:55:25 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 11 Jan 2025 07:30:15 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250104+/package/debian-mingw64/changelog	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/package/debian-mingw64/changelog	2025-01-11 12:30:15.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250104) unstable; urgency=low
++ncurses6td (6.5+20250111) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 29 Dec 2024 04:55:25 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 11 Jan 2025 07:30:15 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250104+/package/debian/changelog	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/package/debian/changelog	2025-01-11 12:30:15.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250104) unstable; urgency=low
++ncurses6td (6.5+20250111) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 29 Dec 2024 04:55:25 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 11 Jan 2025 07:30:15 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.683 
+--- ncurses-6.5-20250104+/package/mingw-ncurses.nsi	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/package/mingw-ncurses.nsi	2025-01-11 12:30:15.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.683 2025/01/04 09:55:25 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.684 2025/01/11 12:30:15 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0104"
++!define VERSION_MMDD  "0111"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250104+/package/mingw-ncurses.spec	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/package/mingw-ncurses.spec	2025-01-11 12:30:15.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250104
++Release: 20250111
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250104+/package/ncurses.spec	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/package/ncurses.spec	2025-01-11 12:30:15.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250104
++Release: 20250111
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250104+/package/ncursest.spec	2025-01-04 09:55:25.000000000 +0000
++++ ncurses-6.5-20250111/package/ncursest.spec	2025-01-11 12:30:15.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250104
++Release: 20250111
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/tic.c
+Prereq:  1.331 
+--- ncurses-6.5-20250104+/progs/tic.c	2024-12-07 23:19:49.000000000 +0000
++++ ncurses-6.5-20250111/progs/tic.c	2025-01-11 23:52:18.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -49,7 +49,7 @@
+ #include <parametrized.h>
+ #include <transform.h>
+ 
+-MODULE_ID("$Id: tic.c,v 1.331 2024/12/07 23:19:49 tom Exp $")
++MODULE_ID("$Id: tic.c,v 1.332 2025/01/11 23:52:18 tom Exp $")
+ 
+ #define STDIN_NAME "<stdin>"
+ 
+@@ -601,7 +601,7 @@
+ 	    || access(result, R_OK | W_OK) != 0) {
+ 	    DEBUG(1, ("...not a writable file"));
+ 	    free(result);
+-	    result = 0;
++	    result = NULL;
+ 	}
+ #else
+ 	if (!S_ISDIR(sb.st_mode)
+Index: progs/toe.c
+Prereq:  1.92 
+--- ncurses-6.5-20250104+/progs/toe.c	2024-12-07 22:12:53.000000000 +0000
++++ ncurses-6.5-20250111/progs/toe.c	2025-01-12 00:36:48.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -45,7 +45,7 @@
+ #include <hashed_db.h>
+ #endif
+ 
+-MODULE_ID("$Id: toe.c,v 1.92 2024/12/07 22:12:53 tom Exp $")
++MODULE_ID("$Id: toe.c,v 1.94 2025/01/12 00:36:48 tom Exp $")
+ 
+ #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
+ 
+@@ -374,10 +374,10 @@
+ 
+     memset(&data, 0, sizeof(data));
+     data.term_names = strmalloc(buffer);
+-    while ((next = strtok(list, "|")) != 0) {
++    while ((next = strtok(list, "|")) != NULL) {
+ 	if (next != last)
+ 	    hook(db_index, db_limit, next, &data);
+-	list = 0;
++	list = NULL;
+     }
+     free(data.term_names);
+ }
+@@ -502,7 +502,7 @@
+ 		(void) printf("#\n#%s:\n#\n", eargv[i]);
+ 
+ 	    if (make_db_name(filename, eargv[i], sizeof(filename))) {
+-		if ((capdbp = _nc_db_open(filename, FALSE)) != 0) {
++		if ((capdbp = _nc_db_open(filename, FALSE)) != NULL) {
+ 		    DBT key, data;
+ 		    int code;
+ 
+@@ -536,13 +536,13 @@
+ #if HAVE_BSD_CGETENT
+ 	{
+ 	    CGETENT_CONST char *db_array[2];
+-	    char *buffer = 0;
++	    char *buffer = NULL;
+ 
+ 	    if (verbosity)
+ 		(void) printf("#\n#%s:\n#\n", eargv[i]);
+ 
+ 	    db_array[0] = eargv[i];
+-	    db_array[1] = 0;
++	    db_array[1] = NULL;
+ 
+ 	    if (cgetfirst(&buffer, db_array) > 0) {
+ 		if (is_termcap(buffer)) {
+Index: progs/tput.c
+Prereq:  1.109 
+--- ncurses-6.5-20250104+/progs/tput.c	2025-01-05 00:10:46.000000000 +0000
++++ ncurses-6.5-20250111/progs/tput.c	2025-01-12 00:36:15.000000000 +0000
+@@ -47,7 +47,7 @@
+ #include <transform.h>
+ #include <tty_settings.h>
+ 
+-MODULE_ID("$Id: tput.c,v 1.109 2025/01/05 00:10:46 tom Exp $")
++MODULE_ID("$Id: tput.c,v 1.110 2025/01/12 00:36:15 tom Exp $")
+ 
+ #define PUTS(s)		fputs(s, stdout)
+ 
+@@ -219,7 +219,7 @@
+ 	    const struct name_table_entry *np;
+ 
+ 	    termcap = TRUE;
+-	    if ((np = _nc_find_entry(name, _nc_get_hash_table(termcap))) != 0) {
++	    if ((np = _nc_find_entry(name, _nc_get_hash_table(termcap))) != NULL) {
+ 		switch (np->nte_type) {
+ 		case BOOLEAN:
+ 		    name = boolnames[np->nte_index];
+Index: test/demo_altkeys.c
+Prereq:  1.18 
+--- ncurses-6.5-20250104+/test/demo_altkeys.c	2024-12-07 23:02:27.000000000 +0000
++++ ncurses-6.5-20250111/test/demo_altkeys.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_altkeys.c,v 1.18 2024/12/07 23:02:27 tom Exp $
++ * $Id: demo_altkeys.c,v 1.19 2025/01/11 14:54:49 tom Exp $
+  *
+  * Demonstrate the define_key() function.
+  * Thomas Dickey - 2005/10/22
+@@ -138,9 +138,11 @@
+ 	if ((value = keybound(n, 0)) != NULL) {
+ 	    size_t need = strlen(value) + 2;
+ 	    char *temp = typeMalloc(char, need);
+-	    _nc_SPRINTF(temp, _nc_SLIMIT(need) "\033%s", value);
+-	    define_key(temp, n + MY_KEYS);
+-	    free(temp);
++	    if (temp != NULL) {
++		_nc_SPRINTF(temp, _nc_SLIMIT(need) "\033%s", value);
++		define_key(temp, n + MY_KEYS);
++		free(temp);
++	    }
+ 	    free(value);
+ 	}
+     }
+Index: test/demo_termcap.c
+Prereq:  1.73 
+--- ncurses-6.5-20250104+/test/demo_termcap.c	2024-12-07 22:27:13.000000000 +0000
++++ ncurses-6.5-20250111/test/demo_termcap.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: demo_termcap.c,v 1.73 2024/12/07 22:27:13 tom Exp $
++ * $Id: demo_termcap.c,v 1.74 2025/01/11 14:54:49 tom Exp $
+  *
+  * A simple demo of the termcap interface.
+  */
+@@ -107,9 +107,12 @@
+ static char *
+ make_dbitem(const char *const p, const char *const q)
+ {
+-    size_t need = strlen(e_opt) + 2 + (size_t) (p - q);
++    size_t diff = (size_t) (p - q);
++    size_t need = strlen(e_opt) + 2 + diff;
+     char *result = malloc(need);
+-    _nc_SPRINTF(result, _nc_SLIMIT(need) "%s=%.*s", e_opt, (int) (p - q), q);
++    if (result != NULL) {
++	_nc_SPRINTF(result, _nc_SLIMIT(need) "%s=%.*s", e_opt, (int) diff, q);
++    }
+     return result;
+ }
+ 
+Index: test/demo_terminfo.c
+Prereq:  1.62 
+--- ncurses-6.5-20250104+/test/demo_terminfo.c	2024-12-07 22:27:13.000000000 +0000
++++ ncurses-6.5-20250111/test/demo_terminfo.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: demo_terminfo.c,v 1.62 2024/12/07 22:27:13 tom Exp $
++ * $Id: demo_terminfo.c,v 1.63 2025/01/11 14:54:49 tom Exp $
+  *
+  * A simple demo of the terminfo interface.
+  */
+@@ -98,9 +98,12 @@
+ static char *
+ make_dbitem(const char *const p, const char *const q)
+ {
+-    size_t need = strlen(e_opt) + 2 + (size_t) (p - q);
++    size_t diff = (size_t) (p - q);
++    size_t need = strlen(e_opt) + 2 + diff;
+     char *result = malloc(need);
+-    _nc_SPRINTF(result, _nc_SLIMIT(need) "%s=%.*s", e_opt, (int) (p - q), q);
++    if (result != NULL) {
++	_nc_SPRINTF(result, _nc_SLIMIT(need) "%s=%.*s", e_opt, (int) diff, q);
++    }
+     return result;
+ }
+ 
+Index: test/dup_field.c
+Prereq:  1.12 
+--- ncurses-6.5-20250104+/test/dup_field.c	2024-12-07 22:32:11.000000000 +0000
++++ ncurses-6.5-20250111/test/dup_field.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: dup_field.c,v 1.12 2024/12/07 22:32:11 tom Exp $
++ * $Id: dup_field.c,v 1.13 2025/01/11 14:54:49 tom Exp $
+  *
+  * Demonstrate dup_field().
+  */
+@@ -96,8 +96,10 @@
+ 	    name = commands[n].help;
+ 	need = 5 + strlen(code) + strlen(name);
+ 	msg = typeMalloc(char, need);
+-	_nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
+-	msgs[used++] = msg;
++	if (msg != NULL) {
++	    _nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
++	    msgs[used++] = msg;
++	}
+     }
+     msgs[used++] =
+ 	strdup("Arrow keys move within a field as you would expect.");
+Index: test/edit_field.c
+Prereq:  1.33 
+--- ncurses-6.5-20250104+/test/edit_field.c	2024-12-07 22:22:51.000000000 +0000
++++ ncurses-6.5-20250111/test/edit_field.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2003-2014,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: edit_field.c,v 1.33 2024/12/07 22:22:51 tom Exp $
++ * $Id: edit_field.c,v 1.34 2025/01/11 14:54:49 tom Exp $
+  *
+  * A wrapper for form_driver() which keeps track of the user's editing changes
+  * for each field, and makes the resulting length available as a
+@@ -193,8 +193,10 @@
+ 	    name = commands[n].help;
+ 	need = 5 + strlen(code) + strlen(name);
+ 	msg = typeMalloc(char, need);
+-	_nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
+-	msgs[used++] = msg;
++	if (msg != NULL) {
++	    _nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
++	    msgs[used++] = msg;
++	}
+     }
+     msgs[used++] =
+ 	strdup("Arrow keys move within a field as you would expect.");
+Index: test/foldkeys.c
+Prereq:  1.14 
+--- ncurses-6.5-20250104+/test/foldkeys.c	2024-12-21 17:25:16.000000000 +0000
++++ ncurses-6.5-20250111/test/foldkeys.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2006-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey, 2006
+  *
+- * $Id: foldkeys.c,v 1.14 2024/12/21 17:25:16 tom Exp $
++ * $Id: foldkeys.c,v 1.15 2025/01/11 14:54:49 tom Exp $
+  *
+  * Demonstrate a method for altering key definitions at runtime.
+  *
+@@ -155,6 +155,8 @@
+ 		      &second,
+ 		      final) == 3
+ 	    && *final != ';'
++	    && first >= 0
++	    && first < 1024
+ 	    && (need = strlen(info[j].value)) != 0
+ 	    && (value = malloc(need + 8)) != NULL) {
+ 	    (void) need;	/* _nc_SLIMIT is normally nothing  */
+Index: test/move_field.c
+Prereq:  1.20 
+--- ncurses-6.5-20250104+/test/move_field.c	2024-12-07 22:33:32.000000000 +0000
++++ ncurses-6.5-20250111/test/move_field.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: move_field.c,v 1.20 2024/12/07 22:33:32 tom Exp $
++ * $Id: move_field.c,v 1.21 2025/01/11 14:54:49 tom Exp $
+  *
+  * Demonstrate move_field().
+  */
+@@ -96,8 +96,10 @@
+ 	    name = commands[n].help;
+ 	need = 5 + strlen(code) + strlen(name);
+ 	msg = typeMalloc(char, need);
+-	_nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
+-	msgs[used++] = msg;
++	if (msg != NULL) {
++	    _nc_SPRINTF(msg, _nc_SLIMIT(need) "%s -- %s", code, name);
++	    msgs[used++] = msg;
++	}
+     }
+     msgs[used++] =
+ 	strdup("Arrow keys move within a field as you would expect.");
+Index: test/movewindow.c
+Prereq:  1.57 
+--- ncurses-6.5-20250104+/test/movewindow.c	2024-12-07 22:33:32.000000000 +0000
++++ ncurses-6.5-20250111/test/movewindow.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2006-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: movewindow.c,v 1.57 2024/12/07 22:33:32 tom Exp $
++ * $Id: movewindow.c,v 1.58 2025/01/11 14:54:49 tom Exp $
+  *
+  * Demonstrate move functions for windows and derived windows from the curses
+  * library.
+@@ -658,12 +658,16 @@
+ 
+     char **msgs = typeCalloc(char *, SIZEOF(help) + 1);
+     size_t n;
++    size_t used;
+ 
+-    for (n = 0; n < SIZEOF(help); ++n) {
++    for (n = used = 0; n < SIZEOF(help); ++n) {
+ 	size_t need = (21 + strlen(help[n].msg));
+-	msgs[n] = typeMalloc(char, need);
+-	_nc_SPRINTF(msgs[n], _nc_SLIMIT(need)
+-		    "%-20s%s", keyname(help[n].key), help[n].msg);
++	char *msg = typeMalloc(char, need);
++	if (msg != NULL) {
++	    _nc_SPRINTF(msg, _nc_SLIMIT(need)
++			"%-20s%s", keyname(help[n].key), help[n].msg);
++	    msgs[used++] = msg;
++	}
+     }
+     popup_msg2(current, msgs);
+     for (n = 0; n < SIZEOF(help); ++n) {
+Index: test/test_sgr.c
+Prereq:  1.26 
+--- ncurses-6.5-20250104+/test/test_sgr.c	2024-12-07 22:48:21.000000000 +0000
++++ ncurses-6.5-20250111/test/test_sgr.c	2025-01-11 14:54:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2015-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: test_sgr.c,v 1.26 2024/12/07 22:48:21 tom Exp $
++ * $Id: test_sgr.c,v 1.27 2025/01/11 14:54:49 tom Exp $
+  *
+  * A simple demo of the sgr/sgr0 terminal capabilities.
+  */
+@@ -63,9 +63,12 @@
+ static char *
+ make_dbitem(const char *const p, const char *const q)
+ {
+-    size_t need = strlen(e_opt) + 2 + (size_t) (p - q);
++    size_t diff = (size_t) (p - q);
++    size_t need = strlen(e_opt) + 2 + diff;
+     char *result = malloc(need);
+-    _nc_SPRINTF(result, _nc_SLIMIT(need) "%s=%.*s", e_opt, (int) (p - q), q);
++    if (result != NULL) {
++	_nc_SPRINTF(result, _nc_SLIMIT(need) "%s=%.*s", e_opt, (int) diff, q);
++    }
+     return result;
+ }
+ 

@@ -1,0 +1,1125 @@
+# ncurses 6.5 - patch 20240615 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20240615.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Jun 15 23:59:02 UTC 2024
+# ------------------------------------------------------------------------------
+# AUTHORS                          |    7 +--
+# Ada95/gen/Makefile.in            |   62 ++++++++++++++++--------------
+# Ada95/samples/Makefile.in        |    6 +-
+# Ada95/src/modules                |    6 +-
+# NEWS                             |    8 +++
+# VERSION                          |    2 
+# c++/cursslk.cc                   |    5 --
+# c++/modules                      |   20 ++++-----
+# dist.mk                          |    4 -
+# doc/html/man/curs_inopts.3x.html |   10 ++--
+# doc/html/man/curs_util.3x.html   |   25 ++++++++++--
+# doc/html/man/keyok.3x.html       |   10 ++--
+# doc/html/man/ncurses.3x.html     |    2 
+# doc/html/man/term.5.html         |    8 +--
+# doc/html/man/terminfo.5.html     |    2 
+# man/curs_inopts.3x               |    6 +-
+# man/curs_util.3x                 |   42 +++++++++++++++++++-
+# man/keyok.3x                     |    6 +-
+# man/manhtml.externs              |   10 ++--
+# man/term.5                       |    5 +-
+# package/debian-mingw/changelog   |    4 -
+# package/debian-mingw64/changelog |    4 -
+# package/debian/changelog         |    4 -
+# package/mingw-ncurses.nsi        |    4 -
+# package/mingw-ncurses.spec       |    2 
+# package/ncurses.spec             |    2 
+# package/ncursest.spec            |    2 
+# progs/modules                    |   28 ++++++-------
+# test/bs.6                        |   75 ++++++++++++++++++++++++-------------
+# test/gdc.6                       |   40 +++++++++++++------
+# test/modules                     |   30 +++++++-------
+# 31 files changed, 274 insertions(+), 167 deletions(-)
+# ------------------------------------------------------------------------------
+Index: AUTHORS
+Prereq:  1.5 
+--- ncurses-6.5-20240608+/AUTHORS	2021-06-17 21:20:30.000000000 +0000
++++ ncurses-6.5-20240615/AUTHORS	2024-06-15 20:43:32.000000000 +0000
+@@ -1,5 +1,5 @@
+ -------------------------------------------------------------------------------
+--- Copyright 2020,2021 Thomas E. Dickey                                      --
++-- Copyright 2020-2021,2024 Thomas E. Dickey                                 --
+ -- Copyright 2006,2017 Free Software Foundation, Inc.                        --
+ --                                                                           --
+ -- Permission is hereby granted, free of charge, to any person obtaining a   --
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: AUTHORS,v 1.5 2021/06/17 21:20:30 tom Exp $
++-- $Id: AUTHORS,v 1.7 2024/06/15 20:43:32 tom Exp $
+ -------------------------------------------------------------------------------
+ These are the principal authors/contributors of ncurses since 1.9.9e,
+ in decreasing order of their contribution:
+@@ -37,4 +37,5 @@
+ AVL	Alexander V Lukyanov
+ PB	Philippe Blain
+ SV	Sven Verdoolaege
+-NB  Nicolas Boulenguez
++NB	Nicolas Boulenguez
++GBR	Branden Robinson
+Index: Ada95/gen/Makefile.in
+Prereq:  1.103 
+--- ncurses-6.5-20240608+/Ada95/gen/Makefile.in	2024-01-19 16:51:56.000000000 +0000
++++ ncurses-6.5-20240615/Ada95/gen/Makefile.in	2024-06-15 14:56:14.000000000 +0000
+@@ -30,7 +30,7 @@
+ #  Author:  Juergen Pfeifer, 1996
+ #     and:  Thomas E. Dickey, 1997
+ #
+-#  $Id: Makefile.in,v 1.103 2024/01/19 16:51:56 tom Exp $
++#  $Id: Makefile.in,v 1.104 2024/06/15 14:56:14 tom Exp $
+ #
+ .SUFFIXES:
+ 
+@@ -111,36 +111,37 @@
+ 
+ ADA_SRCDIR	= ../src
+ 
+-GEN_TARGETS     = $(ADA_SRCDIR)/$(ABASE).ads         			\
+-		  $(ADA_SRCDIR)/$(ABASE).adb         			\
+-	          $(ADA_SRCDIR)/$(ABASE)-aux.ads   			\
+-	          $(ADA_SRCDIR)/$(ABASE)-trace.ads   			\
+-	          $(ADA_SRCDIR)/$(ABASE)-menus.ads   			\
+-	          $(ADA_SRCDIR)/$(ABASE)-forms.ads   			\
+-	          $(ADA_SRCDIR)/$(ABASE)-mouse.ads 			\
+-	          $(ADA_SRCDIR)/$(ABASE)-panels.ads			\
+-	          $(ADA_SRCDIR)/$(ABASE)-menus-menu_user_data.ads	\
+-	          $(ADA_SRCDIR)/$(ABASE)-menus-item_user_data.ads	\
+-	          $(ADA_SRCDIR)/$(ABASE)-forms-form_user_data.ads	\
+-	          $(ADA_SRCDIR)/$(ABASE)-forms-field_types.ads		\
+-	          $(ADA_SRCDIR)/$(ABASE)-forms-field_user_data.ads	\
+-	          $(ADA_SRCDIR)/$(ABASE)-panels-user_data.ads           \
+-                  $(ADA_SRCDIR)/$(ABASE)_constants.ads
++GEN_TARGETS     = options.m4						\
++		  $(ADA_SRCDIR)/$(ABASE).ads				\
++		  $(ADA_SRCDIR)/$(ABASE).adb				\
++		  $(ADA_SRCDIR)/$(ABASE)-aux.ads			\
++		  $(ADA_SRCDIR)/$(ABASE)-trace.ads			\
++		  $(ADA_SRCDIR)/$(ABASE)-menus.ads			\
++		  $(ADA_SRCDIR)/$(ABASE)-forms.ads			\
++		  $(ADA_SRCDIR)/$(ABASE)-mouse.ads			\
++		  $(ADA_SRCDIR)/$(ABASE)-panels.ads			\
++		  $(ADA_SRCDIR)/$(ABASE)-menus-menu_user_data.ads	\
++		  $(ADA_SRCDIR)/$(ABASE)-menus-item_user_data.ads	\
++		  $(ADA_SRCDIR)/$(ABASE)-forms-form_user_data.ads	\
++		  $(ADA_SRCDIR)/$(ABASE)-forms-field_types.ads		\
++		  $(ADA_SRCDIR)/$(ABASE)-forms-field_user_data.ads	\
++		  $(ADA_SRCDIR)/$(ABASE)-panels-user_data.ads		\
++		  $(ADA_SRCDIR)/$(ABASE)_constants.ads
+ 
+ GEN_SRC		= $(srcdir)/$(ABASE).ads.m4				\
+ 		  $(srcdir)/$(ABASE).adb.m4				\
+-	          $(srcdir)/$(ABASE)-aux.ads.m4 	  		\
+-	          $(srcdir)/$(ABASE)-trace.ads.m4 	  		\
+-	          $(srcdir)/$(ABASE)-menus.ads.m4 	  		\
+-	          $(srcdir)/$(ABASE)-forms.ads.m4   			\
+-	          $(srcdir)/$(ABASE)-mouse.ads.m4			\
+-	          $(srcdir)/$(ABASE)-panels.ads.m4			\
+-	          $(srcdir)/$(ABASE)-menus-menu_user_data.ads.m4	\
+-	          $(srcdir)/$(ABASE)-menus-item_user_data.ads.m4	\
+-	          $(srcdir)/$(ABASE)-forms-form_user_data.ads.m4	\
+-	          $(srcdir)/$(ABASE)-forms-field_types.ads.m4		\
+-	          $(srcdir)/$(ABASE)-forms-field_user_data.ads.m4	\
+-	          $(srcdir)/$(ABASE)-panels-user_data.ads.m4
++		  $(srcdir)/$(ABASE)-aux.ads.m4				\
++		  $(srcdir)/$(ABASE)-trace.ads.m4			\
++		  $(srcdir)/$(ABASE)-menus.ads.m4			\
++		  $(srcdir)/$(ABASE)-forms.ads.m4			\
++		  $(srcdir)/$(ABASE)-mouse.ads.m4			\
++		  $(srcdir)/$(ABASE)-panels.ads.m4			\
++		  $(srcdir)/$(ABASE)-menus-menu_user_data.ads.m4	\
++		  $(srcdir)/$(ABASE)-menus-item_user_data.ads.m4	\
++		  $(srcdir)/$(ABASE)-forms-form_user_data.ads.m4	\
++		  $(srcdir)/$(ABASE)-forms-field_types.ads.m4		\
++		  $(srcdir)/$(ABASE)-forms-field_user_data.ads.m4	\
++		  $(srcdir)/$(ABASE)-panels-user_data.ads.m4
+ 
+ ################################################################################
+ 
+@@ -166,7 +167,10 @@
+ 	mkdir -p $@
+ 
+ install \
+-install.libs :: $(DESTDIR)$(bindir) $(ADACURSES_CONFIG)
++install.libs :: \
++		$(GEN_TARGETS) \
++		$(DESTDIR)$(bindir) \
++		$(ADACURSES_CONFIG)
+ 	$(INSTALL_SCRIPT) $(ADACURSES_CONFIG) $(DESTDIR)$(bindir)/$(ADACURSES_CONFIG)
+ 
+ uninstall \
+Index: Ada95/samples/Makefile.in
+Prereq:  1.64 
+--- ncurses-6.5-20240608+/Ada95/samples/Makefile.in	2021-07-03 15:45:33.000000000 +0000
++++ ncurses-6.5-20240615/Ada95/samples/Makefile.in	2024-06-15 15:13:11.000000000 +0000
+@@ -1,5 +1,5 @@
+ ##############################################################################
+-# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
++# Copyright 2018-2021,2024 Thomas E. Dickey                                  #
+ # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -29,7 +29,7 @@
+ #
+ #  Author:  Juergen Pfeifer, 1996
+ #
+-#  $Id: Makefile.in,v 1.64 2021/07/03 15:45:33 tom Exp $
++#  $Id: Makefile.in,v 1.65 2024/06/15 15:13:11 tom Exp $
+ #
+ .SUFFIXES:
+ 
+@@ -133,7 +133,7 @@
+ 
+ libs \
+ install \
+-install.libs ::
++install.libs ::	$(PROGS)
+ 	@echo made $@
+ 
+ uninstall \
+Index: Ada95/src/modules
+Prereq:  1.4 
+--- ncurses-6.5-20240608+/Ada95/src/modules	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20240615/Ada95/src/modules	2024-06-15 20:51:03.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: modules,v 1.4 2020/02/02 23:34:34 tom Exp $
++# $Id: modules,v 1.5 2024/06/15 20:51:03 tom Exp $
+ ##############################################################################
+-# Copyright 2020 Thomas E. Dickey                                            #
++# Copyright 2020,2024 Thomas E. Dickey                                       #
+ # Copyright 2010 Free Software Foundation, Inc.                              #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -69,3 +69,5 @@
+ $(ABASE)-text_io-enumeration_io		$(srcdir)	$(srcdir)	body
+ $(ABASE)-text_io-modular_io		$(srcdir)	$(srcdir)	body
+ $(ABASE)-text_io-complex_io		$(srcdir)	$(srcdir)	body
++
++# vile:makemode
+Index: NEWS
+Prereq:  1.4134 
+--- ncurses-6.5-20240608+/NEWS	2024-06-08 21:21:25.000000000 +0000
++++ ncurses-6.5-20240615/NEWS	2024-06-15 20:49:04.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4134 2024/06/08 21:21:25 tom Exp $
++-- $Id: NEWS,v 1.4139 2024/06/15 20:49:04 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20240615
++	+ improve formatting/style of manpages (patches by Branden Robinson).
++	+ review/update modules files.
++	+ improve install-rules in Ada95 makefiles (report by Branden Robinson).
++	+ improve formatting/style of manpages in test-directory.
++
+ 20240608
+ 	+ change winwstr to return wide character count instead of OK (patch
+ 	  by Branden Robinson).
+Index: VERSION
+--- ncurses-6.5-20240608+/VERSION	2024-06-08 09:49:40.000000000 +0000
++++ ncurses-6.5-20240615/VERSION	2024-06-15 09:33:15.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20240608
++5:0:10	6.5	20240615
+Index: c++/cursslk.cc
+Prereq:  1.21 
+--- ncurses-6.5-20240608+/c++/cursslk.cc	2023-02-25 23:36:06.000000000 +0000
++++ ncurses-6.5-20240615/c++/cursslk.cc	2024-06-15 21:07:30.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2005,2012 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -33,10 +33,9 @@
+  ****************************************************************************/
+ 
+ #include "internal.h"
+-#include "cursslk.h"
+ #include "cursesapp.h"
+ 
+-MODULE_ID("$Id: cursslk.cc,v 1.21 2023/02/25 23:36:06 tom Exp $")
++MODULE_ID("$Id: cursslk.cc,v 1.22 2024/06/15 21:07:30 tom Exp $")
+ 
+ Soft_Label_Key_Set::Soft_Label_Key&
+   Soft_Label_Key_Set::Soft_Label_Key::operator=(char *text)
+Index: c++/modules
+Prereq:  1.12 
+--- ncurses-6.5-20240608+/c++/modules	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20240615/c++/modules	2024-06-15 21:07:41.000000000 +0000
+@@ -1,7 +1,7 @@
+ # Program modules
+-# $Id: modules,v 1.12 2020/02/02 23:34:34 tom Exp $
++# $Id: modules,v 1.13 2024/06/15 21:07:41 tom Exp $
+ ##############################################################################
+-# Copyright 2020 Thomas E. Dickey                                            #
++# Copyright 2020,2024 Thomas E. Dickey                                       #
+ # Copyright 1998-2006,2013 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -33,13 +33,13 @@
+ #
+ 
+ @ base
+-cursesf		c++		$(srcdir)	$(internal_h) $(cursesf_h) $(cursesapp_h)
+-cursesm		c++		$(srcdir)	$(internal_h) $(cursesm_h) $(cursesapp_h)
+-cursesw		c++		$(srcdir)	$(internal_h) $(cursesw_h)
+-cursespad	c++		$(srcdir)	$(internal_h) $(cursesw_h)
+-cursesp		c++		$(srcdir)	$(internal_h) $(cursesp_h)
+-cursslk		c++		$(srcdir)	$(internal_h) $(cursesapp_h)
+-cursesapp	c++		$(srcdir)	$(internal_h) $(cursesapp_h)
+-cursesmain	c++		$(srcdir)	$(internal_h) $(cursesapp_h) $(INCDIR)/nc_alloc.h
++cursesf		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesf_h) $(cursesapp_h)
++cursesm		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesm_h) $(cursesapp_h)
++cursesw		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesw_h)
++cursespad	c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesw_h)
++cursesp		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesp_h)
++cursslk		c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesapp_h)
++cursesapp	c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesapp_h)
++cursesmain	c++		$(srcdir)	$(HEADER_DEPS)	$(internal_h) $(cursesapp_h) $(INCDIR)/nc_alloc.h
+ 
+ # vile:makemode
+Index: dist.mk
+Prereq:  1.1617 
+--- ncurses-6.5-20240608+/dist.mk	2024-06-08 09:49:40.000000000 +0000
++++ ncurses-6.5-20240615/dist.mk	2024-06-15 09:33:15.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1617 2024/06/08 09:49:40 tom Exp $
++# $Id: dist.mk,v 1.1618 2024/06/15 09:33:15 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20240608
++NCURSES_PATCH = 20240615
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: doc/html/man/curs_inopts.3x.html
+--- ncurses-6.5-20240608+/doc/html/man/curs_inopts.3x.html	2024-06-08 23:29:39.000000000 +0000
++++ ncurses-6.5-20240615/doc/html/man/curs_inopts.3x.html	2024-06-15 20:39:28.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_inopts.3x,v 1.73 2024/06/08 23:24:17 tom Exp @
++  * @Id: curs_inopts.3x,v 1.75 2024/06/15 19:49:39 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_inopts 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_inopts 3x 2024-06-15 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_inopts 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_inopts 3x 2024-06-15 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
+ 
+@@ -378,11 +378,11 @@
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>,     <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,     <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>,
+-       <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>, <STRONG>termios(3)</STRONG>, <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>.
++       <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>, <STRONG>termios(3)</STRONG>, <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                   <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
++ncurses 6.5                       2024-06-15                   <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_util.3x.html
+--- ncurses-6.5-20240608+/doc/html/man/curs_util.3x.html	2024-06-08 23:12:50.000000000 +0000
++++ ncurses-6.5-20240615/doc/html/man/curs_util.3x.html	2024-06-15 20:39:29.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_util.3x,v 1.108 2024/06/08 22:38:18 tom Exp @
++  * @Id: curs_util.3x,v 1.110 2024/06/15 20:20:12 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_util 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_util 3x 2024-06-15 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_util 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_util 3x 2024-06-15 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
+ 
+@@ -383,6 +383,22 @@
+        <STRONG>use_env</STRONG> is not provided by other implementations of curses.
+ 
+ 
++</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
++       4BSD (1980) defined <EM>unctrl</EM> (as a macro, in <EM>unctrl.h</EM>).
++
++       SVr2 (1984) introduced <EM>delay</EM><STRONG>_</STRONG><EM>output</EM>, <EM>flushinp</EM>, and <EM>keyname</EM>.
++
++       SVr3  (1987)  added <EM>filter</EM>.  Later that year, SVr3.1 brought <EM>getwin</EM> and
++       <EM>putwin</EM>, reading and writing window dumps with <STRONG>fread(3)</STRONG>  and  <STRONG>fwrite(3)</STRONG>,
++       respectively.
++
++       SVr4 (1989) supplied <EM>use</EM><STRONG>_</STRONG><EM>env</EM>.
++
++       X/Open Curses Issue 4 (1995) specified <EM>key</EM><STRONG>_</STRONG><EM>name</EM> and <EM>wunctrl</EM>.
++
++       <EM>ncurses</EM> 5.6 (2006) added <EM>nofilter</EM>, and 6.0 (2015) <EM>use</EM><STRONG>_</STRONG><EM>tioctl</EM>.
++
++
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,   <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>,        <STRONG><A HREF="curs_sp_funcs.3x.html">curs_sp_funcs(3x)</A></STRONG>,        <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,
+@@ -390,7 +406,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                     <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
++ncurses 6.5                       2024-06-15                     <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+@@ -420,6 +436,7 @@
+ <li><a href="#h3-use_env_use_tioctl">use_env, use_tioctl</a></li>
+ </ul>
+ </li>
++<li><a href="#h2-HISTORY">HISTORY</a></li>
+ <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+ </ul>
+ </div>
+Index: doc/html/man/keyok.3x.html
+--- ncurses-6.5-20240608+/doc/html/man/keyok.3x.html	2024-06-08 23:29:41.000000000 +0000
++++ ncurses-6.5-20240615/doc/html/man/keyok.3x.html	2024-06-15 20:39:30.000000000 +0000
+@@ -28,19 +28,19 @@
+   * authorization.                                                           *
+   ****************************************************************************
+   * Author: Thomas E. Dickey 1997
+-  * @Id: keyok.3x,v 1.44 2024/06/08 23:26:27 tom Exp @
++  * @Id: keyok.3x,v 1.46 2024/06/15 19:49:39 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>keyok 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>keyok 3x 2024-06-15 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">keyok 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">keyok 3x 2024-06-15 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>                        Library calls                       <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>
+ 
+@@ -93,11 +93,11 @@
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>, <STRONG><A HREF="keybound.3x.html">keybound(3x)</A></STRONG>, <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>, <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>.
++       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>, <STRONG><A HREF="keybound.3x.html">keybound(3x)</A></STRONG>, <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>, <STRONG><A HREF="key_defined.3x.html">key_defined(3x)</A></STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                         <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>
++ncurses 6.5                       2024-06-15                         <STRONG><A HREF="keyok.3x.html">keyok(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/ncurses.3x.html
+--- ncurses-6.5-20240608+/doc/html/man/ncurses.3x.html	2024-06-08 23:12:51.000000000 +0000
++++ ncurses-6.5-20240615/doc/html/man/ncurses.3x.html	2024-06-15 20:39:31.000000000 +0000
+@@ -61,7 +61,7 @@
+        terminals  with  output  optimized to minimize screen updates.  <EM>ncurses</EM>
+        replaces the <EM>curses</EM> libraries from System V Release 4 Unix ("SVr4") and
+        4.4BSD  Unix,  the  development  of  which  ceased  in the 1990s.  This
+-       document describes <EM>ncurses</EM> version 6.5 (patch 20240608).
++       document describes <EM>ncurses</EM> version 6.5 (patch 20240615).
+ 
+        <EM>ncurses</EM> permits control of the terminal screen's contents;  abstraction
+        and  subdivision thereof with <EM>windows</EM> and <EM>pads</EM>; acquisition of keyboard
+Index: doc/html/man/term.5.html
+--- ncurses-6.5-20240608+/doc/html/man/term.5.html	2024-05-11 22:32:35.000000000 +0000
++++ ncurses-6.5-20240615/doc/html/man/term.5.html	2024-06-15 20:39:31.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: term.5,v 1.78 2024/05/11 20:39:53 tom Exp @
++  * @Id: term.5,v 1.80 2024/06/15 20:23:33 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>term 5 2024-05-11 ncurses 6.5 File formats</TITLE>
++<TITLE>term 5 2024-06-15 ncurses 6.5 File formats</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">term 5 2024-05-11 ncurses 6.5 File formats</H1>
++<H1 class="no-header">term 5 2024-06-15 ncurses 6.5 File formats</H1>
+ <PRE>
+ <STRONG><A HREF="term.5.html">term(5)</A></STRONG>                          File formats                          <STRONG><A HREF="term.5.html">term(5)</A></STRONG>
+ 
+@@ -397,7 +397,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-05-11                           <STRONG><A HREF="term.5.html">term(5)</A></STRONG>
++ncurses 6.5                       2024-06-15                           <STRONG><A HREF="term.5.html">term(5)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/terminfo.5.html
+--- ncurses-6.5-20240608+/doc/html/man/terminfo.5.html	2024-06-08 23:35:45.000000000 +0000
++++ ncurses-6.5-20240615/doc/html/man/terminfo.5.html	2024-06-15 20:39:31.000000000 +0000
+@@ -71,7 +71,7 @@
+        have, by specifying how to perform screen operations, and by specifying
+        padding requirements and initialization sequences.
+ 
+-       This document describes <EM>ncurses</EM> version 6.5 (patch 20240608).
++       This document describes <EM>ncurses</EM> version 6.5 (patch 20240615).
+ 
+ 
+ </PRE><H3><a name="h3-terminfo-Entry-Syntax"><EM>terminfo</EM> Entry Syntax</a></H3><PRE>
+Index: man/curs_inopts.3x
+Prereq:  1.73 
+--- ncurses-6.5-20240608+/man/curs_inopts.3x	2024-06-08 23:24:17.000000000 +0000
++++ ncurses-6.5-20240615/man/curs_inopts.3x	2024-06-15 19:49:39.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_inopts.3x,v 1.73 2024/06/08 23:24:17 tom Exp $
+-.TH curs_inopts 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_inopts.3x,v 1.75 2024/06/15 19:49:39 tom Exp $
++.TH curs_inopts 3X 2024-06-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -811,4 +811,4 @@
+ \fB\%curs_util\fP(3X),
+ \fB\%define_key\fP(3X),
+ \fB\%termios\fP(3),
+-\fB\%term_variables\fP(3X).
++\fB\%term_variables\fP(3X)
+Index: man/curs_util.3x
+Prereq:  1.108 
+--- ncurses-6.5-20240608+/man/curs_util.3x	2024-06-08 22:38:18.000000000 +0000
++++ ncurses-6.5-20240615/man/curs_util.3x	2024-06-15 20:20:12.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_util.3x,v 1.108 2024/06/08 22:38:18 tom Exp $
+-.TH curs_util 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_util.3x,v 1.110 2024/06/15 20:20:12 tom Exp $
++.TH curs_util 3X 2024-06-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -485,6 +485,44 @@
+ (\fBcurs_sp_funcs\fP(3X)).
+ This feature of \fBuse_env\fP
+ is not provided by other implementations of curses.
++.SH HISTORY
++4BSD (1980)
++defined
++.I \%unctrl
++(as a macro,
++in
++.IR \%unctrl.h ")."
++.PP
++SVr2 (1984) introduced
++.IR \%delay_output ","
++.IR \%flushinp ","
++and
++.IR \%keyname "."
++.PP
++SVr3 (1987) added
++.IR \%filter "."
++Later that year,
++SVr3.1 brought
++.I \%getwin
++and
++.IR \%putwin ","
++reading and writing window dumps
++with \fI\%fread\fP(3) and \fI\%fwrite\fP(3),
++respectively.
++.PP
++SVr4 (1989) supplied
++.IR \%use_env "."
++.PP
++X/Open Curses Issue 4 (1995) specified
++.I \%key_name
++and
++.IR \%wunctrl "."
++.PP
++.I \%ncurses
++5.6 (2006) added
++.IR \%nofilter "," \" 20060107
++and 6.0 (2015)
++.IR \%use_tioctl "." \" 20120714
+ .SH SEE ALSO
+ \fB\%curses\fP(3X),
+ \fB\%curs_initscr\fP(3X),
+Index: man/keyok.3x
+Prereq:  1.44 
+--- ncurses-6.5-20240608+/man/keyok.3x	2024-06-08 23:26:27.000000000 +0000
++++ ncurses-6.5-20240615/man/keyok.3x	2024-06-15 19:49:39.000000000 +0000
+@@ -29,8 +29,8 @@
+ .\"
+ .\" Author: Thomas E. Dickey 1997
+ .\"
+-.\" $Id: keyok.3x,v 1.44 2024/06/08 23:26:27 tom Exp $
+-.TH keyok 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: keyok.3x,v 1.46 2024/06/15 19:49:39 tom Exp $
++.TH keyok 3X 2024-06-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .
+ .de bP
+ .ie n  .IP \(bu 4
+@@ -108,4 +108,4 @@
+ \fB\%define_key\fP(3X),
+ \fB\%keybound\fP(3X),
+ \fB\%keyok\fP(3X),
+-\fB\%key_defined\fP(3X).
++\fB\%key_defined\fP(3X)
+Index: man/manhtml.externs
+Prereq:  1.26 
+--- ncurses-6.5-20240608+/man/manhtml.externs	2024-05-11 20:35:15.000000000 +0000
++++ ncurses-6.5-20240615/man/manhtml.externs	2024-06-15 20:24:43.000000000 +0000
+@@ -1,4 +1,4 @@
+-# $Id: manhtml.externs,v 1.26 2024/05/11 20:35:15 tom Exp $
++# $Id: manhtml.externs,v 1.27 2024/06/15 20:24:43 tom Exp $
+ # Items in this list will not be linked by man2html
+ #***************************************************************************
+ # Copyright 2019-2023,2024 Thomas E. Dickey                                *
+@@ -41,20 +41,22 @@
+ environ(7)
+ errno(3)
+ file(1)
++fread(3)
++fwrite(3)
+ getty(8)
++ioctl(2)
++isprint(3)
+ jove(1)
+ lynx(1)
+ mutt(1)
+ nvi(1)
+ od(1)
+-ioctl(2)
+-isprint(3)
+ printf(3)
+ profile(5)
+ putc(3)
+ putchar(3)
+-putwchar(3)
+ putwc(3)
++putwchar(3)
+ read(2)
+ readline(3)
+ resize(1)
+Index: man/term.5
+Prereq:  1.78 
+--- ncurses-6.5-20240608+/man/term.5	2024-05-11 20:39:53.000000000 +0000
++++ ncurses-6.5-20240615/man/term.5	2024-06-15 20:23:33.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: term.5,v 1.78 2024/05/11 20:39:53 tom Exp $
+-.TH term 5 2024-05-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
++.\" $Id: term.5,v 1.80 2024/06/15 20:23:33 tom Exp $
++.TH term 5 2024-06-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -58,6 +58,7 @@
+ .SH NAME
+ term \-
+ compiled \fI\%term\%info\fP terminal description
++.\"SH SYNOPSIS
+ .SH DESCRIPTION
+ \fB\%@TIC@\fP(1) compiles a
+ .I \%term\%info
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20240608+/package/debian-mingw/changelog	2024-06-08 14:10:18.000000000 +0000
++++ ncurses-6.5-20240615/package/debian-mingw/changelog	2024-06-15 09:33:15.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240608) unstable; urgency=low
++ncurses6td (6.5+20240615) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Jun 2024 05:49:40 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Jun 2024 05:33:15 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20240608+/package/debian-mingw64/changelog	2024-06-08 14:13:09.000000000 +0000
++++ ncurses-6.5-20240615/package/debian-mingw64/changelog	2024-06-15 09:33:15.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240608) unstable; urgency=low
++ncurses6td (6.5+20240615) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Jun 2024 05:49:40 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Jun 2024 05:33:15 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20240608+/package/debian/changelog	2024-06-08 13:51:38.000000000 +0000
++++ ncurses-6.5-20240615/package/debian/changelog	2024-06-15 09:33:15.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240608) unstable; urgency=low
++ncurses6td (6.5+20240615) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Jun 2024 05:49:40 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Jun 2024 05:33:15 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.652 
+--- ncurses-6.5-20240608+/package/mingw-ncurses.nsi	2024-06-08 09:49:40.000000000 +0000
++++ ncurses-6.5-20240615/package/mingw-ncurses.nsi	2024-06-15 09:33:15.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.652 2024/06/08 09:49:40 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.653 2024/06/15 09:33:15 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "0608"
++!define VERSION_MMDD  "0615"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20240608+/package/mingw-ncurses.spec	2024-06-08 09:49:40.000000000 +0000
++++ ncurses-6.5-20240615/package/mingw-ncurses.spec	2024-06-15 09:33:15.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20240608
++Release: 20240615
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20240608+/package/ncurses.spec	2024-06-08 09:49:40.000000000 +0000
++++ ncurses-6.5-20240615/package/ncurses.spec	2024-06-15 09:33:15.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20240608
++Release: 20240615
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20240608+/package/ncursest.spec	2024-06-08 09:49:40.000000000 +0000
++++ ncurses-6.5-20240615/package/ncursest.spec	2024-06-15 09:33:15.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20240608
++Release: 20240615
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/modules
+Prereq:  1.25 
+--- ncurses-6.5-20240608+/progs/modules	2021-04-18 17:21:03.000000000 +0000
++++ ncurses-6.5-20240615/progs/modules	2024-06-15 23:34:33.000000000 +0000
+@@ -1,7 +1,7 @@
+-# $Id: modules,v 1.25 2021/04/18 17:21:03 tom Exp $
++# $Id: modules,v 1.29 2024/06/15 23:34:33 tom Exp $
+ # Program modules (some are in ncurses lib!)
+ ##############################################################################
+-# Copyright 2020,2021 Thomas E. Dickey                                       #
++# Copyright 2020-2021,2024 Thomas E. Dickey                                  #
+ # Copyright 1998-2014,2016 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -33,18 +33,18 @@
+ #
+ 
+ @ base
+-clear		progs		$(srcdir)	$(HEADER_DEPS) tty_settings.h
+-tic		progs		$(srcdir)	$(HEADER_DEPS) transform.h $(srcdir)/dump_entry.h $(srcdir)/tparm_type.h
+-toe		progs		$(srcdir)	$(HEADER_DEPS)             $(INCDIR)/hashed_db.h
+-clear_cmd	progs		$(srcdir)	$(HEADER_DEPS) clear_cmd.h
+-dump_entry	progs		$(srcdir)	$(HEADER_DEPS)             $(srcdir)/dump_entry.h ../include/parametrized.h $(INCDIR)/capdefaults.c termsort.h
+-infocmp		progs		$(srcdir)	$(HEADER_DEPS)             $(srcdir)/dump_entry.h
+-reset_cmd	progs		$(srcdir)	$(HEADER_DEPS) reset_cmd.h tty_settings.h
+-tabs		progs		$(srcdir)	$(HEADER_DEPS)
+-tparm_type	progs		$(srcdir)	$(HEADER_DEPS)             $(srcdir)/tparm_type.h
+-tput		progs		$(srcdir)	$(HEADER_DEPS) transform.h $(srcdir)/tparm_type.h reset_cmd.h tty_settings.h
+-tset		progs		$(srcdir)	$(HEADER_DEPS) transform.h ../include/termcap.h reset_cmd.h  tty_settings.h
++clear		progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/clear_cmd.h $(srcdir)/tty_settings.h
++tic		progs		$(srcdir)	$(HEADER_DEPS) $(INCDIR)/hashed_db.h $(srcdir)/dump_entry.h $(srcdir)/tparm_type.h ../include/parametrized.h transform.h
++toe		progs		$(srcdir)	$(HEADER_DEPS) $(INCDIR)/hashed_db.h
++clear_cmd	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/clear_cmd.h
++dump_entry	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/dump_entry.h ../include/capdefaults.c ../include/parametrized.h termsort.h
++infocmp		progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/dump_entry.h
++reset_cmd	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/reset_cmd.h $(srcdir)/tty_settings.h
++tabs		progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/tty_settings.h
++tparm_type	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/tparm_type.h
++tput		progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/clear_cmd.h $(srcdir)/reset_cmd.h $(srcdir)/tparm_type.h $(srcdir)/tty_settings.h transform.h
++tset		progs		$(srcdir)	$(HEADER_DEPS) ../include/termcap.h $(srcdir)/reset_cmd.h $(srcdir)/tty_settings.h transform.h 
+ transform	progs		$(srcdir)	$(HEADER_DEPS) transform.h
+-tty_settings	progs		$(srcdir)	$(HEADER_DEPS) tty_settings.h
++tty_settings	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/tty_settings.h
+ 
+ # vile:makemode
+Index: test/bs.6
+Prereq:  1.5 
+--- ncurses-6.5-20240608+/test/bs.6	2021-06-17 21:20:30.000000000 +0000
++++ ncurses-6.5-20240615/test/bs.6	2024-06-15 20:32:28.000000000 +0000
+@@ -1,5 +1,5 @@
+ .\"***************************************************************************
+-.\" Copyright 2020,2021 Thomas E. Dickey                                     *
++.\" Copyright 2020-2021,2024 Thomas E. Dickey                                *
+ .\" Copyright 1998,2006 Free Software Foundation, Inc.                       *
+ .\"                                                                          *
+ .\" Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,46 +27,69 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: bs.6,v 1.5 2021/06/17 21:20:30 tom Exp $
+-.TH BATTLESHIPS 6 2021-06-17 ncurses-examples Games
++.\" $Id: bs.6,v 1.8 2024/06/15 20:32:28 tom Exp $
++.TH BATTLESHIPS 6 2024-06-15 ncurses-examples Games
++.ie \n(.g \{\
++.ds `` \(lq
++.ds '' \(rq
++.\}
++.el \{\
++.ie t .ds `` ``
++.el   .ds `` ""
++.ie t .ds '' ''
++.el   .ds '' ""
++.\}
+ .SH NAME
+-bs \- battleships game
++bs \-
++battleships game
+ .SH SYNOPSIS
+-battle [ -b | -s ] [ -c ]
++battle [ \-b | \-s ] [ \-c ]
+ .SH DESCRIPTION
+ This program allows you to play the familiar Battleships game against the
+-computer on a 10x10 board. The interface is visual and largely
+-self-explanatory; you place your ships and pick your shots by moving the
+-cursor around the `sea' with the rogue/hack motion keys hjklyubn.
++computer on a 10x10 board.
++The interface is visual and largely self-explanatory;
++you place your ships and pick your shots by moving the
++cursor around the \*(``sea\*('' with the rogue/hack motion keys hjklyubn.
+ .PP
+-Note that when selecting a ship to place, you must type the capital letter
+-(these are, after all, capital ships). During ship placement, the `r' command
++Note that when selecting a ship to place,
++you must type the capital letter
++(these are, after all, capital ships).
++During ship placement,
++the \*(``r\*('' command
+ may be used to ignore the current position and randomly place your currently
+-selected ship. The `R' command will place all remaining ships randomly. The ^L
+-command (form feed, ASCII 12) will force a screen redraw).
++selected ship.
++The \*(``R\*('' command will place all remaining ships randomly.
++The ^L command (form feed,
++ASCII 12) will force a screen redraw).
+ .PP
+ The command-line arguments control game modes.
+ 
+ .nf
+-	-b selects a `blitz' variant
+-	-s selects a `salvo' variant
+-	-c permits ships to be placed adjacently
++	\-b selects a \*(``blitz\*('' variant
++	\-s selects a \*(``salvo\*('' variant
++	\-c permits ships to be placed adjacently
+ .fi
+ 
+-The `blitz' variant allows a side to shoot for as long as it continues to
+-score hits.
++The \*(``blitz\*('' variant allows a side to shoot
++for as long as it continues to score hits.
+ .PP
+-The `salvo' game allows a player one shot per turn for each of his/her ships
+-still afloat.  This puts a premium scoring hits early and knocking out some
++The \*(``salvo\*('' game allows a player one shot per turn
++for each of his/her ships still afloat.
++This puts a premium scoring hits early and knocking out some
+ ships and also makes much harder the situation where you face a superior force
+ with only your PT-boat.
+ .PP
+-Normally, ships must be separated by at least one square of open water. The
+--c option disables this check and allows them to close-pack.
++Normally, ships must be separated by at least one square of open water.
++The \-c option disables this check and allows them to close-pack.
+ .PP
+-The algorithm the computer uses once it has found a ship to sink is provably
+-optimal. The dispersion criterion for the random-fire algorithm may not be.
++The algorithm the computer uses
++once it has found a ship to sink is provably optimal.
++The dispersion criterion for the random-fire algorithm may not be.
+ .SH AUTHORS
+-Originally written by one Bruce Holloway in 1986. Salvo mode added by Chuck A.
+-DeGaul (cbosgd!cad). Visual user interface, `closepack' option, code rewrite
+-and manual page by Eric S. Raymond <esr@snark.thyrsus.com> August 1989.
++Originally written by Bruce Holloway in 1986.
++Salvo mode added by Chuck A. DeGaul (cbosgd!cad).
++Visual user interface,
++\*(``closepack\*('' option,
++code rewrite,
++and manual page by Eric S. Raymond
++<esr@snark.thyrsus.com> August 1989.
+Index: test/gdc.6
+Prereq:  1.6 
+--- ncurses-6.5-20240608+/test/gdc.6	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20240615/test/gdc.6	2024-06-15 15:16:34.000000000 +0000
+@@ -1,5 +1,5 @@
+ .\"***************************************************************************
+-.\" Copyright 2020 Thomas E. Dickey                                          *
++.\" Copyright 2020,2024 Thomas E. Dickey                                     *
+ .\" Copyright 1998-2006,2017 Free Software Foundation, Inc.                  *
+ .\"                                                                          *
+ .\" Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,42 +27,56 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: gdc.6,v 1.6 2020/02/02 23:34:34 tom Exp $
+-.TH GDC 6 2020-02-02 ncurses-examples Games
++.\" $Id: gdc.6,v 1.9 2024/06/15 15:16:34 tom Exp $
++.TH GDC 6 2024-06-15 ncurses-examples Games
++.ie \n(.g \{\
++.ds `` \(lq
++.ds '' \(rq
++.\}
++.el \{\
++.ie t .ds `` ``
++.el   .ds `` ""
++.ie t .ds '' ''
++.el   .ds '' ""
++.\}
+ .SH NAME
+-gdc \- grand digital clock (curses)
++gdc \-
++grand digital clock (curses)
+ .SH SYNOPSIS
+ .B gdc \fP[\fIoptions\fP] [\fIn\fP]
+ .SH DESCRIPTION
+ .I Gdc
+ runs a digital clock made of reverse-video blanks on a terminal screen.
+-If the terminal supports color, the clock is drawn in red.
+-You can make the clock stop, pause or resume by pressing a ``q'',
+-``s'' or space, respectively.
++If the terminal supports color,
++the clock is drawn in red.
++You can make the clock stop, pause, or resume by pressing a \*(``q\*('',
++\*(``s\*('' or space, respectively.
+ .SH OPTIONS
+ .TP
+ .B \-d
+ use terminal's default colors for the background.
+ .TP
+ .B \-n
+-redirects input to /dev/null, making it ignore the stop/pause commands.
++redirects input to /dev/null,
++making it ignore the stop/pause commands.
+ You can still stop it by pressing the interrupt key.
+ .TP
+ .B \-s
+ makes digits scroll as they change.
+-When running on a fast display, the program breaks up the scrolling into
+-subsecond repaints, making the operation appear smooth.
++When running on a fast display,
++the program breaks up the scrolling into subsecond repaints,
++making the operation appear smooth.
+ .TP
+ .B \-t \fIhh:mm:ss\fP
+-specify starting time (default is ``now'').
++specify starting time (default is \*(``now\*('').
+ .PP
+ With an optional numeric argument
+ .I num
+ it stops after
+ .I num
+ seconds.
+-Normally it runs "forever" (counting down from 2 billion seconds).
+-.SH AUTHOR
++Normally it runs \*(``forever\*('' (counting down from 2 billion seconds).
++.SH AUTHORS
+ Amos Shapir, modified for curses by John Lupien.
+ .br
+ Improvements for ncurses by Thomas Dickey.
+Index: test/modules
+Prereq:  1.79 
+--- ncurses-6.5-20240608+/test/modules	2023-11-10 11:48:20.000000000 +0000
++++ ncurses-6.5-20240615/test/modules	2024-06-15 19:00:13.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: modules,v 1.79 2023/11/10 11:48:20 tom Exp $
++# $Id: modules,v 1.80 2024/06/15 19:00:13 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2022,2023 Thomas E. Dickey                                  #
++# Copyright 2018-2023,2024 Thomas E. Dickey                                  #
+ # Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -33,8 +33,8 @@
+ # Test-Program modules
+ 
+ @ base
+-back_ground	progs		$(srcdir)	$(HEADER_DEPS)
+-background	progs		$(srcdir)	$(HEADER_DEPS)
++back_ground	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/color_name.h $(srcdir)/dump_window.h 
++background	progs		$(srcdir)	$(HEADER_DEPS) $(srcdir)/color_name.h $(srcdir)/dump_window.h 
+ blue		progs		$(srcdir)	$(HEADER_DEPS)
+ bs		progs		$(srcdir)	$(HEADER_DEPS)
+ cardfile	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/panel.h $(incdir)/form.h
+@@ -42,7 +42,7 @@
+ clip_printw	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+ color_content	progs		$(srcdir)	$(HEADER_DEPS)
+ color_set	progs		$(srcdir)	$(HEADER_DEPS)
+-combine		progs		$(srcdir)	$(HEADER_DEPS)
++combine		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/dump_window.h $(srcdir)/popup_msg.h
+ demo_altkeys	progs		$(srcdir)	$(HEADER_DEPS)
+ demo_defkey	progs		$(srcdir)	$(HEADER_DEPS)
+ demo_forms	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h
+@@ -51,8 +51,8 @@
+ demo_new_pair	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+ demo_panels	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/panel.h
+ demo_tabs	progs		$(srcdir)	$(HEADER_DEPS)
+-demo_termcap	progs		$(srcdir)	$(HEADER_DEPS)
+-demo_terminfo	progs		$(srcdir)	$(HEADER_DEPS)
++demo_termcap	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h	$(incdir)/termcap.h
++demo_terminfo	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h
+ ditto		progs		$(srcdir)	$(HEADER_DEPS)
+ dots		progs		$(srcdir)	$(HEADER_DEPS)
+ dots_curses	progs		$(srcdir)	$(HEADER_DEPS)
+@@ -60,7 +60,7 @@
+ dots_termcap	progs		$(srcdir)	$(HEADER_DEPS)
+ dots_xcurses	progs		$(srcdir)	$(HEADER_DEPS)
+ dump_window	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/dump_window.h
+-dup_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h
++dup_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h	$(srcdir)/popup_msg.h
+ echochar	progs		$(srcdir)	$(HEADER_DEPS)
+ edit_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h	$(srcdir)/popup_msg.h
+ extended_color	progs		$(srcdir)	$(HEADER_DEPS)
+@@ -68,7 +68,7 @@
+ firework	progs		$(srcdir)	$(HEADER_DEPS)
+ firstlast	progs		$(srcdir)	$(HEADER_DEPS)
+ foldkeys	progs		$(srcdir)	$(HEADER_DEPS)
+-form_driver_w	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
++form_driver_w	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h	$(incdir)/form.h
+ gdc		progs		$(srcdir)	$(HEADER_DEPS)
+ hanoi		progs		$(srcdir)	$(HEADER_DEPS)
+ hashtest	progs		$(srcdir)	$(HEADER_DEPS)
+@@ -80,15 +80,15 @@
+ key_names	progs		$(srcdir)	$(HEADER_DEPS)
+ keynames	progs		$(srcdir)	$(HEADER_DEPS)
+ knight		progs		$(srcdir)	$(HEADER_DEPS)
+-list_keys	progs		$(srcdir)	$(HEADER_DEPS)
++list_keys	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h
+ lrtest		progs		$(srcdir)	$(HEADER_DEPS)
+-move_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h
++move_field	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/edit_field.h	$(srcdir)/popup_msg.h
+ movewindow	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+ ncurses		progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/panel.h $(incdir)/menu.h $(incdir)/form.h
+ newdemo		progs		$(srcdir)	$(HEADER_DEPS)
+ padview		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/widechars.h	$(srcdir)/popup_msg.h
+ pair_content	progs		$(srcdir)	$(HEADER_DEPS)
+-picsmap		progs		$(srcdir)	$(HEADER_DEPS)
++picsmap		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/picsmap.h
+ popup_msg	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+ railroad	progs		$(srcdir)	$(HEADER_DEPS)
+ rain		progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+@@ -103,8 +103,8 @@
+ test_arrays	progs		$(srcdir)	$(HEADER_DEPS)
+ test_delwin	progs		$(srcdir)	$(HEADER_DEPS)
+ test_endwin	progs		$(srcdir)	$(HEADER_DEPS)
+-test_get_wstr	progs		$(srcdir)	$(HEADER_DEPS)
+-test_getstr	progs		$(srcdir)	$(HEADER_DEPS)
++test_get_wstr	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
++test_getstr	progs		$(srcdir)	$(HEADER_DEPS)	$(srcdir)/popup_msg.h
+ test_instr	progs		$(srcdir)	$(HEADER_DEPS)
+ test_inwstr	progs		$(srcdir)	$(HEADER_DEPS)
+ test_mouse	progs		$(srcdir)	$(HEADER_DEPS)
+@@ -112,7 +112,7 @@
+ test_setupterm	progs		$(srcdir)	$(HEADER_DEPS)
+ test_sgr	progs		$(srcdir)	$(HEADER_DEPS)
+ test_termattrs	progs		$(srcdir)	$(HEADER_DEPS)
+-test_tparm	progs		$(srcdir)	$(HEADER_DEPS)
++test_tparm	progs		$(srcdir)	$(HEADER_DEPS)	$(incdir)/term_entry.h
+ test_unget_wch	progs		$(srcdir)	$(HEADER_DEPS)
+ test_vid_puts	progs		$(srcdir)	$(HEADER_DEPS)
+ test_vidputs	progs		$(srcdir)	$(HEADER_DEPS)

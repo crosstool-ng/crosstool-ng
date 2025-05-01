@@ -1,0 +1,1333 @@
+# ncurses 6.5 - patch 20250222 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250222.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Feb 22 23:47:29 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    8 ++++++-
+# VERSION                          |    2 -
+# dist.mk                          |    4 +--
+# man/MKterminfo.sh                |   10 +++++---
+# man/infocmp.1m                   |    6 ++---
+# man/terminfo.tail                |    4 +--
+# ncurses/base/lib_addstr.c        |   12 +++++-----
+# ncurses/base/lib_driver.c        |    6 ++---
+# ncurses/base/lib_newterm.c       |   10 ++++----
+# ncurses/base/safe_sprintf.c      |   14 ++++++------
+# ncurses/base/vsscanf.c           |    8 +++----
+# ncurses/report_hashing.c         |    6 ++---
+# ncurses/tinfo/access.c           |   10 ++++----
+# ncurses/tinfo/captoinfo.c        |    4 +--
+# ncurses/tinfo/getenv_num.c       |    6 ++---
+# ncurses/tinfo/lib_data.c         |    6 ++---
+# ncurses/tinfo/lib_setup.c        |   12 +++++-----
+# ncurses/tinfo/obsolete.c         |   10 ++++----
+# ncurses/tinfo/parse_entry.c      |   14 ++++++------
+# ncurses/tinfo/read_termcap.c     |   42 ++++++++++++++++++-------------------
+# ncurses/tinfo/tinfo_driver.c     |   18 +++++++--------
+# ncurses/trace/lib_tracebits.c    |    8 +++----
+# ncurses/widechar/lib_ins_wch.c   |    7 ++----
+# ncurses/widechar/widechars.c     |    8 +++----
+# ncurses/win32con/win32_driver.c  |   18 +++++++--------
+# ncurses/win32con/win_driver.c    |   30 +++++++++++++-------------
+# package/debian-mingw/changelog   |    4 +--
+# package/debian-mingw64/changelog |    4 +--
+# package/debian/changelog         |    4 +--
+# package/mingw-ncurses.nsi        |    4 +--
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# 33 files changed, 156 insertions(+), 149 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4248 
+--- ncurses-6.5-20250216+/NEWS	2025-02-16 23:54:33.000000000 +0000
++++ ncurses-6.5-20250222/NEWS	2025-02-20 09:09:47.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4248 2025/02/16 23:54:33 tom Exp $
++-- $Id: NEWS,v 1.4251 2025/02/20 09:09:47 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250222
++	+ modify treatment of "n" parameter for waddnstr, waddnwstr, and
++	  wins_nwstr to return OK when "n" is zero, for consistency with other
++	  implementations (report by Benjamin Barenblat, cf: 20231118).
++	+ formatting improvements for terminfo.5 (Debian #1096164).
++	
+ 20250216
+ 	+ add limit-checks in alloc_entry.c and alloc_ttype.c to avoid indexing
+ 	  errors when using infocmp to compare all capabilities when processing
+Index: VERSION
+--- ncurses-6.5-20250216+/VERSION	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/VERSION	2025-02-22 09:14:10.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250216
++5:0:10	6.5	20250222
+Index: dist.mk
+Prereq:  1.1656 
+--- ncurses-6.5-20250216+/dist.mk	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/dist.mk	2025-02-22 09:14:10.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1656 2025/02/16 22:35:29 tom Exp $
++# $Id: dist.mk,v 1.1657 2025/02/22 09:14:10 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250216
++NCURSES_PATCH = 20250222
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: man/MKterminfo.sh
+Prereq:  1.20 
+--- ncurses-6.5-20250216+/man/MKterminfo.sh	2024-01-13 20:37:40.000000000 +0000
++++ ncurses-6.5-20250222/man/MKterminfo.sh	2025-02-20 00:14:25.000000000 +0000
+@@ -1,10 +1,10 @@
+ #!/bin/sh
+-# $Id: MKterminfo.sh,v 1.20 2024/01/13 20:37:40 tom Exp $
++# $Id: MKterminfo.sh,v 1.21 2025/02/20 00:14:25 tom Exp $
+ #
+ # MKterminfo.sh -- generate terminfo.5 from Caps tabular data
+ #
+ #***************************************************************************
+-# Copyright 2018-2020,2022 Thomas E. Dickey                                *
++# Copyright 2018-2024,2025 Thomas E. Dickey                                *
+ # Copyright 1998-2003,2017 Free Software Foundation, Inc.                  *
+ #                                                                          *
+ # Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -76,6 +76,9 @@
+ rm -f $sorted $temp $unsorted
+ 
+ cat $caps | sed -n "\
++/^#%.TS/i.na
++/^#%.TE/a\
++.ad
+ /%%-STOP-HERE-%%/q
+ /^#%center/s, expand,,
+ /^#%lw25/s, lw6 , lw7 ,
+@@ -84,7 +87,6 @@
+ s/[	][	]*/	/g
+ s/$/T}/
+ s/	[A-Z0-9_()\-][A-Z0-9_()\-]*	[0-9\-][0-9\-]*	[Y\-][B\-][C\-][G\-][EK\-]\**	/	T{\\
+-.ad l\
+ /
+ s/	bool	/	/p
+ s/	num	/	/p
+@@ -116,7 +118,7 @@
+ done <$unsorted
+ test $saved = yes && sort $temp >>$sorted
+ 
+-sed -e 's/^\.\.$//' $sorted | tr "\005\006" "\012\134"
++sed -e 's/^\.\.$//' $sorted | tr "\005\006" "\012\134" | sed -e '/^$/d'
+ 
+ sed	-e '/^center expand;/s, expand,,' \
+ 	-e '/^\.TS/,/^\\/s, lw[1-9][0-9]*\., l.,' \
+Index: man/infocmp.1m
+Prereq:  1.124 
+--- ncurses-6.5-20250216+/man/infocmp.1m	2025-02-15 19:37:37.000000000 +0000
++++ ncurses-6.5-20250222/man/infocmp.1m	2025-02-18 00:05:00.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: infocmp.1m,v 1.124 2025/02/15 19:37:37 tom Exp $
+-.TH @INFOCMP@ 1M 2025-02-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
++.\" $Id: infocmp.1m,v 1.126 2025/02/18 00:05:00 tom Exp $
++.TH @INFOCMP@ 1M 2025-02-17 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -111,7 +111,7 @@
+ expressions with the content of other entries by reference.
+ A
+ .I "\%term\%info entry"
+-entry comprises
++comprises
+ a list of one or more terminal type identifiers,
+ a human-readable description of the terminal type,
+ and a list of terminal
+Index: man/terminfo.tail
+Prereq:  1.156 
+--- ncurses-6.5-20250216+/man/terminfo.tail	2025-01-19 00:51:10.000000000 +0000
++++ ncurses-6.5-20250222/man/terminfo.tail	2025-02-17 23:55:31.000000000 +0000
+@@ -27,7 +27,7 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: terminfo.tail,v 1.156 2025/01/19 00:51:10 tom Exp $
++.\" $Id: terminfo.tail,v 1.157 2025/02/17 23:55:31 tom Exp $
+ .ps +1
+ .SS "User-Defined Capabilities"
+ .
+@@ -1014,7 +1014,7 @@
+ with one parameter,
+ .IR n ,
+ to delete
+-.IR n "characters,"
++.IR n " characters,"
+ and delete mode by giving \fBsmdc\fP and \fBrmdc\fP
+ to enter and exit delete mode (any mode the terminal needs to be placed
+ in for
+Index: ncurses/base/lib_addstr.c
+Prereq:  1.63 
+--- ncurses-6.5-20250216+/ncurses/base/lib_addstr.c	2024-12-07 20:00:48.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/base/lib_addstr.c	2025-02-20 08:53:36.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -45,7 +45,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_addstr.c,v 1.63 2024/12/07 20:00:48 tom Exp $")
++MODULE_ID("$Id: lib_addstr.c,v 1.65 2025/02/20 08:53:36 tom Exp $")
+ 
+ NCURSES_EXPORT(int)
+ waddnstr(WINDOW *win, const char *astr, int n)
+@@ -55,8 +55,8 @@
+ 
+     T((T_CALLED("waddnstr(%p,%s,%d)"), (void *) win, _nc_visbufn(astr, n), n));
+ 
+-    if (win && (str != NULL) && (n != 0)) {
+-	bool explicit = (n > 0);
++    if (win != NULL && str != NULL) {
++	bool explicit = (n >= 0);
+ 
+ 	TR(TRACE_VIRTPUT | TRACE_ATTRS,
+ 	   ("... current %s", _traceattr(WINDOW_ATTRS(win))));
+@@ -230,8 +230,8 @@
+ 
+     T((T_CALLED("waddnwstr(%p,%s,%d)"), (void *) win, _nc_viswbufn(str, n), n));
+ 
+-    if (win && (str != NULL) && (n != 0)) {
+-	bool explicit = (n > 0);
++    if (win != NULL && str != NULL) {
++	bool explicit = (n >= 0);
+ 
+ 	TR(TRACE_VIRTPUT | TRACE_ATTRS,
+ 	   ("... current %s", _traceattr(WINDOW_ATTRS(win))));
+Index: ncurses/base/lib_driver.c
+Prereq:  1.10 
+--- ncurses-6.5-20250216+/ncurses/base/lib_driver.c	2024-12-14 22:31:35.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/base/lib_driver.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2009-2012,2014 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -34,7 +34,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_driver.c,v 1.10 2024/12/14 22:31:35 tom Exp $")
++MODULE_ID("$Id: lib_driver.c,v 1.11 2025/02/20 01:02:09 tom Exp $")
+ 
+ #ifndef EXP_WIN32_DRIVER
+ typedef struct DriverEntry {
+@@ -61,7 +61,7 @@
+     T((T_CALLED("_nc_get_driver(%p, %s, %p)"),
+        (void *) TCB, NonNull(name), (void *) errret));
+ 
+-    assert(TCB != 0);
++    assert(TCB != NULL);
+ 
+     for (i = 0; i < SIZEOF(DriverTable); i++) {
+ 	res = DriverTable[i].driver;
+Index: ncurses/base/lib_newterm.c
+Prereq:  1.107 
+--- ncurses-6.5-20250216+/ncurses/base/lib_newterm.c	2024-12-07 17:41:36.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/base/lib_newterm.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -49,7 +49,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: lib_newterm.c,v 1.107 2024/12/07 17:41:36 tom Exp $")
++MODULE_ID("$Id: lib_newterm.c,v 1.108 2025/02/20 01:02:09 tom Exp $")
+ 
+ #ifdef USE_TERM_DRIVER
+ #define NumLabels      InfoOf(SP_PARM).numlabels
+@@ -190,7 +190,7 @@
+        (void *) ifp));
+ 
+ #if NCURSES_SP_FUNCS
+-    assert(SP_PARM != 0);
++    assert(SP_PARM != NULL);
+     if (SP_PARM == NULL)
+ 	returnSP(SP_PARM);
+ #endif
+@@ -216,7 +216,7 @@
+ 
+ 	_nc_set_screen(NULL);
+ #ifdef USE_TERM_DRIVER
+-	assert(new_term != 0);
++	assert(new_term != NULL);
+ #endif
+ 
+ #if NCURSES_SP_FUNCS
+@@ -251,7 +251,7 @@
+ #elif !NCURSES_SP_FUNCS
+ 	    _nc_set_screen(CURRENT_SCREEN);
+ #endif
+-	    assert(SP_PARM != 0);
++	    assert(SP_PARM != NULL);
+ 	    cols = *(ptrCols(SP_PARM));
+ #ifdef USE_TERM_DRIVER
+ 	    _nc_set_screen(SP_PARM);
+Index: ncurses/base/safe_sprintf.c
+Prereq:  1.38 
+--- ncurses-6.5-20250216+/ncurses/base/safe_sprintf.c	2024-07-27 19:22:23.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/base/safe_sprintf.c	2025-02-20 01:07:05.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2013 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -34,7 +34,7 @@
+ #include <curses.priv.h>
+ #include <ctype.h>
+ 
+-MODULE_ID("$Id: safe_sprintf.c,v 1.38 2024/07/27 19:22:23 tom Exp $")
++MODULE_ID("$Id: safe_sprintf.c,v 1.39 2025/02/20 01:07:05 tom Exp $")
+ 
+ #if USE_SAFE_SPRINTF
+ 
+@@ -60,12 +60,12 @@
+     size_t fmt_len;
+     char fmt_arg[BUFSIZ];
+ 
+-    if (fmt == 0 || *fmt == '\0')
++    if (fmt == NULL || *fmt == '\0')
+ 	return 0;
+     fmt_len = strlen(fmt) + 1;
+-    if ((format = typeMalloc(char, fmt_len)) == 0)
++    if ((format = typeMalloc(char, fmt_len)) == NULL)
+ 	  return -1;
+-    if ((buffer = typeMalloc(char, length)) == 0) {
++    if ((buffer = typeMalloc(char, length)) == NULL) {
+ 	free(format);
+ 	return -1;
+     }
+@@ -114,7 +114,7 @@
+ 				_nc_SLIMIT(sizeof(fmt_arg))
+ 				"%d", ival);
+ 		    fmt_len += strlen(fmt_arg);
+-		    if ((format = _nc_doalloc(format, fmt_len)) == 0) {
++		    if ((format = _nc_doalloc(format, fmt_len)) == NULL) {
+ 			free(buffer);
+ 			return -1;
+ 		    }
+@@ -162,7 +162,7 @@
+ 			if (prec > (int) length) {
+ 			    length = length + (size_t) prec;
+ 			    buffer = typeRealloc(char, length, buffer);
+-			    if (buffer == 0) {
++			    if (buffer == NULL) {
+ 				free(format);
+ 				return -1;
+ 			    }
+Index: ncurses/base/vsscanf.c
+Prereq:  1.22 
+--- ncurses-6.5-20250216+/ncurses/base/vsscanf.c	2023-09-23 18:48:57.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/base/vsscanf.c	2025-02-20 01:08:11.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2023 Thomas E. Dickey                                     *
++ * Copyright 2020-2023,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2004,2012 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -39,7 +39,7 @@
+ 
+ #if !HAVE_VSSCANF
+ 
+-MODULE_ID("$Id: vsscanf.c,v 1.22 2023/09/23 18:48:57 tom Exp $")
++MODULE_ID("$Id: vsscanf.c,v 1.23 2025/02/20 01:08:11 tom Exp $")
+ 
+ #if !(HAVE_VFSCANF || HAVE__DOSCAN)
+ 
+@@ -215,7 +215,7 @@
+ 	int eaten;
+ 	void *pointer;
+ 
+-	if (my_fmt != 0) {
++	if (my_fmt != NULL) {
+ 	    /*
+ 	     * Split the original format into chunks, adding a "%n" to the end
+ 	     * of each (except of course if it used %n), and use that
+@@ -229,7 +229,7 @@
+ 		state = sUnknown;
+ 		chunk = cUnknown;
+ 		other = oUnknown;
+-		pointer = 0;
++		pointer = NULL;
+ 		for (n = 0; format[n] != 0 && state != sFinal; ++n) {
+ 		    my_fmt[n] = format[n];
+ 		    switch (state) {
+Index: ncurses/report_hashing.c
+Prereq:  1.3 
+--- ncurses-6.5-20250216+/ncurses/report_hashing.c	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/report_hashing.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020 Thomas E. Dickey                                          *
++ * Copyright 2020,2025 Thomas E. Dickey                                     *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -33,7 +33,7 @@
+ #include <curses.priv.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: report_hashing.c,v 1.3 2020/02/02 23:34:34 tom Exp $")
++MODULE_ID("$Id: report_hashing.c,v 1.4 2025/02/20 01:02:09 tom Exp $")
+ 
+ static void
+ check_names(const char *name, NCURSES_CONST char *const *table, int termcap)
+@@ -46,7 +46,7 @@
+     printf("%s:\n", name);
+     for (n = 0; table[n] != NULL; ++n) {
+ 	entry_ptr = _nc_find_entry(table[n], hash_table);
+-	if (entry_ptr == 0) {
++	if (entry_ptr == NULL) {
+ 	    printf("  %s\n", table[n]);
+ 	    errs++;
+ 	}
+Index: ncurses/tinfo/access.c
+Prereq:  1.41 
+--- ncurses-6.5-20250216+/ncurses/tinfo/access.c	2024-12-07 18:05:04.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/access.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2011,2012 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -52,7 +52,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: access.c,v 1.41 2024/12/07 18:05:04 tom Exp $")
++MODULE_ID("$Id: access.c,v 1.42 2025/02/20 01:02:09 tom Exp $")
+ 
+ #define LOWERCASE(c) ((isalpha(UChar(c)) && isupper(UChar(c))) ? tolower(UChar(c)) : (c))
+ 
+@@ -78,7 +78,7 @@
+     }
+ #endif
+ #if defined(PROG_EXT)
+-    if ((s = strrchr(result, '.')) != 0) {
++    if ((s = strrchr(result, '.')) != NULL) {
+ 	if (!strcmp(s, PROG_EXT))
+ 	    *s = '\0';
+     }
+@@ -94,7 +94,7 @@
+ _nc_is_abs_path(const char *path)
+ {
+ #if defined(__EMX__) || defined(__DJGPP__)
+-#define is_pathname(s) ((((s) != 0) && ((s)[0] == '/')) \
++#define is_pathname(s) ((((s) != NULL) && ((s)[0] == '/')) \
+ 		  || (((s)[0] != 0) && ((s)[1] == ':')))
+ #else
+ #define is_pathname(s) ((s) != NULL && (s)[0] == '/')
+@@ -110,7 +110,7 @@
+ {
+     const char *test = strrchr(path, '/');
+ #ifdef __EMX__
+-    if (test == 0)
++    if (test == NULL)
+ 	test = strrchr(path, '\\');
+ #endif
+     if (test == NULL)
+Index: ncurses/tinfo/captoinfo.c
+Prereq:  1.107 
+--- ncurses-6.5-20250216+/ncurses/tinfo/captoinfo.c	2025-02-15 15:31:16.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/captoinfo.c	2025-02-20 00:48:11.000000000 +0000
+@@ -98,7 +98,7 @@
+ #include <ctype.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: captoinfo.c,v 1.107 2025/02/15 15:31:16 tom Exp $")
++MODULE_ID("$Id: captoinfo.c,v 1.108 2025/02/20 00:48:11 tom Exp $")
+ 
+ #if 0
+ #define DEBUG_THIS(p) DEBUG(9, p)
+@@ -980,7 +980,7 @@
+ 	 * 'str' always points to the end of what was scanned in this step,
+ 	 * but that may not be the end of the string.
+ 	 */
+-	assert(str != 0);
++	assert(str != NULL);
+ 	if (str == NULL || *str == '\0')
+ 	    break;
+ 
+Index: ncurses/tinfo/getenv_num.c
+Prereq:  1.10 
+--- ncurses-6.5-20250216+/ncurses/tinfo/getenv_num.c	2024-12-07 18:14:49.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/getenv_num.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2013 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -37,7 +37,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: getenv_num.c,v 1.10 2024/12/07 18:14:49 tom Exp $")
++MODULE_ID("$Id: getenv_num.c,v 1.11 2025/02/20 01:02:09 tom Exp $")
+ 
+ NCURSES_EXPORT(int)
+ _nc_getenv_num(const char *name)
+@@ -67,7 +67,7 @@
+ #elif HAVE_PUTENV
+ 	char *s;
+ 	_nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer)) "%s=%d", name, value);
+-	if ((s = strdup(buffer)) != 0)
++	if ((s = strdup(buffer)) != NULL)
+ 	    putenv(s);
+ #else
+ #error expected setenv/putenv functions
+Index: ncurses/tinfo/lib_data.c
+Prereq:  1.93 
+--- ncurses-6.5-20250216+/ncurses/tinfo/lib_data.c	2024-12-21 20:27:36.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/lib_data.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -43,7 +43,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_data.c,v 1.93 2024/12/21 20:27:36 tom Exp $")
++MODULE_ID("$Id: lib_data.c,v 1.94 2025/02/20 01:02:09 tom Exp $")
+ 
+ /*
+  * OS/2's native linker complains if we don't initialize public data when
+@@ -97,7 +97,7 @@
+ {
+     my_screen = _nc_alloc_screen_sp();
+     T(("_nc_alloc_screen_sp %p", my_screen));
+-    return (my_screen != 0);
++    return (my_screen != NULL);
+ }
+ 
+ NCURSES_EXPORT(void)
+Index: ncurses/tinfo/lib_setup.c
+Prereq:  1.249 
+--- ncurses-6.5-20250216+/ncurses/tinfo/lib_setup.c	2025-01-18 14:47:35.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/lib_setup.c	2025-02-20 01:31:35.000000000 +0000
+@@ -49,7 +49,7 @@
+ #include <locale.h>
+ #endif
+ 
+-MODULE_ID("$Id: lib_setup.c,v 1.249 2025/01/18 14:47:35 tom Exp $")
++MODULE_ID("$Id: lib_setup.c,v 1.250 2025/02/20 01:31:35 tom Exp $")
+ 
+ /****************************************************************************
+  *
+@@ -120,7 +120,7 @@
+ 	}
+     }
+ #else
+-    if (cur_term != 0) {
++    if (cur_term != NULL) {
+ 	result = TerminalType(cur_term).term_names;
+     }
+ #endif
+@@ -468,7 +468,7 @@
+     TERMINAL_CONTROL_BLOCK *TCB;
+     int my_tabsize;
+ 
+-    assert(termp != 0 && linep != 0 && colp != 0);
++    assert(termp != NULL && linep != NULL && colp != NULL);
+     TCB = (TERMINAL_CONTROL_BLOCK *) termp;
+ 
+     my_tabsize = TCB->info.tabsize;
+@@ -627,7 +627,7 @@
+     int old_lines;
+     int old_cols;
+ 
+-    assert(sp != 0);
++    assert(sp != NULL);
+ 
+     CallDriver_2(sp, td_getsize, &old_lines, &old_cols);
+ 
+@@ -767,8 +767,8 @@
+ 	T(("_nc_unicode_locale(%s) ->%d", env, result));
+ #else
+ 	char *env = _nc_get_locale();
+-	if (env != 0) {
+-	    if (strstr(env, ".UTF-8") != 0) {
++	if (env != NULL) {
++	    if (strstr(env, ".UTF-8") != NULL) {
+ 		result = TRUE;
+ 		T(("_nc_unicode_locale(%s) ->%d", env, result));
+ 	    }
+Index: ncurses/tinfo/obsolete.c
+Prereq:  1.12 
+--- ncurses-6.5-20250216+/ncurses/tinfo/obsolete.c	2024-12-07 21:24:18.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/obsolete.c	2025-02-20 01:12:11.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2013-2014,2016 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -37,7 +37,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: obsolete.c,v 1.12 2024/12/07 21:24:18 tom Exp $")
++MODULE_ID("$Id: obsolete.c,v 1.13 2025/02/20 01:12:11 tom Exp $")
+ 
+ /*
+  * Obsolete entrypoint retained for binary compatibility.
+@@ -64,11 +64,11 @@
+ NCURSES_EXPORT(char *)
+ _nc_strdup(const char *s)
+ {
+-    char *result = 0;
+-    if (s != 0) {
++    char *result = NULL;
++    if (s != NULL) {
+ 	size_t need = strlen(s);
+ 	result = malloc(need + 1);
+-	if (result != 0) {
++	if (result != NULL) {
+ 	    _nc_STRCPY(result, s, need);
+ 	}
+     }
+Index: ncurses/tinfo/parse_entry.c
+Prereq:  1.113 
+--- ncurses-6.5-20250216+/ncurses/tinfo/parse_entry.c	2025-01-11 20:19:34.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/parse_entry.c	2025-02-20 09:11:49.000000000 +0000
+@@ -48,7 +48,7 @@
+ #include <ctype.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: parse_entry.c,v 1.113 2025/01/11 20:19:34 tom Exp $")
++MODULE_ID("$Id: parse_entry.c,v 1.115 2025/02/20 09:11:49 tom Exp $")
+ 
+ #ifdef LINT
+ static short const parametrized[] =
+@@ -492,8 +492,8 @@
+ 		 */
+ 		if (!strcmp("ma", _nc_curr_token.tk_name)) {
+ 		    entry_ptr = _nc_find_type_entry("ma", NUMBER,
+-						    _nc_syntax != 0);
+-		    assert(entry_ptr != 0);
++						    _nc_syntax != SYN_TERMINFO);
++		    assert(entry_ptr != NULL);
+ 		}
+ 	    } else if (entry_ptr->nte_type != token_type) {
+ 		/*
+@@ -510,15 +510,15 @@
+ 		    && !strcmp("ma", _nc_curr_token.tk_name)) {
+ 		    /* tell max_attributes from arrow_key_map */
+ 		    entry_ptr = _nc_find_type_entry("ma", NUMBER,
+-						    _nc_syntax != 0);
+-		    assert(entry_ptr != 0);
++						    _nc_syntax != SYN_TERMINFO);
++		    assert(entry_ptr != NULL);
+ 
+ 		} else if (token_type == STRING
+ 			   && !strcmp("MT", _nc_curr_token.tk_name)) {
+ 		    /* map terminfo's string MT to MT */
+ 		    entry_ptr = _nc_find_type_entry("MT", STRING,
+-						    _nc_syntax != 0);
+-		    assert(entry_ptr != 0);
++						    _nc_syntax != SYN_TERMINFO);
++		    assert(entry_ptr != NULL);
+ 
+ 		} else if (token_type == BOOLEAN
+ 			   && entry_ptr->nte_type == STRING) {
+Index: ncurses/tinfo/read_termcap.c
+Prereq:  1.105 
+--- ncurses-6.5-20250216+/ncurses/tinfo/read_termcap.c	2025-01-12 00:42:58.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/read_termcap.c	2025-02-20 01:27:42.000000000 +0000
+@@ -57,7 +57,7 @@
+ #include <sys/types.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: read_termcap.c,v 1.105 2025/01/12 00:42:58 tom Exp $")
++MODULE_ID("$Id: read_termcap.c,v 1.106 2025/02/20 01:27:42 tom Exp $")
+ 
+ #if !PURE_TERMINFO
+ 
+@@ -275,7 +275,7 @@
+ {
+     register char *r_end, *rp;
+     int myfd = FALSE;
+-    char *record = 0;
++    char *record = NULL;
+     int tc_not_resolved;
+     int current;
+     int lineno;
+@@ -291,7 +291,7 @@
+      * Check if we have a top record from cgetset().
+      */
+     if (depth == 0 && toprec != 0 && _nc_cgetmatch(toprec, name) == 0) {
+-	if ((record = DOALLOC(topreclen + BFRAG)) == 0) {
++	if ((record = DOALLOC(topreclen + BFRAG)) == NULL) {
+ 	    errno = ENOMEM;
+ 	    return (TC_SYS_ERR);
+ 	}
+@@ -305,7 +305,7 @@
+ 	/*
+ 	 * Allocate first chunk of memory.
+ 	 */
+-	if ((record = DOALLOC(BFRAG)) == 0) {
++	if ((record = DOALLOC(BFRAG)) == NULL) {
+ 	    errno = ENOMEM;
+ 	    return (TC_SYS_ERR);
+ 	}
+@@ -315,7 +315,7 @@
+ 	/*
+ 	 * Loop through database array until finding the record.
+ 	 */
+-	for (current = in_array; db_array[current] != 0; current++) {
++	for (current = in_array; db_array[current] != NULL; current++) {
+ 	    int eof = FALSE;
+ 
+ 	    /*
+@@ -408,7 +408,7 @@
+ 			    pos = (unsigned) (rp - record);
+ 			    newsize = (size_t) (r_end - record + BFRAG);
+ 			    record = DOALLOC(newsize);
+-			    if (record == 0) {
++			    if (record == NULL) {
+ 				if (myfd)
+ 				    (void) close(fd);
+ 				errno = ENOMEM;
+@@ -464,7 +464,7 @@
+ 	register int newilen;
+ 	unsigned ilen;
+ 	int diff, iret, tclen, oline;
+-	char *icap = 0, *scan, *tc, *tcstart, *tcend;
++	char *icap = NULL, *scan, *tc, *tcstart, *tcend;
+ 
+ 	/*
+ 	 * Loop invariants:
+@@ -477,7 +477,7 @@
+ 	scan = record;
+ 	tc_not_resolved = FALSE;
+ 	for (;;) {
+-	    if ((tc = _nc_cgetcap(scan, "tc", '=')) == 0) {
++	    if ((tc = _nc_cgetcap(scan, "tc", '=')) == NULL) {
+ 		break;
+ 	    }
+ 
+@@ -548,7 +548,7 @@
+ 		tcpos = (unsigned) (tcstart - record);
+ 		tcposend = (unsigned) (tcend - record);
+ 		record = DOALLOC(newsize);
+-		if (record == 0) {
++		if (record == NULL) {
+ 		    if (myfd)
+ 			(void) close(fd);
+ 		    free(icap);
+@@ -586,7 +586,7 @@
+ 	(void) close(fd);
+     *len = (unsigned) (rp - record - 1);	/* don't count NUL */
+     if (r_end > rp) {
+-	if ((record = DOALLOC((size_t) (rp - record))) == 0) {
++	if ((record = DOALLOC((size_t) (rp - record))) == NULL) {
+ 	    errno = ENOMEM;
+ 	    return (TC_SYS_ERR);
+ 	}
+@@ -920,7 +920,7 @@
+ 	if ((the_source = strdup(temp)) != NULL)
+ 	    *sourcename = the_source;
+ #else
+-	if ((the_source = strdup(pathvec[i])) != 0)
++        if ((the_source = strdup(pathvec[i])) != NULL)
+ 	    *sourcename = the_source;
+ #endif
+     }
+@@ -941,7 +941,7 @@
+ add_tc(char *termpaths[], char *path, int count)
+ {
+     char *save = strchr(path, NCURSES_PATHSEP);
+-    if (save != 0)
++    if (save != NULL)
+ 	*save = '\0';
+     if (count < MAXPATHS
+ 	&& _nc_access(path, R_OK) == 0) {
+@@ -949,7 +949,7 @@
+ 	TR(TRACE_DATABASE, ("Adding termpath %s", path));
+     }
+     termpaths[count] = 0;
+-    if (save != 0)
++    if (save != NULL)
+ 	*save = NCURSES_PATHSEP;
+     return count;
+ }
+@@ -1034,20 +1034,20 @@
+     int j, k;
+     bool use_buffer = FALSE;
+     bool normal = TRUE;
+-    char *tc_buf = 0;
++    char *tc_buf = NULL;
+     char pathbuf[PATH_MAX];
+-    char *copied = 0;
++    char *copied = NULL;
+     char *cp;
+     struct stat test_stat[MAXPATHS];
+ 
+-    termpaths[filecount] = 0;
+-    if (use_terminfo_vars() && (tc = getenv("TERMCAP")) != 0) {
++    termpaths[filecount] = NULL;
++    if (use_terminfo_vars() && (tc = getenv("TERMCAP")) != NULL) {
+ 	if (_nc_is_abs_path(tc)) {	/* interpret as a filename */
+ 	    ADD_TC(tc, 0);
+ 	    normal = FALSE;
+ 	} else if (_nc_name_match(tc, tn, "|:")) {	/* treat as a capability file */
+ 	    tc_buf = strdup(tc);
+-	    use_buffer = (tc_buf != 0);
++	    use_buffer = (tc_buf != NULL);
+ 	    normal = FALSE;
+ 	}
+     }
+@@ -1055,7 +1055,7 @@
+     if (normal) {		/* normal case */
+ 	char envhome[PATH_MAX], *h;
+ 
+-	if ((copied = strdup(get_termpath())) != 0) {
++	if ((copied = strdup(get_termpath())) != NULL) {
+ 	    for (cp = copied; *cp; cp++) {
+ 		if (*cp == NCURSES_PATHSEP)
+ 		    *cp = '\0';
+@@ -1140,7 +1140,7 @@
+ 	    }
+ 	}
+     }
+-    if (copied != 0)
++    if (copied != NULL)
+ 	free(copied);
+ #endif /* USE_GETCAP */
+ 
+@@ -1153,7 +1153,7 @@
+ 
+     /* find a terminal matching tn, if we can */
+ #if USE_GETCAP_CACHE
+-    if (getcwd(cwd_buf, sizeof(cwd_buf)) != 0) {
++    if (getcwd(cwd_buf, sizeof(cwd_buf)) != NULL) {
+ 	_nc_set_writedir((char *) 0);	/* note: this does a chdir */
+ #endif
+ 	for_entry_list(ep) {
+Index: ncurses/tinfo/tinfo_driver.c
+Prereq:  1.78 
+--- ncurses-6.5-20250216+/ncurses/tinfo/tinfo_driver.c	2025-01-18 14:47:35.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/tinfo/tinfo_driver.c	2025-02-20 01:30:20.000000000 +0000
+@@ -52,7 +52,7 @@
+ # endif
+ #endif
+ 
+-MODULE_ID("$Id: tinfo_driver.c,v 1.78 2025/01/18 14:47:35 tom Exp $")
++MODULE_ID("$Id: tinfo_driver.c,v 1.79 2025/02/20 01:30:20 tom Exp $")
+ 
+ /*
+  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
+@@ -94,8 +94,8 @@
+ #endif
+ 
+ #define TCBMAGIC NCDRV_MAGIC(NCDRV_TINFO)
+-#define AssertTCB() assert(TCB!=0 && TCB->magic==TCBMAGIC)
+-#define SetSP() assert(TCB->csp!=0); sp = TCB->csp; (void) sp
++#define AssertTCB() assert(TCB != NULL && TCB->magic == TCBMAGIC)
++#define SetSP() assert(TCB->csp != NULL); sp = TCB->csp; (void) sp
+ 
+ /*
+  * This routine needs to do all the work to make curscr look
+@@ -163,7 +163,7 @@
+     START_TRACE();
+     T((T_CALLED("tinfo::drv_CanHandle(%p)"), (void *) TCB));
+ 
+-    assert(TCB != 0 && tname != 0);
++    assert(TCB != NULL && tname != NULL);
+     termp = (TERMINAL *) TCB;
+     sp = TCB->csp;
+     TCB->magic = TCBMAGIC;
+@@ -545,7 +545,7 @@
+ drv_getsize(TERMINAL_CONTROL_BLOCK * TCB, int *l, int *c)
+ {
+     AssertTCB();
+-    assert(l != 0 && c != 0);
++    assert(l != NULL && c != NULL);
+     *l = lines;
+     *c = columns;
+     return OK;
+@@ -1076,7 +1076,7 @@
+     SCREEN *sp = TCB->csp;
+ 
+     AssertTCB();
+-    assert(sp != 0);
++    assert(sp != NULL);
+     if (ena_acs != NULL) {
+ 	NCURSES_PUTP2("ena_acs", ena_acs);
+     }
+@@ -1516,12 +1516,12 @@
+     int code = ERR;
+     size_t i;
+     TERM_DRIVER *res = (TERM_DRIVER *) 0;
+-    TERM_DRIVER *use = 0;
++    TERM_DRIVER *use = NULL;
+ 
+     T((T_CALLED("_nc_get_driver(%p, %s, %p)"),
+        (void *) TCB, NonNull(name), (void *) errret));
+ 
+-    assert(TCB != 0);
++    assert(TCB != NULL);
+ 
+     for (i = 0; i < SIZEOF(DriverTable); i++) {
+ 	res = DriverTable[i].driver;
+@@ -1532,7 +1532,7 @@
+ 	       If on Windows td_CanHandle returned FALSE although the terminal
+ 	       name is empty, we default to ms-terminal as tinfo TERM type.
+ 	     */
+-	    if (name == 0 || *name == 0 || (strcmp(name, "unknown") == 0)) {
++	    if (name == NULL || *name == 0 || (strcmp(name, "unknown") == 0)) {
+ 		name = MS_TERMINAL;
+ 		T(("Set TERM=%s", name));
+ 	    }
+Index: ncurses/trace/lib_tracebits.c
+Prereq:  1.33 
+--- ncurses-6.5-20250216+/ncurses/trace/lib_tracebits.c	2024-12-21 16:39:29.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/trace/lib_tracebits.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2015 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -35,7 +35,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_tracebits.c,v 1.33 2024/12/21 16:39:29 tom Exp $")
++MODULE_ID("$Id: lib_tracebits.c,v 1.34 2025/02/20 01:02:09 tom Exp $")
+ 
+ #if HAVE_SYS_TERMIO_H
+ #include <sys/termio.h>		/* needed for ISC */
+@@ -244,7 +244,7 @@
+     buf = _nc_trace_buf(0,
+ 			8 + sizeof(dwFlagsOut) +
+ 			8 + sizeof(dwFlagsIn));
+-    if (buf != 0) {
++    if (buf != NULL) {
+ 	lookup_bits(buf, dwFlagsIn, "dwIn", tty->dwFlagIn);
+ 	lookup_bits(buf, dwFlagsOut, "dwOut", tty->dwFlagOut);
+     }
+@@ -284,7 +284,7 @@
+ 
+     buf = _nc_trace_buf(0,
+ 			8 + sizeof(cflags));
+-    if (buf != 0) {
++    if (buf != NULL) {
+ 	if (tty->sg_flags & ALLCTRL) {
+ 	    lookup_bits(buf, cflags, "cflags", tty->sg_flags);
+ 	}
+Index: ncurses/widechar/lib_ins_wch.c
+Prereq:  1.31 
+--- ncurses-6.5-20250216+/ncurses/widechar/lib_ins_wch.c	2024-12-07 18:03:14.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/widechar/lib_ins_wch.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -40,7 +40,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_ins_wch.c,v 1.31 2024/12/07 18:03:14 tom Exp $")
++MODULE_ID("$Id: lib_ins_wch.c,v 1.32 2025/02/20 01:02:09 tom Exp $")
+ 
+ /*
+  * Insert the given character, updating the current location to simplify
+@@ -109,8 +109,7 @@
+        (void *) win, _nc_viswbufn(wstr, n), n));
+ 
+     if (win != NULL
+-	&& wstr != NULL
+-	&& n != 0) {
++	&& wstr != NULL) {
+ 
+ 	if (n < 0) {
+ 	    n = INT_MAX;
+Index: ncurses/widechar/widechars.c
+Prereq:  1.10 
+--- ncurses-6.5-20250216+/ncurses/widechar/widechars.c	2024-08-31 15:55:27.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/widechar/widechars.c	2025-02-20 01:02:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2012,2013 Free Software Foundation, Inc.                       *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -31,7 +31,7 @@
+ 
+ #if USE_WIDEC_SUPPORT
+ 
+-MODULE_ID("$Id: widechars.c,v 1.10 2024/08/31 15:55:27 tom Exp $")
++MODULE_ID("$Id: widechars.c,v 1.11 2025/02/20 01:02:09 tom Exp $")
+ 
+ #if defined(_NC_MINGW)
+ /*
+@@ -45,7 +45,7 @@
+     int count;
+     int try;
+ 
+-    if (s != 0 && n != 0) {
++    if (s != NULL && n != 0) {
+ 	/*
+ 	 * MultiByteToWideChar() can decide to return more than one
+ 	 * wide-character.  We want only one.  Ignore any trailing null, both
+@@ -96,7 +96,7 @@
+     int count;
+     wchar_t temp;
+ 
+-    if (s != 0 && n != 0) {
++    if (s != NULL && n != 0) {
+ 	count = _nc_mbtowc(&temp, s, n);
+ 	if (count == 1) {
+ 	    int check = WideCharToMultiByte(CP_UTF8,
+Index: ncurses/win32con/win32_driver.c
+Prereq:  1.4 
+--- ncurses-6.5-20250216+/ncurses/win32con/win32_driver.c	2023-09-16 16:29:24.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/win32con/win32_driver.c	2025-02-20 01:15:57.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
+  * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -48,18 +48,18 @@
+ 
+ #define CUR TerminalType(my_term).
+ 
+-MODULE_ID("$Id: win32_driver.c,v 1.4 2023/09/16 16:29:24 tom Exp $")
++MODULE_ID("$Id: win32_driver.c,v 1.5 2025/02/20 01:15:57 tom Exp $")
+ 
+ #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
+ #define EXP_OPTIMIZE 0
+ 
+ static bool console_initialized = FALSE;
+ 
+-#define AssertTCB() assert(TCB != 0 && (TCB->magic == WINMAGIC))
++#define AssertTCB() assert(TCB != NULL && (TCB->magic == WINMAGIC))
+ #define validateConsoleHandle() (AssertTCB() , console_initialized ||\
+                                  (console_initialized=\
+                                   _nc_console_checkinit(TRUE,FALSE)))
+-#define SetSP() assert(TCB->csp != 0); sp = TCB->csp; (void) sp
++#define SetSP() assert(TCB->csp != NULL); sp = TCB->csp; (void) sp
+ #define AdjustY() (WINCONSOLE.buffered ?\
+                    0 : (int) WINCONSOLE.SBI.srWindow.Top)
+ #define RevAttr(attr) (WORD) (((attr) & 0xff00) |   \
+@@ -422,7 +422,7 @@
+ 	    };
+ 
+ 	    for (x = 0; x < Width; x++)
+-		setcchar(&empty[x], blank, 0, 0, 0);
++		setcchar(&empty[x], blank, 0, 0, NULL);
+ #else
+ 	    chtype *empty = TypeAlloca(chtype, Width);
+ 
+@@ -530,11 +530,11 @@
+ 
+     T((T_CALLED("win32con::wcon_CanHandle(%p)"), TCB));
+ 
+-    assert((TCB != 0) && (tname != 0));
++    assert((TCB != NULL) && (tname != NULL));
+ 
+     TCB->magic = WINMAGIC;
+ 
+-    if (tname == 0 || *tname == 0) {
++    if (tname == NULL || *tname == 0) {
+ 	if (!_nc_console_vt_supported())
+ 	    code = TRUE;
+     } else if (tname != 0 && *tname == '#') {
+@@ -551,7 +551,7 @@
+ 		|| (strncmp(tname + 1, "win32con", n) == 0))) {
+ 	    code = TRUE;
+ 	}
+-    } else if (tname != 0 && stricmp(tname, "unknown") == 0) {
++    } else if (tname != NULL && stricmp(tname, "unknown") == 0) {
+ 	code = TRUE;
+     }
+ 
+@@ -1059,7 +1059,7 @@
+ 	for (n = 0; n < SIZEOF(table); ++n) {
+ 	    real_map[table[n].acs_code] =
+ 		(chtype) table[n].use_code | A_ALTCHARSET;
+-	    if (sp != 0)
++	    if (sp != NULL)
+ 		sp->_screen_acs_map[table[n].acs_code] = TRUE;
+ 	}
+     }
+Index: ncurses/win32con/win_driver.c
+Prereq:  1.76 
+--- ncurses-6.5-20250216+/ncurses/win32con/win_driver.c	2024-11-28 00:17:49.000000000 +0000
++++ ncurses-6.5-20250222/ncurses/win32con/win_driver.c	2025-02-20 01:19:43.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -57,7 +57,7 @@
+ 
+ #define CONTROL_PRESSED (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)
+ 
+-MODULE_ID("$Id: win_driver.c,v 1.76 2024/11/28 00:17:49 tom Exp $")
++MODULE_ID("$Id: win_driver.c,v 1.77 2025/02/20 01:19:43 tom Exp $")
+ 
+ #define TypeAlloca(type,count) (type*) _alloca(sizeof(type) * (size_t) (count))
+ 
+@@ -70,8 +70,8 @@
+ static bool InitConsole(void);
+ static bool okConsoleHandle(TERMINAL_CONTROL_BLOCK *);
+ 
+-#define AssertTCB() assert(TCB != 0 && (TCB->magic == WINMAGIC))
+-#define SetSP()     assert(TCB->csp != 0); sp = TCB->csp; (void) sp
++#define AssertTCB() assert(TCB != NULL && (TCB->magic == WINMAGIC))
++#define SetSP()     assert(TCB->csp != NULL); sp = TCB->csp; (void) sp
+ 
+ #define GenMap(vKey,key) MAKELONG(key, vKey)
+ 
+@@ -519,7 +519,7 @@
+ 	    };
+ 
+ 	    for (x = 0; x < Width; x++)
+-		setcchar(&empty[x], blank, 0, 0, 0);
++		setcchar(&empty[x], blank, 0, 0, NULL);
+ #else
+ 	    chtype *empty = TypeAlloca(chtype, Width);
+ 
+@@ -629,13 +629,13 @@
+ 
+     T((T_CALLED("win32con::wcon_CanHandle(%p)"), TCB));
+ 
+-    assert((TCB != 0) && (tname != 0));
++    assert((TCB != NULL) && (tname != NULL));
+ 
+     TCB->magic = WINMAGIC;
+ 
+-    if (tname == 0 || *tname == 0)
++    if (tname == NULL || *tname == 0)
+ 	code = TRUE;
+-    else if (tname != 0 && *tname == '#') {
++    else if (tname != NULL && *tname == '#') {
+ 	/*
+ 	 * Use "#" (a character which cannot begin a terminal's name) to
+ 	 * select specific driver from the table.
+@@ -649,7 +649,7 @@
+ 		|| (strncmp(tname + 1, "win32con", n) == 0))) {
+ 	    code = TRUE;
+ 	}
+-    } else if (tname != 0 && stricmp(tname, "unknown") == 0) {
++    } else if (tname != NULL && stricmp(tname, "unknown") == 0) {
+ 	code = TRUE;
+     } else if (SysISATTY(TCB->term.Filedes)) {
+ 	code = TRUE;
+@@ -1173,7 +1173,7 @@
+ 
+     want = (size_t) (CON.save_size.X * CON.save_size.Y);
+ 
+-    if ((CON.save_screen = malloc(want * sizeof(CHAR_INFO))) != 0) {
++    if ((CON.save_screen = malloc(want * sizeof(CHAR_INFO))) != NULL) {
+ 	bufferCoord.X = (SHORT) (CON.window_only ? CON.SBI.srWindow.Left : 0);
+ 	bufferCoord.Y = (SHORT) (CON.window_only ? CON.SBI.srWindow.Top : 0);
+ 
+@@ -1449,7 +1449,7 @@
+ 
+ 	for (n = 0; n < SIZEOF(table); ++n) {
+ 	    real_map[table[n].acs_code] = (chtype) table[n].use_code | A_ALTCHARSET;
+-	    if (sp != 0)
++	    if (sp != NULL)
+ 		sp->_screen_acs_map[table[n].acs_code] = TRUE;
+ 	}
+     }
+@@ -2000,9 +2000,9 @@
+ 
+ #define TC_PROLOGUE(fd) \
+     SCREEN *sp;                                               \
+-    TERMINAL *term = 0;                                       \
++    TERMINAL *term = NULL;                                    \
+     int code = ERR;                                           \
+-    if (_nc_screen_chain == 0)                                \
++    if (_nc_screen_chain == NULL)                             \
+         return 0;                                             \
+     for (each_screen(sp)) {                                   \
+         if (sp->_term && (sp->_term->Filedes == fd)) {        \
+@@ -2010,7 +2010,7 @@
+             break;                                            \
+         }                                                     \
+     }                                                         \
+-    assert(term != 0)
++    assert(term != NULL)
+ 
+ int
+ _nc_mingw_tcsetattr(
+@@ -2269,7 +2269,7 @@
+ static bool
+ okConsoleHandle(TERMINAL_CONTROL_BLOCK * TCB)
+ {
+-    return ((TCB != 0) &&
++    return ((TCB != NULL) &&
+ 	    (TCB->magic == WINMAGIC) &&
+ 	    InitConsole());
+ }
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250216+/package/debian-mingw/changelog	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/package/debian-mingw/changelog	2025-02-20 09:14:10.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250216) unstable; urgency=low
++ncurses6td (6.5+20250222) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 16 Feb 2025 17:35:29 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 20 Feb 2025 04:14:10 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250216+/package/debian-mingw64/changelog	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/package/debian-mingw64/changelog	2025-02-20 09:14:10.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250216) unstable; urgency=low
++ncurses6td (6.5+20250222) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 16 Feb 2025 17:35:29 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 20 Feb 2025 04:14:10 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250216+/package/debian/changelog	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/package/debian/changelog	2025-02-20 09:14:10.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250216) unstable; urgency=low
++ncurses6td (6.5+20250222) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 16 Feb 2025 17:35:29 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Thu, 20 Feb 2025 04:14:10 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.690 
+--- ncurses-6.5-20250216+/package/mingw-ncurses.nsi	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/package/mingw-ncurses.nsi	2025-02-20 09:14:10.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.690 2025/02/16 22:35:29 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.691 2025/02/20 09:14:10 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0216"
++!define VERSION_MMDD  "0222"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250216+/package/mingw-ncurses.spec	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/package/mingw-ncurses.spec	2025-02-20 09:14:10.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250216
++Release: 20250222
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250216+/package/ncurses.spec	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/package/ncurses.spec	2025-02-20 09:14:10.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250216
++Release: 20250222
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250216+/package/ncursest.spec	2025-02-16 22:35:29.000000000 +0000
++++ ncurses-6.5-20250222/package/ncursest.spec	2025-02-20 09:14:10.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250216
++Release: 20250222
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

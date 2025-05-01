@@ -1,0 +1,428 @@
+# ncurses 6.5 - patch 20250322 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250322.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Mar 23 00:26:35 UTC 2025
+# ------------------------------------------------------------------------------
+# Ada95/src/Makefile.in             |   16 +++++++++++-----
+# NEWS                              |    8 +++++++-
+# VERSION                           |    2 +-
+# dist.mk                           |    4 ++--
+# doc/html/man/curs_outopts.3x.html |    8 ++++----
+# doc/html/man/ncurses.3x.html      |    2 +-
+# doc/html/man/terminfo.5.html      |    2 +-
+# doc/html/man/user_caps.5.html     |    8 ++++----
+# man/curs_outopts.3x               |    7 +++++--
+# man/user_caps.5                   |   16 ++++++++++++++--
+# ncurses/base/lib_mouse.c          |    5 +++--
+# package/debian-mingw/changelog    |    4 ++--
+# package/debian-mingw64/changelog  |    4 ++--
+# package/debian/changelog          |    4 ++--
+# package/mingw-ncurses.nsi         |    4 ++--
+# package/mingw-ncurses.spec        |    2 +-
+# package/ncurses.spec              |    2 +-
+# package/ncursest.spec             |    2 +-
+# 18 files changed, 64 insertions(+), 36 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/src/Makefile.in
+Prereq:  1.97 
+--- ncurses-6.5-20250315+/Ada95/src/Makefile.in	2024-08-10 18:18:44.000000000 +0000
++++ ncurses-6.5-20250322/Ada95/src/Makefile.in	2025-03-22 21:39:31.000000000 +0000
+@@ -1,5 +1,5 @@
+ ##############################################################################
+-# Copyright 2018-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1999-2016,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -29,7 +29,7 @@
+ #
+ #  Author:  Juergen Pfeifer, 1996
+ #
+-#  $Id: Makefile.in,v 1.97 2024/08/10 18:18:44 tom Exp $
++#  $Id: Makefile.in,v 1.99 2025/03/22 21:39:31 tom Exp $
+ #
+ .SUFFIXES:
+ 
+@@ -284,9 +284,11 @@
+ 	$(BUILD_DIR)/static-obj
+ 
+ @USE_GNAT_PROJECTS@$(BUILD_DIR_LIB)/$(STATIC_LIBNAME) :: \
+-@USE_GNAT_PROJECTS@		$(ABASE)-trace.adb \
+-@USE_GNAT_PROJECTS@		$(STATIC_C_OBJS) \
+ @USE_GNAT_PROJECTS@		$(STATIC_DIRS)
++@USE_GNAT_PROJECTS@$(BUILD_DIR_LIB)/$(STATIC_LIBNAME) :: \
++@USE_GNAT_PROJECTS@		$(ABASE)-trace.adb \
++@USE_GNAT_PROJECTS@		$(STATIC_C_OBJS)
++@USE_GNAT_PROJECTS@	@echo "Making $@"
+ @USE_GNAT_PROJECTS@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
+ @USE_GNAT_PROJECTS@	-rm -f $(GNAT_PROJECT)
+ @USE_GNAT_PROJECTS@	$(SHELL) $(srcdir)/library-cfg.sh static library.gpr $(CFLAGS_NORMAL) >$(GNAT_PROJECT)
+@@ -320,6 +322,7 @@
+ #NEW:BEGIN
+ #@USE_GNAT_LIBRARIES@install \
+ #@USE_GNAT_LIBRARIES@install.libs ::
++#@USE_GNAT_LIBRARIES@	@echo "Making $@"
+ #@USE_GNAT_LIBRARIES@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
+ #@USE_GNAT_LIBRARIES@	-rm -f $(GNAT_PROJECT)
+ #@USE_GNAT_LIBRARIES@	$(SHELL) $(srcdir)/library-cfg.sh static library.gpr $(CFLAGS_NORMAL) >$(GNAT_PROJECT)
+@@ -344,6 +347,7 @@
+ #NEW:BEGIN
+ #@USE_GNAT_LIBRARIES@uninstall \
+ #@USE_GNAT_LIBRARIES@uninstall.libs ::
++#@USE_GNAT_LIBRARIES@	@echo "Making $@"
+ #@USE_GNAT_LIBRARIES@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
+ #@USE_GNAT_LIBRARIES@	-rm -f $(GNAT_PROJECT)
+ #@USE_GNAT_LIBRARIES@	$(SHELL) $(srcdir)/library-cfg.sh static library.gpr $(CFLAGS_NORMAL) >$(GNAT_PROJECT)
+@@ -369,9 +373,11 @@
+ 
+ @MAKE_ADA_SHAREDLIB@all :: $(BUILD_DIR_LIB)/$(SHARED_LIBNAME)
+ @MAKE_ADA_SHAREDLIB@$(BUILD_DIR_LIB)/$(SHARED_LIBNAME) :: \
++@MAKE_ADA_SHAREDLIB@		$(SHARED_DIRS)
++@MAKE_ADA_SHAREDLIB@$(BUILD_DIR_LIB)/$(SHARED_LIBNAME) :: \
+ @MAKE_ADA_SHAREDLIB@		$(ABASE)-trace.adb \
+-@MAKE_ADA_SHAREDLIB@		$(SHARED_DIRS) \
+ @MAKE_ADA_SHAREDLIB@		$(SHARED_OBJS)
++@MAKE_ADA_SHAREDLIB@	@echo "Making $@"
+ @MAKE_ADA_SHAREDLIB@	cp $(SHARED_OBJS) $(BUILD_DIR)/dynamic-obj/
+ @MAKE_ADA_SHAREDLIB@	@cf_ada_config@gprconfig --batch --config=Ada --config=C,,,,@cf_ada_config_C@
+ @MAKE_ADA_SHAREDLIB@	-rm -f $(GNAT_PROJECT)
+Index: NEWS
+Prereq:  1.4261 
+--- ncurses-6.5-20250315+/NEWS	2025-03-15 23:56:46.000000000 +0000
++++ ncurses-6.5-20250322/NEWS	2025-03-22 23:18:22.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4261 2025/03/15 23:56:46 tom Exp $
++-- $Id: NEWS,v 1.4264 2025/03/22 23:18:22 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250322
++	+ add a null pointer check in mouse-initialization, for the
++	  experimental Windows driver (patch by Daniel Starke).
++	+ improve makefile dependency in Ada95/src
++	+ add note in user_caps.5 addressing a quibble about dates.
++
+ 20250315
+ 	+ improve formatting/style of manpages (patches by Branden Robinson).
+ 
+Index: VERSION
+--- ncurses-6.5-20250315+/VERSION	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/VERSION	2025-03-22 10:41:37.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250315
++5:0:10	6.5	20250322
+Index: dist.mk
+Prereq:  1.1660 
+--- ncurses-6.5-20250315+/dist.mk	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/dist.mk	2025-03-22 10:41:37.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1660 2025/03/15 11:18:45 tom Exp $
++# $Id: dist.mk,v 1.1661 2025/03/22 10:41:37 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250315
++NCURSES_PATCH = 20250322
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: doc/html/man/curs_outopts.3x.html
+--- ncurses-6.5-20250315+/doc/html/man/curs_outopts.3x.html	2025-03-09 00:55:54.000000000 +0000
++++ ncurses-6.5-20250322/doc/html/man/curs_outopts.3x.html	2025-03-22 22:52:51.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_outopts.3x,v 1.91 2025/03/08 23:19:30 tom Exp @
++  * @Id: curs_outopts.3x,v 1.93 2025/03/22 22:46:52 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_outopts 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_outopts 3x 2025-03-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_outopts 3x 2025-03-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_outopts 3x 2025-03-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
+ 
+@@ -199,7 +199,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-08                  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
++ncurses 6.5                       2025-03-22                  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/ncurses.3x.html
+--- ncurses-6.5-20250315+/doc/html/man/ncurses.3x.html	2025-03-15 22:08:54.000000000 +0000
++++ ncurses-6.5-20250322/doc/html/man/ncurses.3x.html	2025-03-22 22:52:53.000000000 +0000
+@@ -61,7 +61,7 @@
+        displays  with  output  optimized  to minimize screen updates.  <EM>ncurses</EM>
+        replaces the <EM>curses</EM> libraries from System V Release 4 Unix ("SVr4") and
+        4.4BSD  Unix,  the  development  of  which  ceased  in the 1990s.  This
+-       document describes <EM>ncurses</EM> version 6.5 (patch 20250315).
++       document describes <EM>ncurses</EM> version 6.5 (patch 20250322).
+ 
+        <EM>ncurses</EM> permits control of the terminal screen's contents;  abstraction
+        and  subdivision thereof with <EM>windows</EM> and <EM>pads</EM>; acquisition of keyboard
+Index: doc/html/man/terminfo.5.html
+--- ncurses-6.5-20250315+/doc/html/man/terminfo.5.html	2025-03-15 22:08:55.000000000 +0000
++++ ncurses-6.5-20250322/doc/html/man/terminfo.5.html	2025-03-22 22:52:53.000000000 +0000
+@@ -71,7 +71,7 @@
+        have, by specifying how to perform screen operations, and by specifying
+        padding requirements and initialization sequences.
+ 
+-       This document describes <EM>ncurses</EM> version 6.5 (patch 20250315).
++       This document describes <EM>ncurses</EM> version 6.5 (patch 20250322).
+ 
+ 
+ </PRE><H3><a name="h3-terminfo-Entry-Syntax"><EM>terminfo</EM> Entry Syntax</a></H3><PRE>
+Index: doc/html/man/user_caps.5.html
+--- ncurses-6.5-20250315+/doc/html/man/user_caps.5.html	2024-06-08 23:12:52.000000000 +0000
++++ ncurses-6.5-20250322/doc/html/man/user_caps.5.html	2025-03-22 22:52:53.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: user_caps.5,v 1.51 2024/06/08 21:01:53 tom Exp @
++  * @Id: user_caps.5,v 1.53 2025/03/22 22:27:44 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>user_caps 5 2024-06-08 ncurses 6.5 File formats</TITLE>
++<TITLE>user_caps 5 2025-03-22 ncurses 6.5 File formats</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">user_caps 5 2024-06-08 ncurses 6.5 File formats</H1>
++<H1 class="no-header">user_caps 5 2025-03-22 ncurses 6.5 File formats</H1>
+ <PRE>
+ <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>                     File formats                     <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>
+ 
+@@ -403,7 +403,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                      <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>
++ncurses 6.5                       2025-03-22                      <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: man/curs_outopts.3x
+Prereq:  1.91 
+--- ncurses-6.5-20250315+/man/curs_outopts.3x	2025-03-08 23:19:30.000000000 +0000
++++ ncurses-6.5-20250322/man/curs_outopts.3x	2025-03-22 22:46:52.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_outopts.3x,v 1.91 2025/03/08 23:19:30 tom Exp $
+-.TH curs_outopts 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_outopts.3x,v 1.93 2025/03/22 22:46:52 tom Exp $
++.TH curs_outopts 3X 2025-03-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -118,6 +118,9 @@
+ .I \%term\%info
+ database.
+ .\" TODO: What's the historical rationale for the `idcok()` feature?
++.\" TED: Solaris SVr4 source uses this to bypass some logic which may not work
++.\" with terminals that use "magic cookies" (cells where the video attribute
++.\" changes and no actual character is stored).
+ .SS idlok
+ Setting
+ .IR win 's
+Index: man/user_caps.5
+Prereq:  1.51 
+--- ncurses-6.5-20250315+/man/user_caps.5	2024-06-08 21:01:53.000000000 +0000
++++ ncurses-6.5-20250322/man/user_caps.5	2025-03-22 22:27:44.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: user_caps.5,v 1.51 2024/06/08 21:01:53 tom Exp $
+-.TH user_caps 5 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
++.\" $Id: user_caps.5,v 1.53 2025/03/22 22:27:44 tom Exp $
++.TH user_caps 5 2025-03-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "File formats"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -64,6 +64,18 @@
+ .\" the standard, so lacks a "HISTORY" section.  However, `tigetstr()`
+ .\" and `tputs()` are identified in the same document as new to Issue 4,
+ .\" so GBR conjectures that the list came in at the same time.
++.\"
++.\" TED: the list is reflected in term.h, seen in examples from AIX 3 and 4,
++.\" HP-UX 9, OSF/1, Solaris 2.4, dating from 1992-1994 -- all before 1996.
++.\" The AIX 4 file has copyright dates starting in 1984;
++.\" the Solaris file cites 1988 (the others have no copyright comments).
++.\" Those term.h files note in a comment that it is generated by a script with
++.\" a data file, i.e.,
++.\"	term.h - this file is automatically made from caps and maketerm.ex.
++.\" illumos-gate has related source, with a "caps" file having AT&T copyright
++.\" for 1988, and UCB copyright for 1982, 1986, 1988.  That 1982 is interesting
++.\" (hinting that something may have been in the initial releated of System V)
++.\" but the first release with tic appears to be SVr2 in 1984.
+ .PP
+ Most of the \fIextensions\fP in this fixed repertoire were additions
+ to the tables of Boolean, numeric and string capabilities.
+Index: ncurses/base/lib_mouse.c
+Prereq:  1.208 
+--- ncurses-6.5-20250315+/ncurses/base/lib_mouse.c	2025-02-15 15:12:21.000000000 +0000
++++ ncurses-6.5-20250322/ncurses/base/lib_mouse.c	2025-03-22 23:14:11.000000000 +0000
+@@ -85,7 +85,7 @@
+ #define CUR SP_TERMTYPE
+ #endif
+ 
+-MODULE_ID("$Id: lib_mouse.c,v 1.208 2025/02/15 15:12:21 tom Exp $")
++MODULE_ID("$Id: lib_mouse.c,v 1.209 2025/03/22 23:14:11 Daniel.Starke Exp $")
+ 
+ #include <tic.h>
+ 
+@@ -761,7 +761,8 @@
+     /* we know how to recognize mouse events under "xterm" */
+     if (NonEmpty(key_mouse)) {
+ 	init_xterm_mouse(sp);
+-    } else if (strstr(SP_TERMTYPE term_names, "xterm") != NULL) {
++    } else if (SP_TERMTYPE term_names != NULL
++	       && strstr(SP_TERMTYPE term_names, "xterm") != NULL) {
+ 	if (_nc_add_to_try(&(sp->_keytry), xterm_kmous, KEY_MOUSE) == OK)
+ 	    init_xterm_mouse(sp);
+     }
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250315+/package/debian-mingw/changelog	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/package/debian-mingw/changelog	2025-03-22 10:41:37.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250315) unstable; urgency=low
++ncurses6td (6.5+20250322) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Mar 2025 07:18:45 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Mar 2025 06:41:37 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250315+/package/debian-mingw64/changelog	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/package/debian-mingw64/changelog	2025-03-22 10:41:37.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250315) unstable; urgency=low
++ncurses6td (6.5+20250322) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Mar 2025 07:18:45 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Mar 2025 06:41:37 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250315+/package/debian/changelog	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/package/debian/changelog	2025-03-22 10:41:37.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250315) unstable; urgency=low
++ncurses6td (6.5+20250322) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Mar 2025 07:18:45 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Mar 2025 06:41:37 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.694 
+--- ncurses-6.5-20250315+/package/mingw-ncurses.nsi	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/package/mingw-ncurses.nsi	2025-03-22 10:41:37.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.694 2025/03/15 11:18:45 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.695 2025/03/22 10:41:37 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0315"
++!define VERSION_MMDD  "0322"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250315+/package/mingw-ncurses.spec	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/package/mingw-ncurses.spec	2025-03-22 10:41:37.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250315
++Release: 20250322
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250315+/package/ncurses.spec	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/package/ncurses.spec	2025-03-22 10:41:37.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250315
++Release: 20250322
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250315+/package/ncursest.spec	2025-03-15 11:18:45.000000000 +0000
++++ ncurses-6.5-20250322/package/ncursest.spec	2025-03-22 10:41:37.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250315
++Release: 20250322
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

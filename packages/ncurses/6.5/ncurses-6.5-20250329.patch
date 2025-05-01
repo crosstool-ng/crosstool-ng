@@ -1,0 +1,530 @@
+# ncurses 6.5 - patch 20250329 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250329.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Mar 29 23:30:04 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |   12 ++++++++++-
+# VERSION                          |    2 -
+# dist.mk                          |    4 +--
+# include/nc_win32.h               |    3 +-
+# misc/terminfo.src                |   10 ++++++---
+# ncurses/tinfo/MKfallback.sh      |    8 +++----
+# ncurses/tinfo/lib_win32con.c     |   40 ++++++++++++++++++-------------------
+# ncurses/tinfo/parse_entry.c      |    4 ++-
+# ncurses/tinfo/tinfo_driver.c     |   18 +++++++++++++---
+# ncurses/win32con/win32_driver.c  |    8 +++----
+# ncurses/win32con/win_driver.c    |    8 +++----
+# package/debian-mingw/changelog   |    4 +--
+# package/debian-mingw64/changelog |    4 +--
+# package/debian/changelog         |    4 +--
+# package/mingw-ncurses.nsi        |    4 +--
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# 18 files changed, 84 insertions(+), 55 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4264 
+--- ncurses-6.5-20250322+/NEWS	2025-03-22 23:18:22.000000000 +0000
++++ ncurses-6.5-20250329/NEWS	2025-03-29 22:52:37.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4264 2025/03/22 23:18:22 tom Exp $
++-- $Id: NEWS,v 1.4267 2025/03/29 22:52:37 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,16 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250329
++	+ add XM/xm to ms-terminal, to enable mouse with experimental Windows
++	  driver -TD
++	+ add -x option to infocmp in MKfallback.sh
++	+ improve experimental Windows driver by restoring the scroll buffer
++	  and console mode, e.g., when reset_prog_mode or endwin is called
++	  (patch by Daniel Starke).
++	+ add a buffer-limit check in postprocess_termcap (report/testcase by
++	  Yifan Zhang).
++
+ 20250322
+ 	+ add a null pointer check in mouse-initialization, for the
+ 	  experimental Windows driver (patch by Daniel Starke).
+Index: VERSION
+--- ncurses-6.5-20250322+/VERSION	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/VERSION	2025-03-29 11:09:16.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250322
++5:0:10	6.5	20250329
+Index: dist.mk
+Prereq:  1.1661 
+--- ncurses-6.5-20250322+/dist.mk	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/dist.mk	2025-03-29 11:09:16.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1661 2025/03/22 10:41:37 tom Exp $
++# $Id: dist.mk,v 1.1662 2025/03/29 11:09:16 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250322
++NCURSES_PATCH = 20250329
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: include/nc_win32.h
+Prereq:  1.16 
+--- ncurses-6.5-20250322+/include/nc_win32.h	2025-03-08 14:21:17.000000000 +0000
++++ ncurses-6.5-20250329/include/nc_win32.h	2025-03-29 16:45:33.000000000 +0000
+@@ -31,7 +31,7 @@
+  * Author: Thomas Dickey, 2008-on                                           *
+  ****************************************************************************/
+ 
+-/* $Id: nc_win32.h,v 1.16 2025/03/08 14:21:17 tom Exp $ */
++/* $Id: nc_win32.h,v 1.17 2025/03/29 16:45:33 Daniel.Starke Exp $ */
+ 
+ #ifndef NC_WIN32_H
+ #define NC_WIN32_H 1
+@@ -109,6 +109,7 @@
+ extern NCURSES_EXPORT(int)    _nc_console_keyok(int keycode,int flag);
+ extern NCURSES_EXPORT(bool)   _nc_console_keyExist(int keycode);
+ extern NCURSES_EXPORT(bool)   _nc_console_checkinit(bool initFlag, bool assumeTermInfo);
++extern NCURSES_EXPORT(bool)   _nc_console_restore(void);
+ extern NCURSES_EXPORT(int)    _nc_console_vt_supported(void);
+ 
+ #ifdef _NC_CHECK_MINTTY
+Index: misc/terminfo.src
+--- ncurses-6.5-20250322+/misc/terminfo.src	2025-03-01 21:54:30.000000000 +0000
++++ ncurses-6.5-20250329/misc/terminfo.src	2025-03-29 22:49:47.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1175 $
+-#	$Date: 2025/03/01 21:54:30 $
++#	$Revision: 1.1176 $
++#	$Date: 2025/03/29 22:49:47 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -4760,7 +4760,7 @@
+ 	use=bracketed+paste, use=xterm+pcfkeys, use=ansi+rep,
+ 	use=xterm+sm+1006, use=ecma+index, use=ecma+italics,
+ 	use=ecma+strikeout, use=vt420+lrmm, use=xterm-basic,
+-	use=xterm+focus, use=xterm+tmux,
++	use=xterm+focus, use=xterm+tmux, use=xterm+sm+1003,
+ 
+ #### Visual Studio
+ # Visual Studio Code 1.45.0 uses xterm.js 12.8.1 (see https://xtermjs.org/).
+@@ -27808,4 +27808,8 @@
+ #	+ add color to vt525 (Branden Robinson)
+ #	+ add vt520-w and vt525-w (Branden Robinson)
+ #
++# 2025-03-29
++#	+ add XM/xm to ms-terminal, to enable mouse with experimental Windows
++#	  driver -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: ncurses/tinfo/MKfallback.sh
+Prereq:  1.28 
+--- ncurses-6.5-20250322+/ncurses/tinfo/MKfallback.sh	2024-12-21 18:45:15.000000000 +0000
++++ ncurses-6.5-20250329/ncurses/tinfo/MKfallback.sh	2025-03-29 22:48:05.000000000 +0000
+@@ -1,6 +1,6 @@
+ #!/bin/sh
+ ##############################################################################
+-# Copyright 2020,2023 Thomas E. Dickey                                       #
++# Copyright 2020-2023,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2019,2020 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -27,7 +27,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: MKfallback.sh,v 1.28 2024/12/21 18:45:15 tom Exp $
++# $Id: MKfallback.sh,v 1.29 2025/03/29 22:48:05 tom Exp $
+ #
+ # MKfallback.sh -- create fallback table for entry reads
+ #
+@@ -95,7 +95,7 @@
+ 	for x in "$@"
+ 	do
+ 		echo "/* $x */"
+-		"$infocmp_path" -E "$x" | sed -e 's/[ 	]short[ 	]/ NCURSES_INT2 /g'
++		"$infocmp_path" -x -E "$x" | sed -e 's/[ 	]short[ 	]/ NCURSES_INT2 /g'
+ 	done
+ 
+ 	cat <<EOF
+@@ -106,7 +106,7 @@
+ 	for x in "$@"
+ 	do
+ 		echo "$comma /* $x */"
+-		"$infocmp_path" -e "$x"
++		"$infocmp_path" -x -e "$x"
+ 		comma=","
+ 	done
+ 
+Index: ncurses/tinfo/lib_win32con.c
+Prereq:  1.19 
+--- ncurses-6.5-20250322+/ncurses/tinfo/lib_win32con.c	2025-03-08 14:20:11.000000000 +0000
++++ ncurses-6.5-20250329/ncurses/tinfo/lib_win32con.c	2025-03-29 19:36:13.000000000 +0000
+@@ -38,7 +38,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_win32con.c,v 1.19 2025/03/08 14:20:11 tom Exp $")
++MODULE_ID("$Id: lib_win32con.c,v 1.21 2025/03/29 19:36:13 tom Exp $")
+ 
+ #if defined(_NC_WINDOWS)
+ 
+@@ -259,36 +259,20 @@
+ 	T(("lib_win32con:_nc_console_setmode %s", _nc_trace_ttymode(arg)));
+ 	if (hdl == WINCONSOLE.inp) {
+ 	    dwFlag = arg->dwFlagIn | ENABLE_MOUSE_INPUT | VT_FLAG_IN;
+-	    if (WINCONSOLE.isTermInfoConsole)
+-		dwFlag |= (VT_FLAG_IN);
+-	    else
+-		dwFlag &= (DWORD) ~ (VT_FLAG_IN);
+ 	    TRCTTYIN(dwFlag);
+ 	    SetConsoleMode(hdl, dwFlag);
+ 
+ 	    alt = OutHandle();
+ 	    dwFlag = arg->dwFlagOut;
+-	    if (WINCONSOLE.isTermInfoConsole)
+-		dwFlag |= (VT_FLAG_OUT);
+-	    else
+-		dwFlag |= (VT_FLAG_OUT);
+ 	    TRCTTYOUT(dwFlag);
+ 	    SetConsoleMode(alt, dwFlag);
+ 	} else {
+ 	    dwFlag = arg->dwFlagOut;
+-	    if (WINCONSOLE.isTermInfoConsole)
+-		dwFlag |= (VT_FLAG_OUT);
+-	    else
+-		dwFlag |= (VT_FLAG_OUT);
+ 	    TRCTTYOUT(dwFlag);
+ 	    SetConsoleMode(hdl, dwFlag);
+ 
+ 	    alt = WINCONSOLE.inp;
+ 	    dwFlag = arg->dwFlagIn | ENABLE_MOUSE_INPUT;
+-	    if (WINCONSOLE.isTermInfoConsole)
+-		dwFlag |= (VT_FLAG_IN);
+-	    else
+-		dwFlag &= (DWORD) ~ (VT_FLAG_IN);
+ 	    TRCTTYIN(dwFlag);
+ 	    SetConsoleMode(alt, dwFlag);
+ 	    T(("effective mode set %s", _nc_trace_ttymode(&TRCTTY)));
+@@ -404,7 +388,6 @@
+     return result;
+ }
+ 
+-#if 0
+ static bool
+ restore_original_screen(void)
+ {
+@@ -426,7 +409,7 @@
+ 		     bufferCoord,
+ 		     &save_region)) {
+ 	result = TRUE;
+-	mvcur(-1, -1, LINES - 2, 0);
++	SetConsoleCursorPosition(WINCONSOLE.hdl, WINCONSOLE.save_SBI.dwCursorPosition);
+ 	T(("... restore original screen contents ok %dx%d (%d,%d - %d,%d)",
+ 	   WINCONSOLE.save_size.Y,
+ 	   WINCONSOLE.save_size.X,
+@@ -439,7 +422,6 @@
+     }
+     return result;
+ }
+-#endif
+ 
+ static bool
+ read_screen_data(void)
+@@ -1247,5 +1229,23 @@
+     }
+     returnBool(res);
+ }
++
++NCURSES_EXPORT(bool)
++_nc_console_restore(void)
++{
++    bool res = FALSE;
++
++    T((T_CALLED("lib_win32con::_nc_console_restore")));
++    if (WINCONSOLE.hdl != INVALID_HANDLE_VALUE) {
++	res = TRUE;
++	if (!WINCONSOLE.buffered) {
++	    _nc_console_set_scrollback(TRUE, &WINCONSOLE.save_SBI);
++	    if (!restore_original_screen())
++		res = FALSE;
++	}
++	SetConsoleCursorInfo(WINCONSOLE.hdl, &WINCONSOLE.save_CI);
++    }
++    returnBool(res);
++}
+ 
+ #endif // _NC_WINDOWS
+Index: ncurses/tinfo/parse_entry.c
+Prereq:  1.115 
+--- ncurses-6.5-20250322+/ncurses/tinfo/parse_entry.c	2025-02-20 09:11:49.000000000 +0000
++++ ncurses-6.5-20250329/ncurses/tinfo/parse_entry.c	2025-03-24 22:27:29.000000000 +0000
+@@ -48,7 +48,7 @@
+ #include <ctype.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: parse_entry.c,v 1.115 2025/02/20 09:11:49 tom Exp $")
++MODULE_ID("$Id: parse_entry.c,v 1.116 2025/03/24 22:27:29 tom Exp $")
+ 
+ #ifdef LINT
+ static short const parametrized[] =
+@@ -990,6 +990,8 @@
+ 	    bp = tp->Strings[from_ptr->nte_index];
+ 	    if (VALID_STRING(bp)) {
+ 		for (dp = buf2; *bp; bp++) {
++		    if ((size_t) (dp - buf2) >= (sizeof(buf2) - sizeof(TERMTYPE2)))
++			  break;
+ 		    if (bp[0] == '$' && bp[1] == '<') {
+ 			while (*bp && *bp != '>') {
+ 			    ++bp;
+Index: ncurses/tinfo/tinfo_driver.c
+Prereq:  1.79 
+--- ncurses-6.5-20250322+/ncurses/tinfo/tinfo_driver.c	2025-02-20 01:30:20.000000000 +0000
++++ ncurses-6.5-20250329/ncurses/tinfo/tinfo_driver.c	2025-03-29 19:28:44.000000000 +0000
+@@ -52,7 +52,7 @@
+ # endif
+ #endif
+ 
+-MODULE_ID("$Id: tinfo_driver.c,v 1.79 2025/02/20 01:30:20 tom Exp $")
++MODULE_ID("$Id: tinfo_driver.c,v 1.82 2025/03/29 19:28:44 tom Exp $")
+ 
+ /*
+  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
+@@ -489,7 +489,8 @@
+ 		/*
+ 		 * If environment variables are used, update them.
+ 		 */
+-		if ((sp == NULL || !sp->_filtered) && _nc_getenv_num("LINES") > 0) {
++		if ((sp == NULL || !sp->_filtered)
++		    && _nc_getenv_num("LINES") > 0) {
+ 		    _nc_setenv_num("LINES", *linep);
+ 		}
+ 		if (_nc_getenv_num("COLUMNS") > 0) {
+@@ -604,6 +605,8 @@
+     AssertTCB();
+     sp = TCB->csp;
+ 
++    T((T_CALLED("tinfo:drv_mode(%p,%d,%d)"), (void *) sp, progFlag, defFlag));
++
+     if (progFlag)		/* prog mode */
+     {
+ 	if (defFlag) {
+@@ -628,6 +631,10 @@
+ 		    if (sp->_keypad_on)
+ 			_nc_keypad(sp, TRUE);
+ 		}
++#if defined(EXP_WIN32_DRIVER)
++		if (!WINCONSOLE.buffered)
++		    _nc_console_set_scrollback(FALSE, &WINCONSOLE.SBI);
++#endif
+ 		code = OK;
+ 	    }
+ 	}
+@@ -656,9 +663,13 @@
+ 		NCURSES_SP_NAME(_nc_flush) (sp);
+ 	    }
+ 	    code = drv_sgmode(TCB, TRUE, &(_term->Ottyb));
++#if defined(EXP_WIN32_DRIVER)
++	    if (!_nc_console_restore())
++		code = ERR;
++#endif
+ 	}
+     }
+-    return (code);
++    returnCode(code);
+ }
+ 
+ static void
+@@ -1540,6 +1551,7 @@
+ #endif
+ 	if (strcmp(DriverTable[i].name, res->td_name(TCB)) == 0) {
+ 	    if (res->td_CanHandle(TCB, name, errret)) {
++		T(("matched driver %s with TERM=%s", DriverTable[i].name, name));
+ 		use = res;
+ 		break;
+ 	    }
+Index: ncurses/win32con/win32_driver.c
+Prereq:  1.7 
+--- ncurses-6.5-20250322+/ncurses/win32con/win32_driver.c	2025-03-01 14:26:14.000000000 +0000
++++ ncurses-6.5-20250329/ncurses/win32con/win32_driver.c	2025-03-29 19:31:07.000000000 +0000
+@@ -48,7 +48,7 @@
+ 
+ #define CUR TerminalType(my_term).
+ 
+-MODULE_ID("$Id: win32_driver.c,v 1.7 2025/03/01 14:26:14 tom Exp $")
++MODULE_ID("$Id: win32_driver.c,v 1.8 2025/03/29 19:31:07 tom Exp $")
+ 
+ #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
+ #define EXP_OPTIMIZE 0
+@@ -762,12 +762,12 @@
+     TERMINAL *_term = (TERMINAL *) TCB;
+     int code = ERR;
+ 
++    T((T_CALLED("win32con::wcon_mode(%p, progFlag=%d, defFlag=%d)"),
++       TCB, progFlag, defFlag));
++
+     if (validateConsoleHandle()) {
+ 	sp = TCB->csp;
+ 
+-	T((T_CALLED("win32con::wcon_mode(%p, progFlag=%d, defFlag=%d)"),
+-	   TCB, progFlag, defFlag));
+-
+ 	WINCONSOLE.progMode = progFlag;
+ 	WINCONSOLE.lastOut = progFlag ? WINCONSOLE.hdl : WINCONSOLE.out;
+ 	SetConsoleActiveScreenBuffer(WINCONSOLE.lastOut);
+Index: ncurses/win32con/win_driver.c
+Prereq:  1.81 
+--- ncurses-6.5-20250322+/ncurses/win32con/win_driver.c	2025-03-01 17:17:46.000000000 +0000
++++ ncurses-6.5-20250329/ncurses/win32con/win_driver.c	2025-03-29 19:31:24.000000000 +0000
+@@ -57,7 +57,7 @@
+ 
+ #define CONTROL_PRESSED (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)
+ 
+-MODULE_ID("$Id: win_driver.c,v 1.81 2025/03/01 17:17:46 tom Exp $")
++MODULE_ID("$Id: win_driver.c,v 1.82 2025/03/29 19:31:24 tom Exp $")
+ 
+ #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
+ 
+@@ -1015,12 +1015,12 @@
+     TERMINAL *_term = (TERMINAL *) TCB;
+     int code = ERR;
+ 
++    T((T_CALLED("win32con::wcon_mode(%p, prog=%d, def=%d)"),
++       TCB, progFlag, defFlag));
++
+     if (okConsoleHandle(TCB)) {
+ 	sp = TCB->csp;
+ 
+-	T((T_CALLED("win32con::wcon_mode(%p, prog=%d, def=%d)"),
+-	   TCB, progFlag, defFlag));
+-
+ 	CON.progMode = progFlag;
+ 	CON.lastOut = progFlag ? CON.hdl : CON.out;
+ 	SetConsoleActiveScreenBuffer(CON.lastOut);
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250322+/package/debian-mingw/changelog	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/package/debian-mingw/changelog	2025-03-29 11:09:16.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250322) unstable; urgency=low
++ncurses6td (6.5+20250329) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Mar 2025 06:41:37 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Mar 2025 07:09:16 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250322+/package/debian-mingw64/changelog	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/package/debian-mingw64/changelog	2025-03-29 11:09:16.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250322) unstable; urgency=low
++ncurses6td (6.5+20250329) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Mar 2025 06:41:37 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Mar 2025 07:09:16 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250322+/package/debian/changelog	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/package/debian/changelog	2025-03-29 11:09:16.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250322) unstable; urgency=low
++ncurses6td (6.5+20250329) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Mar 2025 06:41:37 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Mar 2025 07:09:16 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.695 
+--- ncurses-6.5-20250322+/package/mingw-ncurses.nsi	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/package/mingw-ncurses.nsi	2025-03-29 11:09:16.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.695 2025/03/22 10:41:37 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.696 2025/03/29 11:09:16 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0322"
++!define VERSION_MMDD  "0329"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250322+/package/mingw-ncurses.spec	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/package/mingw-ncurses.spec	2025-03-29 11:09:16.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250322
++Release: 20250329
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250322+/package/ncurses.spec	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/package/ncurses.spec	2025-03-29 11:09:16.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250322
++Release: 20250329
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250322+/package/ncursest.spec	2025-03-22 10:41:37.000000000 +0000
++++ ncurses-6.5-20250329/package/ncursest.spec	2025-03-29 11:09:16.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250322
++Release: 20250329
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

@@ -1,0 +1,2208 @@
+# ncurses 6.5 - patch 20250308 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250308.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Mar  9 01:40:42 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                              |    8 +
+# VERSION                           |    2 
+# dist.mk                           |    4 
+# doc/html/man/curs_add_wch.3x.html |  169 +++++++++++++++++------------------
+# doc/html/man/curs_addch.3x.html   |  173 ++++++++++++++++++------------------
+# doc/html/man/curs_initscr.3x.html |  119 ++++++++++++------------
+# doc/html/man/curs_inopts.3x.html  |   60 +++++++-----
+# doc/html/man/curs_ins_wch.3x.html |   10 +-
+# doc/html/man/curs_insch.3x.html   |   10 +-
+# doc/html/man/curs_kernel.3x.html  |   28 +++--
+# doc/html/man/curs_move.3x.html    |   10 +-
+# doc/html/man/curs_outopts.3x.html |   81 ++++++++--------
+# doc/html/man/ncurses.3x.html      |    2 
+# doc/html/man/terminfo.5.html      |    2 
+# include/curses.h.in               |    4 
+# include/nc_win32.h                |    4 
+# man/curs_add_wch.3x               |   10 +-
+# man/curs_addch.3x                 |   10 +-
+# man/curs_initscr.3x               |   31 +++---
+# man/curs_inopts.3x                |   40 +++++---
+# man/curs_ins_wch.3x               |    6 -
+# man/curs_insch.3x                 |    6 -
+# man/curs_kernel.3x                |   35 ++++++-
+# man/curs_move.3x                  |    9 -
+# man/curs_outopts.3x               |   20 ++--
+# ncurses/base/lib_getch.c          |    6 -
+# ncurses/base/lib_initscr.c        |   10 +-
+# ncurses/tinfo/lib_win32con.c      |    6 -
+# package/debian-mingw/changelog    |    4 
+# package/debian-mingw64/changelog  |    4 
+# package/debian/changelog          |    4 
+# package/mingw-ncurses.nsi         |    4 
+# package/mingw-ncurses.spec        |    2 
+# package/ncurses.spec              |    2 
+# package/ncursest.spec             |    2 
+# 35 files changed, 488 insertions(+), 409 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4257 
+--- ncurses-6.5-20250301+/NEWS	2025-03-01 21:57:13.000000000 +0000
++++ ncurses-6.5-20250308/NEWS	2025-03-09 00:39:13.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4257 2025/03/01 21:57:13 tom Exp $
++-- $Id: NEWS,v 1.4259 2025/03/09 00:39:13 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250308
++	+ remove test in wgetch which applied notimeout to the initial read
++	  of a character (patch by Branden Robinson).
++	+ improve formatting/style of manpages (patches by Branden Robinson).
++	+ fix a few compiler-warnings in MinGW port.
++
+ 20250301
+ 	+ add color to vt525 (Branden Robinson)
+ 	+ add vt520-w and vt525-w (Branden Robinson)
+Index: VERSION
+--- ncurses-6.5-20250301+/VERSION	2025-03-01 10:08:08.000000000 +0000
++++ ncurses-6.5-20250308/VERSION	2025-03-08 11:56:38.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250301
++5:0:10	6.5	20250308
+Index: dist.mk
+Prereq:  1.1658 
+--- ncurses-6.5-20250301+/dist.mk	2025-03-01 10:08:08.000000000 +0000
++++ ncurses-6.5-20250308/dist.mk	2025-03-08 11:56:38.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1658 2025/03/01 10:08:08 tom Exp $
++# $Id: dist.mk,v 1.1659 2025/03/08 11:56:38 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250301
++NCURSES_PATCH = 20250308
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: doc/html/man/curs_add_wch.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_add_wch.3x.html	2025-03-01 22:03:50.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_add_wch.3x.html	2025-03-09 00:55:53.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_add_wch.3x,v 1.108 2025/03/01 21:16:45 tom Exp @
++  * @Id: curs_add_wch.3x,v 1.110 2025/03/08 23:01:20 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_add_wch 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_add_wch 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_add_wch 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_add_wch 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
+ 
+@@ -156,58 +156,59 @@
+ 
+        If the cursor is at the bottom of the scrolling region when advancement
+        occurs at the right margin, and <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> is enabled  for  <EM>win</EM>,  the
+-       scrolling  region  scrolls  up  one  line.   Otherwise, advancement and
+-       scrolling do not occur, and <STRONG>waddch</STRONG> returns <STRONG>ERR</STRONG>.
++       cursor  wraps  as  above  and the scrolling region scrolls up one line.
++       Otherwise, advancement and scrolling do not occur, and  <STRONG>waddch</STRONG>  returns
++       <STRONG>ERR</STRONG>.
+ 
+-       If <EM>wch</EM> is a backspace, carriage return, line feed, or tab,  the  cursor
++       If  <EM>wch</EM>  is a backspace, carriage return, line feed, or tab, the cursor
+        moves appropriately within the window.
+ 
+-       <STRONG>o</STRONG>   Backspace  moves  the cursor one character left; at the left margin
++       <STRONG>o</STRONG>   Backspace moves the cursor one character left; at the  left  margin
+            of a window, it does nothing.
+ 
+-       <STRONG>o</STRONG>   Carriage return moves the cursor to the left  margin  on  the  same
++       <STRONG>o</STRONG>   Carriage  return  moves  the  cursor to the left margin on the same
+            line of the window.
+ 
+-       <STRONG>o</STRONG>   Line  feed  does a <STRONG><A HREF="curs_clear.3x.html">clrtoeol(3x)</A></STRONG>, then advances as if from the right
++       <STRONG>o</STRONG>   Line feed does a <STRONG><A HREF="curs_clear.3x.html">clrtoeol(3x)</A></STRONG>, then advances as if from  the  right
+            margin.
+ 
+-       <STRONG>o</STRONG>   Tab advances the cursor to the next tab stop (possibly on the  next
+-           line);  these  are placed at every eighth column by default.  Alter
+-           the   tab   interval    with    the    <STRONG>TABSIZE</STRONG>    extension;    see
++       <STRONG>o</STRONG>   Tab  advances the cursor to the next tab stop (possibly on the next
++           line); these are placed at every eighth column by  default.   Alter
++           the    tab    interval    with    the    <STRONG>TABSIZE</STRONG>   extension;   see
+            <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+ 
+-       If  <EM>wch</EM>  is  any other nonprintable character, it is drawn in printable
+-       form using the same convention as <STRONG><A HREF="curs_util.3x.html">wunctrl(3x)</A></STRONG>.  Calling <STRONG><A HREF="curs_in_wch.3x.html">win_wch(3x)</A></STRONG>  on
+-       the  location of a nonprintable character does not return the character
++       If <EM>wch</EM> is any other nonprintable character, it is  drawn  in  printable
++       form  using the same convention as <STRONG><A HREF="curs_util.3x.html">wunctrl(3x)</A></STRONG>.  Calling <STRONG><A HREF="curs_in_wch.3x.html">win_wch(3x)</A></STRONG> on
++       the location of a nonprintable character does not return the  character
+        itself, but its <STRONG><A HREF="curs_util.3x.html">wunctrl(3x)</A></STRONG> representation.
+ 
+-       A <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM> can be copied from  place  to  place  using  <STRONG><A HREF="curs_in_wch.3x.html">win_wch(3x)</A></STRONG>  and
+-       <STRONG>wadd_wch</STRONG>.   See  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>  for values of predefined constants that
++       A  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  can  be  copied  from  place to place using <STRONG><A HREF="curs_in_wch.3x.html">win_wch(3x)</A></STRONG> and
++       <STRONG>wadd_wch</STRONG>.  See <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG> for values of  predefined  constants  that
+        can be usefully "or"ed with characters.  A complex character whose only
+-       character  component  is  a  wide  space,  and  whose only attribute is
+-       <STRONG>WA_NORMAL</STRONG>, is a  <EM>blank</EM>  <EM>character</EM>,  and  therefore  combines  with  the
++       character component is a  wide  space,  and  whose  only  attribute  is
++       <STRONG>WA_NORMAL</STRONG>,  is  a  <EM>blank</EM>  <EM>character</EM>,  and  therefore  combines with the
+        background character; see <STRONG><A HREF="curs_bkgrnd.3x.html">curs_bkgrnd(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H3><a name="h3-wecho_wchar">wecho_wchar</a></H3><PRE>
+-       <STRONG>echo_wchar</STRONG>   and  <STRONG>wecho_wchar</STRONG>  are  equivalent  to  calling  (<STRONG>w</STRONG>)<STRONG>add_wch</STRONG>
+-       followed by (<STRONG>w</STRONG>)<STRONG>refresh</STRONG> on  <STRONG>stdscr</STRONG>  or  the  specified  window.   <EM>curses</EM>
+-       interprets  these  functions  as  a  hint  that only a single (complex)
+-       character is being output; for non-control characters,  a  considerable
++       <STRONG>echo_wchar</STRONG>  and  <STRONG>wecho_wchar</STRONG>  are  equivalent  to  calling   (<STRONG>w</STRONG>)<STRONG>add_wch</STRONG>
++       followed  by  (<STRONG>w</STRONG>)<STRONG>refresh</STRONG>  on  <STRONG>stdscr</STRONG>  or  the specified window.  <EM>curses</EM>
++       interprets these functions as a  hint  that  only  a  single  (complex)
++       character  is  being output; for non-control characters, a considerable
+        performance gain may be enjoyed by employing them.
+ 
+ 
+ </PRE><H3><a name="h3-Forms-Drawing-Characters">Forms-Drawing Characters</a></H3><PRE>
+-       <EM>curses</EM>  defines  macros  starting  with  <STRONG>WACS_</STRONG>  that  can  be used with
+-       <STRONG>wadd_wch</STRONG> to  write  line-drawing  and  other  symbols  to  the  screen.
+-       <EM>ncurses</EM>  terms  these <EM>forms-drawing</EM> <EM>characters.</EM>  The ACS default listed
+-       below is used if the <STRONG>acs_chars</STRONG>  (<STRONG>acsc</STRONG>)  <EM>terminfo</EM>  capability  does  not
+-       define  a terminal-specific replacement for it, or if the terminal type
++       <EM>curses</EM> defines macros  starting  with  <STRONG>WACS_</STRONG>  that  can  be  used  with
++       <STRONG>wadd_wch</STRONG>  to  write  line-drawing  and  other  symbols  to  the screen.
++       <EM>ncurses</EM> terms these <EM>forms-drawing</EM> <EM>characters.</EM>  The ACS  default  listed
++       below  is  used  if  the  <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>) <EM>terminfo</EM> capability does not
++       define a terminal-specific replacement for it, or if the terminal  type
+        and locale configuration require Unicode to access these characters but
+        the  library  is  unable  to  use  Unicode.   The  "acsc  char"  column
+        corresponds to how the characters are specified in the <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>)
+        string capability, and the characters in it may appear on the screen if
+-       the terminal type's database entry incorrectly advertises ACS  support.
++       the  terminal type's database entry incorrectly advertises ACS support.
+        The name "ACS" originates in the Alternate Character Set feature of the
+        DEC VT100 terminal.
+ 
+@@ -244,11 +245,11 @@
+        <STRONG>WACS_TTEE</STRONG>       U+252c    +         w      top tee
+        <STRONG>WACS_UARROW</STRONG>     U+2191    ^         -      arrow pointing up
+        <STRONG>WACS_ULCORNER</STRONG>   U+250c    +         l      upper left-hand corner
+-       <STRONG>WACS_URCORNER</STRONG>   U+2510    +         k      upper right-hand corner
+ 
++       <STRONG>WACS_URCORNER</STRONG>   U+2510    +         k      upper right-hand corner
+        <STRONG>WACS_VLINE</STRONG>      U+2502    |         x      vertical line
+ 
+-       The <EM>ncurses</EM> wide API also defines symbols for  thick  lines  (<STRONG>acsc</STRONG>  "J"
++       The  <EM>ncurses</EM>  wide  API  also defines symbols for thick lines (<STRONG>acsc</STRONG> "J"
+        through "N", "T" through "X", and "Q"):
+ 
+                          <STRONG>Unicode</STRONG>   <STRONG>ASCII</STRONG>     <STRONG>acsc</STRONG>
+@@ -283,9 +284,9 @@
+        <STRONG>WACS_D_URCORNER</STRONG>   U+2557    +         B      double upper right corner
+        <STRONG>WACS_D_VLINE</STRONG>      U+2551    |         Y      double vertical line
+ 
+-       Unicode's  descriptions  for  these  characters  differs  slightly from
+-       <EM>ncurses</EM>, by introducing the term "light"  (along  with  less  important
+-       details).   Here are its descriptions for the normal, thick, and double
++       Unicode's descriptions  for  these  characters  differs  slightly  from
++       <EM>ncurses</EM>,  by  introducing  the  term "light" (along with less important
++       details).  Here are its descriptions for the normal, thick, and  double
+        horizontal lines:
+ 
+        <STRONG>o</STRONG>   U+2500 BOX DRAWINGS LIGHT HORIZONTAL
+@@ -302,31 +303,31 @@
+ 
+        <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
+ 
+-       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
++       <STRONG>o</STRONG>   (for  functions  taking  a  <EM>WINDOW</EM>  pointer argument) <EM>win</EM> is a null
+            pointer,
+ 
+-       <STRONG>o</STRONG>   wrapping  to  a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> has not
+-           been called on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when writing  to  its
++       <STRONG>o</STRONG>   wrapping to a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>  has  not
++           been  called  on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when writing to its
+            bottom right location is attempted, or
+ 
+-       <STRONG>o</STRONG>   it  is  not  possible  to  add  a  complete character at the cursor
++       <STRONG>o</STRONG>   it is not possible to  add  a  complete  character  at  the  cursor
+            position.
+ 
+-       Functions prefixed with "mv" first perform cursor movement and fail  if
++       Functions  prefixed with "mv" first perform cursor movement and fail if
+        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
+ 
+ 
+ </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+-       <STRONG>add_wch</STRONG>,  <STRONG>mvadd_wch</STRONG>,  <STRONG>mvwadd_wch</STRONG>,  and <STRONG>echo_wchar</STRONG> may be implemented as
++       <STRONG>add_wch</STRONG>, <STRONG>mvadd_wch</STRONG>, <STRONG>mvwadd_wch</STRONG>, and <STRONG>echo_wchar</STRONG> may  be  implemented  as
+        macros.
+ 
+ 
+ </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+-       The  symbols  <EM>WACS</EM><STRONG>_</STRONG><EM>S3</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>,   <EM>WACS</EM><STRONG>_</STRONG><EM>PI</EM>,
+-       <EM>WACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,   and  <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>  are  not  standard.   However,  many
+-       publicly  available   <EM>terminfo</EM>   entries   include   <EM>acs</EM><STRONG>_</STRONG><EM>chars</EM>   (<STRONG>acsc</STRONG>)
+-       capabilities  in which their key characters (<STRONG>pryz{|}</STRONG>) are embedded, and
+-       a second-hand list of their character descriptions has come  to  light.
++       The   symbols  <EM>WACS</EM><STRONG>_</STRONG><EM>S3</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>PI</EM>,
++       <EM>WACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,  and  <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>  are  not  standard.   However,   many
++       publicly   available   <EM>terminfo</EM>   entries   include   <EM>acs</EM><STRONG>_</STRONG><EM>chars</EM>  (<STRONG>acsc</STRONG>)
++       capabilities in which their key characters (<STRONG>pryz{|}</STRONG>) are embedded,  and
++       a  second-hand  list of their character descriptions has come to light.
+        The <EM>ncurses</EM> developers invented WACS-prefixed names for them.
+ 
+ 
+@@ -334,59 +335,59 @@
+        Applications employing <EM>ncurses</EM> extensions should condition their use on
+        the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+ 
+-       These functions are described in X/Open Curses Issue 4.   It  specifies
++       These  functions  are described in X/Open Curses Issue 4.  It specifies
+        no error conditions for them.
+ 
+-       The  defaults specified for forms-drawing characters apply in the POSIX
+-       locale.  X/Open Curses makes it clear that the WACS_ symbols should  be
+-       defined  as  a  pointer  to  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  data,  e.g., in the discussion of
++       The defaults specified for forms-drawing characters apply in the  POSIX
++       locale.   X/Open Curses makes it clear that the WACS_ symbols should be
++       defined as a pointer to  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  data,  e.g.,  in  the  discussion  of
+        <EM>border</EM><STRONG>_</STRONG><EM>set</EM>.  A few implementations are problematic:
+ 
+        <STRONG>o</STRONG>   NetBSD <EM>curses</EM> defines the symbols as a <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> within a <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>.
+ 
+-       <STRONG>o</STRONG>   HP-UX <EM>curses</EM> equates some of the  <EM>ACS</EM><STRONG>_</STRONG>  symbols  to  the  analogous
+-           <EM>WACS</EM><STRONG>_</STRONG>  symbols  as  if  the <EM>ACS</EM><STRONG>_</STRONG> symbols were wide characters.  The
+-           misdefined symbols are the arrows and other symbols which  are  not
++       <STRONG>o</STRONG>   HP-UX  <EM>curses</EM>  equates  some  of  the <EM>ACS</EM><STRONG>_</STRONG> symbols to the analogous
++           <EM>WACS</EM><STRONG>_</STRONG> symbols as if the <EM>ACS</EM><STRONG>_</STRONG> symbols  were  wide  characters.   The
++           misdefined  symbols  are the arrows and other symbols which are not
+            used for line-drawing.
+ 
+-       X/Open  Curses  does  not  specify  symbols for thick- or double-lines.
++       X/Open Curses does not specify  symbols  for  thick-  or  double-lines.
+        SVr4 <EM>curses</EM> implementations defined their line-drawing symbols in terms
+-       of  intermediate symbols.  <EM>ncurses</EM> extends those symbols, providing new
++       of intermediate symbols.  <EM>ncurses</EM> extends those symbols, providing  new
+        definitions not found in SVr4 implementations.
+ 
+-       Not all  Unicode-capable  terminals  provide  support  for  VT100-style
++       Not  all  Unicode-capable  terminals  provide  support  for VT100-style
+        alternate character sets (i.e., the <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) capability), with
+-       their corresponding line-drawing characters.   X/Open  Curses  did  not
++       their  corresponding  line-drawing  characters.   X/Open Curses did not
+        address the aspect of integrating Unicode with line-drawing characters.
+-       Existing implementations of System V <EM>curses</EM> (AIX, HP-UX,  Solaris)  use
+-       only  the  <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) character-mapping to provide this feature.
+-       As a result, those  implementations  can  use  only  single-byte  line-
+-       drawing  characters.   <EM>ncurses</EM>  5.3  (2002) provided a table of Unicode
+-       values to solve these problems.  NetBSD <EM>curses</EM> incorporated that  table
++       Existing  implementations  of System V <EM>curses</EM> (AIX, HP-UX, Solaris) use
++       only the <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) character-mapping to provide  this  feature.
++       As  a  result,  those  implementations  can  use only single-byte line-
++       drawing characters.  <EM>ncurses</EM> 5.3 (2002) provided  a  table  of  Unicode
++       values  to solve these problems.  NetBSD <EM>curses</EM> incorporated that table
+        in 2010.
+ 
+-       <EM>ncurses</EM>   uses   the  Unicode  values  instead  of  the  terminal  type
++       <EM>ncurses</EM>  uses  the  Unicode  values  instead  of  the   terminal   type
+        description's <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) mapping as discussed in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> for
+-       the  environment  variable  <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM>.   In contrast, for the
++       the environment variable <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM>.   In  contrast,  for  the
+        same cases, the line-drawing characters described in <STRONG><A HREF="curs_addch.3x.html">addch(3x)</A></STRONG> will use
+        only the ASCII default values.
+ 
+-       Having  Unicode available does not solve all of the problems with line-
++       Having Unicode available does not solve all of the problems with  line-
+        drawing for <EM>curses</EM>:
+ 
+-       <STRONG>o</STRONG>   The closest Unicode equivalents to the VT100 graphics <EM>S1</EM>,  <EM>S3</EM>,  <EM>S7</EM>,
+-           and  <EM>S9</EM> frequently are not displayed at the regular intervals which
++       <STRONG>o</STRONG>   The  closest  Unicode equivalents to the VT100 graphics <EM>S1</EM>, <EM>S3</EM>, <EM>S7</EM>,
++           and <EM>S9</EM> frequently are not displayed at the regular intervals  which
+            the terminal used.
+ 
+-       <STRONG>o</STRONG>   The <EM>lantern</EM> is a special case.  It originated with  the  AT&amp;T  4410
+-           terminal  in the early 1980s.  There is no accessible documentation
++       <STRONG>o</STRONG>   The  <EM>lantern</EM>  is  a special case.  It originated with the AT&amp;T 4410
++           terminal in the early 1980s.  There is no accessible  documentation
+            depicting the lantern symbol on the AT&amp;T terminal.
+ 
+            Lacking documentation, most readers assume that a <EM>storm</EM> <EM>lantern</EM> was
+            intended.  But there are several possibilities, all with problems.
+ 
+-           Unicode  6.0  (2010)  does provide two lantern symbols: U+1F383 and
+-           U+1F3EE.  Those were not available  in  2002,  and  are  irrelevant
++           Unicode 6.0 (2010) does provide two lantern  symbols:  U+1F383  and
++           U+1F3EE.   Those  were  not  available  in 2002, and are irrelevant
+            since they lie outside the Basic Multilingual Plane and as a result
+            are unavailable on many terminals.  They are not storm lanterns, in
+            any case.
+@@ -394,20 +395,20 @@
+            Most <EM>storm</EM> <EM>lanterns</EM> have a tapering glass chimney (to guard against
+            tipping); some have a wire grid protecting the chimney.
+ 
+-           For the tapering appearance,  U+2603 was adequate.   In  use  on  a
++           For  the  tapering  appearance,   U+2603 was adequate.  In use on a
+            terminal, no one can tell what the image represents.  Unicode calls
+            it a snowman.
+ 
+            Others have suggested these alternatives: &lt;section&gt; U+00A7 (section
+-           mark),  &lt;Theta&gt;  U+0398 (theta), &lt;Phi&gt; U+03A6 (phi), &lt;delta&gt; U+03B4
++           mark), &lt;Theta&gt; U+0398 (theta), &lt;Phi&gt; U+03A6 (phi),  &lt;delta&gt;  U+03B4
+            (delta),  U+2327 (x in a rectangle),  U+256C (forms double vertical
+            and horizontal), and  U+2612 (ballot box with x).
+ 
+ 
+ </PRE><H3><a name="h3-Complex-Characters">Complex Characters</a></H3><PRE>
+-       The  complex  character  type  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  can  store  more  than one wide
+-       character (<EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>).  X/Open Curses does not mention this  possibility,
+-       specifying  behavior  only  where  <EM>wch</EM>  is  a  single character, either
++       The complex character  type  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  can  store  more  than  one  wide
++       character  (<EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>).  X/Open Curses does not mention this possibility,
++       specifying behavior only  where  <EM>wch</EM>  is  a  single  character,  either
+        spacing or non-spacing.
+ 
+        <EM>ncurses</EM> assumes that <EM>wch</EM> is constructed using <STRONG><A HREF="curs_getcchar.3x.html">setcchar(3x)</A></STRONG>, and in turn
+@@ -418,22 +419,22 @@
+ 
+        <STRONG>o</STRONG>   holds one non-spacing character.
+ 
+-       In the latter case, <EM>ncurses</EM>  adds  the  non-spacing  character  to  the
++       In  the  latter  case,  <EM>ncurses</EM>  adds  the non-spacing character to the
+        active complex character.
+ 
+ 
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+-       X/Open  Curses Issue 4 (1995) initially specified these functions.  The
++       X/Open Curses Issue 4 (1995) initially specified these functions.   The
+        System V  Interface  Definition  (SVID)  Version 4  of  the  same  year
+-       specified  functions named <EM>waddwch</EM> (and the usual variants), <EM>echowchar</EM>,
++       specified functions named <EM>waddwch</EM> (and the usual variants),  <EM>echowchar</EM>,
+        and <EM>wechowchar</EM>.  These were later additions to SVr4.<EM>x</EM>, not appearing in
+-       the  first SVr4 (1989).  They differed from X/Open's later <EM>wadd</EM><STRONG>_</STRONG><EM>wch</EM> and
+-       <EM>wecho</EM><STRONG>_</STRONG><EM>wchar</EM> in that they each took an argument of type <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>  instead
++       the first SVr4 (1989).  They differed from X/Open's later <EM>wadd</EM><STRONG>_</STRONG><EM>wch</EM>  and
++       <EM>wecho</EM><STRONG>_</STRONG><EM>wchar</EM>  in that they each took an argument of type <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> instead
+        of <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>.  SVID defined no  <EM>WACS</EM><STRONG>_</STRONG> symbols.
+ 
+-       X/Open  Curses  Issue 4  also  defined  many  of  the  <EM>WACS</EM><STRONG>_</STRONG> constants,
++       X/Open Curses  Issue 4  also  defined  many  of  the  <EM>WACS</EM><STRONG>_</STRONG>  constants,
+        excepting  <EM>WACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>PI</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>S3</EM>,
+-       <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>,  and  <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>;  and  those  for drawing thick and double
++       <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>, and <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>; and those  for  drawing  thick  and  double
+        lines.
+ 
+        <EM>ncurses</EM> 5.3 (2002) furnished the remaining <EM>WACS</EM><STRONG>_</STRONG> constants.
+@@ -444,12 +445,12 @@
+        its non-wide-character configuration.
+ 
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,   <STRONG><A HREF="curs_addwstr.3x.html">curs_addwstr(3x)</A></STRONG>,   <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>,   <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,
+-       <STRONG><A HREF="curs_bkgrnd.3x.html">curs_bkgrnd(3x)</A></STRONG>, <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,  <STRONG><A HREF="curs_getcchar.3x.html">curs_getcchar(3x)</A></STRONG>,  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
++       <STRONG><A HREF="curs_bkgrnd.3x.html">curs_bkgrnd(3x)</A></STRONG>,  <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,  <STRONG><A HREF="curs_getcchar.3x.html">curs_getcchar(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putwc(3)</STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                  <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                  <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_addch.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_addch.3x.html	2025-03-01 22:03:50.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_addch.3x.html	2025-03-09 00:55:53.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_addch.3x,v 1.128 2025/03/01 21:16:45 tom Exp @
++  * @Id: curs_addch.3x,v 1.130 2025/03/08 23:01:20 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_addch 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_addch 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_addch 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_addch 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ 
+@@ -117,59 +117,60 @@
+ 
+        If the cursor is at the bottom of the scrolling region when advancement
+        occurs at the right margin, and <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> is enabled  for  <EM>win</EM>,  the
+-       scrolling  region  scrolls  up  one  line.   Otherwise, advancement and
+-       scrolling do not occur, and <STRONG>waddch</STRONG> returns <STRONG>ERR</STRONG>.
++       cursor  wraps  as  above  and the scrolling region scrolls up one line.
++       Otherwise, advancement and scrolling do not occur, and  <STRONG>waddch</STRONG>  returns
++       <STRONG>ERR</STRONG>.
+ 
+-       If <EM>ch</EM> is a backspace, carriage return, line feed, or  tab,  the  cursor
++       If  <EM>ch</EM>  is  a backspace, carriage return, line feed, or tab, the cursor
+        moves appropriately within the window.
+ 
+-       <STRONG>o</STRONG>   Backspace  moves  the cursor one character left; at the left margin
++       <STRONG>o</STRONG>   Backspace moves the cursor one character left; at the  left  margin
+            of a window, it does nothing.
+ 
+-       <STRONG>o</STRONG>   Carriage return moves the cursor to the left  margin  on  the  same
++       <STRONG>o</STRONG>   Carriage  return  moves  the  cursor to the left margin on the same
+            line of the window.
+ 
+-       <STRONG>o</STRONG>   Line  feed  does a <STRONG><A HREF="curs_clear.3x.html">clrtoeol(3x)</A></STRONG>, then advances as if from the right
++       <STRONG>o</STRONG>   Line feed does a <STRONG><A HREF="curs_clear.3x.html">clrtoeol(3x)</A></STRONG>, then advances as if from  the  right
+            margin.
+ 
+-       <STRONG>o</STRONG>   Tab advances the cursor to the next tab stop (possibly on the  next
+-           line);  these  are placed at every eighth column by default.  Alter
+-           the   tab   interval    with    the    <STRONG>TABSIZE</STRONG>    extension;    see
++       <STRONG>o</STRONG>   Tab  advances the cursor to the next tab stop (possibly on the next
++           line); these are placed at every eighth column by  default.   Alter
++           the    tab    interval    with    the    <STRONG>TABSIZE</STRONG>   extension;   see
+            <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+ 
+-       If  <EM>ch</EM>  is  any  other nonprintable character, it is drawn in printable
++       If <EM>ch</EM> is any other nonprintable character, it  is  drawn  in  printable
+        form using the same convention as <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>.  Calling <STRONG><A HREF="curs_inch.3x.html">winch(3x)</A></STRONG> on the
+-       location  of  a  nonprintable  character  does not return the character
++       location of a nonprintable character  does  not  return  the  character
+        itself, but its <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG> representation.
+ 
+-       The object or expression <EM>ch</EM> may contain attributes and/or a color  pair
+-       identifier.   (A  <EM>chtype</EM>  can  be  copied  from  place  to  place using
+-       <STRONG><A HREF="curs_inch.3x.html">winch(3x)</A></STRONG> and <STRONG>waddch</STRONG>.)  See  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>  for  values  of  predefined
+-       constants  that  can  be  usefully  "or"ed with characters.  A <EM>ch</EM> whose
+-       character component is a space, and whose only attribute  is  <STRONG>A_NORMAL</STRONG>,
+-       is  a  <EM>blank</EM>  <EM>character</EM>,  and  therefore  combines  with the background
++       The  object or expression <EM>ch</EM> may contain attributes and/or a color pair
++       identifier.  (A  <EM>chtype</EM>  can  be  copied  from  place  to  place  using
++       <STRONG><A HREF="curs_inch.3x.html">winch(3x)</A></STRONG>  and  <STRONG>waddch</STRONG>.)   See  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>  for values of predefined
++       constants that can be usefully "or"ed  with  characters.   A  <EM>ch</EM>  whose
++       character  component  is a space, and whose only attribute is <STRONG>A_NORMAL</STRONG>,
++       is a <EM>blank</EM>  <EM>character</EM>,  and  therefore  combines  with  the  background
+        character; see <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H3><a name="h3-wechochar">wechochar</a></H3><PRE>
+-       <STRONG>echochar</STRONG> and <STRONG>wechochar</STRONG> are equivalent to calling (<STRONG>w</STRONG>)<STRONG>addch</STRONG>  followed  by
+-       (<STRONG>w</STRONG>)<STRONG>refresh</STRONG>  on <STRONG>stdscr</STRONG> or the specified window.  <EM>curses</EM> interprets these
+-       functions as a hint to its optimizer that only a single character  cell
+-       in  the  window  is  being  altered  between refreshes; for non-control
++       <STRONG>echochar</STRONG>  and  <STRONG>wechochar</STRONG> are equivalent to calling (<STRONG>w</STRONG>)<STRONG>addch</STRONG> followed by
++       (<STRONG>w</STRONG>)<STRONG>refresh</STRONG> on <STRONG>stdscr</STRONG> or the specified window.  <EM>curses</EM> interprets  these
++       functions  as a hint to its optimizer that only a single character cell
++       in the window is  being  altered  between  refreshes;  for  non-control
+        characters, a considerable performance gain may be enjoyed by employing
+        them.
+ 
+ 
+ </PRE><H3><a name="h3-Forms-Drawing-Characters">Forms-Drawing Characters</a></H3><PRE>
+-       <EM>curses</EM>  defines  macros starting with <STRONG>ACS_</STRONG> that can be used with <STRONG>waddch</STRONG>
+-       to write line-drawing and other symbols to the screen.   <EM>ncurses</EM>  terms
+-       these  <EM>forms-drawing</EM>  <EM>characters.</EM>  The ACS default listed below is used
++       <EM>curses</EM> defines macros starting with <STRONG>ACS_</STRONG> that can be used  with  <STRONG>waddch</STRONG>
++       to  write  line-drawing and other symbols to the screen.  <EM>ncurses</EM> terms
++       these <EM>forms-drawing</EM> <EM>characters.</EM>  The ACS default listed below  is  used
+        if the <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>) <EM>terminfo</EM> capability does not define a terminal-
+-       specific  replacement  for  it,  or  if  the  terminal  type and locale
+-       configuration require  Unicode  to  access  these  characters  but  the
+-       library  is  unable to use Unicode.  The "acsc char" column corresponds
+-       to how the characters are specified  in  the  <STRONG>acs_chars</STRONG>  (<STRONG>acsc</STRONG>)  string
+-       capability,  and  the  characters in it may appear on the screen if the
++       specific replacement for  it,  or  if  the  terminal  type  and  locale
++       configuration  require  Unicode  to  access  these  characters  but the
++       library is unable to use Unicode.  The "acsc char"  column  corresponds
++       to  how  the  characters  are  specified in the <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>) string
++       capability, and the characters in it may appear on the  screen  if  the
+        terminal type's database entry incorrectly advertises ACS support.  The
+        name "ACS" originates in the Alternate Character Set feature of the DEC
+        VT100 terminal.
+@@ -219,27 +220,27 @@
+ 
+        <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
+ 
+-       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
++       <STRONG>o</STRONG>   (for  functions  taking  a  <EM>WINDOW</EM>  pointer argument) <EM>win</EM> is a null
+            pointer,
+ 
+-       <STRONG>o</STRONG>   wrapping  to  a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> has not
+-           been called on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when a write  to  its
++       <STRONG>o</STRONG>   wrapping to a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>  has  not
++           been  called  on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when a write to its
+            bottom right location is attempted, or
+ 
+-       <STRONG>o</STRONG>   it  is  not  possible  to  add  a  complete character at the cursor
++       <STRONG>o</STRONG>   it is not possible to  add  a  complete  character  at  the  cursor
+            position.
+ 
+        The last may be due to different causes:
+ 
+-       <STRONG>o</STRONG>   conversion of a wide character to a  multibyte  character  sequence
++       <STRONG>o</STRONG>   conversion  of  a  wide character to a multibyte character sequence
+            can fail, or
+ 
+-       <STRONG>o</STRONG>   at  least one of the bytes resulting from wide character conversion
+-           to a multibyte character sequence cannot be added  to  the  window.
+-           See  section  "PORTABILITY"  below regarding the use of <STRONG>waddch</STRONG> with
++       <STRONG>o</STRONG>   at least one of the bytes resulting from wide character  conversion
++           to  a  multibyte  character sequence cannot be added to the window.
++           See section "PORTABILITY" below regarding the use  of  <STRONG>waddch</STRONG>  with
+            wide characters.
+ 
+-       Functions prefixed with "mv" first perform cursor movement and fail  if
++       Functions  prefixed with "mv" first perform cursor movement and fail if
+        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
+ 
+ 
+@@ -249,11 +250,11 @@
+ 
+ </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+        The symbols <EM>ACS</EM><STRONG>_</STRONG><EM>S3</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>S7</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,
+-       and <EM>ACS</EM><STRONG>_</STRONG><EM>STERLING</EM> were not documented in any publicly released  System V
+-       and  are  not  standard.   However,  many  publicly  available <EM>terminfo</EM>
+-       entries include  <EM>acs</EM><STRONG>_</STRONG><EM>chars</EM>  (<STRONG>acsc</STRONG>)  capabilities  in  which  their  key
+-       characters  (<STRONG>pryz{|}</STRONG>)  are  embedded,  and  a second-hand list of their
+-       character descriptions has  come  to  light.   The  <EM>ncurses</EM>  developers
++       and  <EM>ACS</EM><STRONG>_</STRONG><EM>STERLING</EM> were not documented in any publicly released System V
++       and are  not  standard.   However,  many  publicly  available  <EM>terminfo</EM>
++       entries  include  <EM>acs</EM><STRONG>_</STRONG><EM>chars</EM>  (<STRONG>acsc</STRONG>)  capabilities  in  which  their key
++       characters (<STRONG>pryz{|}</STRONG>) are embedded, and  a  second-hand  list  of  their
++       character  descriptions  has  come  to  light.   The <EM>ncurses</EM> developers
+        invented ACS-prefixed names for them.
+ 
+ 
+@@ -264,79 +265,79 @@
+        X/Open Curses Issue 4 describes these functions.  It specifies no error
+        conditions for them.
+ 
+-       SVr4  describes  a  successful  return  value only as "an integer value
++       SVr4 describes a successful return value  only  as  "an  integer  value
+        other than <EM>ERR</EM>".
+ 
+-       The defaults specified for forms-drawing characters apply in the  POSIX
++       The  defaults specified for forms-drawing characters apply in the POSIX
+        locale.
+ 
+ 
+ </PRE><H3><a name="h3-ACS-Symbols">ACS Symbols</a></H3><PRE>
+-       X/Open  Curses  states  that  the  <EM>ACS</EM><STRONG>_</STRONG> definitions are <EM>char</EM> constants.
++       X/Open Curses states that the  <EM>ACS</EM><STRONG>_</STRONG>  definitions  are  <EM>char</EM>  constants.
+        Some implementations are problematic.
+ 
+-       <STRONG>o</STRONG>   Solaris <EM>curses</EM>, for example, defines the ACS symbols as  constants;
++       <STRONG>o</STRONG>   Solaris  <EM>curses</EM>, for example, defines the ACS symbols as constants;
+            others define them as elements of an array.
+ 
+-           SVr4  used  an array, <EM>acs</EM><STRONG>_</STRONG><EM>map</EM>, as does <EM>ncurses</EM>.  NetBSD <EM>curses</EM> also
+-           uses an array, actually  named  <STRONG>_</STRONG><EM>acs</EM><STRONG>_</STRONG><EM>char</EM>,  with  a  "#define"  for
++           SVr4 used an array, <EM>acs</EM><STRONG>_</STRONG><EM>map</EM>, as does <EM>ncurses</EM>.  NetBSD  <EM>curses</EM>  also
++           uses  an  array,  actually  named  <STRONG>_</STRONG><EM>acs</EM><STRONG>_</STRONG><EM>char</EM>,  with a "#define" for
+            compatibility.
+ 
+-       <STRONG>o</STRONG>   HP-UX  <EM>curses</EM>  equates  some  of  the <EM>ACS</EM><STRONG>_</STRONG> symbols to the analogous
+-           <EM>WACS</EM><STRONG>_</STRONG> symbols as if the <EM>ACS</EM><STRONG>_</STRONG>  symbols  were  wide  characters  (see
+-           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).   The  misdefined  symbols  are  the  arrows and
++       <STRONG>o</STRONG>   HP-UX <EM>curses</EM> equates some of the  <EM>ACS</EM><STRONG>_</STRONG>  symbols  to  the  analogous
++           <EM>WACS</EM><STRONG>_</STRONG>  symbols  as  if  the  <EM>ACS</EM><STRONG>_</STRONG> symbols were wide characters (see
++           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).  The  misdefined  symbols  are  the  arrows  and
+            others that are not used for line drawing.
+ 
+-       <STRONG>o</STRONG>   X/Open Curses (Issues 2 through 7) has a  typographical  error  for
+-           the  <EM>ACS</EM><STRONG>_</STRONG><EM>LANTERN</EM>  symbol,  equating  its  "VT100+ Character" to "I"
+-           (capital I), while the header  files  for  SVr4  <EM>curses</EM>  and  other
++       <STRONG>o</STRONG>   X/Open  Curses  (Issues 2  through 7) has a typographical error for
++           the <EM>ACS</EM><STRONG>_</STRONG><EM>LANTERN</EM> symbol, equating  its  "VT100+  Character"  to  "I"
++           (capital  I),  while  the  header  files  for SVr4 <EM>curses</EM> and other
+            implementations use "i" (small i).
+ 
+-           None  of  the terminal descriptions on Unix platforms use uppercase
+-           I, except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for  <STRONG>screen(1)</STRONG>,
+-           apparently  based on the X/Open documentation around 1995).  On the
+-           other hand, its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS  Terminal  Emulator)
++           None of the terminal descriptions on Unix platforms  use  uppercase
++           I,  except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for <STRONG>screen(1)</STRONG>,
++           apparently based on the X/Open documentation around 1995).  On  the
++           other  hand,  its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS Terminal Emulator)
+            description uses lowercase i.
+ 
+        The <EM>displayed</EM> values of <EM>ACS</EM><STRONG>_</STRONG> constants depend on
+ 
+        <STRONG>o</STRONG>   the  <EM>ncurses</EM>  ABI--for  example,  wide-character  versus  non-wide-
+-           character configurations  (the  former  is  capable  of  displaying
++           character  configurations  (the  former  is  capable  of displaying
+            Unicode while the latter is not), and
+ 
+        <STRONG>o</STRONG>   whether the locale uses UTF-8 encoding.
+ 
+-       In  certain  cases,  the  terminal  is  unable to display forms-drawing
+-       characters  <EM>except</EM>  by  using  UTF-8;  see  the   discussion   of   the
++       In certain cases, the  terminal  is  unable  to  display  forms-drawing
++       characters   <EM>except</EM>   by   using  UTF-8;  see  the  discussion  of  the
+        <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM> environment variable in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H3><a name="h3-Character-Set">Character Set</a></H3><PRE>
+-       X/Open  Curses  assumes  that the parameter passed to <EM>waddch</EM> contains a
+-       single character.  That character may have been more  than  eight  bits
+-       wide  in  an  SVr3 or SVr4 implementation, but X/Open Curses leaves the
+-       width of a non-wide character code unspecified.  The  standard  further
+-       does  not specify the internal structure of a <EM>chtype</EM>, though the use of
+-       bit operations to combine the character  code  with  attributes  and  a
++       X/Open Curses assumes that the parameter passed to  <EM>waddch</EM>  contains  a
++       single  character.   That  character may have been more than eight bits
++       wide in an SVr3 or SVr4 implementation, but X/Open  Curses  leaves  the
++       width  of  a non-wide character code unspecified.  The standard further
++       does not specify the internal structure of a <EM>chtype</EM>, though the use  of
++       bit  operations  to  combine  the  character code with attributes and a
+        color pair identifier into a <EM>chtype</EM> for passage to <EM>waddch</EM> is common.  A
+        portable application uses only the macros discussed in <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG> to
+        manipulate a <EM>chtype</EM>.
+ 
+        In <EM>ncurses</EM>, <EM>chtype</EM> holds an eight-bit character, but the library allows
+-       a multibyte character sequence to be passed via a succession  of  calls
+-       to  <EM>waddch</EM>.   Other  implementations  do  not;  a <EM>waddch</EM> call transmits
+-       exactly one character, which may be rendered  in  one  or  more  screen
+-       locations  depending  on  whether  it  is  printable  (see <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
+-       Depending on the locale, <EM>ncurses</EM>  inspects  the  byte  passed  in  each
+-       <EM>waddch</EM>  call  and  checks whether the latest call continues a multibyte
+-       character.   When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays   the
+-       character   and  advances  the  cursor.   If  the  calling  application
++       a  multibyte  character sequence to be passed via a succession of calls
++       to <EM>waddch</EM>.  Other implementations  do  not;  a  <EM>waddch</EM>  call  transmits
++       exactly  one  character,  which  may  be rendered in one or more screen
++       locations depending  on  whether  it  is  printable  (see  <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
++       Depending  on  the  locale,  <EM>ncurses</EM>  inspects  the byte passed in each
++       <EM>waddch</EM> call and checks whether the latest call  continues  a  multibyte
++       character.    When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays  the
++       character  and  advances  the  cursor.   If  the  calling   application
+        interrupts the succession of bytes in a multibyte character sequence by
+-       changing  the  current  location--for  example, with <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG>--<EM>ncurses</EM>
++       changing the current  location--for  example,  with  <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG>--<EM>ncurses</EM>
+        discards the incomplete character.
+ 
+        For  portability  to  other  implementations,  do  not  rely  upon  the
+-       foregoing  behavior.  Check whether a character can be represented as a
++       foregoing behavior.  Check whether a character can be represented as  a
+        single byte in the current locale.
+ 
+        <STRONG>o</STRONG>   If it can, call either <EM>waddch</EM> or <EM>wadd</EM><STRONG>_</STRONG><EM>wch</EM>.
+@@ -347,24 +348,24 @@
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+        4BSD (1980) introduced <EM>waddch</EM> and its variants.
+ 
+-       SVr3 (1987) added the <EM>echochar</EM> and <EM>wechochar</EM> functions and most of  the
+-       <EM>ACS</EM><STRONG>_</STRONG>  constants, except for <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>,
++       SVr3  (1987) added the <EM>echochar</EM> and <EM>wechochar</EM> functions and most of the
++       <EM>ACS</EM><STRONG>_</STRONG> constants, except for <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,  <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>,
+        <EM>ACS</EM><STRONG>_</STRONG><EM>S3</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>S7</EM>, and <EM>ACS</EM><STRONG>_</STRONG><EM>STERLING</EM>.
+ 
+        <EM>ncurses</EM> 1.9.6 (1995) furnished the remaining <EM>ACS</EM><STRONG>_</STRONG> constants.
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+-       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM>  library
++       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>  describes comparable functions of the <EM>ncurses</EM> library
+        in its wide-character configuration (<EM>ncursesw</EM>).
+ 
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,
+-       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>,   <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,    <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,    <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
++       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>,    <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,    <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putchar(3)</STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_initscr.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_initscr.3x.html	2025-03-01 22:03:50.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_initscr.3x.html	2025-03-09 00:55:54.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_initscr.3x,v 1.95 2025/03/01 21:21:41 tom Exp @
++  * @Id: curs_initscr.3x,v 1.100 2025/03/08 23:07:43 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_initscr 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_initscr 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_initscr 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_initscr 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
+ 
+@@ -98,8 +98,8 @@
+        An application that manages multiple terminals should call <STRONG>newterm</STRONG> once
+        for each such device <EM>instead</EM> of <STRONG>initscr</STRONG>.  <STRONG>newterm</STRONG>'s arguments are
+ 
+-       <STRONG>o</STRONG>   the  <EM>type</EM>  of  the  associated  terminal,  or  <EM>NULL</EM> to use the <EM>TERM</EM>
+-           environment variable;
++       <STRONG>o</STRONG>   the  <EM>type</EM>  of the associated terminal, or a null pointer to use the
++           <EM>TERM</EM> environment variable;
+ 
+        <STRONG>o</STRONG>   an output stream <EM>outf</EM> connected to the terminal; and
+ 
+@@ -170,7 +170,8 @@
+ 
+ 
+ </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
+-       <STRONG>endwin</STRONG> returns <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
++       <STRONG>delscreen</STRONG>  returns  no  value.  <STRONG>endwin</STRONG> returns <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on
++       failure.  <STRONG>isendwin</STRONG> returns <STRONG>TRUE</STRONG> or <STRONG>FALSE</STRONG> as described above.
+ 
+        In <EM>ncurses</EM>,
+ 
+@@ -178,64 +179,64 @@
+ 
+            <STRONG>o</STRONG>   the terminal was not initialized,
+ 
+-           <STRONG>o</STRONG>   <STRONG>endwin</STRONG> is called more than once without updating the screen, or
++           <STRONG>o</STRONG>   it is called more than once without updating the screen, or
+ 
+-           <STRONG>o</STRONG>   <STRONG><A HREF="curs_kernel.3x.html">reset_shell_mode(3x)</A></STRONG> returns <STRONG>ERR</STRONG>.
++           <STRONG>o</STRONG>   its call of <STRONG><A HREF="curs_kernel.3x.html">reset_shell_mode(3x)</A></STRONG> returns <STRONG>ERR</STRONG>.
+ 
+-       <STRONG>o</STRONG>   <STRONG>newterm</STRONG>  returns  <STRONG>ERR</STRONG>  if it cannot allocate storage for the <EM>SCREEN</EM>
+-           data structure or the top-level windows  thereof:  <STRONG>curscr</STRONG>,  <STRONG>newscr</STRONG>,
+-           and <STRONG>stdscr</STRONG>.
++       <STRONG>o</STRONG>   <STRONG>newterm</STRONG> returns <STRONG>ERR</STRONG> if it cannot allocate storage  for  the  <EM>SCREEN</EM>
++           structure  or  the  <EM>WINDOW</EM> structures automatically associated with
++           it: <STRONG>curscr</STRONG>, <STRONG>newscr</STRONG>, and <STRONG>stdscr</STRONG>.
+ 
+-       Functions  that  return  pointers  return  <EM>NULL</EM>  on error.  In <EM>ncurses</EM>,
+-       <STRONG>set_term</STRONG> does not fail, and <STRONG>initscr</STRONG> exits the application  if  it  does
+-       not operate successfully.
++       Functions that return pointers  return  null  pointers  on  error.   In
++       <EM>ncurses</EM>,  <STRONG>set_term</STRONG>  does not fail, and <STRONG>initscr</STRONG> exits the application if
++       it does not operate successfully.
+ 
+ 
+ </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+-       <EM>ncurses</EM>  establishes signal handlers when a function that initializes a
+-       <EM>SCREEN</EM>, either <STRONG>initscr</STRONG> or <STRONG>newterm</STRONG>, is first called.  Applications  that
+-       wish  to  handle  the  following signals themselves should set up their
++       <EM>ncurses</EM> establishes signal handlers when a function that initializes  a
++       <EM>SCREEN</EM>,  either <STRONG>initscr</STRONG> or <STRONG>newterm</STRONG>, is first called.  Applications that
++       wish to handle the following signals themselves  should  set  up  their
+        corresponding handlers <EM>after</EM> initializing the screen.
+ 
+-       <EM>SIGINT</EM> <EM>ncurses</EM>'s handler <EM>attempts</EM> to  clean  up  the  screen  on  exit.
++       <EM>SIGINT</EM> <EM>ncurses</EM>'s  handler  <EM>attempts</EM>  to  clean  up  the screen on exit.
+               Although it <EM>usually</EM> works as expected, there are limitations.
+ 
+               <STRONG>o</STRONG>   Walking the <EM>SCREEN</EM> list is unsafe, since all list management
+                   is done without any signal blocking.
+ 
+               <STRONG>o</STRONG>   When an application has been built with the <STRONG>_</STRONG><EM>REENTRANT</EM> macro
+-                  defined  (and  corresponding  system support), <STRONG>set_term</STRONG> uses
++                  defined (and corresponding system  support),  <STRONG>set_term</STRONG>  uses
+                   functions that could deadlock or misbehave in other ways.
+ 
+-              <STRONG>o</STRONG>   <STRONG>endwin</STRONG> calls other functions, many of which use <STRONG>stdio(3)</STRONG>  or
++              <STRONG>o</STRONG>   <STRONG>endwin</STRONG>  calls other functions, many of which use <STRONG>stdio(3)</STRONG> or
+                   other library functions that are clearly unsafe.
+ 
+        <EM>SIGTERM</EM>
+-              <EM>ncurses</EM>  uses  the  same  handler  as  for <EM>SIGINT</EM>, with the same
+-              limitations.  It is not mentioned in X/Open Curses, but is  more
+-              suitable  for  this  purpose  than  <EM>SIGQUIT</EM>  (which  is  used in
++              <EM>ncurses</EM> uses the same handler  as  for  <EM>SIGINT</EM>,  with  the  same
++              limitations.   It is not mentioned in X/Open Curses, but is more
++              suitable for  this  purpose  than  <EM>SIGQUIT</EM>  (which  is  used  in
+               debugging).
+ 
+        <EM>SIGTSTP</EM>
+-              <EM>ncurses</EM>'s handler manages the  terminal-generated  stop  signal,
++              <EM>ncurses</EM>'s  handler  manages  the terminal-generated stop signal,
+               used  in  job  control.   When  resuming  the  process,  <EM>ncurses</EM>
+               discards  pending  input  with  <STRONG><A HREF="curs_util.3x.html">flushinp(3x)</A></STRONG>  and  repaints  the
+-              screen,  assuming  that it has been completely altered.  It also
++              screen, assuming that it has been completely altered.   It  also
+               updates the saved terminal modes with <STRONG><A HREF="curs_kernel.3x.html">def_shell_mode(3x)</A></STRONG>.
+ 
+        <EM>SIGWINCH</EM>
+               <EM>ncurses</EM>  handles  changes  to  the  terminal's  window  size,  a
+               phenomenon  ignored  in  standardization  efforts.   It  sets  a
+-              (signal-safe) variable that is later tested  by  <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>  and
++              (signal-safe)  variable  that  is later tested by <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG> and
+               <STRONG><A HREF="curs_get_wch.3x.html">wget_wch(3x)</A></STRONG>.
+ 
+               <STRONG>o</STRONG>   <STRONG>wgetch</STRONG> returns the key code <STRONG>KEY_RESIZE</STRONG>.
+ 
+-              <STRONG>o</STRONG>   <STRONG>wget_wch</STRONG>  returns <STRONG>KEY_CODE_YES</STRONG> and sets its <EM>wch</EM> parameter to
++              <STRONG>o</STRONG>   <STRONG>wget_wch</STRONG> returns <STRONG>KEY_CODE_YES</STRONG> and sets its <EM>wch</EM> parameter  to
+                   <STRONG>KEY_RESIZE</STRONG>.
+ 
+-              At the same time, <EM>ncurses</EM> calls  <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>  to  adjust  the
+-              standard  screen  <STRONG>stdscr</STRONG>,  and  update  global variables such as
++              At  the  same  time,  <EM>ncurses</EM> calls <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG> to adjust the
++              standard screen <STRONG>stdscr</STRONG>, and  update  global  variables  such  as
+               <STRONG>LINES</STRONG> and <STRONG>COLS</STRONG>.
+ 
+ 
+@@ -245,79 +246,79 @@
+ 
+ 
+ </PRE><H3><a name="h3-Differences">Differences</a></H3><PRE>
+-       X/Open  Curses  specifies  that  portable  applications  must  not call
++       X/Open Curses  specifies  that  portable  applications  must  not  call
+        <EM>initscr</EM> more than once.
+ 
+-       <STRONG>o</STRONG>   The portable way to use <EM>initscr</EM> is  once  only,  using  <EM>refresh</EM>  to
++       <STRONG>o</STRONG>   The  portable  way  to  use  <EM>initscr</EM> is once only, using <EM>refresh</EM> to
+            restore the screen after <EM>endwin</EM>.
+ 
+        <STRONG>o</STRONG>   <EM>ncurses</EM> permits use of <EM>initscr</EM> after <EM>endwin</EM>.
+ 
+-       <EM>initscr</EM>  in  BSD,  from  its inception (1980) through the Net/2 release
+-       (1991) returned <EM>ERR</EM> cast to a <EM>WINDOW</EM> pointer when detecting  an  error.
+-       4.4BSD  (1995)  instead  returned  a  null pointer.  Neither exited the
+-       application.  It is safe but redundant to check  the  return  value  of
++       <EM>initscr</EM> in BSD, from its inception (1980)  through  the  Net/2  release
++       (1991)  returned  <EM>ERR</EM> cast to a <EM>WINDOW</EM> pointer when detecting an error.
++       4.4BSD (1995) instead returned a  null  pointer.   Neither  exited  the
++       application.   It  is  safe  but redundant to check the return value of
+        <EM>initscr</EM> in X/Open Curses.
+ 
+-       Calling  <EM>endwin</EM>  does not dispose of the memory allocated by <EM>initscr</EM> or
++       Calling <EM>endwin</EM> does not dispose of the memory allocated by  <EM>initscr</EM>  or
+        <EM>newterm</EM>.  Deleting a <EM>SCREEN</EM> provides a way to do this.
+ 
+-       <STRONG>o</STRONG>   X/Open Curses does not say what happens to <EM>WINDOW</EM>s  when  <EM>delscreen</EM>
+-           "frees  storage  associated  with  the  <EM>SCREEN</EM>"  nor  does the SVr4
++       <STRONG>o</STRONG>   X/Open  Curses  does not say what happens to <EM>WINDOW</EM>s when <EM>delscreen</EM>
++           "frees storage associated  with  the  <EM>SCREEN</EM>"  nor  does  the  SVr4
+            documentation help, adding that it should be called after <EM>endwin</EM> if
+            a <EM>SCREEN</EM> is no longer needed.
+ 
+-       <STRONG>o</STRONG>   However,  <EM>WINDOW</EM>s are implicitly associated with a <EM>SCREEN</EM>, so it is
++       <STRONG>o</STRONG>   However, <EM>WINDOW</EM>s are implicitly associated with a <EM>SCREEN</EM>, so it  is
+            reasonable to expect <EM>delscreen</EM> to dispose of them.
+ 
+-       <STRONG>o</STRONG>   SVr4 deletes the standard <EM>WINDOW</EM> structures <EM>stdscr</EM>  and  <EM>curscr</EM>  as
++       <STRONG>o</STRONG>   SVr4  deletes  the  standard <EM>WINDOW</EM> structures <EM>stdscr</EM> and <EM>curscr</EM> as
+            well as a work area <EM>newscr</EM>.  It ignores other windows.
+ 
+-       <STRONG>o</STRONG>   Since  version  4.0  (1996),  <EM>ncurses</EM>  has maintained a list of all
+-           windows for each screen, using that  information  to  delete  those
++       <STRONG>o</STRONG>   Since version 4.0 (1996), <EM>ncurses</EM> has  maintained  a  list  of  all
++           windows  for  each  screen,  using that information to delete those
+            windows when <EM>delscreen</EM> is called.
+ 
+-       <STRONG>o</STRONG>   NetBSD  copied  this  feature of <EM>ncurses</EM> in 2001.  <EM>PDCurses</EM> follows
++       <STRONG>o</STRONG>   NetBSD copied this feature of <EM>ncurses</EM> in  2001.   <EM>PDCurses</EM>  follows
+            the SVr4 model, deleting only the standard <EM>WINDOW</EM> structures.
+ 
+ 
+ </PRE><H3><a name="h3-High-level-versus-Low-level">High-level versus Low-level</a></H3><PRE>
+-       Different implementations may disagree  regarding  the  level  of  some
+-       functions.   For  example,  <EM>SCREEN</EM>  (returned  by <EM>newterm</EM>) and <EM>TERMINAL</EM>
+-       (returned by  <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>)  hold  file  descriptors  for  the  output
++       Different  implementations  may  disagree  regarding  the level of some
++       functions.  For example, <EM>SCREEN</EM>  (returned  by  <EM>newterm</EM>)  and  <EM>TERMINAL</EM>
++       (returned  by  <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>)  hold  file  descriptors  for  the output
+        stream.  If an application switches screens using <EM>set</EM><STRONG>_</STRONG><EM>term</EM>, or switches
+        terminals using <STRONG><A HREF="curs_terminfo.3x.html">set_curterm(3x)</A></STRONG>, applications which use the output file
+-       descriptor  can  have  different  behavior depending on which structure
++       descriptor can have different behavior  depending  on  which  structure
+        holds the corresponding descriptor.
+ 
+-       <STRONG>o</STRONG>   NetBSD's  <EM>baudrate</EM>  function  uses  the  descriptor  in   <EM>TERMINAL</EM>.
++       <STRONG>o</STRONG>   NetBSD's   <EM>baudrate</EM>  function  uses  the  descriptor  in  <EM>TERMINAL</EM>.
+            <EM>ncurses</EM> and SVr4 use the descriptor in <EM>SCREEN</EM>.
+ 
+-       <STRONG>o</STRONG>   NetBSD  and <EM>ncurses</EM> use the descriptor in <EM>TERMINAL</EM> for terminal I/O
+-           modes, e.g., <STRONG><A HREF="curs_kernel.3x.html">def_shell_mode(3x)</A></STRONG>, <STRONG><A HREF="curs_kernel.3x.html">def_prog_mode(3x)</A></STRONG>.  SVr4 uses  the
++       <STRONG>o</STRONG>   NetBSD and <EM>ncurses</EM> use the descriptor in <EM>TERMINAL</EM> for terminal  I/O
++           modes,  e.g., <STRONG><A HREF="curs_kernel.3x.html">def_shell_mode(3x)</A></STRONG>, <STRONG><A HREF="curs_kernel.3x.html">def_prog_mode(3x)</A></STRONG>.  SVr4 uses the
+            descriptor in <EM>SCREEN</EM>.
+ 
+    <STRONG>Unset</STRONG> <EM>TERM</EM> <STRONG>Environment</STRONG> <STRONG>Variable</STRONG>
+-       If  the  <EM>TERM</EM>  variable  is  not set in the environment or has an empty
+-       value, <EM>initscr</EM> uses the value "unknown", which normally corresponds  to
++       If the <EM>TERM</EM> variable is not set in the  environment  or  has  an  empty
++       value,  <EM>initscr</EM> uses the value "unknown", which normally corresponds to
+        a terminal entry with the <STRONG>generic</STRONG> (<STRONG>gn</STRONG>) capability.  Generic entries are
+        detected by <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG> and cannot be used for full-screen operation.
+-       Other  implementations  may  handle  a  missing  or empty <EM>TERM</EM> variable
++       Other implementations may handle  a  missing  or  empty  <EM>TERM</EM>  variable
+        differently.
+ 
+ 
+ </PRE><H3><a name="h3-Signal-Handlers">Signal Handlers</a></H3><PRE>
+        Quoting X/Open Curses Issue 7, section 3.1.1:
+ 
+-            Curses implementations may provide for  special  handling  of  the
+-            SIGINT,  SIGQUIT,  and  SIGTSTP  signals  if  their disposition is
++            Curses  implementations  may  provide  for special handling of the
++            SIGINT, SIGQUIT, and  SIGTSTP  signals  if  their  disposition  is
+             SIG_DFL at the time <EM>initscr</EM>() is called...
+ 
+-            Any special handling for these signals may remain  in  effect  for
++            Any  special  handling  for these signals may remain in effect for
+             the  life  of  the  process  or  until  the  process  changes  the
+             disposition of the signal.
+ 
+-            None of the Curses functions are required to be safe with  respect
++            None  of the Curses functions are required to be safe with respect
+             to signals...
+ 
+        Section "NOTES" above discusses <EM>ncurses</EM>'s signal handlers.
+@@ -332,12 +333,12 @@
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,     <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>,     <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,    <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>,
++       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>,     <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,     <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                  <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                  <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_inopts.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_inopts.3x.html	2025-03-01 22:03:51.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_inopts.3x.html	2025-03-09 00:55:54.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_inopts.3x,v 1.96 2025/03/01 21:23:21 tom Exp @
++  * @Id: curs_inopts.3x,v 1.100 2025/03/08 23:09:30 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_inopts 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_inopts 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_inopts 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_inopts 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
+ 
+@@ -153,15 +153,19 @@
+ 
+ </PRE><H3><a name="h3-keypad">keypad</a></H3><PRE>
+        <STRONG>keypad</STRONG> enables recognition of a terminal's function keys.   If  enabled
+-       (<EM>bf</EM>  is  <STRONG>TRUE</STRONG>),  the  input  character reading function returns a value
+-       representing the function key, such as <STRONG>KEY_LEFT</STRONG>.   (Wide-character  API
+-       users:  <STRONG><A HREF="curs_get_wch.3x.html">wget_wch(3x)</A></STRONG>  returns <STRONG>KEY_CODE_YES</STRONG> to indicate the availability
+-       of a function key code in its  <EM>wch</EM>  parameter.)   If  disabled  (<EM>bf</EM>  is
+-       <STRONG>FALSE</STRONG>),  <EM>curses</EM>  does not treat function keys specially and the program
+-       has to interpret escape sequences itself.  If the terminal's keypad can
+-       be  turned on (made to transmit) and off (made to work locally), <STRONG>keypad</STRONG>
+-       configures it consistently  with  the  <EM>bf</EM>  parameter.   By  default,  a
+-       window's keypad mode is off.
++       (<EM>bf</EM>  is  <STRONG>TRUE</STRONG>) then when an input character reading function reads ESC,
++       it waits for further input corresponding to an escape sequence  defined
++       by  the terminal type description.  If a valid sequence is entered, the
++       input character reading  function  returns  a  value  representing  the
++       function   key,   such   as   <STRONG>KEY_LEFT</STRONG>.    (Wide-character  API  users:
++       <STRONG><A HREF="curs_get_wch.3x.html">wget_wch(3x)</A></STRONG> returns <STRONG>KEY_CODE_YES</STRONG> to indicate  the  availability  of  a
++       function  key  code in its <EM>wch</EM> parameter.)  If the sequence is invalid,
++       the input character reading function returns only its  last  character.
++       If  disabled  (<EM>bf</EM>  is  <STRONG>FALSE</STRONG>),  <EM>curses</EM>  does  not  treat  function keys
++       specially and the program has to interpret escape sequences itself.  If
++       the terminal's keypad can be turned on (made to transmit) and off (made
++       to work  locally),  <STRONG>keypad</STRONG>  configures  it  consistently  with  the  <EM>bf</EM>
++       parameter.  By default, a window's keypad mode is off.
+ 
+ 
+ </PRE><H3><a name="h3-meta">meta</a></H3><PRE>
+@@ -198,8 +202,10 @@
+        sets  a  timer  while  waiting  for the next character.  <STRONG>notimeout(</STRONG><EM>win</EM><STRONG>,</STRONG>
+        <STRONG>TRUE)</STRONG>  disables  this  timer.   The  purpose  of  the  timeout  is   to
+        distinguish  sequences produced by a function key from those typed by a
+-       user.  To configure the timeout rather than disabling it, see  <STRONG>wtimeout</STRONG>
+-       below.
++       user.  If this timer is disabled, <EM>curses</EM> waits forever  for  subsequent
++       keystrokes  until  it  determines  the  escape  sequence to be valid or
++       invalid.  To configure the timeout duration rather than  disabling  it,
++       see <STRONG>wtimeout</STRONG> below.
+ 
+ 
+ </PRE><H3><a name="h3-qiflush_noqiflush">qiflush, noqiflush</a></H3><PRE>
+@@ -243,8 +249,8 @@
+ 
+ </PRE><H3><a name="h3-typeahead">typeahead</a></H3><PRE>
+        Normally, a <EM>curses</EM> library checks the terminal's input file  descriptor
+-       for  pending input with <STRONG>poll(2)</STRONG> or <STRONG>select(2)</STRONG> while updating the screen;
+-       if it finds any, it postpones output until  the  next  <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG>  or
++       for activity with <STRONG>poll(2)</STRONG> or <STRONG>select(2)</STRONG> while updating the screen; if it
++       finds  any,  it  postpones  output  until  the  next  <STRONG><A HREF="curs_refresh.3x.html">wrefresh(3x)</A></STRONG>   or
+        <STRONG><A HREF="curs_refresh.3x.html">doupdate(3x)</A></STRONG>  call,  allowing faster response to user key strokes.  The
+        library tests the file descriptor  corresponding  to  the  <EM>FILE</EM>  stream
+        pointer passed to <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG> (or <EM>stdin</EM> if <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> was called), for
+@@ -285,15 +291,17 @@
+ 
+        <EM>curses</EM>  documentation  uses  the  terms "delay" and "timeout" freely to
+        describe two related but distinct aspects of  input  handling,  at  the
+-       risk   of  confusing  the  user.   The  functions  <STRONG>halfdelay</STRONG>,  <STRONG>nodelay</STRONG>,
+-       <STRONG>notimeout</STRONG>, <STRONG>timeout</STRONG>,  and  <STRONG>wtimeout</STRONG>  all  configure  whether  the  input
+-       character   reading  function  (<STRONG><A HREF="curs_getch.3x.html">getch(3x)</A></STRONG>  or  <STRONG><A HREF="curs_get_wch.3x.html">get_wch(3x)</A></STRONG>)  waits  for
+-       keyboard input, and for how long.  Only <STRONG>keypad</STRONG> configures whether  that
+-       function  waits  for  further  input if the first character it reads is
+-       ESC.  X/Open Curses affords no means of configuring the length of  this
+-       second  delay, but an AIX and <EM>ncurses</EM> extension, <STRONG>ESCDELAY</STRONG>, is available
+-       both as an environment variable and  a  global  symbol  permitting  the
+-       application to do so; see <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> and <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
++       risk of confusing the user.  The functions <STRONG>halfdelay</STRONG>, <STRONG>nodelay</STRONG>, <STRONG>timeout</STRONG>,
++       and <STRONG>wtimeout</STRONG> configure whether the  input  character  reading  function
++       (<STRONG><A HREF="curs_getch.3x.html">getch(3x)</A></STRONG>  or  <STRONG><A HREF="curs_get_wch.3x.html">get_wch(3x)</A></STRONG>) waits for keyboard input to begin, and for
++       how long.  <STRONG>keypad</STRONG> configures whether that function  waits  for  further
++       input if the first character it reads is ESC.  Calling <STRONG>notimeout</STRONG>, which
++       has nothing to do  with  <STRONG>timeout</STRONG>  or  <STRONG>wtimeout</STRONG>,  makes  this  delay  in
++       expectation  of further keystrokes effectively infinite.  X/Open Curses
++       affords no means of otherwise configuring the  length  of  this  second
++       delay, but an AIX and <EM>ncurses</EM> extension, <STRONG>ESCDELAY</STRONG>, is available both as
++       an environment variable and a global symbol permitting the  application
++       to do so; see <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> and <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+@@ -401,7 +409,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                   <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                   <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_ins_wch.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_ins_wch.3x.html	2025-03-01 22:03:51.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_ins_wch.3x.html	2025-03-09 00:55:54.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_ins_wch.3x,v 1.48 2025/03/01 21:25:47 tom Exp @
++  * @Id: curs_ins_wch.3x,v 1.50 2025/03/08 23:10:02 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_ins_wch 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_ins_wch 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_ins_wch 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_ins_wch 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
+ 
+@@ -75,7 +75,7 @@
+ 
+        In <EM>ncurses</EM>, they return <STRONG>ERR</STRONG> if
+ 
+-       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized, and
++       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized, or
+ 
+        <STRONG>o</STRONG>   (for  functions  taking  a  <EM>WINDOW</EM>  pointer argument) <EM>win</EM> is a null
+            pointer.
+@@ -113,7 +113,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                  <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                  <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_insch.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_insch.3x.html	2025-03-01 22:03:51.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_insch.3x.html	2025-03-09 00:55:54.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_insch.3x,v 1.54 2025/03/01 21:26:42 tom Exp @
++  * @Id: curs_insch.3x,v 1.56 2025/03/08 23:10:02 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_insch 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_insch 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_insch 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_insch 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
+ 
+@@ -73,7 +73,7 @@
+ 
+        In <EM>ncurses</EM>, they return <STRONG>ERR</STRONG> if
+ 
+-       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized, and
++       <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized, or
+ 
+        <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+            pointer.
+@@ -109,7 +109,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                    <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                    <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_kernel.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_kernel.3x.html	2025-03-01 22:03:51.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_kernel.3x.html	2025-03-09 00:55:54.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_kernel.3x,v 1.80 2025/03/01 21:31:35 tom Exp @
++  * @Id: curs_kernel.3x,v 1.84 2025/03/08 23:17:33 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_kernel 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_kernel 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_kernel 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_kernel 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+ 
+@@ -155,14 +155,14 @@
+ </PRE><H3><a name="h3-ripoffline">ripoffline</a></H3><PRE>
+        <STRONG>ripoffline</STRONG> provides access to the same facility that <STRONG><A HREF="curs_slk.3x.html">slk_init(3x)</A></STRONG>  uses
+        to reduce the size of the screen.  The application must call <STRONG>ripoffline</STRONG>
+-       before <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG>  so  that  the  functions  prepare  a
+-       <STRONG>stdscr</STRONG> of the correct size.
++       before <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG> so that the latter functions  prepare
++       a <STRONG>stdscr</STRONG> of the correct size.
+ 
+-       <STRONG>o</STRONG>   If  <EM>line</EM>  is  positive,  <STRONG>ripoffline</STRONG>  removes a line from the top of
+-           <STRONG>stdscr</STRONG>.
++       <STRONG>o</STRONG>   If <EM>line</EM> is positive, <STRONG>ripoffline</STRONG> removes a line from the top of what
++           will become <STRONG>stdscr</STRONG>.
+ 
+        <STRONG>o</STRONG>   If <EM>line</EM> is negative, <STRONG>ripoffline</STRONG> removes a line from the  bottom  of
+-           <STRONG>stdscr</STRONG>.
++           what will become <STRONG>stdscr</STRONG>.
+ 
+        When <STRONG>initscr</STRONG> initializes <EM>curses</EM>, it calls the <EM>init</EM> function supplied to
+        <STRONG>ripoffline</STRONG> by the application with two arguments:
+@@ -212,6 +212,16 @@
+        There is no way for <EM>ncurses</EM> to determine the initial cursor  visibility
+        to restore it.
+ 
++       While  the <EM>init</EM> function called by <STRONG>ripoffline</STRONG> is specified to return an
++       <EM>int</EM>, <EM>ncurses</EM> pays no attention to its return value.
++
++       If <STRONG>ripoffline</STRONG> cannot allocate memory for the required <EM>WINDOW</EM>  structure
++       backing  the  ripped-off  line,  it stores a null pointer to the <EM>WINDOW</EM>
++       pointer  argument  supplied  by  the  <EM>init</EM>  function  the   application
++       specifies.  The application must check this argument for validity after
++       calling <STRONG>initscr</STRONG> and prior  to  performing  <EM>curses</EM>  operations  on  that
++       window.
++
+ 
+ </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+        In  <EM>ncurses</EM>, <STRONG>mvcur</STRONG> accepts <STRONG>-1</STRONG> for either or both old coordinates.  This
+@@ -267,7 +277,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                   <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                   <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_move.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_move.3x.html	2025-03-01 22:03:51.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_move.3x.html	2025-03-09 00:55:54.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_move.3x,v 1.59 2025/03/01 21:34:10 tom Exp @
++  * @Id: curs_move.3x,v 1.61 2025/03/08 23:18:46 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_move 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_move 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_move 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_move 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>
+ 
+@@ -86,7 +86,7 @@
+ 
+ 
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+-       4BSD (1980) introduced <EM>move</EM> and <EM>wmove</EM>.
++       4BSD (1980) introduced these functions.
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+@@ -94,7 +94,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                     <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                     <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_outopts.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/curs_outopts.3x.html	2025-03-01 22:03:51.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/curs_outopts.3x.html	2025-03-09 00:55:54.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_outopts.3x,v 1.89 2025/03/01 21:42:22 tom Exp @
++  * @Id: curs_outopts.3x,v 1.91 2025/03/08 23:19:30 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_outopts 3x 2025-03-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_outopts 3x 2025-03-08 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_outopts 3x 2025-03-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_outopts 3x 2025-03-08 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
+ 
+@@ -100,66 +100,67 @@
+ 
+ 
+ </PRE><H3><a name="h3-immedok">immedok</a></H3><PRE>
+-       If <STRONG>immedok</STRONG> is called with <STRONG>TRUE</STRONG> as second argument, any  change  in  the
+-       window  image,  such  as  the  ones caused by <STRONG>waddch</STRONG>, <STRONG>wclrtobot</STRONG>, <STRONG>wscrl</STRONG>,
+-       etc., automatically causes a call to <STRONG>wrefresh</STRONG>.  However, it may degrade
+-       performance  considerably,  due to repeated calls to <STRONG>wrefresh</STRONG>.  Calling
+-       <STRONG>immedok</STRONG> with <STRONG>FALSE</STRONG> as second argument restores  the  default  behavior,
+-       i.e., deferring screen updates until a refresh is needed.
++       If <STRONG>immedok</STRONG> is called with <STRONG>TRUE</STRONG>  as  second  argument,  changes  to  the
++       window  image,  such  as  those  caused by <STRONG>waddch</STRONG>, <STRONG>wclrtobot</STRONG>, or <STRONG>wscrl</STRONG>,
++       automatically cause a call to <STRONG>wrefresh</STRONG>.  However, doing so may  degrade
++       performance  considerably  when many such calls occur.  Calling <STRONG>immedok</STRONG>
++       with <STRONG>FALSE</STRONG> as second argument restores the default behavior,  deferring
++       screen  updates until a refresh is needed or explicitly directed by the
++       application.
+ 
+ 
+ </PRE><H3><a name="h3-leaveok">leaveok</a></H3><PRE>
+-       Normally,  the  hardware  cursor  is left at the location of the window
+-       cursor being refreshed.  The <STRONG>leaveok</STRONG> option allows  the  cursor  to  be
+-       left  wherever  the  update  happens  to  leave  it.   It is useful for
+-       applications where the cursor is not used, since it  reduces  the  need
++       Normally, the hardware cursor is left at the  location  of  the  window
++       cursor  being  refreshed.   The  <STRONG>leaveok</STRONG> option allows the cursor to be
++       left wherever the update  happens  to  leave  it.   It  is  useful  for
++       applications  where  the  cursor is not used, since it reduces the need
+        for cursor motions.
+ 
+ 
+ </PRE><H3><a name="h3-scrollok">scrollok</a></H3><PRE>
+-       The  <STRONG>scrollok</STRONG>  option controls what happens when the cursor of a window
+-       is moved off the edge of the window or scrolling region,  either  as  a
+-       result  of  a  newline  action  on  the bottom line, or typing the last
+-       character of the last line.  If disabled, (<EM>bf</EM> is <STRONG>FALSE</STRONG>), the cursor  is
+-       left  on  the  bottom  line.   If  enabled, (<EM>bf</EM> is <STRONG>TRUE</STRONG>), the window is
++       The <STRONG>scrollok</STRONG> option controls what happens when the cursor of  a  window
++       is  moved  off  the edge of the window or scrolling region, either as a
++       result of a newline action on the  bottom  line,  or  typing  the  last
++       character  of the last line.  If disabled, (<EM>bf</EM> is <STRONG>FALSE</STRONG>), the cursor is
++       left on the bottom line.  If enabled,  (<EM>bf</EM>  is  <STRONG>TRUE</STRONG>),  the  window  is
+        scrolled up one line (Note that to get the physical scrolling effect on
+        the terminal, it is also necessary to call <STRONG>idlok</STRONG>).
+ 
+ 
+ </PRE><H3><a name="h3-setscrreg_wsetscrreg">setscrreg, wsetscrreg</a></H3><PRE>
+-       The  <STRONG>setscrreg</STRONG> and <STRONG>wsetscrreg</STRONG> routines allow the application programmer
+-       to set a software scrolling region  in  a  window.   The  <EM>top</EM>  and  <EM>bot</EM>
+-       parameters  are  the  line  numbers of the top and bottom margin of the
+-       scrolling region.  (Line 0 is the top line of  the  window.)   If  this
+-       option  and  <STRONG>scrollok</STRONG>  are  enabled,  an attempt to move off the bottom
++       The <STRONG>setscrreg</STRONG> and <STRONG>wsetscrreg</STRONG> routines allow the application  programmer
++       to  set  a  software  scrolling  region  in  a window.  The <EM>top</EM> and <EM>bot</EM>
++       parameters are the line numbers of the top and  bottom  margin  of  the
++       scrolling  region.   (Line  0  is the top line of the window.)  If this
++       option and <STRONG>scrollok</STRONG> are enabled, an attempt  to  move  off  the  bottom
+        margin line causes all lines in the scrolling region to scroll one line
+-       in  the  direction  of  the first line.  Only the text of the window is
++       in the direction of the first line.  Only the text  of  the  window  is
+        scrolled.  (Note that this has nothing to do with the use of a physical
+-       scrolling  region  capability  in the terminal, like that in the VT100.
+-       If <STRONG>idlok</STRONG> is enabled and the terminal has either a scrolling  region  or
++       scrolling region capability in the terminal, like that  in  the  VT100.
++       If  <STRONG>idlok</STRONG>  is enabled and the terminal has either a scrolling region or
+        insert/delete line capability, they will probably be used by the output
+        routines.)
+ 
+ 
+ </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
+-       The functions <STRONG>setscrreg</STRONG> and <STRONG>wsetscrreg</STRONG> return <STRONG>OK</STRONG> upon success  and  <STRONG>ERR</STRONG>
+-       upon  failure.  All other routines that return an integer always return
++       The  functions  <STRONG>setscrreg</STRONG> and <STRONG>wsetscrreg</STRONG> return <STRONG>OK</STRONG> upon success and <STRONG>ERR</STRONG>
++       upon failure.  All other routines that return an integer always  return
+        <STRONG>OK</STRONG>.
+ 
+        In this implementation,
+ 
+-       <STRONG>o</STRONG>   those functions that have a window pointer will return <STRONG>ERR</STRONG>  if  the
++       <STRONG>o</STRONG>   those  functions  that have a window pointer will return <STRONG>ERR</STRONG> if the
+            window pointer is null
+ 
+-       <STRONG>o</STRONG>   <STRONG>wsetscrreg</STRONG>  returns  <STRONG>ERR</STRONG>  if  the  scrolling  region  limits extend
++       <STRONG>o</STRONG>   <STRONG>wsetscrreg</STRONG> returns  <STRONG>ERR</STRONG>  if  the  scrolling  region  limits  extend
+            outside the window boundaries.
+ 
+ 
+ </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+-       <STRONG>clearok</STRONG>, <STRONG>leaveok</STRONG>, <STRONG>scrollok</STRONG>, <STRONG>idcok</STRONG>, and <STRONG>setscrreg</STRONG> may be implemented  as
++       <STRONG>clearok</STRONG>,  <STRONG>leaveok</STRONG>, <STRONG>scrollok</STRONG>, <STRONG>idcok</STRONG>, and <STRONG>setscrreg</STRONG> may be implemented as
+        macros.
+ 
+-       The  <STRONG>immedok</STRONG>  routine  is  useful for windows that are used as terminal
++       The <STRONG>immedok</STRONG> routine is useful for windows that  are  used  as  terminal
+        emulators.
+ 
+ 
+@@ -167,13 +168,13 @@
+        X/Open Curses Issue 4 describes these functions.  It specifies no error
+        conditions for them.
+ 
+-       Some  historic  <EM>curses</EM> implementations, as an undocumented feature, did
+-       the  equivalent  of  "<STRONG>clearok(</STRONG>...<STRONG>,</STRONG>   <STRONG>1)</STRONG>"   when   <STRONG>touchwin(stdstr)</STRONG>   or
++       Some historic <EM>curses</EM> implementations, as an undocumented  feature,  did
++       the   equivalent   of   "<STRONG>clearok(</STRONG>...<STRONG>,</STRONG>   <STRONG>1)</STRONG>"  when  <STRONG>touchwin(stdstr)</STRONG>  or
+        <STRONG>clear(stdstr)</STRONG> were used.  This trick does not work with <EM>ncurses</EM>.
+ 
+-       Early  System V  <EM>curses</EM>  implementations  specified  that with <EM>scrollok</EM>
+-       enabled, any window modification triggering  a  scroll  also  forced  a
+-       physical  refresh.   X/Open  Curses  does not require this, and <EM>ncurses</EM>
++       Early System V <EM>curses</EM>  implementations  specified  that  with  <EM>scrollok</EM>
++       enabled,  any  window  modification  triggering  a scroll also forced a
++       physical refresh.  X/Open Curses does not  require  this,  and  <EM>ncurses</EM>
+        avoids doing so to better optimize vertical motions upon a <EM>wrefresh</EM>.
+ 
+        X/Open Curses does not mention that the cursor should be made invisible
+@@ -188,17 +189,17 @@
+ 
+        SVr3.1 (1987) implemented <EM>idcok</EM> and <EM>immedok</EM>.
+ 
+-       <EM>ncurses</EM> formerly treated <EM>nl</EM> and <EM>nonl</EM> as both input <EM>and</EM> output  options,
++       <EM>ncurses</EM>  formerly treated <EM>nl</EM> and <EM>nonl</EM> as both input <EM>and</EM> output options,
+        but no longer; see <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,     <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>,    <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,    <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,
++       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>,    <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,     <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-01                  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
++ncurses 6.5                       2025-03-08                  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/ncurses.3x.html
+--- ncurses-6.5-20250301+/doc/html/man/ncurses.3x.html	2025-03-01 22:03:53.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/ncurses.3x.html	2025-03-09 00:47:46.000000000 +0000
+@@ -61,7 +61,7 @@
+        displays  with  output  optimized  to minimize screen updates.  <EM>ncurses</EM>
+        replaces the <EM>curses</EM> libraries from System V Release 4 Unix ("SVr4") and
+        4.4BSD  Unix,  the  development  of  which  ceased  in the 1990s.  This
+-       document describes <EM>ncurses</EM> version 6.5 (patch 20250301).
++       document describes <EM>ncurses</EM> version 6.5 (patch 20250308).
+ 
+        <EM>ncurses</EM> permits control of the terminal screen's contents;  abstraction
+        and  subdivision thereof with <EM>windows</EM> and <EM>pads</EM>; acquisition of keyboard
+Index: doc/html/man/terminfo.5.html
+--- ncurses-6.5-20250301+/doc/html/man/terminfo.5.html	2025-02-23 14:05:32.000000000 +0000
++++ ncurses-6.5-20250308/doc/html/man/terminfo.5.html	2025-03-09 00:47:46.000000000 +0000
+@@ -71,7 +71,7 @@
+        have, by specifying how to perform screen operations, and by specifying
+        padding requirements and initialization sequences.
+ 
+-       This document describes <EM>ncurses</EM> version 6.5 (patch 20250301).
++       This document describes <EM>ncurses</EM> version 6.5 (patch 20250308).
+ 
+ 
+ </PRE><H3><a name="h3-terminfo-Entry-Syntax"><EM>terminfo</EM> Entry Syntax</a></H3><PRE>
+Index: include/curses.h.in
+Prereq:  1.290 
+--- ncurses-6.5-20250301+/include/curses.h.in	2025-02-23 01:33:32.000000000 +0000
++++ ncurses-6.5-20250308/include/curses.h.in	2025-02-23 01:33:32.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -33,7 +33,7 @@
+  *     and: Thomas E. Dickey                        1996-on                 *
+  ****************************************************************************/
+ 
+-/* $Id: curses.h.in,v 1.290 2025/02/23 01:33:32 tom Exp $ */
++/* $Id: curses.h.in,v 1.291 2025/02/23 01:33:32 tom Exp $ */
+ 
+ #ifndef __NCURSES_H
+ #define __NCURSES_H
+Index: include/nc_win32.h
+Prereq:  1.15 
+--- ncurses-6.5-20250301+/include/nc_win32.h	2025-03-01 13:13:33.000000000 +0000
++++ ncurses-6.5-20250308/include/nc_win32.h	2025-03-08 14:21:17.000000000 +0000
+@@ -31,7 +31,7 @@
+  * Author: Thomas Dickey, 2008-on                                           *
+  ****************************************************************************/
+ 
+-/* $Id: nc_win32.h,v 1.15 2025/03/01 13:13:33 tom Exp $ */
++/* $Id: nc_win32.h,v 1.16 2025/03/08 14:21:17 tom Exp $ */
+ 
+ #ifndef NC_WIN32_H
+ #define NC_WIN32_H 1
+@@ -100,7 +100,7 @@
+ extern NCURSES_EXPORT(int)    _nc_console_isatty(int fd);
+ extern NCURSES_EXPORT(int)    _nc_console_test(int fd);
+ extern NCURSES_EXPORT(int)    _nc_console_read(SCREEN *sp,HANDLE hdl,int *buf);
+-extern NCURSES_EXPORT(int)    _nc_console_twait(SCREEN *, HANDLE,int,int,int * EVENTLIST_2nd(_nc_eventlist * evl));
++extern NCURSES_EXPORT(int)    _nc_console_twait(const SCREEN *sp, HANDLE hdl,int mode,int msec,int *left EVENTLIST_2nd(_nc_eventlist * evl));
+ extern NCURSES_EXPORT(WORD)   _nc_console_MapColor(bool fore, int color);
+ extern NCURSES_EXPORT(void)   _nc_console_selectActiveHandle(void);
+ extern NCURSES_EXPORT(bool)   _nc_console_get_SBI(void);
+Index: man/curs_add_wch.3x
+Prereq:  1.108 
+--- ncurses-6.5-20250301+/man/curs_add_wch.3x	2025-03-01 21:16:45.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_add_wch.3x	2025-03-08 23:01:20.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_add_wch.3x,v 1.108 2025/03/01 21:16:45 tom Exp $
+-.TH curs_add_wch 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_add_wch.3x,v 1.110 2025/03/08 23:01:20 tom Exp $
++.TH curs_add_wch 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -185,6 +185,7 @@
+ when advancement occurs at the right margin,
+ and \fB\%scrollok\fP(3X) is enabled for
+ .IR win ,
++the cursor wraps as above and
+ the scrolling region scrolls up one line.
+ Otherwise,
+ advancement and scrolling do not occur,
+@@ -192,8 +193,9 @@
+ .B \%waddch
+ returns
+ .BR ERR "."
+-.\" Do we need to say something here about buggy terminals that might
+-.\" scroll anyway?  xterm works fine...
++.\" Does writing to the bottom-right character cell of the screen work
++.\" when `scrollok()` is disabled and the terminal lacks `ich` and
++.\" `ich1` capabilities?
+ .PP
+ If
+ .I wch
+Index: man/curs_addch.3x
+Prereq:  1.128 
+--- ncurses-6.5-20250301+/man/curs_addch.3x	2025-03-01 21:16:45.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_addch.3x	2025-03-08 23:01:20.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_addch.3x,v 1.128 2025/03/01 21:16:45 tom Exp $
+-.TH curs_addch 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_addch.3x,v 1.130 2025/03/08 23:01:20 tom Exp $
++.TH curs_addch 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -138,6 +138,7 @@
+ when advancement occurs at the right margin,
+ and \fB\%scrollok\fP(3X) is enabled for
+ .IR win ,
++the cursor wraps as above and
+ the scrolling region scrolls up one line.
+ Otherwise,
+ advancement and scrolling do not occur,
+@@ -145,8 +146,9 @@
+ .B \%waddch
+ returns
+ .BR ERR "."
+-.\" Do we need to say something here about buggy terminals that might
+-.\" scroll anyway?  xterm works fine...
++.\" Does writing to the bottom-right character cell of the screen work
++.\" when `scrollok()` is disabled and the terminal lacks `ich` and
++.\" `ich1` capabilities?
+ .PP
+ If
+ .I ch
+Index: man/curs_initscr.3x
+Prereq:  1.95 
+--- ncurses-6.5-20250301+/man/curs_initscr.3x	2025-03-01 21:21:41.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_initscr.3x	2025-03-08 23:07:43.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_initscr.3x,v 1.95 2025/03/01 21:21:41 tom Exp $
+-.TH curs_initscr 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_initscr.3x,v 1.100 2025/03/08 23:07:43 tom Exp $
++.TH curs_initscr 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -129,9 +129,7 @@
+ the
+ .I type
+ of the associated terminal,
+-or
+-.I NULL
+-to use the
++or a null pointer to use the
+ .I TERM
+ environment variable;
+ .bP
+@@ -275,12 +273,20 @@
+ structure
+ is no longer needed.
+ .SH RETURN VALUE
++.B \%delscreen
++returns no value.
+ .B \%endwin
+ returns
+ .B OK
+ on success and
+ .B ERR
+ on failure.
++.B \%isendwin
++returns
++.B TRUE
++or
++.B FALSE
++as described above.
+ .PP
+ In
+ .IR \%ncurses ","
+@@ -293,11 +299,10 @@
+ .bP
+ the terminal was not initialized,
+ .bP
+-.B \%endwin
+-is called more than once without updating the screen,
++it is called more than once without updating the screen,
+ or
+ .bP
+-\fB\%reset_shell_mode\fP(3X) returns
++its call of \fB\%reset_shell_mode\fP(3X) returns
+ .BR ERR "."
+ .RE
+ .bP
+@@ -306,16 +311,16 @@
+ .B ERR
+ if it cannot allocate storage for the
+ .I SCREEN
+-data structure
+-or the top-level windows thereof:
++structure
++or the
++.I WINDOW
++structures automatically associated with it:
+ .BR \%curscr ","
+ .BR \%newscr ","
+ and
+ .BR \%stdscr "."
+ .PP
+-Functions that return pointers return
+-.I NULL
+-on error.
++Functions that return pointers return null pointers on error.
+ In
+ .IR \%ncurses ","
+ .B \%set_term
+Index: man/curs_inopts.3x
+Prereq:  1.96 
+--- ncurses-6.5-20250301+/man/curs_inopts.3x	2025-03-01 21:23:21.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_inopts.3x	2025-03-08 23:09:30.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_inopts.3x,v 1.96 2025/03/01 21:23:21 tom Exp $
+-.TH curs_inopts 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_inopts.3x,v 1.100 2025/03/08 23:09:30 tom Exp $
++.TH curs_inopts 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -260,9 +260,13 @@
+ enabled
+ .RI ( bf
+ is
+-.BR TRUE ),
+-the input character reading function returns a value representing
+-the function key,
++.BR TRUE ")"
++then when an input character reading function reads ESC,
++it waits for further input corresponding to an escape sequence
++defined by the terminal type description.
++If a valid sequence is entered,
++the input character reading function
++returns a value representing the function key,
+ such as
+ .BR KEY_LEFT "."
+ (Wide-character API users:
+@@ -271,6 +275,8 @@
+ to indicate the availability of a function key code in its
+ .I wch
+ parameter.)
++If the sequence is invalid,
++the input character reading function returns only its last character.
+ If disabled
+ .RI ( bf
+ is
+@@ -362,7 +368,11 @@
+ disables this timer.
+ The purpose of the timeout is to distinguish sequences produced by a
+ function key from those typed by a user.
+-To configure the timeout rather than disabling it,
++If this timer is disabled,
++.I curses
++waits forever for subsequent keystrokes
++until it determines the escape sequence to be valid or invalid.
++To configure the timeout duration rather than disabling it,
+ see
+ .B \%wtimeout
+ below.
+@@ -467,7 +477,7 @@
+ Normally,
+ a
+ .I curses
+-library checks the terminal's input file descriptor for pending input
++library checks the terminal's input file descriptor for activity
+ with \fIpoll\fP(2) or \fI\%select\fP(2)
+ while updating the screen;
+ if it finds any,
+@@ -598,19 +608,25 @@
+ The functions
+ .BR \%halfdelay ","
+ .BR \%nodelay ","
+-.BR \%notimeout ","
+ .BR \%timeout ","
+ and
+ .B \%wtimeout
+-all configure whether the input character reading function
++configure whether the input character reading function
+ \%(\fBgetch\fP(3X) or \fB\%get_wch\fP(3X))
+-waits for keyboard input,
++waits for keyboard input to begin,
+ and for how long.
+-Only
+ .B \%keypad
+ configures whether that function waits for further input
+ if the first character it reads is ESC.
+-X/Open Curses affords no means of configuring
++Calling
++.BR \%notimeout ","
++which has nothing to do with
++.B \%timeout
++or
++.BR \%wtimeout ","
++makes this delay in expectation of further keystrokes
++effectively infinite.
++X/Open Curses affords no means of otherwise configuring
+ the length of this second delay,
+ but an AIX and
+ .I \%ncurses
+Index: man/curs_ins_wch.3x
+Prereq:  1.48 
+--- ncurses-6.5-20250301+/man/curs_ins_wch.3x	2025-03-01 21:25:47.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_ins_wch.3x	2025-03-08 23:10:02.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_ins_wch.3x,v 1.48 2025/03/01 21:25:47 tom Exp $
+-.TH curs_ins_wch 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_ins_wch.3x,v 1.50 2025/03/08 23:10:02 tom Exp $
++.TH curs_ins_wch 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -91,7 +91,7 @@
+ the
+ .I curses
+ screen has not been initialized,
+-and
++or
+ .bP
+ (for functions taking a
+ .I \%WINDOW
+Index: man/curs_insch.3x
+Prereq:  1.54 
+--- ncurses-6.5-20250301+/man/curs_insch.3x	2025-03-01 21:26:42.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_insch.3x	2025-03-08 23:10:02.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_insch.3x,v 1.54 2025/03/01 21:26:42 tom Exp $
+-.TH curs_insch 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_insch.3x,v 1.56 2025/03/08 23:10:02 tom Exp $
++.TH curs_insch 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -90,7 +90,7 @@
+ the
+ .I curses
+ screen has not been initialized,
+-and
++or
+ .bP
+ (for functions taking a
+ .I \%WINDOW
+Index: man/curs_kernel.3x
+Prereq:  1.80 
+--- ncurses-6.5-20250301+/man/curs_kernel.3x	2025-03-01 21:31:35.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_kernel.3x	2025-03-08 23:17:33.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_kernel.3x,v 1.80 2025/03/01 21:31:35 tom Exp $
+-.TH curs_kernel 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_kernel.3x,v 1.84 2025/03/08 23:17:33 tom Exp $
++.TH curs_kernel 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -235,7 +235,7 @@
+ The application must call
+ .B \%ripoffline
+ before \fB\%initscr\fP(3X) or \fB\%newterm\fP(3X)
+-so that the functions prepare a
++so that the latter functions prepare a
+ .B \%stdscr
+ of the correct size.
+ .bP
+@@ -243,14 +243,14 @@
+ .I line
+ is positive,
+ .B \%ripoffline
+-removes a line from the top of
++removes a line from the top of what will become
+ .BR \%stdscr "."
+ .bP
+ If
+ .I line
+ is negative,
+ .B \%ripoffline
+-removes a line from the bottom of
++removes a line from the bottom of what will become
+ .BR \%stdscr "."
+ .PP
+ When
+@@ -354,6 +354,31 @@
+ There is no way for
+ .I \%ncurses
+ to determine the initial cursor visibility to restore it.
++.PP
++While the
++.I init
++function called by
++.B \%ripoffline
++is specified to return an
++.IR int ","
++.I \%ncurses
++pays no attention to its return value.
++.PP
++If
++.B \%ripoffline
++cannot allocate memory for the required
++.I \%WINDOW
++structure backing the ripped-off line,
++it stores a null pointer to the
++.I \%WINDOW
++pointer argument supplied by the
++.I init
++function the application specifies.
++The application must check this argument for validity after calling
++.B \%initscr
++and prior to performing
++.I curses
++operations on that window.
+ .SH EXTENSIONS
+ In
+ .IR \%ncurses ","
+Index: man/curs_move.3x
+Prereq:  1.59 
+--- ncurses-6.5-20250301+/man/curs_move.3x	2025-03-01 21:34:10.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_move.3x	2025-03-08 23:18:46.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_move.3x,v 1.59 2025/03/01 21:34:10 tom Exp $
+-.TH curs_move 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_move.3x,v 1.61 2025/03/08 23:18:46 tom Exp $
++.TH curs_move 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -102,10 +102,7 @@
+ .IR ERR \*(''. \" Courier roman in source; SVID 4, vol. 3, p. 503
+ .SH HISTORY
+ 4BSD (1980)
+-introduced
+-.I move
+-and
+-.IR \%wmove "."
++introduced these functions.
+ .SH SEE ALSO
+ \fB\%curses\fP(3X),
+ \fB\%curs_refresh\fP(3X)
+Index: man/curs_outopts.3x
+Prereq:  1.89 
+--- ncurses-6.5-20250301+/man/curs_outopts.3x	2025-03-01 21:42:22.000000000 +0000
++++ ncurses-6.5-20250308/man/curs_outopts.3x	2025-03-08 23:19:30.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_outopts.3x,v 1.89 2025/03/01 21:42:22 tom Exp $
+-.TH curs_outopts 3X 2025-03-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_outopts.3x,v 1.91 2025/03/08 23:19:30 tom Exp $
++.TH curs_outopts 3X 2025-03-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -142,23 +142,25 @@
+ is called with
+ .B TRUE
+ as second argument,
+-any change in the window image,
+-such as the ones caused by
++changes to the window image,
++such as those caused by
+ .BR \%waddch ","
+ .BR \%wclrtobot ","
++or
+ .BR \%wscrl ","
+-etc., automatically causes a call to
+-.BR wrefresh "."
+-However, it may degrade performance considerably,
+-due to repeated calls to
++automatically cause a call to
+ .BR wrefresh "."
++However,
++doing so may degrade performance considerably
++when many such calls occur.
+ Calling
+ .B \%immedok
+ with
+ .B FALSE
+ as second argument
+ restores the default behavior,
+-i.e., deferring screen updates until a refresh is needed.
++deferring screen updates until a refresh is needed
++or explicitly directed by the application.
+ .SS leaveok
+ Normally, the hardware cursor is left at the location of the window cursor
+ being refreshed.
+Index: ncurses/base/lib_getch.c
+Prereq:  1.148 
+--- ncurses-6.5-20250301+/ncurses/base/lib_getch.c	2024-12-07 17:40:33.000000000 +0000
++++ ncurses-6.5-20250308/ncurses/base/lib_getch.c	2025-03-09 00:43:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -44,7 +44,7 @@
+ #define NEED_KEY_EVENT
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_getch.c,v 1.148 2024/12/07 17:40:33 tom Exp $")
++MODULE_ID("$Id: lib_getch.c,v 1.150 2025/03/09 00:43:49 tom Exp $")
+ 
+ #include <fifo_defs.h>
+ 
+@@ -513,7 +513,7 @@
+ 
+     recur_wrefresh(win);
+ 
+-    if (win->_notimeout || (win->_delay >= 0) || (IsCbreak(sp) > 1)) {
++    if ((win->_delay >= 0) || (IsCbreak(sp) > 1)) {
+ 	if (head == -1) {	/* fifo is empty */
+ 	    int delay;
+ 
+Index: ncurses/base/lib_initscr.c
+Prereq:  1.49 
+--- ncurses-6.5-20250301+/ncurses/base/lib_initscr.c	2024-12-07 20:00:48.000000000 +0000
++++ ncurses-6.5-20250308/ncurses/base/lib_initscr.c	2025-03-09 00:49:14.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -46,7 +46,7 @@
+ #include <sys/termio.h>		/* needed for ISC */
+ #endif
+ 
+-MODULE_ID("$Id: lib_initscr.c,v 1.49 2024/12/07 20:00:48 tom Exp $")
++MODULE_ID("$Id: lib_initscr.c,v 1.52 2025/03/09 00:49:14 tom Exp $")
+ 
+ NCURSES_EXPORT(WINDOW *)
+ initscr(void)
+@@ -70,7 +70,8 @@
+ 	(void) VALID_TERM_ENV(env, "unknown");
+ 
+ 	if ((name = strdup(env)) == NULL) {
+-	    fprintf(stderr, "Error opening allocating $TERM.\n");
++	    fprintf(stderr, "ncurses: cannot allocate %d bytes of"
++		    "memory for $TERM; exiting\n", (int) strlen(env));
+ 	    ExitProgram(EXIT_FAILURE);
+ 	}
+ #ifdef __CYGWIN__
+@@ -91,7 +92,8 @@
+ 	}
+ #endif
+ 	if (newterm(name, stdout, stdin) == NULL) {
+-	    fprintf(stderr, "Error opening terminal: %s.\n", name);
++	    fprintf(stderr, "ncurses: cannot initialize terminal type"
++		    " ($TERM=\"%s\"); exiting\n", name);
+ 	    ExitProgram(EXIT_FAILURE);
+ 	}
+ 
+Index: ncurses/tinfo/lib_win32con.c
+Prereq:  1.18 
+--- ncurses-6.5-20250301+/ncurses/tinfo/lib_win32con.c	2025-03-01 14:26:14.000000000 +0000
++++ ncurses-6.5-20250308/ncurses/tinfo/lib_win32con.c	2025-03-08 14:20:11.000000000 +0000
+@@ -38,7 +38,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_win32con.c,v 1.18 2025/03/01 14:26:14 tom Exp $")
++MODULE_ID("$Id: lib_win32con.c,v 1.19 2025/03/08 14:20:11 tom Exp $")
+ 
+ #if defined(_NC_WINDOWS)
+ 
+@@ -632,7 +632,7 @@
+                      RIGHTMOST_BUTTON_PRESSED)
+ 
+ static mmask_t
+-decode_mouse(SCREEN *sp, int mask)
++decode_mouse(const SCREEN *sp, int mask)
+ {
+     mmask_t result = 0;
+ 
+@@ -828,7 +828,7 @@
+ 
+ NCURSES_EXPORT(int)
+ _nc_console_twait(
+-		     SCREEN *sp,
++		     const SCREEN *sp,
+ 		     HANDLE hdl,
+ 		     int mode,
+ 		     int milliseconds,
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250301+/package/debian-mingw/changelog	2025-02-23 01:08:08.000000000 +0000
++++ ncurses-6.5-20250308/package/debian-mingw/changelog	2025-03-08 11:56:38.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250301) unstable; urgency=low
++ncurses6td (6.5+20250308) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Feb 2025 20:08:08 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Mar 2025 06:56:38 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250301+/package/debian-mingw64/changelog	2025-02-23 01:08:08.000000000 +0000
++++ ncurses-6.5-20250308/package/debian-mingw64/changelog	2025-03-08 11:56:38.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250301) unstable; urgency=low
++ncurses6td (6.5+20250308) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Feb 2025 20:08:08 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Mar 2025 06:56:38 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250301+/package/debian/changelog	2025-02-23 01:08:08.000000000 +0000
++++ ncurses-6.5-20250308/package/debian/changelog	2025-03-08 11:56:38.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250301) unstable; urgency=low
++ncurses6td (6.5+20250308) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 22 Feb 2025 20:08:08 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Mar 2025 06:56:38 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.692 
+--- ncurses-6.5-20250301+/package/mingw-ncurses.nsi	2025-02-23 01:08:08.000000000 +0000
++++ ncurses-6.5-20250308/package/mingw-ncurses.nsi	2025-03-08 11:56:38.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.692 2025/02/23 01:08:08 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.693 2025/03/08 11:56:38 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0301"
++!define VERSION_MMDD  "0308"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250301+/package/mingw-ncurses.spec	2025-02-23 01:08:08.000000000 +0000
++++ ncurses-6.5-20250308/package/mingw-ncurses.spec	2025-03-08 11:56:38.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250301
++Release: 20250308
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250301+/package/ncurses.spec	2025-02-23 01:08:08.000000000 +0000
++++ ncurses-6.5-20250308/package/ncurses.spec	2025-03-08 11:56:38.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250301
++Release: 20250308
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250301+/package/ncursest.spec	2025-02-23 01:08:08.000000000 +0000
++++ ncurses-6.5-20250308/package/ncursest.spec	2025-03-08 11:56:38.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250301
++Release: 20250308
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

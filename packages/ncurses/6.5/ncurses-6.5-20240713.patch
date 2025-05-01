@@ -1,0 +1,293 @@
+# ncurses 6.5 - patch 20240713 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20240713.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Jul 13 23:06:05 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |    5 ++
+# VERSION                          |    2 -
+# dist.mk                          |    4 +-
+# misc/ncurses-config.in           |   66 +++++++++++++++++++++++--------------
+# package/debian-mingw/changelog   |    4 +-
+# package/debian-mingw64/changelog |    4 +-
+# package/debian/changelog         |    4 +-
+# package/mingw-ncurses.nsi        |    4 +-
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# 11 files changed, 60 insertions(+), 39 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4147 
+--- ncurses-6.5-20240706+/NEWS	2024-07-06 18:21:47.000000000 +0000
++++ ncurses-6.5-20240713/NEWS	2024-07-13 20:44:30.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4147 2024/07/06 18:21:47 tom Exp $
++-- $Id: NEWS,v 1.4149 2024/07/13 20:44:30 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,9 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20240713
++	+ modify misc/ncurses-config.in, improved match with pkg-config output.
++
+ 20240706
+ 	+ update configure script to use macro changes from dialog.
+ 	+ modify CF_NCURSES_PTHREADS to avoid equating package and library
+Index: VERSION
+--- ncurses-6.5-20240706+/VERSION	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/VERSION	2024-07-13 10:06:25.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20240706
++5:0:10	6.5	20240713
+Index: dist.mk
+Prereq:  1.1621 
+--- ncurses-6.5-20240706+/dist.mk	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/dist.mk	2024-07-13 10:06:25.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1621 2024/07/06 09:41:29 tom Exp $
++# $Id: dist.mk,v 1.1622 2024/07/13 10:06:25 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20240706
++NCURSES_PATCH = 20240713
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/ncurses-config.in
+Prereq:  1.53 
+--- ncurses-6.5-20240706+/misc/ncurses-config.in	2024-06-22 20:52:02.000000000 +0000
++++ ncurses-6.5-20240713/misc/ncurses-config.in	2024-07-13 20:00:52.000000000 +0000
+@@ -1,5 +1,5 @@
+ #!@SHELL@
+-# $Id: ncurses-config.in,v 1.53 2024/06/22 20:52:02 tom Exp $
++# $Id: ncurses-config.in,v 1.54 2024/07/13 20:00:52 tom Exp $
+ ##############################################################################
+ # Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+ # Copyright 2006-2015,2017 Free Software Foundation, Inc.                    #
+@@ -94,6 +94,24 @@
+ 	LIBS="-l${THIS} -l${TINFO_LIB} $LIBS"
+ fi
+ 
++CFLAGS="@PKG_CFLAGS@"
++if [ "$includedir" != "/usr/include" ]; then
++	if [ "x@WITH_OVERWRITE@" = xno ]
++	then
++		[ -n "$CFLAGS" ] && CFLAGS="$CFLAGS "
++		CFLAGS="$CFLAGS -I${includesubdir}"
++	fi
++	[ -n "$CFLAGS" ] && CFLAGS="$CFLAGS "
++	CFLAGS="$CFLAGS-I${includedir}"
++	includetop=`echo "$includedir" | sed -e 's,/include/[^/]*$,/include,'`
++	[ "$includetop" = "/usr/include" ] && includetop="$includedir"
++	if [ "x$includetop" != "x$includedir" ]
++	then
++		[ -n "$CFLAGS" ] && CFLAGS="$CFLAGS "
++		CFLAGS="$CFLAGS-I$includetop"
++	fi
++fi
++
+ # Ignore -L options which do not correspond to an actual directory, or which
+ # are standard library directories (i.e., the linker is supposed to search
+ # those directories).
+@@ -187,54 +205,54 @@
+ 	# compile/link
+ 	--cflags)
+ 		OPTS=
+-		for opt in @PKG_CFLAGS@
++		for opt in $CFLAGS
+ 		do
+ 			case "x$opt" in
+-			x-[DIU]*)
+-				OPTS="$OPTS $opt"
+-				;;
+-			x-Wl,*)
+-				OPTS="$OPTS $opt"
+-				;;
+ 			x-[OW]*)
+-				;;
+-			*)
+-				OPTS="$OPTS $opt"
++				opt=
+ 				;;
+ 			esac
++			if [ -n "$opt" ]
++			then
++				[ -n "$OPTS" ] && OPTS="$OPTS "
++				OPTS="$OPTS$opt"
++			fi
+ 		done
+ 		printf "%s\n" "$OPTS"
+ 		;;
+ 	--cflags-only-I)
+ 		OPTS=
+-		for opt in @PKG_CFLAGS@
++		for opt in $CFLAGS
+ 		do
+ 			case "x$opt" in
+-			x-[DIU]*)
+-				OPTS="$OPTS $opt"
++			x-[I]*)
+ 				;;
+ 			*)
++				opt=
+ 				;;
+ 			esac
++			if [ -n "$opt" ]
++			then
++				[ -n "$OPTS" ] && OPTS="$OPTS "
++				OPTS="$OPTS$opt"
++			fi
+ 		done
+ 		printf "%s\n" "$OPTS"
+ 		;;
+ 	--cflags-only-other)
+ 		OPTS=
+-		for opt in @PKG_CFLAGS@
++		for opt in $CFLAGS
+ 		do
+ 			case "x$opt" in
+-			x-[DIU]*)
+-				;;
+-			x-Wl,*)
+-				OPTS="$OPTS $opt"
+-				;;
+-			x-[OW]*)
+-				;;
+-			*)
+-				OPTS="$OPTS $opt"
++			x-[I]*|x-[OW]*)
++				opt=
+ 				;;
+ 			esac
++			if [ -n "$opt" ]
++			then
++				[ -n "$OPTS" ] && OPTS="$OPTS "
++				OPTS="$OPTS$opt"
++			fi
+ 		done
+ 		printf "%s\n" "$OPTS"
+ 		;;
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20240706+/package/debian-mingw/changelog	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/package/debian-mingw/changelog	2024-07-13 10:06:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240706) unstable; urgency=low
++ncurses6td (6.5+20240713) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 06 Jul 2024 05:41:29 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 13 Jul 2024 06:06:25 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20240706+/package/debian-mingw64/changelog	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/package/debian-mingw64/changelog	2024-07-13 10:06:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240706) unstable; urgency=low
++ncurses6td (6.5+20240713) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 06 Jul 2024 05:41:29 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 13 Jul 2024 06:06:25 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20240706+/package/debian/changelog	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/package/debian/changelog	2024-07-13 10:06:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240706) unstable; urgency=low
++ncurses6td (6.5+20240713) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 06 Jul 2024 05:41:29 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 13 Jul 2024 06:06:25 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.656 
+--- ncurses-6.5-20240706+/package/mingw-ncurses.nsi	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/package/mingw-ncurses.nsi	2024-07-13 10:06:25.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.656 2024/07/06 09:41:29 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.657 2024/07/13 10:06:25 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "0706"
++!define VERSION_MMDD  "0713"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20240706+/package/mingw-ncurses.spec	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/package/mingw-ncurses.spec	2024-07-13 10:06:25.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20240706
++Release: 20240713
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20240706+/package/ncurses.spec	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/package/ncurses.spec	2024-07-13 10:06:25.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20240706
++Release: 20240713
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20240706+/package/ncursest.spec	2024-07-06 09:41:29.000000000 +0000
++++ ncurses-6.5-20240713/package/ncursest.spec	2024-07-13 10:06:25.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20240706
++Release: 20240713
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

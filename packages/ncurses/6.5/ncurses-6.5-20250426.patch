@@ -1,0 +1,721 @@
+# ncurses 6.5 - patch 20250426 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250426.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Apr 27 00:01:37 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    7 +
+# VERSION                          |    2 
+# dist.mk                          |    4 -
+# doc/html/man/curs_addch.3x.html  |  133 ++++++++++++++++++++++++-------------
+# doc/html/man/ncurses.3x.html     |    2 
+# doc/html/man/terminfo.5.html     |    2 
+# man/curs_addch.3x                |   66 +++++++++++++++++-
+# misc/terminfo.src                |   98 +++++++++++++++++++--------
+# package/debian-mingw/changelog   |    4 -
+# package/debian-mingw64/changelog |    4 -
+# package/debian/changelog         |    4 -
+# package/mingw-ncurses.nsi        |    4 -
+# package/mingw-ncurses.spec       |    2 
+# package/ncurses.spec             |    2 
+# package/ncursest.spec            |    2 
+# 15 files changed, 241 insertions(+), 95 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4275 
+--- ncurses-6.5-20250419+/NEWS	2025-04-19 23:31:31.000000000 +0000
++++ ncurses-6.5-20250426/NEWS	2025-04-26 20:14:16.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4275 2025/04/19 23:31:31 tom Exp $
++-- $Id: NEWS,v 1.4277 2025/04/26 20:14:16 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,11 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250426
++	+ expand note on extensions in curs_addch.3x
++	+ add illumos, sun-16color, sun-256color, sun-direct -TD
++	+ add wyse+cvis -TD
++
+ 20250419
+ 	+ add note on scrolling and lower-right corner to waddch and wadd_wch
+ 	  manual pages.
+Index: VERSION
+--- ncurses-6.5-20250419+/VERSION	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/VERSION	2025-04-26 10:13:45.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250419
++5:0:10	6.5	20250426
+Index: dist.mk
+Prereq:  1.1665 
+--- ncurses-6.5-20250419+/dist.mk	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/dist.mk	2025-04-26 10:13:45.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1665 2025/04/19 10:37:06 tom Exp $
++# $Id: dist.mk,v 1.1666 2025/04/26 10:13:45 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250419
++NCURSES_PATCH = 20250426
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: doc/html/man/curs_addch.3x.html
+--- ncurses-6.5-20250419+/doc/html/man/curs_addch.3x.html	2025-04-19 23:33:03.000000000 +0000
++++ ncurses-6.5-20250426/doc/html/man/curs_addch.3x.html	2025-04-26 20:32:39.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_addch.3x,v 1.136 2025/04/19 22:53:46 tom Exp @
++  * @Id: curs_addch.3x,v 1.137 2025/04/26 19:57:22 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_addch 3x 2025-04-19 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_addch 3x 2025-04-26 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_addch 3x 2025-04-19 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_addch 3x 2025-04-26 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ 
+@@ -276,8 +276,51 @@
+        and  are  not  standard.   However,  many  publicly  available <EM>terminfo</EM>
+        entries include  <STRONG>acs_chars</STRONG>  (<STRONG>acsc</STRONG>)  capabilities  in  which  their  key
+        characters  (<STRONG>pryz{|}</STRONG>)  are  embedded,  and  a second-hand list of their
+-       character descriptions has  come  to  light.   The  <EM>ncurses</EM>  developers
+-       invented ACS-prefixed names for them.
++       character descriptions has come to  light,  which  identifies  them  as
++       VT100 special characters.
++
++       The DEC Special Character and Line Drawing Set (VT100) is indexed by an
++       ASCII character in the range 96 (`) to 126 (~).  That  index  character
++       is  part  of  the  definition  for  the curses <STRONG>ACS_</STRONG> symbols.  The VT100
++       special characters can be categorized in three groups:
++
++       <STRONG>o</STRONG>   useful graphic symbols with a  standard  <STRONG>ACS_</STRONG>  symbol,  (e.g.,  the
++           line-drawing symbols),
++
++       <STRONG>o</STRONG>   possibly useful characters (these non-standard symbols),
++
++       <STRONG>o</STRONG>   representations  of  control characters (e.g., newline and vertical
++           tabulation).
++
++       A few <STRONG>ACS_</STRONG> symbols do not  fit  into  DEC's  VT100  scheme.   The  AT&amp;T
++       Teletype  5410v1  arrow  symbols  and <STRONG>ACS_BLOCK</STRONG> use indices outside the
++       range 96 to 126.  Two of the  Teletype  symbols  use  indices  in  that
++       range, with different meaning versus the VT100:
++
++       <STRONG>o</STRONG>   <STRONG>ACS_BOARD</STRONG> corresponds to the VT100 symbol for newline
++
++       <STRONG>o</STRONG>   <STRONG>ACS_LANTERN</STRONG> corresponds to the VT100 symbol for vertical tabulation
++
++       AT&amp;T defined <STRONG>ACS_</STRONG> names for the most useful graphic symbols, as well as
++       for its own.  Its header file commented:
++
++       /*
++        * Standard alternate character set.  The current ACS world is evolving,
++        * so we support only a widely available subset: the line drawing characters
++        * from the VT100, plus a few from the Teletype 5410v1.  Eventually there
++        * may be support of more sophisticated ACS line drawing, such as that
++        * in the Teletype 5410, the HP line drawing set, and the like.  There may
++        * be support for some non line oriented characters as well.
++        *
++        * Line drawing ACS names are of the form ACS_trbl, where t is the top, r
++        * is the right, b is the bottom, and l is the left.  t, r, b, and l might
++        * be B (blank), S (single), D (double), or T (thick).  The subset defined
++        * here only uses B and S.
++        */
++
++       Although these less-useful graphic symbols were not given  names,  they
++       were  used  in  <EM>terminfo</EM> entries.  The <EM>ncurses</EM> developers invented ACS-
++       prefixed names for them.
+ 
+ 
+ </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+@@ -287,79 +330,79 @@
+        X/Open Curses Issue 4 describes these functions.  It specifies no error
+        conditions for them.
+ 
+-       SVr4  describes  a  successful  return  value only as "an integer value
++       SVr4 describes a successful return value  only  as  "an  integer  value
+        other than <EM>ERR</EM>".
+ 
+-       The defaults specified for forms-drawing characters apply in the  POSIX
++       The  defaults specified for forms-drawing characters apply in the POSIX
+        locale.
+ 
+ 
+ </PRE><H3><a name="h3-ACS-Symbols">ACS Symbols</a></H3><PRE>
+-       X/Open  Curses  states  that  the  <EM>ACS</EM><STRONG>_</STRONG> definitions are <EM>char</EM> constants.
++       X/Open Curses states that the  <EM>ACS</EM><STRONG>_</STRONG>  definitions  are  <EM>char</EM>  constants.
+        Some implementations are problematic.
+ 
+-       <STRONG>o</STRONG>   Solaris <EM>curses</EM>, for example, defines the ACS symbols as  constants;
++       <STRONG>o</STRONG>   Solaris  <EM>curses</EM>, for example, defines the ACS symbols as constants;
+            others define them as elements of an array.
+ 
+-           SVr4  used  an array, <EM>acs</EM><STRONG>_</STRONG><EM>map</EM>, as does <EM>ncurses</EM>.  NetBSD <EM>curses</EM> also
+-           uses an array, actually  named  <STRONG>_</STRONG><EM>acs</EM><STRONG>_</STRONG><EM>char</EM>,  with  a  "#define"  for
++           SVr4 used an array, <EM>acs</EM><STRONG>_</STRONG><EM>map</EM>, as does <EM>ncurses</EM>.  NetBSD  <EM>curses</EM>  also
++           uses  an  array,  actually  named  <STRONG>_</STRONG><EM>acs</EM><STRONG>_</STRONG><EM>char</EM>,  with a "#define" for
+            compatibility.
+ 
+-       <STRONG>o</STRONG>   HP-UX  <EM>curses</EM>  equates  some  of  the <EM>ACS</EM><STRONG>_</STRONG> symbols to the analogous
+-           <EM>WACS</EM><STRONG>_</STRONG> symbols as if the <EM>ACS</EM><STRONG>_</STRONG>  symbols  were  wide  characters  (see
+-           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).   The  misdefined  symbols  are  the  arrows and
++       <STRONG>o</STRONG>   HP-UX <EM>curses</EM> equates some of the  <EM>ACS</EM><STRONG>_</STRONG>  symbols  to  the  analogous
++           <EM>WACS</EM><STRONG>_</STRONG>  symbols  as  if  the  <EM>ACS</EM><STRONG>_</STRONG> symbols were wide characters (see
++           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).  The  misdefined  symbols  are  the  arrows  and
+            others that are not used for line drawing.
+ 
+-       <STRONG>o</STRONG>   X/Open Curses (Issues 2 through 7) has a  typographical  error  for
+-           the  <EM>ACS</EM><STRONG>_</STRONG><EM>LANTERN</EM>  symbol,  equating  its  "VT100+ Character" to "I"
+-           (capital I), while the header  files  for  SVr4  <EM>curses</EM>  and  other
++       <STRONG>o</STRONG>   X/Open  Curses  (Issues 2  through 7) has a typographical error for
++           the <EM>ACS</EM><STRONG>_</STRONG><EM>LANTERN</EM> symbol, equating  its  "VT100+  Character"  to  "I"
++           (capital  I),  while  the  header  files  for SVr4 <EM>curses</EM> and other
+            implementations use "i" (small i).
+ 
+-           None  of  the terminal descriptions on Unix platforms use uppercase
+-           I, except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for  <STRONG>screen(1)</STRONG>,
+-           apparently  based on the X/Open documentation around 1995).  On the
+-           other hand, its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS  Terminal  Emulator)
++           None of the terminal descriptions on Unix platforms  use  uppercase
++           I,  except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for <STRONG>screen(1)</STRONG>,
++           apparently based on the X/Open documentation around 1995).  On  the
++           other  hand,  its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS Terminal Emulator)
+            description uses lowercase i.
+ 
+        The <EM>displayed</EM> values of <EM>ACS</EM><STRONG>_</STRONG> constants depend on
+ 
+-       <STRONG>o</STRONG>   the  <EM>ncurses</EM>  ABI  --  for example, wide-character versus non-wide-
+-           character configurations  (the  former  is  capable  of  displaying
++       <STRONG>o</STRONG>   the <EM>ncurses</EM> ABI -- for  example,  wide-character  versus  non-wide-
++           character  configurations  (the  former  is  capable  of displaying
+            Unicode while the latter is not), and
+ 
+        <STRONG>o</STRONG>   whether the locale uses UTF-8 encoding.
+ 
+-       In  certain  cases,  the  terminal  is  unable to display forms-drawing
+-       characters  <EM>except</EM>  by  using  UTF-8;  see  the   discussion   of   the
++       In certain cases, the  terminal  is  unable  to  display  forms-drawing
++       characters   <EM>except</EM>   by   using  UTF-8;  see  the  discussion  of  the
+        <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM> environment variable in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H3><a name="h3-Character-Set">Character Set</a></H3><PRE>
+-       X/Open  Curses  assumes  that the parameter passed to <EM>waddch</EM> contains a
+-       single character.  That character may have been more  than  eight  bits
+-       wide  in  an  SVr3 or SVr4 implementation, but X/Open Curses leaves the
+-       width of a non-wide character code unspecified.  The  standard  further
+-       does  not specify the internal structure of a <EM>chtype</EM>, though the use of
+-       bit operations to combine the character  code  with  attributes  and  a
++       X/Open Curses assumes that the parameter passed to  <EM>waddch</EM>  contains  a
++       single  character.   That  character may have been more than eight bits
++       wide in an SVr3 or SVr4 implementation, but X/Open  Curses  leaves  the
++       width  of  a non-wide character code unspecified.  The standard further
++       does not specify the internal structure of a <EM>chtype</EM>, though the use  of
++       bit  operations  to  combine  the  character code with attributes and a
+        color pair identifier into a <EM>chtype</EM> for passage to <EM>waddch</EM> is common.  A
+        portable application uses only the macros discussed in <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG> to
+        manipulate a <EM>chtype</EM>.
+ 
+        In <EM>ncurses</EM>, <EM>chtype</EM> holds an eight-bit character, but the library allows
+-       a multibyte character sequence to be passed via a succession  of  calls
+-       to  <EM>waddch</EM>.   Other  implementations  do  not;  a <EM>waddch</EM> call transmits
+-       exactly one character, which may be rendered  in  one  or  more  screen
+-       locations  depending  on  whether  it  is  printable  (see <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
+-       Depending on the locale, <EM>ncurses</EM>  inspects  the  byte  passed  in  each
+-       <EM>waddch</EM>  call  and  checks whether the latest call continues a multibyte
+-       character.   When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays   the
+-       character   and  advances  the  cursor.   If  the  calling  application
++       a  multibyte  character sequence to be passed via a succession of calls
++       to <EM>waddch</EM>.  Other implementations  do  not;  a  <EM>waddch</EM>  call  transmits
++       exactly  one  character,  which  may  be rendered in one or more screen
++       locations depending  on  whether  it  is  printable  (see  <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
++       Depending  on  the  locale,  <EM>ncurses</EM>  inspects  the byte passed in each
++       <EM>waddch</EM> call and checks whether the latest call  continues  a  multibyte
++       character.    When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays  the
++       character  and  advances  the  cursor.   If  the  calling   application
+        interrupts the succession of bytes in a multibyte character sequence by
+        changing the current location -- for example, with <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG> -- <EM>ncurses</EM>
+        discards the incomplete character.
+ 
+        For  portability  to  other  implementations,  do  not  rely  upon  the
+-       foregoing  behavior.  Check whether a character can be represented as a
++       foregoing behavior.  Check whether a character can be represented as  a
+        single byte in the current locale.
+ 
+        <STRONG>o</STRONG>   If it can, call either <EM>waddch</EM> or <EM>wadd</EM><STRONG>_</STRONG><EM>wch</EM>.
+@@ -370,24 +413,24 @@
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+        4BSD (1980) introduced <EM>waddch</EM> and its variants.
+ 
+-       SVr3 (1987) added the <EM>echochar</EM> and <EM>wechochar</EM> functions and most of  the
+-       <EM>ACS</EM><STRONG>_</STRONG>  constants, except for <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>,
++       SVr3  (1987) added the <EM>echochar</EM> and <EM>wechochar</EM> functions and most of the
++       <EM>ACS</EM><STRONG>_</STRONG> constants, except for <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,  <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>,
+        <EM>ACS</EM><STRONG>_</STRONG><EM>S3</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>S7</EM>, and <EM>ACS</EM><STRONG>_</STRONG><EM>STERLING</EM>.
+ 
+        <EM>ncurses</EM> 1.9.6 (1995) furnished the remaining <EM>ACS</EM><STRONG>_</STRONG> constants.
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+-       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM>  library
++       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>  describes comparable functions of the <EM>ncurses</EM> library
+        in its wide-character configuration (<EM>ncursesw</EM>).
+ 
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,
+-       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>,   <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,    <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,    <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
++       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>,    <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,    <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putchar(3)</STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2025-04-19                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
++ncurses 6.5                       2025-04-26                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/ncurses.3x.html
+--- ncurses-6.5-20250419+/doc/html/man/ncurses.3x.html	2025-04-19 23:33:06.000000000 +0000
++++ ncurses-6.5-20250426/doc/html/man/ncurses.3x.html	2025-04-26 20:32:44.000000000 +0000
+@@ -61,7 +61,7 @@
+        displays  with  output  optimized  to minimize screen updates.  <EM>ncurses</EM>
+        replaces the <EM>curses</EM> libraries from System V Release 4 Unix ("SVr4") and
+        4.4BSD  Unix,  the  development  of  which  ceased  in the 1990s.  This
+-       document describes <EM>ncurses</EM> version 6.5 (patch 20250419).
++       document describes <EM>ncurses</EM> version 6.5 (patch 20250426).
+ 
+        <EM>ncurses</EM> permits control of the terminal screen's contents;  abstraction
+        and  subdivision thereof with <EM>windows</EM> and <EM>pads</EM>; acquisition of keyboard
+Index: doc/html/man/terminfo.5.html
+--- ncurses-6.5-20250419+/doc/html/man/terminfo.5.html	2025-04-19 23:33:06.000000000 +0000
++++ ncurses-6.5-20250426/doc/html/man/terminfo.5.html	2025-04-26 20:32:44.000000000 +0000
+@@ -71,7 +71,7 @@
+        have, by specifying how to perform screen operations, and by specifying
+        padding requirements and initialization sequences.
+ 
+-       This document describes <EM>ncurses</EM> version 6.5 (patch 20250419).
++       This document describes <EM>ncurses</EM> version 6.5 (patch 20250426).
+ 
+ 
+ </PRE><H3><a name="h3-terminfo-Entry-Syntax"><EM>terminfo</EM> Entry Syntax</a></H3><PRE>
+Index: man/curs_addch.3x
+Prereq:  1.136 
+--- ncurses-6.5-20250419+/man/curs_addch.3x	2025-04-19 22:53:46.000000000 +0000
++++ ncurses-6.5-20250426/man/curs_addch.3x	2025-04-26 19:57:22.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_addch.3x,v 1.136 2025/04/19 22:53:46 tom Exp $
+-.TH curs_addch 3X 2025-04-19 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_addch.3x,v 1.137 2025/04/26 19:57:22 tom Exp $
++.TH curs_addch 3X 2025-04-26 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -403,8 +403,66 @@
+ capabilities in which their key characters
+ .RB ( pryz{|} )
+ are embedded,
+-and a second-hand list of their character descriptions has come to
+-light.
++and a second-hand list of their character descriptions has come to light,
++which identifies them as VT100 special characters.
++.PP
++The DEC Special Character and Line Drawing Set (VT100) is indexed by
++an ASCII character in the range 96 (`) to 126 (~).
++That index character is part of the definition for the curses
++.B \%ACS_
++symbols.
++The VT100 special characters can be categorized in three groups:
++.bP
++useful graphic symbols with a standard
++.B \%ACS_
++symbol,
++(e.g., the line-drawing symbols),
++.bP
++possibly useful characters (these non-standard symbols),
++.bP
++representations of control characters (e.g., newline and vertical tabulation).
++.PP
++A few
++.B \%ACS_
++symbols do not fit into DEC's VT100 scheme.
++The AT&T Teletype 5410v1 arrow symbols and
++.B \%ACS_BLOCK
++use indices outside the range 96 to 126.
++Two of the Teletype symbols use indices in that range,
++with different meaning versus the VT100:
++.bP
++.B \%ACS_BOARD
++corresponds to the VT100 symbol for newline
++.bP
++.B \%ACS_LANTERN
++corresponds to the VT100 symbol for vertical tabulation
++.PP
++AT&T defined
++.B \%ACS_
++names for the most useful graphic symbols,
++as well as for its own.
++Its header file commented:
++.sp
++.EX
++/*
++ * Standard alternate character set.  The current ACS world is evolving,
++ * so we support only a widely available subset: the line drawing characters
++ * from the VT100, plus a few from the Teletype 5410v1.  Eventually there
++ * may be support of more sophisticated ACS line drawing, such as that
++ * in the Teletype 5410, the HP line drawing set, and the like.  There may
++ * be support for some non line oriented characters as well.
++ *
++ * Line drawing ACS names are of the form ACS_trbl, where t is the top, r
++ * is the right, b is the bottom, and l is the left.  t, r, b, and l might
++ * be B (blank), S (single), D (double), or T (thick).  The subset defined
++ * here only uses B and S.
++ */
++.EE
++.PP
++Although these less-useful graphic symbols were not given names,
++they were used in
++.I \%terminfo
++entries.
+ The
+ .I \%ncurses
+ developers invented ACS-prefixed names for them.
+Index: misc/terminfo.src
+--- ncurses-6.5-20250419+/misc/terminfo.src	2025-04-12 21:05:39.000000000 +0000
++++ ncurses-6.5-20250426/misc/terminfo.src	2025-04-26 20:10:42.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1184 $
+-#	$Date: 2025/04/12 21:05:39 $
++#	$Revision: 1.1186 $
++#	$Date: 2025/04/26 20:10:42 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -1152,19 +1152,18 @@
+ kon|kon2|Kanji ON Linux console,
+ 	am, bce, ccc, eo, mir, msgr, xenl, xon,
+ 	it#8, ncv#18,
+-	bel=^G, civis=\E[?25l, cnorm=\E[?25h, cr=\r, cub1=^H,
+-	cud1=\n, dim=\E[2m, dsl=\E[?H\E[?E, el1=\E[1K, fsl=\E[?F,
+-	ht=^I, hts=\EH, ind=\n,
++	bel=^G, cr=\r, cub1=^H, cud1=\n, dim=\E[2m, dsl=\E[?H\E[?E,
++	el1=\E[1K, fsl=\E[?F, ht=^I, hts=\EH, ind=\n,
+ 	initc=\E]P%p1%x%p2%02x%p3%02x%p4%02x, kb2=\E[G, kbs=^?,
+ 	khome=\E[1~, kspd=^Z, nel=\r\n, ri=\EM, rmso=\E[27m,
+ 	rmul=\E[24m, rs1=\Ec,
+ 	sgr=\E[0;10%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5
+ 	    %t;2%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;11%;m,
+ 	sgr0=\E[0;10m, tbc=\E[3g, tsl=\E[?T, u8=\E[?6c,
+-	use=ansi+arrows, use=ansi+csr, use=ansi+cup,
+-	use=ansi+enq, use=ansi+erase, use=ansi+idc, use=ansi+idl,
+-	use=ansi+local, use=ansi+sgrbold, use=ansi+rca2,
+-	use=dec+sl, use=ecma+sgr, use=klone+color,
++	use=vt220+cvis, use=ansi+arrows, use=ansi+csr,
++	use=ansi+cup, use=ansi+enq, use=ansi+erase, use=ansi+idc,
++	use=ansi+idl, use=ansi+local, use=ansi+sgrbold,
++	use=ansi+rca2, use=dec+sl, use=ecma+sgr, use=klone+color,
+ 	use=linux+lockeys, use=linux+sfkeys, use=vt220+ufkeys,
+ 	use=vt220+pcedit,
+ 
+@@ -8658,8 +8657,7 @@
+ 	ncv@, U8#1,
+ 	acsc=++\,\,--..00``aaffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxy
+ 	     yzz{{||}}~~,
+-	blink=\E[5m, bold=\E[1m, civis=\E[?25l,
+-	cnorm=\E[34h\E[?25h, cub1=^H, cud1=\n,
++	blink=\E[5m, bold=\E[1m, cub1=^H, cud1=\n,
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\EM, cvvis=\E[34l,
+ 	dch=\E[%p1%dP, dch1=\E[P, dim=\E[2m, el1=\E[1K, flash=\Eg,
+ 	hpa=\E[%i%p1%dG, ich=\E[%p1%d@, indn=\E[%p1%dS, is2=\E)0,
+@@ -8674,7 +8672,7 @@
+ 	use=ansi+idl, use=ansi+inittabs, use=ansi+local,
+ 	use=ecma+color, use=vt100+pf1-pf4, use=vt220+pcedit,
+ 	use=xterm+alt1049, use=xterm+kbs, use=vt100+enq,
+-	use=vt100+4bsd, use=xterm+r5+fkeys,
++	use=vt100+4bsd, use=xterm+r5+fkeys, use=wyse+cvis,
+ 
+ screen|VT 100/ANSI X3.64 virtual terminal,
+ 	use=screen4,
+@@ -9323,6 +9321,42 @@
+ 	sgr=\E[0%?%p6%t;1%;%?%p1%p3%|%t;7%;m, use=ansi+local,
+ 	use=sun, use=klone+color,
+ 
++# These date from March 2017:
++# https://www.illumos.org/issues/10360 terminfo: sun-color has 256 colors
++# https://www.illumos.org/issues/10359 terminfo: add underline for sun-color
++#
++# https://www.illumos.org/issues/14919 tem: implement xenl
++# https://illumos.topicbox.com/groups/developer/T58d08b48578a674d-M491357a8bb9a7d39b114097f
++#
++# The developer chose to modify the existing "sun-color" (changing the number
++# of colors and color-pairs without adjusting setaf and setab) rather than
++# following the advice given in review to add a new terminal description.  As a
++# result, some ncurses applications will render color incorrectly, while a few
++# hard-coded applications may work as intended.
++#
++# These variants are based on reading the source code.
++# https://github.com/tsoome/illumos-gate/blob/loader/usr/src/boot/sys/boot/common/tem.c
++illumos|Illumos framebuffer console,
++	xenl,
++	blink=\E[5m, dim=\E[2m, rmam=\E[?7l, rmso=\E[27m,
++	rmul=\E[24m,
++	sgr=\E[0%?%p6%t;1%;%?%p5%t;2%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?
++	    %p4%t;5%;m,
++	sgr0=\E[0m, smam=\E[?7h, smul=\E[4m, use=ecma+index,
++	use=ansi+tabs, use=ansi+rca, use=vt220+cvis,
++	use=sun-color, use=ansi+apparrows,
++#
++# Referring to these as "sun-" is misleading, but close to the intent of the
++# developer -TD
++sun-16color|Illumos framebuffer console with 16 colors,
++	use=ibm+16color, use=illumos,
++
++sun-256color|Illumos framebuffer console with 256 colors,
++	use=xterm+256setaf, use=illumos,
++
++sun-direct|Illumos framebuffer console with direct-color,
++	use=xterm+indirect, use=illumos,
++
+ #### Iris consoles
+ #
+ 
+@@ -13038,10 +13072,9 @@
+ 	am, km, mir, msgr, xenl,
+ 	cols#80, it#8, lines#25, vt#3,
+ 	acsc=``aaffggjjkkllmmnnooqqssttuuvvwwxx{{||}}~~,
+-	bel=^G, cbt=\E[Z, civis=\E[?25l, clear=\E[H\E[J$<200>,
+-	cnorm=\E[34h\E[?25h, cr=\r, cub=\E[%p1%dD$<1>,
+-	cub1=\010$<1>, cud=\E[%p1%dB, cud1=\ED,
+-	cuf=\E[%p1%dC$<1>, cuf1=\E[C$<1>,
++	bel=^G, cbt=\E[Z, clear=\E[H\E[J$<200>, cr=\r,
++	cub=\E[%p1%dD$<1>, cub1=\010$<1>, cud=\E[%p1%dB,
++	cud1=\ED, cuf=\E[%p1%dC$<1>, cuf1=\E[C$<1>,
+ 	cup=\E[%i%p1%d;%p2%dH, cuu=\E[%p1%dA, cuu1=\EM,
+ 	cvvis=\E[34l\E[?25h, dim=\E[2m, ech=\E[%p1%dX,
+ 	ed=\E[J$<8*>, el=\E[K$<1>, el1=\E[1K$<1>, enacs=\E)0,
+@@ -13063,7 +13096,12 @@
+ 	sgr0=\E[m\017\E["q, smacs=^N, smam=\E[?7h, smir=\E[4h,
+ 	smkx=\E[?1h, vpa=\E[%i%p1%dd, use=ansi+csr, use=ansi+idl,
+ 	use=ansi+pp, use=ansi+sgrbold, use=vt100+pf1-pf4,
+-	use=vt220+ufkeys,
++	use=vt220+ufkeys, use=wyse+cvis,
++
++# http://www.bitsavers.org/pdf/wyse/WY-99/880411-02A_WY-99GT_User_Manual_198703.pdf
++# "CSI 34 h" is WYULCURM, "Block cursor on" vs "Underline cursor on"
++wyse+cvis|Wyse cursor-mode,
++	civis=\E[?25l, cnorm=\E[34h\E[?25h,
+ 
+ #   This is the american terminal. Here tabs work fine.
+ # From: Francesco Potorti` <F.Potorti@cnuce.cnr.it>, 24 Aug 1998
+@@ -13374,8 +13412,7 @@
+ wy185|wyse185|Wyse 185,
+ 	hs, km, mir, xenl, xon,
+ 	wsl#80,
+-	civis=\E[?25l, clear=\E[H\E[J$<40>,
+-	cnorm=\E[34h\E[?25h, csr=\E[%i%p1%d;%p2%dr$<20>,
++	clear=\E[H\E[J$<40>, csr=\E[%i%p1%d;%p2%dr$<20>,
+ 	cub1=^H, cud1=\n, cup=\E[%i%p1%d;%p2%dH,
+ 	cvvis=\E[?25h\E[34l, dch=\E[%p1%dP$<3>, dch1=\E[P$<3>,
+ 	dim=\E[2m, dl=\E[%p1%dM$<2*>, dl1=\E[M$<2>,
+@@ -13398,7 +13435,7 @@
+ 	use=ansi+arrows, use=ansi+inittabs, use=ansi+local,
+ 	use=ansi+pp, use=ansi+sgrbold, use=decid+cpr,
+ 	use=vt100+4bsd, use=vt220+vtedit, use=vt220+keypad,
+-	use=vt220+sfkeys, use=vt220+ufkeys,
++	use=vt220+sfkeys, use=vt220+ufkeys, use=wyse+cvis,
+ #
+ #	Wyse 185 with 24 data lines and top status (terminal status)
+ wy185-24|wyse185-24|Wyse 185 with 24 data lines,
+@@ -13546,8 +13583,7 @@
+ 	am, ccc, hs, mir, msgr, xenl, xon,
+ 	colors#64, cols#80, lines#24, ncv#48, pairs#64, wsl#80,
+ 	acsc=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+-	bel=^G, civis=\E[?25l, clear=\E[H\E[J$<40>,
+-	cnorm=\E[34h\E[?25h, cr=\r, cub1=^H, cud1=\n,
++	bel=^G, clear=\E[H\E[J$<40>, cr=\r, cub1=^H, cud1=\n,
+ 	cup=\E[%i%p1%d;%p2%dH$<1>, cvvis=\E[?25h\E[34l,
+ 	dch=\E[%p1%dP$<1*>, dch1=\E[P$<1>, dclk=\E[31h,
+ 	dim=\E[2m, dl=\E[%p1%dM$<2*>, dl1=\E[M$<2>, dsl=\E[40l,
+@@ -13580,7 +13616,7 @@
+ 	u1=\E[?38l\E)0, u2=\E[92;52"p, u3=\E~B, u4=\E[92;76"p,
+ 	u5=\E%!1\E[90;1"p, vpa=\E[%i%p1%dd, use=ansi+csr,
+ 	use=ansi+inittabs, use=ansi+local, use=ansi+pp,
+-	use=ansi+sgrbold, use=decid+cpr,
++	use=ansi+sgrbold, use=decid+cpr, use=wyse+cvis,
+ #
+ #	Function key set for the ASCII (wy-50 compatible) keyboard
+ #	This is the default 370.
+@@ -13700,11 +13736,11 @@
+ 	am, hs, km, mir, xenl, xon,
+ 	cols#80, it#8, lines#24, wsl#80,
+ 	acsc=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+-	bel=^G, civis=\E[?25l, clear=\E[H\E[J$<40>,
+-	cnorm=\E[34h\E[?25h, cr=\r, csr=\E[%i%p1%d;%p2%dr$<20>,
+-	cub1=^H, cud1=\n, cup=\E[%i%p1%d;%p2%dH,
+-	cvvis=\E[?25h\E[34l, dch=\E[%p1%dP$<3>, dch1=\E[P$<30>,
+-	dim=\E[2m, dl=\E[%p1%dM$<2*>, dl1=\E[M$<2>, dsl=\E[0$~,
++	bel=^G, clear=\E[H\E[J$<40>, cr=\r,
++	csr=\E[%i%p1%d;%p2%dr$<20>, cub1=^H, cud1=\n,
++	cup=\E[%i%p1%d;%p2%dH, cvvis=\E[?25h\E[34l,
++	dch=\E[%p1%dP$<3>, dch1=\E[P$<30>, dim=\E[2m,
++	dl=\E[%p1%dM$<2*>, dl1=\E[M$<2>, dsl=\E[0$~,
+ 	ech=\E[%p1%dX, ed=\E[J$<40>, el=\E[K, el1=\E[1K,
+ 	enacs=\E)0, fsl=\E[0$}, home=\E[H, hpa=\E[%i%p1%d`,
+ 	ich=\E[%p1%d@$<2>, il=\E[%p1%dL$<3*>, il1=\E[L$<3>,
+@@ -13724,7 +13760,7 @@
+ 	use=ansi+arrows, use=ansi+csr, use=ansi+local,
+ 	use=ansi+pp, use=ansi+sgrbold, use=ansi+tabs,
+ 	use=decid+cpr, use=vt220+vtedit, use=vt220+keypad,
+-	use=vt220+sfkeys, use=vt220+ufkeys,
++	use=vt220+sfkeys, use=vt220+ufkeys, use=wyse+cvis,
+ #
+ #       Wyse 520 with 24 data lines and status (terminal status)
+ wy520-24|wyse520-24|Wyse 520 with 24 data lines,
+@@ -27913,4 +27949,8 @@
+ #	+ add kf1 to kf5 to sclp (report by Werner Fink)
+ #	+ add vt100+pf1-pf4 -TD
+ #
++# 2025-04-26
++#	+ add illumos, sun-16color, sun-256color, sun-direct -TD
++#	+ add wyse+cvis -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250419+/package/debian-mingw/changelog	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/package/debian-mingw/changelog	2025-04-26 10:13:45.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250419) unstable; urgency=low
++ncurses6td (6.5+20250426) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Apr 2025 06:37:06 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Apr 2025 06:13:45 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250419+/package/debian-mingw64/changelog	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/package/debian-mingw64/changelog	2025-04-26 10:13:45.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250419) unstable; urgency=low
++ncurses6td (6.5+20250426) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Apr 2025 06:37:06 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Apr 2025 06:13:45 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250419+/package/debian/changelog	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/package/debian/changelog	2025-04-26 10:13:45.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250419) unstable; urgency=low
++ncurses6td (6.5+20250426) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Apr 2025 06:37:06 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Apr 2025 06:13:45 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.699 
+--- ncurses-6.5-20250419+/package/mingw-ncurses.nsi	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/package/mingw-ncurses.nsi	2025-04-26 10:13:45.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.699 2025/04/19 10:37:06 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.700 2025/04/26 10:13:45 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0419"
++!define VERSION_MMDD  "0426"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250419+/package/mingw-ncurses.spec	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/package/mingw-ncurses.spec	2025-04-26 10:13:45.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250419
++Release: 20250426
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250419+/package/ncurses.spec	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/package/ncurses.spec	2025-04-26 10:13:45.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250419
++Release: 20250426
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250419+/package/ncursest.spec	2025-04-19 10:37:06.000000000 +0000
++++ ncurses-6.5-20250426/package/ncursest.spec	2025-04-26 10:13:45.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250419
++Release: 20250426
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

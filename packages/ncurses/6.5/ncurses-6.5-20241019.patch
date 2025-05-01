@@ -1,0 +1,1169 @@
+# ncurses 6.5 - patch 20241019 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20241019.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Oct 19 23:59:17 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |    6 ++++-
+# VERSION                          |    2 -
+# dist.mk                          |    4 +--
+# include/nc_win32.h               |    4 +--
+# ncurses/base/lib_delch.c         |    6 ++---
+# ncurses/base/lib_mouse.c         |    6 ++---
+# ncurses/base/lib_set_term.c      |   10 ++++++---
+# ncurses/curses.priv.h            |    8 +++----
+# ncurses/tinfo/captoinfo.c        |    5 +---
+# ncurses/tinfo/entries.c          |    4 +--
+# ncurses/tinfo/lib_setup.c        |    4 +--
+# ncurses/tinfo/lib_win32con.c     |    4 +--
+# ncurses/tinfo/parse_entry.c      |    4 +--
+# ncurses/tinfo/trim_sgr0.c        |    6 +++--
+# ncurses/tinfo/write_entry.c      |    4 +--
+# package/debian-mingw/changelog   |    4 +--
+# package/debian-mingw64/changelog |    4 +--
+# package/debian/changelog         |    4 +--
+# package/mingw-ncurses.nsi        |    4 +--
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# progs/clear.c                    |    6 ++---
+# progs/dump_entry.c               |   24 ++++++++++++-----------
+# progs/infocmp.c                  |   36 +++++++++++++++++------------------
+# progs/tabs.c                     |    8 +++----
+# progs/tic.c                      |   38 ++++++++++++++++++-------------------
+# progs/toe.c                      |   22 ++++++++++-----------
+# progs/tset.c                     |    6 ++---
+# test/demo_menus.c                |    4 +--
+# 30 files changed, 127 insertions(+), 116 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4188 
+--- ncurses-6.5-20241006+/NEWS	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/NEWS	2024-10-19 21:59:42.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4188 2024/10/06 08:53:45 tom Exp $
++-- $Id: NEWS,v 1.4191 2024/10/19 21:59:42 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,10 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20241019
++	+ fixes for compiler warnings/cppcheck.
++	+ build-fixes for DJGPP configuration (patches by Stas Sergeev)
++
+ 20241006
+ 	+ fixes for compiler warnings/cppcheck.
+ 	+ use xterm+alt+title in wezterm -TD
+Index: VERSION
+--- ncurses-6.5-20241006+/VERSION	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/VERSION	2024-10-19 09:59:06.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20241006
++5:0:10	6.5	20241019
+Index: dist.mk
+Prereq:  1.1636 
+--- ncurses-6.5-20241006+/dist.mk	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/dist.mk	2024-10-19 09:59:06.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1636 2024/10/06 08:53:45 tom Exp $
++# $Id: dist.mk,v 1.1637 2024/10/19 09:59:06 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20241006
++NCURSES_PATCH = 20241019
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: include/nc_win32.h
+Prereq:  1.13 
+--- ncurses-6.5-20241006+/include/nc_win32.h	2024-08-31 18:17:21.000000000 +0000
++++ ncurses-6.5-20241019/include/nc_win32.h	2024-10-19 21:06:23.000000000 +0000
+@@ -31,7 +31,7 @@
+  * Author: Thomas Dickey, 2008-on                                           *
+  ****************************************************************************/
+ 
+-/* $Id: nc_win32.h,v 1.13 2024/08/31 18:17:21 tom Exp $ */
++/* $Id: nc_win32.h,v 1.14 2024/10/19 21:06:23 tom Exp $ */
+ 
+ #ifndef NC_WIN32_H
+ #define NC_WIN32_H 1
+@@ -105,7 +105,7 @@
+ extern NCURSES_EXPORT(void)   _nc_console_selectActiveHandle(void);
+ extern NCURSES_EXPORT(bool)   _nc_console_get_SBI(void);
+ extern NCURSES_EXPORT(void)   _nc_console_set_scrollback(bool normal, CONSOLE_SCREEN_BUFFER_INFO * info);
+-extern NCURSES_EXPORT(int)    _nc_console_testmouse(SCREEN *,HANDLE,int EVENTLIST_2nd(_nc_eventlist*));
++extern NCURSES_EXPORT(int)    _nc_console_testmouse(const SCREEN *,HANDLE,int EVENTLIST_2nd(_nc_eventlist*));
+ extern NCURSES_EXPORT(int)    _nc_console_keyok(int keycode,int flag);
+ extern NCURSES_EXPORT(bool)   _nc_console_keyExist(int keycode);
+ extern NCURSES_EXPORT(bool)   _nc_console_checkinit(bool initFlag, bool assumeTermInfo);
+Index: ncurses/base/lib_delch.c
+Prereq:  1.15 
+--- ncurses-6.5-20241006+/ncurses/base/lib_delch.c	2024-07-27 19:23:21.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/base/lib_delch.c	2024-10-19 21:20:46.000000000 +0000
+@@ -41,7 +41,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_delch.c,v 1.15 2024/07/27 19:23:21 tom Exp $")
++MODULE_ID("$Id: lib_delch.c,v 1.16 2024/10/19 21:20:46 tom Exp $")
+ 
+ NCURSES_EXPORT(int)
+ wdelch(WINDOW *win)
+@@ -54,8 +54,8 @@
+ 	NCURSES_CH_T blank = win->_nc_bkgd;
+ 	struct ldat *line = &(win->_line[win->_cury]);
+ 	NCURSES_CH_T *end = &(line->text[win->_maxx]);
+-	NCURSES_CH_T *temp2 = &(line->text[win->_curx + 1]);
+-	NCURSES_CH_T *temp1 = temp2 - 1;
++	NCURSES_CH_T *temp1 = &(line->text[win->_curx]);
++	const NCURSES_CH_T *temp2 = temp1 + 1;
+ 
+ 	CHANGED_TO_EOL(line, win->_curx, win->_maxx);
+ 	while (temp1 < end)
+Index: ncurses/base/lib_mouse.c
+Prereq:  1.200 
+--- ncurses-6.5-20241006+/ncurses/base/lib_mouse.c	2024-02-17 21:13:01.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/base/lib_mouse.c	2024-10-19 21:03:19.000000000 +0000
+@@ -85,7 +85,7 @@
+ #define CUR SP_TERMTYPE
+ #endif
+ 
+-MODULE_ID("$Id: lib_mouse.c,v 1.200 2024/02/17 21:13:01 tom Exp $")
++MODULE_ID("$Id: lib_mouse.c,v 1.201 2024/10/19 21:03:19 tom Exp $")
+ 
+ #include <tic.h>
+ 
+@@ -1219,7 +1219,7 @@
+ } SGR_DATA;
+ 
+ static bool
+-read_SGR(SCREEN *sp, SGR_DATA * result)
++read_SGR(const SCREEN *sp, SGR_DATA * result)
+ {
+     char kbuf[80];		/* bigger than any possible mouse response */
+     int grabbed = 0;
+@@ -2042,7 +2042,7 @@
+ /* This may be used by other routines to ask for the existence of mouse
+    support */
+ NCURSES_EXPORT(bool)
+-_nc_has_mouse(SCREEN *sp)
++_nc_has_mouse(const SCREEN *sp)
+ {
+     return (((0 == sp) || (sp->_mouse_type == M_NONE)) ? FALSE : TRUE);
+ }
+Index: ncurses/base/lib_set_term.c
+Prereq:  1.184 
+--- ncurses-6.5-20241006+/ncurses/base/lib_set_term.c	2022-12-10 21:34:12.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/base/lib_set_term.c	2024-10-19 19:41:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2018-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -47,6 +47,10 @@
+ #include <tic.h>
+ #include <new_pair.h>
+ 
++#ifdef __DJGPP__
++#include <io.h>
++#endif
++
+ #if USE_GPM_SUPPORT
+ #ifdef HAVE_LIBDL
+ /* use dynamic loader to avoid linkage dependency */
+@@ -57,7 +61,7 @@
+ #undef CUR
+ #define CUR SP_TERMTYPE
+ 
+-MODULE_ID("$Id: lib_set_term.c,v 1.184 2022/12/10 21:34:12 tom Exp $")
++MODULE_ID("$Id: lib_set_term.c,v 1.186 2024/10/19 19:41:09 tom Exp $")
+ 
+ #ifdef USE_TERM_DRIVER
+ #define MaxColors      InfoOf(sp).maxcolors
+@@ -423,7 +427,7 @@
+ #ifdef __DJGPP__
+     T(("setting output mode to binary"));
+     fflush(output);
+-    setmode(output, O_BINARY);
++    setmode(fileno(output), O_BINARY);
+ #endif
+ #if defined(EXP_WIN32_DRIVER)
+     T(("setting output mode to binary"));
+Index: ncurses/curses.priv.h
+Prereq:  1.692 
+--- ncurses-6.5-20241006+/ncurses/curses.priv.h	2024-10-05 21:01:50.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/curses.priv.h	2024-10-19 21:23:40.000000000 +0000
+@@ -35,7 +35,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: curses.priv.h,v 1.692 2024/10/05 21:01:50 tom Exp $
++ * $Id: curses.priv.h,v 1.694 2024/10/19 21:23:40 tom Exp $
+  *
+  *	curses.priv.h
+  *
+@@ -208,7 +208,7 @@
+  * the path separator in configure doesn't work properly. So, if building
+  * for MinGW, we enforce the correct Windows PATH separator
+  */
+-#if defined(_NC_WINDOWS_NATIVE)
++#if defined(_NC_WINDOWS_NATIVE) || defined(__DJGPP__)
+ #  ifdef NCURSES_PATHSEP
+ #    undef NCURSES_PATHSEP
+ #  endif
+@@ -2059,7 +2059,7 @@
+ extern NCURSES_EXPORT(void) _nc_screen_wrap (void);
+ 
+ /* lib_mouse.c */
+-extern NCURSES_EXPORT(bool) _nc_has_mouse (SCREEN *);
++extern NCURSES_EXPORT(bool) _nc_has_mouse (const SCREEN *);
+ 
+ /* lib_mvcur.c */
+ #define INFINITY	1000000	/* cost: too high to use */
+@@ -2175,7 +2175,7 @@
+ extern NCURSES_EXPORT(void) _nc_init_termtype (TERMTYPE2 *const);
+ extern NCURSES_EXPORT(void) _nc_do_color (int, int, int, NCURSES_OUTC);
+ extern NCURSES_EXPORT(void) _nc_flush (void);
+-extern NCURSES_EXPORT(void) _nc_free_entry (ENTRY *, TERMTYPE2 *);
++extern NCURSES_EXPORT(void) _nc_free_entry (ENTRY *, const TERMTYPE2 *);
+ extern NCURSES_EXPORT(void) _nc_freeall (void);
+ extern NCURSES_EXPORT(void) _nc_hash_map (void);
+ extern NCURSES_EXPORT(void) _nc_init_keytry (SCREEN *);
+Index: ncurses/tinfo/captoinfo.c
+Prereq:  1.103 
+--- ncurses-6.5-20241006+/ncurses/tinfo/captoinfo.c	2024-07-27 19:22:23.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/tinfo/captoinfo.c	2024-10-19 21:18:54.000000000 +0000
+@@ -98,7 +98,7 @@
+ #include <ctype.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: captoinfo.c,v 1.103 2024/07/27 19:22:23 tom Exp $")
++MODULE_ID("$Id: captoinfo.c,v 1.104 2024/10/19 21:18:54 tom Exp $")
+ 
+ #if 0
+ #define DEBUG_THIS(p) DEBUG(9, p)
+@@ -535,8 +535,7 @@
+ static int
+ bcd_expression(const char *str)
+ {
+-    /* leave this non-const for HPUX */
+-    static char fmt[] = "%%p%c%%{10}%%/%%{16}%%*%%p%c%%{10}%%m%%+";
++    static const char fmt[] = "%%p%c%%{10}%%/%%{16}%%*%%p%c%%{10}%%m%%+";
+     int len = 0;
+     char ch1, ch2;
+ 
+Index: ncurses/tinfo/entries.c
+Prereq:  1.36 
+--- ncurses-6.5-20241006+/ncurses/tinfo/entries.c	2024-07-27 19:22:23.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/tinfo/entries.c	2024-10-19 21:23:31.000000000 +0000
+@@ -38,7 +38,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: entries.c,v 1.36 2024/07/27 19:22:23 tom Exp $")
++MODULE_ID("$Id: entries.c,v 1.37 2024/10/19 21:23:31 tom Exp $")
+ 
+ /****************************************************************************
+  *
+@@ -91,7 +91,7 @@
+ }
+ 
+ NCURSES_EXPORT(void)
+-_nc_free_entry(ENTRY * headp, TERMTYPE2 *tterm)
++_nc_free_entry(ENTRY * headp, const TERMTYPE2 *tterm)
+ /* free the allocated storage consumed by the given list entry */
+ {
+     ENTRY *ep;
+Index: ncurses/tinfo/lib_setup.c
+Prereq:  1.244 
+--- ncurses-6.5-20241006+/ncurses/tinfo/lib_setup.c	2024-08-31 21:15:54.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/tinfo/lib_setup.c	2024-10-19 21:17:36.000000000 +0000
+@@ -49,7 +49,7 @@
+ #include <locale.h>
+ #endif
+ 
+-MODULE_ID("$Id: lib_setup.c,v 1.244 2024/08/31 21:15:54 tom Exp $")
++MODULE_ID("$Id: lib_setup.c,v 1.245 2024/10/19 21:17:36 tom Exp $")
+ 
+ /****************************************************************************
+  *
+@@ -320,7 +320,7 @@
+ }
+ 
+ static bool
+-get_position(TERMINAL *termp, int fd, int *row, int *col)
++get_position(const TERMINAL *termp, int fd, int *row, int *col)
+ {
+     bool result = FALSE;
+     size_t need = strlen(user7);
+Index: ncurses/tinfo/lib_win32con.c
+Prereq:  1.15 
+--- ncurses-6.5-20241006+/ncurses/tinfo/lib_win32con.c	2024-08-31 15:55:10.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/tinfo/lib_win32con.c	2024-10-19 21:06:11.000000000 +0000
+@@ -38,7 +38,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_win32con.c,v 1.15 2024/08/31 15:55:10 tom Exp $")
++MODULE_ID("$Id: lib_win32con.c,v 1.16 2024/10/19 21:06:11 tom Exp $")
+ 
+ #if defined(_NC_WINDOWS)
+ 
+@@ -996,7 +996,7 @@
+ 
+ NCURSES_EXPORT(int)
+ _nc_console_testmouse(
+-			 SCREEN *sp,
++			 const SCREEN *sp,
+ 			 HANDLE hdl,
+ 			 int delay
+ 			 EVENTLIST_2nd(_nc_eventlist * evl))
+Index: ncurses/tinfo/parse_entry.c
+Prereq:  1.109 
+--- ncurses-6.5-20241006+/ncurses/tinfo/parse_entry.c	2024-07-27 19:22:23.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/tinfo/parse_entry.c	2024-10-19 21:22:04.000000000 +0000
+@@ -48,7 +48,7 @@
+ #include <ctype.h>
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: parse_entry.c,v 1.109 2024/07/27 19:22:23 tom Exp $")
++MODULE_ID("$Id: parse_entry.c,v 1.110 2024/10/19 21:22:04 tom Exp $")
+ 
+ #ifdef LINT
+ static short const parametrized[] =
+@@ -707,7 +707,7 @@
+ }
+ 
+ static void
+-append_acs(string_desc * dst, int code, char *src)
++append_acs(string_desc * dst, int code, const char *src)
+ {
+     if (VALID_STRING(src) && strlen(src) == 1) {
+ 	append_acs0(dst, code, src, 0);
+Index: ncurses/tinfo/trim_sgr0.c
+Prereq:  1.24 
+--- ncurses-6.5-20241006+/ncurses/tinfo/trim_sgr0.c	2024-10-05 20:53:48.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/tinfo/trim_sgr0.c	2024-10-19 21:18:18.000000000 +0000
+@@ -37,7 +37,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: trim_sgr0.c,v 1.24 2024/10/05 20:53:48 tom Exp $")
++MODULE_ID("$Id: trim_sgr0.c,v 1.25 2024/10/19 21:18:18 tom Exp $")
+ 
+ #undef CUR
+ #define CUR tp->
+@@ -254,7 +254,7 @@
+ 	} else if (similar_sgr(off, end)
+ 		   && !similar_sgr(off, on)) {
+ 	    bool found = FALSE;
+-	    size_t i, j, k;
++	    size_t i, j;
+ 
+ 	    TR(TRACE_DATABASE, ("adjusting sgr(9:off) : %s", _nc_visbuf(off)));
+ 	    result = off;
+@@ -262,6 +262,8 @@
+ 	     * If rmacs is a substring of sgr(0), remove that chunk.
+ 	     */
+ 	    if (PRESENT(exit_alt_charset_mode)) {
++		size_t k;
++
+ 		TR(TRACE_DATABASE, ("scan for rmacs %s", _nc_visbuf(exit_alt_charset_mode)));
+ 		j = strlen(off);
+ 		k = strlen(exit_alt_charset_mode);
+Index: ncurses/tinfo/write_entry.c
+Prereq:  1.135 
+--- ncurses-6.5-20241006+/ncurses/tinfo/write_entry.c	2024-09-28 17:31:09.000000000 +0000
++++ ncurses-6.5-20241019/ncurses/tinfo/write_entry.c	2024-10-19 21:19:32.000000000 +0000
+@@ -42,7 +42,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: write_entry.c,v 1.135 2024/09/28 17:31:09 tom Exp $")
++MODULE_ID("$Id: write_entry.c,v 1.136 2024/10/19 21:19:32 tom Exp $")
+ 
+ #if 1
+ #define TRACE_OUT(p) DEBUG(2, p)
+@@ -125,12 +125,12 @@
+     static const char dirnames[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+     static bool verified[sizeof(dirnames)];
+ 
+-    char dir[sizeof(LEAF_FMT)];
+     const char *s = 0;
+ 
+     if (code == 0 || (s = (strchr) (dirnames, code)) == 0) {
+ 	_nc_err_abort("Illegal terminfo subdirectory \"" LEAF_FMT "\"", code);
+     } else if (!verified[s - dirnames]) {
++	char dir[sizeof(LEAF_FMT)];
+ 	_nc_SPRINTF(dir, _nc_SLIMIT(sizeof(dir)) LEAF_FMT, code);
+ 	if (make_db_root(dir) < 0) {
+ 	    _nc_err_abort("%s/%s: permission denied", _nc_tic_dir(NULL), dir);
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20241006+/package/debian-mingw/changelog	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/package/debian-mingw/changelog	2024-10-19 09:59:06.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241006) unstable; urgency=low
++ncurses6td (6.5+20241019) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 06 Oct 2024 04:53:45 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Oct 2024 05:59:06 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20241006+/package/debian-mingw64/changelog	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/package/debian-mingw64/changelog	2024-10-19 09:59:06.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241006) unstable; urgency=low
++ncurses6td (6.5+20241019) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 06 Oct 2024 04:53:45 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Oct 2024 05:59:06 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20241006+/package/debian/changelog	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/package/debian/changelog	2024-10-19 09:59:06.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241006) unstable; urgency=low
++ncurses6td (6.5+20241019) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 06 Oct 2024 04:53:45 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Oct 2024 05:59:06 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.671 
+--- ncurses-6.5-20241006+/package/mingw-ncurses.nsi	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/package/mingw-ncurses.nsi	2024-10-19 09:59:06.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.671 2024/10/06 08:53:45 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.672 2024/10/19 09:59:06 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "1006"
++!define VERSION_MMDD  "1019"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20241006+/package/mingw-ncurses.spec	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/package/mingw-ncurses.spec	2024-10-19 09:59:06.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20241006
++Release: 20241019
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20241006+/package/ncurses.spec	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/package/ncurses.spec	2024-10-19 09:59:06.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20241006
++Release: 20241019
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20241006+/package/ncursest.spec	2024-10-06 08:53:45.000000000 +0000
++++ ncurses-6.5-20241019/package/ncursest.spec	2024-10-19 09:59:06.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20241006
++Release: 20241019
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/clear.c
+Prereq:  1.24 
+--- ncurses-6.5-20241006+/progs/clear.c	2021-03-20 18:23:14.000000000 +0000
++++ ncurses-6.5-20241019/progs/clear.c	2024-10-19 22:00:53.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2021 Thomas E. Dickey                                     *
++ * Copyright 2020-2021,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -41,7 +41,7 @@
+ #include <clear_cmd.h>
+ #include <tty_settings.h>
+ 
+-MODULE_ID("$Id: clear.c,v 1.24 2021/03/20 18:23:14 tom Exp $")
++MODULE_ID("$Id: clear.c,v 1.25 2024/10/19 22:00:53 tom Exp $")
+ 
+ const char *_nc_progname = "clear";
+ 
+@@ -71,7 +71,7 @@
+     TTY tty_settings;
+     int fd;
+     int c;
+-    char *term;
++    NCURSES_CONST char *term;
+     bool opt_x = FALSE;		/* clear scrollback if possible */
+ 
+     _nc_progname = _nc_rootname(argv[0]);
+Index: progs/dump_entry.c
+Prereq:  1.196 
+--- ncurses-6.5-20241006+/progs/dump_entry.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241019/progs/dump_entry.c	2024-10-19 22:00:53.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -40,7 +40,7 @@
+ #include <termsort.h>		/* this C file is generated */
+ #include <parametrized.h>	/* so is this */
+ 
+-MODULE_ID("$Id: dump_entry.c,v 1.196 2023/05/27 20:13:10 tom Exp $")
++MODULE_ID("$Id: dump_entry.c,v 1.197 2024/10/19 22:00:53 tom Exp $")
+ 
+ #define DISCARD(string) string = ABSENT_STRING
+ #define PRINTF (void) printf
+@@ -725,7 +725,7 @@
+  * given leading text.
+  */
+ static bool
+-leading_DYN(DYNBUF * buffer, const char *leading)
++leading_DYN(const DYNBUF * buffer, const char *leading)
+ {
+     bool result = FALSE;
+     size_t need = strlen(leading);
+@@ -1118,7 +1118,7 @@
+ 			      : ((*srccap == 'k')
+ 				 ? 0
+ 				 : has_params(srccap, FALSE)));
+-		char *cv = _nc_infotocap(name, srccap, params);
++		const char *cv = _nc_infotocap(name, srccap, params);
+ 
+ 		if (cv == 0) {
+ 		    if (outform == F_TCONVERR) {
+@@ -1129,7 +1129,8 @@
+ 		    } else if (suppress_untranslatable) {
+ 			continue;
+ 		    } else {
+-			char *s = srccap, *d = buffer;
++			const char *s = srccap;
++			char *d = buffer;
+ 			int need = 3 + (int) strlen(name);
+ 			while ((*d = *s++) != 0) {
+ 			    if ((d - buffer + 2) >= (int) sizeof(buffer)) {
+@@ -1210,7 +1211,8 @@
+ 	    bool box_ok = TRUE;
+ 	    const char *acstrans = "lqkxjmwuvtn";
+ 	    const char *cp;
+-	    char *tp, *sp, boxchars[11];
++	    const char *sp;
++	    char *tp, boxchars[11];
+ 
+ 	    tp = boxchars;
+ 	    for (cp = acstrans; *cp; cp++) {
+@@ -1324,7 +1326,7 @@
+ }
+ 
+ static char *
+-find_string(TERMTYPE2 *tterm, char *name)
++find_string(TERMTYPE2 *tterm, const char *name)
+ {
+     PredIdx n;
+     for (n = 0; n < NUM_STRINGS(tterm); ++n) {
+@@ -1352,7 +1354,7 @@
+     char name[20];
+ 
+     for (n = 0; n <= 10; ++n) {
+-	char *cap;
++	const char *cap;
+ 
+ 	_nc_SPRINTF(name, _nc_SLIMIT(sizeof(name)) "lf%d", n);
+ 	cap = find_string(tterm, name);
+@@ -1379,7 +1381,7 @@
+     char name[20];
+ 
+     for (n = 60; n >= 0; --n) {
+-	char *cap;
++	const char *cap;
+ 
+ 	_nc_SPRINTF(name, _nc_SLIMIT(sizeof(name)) "kf%d", n);
+ 	cap = find_string(tterm, name);
+@@ -1444,7 +1446,7 @@
+ }
+ 
+ static void
+-encode_b64(char *target, char *source, unsigned state, int *saved)
++encode_b64(char *target, const char *source, unsigned state, int *saved)
+ {
+     /* RFC-4648 */
+     static const char data[] =
+@@ -1509,7 +1511,7 @@
+ 		}
+ 	    }
+ 	    if (quickdump & 2) {
+-		static char padding[] =
++		static const char padding[] =
+ 		{0, 0};
+ 		int value = 0;
+ 
+Index: progs/infocmp.c
+Prereq:  1.165 
+--- ncurses-6.5-20241006+/progs/infocmp.c	2024-09-28 20:26:22.000000000 +0000
++++ ncurses-6.5-20241019/progs/infocmp.c	2024-10-19 21:43:11.000000000 +0000
+@@ -43,7 +43,7 @@
+ 
+ #include <dump_entry.h>
+ 
+-MODULE_ID("$Id: infocmp.c,v 1.165 2024/09/28 20:26:22 Branden.Robinson Exp $")
++MODULE_ID("$Id: infocmp.c,v 1.166 2024/10/19 21:43:11 tom Exp $")
+ 
+ #ifndef ACTUAL_TIC
+ #define ACTUAL_TIC "tic"
+@@ -132,7 +132,7 @@
+ }
+ 
+ static void
+-canonical_name(char *source, char *target)
++canonical_name(const char *source, char *target)
+ /* extract the terminal type's primary name */
+ {
+     int limit = NAMESIZE;
+@@ -214,8 +214,6 @@
+     switch (type) {
+     case BOOLEAN:
+ 	{
+-	    int is_set = FALSE;
+-
+ 	    /*
+ 	     * This assumes that multiple use entries are supposed
+ 	     * to contribute the logical or of their boolean capabilities.
+@@ -228,6 +226,8 @@
+ 	     * recorded in the terminfo database.
+ 	     */
+ 	    if (idx < NUM_BOOLEANS(&(entries[0].tterm))) {
++		int is_set = FALSE;
++
+ 		for (ep = &entries[1]; ep < entries + termcount; ep++) {
+ 		    if (idx < NUM_BOOLEANS(&(ep->tterm))
+ 			&& (is_set = ep->tterm.Booleans[idx])) {
+@@ -242,14 +242,14 @@
+ 
+     case NUMBER:
+ 	{
+-	    int value = ABSENT_NUMERIC;
+-
+ 	    /*
+ 	     * We take the semantics of multiple uses to be 'each
+ 	     * capability gets the first non-default value found
+ 	     * in the sequence of use entries'.
+ 	     */
+ 	    if (idx < NUM_NUMBERS(&(entries[0].tterm))) {
++		int value = ABSENT_NUMERIC;
++
+ 		for (ep = &entries[1]; ep < entries + termcount; ep++)
+ 		    if (idx < NUM_NUMBERS(&(ep->tterm))
+ 			&& VALID_NUMERIC(ep->tterm.Numbers[idx])) {
+@@ -265,8 +265,8 @@
+ 
+     case STRING:
+ 	{
+-	    char *termstr = entries[0].tterm.Strings[idx];
+-	    char *usestr = ABSENT_STRING;
++	    const char *termstr = entries[0].tterm.Strings[idx];
++	    const char *usestr = ABSENT_STRING;
+ 
+ 	    /*
+ 	     * We take the semantics of multiple uses to be 'each
+@@ -302,7 +302,7 @@
+ }
+ 
+ static bool
+-useeq(ENTRY * e1, ENTRY * e2)
++useeq(const ENTRY * e1, const ENTRY * e2)
+ /* are the use references in two entries equivalent? */
+ {
+     unsigned i, j;
+@@ -329,7 +329,7 @@
+ }
+ 
+ static bool
+-entryeq(TERMTYPE2 *t1, TERMTYPE2 *t2)
++entryeq(const TERMTYPE2 *t1, const TERMTYPE2 *t2)
+ /* are two entries equivalent? */
+ {
+     unsigned i;
+@@ -352,7 +352,7 @@
+ #define TIC_EXPAND(result) _nc_tic_expand(result, outform==F_TERMINFO, numbers)
+ 
+ static void
+-print_uses(ENTRY * ep, FILE *fp)
++print_uses(const ENTRY * ep, FILE *fp)
+ /* print an entry's use references */
+ {
+     if (!ep->nuses) {
+@@ -404,7 +404,7 @@
+ }
+ 
+ static void
+-dump_string(char *val, char *buf)
++dump_string(const char *val, char *buf)
+ /* display the value of a string capability */
+ {
+     if (val == ABSENT_STRING)
+@@ -479,13 +479,13 @@
+ compare_predicate(PredType type, PredIdx idx, const char *name)
+ /* predicate function to use for entry difference reports */
+ {
+-    ENTRY *e1 = &entries[0];
+-    ENTRY *e2 = &entries[1];
++    const ENTRY *e1 = &entries[0];
++    const ENTRY *e2 = &entries[1];
+     char buf1[MAX_STRING];
+     char buf2[MAX_STRING];
+     int b1, b2;
+     int n1, n2;
+-    char *s1, *s2;
++    const char *s1, *s2;
+     bool found;
+     int extra = 1;
+ 
+@@ -866,7 +866,7 @@
+ 
+ 	/* first, check other capabilities in this entry */
+ 	for (i = 0; i < STRCOUNT; i++) {
+-	    char *cp = tp->Strings[i];
++	    const char *cp = tp->Strings[i];
+ 
+ 	    /* don't use function-key capabilities */
+ 	    if (strnames[i] == NULL)
+@@ -1331,7 +1331,7 @@
+ 
+ /* dump C initializers for the terminal type */
+ static void
+-dump_initializers(TERMTYPE2 *term)
++dump_initializers(const TERMTYPE2 *term)
+ {
+     unsigned n;
+     const char *str = 0;
+@@ -1455,7 +1455,7 @@
+ 
+ /* dump C initializers for the terminal type */
+ static void
+-dump_termtype(TERMTYPE2 *term)
++dump_termtype(const TERMTYPE2 *term)
+ {
+     (void) printf("\t%s\n\t\t%s,\n", L_CURL, name_initializer("alias"));
+     (void) printf("\t\t(char *)0,\t/* pointer to string table */\n");
+Index: progs/tabs.c
+Prereq:  1.54 
+--- ncurses-6.5-20241006+/progs/tabs.c	2024-08-24 22:56:43.000000000 +0000
++++ ncurses-6.5-20241019/progs/tabs.c	2024-10-19 21:45:18.000000000 +0000
+@@ -39,7 +39,7 @@
+ #include <progs.priv.h>
+ #include <tty_settings.h>
+ 
+-MODULE_ID("$Id: tabs.c,v 1.54 2024/08/24 22:56:43 tom Exp $")
++MODULE_ID("$Id: tabs.c,v 1.55 2024/10/19 21:45:18 tom Exp $")
+ 
+ static GCC_NORETURN void usage(void);
+ 
+@@ -78,7 +78,7 @@
+ {
+     bool result = FALSE;
+     if (VALID_STRING(clear_all_tabs)) {
+-	char *param = skip_csi(clear_all_tabs);
++	const char *param = skip_csi(clear_all_tabs);
+ 	if (!strcmp(param, "3g"))
+ 	    result = TRUE;
+     }
+@@ -86,7 +86,7 @@
+ }
+ 
+ static void
+-do_tabs(int *tab_list)
++do_tabs(const int *tab_list)
+ {
+     int last = 1;
+     int stop;
+@@ -229,7 +229,7 @@
+  * ruler.
+  */
+ static void
+-write_tabs(int *tab_list, const char *new_line)
++write_tabs(const int *tab_list, const char *new_line)
+ {
+     int stop;
+ 
+Index: progs/tic.c
+Prereq:  1.325 
+--- ncurses-6.5-20241006+/progs/tic.c	2024-03-02 19:33:22.000000000 +0000
++++ ncurses-6.5-20241019/progs/tic.c	2024-10-19 21:31:50.000000000 +0000
+@@ -49,7 +49,7 @@
+ #include <parametrized.h>
+ #include <transform.h>
+ 
+-MODULE_ID("$Id: tic.c,v 1.325 2024/03/02 19:33:22 tom Exp $")
++MODULE_ID("$Id: tic.c,v 1.326 2024/10/19 21:31:50 tom Exp $")
+ 
+ #define STDIN_NAME "<stdin>"
+ 
+@@ -203,7 +203,8 @@
+ {
+     unsigned n;
+     int ch;
+-    char *s, *d, *t;
++    char *s, *d;
++    const char *t;
+     char result[MAX_ENTRY_SIZE];
+ 
+     /*
+@@ -411,7 +412,6 @@
+     char my_altfile[PATH_MAX];
+     FILE *result = 0;
+     FILE *target;
+-    int ch;
+ 
+     if (alt_file == NULL)
+ 	alt_file = my_altfile;
+@@ -423,7 +423,7 @@
+     } else {
+ 	clearerr(source);
+ 	for (;;) {
+-	    ch = fgetc(source);
++	    int ch = fgetc(source);
+ 	    if (feof(source)) {
+ 		break;
+ 	    } else if (ferror(source)) {
+@@ -1119,7 +1119,7 @@
+  * Check if the alternate character-set capabilities are consistent.
+  */
+ static void
+-check_acs(TERMTYPE2 *tp)
++check_acs(const TERMTYPE2 *tp)
+ {
+     int vt100_smacs = 0;
+     int vt100_rmacs = 0;
+@@ -1332,7 +1332,7 @@
+ 
+     if ((ch = keypad_final(string)) != '\0') {
+ 	const char *list = "PQRSwxymtuvlqrsPpn";	/* app-keypad except "Enter" */
+-	char *test = (strchr) (list, ch);
++	const char *test = (strchr) (list, ch);
+ 	if (test != 0)
+ 	    result = (long) (test - list);
+     }
+@@ -1363,7 +1363,7 @@
+ 	}
+     }
+     if (!repeated) {
+-	char *up = list[1];
++	const char *up = list[1];
+ 	size_t prefix = (size_t) csi_length(up);
+ 	size_t suffix;
+ 
+@@ -1410,7 +1410,7 @@
+ #define UNEXPECTED(name) if (PRESENT(name)) _nc_warning("unexpected " #name ", for %s", why)
+ 
+ static void
+-check_noaddress(TERMTYPE2 *tp, const char *why)
++check_noaddress(const TERMTYPE2 *tp, const char *why)
+ {
+     UNEXPECTED(column_address);
+     UNEXPECTED(cursor_address);
+@@ -1541,7 +1541,7 @@
+  * is mapped inconsistently.
+  */
+ static void
+-check_keypad(TERMTYPE2 *tp)
++check_keypad(const TERMTYPE2 *tp)
+ {
+     char show[80];
+ 
+@@ -1727,7 +1727,7 @@
+ 	bool have_kmouse = FALSE;
+ 	bool use_sgr_39_49 = FALSE;
+ 	const char *name_39_49 = "orig_pair or orig_colors";
+-	char *name = _nc_first_name(tp->term_names);
++	const char *name = _nc_first_name(tp->term_names);
+ 	bool is_screen = !strncmp(name, "screen", 6);
+ 	bool screen_base = (is_screen
+ 			    && strchr(name, '.') == NULL);
+@@ -1985,7 +1985,7 @@
+  * markers.
+  */
+ static void
+-check_params(TERMTYPE2 *tp, const char *name, const char *value, int extended)
++check_params(const TERMTYPE2 *tp, const char *name, const char *value, int extended)
+ {
+     int expected = expected_params(name);
+     int actual = 0;
+@@ -2149,7 +2149,7 @@
+ }
+ 
+ static void
+-check_delays(TERMTYPE2 *tp, const char *name, const char *value)
++check_delays(const TERMTYPE2 *tp, const char *name, const char *value)
+ {
+     const char *p, *q;
+     const char *first = 0;
+@@ -2575,7 +2575,7 @@
+ similar_sgr(int num, char *a, char *b)
+ {
+     char *base_a = a;
+-    char *base_b = b;
++    const char *base_b = b;
+     int delaying = 0;
+ 
+     while (*b != 0) {
+@@ -2631,7 +2631,7 @@
+ }
+ 
+ static char *
+-check_sgr(TERMTYPE2 *tp, char *zero, int num, char *cap, const char *name)
++check_sgr(const TERMTYPE2 *tp, const char *zero, int num, char *cap, const char *name)
+ {
+     char *test;
+ 
+@@ -2731,7 +2731,7 @@
+ }
+ 
+ static void
+-show_fkey_name(NAME_VALUE * data)
++show_fkey_name(const NAME_VALUE * data)
+ {
+     if (data->keycode > 0) {
+ 	fprintf(stderr, " %s", keyname(data->keycode));
+@@ -2909,7 +2909,7 @@
+  * Check if the given capability contains a given SGR attribute.
+  */
+ static void
+-check_sgr_param(TERMTYPE2 *tp, int code, const char *name, char *value)
++check_sgr_param(TERMTYPE2 *tp, int code, const char *name, const char *const value)
+ {
+     if (VALID_STRING(value)) {
+ 	int ncv = ((code != 0) ? (1 << (code - 1)) : 0);
+@@ -3111,7 +3111,7 @@
+ }
+ 
+ static int
+-guess_ANSI_VTxx(TERMTYPE2 *tp)
++guess_ANSI_VTxx(const TERMTYPE2 *tp)
+ {
+     int result = -1;
+     int checks = 0;
+@@ -3151,7 +3151,7 @@
+  */
+ #if defined(user6) && defined(user7) && defined(user8) && defined(user9)
+ static void
+-check_user_6789(TERMTYPE2 *tp)
++check_user_6789(const TERMTYPE2 *tp)
+ {
+     /*
+      * Check if the terminal is known to not 
+@@ -3200,7 +3200,7 @@
+     check_conflict(tp);
+ 
+     for_each_string(j, tp) {
+-	char *a = tp->Strings[j];
++	const char *a = tp->Strings[j];
+ 	if (VALID_STRING(a)) {
+ 	    const char *name = ExtStrname(tp, (int) j, strnames);
+ 	    /*
+Index: progs/toe.c
+Prereq:  1.89 
+--- ncurses-6.5-20241006+/progs/toe.c	2023-07-01 17:04:46.000000000 +0000
++++ ncurses-6.5-20241019/progs/toe.c	2024-10-19 22:00:53.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -45,7 +45,7 @@
+ #include <hashed_db.h>
+ #endif
+ 
+-MODULE_ID("$Id: toe.c,v 1.89 2023/07/01 17:04:46 tom Exp $")
++MODULE_ID("$Id: toe.c,v 1.90 2024/10/19 22:00:53 tom Exp $")
+ 
+ #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
+ 
+@@ -265,10 +265,10 @@
+ typedef void (DescHook) (int /* db_index */ ,
+ 			 int /* db_limit */ ,
+ 			 const char * /* term_name */ ,
+-			 TERMTYPE2 * /* term */ );
++			 const TERMTYPE2 * /* term */ );
+ 
+ static const char *
+-term_description(TERMTYPE2 *tp)
++term_description(const TERMTYPE2 *tp)
+ {
+     const char *desc;
+ 
+@@ -283,7 +283,7 @@
+ 
+ /* display a description for the type */
+ static void
+-deschook(int db_index, int db_limit, const char *term_name, TERMTYPE2 *tp)
++deschook(int db_index, int db_limit, const char *term_name, const TERMTYPE2 *tp)
+ {
+     (void) db_index;
+     (void) db_limit;
+@@ -307,7 +307,7 @@
+ }
+ 
+ static unsigned long
+-checksum_of(TERMTYPE2 *tp)
++checksum_of(const TERMTYPE2 *tp)
+ {
+     unsigned long result = string_sum(tp->term_names);
+     unsigned i;
+@@ -326,7 +326,7 @@
+ 
+ /* collect data, to sort before display */
+ static void
+-sorthook(int db_index, int db_limit, const char *term_name, TERMTYPE2 *tp)
++sorthook(int db_index, int db_limit, const char *term_name, const TERMTYPE2 *tp)
+ {
+     TERMDATA *data = new_termdata();
+ 
+@@ -385,7 +385,7 @@
+ 
+ #if NCURSES_USE_DATABASE
+ static char *
+-copy_entryname(DIRENT * src)
++copy_entryname(const DIRENT * src)
+ {
+     size_t len = NAMLEN(src);
+     char *result = malloc(len + 1);
+@@ -411,7 +411,7 @@
+ 	if (_nc_is_dir_path(eargv[i])) {
+ 	    char *cwd_buf = 0;
+ 	    DIR *termdir;
+-	    DIRENT *subdir;
++	    const DIRENT *subdir;
+ 
+ 	    if ((termdir = opendir(eargv[i])) == 0) {
+ 		(void) fflush(stdout);
+@@ -428,7 +428,7 @@
+ 		size_t cwd_len;
+ 		char *name_1;
+ 		DIR *entrydir;
+-		DIRENT *entry;
++		const DIRENT *entry;
+ 
+ 		name_1 = copy_entryname(subdir);
+ 		if (isDotname(name_1)) {
+@@ -605,7 +605,7 @@
+     bool direct_dependencies = FALSE;
+     bool invert_dependencies = FALSE;
+     bool header = FALSE;
+-    char *report_file = 0;
++    const char *report_file = 0;
+     int code;
+     int this_opt, last_opt = '?';
+     unsigned v_opt = 0;
+Index: progs/tset.c
+Prereq:  1.135 
+--- ncurses-6.5-20241006+/progs/tset.c	2024-04-20 22:20:41.000000000 +0000
++++ ncurses-6.5-20241019/progs/tset.c	2024-10-19 21:40:28.000000000 +0000
+@@ -98,7 +98,7 @@
+ char *ttyname(int fd);
+ #endif
+ 
+-MODULE_ID("$Id: tset.c,v 1.135 2024/04/20 22:20:41 tom Exp $")
++MODULE_ID("$Id: tset.c,v 1.136 2024/10/19 21:40:28 tom Exp $")
+ 
+ #ifndef environ
+ extern char **environ;
+@@ -543,7 +543,7 @@
+ get_termcap_entry(int fd, char *userarg)
+ {
+     int errret;
+-    char *p;
++    const char *p;
+     const char *ttype;
+ #if HAVE_PATH_TTYS
+ #if HAVE_GETTTYNAM
+@@ -676,7 +676,7 @@
+ obsolete(char **argv)
+ {
+     for (; *argv; ++argv) {
+-	char *parm = argv[0];
++	const char *parm = argv[0];
+ 
+ 	if (parm[0] == '-' && parm[1] == '\0') {
+ 	    argv[0] = strdup("-q");
+Index: test/demo_menus.c
+Prereq:  1.82 
+--- ncurses-6.5-20241006+/test/demo_menus.c	2024-10-06 19:58:28.000000000 +0000
++++ ncurses-6.5-20241019/test/demo_menus.c	2024-10-19 21:53:57.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_menus.c,v 1.82 2024/10/06 19:58:28 tom Exp $
++ * $Id: demo_menus.c,v 1.83 2024/10/19 21:53:57 tom Exp $
+  *
+  * Demonstrate a variety of functions from the menu library.
+  * Thomas Dickey - 2005/4/9
+@@ -755,7 +755,7 @@
+  * Move the menus around on the screen, to test mvwin().
+  */
+ static void
+-move_menus(MENU * current, int by_y, int by_x)
++move_menus(NCURSES_CONST MENU * current, int by_y, int by_x)
+ {
+     if (move_menu(mpBanner, current, by_y, by_x) != ERR) {
+ 	erase();
