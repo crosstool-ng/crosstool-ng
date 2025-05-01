@@ -1,0 +1,317 @@
+# ncurses 6.5 - patch 20241102 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20241102.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Nov  3 00:56:48 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |    7 +++++-
+# VERSION                          |    2 -
+# dist.mk                          |    4 +--
+# misc/terminfo.src                |   40 ++++++++++++++++++++++++++++++-------
+# ncurses/base/lib_set_term.c      |    7 ------
+# package/debian-mingw/changelog   |    4 +--
+# package/debian-mingw64/changelog |    4 +--
+# package/debian/changelog         |    4 +--
+# package/mingw-ncurses.nsi        |    4 +--
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# 12 files changed, 54 insertions(+), 28 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4193 
+--- ncurses-6.5-20241026+/NEWS	2024-10-26 19:40:20.000000000 +0000
++++ ncurses-6.5-20241102/NEWS	2024-11-02 21:08:17.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4193 2024/10/26 19:40:20 tom Exp $
++-- $Id: NEWS,v 1.4195 2024/11/02 21:08:17 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,11 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20241102
++	+ remove djgpp-specific initialization to binary mode (report/patch by
++	  Stas Sergeev).
++	+ add extended-keys for djgpp 2.05 -TD
++
+ 20241026
+ 	+ update ms-terminal -TD
+ 	+ add ms-terminal-direct -TD
+Index: VERSION
+--- ncurses-6.5-20241026+/VERSION	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/VERSION	2024-11-02 09:59:53.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20241026
++5:0:10	6.5	20241102
+Index: dist.mk
+Prereq:  1.1638 
+--- ncurses-6.5-20241026+/dist.mk	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/dist.mk	2024-11-02 09:59:53.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1638 2024/10/26 10:01:22 tom Exp $
++# $Id: dist.mk,v 1.1639 2024/11/02 09:59:53 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20241026
++NCURSES_PATCH = 20241102
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/terminfo.src
+--- ncurses-6.5-20241026+/misc/terminfo.src	2024-10-26 19:09:10.000000000 +0000
++++ ncurses-6.5-20241102/misc/terminfo.src	2024-11-02 20:48:46.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1155 $
+-#	$Date: 2024/10/26 19:09:10 $
++#	$Revision: 1.1157 $
++#	$Date: 2024/11/02 20:48:46 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -9514,6 +9514,7 @@
+ # Oddly enough, while several combinations of modifiers are tabulated, there is
+ # none for shifted cursor keys.
+ #
++# kf1-kf12:
+ #	F1			\E[[A
+ #	F2			\E[[B
+ #	F3			\E[[C
+@@ -9538,6 +9539,7 @@
+ #	Right Arrow		\E[C
+ #	Up Arrow		\E[A
+ #
++# kf13-kf24:
+ #	Shift-F1		\E[25~
+ #	Shift-F2		\E[26~
+ #	Shift-F3		\E[27~
+@@ -9551,6 +9553,7 @@
+ #	Shift-F11		\E[35~
+ #	Shift-F12		\E[36~
+ #
++# kf25-kf36:
+ #	Ctrl-F1			\E[47~
+ #	Ctrl-F2			\E[48~
+ #	Ctrl-F3			\E[49~
+@@ -9575,6 +9578,7 @@
+ #	Ctrl-Right Arrow	\E[40~
+ #	Ctrl-Up Arrow		\E[37~
+ #
++# kf37-kf48:
+ #	Alt-F1			\E[59~
+ #	Alt-F2			\E[60~
+ #	Alt-F3			\E[61~
+@@ -9588,6 +9592,7 @@
+ #	Alt-F11			\E[79~
+ #	Alt-F12			\E[80~
+ #
++# ignore (conflicting):
+ #	Alt-Delete		\E[65~
+ #	Alt-Down Arrow		\E[60~
+ #	Alt-End			\E[66~
+@@ -9626,7 +9631,7 @@
+ #	Alt-X			\E[104~
+ #	Alt-Y			\E[105~
+ #	Alt-Z			\E[106~
+-djgpp|ANSI emulation for DJGPP alpha,
++djgpp|ANSI emulation for DJGPP 2.05,
+ 	am, bce, msgr, xhp, xon, xt,
+ 	colors#8, it#8, pairs#64,
+ 	acsc=+\020\,\021-\030.^Y0\333`\004a\261f\370g\361h\260j
+@@ -9637,16 +9642,34 @@
+ 	dch=\E[%p1%dP, dch1=\E[P, ech=\E[%p1%dX, el1=\E[1K,
+ 	home=\E[H, hpa=\E[%i%p1%dG, ht=^I, ich=\E[%p1%d@,
+ 	ich1=\E[@, ind=\E[S, kf1=\E[[A, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf2=\E[[B, kf3=\E[[C, kf4=\E[[D, kf5=\E[[E,
++	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[27~,
++	kf16=\E[28~, kf17=\E[29~, kf18=\E[30~, kf19=\E[31~,
++	kf2=\E[[B, kf20=\E[32~, kf21=\E[33~, kf22=\E[34~,
++	kf23=\E[35~, kf24=\E[36~, kf25=\E[47~, kf26=\E[48~,
++	kf27=\E[49~, kf28=\E[50~, kf29=\E[51~, kf3=\E[[C,
++	kf30=\E[52~, kf31=\E[53~, kf32=\E[54~, kf33=\E[55~,
++	kf34=\E[56~, kf35=\E[57~, kf36=\E[58~, kf37=\E[59~,
++	kf38=\E[60~, kf39=\E[61~, kf4=\E[[D, kf40=\E[62~,
++	kf41=\E[63~, kf42=\E[64~, kf43=\E[65~, kf44=\E[66~,
++	kf45=\E[67~, kf46=\E[68~, kf48=\E[80~, kf5=\E[[E,
+ 	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+ 	khome=\E[1~, nel=\r\n, op=\E[37;40m, ri=\E[T, rmso=\E[m,
+ 	setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
+ 	sgr=\E[0%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%e;25%;%?
+ 	    %p6%t;1%;%?%p7%t;8%;m,
+ 	sgr0=\E[m, smso=\E[7m, smul=\E[4m, vpa=\E[%i%p1%dd,
+-	use=ansi+arrows, use=ansi+erase, use=ansi+idl,
+-	use=ansi+local, use=ansi+sgr, use=vt220+pcedit,
+-	use=ecma+index,
++	alt_A=\E[82~, alt_B=\E[82~, alt_C=\E[83~, alt_D=\E[84~,
++	alt_E=\E[85~, alt_F=\E[86~, alt_G=\E[87~, alt_H=\E[88~,
++	alt_I=\E[89~, alt_J=\E[90~, alt_K=\E[91~, alt_L=\E[92~,
++	alt_M=\E[93~, alt_N=\E[94~, alt_O=\E[95~, alt_P=\E[96~,
++	alt_Q=\E[97~, alt_R=\E[98~, alt_S=\E[99~, alt_T=\E[100~,
++	alt_U=\E[101~, alt_V=\E[102~, alt_W=\E[103~,
++	alt_X=\E[104~, alt_Y=\E[105~, alt_Z=\E[106~, kDC5=\E[43~,
++	kDN5=\E[38~, kEND5=\E[44~, kHOM5=\E[41~, kIC5=\E[42~,
++	kLFT5=\E[39~, kNXT5=\E[46~, kPRV5=\E[45~, kRIT5=\E[40~,
++	kUP5=\E[37~, use=ansi+arrows, use=ansi+erase,
++	use=ansi+idl, use=ansi+local, use=ansi+sgr,
++	use=vt220+pcedit, use=ecma+index,
+ 
+ djgpp203|entry for DJGPP 2.03,
+ 	OTbs, am,
+@@ -27704,4 +27727,7 @@
+ #	+ update ms-terminal -TD
+ #	+ add ms-terminal-direct -TD
+ #
++# 2024-11-02
++#	+ add extended-keys for djgpp 2.05 -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: ncurses/base/lib_set_term.c
+Prereq:  1.186 
+--- ncurses-6.5-20241026+/ncurses/base/lib_set_term.c	2024-10-19 19:41:09.000000000 +0000
++++ ncurses-6.5-20241102/ncurses/base/lib_set_term.c	2024-11-02 21:00:54.000000000 +0000
+@@ -61,7 +61,7 @@
+ #undef CUR
+ #define CUR SP_TERMTYPE
+ 
+-MODULE_ID("$Id: lib_set_term.c,v 1.186 2024/10/19 19:41:09 tom Exp $")
++MODULE_ID("$Id: lib_set_term.c,v 1.187 2024/11/02 21:00:54 tom Exp $")
+ 
+ #ifdef USE_TERM_DRIVER
+ #define MaxColors      InfoOf(sp).maxcolors
+@@ -424,11 +424,6 @@
+ #endif
+ 	T(("filter screensize %dx%d", slines, scolumns));
+     }
+-#ifdef __DJGPP__
+-    T(("setting output mode to binary"));
+-    fflush(output);
+-    setmode(fileno(output), O_BINARY);
+-#endif
+ #if defined(EXP_WIN32_DRIVER)
+     T(("setting output mode to binary"));
+     fflush(output);
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20241026+/package/debian-mingw/changelog	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/package/debian-mingw/changelog	2024-11-02 09:59:53.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241026) unstable; urgency=low
++ncurses6td (6.5+20241102) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Oct 2024 06:01:22 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 02 Nov 2024 05:59:53 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20241026+/package/debian-mingw64/changelog	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/package/debian-mingw64/changelog	2024-11-02 09:59:53.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241026) unstable; urgency=low
++ncurses6td (6.5+20241102) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Oct 2024 06:01:22 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 02 Nov 2024 05:59:53 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20241026+/package/debian/changelog	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/package/debian/changelog	2024-11-02 09:59:53.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241026) unstable; urgency=low
++ncurses6td (6.5+20241102) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Oct 2024 06:01:22 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 02 Nov 2024 05:59:53 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.673 
+--- ncurses-6.5-20241026+/package/mingw-ncurses.nsi	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/package/mingw-ncurses.nsi	2024-11-02 09:59:53.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.673 2024/10/26 10:01:22 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.674 2024/11/02 09:59:53 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "1026"
++!define VERSION_MMDD  "1102"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20241026+/package/mingw-ncurses.spec	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/package/mingw-ncurses.spec	2024-11-02 09:59:53.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20241026
++Release: 20241102
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20241026+/package/ncurses.spec	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/package/ncurses.spec	2024-11-02 09:59:53.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20241026
++Release: 20241102
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20241026+/package/ncursest.spec	2024-10-26 10:01:22.000000000 +0000
++++ ncurses-6.5-20241102/package/ncursest.spec	2024-11-02 09:59:53.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20241026
++Release: 20241102
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

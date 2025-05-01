@@ -1,0 +1,321 @@
+# ncurses 6.5 - patch 20241026 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20241026.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Oct 26 20:19:11 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |    8 ++++
+# VERSION                          |    2 -
+# dist.mk                          |    4 +-
+# misc/terminfo.src                |   63 +++++++++++++++++++++++++++++++------
+# package/debian-mingw/changelog   |    4 +-
+# package/debian-mingw64/changelog |    4 +-
+# package/debian/changelog         |    4 +-
+# package/mingw-ncurses.nsi        |    4 +-
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# test/popup_msg.c                 |    6 +--
+# 12 files changed, 78 insertions(+), 27 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4191 
+--- ncurses-6.5-20241019+/NEWS	2024-10-19 21:59:42.000000000 +0000
++++ ncurses-6.5-20241026/NEWS	2024-10-26 19:40:20.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4191 2024/10/19 21:59:42 tom Exp $
++-- $Id: NEWS,v 1.4193 2024/10/26 19:40:20 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20241026
++	+ update ms-terminal -TD
++	+ add ms-terminal-direct -TD
++	+ correct dimensions in test/popup_msg.c, fixing an overrun (patch by
++	  Stas Sergeev, cf: 20211219).
++
+ 20241019
+ 	+ fixes for compiler warnings/cppcheck.
+ 	+ build-fixes for DJGPP configuration (patches by Stas Sergeev)
+Index: VERSION
+--- ncurses-6.5-20241019+/VERSION	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/VERSION	2024-10-26 10:01:22.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20241019
++5:0:10	6.5	20241026
+Index: dist.mk
+Prereq:  1.1637 
+--- ncurses-6.5-20241019+/dist.mk	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/dist.mk	2024-10-26 10:01:22.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1637 2024/10/19 09:59:06 tom Exp $
++# $Id: dist.mk,v 1.1638 2024/10/26 10:01:22 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20241019
++NCURSES_PATCH = 20241026
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/terminfo.src
+--- ncurses-6.5-20241019+/misc/terminfo.src	2024-10-05 16:04:17.000000000 +0000
++++ ncurses-6.5-20241026/misc/terminfo.src	2024-10-26 19:09:10.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1153 $
+-#	$Date: 2024/10/05 16:04:17 $
++#	$Revision: 1.1155 $
++#	$Date: 2024/10/26 19:09:10 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -4634,11 +4634,45 @@
+ 	use=ansi+local, use=ecma+sgr, use=ecma+color,
+ 	use=vt220+cvis, use=vt220+pcedit, use=xterm+nopcfkeys,
+ 
+-# Windows Terminal (Preview)
++# Windows Terminal
+ # https://github.com/microsoft/terminal
+ #
++# Version 1.21.2911.0
++# 2024-10-17
++#
++# - The "About" dialog has a pointer to the release notes, but that turns out
++#   to be for all branches.  This particular version (unlike those previously
++#   tested) happens to be a non-preview version.
++# - Windows Terminal #2958 has relevant discussion.
++#
++# tack:
++# - keypad escapes still do not work
++# - meta mode does not work
++# - when running tests, the screen maximized and did not resume normal size
++#
++# vttest:
++# - identifies as a VT100-level terminal supporting Greek and Turkish (not
++#   applicable to a VT100), horizontal scrolling () and DRCS (seems to work)
++# - left/right margins work
++# - DECSCUSR is okay except for mode 1
++# - SL/SR fail
++# - does not support XTVERSION
++# - some mouse controls work, but not highlight tracking and X10 compatibility
++# - mouse focus events appear - but not in the test-screen (like VTE).
++# - cursor position after alternate screen is correct for 1049, not otherwise
++# - window reporting does not work
++#
++# wraptest:
++# - DECRC does not restore wrap
++#
++# other:
++# - change history says it supports bracketed paste
++# - Greek and Turkish character sets work with GL, not GR
++# - source code says it implements OSC 52, as well as 12, 112, but not 104.
++#
+ # Windows 10 22H2 (also Windows 11)
+ # Version 1.16.10261.0
++# 2020-01-25
+ #
+ # - Windows Terminal #1553: "Feature Request:  Mouse/Touch/Pointer Bindings
+ #   (like middle-click paste, right-click context menu, etc.)", compare to
+@@ -4649,6 +4683,7 @@
+ #
+ # Windows 10 21H1
+ # Version 1.9.1942.0
++# 2021-07-13
+ #
+ # This has longstanding issues with CR/LF mapping, e.g.,
+ # - first reported by Juergen Pfeifer August 13, 2020, with workaround
+@@ -4698,6 +4733,7 @@
+ #
+ # Windows 10 1903
+ # Version 0.2.1831.0
++# 2019-07-02
+ #
+ # The task manager shows this as "OpenConsole.exe", which differs
+ # from the "Windows Command Processor" used for the command-prompt.
+@@ -4734,13 +4770,18 @@
+ # - color palette can be altered, but OSC 104 for resetting does not work
+ # - crashed with a script used for testing NRCS.
+ # - does not recognize either xterm+direct or xterm+indirect escapes.
+-ms-terminal|Windows10 terminal,
++ms-terminal|Windows terminal,
++	use=xterm+256color, use=ms+terminal,
++ms-terminal-direct|Windows terminal with direct-colors,
++	use=xterm+direct, use=ms+terminal,
++ms+terminal|building block for Windows terminal,
+ 	npc,
+-	cud1=\E[B, kcbt=\E[Z, rmkx=\E[?1l, rmm@, smkx=\E[?1h, smm@,
+-	Cr@, Ms@, use=linux+kbs, use=xterm+256color,
+-	use=xterm+pcfkeys, use=ansi+rep, use=xterm+sm+1006,
+-	use=ecma+index, use=ecma+italics, use=ecma+strikeout,
+-	use=xterm-basic, use=xterm+tmux,
++	cud1=\E[B, kcbt=\E[Z, oc@, rmkx=\E[?1l, rmm@, smkx=\E[?1h,
++	smm@, rv=\E\\[>0;10;1c, use=linux+kbs,
++	use=bracketed+paste, use=xterm+pcfkeys, use=ansi+rep,
++	use=xterm+sm+1006, use=ecma+index, use=ecma+italics,
++	use=ecma+strikeout, use=vt420+lrmm, use=xterm-basic,
++	use=xterm+focus, use=xterm+tmux,
+ 
+ #### Visual Studio
+ # Visual Studio Code 1.45.0 uses xterm.js 12.8.1 (see https://xtermjs.org/).
+@@ -27659,4 +27700,8 @@
+ #	+ use xterm+alt+title in wezterm -TD
+ #	+ update comments -TD
+ #
++# 2024-10-26
++#	+ update ms-terminal -TD
++#	+ add ms-terminal-direct -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20241019+/package/debian-mingw/changelog	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/package/debian-mingw/changelog	2024-10-26 10:01:22.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241019) unstable; urgency=low
++ncurses6td (6.5+20241026) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Oct 2024 05:59:06 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Oct 2024 06:01:22 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20241019+/package/debian-mingw64/changelog	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/package/debian-mingw64/changelog	2024-10-26 10:01:22.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241019) unstable; urgency=low
++ncurses6td (6.5+20241026) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Oct 2024 05:59:06 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Oct 2024 06:01:22 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20241019+/package/debian/changelog	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/package/debian/changelog	2024-10-26 10:01:22.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241019) unstable; urgency=low
++ncurses6td (6.5+20241026) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Oct 2024 05:59:06 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Oct 2024 06:01:22 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.672 
+--- ncurses-6.5-20241019+/package/mingw-ncurses.nsi	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/package/mingw-ncurses.nsi	2024-10-26 10:01:22.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.672 2024/10/19 09:59:06 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.673 2024/10/26 10:01:22 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "1019"
++!define VERSION_MMDD  "1026"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20241019+/package/mingw-ncurses.spec	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/package/mingw-ncurses.spec	2024-10-26 10:01:22.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20241019
++Release: 20241026
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20241019+/package/ncurses.spec	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/package/ncurses.spec	2024-10-26 10:01:22.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20241019
++Release: 20241026
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20241019+/package/ncursest.spec	2024-10-19 09:59:06.000000000 +0000
++++ ncurses-6.5-20241026/package/ncursest.spec	2024-10-26 10:01:22.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20241019
++Release: 20241026
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: test/popup_msg.c
+Prereq:  1.13 
+--- ncurses-6.5-20241019+/test/popup_msg.c	2024-10-06 21:07:01.000000000 +0000
++++ ncurses-6.5-20241026/test/popup_msg.c	2024-10-26 19:28:11.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: popup_msg.c,v 1.13 2024/10/06 21:07:01 tom Exp $
++ * $Id: popup_msg.c,v 1.14 2024/10/26 19:28:11 Stas.Sergeev Exp $
+  *
+  * Show a multi-line message in a window which may extend beyond the screen.
+  *
+@@ -83,11 +83,11 @@
+ 	if (width < check)
+ 	    width = check;
+     }
+-    length = n + 2;
++    length = n;
+ 
+     if ((help = newwin(high, wide, y0, x0)) == 0)
+ 	return;
+-    if ((data = newpad(length + 1, width + 1)) == 0) {
++    if ((data = newpad(length + 2, width + 1)) == 0) {
+ 	delwin(help);
+ 	return;
+     }

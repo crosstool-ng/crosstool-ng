@@ -1,0 +1,1214 @@
+# ncurses 6.5 - patch 20250419 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250419.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Apr 20 00:10:18 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                              |    6 -
+# VERSION                           |    2 
+# dist.mk                           |    4 
+# doc/html/man/curs_add_wch.3x.html |  197 ++++++++++++++++++++----------------
+# doc/html/man/curs_addch.3x.html   |  192 +++++++++++++++++++----------------
+# doc/html/man/curs_printw.3x.html  |    8 -
+# doc/html/man/ncurses.3x.html      |    2 
+# doc/html/man/terminfo.5.html      |    2 
+# doc/html/man/user_caps.5.html     |    4 
+# man/curs_add_wch.3x               |   72 +++++++++----
+# man/curs_addch.3x                 |   72 +++++++++----
+# man/curs_printw.3x                |   17 ++-
+# package/debian-mingw/changelog    |    4 
+# package/debian-mingw64/changelog  |    4 
+# package/debian/changelog          |    4 
+# package/mingw-ncurses.nsi         |    4 
+# package/mingw-ncurses.spec        |    2 
+# package/ncurses.spec              |    2 
+# package/ncursest.spec             |    2 
+# 19 files changed, 359 insertions(+), 241 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4273 
+--- ncurses-6.5-20250412+/NEWS	2025-04-12 21:08:43.000000000 +0000
++++ ncurses-6.5-20250419/NEWS	2025-04-19 23:31:31.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4273 2025/04/12 21:08:43 tom Exp $
++-- $Id: NEWS,v 1.4275 2025/04/19 23:31:31 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,10 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250419
++	+ add note on scrolling and lower-right corner to waddch and wadd_wch
++	  manual pages.
++
+ 20250412
+ 	+ add pangoterm -TD
+ 	+ add kf1 to kf5 to sclp (report by Werner Fink)
+Index: VERSION
+--- ncurses-6.5-20250412+/VERSION	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/VERSION	2025-04-19 10:37:06.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250412
++5:0:10	6.5	20250419
+Index: dist.mk
+Prereq:  1.1664 
+--- ncurses-6.5-20250412+/dist.mk	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/dist.mk	2025-04-19 10:37:06.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1664 2025/04/12 10:27:36 tom Exp $
++# $Id: dist.mk,v 1.1665 2025/04/19 10:37:06 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250412
++NCURSES_PATCH = 20250419
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: doc/html/man/curs_add_wch.3x.html
+--- ncurses-6.5-20250412+/doc/html/man/curs_add_wch.3x.html	2025-04-05 22:33:03.000000000 +0000
++++ ncurses-6.5-20250419/doc/html/man/curs_add_wch.3x.html	2025-04-19 23:33:02.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_add_wch.3x,v 1.114 2025/04/05 21:58:37 tom Exp @
++  * @Id: curs_add_wch.3x,v 1.115 2025/04/19 22:53:52 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_add_wch 3x 2025-04-05 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_add_wch 3x 2025-04-19 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_add_wch 3x 2025-04-05 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_add_wch 3x 2025-04-19 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
+ 
+@@ -157,16 +157,6 @@
+        until  another spacing character is written to the window or the cursor
+        is moved.
+ 
+-       If the cursor is  not  at  the  bottom  of  the  scrolling  region  and
+-       advancement  occurs at the right margin, the cursor automatically wraps
+-       to the beginning of the next line.
+-
+-       If the cursor is at the bottom of the scrolling region when advancement
+-       occurs  at  the  right margin, and <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> is enabled for <EM>win</EM>, the
+-       scrolling region scrolls up one line and the  cursor  wraps  as  above.
+-       Otherwise,  advancement  and scrolling do not occur, and <STRONG>waddch</STRONG> returns
+-       <STRONG>ERR</STRONG>.
+-
+        If <EM>wch</EM> is a backspace, carriage return, line feed, or tab,  the  cursor
+        moves appropriately within the window.
+ 
+@@ -180,36 +170,69 @@
+            margin.
+ 
+        <STRONG>o</STRONG>   Tab advances the cursor to the next tab stop (possibly on the  next
+-           line);  these  are placed at every eighth column by default.  Alter
+-           the   tab   interval    with    the    <STRONG>TABSIZE</STRONG>    extension;    see
++           line); these are placed at every eighth column by default.
++
++           Alter   the   tab   interval   with   the  <STRONG>TABSIZE</STRONG>  extension;  see
+            <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+ 
+-       If  <EM>wch</EM>  is  any other nonprintable character, it is drawn in printable
+-       form using the same convention as <STRONG><A HREF="curs_util.3x.html">wunctrl(3x)</A></STRONG>.  Calling <STRONG><A HREF="curs_in_wch.3x.html">win_wch(3x)</A></STRONG>  on
+-       the  location of a nonprintable character does not return the character
++       If <EM>wch</EM> is any other nonprintable character, it is  drawn  in  printable
++       form  using the same convention as <STRONG><A HREF="curs_util.3x.html">wunctrl(3x)</A></STRONG>.  Calling <STRONG><A HREF="curs_in_wch.3x.html">win_wch(3x)</A></STRONG> on
++       the location of a nonprintable character does not return the  character
+        itself, but its <STRONG><A HREF="curs_util.3x.html">wunctrl(3x)</A></STRONG> representation.
+ 
++       Adding  spacing characters with <STRONG>wadd_wch</STRONG> causes it to wrap at the right
++       margin of the window:
++
++       <STRONG>o</STRONG>   If the cursor is not at the bottom  of  the  scrolling  region  and
++           advancement  occurs  at  the right margin, the cursor automatically
++           wraps to the beginning of the next line.
++
++       <STRONG>o</STRONG>   If the cursor is  at  the  bottom  of  the  scrolling  region  when
++           advancement occurs at the right margin, and <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> is enabled
++           for <EM>win</EM>, the scrolling region scrolls up one line  and  the  cursor
++           wraps as above.  Otherwise, advancement and scrolling do not occur,
++           and <STRONG>wadd_wch</STRONG> returns <STRONG>ERR</STRONG>.
++
++       A window's margins may coincide with the screen boundaries.   This  may
++       be  a  problem  when  <EM>ncurses</EM>  updates  the  screen to match the curses
++       window.  When their right and bottom  margins  coincide,  <EM>ncurses</EM>  uses
++       different strategies to handle the variations of scrolling and wrapping
++       at the lower-right corner by depending on the terminal capabilities:
++
++       <STRONG>o</STRONG>   If the terminal does not automatically wrap as characters are added
++           at  the right margin (i.e., auto right margins), <EM>ncurses</EM> writes the
++           character directly.
++
++       <STRONG>o</STRONG>   If the terminal has auto right margins, but also  has  capabilities
++           for  turning auto margins off and on, <EM>ncurses</EM> turns the auto margin
++           feature off temporarily when writing to the lower-right corner.
++
++       <STRONG>o</STRONG>   If the terminal has an insertion mode which can be turned  off  and
++           on,  <EM>ncurses</EM>  writes  the  character  just  before  the lower-right
++           corner, and then inserts a character to push the  update  into  the
++           corner.
++
+ 
+ </PRE><H3><a name="h3-wecho_wchar">wecho_wchar</a></H3><PRE>
+-       <STRONG>echo_wchar</STRONG>  and  <STRONG>wecho_wchar</STRONG>  are  equivalent  to  calling   (<STRONG>w</STRONG>)<STRONG>add_wch</STRONG>
+-       followed  by  (<STRONG>w</STRONG>)<STRONG>refresh</STRONG>  on  <STRONG>stdscr</STRONG>  or  the specified window.  <EM>curses</EM>
+-       interprets these functions as a  hint  that  only  a  single  (complex)
+-       character  is  being output; for non-control characters, a considerable
++       <STRONG>echo_wchar</STRONG>   and  <STRONG>wecho_wchar</STRONG>  are  equivalent  to  calling  (<STRONG>w</STRONG>)<STRONG>add_wch</STRONG>
++       followed by (<STRONG>w</STRONG>)<STRONG>refresh</STRONG> on  <STRONG>stdscr</STRONG>  or  the  specified  window.   <EM>curses</EM>
++       interprets  these  functions  as  a  hint  that only a single (complex)
++       character is being output; for non-control characters,  a  considerable
+        performance gain may be enjoyed by employing them.
+ 
+ 
+ </PRE><H3><a name="h3-Forms-Drawing-Characters">Forms-Drawing Characters</a></H3><PRE>
+-       <EM>curses</EM> defines macros  starting  with  <STRONG>WACS_</STRONG>  that  can  be  used  with
+-       <STRONG>wadd_wch</STRONG>  to  write  line-drawing  and  other  symbols  to  the screen.
+-       <EM>ncurses</EM> terms these <EM>forms-drawing</EM>  <EM>characters.</EM>   <EM>curses</EM>  uses  the  ACS
+-       default  listed  below  if the terminal type lacks the <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>)
+-       capability; that capability does  not  define  a  replacement  for  the
+-       character;  or  if  the  terminal type and locale configuration require
+-       Unicode to access these characters, but the library is  unable  to  use
+-       Unicode.   The "acsc char" column corresponds to how the characters are
++       <EM>curses</EM>  defines  macros  starting  with  <STRONG>WACS_</STRONG>  that  can  be used with
++       <STRONG>wadd_wch</STRONG> to  write  line-drawing  and  other  symbols  to  the  screen.
++       <EM>ncurses</EM>  terms  these  <EM>forms-drawing</EM>  <EM>characters.</EM>   <EM>curses</EM> uses the ACS
++       default listed below if the terminal type lacks  the  <STRONG>acs_chars</STRONG>  (<STRONG>acsc</STRONG>)
++       capability;  that  capability  does  not  define  a replacement for the
++       character; or if the terminal type  and  locale  configuration  require
++       Unicode  to  access  these characters, but the library is unable to use
++       Unicode.  The "acsc char" column corresponds to how the characters  are
+        specified in the <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>) string capability, and the characters
+-       in  it  may  appear on the screen if the terminal type's database entry
+-       incorrectly advertises ACS support.  The name "ACS" originates  in  the
++       in it may appear on the screen if the terminal  type's  database  entry
++       incorrectly  advertises  ACS support.  The name "ACS" originates in the
+        Alternate Character Set feature of the DEC VT100 terminal.
+ 
+                        <STRONG>Unicode</STRONG>   <STRONG>ACS</STRONG>       <STRONG>acsc</STRONG>
+@@ -222,6 +245,7 @@
+        <STRONG>WACS_CKBOARD</STRONG>    U+2592    :         a      checker board (stipple)
+        <STRONG>WACS_DARROW</STRONG>     U+2193    v         .      arrow pointing down
+        <STRONG>WACS_DEGREE</STRONG>     U+00b0    '         f      degree symbol
++
+        <STRONG>WACS_DIAMOND</STRONG>    U+25c6    +         `      diamond
+        <STRONG>WACS_GEQUAL</STRONG>     U+2265    &gt;         &gt;      greater-than-or-equal-to
+        <STRONG>WACS_HLINE</STRONG>      U+2500    -         q      horizontal line
+@@ -245,11 +269,10 @@
+        <STRONG>WACS_TTEE</STRONG>       U+252c    +         w      top tee
+        <STRONG>WACS_UARROW</STRONG>     U+2191    ^         -      arrow pointing up
+        <STRONG>WACS_ULCORNER</STRONG>   U+250c    +         l      upper left-hand corner
+-
+        <STRONG>WACS_URCORNER</STRONG>   U+2510    +         k      upper right-hand corner
+        <STRONG>WACS_VLINE</STRONG>      U+2502    |         x      vertical line
+ 
+-       The  <EM>ncurses</EM>  wide  API  also defines symbols for thick lines (<STRONG>acsc</STRONG> "J"
++       The <EM>ncurses</EM> wide API also defines symbols for  thick  lines  (<STRONG>acsc</STRONG>  "J"
+        through "N", "T" through "X", and "Q"):
+ 
+                          <STRONG>Unicode</STRONG>   <STRONG>ASCII</STRONG>     <STRONG>acsc</STRONG>
+@@ -284,9 +307,9 @@
+        <STRONG>WACS_D_URCORNER</STRONG>   U+2557    +         B      double upper right corner
+        <STRONG>WACS_D_VLINE</STRONG>      U+2551    |         Y      double vertical line
+ 
+-       Unicode's descriptions  for  these  characters  differs  slightly  from
+-       <EM>ncurses</EM>,  by  introducing  the  term "light" (along with less important
+-       details).  Here are its descriptions for the normal, thick, and  double
++       Unicode's  descriptions  for  these  characters  differs  slightly from
++       <EM>ncurses</EM>, by introducing the term "light"  (along  with  less  important
++       details).   Here are its descriptions for the normal, thick, and double
+        horizontal lines:
+ 
+        <STRONG>o</STRONG>   U+2500 BOX DRAWINGS LIGHT HORIZONTAL
+@@ -303,31 +326,31 @@
+ 
+        <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
+ 
+-       <STRONG>o</STRONG>   (for  functions  taking  a  <EM>WINDOW</EM>  pointer argument) <EM>win</EM> is a null
++       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+            pointer,
+ 
+-       <STRONG>o</STRONG>   wrapping to a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>  has  not
+-           been  called  on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when writing to its
++       <STRONG>o</STRONG>   wrapping  to  a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> has not
++           been called on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when writing  to  its
+            bottom right location is attempted, or
+ 
+-       <STRONG>o</STRONG>   it is not possible to  add  a  complete  character  at  the  cursor
++       <STRONG>o</STRONG>   it  is  not  possible  to  add  a  complete character at the cursor
+            position.
+ 
+-       Functions  prefixed with "mv" first perform cursor movement and fail if
++       Functions prefixed with "mv" first perform cursor movement and fail  if
+        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
+ 
+ 
+ </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+-       <STRONG>add_wch</STRONG>, <STRONG>mvadd_wch</STRONG>, <STRONG>mvwadd_wch</STRONG>, and <STRONG>echo_wchar</STRONG> may  be  implemented  as
++       <STRONG>add_wch</STRONG>,  <STRONG>mvadd_wch</STRONG>,  <STRONG>mvwadd_wch</STRONG>,  and <STRONG>echo_wchar</STRONG> may be implemented as
+        macros.
+ 
+ 
+ </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+-       The   symbols  <EM>WACS</EM><STRONG>_</STRONG><EM>S3</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>PI</EM>,
+-       <EM>WACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,  and  <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>  are  not  standard.   However,   many
+-       publicly   available   <EM>terminfo</EM>   entries   include   <STRONG>acs_chars</STRONG>  (<STRONG>acsc</STRONG>)
+-       capabilities in which their key characters (<STRONG>pryz{|}</STRONG>) are embedded,  and
+-       a  second-hand  list of their character descriptions has come to light.
++       The  symbols  <EM>WACS</EM><STRONG>_</STRONG><EM>S3</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>,   <EM>WACS</EM><STRONG>_</STRONG><EM>PI</EM>,
++       <EM>WACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,   and  <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>  are  not  standard.   However,  many
++       publicly  available   <EM>terminfo</EM>   entries   include   <STRONG>acs_chars</STRONG>   (<STRONG>acsc</STRONG>)
++       capabilities  in which their key characters (<STRONG>pryz{|}</STRONG>) are embedded, and
++       a second-hand list of their character descriptions has come  to  light.
+        The <EM>ncurses</EM> developers invented WACS-prefixed names for them.
+ 
+ 
+@@ -335,59 +358,59 @@
+        Applications employing <EM>ncurses</EM> extensions should condition their use on
+        the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+ 
+-       These  functions  are described in X/Open Curses Issue 4.  It specifies
++       These functions are described in X/Open Curses Issue 4.   It  specifies
+        no error conditions for them.
+ 
+-       The defaults specified for forms-drawing characters apply in the  POSIX
+-       locale.   X/Open Curses makes it clear that the WACS_ symbols should be
+-       defined as a pointer to  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  data,  e.g.,  in  the  discussion  of
++       The  defaults specified for forms-drawing characters apply in the POSIX
++       locale.  X/Open Curses makes it clear that the WACS_ symbols should  be
++       defined  as  a  pointer  to  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  data,  e.g., in the discussion of
+        <EM>border</EM><STRONG>_</STRONG><EM>set</EM>.  A few implementations are problematic:
+ 
+        <STRONG>o</STRONG>   NetBSD <EM>curses</EM> defines the symbols as a <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> within a <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>.
+ 
+-       <STRONG>o</STRONG>   HP-UX  <EM>curses</EM>  equates  some  of  the <EM>ACS</EM><STRONG>_</STRONG> symbols to the analogous
+-           <EM>WACS</EM><STRONG>_</STRONG> symbols as if the <EM>ACS</EM><STRONG>_</STRONG> symbols  were  wide  characters.   The
+-           misdefined  symbols  are the arrows and other symbols which are not
++       <STRONG>o</STRONG>   HP-UX <EM>curses</EM> equates some of the  <EM>ACS</EM><STRONG>_</STRONG>  symbols  to  the  analogous
++           <EM>WACS</EM><STRONG>_</STRONG>  symbols  as  if  the <EM>ACS</EM><STRONG>_</STRONG> symbols were wide characters.  The
++           misdefined symbols are the arrows and other symbols which  are  not
+            used for line-drawing.
+ 
+-       X/Open Curses does not specify  symbols  for  thick-  or  double-lines.
++       X/Open  Curses  does  not  specify  symbols for thick- or double-lines.
+        SVr4 <EM>curses</EM> implementations defined their line-drawing symbols in terms
+-       of intermediate symbols.  <EM>ncurses</EM> extends those symbols, providing  new
++       of  intermediate symbols.  <EM>ncurses</EM> extends those symbols, providing new
+        definitions not found in SVr4 implementations.
+ 
+-       Not  all  Unicode-capable  terminals  provide  support  for VT100-style
++       Not all  Unicode-capable  terminals  provide  support  for  VT100-style
+        alternate character sets (i.e., the <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) capability), with
+-       their  corresponding  line-drawing  characters.   X/Open Curses did not
++       their corresponding line-drawing characters.   X/Open  Curses  did  not
+        address the aspect of integrating Unicode with line-drawing characters.
+-       Existing  implementations  of System V <EM>curses</EM> (AIX, HP-UX, Solaris) use
+-       only the <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) character-mapping to provide  this  feature.
+-       As  a  result,  those  implementations  can  use only single-byte line-
+-       drawing characters.  <EM>ncurses</EM> 5.3 (2002) provided  a  table  of  Unicode
+-       values  to solve these problems.  NetBSD <EM>curses</EM> incorporated that table
++       Existing implementations of System V <EM>curses</EM> (AIX, HP-UX,  Solaris)  use
++       only  the  <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) character-mapping to provide this feature.
++       As a result, those  implementations  can  use  only  single-byte  line-
++       drawing  characters.   <EM>ncurses</EM>  5.3  (2002) provided a table of Unicode
++       values to solve these problems.  NetBSD <EM>curses</EM> incorporated that  table
+        in 2010.
+ 
+-       <EM>ncurses</EM>  uses  the  Unicode  values  instead  of  the   terminal   type
++       <EM>ncurses</EM>   uses   the  Unicode  values  instead  of  the  terminal  type
+        description's <EM>acsc</EM><STRONG>_</STRONG><EM>chars</EM> (<STRONG>acsc</STRONG>) mapping as discussed in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> for
+-       the environment variable <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM>.   In  contrast,  for  the
++       the  environment  variable  <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM>.   In contrast, for the
+        same cases, the line-drawing characters described in <STRONG><A HREF="curs_addch.3x.html">addch(3x)</A></STRONG> will use
+        only the ASCII default values.
+ 
+-       Having Unicode available does not solve all of the problems with  line-
++       Having  Unicode available does not solve all of the problems with line-
+        drawing for <EM>curses</EM>:
+ 
+-       <STRONG>o</STRONG>   The  closest  Unicode equivalents to the VT100 graphics <EM>S1</EM>, <EM>S3</EM>, <EM>S7</EM>,
+-           and <EM>S9</EM> frequently are not displayed at the regular intervals  which
++       <STRONG>o</STRONG>   The closest Unicode equivalents to the VT100 graphics <EM>S1</EM>,  <EM>S3</EM>,  <EM>S7</EM>,
++           and  <EM>S9</EM> frequently are not displayed at the regular intervals which
+            the terminal used.
+ 
+-       <STRONG>o</STRONG>   The  <EM>lantern</EM>  is  a special case.  It originated with the AT&amp;T 4410
+-           terminal in the early 1980s.  There is no accessible  documentation
++       <STRONG>o</STRONG>   The <EM>lantern</EM> is a special case.  It originated with  the  AT&amp;T  4410
++           terminal  in the early 1980s.  There is no accessible documentation
+            depicting the lantern symbol on the AT&amp;T terminal.
+ 
+            Lacking documentation, most readers assume that a <EM>storm</EM> <EM>lantern</EM> was
+            intended.  But there are several possibilities, all with problems.
+ 
+-           Unicode 6.0 (2010) does provide two lantern  symbols:  U+1F383  and
+-           U+1F3EE.   Those  were  not  available  in 2002, and are irrelevant
++           Unicode  6.0  (2010)  does provide two lantern symbols: U+1F383 and
++           U+1F3EE.  Those were not available  in  2002,  and  are  irrelevant
+            since they lie outside the Basic Multilingual Plane and as a result
+            are unavailable on many terminals.  They are not storm lanterns, in
+            any case.
+@@ -395,20 +418,20 @@
+            Most <EM>storm</EM> <EM>lanterns</EM> have a tapering glass chimney (to guard against
+            tipping); some have a wire grid protecting the chimney.
+ 
+-           For  the  tapering  appearance,   U+2603 was adequate.  In use on a
++           For the tapering appearance,  U+2603 was adequate.   In  use  on  a
+            terminal, no one can tell what the image represents.  Unicode calls
+            it a snowman.
+ 
+            Others have suggested these alternatives: &lt;section&gt; U+00A7 (section
+-           mark), &lt;Theta&gt; U+0398 (theta), &lt;Phi&gt; U+03A6 (phi),  &lt;delta&gt;  U+03B4
++           mark),  &lt;Theta&gt;  U+0398 (theta), &lt;Phi&gt; U+03A6 (phi), &lt;delta&gt; U+03B4
+            (delta),  U+2327 (x in a rectangle),  U+256C (forms double vertical
+            and horizontal), and  U+2612 (ballot box with x).
+ 
+ 
+ </PRE><H3><a name="h3-Complex-Characters">Complex Characters</a></H3><PRE>
+-       The complex character  type  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  can  store  more  than  one  wide
+-       character  (<EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>).  X/Open Curses does not mention this possibility,
+-       specifying behavior only  where  <EM>wch</EM>  is  a  single  character,  either
++       The  complex  character  type  <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>  can  store  more  than one wide
++       character (<EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>).  X/Open Curses does not mention this  possibility,
++       specifying  behavior  only  where  <EM>wch</EM>  is  a  single character, either
+        spacing or non-spacing.
+ 
+        <EM>ncurses</EM> assumes that <EM>wch</EM> is constructed using <STRONG><A HREF="curs_getcchar.3x.html">setcchar(3x)</A></STRONG>, and in turn
+@@ -419,22 +442,22 @@
+ 
+        <STRONG>o</STRONG>   holds one non-spacing character.
+ 
+-       In  the  latter  case,  <EM>ncurses</EM>  adds  the non-spacing character to the
++       In the latter case, <EM>ncurses</EM>  adds  the  non-spacing  character  to  the
+        active complex character.
+ 
+ 
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+-       X/Open Curses Issue 4 (1995) initially specified these functions.   The
++       X/Open  Curses Issue 4 (1995) initially specified these functions.  The
+        System V  Interface  Definition  (SVID)  Version 4  of  the  same  year
+-       specified functions named <EM>waddwch</EM> (and the usual variants),  <EM>echowchar</EM>,
++       specified  functions named <EM>waddwch</EM> (and the usual variants), <EM>echowchar</EM>,
+        and <EM>wechowchar</EM>.  These were later additions to SVr4.<EM>x</EM>, not appearing in
+-       the first SVr4 (1989).  They differed from X/Open's later <EM>wadd</EM><STRONG>_</STRONG><EM>wch</EM>  and
+-       <EM>wecho</EM><STRONG>_</STRONG><EM>wchar</EM>  in that they each took an argument of type <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> instead
++       the  first SVr4 (1989).  They differed from X/Open's later <EM>wadd</EM><STRONG>_</STRONG><EM>wch</EM> and
++       <EM>wecho</EM><STRONG>_</STRONG><EM>wchar</EM> in that they each took an argument of type <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM>  instead
+        of <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>.  SVID defined no  <EM>WACS</EM><STRONG>_</STRONG> symbols.
+ 
+-       X/Open Curses  Issue 4  also  defined  many  of  the  <EM>WACS</EM><STRONG>_</STRONG>  constants,
++       X/Open  Curses  Issue 4  also  defined  many  of  the  <EM>WACS</EM><STRONG>_</STRONG> constants,
+        excepting  <EM>WACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>PI</EM>,  <EM>WACS</EM><STRONG>_</STRONG><EM>S3</EM>,
+-       <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>, and <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>; and those  for  drawing  thick  and  double
++       <EM>WACS</EM><STRONG>_</STRONG><EM>S7</EM>,  and  <EM>WACS</EM><STRONG>_</STRONG><EM>STERLING</EM>;  and  those  for drawing thick and double
+        lines.
+ 
+        <EM>ncurses</EM> 5.3 (2002) furnished the remaining <EM>WACS</EM><STRONG>_</STRONG> constants.
+@@ -445,12 +468,12 @@
+        its non-wide-character configuration.
+ 
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,   <STRONG><A HREF="curs_addwstr.3x.html">curs_addwstr(3x)</A></STRONG>,   <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>,   <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,
+-       <STRONG><A HREF="curs_bkgrnd.3x.html">curs_bkgrnd(3x)</A></STRONG>,  <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,  <STRONG><A HREF="curs_getcchar.3x.html">curs_getcchar(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
++       <STRONG><A HREF="curs_bkgrnd.3x.html">curs_bkgrnd(3x)</A></STRONG>, <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,  <STRONG><A HREF="curs_getcchar.3x.html">curs_getcchar(3x)</A></STRONG>,  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putwc(3)</STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2025-04-05                  <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
++ncurses 6.5                       2025-04-19                  <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_addch.3x.html
+--- ncurses-6.5-20250412+/doc/html/man/curs_addch.3x.html	2025-04-05 22:33:03.000000000 +0000
++++ ncurses-6.5-20250419/doc/html/man/curs_addch.3x.html	2025-04-19 23:33:03.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_addch.3x,v 1.135 2025/04/05 21:58:37 tom Exp @
++  * @Id: curs_addch.3x,v 1.136 2025/04/19 22:53:46 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_addch 3x 2025-04-05 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_addch 3x 2025-04-19 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_addch 3x 2025-04-05 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_addch 3x 2025-04-19 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ 
+@@ -119,16 +119,6 @@
+        is  a  <EM>blank</EM>  <EM>character</EM>,  and  therefore  combines  with  the  window's
+        background character; see <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>.
+ 
+-       If  the  cursor  is  not  at  the  bottom  of  the scrolling region and
+-       advancement occurs at the right margin, the cursor automatically  wraps
+-       to the beginning of the next line.
+-
+-       If the cursor is at the bottom of the scrolling region when advancement
+-       occurs at the right margin, and <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> is enabled  for  <EM>win</EM>,  the
+-       scrolling  region  scrolls  up  one line and the cursor wraps as above.
+-       Otherwise, advancement and scrolling do not occur, and  <STRONG>waddch</STRONG>  returns
+-       <STRONG>ERR</STRONG>.
+-
+        If  <EM>ch</EM>  is  a backspace, carriage return, line feed, or tab, the cursor
+        moves appropriately within the window.
+ 
+@@ -142,37 +132,70 @@
+            margin.
+ 
+        <STRONG>o</STRONG>   Tab  advances the cursor to the next tab stop (possibly on the next
+-           line); these are placed at every eighth column by  default.   Alter
+-           the    tab    interval    with    the    <STRONG>TABSIZE</STRONG>   extension;   see
++           line); these are placed at every eighth column by default.
++
++           Alter  the  tab  interval   with   the   <STRONG>TABSIZE</STRONG>   extension;   see
+            <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+ 
+-       If <EM>ch</EM> is any other nonprintable character, it  is  drawn  in  printable
++       If  <EM>ch</EM>  is  any  other nonprintable character, it is drawn in printable
+        form using the same convention as <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>.  Calling <STRONG><A HREF="curs_inch.3x.html">winch(3x)</A></STRONG> on the
+-       location of a nonprintable character  does  not  return  the  character
++       location  of  a  nonprintable  character  does not return the character
+        itself, but its <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG> representation.
+ 
++       Adding printable characters with <STRONG>waddch</STRONG> causes it to wrap at the  right
++       margin of the window:
++
++       <STRONG>o</STRONG>   If  the  cursor  is  not  at the bottom of the scrolling region and
++           advancement occurs at the right margin,  the  cursor  automatically
++           wraps to the beginning of the next line.
++
++       <STRONG>o</STRONG>   If  the  cursor  is  at  the  bottom  of  the scrolling region when
++           advancement occurs at the right margin, and <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> is enabled
++           for  <EM>win</EM>,  the  scrolling region scrolls up one line and the cursor
++           wraps as above.  Otherwise, advancement and scrolling do not occur,
++           and <STRONG>waddch</STRONG> returns <STRONG>ERR</STRONG>.
++
++       A  window's  margins may coincide with the screen boundaries.  This may
++       be a problem when <EM>ncurses</EM>  updates  the  screen  to  match  the  curses
++       window.   When  their  right  and bottom margins coincide, <EM>ncurses</EM> uses
++       different strategies to handle the variations of scrolling and wrapping
++       at the lower-right corner by depending on the terminal capabilities:
++
++       <STRONG>o</STRONG>   If the terminal does not automatically wrap as characters are added
++           at the right margin (i.e., auto right margins), <EM>ncurses</EM> writes  the
++           character directly.
++
++       <STRONG>o</STRONG>   If  the  terminal has auto right margins, but also has capabilities
++           for turning auto margins off and on, <EM>ncurses</EM> turns the auto  margin
++           feature off temporarily when writing to the lower-right corner.
++
++       <STRONG>o</STRONG>   If  the  terminal has an insertion mode which can be turned off and
++           on, <EM>ncurses</EM>  writes  the  character  just  before  the  lower-right
++           corner,  and  then  inserts a character to push the update into the
++           corner.
++
+ 
+ </PRE><H3><a name="h3-wechochar">wechochar</a></H3><PRE>
+-       <STRONG>echochar</STRONG>  and  <STRONG>wechochar</STRONG> are equivalent to calling (<STRONG>w</STRONG>)<STRONG>addch</STRONG> followed by
+-       (<STRONG>w</STRONG>)<STRONG>refresh</STRONG> on <STRONG>stdscr</STRONG> or the specified window.  <EM>curses</EM> interprets  these
+-       functions  as a hint to its optimizer that only a single character cell
+-       in the window is  being  altered  between  refreshes;  for  non-control
++       <STRONG>echochar</STRONG> and <STRONG>wechochar</STRONG> are equivalent to calling (<STRONG>w</STRONG>)<STRONG>addch</STRONG>  followed  by
++       (<STRONG>w</STRONG>)<STRONG>refresh</STRONG>  on <STRONG>stdscr</STRONG> or the specified window.  <EM>curses</EM> interprets these
++       functions as a hint to its optimizer that only a single character  cell
++       in  the  window  is  being  altered  between refreshes; for non-control
+        characters, a considerable performance gain may be enjoyed by employing
+        them.
+ 
+ 
+ </PRE><H3><a name="h3-Forms-Drawing-Characters">Forms-Drawing Characters</a></H3><PRE>
+-       <EM>curses</EM> defines macros starting with <STRONG>ACS_</STRONG> that can be used  with  <STRONG>waddch</STRONG>
+-       to  write  line-drawing and other symbols to the screen.  <EM>ncurses</EM> terms
+-       these <EM>forms-drawing</EM> <EM>characters.</EM>  <EM>curses</EM> uses  the  ACS  default  listed
+-       below  if the terminal type lacks the <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>) capability; that
+-       capability does not define a replacement for the character; or  if  the
+-       terminal  type and locale configuration require Unicode to access these
+-       characters, but the library is unable to use Unicode.  The "acsc  char"
++       <EM>curses</EM>  defines  macros starting with <STRONG>ACS_</STRONG> that can be used with <STRONG>waddch</STRONG>
++       to write line-drawing and other symbols to the screen.   <EM>ncurses</EM>  terms
++       these  <EM>forms-drawing</EM>  <EM>characters.</EM>   <EM>curses</EM>  uses the ACS default listed
++       below if the terminal type lacks the <STRONG>acs_chars</STRONG> (<STRONG>acsc</STRONG>) capability;  that
++       capability  does  not define a replacement for the character; or if the
++       terminal type and locale configuration require Unicode to access  these
++       characters,  but the library is unable to use Unicode.  The "acsc char"
+        column corresponds to how the characters are specified in the <STRONG>acs_chars</STRONG>
+-       (<STRONG>acsc</STRONG>) string capability, and the characters in it may  appear  on  the
++       (<STRONG>acsc</STRONG>)  string  capability,  and the characters in it may appear on the
+        screen if the terminal type's database entry incorrectly advertises ACS
+-       support.  The name "ACS" originates  in  the  Alternate  Character  Set
++       support.   The  name  "ACS"  originates  in the Alternate Character Set
+        feature of the DEC VT100 terminal.
+ 
+                       <STRONG>ACS</STRONG>       <STRONG>acsc</STRONG>
+@@ -180,7 +203,6 @@
+        ------------------------------------------------------------------------
+        <STRONG>ACS_BLOCK</STRONG>      #         0      solid square block
+        <STRONG>ACS_BOARD</STRONG>      #         h      board of squares
+-
+        <STRONG>ACS_BTEE</STRONG>       +         v      bottom tee
+        <STRONG>ACS_BULLET</STRONG>     o         ~      bullet
+        <STRONG>ACS_CKBOARD</STRONG>    :         a      checker board (stipple)
+@@ -220,27 +242,27 @@
+ 
+        <STRONG>o</STRONG>   the <EM>curses</EM> screen has not been initialized,
+ 
+-       <STRONG>o</STRONG>   (for  functions  taking  a  <EM>WINDOW</EM>  pointer argument) <EM>win</EM> is a null
++       <STRONG>o</STRONG>   (for functions taking a <EM>WINDOW</EM> pointer  argument)  <EM>win</EM>  is  a  null
+            pointer,
+ 
+-       <STRONG>o</STRONG>   wrapping to a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG>  has  not
+-           been  called  on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when a write to its
++       <STRONG>o</STRONG>   wrapping  to  a new line is impossible because <STRONG><A HREF="scrollok.3x.html">scrollok(3x)</A></STRONG> has not
++           been called on <EM>win</EM> (or <STRONG>stdscr</STRONG>, as applicable) when a write  to  its
+            bottom right location is attempted, or
+ 
+-       <STRONG>o</STRONG>   it is not possible to  add  a  complete  character  at  the  cursor
++       <STRONG>o</STRONG>   it  is  not  possible  to  add  a  complete character at the cursor
+            position.
+ 
+        The last may be due to different causes:
+ 
+-       <STRONG>o</STRONG>   conversion  of  a  wide character to a multibyte character sequence
++       <STRONG>o</STRONG>   conversion of a wide character to a  multibyte  character  sequence
+            can fail, or
+ 
+-       <STRONG>o</STRONG>   at least one of the bytes resulting from wide character  conversion
+-           to  a  multibyte  character sequence cannot be added to the window.
+-           See section "PORTABILITY" below regarding the use  of  <STRONG>waddch</STRONG>  with
++       <STRONG>o</STRONG>   at  least one of the bytes resulting from wide character conversion
++           to a multibyte character sequence cannot be added  to  the  window.
++           See  section  "PORTABILITY"  below regarding the use of <STRONG>waddch</STRONG> with
+            wide characters.
+ 
+-       Functions  prefixed with "mv" first perform cursor movement and fail if
++       Functions prefixed with "mv" first perform cursor movement and fail  if
+        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
+ 
+ 
+@@ -250,11 +272,11 @@
+ 
+ </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+        The symbols <EM>ACS</EM><STRONG>_</STRONG><EM>S3</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>S7</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,
+-       and  <EM>ACS</EM><STRONG>_</STRONG><EM>STERLING</EM> were not documented in any publicly released System V
+-       and are  not  standard.   However,  many  publicly  available  <EM>terminfo</EM>
+-       entries  include  <STRONG>acs_chars</STRONG>  (<STRONG>acsc</STRONG>)  capabilities  in  which  their key
+-       characters (<STRONG>pryz{|}</STRONG>) are embedded, and  a  second-hand  list  of  their
+-       character  descriptions  has  come  to  light.   The <EM>ncurses</EM> developers
++       and <EM>ACS</EM><STRONG>_</STRONG><EM>STERLING</EM> were not documented in any publicly released  System V
++       and  are  not  standard.   However,  many  publicly  available <EM>terminfo</EM>
++       entries include  <STRONG>acs_chars</STRONG>  (<STRONG>acsc</STRONG>)  capabilities  in  which  their  key
++       characters  (<STRONG>pryz{|}</STRONG>)  are  embedded,  and  a second-hand list of their
++       character descriptions has  come  to  light.   The  <EM>ncurses</EM>  developers
+        invented ACS-prefixed names for them.
+ 
+ 
+@@ -265,79 +287,79 @@
+        X/Open Curses Issue 4 describes these functions.  It specifies no error
+        conditions for them.
+ 
+-       SVr4 describes a successful return value  only  as  "an  integer  value
++       SVr4  describes  a  successful  return  value only as "an integer value
+        other than <EM>ERR</EM>".
+ 
+-       The  defaults specified for forms-drawing characters apply in the POSIX
++       The defaults specified for forms-drawing characters apply in the  POSIX
+        locale.
+ 
+ 
+ </PRE><H3><a name="h3-ACS-Symbols">ACS Symbols</a></H3><PRE>
+-       X/Open Curses states that the  <EM>ACS</EM><STRONG>_</STRONG>  definitions  are  <EM>char</EM>  constants.
++       X/Open  Curses  states  that  the  <EM>ACS</EM><STRONG>_</STRONG> definitions are <EM>char</EM> constants.
+        Some implementations are problematic.
+ 
+-       <STRONG>o</STRONG>   Solaris  <EM>curses</EM>, for example, defines the ACS symbols as constants;
++       <STRONG>o</STRONG>   Solaris <EM>curses</EM>, for example, defines the ACS symbols as  constants;
+            others define them as elements of an array.
+ 
+-           SVr4 used an array, <EM>acs</EM><STRONG>_</STRONG><EM>map</EM>, as does <EM>ncurses</EM>.  NetBSD  <EM>curses</EM>  also
+-           uses  an  array,  actually  named  <STRONG>_</STRONG><EM>acs</EM><STRONG>_</STRONG><EM>char</EM>,  with a "#define" for
++           SVr4  used  an array, <EM>acs</EM><STRONG>_</STRONG><EM>map</EM>, as does <EM>ncurses</EM>.  NetBSD <EM>curses</EM> also
++           uses an array, actually  named  <STRONG>_</STRONG><EM>acs</EM><STRONG>_</STRONG><EM>char</EM>,  with  a  "#define"  for
+            compatibility.
+ 
+-       <STRONG>o</STRONG>   HP-UX <EM>curses</EM> equates some of the  <EM>ACS</EM><STRONG>_</STRONG>  symbols  to  the  analogous
+-           <EM>WACS</EM><STRONG>_</STRONG>  symbols  as  if  the  <EM>ACS</EM><STRONG>_</STRONG> symbols were wide characters (see
+-           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).  The  misdefined  symbols  are  the  arrows  and
++       <STRONG>o</STRONG>   HP-UX  <EM>curses</EM>  equates  some  of  the <EM>ACS</EM><STRONG>_</STRONG> symbols to the analogous
++           <EM>WACS</EM><STRONG>_</STRONG> symbols as if the <EM>ACS</EM><STRONG>_</STRONG>  symbols  were  wide  characters  (see
++           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).   The  misdefined  symbols  are  the  arrows and
+            others that are not used for line drawing.
+ 
+-       <STRONG>o</STRONG>   X/Open  Curses  (Issues 2  through 7) has a typographical error for
+-           the <EM>ACS</EM><STRONG>_</STRONG><EM>LANTERN</EM> symbol, equating  its  "VT100+  Character"  to  "I"
+-           (capital  I),  while  the  header  files  for SVr4 <EM>curses</EM> and other
++       <STRONG>o</STRONG>   X/Open Curses (Issues 2 through 7) has a  typographical  error  for
++           the  <EM>ACS</EM><STRONG>_</STRONG><EM>LANTERN</EM>  symbol,  equating  its  "VT100+ Character" to "I"
++           (capital I), while the header  files  for  SVr4  <EM>curses</EM>  and  other
+            implementations use "i" (small i).
+ 
+-           None of the terminal descriptions on Unix platforms  use  uppercase
+-           I,  except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for <STRONG>screen(1)</STRONG>,
+-           apparently based on the X/Open documentation around 1995).  On  the
+-           other  hand,  its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS Terminal Emulator)
++           None  of  the terminal descriptions on Unix platforms use uppercase
++           I, except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for  <STRONG>screen(1)</STRONG>,
++           apparently  based on the X/Open documentation around 1995).  On the
++           other hand, its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS  Terminal  Emulator)
+            description uses lowercase i.
+ 
+        The <EM>displayed</EM> values of <EM>ACS</EM><STRONG>_</STRONG> constants depend on
+ 
+-       <STRONG>o</STRONG>   the <EM>ncurses</EM> ABI -- for  example,  wide-character  versus  non-wide-
+-           character  configurations  (the  former  is  capable  of displaying
++       <STRONG>o</STRONG>   the  <EM>ncurses</EM>  ABI  --  for example, wide-character versus non-wide-
++           character configurations  (the  former  is  capable  of  displaying
+            Unicode while the latter is not), and
+ 
+        <STRONG>o</STRONG>   whether the locale uses UTF-8 encoding.
+ 
+-       In certain cases, the  terminal  is  unable  to  display  forms-drawing
+-       characters   <EM>except</EM>   by   using  UTF-8;  see  the  discussion  of  the
++       In  certain  cases,  the  terminal  is  unable to display forms-drawing
++       characters  <EM>except</EM>  by  using  UTF-8;  see  the   discussion   of   the
+        <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM> environment variable in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H3><a name="h3-Character-Set">Character Set</a></H3><PRE>
+-       X/Open Curses assumes that the parameter passed to  <EM>waddch</EM>  contains  a
+-       single  character.   That  character may have been more than eight bits
+-       wide in an SVr3 or SVr4 implementation, but X/Open  Curses  leaves  the
+-       width  of  a non-wide character code unspecified.  The standard further
+-       does not specify the internal structure of a <EM>chtype</EM>, though the use  of
+-       bit  operations  to  combine  the  character code with attributes and a
++       X/Open  Curses  assumes  that the parameter passed to <EM>waddch</EM> contains a
++       single character.  That character may have been more  than  eight  bits
++       wide  in  an  SVr3 or SVr4 implementation, but X/Open Curses leaves the
++       width of a non-wide character code unspecified.  The  standard  further
++       does  not specify the internal structure of a <EM>chtype</EM>, though the use of
++       bit operations to combine the character  code  with  attributes  and  a
+        color pair identifier into a <EM>chtype</EM> for passage to <EM>waddch</EM> is common.  A
+        portable application uses only the macros discussed in <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG> to
+        manipulate a <EM>chtype</EM>.
+ 
+        In <EM>ncurses</EM>, <EM>chtype</EM> holds an eight-bit character, but the library allows
+-       a  multibyte  character sequence to be passed via a succession of calls
+-       to <EM>waddch</EM>.  Other implementations  do  not;  a  <EM>waddch</EM>  call  transmits
+-       exactly  one  character,  which  may  be rendered in one or more screen
+-       locations depending  on  whether  it  is  printable  (see  <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
+-       Depending  on  the  locale,  <EM>ncurses</EM>  inspects  the byte passed in each
+-       <EM>waddch</EM> call and checks whether the latest call  continues  a  multibyte
+-       character.    When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays  the
+-       character  and  advances  the  cursor.   If  the  calling   application
++       a multibyte character sequence to be passed via a succession  of  calls
++       to  <EM>waddch</EM>.   Other  implementations  do  not;  a <EM>waddch</EM> call transmits
++       exactly one character, which may be rendered  in  one  or  more  screen
++       locations  depending  on  whether  it  is  printable  (see <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
++       Depending on the locale, <EM>ncurses</EM>  inspects  the  byte  passed  in  each
++       <EM>waddch</EM>  call  and  checks whether the latest call continues a multibyte
++       character.   When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays   the
++       character   and  advances  the  cursor.   If  the  calling  application
+        interrupts the succession of bytes in a multibyte character sequence by
+        changing the current location -- for example, with <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG> -- <EM>ncurses</EM>
+        discards the incomplete character.
+ 
+        For  portability  to  other  implementations,  do  not  rely  upon  the
+-       foregoing behavior.  Check whether a character can be represented as  a
++       foregoing  behavior.  Check whether a character can be represented as a
+        single byte in the current locale.
+ 
+        <STRONG>o</STRONG>   If it can, call either <EM>waddch</EM> or <EM>wadd</EM><STRONG>_</STRONG><EM>wch</EM>.
+@@ -348,24 +370,24 @@
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+        4BSD (1980) introduced <EM>waddch</EM> and its variants.
+ 
+-       SVr3  (1987) added the <EM>echochar</EM> and <EM>wechochar</EM> functions and most of the
+-       <EM>ACS</EM><STRONG>_</STRONG> constants, except for <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>,  <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>,
++       SVr3 (1987) added the <EM>echochar</EM> and <EM>wechochar</EM> functions and most of  the
++       <EM>ACS</EM><STRONG>_</STRONG>  constants, except for <EM>ACS</EM><STRONG>_</STRONG><EM>GEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>LEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>NEQUAL</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>PI</EM>,
+        <EM>ACS</EM><STRONG>_</STRONG><EM>S3</EM>, <EM>ACS</EM><STRONG>_</STRONG><EM>S7</EM>, and <EM>ACS</EM><STRONG>_</STRONG><EM>STERLING</EM>.
+ 
+        <EM>ncurses</EM> 1.9.6 (1995) furnished the remaining <EM>ACS</EM><STRONG>_</STRONG> constants.
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+-       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>  describes comparable functions of the <EM>ncurses</EM> library
++       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM>  library
+        in its wide-character configuration (<EM>ncursesw</EM>).
+ 
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,
+-       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>,    <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,    <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
++       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>,   <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,    <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,    <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putchar(3)</STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2025-04-05                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
++ncurses 6.5                       2025-04-19                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_printw.3x.html
+--- ncurses-6.5-20250412+/doc/html/man/curs_printw.3x.html	2025-04-05 22:33:04.000000000 +0000
++++ ncurses-6.5-20250419/doc/html/man/curs_printw.3x.html	2025-04-19 23:33:04.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_printw.3x,v 1.60 2025/04/05 22:20:25 tom Exp @
++  * @Id: curs_printw.3x,v 1.61 2025/04/19 23:28:38 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_printw 3x 2025-04-05 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_printw 3x 2025-04-19 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_printw 3x 2025-04-05 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_printw 3x 2025-04-19 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>
+ 
+@@ -150,7 +150,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-04-05                   <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>
++ncurses 6.5                       2025-04-19                   <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/ncurses.3x.html
+--- ncurses-6.5-20250412+/doc/html/man/ncurses.3x.html	2025-04-05 22:57:21.000000000 +0000
++++ ncurses-6.5-20250419/doc/html/man/ncurses.3x.html	2025-04-19 23:33:06.000000000 +0000
+@@ -61,7 +61,7 @@
+        displays  with  output  optimized  to minimize screen updates.  <EM>ncurses</EM>
+        replaces the <EM>curses</EM> libraries from System V Release 4 Unix ("SVr4") and
+        4.4BSD  Unix,  the  development  of  which  ceased  in the 1990s.  This
+-       document describes <EM>ncurses</EM> version 6.5 (patch 20250405).
++       document describes <EM>ncurses</EM> version 6.5 (patch 20250419).
+ 
+        <EM>ncurses</EM> permits control of the terminal screen's contents;  abstraction
+        and  subdivision thereof with <EM>windows</EM> and <EM>pads</EM>; acquisition of keyboard
+Index: doc/html/man/terminfo.5.html
+--- ncurses-6.5-20250412+/doc/html/man/terminfo.5.html	2025-04-05 22:33:07.000000000 +0000
++++ ncurses-6.5-20250419/doc/html/man/terminfo.5.html	2025-04-19 23:33:06.000000000 +0000
+@@ -71,7 +71,7 @@
+        have, by specifying how to perform screen operations, and by specifying
+        padding requirements and initialization sequences.
+ 
+-       This document describes <EM>ncurses</EM> version 6.5 (patch 20250405).
++       This document describes <EM>ncurses</EM> version 6.5 (patch 20250419).
+ 
+ 
+ </PRE><H3><a name="h3-terminfo-Entry-Syntax"><EM>terminfo</EM> Entry Syntax</a></H3><PRE>
+Index: doc/html/man/user_caps.5.html
+--- ncurses-6.5-20250412+/doc/html/man/user_caps.5.html	2025-04-06 00:21:39.000000000 +0000
++++ ncurses-6.5-20250419/doc/html/man/user_caps.5.html	2025-04-19 23:33:06.000000000 +0000
+@@ -40,7 +40,7 @@
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">user_caps 5 2025-03-22 ncurses 6.5 File formats</H1>
++<H1 class="no-header">user_caps 5 2025-04-05 ncurses 6.5 File formats</H1>
+ <PRE>
+ <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>                     File formats                     <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>
+ 
+@@ -403,7 +403,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2025-03-22                      <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>
++ncurses 6.5                       2025-04-05                      <STRONG><A HREF="user_caps.5.html">user_caps(5)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: man/curs_add_wch.3x
+Prereq:  1.114 
+--- ncurses-6.5-20250412+/man/curs_add_wch.3x	2025-04-05 21:58:37.000000000 +0000
++++ ncurses-6.5-20250419/man/curs_add_wch.3x	2025-04-19 22:53:52.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_add_wch.3x,v 1.114 2025/04/05 21:58:37 tom Exp $
+-.TH curs_add_wch 3X 2025-04-05 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_add_wch.3x,v 1.115 2025/04/19 22:53:52 tom Exp $
++.TH curs_add_wch 3X 2025-04-19 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -191,26 +191,6 @@
+ complex character until another spacing character is written to the
+ window or the cursor is moved.
+ .PP
+-If the cursor is not at the bottom of the scrolling region
+-and advancement occurs at the right margin,
+-the cursor automatically wraps to the beginning of the next line.
+-.PP
+-If the cursor is at the bottom of the scrolling region
+-when advancement occurs at the right margin,
+-and \fB\%scrollok\fP(3X) is enabled for
+-.IR win ,
+-the scrolling region scrolls up one line
+-and the cursor wraps as above.
+-Otherwise,
+-advancement and scrolling do not occur,
+-and
+-.B \%waddch
+-returns
+-.BR ERR "."
+-.\" Does writing to the bottom-right character cell of the screen work
+-.\" when `scrollok()` is disabled and the terminal lacks `ich` and
+-.\" `ich1` capabilities?
+-.PP
+ If
+ .I wch
+ is a
+@@ -234,6 +214,7 @@
+ Tab advances the cursor to the next tab stop
+ (possibly on the next line);
+ these are placed at every eighth column by default.
++.IP
+ Alter the tab interval with the
+ .B \%TABSIZE
+ extension;
+@@ -247,6 +228,53 @@
+ Calling \fB\%win_wch\fP(3X) on the location of a nonprintable character
+ does not return the character itself,
+ but its \fB\%wunctrl\fP(3X) representation.
++.PP
++Adding spacing characters with \fB\%wadd_wch\fP
++causes it to wrap at the right margin of the window:
++.bP
++If the cursor is not at the bottom of the scrolling region
++and advancement occurs at the right margin,
++the cursor automatically wraps to the beginning of the next line.
++.bP
++If the cursor is at the bottom of the scrolling region
++when advancement occurs at the right margin,
++and \fB\%scrollok\fP(3X) is enabled for
++.IR win ,
++the scrolling region scrolls up one line
++and the cursor wraps as above.
++Otherwise,
++advancement and scrolling do not occur,
++and
++.B \%wadd_wch
++returns
++.BR ERR "."
++.PP
++A window's margins may coincide with the screen boundaries.
++This may be a problem when
++.I \%ncurses
++updates the screen to match the curses window.
++When their right and bottom margins coincide,
++.I \%ncurses
++uses different strategies to handle the variations of scrolling and wrapping
++at the lower-right corner
++by depending on the terminal capabilities:
++.bP
++If the terminal does not automatically wrap as characters
++are added at the right margin
++(i.e., auto right margins),
++.I \%ncurses
++writes the character directly.
++.bP
++If the terminal has auto right margins,
++but also has capabilities for turning auto margins off and on,
++.I \%ncurses
++turns the auto margin feature off temporarily
++when writing to the lower-right corner.
++.bP
++If the terminal has an insertion mode which can be turned off and on,
++.I \%ncurses
++writes the character just before the lower-right corner,
++and then inserts a character to push the update into the corner.
+ .SS wecho_wchar
+ .B \%echo_wchar
+ and
+Index: man/curs_addch.3x
+Prereq:  1.135 
+--- ncurses-6.5-20250412+/man/curs_addch.3x	2025-04-05 21:58:37.000000000 +0000
++++ ncurses-6.5-20250419/man/curs_addch.3x	2025-04-19 22:53:46.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_addch.3x,v 1.135 2025/04/05 21:58:37 tom Exp $
+-.TH curs_addch 3X 2025-04-05 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_addch.3x,v 1.136 2025/04/19 22:53:46 tom Exp $
++.TH curs_addch 3X 2025-04-19 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -149,26 +149,6 @@
+ and therefore combines with the window's background character;
+ see \fB\%curs_bkgd\fP(3X).
+ .PP
+-If the cursor is not at the bottom of the scrolling region
+-and advancement occurs at the right margin,
+-the cursor automatically wraps to the beginning of the next line.
+-.PP
+-If the cursor is at the bottom of the scrolling region
+-when advancement occurs at the right margin,
+-and \fB\%scrollok\fP(3X) is enabled for
+-.IR win ,
+-the scrolling region scrolls up one line
+-and the cursor wraps as above.
+-Otherwise,
+-advancement and scrolling do not occur,
+-and
+-.B \%waddch
+-returns
+-.BR ERR "."
+-.\" Does writing to the bottom-right character cell of the screen work
+-.\" when `scrollok()` is disabled and the terminal lacks `ich` and
+-.\" `ich1` capabilities?
+-.PP
+ If
+ .I ch
+ is a
+@@ -192,6 +172,7 @@
+ Tab advances the cursor to the next tab stop
+ (possibly on the next line);
+ these are placed at every eighth column by default.
++.IP
+ Alter the tab interval with the
+ .B \%TABSIZE
+ extension;
+@@ -205,6 +186,53 @@
+ Calling \fB\%winch\fP(3X) on the location of a nonprintable character
+ does not return the character itself,
+ but its \fB\%unctrl\fP(3X) representation.
++.PP
++Adding printable characters with \fB\%waddch\fP
++causes it to wrap at the right margin of the window:
++.bP
++If the cursor is not at the bottom of the scrolling region
++and advancement occurs at the right margin,
++the cursor automatically wraps to the beginning of the next line.
++.bP
++If the cursor is at the bottom of the scrolling region
++when advancement occurs at the right margin,
++and \fB\%scrollok\fP(3X) is enabled for
++.IR win ,
++the scrolling region scrolls up one line
++and the cursor wraps as above.
++Otherwise,
++advancement and scrolling do not occur,
++and
++.B \%waddch
++returns
++.BR ERR "."
++.PP
++A window's margins may coincide with the screen boundaries.
++This may be a problem when
++.I \%ncurses
++updates the screen to match the curses window.
++When their right and bottom margins coincide,
++.I \%ncurses
++uses different strategies to handle the variations of scrolling and wrapping
++at the lower-right corner
++by depending on the terminal capabilities:
++.bP
++If the terminal does not automatically wrap as characters
++are added at the right margin
++(i.e., auto right margins),
++.I \%ncurses
++writes the character directly.
++.bP
++If the terminal has auto right margins,
++but also has capabilities for turning auto margins off and on,
++.I \%ncurses
++turns the auto margin feature off temporarily
++when writing to the lower-right corner.
++.bP
++If the terminal has an insertion mode which can be turned off and on,
++.I \%ncurses
++writes the character just before the lower-right corner,
++and then inserts a character to push the update into the corner.
+ .SS wechochar
+ .B \%echochar
+ and
+Index: man/curs_printw.3x
+Prereq:  1.60 
+--- ncurses-6.5-20250412+/man/curs_printw.3x	2025-04-05 22:20:25.000000000 +0000
++++ ncurses-6.5-20250419/man/curs_printw.3x	2025-04-19 23:28:38.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_printw.3x,v 1.60 2025/04/05 22:20:25 tom Exp $
+-.TH curs_printw 3X 2025-04-05 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_printw.3x,v 1.61 2025/04/19 23:28:38 tom Exp $
++.TH curs_printw 3X 2025-04-19 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -209,6 +209,19 @@
+ .\" GBR can't find a source to cite for this paraphrase,
+ .\" even after checking
+ .\" <https://github.com/ryanwoodsmall/oldsysv/tree/master>.
++.\"
++.\" The indicated paraphrase is from page 432:
++.\" Unix System V Programmer's Reference Manual
++.\" Prentice-Hall
++.\" ISBN 0-13-940479-1
++.\" (bitsavers has 3rd printing from 1987)
++.\"
++.\" This lists mvprintw without detail, and printw as "printf on stdscr":
++.\" Unix Programmer's Manual
++.\" System Calls and Library Routines
++.\" CBS College Publishing's UNIX System Library
++.\" Holt, Rinehard and Winston, 1986
++.\" ISBN 0-03-009314-7
+ .PP
+ SVr3 added
+ .IR \%vwprintw ","
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250412+/package/debian-mingw/changelog	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/package/debian-mingw/changelog	2025-04-19 10:37:06.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250412) unstable; urgency=low
++ncurses6td (6.5+20250419) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 12 Apr 2025 06:27:36 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Apr 2025 06:37:06 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250412+/package/debian-mingw64/changelog	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/package/debian-mingw64/changelog	2025-04-19 10:37:06.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250412) unstable; urgency=low
++ncurses6td (6.5+20250419) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 12 Apr 2025 06:27:36 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Apr 2025 06:37:06 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250412+/package/debian/changelog	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/package/debian/changelog	2025-04-19 10:37:06.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250412) unstable; urgency=low
++ncurses6td (6.5+20250419) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 12 Apr 2025 06:27:36 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 19 Apr 2025 06:37:06 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.698 
+--- ncurses-6.5-20250412+/package/mingw-ncurses.nsi	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/package/mingw-ncurses.nsi	2025-04-19 10:37:06.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.698 2025/04/12 10:27:36 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.699 2025/04/19 10:37:06 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0412"
++!define VERSION_MMDD  "0419"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250412+/package/mingw-ncurses.spec	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/package/mingw-ncurses.spec	2025-04-19 10:37:06.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250412
++Release: 20250419
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250412+/package/ncurses.spec	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/package/ncurses.spec	2025-04-19 10:37:06.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250412
++Release: 20250419
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250412+/package/ncursest.spec	2025-04-12 10:27:36.000000000 +0000
++++ ncurses-6.5-20250419/package/ncursest.spec	2025-04-19 10:37:06.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250412
++Release: 20250419
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

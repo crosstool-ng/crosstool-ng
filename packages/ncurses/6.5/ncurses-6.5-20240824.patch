@@ -1,0 +1,355 @@
+# ncurses 6.5 - patch 20240824 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20240824.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Aug 25 00:54:42 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |    6 +++++-
+# VERSION                          |    2 +-
+# dist.mk                          |    4 ++--
+# package/debian-mingw/changelog   |    4 ++--
+# package/debian-mingw64/changelog |    4 ++--
+# package/debian/changelog         |    4 ++--
+# package/mingw-ncurses.nsi        |    4 ++--
+# package/mingw-ncurses.spec       |    2 +-
+# package/ncurses.spec             |    2 +-
+# package/ncursest.spec            |    2 +-
+# progs/Makefile.in                |    4 ++--
+# progs/infocmp.c                  |   27 ++++++++++++++++++---------
+# progs/tabs.c                     |    9 +++++----
+# test/demo_keyok.c                |    6 ++++--
+# 14 files changed, 48 insertions(+), 32 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4164 
+--- ncurses-6.5-20240817+/NEWS	2024-08-17 22:54:38.000000000 +0000
++++ ncurses-6.5-20240824/NEWS	2024-08-24 20:11:44.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4164 2024/08/17 22:54:38 tom Exp $
++-- $Id: NEWS,v 1.4166 2024/08/24 20:11:44 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,10 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20240824
++	+ modify infocmp and tabs to use actual name in usage and header.
++	+ modify test/demo_keyok.c to accept ^Q for quit, for consistency.
++
+ 20240817
+ 	+ review/update foot for 1.18.1 -TD
+ 	+ add a note about DomTerm 3.2.0 -TD
+Index: VERSION
+--- ncurses-6.5-20240817+/VERSION	2024-08-17 09:37:53.000000000 +0000
++++ ncurses-6.5-20240824/VERSION	2024-08-24 10:17:07.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20240817
++5:0:10	6.5	20240824
+Index: dist.mk
+Prereq:  1.1627 
+--- ncurses-6.5-20240817+/dist.mk	2024-08-17 09:37:53.000000000 +0000
++++ ncurses-6.5-20240824/dist.mk	2024-08-24 10:17:07.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1627 2024/08/17 09:37:53 tom Exp $
++# $Id: dist.mk,v 1.1628 2024/08/24 10:17:07 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20240817
++NCURSES_PATCH = 20240824
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20240817+/package/debian-mingw/changelog	2024-08-11 00:14:44.000000000 +0000
++++ ncurses-6.5-20240824/package/debian-mingw/changelog	2024-08-24 10:17:07.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240817) unstable; urgency=low
++ncurses6td (6.5+20240824) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 10 Aug 2024 20:14:44 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 24 Aug 2024 06:17:07 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20240817+/package/debian-mingw64/changelog	2024-08-11 00:14:44.000000000 +0000
++++ ncurses-6.5-20240824/package/debian-mingw64/changelog	2024-08-24 10:17:07.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240817) unstable; urgency=low
++ncurses6td (6.5+20240824) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 10 Aug 2024 20:14:44 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 24 Aug 2024 06:17:07 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20240817+/package/debian/changelog	2024-08-11 00:14:44.000000000 +0000
++++ ncurses-6.5-20240824/package/debian/changelog	2024-08-24 10:17:07.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240817) unstable; urgency=low
++ncurses6td (6.5+20240824) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 10 Aug 2024 20:14:44 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 24 Aug 2024 06:17:07 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.662 
+--- ncurses-6.5-20240817+/package/mingw-ncurses.nsi	2024-08-11 00:14:44.000000000 +0000
++++ ncurses-6.5-20240824/package/mingw-ncurses.nsi	2024-08-24 10:17:07.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.662 2024/08/11 00:14:44 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.663 2024/08/24 10:17:07 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "0817"
++!define VERSION_MMDD  "0824"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20240817+/package/mingw-ncurses.spec	2024-08-11 00:14:44.000000000 +0000
++++ ncurses-6.5-20240824/package/mingw-ncurses.spec	2024-08-24 10:17:07.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20240817
++Release: 20240824
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20240817+/package/ncurses.spec	2024-08-11 00:14:44.000000000 +0000
++++ ncurses-6.5-20240824/package/ncurses.spec	2024-08-24 10:17:07.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20240817
++Release: 20240824
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20240817+/package/ncursest.spec	2024-08-11 00:14:44.000000000 +0000
++++ ncurses-6.5-20240824/package/ncursest.spec	2024-08-24 10:17:07.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20240817
++Release: 20240824
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/Makefile.in
+Prereq:  1.116 
+--- ncurses-6.5-20240817+/progs/Makefile.in	2024-08-10 18:13:22.000000000 +0000
++++ ncurses-6.5-20240824/progs/Makefile.in	2024-08-24 22:51:58.000000000 +0000
+@@ -1,4 +1,4 @@
+-# $Id: Makefile.in,v 1.116 2024/08/10 18:13:22 tom Exp $
++# $Id: Makefile.in,v 1.117 2024/08/24 22:51:58 tom Exp $
+ ##############################################################################
+ # Copyright 2020-2021,2024 Thomas E. Dickey                                  #
+ # Copyright 1998-2016,2018 Free Software Foundation, Inc.                    #
+@@ -95,7 +95,7 @@
+ 
+ INCDIR		= $(top_srcdir)/include
+ NCUDIR		= $(top_srcdir)/ncurses
+-CPPFLAGS	= -DHAVE_CONFIG_H -I../progs -I../ncurses -I$(top_srcdir)/ncurses @CPPFLAGS@
++CPPFLAGS	= -DHAVE_CONFIG_H -DACTUAL_TIC="\"$(actual_tic)\"" -I../progs -I../ncurses -I$(top_srcdir)/ncurses @CPPFLAGS@
+ 
+ CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
+ 
+Index: progs/infocmp.c
+Prereq:  1.163 
+--- ncurses-6.5-20240817+/progs/infocmp.c	2023-12-16 17:27:47.000000000 +0000
++++ ncurses-6.5-20240824/progs/infocmp.c	2024-08-24 22:57:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -43,7 +43,11 @@
+ 
+ #include <dump_entry.h>
+ 
+-MODULE_ID("$Id: infocmp.c,v 1.163 2023/12/16 17:27:47 tom Exp $")
++MODULE_ID("$Id: infocmp.c,v 1.164 2024/08/24 22:57:24 tom Exp $")
++
++#ifndef ACTUAL_TIC
++#define ACTUAL_TIC "tic"
++#endif
+ 
+ #define MAX_STRING	1024	/* maximum formatted string */
+ 
+@@ -61,6 +65,9 @@
+ static ENTRY *entries;		/* terminfo entries */
+ static int termcount;		/* count of terminal entries */
+ 
++static const char usage_string[] = \
++"Usage: %s [options] [-A directory] [-B directory] [termname...]";
++
+ static bool limited = TRUE;	/* "-r" option is not set */
+ static bool quiet = FALSE;
+ static bool literal = FALSE;
+@@ -1216,7 +1223,6 @@
+ #define DATA(s) s "\n"
+     static const char head[] =
+     {
+-	DATA("Usage: infocmp [options] [-A directory] [-B directory] [termname...]")
+ 	DATA("")
+ 	DATA("Options:")
+     };
+@@ -1271,14 +1277,16 @@
+     const size_t last = SIZEOF(options);
+     const size_t left = (last + 1) / 2;
+     size_t n;
++    FILE *fp = stderr;
+ 
+-    fputs(head, stderr);
++    fprintf(fp, usage_string, _nc_progname);
++    fputs(head, fp);
+     for (n = 0; n < left; n++) {
+ 	size_t m = n + left;
+ 	if (m < last)
+-	    fprintf(stderr, "%-40.40s%s\n", options[n], options[m]);
++	    fprintf(fp, "%-40.40s%s\n", options[n], options[m]);
+ 	else
+-	    fprintf(stderr, "%s\n", options[n]);
++	    fprintf(fp, "%s\n", options[n]);
+     }
+     ExitProgram(EXIT_FAILURE);
+ }
+@@ -1933,8 +1941,8 @@
+ 				   tname[0]);
+ 		if (!quiet)
+ 		    (void)
+-			printf("#\tReconstructed via infocmp from file: %s\n",
+-			       tfile[0]);
++			printf("#\tReconstructed via %s from file: %s\n",
++			       _nc_progname, tfile[0]);
+ 		dump_entry(&entries[0].tterm,
+ 			   suppress_untranslatable,
+ 			   limited,
+@@ -1980,7 +1988,8 @@
+     } else if (compare == C_USEALL) {
+ 	(void) fprintf(stderr, "Sorry, -u doesn't work with -F\n");
+     } else if (compare == C_DEFAULT) {
+-	(void) fprintf(stderr, "Use `tic -[CI] <file>' for this.\n");
++	(void) fprintf(stderr,
++		       "Use `" ACTUAL_TIC " -[CI] <file>' for this.\n");
+     } else if (argc - optind != 2) {
+ 	(void) fprintf(stderr,
+ 		       "File comparison needs exactly two file arguments.\n");
+Index: progs/tabs.c
+Prereq:  1.53 
+--- ncurses-6.5-20240817+/progs/tabs.c	2023-11-04 20:46:09.000000000 +0000
++++ ncurses-6.5-20240824/progs/tabs.c	2024-08-24 22:56:43.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -39,7 +39,7 @@
+ #include <progs.priv.h>
+ #include <tty_settings.h>
+ 
+-MODULE_ID("$Id: tabs.c,v 1.53 2023/11/04 20:46:09 tom Exp $")
++MODULE_ID("$Id: tabs.c,v 1.54 2024/08/24 22:56:43 tom Exp $")
+ 
+ static GCC_NORETURN void usage(void);
+ 
+@@ -445,7 +445,6 @@
+ #define DATA(s) s "\n"
+     static const char msg[] =
+     {
+-	DATA("Usage: tabs [options] [tabstop-list]")
+ 	DATA("")
+ 	DATA("Options:")
+ 	DATA("  -0       reset tabs")
+@@ -468,9 +467,11 @@
+ 	DATA("or 1,+10,+10 which is the same.")
+     };
+ #undef DATA
++    FILE *fp = stderr;
+ 
+     fflush(stdout);
+-    fputs(msg, stderr);
++    fprintf(fp, "Usage: %s [options] [tabstop-list]\n", _nc_progname);
++    fputs(msg, fp);
+     ExitProgram(EXIT_FAILURE);
+ }
+ 
+Index: test/demo_keyok.c
+Prereq:  1.9 
+--- ncurses-6.5-20240817+/test/demo_keyok.c	2022-12-10 23:31:31.000000000 +0000
++++ ncurses-6.5-20240824/test/demo_keyok.c	2024-08-24 17:16:49.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2002-2006,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_keyok.c,v 1.9 2022/12/10 23:31:31 tom Exp $
++ * $Id: demo_keyok.c,v 1.10 2024/08/24 17:16:49 tom Exp $
+  *
+  * Demonstrate the keyok() function.
+  * Thomas Dickey - 2002/11/23
+@@ -93,6 +93,8 @@
+ 
+     while ((ch = wgetch(win)) != ERR) {
+ 	const char *name = keyname(ch);
++	if (ch == QUIT)
++	    break;
+ 	if (ch == ESCAPE && prior == ch)
+ 	    break;
+ 	prior = ch;

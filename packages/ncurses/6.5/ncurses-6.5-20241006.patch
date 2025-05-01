@@ -1,0 +1,3460 @@
+# ncurses 6.5 - patch 20241006 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20241006.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Oct  6 23:44:01 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                             |    6 +++
+# VERSION                          |    2 -
+# c++/cursesf.cc                   |    6 +--
+# c++/cursesf.h                    |    6 +--
+# c++/cursesm.cc                   |    6 +--
+# c++/cursesm.h                    |    6 +--
+# c++/cursesp.cc                   |    6 +--
+# c++/cursespad.cc                 |    6 +--
+# c++/cursslk.cc                   |   12 +++----
+# c++/cursslk.h                    |    6 +--
+# dist.mk                          |    4 +-
+# misc/terminfo.src                |   23 +++++++++++--
+# ncurses/base/lib_screen.c        |    4 +-
+# ncurses/base/new_pair.c          |    4 +-
+# ncurses/curses.priv.h            |    4 +-
+# ncurses/new_pair.h               |    4 +-
+# ncurses/tinfo/trim_sgr0.c        |    7 ++--
+# ncurses/tty/lib_twait.c          |    6 +--
+# package/debian-mingw/changelog   |    4 +-
+# package/debian-mingw64/changelog |    4 +-
+# package/debian/changelog         |    4 +-
+# package/mingw-ncurses.nsi        |    4 +-
+# package/mingw-ncurses.spec       |    2 -
+# package/ncurses.spec             |    2 -
+# package/ncursest.spec            |    2 -
+# test/blue.c                      |   10 +++---
+# test/bs.c                        |    8 ++--
+# test/cardfile.c                  |   12 +++----
+# test/chgat.c                     |    6 +--
+# test/clip_printw.c               |    8 ++--
+# test/color_name.h                |    6 +--
+# test/demo_defkey.c               |    4 +-
+# test/demo_forms.c                |   22 ++++++-------
+# test/demo_menus.c                |   32 ++++++++++---------
+# test/demo_new_pair.c             |    4 +-
+# test/demo_panels.c               |   16 ++++-----
+# test/demo_termcap.c              |   18 +++++-----
+# test/demo_terminfo.c             |   18 +++++-----
+# test/dots.c                      |    6 +--
+# test/dots_mvcur.c                |    6 +--
+# test/dots_termcap.c              |    8 ++--
+# test/dup_field.c                 |   14 ++++----
+# test/filter.c                    |    6 +--
+# test/form_driver_w.c             |    6 +--
+# test/gdc.c                       |   10 +++---
+# test/inch_wide.c                 |    6 +--
+# test/inchs.c                     |    6 +--
+# test/ins_wide.c                  |    6 +--
+# test/insdelln.c                  |    8 ++--
+# test/inserts.c                   |    6 +--
+# test/knight.c                    |    7 ++--
+# test/list_keys.c                 |    8 ++--
+# test/move_field.c                |   18 +++++-----
+# test/movewindow.c                |   16 ++++-----
+# test/ncurses.c                   |   61 +++++++++++++++++++------------------
+# test/padview.c                   |   12 +++----
+# test/parse_rgb.h                 |    6 +--
+# test/picsmap.c                   |   14 ++++----
+# test/popup_msg.c                 |    8 ++--
+# test/popup_msg.h                 |    6 +--
+# test/railroad.c                  |    6 +--
+# test/rain.c                      |   20 ++++++------
+# test/redraw.c                    |    6 +--
+# test/savescreen.c                |   14 ++++----
+# test/tclock.c                    |    4 +-
+# test/test.priv.h                 |   10 +++---
+# test/test_add_wchstr.c           |    6 +--
+# test/test_addchstr.c             |    6 +--
+# test/test_addstr.c               |    6 +--
+# test/test_addwstr.c              |    6 +--
+# test/test_endwin.c               |    6 +--
+# test/test_get_wstr.c             |    8 ++--
+# test/test_getstr.c               |    8 ++--
+# test/test_instr.c                |    8 ++--
+# test/test_inwstr.c               |    8 ++--
+# test/test_mouse.c                |    4 +-
+# test/test_opaque.c               |    8 ++--
+# test/test_sgr.c                  |   26 +++++++--------
+# test/test_tparm.c                |   12 +++----
+# test/test_vidputs.c              |    6 +--
+# test/testcurs.c                  |    8 ++--
+# test/testscanw.c                 |    6 +--
+# test/view.c                      |   21 +++++-------
+# 83 files changed, 392 insertions(+), 369 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4185 
+--- ncurses-6.5-20240928+/NEWS	2024-09-28 20:27:44.000000000 +0000
++++ ncurses-6.5-20241006/NEWS	2024-10-06 08:53:45.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4185 2024/09/28 20:27:44 tom Exp $
++-- $Id: NEWS,v 1.4188 2024/10/06 08:53:45 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,10 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20241006
++	+ fixes for compiler warnings/cppcheck.
++	+ use xterm+alt+title in wezterm -TD
++
+ 20240928
+ 	+ improve error-message from infocmp when a terminal entry cannot be
+ 	  opened (patch by Branden Robinson).
+Index: VERSION
+--- ncurses-6.5-20240928+/VERSION	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/VERSION	2024-10-06 08:53:45.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20240928
++5:0:10	6.5	20241006
+Index: c++/cursesf.cc
+Prereq:  1.26 
+--- ncurses-6.5-20240928+/c++/cursesf.cc	2021-04-17 18:11:08.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursesf.cc	2024-10-05 22:47:12.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
++ * Copyright 2019-2021,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2005,2011 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ #include "cursesf.h"
+ #include "cursesapp.h"
+ 
+-MODULE_ID("$Id: cursesf.cc,v 1.26 2021/04/17 18:11:08 tom Exp $")
++MODULE_ID("$Id: cursesf.cc,v 1.27 2024/10/05 22:47:12 tom Exp $")
+ 
+ NCursesFormField::~NCursesFormField () THROWS(NCursesException)
+ {
+@@ -76,7 +76,7 @@
+ 
+ void NCursesForm::setDefaultAttributes()
+ {
+-  NCursesApplication* S = NCursesApplication::getApplication();
++  const NCursesApplication* S = NCursesApplication::getApplication();
+ 
+   int n = count();
+   if (n > 0) {
+Index: c++/cursesf.h
+Prereq:  1.39 
+--- ncurses-6.5-20240928+/c++/cursesf.h	2022-08-20 20:52:15.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursesf.h	2024-10-05 22:47:12.000000000 +0000
+@@ -1,7 +1,7 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ // vile:cppmode
+ /****************************************************************************
+- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -33,7 +33,7 @@
+  *   Author: Juergen Pfeifer, 1997                                          *
+  ****************************************************************************/
+ 
+-// $Id: cursesf.h,v 1.39 2022/08/20 20:52:15 tom Exp $
++// $Id: cursesf.h,v 1.40 2024/10/05 22:47:12 tom Exp $
+ 
+ #ifndef NCURSES_CURSESF_H_incl
+ #define NCURSES_CURSESF_H_incl 1
+@@ -384,7 +384,7 @@
+   }
+ 
+   inline void *get_user() {
+-    UserHook* uptr = reinterpret_cast<UserHook*>(::form_userptr (form));
++    const UserHook* uptr = reinterpret_cast<UserHook*>(::form_userptr (form));
+     assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==form);
+     return uptr->m_user;
+   }
+Index: c++/cursesm.cc
+Prereq:  1.27 
+--- ncurses-6.5-20240928+/c++/cursesm.cc	2021-04-17 18:11:08.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursesm.cc	2024-10-05 22:47:12.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
++ * Copyright 2019-2021,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2011,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ #include "cursesm.h"
+ #include "cursesapp.h"
+ 
+-MODULE_ID("$Id: cursesm.cc,v 1.27 2021/04/17 18:11:08 tom Exp $")
++MODULE_ID("$Id: cursesm.cc,v 1.28 2024/10/05 22:47:12 tom Exp $")
+ 
+ NCursesMenuItem::~NCursesMenuItem() THROWS(NCursesException)
+ {
+@@ -168,7 +168,7 @@
+ void
+ NCursesMenu::setDefaultAttributes()
+ {
+-  NCursesApplication* S = NCursesApplication::getApplication();
++  const NCursesApplication* S = NCursesApplication::getApplication();
+   if (S) {
+     ::set_menu_fore(menu, S->foregrounds());
+     ::set_menu_back(menu, S->backgrounds());
+Index: c++/cursesm.h
+Prereq:  1.35 
+--- ncurses-6.5-20240928+/c++/cursesm.h	2022-08-20 20:52:15.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursesm.h	2024-10-05 22:47:12.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -32,7 +32,7 @@
+  *   Author: Juergen Pfeifer, 1997                                          *
+  ****************************************************************************/
+ 
+-// $Id: cursesm.h,v 1.35 2022/08/20 20:52:15 tom Exp $
++// $Id: cursesm.h,v 1.36 2024/10/05 22:47:12 tom Exp $
+ 
+ #ifndef NCURSES_CURSESM_H_incl
+ #define NCURSES_CURSESM_H_incl 1
+@@ -245,7 +245,7 @@
+   }
+ 
+   inline void *get_user() {
+-    UserHook* uptr = STATIC_CAST(UserHook*)(::menu_userptr (menu));
++    const UserHook* uptr = STATIC_CAST(UserHook*)(::menu_userptr (menu));
+     assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==menu);
+     return uptr->m_user;
+   }
+Index: c++/cursesp.cc
+Prereq:  1.27 
+--- ncurses-6.5-20240928+/c++/cursesp.cc	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursesp.cc	2024-10-05 22:47:12.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019,2020 Thomas E. Dickey                                     *
++ * Copyright 2019-2020,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2003,2005 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -35,7 +35,7 @@
+ #include "internal.h"
+ #include "cursesp.h"
+ 
+-MODULE_ID("$Id: cursesp.cc,v 1.27 2020/02/02 23:34:34 tom Exp $")
++MODULE_ID("$Id: cursesp.cc,v 1.28 2024/10/05 22:47:12 tom Exp $")
+ 
+ NCursesPanel* NCursesPanel::dummy = static_cast<NCursesPanel*>(0);
+ 
+@@ -64,7 +64,7 @@
+ void
+ NCursesPanel::redraw()
+ {
+-  PANEL *pan;
++  const PANEL *pan;
+ 
+   pan = ::panel_above(NULL);
+   while (pan) {
+Index: c++/cursespad.cc
+Prereq:  1.18 
+--- ncurses-6.5-20240928+/c++/cursespad.cc	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursespad.cc	2024-10-05 22:47:12.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2020 Thomas E. Dickey                                          *
++ * Copyright 2020,2024 Thomas E. Dickey                                     *
+  * Copyright 1999-2012,2013 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ 
+ #include <cursesw.h>
+ 
+-MODULE_ID("$Id: cursespad.cc,v 1.18 2020/02/02 23:34:34 tom Exp $")
++MODULE_ID("$Id: cursespad.cc,v 1.19 2024/10/05 22:47:12 tom Exp $")
+ 
+ NCursesPad::NCursesPad(int nlines, int ncols)
+   : NCursesWindow(),
+@@ -221,7 +221,7 @@
+ void NCursesFramedPad::OnOperation(int pad_req)
+ {
+   (void) pad_req;
+-  NCursesWindow* W = Win();
++  const NCursesWindow* W = Win();
+   NCursesWindow* W2 = getWindow();
+ 
+   if ((static_cast<NCursesWindow*>(0) != W) && (static_cast<NCursesWindow*>(0) != W2)) {
+Index: c++/cursslk.cc
+Prereq:  1.22 
+--- ncurses-6.5-20240928+/c++/cursslk.cc	2024-06-15 21:07:30.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursslk.cc	2024-10-05 19:36:22.000000000 +0000
+@@ -35,10 +35,10 @@
+ #include "internal.h"
+ #include "cursesapp.h"
+ 
+-MODULE_ID("$Id: cursslk.cc,v 1.22 2024/06/15 21:07:30 tom Exp $")
++MODULE_ID("$Id: cursslk.cc,v 1.23 2024/10/05 19:36:22 tom Exp $")
+ 
+ Soft_Label_Key_Set::Soft_Label_Key&
+-  Soft_Label_Key_Set::Soft_Label_Key::operator=(char *text)
++  Soft_Label_Key_Set::Soft_Label_Key::operator=(const char *text)
+ {
+   delete[] label;
+   size_t need = 1 + ::strlen(text);
+@@ -111,11 +111,11 @@
+ 
+ void Soft_Label_Key_Set::activate_label(int i, bool bf) {
+   if (!b_attrInit) {
+-    NCursesApplication* A = NCursesApplication::getApplication();
++    const NCursesApplication* A = NCursesApplication::getApplication();
+     if (A) attrset(A->labels());
+     b_attrInit = TRUE;
+   }
+-  Soft_Label_Key& K = (*this)[i];
++  const Soft_Label_Key& K = (*this)[i];
+   if (ERR==::slk_set(K.num,bf?K.label:"",K.format))
+     Error("slk_set");
+   noutrefresh();
+@@ -124,12 +124,12 @@
+ void Soft_Label_Key_Set::activate_labels(bool bf)
+ {
+   if (!b_attrInit) {
+-    NCursesApplication* A = NCursesApplication::getApplication();
++    const NCursesApplication* A = NCursesApplication::getApplication();
+     if (A) attrset(A->labels());
+     b_attrInit = TRUE;
+   }
+   for(int i=1; i <= num_labels; i++) {
+-    Soft_Label_Key& K = (*this)[i];
++    const Soft_Label_Key& K = (*this)[i];
+     if (ERR==::slk_set(K.num,bf?K.label:"",K.format))
+       Error("slk_set");
+   }
+Index: c++/cursslk.h
+Prereq:  1.19 
+--- ncurses-6.5-20240928+/c++/cursslk.h	2021-04-17 18:11:08.000000000 +0000
++++ ncurses-6.5-20241006/c++/cursslk.h	2024-10-05 22:47:12.000000000 +0000
+@@ -1,7 +1,7 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ // vile:cppmode
+ /****************************************************************************
+- * Copyright 2019-2020,2021 Thomas E. Dickey                                *
++ * Copyright 2019-2021,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2003,2005 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -33,7 +33,7 @@
+  *   Author: Juergen Pfeifer, 1997                                          *
+  ****************************************************************************/
+ 
+-// $Id: cursslk.h,v 1.19 2021/04/17 18:11:08 tom Exp $
++// $Id: cursslk.h,v 1.20 2024/10/05 22:47:12 tom Exp $
+ 
+ #ifndef NCURSES_CURSSLK_H_incl
+ #define NCURSES_CURSSLK_H_incl
+@@ -62,7 +62,7 @@
+ 
+   public:
+     // Set the text of the Label
+-    Soft_Label_Key& operator=(char *text);
++    Soft_Label_Key& operator=(const char *text);
+ 
+     // Set the Justification of the Label
+     Soft_Label_Key& operator=(Justification just) {
+Index: dist.mk
+Prereq:  1.1634 
+--- ncurses-6.5-20240928+/dist.mk	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/dist.mk	2024-10-06 08:53:45.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1634 2024/09/28 09:53:21 tom Exp $
++# $Id: dist.mk,v 1.1636 2024/10/06 08:53:45 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20240928
++NCURSES_PATCH = 20241006
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/terminfo.src
+--- ncurses-6.5-20240928+/misc/terminfo.src	2024-09-07 16:23:31.000000000 +0000
++++ ncurses-6.5-20241006/misc/terminfo.src	2024-10-05 16:04:17.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1150 $
+-#	$Date: 2024/09/07 16:23:31 $
++#	$Revision: 1.1153 $
++#	$Date: 2024/10/05 16:04:17 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -8060,6 +8060,17 @@
+ # "wezterm is a terminal emulator with support for modern features
+ #  such as fonts with ligatures, hyperlinks, tabs and multiple windows."
+ #
++# The documentation bears mention.  It refers to the "ANSI" standard and
++# 	https://wezfurlong.org/wezterm/what-is-a-terminal.html#ansi-and-ecma-48
++# X3.64 (withdrawn long ago).  A related website
++#	https://github.com/wez/ecma48
++# states that ECMA-48 was issued in 1979 and not revised since.  Actually that
++# was the second revision; the fifth revision in 1991 is current.  The source
++# code refers to the second revision in a half-dozen places.  Further, there
++# are three times as many references to Wikipedia as to xterm's documentation.
++# The git commit comments in several instances hint at an incomplete reading
++# of the relevant standards.
++#
+ # wezterm-20240203-110809-5046fc22 tested with MacOS
+ # General:
+ # + initial screensize is now 80x24
+@@ -8094,7 +8105,7 @@
+ # + poor (doesn't copy anyone, most of the results are wrong)
+ # vttest:
+ # + DA is VT5xx with sixel, selective erase, user windows, color
+-# + DA2 is VT220 version 277
++# + DA2 is VT220 version 277, perhaps a reference to xterm #277
+ # + only the VT100 character set works, contrary to DA/DA2.
+ # + no NRCS, either
+ # + double-sized character work, with some debris
+@@ -8136,7 +8147,7 @@
+ 	use=ansi+rep, use=ansi+sgrdim, use=bracketed+paste,
+ 	use=ecma+index, use=ecma+italics, use=ecma+strikeout,
+ 	use=report+version, use=vt220+cvis,
+-	use=xterm+256color2, use=xterm+alt1049,
++	use=xterm+256color2, use=xterm+alt+title,
+ 	use=xterm+focus, use=xterm+pcc2, use=xterm+pce2,
+ 	use=xterm+pcf2, use=xterm+sl-alt, use=xterm+sm+1006,
+ 	use=xterm+tmux,
+@@ -27644,4 +27655,8 @@
+ # 2024-09-07
+ #	+ update comments -TD
+ #
++# 2024-10-05
++#	+ use xterm+alt+title in wezterm -TD
++#	+ update comments -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: ncurses/base/lib_screen.c
+Prereq:  1.108 
+--- ncurses-6.5-20240928+/ncurses/base/lib_screen.c	2024-09-22 20:20:36.000000000 +0000
++++ ncurses-6.5-20241006/ncurses/base/lib_screen.c	2024-10-05 20:47:44.000000000 +0000
+@@ -42,7 +42,7 @@
+ #define CUR SP_TERMTYPE
+ #endif
+ 
+-MODULE_ID("$Id: lib_screen.c,v 1.108 2024/09/22 20:20:36 tom Exp $")
++MODULE_ID("$Id: lib_screen.c,v 1.109 2024/10/05 20:47:44 tom Exp $")
+ 
+ #define MAX_SIZE 0x3fff		/* 16k is big enough for a window or pad */
+ 
+@@ -943,7 +943,7 @@
+  * Replace a window covering the whole screen, i.e., newscr or curscr.
+  */
+ static WINDOW *
+-replace_window(WINDOW *target, FILE *source)
++replace_window(const WINDOW *target, FILE *source)
+ {
+     WINDOW *result = getwin(source);
+ #if NCURSES_EXT_FUNCS
+Index: ncurses/base/new_pair.c
+Prereq:  1.24 
+--- ncurses-6.5-20240928+/ncurses/base/new_pair.c	2024-07-27 19:22:23.000000000 +0000
++++ ncurses-6.5-20241006/ncurses/base/new_pair.c	2024-10-05 20:51:29.000000000 +0000
+@@ -61,7 +61,7 @@
+ 
+ #endif
+ 
+-MODULE_ID("$Id: new_pair.c,v 1.24 2024/07/27 19:22:23 tom Exp $")
++MODULE_ID("$Id: new_pair.c,v 1.25 2024/10/05 20:51:29 tom Exp $")
+ 
+ #if NCURSES_EXT_COLORS
+ 
+@@ -193,7 +193,7 @@
+  * pair table.
+  */
+ NCURSES_EXPORT(void)
+-_nc_reset_color_pair(SCREEN *sp, int pair, colorpair_t * next)
++_nc_reset_color_pair(SCREEN *sp, int pair, const colorpair_t * next)
+ {
+     colorpair_t *last;
+ 
+Index: ncurses/curses.priv.h
+Prereq:  1.691 
+--- ncurses-6.5-20240928+/ncurses/curses.priv.h	2024-09-28 15:35:01.000000000 +0000
++++ ncurses-6.5-20241006/ncurses/curses.priv.h	2024-10-05 21:01:50.000000000 +0000
+@@ -35,7 +35,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: curses.priv.h,v 1.691 2024/09/28 15:35:01 tom Exp $
++ * $Id: curses.priv.h,v 1.692 2024/10/05 21:01:50 tom Exp $
+  *
+  *	curses.priv.h
+  *
+@@ -2170,7 +2170,7 @@
+ extern NCURSES_EXPORT(int) _nc_read_termcap_entry (const char *const, TERMTYPE2 *const);
+ extern NCURSES_EXPORT(int) _nc_setup_tinfo(const char *, TERMTYPE2 *);
+ extern NCURSES_EXPORT(int) _nc_setupscreen (int, int, FILE *, int, int);
+-extern NCURSES_EXPORT(int) _nc_timed_wait (SCREEN *, int, int, int * EVENTLIST_2nd(_nc_eventlist *));
++extern NCURSES_EXPORT(int) _nc_timed_wait (const SCREEN *, int, int, int * EVENTLIST_2nd(_nc_eventlist *));
+ extern NCURSES_EXPORT(int) _nc_trans_string (char *, const char *);
+ extern NCURSES_EXPORT(void) _nc_init_termtype (TERMTYPE2 *const);
+ extern NCURSES_EXPORT(void) _nc_do_color (int, int, int, NCURSES_OUTC);
+Index: ncurses/new_pair.h
+Prereq:  1.14 
+--- ncurses-6.5-20240928+/ncurses/new_pair.h	2024-05-25 23:10:33.000000000 +0000
++++ ncurses-6.5-20241006/ncurses/new_pair.h	2024-10-05 20:57:47.000000000 +0000
+@@ -34,7 +34,7 @@
+ /*
+  * Common type definitions and macros for new_pair.c, lib_color.c
+  *
+- * $Id: new_pair.h,v 1.14 2024/05/25 23:10:33 tom Exp $
++ * $Id: new_pair.h,v 1.15 2024/10/05 20:57:47 tom Exp $
+  */
+ 
+ #ifndef NEW_PAIR_H
+@@ -116,7 +116,7 @@
+ #if NCURSES_EXT_FUNCS && NCURSES_EXT_COLORS
+ extern NCURSES_EXPORT(void)     _nc_copy_pairs(SCREEN*, colorpair_t*, colorpair_t*, int);
+ extern NCURSES_EXPORT(void)     _nc_free_ordered_pairs(SCREEN*);
+-extern NCURSES_EXPORT(void)     _nc_reset_color_pair(SCREEN*, int, colorpair_t*);
++extern NCURSES_EXPORT(void)     _nc_reset_color_pair(SCREEN*, int, const colorpair_t*);
+ extern NCURSES_EXPORT(void)     _nc_set_color_pair(SCREEN*, int, int);
+ #else
+ #define _nc_free_ordered_pairs(sp) /* nothing */
+Index: ncurses/tinfo/trim_sgr0.c
+Prereq:  1.23 
+--- ncurses-6.5-20240928+/ncurses/tinfo/trim_sgr0.c	2024-07-27 19:22:23.000000000 +0000
++++ ncurses-6.5-20241006/ncurses/tinfo/trim_sgr0.c	2024-10-05 20:53:48.000000000 +0000
+@@ -37,7 +37,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: trim_sgr0.c,v 1.23 2024/07/27 19:22:23 tom Exp $")
++MODULE_ID("$Id: trim_sgr0.c,v 1.24 2024/10/05 20:53:48 tom Exp $")
+ 
+ #undef CUR
+ #define CUR tp->
+@@ -237,12 +237,10 @@
+ 
+     if (PRESENT(exit_attribute_mode)
+ 	&& PRESENT(set_attributes)) {
+-	bool found = FALSE;
+ 	char *on = set_attribute_9(tp, 1);
+ 	char *off = set_attribute_9(tp, 0);
+ 	char *end = strdup(exit_attribute_mode);
+ 	char *tmp;
+-	size_t i, j, k;
+ 
+ 	TR(TRACE_DATABASE, ("checking if we can trim sgr0 based on sgr"));
+ 	TR(TRACE_DATABASE, ("sgr0       %s", _nc_visbuf(end)));
+@@ -255,6 +253,9 @@
+ 	    FreeIfNeeded(off);
+ 	} else if (similar_sgr(off, end)
+ 		   && !similar_sgr(off, on)) {
++	    bool found = FALSE;
++	    size_t i, j, k;
++
+ 	    TR(TRACE_DATABASE, ("adjusting sgr(9:off) : %s", _nc_visbuf(off)));
+ 	    result = off;
+ 	    /*
+Index: ncurses/tty/lib_twait.c
+Prereq:  1.81 
+--- ncurses-6.5-20240928+/ncurses/tty/lib_twait.c	2023-09-16 16:30:40.000000000 +0000
++++ ncurses-6.5-20241006/ncurses/tty/lib_twait.c	2024-10-05 22:47:12.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -76,7 +76,7 @@
+ #endif
+ #undef CUR
+ 
+-MODULE_ID("$Id: lib_twait.c,v 1.81 2023/09/16 16:30:40 tom Exp $")
++MODULE_ID("$Id: lib_twait.c,v 1.82 2024/10/05 22:47:12 tom Exp $")
+ 
+ /*
+  * Returns an elapsed time, in milliseconds (if possible).
+@@ -168,7 +168,7 @@
+  * descriptors.
+  */
+ NCURSES_EXPORT(int)
+-_nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
++_nc_timed_wait(const SCREEN *sp MAYBE_UNUSED,
+ 	       int mode MAYBE_UNUSED,
+ 	       int milliseconds,
+ 	       int *timeleft
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20240928+/package/debian-mingw/changelog	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/package/debian-mingw/changelog	2024-10-06 08:53:45.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240928) unstable; urgency=low
++ncurses6td (6.5+20241006) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Sep 2024 05:53:21 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 06 Oct 2024 04:53:45 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20240928+/package/debian-mingw64/changelog	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/package/debian-mingw64/changelog	2024-10-06 08:53:45.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240928) unstable; urgency=low
++ncurses6td (6.5+20241006) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Sep 2024 05:53:21 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 06 Oct 2024 04:53:45 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20240928+/package/debian/changelog	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/package/debian/changelog	2024-10-06 08:53:45.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240928) unstable; urgency=low
++ncurses6td (6.5+20241006) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Sep 2024 05:53:21 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 06 Oct 2024 04:53:45 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.669 
+--- ncurses-6.5-20240928+/package/mingw-ncurses.nsi	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/package/mingw-ncurses.nsi	2024-10-06 08:53:45.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.669 2024/09/28 09:53:21 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.671 2024/10/06 08:53:45 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "0928"
++!define VERSION_MMDD  "1006"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20240928+/package/mingw-ncurses.spec	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/package/mingw-ncurses.spec	2024-10-06 08:53:45.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20240928
++Release: 20241006
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20240928+/package/ncurses.spec	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/package/ncurses.spec	2024-10-06 08:53:45.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20240928
++Release: 20241006
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20240928+/package/ncursest.spec	2024-09-28 09:53:21.000000000 +0000
++++ ncurses-6.5-20241006/package/ncursest.spec	2024-10-06 08:53:45.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20240928
++Release: 20241006
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: test/blue.c
+Prereq:  1.55 
+--- ncurses-6.5-20240928+/test/blue.c	2022-12-10 23:31:31.000000000 +0000
++++ ncurses-6.5-20241006/test/blue.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -37,7 +37,7 @@
+  *****************************************************************************/
+ 
+ /*
+- * $Id: blue.c,v 1.55 2022/12/10 23:31:31 tom Exp $
++ * $Id: blue.c,v 1.56 2024/10/05 19:26:24 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -437,7 +437,7 @@
+ static void
+ use_pc_display(void)
+ {
+-    char *check = nl_langinfo(CODESET);
++    const char *check = nl_langinfo(CODESET);
+     if (!strcmp(check, "UTF-8")) {
+ #if USE_WIDEC_SUPPORT
+ 	suits = uglyphs;
+@@ -448,8 +448,8 @@
+ 	    !strcmp(check, "CP437") ||
+ 	    !strcmp(check, "IBM850") ||
+ 	    !strcmp(check, "CP850")) {
+-	    char *smacs = tigetstr("smacs");
+-	    char *smpch = tigetstr("smpch");
++	    const char *smacs = tigetstr("smacs");
++	    const char *smpch = tigetstr("smpch");
+ 	    /*
+ 	     * The ncurses library makes this check to decide whether to allow
+ 	     * the alternate character set for the (normally) nonprinting codes.
+Index: test/bs.c
+Prereq:  1.79 
+--- ncurses-6.5-20240928+/test/bs.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241006/test/bs.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -35,7 +35,7 @@
+  * v2.0 featuring strict ANSI/POSIX conformance, November 1993.
+  * v2.1 with ncurses mouse support, September 1995
+  *
+- * $Id: bs.c,v 1.79 2023/05/27 20:13:10 tom Exp $
++ * $Id: bs.c,v 1.80 2024/10/05 19:26:24 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -147,7 +147,7 @@
+     bool placed;		/* has it been placed on the board? */
+ } ship_t;
+ 
+-static bool checkplace(int b, ship_t * ss, int vis);
++static bool checkplace(int b, const ship_t * ss, int vis);
+ 
+ #define SHIPIT(name, symbol, length) { name, 0, symbol, length, 0,0, 0, FALSE }
+ 
+@@ -686,7 +686,7 @@
+ }
+ 
+ static bool
+-checkplace(int b, ship_t * ss, int vis)
++checkplace(int b, const ship_t * ss, int vis)
+ {
+     int l, xend, yend;
+ 
+Index: test/cardfile.c
+Prereq:  1.51 
+--- ncurses-6.5-20240928+/test/cardfile.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20241006/test/cardfile.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1999-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: cardfile.c,v 1.51 2022/12/04 00:40:11 tom Exp $
++ * $Id: cardfile.c,v 1.52 2024/10/05 19:26:24 tom Exp $
+  *
+  * File format: text beginning in column 1 is a title; other text is content.
+  */
+@@ -161,7 +161,7 @@
+ }
+ 
+ static CARD *
+-find_card(char *title)
++find_card(const char *title)
+ {
+     CARD *card;
+ 
+@@ -173,7 +173,7 @@
+ }
+ 
+ static void
+-read_data(char *fname)
++read_data(const char *fname)
+ {
+     FILE *fp;
+ 
+@@ -341,7 +341,7 @@
+ }
+ 
+ static FIELD **
+-make_fields(CARD * p, int form_high, int form_wide)
++make_fields(const CARD * p, int form_high, int form_wide)
+ {
+     FIELD **f = typeCalloc(FIELD *, (size_t) 3);
+ 
+@@ -385,7 +385,7 @@
+ /*******************************************************************************/
+ 
+ static void
+-cardfile(char *fname)
++cardfile(const char *fname)
+ {
+     WINDOW *win;
+     CARD *p;
+Index: test/chgat.c
+Prereq:  1.21 
+--- ncurses-6.5-20240928+/test/chgat.c	2024-06-29 17:45:32.000000000 +0000
++++ ncurses-6.5-20241006/test/chgat.c	2024-10-06 22:35:55.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: chgat.c,v 1.21 2024/06/29 17:45:32 tom Exp $
++ * $Id: chgat.c,v 1.23 2024/10/06 22:35:55 tom Exp $
+  *
+  * test-driver for chgat/wchgat/mvchgat/mvwchgat
+  */
+@@ -160,7 +160,7 @@
+ }
+ 
+ static void
+-do_subwindow(WINDOW *win, STATUS * sp, void func(WINDOW *))
++do_subwindow(WINDOW *win, const STATUS * sp, void func(WINDOW *))
+ {
+     WINDOW *win1 = newwin(sp->y_max - 2, sp->x_max - 2,
+ 			  sp->y_beg + 1, sp->x_beg + 1);
+@@ -204,7 +204,7 @@
+ static void
+ show_help(WINDOW *win)
+ {
+-    static const char *msgs[] =
++    static NCURSES_CONST char *msgs[] =
+     {
+ 	"Basic commands:"
+ 	,"Use h/j/k/l or arrow keys to move the cursor."
+Index: test/clip_printw.c
+Prereq:  1.23 
+--- ncurses-6.5-20240928+/test/clip_printw.c	2023-09-30 19:57:44.000000000 +0000
++++ ncurses-6.5-20241006/test/clip_printw.c	2024-10-06 22:36:25.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2008-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: clip_printw.c,v 1.23 2023/09/30 19:57:44 tom Exp $
++ * $Id: clip_printw.c,v 1.25 2024/10/06 22:36:25 tom Exp $
+  *
+  * demonstrate how to use printw with/without wrapping.
+  */
+@@ -212,7 +212,7 @@
+ }
+ 
+ static void
+-do_subwindow(WINDOW *win, STATUS * sp, void func(WINDOW *))
++do_subwindow(WINDOW *win, const STATUS * sp, void func(WINDOW *))
+ {
+     WINDOW *win1 = newwin(sp->y_max - (2 * MARGIN),
+ 			  sp->x_max - (2 * MARGIN),
+@@ -268,7 +268,7 @@
+ static void
+ show_help(WINDOW *win)
+ {
+-    static const char *msgs[] =
++    static NCURSES_CONST char *msgs[] =
+     {
+ 	"Basic commands:"
+ 	,"Use h/j/k/l or arrow keys to move the cursor."
+Index: test/color_name.h
+Prereq:  1.9 
+--- ncurses-6.5-20240928+/test/color_name.h	2021-04-24 23:25:29.000000000 +0000
++++ ncurses-6.5-20241006/test/color_name.h	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2021 Thomas E. Dickey                                *
++ * Copyright 2018-2021,2024 Thomas E. Dickey                                *
+  * Copyright 2011-2012,2016 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: color_name.h,v 1.9 2021/04/24 23:25:29 tom Exp $
++ * $Id: color_name.h,v 1.10 2024/10/05 19:26:24 tom Exp $
+  */
+ 
+ #ifndef __COLORNAME_H
+@@ -63,7 +63,6 @@
+ {
+     int result = 0;
+     char *endp = 0;
+-    size_t n;
+ 
+     if ((result = (int) strtol(color, &endp, 0)) >= 0
+ 	&& (endp == 0 || *endp == 0)) {
+@@ -71,6 +70,7 @@
+     } else if (!strcmp(color, "default")) {
+ 	result = -1;
+     } else {
++	size_t n;
+ 	for (n = 0; n < SIZEOF(the_color_names); ++n) {
+ 	    if (!strcmp(the_color_names[n], color)) {
+ 		result = (int) n;
+Index: test/demo_defkey.c
+Prereq:  1.35 
+--- ncurses-6.5-20240928+/test/demo_defkey.c	2024-01-20 20:46:12.000000000 +0000
++++ ncurses-6.5-20241006/test/demo_defkey.c	2024-10-05 18:20:04.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_defkey.c,v 1.35 2024/01/20 20:46:12 tom Exp $
++ * $Id: demo_defkey.c,v 1.36 2024/10/05 18:20:04 tom Exp $
+  *
+  * Demonstrate the define_key() function.
+  * Thomas Dickey - 2002/11/23
+@@ -199,7 +199,7 @@
+ }
+ 
+ static void
+-redefine(WINDOW *win, char *string, int code)
++redefine(WINDOW *win, const char *string, int code)
+ {
+     really_define_key(win, string, code);
+ }
+Index: test/demo_forms.c
+Prereq:  1.63 
+--- ncurses-6.5-20240928+/test/demo_forms.c	2023-11-11 00:29:53.000000000 +0000
++++ ncurses-6.5-20241006/test/demo_forms.c	2024-10-06 21:15:12.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_forms.c,v 1.63 2023/11/11 00:29:53 tom Exp $
++ * $Id: demo_forms.c,v 1.67 2024/10/06 21:15:12 tom Exp $
+  *
+  * Demonstrate a variety of functions from the form library.
+  * Thomas Dickey - 2003/4/26
+@@ -148,7 +148,7 @@
+ }
+ 
+ static FIELD *
+-make_label(const char *label, int frow, int fcol)
++make_label(NCURSES_CONST char *label, int frow, int fcol)
+ {
+     FIELD *f = new_field(1, (int) strlen(label), frow, fcol, 0, 0);
+ 
+@@ -242,7 +242,7 @@
+ #define O_SELECTABLE (O_ACTIVE | O_VISIBLE)
+ 
+ static FIELD *
+-another_field(FORM *form, const FIELD *const field)
++another_field(NCURSES_CONST FORM *form, NCURSES_CONST FIELD *const field)
+ {
+     FIELD **f = form_fields(form);
+     FIELD *result = 0;
+@@ -306,9 +306,9 @@
+ }
+ 
+ static void
+-show_current_field(WINDOW *win, FORM *form)
++show_current_field(WINDOW *win, NCURSES_CONST FORM *form)
+ {
+-    FIELD *field;
++    NCURSES_CONST FIELD *field;
+     int field_rows, field_cols, field_max;
+     int currow, curcol;
+ 
+@@ -325,7 +325,7 @@
+     waddch(win, '\n');
+ 
+     if ((field = current_field(form)) != 0) {
+-	FIELDTYPE *type;
++	NCURSES_CONST FIELDTYPE *type;
+ 	int nbuf;
+ 
+ 	wprintw(win, "Page %d%s, Field %d/%d%s:",
+@@ -383,7 +383,7 @@
+ 
+ 	waddstr(win, "\n");
+ 	for (nbuf = 0; nbuf <= 2; ++nbuf) {
+-	    char *buffer;
++	    NCURSES_CONST char *buffer;
+ 	    if ((buffer = field_buffer(field, nbuf)) != 0) {
+ 		wprintw(win, "buffer %d:", nbuf);
+ 		(void) wattrset(win, A_REVERSE);
+@@ -408,8 +408,8 @@
+     int c;
+     unsigned n = 0;
+     int pg;
+-    const char *fname;
+-    static const char *my_enum[] =
++    NCURSES_CONST char *fname;
++    static NCURSES_CONST char *my_enum[] =
+     {"first", "second", "third", 0};
+ 
+ #ifdef NCURSES_MOUSE_VERSION
+@@ -515,7 +515,7 @@
+     f[n] = (FIELD *) 0;
+ 
+     if ((form = new_form(f)) != 0) {
+-	WINDOW *w;
++	NCURSES_CONST WINDOW *w;
+ 	WINDOW *also;
+ 	int finished = 0;
+ 
+Index: test/demo_menus.c
+Prereq:  1.80 
+--- ncurses-6.5-20240928+/test/demo_menus.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241006/test/demo_menus.c	2024-10-06 19:58:28.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_menus.c,v 1.80 2023/05/27 20:13:10 tom Exp $
++ * $Id: demo_menus.c,v 1.82 2024/10/06 19:58:28 tom Exp $
+  *
+  * Demonstrate a variety of functions from the menu library.
+  * Thomas Dickey - 2005/4/9
+@@ -185,7 +185,7 @@
+ }
+ 
+ static int
+-menu_getc(MENU * m)
++menu_getc(NCURSES_CONST MENU * m)
+ {
+     return wGetchar(menu_win(m));
+ }
+@@ -214,7 +214,7 @@
+ my_menu_init(MENU * menu)
+ {
+     Trace(("called MenuHook my_menu_init"));
+-    mvwprintw(status, 2, 0, "menu_init %p", (void *) menu);
++    mvwprintw(status, 2, 0, "menu_init %p", (const void *) menu);
+     wclrtoeol(status);
+     wrefresh(status);
+ }
+@@ -223,7 +223,7 @@
+ my_menu_term(MENU * menu)
+ {
+     Trace(("called MenuHook my_menu_term"));
+-    mvwprintw(status, 2, 0, "menu_term %p", (void *) menu);
++    mvwprintw(status, 2, 0, "menu_term %p", (const void *) menu);
+     wclrtoeol(status);
+     wrefresh(status);
+ }
+@@ -231,7 +231,7 @@
+ static void
+ my_item_init(MENU * menu)
+ {
+-    ITEM *item = current_item(menu);
++    NCURSES_CONST ITEM *item = current_item(menu);
+     const char *name = item_name(item);
+ 
+     Trace(("called MenuHook my_item_init (%s)", name));
+@@ -243,7 +243,7 @@
+ static void
+ my_item_term(MENU * menu)
+ {
+-    ITEM *item = current_item(menu);
++    NCURSES_CONST ITEM *item = current_item(menu);
+     const char *name = item_name(item);
+ 
+     Trace(("called MenuHook my_item_term (%s)", name));
+@@ -348,7 +348,7 @@
+ 
+ /* force the given menu to appear */
+ static void
+-menu_display(MENU * m)
++menu_display(NCURSES_CONST MENU * m)
+ {
+     touchwin(menu_win(m));
+     wrefresh(menu_win(m));
+@@ -584,10 +584,10 @@
+  * the others
+  */
+ static bool
+-update_trace_menu(MENU * m)
++update_trace_menu(NCURSES_CONST MENU * m)
+ {
+     ITEM **items;
+-    ITEM *i;
++    NCURSES_CONST ITEM *i;
+     bool changed = FALSE;
+ 
+     items = menu_items(m);
+@@ -613,7 +613,7 @@
+     int result;
+ 
+     for (ip = menu_items(mpTrace); *ip; ip++) {
+-	MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
++	NCURSES_CONST MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
+ 	unsigned mask = td->mask;
+ 	if (mask == 0)
+ 	    set_item_value(*ip, _nc_tracing == 0);
+@@ -628,7 +628,7 @@
+ 	    unsigned newtrace = 0;
+ 	    for (ip = menu_items(mpTrace); *ip; ip++) {
+ 		if (item_value(*ip)) {
+-		    MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
++		    NCURSES_CONST MENU_DATA *td = (MENU_DATA *) item_userptr(*ip);
+ 		    newtrace |= td->mask;
+ 		}
+ 	    }
+@@ -718,7 +718,9 @@
+ }
+ 
+ static int
+-move_menu(MENU * menu, MENU * current, int by_y, int by_x)
++move_menu(NCURSES_CONST MENU * menu,
++	  NCURSES_CONST MENU * current,
++	  int by_y, int by_x)
+ {
+     WINDOW *top_win = menu_win(menu);
+     WINDOW *sub_win = menu_sub(menu);
+@@ -798,7 +800,7 @@
+ #endif /* defined(KEY_RESIZE) && NCURSES_EXT_FUNCS */
+ 
+ static void
+-show_status(int ch, MENU * menu)
++show_status(int ch, NCURSES_CONST MENU * menu)
+ {
+     wmove(status, 0, 0);
+     wprintw(status, "key %s, menu %d, mark %s, match %s",
+@@ -919,7 +921,7 @@
+ 	wrefresh(menu_win(last_menu));
+ 	if (code == E_UNKNOWN_COMMAND
+ 	    || code == E_NOT_POSTED) {
+-	    ITEM *item = current_item(last_menu);
++	    NCURSES_CONST ITEM *item = current_item(last_menu);
+ 	    MENU_DATA *td = (MENU_DATA *) item_userptr(item);
+ 	    td->func((int) td->mask);
+ 	}
+Index: test/demo_new_pair.c
+Prereq:  1.28 
+--- ncurses-6.5-20240928+/test/demo_new_pair.c	2024-06-29 19:30:26.000000000 +0000
++++ ncurses-6.5-20241006/test/demo_new_pair.c	2024-10-05 18:21:44.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_new_pair.c,v 1.28 2024/06/29 19:30:26 tom Exp $
++ * $Id: demo_new_pair.c,v 1.29 2024/10/05 18:21:44 tom Exp $
+  *
+  * Demonstrate the alloc_pair() function.
+  */
+@@ -49,7 +49,7 @@
+ static bool
+ valid_cap(NCURSES_CONST char *name)
+ {
+-    char *value = tigetstr(name);
++    const char *value = tigetstr(name);
+     return (value != 0 && value != (char *) -1) ? TRUE : FALSE;
+ }
+ 
+Index: test/demo_panels.c
+Prereq:  1.48 
+--- ncurses-6.5-20240928+/test/demo_panels.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20241006/test/demo_panels.c	2024-10-06 20:01:21.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2018-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2003-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: demo_panels.c,v 1.48 2022/12/04 00:40:11 tom Exp $
++ * $Id: demo_panels.c,v 1.50 2024/10/06 20:01:21 tom Exp $
+  *
+  * Demonstrate a variety of functions from the panel library.
+  */
+@@ -42,7 +42,7 @@
+ #define TEMP_POS '>'
+ 
+ typedef void (*InitPanel) (void);
+-typedef void (*FillPanel) (PANEL *);
++typedef void (*FillPanel) (NCURSES_CONST PANEL *);
+ 
+ static bool use_colors = FALSE;
+ static bool unboxed = FALSE;
+@@ -301,7 +301,7 @@
+ 	int code;
+ 	int y0, x0;
+ 	int y1, x1;
+-	WINDOW *win = panel_window(pans[which]);
++	NCURSES_CONST WINDOW *win = panel_window(pans[which]);
+ 	char also[80];
+ 
+ 	getbegyx(win, y0, x0);
+@@ -368,7 +368,7 @@
+ }
+ 
+ static void
+-fill_panel(PANEL *pan)
++fill_panel(NCURSES_CONST PANEL *pan)
+ {
+     WINDOW *win = panel_window(pan);
+     const char *userptr = (const char *) panel_userptr(pan);
+@@ -388,7 +388,7 @@
+ }
+ 
+ static void
+-fill_unboxed(PANEL *pan)
++fill_unboxed(NCURSES_CONST PANEL *pan)
+ {
+     WINDOW *win = panel_window(pan);
+     const char *userptr = (const char *) panel_userptr(pan);
+@@ -431,7 +431,7 @@
+ }
+ 
+ static void
+-fill_wide_panel(PANEL *pan)
++fill_wide_panel(NCURSES_CONST PANEL *pan)
+ {
+     WINDOW *win = panel_window(pan);
+     int num = ((const char *) panel_userptr(pan))[1];
+@@ -453,7 +453,7 @@
+ #define MAX_PANELS 5
+ 
+ static int
+-which_panel(PANEL *px[MAX_PANELS + 1], PANEL *pan)
++which_panel(PANEL *px[MAX_PANELS + 1], NCURSES_CONST PANEL *pan)
+ {
+     int result = 0;
+     int j;
+Index: test/demo_termcap.c
+Prereq:  1.65 
+--- ncurses-6.5-20240928+/test/demo_termcap.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241006/test/demo_termcap.c	2024-10-06 20:05:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2005-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: demo_termcap.c,v 1.65 2023/05/27 20:13:10 tom Exp $
++ * $Id: demo_termcap.c,v 1.70 2024/10/06 20:05:09 tom Exp $
+  *
+  * A simple demo of the termcap interface.
+  */
+@@ -256,7 +256,7 @@
+      * to hold all of the strings extracted from the terminal entry.
+      */
+     char area[1024], *ap = area;
+-    char *str;
++    NCURSES_CONST char *str;
+     int num;
+ 
+     if ((str = tgetstr(cap, &ap)) != 0) {
+@@ -289,7 +289,7 @@
+ }
+ 
+ static void
+-brute_force(const char *name)
++brute_force(NCURSES_CONST char *name)
+ {
+     char buffer[1024];
+ 
+@@ -369,7 +369,7 @@
+ #ifdef NCURSES_VERSION
+ 	if (x_opt && (my_blob == 0) && y_opt) {
+ #if NCURSES_XNAMES
+-	    TERMTYPE *term = (TERMTYPE *) cur_term;
++	    NCURSES_CONST TERMTYPE *term = (TERMTYPE *) cur_term;
+ 	    if (term != 0
+ 		&& ((NUM_BOOLEANS(term) != BOOLCOUNT)
+ 		    || (NUM_NUMBERS(term) != NUMCOUNT)
+@@ -781,12 +781,12 @@
+ {
+     int ch;
+     int n;
+-    char *name;
++    NCURSES_CONST char *name;
+     bool a_opt = FALSE;
+ #if defined(NCURSES_VERSION) || defined(HAVE_CURSES_DATA_OSPEED)
+     bool v_opt = FALSE;
+ #endif
+-    char *input_name = 0;
++    NCURSES_CONST char *input_name = 0;
+ 
+     int repeat;
+     int r_opt = 1;
+@@ -867,7 +867,7 @@
+ 	    } else if ((name = getenv("TERM")) != 0) {
+ 		brute_force(name);
+ 	    } else {
+-		static char dumb[] = "dumb";
++		static NCURSES_CONST char dumb[] = "dumb";
+ 		brute_force(dumb);
+ 	    }
+ 	}
+@@ -894,7 +894,7 @@
+ 	    } else if ((name = getenv("TERM")) != 0) {
+ 		demo_termcap(name);
+ 	    } else {
+-		static char dumb[] = "dumb";
++		static NCURSES_CONST char dumb[] = "dumb";
+ 		demo_termcap(dumb);
+ 	    }
+ 	}
+Index: test/demo_terminfo.c
+Prereq:  1.57 
+--- ncurses-6.5-20240928+/test/demo_terminfo.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241006/test/demo_terminfo.c	2024-10-06 21:16:43.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: demo_terminfo.c,v 1.57 2023/05/27 20:13:10 tom Exp $
++ * $Id: demo_terminfo.c,v 1.59 2024/10/06 21:16:43 tom Exp $
+  *
+  * A simple demo of the terminfo interface.
+  */
+@@ -253,7 +253,7 @@
+ #define LegalItem(c,n) (n)
+ 
+ static void
+-brute_force(const char *name)
++brute_force(NCURSES_CONST char *name)
+ {
+ #define MAX_FORCE 5		/* omit "colors", since CPU-time is a problem */
+     static const char legal[] = "\
+@@ -324,7 +324,7 @@
+ #endif
+ 
+ static void
+-demo_terminfo(char *name)
++demo_terminfo(NCURSES_CONST char *name)
+ {
+     unsigned n;
+     NCURSES_CONST char *cap;
+@@ -366,7 +366,7 @@
+     if (x_opt && (my_blob == 0)) {
+ 	if (y_opt) {
+ #if NCURSES_XNAMES
+-	    TERMTYPE *term = (TERMTYPE *) cur_term;
++	    const TERMTYPE *term = (TERMTYPE *) cur_term;
+ 	    if (term != 0
+ 		&& ((NUM_BOOLEANS(term) != BOOLCOUNT)
+ 		    || (NUM_NUMBERS(term) != NUMCOUNT)
+@@ -813,9 +813,9 @@
+     int ch;
+     int n;
+     int repeat;
+-    char *name;
++    NCURSES_CONST char *name;
+     int r_opt = 1;
+-    char *input_name = 0;
++    const char *input_name = 0;
+ 
+     while ((ch = getopt(argc, argv, OPTS_COMMON "abd:e:fi:nqr:sxy")) != -1) {
+ 	switch (ch) {
+@@ -891,7 +891,7 @@
+ 	    } else if ((name = getenv("TERM")) != 0) {
+ 		brute_force(name);
+ 	    } else {
+-		static char dumb[] = "dumb";
++		static NCURSES_CONST char dumb[] = "dumb";
+ 		brute_force(dumb);
+ 	    }
+ 	}
+@@ -918,7 +918,7 @@
+ 	    } else if ((name = getenv("TERM")) != 0) {
+ 		demo_terminfo(name);
+ 	    } else {
+-		static char dumb[] = "dumb";
++		static NCURSES_CONST char dumb[] = "dumb";
+ 		demo_terminfo(dumb);
+ 	    }
+ 	}
+Index: test/dots.c
+Prereq:  1.45 
+--- ncurses-6.5-20240928+/test/dots.c	2023-01-07 17:21:48.000000000 +0000
++++ ncurses-6.5-20241006/test/dots.c	2024-10-06 21:17:54.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1999-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey <dickey@clark.net> 1999
+  *
+- * $Id: dots.c,v 1.45 2023/01/07 17:21:48 tom Exp $
++ * $Id: dots.c,v 1.46 2024/10/06 21:17:54 tom Exp $
+  *
+  * A simple demo of the terminfo interface.
+  */
+@@ -61,7 +61,7 @@
+ }
+ 
+ static bool
+-outs(const char *s)
++outs(NCURSES_CONST char *s)
+ {
+     if (VALID_STRING(s)) {
+ 	tputs(s, 1, outc);
+Index: test/dots_mvcur.c
+Prereq:  1.31 
+--- ncurses-6.5-20240928+/test/dots_mvcur.c	2023-01-07 17:21:48.000000000 +0000
++++ ncurses-6.5-20241006/test/dots_mvcur.c	2024-10-06 21:17:54.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey - 2007
+  *
+- * $Id: dots_mvcur.c,v 1.31 2023/01/07 17:21:48 tom Exp $
++ * $Id: dots_mvcur.c,v 1.32 2024/10/06 21:17:54 tom Exp $
+  *
+  * A simple demo of the terminfo interface, and mvcur.
+  */
+@@ -62,7 +62,7 @@
+ }
+ 
+ static bool
+-outs(const char *s)
++outs(NCURSES_CONST char *s)
+ {
+     if (VALID_STRING(s)) {
+ 	tputs(s, 1, outc);
+Index: test/dots_termcap.c
+Prereq:  1.33 
+--- ncurses-6.5-20240928+/test/dots_termcap.c	2024-08-31 15:55:46.000000000 +0000
++++ ncurses-6.5-20241006/test/dots_termcap.c	2024-10-06 21:18:35.000000000 +0000
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: dots_termcap.c,v 1.33 2024/08/31 15:55:46 tom Exp $
++ * $Id: dots_termcap.c,v 1.35 2024/10/06 21:18:35 tom Exp $
+  *
+  * A simple demo of the termcap interface.
+  */
+@@ -113,7 +113,7 @@
+ }
+ 
+ static bool
+-outs(char *s)
++outs(NCURSES_CONST char *s)
+ {
+     if (VALID_STRING(s)) {
+ 	tputs(s, 1, outc);
+@@ -178,7 +178,7 @@
+ get_number(NCURSES_CONST char *cap, const char *env)
+ {
+     int result = tgetnum(cap);
+-    char *value = env ? getenv(env) : 0;
++    const char *value = env ? getenv(env) : 0;
+     if (value != 0 && *value != 0) {
+ 	char *next = 0;
+ 	long check = strtol(value, &next, 10);
+@@ -229,7 +229,7 @@
+     double c;
+     char buffer[1024];
+     char area[1024];
+-    char *name;
++    NCURSES_CONST char *name;
+     size_t need;
+     char *my_env;
+ 
+Index: test/dup_field.c
+Prereq:  1.9 
+--- ncurses-6.5-20240928+/test/dup_field.c	2024-06-29 17:45:32.000000000 +0000
++++ ncurses-6.5-20241006/test/dup_field.c	2024-10-06 20:07:19.000000000 +0000
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: dup_field.c,v 1.9 2024/06/29 17:45:32 tom Exp $
++ * $Id: dup_field.c,v 1.11 2024/10/06 20:07:19 tom Exp $
+  *
+  * Demonstrate dup_field().
+  */
+@@ -146,27 +146,27 @@
+ }
+ 
+ static FieldAttrs *
+-my_field_attrs(FIELD *f)
++my_field_attrs(NCURSES_CONST FIELD *f)
+ {
+     return (FieldAttrs *) field_userptr(f);
+ }
+ 
+ static int
+-buffer_length(FIELD *f)
++buffer_length(NCURSES_CONST FIELD *f)
+ {
+     return my_field_attrs(f)->row_lengths[0];
+ }
+ 
+ static void
+-set_buffer_length(FIELD *f, int length)
++set_buffer_length(NCURSES_CONST FIELD *f, int length)
+ {
+     my_field_attrs(f)->row_lengths[0] = length;
+ }
+ 
+ static int
+-offset_in_field(FORM *form)
++offset_in_field(NCURSES_CONST FORM *form)
+ {
+-    FIELD *field = current_field(form);
++    NCURSES_CONST FIELD *field = current_field(form);
+     int currow, curcol;
+ 
+     form_getyx(form, currow, curcol);
+@@ -245,7 +245,7 @@
+ 
+ 	default:
+ 	    modified = (ch < MIN_FORM_COMMAND
+-			&& isprint(ch));
++			&& isprint(UChar(ch)));
+ 	    break;
+ 	}
+ 
+Index: test/filter.c
+Prereq:  1.38 
+--- ncurses-6.5-20240928+/test/filter.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20241006/test/filter.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author:  Thomas E. Dickey 1998
+  *
+- * $Id: filter.c,v 1.38 2022/12/04 00:40:11 tom Exp $
++ * $Id: filter.c,v 1.39 2024/10/05 19:26:24 tom Exp $
+  *
+  * An example of the 'filter()' function in ncurses, this program prompts
+  * for commands and executes them (like a command shell).  It illustrates
+@@ -65,7 +65,7 @@
+     if (clocked) {
+ 	if (limit >= 3) {
+ 	    time_t now = time((time_t *) 0);
+-	    struct tm *my = localtime(&now);
++	    const struct tm *my = localtime(&now);
+ 	    char buffer[80];
+ 	    int skip, y, x;
+ 	    int margin;
+Index: test/form_driver_w.c
+Prereq:  1.17 
+--- ncurses-6.5-20240928+/test/form_driver_w.c	2022-12-10 23:31:31.000000000 +0000
++++ ncurses-6.5-20241006/test/form_driver_w.c	2024-10-06 23:13:40.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -32,7 +32,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: form_driver_w.c,v 1.17 2022/12/10 23:31:31 tom Exp $
++ * $Id: form_driver_w.c,v 1.18 2024/10/06 23:13:40 tom Exp $
+  *
+  * Test form_driver_w (int, int, wchar_t), a wide char aware
+  * replacement of form_driver.
+@@ -68,7 +68,7 @@
+ int
+ main(int argc, char *argv[])
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Commands:",
+ 	"  ^D,^Q,ESC           - quit program",
+Index: test/gdc.c
+Prereq:  1.60 
+--- ncurses-6.5-20240928+/test/gdc.c	2024-06-29 19:59:06.000000000 +0000
++++ ncurses-6.5-20241006/test/gdc.c	2024-10-06 20:08:59.000000000 +0000
+@@ -34,7 +34,7 @@
+  * modified 10-18-89 for curses (jrl)
+  * 10-18-89 added signal handling
+  *
+- * $Id: gdc.c,v 1.60 2024/06/29 19:59:06 tom Exp $
++ * $Id: gdc.c,v 1.62 2024/10/06 20:08:59 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -181,7 +181,7 @@
+     int check;
+     time_t result;
+     char c = 0;
+-    struct tm *tm;
++    NCURSES_CONST struct tm *tm;
+ 
+     switch (sscanf(value, "%d:%d:%d%c", &hh, &mm, &ss, &c)) {
+     default:
+@@ -243,7 +243,7 @@
+ main(int argc, char *argv[])
+ {
+     time_t now;
+-    struct tm *tm;
++    NCURSES_CONST struct tm *tm;
+     long t, a;
+     int i, j, s, k, ch;
+     int count = 0;
+@@ -293,7 +293,7 @@
+ 
+     InitAndCatch({
+ 	if (redirected) {
+-	    char *name = getenv("TERM");
++	    NCURSES_CONST char *name = getenv("TERM");
+ 	    if (name == 0
+ 		|| newterm(name, ofp, ifp) == 0) {
+ 		fprintf(stderr, "cannot open terminal\n");
+@@ -431,7 +431,7 @@
+ 	    _nc_STRNCPY(buf, ctime(&now), (size_t) 30);
+ 	    {
+ 		char *d2 = buf + 10;
+-		char *s2 = buf + 19;
++		NCURSES_CONST char *s2 = buf + 19;
+ 		while ((*d2++ = *s2++) != '\0') ;
+ 	    }
+ 	    MvAddStr(16, 30, buf);
+Index: test/inch_wide.c
+Prereq:  1.13 
+--- ncurses-6.5-20240928+/test/inch_wide.c	2022-12-10 23:55:34.000000000 +0000
++++ ncurses-6.5-20241006/test/inch_wide.c	2024-10-06 23:14:31.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2010,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: inch_wide.c,v 1.13 2022/12/10 23:55:34 tom Exp $
++ * $Id: inch_wide.c,v 1.14 2024/10/06 23:14:31 tom Exp $
+  */
+ /*
+        int in_wch(cchar_t *wcval);
+@@ -61,7 +61,7 @@
+ static int
+ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Test input from screen using inch(), etc., in a moveable viewport.",
+ 	"",
+Index: test/inchs.c
+Prereq:  1.19 
+--- ncurses-6.5-20240928+/test/inchs.c	2022-12-11 00:01:39.000000000 +0000
++++ ncurses-6.5-20241006/test/inchs.c	2024-10-06 21:17:54.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: inchs.c,v 1.19 2022/12/11 00:01:39 tom Exp $
++ * $Id: inchs.c,v 1.20 2024/10/06 21:17:54 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  */
+@@ -71,7 +71,7 @@
+ static int
+ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Test input from screen using inch(), etc., in a moveable viewport.",
+ 	"",
+Index: test/ins_wide.c
+Prereq:  1.30 
+--- ncurses-6.5-20240928+/test/ins_wide.c	2022-12-10 22:28:50.000000000 +0000
++++ ncurses-6.5-20241006/test/ins_wide.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: ins_wide.c,v 1.30 2022/12/10 22:28:50 tom Exp $
++ * $Id: ins_wide.c,v 1.31 2024/10/05 19:26:24 tom Exp $
+  *
+  * Demonstrate the wins_wstr() and wins_wch functions.
+  * Thomas Dickey - 2002/11/23
+@@ -73,7 +73,7 @@
+ static int n_opt = -1;
+ 
+ static void
+-legend(WINDOW *win, int level, Options state, wchar_t *buffer, int length)
++legend(WINDOW *win, int level, Options state, const wchar_t *buffer, int length)
+ {
+     const char *showstate;
+ 
+Index: test/insdelln.c
+Prereq:  1.15 
+--- ncurses-6.5-20240928+/test/insdelln.c	2022-12-10 23:31:31.000000000 +0000
++++ ncurses-6.5-20241006/test/insdelln.c	2024-10-06 21:08:52.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2008-2014,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: insdelln.c,v 1.15 2022/12/10 23:31:31 tom Exp $
++ * $Id: insdelln.c,v 1.17 2024/10/06 21:08:52 tom Exp $
+  *
+  * test-driver for deleteln, wdeleteln, insdelln, winsdelln, insertln, winsertln
+  */
+@@ -160,7 +160,7 @@
+ }
+ 
+ static void
+-do_subwindow(WINDOW *win, STATUS * sp, void func(WINDOW *))
++do_subwindow(WINDOW *win, const STATUS * sp, void func(WINDOW *))
+ {
+     WINDOW *win1 = newwin(sp->y_max - 2, sp->x_max - 2,
+ 			  sp->y_beg + 1, sp->x_beg + 1);
+@@ -204,7 +204,7 @@
+ static void
+ show_help(WINDOW *win)
+ {
+-    static const char *table[] =
++    static NCURSES_CONST char *table[] =
+     {
+ 	"Basic commands:"
+ 	,"Use h/j/k/l or arrow keys to move the cursor."
+Index: test/inserts.c
+Prereq:  1.34 
+--- ncurses-6.5-20240928+/test/inserts.c	2022-12-10 22:28:50.000000000 +0000
++++ ncurses-6.5-20241006/test/inserts.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2002-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: inserts.c,v 1.34 2022/12/10 22:28:50 tom Exp $
++ * $Id: inserts.c,v 1.35 2024/10/05 19:26:24 tom Exp $
+  *
+  * Demonstrate the winsstr() and winsch functions.
+  * Thomas Dickey - 2002/10/19
+@@ -98,7 +98,7 @@
+ }
+ 
+ static int
+-ColOf(char *buffer, int length, int margin)
++ColOf(const char *buffer, int length, int margin)
+ {
+     int n;
+     int result;
+Index: test/knight.c
+Prereq:  1.52 
+--- ncurses-6.5-20240928+/test/knight.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20241006/test/knight.c	2024-10-05 19:38:58.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2018-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -34,7 +34,7 @@
+  * Eric S. Raymond <esr@snark.thyrsus.com> July 22 1995.  Mouse support
+  * added September 20th 1995.
+  *
+- * $Id: knight.c,v 1.52 2022/12/04 00:40:11 tom Exp $
++ * $Id: knight.c,v 1.53 2024/10/05 19:38:58 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -450,7 +450,8 @@
+ }
+ 
+ static bool
+-evaluate_move(SQUARES squares, HISTORY * doneData, int doneSize, int row, int column)
++evaluate_move(SQUARES squares, const HISTORY * doneData, int doneSize,
++	      int row, int column)
+ {
+     if (doneSize <= 1)
+ 	return (TRUE);
+Index: test/list_keys.c
+Prereq:  1.33 
+--- ncurses-6.5-20240928+/test/list_keys.c	2023-11-11 00:35:05.000000000 +0000
++++ ncurses-6.5-20241006/test/list_keys.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2016,2017 Free Software Foundation, Inc.                       *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: list_keys.c,v 1.33 2023/11/11 00:35:05 tom Exp $
++ * $Id: list_keys.c,v 1.34 2024/10/05 19:26:24 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -297,7 +297,7 @@
+ #if NCURSES_XNAMES
+     if (x_opt) {
+ 	for (k = 0; k < count; ++k) {
+-	    TERMTYPE *term;
++	    const TERMTYPE *term;
+ 	    set_curterm(terms[k]);
+ 	    term = (TERMTYPE *) cur_term;
+ 	    total += (size_t) (NUM_STRINGS(term) - STRCOUNT);
+@@ -348,7 +348,7 @@
+ 	widths1 = (int) strlen(modifier);
+ 
+     for (k = 0; k < count; ++k) {
+-	char *value;
++	const char *value;
+ 	set_curterm(terms[k]);
+ 	if ((value = termname()) == NULL)
+ 	    failed("termname");
+Index: test/move_field.c
+Prereq:  1.16 
+--- ncurses-6.5-20240928+/test/move_field.c	2024-06-29 17:45:02.000000000 +0000
++++ ncurses-6.5-20241006/test/move_field.c	2024-10-06 21:12:35.000000000 +0000
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: move_field.c,v 1.16 2024/06/29 17:45:02 tom Exp $
++ * $Id: move_field.c,v 1.19 2024/10/06 21:12:35 tom Exp $
+  *
+  * Demonstrate move_field().
+  */
+@@ -146,27 +146,27 @@
+ }
+ 
+ static FieldAttrs *
+-my_field_attrs(FIELD *f)
++my_field_attrs(NCURSES_CONST FIELD *f)
+ {
+     return (FieldAttrs *) field_userptr(f);
+ }
+ 
+ static int
+-buffer_length(FIELD *f)
++buffer_length(NCURSES_CONST FIELD *f)
+ {
+     return my_field_attrs(f)->row_lengths[0];
+ }
+ 
+ static void
+-set_buffer_length(FIELD *f, int length)
++set_buffer_length(NCURSES_CONST FIELD *f, int length)
+ {
+     my_field_attrs(f)->row_lengths[0] = length;
+ }
+ 
+ static int
+-offset_in_field(FORM *form)
++offset_in_field(NCURSES_CONST FORM *form)
+ {
+-    FIELD *field = current_field(form);
++    NCURSES_CONST FIELD *field = current_field(form);
+     int currow, curcol;
+ 
+     form_getyx(form, currow, curcol);
+@@ -245,7 +245,7 @@
+ 
+ 	default:
+ 	    modified = (ch < MIN_FORM_COMMAND
+-			&& isprint(ch));
++			&& isprint(UChar(ch)));
+ 	    break;
+ 	}
+ 
+@@ -275,9 +275,9 @@
+ 
+ /* display a status message to show what's happening */
+ static void
+-show_status(FORM *form, FIELD *field)
++show_status(NCURSES_CONST FORM *form, NCURSES_CONST FIELD *field)
+ {
+-    WINDOW *sub = form_sub(form);
++    NCURSES_CONST WINDOW *sub = form_sub(form);
+     int currow, curcol;
+ 
+     getyx(stdscr, currow, curcol);
+Index: test/movewindow.c
+Prereq:  1.54 
+--- ncurses-6.5-20240928+/test/movewindow.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241006/test/movewindow.c	2024-10-06 18:44:26.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2006-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: movewindow.c,v 1.54 2023/05/27 20:13:10 tom Exp $
++ * $Id: movewindow.c,v 1.56 2024/10/06 18:44:26 tom Exp $
+  *
+  * Demonstrate move functions for windows and derived windows from the curses
+  * library.
+@@ -135,7 +135,7 @@
+  */
+ static PAIR *
+ selectcell(WINDOW *parent,
+-	   WINDOW *child,
++	   NCURSES_CONST WINDOW *child,
+ 	   int uli, int ulj,
+ 	   int lri, int lrj,
+ 	   bool relative,
+@@ -252,7 +252,7 @@
+     int max_col = (parent == stdscr) ? COL_MAX : getmaxx(parent);
+     int min_line = (parent == stdscr) ? LINE_MIN : 0;
+     int max_line = (parent == stdscr) ? LINE_MAX : getmaxy(parent);
+-    PAIR *tmp;
++    NCURSES_CONST PAIR *tmp;
+     bool result = FALSE;
+ 
+     head_line("Use arrows to move cursor, anything else to mark corner 1");
+@@ -346,7 +346,7 @@
+ }
+ 
+ static WINDOW *
+-parent_of(WINDOW *win)
++parent_of(NCURSES_CONST WINDOW *win)
+ {
+     WINDOW *result = 0;
+     int n = window2num(win);
+@@ -435,7 +435,7 @@
+ 	int max_col = top ? COL_MAX : getmaxx(parent);
+ 	int min_line = top ? LINE_MIN : 0;
+ 	int max_line = top ? LINE_MAX : getmaxy(parent);
+-	PAIR *tmp;
++	NCURSES_CONST PAIR *tmp;
+ 	bool more;
+ 
+ 	head_line("Select new position for %swindow", top ? "" : "sub");
+@@ -474,7 +474,7 @@
+ }
+ 
+ static void
+-show_derwin(WINDOW *win)
++show_derwin(NCURSES_CONST WINDOW *win)
+ {
+     int pary, parx, maxy, maxx;
+ 
+@@ -500,7 +500,7 @@
+ 	int max_col = top ? COL_MAX : getmaxx(parent);
+ 	int min_line = top ? LINE_MIN : 0;
+ 	int max_line = top ? LINE_MAX : getmaxy(parent);
+-	PAIR *tmp;
++	NCURSES_CONST PAIR *tmp;
+ 	bool more;
+ 
+ 	show_derwin(win);
+Index: test/ncurses.c
+Prereq:  1.538 
+--- ncurses-6.5-20240928+/test/ncurses.c	2023-11-11 01:23:59.000000000 +0000
++++ ncurses-6.5-20241006/test/ncurses.c	2024-10-06 20:18:59.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -41,7 +41,7 @@
+    Author: Eric S. Raymond <esr@snark.thyrsus.com> 1993
+            Thomas E. Dickey (beginning revision 1.27 in 1996).
+ 
+-$Id: ncurses.c,v 1.538 2023/11/11 01:23:59 tom Exp $
++$Id: ncurses.c,v 1.541 2024/10/06 20:18:59 tom Exp $
+ 
+ ***************************************************************************/
+ 
+@@ -273,7 +273,7 @@
+ 	    ++x;
+ 	    break;
+ 	default:
+-	    if (!isprint(ch) || ch >= KEY_MIN) {
++	    if (!isprint(UChar(ch)) || ch >= KEY_MIN) {
+ 		beep();
+ 	    } else if ((int) strlen(buffer) < limit) {
+ 		int j;
+@@ -928,7 +928,7 @@
+ 		/* at least Solaris SVR4 curses breaks unctrl(128), etc. */
+ 		c2 &= 0x7f;
+ #endif
+-		if (isprint(c))
++		if (isprint(UChar(c)))
+ 		    (void) wprintw(win, "%c", UChar(c));
+ 		else if (c2 != UChar(c))
+ 		    (void) wprintw(win, "M-%s", unctrl(c2));
+@@ -1693,7 +1693,7 @@
+ 	    chtype extras = (chtype) ac;
+ 
+ 	    if (UseColors) {
+-		NCURSES_PAIRS_T pair = 0;
++		NCURSES_PAIRS_T pair;
+ 		if ((fg != COLOR_BLACK) || (bg != COLOR_BLACK)) {
+ 		    pair = 1;
+ 		    if (init_pair(pair, fg, bg) == ERR) {
+@@ -2345,7 +2345,6 @@
+ 	for (i = (NCURSES_PAIRS_T) (base_row * per_row); i < pairs_max; i++) {
+ 	    int row = grid_top + (i / per_row) - base_row;
+ 	    int col = (i % per_row + 1) * width;
+-	    NCURSES_PAIRS_T pair = i;
+ 
+ 	    if ((i / per_row) > row_limit)
+ 		break;
+@@ -2355,6 +2354,7 @@
+ 	    if (row >= 0 && move(row, col) != ERR) {
+ 		NCURSES_COLOR_T fg = (NCURSES_COLOR_T) InxToFG(i);
+ 		NCURSES_COLOR_T bg = (NCURSES_COLOR_T) InxToBG(i);
++		NCURSES_PAIRS_T pair = i;
+ 
+ 		init_pair(pair, fg, bg);
+ 		attron(COLOR_PAIR(pair));
+@@ -2517,7 +2517,7 @@
+ static int
+ x_color_test(bool recur GCC_UNUSED)
+ {
+-    long i;
++    int i;
+     int top = 0, width;
+     int base_row = 0;
+     int grid_top = top + 3;
+@@ -2613,17 +2613,17 @@
+ 	/* show color names/numbers across the top */
+ 	for (i = 0; i < per_row; i++) {
+ 	    show_color_name(top + 2,
+-			    ((int) i + 1) * width,
+-			    (int) i * zoom_size + MinColors,
++			    (i + 1) * width,
++			    i * zoom_size + MinColors,
+ 			    opt_wide,
+ 			    opt_zoom);
+ 	}
+ 
+ 	/* show a grid of colors, with color names/ numbers on the left */
+ 	for (i = (base_row * per_row); i < pairs_max; i++) {
+-	    int row = grid_top + ((int) i / per_row) - base_row;
+-	    int col = ((int) i % per_row + 1) * width;
+-	    int pair = (int) i;
++	    int row = grid_top + (i / per_row) - base_row;
++	    int col = (i % per_row + 1) * width;
++	    int pair = i;
+ 
+ 	    if ((i / per_row) > row_limit)
+ 		break;
+@@ -2828,7 +2828,7 @@
+ #define DecodeRGB(n) (NCURSES_COLOR_T) ((n * 1000) / 0xffff)
+ 
+ static void
+-init_all_colors(bool xterm_colors, char *palette_file)
++init_all_colors(bool xterm_colors, NCURSES_CONST char *palette_file)
+ {
+     NCURSES_PAIRS_T cp;
+     all_colors = typeMalloc(RGB_DATA, (unsigned) MaxColors);
+@@ -3317,7 +3317,7 @@
+ {
+     int c, fmt = 1;
+     char buf[9];
+-    char *s;
++    NCURSES_CONST char *s;
+     attr_t attr = A_NORMAL;
+     unsigned at_code = 0;
+ #if HAVE_SLK_COLOR
+@@ -3938,8 +3938,7 @@
+ 
+     *dst = *src;
+     do {
+-	int count;
+-	TEST_CCHAR(src, count, {
++	TEST_CCHAR(src, {
+ 	    attr |= (test_attrs & A_ALTCHARSET);
+ 	    setcchar(dst, test_wch, attr, pair, NULL);
+ 	}, {
+@@ -4810,7 +4809,8 @@
+ /* Ask user for a window definition */
+ {
+     WINDOW *rwindow;
+-    pair ul, lr, *tmp;
++    pair ul, lr;
++    NCURSES_CONST pair *tmp;
+ 
+     move(0, 0);
+     clrtoeol();
+@@ -5014,7 +5014,8 @@
+ #if HAVE_WRESIZE
+ 	case CTRL('X'):	/* resize window */
+ 	    if (current) {
+-		pair *tmp, ul, lr;
++		NCURSES_CONST pair *tmp;
++		pair ul, lr;
+ 		int mx, my;
+ 
+ 		move(0, 0);
+@@ -5249,7 +5250,7 @@
+ }
+ 
+ static void
+-fill_panel(PANEL *pan)
++fill_panel(NCURSES_CONST PANEL *pan)
+ {
+     WINDOW *win = panel_window(pan);
+     const char *userptr = (const char *) panel_userptr(pan);
+@@ -5286,7 +5287,7 @@
+ }
+ 
+ static void
+-fill_wide_panel(PANEL *pan)
++fill_wide_panel(NCURSES_CONST PANEL *pan)
+ {
+     WINDOW *win = panel_window(pan);
+     const char *userptr = (const char *) panel_userptr(pan);
+@@ -5336,7 +5337,7 @@
+ }
+ 
+ static int
+-demo_panels(void (*InitPanel) (WINDOW *), void (*FillPanel) (PANEL *))
++demo_panels(void (*InitPanel) (WINDOW *), void (*FillPanel) (NCURSES_CONST PANEL *))
+ {
+     int count;
+     int itmp;
+@@ -6246,7 +6247,8 @@
+ run_trace_menu(MENU * m)
+ {
+     ITEM **items;
+-    ITEM *i, **p;
++    NCURSES_CONST ITEM *i;
++    ITEM **p;
+ 
+     for (;;) {
+ 	bool changed = FALSE;
+@@ -6424,7 +6426,7 @@
+ 
+     if (field_info(me, &rows, &cols, &frow, &fcol, &nrow, &nbuf) == E_OK
+ 	&& nbuf > 0) {
+-	char *source = field_buffer(me, 1);
++	NCURSES_CONST char *source = field_buffer(me, 1);
+ 	size_t have = (source ? strlen(source) : 0) + 1;
+ 	size_t need = 80 + have;
+ 	char *temp = malloc(need);
+@@ -6434,7 +6436,7 @@
+ 	    _nc_STRNCPY(temp, source ? source : "", have + 1);
+ 	    len = (size_t) (char *) field_userptr(me);
+ 	    if (c <= KEY_MAX) {
+-		if (isgraph(c) && (len + 1) < sizeof(temp)) {
++		if (isgraph(UChar(c)) && (len + 1) < sizeof(temp)) {
+ 		    temp[len++] = (char) c;
+ 		    temp[len] = 0;
+ 		    set_field_buffer(me, 1, temp);
+@@ -6484,7 +6486,7 @@
+ }
+ 
+ static int
+-form_virtualize(FORM *f, WINDOW *w)
++form_virtualize(NCURSES_CONST FORM *f, WINDOW *w)
+ {
+     /* *INDENT-OFF* */
+     static const struct {
+@@ -6658,7 +6660,7 @@
+ static
+ FIELDCHECK_CB(pw_field_check)
+ {
+-    char *s = field_buffer(fld, 0);
++    NCURSES_CONST char *s = field_buffer(fld, 0);
+     int n;
+ 
+     for (n = 0; s[n] != '\0'; ++n) {
+@@ -6680,7 +6682,8 @@
+ form_test(bool recur GCC_UNUSED)
+ {
+     FORM *form;
+-    FIELD *f[12], *secure;
++    FIELD *f[12];
++    NCURSES_CONST FIELD *secure;
+     FIELDTYPE *fty_middle = new_fieldtype(mi_field_check, mi_char_check);
+     FIELDTYPE *fty_passwd = new_fieldtype(pw_field_check, pw_char_check);
+     int c;
+@@ -7176,7 +7179,7 @@
+ }
+ 
+ static void
+-overlap_test_4(int flavor, WINDOW *a, WINDOW *b)
++overlap_test_4(int flavor, NCURSES_CONST WINDOW *a, WINDOW *b)
+ {
+     switch ((otCOPY) flavor) {
+     case otCOPY_overwrite:
+@@ -7899,7 +7902,7 @@
+     bool monochrome = FALSE;
+ #if HAVE_COLOR_CONTENT
+     bool xterm_colors = FALSE;
+-    char *palette_file = 0;
++    NCURSES_CONST char *palette_file = 0;
+ #endif
+ 
+     setlocale(LC_ALL, "");
+Index: test/padview.c
+Prereq:  1.22 
+--- ncurses-6.5-20240928+/test/padview.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20241006/test/padview.c	2024-10-06 21:08:25.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2017 Free Software Foundation, Inc.                            *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -29,7 +29,7 @@
+ /*
+  * clone of view.c, using pads
+  *
+- * $Id: padview.c,v 1.22 2022/12/04 00:40:11 tom Exp $
++ * $Id: padview.c,v 1.24 2024/10/06 21:08:25 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -182,7 +182,7 @@
+ 
+ #if USE_WIDEC_SUPPORT
+     if (!memcmp("\357\273\277", my_blob, 3)) {
+-	char *s = my_blob + 3;
++	const char *s = my_blob + 3;
+ 	char *d = my_blob;
+ 	Trace(("trim BOM"));
+ 	do {
+@@ -213,7 +213,7 @@
+     for (k = 0; my_vec[k]; ++k) {
+ 	char *s;
+ #if USE_WIDEC_SUPPORT
+-	char *last = my_vec[k] + (int) strlen(my_vec[k]);
++	const char *last = my_vec[k] + (int) strlen(my_vec[k]);
+ 	wchar_t wch[2];
+ 	size_t rc;
+ #ifndef state_unused
+@@ -279,7 +279,7 @@
+ int
+ main(int argc, char *argv[])
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Commands:",
+ 	"  q,^Q,ESC       - quit this program",
+@@ -532,7 +532,7 @@
+ 	    beep();
+ 	    break;
+ 	}
+-	if (c >= KEY_MIN || (c > 0 && !isdigit(c))) {
++	if (c >= KEY_MIN || (c > 0 && !isdigit(UChar(c)))) {
+ 	    got_number = FALSE;
+ 	    value = 0;
+ 	}
+Index: test/parse_rgb.h
+Prereq:  1.5 
+--- ncurses-6.5-20240928+/test/parse_rgb.h	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20241006/test/parse_rgb.h	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018,2020 Thomas E. Dickey                                     *
++ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: parse_rgb.h,v 1.5 2020/02/02 23:34:34 tom Exp $
++ * $Id: parse_rgb.h,v 1.6 2024/10/05 19:26:24 tom Exp $
+  *
+  * Sample implementation of ncurses RGB extension from user_caps(5).
+  */
+@@ -49,7 +49,7 @@
+ 	int bits;
+ 	int pwr2;
+ 	int r = 0, g = 0, b = 0;
+-	char *data;
++	const char *data;
+ 	char ch;
+ 
+ 	for (max_bits = 0, pwr2 = 1;
+Index: test/picsmap.c
+Prereq:  1.149 
+--- ncurses-6.5-20240928+/test/picsmap.c	2023-04-23 23:20:37.000000000 +0000
++++ ncurses-6.5-20241006/test/picsmap.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2017,2018 Free Software Foundation, Inc.                       *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: picsmap.c,v 1.149 2023/04/23 23:20:37 tom Exp $
++ * $Id: picsmap.c,v 1.150 2024/10/05 19:26:24 tom Exp $
+  *
+  * Author: Thomas E. Dickey
+  *
+@@ -574,7 +574,7 @@
+ 	    _nc_STRCAT(full_name, filename, need);
+ 	    if (tries & 4) {
+ 		char *t = s;
+-		char *tc;
++		const char *tc;
+ 		int num;
+ 		char chr;
+ 		int found = 0;
+@@ -1374,8 +1374,8 @@
+ 		int r, g, b, nocolor;
+ 		float rf, gf, bf;
+ 		unsigned check;
+-		char *t;
+-		char *s = t = strchr(buffer, '#');
++		char *s = strchr(buffer, '#');
++		const char *t = s;
+ 		bool matched = FALSE;
+ 
+ 		if (s != 0) {
+@@ -1492,7 +1492,7 @@
+ #define fg_color(pics,n) (pics->fgcol[n].fgcol)
+ 
+ static void
+-dump_picture(PICS_HEAD * pics)
++dump_picture(const PICS_HEAD * pics)
+ {
+     int y, x;
+ 
+@@ -1767,7 +1767,7 @@
+ #if USE_EXTENDED_COLORS
+ 	case 'x':
+ 	    {
+-		char *s = optarg;
++		const char *s = optarg;
+ 		while (*s) {
+ 		    switch (*s++) {
+ 		    case 'p':
+Index: test/popup_msg.c
+Prereq:  1.12 
+--- ncurses-6.5-20240928+/test/popup_msg.c	2024-06-29 18:34:58.000000000 +0000
++++ ncurses-6.5-20241006/test/popup_msg.c	2024-10-06 21:07:01.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: popup_msg.c,v 1.12 2024/06/29 18:34:58 tom Exp $
++ * $Id: popup_msg.c,v 1.13 2024/10/06 21:07:01 tom Exp $
+  *
+  * Show a multi-line message in a window which may extend beyond the screen.
+  *
+@@ -62,7 +62,7 @@
+  * Display a temporary window, e.g., to display a help-message.
+  */
+ void
+-popup_msg(WINDOW *parent, const char *const *msg)
++popup_msg(WINDOW *parent, NCURSES_CONST char *const *msg)
+ {
+     int x0 = 4;
+     int y0 = 2;
+@@ -171,12 +171,12 @@
+ void
+ popup_msg2(WINDOW *parent, char **msg)
+ {
+-    popup_msg(parent, (const char *const *) msg);
++    popup_msg(parent, (NCURSES_CONST char *const *) msg);
+ }
+ 
+ #else
+ void
+-popup_msg(WINDOW *parent, const char *const *msg)
++popup_msg(WINDOW *parent, NCURSES_CONST char *const *msg)
+ {
+     (void) parent;
+     (void) msg;
+Index: test/popup_msg.h
+Prereq:  1.5 
+--- ncurses-6.5-20240928+/test/popup_msg.h	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20241006/test/popup_msg.h	2024-10-06 21:17:54.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018,2020 Thomas E. Dickey                                     *
++ * Copyright 2018-2020,2024 Thomas E. Dickey                                *
+  * Copyright 2017 Free Software Foundation, Inc.                            *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: popup_msg.h,v 1.5 2020/02/02 23:34:34 tom Exp $
++ * $Id: popup_msg.h,v 1.6 2024/10/06 21:17:54 tom Exp $
+  *
+  * Utility functions for a popup-message or help-screen.
+  */
+@@ -37,7 +37,7 @@
+ 
+ #include <test.priv.h>
+ 
+-extern void popup_msg(WINDOW *parent, const char *const *msg);
++extern void popup_msg(WINDOW *parent, NCURSES_CONST char *const *msg);
+ extern void popup_msg2(WINDOW *parent, char **msg);
+ 
+ #endif /* POPUP_MSG_H_incl */
+Index: test/railroad.c
+Prereq:  1.26 
+--- ncurses-6.5-20240928+/test/railroad.c	2022-12-11 00:12:13.000000000 +0000
++++ ncurses-6.5-20241006/test/railroad.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2000-2013,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey - 2000
+  *
+- * $Id: railroad.c,v 1.26 2022/12/11 00:12:13 tom Exp $
++ * $Id: railroad.c,v 1.27 2024/10/05 19:26:24 tom Exp $
+  *
+  * A simple demo of the termcap interface.
+  */
+@@ -113,7 +113,7 @@
+ static void
+ ShowSign(char *string)
+ {
+-    char *base = string;
++    const char *base = string;
+     int first, last;
+ 
+     if (moveit != 0) {
+Index: test/rain.c
+Prereq:  1.58 
+--- ncurses-6.5-20240928+/test/rain.c	2024-08-31 15:56:10.000000000 +0000
++++ ncurses-6.5-20241006/test/rain.c	2024-10-06 21:09:00.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: rain.c,v 1.58 2024/08/31 15:56:10 tom Exp $
++ * $Id: rain.c,v 1.62 2024/10/06 21:09:00 tom Exp $
+  */
+ #include <test.priv.h>
+ #include <popup_msg.h>
+@@ -45,7 +45,7 @@
+ 
+ struct DATA;
+ 
+-typedef void (*DrawPart) (struct DATA *);
++typedef void (*DrawPart) (const struct DATA *);
+ 
+ typedef struct DATA {
+     int y, x;
+@@ -118,25 +118,25 @@
+ }
+ 
+ static void
+-part1(DATA * drop)
++part1(const DATA * drop)
+ {
+     MvAddCh(drop->y, drop->x, '.');
+ }
+ 
+ static void
+-part2(DATA * drop)
++part2(const DATA * drop)
+ {
+     MvAddCh(drop->y, drop->x, 'o');
+ }
+ 
+ static void
+-part3(DATA * drop)
++part3(const DATA * drop)
+ {
+     MvAddCh(drop->y, drop->x, 'O');
+ }
+ 
+ static void
+-part4(DATA * drop)
++part4(const DATA * drop)
+ {
+     MvAddCh(drop->y - 1, drop->x, '-');
+     MvAddStr(drop->y, drop->x - 1, "|.|");
+@@ -144,7 +144,7 @@
+ }
+ 
+ static void
+-part5(DATA * drop)
++part5(const DATA * drop)
+ {
+     MvAddCh(drop->y - 2, drop->x, '-');
+     MvAddStr(drop->y - 1, drop->x - 1, "/ \\");
+@@ -154,7 +154,7 @@
+ }
+ 
+ static void
+-part6(DATA * drop)
++part6(const DATA * drop)
+ {
+     MvAddCh(drop->y - 2, drop->x, ' ');
+     MvAddStr(drop->y - 1, drop->x - 1, "   ");
+@@ -186,7 +186,7 @@
+ }
+ 
+ static void
+-draw_part(void (*func) (DATA *), int state, DATA * data)
++draw_part(void (*func) (const DATA *), int state, DATA * data)
+ {
+     data->func = func;
+     data->state = state;
+@@ -328,7 +328,7 @@
+ int
+ main(int argc, char *argv[])
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Commands:",
+ 	" q/Q        exit the program",
+Index: test/redraw.c
+Prereq:  1.17 
+--- ncurses-6.5-20240928+/test/redraw.c	2022-12-10 22:28:50.000000000 +0000
++++ ncurses-6.5-20241006/test/redraw.c	2024-10-06 21:17:54.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: redraw.c,v 1.17 2022/12/10 22:28:50 tom Exp $
++ * $Id: redraw.c,v 1.18 2024/10/06 21:17:54 tom Exp $
+  *
+  * Demonstrate the redrawwin() and wredrawln() functions.
+  * Thomas Dickey - 2006/11/4
+@@ -61,7 +61,7 @@
+ static void
+ test_redraw(WINDOW *win)
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Commands:",
+ 	"  ^Q/ESC/q   - quit",
+Index: test/savescreen.c
+Prereq:  1.62 
+--- ncurses-6.5-20240928+/test/savescreen.c	2022-12-10 23:23:27.000000000 +0000
++++ ncurses-6.5-20241006/test/savescreen.c	2024-10-06 21:10:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2018-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2006-2017,2018 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: savescreen.c,v 1.62 2022/12/10 23:23:27 tom Exp $
++ * $Id: savescreen.c,v 1.65 2024/10/06 21:10:09 tom Exp $
+  *
+  * Demonstrate save/restore functions from the curses library.
+  * Thomas Dickey - 2007/7/14
+@@ -96,7 +96,7 @@
+ }
+ 
+ static int
+-load_screen(char *filename)
++load_screen(NCURSES_CONST char *filename)
+ {
+     int result;
+ 
+@@ -170,7 +170,7 @@
+ #if USE_WIDEC_SUPPORT
+     cchar_t mycc;
+ #endif
+-    char *filename = files[which];
++    NCURSES_CONST char *filename = files[which];
+     bool dumped = FALSE;
+ 
+     if (filename != 0) {
+@@ -216,7 +216,7 @@
+ static void
+ editor_help(void)
+ {
+-    static const char *msgs[] =
++    static NCURSES_CONST char *msgs[] =
+     {
+ 	"You are now in the screen-editor, which allows you to make some",
+ 	"lines on the screen, as well as save copies of the screen to a",
+@@ -238,7 +238,7 @@
+ static void
+ replay_help(void)
+ {
+-    static const char *msgs[] =
++    static NCURSES_CONST char *msgs[] =
+     {
+ 	"You are now in the screen-loader, which allows you to view",
+ 	"the dumped/restored screens.",
+@@ -286,7 +286,7 @@
+     bool replaying = FALSE;
+     bool done = FALSE;
+     char **files;
+-    char *fill_by = 0;
++    NCURSES_CONST char *fill_by = 0;
+ #if USE_WIDEC_SUPPORT
+     cchar_t mycc;
+     static const wchar_t mywc[2] =
+Index: test/tclock.c
+Prereq:  1.48 
+--- ncurses-6.5-20240928+/test/tclock.c	2023-02-25 16:42:22.000000000 +0000
++++ ncurses-6.5-20241006/test/tclock.c	2024-10-05 18:47:56.000000000 +0000
+@@ -1,4 +1,4 @@
+-/* $Id: tclock.c,v 1.48 2023/02/25 16:42:22 tom Exp $ */
++/* $Id: tclock.c,v 1.49 2024/10/05 18:47:56 tom Exp $ */
+ 
+ #define NEED_TIME_H
+ #include <test.priv.h>
+@@ -145,7 +145,7 @@
+     int lastbeep = -1;
+     bool odd = FALSE;
+     time_t tim;
+-    struct tm *t;
++    const struct tm *t;
+     char szChar[20];
+     char *text;
+     short my_bg = COLOR_BLACK;
+Index: test/test.priv.h
+Prereq:  1.219 
+--- ncurses-6.5-20240928+/test/test.priv.h	2024-08-31 10:46:01.000000000 +0000
++++ ncurses-6.5-20241006/test/test.priv.h	2024-10-05 19:01:00.000000000 +0000
+@@ -30,7 +30,7 @@
+ /****************************************************************************
+  *  Author: Thomas E. Dickey                    1996-on                     *
+  ****************************************************************************/
+-/* $Id: test.priv.h,v 1.219 2024/08/31 10:46:01 Rafael.Kitover Exp $ */
++/* $Id: test.priv.h,v 1.220 2024/10/05 19:01:00 tom Exp $ */
+ 
+ #ifndef __TEST_PRIV_H
+ #define __TEST_PRIV_H 1
+@@ -765,8 +765,8 @@
+ 
+ #define VERSION_COMMON() \
+ static char *version_common(char **argv) { \
+-	char *base = argv[0]; \
+-	char *part = strrchr(base, '/'); \
++	const char *base = argv[0]; \
++	const char *part = strrchr(base, '/'); \
+ 	size_t need = strlen(base) + 80; \
+ 	char *result = malloc(need); \
+ 	if (result != NULL) { \
+@@ -916,8 +916,8 @@
+  * Workaround in case getcchar() returns a positive value when the source
+  * string produces only a L'\0'.
+  */
+-#define TEST_CCHAR(s, count, then_stmt, else_stmt) \
+-	if ((count = getcchar(s, NULL, NULL, NULL, NULL)) > 0) { \
++#define TEST_CCHAR(s, then_stmt, else_stmt) \
++	if (getcchar(s, NULL, NULL, NULL, NULL) > 0) { \
+ 	    wchar_t test_wch[CCHARW_MAX + 2]; \
+ 	    attr_t test_attrs; \
+ 	    NCURSES_PAIRS_T test_pair; \
+Index: test/test_add_wchstr.c
+Prereq:  1.34 
+--- ncurses-6.5-20240928+/test/test_add_wchstr.c	2022-12-10 22:28:50.000000000 +0000
++++ ncurses-6.5-20241006/test/test_add_wchstr.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_add_wchstr.c,v 1.34 2022/12/10 22:28:50 tom Exp $
++ * $Id: test_add_wchstr.c,v 1.35 2024/10/05 19:26:24 tom Exp $
+  *
+  * Demonstrate the waddwchstr() and wadd_wch functions.
+  * Thomas Dickey - 2009/9/12
+@@ -158,7 +158,7 @@
+ }
+ 
+ static void
+-legend(WINDOW *win, int level, Options state, wchar_t *buffer, int length)
++legend(WINDOW *win, int level, Options state, const wchar_t *buffer, int length)
+ {
+     const char *showstate;
+ 
+Index: test/test_addchstr.c
+Prereq:  1.29 
+--- ncurses-6.5-20240928+/test/test_addchstr.c	2022-12-10 22:28:50.000000000 +0000
++++ ncurses-6.5-20241006/test/test_addchstr.c	2024-10-05 19:26:24.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_addchstr.c,v 1.29 2022/12/10 22:28:50 tom Exp $
++ * $Id: test_addchstr.c,v 1.30 2024/10/05 19:26:24 tom Exp $
+  *
+  * Demonstrate the waddchstr() and waddch functions.
+  * Thomas Dickey - 2009/9/12
+@@ -169,7 +169,7 @@
+ }
+ 
+ static int
+-ColOf(char *buffer, int length, int margin)
++ColOf(const char *buffer, int length, int margin)
+ {
+     int n;
+     int result;
+Index: test/test_addstr.c
+Prereq:  1.20 
+--- ncurses-6.5-20240928+/test/test_addstr.c	2022-12-10 22:28:50.000000000 +0000
++++ ncurses-6.5-20241006/test/test_addstr.c	2024-10-05 19:27:33.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_addstr.c,v 1.20 2022/12/10 22:28:50 tom Exp $
++ * $Id: test_addstr.c,v 1.21 2024/10/05 19:27:33 tom Exp $
+  *
+  * Demonstrate the waddstr() and waddch functions.
+  * Thomas Dickey - 2009/9/12
+@@ -91,7 +91,7 @@
+ }
+ 
+ static int
+-ColOf(char *buffer, int length, int margin)
++ColOf(const char *buffer, int length, int margin)
+ {
+     int n;
+     int result;
+Index: test/test_addwstr.c
+Prereq:  1.22 
+--- ncurses-6.5-20240928+/test/test_addwstr.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241006/test/test_addwstr.c	2024-10-05 19:27:33.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2009-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_addwstr.c,v 1.22 2023/05/27 20:13:10 tom Exp $
++ * $Id: test_addwstr.c,v 1.23 2024/10/05 19:27:33 tom Exp $
+  *
+  * Demonstrate the waddwstr() and wadd_wch functions.
+  * Thomas Dickey - 2009/9/12
+@@ -82,7 +82,7 @@
+ static int n_opt = -1;
+ 
+ static void
+-legend(WINDOW *win, int level, Options state, wchar_t *buffer, int length)
++legend(WINDOW *win, int level, Options state, const wchar_t *buffer, int length)
+ {
+     const char *showstate;
+ 
+Index: test/test_endwin.c
+Prereq:  1.2 
+--- ncurses-6.5-20240928+/test/test_endwin.c	2023-11-10 15:17:19.000000000 +0000
++++ ncurses-6.5-20241006/test/test_endwin.c	2024-10-05 19:27:33.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2023 Thomas E. Dickey                                          *
++ * Copyright 2023,2024 Thomas E. Dickey                                     *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -26,7 +26,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_endwin.c,v 1.2 2023/11/10 15:17:19 tom Exp $
++ * $Id: test_endwin.c,v 1.3 2024/10/05 19:27:33 tom Exp $
+  */
+ #include <test.priv.h>
+ 
+@@ -67,7 +67,7 @@
+     int rc_e1 = OK;
+     int rc_e2 = OK;
+     int rc_e3 = OK;
+-    SCREEN *sp = NULL;
++    const SCREEN *sp = NULL;
+     bool opt_e = FALSE;
+     bool opt_i = FALSE;
+     bool opt_n = FALSE;
+Index: test/test_get_wstr.c
+Prereq:  1.14 
+--- ncurses-6.5-20240928+/test/test_get_wstr.c	2022-12-10 23:59:13.000000000 +0000
++++ ncurses-6.5-20241006/test/test_get_wstr.c	2024-10-06 23:15:10.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2011,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_get_wstr.c,v 1.14 2022/12/10 23:59:13 tom Exp $
++ * $Id: test_get_wstr.c,v 1.16 2024/10/06 23:15:10 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -69,7 +69,7 @@
+ }
+ 
+ static int
+-Remainder(WINDOW *txtwin)
++Remainder(const WINDOW *txtwin)
+ {
+     int result = getmaxx(txtwin) - getcurx(txtwin);
+     return (result > 0) ? result : 0;
+@@ -138,7 +138,7 @@
+ static int
+ recursive_test(int level, char **argv, WINDOW *strwin)
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Commands:",
+ 	"  q,^Q,ESC       - quit this program",
+Index: test/test_getstr.c
+Prereq:  1.16 
+--- ncurses-6.5-20240928+/test/test_getstr.c	2022-12-10 23:58:37.000000000 +0000
++++ ncurses-6.5-20241006/test/test_getstr.c	2024-10-06 22:36:46.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2022 Thomas E. Dickey                                     *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_getstr.c,v 1.16 2022/12/10 23:58:37 tom Exp $
++ * $Id: test_getstr.c,v 1.19 2024/10/06 22:36:46 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -76,7 +76,7 @@
+ }
+ 
+ static int
+-Remainder(WINDOW *txtwin)
++Remainder(NCURSES_CONST WINDOW *txtwin)
+ {
+     int result = getmaxx(txtwin) - getcurx(txtwin);
+     return (result > 0) ? result : 0;
+@@ -145,7 +145,7 @@
+ static int
+ recursive_test(int level, char **argv, WINDOW *strwin)
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Commands:",
+ 	"  q,^Q,ESC       - quit this program",
+Index: test/test_instr.c
+Prereq:  1.13 
+--- ncurses-6.5-20240928+/test/test_instr.c	2024-06-29 18:42:53.000000000 +0000
++++ ncurses-6.5-20241006/test/test_instr.c	2024-10-06 21:11:54.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_instr.c,v 1.13 2024/06/29 18:42:53 tom Exp $
++ * $Id: test_instr.c,v 1.15 2024/10/06 21:11:54 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -56,13 +56,13 @@
+ }
+ 
+ static void
+-show_1st(WINDOW *win, int line, char *buffer)
++show_1st(WINDOW *win, int line, NCURSES_CONST char *buffer)
+ {
+     MvWAddStr(win, line, 5, buffer);
+ }
+ 
+ static void
+-showmore(WINDOW *win, int line, char *buffer)
++showmore(WINDOW *win, int line, NCURSES_CONST char *buffer)
+ {
+     wmove(win, line, 0);
+     wclrtoeol(win);
+@@ -72,7 +72,7 @@
+ static void
+ show_help(WINDOW *win)
+ {
+-    static const char *msgs[] =
++    static NCURSES_CONST char *msgs[] =
+     {
+ 	"Show file contents and a viewport from the variants of winstr."
+ 	,"Use h/j/k/l or arrow keys to move the viewport."
+Index: test/test_inwstr.c
+Prereq:  1.9 
+--- ncurses-6.5-20240928+/test/test_inwstr.c	2024-06-29 18:40:02.000000000 +0000
++++ ncurses-6.5-20241006/test/test_inwstr.c	2024-10-06 23:15:38.000000000 +0000
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_inwstr.c,v 1.9 2024/06/29 18:40:02 tom Exp $
++ * $Id: test_inwstr.c,v 1.11 2024/10/06 23:15:38 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -59,13 +59,13 @@
+ }
+ 
+ static void
+-show_1st(WINDOW *win, int line, wchar_t *buffer)
++show_1st(WINDOW *win, int line, const wchar_t *buffer)
+ {
+     (void) mvwaddwstr(win, line, 5, buffer);
+ }
+ 
+ static void
+-showmore(WINDOW *win, int line, wchar_t *buffer)
++showmore(WINDOW *win, int line, const wchar_t *buffer)
+ {
+     wmove(win, line, 0);
+     wclrtoeol(win);
+@@ -75,7 +75,7 @@
+ static void
+ show_help(WINDOW *win)
+ {
+-    static const char *msgs[] =
++    static NCURSES_CONST char *msgs[] =
+     {
+ 	"Show file contents and a viewport from the variants of winwstr."
+ 	,"Use h/j/k/l or arrow keys to move the viewport."
+Index: test/test_mouse.c
+Prereq:  1.32 
+--- ncurses-6.5-20240928+/test/test_mouse.c	2024-08-31 10:46:01.000000000 +0000
++++ ncurses-6.5-20241006/test/test_mouse.c	2024-10-05 18:47:56.000000000 +0000
+@@ -22,7 +22,7 @@
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  ****************************************************************************/
+ /*
+- * $Id: test_mouse.c,v 1.32 2024/08/31 10:46:01 Rafael.Kitover Exp $
++ * $Id: test_mouse.c,v 1.33 2024/10/05 18:47:56 tom Exp $
+  *
+  * Author: Leonid S Usov
+  *
+@@ -38,7 +38,7 @@
+ static void
+ raw_loop(void)
+ {
+-    char *xtermcap;
++    const char *xtermcap;
+ 
+     printf("Entering raw mode. Ctrl-c to quit.\n");
+ 
+Index: test/test_opaque.c
+Prereq:  1.15 
+--- ncurses-6.5-20240928+/test/test_opaque.c	2022-12-11 00:03:10.000000000 +0000
++++ ncurses-6.5-20241006/test/test_opaque.c	2024-10-05 19:27:33.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2007-2008,2009 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_opaque.c,v 1.15 2022/12/11 00:03:10 tom Exp $
++ * $Id: test_opaque.c,v 1.16 2024/10/05 19:27:33 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -157,13 +157,13 @@
+ }
+ 
+ static int
+-status_y(WINDOW *stswin, int cell)
++status_y(const WINDOW *stswin, int cell)
+ {
+     return (cell % getmaxy(stswin));
+ }
+ 
+ static int
+-status_x(WINDOW *stswin, int cell)
++status_x(const WINDOW *stswin, int cell)
+ {
+     return (15 * (cell / getmaxy(stswin)));
+ }
+Index: test/test_sgr.c
+Prereq:  1.22 
+--- ncurses-6.5-20240928+/test/test_sgr.c	2023-05-27 20:13:10.000000000 +0000
++++ ncurses-6.5-20241006/test/test_sgr.c	2024-10-06 21:05:50.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2019-2023,2024 Thomas E. Dickey                                *
+  * Copyright 2015-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: test_sgr.c,v 1.22 2023/05/27 20:13:10 tom Exp $
++ * $Id: test_sgr.c,v 1.25 2024/10/06 21:05:50 tom Exp $
+  *
+  * A simple demo of the sgr/sgr0 terminal capabilities.
+  */
+@@ -142,10 +142,10 @@
+ #define MASK_REV  (1 << 2)
+ 
+ static void
+-dumpit(unsigned bits, unsigned ignore, const char *sgr, const char *sgr0)
++dumpit(unsigned bits, unsigned ignore, NCURSES_CONST char *sgr, NCURSES_CONST char *sgr0)
+ {
+-    static const char sample[] = "abcdefghijklm";
+-    static char params[] = "SURBDBIPA";
++    static NCURSES_CONST char sample[] = "abcdefghijklm";
++    static NCURSES_CONST char params[] = "SURBDBIPA";
+     unsigned n;
+ 
+     printf("%4u ", bits);
+@@ -177,12 +177,11 @@
+ static void
+ brute_force(const char *name)
+ {
+-    unsigned count;
+-    char *my_sgr;
+-    char *my_sgr0;
+-    char *my_bold;
+-    char *my_revs;
+-    char *my_smso;
++    NCURSES_CONST char *my_sgr;
++    NCURSES_CONST char *my_sgr0;
++    NCURSES_CONST char *my_bold;
++    NCURSES_CONST char *my_revs;
++    NCURSES_CONST char *my_smso;
+     char *my_name = strdup(name);
+ 
+     if (db_list) {
+@@ -219,6 +218,7 @@
+ 	unsigned ignore = 0;
+ 	unsigned reason = 0;
+ 	unsigned repeat = 0;
++	unsigned count;
+ 	for (count = 0; count < MAXSGR; ++count) {
+ 	    values[count] = tparm(my_sgr,
+ 				  BITS2P(1),
+@@ -334,7 +334,7 @@
+ main(int argc, char *argv[])
+ {
+     int ch;
+-    char *name;
++    const char *name;
+ 
+     while ((ch = getopt(argc, argv, OPTS_COMMON "d:e:nq")) != -1) {
+ 	switch (ch) {
+@@ -369,7 +369,7 @@
+     } else if ((name = getenv("TERM")) != 0) {
+ 	brute_force(name);
+     } else {
+-	static char dumb[] = "dumb";
++	static const char dumb[] = "dumb";
+ 	brute_force(dumb);
+     }
+ 
+Index: test/test_tparm.c
+Prereq:  1.39 
+--- ncurses-6.5-20240928+/test/test_tparm.c	2023-11-11 01:00:03.000000000 +0000
++++ ncurses-6.5-20241006/test/test_tparm.c	2024-10-06 20:50:27.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2023 Thomas E. Dickey                                *
++ * Copyright 2020-2023,2024 Thomas E. Dickey                                *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+@@ -29,7 +29,7 @@
+ /*
+  * Author: Thomas E. Dickey
+  *
+- * $Id: test_tparm.c,v 1.39 2023/11/11 01:00:03 tom Exp $
++ * $Id: test_tparm.c,v 1.42 2024/10/06 20:50:27 tom Exp $
+  *
+  * Exercise tparm/tiparm, either for all possible capabilities with fixed
+  * parameters, or one capability with specific combinations of parameters.
+@@ -107,7 +107,7 @@
+ }
+ 
+ static int
+-isNumeric(char *source)
++isNumeric(NCURSES_CONST char *source)
+ {
+     char *next = 0;
+     long value = strtol(source, &next, 0);
+@@ -245,7 +245,7 @@
+ #define NS_9(fmt)	NS_8(fmt), NumStr(8)
+ 
+ static void
+-test_tparm(const char *name, const char *format, long *number, char **string)
++test_tparm(const char *name, NCURSES_CONST char *format, long *number, char **string)
+ {
+     char *use_strings[MAX_PARM];
+     char *result = NULL;
+@@ -527,7 +527,7 @@
+ 	    }
+ 	} else {
+ 	    char *s = t_opt;
+-	    char *t;
++	    NCURSES_CONST char *t;
+ 	    while ((t = strtok(s, ",")) != 0) {
+ 		s = 0;
+ 		if (len_terms + 2 >= max_terms) {
+@@ -603,7 +603,7 @@
+ #if NCURSES_XNAMES
+ 	    len_caps = std_caps;
+ 	    if (cur_term) {
+-		TERMTYPE *term = (TERMTYPE *) cur_term;
++		NCURSES_CONST TERMTYPE *term = (TERMTYPE *) cur_term;
+ 		for (n = STRCOUNT; n < NUM_STRINGS(term); ++n) {
+ 		    GrowArray(all_caps, max_caps, len_caps);
+ 		    GrowArray(cap_name, max_name, len_caps);
+Index: test/test_vidputs.c
+Prereq:  1.15 
+--- ncurses-6.5-20240928+/test/test_vidputs.c	2022-12-10 23:23:27.000000000 +0000
++++ ncurses-6.5-20241006/test/test_vidputs.c	2024-10-06 21:17:54.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2020-2022,2024 Thomas E. Dickey                                *
+  * Copyright 2013-2014,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_vidputs.c,v 1.15 2022/12/10 23:23:27 tom Exp $
++ * $Id: test_vidputs.c,v 1.16 2024/10/06 21:17:54 tom Exp $
+  *
+  * Demonstrate the vidputs and vidattr functions.
+  * Thomas Dickey - 2013/01/12
+@@ -51,7 +51,7 @@
+ }
+ 
+ static bool
+-outs(const char *s)
++outs(NCURSES_CONST char *s)
+ {
+     if (VALID_STRING(s)) {
+ 	tputs(s, 1, outc);
+Index: test/testcurs.c
+Prereq:  1.58 
+--- ncurses-6.5-20240928+/test/testcurs.c	2023-05-28 14:23:34.000000000 +0000
++++ ncurses-6.5-20241006/test/testcurs.c	2024-10-05 19:17:19.000000000 +0000
+@@ -6,7 +6,7 @@
+  *  wrs(5/28/93) -- modified to be consistent (perform identically) with either
+  *                  PDCurses or under Unix System V, R4
+  *
+- * $Id: testcurs.c,v 1.58 2023/05/28 14:23:34 tom Exp $
++ * $Id: testcurs.c,v 1.59 2024/10/05 19:17:19 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -245,7 +245,7 @@
+ 	wclrtobot(win);
+ 	if (c >= KEY_MIN)
+ 	    wprintw(win, "Key Pressed: %s", keyname(c));
+-	else if (isprint(c))
++	else if (isprint(UChar(c)))
+ 	    wprintw(win, "Key Pressed: %c", c);
+ 	else
+ 	    wprintw(win, "Key Pressed: %s", unctrl(UChar(c)));
+@@ -748,8 +748,8 @@
+ 	keypad(stdscr, TRUE);
+ 	raw();
+ 	key = getch();
+-	if (key < KEY_MIN && key > 0 && isalpha(key)) {
+-	    if (islower(key))
++	if (key < KEY_MIN && key > 0 && isalpha(UChar(key))) {
++	    if (islower(UChar(key)))
+ 		key = toupper(key);
+ 	    for (n = 0; n < MAX_OPTIONS; ++n) {
+ 		if (key == command[n].text[0]) {
+Index: test/testscanw.c
+Prereq:  1.15 
+--- ncurses-6.5-20240928+/test/testscanw.c	2022-12-11 00:10:29.000000000 +0000
++++ ncurses-6.5-20241006/test/testscanw.c	2024-10-05 19:27:33.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2002,2006 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+  * Date:  1997/03/17
+  * From:  bayern@morpheus.cis.yale.edu
+  *
+- * $Id: testscanw.c,v 1.15 2022/12/11 00:10:29 tom Exp $
++ * $Id: testscanw.c,v 1.16 2024/10/05 19:27:33 tom Exp $
+  */
+ #include <test.priv.h>
+ 
+@@ -85,7 +85,7 @@
+     curses_trace(TRACE_UPDATE | TRACE_CALLS);
+ #endif
+     while (optind < argc) {
+-	char *token = argv[optind++];
++	const char *token = argv[optind++];
+ 	if (isdigit(UChar(*token)))
+ 	    move(atoi(token), 0);
+ 	else if (!strcmp(token, "k+"))
+Index: test/view.c
+Prereq:  1.145 
+--- ncurses-6.5-20240928+/test/view.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20241006/test/view.c	2024-10-06 21:08:05.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -52,7 +52,7 @@
+  * scroll operation worked, and the refresh() code only had to do a
+  * partial repaint.
+  *
+- * $Id: view.c,v 1.145 2022/12/04 00:40:11 tom Exp $
++ * $Id: view.c,v 1.147 2024/10/06 21:08:05 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -93,8 +93,7 @@
+ 
+ #if USE_WIDEC_SUPPORT
+     for (;;) {
+-	int count;
+-	TEST_CCHAR(src, count, {
++	TEST_CCHAR(src, {
+ 	    int len = wcwidth(test_wch[0]);
+ 	    result += (len > 0) ? len : 1;
+ 	    ++src;
+@@ -186,12 +185,10 @@
+ 	     */
+ 	    {
+ 		int j;
+-		int width = 1;
++		int width;
+ 
+ 		for (j = actual = 0; j < shift; ++j) {
+-		    int count;
+-
+-		    TEST_CCHAR(s + j, count, {
++		    TEST_CCHAR(s + j, {
+ 			width = wcwidth(test_wch[0]);
+ 		    }
+ 		    , {
+@@ -294,7 +291,7 @@
+ 
+ #if USE_WIDEC_SUPPORT
+     if (!memcmp("\357\273\277", my_blob, 3)) {
+-	char *s = my_blob + 3;
++	const char *s = my_blob + 3;
+ 	char *d = my_blob;
+ 	Trace(("trim BOM"));
+ 	do {
+@@ -329,7 +326,7 @@
+ 	char *s;
+ 	int y, x;
+ #if USE_WIDEC_SUPPORT
+-	char *last = my_vec[k] + (int) strlen(my_vec[k]);
++	const char *last = my_vec[k] + (int) strlen(my_vec[k]);
+ 	wchar_t wch[2];
+ 	size_t rc;
+ #ifndef state_unused
+@@ -408,7 +405,7 @@
+ int
+ main(int argc, char *argv[])
+ {
+-    static const char *help[] =
++    static NCURSES_CONST char *help[] =
+     {
+ 	"Commands:",
+ 	"  q,^Q,ESC       - quit this program",
+@@ -659,7 +656,7 @@
+ 	    beep();
+ 	    break;
+ 	}
+-	if (c >= KEY_MIN || (c > 0 && !isdigit(c))) {
++	if (c >= KEY_MIN || (c > 0 && !isdigit(UChar(c)))) {
+ 	    got_number = FALSE;
+ 	    value = 0;
+ 	}

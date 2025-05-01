@@ -1,0 +1,1785 @@
+# ncurses 6.5 - patch 20250125 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250125.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Jan 26 00:34:44 UTC 2025
+# ------------------------------------------------------------------------------
+# Ada95/gen/gen.c                                          |    6 
+# Ada95/samples/sample-explanation.adb_p                   |    8 
+# Ada95/src/terminal_interface-curses-forms.adb            |    8 
+# Ada95/src/terminal_interface-curses-menus.adb            |    8 
+# Ada95/src/terminal_interface-curses-panels-user_data.adb |    4 
+# NEWS                                                     |    6 
+# VERSION                                                  |    2 
+# c++/cursesapp.cc                                         |   22 +-
+# c++/cursesf.cc                                           |  129 +++++++------
+# c++/cursesf.h                                            |   42 ++--
+# c++/cursesm.cc                                           |  112 ++++++-----
+# c++/cursesm.h                                            |   42 ++--
+# c++/cursesp.cc                                           |    8 
+# c++/cursesp.h                                            |   16 -
+# c++/cursespad.cc                                         |   22 +-
+# c++/cursesw.cc                                           |   42 ++--
+# c++/cursesw.h                                            |    6 
+# c++/demo.cc                                              |   20 +-
+# c++/etip.h.in                                            |   20 +-
+# dist.mk                                                  |    4 
+# ncurses/base/lib_mouse.c                                 |   24 +-
+# ncurses/base/lib_set_term.c                              |    6 
+# ncurses/tty/lib_twait.c                                  |    6 
+# package/debian-mingw/changelog                           |    4 
+# package/debian-mingw64/changelog                         |    4 
+# package/debian/changelog                                 |    4 
+# package/mingw-ncurses.nsi                                |    4 
+# package/mingw-ncurses.spec                               |    2 
+# package/ncurses.spec                                     |    2 
+# package/ncursest.spec                                    |    2 
+# 30 files changed, 307 insertions(+), 278 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/gen/gen.c
+Prereq:  1.79 
+--- ncurses-6.5-20250118+/Ada95/gen/gen.c	2024-01-19 13:41:45.000000000 +0000
++++ ncurses-6.5-20250125/Ada95/gen/gen.c	2025-01-24 20:39:23.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2021,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2014,2016 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -35,7 +35,7 @@
+ 
+ /*
+     Version Control
+-    $Id: gen.c,v 1.79 2024/01/19 13:41:45 tom Exp $
++    $Id: gen.c,v 1.80 2025/01/24 20:39:23 tom Exp $
+   --------------------------------------------------------------------------*/
+ /*
+   This program prints on its standard output the source for the
+@@ -189,7 +189,7 @@
+ int
+ main(int argc, const char *argv[])
+ {
+-  FILE *fp = 0;
++  FILE *fp = NULL;
+   const int x = 0x12345678;
+ 
+   little_endian = (*((const char *)&x) == 0x78);
+Index: Ada95/samples/sample-explanation.adb_p
+--- ncurses-6.5-20250118+/Ada95/samples/sample-explanation.adb_p	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20250125/Ada95/samples/sample-explanation.adb_p	2025-01-24 20:39:23.000000000 +0000
+@@ -7,7 +7,7 @@
+ --                                 B O D Y                                  --
+ --                                                                          --
+ ------------------------------------------------------------------------------
+--- Copyright 2019,2020 Thomas E. Dickey                                     --
++-- Copyright 2019-2020,2025 Thomas E. Dickey                                --
+ --                                                                          --
+ -- Permission is hereby granted, free of charge, to any person obtaining a  --
+ -- copy of this software and associated documentation files (the            --
+@@ -35,8 +35,8 @@
+ ------------------------------------------------------------------------------
+ --  Author:  Juergen Pfeifer, 1996
+ --  Version Control
+---  $Revision: 1.5 $
+---  $Date: 2020/02/02 23:34:34 $
++--  $Revision: 1.6 $
++--  $Date: 2025/01/24 20:39:23 $
+ --  Binding Version 01.00
+ ------------------------------------------------------------------------------
+ --  Poor mans help system. This scans a sequential file for key lines and
+@@ -136,7 +136,7 @@
+          H : Help_Line_Access := Top_Line;
+       begin
+          if Top_Line /= null then
+-            for L in 0 .. (Height - 1) loop
++            for L in 0 .. Height - 1 loop
+                Add (W, L, 0, H.all.Line.all);
+                exit when H.all.Next = null;
+                H := H.all.Next;
+Index: Ada95/src/terminal_interface-curses-forms.adb
+--- ncurses-6.5-20250118+/Ada95/src/terminal_interface-curses-forms.adb	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20250125/Ada95/src/terminal_interface-curses-forms.adb	2025-01-24 20:39:23.000000000 +0000
+@@ -7,7 +7,7 @@
+ --                                 B O D Y                                  --
+ --                                                                          --
+ ------------------------------------------------------------------------------
+--- Copyright 2020 Thomas E. Dickey                                          --
++-- Copyright 2020,2025 Thomas E. Dickey                                     --
+ -- Copyright 1999-2011,2014 Free Software Foundation, Inc.                  --
+ --                                                                          --
+ -- Permission is hereby granted, free of charge, to any person obtaining a  --
+@@ -36,8 +36,8 @@
+ ------------------------------------------------------------------------------
+ --  Author:  Juergen Pfeifer, 1996
+ --  Version Control:
+---  $Revision: 1.33 $
+---  $Date: 2020/02/02 23:34:34 $
++--  $Revision: 1.34 $
++--  $Date: 2025/01/24 20:39:23 $
+ --  Binding Version 01.00
+ ------------------------------------------------------------------------------
+ with Ada.Unchecked_Deallocation;
+@@ -1006,7 +1006,7 @@
+         (Field_Array, Field_Array_Access);
+    begin
+       if FA /= null and then Free_Fields then
+-         for I in FA'First .. (FA'Last - 1) loop
++         for I in FA'First .. FA'Last - 1 loop
+             if FA.all (I) /= Null_Field then
+                Delete (FA.all (I));
+             end if;
+Index: Ada95/src/terminal_interface-curses-menus.adb
+--- ncurses-6.5-20250118+/Ada95/src/terminal_interface-curses-menus.adb	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20250125/Ada95/src/terminal_interface-curses-menus.adb	2025-01-24 20:39:23.000000000 +0000
+@@ -7,7 +7,7 @@
+ --                                 B O D Y                                  --
+ --                                                                          --
+ ------------------------------------------------------------------------------
+--- Copyright 2018,2020 Thomas E. Dickey                                     --
++-- Copyright 2018-2020,2025 Thomas E. Dickey                                --
+ -- Copyright 1999-2011,2014 Free Software Foundation, Inc.                  --
+ --                                                                          --
+ -- Permission is hereby granted, free of charge, to any person obtaining a  --
+@@ -36,8 +36,8 @@
+ ------------------------------------------------------------------------------
+ --  Author:  Juergen Pfeifer, 1996
+ --  Version Control:
+---  $Revision: 1.34 $
+---  $Date: 2020/02/02 23:34:34 $
++--  $Revision: 1.35 $
++--  $Date: 2025/01/24 20:39:23 $
+ --  Binding Version 01.00
+ ------------------------------------------------------------------------------
+ with Ada.Unchecked_Deallocation;
+@@ -878,7 +878,7 @@
+         (Item_Array, Item_Array_Access);
+    begin
+       if IA /= null and then Free_Items then
+-         for I in IA'First .. (IA'Last - 1) loop
++         for I in IA'First .. IA'Last - 1 loop
+             if IA.all (I) /= Null_Item then
+                Delete (IA.all (I));
+             end if;
+Index: Ada95/src/terminal_interface-curses-panels-user_data.adb
+--- ncurses-6.5-20250118+/Ada95/src/terminal_interface-curses-panels-user_data.adb	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20250125/Ada95/src/terminal_interface-curses-panels-user_data.adb	2025-01-24 20:39:23.000000000 +0000
+@@ -7,7 +7,7 @@
+ --                                 B O D Y                                  --
+ --                                                                          --
+ ------------------------------------------------------------------------------
+--- Copyright 2020 Thomas E. Dickey                                          --
++-- Copyright 2020,2025 Thomas E. Dickey                                     --
+ -- Copyright 1999-2003,2009 Free Software Foundation, Inc.                  --
+ --                                                                          --
+ -- Permission is hereby granted, free of charge, to any person obtaining a  --
+@@ -36,7 +36,7 @@
+ ------------------------------------------------------------------------------
+ --  Author:  Juergen Pfeifer, 1996
+ --  Version Control:
+---  $Revision: 1.13 $
++--  $Revision: 1.14 $
+ --  Binding Version 01.00
+ ------------------------------------------------------------------------------
+ with Interfaces.C;
+Index: NEWS
+Prereq:  1.4233 
+--- ncurses-6.5-20250118+/NEWS	2025-01-19 01:24:13.000000000 +0000
++++ ncurses-6.5-20250125/NEWS	2025-01-25 21:30:09.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4233 2025/01/19 01:24:13 tom Exp $
++-- $Id: NEWS,v 1.4236 2025/01/25 21:30:09 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,10 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250125
++	+ improve error-handling in c++ binding (report by Mingjie Shen).
++	+ strict compiler-warning fixes for upcoming gcc15
++
+ 20250118
+ 	+ improve pattern used for configure --with-xterm-kbs option (report by
+ 	  Mingyu Wang)
+Index: VERSION
+--- ncurses-6.5-20250118+/VERSION	2025-01-18 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/VERSION	2025-01-25 10:34:16.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250118
++5:0:10	6.5	20250125
+Index: c++/cursesapp.cc
+Prereq:  1.18 
+--- ncurses-6.5-20250118+/c++/cursesapp.cc	2020-07-18 19:57:11.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesapp.cc	2025-01-25 21:20:17.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019,2020 Thomas E. Dickey                                     *
++ * Copyright 2019-2020,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2007,2008 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ #include "internal.h"
+ #include "cursesapp.h"
+ 
+-MODULE_ID("$Id: cursesapp.cc,v 1.18 2020/07/18 19:57:11 anonymous.maarten Exp $")
++MODULE_ID("$Id: cursesapp.cc,v 1.19 2025/01/25 21:20:17 tom Exp $")
+ 
+ void
+ NCursesApplication::init(bool bColors)
+@@ -65,9 +65,9 @@
+   Root_Window->bkgd(' '|window_backgrounds());
+ }
+ 
+-NCursesApplication* NCursesApplication::theApp = 0;
+-NCursesWindow* NCursesApplication::titleWindow = 0;
+-NCursesApplication::SLK_Link* NCursesApplication::slk_stack = 0;
++NCursesApplication* NCursesApplication::theApp = NULL;
++NCursesWindow* NCursesApplication::titleWindow = NULL;
++NCursesApplication::SLK_Link* NCursesApplication::slk_stack = NULL;
+ 
+ 
+ NCursesWindow *&NCursesApplication::getTitleWindow() {
+@@ -79,7 +79,7 @@
+   Soft_Label_Key_Set* S;
+ 
+   delete titleWindow;
+-  titleWindow = 0;
++  titleWindow = NULL;
+ 
+   while( (S=top()) ) {
+     pop();
+@@ -87,7 +87,7 @@
+   }
+ 
+   delete Root_Window;
+-  Root_Window = 0;
++  Root_Window = NULL;
+ 
+   ::endwin();
+ }
+@@ -105,7 +105,7 @@
+ void NCursesApplication::push(Soft_Label_Key_Set& S)
+ {
+   SLK_Link* L = new SLK_Link;
+-  assert(L != 0);
++  assert(L != NULL);
+   L->prev = slk_stack;
+   L->SLKs = &S;
+   slk_stack = L;
+@@ -121,7 +121,7 @@
+     delete L;
+     if (Root_Window) {
+       Soft_Label_Key_Set* xx = top();
+-      if (xx != 0)
++      if (xx != NULL)
+         xx->show();
+     }
+   }
+@@ -139,7 +139,7 @@
+ int NCursesApplication::operator()(void)
+ {
+   bool bColors = b_Colors;
+-  Soft_Label_Key_Set* S = 0;
++  Soft_Label_Key_Set* S = NULL;
+ 
+   int ts = titlesize();
+   if (ts>0)
+@@ -147,7 +147,7 @@
+   Soft_Label_Key_Set::Label_Layout fmt = useSLKs();
+   if (fmt!=Soft_Label_Key_Set::None) {
+     S = new Soft_Label_Key_Set(fmt);
+-    assert(S != 0);
++    assert(S != NULL);
+     init_labels(*S);
+   }
+ 
+Index: c++/cursesf.cc
+Prereq:  1.27 
+--- ncurses-6.5-20250118+/c++/cursesf.cc	2024-10-05 22:47:12.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesf.cc	2025-01-25 21:20:17.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2021,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2005,2011 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ #include "cursesf.h"
+ #include "cursesapp.h"
+ 
+-MODULE_ID("$Id: cursesf.cc,v 1.27 2024/10/05 22:47:12 tom Exp $")
++MODULE_ID("$Id: cursesf.cc,v 1.28 2025/01/25 21:20:17 tom Exp $")
+ 
+ NCursesFormField::~NCursesFormField () THROWS(NCursesException)
+ {
+@@ -50,28 +50,34 @@
+ FIELD**
+ NCursesForm::mapFields(NCursesFormField* nfields[])
+ {
+-  int fieldCount = 0,lcv;
++  int fieldCount = 0, lcv;
+   FIELD** old_fields;
+ 
+-  assert(nfields != 0);
++  assert(nfields != NULL);
+ 
+   for (lcv=0; nfields[lcv]->field; ++lcv)
+     ++fieldCount;
+ 
+-  FIELD** fields = new FIELD*[fieldCount + 1];
++  try {
++    FIELD** fields = new FIELD*[fieldCount + 1];
+ 
+-  for (lcv=0;nfields[lcv]->field;++lcv) {
+-    fields[lcv] = nfields[lcv]->field;
+-  }
+-  fields[lcv] = NULL;
++    for (lcv=0;nfields[lcv]->field;++lcv) {
++      fields[lcv] = nfields[lcv]->field;
++    }
++    fields[lcv] = NULL;
+ 
+-  my_fields = nfields;
++    my_fields = nfields;
+ 
+-  if (form && (old_fields = ::form_fields(form))) {
+-    ::set_form_fields(form, static_cast<FIELD**>(0));
+-    delete[] old_fields;
++    if (form && (old_fields = ::form_fields(form))) {
++      ::set_form_fields(form, static_cast<FIELD**>(0));
++      delete[] old_fields;
++    }
++    return fields;
+   }
+-  return fields;
++  catch (std::bad_alloc const&) {
++    OnError (E_SYSTEM_ERROR);
++  }
++  return NULL;
+ }
+ 
+ void NCursesForm::setDefaultAttributes()
+@@ -108,46 +114,51 @@
+ 		      bool with_frame,
+ 		      bool autoDelete_Fields)
+ {
+-  int mrows, mcols;
++  try {
++    int mrows, mcols;
+ 
+-  keypad(TRUE);
+-  meta(TRUE);
++    keypad(TRUE);
++    meta(TRUE);
+ 
+-  b_framed = with_frame;
+-  b_autoDelete = autoDelete_Fields;
++    b_framed = with_frame;
++    b_autoDelete = autoDelete_Fields;
+ 
+-  form = static_cast<FORM*>(0);
+-  form = ::new_form(mapFields(nfields));
+-  if (!form)
+-    OnError (E_SYSTEM_ERROR);
+-
+-  UserHook* hook = new UserHook;
+-  hook->m_user   = NULL;
+-  hook->m_back   = this;
+-  hook->m_owner  = form;
+-  ::set_form_userptr(form, reinterpret_cast<void*>(hook));
+-
+-  ::set_form_init  (form, _nc_xx_frm_init);
+-  ::set_form_term  (form, _nc_xx_frm_term);
+-  ::set_field_init (form, _nc_xx_fld_init);
+-  ::set_field_term (form, _nc_xx_fld_term);
+-
+-  scale(mrows, mcols);
+-  ::set_form_win(form, w);
+-
+-  if (with_frame) {
+-    if ((mrows > height()-2) || (mcols > width()-2))
+-      OnError(E_NO_ROOM);
+-    sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
+-    ::set_form_sub(form, sub->w);
+-    b_sub_owner = TRUE;
++    form = static_cast<FORM*>(0);
++    form = ::new_form(mapFields(nfields));
++    if (!form)
++      OnError (E_SYSTEM_ERROR);
++
++    UserHook* hook = new UserHook;
++    hook->m_user   = NULL;
++    hook->m_back   = this;
++    hook->m_owner  = form;
++    ::set_form_userptr(form, reinterpret_cast<void*>(hook));
++
++    ::set_form_init  (form, _nc_xx_frm_init);
++    ::set_form_term  (form, _nc_xx_frm_term);
++    ::set_field_init (form, _nc_xx_fld_init);
++    ::set_field_term (form, _nc_xx_fld_term);
++
++    scale(mrows, mcols);
++    ::set_form_win(form, w);
++
++    if (with_frame) {
++      if ((mrows > height()-2) || (mcols > width()-2))
++        OnError(E_NO_ROOM);
++      sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
++      ::set_form_sub(form, sub->w);
++      b_sub_owner = TRUE;
++    }
++    else {
++      sub = static_cast<NCursesWindow*>(NULL);
++      b_sub_owner = FALSE;
++    }
++    options_on(O_NL_OVERLOAD);
++    setDefaultAttributes();
+   }
+-  else {
+-    sub = static_cast<NCursesWindow*>(0);
+-    b_sub_owner = FALSE;
++  catch (std::bad_alloc const&) {
++    OnError (E_SYSTEM_ERROR);
+   }
+-  options_on(O_NL_OVERLOAD);
+-  setDefaultAttributes();
+ }
+ 
+ NCursesForm::~NCursesForm() THROWS(NCursesException)
+@@ -156,13 +167,13 @@
+   delete hook;
+   if (b_sub_owner) {
+     delete sub;
+-    ::set_form_sub(form, static_cast<WINDOW *>(0));
++    ::set_form_sub(form, static_cast<WINDOW *>(NULL));
+   }
+   if (form) {
+     FIELD** fields = ::form_fields(form);
+     int cnt = count();
+ 
+-    OnError(::set_form_fields(form, static_cast<FIELD**>(0)));
++    OnError(::set_form_fields(form, static_cast<FIELD**>(NULL)));
+ 
+     if (b_autoDelete) {
+       if (cnt>0) {
+@@ -381,19 +392,19 @@
+ {
+   (void) f;
+   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
+-  assert(F != 0);
++  assert(F != NULL);
+   UserDefinedFieldType* udf = reinterpret_cast<UserDefinedFieldType*>(F->fieldtype());
+-  assert(udf != 0);
++  assert(udf != NULL);
+   return udf->field_check(*F);
+ }
+ 
+ bool _nc_xx_fld_ccheck(int c, const void *u)
+ {
+   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
+-  assert(F != 0);
++  assert(F != NULL);
+   UserDefinedFieldType* udf =
+     reinterpret_cast<UserDefinedFieldType*>(F->fieldtype());
+-  assert(udf != 0);
++  assert(udf != NULL);
+   return udf->char_check(c);
+ }
+ 
+@@ -423,10 +434,10 @@
+ {
+   (void) f;
+   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
+-  assert(F != 0);
++  assert(F != NULL);
+   UserDefinedFieldType_With_Choice* udf =
+     reinterpret_cast<UserDefinedFieldType_With_Choice*>(F->fieldtype());
+-  assert(udf != 0);
++  assert(udf != NULL);
+   return udf->next(*F);
+ }
+ 
+@@ -434,10 +445,10 @@
+ {
+   (void) f;
+   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
+-  assert(F != 0);
++  assert(F != NULL);
+   UserDefinedFieldType_With_Choice* udf =
+     reinterpret_cast<UserDefinedFieldType_With_Choice*>(F->fieldtype());
+-  assert(udf != 0);
++  assert(udf != NULL);
+   return udf->previous(*F);
+ }
+ 
+Index: c++/cursesf.h
+Prereq:  1.40 
+--- ncurses-6.5-20250118+/c++/cursesf.h	2024-10-05 22:47:12.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesf.h	2025-01-25 21:20:17.000000000 +0000
+@@ -1,7 +1,7 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ // vile:cppmode
+ /****************************************************************************
+- * Copyright 2019-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -33,7 +33,7 @@
+  *   Author: Juergen Pfeifer, 1997                                          *
+  ****************************************************************************/
+ 
+-// $Id: cursesf.h,v 1.40 2024/10/05 22:47:12 tom Exp $
++// $Id: cursesf.h,v 1.41 2025/01/25 21:20:17 tom Exp $
+ 
+ #ifndef NCURSES_CURSESF_H_incl
+ #define NCURSES_CURSESF_H_incl 1
+@@ -78,7 +78,7 @@
+ 
+ public:
+   NCursesFieldType()
+-    : fieldtype(STATIC_CAST(FIELDTYPE*)(0))
++    : fieldtype(STATIC_CAST(FIELDTYPE*)(NULL))
+   {
+   }
+ 
+@@ -119,8 +119,8 @@
+ public:
+   // Create a 'Null' field. Can be used to delimit a field list
+   NCursesFormField()
+-    : field(STATIC_CAST(FIELD*)(0)),
+-      ftype(STATIC_CAST(NCursesFieldType*)(0))
++    : field(STATIC_CAST(FIELD*)(NULL)),
++      ftype(STATIC_CAST(NCursesFieldType*)(NULL))
+   {
+   }
+ 
+@@ -131,8 +131,8 @@
+ 		    int first_col = 0,
+ 		    int offscreen_rows = 0,
+ 		    int additional_buffers = 0)
+-    : field(0),
+-      ftype(STATIC_CAST(NCursesFieldType*)(0))
++    : field(NULL),
++      ftype(STATIC_CAST(NCursesFieldType*)(NULL))
+   {
+       field = ::new_field(rows, ncols, first_row, first_col,
+ 			  offscreen_rows, additional_buffers);
+@@ -363,7 +363,7 @@
+   // Get the backward pointer to the C++ object from a FORM
+   static inline NCursesForm* getHook(const FORM *f) {
+     UserHook* hook = reinterpret_cast<UserHook*>(::form_userptr(f));
+-    assert(hook != 0 && hook->m_owner==f);
++    assert(hook != NULL && hook->m_owner==f);
+     return const_cast<NCursesForm*>(hook->m_back);
+   }
+ 
+@@ -379,13 +379,13 @@
+   // internal routines
+   inline void set_user(void *user) {
+     UserHook* uptr = reinterpret_cast<UserHook*>(::form_userptr (form));
+-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==form);
++    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==form);
+     uptr->m_user = user;
+   }
+ 
+   inline void *get_user() {
+     const UserHook* uptr = reinterpret_cast<UserHook*>(::form_userptr (form));
+-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==form);
++    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==form);
+     return uptr->m_user;
+   }
+ 
+@@ -408,12 +408,12 @@
+ 	       int  begin_y = 0,
+ 	       int  begin_x = 0)
+     : NCursesPanel(nlines, ncols, begin_y, begin_x),
+-      form (STATIC_CAST(FORM*)(0)),
+-      sub(0),
++      form (STATIC_CAST(FORM*)(NULL)),
++      sub(NULL),
+       b_sub_owner(0),
+       b_framed(0),
+       b_autoDelete(0),
+-      my_fields(0)
++      my_fields(NULL)
+   {
+   }
+ 
+@@ -423,12 +423,12 @@
+ 	       bool with_frame=FALSE,	      // reserve space for a frame?
+ 	       bool autoDelete_Fields=FALSE)  // do automatic cleanup?
+     : NCursesPanel(),
+-      form(0),
+-      sub(0),
++      form(NULL),
++      sub(NULL),
+       b_sub_owner(0),
+       b_framed(0),
+       b_autoDelete(0),
+-      my_fields(0)
++      my_fields(NULL)
+   {
+     InitForm(Fields, with_frame, autoDelete_Fields);
+   }
+@@ -442,12 +442,12 @@
+ 	       bool with_frame=FALSE,	     // reserve space for a frame?
+ 	       bool autoDelete_Fields=FALSE) // do automatic cleanup?
+     : NCursesPanel(nlines, ncols, begin_y, begin_x),
+-      form(0),
+-      sub(0),
++      form(NULL),
++      sub(NULL),
+       b_sub_owner(0),
+       b_framed(0),
+       b_autoDelete(0),
+-      my_fields(0)
++      my_fields(NULL)
+   {
+       InitForm(Fields, with_frame, autoDelete_Fields);
+   }
+@@ -681,7 +681,7 @@
+ 
+ public:
+   NCursesUserForm (NCursesFormField* Fields[],
+-		   const T* p_UserData = STATIC_CAST(T*)(0),
++		   const T* p_UserData = STATIC_CAST(T*)(NULL),
+ 		   bool with_frame=FALSE,
+ 		   bool autoDelete_Fields=FALSE)
+     : NCursesForm (Fields, with_frame, autoDelete_Fields) {
+@@ -694,7 +694,7 @@
+ 		   int ncols,
+ 		   int begin_y = 0,
+ 		   int begin_x = 0,
+-		   const T* p_UserData = STATIC_CAST(T*)(0),
++		   const T* p_UserData = STATIC_CAST(T*)(NULL),
+ 		   bool with_frame=FALSE,
+ 		   bool autoDelete_Fields=FALSE)
+     : NCursesForm (Fields, nlines, ncols, begin_y, begin_x,
+Index: c++/cursesm.cc
+Prereq:  1.28 
+--- ncurses-6.5-20250118+/c++/cursesm.cc	2024-10-05 22:47:12.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesm.cc	2025-01-25 21:20:17.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2021,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2011,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ #include "cursesm.h"
+ #include "cursesapp.h"
+ 
+-MODULE_ID("$Id: cursesm.cc,v 1.28 2024/10/05 22:47:12 tom Exp $")
++MODULE_ID("$Id: cursesm.cc,v 1.29 2025/01/25 21:20:17 tom Exp $")
+ 
+ NCursesMenuItem::~NCursesMenuItem() THROWS(NCursesException)
+ {
+@@ -100,23 +100,28 @@
+ ITEM**
+ NCursesMenu::mapItems(NCursesMenuItem* nitems[])
+ {
+-  int itemCount = 0,lcv;
++  try {
++    int itemCount = 0,lcv;
+ 
+-  for (lcv=0; nitems[lcv]->item; ++lcv)
+-    ++itemCount;
++    for (lcv=0; nitems[lcv]->item; ++lcv)
++      ++itemCount;
+ 
+-  ITEM** itemArray = new ITEM*[itemCount + 1];
++    ITEM** itemArray = new ITEM*[itemCount + 1];
+ 
+-  for (lcv=0;nitems[lcv]->item;++lcv) {
+-    itemArray[lcv] = nitems[lcv]->item;
+-  }
+-  itemArray[lcv] = NULL;
++    for (lcv=0;nitems[lcv]->item;++lcv) {
++      itemArray[lcv] = nitems[lcv]->item;
++    }
++    itemArray[lcv] = NULL;
+ 
+-  my_items = nitems;
++    my_items = nitems;
+ 
+-  if (menu)
+-    delete[] ::menu_items(menu);
+-  return itemArray;
++    if (menu)
++      delete[] ::menu_items(menu);
++    return itemArray;
++  }
++  catch (std::bad_alloc const&) {
++  }
++  return NULL;
+ }
+ 
+ void
+@@ -124,45 +129,50 @@
+ 		      bool with_frame,
+ 		      bool autoDelete_Items)
+ {
+-  int mrows, mcols;
+-
+-  keypad(TRUE);
+-  meta(TRUE);
++  try {
++    int mrows, mcols;
+ 
+-  b_framed = with_frame;
+-  b_autoDelete = autoDelete_Items;
++    keypad(TRUE);
++    meta(TRUE);
+ 
+-  menu = static_cast<MENU*>(0);
+-  menu = ::new_menu(mapItems(nitems));
+-  if (!menu)
+-    OnError (E_SYSTEM_ERROR);
++    b_framed = with_frame;
++    b_autoDelete = autoDelete_Items;
+ 
+-  UserHook* hook = new UserHook;
+-  hook->m_user   = NULL;
+-  hook->m_back   = this;
+-  hook->m_owner  = menu;
+-  ::set_menu_userptr(menu, static_cast<void*>(hook));
+-
+-  ::set_menu_init (menu, _nc_xx_mnu_init);
+-  ::set_menu_term (menu, _nc_xx_mnu_term);
+-  ::set_item_init (menu, _nc_xx_itm_init);
+-  ::set_item_term (menu, _nc_xx_itm_term);
+-
+-  scale(mrows, mcols);
+-  ::set_menu_win(menu, w);
+-
+-  if (with_frame) {
+-    if ((mrows > height()-2) || (mcols > width()-2))
+-      OnError(E_NO_ROOM);
+-    sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
+-    ::set_menu_sub(menu, sub->w);
+-    b_sub_owner = TRUE;
++    menu = static_cast<MENU*>(NULL);
++    menu = ::new_menu(mapItems(nitems));
++    if (!menu)
++      OnError (E_SYSTEM_ERROR);
++
++    UserHook* hook = new UserHook;
++    hook->m_user   = NULL;
++    hook->m_back   = this;
++    hook->m_owner  = menu;
++    ::set_menu_userptr(menu, static_cast<void*>(hook));
++
++    ::set_menu_init (menu, _nc_xx_mnu_init);
++    ::set_menu_term (menu, _nc_xx_mnu_term);
++    ::set_item_init (menu, _nc_xx_itm_init);
++    ::set_item_term (menu, _nc_xx_itm_term);
++
++    scale(mrows, mcols);
++    ::set_menu_win(menu, w);
++
++    if (with_frame) {
++      if ((mrows > height()-2) || (mcols > width()-2))
++        OnError(E_NO_ROOM);
++      sub = new NCursesWindow(*this,mrows,mcols,1,1,'r');
++      ::set_menu_sub(menu, sub->w);
++      b_sub_owner = TRUE;
++    }
++    else {
++      sub = static_cast<NCursesWindow*>(NULL);
++      b_sub_owner = FALSE;
++    }
++    setDefaultAttributes();
+   }
+-  else {
+-    sub = static_cast<NCursesWindow*>(0);
+-    b_sub_owner = FALSE;
++  catch (std::bad_alloc const&) {
++    OnError (E_SYSTEM_ERROR);
+   }
+-  setDefaultAttributes();
+ }
+ 
+ void
+@@ -181,14 +191,14 @@
+   UserHook* hook = reinterpret_cast<UserHook*>(::menu_userptr(menu));
+   delete hook;
+   if (b_sub_owner) {
+-    ::set_menu_sub(menu, static_cast<WINDOW *>(0));
++    ::set_menu_sub(menu, static_cast<WINDOW *>(NULL));
+     delete sub;
+   }
+   if (menu) {
+     ITEM** itms = ::menu_items(menu);
+     int cnt = count();
+ 
+-    OnError(::set_menu_items(menu, static_cast<ITEM**>(0)));
++    OnError(::set_menu_items(menu, static_cast<ITEM**>(NULL)));
+ 
+     if (b_autoDelete) {
+       if (cnt>0) {
+@@ -322,7 +332,7 @@
+       if (drvCmnd == CMD_ACTION) {
+ 	if (options() & O_ONEVALUE) {
+ 	  NCursesMenuItem* itm = current_item();
+-	  assert(itm != 0);
++	  assert(itm != NULL);
+ 	  if (itm->options() & O_SELECTABLE)
+ 	    {
+ 	      b_action = itm->action();
+Index: c++/cursesm.h
+Prereq:  1.36 
+--- ncurses-6.5-20250118+/c++/cursesm.h	2024-10-05 22:47:12.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesm.h	2025-01-25 21:20:17.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -32,7 +32,7 @@
+  *   Author: Juergen Pfeifer, 1997                                          *
+  ****************************************************************************/
+ 
+-// $Id: cursesm.h,v 1.36 2024/10/05 22:47:12 tom Exp $
++// $Id: cursesm.h,v 1.37 2025/01/25 21:20:17 tom Exp $
+ 
+ #ifndef NCURSES_CURSESM_H_incl
+ #define NCURSES_CURSESM_H_incl 1
+@@ -62,9 +62,9 @@
+ public:
+   NCursesMenuItem (const char* p_name     = NULL,
+ 		   const char* p_descript = NULL)
+-    : item(0)
++    : item(NULL)
+   {
+-    item = p_name ? ::new_item (p_name, p_descript) : STATIC_CAST(ITEM*)(0);
++    item = p_name ? ::new_item (p_name, p_descript) : STATIC_CAST(ITEM*)(NULL);
+     if (p_name && !item)
+       OnError (E_SYSTEM_ERROR);
+   }
+@@ -81,7 +81,7 @@
+   }
+ 
+   NCursesMenuItem(const NCursesMenuItem& rhs)
+-    : item(0)
++    : item(NULL)
+   {
+     (void) rhs;
+   }
+@@ -176,7 +176,7 @@
+ 
+   NCursesMenuCallbackItem(const NCursesMenuCallbackItem& rhs)
+     : NCursesMenuItem(rhs),
+-      p_fct(0)
++      p_fct(NULL)
+   {
+   }
+ 
+@@ -224,7 +224,7 @@
+   // Get the backward pointer to the C++ object from a MENU
+   static inline NCursesMenu* getHook(const MENU *m) {
+     UserHook* hook = STATIC_CAST(UserHook*)(::menu_userptr(m));
+-    assert(hook != 0 && hook->m_owner==m);
++    assert(hook != NULL && hook->m_owner==m);
+     return const_cast<NCursesMenu*>(hook->m_back);
+   }
+ 
+@@ -240,13 +240,13 @@
+   // internal routines
+   inline void set_user(void *user) {
+     UserHook* uptr = STATIC_CAST(UserHook*)(::menu_userptr (menu));
+-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==menu);
++    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==menu);
+     uptr->m_user = user;
+   }
+ 
+   inline void *get_user() {
+     const UserHook* uptr = STATIC_CAST(UserHook*)(::menu_userptr (menu));
+-    assert (uptr != 0 && uptr->m_back==this && uptr->m_owner==menu);
++    assert (uptr != NULL && uptr->m_back==this && uptr->m_owner==menu);
+     return uptr->m_user;
+   }
+ 
+@@ -270,11 +270,11 @@
+ 	       int  begin_x = 0)
+     : NCursesPanel(nlines,ncols,begin_y,begin_x),
+       menu (STATIC_CAST(MENU*)(0)),
+-      sub(0),
++      sub(NULL),
+       b_sub_owner(0),
+       b_framed(0),
+       b_autoDelete(0),
+-      my_items(0)
++      my_items(NULL)
+   {
+   }
+ 
+@@ -284,12 +284,12 @@
+ 	       bool with_frame=FALSE,        // Reserve space for a frame?
+ 	       bool autoDelete_Items=FALSE)  // Autocleanup of Items?
+     : NCursesPanel(),
+-      menu(0),
+-      sub(0),
++      menu(NULL),
++      sub(NULL),
+       b_sub_owner(0),
+       b_framed(0),
+       b_autoDelete(0),
+-      my_items(0)
++      my_items(NULL)
+   {
+       InitMenu(Items, with_frame, autoDelete_Items);
+   }
+@@ -303,12 +303,12 @@
+ 	       bool with_frame=FALSE,        // Reserve space for a frame?
+ 	       bool autoDelete_Items=FALSE)  // Autocleanup of Items?
+     : NCursesPanel(nlines, ncols, begin_y, begin_x),
+-      menu(0),
+-      sub(0),
++      menu(NULL),
++      sub(NULL),
+       b_sub_owner(0),
+       b_framed(0),
+       b_autoDelete(0),
+-      my_items(0)
++      my_items(NULL)
+   {
+       InitMenu(Items, with_frame, autoDelete_Items);
+   }
+@@ -601,7 +601,7 @@
+ public:
+   NCursesUserItem (const char* p_name,
+ 		   const char* p_descript = NULL,
+-		   const T* p_UserData    = STATIC_CAST(T*)(0))
++		   const T* p_UserData    = STATIC_CAST(T*)(NULL))
+     : NCursesMenuItem (p_name, p_descript) {
+       if (item)
+ 	OnError (::set_item_userptr (item, const_cast<void *>(reinterpret_cast<const void*>(p_UserData))));
+@@ -630,7 +630,7 @@
+ 		   int  ncols,
+ 		   int  begin_y = 0,
+ 		   int  begin_x = 0,
+-		   const T* p_UserData = STATIC_CAST(T*)(0))
++		   const T* p_UserData = STATIC_CAST(T*)(NULL))
+     : NCursesMenu(nlines,ncols,begin_y,begin_x) {
+       if (menu)
+ 	set_user (const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
+@@ -638,7 +638,7 @@
+ 
+ public:
+   NCursesUserMenu (NCursesMenuItem* Items[],
+-		   const T* p_UserData = STATIC_CAST(T*)(0),
++		   const T* p_UserData = STATIC_CAST(T*)(NULL),
+ 		   bool with_frame=FALSE,
+ 		   bool autoDelete_Items=FALSE)
+     : NCursesMenu (Items, with_frame, autoDelete_Items) {
+@@ -651,7 +651,7 @@
+ 		   int ncols,
+ 		   int begin_y = 0,
+ 		   int begin_x = 0,
+-		   const T* p_UserData = STATIC_CAST(T*)(0),
++		   const T* p_UserData = STATIC_CAST(T*)(NULL),
+ 		   bool with_frame=FALSE)
+     : NCursesMenu (Items, nlines, ncols, begin_y, begin_x, with_frame) {
+       if (menu)
+Index: c++/cursesp.cc
+Prereq:  1.28 
+--- ncurses-6.5-20250118+/c++/cursesp.cc	2024-10-05 22:47:12.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesp.cc	2025-01-25 21:20:17.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019-2020,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2003,2005 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -35,9 +35,9 @@
+ #include "internal.h"
+ #include "cursesp.h"
+ 
+-MODULE_ID("$Id: cursesp.cc,v 1.28 2024/10/05 22:47:12 tom Exp $")
++MODULE_ID("$Id: cursesp.cc,v 1.29 2025/01/25 21:20:17 tom Exp $")
+ 
+-NCursesPanel* NCursesPanel::dummy = static_cast<NCursesPanel*>(0);
++NCursesPanel* NCursesPanel::dummy = static_cast<NCursesPanel*>(NULL);
+ 
+ void NCursesPanel::init()
+ {
+@@ -55,7 +55,7 @@
+ NCursesPanel::~NCursesPanel() THROWS(NCursesException)
+ {
+   UserHook* hook = UserPointer();
+-  assert(hook != 0 && hook->m_back==this && hook->m_owner==p);
++  assert(hook != NULL && hook->m_back==this && hook->m_owner==p);
+   delete hook;
+   ::del_panel(p);
+   ::update_panels();
+Index: c++/cursesp.h
+Prereq:  1.36 
+--- ncurses-6.5-20250118+/c++/cursesp.h	2022-08-20 20:52:15.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesp.h	2025-01-25 21:20:17.000000000 +0000
+@@ -1,7 +1,7 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ // vile:cppmode
+ /****************************************************************************
+- * Copyright 2019-2021,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+ #ifndef NCURSES_CURSESP_H_incl
+ #define NCURSES_CURSESP_H_incl 1
+ 
+-// $Id: cursesp.h,v 1.36 2022/08/20 20:52:15 tom Exp $
++// $Id: cursesp.h,v 1.37 2025/01/25 21:20:17 tom Exp $
+ 
+ #include <cursesw.h>
+ 
+@@ -73,7 +73,7 @@
+   void set_user(void *user)
+   {
+     UserHook* uptr = UserPointer();
+-    if (uptr != 0 && uptr->m_back==this && uptr->m_owner==p) {
++    if (uptr != NULL && uptr->m_back==this && uptr->m_owner==p) {
+       uptr->m_user = user;
+     }
+   }
+@@ -82,8 +82,8 @@
+   void *get_user()
+   {
+     UserHook* uptr = UserPointer();
+-    void *result = 0;
+-    if (uptr != 0 && uptr->m_back==this && uptr->m_owner==p)
++    void *result = NULL;
++    if (uptr != NULL && uptr->m_back==this && uptr->m_owner==p)
+       result = uptr->m_user;
+     return result;
+   }
+@@ -104,14 +104,14 @@
+ 	       int ncols,
+ 	       int begin_y = 0,
+ 	       int begin_x = 0)
+-    : NCursesWindow(nlines,ncols,begin_y,begin_x), p(0)
++    : NCursesWindow(nlines,ncols,begin_y,begin_x), p(NULL)
+   {
+     init();
+   }
+   // Create a panel with this size starting at the requested position.
+ 
+   NCursesPanel()
+-    : NCursesWindow(::stdscr), p(0)
++    : NCursesWindow(::stdscr), p(NULL)
+   {
+     init();
+   }
+@@ -244,7 +244,7 @@
+   // This creates an user panel of the requested size with associated
+   // user data pointed to by p_UserData.
+ 
+-  explicit NCursesUserPanel(const T* p_UserData = STATIC_CAST(T*)(0)) : NCursesPanel()
++  explicit NCursesUserPanel(const T* p_UserData = STATIC_CAST(T*)(NULL)) : NCursesPanel()
+   {
+     if (p)
+       set_user(const_cast<void *>(reinterpret_cast<const void*>(p_UserData)));
+Index: c++/cursespad.cc
+Prereq:  1.19 
+--- ncurses-6.5-20250118+/c++/cursespad.cc	2024-10-05 22:47:12.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursespad.cc	2025-01-25 21:21:05.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2020,2024 Thomas E. Dickey                                     *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1999-2012,2013 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,17 +36,17 @@
+ 
+ #include <cursesw.h>
+ 
+-MODULE_ID("$Id: cursespad.cc,v 1.19 2024/10/05 22:47:12 tom Exp $")
++MODULE_ID("$Id: cursespad.cc,v 1.20 2025/01/25 21:21:05 tom Exp $")
+ 
+ NCursesPad::NCursesPad(int nlines, int ncols)
+   : NCursesWindow(),
+-    viewWin(static_cast<NCursesWindow*>(0)),
+-    viewSub(static_cast<NCursesWindow*>(0)),
++    viewWin(static_cast<NCursesWindow*>(NULL)),
++    viewSub(static_cast<NCursesWindow*>(NULL)),
+     h_gridsize(0), v_gridsize(0),
+     min_row(0), min_col(0)
+ {
+   w = ::newpad(nlines, ncols);
+-  if (static_cast<WINDOW*>(0) == w) {
++  if (static_cast<WINDOW*>(NULL) == w) {
+     count--;
+     err_handler("Cannot construct window");
+   }
+@@ -85,7 +85,7 @@
+ {
+   NCursesWindow* W = Win();
+ 
+-  if (static_cast<NCursesWindow*>(0) != W) {
++  if (static_cast<NCursesWindow*>(NULL) != W) {
+     int Width  = W->width();
+     int Height = W->height();
+ 
+@@ -170,7 +170,7 @@
+ int NCursesPad::refresh()
+ {
+   int res = noutrefresh();
+-  if (res==OK && (static_cast<NCursesWindow*>(0) != viewWin)) {
++  if (res==OK && (static_cast<NCursesWindow*>(NULL) != viewWin)) {
+     res = (viewWin->refresh());
+   }
+   return(res);
+@@ -180,7 +180,7 @@
+ {
+   int res = OK;
+   NCursesWindow* W = Win();
+-  if (static_cast<NCursesWindow*>(0) != W) {
++  if (static_cast<NCursesWindow*>(NULL) != W) {
+     int high = W->maxy();
+     int wide = W->maxx();
+     res = copywin(*W, min_row, min_col,
+@@ -210,9 +210,9 @@
+ 
+ void NCursesPad::setSubWindow(NCursesWindow& sub)
+ {
+-  if (static_cast<NCursesWindow*>(0) == viewWin)
++  if (static_cast<NCursesWindow*>(NULL) == viewWin)
+     err_handler("Pad has no viewport");
+-  assert(viewWin != 0);
++  assert(viewWin != NULL);
+   if (!viewWin->isDescendant(sub))
+     THROW(new NCursesException("NCursesFramePad", E_SYSTEM_ERROR));
+   viewSub = &sub;
+@@ -224,7 +224,7 @@
+   const NCursesWindow* W = Win();
+   NCursesWindow* W2 = getWindow();
+ 
+-  if ((static_cast<NCursesWindow*>(0) != W) && (static_cast<NCursesWindow*>(0) != W2)) {
++  if ((static_cast<NCursesWindow*>(NULL) != W) && (static_cast<NCursesWindow*>(NULL) != W2)) {
+     int Width  = W->width();
+     int Height = W->height();
+     int i, row, col, h_len, v_len;
+Index: c++/cursesw.cc
+Prereq:  1.56 
+--- ncurses-6.5-20250118+/c++/cursesw.cc	2020-02-02 23:34:34.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesw.cc	2025-01-25 21:21:05.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * this is for making emacs happy: -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2019,2020 Thomas E. Dickey                                     *
++ * Copyright 2019-2020,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2014 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -43,7 +43,7 @@
+ #include "internal.h"
+ #include "cursesw.h"
+ 
+-MODULE_ID("$Id: cursesw.cc,v 1.56 2020/02/02 23:34:34 tom Exp $")
++MODULE_ID("$Id: cursesw.cc,v 1.57 2025/01/25 21:21:05 tom Exp $")
+ 
+ #define COLORS_NEED_INITIALIZATION  -1
+ #define COLORS_NOT_INITIALIZED       0
+@@ -188,27 +188,27 @@
+ }
+ 
+ NCursesWindow::NCursesWindow()
+-  : w(0), alloced(FALSE), par(0), subwins(0), sib(0)
++  : w(NULL), alloced(FALSE), par(NULL), subwins(NULL), sib(NULL)
+ {
+     constructing();
+ 
+-    w = static_cast<WINDOW *>(0);
++    w = static_cast<WINDOW *>(NULL);
+ }
+ 
+ NCursesWindow::NCursesWindow(int nlines, int ncols, int begin_y, int begin_x)
+-  : w(0), alloced(TRUE), par(0), subwins(0), sib(0)
++  : w(NULL), alloced(TRUE), par(NULL), subwins(NULL), sib(NULL)
+ {
+     constructing();
+ 
+     w = ::newwin(nlines, ncols, begin_y, begin_x);
+-    if (w == 0) {
++    if (w == NULL) {
+ 	err_handler("Cannot construct window");
+     }
+     set_keyboard();
+ }
+ 
+ NCursesWindow::NCursesWindow(WINDOW* window)
+-  : w(0), alloced(FALSE), par(0), subwins(0), sib(0)
++  : w(NULL), alloced(FALSE), par(NULL), subwins(NULL), sib(NULL)
+ {
+     constructing();
+ 
+@@ -223,7 +223,7 @@
+ 
+ NCursesWindow::NCursesWindow(NCursesWindow& win, int ny, int nx,
+ 			     int begin_y, int begin_x, char absrel)
+-  : w(0), alloced(TRUE), par(0), subwins(0), sib(0)
++  : w(NULL), alloced(TRUE), par(NULL), subwins(NULL), sib(NULL)
+ {
+     constructing();
+     if (absrel == 'a') {	// absolute origin
+@@ -234,7 +234,7 @@
+     // Link this window into its parent's list of subwindows.
+     // We use derwin(), since this also works for pads.
+     w = ::derwin(win.w, ny, nx, begin_y, begin_x);
+-    if (w == 0) {
++    if (w == NULL) {
+ 	err_handler("Cannot construct subwindow");
+     }
+ 
+@@ -245,20 +245,20 @@
+ 
+ NCursesWindow::NCursesWindow(NCursesWindow& win,
+ 				bool do_box NCURSES_PARAM_INIT(TRUE))
+-  : w(0), alloced(TRUE), par(0), subwins(0), sib(0)
++  : w(NULL), alloced(TRUE), par(NULL), subwins(NULL), sib(NULL)
+ {
+     constructing();
+     int myHeight = win.height();
+     int myWidth  = win.width();
+     w = :: derwin(win.w, myHeight - 2, myWidth - 2, 1, 1);
+-    if (w == 0) {
++    if (w == NULL) {
+ 	err_handler("Cannot construct subwindow");
+     }
+ 
+     par = &win;
+     sib = win.subwins;
+     win.subwins = this;
+-    subwins = 0;
++    subwins = NULL;
+ 
+     if (do_box) {
+ 	win.box();
+@@ -283,7 +283,7 @@
+ static RIPOFFINIT* prip = R_INIT;
+ 
+ NCursesWindow::NCursesWindow(WINDOW *win, int ncols)
+-  : w(0), alloced(FALSE), par(0), subwins(0), sib(0)
++  : w(NULL), alloced(FALSE), par(NULL), subwins(NULL), sib(NULL)
+ {
+     (void) ncols;
+     initialize();
+@@ -331,12 +331,12 @@
+ {
+     NCursesWindow* p = subwins;
+ 
+-    subwins = 0;
+-    while (p != 0) {
++    subwins = NULL;
++    while (p != NULL) {
+ 	NCursesWindow* q = p->sib;
+ 	p->kill_subwindows();
+ 	if (p->alloced) {
+-	    if (p->w != 0)
++	    if (p->w != NULL)
+ 		::delwin(p->w);
+ 	}
+ 	delete p;
+@@ -349,13 +349,13 @@
+ {
+     kill_subwindows();
+ 
+-    if (par != 0) {
++    if (par != NULL) {
+ 	// Remove this window from the parent's list of subwindows.
+ 	NCursesWindow * next = par->subwins;
+-	NCursesWindow * prev = 0;
+-	while (next != 0) {
++	NCursesWindow * prev = NULL;
++	while (next != NULL) {
+ 	    if (next == this) {
+-		if (prev != 0) {
++		if (prev != NULL) {
+ 		    prev->sib = next->sib;
+ 		} else {
+ 		    par->subwins = next->sib;
+@@ -367,7 +367,7 @@
+ 	}
+     }
+ 
+-    if (alloced && w != 0)
++    if (alloced && w != NULL)
+ 	::delwin(w);
+ 
+     if (alloced) {
+Index: c++/cursesw.h
+Prereq:  1.61 
+--- ncurses-6.5-20250118+/c++/cursesw.h	2024-12-15 16:06:49.000000000 +0000
++++ ncurses-6.5-20250125/c++/cursesw.h	2025-01-25 21:21:05.000000000 +0000
+@@ -1,7 +1,7 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ // vile:cppmode
+ /****************************************************************************
+- * Copyright 2019-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2014,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -32,7 +32,7 @@
+ #ifndef NCURSES_CURSESW_H_incl
+ #define NCURSES_CURSESW_H_incl 1
+ 
+-// $Id: cursesw.h,v 1.61 2024/12/15 16:06:49 tom Exp $
++// $Id: cursesw.h,v 1.62 2025/01/25 21:21:05 tom Exp $
+ 
+ #include <curses.h>
+ 
+@@ -1439,7 +1439,7 @@
+ 
+   NCursesWindow* Win(void) const {
+     // Get the window into which the pad should be copied (if any)
+-    return (viewSub?viewSub:(viewWin?viewWin:0));
++    return (viewSub?viewSub:(viewWin?viewWin:NULL));
+   }
+ 
+   NCursesWindow* getWindow(void) const {
+Index: c++/demo.cc
+Prereq:  1.52 
+--- ncurses-6.5-20250118+/c++/demo.cc	2023-08-26 19:14:14.000000000 +0000
++++ ncurses-6.5-20250125/c++/demo.cc	2025-01-25 21:21:05.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2018-2021,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -36,7 +36,7 @@
+  *   Demo code for NCursesMenu and NCursesForm written by
+  *   Juergen Pfeifer
+  *
+- * $Id: demo.cc,v 1.52 2023/08/26 19:14:14 tom Exp $
++ * $Id: demo.cc,v 1.53 2025/01/25 21:21:05 tom Exp $
+  */
+ 
+ #include "internal.h"
+@@ -174,7 +174,7 @@
+ public:
+   MyAction (const char* p_name,
+             const T* p_UserData)
+-    : NCursesUserItem<T>(p_name, static_cast<const char*>(0), p_UserData)
++    : NCursesUserItem<T>(p_name, static_cast<const char*>(NULL), p_UserData)
+   {}
+ 
+   virtual ~MyAction() THROWS(NCursesException) {}
+@@ -244,10 +244,10 @@
+ public:
+   TestForm()
+     : NCursesForm(13, 51, (lines() - 15)/2, (cols() - 53)/2),
+-      F(0),
+-      mft(0),
+-      ift(0),
+-      eft(0)
++      F(NULL),
++      mft(NULL),
++      ift(NULL),
++      eft(NULL)
+   {
+ 
+     F     = new NCursesFormField*[10];
+@@ -289,7 +289,7 @@
+   }
+ 
+   TestForm(const TestForm& rhs)
+-    : NCursesForm(rhs), F(0), mft(0), ift(0), eft(0)
++    : NCursesForm(rhs), F(NULL), mft(NULL), ift(NULL), eft(NULL)
+   {
+   }
+ 
+@@ -438,7 +438,7 @@
+ public:
+   MyMenu ()
+     : NCursesMenu (n_items+2, 8, (lines()-10)/2, (cols()-10)/2),
+-      P(0), I(0), u(0)
++      P(NULL), I(NULL), u(NULL)
+   {
+     u = new UserData(1);
+     I = new NCursesMenuItem*[1+n_items];
+@@ -467,7 +467,7 @@
+   }
+ 
+   MyMenu(const MyMenu& rhs)
+-    : NCursesMenu(rhs), P(0), I(0), u(0)
++    : NCursesMenu(rhs), P(NULL), I(NULL), u(NULL)
+   {
+   }
+ 
+Index: c++/etip.h.in
+Prereq:  1.51 
+--- ncurses-6.5-20250118+/c++/etip.h.in	2024-12-14 19:08:16.000000000 +0000
++++ ncurses-6.5-20250125/c++/etip.h.in	2025-01-25 22:19:42.000000000 +0000
+@@ -1,6 +1,6 @@
+ // * This makes emacs happy -*-Mode: C++;-*-
+ /****************************************************************************
+- * Copyright 2018-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -32,7 +32,7 @@
+  *   Author: Juergen Pfeifer, 1997                                          *
+  ****************************************************************************/
+ 
+-// $Id: etip.h.in,v 1.51 2024/12/14 19:08:16 tom Exp $
++// $Id: etip.h.in,v 1.53 2025/01/25 22:19:42 tom Exp $
+ 
+ #ifndef NCURSES_ETIP_H_incl
+ #define NCURSES_ETIP_H_incl 1
+@@ -94,6 +94,8 @@
+ #  endif
+ #endif
+ 
++#include <exception>
++
+ #if defined(__GNUG__)
+ #  if HAVE_BUILTIN_H || HAVE_GXX_BUILTIN_H || HAVE_GPP_BUILTIN_H
+ #    if ETIP_NEEDS_MATH_H
+@@ -114,6 +116,8 @@
+ #    endif
+ #    undef exception
+ #  endif
++#elif defined __CLANG
++#  include <exception>
+ #elif defined (__SUNPRO_CC)
+ #  include <generic.h>
+ #endif
+@@ -206,7 +210,7 @@
+ 
+   NCursesPanelException (const char *msg, int err) :
+     NCursesException (msg, err),
+-    p (0)
++    p (NULL)
+     {};
+ 
+   NCursesPanelException (const NCursesPanel* panel,
+@@ -218,7 +222,7 @@
+ 
+   explicit NCursesPanelException (int err) :
+     NCursesException ("panel library error", err),
+-    p (0)
++    p (NULL)
+     {};
+ 
+   NCursesPanelException (const NCursesPanel* panel,
+@@ -257,7 +261,7 @@
+ 
+   NCursesMenuException (const char *msg, int err) :
+     NCursesException (msg, err),
+-    m (0)
++    m (NULL)
+     {};
+ 
+   NCursesMenuException (const NCursesMenu* menu,
+@@ -269,7 +273,7 @@
+ 
+   explicit NCursesMenuException (int err) :
+     NCursesException ("menu library error", err),
+-    m (0)
++    m (NULL)
+     {};
+ 
+   NCursesMenuException (const NCursesMenu* menu,
+@@ -308,7 +312,7 @@
+ 
+   NCursesFormException (const char *msg, int err) :
+     NCursesException (msg, err),
+-    f (0)
++    f (NULL)
+     {};
+ 
+   NCursesFormException (const NCursesForm* form,
+@@ -320,7 +324,7 @@
+ 
+   explicit NCursesFormException (int err) :
+     NCursesException ("form library error", err),
+-    f (0)
++    f (NULL)
+     {};
+ 
+   NCursesFormException (const NCursesForm* form,
+Index: dist.mk
+Prereq:  1.1651 
+--- ncurses-6.5-20250118+/dist.mk	2025-01-18 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/dist.mk	2025-01-25 10:34:16.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1651 2025/01/18 11:23:10 tom Exp $
++# $Id: dist.mk,v 1.1652 2025/01/25 10:34:16 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250118
++NCURSES_PATCH = 20250125
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: ncurses/base/lib_mouse.c
+Prereq:  1.205 
+--- ncurses-6.5-20250118+/ncurses/base/lib_mouse.c	2025-01-18 15:01:47.000000000 +0000
++++ ncurses-6.5-20250125/ncurses/base/lib_mouse.c	2025-01-22 23:13:51.000000000 +0000
+@@ -85,7 +85,7 @@
+ #define CUR SP_TERMTYPE
+ #endif
+ 
+-MODULE_ID("$Id: lib_mouse.c,v 1.205 2025/01/18 15:01:47 tom Exp $")
++MODULE_ID("$Id: lib_mouse.c,v 1.206 2025/01/22 23:13:51 tom Exp $")
+ 
+ #include <tic.h>
+ 
+@@ -483,8 +483,8 @@
+     if (NC_ISATTY(fileno(stdout))) {
+ 	const char *list = getenv("NCURSES_GPM_TERMS");
+ 	const char *env = getenv("TERM");
+-	if (list != 0) {
+-	    if (env != 0) {
++	if (list != NULL) {
++	    if (env != NULL) {
+ 		result = _nc_name_match(list, env, "|:") ? TRUE : FALSE;
+ 	    }
+ 	} else {
+@@ -495,7 +495,7 @@
+ 	     * capability.  Perhaps that works for someone.  If so, they can
+ 	     * set the environment variable (above).
+ 	     */
+-	    if (env != 0 && strstr(env, "linux") != 0) {
++	    if (env != NULL && strstr(env, "linux") != NULL) {
+ 		result = TRUE;
+ 	    }
+ 	}
+@@ -507,7 +507,7 @@
+ static void
+ unload_gpm_library(SCREEN *sp)
+ {
+-    if (sp->_dlopen_gpm != 0) {
++    if (sp->_dlopen_gpm != NULL) {
+ 	T(("unload GPM library"));
+ 	sp->_mouse_gpm_loaded = FALSE;
+ 	sp->_mouse_fd = -1;
+@@ -522,25 +522,25 @@
+     /*
+      * If we already had a successful dlopen, reuse it.
+      */
+-    if (sp->_dlopen_gpm != 0) {
++    if (sp->_dlopen_gpm != NULL) {
+ 	sp->_mouse_gpm_found = TRUE;
+ 	sp->_mouse_gpm_loaded = TRUE;
+-    } else if ((sp->_dlopen_gpm = dlopen(LIBGPM_SONAME, my_RTLD)) != 0) {
++    } else if ((sp->_dlopen_gpm = dlopen(LIBGPM_SONAME, my_RTLD)) != NULL) {
+ #if (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(__clang__)
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic"
+ #endif
+-	if (GET_DLSYM(gpm_fd) == 0 ||
+-	    GET_DLSYM(Gpm_Open) == 0 ||
+-	    GET_DLSYM(Gpm_Close) == 0 ||
+-	    GET_DLSYM(Gpm_GetEvent) == 0) {
++	if (GET_DLSYM(gpm_fd) == NULL ||
++	    GET_DLSYM(Gpm_Open) == NULL ||
++	    GET_DLSYM(Gpm_Close) == NULL ||
++	    GET_DLSYM(Gpm_GetEvent) == NULL) {
+ #if (defined(__GNUC__) && (__GNUC__ >= 5)) || defined(__clang__)
+ #pragma GCC diagnostic pop
+ #endif
+ 	    T(("GPM initialization failed: %s", dlerror()));
+ 	    unload_gpm_library(sp);
+ 	    dlclose(sp->_dlopen_gpm);
+-	    sp->_dlopen_gpm = 0;
++	    sp->_dlopen_gpm = NULL;
+ 	} else {
+ 	    sp->_mouse_gpm_found = TRUE;
+ 	    sp->_mouse_gpm_loaded = TRUE;
+Index: ncurses/base/lib_set_term.c
+Prereq:  1.192 
+--- ncurses-6.5-20250118+/ncurses/base/lib_set_term.c	2025-01-12 00:41:56.000000000 +0000
++++ ncurses-6.5-20250125/ncurses/base/lib_set_term.c	2025-01-22 23:13:27.000000000 +0000
+@@ -57,7 +57,7 @@
+ #undef CUR
+ #define CUR SP_TERMTYPE
+ 
+-MODULE_ID("$Id: lib_set_term.c,v 1.192 2025/01/12 00:41:56 tom Exp $")
++MODULE_ID("$Id: lib_set_term.c,v 1.193 2025/01/22 23:13:27 tom Exp $")
+ 
+ #ifdef USE_TERM_DRIVER
+ #define MaxColors      InfoOf(sp).maxcolors
+@@ -217,9 +217,9 @@
+ 	}
+ #if USE_GPM_SUPPORT
+ #ifdef HAVE_LIBDL
+-	if (sp->_dlopen_gpm != 0) {
++	if (sp->_dlopen_gpm != NULL) {
+ 	    dlclose(sp->_dlopen_gpm);
+-	    sp->_dlopen_gpm = 0;
++	    sp->_dlopen_gpm = NULL;
+ 	}
+ #endif
+ #endif /* USE_GPM_SUPPORT */
+Index: ncurses/tty/lib_twait.c
+Prereq:  1.83 
+--- ncurses-6.5-20250118+/ncurses/tty/lib_twait.c	2024-12-07 21:02:00.000000000 +0000
++++ ncurses-6.5-20250125/ncurses/tty/lib_twait.c	2025-01-24 20:39:23.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2015,2016 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -76,7 +76,7 @@
+ #endif
+ #undef CUR
+ 
+-MODULE_ID("$Id: lib_twait.c,v 1.83 2024/12/07 21:02:00 tom Exp $")
++MODULE_ID("$Id: lib_twait.c,v 1.84 2025/01/24 20:39:23 tom Exp $")
+ 
+ /*
+  * Returns an elapsed time, in milliseconds (if possible).
+@@ -242,7 +242,7 @@
+     if ((mode & TW_EVENT) && evl) {
+ 	if (fds == fd_list)
+ 	    fds = typeMalloc(struct pollfd, MIN_FDS + evl->count);
+-	if (fds == 0)
++	if (fds == NULL)
+ 	    return TW_NONE;
+     }
+ #endif
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250118+/package/debian-mingw/changelog	2025-01-12 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/package/debian-mingw/changelog	2025-01-24 20:34:16.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250118) unstable; urgency=low
++ncurses6td (6.5+20250125) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 12 Jan 2025 06:23:10 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 24 Jan 2025 15:34:16 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250118+/package/debian-mingw64/changelog	2025-01-12 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/package/debian-mingw64/changelog	2025-01-24 20:34:16.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250118) unstable; urgency=low
++ncurses6td (6.5+20250125) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 12 Jan 2025 06:23:10 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 24 Jan 2025 15:34:16 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250118+/package/debian/changelog	2025-01-12 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/package/debian/changelog	2025-01-24 20:34:16.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250118) unstable; urgency=low
++ncurses6td (6.5+20250125) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 12 Jan 2025 06:23:10 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 24 Jan 2025 15:34:16 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.685 
+--- ncurses-6.5-20250118+/package/mingw-ncurses.nsi	2025-01-12 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/package/mingw-ncurses.nsi	2025-01-24 20:34:16.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.685 2025/01/12 11:23:10 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.686 2025/01/24 20:34:16 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0118"
++!define VERSION_MMDD  "0125"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250118+/package/mingw-ncurses.spec	2025-01-12 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/package/mingw-ncurses.spec	2025-01-24 20:34:16.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250118
++Release: 20250125
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250118+/package/ncurses.spec	2025-01-12 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/package/ncurses.spec	2025-01-24 20:34:16.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250118
++Release: 20250125
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250118+/package/ncursest.spec	2025-01-12 11:23:10.000000000 +0000
++++ ncurses-6.5-20250125/package/ncursest.spec	2025-01-24 20:34:16.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250118
++Release: 20250125
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

@@ -1,0 +1,891 @@
+# ncurses 6.5 - patch 20241221 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20241221.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Dec 22 01:11:31 UTC 2024
+# ------------------------------------------------------------------------------
+# Ada95/aclocal.m4                 |   18 ++++----
+# Ada95/configure                  |    8 +--
+# NEWS                             |   11 ++++-
+# VERSION                          |    2 
+# aclocal.m4                       |   10 ++--
+# c++/cursesw.h                    |    7 ---
+# configure                        |    2 
+# dist.mk                          |    4 -
+# form/form.priv.h                 |    5 +-
+# form/fty_int.c                   |    6 +-
+# form/fty_num.c                   |    6 +-
+# ncurses/base/MKlib_gen.sh        |    3 -
+# ncurses/tinfo/MKfallback.sh      |    4 -
+# ncurses/tinfo/lib_data.c         |    4 -
+# ncurses/tinfo/trim_sgr0.c        |   75 +++++++++++++++++++++++++++++++++++--
+# ncurses/tinfo/write_entry.c      |    8 +--
+# ncurses/trace/lib_tracebits.c    |    6 +-
+# ncurses/tty/lib_tstp.c           |    6 +-
+# package/debian-mingw/changelog   |    4 -
+# package/debian-mingw64/changelog |    4 -
+# package/debian/changelog         |    4 -
+# package/mingw-ncurses.nsi        |    4 -
+# package/mingw-ncurses.spec       |    2 
+# package/ncurses.spec             |    2 
+# package/ncursest.spec            |    2 
+# progs/infocmp.c                  |    4 -
+# test/aclocal.m4                  |   10 ++--
+# test/configure                   |    4 -
+# test/foldkeys.c                  |    4 -
+# test/padview.c                   |    5 +-
+# 30 files changed, 156 insertions(+), 78 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/aclocal.m4
+Prereq:  1.222 
+--- ncurses-6.5-20241214+/Ada95/aclocal.m4	2024-11-09 23:14:10.000000000 +0000
++++ ncurses-6.5-20241221/Ada95/aclocal.m4	2024-12-21 15:29:41.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey
+ dnl
+-dnl $Id: aclocal.m4,v 1.222 2024/11/09 23:14:10 tom Exp $
++dnl $Id: aclocal.m4,v 1.223 2024/12/21 15:29:41 tom Exp $
+ dnl Macros used in NCURSES Ada95 auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -477,7 +477,7 @@
+ AC_SUBST(ARFLAGS)
+ ])
+ dnl ---------------------------------------------------------------------------
+-dnl CF_BUILD_CC version: 13 updated: 2024/06/22 13:42:22
++dnl CF_BUILD_CC version: 14 updated: 2024/12/14 11:58:01
+ dnl -----------
+ dnl If we're cross-compiling, allow the user to override the tools and their
+ dnl options.  The configure script is oriented toward identifying the host
+@@ -555,7 +555,7 @@
+ 	AC_TRY_RUN([#include <stdio.h>
+ 		int main(int argc, char *argv[])
+ 		{
+-			${cf_cv_main_return:-return}(argc < 0 || argv == 0 || argv[0] == 0);
++			${cf_cv_main_return:-return}(argc < 0 || argv == (void*)0 || argv[0] == (void*)0);
+ 		}
+ 	],
+ 		cf_ok_build_cc=yes,
+@@ -901,7 +901,7 @@
+ fi
+ ])
+ dnl ---------------------------------------------------------------------------
+-dnl CF_CONST_X_STRING version: 8 updated: 2023/12/01 17:22:50
++dnl CF_CONST_X_STRING version: 9 updated: 2024/12/04 03:49:57
+ dnl -----------------
+ dnl The X11R4-X11R6 Xt specification uses an ambiguous String type for most
+ dnl character-strings.
+@@ -928,7 +928,7 @@
+ 
+ AC_TRY_COMPILE(
+ [
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ ],
+ [String foo = malloc(1); free((void*)foo)],[
+@@ -939,7 +939,7 @@
+ #undef  _CONST_X_STRING
+ #define _CONST_X_STRING	/* X11R7.8 (perhaps) */
+ #undef  XTSTRINGDEFINES	/* X11R5 and later */
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ 		],[String foo = malloc(1); *foo = 0],[
+ 			cf_cv_const_x_string=no
+@@ -1508,7 +1508,7 @@
+ CF_CLANG_COMPILER(GCC,CLANG_COMPILER,CFLAGS)
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_GCC_WARNINGS version: 41 updated: 2021/01/01 16:53:59
++dnl CF_GCC_WARNINGS version: 43 updated: 2024/12/21 08:44:12
+ dnl ---------------
+ dnl Check if the compiler supports useful warning options.  There's a few that
+ dnl we don't use, simply because they're too noisy:
+@@ -4013,7 +4013,7 @@
+ done
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_SHARED_OPTS version: 111 updated: 2024/03/29 20:08:49
++dnl CF_SHARED_OPTS version: 112 updated: 2024/12/14 16:09:34
+ dnl --------------
+ dnl --------------
+ dnl Attempt to determine the appropriate CC/LD options for creating a shared
+@@ -4529,7 +4529,7 @@
+ int main(int argc, char *argv[[]])
+ {
+ 	printf("hello\\n");
+-	return (argv[[argc-1]] == 0) ;
++	return (argv[[argc-1]] == NULL) ;
+ }
+ EOF
+ 		cf_save_CFLAGS="$CFLAGS"
+Index: Ada95/configure
+--- ncurses-6.5-20241214+/Ada95/configure	2024-11-09 23:14:34.000000000 +0000
++++ ncurses-6.5-20241221/Ada95/configure	2024-12-21 15:30:09.000000000 +0000
+@@ -4743,7 +4743,7 @@
+ #include <stdio.h>
+ 		int main(int argc, char *argv[])
+ 		{
+-			${cf_cv_main_return:-return}(argc < 0 || argv == 0 || argv[0] == 0);
++			${cf_cv_main_return:-return}(argc < 0 || argv == (void*)0 || argv[0] == (void*)0);
+ 		}
+ 
+ _ACEOF
+@@ -12772,7 +12772,7 @@
+ int main(int argc, char *argv[])
+ {
+ 	printf("hello\\n");
+-	return (argv[argc-1] == 0) ;
++	return (argv[argc-1] == NULL) ;
+ }
+ EOF
+ 		cf_save_CFLAGS="$CFLAGS"
+@@ -16299,7 +16299,7 @@
+ #line 16299 "configure"
+ #include "confdefs.h"
+ 
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ 
+ int
+@@ -16336,7 +16336,7 @@
+ #undef  _CONST_X_STRING
+ #define _CONST_X_STRING	/* X11R7.8 (perhaps) */
+ #undef  XTSTRINGDEFINES	/* X11R5 and later */
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ 
+ int
+Index: NEWS
+Prereq:  1.4212 
+--- ncurses-6.5-20241214+/NEWS	2024-12-14 20:03:39.000000000 +0000
++++ ncurses-6.5-20241221/NEWS	2024-12-21 20:43:26.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4212 2024/12/14 20:03:39 tom Exp $
++-- $Id: NEWS,v 1.4216 2024/12/21 20:43:26 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,10 +46,17 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20241221
++	+ modify ncurses/tinfo/MKfallback.sh to work with MacOS sed, which
++	  lacks BSD-style \< and \>
++	+ trim padding from sgr expresion used in trim_sgr0, to avoid copying
++	  the padding into the resulting sgr0 (report by Rajeev Pillai).
++	+ strict compiler-warning fixes for upcoming gcc15
++
+ 20241214
+ 	+ avoid redefining bool in curses.h if the platform already supports
+ 	  that type (cf: 20241123).
+-	+ move include <curses.h> from etip.h.in to cursesw.hh, to work around
++	+ move include <curses.h> from etip.h.in to cursesw.h, to work around
+ 	  breakage in Apple's port of ncurses.
+ 	+ strict compiler-warning fixes for upcoming gcc15
+ 
+Index: VERSION
+--- ncurses-6.5-20241214+/VERSION	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/VERSION	2024-12-21 10:55:02.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20241214
++5:0:10	6.5	20241221
+Index: aclocal.m4
+Prereq:  1.1096 
+--- ncurses-6.5-20241214+/aclocal.m4	2024-12-14 21:33:29.000000000 +0000
++++ ncurses-6.5-20241221/aclocal.m4	2024-12-21 13:44:45.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey 1995-on
+ dnl
+-dnl $Id: aclocal.m4,v 1.1096 2024/12/14 21:33:29 tom Exp $
++dnl $Id: aclocal.m4,v 1.1097 2024/12/21 13:44:45 tom Exp $
+ dnl Macros used in NCURSES auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -3115,7 +3115,7 @@
+ CF_CLANG_COMPILER(GCC,CLANG_COMPILER,CFLAGS)
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_GCC_WARNINGS version: 42 updated: 2024/12/14 09:09:41
++dnl CF_GCC_WARNINGS version: 43 updated: 2024/12/21 08:44:12
+ dnl ---------------
+ dnl Check if the compiler supports useful warning options.  There's a few that
+ dnl we don't use, simply because they're too noisy:
+@@ -3141,7 +3141,7 @@
+ if test "x$have_x" = xyes; then CF_CONST_X_STRING fi
+ cat > "conftest.$ac_ext" <<EOF
+ #line __oline__ "${as_me:-configure}"
+-int main(int argc, char *argv[[]]) { return (argv[[argc-1]] == (void*)0) ; }
++int main(int argc, char *argv[[]]) { return (argv[[argc-1]] == 0) ; }
+ EOF
+ if test "$INTEL_COMPILER" = yes
+ then
+@@ -3729,7 +3729,7 @@
+ fi
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_GXX_WARNINGS version: 12 updated: 2024/12/14 16:09:34
++dnl CF_GXX_WARNINGS version: 13 updated: 2024/12/21 08:44:12
+ dnl ---------------
+ dnl Check if the compiler supports useful warning options.
+ dnl
+@@ -3761,7 +3761,7 @@
+ 
+ cat > conftest.$ac_ext <<EOF
+ #line __oline__ "configure"
+-int main(int argc, char *argv[[]]) { return (argv[[argc-1]] == (void*)0) ; }
++int main(int argc, char *argv[[]]) { return (argv[[argc-1]] == 0) ; }
+ EOF
+ 
+ if test "$INTEL_CPLUSPLUS" = yes
+Index: c++/cursesw.h
+Prereq:  1.60 
+--- ncurses-6.5-20241214+/c++/cursesw.h	2024-12-14 19:08:22.000000000 +0000
++++ ncurses-6.5-20241221/c++/cursesw.h	2024-12-15 16:06:49.000000000 +0000
+@@ -32,11 +32,9 @@
+ #ifndef NCURSES_CURSESW_H_incl
+ #define NCURSES_CURSESW_H_incl 1
+ 
+-// $Id: cursesw.h,v 1.60 2024/12/14 19:08:22 tom Exp $
++// $Id: cursesw.h,v 1.61 2024/12/15 16:06:49 tom Exp $
+ 
+-extern "C" {
+-#  include   <curses.h>
+-}
++#include <curses.h>
+ 
+ #if defined(BUILDING_NCURSES_CXX)
+ # define NCURSES_CXX_IMPEXP NCURSES_EXPORT_GENERAL_EXPORT
+@@ -50,7 +48,6 @@
+ #define NCURSES_CXX_EXPORT_VAR(type) NCURSES_CXX_IMPEXP type
+ 
+ #include <etip.h>
+-#include <curses.h>
+ 
+ /* SCO 3.2v4 curses.h includes term.h, which defines lines as a macro.
+    Undefine it here, because NCursesWindow uses lines as a method.  */
+Index: configure
+--- ncurses-6.5-20241214+/configure	2024-12-15 02:03:09.000000000 +0000
++++ ncurses-6.5-20241221/configure	2024-12-21 15:24:20.000000000 +0000
+@@ -17892,7 +17892,7 @@
+  fi
+ cat > "conftest.$ac_ext" <<EOF
+ #line 17894 "${as_me:-configure}"
+-int main(int argc, char *argv[]) { return (argv[argc-1] == (void*)0) ; }
++int main(int argc, char *argv[]) { return (argv[argc-1] == 0) ; }
+ EOF
+ if test "$INTEL_COMPILER" = yes
+ then
+Index: dist.mk
+Prereq:  1.1645 
+--- ncurses-6.5-20241214+/dist.mk	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/dist.mk	2024-12-21 10:55:02.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1645 2024/12/14 11:34:56 tom Exp $
++# $Id: dist.mk,v 1.1646 2024/12/21 10:55:02 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20241214
++NCURSES_PATCH = 20241221
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: form/form.priv.h
+Prereq:  0.50 
+--- ncurses-6.5-20241214+/form/form.priv.h	2024-12-07 21:57:21.000000000 +0000
++++ ncurses-6.5-20241221/form/form.priv.h	2024-12-21 17:09:39.000000000 +0000
+@@ -31,7 +31,7 @@
+  *   Author:  Juergen Pfeifer, 1995,1997                                    *
+  ****************************************************************************/
+ 
+-/* $Id: form.priv.h,v 0.50 2024/12/07 21:57:21 tom Exp $ */
++/* $Id: form.priv.h,v 0.51 2024/12/21 17:09:39 tom Exp $ */
+ 
+ #ifndef FORM_PRIV_H
+ #define FORM_PRIV_H 1
+@@ -172,6 +172,9 @@
+ 
+ #define C_ZEROS '\0'
+ 
++#define MAX_DIGITS	64
++#define MaxDigits(n)	((n) > MAX_DIGITS ? MAX_DIGITS : ((n) > 0 ? (n) : 0))
++
+ extern FORM_EXPORT(TypeArgument *) _nc_Make_Argument (const FIELDTYPE*, va_list*, int*);
+ extern FORM_EXPORT(TypeArgument *) _nc_Copy_Argument (const FIELDTYPE*, const TypeArgument*, int*);
+ extern FORM_EXPORT(void) _nc_Free_Argument (const FIELDTYPE*, TypeArgument*);
+Index: form/fty_int.c
+Prereq:  1.35 
+--- ncurses-6.5-20241214+/form/fty_int.c	2024-12-07 21:58:32.000000000 +0000
++++ ncurses-6.5-20241221/form/fty_int.c	2024-12-21 17:14:36.000000000 +0000
+@@ -35,7 +35,7 @@
+ 
+ #include "form.priv.h"
+ 
+-MODULE_ID("$Id: fty_int.c,v 1.35 2024/12/07 21:58:32 tom Exp $")
++MODULE_ID("$Id: fty_int.c,v 1.36 2024/12/21 17:14:36 tom Exp $")
+ 
+ #if USE_WIDEC_SUPPORT
+ #define isDigit(c) (iswdigit((wint_t)(c)) || isdigit(UChar(c)))
+@@ -235,10 +235,10 @@
+ 	    }
+ 	  if (result)
+ 	    {
+-	      char buf[100];
++	      char buf[MAX_DIGITS + 3];
+ 
+ 	      _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+-			  "%.*ld", (prec > 0 ? prec : 0), val);
++			  "%.*ld", MaxDigits(prec), val);
+ 	      set_field_buffer(field, 0, buf);
+ 	    }
+ 	}
+Index: form/fty_num.c
+Prereq:  1.39 
+--- ncurses-6.5-20241214+/form/fty_num.c	2024-12-07 21:58:32.000000000 +0000
++++ ncurses-6.5-20241221/form/fty_num.c	2024-12-21 17:16:09.000000000 +0000
+@@ -35,7 +35,7 @@
+ 
+ #include "form.priv.h"
+ 
+-MODULE_ID("$Id: fty_num.c,v 1.39 2024/12/07 21:58:32 tom Exp $")
++MODULE_ID("$Id: fty_num.c,v 1.40 2024/12/21 17:16:09 tom Exp $")
+ 
+ #if HAVE_LOCALE_H
+ #include <locale.h>
+@@ -273,10 +273,10 @@
+ 	    }
+ 	  if (result)
+ 	    {
+-	      char buf[64];
++	      char buf[MAX_DIGITS * 6];
+ 
+ 	      _nc_SPRINTF(buf, _nc_SLIMIT(sizeof(buf))
+-			  "%.*f", (prec > 0 ? prec : 0), val);
++			  "%.*f", MaxDigits(prec), val);
+ 	      set_field_buffer(field, 0, buf);
+ 	    }
+ 	}
+Index: ncurses/base/MKlib_gen.sh
+Prereq:  1.75 
+--- ncurses-6.5-20241214+/ncurses/base/MKlib_gen.sh	2024-12-07 21:50:24.000000000 +0000
++++ ncurses-6.5-20241221/ncurses/base/MKlib_gen.sh	2024-12-21 16:51:25.000000000 +0000
+@@ -2,7 +2,7 @@
+ #
+ # MKlib_gen.sh -- generate sources from curses.h macro definitions
+ #
+-# ($Id: MKlib_gen.sh,v 1.75 2024/12/07 21:50:24 tom Exp $)
++# ($Id: MKlib_gen.sh,v 1.76 2024/12/21 16:51:25 tom Exp $)
+ #
+ ##############################################################################
+ # Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+@@ -191,6 +191,7 @@
+ 	s/\(((\)0\([ ]*!=[ ]*(const void\)/\1NULL\2/g
+ 	/returnCode(wborder_set/s,0,NULL,g
+ 	/returnWin/s,0,NULL,
++	/_parent/s,0,NULL,
+ EOF
+ else
+ cat >$ED4 <<EOF
+Index: ncurses/tinfo/MKfallback.sh
+Prereq:  1.27 
+--- ncurses-6.5-20241214+/ncurses/tinfo/MKfallback.sh	2024-12-07 20:57:05.000000000 +0000
++++ ncurses-6.5-20241221/ncurses/tinfo/MKfallback.sh	2024-12-21 18:45:15.000000000 +0000
+@@ -27,7 +27,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: MKfallback.sh,v 1.27 2024/12/07 20:57:05 tom Exp $
++# $Id: MKfallback.sh,v 1.28 2024/12/21 18:45:15 tom Exp $
+ #
+ # MKfallback.sh -- create fallback table for entry reads
+ #
+@@ -95,7 +95,7 @@
+ 	for x in "$@"
+ 	do
+ 		echo "/* $x */"
+-		"$infocmp_path" -E "$x" | sed -e 's/\<short\>/NCURSES_INT2/g'
++		"$infocmp_path" -E "$x" | sed -e 's/[ 	]short[ 	]/ NCURSES_INT2 /g'
+ 	done
+ 
+ 	cat <<EOF
+Index: ncurses/tinfo/lib_data.c
+Prereq:  1.92 
+--- ncurses-6.5-20241214+/ncurses/tinfo/lib_data.c	2024-12-15 01:28:56.000000000 +0000
++++ ncurses-6.5-20241221/ncurses/tinfo/lib_data.c	2024-12-21 20:27:36.000000000 +0000
+@@ -43,7 +43,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_data.c,v 1.92 2024/12/15 01:28:56 tom Exp $")
++MODULE_ID("$Id: lib_data.c,v 1.93 2024/12/21 20:27:36 tom Exp $")
+ 
+ /*
+  * OS/2's native linker complains if we don't initialize public data when
+@@ -188,7 +188,7 @@
+     0,				/* nested_tracef */
+     0,				/* use_pthreads */
+ #if USE_PTHREADS_EINTR
+-    0,				/* read_thread */
++    (pthread_t)	0,		/* read_thread */
+ #endif
+ #endif
+ #if USE_WIDEC_SUPPORT
+Index: ncurses/tinfo/trim_sgr0.c
+Prereq:  1.26 
+--- ncurses-6.5-20241214+/ncurses/tinfo/trim_sgr0.c	2024-12-07 21:02:59.000000000 +0000
++++ ncurses-6.5-20241221/ncurses/tinfo/trim_sgr0.c	2024-12-21 20:15:26.000000000 +0000
+@@ -37,11 +37,77 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: trim_sgr0.c,v 1.26 2024/12/07 21:02:59 tom Exp $")
++MODULE_ID("$Id: trim_sgr0.c,v 1.27 2024/12/21 20:15:26 tom Exp $")
+ 
+ #undef CUR
+ #define CUR tp->
+ 
++/*
++ * Skip a padding token, e.g., "<5>", "<5.1>", "<5/>", "<5*>", or "<5/>".
++ * If the pattern does not match, return null.
++ */
++static char *
++skip_padding(char *value)
++{
++    char *result = NULL;
++    if (*value++ == '$' && *value++ == '<') {
++	int ch;
++	int state = 0;		/* 1=integer, 2=decimal, 3=fraction */
++	while ((ch = UChar(*value++)) != '\0') {
++	    if (ch == '*' || ch == '/') {
++		if (!state)
++		    break;
++	    } else if (ch == '>') {
++		if (state)
++		    result = value;
++		break;
++	    } else if (ch == '.') {
++		if (state < 2) {
++		    state = 2;
++		} else {
++		    break;	/* a single decimal point is allowed */
++		}
++	    } else if (isdigit(ch)) {
++		if (state < 2) {
++		    state = 1;
++		} else if (state == 2) {
++		    state = 3;
++		} else {
++		    break;	/* only a single digit after decimal point */
++		}
++	    } else {
++		break;
++	    }
++	}
++    }
++    return result;
++}
++
++static void
++strip_padding(char *value)
++{
++    char *s = value;
++    char ch;
++
++    while ((ch = *s) != '\0') {
++	if (ch == '\\') {
++	    if (*++s == '\0')
++		break;
++	    ++s;
++	} else {
++	    char *d = NULL;
++	    if (ch == '$')
++		d = skip_padding(s);
++	    if (d != NULL) {
++		char *t = s;
++		while ((*t++ = *d++) != '\0') ;
++	    } else {
++		++s;
++	    }
++	}
++    }
++}
++
+ static char *
+ set_attribute_9(const TERMTYPE2 *tp, int flag)
+ {
+@@ -49,10 +115,13 @@
+     char *result;
+ 
+     value = TIPARM_9(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, flag);
+-    if (PRESENT(value))
++    if (PRESENT(value)) {
+ 	result = strdup(value);
+-    else
++	if (result != NULL)
++	    strip_padding(result);
++    } else {
+ 	result = NULL;
++    }
+     return result;
+ }
+ 
+Index: ncurses/tinfo/write_entry.c
+Prereq:  1.138 
+--- ncurses-6.5-20241214+/ncurses/tinfo/write_entry.c	2024-12-07 21:13:36.000000000 +0000
++++ ncurses-6.5-20241221/ncurses/tinfo/write_entry.c	2024-12-21 16:42:33.000000000 +0000
+@@ -42,7 +42,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: write_entry.c,v 1.138 2024/12/07 21:13:36 tom Exp $")
++MODULE_ID("$Id: write_entry.c,v 1.139 2024/12/21 16:42:33 tom Exp $")
+ 
+ #if 1
+ #define TRACE_OUT(p) DEBUG(2, p)
+@@ -132,10 +132,10 @@
+     const char *s = NULL;
+ 
+     if (code == 0 || (s = (strchr) (dirnames, code)) == NULL) {
+-	_nc_err_abort("Illegal terminfo subdirectory \"" LEAF_FMT "\"", code);
++	_nc_err_abort("Illegal terminfo subdirectory \"" LEAF_FMT "\"", UChar(code));
+     } else if (!verified[s - dirnames]) {
+ 	char dir[sizeof(LEAF_FMT)];
+-	_nc_SPRINTF(dir, _nc_SLIMIT(sizeof(dir)) LEAF_FMT, code);
++	_nc_SPRINTF(dir, _nc_SLIMIT(sizeof(dir)) LEAF_FMT, UChar(code));
+ 	if (make_db_root(dir) < 0) {
+ 	    _nc_err_abort("%s/%s: (errno %d) %s",
+ 			  _nc_tic_dir(NULL),
+@@ -495,7 +495,7 @@
+ 
+ 	check_writeable(ptr[0]);
+ 	_nc_SPRINTF(linkname, _nc_SLIMIT(sizeof(linkname))
+-		    LEAF_FMT "/%.*s", ptr[0],
++		    LEAF_FMT "/%.*s", UChar(ptr[0]),
+ 		    (int) sizeof(linkname) - (2 + LEAF_LEN), ptr);
+ 
+ 	if (strcmp(filename, linkname) == 0) {
+Index: ncurses/trace/lib_tracebits.c
+Prereq:  1.32 
+--- ncurses-6.5-20241214+/ncurses/trace/lib_tracebits.c	2024-12-07 21:24:18.000000000 +0000
++++ ncurses-6.5-20241221/ncurses/trace/lib_tracebits.c	2024-12-21 16:39:29.000000000 +0000
+@@ -35,7 +35,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_tracebits.c,v 1.32 2024/12/07 21:24:18 tom Exp $")
++MODULE_ID("$Id: lib_tracebits.c,v 1.33 2024/12/21 16:39:29 tom Exp $")
+ 
+ #if HAVE_SYS_TERMIO_H
+ #include <sys/termio.h>		/* needed for ISC */
+@@ -79,14 +79,14 @@
+ #endif
+ 
+ typedef struct {
+-    unsigned int val;
++    unsigned long val;
+     const char name[BITNAMELEN];
+ } BITNAMES;
+ 
+ #define TRACE_BUF_SIZE(num) (_nc_globals.tracebuf_ptr[num].size)
+ 
+ static void
+-lookup_bits(char *buf, const BITNAMES * table, const char *label, unsigned int val)
++lookup_bits(char *buf, const BITNAMES * table, const char *label, unsigned long val)
+ {
+     const BITNAMES *sp;
+ 
+Index: ncurses/tty/lib_tstp.c
+Prereq:  1.57 
+--- ncurses-6.5-20241214+/ncurses/tty/lib_tstp.c	2024-12-15 02:01:17.000000000 +0000
++++ ncurses-6.5-20241221/ncurses/tty/lib_tstp.c	2024-12-21 18:43:50.000000000 +0000
+@@ -43,7 +43,7 @@
+ 
+ #include <SigAction.h>
+ 
+-MODULE_ID("$Id: lib_tstp.c,v 1.57 2024/12/15 02:01:17 tom Exp $")
++MODULE_ID("$Id: lib_tstp.c,v 1.58 2024/12/21 18:43:50 tom Exp $")
+ 
+ #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
+ #define USE_SIGTSTP 1
+@@ -294,7 +294,7 @@
+ #  endif
+ 	    _nc_globals.read_thread = pthread_self();
+     } else {
+-	_nc_globals.read_thread = 0;
++	_nc_globals.read_thread = (pthread_t) 0;
+     }
+     _nc_unlock_global(curses);
+ }
+@@ -310,7 +310,7 @@
+     if (_nc_globals.read_thread) {
+ 	if (!pthread_equal(pthread_self(), _nc_globals.read_thread))
+ 	    pthread_kill(_nc_globals.read_thread, SIGWINCH);
+-	_nc_globals.read_thread = 0;
++	_nc_globals.read_thread = (pthread_t) 0;
+     }
+ # endif
+ }
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20241214+/package/debian-mingw/changelog	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/package/debian-mingw/changelog	2024-12-21 10:55:02.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241214) unstable; urgency=low
++ncurses6td (6.5+20241221) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 14 Dec 2024 06:34:56 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 21 Dec 2024 05:50:45 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20241214+/package/debian-mingw64/changelog	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/package/debian-mingw64/changelog	2024-12-21 10:55:02.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241214) unstable; urgency=low
++ncurses6td (6.5+20241221) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 14 Dec 2024 06:34:56 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 21 Dec 2024 05:50:45 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20241214+/package/debian/changelog	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/package/debian/changelog	2024-12-21 10:55:02.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241214) unstable; urgency=low
++ncurses6td (6.5+20241221) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 14 Dec 2024 06:34:56 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 21 Dec 2024 05:50:45 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.680 
+--- ncurses-6.5-20241214+/package/mingw-ncurses.nsi	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/package/mingw-ncurses.nsi	2024-12-21 10:55:02.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.680 2024/12/14 11:34:56 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.681 2024/12/21 10:55:02 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "1214"
++!define VERSION_MMDD  "1221"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20241214+/package/mingw-ncurses.spec	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/package/mingw-ncurses.spec	2024-12-21 10:55:02.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20241214
++Release: 20241221
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20241214+/package/ncurses.spec	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/package/ncurses.spec	2024-12-21 10:55:02.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20241214
++Release: 20241221
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20241214+/package/ncursest.spec	2024-12-14 11:34:56.000000000 +0000
++++ ncurses-6.5-20241221/package/ncursest.spec	2024-12-21 10:55:02.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20241214
++Release: 20241221
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/infocmp.c
+Prereq:  1.170 
+--- ncurses-6.5-20241214+/progs/infocmp.c	2024-12-07 22:10:45.000000000 +0000
++++ ncurses-6.5-20241221/progs/infocmp.c	2024-12-21 17:02:07.000000000 +0000
+@@ -43,7 +43,7 @@
+ 
+ #include <dump_entry.h>
+ 
+-MODULE_ID("$Id: infocmp.c,v 1.170 2024/12/07 22:10:45 tom Exp $")
++MODULE_ID("$Id: infocmp.c,v 1.171 2024/12/21 17:02:07 tom Exp $")
+ 
+ #ifndef ACTUAL_TIC
+ #define ACTUAL_TIC "tic"
+@@ -1347,7 +1347,7 @@
+ #define TP_LIMIT	((MAX_STRING - 6) - (size_t)(tp - buf))
+ 	    *tp++ = '"';
+ 	    for (sp = term->Strings[n];
+-		 *sp != 0 && TP_LIMIT > 2;
++		 *sp != 0 && TP_LIMIT > 5;
+ 		 sp++) {
+ 		if (isascii(UChar(*sp))
+ 		    && isprint(UChar(*sp))
+Index: test/aclocal.m4
+Prereq:  1.230 
+--- ncurses-6.5-20241214+/test/aclocal.m4	2024-11-30 19:43:11.000000000 +0000
++++ ncurses-6.5-20241221/test/aclocal.m4	2024-12-21 15:24:55.000000000 +0000
+@@ -27,7 +27,7 @@
+ dnl authorization.                                                           *
+ dnl***************************************************************************
+ dnl
+-dnl $Id: aclocal.m4,v 1.230 2024/11/30 19:43:11 tom Exp $
++dnl $Id: aclocal.m4,v 1.231 2024/12/21 15:24:55 tom Exp $
+ dnl
+ dnl Author: Thomas E. Dickey
+ dnl
+@@ -697,7 +697,7 @@
+ fi
+ ])
+ dnl ---------------------------------------------------------------------------
+-dnl CF_CONST_X_STRING version: 8 updated: 2023/12/01 17:22:50
++dnl CF_CONST_X_STRING version: 9 updated: 2024/12/04 03:49:57
+ dnl -----------------
+ dnl The X11R4-X11R6 Xt specification uses an ambiguous String type for most
+ dnl character-strings.
+@@ -724,7 +724,7 @@
+ 
+ AC_TRY_COMPILE(
+ [
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ ],
+ [String foo = malloc(1); free((void*)foo)],[
+@@ -735,7 +735,7 @@
+ #undef  _CONST_X_STRING
+ #define _CONST_X_STRING	/* X11R7.8 (perhaps) */
+ #undef  XTSTRINGDEFINES	/* X11R5 and later */
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ 		],[String foo = malloc(1); *foo = 0],[
+ 			cf_cv_const_x_string=no
+@@ -1895,7 +1895,7 @@
+ CF_CLANG_COMPILER(GCC,CLANG_COMPILER,CFLAGS)
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_GCC_WARNINGS version: 41 updated: 2021/01/01 16:53:59
++dnl CF_GCC_WARNINGS version: 43 updated: 2024/12/21 08:44:12
+ dnl ---------------
+ dnl Check if the compiler supports useful warning options.  There's a few that
+ dnl we don't use, simply because they're too noisy:
+Index: test/configure
+--- ncurses-6.5-20241214+/test/configure	2024-11-30 19:43:38.000000000 +0000
++++ ncurses-6.5-20241221/test/configure	2024-12-21 15:25:20.000000000 +0000
+@@ -22909,7 +22909,7 @@
+ #line 22909 "configure"
+ #include "confdefs.h"
+ 
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ 
+ int
+@@ -22946,7 +22946,7 @@
+ #undef  _CONST_X_STRING
+ #define _CONST_X_STRING	/* X11R7.8 (perhaps) */
+ #undef  XTSTRINGDEFINES	/* X11R5 and later */
+-#include <stdlib.h>
++$ac_includes_default
+ #include <X11/Intrinsic.h>
+ 
+ int
+Index: test/foldkeys.c
+Prereq:  1.13 
+--- ncurses-6.5-20241214+/test/foldkeys.c	2024-12-07 23:03:07.000000000 +0000
++++ ncurses-6.5-20241221/test/foldkeys.c	2024-12-21 17:25:16.000000000 +0000
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey, 2006
+  *
+- * $Id: foldkeys.c,v 1.13 2024/12/07 23:03:07 tom Exp $
++ * $Id: foldkeys.c,v 1.14 2024/12/21 17:25:16 tom Exp $
+  *
+  * Demonstrate a method for altering key definitions at runtime.
+  *
+@@ -156,7 +156,7 @@
+ 		      final) == 3
+ 	    && *final != ';'
+ 	    && (need = strlen(info[j].value)) != 0
+-	    && (value = strdup(info[j].value)) != NULL) {
++	    && (value = malloc(need + 8)) != NULL) {
+ 	    (void) need;	/* _nc_SLIMIT is normally nothing  */
+ 	    _nc_SPRINTF(value, _nc_SLIMIT(need) "\033[%d%c", first, *final);
+ 	    for (k = 0; k < info_len; ++k) {
+Index: test/padview.c
+Prereq:  1.27 
+--- ncurses-6.5-20241214+/test/padview.c	2024-12-07 22:40:19.000000000 +0000
++++ ncurses-6.5-20241221/test/padview.c	2024-12-21 17:34:13.000000000 +0000
+@@ -29,7 +29,7 @@
+ /*
+  * clone of view.c, using pads
+  *
+- * $Id: padview.c,v 1.27 2024/12/07 22:40:19 tom Exp $
++ * $Id: padview.c,v 1.28 2024/12/21 17:34:13 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -88,8 +88,9 @@
+     wattrset(stdscr, COLOR_PAIR(my_pair));
+     clear();
+ 
++    i = (int) (sizeof(temp) - strlen(tag) - 8);
+     _nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp))
+-		"view %.*s", (int) strlen(tag), tag);
++		"view %.*s", i, tag);
+     i = (int) strlen(temp);
+     _nc_SPRINTF(temp + i, _nc_SLIMIT(sizeof(temp) - (size_t) i)
+ 		" %.*s", (int) sizeof(temp) - i - 2, fname);

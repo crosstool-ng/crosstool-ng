@@ -1,0 +1,300 @@
+# ncurses 6.5 - patch 20250216 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250216.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Mon Feb 17 01:05:58 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    8 +++++++-
+# VERSION                          |    2 +-
+# dist.mk                          |    4 ++--
+# ncurses/base/lib_chgat.c         |    4 ++--
+# ncurses/tinfo/alloc_entry.c      |    8 +++++++-
+# ncurses/tinfo/alloc_ttype.c      |   23 ++++++++++++++---------
+# package/debian-mingw/changelog   |    4 ++--
+# package/debian-mingw64/changelog |    4 ++--
+# package/debian/changelog         |    4 ++--
+# package/mingw-ncurses.nsi        |    4 ++--
+# package/mingw-ncurses.spec       |    2 +-
+# package/ncurses.spec             |    2 +-
+# package/ncursest.spec            |    2 +-
+# 13 files changed, 44 insertions(+), 27 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4245 
+--- ncurses-6.5-20250215+/NEWS	2025-02-16 00:19:24.000000000 +0000
++++ ncurses-6.5-20250216/NEWS	2025-02-16 23:54:33.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4245 2025/02/16 00:19:24 tom Exp $
++-- $Id: NEWS,v 1.4248 2025/02/16 23:54:33 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250216
++	+ add limit-checks in alloc_entry.c and alloc_ttype.c to avoid indexing
++	  errors when using infocmp to compare all capabilities when processing
++	  a malformed terminfo binary which has a valid header (testcase by
++	  "Ekkosun").
++
+ 20250215
+ 	+ add gzip option for suppressing filename/timestamp information to an
+ 	  overlooked case (cf: 20240330).
+Index: VERSION
+--- ncurses-6.5-20250215+/VERSION	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/VERSION	2025-02-16 22:35:29.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250215
++5:0:10	6.5	20250216
+Index: dist.mk
+Prereq:  1.1655 
+--- ncurses-6.5-20250215+/dist.mk	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/dist.mk	2025-02-16 22:35:29.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1655 2025/02/15 12:35:22 tom Exp $
++# $Id: dist.mk,v 1.1656 2025/02/16 22:35:29 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250215
++NCURSES_PATCH = 20250216
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: ncurses/base/lib_chgat.c
+Prereq:  1.14 
+--- ncurses-6.5-20250215+/ncurses/base/lib_chgat.c	2025-02-15 20:53:36.000000000 +0000
++++ ncurses-6.5-20250216/ncurses/base/lib_chgat.c	2025-02-15 20:53:36.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2015 Thomas E. Dickey                                     *
++ * Copyright 2020-2015,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -43,7 +43,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_chgat.c,v 1.14 2025/02/15 20:53:36 tom Exp $")
++MODULE_ID("$Id: lib_chgat.c,v 1.15 2025/02/15 20:53:36 tom Exp $")
+ 
+ NCURSES_EXPORT(int)
+ wchgat(WINDOW *win,
+Index: ncurses/tinfo/alloc_entry.c
+Prereq:  1.82 
+--- ncurses-6.5-20250215+/ncurses/tinfo/alloc_entry.c	2025-01-11 20:37:19.000000000 +0000
++++ ncurses-6.5-20250216/ncurses/tinfo/alloc_entry.c	2025-02-16 17:57:12.000000000 +0000
+@@ -48,7 +48,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: alloc_entry.c,v 1.82 2025/01/11 20:37:19 tom Exp $")
++MODULE_ID("$Id: alloc_entry.c,v 1.83 2025/02/16 17:57:12 tom Exp $")
+ 
+ #define ABSENT_OFFSET    -1
+ #define CANCELLED_OFFSET -2
+@@ -360,6 +360,8 @@
+     }
+ #endif
+     for_each_boolean(i, from) {
++	if (i >= NUM_BOOLEANS(to))
++	    break;
+ 	if (to->Booleans[i] != (NCURSES_SBOOL) CANCELLED_BOOLEAN) {
+ 	    int mergebool = from->Booleans[i];
+ 
+@@ -371,6 +373,8 @@
+     }
+ 
+     for_each_number(i, from) {
++	if (i >= NUM_NUMBERS(to))
++	    break;
+ 	if (to->Numbers[i] != CANCELLED_NUMERIC) {
+ 	    int mergenum = from->Numbers[i];
+ 
+@@ -387,6 +391,8 @@
+      * we ever want to deallocate entries.
+      */
+     for_each_string(i, from) {
++	if (i >= NUM_STRINGS(to))
++	    break;
+ 	if (to->Strings[i] != CANCELLED_STRING) {
+ 	    char *mergestring = from->Strings[i];
+ 
+Index: ncurses/tinfo/alloc_ttype.c
+Prereq:  1.53 
+--- ncurses-6.5-20250215+/ncurses/tinfo/alloc_ttype.c	2024-12-07 18:08:56.000000000 +0000
++++ ncurses-6.5-20250216/ncurses/tinfo/alloc_ttype.c	2025-02-16 18:31:37.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1999-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -43,7 +43,7 @@
+ 
+ #include <tic.h>
+ 
+-MODULE_ID("$Id: alloc_ttype.c,v 1.53 2024/12/07 18:08:56 tom Exp $")
++MODULE_ID("$Id: alloc_ttype.c,v 1.55 2025/02/16 18:31:37 tom Exp $")
+ 
+ #if NCURSES_XNAMES
+ /*
+@@ -231,13 +231,15 @@
+ static int
+ _nc_find_ext_name(const TERMTYPE2 *tp, const char *name, int token_type)
+ {
+-    unsigned j;
+-    unsigned first = _nc_first_ext_name(tp, token_type);
+-    unsigned last = _nc_last_ext_name(tp, token_type);
++    if (name != NULL) {
++	unsigned j;
++	unsigned first = _nc_first_ext_name(tp, token_type);
++	unsigned last = _nc_last_ext_name(tp, token_type);
+ 
+-    for (j = first; j < last; j++) {
+-	if (!strcmp(name, tp->ext_Names[j])) {
+-	    return (int) j;
++	for (j = first; j < last; j++) {
++	    if (!strcmp(name, tp->ext_Names[j])) {
++		return (int) j;
++	    }
+ 	}
+     }
+     return -1;
+@@ -381,9 +383,12 @@
+ 	      NonNull(to->term_names),
+ 	      NonNull(from->term_names)));
+     for (j = first; j < last;) {
+-	char *name = to->ext_Names[j];
++	char *name;
+ 	int j_str = to->num_Strings - first - to->ext_Strings;
+ 
++	if ((j + j_str) > NUM_STRINGS(to))
++	    break;
++	name = to->ext_Names[j];
+ 	if (to->Strings[j + j_str] == CANCELLED_STRING) {
+ 	    if (_nc_find_ext_name(from, to->ext_Names[j], BOOLEAN) >= 0) {
+ 		if (_nc_del_ext_name(to, name, STRING)
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250215+/package/debian-mingw/changelog	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/package/debian-mingw/changelog	2025-02-16 22:35:29.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250215) unstable; urgency=low
++ncurses6td (6.5+20250216) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Feb 2025 07:35:22 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 16 Feb 2025 17:35:29 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250215+/package/debian-mingw64/changelog	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/package/debian-mingw64/changelog	2025-02-16 22:35:29.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250215) unstable; urgency=low
++ncurses6td (6.5+20250216) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Feb 2025 07:35:22 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 16 Feb 2025 17:35:29 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250215+/package/debian/changelog	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/package/debian/changelog	2025-02-16 22:35:29.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250215) unstable; urgency=low
++ncurses6td (6.5+20250216) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Feb 2025 07:35:22 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 16 Feb 2025 17:35:29 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.689 
+--- ncurses-6.5-20250215+/package/mingw-ncurses.nsi	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/package/mingw-ncurses.nsi	2025-02-16 22:35:29.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.689 2025/02/15 12:35:22 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.690 2025/02/16 22:35:29 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0215"
++!define VERSION_MMDD  "0216"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250215+/package/mingw-ncurses.spec	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/package/mingw-ncurses.spec	2025-02-16 22:35:29.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250215
++Release: 20250216
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250215+/package/ncurses.spec	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/package/ncurses.spec	2025-02-16 22:35:29.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250215
++Release: 20250216
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250215+/package/ncursest.spec	2025-02-15 12:35:22.000000000 +0000
++++ ncurses-6.5-20250216/package/ncursest.spec	2025-02-16 22:35:29.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250215
++Release: 20250216
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

@@ -1,0 +1,763 @@
+# ncurses 6.5 - patch 20250208 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250208.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Feb  9 00:55:56 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    9 ++-
+# VERSION                          |    2 
+# c++/etip.h.in                    |   13 ++--
+# dist.mk                          |    4 -
+# misc/terminfo.src                |  108 +++++++++++++++++++++++++++++--------
+# ncurses/base/lib_mouse.c         |    8 +-
+# ncurses/base/lib_set_term.c      |    9 ++-
+# package/debian-mingw/changelog   |    4 -
+# package/debian-mingw64/changelog |    4 -
+# package/debian/changelog         |    4 -
+# package/mingw-ncurses.nsi        |    4 -
+# package/mingw-ncurses.spec       |    2 
+# package/ncurses.spec             |    2 
+# package/ncursest.spec            |    2 
+# progs/dump_entry.c               |   10 +--
+# test/ditto.c                     |    8 +-
+# test/filter.c                    |    6 +-
+# test/redraw.c                    |    6 +-
+# test/test_opaque.c               |   34 ++++++++---
+# 19 files changed, 167 insertions(+), 72 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4239 
+--- ncurses-6.5-20250201+/NEWS	2025-02-02 00:30:12.000000000 +0000
++++ ncurses-6.5-20250208/NEWS	2025-02-08 23:54:37.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4239 2025/02/02 00:30:12 tom Exp $
++-- $Id: NEWS,v 1.4242 2025/02/08 23:54:37 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,13 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250208
++	+ change etip.h.in to include either/both of <new> and <exception>,
++	  needed for another old BSD.
++	+ update st (report by Alexander Kashpir) -TD
++	+ add note for ghostty 1.1.0 -TD
++	+ fix a few issues found with coverity.
++
+ 20250201
+ 	+ add <new> to the possible headers declaring the C++ std::bad_alloc
+ 	  (report by Carl Hansen).
+Index: VERSION
+--- ncurses-6.5-20250201+/VERSION	2025-02-01 10:35:49.000000000 +0000
++++ ncurses-6.5-20250208/VERSION	2025-02-08 11:01:51.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250201
++5:0:10	6.5	20250208
+Index: c++/etip.h.in
+Prereq:  1.54 
+--- ncurses-6.5-20250201+/c++/etip.h.in	2025-02-02 00:20:44.000000000 +0000
++++ ncurses-6.5-20250208/c++/etip.h.in	2025-02-08 23:39:52.000000000 +0000
+@@ -32,7 +32,7 @@
+  *   Author: Juergen Pfeifer, 1997                                          *
+  ****************************************************************************/
+ 
+-// $Id: etip.h.in,v 1.54 2025/02/02 00:20:44 tom Exp $
++// $Id: etip.h.in,v 1.55 2025/02/08 23:39:52 tom Exp $
+ 
+ #ifndef NCURSES_ETIP_H_incl
+ #define NCURSES_ETIP_H_incl 1
+@@ -124,14 +124,17 @@
+ #    endif
+ #    undef exception
+ #  endif
+-#elif HAVE_EXCEPTION
+-#  include <exception>
+-#elif HAVE_NEW
+-#  include <new>
+ #elif defined (__SUNPRO_CC)
+ #  include <generic.h>
+ #endif
+ 
++#if HAVE_EXCEPTION
++# include <exception>
++#endif
++#if HAVE_NEW
++# include <new>
++#endif
++
+ // This used to include <curses.h>, but Apple's configuration as of 2024
+ // provides only a broken version of ncurses's header, which interferes
+ // with the configure script.
+Index: dist.mk
+Prereq:  1.1653 
+--- ncurses-6.5-20250201+/dist.mk	2025-02-01 10:35:49.000000000 +0000
++++ ncurses-6.5-20250208/dist.mk	2025-02-08 11:01:51.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1653 2025/02/01 10:35:49 tom Exp $
++# $Id: dist.mk,v 1.1654 2025/02/08 11:01:51 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250201
++NCURSES_PATCH = 20250208
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/terminfo.src
+--- ncurses-6.5-20250201+/misc/terminfo.src	2025-01-04 21:02:11.000000000 +0000
++++ ncurses-6.5-20250208/misc/terminfo.src	2025-02-08 21:27:07.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1163 $
+-#	$Date: 2025/01/04 21:02:11 $
++#	$Revision: 1.1170 $
++#	$Date: 2025/02/08 21:27:07 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -635,7 +635,7 @@
+ #	Parameter default value: Ps = 0
+ #	With a parameter value not equal to 0, DA is used to identify the
+ #	device which sends the DA.  The parameter value is a device type
+-#	identification code according to a register which is to be established. 
++#	identification code according to a register which is to be established.
+ #	If the parameter value is 0, DA is used to request an identifying DA
+ #	from a device.
+ #
+@@ -3209,7 +3209,7 @@
+ #   my faulty memory, and the following online sources and references:
+ #
+ # [1] "Three Scotts and a Duane" by Simson L. Garfinkel
+-# http://www.nextcomputers.org/NeXTfiles/Articles/NeXTWORLD/93.8/93.8.Dec.Community1.html
++# https://web.archive.org/web/20121019083801/http://www.nextcomputers.org/NeXTfiles/Articles/NeXTWORLD/93.8/93.8.Dec.Community1.html
+ #
+ # [2] NeXTSTEP entry from Wikipedia, the free encyclopedia
+ # https://secure.wikimedia.org/wikipedia/en/wiki/Nextstep
+@@ -3642,7 +3642,7 @@
+ # NOTES:
+ # with esctest:
+ #	365 tests passed, 196 known bugs, 2 tests fail intermittently
+-#	the known bugs include several of the cursor-movement tests 
++#	the known bugs include several of the cursor-movement tests
+ #	the ED, EL tests include those failing intermittently
+ #	DECCOLM, DECERA, DECSED, DECSERA and SPA do not work
+ #	most of the DECRPM, DECRQSS reports fail
+@@ -4023,7 +4023,7 @@
+ #	TN3270, TVI910, TVI925, Wyse 50/60, and ANSI.
+ # Changes:
+ #	Added ANSI sc/rc and REP in 2019/12/17
+-#	Added TVI910/ TVI925 in 2019/11/20	
++#	Added TVI910/ TVI925 in 2019/11/20
+ #
+ # Default:
+ #	Emulate "Xterm", using "ANSI with 256color"
+@@ -4088,8 +4088,8 @@
+ #	TERM=xterm
+ #
+ # vttest:
+-#	DA1: \E[?62;1;2;6;7;8;9;15;22c (VT200 with DRCS, UDK, NRCS) 
+-#	DA2: \E[>1;10;0c 
++#	DA1: \E[?62;1;2;6;7;8;9;15;22c (VT200 with DRCS, UDK, NRCS)
++#	DA2: \E[>1;10;0c
+ #	However:
+ #	+ NRCS tests do not work
+ #	+ DECUDK test fails
+@@ -5706,7 +5706,7 @@
+ # c) fsl ends the escape sequence begun by tsl.  Printable characters between
+ #    those (probably) will appear in the window title.  Nonprintable characters
+ #    may cause the escape sequence to end with an error.
+-# d) the BEL (^G or \007) used in the original title-as-statusline came from 
++# d) the BEL (^G or \007) used in the original title-as-statusline came from
+ #    David J. MacKenzie's "pseudo-color" entry in 20 Apr 1995.  At that time
+ #    xterm used BEL as the string-terminator rather than ST (\E\\).  Either
+ #    BEL or ST has worked since xterm patch #28 in 1996, but most uses of
+@@ -6029,7 +6029,7 @@
+ #	http://nion.modprobe.de/blog/archives/569-colored-manpages.html
+ #	(blog posting by Nico Golde, June 24 2007)
+ # archive:
+-#	https://web-beta.archive.org/web/20070921042430/http://nion.modprobe.de/mostlike.txt
++#	https://web.archive.org/web/20070921042430/http://nion.modprobe.de/mostlike.txt
+ # The comment hints where it started, but there are differences:
+ #	Reconstructed via infocmp from file: /usr/share/terminfo/x/xterm-pcolor
+ mostlike|manpages with color looking like most,
+@@ -6858,7 +6858,6 @@
+ 	use=vt220+vtedit, use=xterm+nopcfkeys,
+ 
+ # rxvt was originally "xvt", first announced in April 1993:
+-#	http://www.krsaborio.net/linux-desktops/research/1993/0416.html
+ #------------------------------------------------------------------------------
+ # Article: 567 of comp.os.linux.announce
+ # Path: pavo.csi.cam.ac.uk!warwick!uknet!pipex!uunet!zaphod.mps.ohio-state.edu!
+@@ -7060,7 +7059,7 @@
+ # This article does not cover the HP 46020A keyboard that is used by the Model
+ # 217 and 237 computers.  For information on this keyboard read the article,
+ # "The Series 300 ITE as System Console" found in the manual, HP-UX Concepts
+-# and Tutorials, Vol.  7. 
++# and Tutorials, Vol.  7.
+ #
+ # Possibly:
+ # http://bitsavers.trailing-edge.com/pdf/hp/9000_hpux/1986/97089-90042_198608_HP-UX_Concepts_and_Tutorials.pdf
+@@ -7304,7 +7303,27 @@
+ # st.suckless.org
+ 
+ st|stterm|aka simpleterm,
+-	use=st-0.8,
++	use=st-0.8.5,
++
++# Reviewed 0.9.2 (Debian testing package "stterm"):
++# Inspected source, saw nothing to change in terminfo.
++#
++# Reviewed 0.8.5 (Debian stable package "stterm"):
++# In tack,
++#	sends nothing for control- and alt-modifiers to function-keys
++#	does not support application-mode for numeric keypad
++# In vttest,
++#	identifies as a VT102
++#	SRM, DECTCEM and ECH work, but not DECSCA
++#	incomplete DECSCUSR, shapes work but no blinking cursor
++#	SD and SL work, but not SL or SR
++#	supports normal, button-event and any-event mouse
++#	focus events are unreliable
++# Other:
++#	supports xterm OSC 12, but not 112, so Cs applies but not Cr
++#	OSC allows ST \E\\ in addition to \007
++st-0.8.5|simpleterm 0.8.5,
++	Cs=\E]12;%p1%s\007, use=ansi+rep, use=st-0.8,
+ 
+ # Reviewed 0.8.2:
+ # In tack,
+@@ -7922,7 +7941,7 @@
+ #	otherwise few reports, except cursor-position and mouse and some dtterm
+ #	VT520 cursor-movement works, except for left/right margins
+ #	supports xterm/DECSCUSR, though default case in vttest does not blink
+-#		Send: <27> [ 0 <32> q 
++#		Send: <27> [ 0 <32> q
+ #		Text: The cursor should be a blinking rectangle
+ #	partial support for xterm mouse any-event mode and button-event mode:
+ #	+ does not report focus-in/focus-out
+@@ -8235,7 +8254,7 @@
+ # However, it uses xterm as a standard:
+ #
+ #	We believe Ghostty is one of the most compliant terminal emulators
+-#	available.  Terminal behavior is partially a de jure standard (i.e. 
++#	available.  Terminal behavior is partially a de jure standard (i.e.
+ #	[ECMA-48](https://ecma-international.org/publications-and-standards/stand>
+ #	but mostly a de facto standard as defined by popular terminal emulators
+ #	worldwide.  Ghostty takes the approach that our behavior is defined by
+@@ -8252,6 +8271,45 @@
+ # study xterm's source code closer than xterm's documentation.  The quote above
+ # is the only mention of ECMA-48.
+ #
++# ghostty 1.1.0 tested with Arch Linux:
++# -------------
++# The issue with vttest is repaired.  Other issues remain.  The reader may not
++# have noticed, but the ghostty developers disallow direct bug reports.
++# Quoting the developers:
++#
++#	https://github.com/ghostty-org/ghostty/issues/3558
++#	Users are not allowed to create Issues directly in this repository - we
++#	ask that you create a Discussion first.
++#	...
++#	Any Discussion which clearly identifies a problem in Ghostty and can be
++#	confirmed or reproduced will be converted to an Issue by a maintainer,
++#	so as a user finding a valid problem you don't do any extra work
++#	anyway.  Thank you.
++#
++# As a direct consequence, details and attribution in those "Discussion" notes
++# may be omitted, as in this instance.
++#
++# https://web.archive.org/web/20250124124041/https://github.com/ghostty-org/ghostty/issues/2542
++# ghostty #2542 Publish ghostty terminfo to ncurses terminal database
++# Opened October 30, 2024, this terminal description is mentioned December 31.
++#
++# https://web.archive.org/web/20250115170223/https://github.com/ghostty-org/ghostty/issues/4523
++# ghostty #4523 Renderers (Metal and OpenGL) should clip terminal if terminal
++#		grid size mismatches physical window
++# Opened January 3, 2025, with a note
++#	The only known way to trigger this is DECCOLM, so it's low priority
++#	since almost nothing uses this.  But notably vtetest uses this and it
++#	makes it appear like we perform much worse than we do.
++#
++# Issue #4523 does not mention the bug report (nor, as in some other instances
++# refer obliquely to a discussion on "Discord").  vttest sends a DECCOLM to
++# ensure that the screen is not in 132-column mode.  That is the case for the
++# testing reported.  If ghostty were implementing DECCOLM correctly, it would
++# not have decided that the screensize changed.  The fix in #4523 is a
++# workaround masking other potential issues.
++#
++# By the way, that should be "vttest" (there is no such program as "vtetest").
++#
+ # ghostty 1.0.0 tested with Arch Linux:
+ # -------------
+ # tack:
+@@ -8269,11 +8327,11 @@
+ # vttest:
+ # - ghostty hangs in more than one menu, making it impossible to test more than
+ #   a small part of the program.  In particular, these are untestable:
+-#	1. Test of cursor movements 
++#	1. Test of cursor movements
+ #	2. Test of screen features
+ #	4. Test of double-sized characters
+ # - ghostty has tabs (imitating gnome-terminal); when closing a tab with a
+-#   running process (e.g., a hung vttest), ghostty does not prompt about the 
++#   running process (e.g., a hung vttest), ghostty does not prompt about the
+ #   process to be killed.
+ # - identifies as a "VT220 with color":
+ #	<27> [ ? 6 2 ; 2 2 c
+@@ -9083,8 +9141,8 @@
+ # incomplete manual page.  Presumably the intent was to document features of
+ # shelltool not in wscons:
+ #
+-#    https://manpages.ubuntu.com/manpages/bionic/en/man1/shelltool.1.html
+-#    https://manpages.ubuntu.com/manpages/bionic/en/man1/cmdtool.1.html
++#    https://web.archive.org/web/20230608051050/manpages.ubuntu.com/manpages/bionic/en/man1/shelltool.1.html
++#    https://web.archive.org/web/20220520165933/manpages.ubuntu.com/manpages/bionic/en/man1/cmdtool.1.html
+ #
+ # The wscons manual page and the XView source show that it had no feature that
+ # could be used in ncurses u6/u7/u8/u9 extensions.  Interesting, the XView
+@@ -17946,7 +18004,7 @@
+ #
+ # They're now (1998) a subsidiary of General Electric, operating under the
+ # marque "GEC-Marconi Hazeltine" and doing military avionics.  Web page
+-# at <http://www.gec.com/cpd/1ncpd.htm#1.55>.
++# at <https://web.archive.org/web/19990223214534/http://www.gec.com/cpd/1ncpd.htm#1.55>.
+ #
+ 
+ # Since <cuf1> is blank, when you want to erase something you
+@@ -23465,8 +23523,8 @@
+ # https://ub.fnwi.uva.nl/computermuseum/tab13215g.html
+ #	This monochrome graphics terminal of TAB Products, California, is a DEC
+ #	VT52/VT100/VT132 compatible alphanumeric terminal (TAB 132/15),
+-#	factory-fitted with additional hardware for Tektronix 4010 emulation. 
+-#	Also the terminal understands a selection of Tektronix 4027 commands. 
++#	factory-fitted with additional hardware for Tektronix 4010 emulation.
++#	Also the terminal understands a selection of Tektronix 4027 commands.
+ tab132|tab|tab132-15|tab 132/15,
+ 	da, db,
+ 	OTdN@, lm#96,
+@@ -27730,4 +27788,10 @@
+ #	+ add linux+lockeys, xterm+r5+lockeys, xterm+r5+fkeys -TD
+ #	+ add vt220+ufkeys, vt220+sfkeys
+ #
++# 2025-02-03
++#	+ add note for ghostty 1.1.0 -TD
++#
++# 2025-02-08
++#	+ update st (report by Alexander Kashpir) -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: ncurses/base/lib_mouse.c
+Prereq:  1.206 
+--- ncurses-6.5-20250201+/ncurses/base/lib_mouse.c	2025-01-22 23:13:51.000000000 +0000
++++ ncurses-6.5-20250208/ncurses/base/lib_mouse.c	2025-02-08 12:16:37.000000000 +0000
+@@ -85,7 +85,7 @@
+ #define CUR SP_TERMTYPE
+ #endif
+ 
+-MODULE_ID("$Id: lib_mouse.c,v 1.206 2025/01/22 23:13:51 tom Exp $")
++MODULE_ID("$Id: lib_mouse.c,v 1.207 2025/02/08 12:16:37 tom Exp $")
+ 
+ #include <tic.h>
+ 
+@@ -1114,7 +1114,7 @@
+ 			    sp->_ifd,
+ #endif
+ 			    kbuf + grabbed, (size_t) (MAX_KBUF - (int) grabbed));
+-	if (res == -1)
++	if (res < 0)
+ 	    break;
+     }
+     _nc_set_read_thread(FALSE);
+@@ -1162,7 +1162,7 @@
+ 			    sp->_ifd,
+ #endif
+ 			    (kbuf + grabbed), (size_t) 1);
+-	if (res == -1)
++	if (res < 0)
+ 	    break;
+ 	grabbed += (size_t) res;
+ 	if (grabbed > 1) {
+@@ -1240,7 +1240,7 @@
+ 			    sp->_ifd,
+ #endif
+ 			    (kbuf + grabbed), (size_t) 1);
+-	if (res == -1)
++	if (res < 0)
+ 	    break;
+ 	if ((grabbed + MAX_KBUF) >= (int) sizeof(kbuf)) {
+ 	    result->nerror++;
+Index: ncurses/base/lib_set_term.c
+Prereq:  1.193 
+--- ncurses-6.5-20250201+/ncurses/base/lib_set_term.c	2025-01-22 23:13:27.000000000 +0000
++++ ncurses-6.5-20250208/ncurses/base/lib_set_term.c	2025-02-08 15:54:53.000000000 +0000
+@@ -57,7 +57,7 @@
+ #undef CUR
+ #define CUR SP_TERMTYPE
+ 
+-MODULE_ID("$Id: lib_set_term.c,v 1.193 2025/01/22 23:13:27 tom Exp $")
++MODULE_ID("$Id: lib_set_term.c,v 1.195 2025/02/08 15:54:53 tom Exp $")
+ 
+ #ifdef USE_TERM_DRIVER
+ #define MaxColors      InfoOf(sp).maxcolors
+@@ -331,10 +331,13 @@
+     T((T_CALLED("_nc_setupscreen(%d, %d, %p, %d, %d)"),
+        slines, scolumns, (void *) output, filtered, slk_format));
+ 
+-    assert(CURRENT_SCREEN == 0);	/* has been reset in newterm() ! */
++    /* CURRENT_SCREE is reset in newterm() */
++    if (CURRENT_SCREEN != NULL || slines <= 0 || scolumns <= 0)
++	returnCode(ERR);
+ 
+ #if NCURSES_SP_FUNCS
+-    assert(spp != 0);
++    if (spp == NULL)
++	returnCode(ERR);
+     sp = *spp;
+ 
+     if (!sp) {
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250201+/package/debian-mingw/changelog	2025-01-31 21:35:49.000000000 +0000
++++ ncurses-6.5-20250208/package/debian-mingw/changelog	2025-02-08 11:01:51.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250201) unstable; urgency=low
++ncurses6td (6.5+20250208) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 31 Jan 2025 16:35:49 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Feb 2025 06:01:51 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250201+/package/debian-mingw64/changelog	2025-01-31 21:35:49.000000000 +0000
++++ ncurses-6.5-20250208/package/debian-mingw64/changelog	2025-02-08 11:01:51.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250201) unstable; urgency=low
++ncurses6td (6.5+20250208) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 31 Jan 2025 16:35:49 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Feb 2025 06:01:51 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250201+/package/debian/changelog	2025-01-31 21:35:49.000000000 +0000
++++ ncurses-6.5-20250208/package/debian/changelog	2025-02-08 11:01:51.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250201) unstable; urgency=low
++ncurses6td (6.5+20250208) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 31 Jan 2025 16:35:49 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 08 Feb 2025 06:01:51 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.687 
+--- ncurses-6.5-20250201+/package/mingw-ncurses.nsi	2025-01-31 21:35:49.000000000 +0000
++++ ncurses-6.5-20250208/package/mingw-ncurses.nsi	2025-02-08 11:01:51.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.687 2025/01/31 21:35:49 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.688 2025/02/08 11:01:51 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0201"
++!define VERSION_MMDD  "0208"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250201+/package/mingw-ncurses.spec	2025-01-31 21:35:49.000000000 +0000
++++ ncurses-6.5-20250208/package/mingw-ncurses.spec	2025-02-08 11:01:51.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250201
++Release: 20250208
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250201+/package/ncurses.spec	2025-01-31 21:35:49.000000000 +0000
++++ ncurses-6.5-20250208/package/ncurses.spec	2025-02-08 11:01:51.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250201
++Release: 20250208
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250201+/package/ncursest.spec	2025-01-31 21:35:49.000000000 +0000
++++ ncurses-6.5-20250208/package/ncursest.spec	2025-02-08 11:01:51.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250201
++Release: 20250208
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/dump_entry.c
+Prereq:  1.198 
+--- ncurses-6.5-20250201+/progs/dump_entry.c	2024-12-07 22:06:39.000000000 +0000
++++ ncurses-6.5-20250208/progs/dump_entry.c	2025-02-08 21:53:40.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -40,7 +40,7 @@
+ #include <termsort.h>		/* this C file is generated */
+ #include <parametrized.h>	/* so is this */
+ 
+-MODULE_ID("$Id: dump_entry.c,v 1.198 2024/12/07 22:06:39 tom Exp $")
++MODULE_ID("$Id: dump_entry.c,v 1.199 2025/02/08 21:53:40 tom Exp $")
+ 
+ #define DISCARD(string) string = ABSENT_STRING
+ #define PRINTF (void) printf
+@@ -1209,10 +1209,10 @@
+     } else if (tversion == V_AIX) {
+ 	if (VALID_STRING(acs_chars)) {
+ 	    bool box_ok = TRUE;
+-	    const char *acstrans = "lqkxjmwuvtn";
++	    static const char acstrans[] = "lqkxjmwuvtn";
+ 	    const char *cp;
+ 	    const char *sp;
+-	    char *tp, boxchars[11];
++	    char *tp, boxchars[sizeof(acstrans)];
+ 
+ 	    tp = boxchars;
+ 	    for (cp = acstrans; *cp; cp++) {
+@@ -1224,7 +1224,7 @@
+ 		    break;
+ 		}
+ 	    }
+-	    tp[0] = '\0';
++	    *tp = '\0';
+ 
+ 	    if (box_ok) {
+ 		char *tmp = _nc_tic_expand(boxchars,
+Index: test/ditto.c
+Prereq:  1.60 
+--- ncurses-6.5-20250201+/test/ditto.c	2024-12-07 23:02:27.000000000 +0000
++++ ncurses-6.5-20250208/test/ditto.c	2025-02-09 00:18:00.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author: Thomas E. Dickey (1998-on)
+  *
+- * $Id: ditto.c,v 1.60 2024/12/07 23:02:27 tom Exp $
++ * $Id: ditto.c,v 1.61 2025/02/09 00:18:00 tom Exp $
+  *
+  * The program illustrates how to set up multiple screens from a single
+  * program.
+@@ -192,7 +192,7 @@
+ 	failed(path);
+     printf("opened %s\n", path);
+ #endif
+-    assert(fp != 0);
++    assert(fp != NULL);
+     return fp;
+ }
+ 
+@@ -432,7 +432,7 @@
+     if ((data = typeCalloc(DITTO, (size_t) argc)) == NULL)
+ 	failed("calloc data");
+ 
+-    assert(data != 0);
++    assert(data != NULL);
+ 
+     for (j = 0; j < argc; j++) {
+ 	open_screen(&data[j], argv, argc, j);
+Index: test/filter.c
+Prereq:  1.41 
+--- ncurses-6.5-20250201+/test/filter.c	2024-12-07 22:40:19.000000000 +0000
++++ ncurses-6.5-20250208/test/filter.c	2025-02-08 13:06:10.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2019-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -30,7 +30,7 @@
+ /*
+  * Author:  Thomas E. Dickey 1998
+  *
+- * $Id: filter.c,v 1.41 2024/12/07 22:40:19 tom Exp $
++ * $Id: filter.c,v 1.42 2025/02/08 13:06:10 tom Exp $
+  *
+  * An example of the 'filter()' function in ncurses, this program prompts
+  * for commands and executes them (like a command shell).  It illustrates
+@@ -123,7 +123,7 @@
+ 	    if (first) {
+ 		getyx(stdscr, y, x);
+ 		first = FALSE;
+-	    } else {
++	    } else if (limit > 0) {
+ 		int left = 0;
+ 
+ 		/*
+Index: test/redraw.c
+Prereq:  1.19 
+--- ncurses-6.5-20250201+/test/redraw.c	2024-12-07 22:46:42.000000000 +0000
++++ ncurses-6.5-20250208/test/redraw.c	2025-02-09 00:18:18.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: redraw.c,v 1.19 2024/12/07 22:46:42 tom Exp $
++ * $Id: redraw.c,v 1.20 2025/02/09 00:18:18 tom Exp $
+  *
+  * Demonstrate the redrawwin() and wredrawln() functions.
+  * Thomas Dickey - 2006/11/4
+@@ -85,7 +85,7 @@
+     int max_y, max_x;
+     int beg_y, beg_x;
+ 
+-    assert(win != 0);
++    assert(win != NULL);
+ 
+     scrollok(win, TRUE);
+     keypad(win, TRUE);
+Index: test/test_opaque.c
+Prereq:  1.18 
+--- ncurses-6.5-20250201+/test/test_opaque.c	2024-12-07 22:46:42.000000000 +0000
++++ ncurses-6.5-20250208/test/test_opaque.c	2025-02-08 13:03:06.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2022,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2007-2008,2009 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: test_opaque.c,v 1.18 2024/12/07 22:46:42 tom Exp $
++ * $Id: test_opaque.c,v 1.19 2025/02/08 13:03:06 tom Exp $
+  *
+  * Author: Thomas E Dickey
+  *
+@@ -157,15 +157,33 @@
+ }
+ 
+ static int
++height_of(const WINDOW *win)
++{
++    int result = getmaxy(win);
++    if (result <= 0)
++	result = 1;
++    return result;
++}
++
++static int
++width_of(const WINDOW *win)
++{
++    int result = getmaxx(win);
++    if (result <= 0)
++	result = 1;
++    return result;
++}
++
++static int
+ status_y(const WINDOW *stswin, int cell)
+ {
+-    return (cell % getmaxy(stswin));
++    return (cell % height_of(stswin));
+ }
+ 
+ static int
+ status_x(const WINDOW *stswin, int cell)
+ {
+-    return (15 * (cell / getmaxy(stswin)));
++    return (15 * (cell / height_of(stswin)));
+ }
+ 
+ static void
+@@ -289,8 +307,8 @@
+ 	wnoutrefresh(txtbox);
+ 
+ 	txtwin = derwin(txtbox,
+-			getmaxy(txtbox) - 2,
+-			getmaxx(txtbox) - 2,
++			height_of(txtbox) - 2,
++			width_of(txtbox) - 2,
+ 			1, 1);
+ 	base_y = 0;
+     } else {
+@@ -365,7 +383,7 @@
+ 		break;
+ 	    case KEY_DOWN:
+ 	    case 'j':
+-		if (txt_y < getmaxy(txtwin) - 1)
++		if (txt_y < height_of(txtwin) - 1)
+ 		    txt_y++;
+ 		else
+ 		    beep();
+@@ -386,7 +404,7 @@
+ 		break;
+ 	    case KEY_RIGHT:
+ 	    case 'l':
+-		if (txt_x < getmaxx(txtwin) - 1)
++		if (txt_x < width_of(txtwin) - 1)
+ 		    txt_x++;
+ 		else
+ 		    beep();

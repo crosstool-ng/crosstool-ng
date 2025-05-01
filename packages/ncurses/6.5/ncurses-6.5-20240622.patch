@@ -1,0 +1,3791 @@
+# ncurses 6.5 - patch 20240622 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20240622.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Jun 22 23:49:00 UTC 2024
+# ------------------------------------------------------------------------------
+# NEWS                                 |   12 
+# VERSION                              |    2 
+# aclocal.m4                           |    8 
+# announce.html.in                     |   10 
+# configure                            |    4 
+# dist.mk                              |    4 
+# doc/html/man/curs_add_wchstr.3x.html |   18 
+# doc/html/man/curs_addch.3x.html      |   99 ++---
+# doc/html/man/curs_addstr.3x.html     |   17 
+# doc/html/man/curs_beep.3x.html       |   10 
+# doc/html/man/curs_get_wstr.3x.html   |   26 -
+# doc/html/man/curs_getstr.3x.html     |  303 ++++++++--------
+# doc/html/man/curs_kernel.3x.html     |   67 +--
+# doc/html/man/curs_pad.3x.html        |   10 
+# doc/html/man/curs_slk.3x.html        |    8 
+# doc/html/man/curs_termcap.3x.html    |    8 
+# doc/html/man/curs_util.3x.html       |    8 
+# doc/html/man/curs_variables.3x.html  |    8 
+# doc/html/man/ncurses.3x.html         |  206 +++++------
+# doc/html/man/tabs.1.html             |   12 
+# doc/html/man/terminfo.5.html         |    2 
+# doc/html/man/tput.1.html             |   14 
+# man/curs_add_wchstr.3x               |   25 +
+# man/curs_addch.3x                    |   14 
+# man/curs_addstr.3x                   |   19 -
+# man/curs_beep.3x                     |    8 
+# man/curs_get_wstr.3x                 |   20 -
+# man/curs_getstr.3x                   |  608 +++++++++++++++++++++------------
+# man/curs_kernel.3x                   |   10 
+# man/curs_pad.3x                      |   56 ++-
+# man/curs_slk.3x                      |    8 
+# man/curs_termcap.3x                  |   14 
+# man/curs_util.3x                     |    8 
+# man/curs_variables.3x                |    6 
+# man/man_db.renames.in                |    4 
+# man/manhtml.aliases                  |    5 
+# man/manhtml.externs                  |    3 
+# man/ncurses.3x                       |   49 +-
+# man/tabs.1                           |    8 
+# man/terminfo.tail                    |    4 
+# man/tput.1                           |   13 
+# misc/gen-pkgconfig.in                |    6 
+# misc/ncurses-config.in               |  113 ++++--
+# package/debian-mingw/changelog       |    4 
+# package/debian-mingw/rules           |    1 
+# package/debian-mingw64/changelog     |    4 
+# package/debian-mingw64/rules         |    1 
+# package/debian/changelog             |    4 
+# package/mingw-ncurses.nsi            |    4 
+# package/mingw-ncurses.spec           |    2 
+# package/ncurses.spec                 |    2 
+# package/ncursest.spec                |    2 
+# test/gdc.6                           |   78 ++--
+# test/gdc.c                           |   37 +-
+# 54 files changed, 1209 insertions(+), 787 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4139 
+--- ncurses-6.5-20240615+/NEWS	2024-06-15 20:49:04.000000000 +0000
++++ ncurses-6.5-20240622/NEWS	2024-06-22 22:59:44.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4139 2024/06/15 20:49:04 tom Exp $
++-- $Id: NEWS,v 1.4143 2024/06/22 22:59:44 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,16 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20240622
++	+ improve test/gdc.c (patch by Branden Robinson).
++	+ improve formatting/style of manpages (patches by Branden Robinson).
++	+ adjust naming of mingw *-config scripts to match the pkg-config names
++	+ widen pattern in pc/*-config scripts to disallow more linker options
++	+ add --cflags-only-I and --cflags-only-other options to
++	  misc/ncurses-config.in
++	+ revert change to CF_BUILD_CC macro (report by Vassili Courzakis,
++	  cf: 20240518).
++
+ 20240615
+ 	+ improve formatting/style of manpages (patches by Branden Robinson).
+ 	+ review/update modules files.
+Index: VERSION
+--- ncurses-6.5-20240615+/VERSION	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/VERSION	2024-06-21 22:24:47.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20240615
++5:0:10	6.5	20240622
+Index: aclocal.m4
+Prereq:  1.1071 
+--- ncurses-6.5-20240615+/aclocal.m4	2024-05-18 19:49:14.000000000 +0000
++++ ncurses-6.5-20240622/aclocal.m4	2024-06-22 19:57:54.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey 1995-on
+ dnl
+-dnl $Id: aclocal.m4,v 1.1071 2024/05/18 19:49:14 tom Exp $
++dnl $Id: aclocal.m4,v 1.1073 2024/06/22 19:57:54 tom Exp $
+ dnl Macros used in NCURSES auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -741,7 +741,7 @@
+ fi
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_BUILD_CC version: 12 updated: 2024/03/17 09:17:26
++dnl CF_BUILD_CC version: 13 updated: 2024/06/22 13:42:22
+ dnl -----------
+ dnl If we're cross-compiling, allow the user to override the tools and their
+ dnl options.  The configure script is oriented toward identifying the host
+@@ -841,9 +841,9 @@
+ 	: ${BUILD_CC:='${CC}'}
+ 	: ${BUILD_CPP:='${CPP}'}
+ 	: ${BUILD_CFLAGS:='${CFLAGS}'}
+-	: ${BUILD_CPPFLAGS:='ifelse([$1],,'${CPPFLAGS}',[$1])'}
++	: ${BUILD_CPPFLAGS:='${CPPFLAGS}'}
+ 	: ${BUILD_LDFLAGS:='${LDFLAGS}'}
+-	: ${BUILD_LIBS:='ifelse([$2],,'${LIBS}',[$2])'}
++	: ${BUILD_LIBS:='${LIBS}'}
+ 	: ${BUILD_EXEEXT:='$x'}
+ 	: ${BUILD_OBJEXT:='o'}
+ fi
+Index: announce.html.in
+Prereq:  1.107 
+--- ncurses-6.5-20240615+/announce.html.in	2024-04-27 16:45:27.000000000 +0000
++++ ncurses-6.5-20240622/announce.html.in	2024-06-22 22:17:40.000000000 +0000
+@@ -1,5 +1,5 @@
+ <!--
+-  $Id: announce.html.in,v 1.107 2024/04/27 16:45:27 tom Exp $
++  $Id: announce.html.in,v 1.108 2024/06/22 22:17:40 tom Exp $
+   ****************************************************************************
+   * Copyright 2018-2023,2024 Thomas E. Dickey                                *
+   *                                                                          *
+@@ -324,8 +324,8 @@
+     </li>
+ 
+     <li>
+-      <p>modify <code>delscreen</code> to limit the windows which
+-      it creates to just those associated with the screen</p>
++      <p>modify <code>delscreen</code> to delete only windows associated
++      with the screen</p>
+     </li>
+ 
+     <li>
+@@ -1116,8 +1116,8 @@
+ 
+       <ul>
+         <li>
+-          <p>the panel library, supporting a stack of windows with
+-          backing store</p>
++          <p>the panel library, permitting windows to stack and
++          overlap</p>
+         </li>
+ 
+         <li>
+Index: configure
+--- ncurses-6.5-20240615+/configure	2024-05-25 23:08:49.000000000 +0000
++++ ncurses-6.5-20240622/configure	2024-06-22 16:31:27.000000000 +0000
+@@ -5695,9 +5695,9 @@
+ 	: ${BUILD_CC:='${CC}'}
+ 	: ${BUILD_CPP:='${CPP}'}
+ 	: ${BUILD_CFLAGS:='${CFLAGS}'}
+-	: ${BUILD_CPPFLAGS:=''${CPPFLAGS}''}
++	: ${BUILD_CPPFLAGS:='${CPPFLAGS}'}
+ 	: ${BUILD_LDFLAGS:='${LDFLAGS}'}
+-	: ${BUILD_LIBS:=''${LIBS}''}
++	: ${BUILD_LIBS:='${LIBS}'}
+ 	: ${BUILD_EXEEXT:='$x'}
+ 	: ${BUILD_OBJEXT:='o'}
+ fi
+Index: dist.mk
+Prereq:  1.1618 
+--- ncurses-6.5-20240615+/dist.mk	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/dist.mk	2024-06-22 09:24:38.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1618 2024/06/15 09:33:15 tom Exp $
++# $Id: dist.mk,v 1.1619 2024/06/22 09:24:38 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20240615
++NCURSES_PATCH = 20240622
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: doc/html/man/curs_add_wchstr.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_add_wchstr.3x.html	2024-05-11 22:32:32.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_add_wchstr.3x.html	2024-06-22 22:55:07.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_add_wchstr.3x,v 1.40 2024/05/11 20:39:53 tom Exp @
++  * @Id: curs_add_wchstr.3x,v 1.42 2024/06/22 21:26:27 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_add_wchstr 3x 2024-05-11 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_add_wchstr 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_add_wchstr 3x 2024-05-11 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_add_wchstr 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>              Library calls             <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>
+ 
+@@ -113,6 +113,15 @@
+        X/Open Curses, Issue 4 describes these functions.
+ 
+ 
++</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
++       These functions were initially specified by  X/Open  Curses,  Issue  4.
++       The   System V   Interface  Definition,  Version  4  (1995),  specified
++       functions named <EM>waddwchstr</EM> and <EM>waddwchnstr</EM> (and  the  usual  variants).
++       These  were  later additions to SVr4.<EM>x</EM>, not appearing in the first SVr4
++       (1989).  They differed from X/Open's <EM>wadd</EM><STRONG>_</STRONG><EM>wchstr</EM>  and  <EM>wadd</EM><STRONG>_</STRONG><EM>wchnstr</EM>  in
++       that they each took an argument of type <EM>wchar</EM><STRONG>_</STRONG><EM>t</EM> instead of <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM>.
++
++
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+        <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM> library
+        in its non-wide-character configuration.
+@@ -121,7 +130,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-05-11               <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22               <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+@@ -131,6 +140,7 @@
+ <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+ <li><a href="#h2-NOTES">NOTES</a></li>
+ <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
++<li><a href="#h2-HISTORY">HISTORY</a></li>
+ <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+ </ul>
+ </div>
+Index: doc/html/man/curs_addch.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_addch.3x.html	2024-06-08 23:12:48.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_addch.3x.html	2024-06-22 22:55:07.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_addch.3x,v 1.92 2024/06/08 20:51:41 tom Exp @
++  * @Id: curs_addch.3x,v 1.94 2024/06/22 21:34:49 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_addch 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_addch 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_addch 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_addch 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>                   Library calls                  <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ 
+@@ -206,90 +206,93 @@
+ 
+ 
+ </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+-       X/Open  Curses,  Issue  4  describes  these functions.  It specifies no
++       Applications employing <EM>ncurses</EM> extensions should condition their use on
++       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
++
++       X/Open Curses, Issue 4 describes  these  functions.   It  specifies  no
+        error conditions for them.
+ 
+-       SVr4 <EM>curses</EM> describes a successful return value  only  as  "an  integer
++       SVr4  <EM>curses</EM>  describes  a  successful return value only as "an integer
+        value other than <STRONG>ERR</STRONG>".
+ 
+-       The  defaults specified for forms-drawing characters apply in the POSIX
++       The defaults specified for forms-drawing characters apply in the  POSIX
+        locale.
+ 
+ 
+ </PRE><H3><a name="h3-ACS-Symbols">ACS Symbols</a></H3><PRE>
+-       X/Open Curses states that the  <STRONG>ACS_</STRONG>  definitions  are  <EM>char</EM>  constants.
++       X/Open  Curses  states  that  the  <STRONG>ACS_</STRONG> definitions are <EM>char</EM> constants.
+        Some implementations are problematic.
+ 
+-       <STRONG>o</STRONG>   Solaris  <EM>curses</EM>, for example, defines the ACS symbols as constants;
++       <STRONG>o</STRONG>   Solaris <EM>curses</EM>, for example, defines the ACS symbols as  constants;
+            others define them as elements of an array.
+ 
+-           This implementation uses an array, <STRONG>acs_map</STRONG>,  as  did  SVr4  <EM>curses</EM>.
++           This  implementation  uses  an  array, <STRONG>acs_map</STRONG>, as did SVr4 <EM>curses</EM>.
+            NetBSD also uses an array, actually named <STRONG>_acs_char</STRONG>, with a <STRONG>#define</STRONG>
+            for compatibility.
+ 
+-       <STRONG>o</STRONG>   HP-UX <EM>curses</EM> equates some of the  <STRONG>ACS_</STRONG>  symbols  to  the  analogous
+-           <STRONG>WACS_</STRONG>  symbols  as  if  the  <STRONG>ACS_</STRONG> symbols were wide characters (see
+-           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).  The  misdefined  symbols  are  the  arrows  and
++       <STRONG>o</STRONG>   HP-UX  <EM>curses</EM>  equates  some  of  the <STRONG>ACS_</STRONG> symbols to the analogous
++           <STRONG>WACS_</STRONG> symbols as if the <STRONG>ACS_</STRONG>  symbols  were  wide  characters  (see
++           <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>).   The  misdefined  symbols  are  the  arrows and
+            others that are not used for line drawing.
+ 
+-       <STRONG>o</STRONG>   X/Open  Curses  (Issues  2 through 7) has a typographical error for
+-           the <STRONG>ACS_LANTERN</STRONG> symbol, equating  its  "VT100+  Character"  to  "I"
+-           (capital  I),  while  the  header  files  for SVr4 <EM>curses</EM> and other
++       <STRONG>o</STRONG>   X/Open Curses (Issues 2 through 7) has a  typographical  error  for
++           the  <STRONG>ACS_LANTERN</STRONG>  symbol,  equating  its  "VT100+ Character" to "I"
++           (capital I), while the header  files  for  SVr4  <EM>curses</EM>  and  other
+            implementations use "i" (small i).
+ 
+-           None of the terminal descriptions on Unix platforms  use  uppercase
+-           I,  except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for <STRONG>screen(1)</STRONG>,
+-           apparently based on the X/Open documentation around 1995).  On  the
+-           other  hand,  its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS Terminal Emulator)
++           None  of  the terminal descriptions on Unix platforms use uppercase
++           I, except  for  Solaris  (in  its  <EM>terminfo</EM>  entry  for  <STRONG>screen(1)</STRONG>,
++           apparently  based on the X/Open documentation around 1995).  On the
++           other hand, its <STRONG>gs6300</STRONG> (AT&amp;T PC6300 with EMOTS  Terminal  Emulator)
+            description uses lowercase i.
+ 
+-       Some ACS  symbols  (<STRONG>ACS_S3</STRONG>,  <STRONG>ACS_S7</STRONG>,  <STRONG>ACS_LEQUAL</STRONG>,  <STRONG>ACS_GEQUAL</STRONG>,  <STRONG>ACS_PI</STRONG>,
+-       <STRONG>ACS_NEQUAL</STRONG>,  and  <STRONG>ACS_STERLING</STRONG>)  were  not  documented  in any publicly
+-       released System V.  However, many publicly available  <EM>terminfo</EM>  entries
+-       include  <STRONG>acsc</STRONG>  capabilities in which their key characters (<STRONG>pryz{|}</STRONG>) are
+-       embedded, and a second-hand list of their  character  descriptions  has
+-       come  to light.  The <EM>ncurses</EM> developers invented ACS-prefixed names for
++       Some  ACS  symbols  (<STRONG>ACS_S3</STRONG>,  <STRONG>ACS_S7</STRONG>,  <STRONG>ACS_LEQUAL</STRONG>,  <STRONG>ACS_GEQUAL</STRONG>, <STRONG>ACS_PI</STRONG>,
++       <STRONG>ACS_NEQUAL</STRONG>, and <STRONG>ACS_STERLING</STRONG>)  were  not  documented  in  any  publicly
++       released  System V.   However, many publicly available <EM>terminfo</EM> entries
++       include <STRONG>acsc</STRONG> capabilities in which their key characters  (<STRONG>pryz{|}</STRONG>)  are
++       embedded,  and  a  second-hand list of their character descriptions has
++       come to light.  The <EM>ncurses</EM> developers invented ACS-prefixed names  for
+        them.
+ 
+        The <EM>displayed</EM> values of <STRONG>ACS_</STRONG> constants depend on
+ 
+        <STRONG>o</STRONG>   the  <EM>ncurses</EM>  ABI--for  example,  wide-character  versus  non-wide-
+-           character  configurations  (the  former  is  capable  of displaying
++           character configurations  (the  former  is  capable  of  displaying
+            Unicode while the latter is not), and
+ 
+        <STRONG>o</STRONG>   whether the locale uses UTF-8 encoding.
+ 
+-       In certain cases, the  terminal  is  unable  to  display  forms-drawing
+-       characters   <EM>except</EM>   by   using  UTF-8;  see  the  discussion  of  the
++       In  certain  cases,  the  terminal  is  unable to display forms-drawing
++       characters  <EM>except</EM>  by  using  UTF-8;  see  the   discussion   of   the
+        <EM>NCURSES</EM><STRONG>_</STRONG><EM>NO</EM><STRONG>_</STRONG><EM>UTF8</EM><STRONG>_</STRONG><EM>ACS</EM> environment variable in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
+ 
+ 
+ </PRE><H3><a name="h3-Character-Set">Character Set</a></H3><PRE>
+-       X/Open Curses assumes that the parameter passed to  <STRONG>waddch</STRONG>  contains  a
+-       single  character.   That  character may have been more than eight bits
+-       wide in an SVr3 or SVr4 implementation, but X/Open  Curses  leaves  the
+-       width  of  a non-wide character code unspecified.  The standard further
+-       does not specify the internal structure of a <EM>chtype</EM>, though the use  of
+-       bit  operations  to  combine  the  character code with attributes and a
++       X/Open  Curses  assumes  that the parameter passed to <STRONG>waddch</STRONG> contains a
++       single character.  That character may have been more  than  eight  bits
++       wide  in  an  SVr3 or SVr4 implementation, but X/Open Curses leaves the
++       width of a non-wide character code unspecified.  The  standard  further
++       does  not specify the internal structure of a <EM>chtype</EM>, though the use of
++       bit operations to combine the character  code  with  attributes  and  a
+        color pair identifier into a <EM>chtype</EM> for passage to <STRONG>waddch</STRONG> is common.  A
+        portable application uses only the macros discussed in <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG> to
+        manipulate a <EM>chtype</EM>.
+ 
+        In <EM>ncurses</EM>, <EM>chtype</EM> holds an eight-bit character, but the library allows
+-       a  multibyte  character sequence to be passed via a succession of calls
+-       to <STRONG>waddch</STRONG>.  Other implementations  do  not;  a  <STRONG>waddch</STRONG>  call  transmits
+-       exactly  one  character,  which  may  be rendered in one or more screen
+-       locations depending  on  whether  it  is  printable  (see  <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
+-       Depending  on  the  locale,  <EM>ncurses</EM>  inspects  the byte passed in each
+-       <STRONG>waddch</STRONG> call and checks whether the latest call  continues  a  multibyte
+-       character.    When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays  the
+-       character  and  advances  the  cursor.   If  the  calling   application
++       a multibyte character sequence to be passed via a succession  of  calls
++       to  <STRONG>waddch</STRONG>.   Other  implementations  do  not;  a <STRONG>waddch</STRONG> call transmits
++       exactly one character, which may be rendered  in  one  or  more  screen
++       locations  depending  on  whether  it  is  printable  (see <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>).
++       Depending on the locale, <EM>ncurses</EM>  inspects  the  byte  passed  in  each
++       <STRONG>waddch</STRONG>  call  and  checks whether the latest call continues a multibyte
++       character.   When  a  character  is  <EM>complete</EM>,  <EM>ncurses</EM>  displays   the
++       character   and  advances  the  cursor.   If  the  calling  application
+        interrupts the succession of bytes in a multibyte character sequence by
+-       changing the current  location--for  example,  with  <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG>--<EM>ncurses</EM>
++       changing  the  current  location--for  example, with <STRONG><A HREF="curs_move.3x.html">wmove(3x)</A></STRONG>--<EM>ncurses</EM>
+        discards the incomplete character.
+ 
+        For  portability  to  other  implementations,  do  not  rely  upon  the
+-       foregoing behavior.  Check whether a character can be represented as  a
++       foregoing  behavior.  Check whether a character can be represented as a
+        single byte in the current locale.
+ 
+        <STRONG>o</STRONG>   If it can, call either <STRONG>waddch</STRONG> or <STRONG><A HREF="curs_add_wch.3x.html">wadd_wch(3x)</A></STRONG>.
+@@ -298,22 +301,22 @@
+ 
+ 
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+-       The original <EM>curses</EM> in 4BSD (1980) introduced <EM>waddch</EM>.
++       4BSD (1980) <EM>curses</EM> introduced <EM>waddch</EM>.
+ 
+        SVr3 (1987) added <EM>wechochar</EM>.
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+-       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>  describes comparable functions of the <EM>ncurses</EM> library
++       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM>  library
+        in its wide-character configuration (<EM>ncursesw</EM>).
+ 
+        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>,    <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,
+-       <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,   <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,  <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,
++       <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,  <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,   <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,   <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,
+        <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>putchar(3)</STRONG>
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                    <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_addstr.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_addstr.3x.html	2024-06-01 23:07:15.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_addstr.3x.html	2024-06-22 22:55:07.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_addstr.3x,v 1.49 2024/06/01 22:29:08 tom Exp @
++  * @Id: curs_addstr.3x,v 1.51 2024/06/22 21:26:53 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_addstr 3x 2024-06-01 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_addstr 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_addstr 3x 2024-06-01 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_addstr 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
+ 
+@@ -101,6 +101,14 @@
+        error conditions for them.
+ 
+ 
++</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
++       4BSD (1980) <EM>curses</EM> introduced <EM>waddstr</EM>  along  with  its  variants,  the
++       latter defined as macros.
++
++       SVr3.1 (1987) added <EM>waddnstr</EM> (and its variants) redefining <EM>waddstr</EM> as a
++       macro wrapping it.
++
++
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+        <STRONG><A HREF="curs_addwstr.3x.html">curs_addwstr(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM>  library
+        in its wide-character configuration (<EM>ncursesw</EM>).
+@@ -109,7 +117,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-01                   <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                   <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+@@ -119,6 +127,7 @@
+ <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+ <li><a href="#h2-NOTES">NOTES</a></li>
+ <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
++<li><a href="#h2-HISTORY">HISTORY</a></li>
+ <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+ </ul>
+ </div>
+Index: doc/html/man/curs_beep.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_beep.3x.html	2024-05-18 20:27:54.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_beep.3x.html	2024-06-22 22:55:07.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_beep.3x,v 1.31 2024/05/18 20:06:33 tom Exp @
++  * @Id: curs_beep.3x,v 1.33 2024/06/22 21:27:35 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_beep 3x 2024-05-18 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_beep 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_beep 3x 2024-05-18 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_beep 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>
+ 
+@@ -90,7 +90,7 @@
+ 
+ 
+ </PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
+-       <STRONG>beep</STRONG> and <STRONG>flash</STRONG> appeared in SVr2 (1984).
++       <EM>beep</EM> and <EM>flash</EM> appeared in SVr2 (1984).
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+@@ -98,7 +98,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-05-18                     <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                     <STRONG><A HREF="curs_beep.3x.html">curs_beep(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_get_wstr.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_get_wstr.3x.html	2024-06-08 23:12:48.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_get_wstr.3x.html	2024-06-22 22:55:07.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_get_wstr.3x,v 1.52 2024/06/08 21:01:53 tom Exp @
++  * @Id: curs_get_wstr.3x,v 1.54 2024/06/22 21:34:19 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_get_wstr 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_get_wstr 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_get_wstr 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_get_wstr 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>                Library calls               <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
+ 
+@@ -55,15 +55,15 @@
+ </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
+        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+ 
+-       <STRONG>int</STRONG> <STRONG>get_wstr(wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>getn_wstr(wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>wget_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>wgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+-
+-       <STRONG>int</STRONG> <STRONG>mvget_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>mvgetn_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>mvwget_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>mvwgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG><EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>get_wstr(wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>wget_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvget_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvwget_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>);</STRONG>
++
++       <STRONG>int</STRONG> <STRONG>getn_wstr(wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>wgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvgetn_wstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvwgetn_wstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>wint_t</STRONG> <STRONG>*</STRONG> <EM>wstr</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+ 
+ 
+ </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
+@@ -189,7 +189,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                 <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                 <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_getstr.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_getstr.3x.html	2024-06-08 23:12:48.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_getstr.3x.html	2024-06-22 23:04:43.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_getstr.3x,v 1.65 2024/06/08 21:04:32 tom Exp @
++  * @Id: curs_getstr.3x,v 1.67 2024/06/22 22:20:56 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_getstr 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_getstr 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_getstr 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_getstr 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
+ 
+@@ -54,192 +54,211 @@
+ </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
+        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+ 
+-       <STRONG>int</STRONG> <STRONG>getstr(char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>getnstr(char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>wgetstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>wgetnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+-
+-       <STRONG>int</STRONG> <STRONG>mvgetstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>mvwgetstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>mvgetnstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+-       <STRONG>int</STRONG> <STRONG>mvwgetnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>getstr(char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>wgetstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvgetstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvwgetstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>);</STRONG>
++
++       <STRONG>int</STRONG> <STRONG>getnstr(char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>wgetnstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvgetnstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
++       <STRONG>int</STRONG> <STRONG>mvwgetnstr(WINDOW</STRONG> <STRONG>*</STRONG> <EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+ 
+ 
+ </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
+-       The function <STRONG>wgetnstr</STRONG> is equivalent to a series of calls to <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>,
+-       until a newline or carriage return terminates the series:
++       <STRONG>wgetstr</STRONG> populates a  user-supplied  string  buffer  <EM>str</EM>  by  repeatedly
++       calling  <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG> with the <EM>win</EM> argument until a line feed or carriage
++       return character is input.  The function
+ 
+-       <STRONG>o</STRONG>   The terminating character is not included in the returned string.
++       <STRONG>o</STRONG>   does not copy the terminating character to <EM>str</EM>;
+ 
+-       <STRONG>o</STRONG>   In all instances, the end of the string is terminated by a NUL.
++       <STRONG>o</STRONG>   always terminates <EM>str</EM> with a null character;
+ 
+-       <STRONG>o</STRONG>   The  function  stores  the result in the area pointed to by the <EM>str</EM>
+-           parameter.
++       <STRONG>o</STRONG>   interprets  the   screen's   erase   and   kill   characters   (see
++           <STRONG><A HREF="curs_termattrs.3x.html">erasechar(3x)</A></STRONG> and <STRONG><A HREF="curs_termattrs.3x.html">killchar(3x)</A></STRONG>);
+ 
+-       <STRONG>o</STRONG>   The function reads at most <EM>n</EM> characters, thus preventing a possible
+-           overflow of the input buffer.
++       <STRONG>o</STRONG>   recognizes  function  keys  only  if  the screen's keypad option is
++           enabled (see <STRONG><A HREF="curs_inopts.3x.html">keypad(3x)</A></STRONG>);
+ 
+-           Any  attempt  to  enter more characters (other than the terminating
+-           newline or carriage return) causes a beep.
++       <STRONG>o</STRONG>   treats the function keys <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG> the same as the
++           erase character; and
+ 
+-           Function keys also cause a beep and are ignored.
++       <STRONG>o</STRONG>   discards  function key inputs other than those treated as the erase
++           character, calling <STRONG><A HREF="curs_beep.3x.html">beep(3x)</A></STRONG>.
+ 
+-       The user's <EM>erase</EM> and <EM>kill</EM> characters are interpreted:
++       The erase character replaces the character at the  end  of  the  buffer
++       with  a  null character, while the kill character does the same for the
++       entire buffer.
+ 
+-       <STRONG>o</STRONG>   The <EM>erase</EM> character (e.g., <STRONG>^H</STRONG>) erases the character at the  end  of
+-           the buffer, moving the cursor to the left.
++       If the screen's echo option is enabled (see <STRONG><A HREF="curs_inopts.3x.html">echo(3x)</A></STRONG>), <STRONG>wgetstr</STRONG>  updates
++       <EM>win</EM> with <STRONG><A HREF="curs_addch.3x.html">wechochar(3x)</A></STRONG>.  Further,
+ 
+-           If <EM>keypad</EM> mode is on for the window, <STRONG>KEY_LEFT</STRONG> and <STRONG>KEY_BACKSPACE</STRONG> are
+-           both considered equivalent to the user's <EM>erase</EM> character.
++       <STRONG>o</STRONG>   the  erase  character and its function key synonyms move the cursor
++           to the left, and
+ 
+-       <STRONG>o</STRONG>   The <EM>kill</EM> character (e.g., <STRONG>^U</STRONG>) erases the entire buffer, leaving the
+-           cursor at the beginning of the buffer.
++       <STRONG>o</STRONG>   the kill character returns the cursor to where it was located  when
++           <STRONG>wgetstr</STRONG> was called.
+ 
+-       Characters  input  are  echoed  only  if <STRONG>echo</STRONG> is currently on.  In that
+-       case, backspace  is  echoed  as  deletion  of  the  previous  character
+-       (typically a left motion).
++       <STRONG>wgetnstr</STRONG>  is  similar,  but  reads  at  most  <EM>n</EM>  characters, aiding the
++       application to avoid overrunning the buffer to which  <EM>str</EM>  points.   An
++       attempt  to  input  more  than <EM>n</EM> characters (other than the terminating
++       line feed or carriage return) is ignored with a beep.
+ 
+-       The   <STRONG>getnstr</STRONG>,   <STRONG>mvgetnstr</STRONG>,  <STRONG>mvwgetnstr</STRONG>,  and  <STRONG>wgetnstr</STRONG>  functions  are
+-       identical to the <STRONG>getstr</STRONG>, <STRONG>mvgetstr</STRONG>, <STRONG>mvwgetstr</STRONG>,  and  <STRONG>wgetstr</STRONG>  functions,
+-       respectively,  except  that the <STRONG>*n*</STRONG> versions read at most <EM>n</EM> characters,
+-       letting the application prevent overflow of the input buffer.
++       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG> describes the variants of these functions.
+ 
+ 
+ </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
+-       All  of  these  functions  return  the  integer  <STRONG>OK</STRONG>   upon   successful
+-       completion.  (SVr4 specifies only "an integer value other than <STRONG>ERR</STRONG>") If
+-       unsuccessful, they return <STRONG>ERR</STRONG>.
++       These functions return <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
+ 
+-       X/Open defines no error conditions.
++       In <EM>ncurses</EM>, they return <STRONG>ERR</STRONG> if
+ 
+-       In this implementation, these functions return <STRONG>ERR</STRONG>
++       <STRONG>o</STRONG>   <EM>win</EM> is <STRONG>NULL</STRONG>, or
+ 
+-       <STRONG>o</STRONG>   if the window pointer is null,
++       <STRONG>o</STRONG>   if an internal <STRONG>wgetch</STRONG> call fails.
+ 
+-       <STRONG>o</STRONG>   if its timeout expires without having any data, or
++       Further, in <EM>ncurses</EM>, these functions return <STRONG>KEY_RESIZE</STRONG>  if  a  <STRONG>SIGWINCH</STRONG>
++       event interrupts the function.
+ 
+-       <STRONG>o</STRONG>   if the associated call to <STRONG>wgetch</STRONG> failed.
+-
+-       This implementation provides an  extension  as  well.   If  a  <STRONG>SIGWINCH</STRONG>
+-       interrupts  the  function,  it will return <STRONG>KEY_RESIZE</STRONG> rather than <STRONG>OK</STRONG> or
+-       <STRONG>ERR</STRONG>.
+-
+-       Functions prefixed with "mv" first perform cursor movement and fail  if
++       Functions  prefixed with "mv" first perform cursor movement and fail if
+        the position (<EM>y</EM>, <EM>x</EM>) is outside the window boundaries.
+ 
+ 
+ </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
+-       Any of these functions other than <STRONG>wgetnstr</STRONG> may be macros.
+-
+-       Using  <STRONG>getstr</STRONG>,  <STRONG>mvgetstr</STRONG>,  <STRONG>mvwgetstr</STRONG>,  or  <STRONG>wgetstr</STRONG>  to read a line that
+-       overflows the array pointed to by <STRONG>str</STRONG> causes  undefined  results.   The
+-       use  of  <STRONG>getnstr</STRONG>,  <STRONG>mvgetnstr</STRONG>, <STRONG>mvwgetnstr</STRONG>, or <STRONG>wgetnstr</STRONG>, respectively, is
+-       recommended.
+-
+-
+-</PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+-       X/Open Curses, Issue 4 describes  these  functions.   It  specifies  no
+-       error conditions for them.
+-
+-       SVr3  and  early  SVr4  curses  implementations did not reject function
+-       keys; the SVr4.0 documentation claimed that  "special  keys"  (such  as
+-       function  keys,  "home"  key,  "clear"  key,  <EM>etc</EM>.)  are "interpreted",
+-       without giving details.  It  lied.   In  fact,  the  "character"  value
+-       appended to the string by those implementations was predictable but not
+-       useful (being, in fact, the low-order eight  bits  of  the  key's  KEY_
+-       value).
+-
+-       The  functions  <STRONG>getnstr</STRONG>, <STRONG>mvgetnstr</STRONG>, and <STRONG>mvwgetnstr</STRONG> were present but not
+-       documented in SVr4.
+-
+-       X/Open Curses, Issue 5 (2007) stated that these functions "read at most
+-       <EM>n</EM>  bytes"  but did not state whether the terminating NUL counted toward
+-       that limit.  X/Open Curses, Issue 7 (2009) changed  that  to  say  they
+-       "read at most <EM>n</EM>-1 bytes" to allow for the terminating NUL.  As of 2018,
+-       some implementations count it, some do not:
++       All of these functions except <STRONG>wgetnstr</STRONG> may be implemented as macros.
+ 
+-       <STRONG>o</STRONG>   <EM>ncurses</EM> 6.1 and PDCurses do not count the NUL in the  given  limit,
+-           while
++       Use of <STRONG>getstr</STRONG>, <STRONG>mvgetstr</STRONG>, <STRONG>mvwgetstr</STRONG>,  or  <STRONG>wgetstr</STRONG>  to  read  input  that
++       overruns  the  buffer  pointed to by <EM>str</EM> causes undefined results.  Use
++       their <STRONG>n</STRONG>-infixed counterpart functions instead.
++
++       While <STRONG>wgetnstr</STRONG> is conceptually a series of calls  to  <STRONG>wgetch</STRONG>,  it  also
++       temporarily  changes  properties  of the <EM>curses</EM> screen to permit simple
++       editing of the input buffer.  It saves  the  screen's  state  and  then
++       calls  <STRONG><A HREF="curs_inopts.3x.html">nl(3x)</A></STRONG>  and,  if  the  screen  was  in  normal  ("cooked") mode,
++       <STRONG><A HREF="curs_inopts.3x.html">cbreak(3x)</A></STRONG>.  Before returning, it  restores  the  saved  screen  state.
++       Other   implementations  differ  in  detail,  affecting  which  control
++       characters they can accept in the  buffer;  see  section  "PORTABILITY"
++       below.
+ 
+-       <STRONG>o</STRONG>   Solaris SVr4 and NetBSD curses count the NUL as part of the limit.
+ 
+-       <STRONG>o</STRONG>   Solaris   xcurses   provides  both:  its  wide-character  <STRONG>wget_nstr</STRONG>
+-           reserves  a  NUL,  but  its  <STRONG>wgetnstr</STRONG>  does  not  count   the   NUL
+-           consistently.
++</PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
++       The return value <STRONG>KEY_RESIZE</STRONG> is an <EM>ncurses</EM> extension.
+ 
+-       In SVr4 curses, a negative value of <EM>n</EM> tells <STRONG>wgetnstr</STRONG> to assume that the
+-       caller's buffer is large enough to hold the result, i.e., to  act  like
+-       <STRONG>wgetstr</STRONG>.   X/Open  Curses does not mention this (or anything related to
+-       negative or zero values of <EM>n</EM>), however  most  implementations  use  the
+-       feature, with different limits:
+ 
+-       <STRONG>o</STRONG>   Solaris  SVr4  curses  and  PDCurses limit the result to 255 bytes.
+-           Other Unix systems than Solaris are likely to use the same limit.
+-
+-       <STRONG>o</STRONG>   Solaris xcurses limits the result to <STRONG>LINE_MAX</STRONG> bytes.
+-
+-       <STRONG>o</STRONG>   NetBSD 7 assumes no particular limit for the result  from  <STRONG>wgetstr</STRONG>.
+-           However,  it  limits  the <STRONG>wgetnstr</STRONG> parameter <EM>n</EM> to ensure that it is
+-           greater than zero.
+-
+-           A comment in NetBSD's source code states that this is specified  in
+-           SUSv2.
+-
+-       <STRONG>o</STRONG>   <EM>ncurses</EM>  (before  6.2)  assumes  no particular limit for the result
+-           from <STRONG>wgetstr</STRONG>, and treats the <EM>n</EM>  parameter  of  <STRONG>wgetnstr</STRONG>  like  SVr4
+-           curses.
+-
+-       <STRONG>o</STRONG>   <EM>ncurses</EM>  6.2  uses  <STRONG>LINE_MAX</STRONG>,  or a larger (system-dependent) value
+-           which the <STRONG>sysconf</STRONG> function may provide.   If  neither  <STRONG>LINE_MAX</STRONG>  or
+-           <STRONG>sysconf</STRONG>  is available, <EM>ncurses</EM> uses the POSIX value for <STRONG>LINE_MAX</STRONG> (a
+-           2048 byte limit).  In either case,  it  reserves  a  byte  for  the
+-           terminating NUL.
+-
+-       Although  <STRONG>getnstr</STRONG>  is equivalent to a series of calls to <STRONG>getch</STRONG>, it also
+-       makes changes to the curses modes to allow simple editing of the  input
+-       buffer:
+-
+-       <STRONG>o</STRONG>   <STRONG>getnstr</STRONG>  saves  the  current  value of the <STRONG>nl</STRONG>, <STRONG>echo</STRONG>, <STRONG>raw</STRONG> and <STRONG>cbreak</STRONG>
+-           modes, and sets <STRONG>nl</STRONG>, <STRONG>noecho</STRONG>, <STRONG>noraw</STRONG>, and <STRONG>cbreak</STRONG>.
+-
+-           <STRONG>getnstr</STRONG> handles the echoing of characters, rather than  relying  on
+-           the caller to set an appropriate mode.
++</PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
++       Applications employing <EM>ncurses</EM> extensions should condition their use on
++       the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+ 
+-       <STRONG>o</STRONG>   It  also  obtains  the <EM>erase</EM> and <EM>kill</EM> characters from <STRONG>erasechar</STRONG> and
+-           <STRONG>killchar</STRONG>, respectively.
++       X/Open Curses Issue 4 describes these functions.  It specifies no error
++       conditions  for them, but indicates that <EM>wgetnstr</EM> and its variants read
++       "the entire multi-byte sequence associated with a character" and "fail"
++       if <EM>n</EM> and <EM>str</EM> together do not describe a buffer "large enough to contain
++       any complete characters".   In  <EM>ncurses</EM>,  however,  <EM>wgetch</EM>  reads  only
++       single-byte characters, so this scenario does not arise.
++
++       SVr4  <EM>curses</EM>  describes  a  successful return value only as "an integer
++       value other than <STRONG>ERR</STRONG>".
++
++       SVr3 and early SVr4 <EM>curses</EM>  implementations  did  not  reject  function
++       keys; the SVr4 documentation asserted that, like the screen's erase and
++       kill characters, they were
+ 
+-       <STRONG>o</STRONG>   On return, <STRONG>getnstr</STRONG> restores the modes to their previous values.
++              interpreted, as well as any special keys (such as function keys,
++              "home" key, "clear" key, <EM>etc.</EM>)
+ 
+-       Other implementations differ in their treatment of special characters:
++       without  further  detail.   It  lied.   In  fact, the "character" value
++       appended to the string by those implementations was predictable but not
++       useful  --  being,  in fact, the low-order eight bits of the key code's
++       <STRONG>KEY_</STRONG> constant value.  (The same language, unchanged except for styling,
++       survived into X/Open Curses Issue 4, but disappeared from Issue 7.)
++
++       X/Open  Curses Issue 5 (2007) stated that these functions "read at most
++       <EM>n</EM> bytes" but did not  state  whether  the  terminating  null  character
++       counted  toward  that limit.  X/Open Curses Issue 7 (2009) changed that
++       to say they "read at most <EM>n</EM>-1 bytes" to allow for the terminating  null
++       character.  As of 2018, some implementations count it, some do not.
++
++       <STRONG>o</STRONG>   <EM>ncurses</EM> 6.1 and <EM>PDCurses</EM> do not count the null character toward the
++           limit, while Solaris and NetBSD <EM>curses</EM> do.
++
++       <STRONG>o</STRONG>   Solaris  <EM>xcurses</EM>  offers   both   behaviors:   its   wide-character
++           <EM>wgetn</EM><STRONG>_</STRONG><EM>wstr</EM>  reserves  room  for a wide null character, but its non-
++           wide <EM>wgetnstr</EM> does not consistently count a null  character  toward
++           the limit.
++
++       In SVr4 <EM>curses</EM>, a negative <EM>n</EM> tells <EM>wgetnstr</EM> to assume that the caller's
++       buffer is large enough to hold the result; that is, the  function  then
++       acts  like  <EM>wgetstr</EM>.   X/Open Curses does not mention this behavior (or
++       anything  related  to  nonpositive  <EM>n</EM>  values),  however  most   <EM>curses</EM>
++       libraries  implement  it.  Most implementations nevertheless enforce an
++       upper limit on the count of bytes they write to the destination  buffer
++       <EM>str</EM>.
++
++       <STRONG>o</STRONG>   BSD   <EM>curses</EM>   lacked  <EM>wgetnstr</EM>,  and  its  <EM>wgetstr</EM>  wrote  to  <EM>str</EM>
++           unboundedly, as did that in SVr2.
++
++       <STRONG>o</STRONG>   <EM>PDCurses</EM>, and SVr3.1, SVr4, and Solaris <EM>curses</EM> limit both functions
++           to  writing  256  bytes.  Other System V-based platforms likely use
++           the same limit.
++
++       <STRONG>o</STRONG>   Solaris <EM>xcurses</EM> limits the write to <STRONG>LINE_MAX</STRONG> bytes.
++
++       <STRONG>o</STRONG>   NetBSD 7 <EM>curses</EM> imposes no particular limit on the  length  of  the
++           write,  but does validate <EM>n</EM> to ensure that it is greater than zero.
++           A comment in NetBSD's source  code  asserts  that  SUSv2  specifies
++           this.
++
++       <STRONG>o</STRONG>   <EM>ncurses</EM>  prior  to 6.2 (2020) imposes no limit on the length of the
++           write, and treats <EM>wgetnstr</EM>'s <EM>n</EM> parameter as SVr4 <EM>curses</EM> does.
++
++       <STRONG>o</STRONG>   <EM>ncurses</EM> 6.2 uses <STRONG>LINE_MAX</STRONG>  or  a  larger  (system-dependent)  value
++           provided  by  <STRONG>sysconf(3)</STRONG>.   If  neither  <STRONG>LINE_MAX</STRONG>  nor  <EM>sysconf</EM>  is
++           available, <EM>ncurses</EM>  uses  the  POSIX  minimum  value  for  <STRONG>LINE_MAX</STRONG>
++           (2048).   In  either  case,  it reserves a byte for the terminating
++           null character.
++
++       Implementations vary in their handling of input control characters.
++
++       <STRONG>o</STRONG>   While they may enable the screen's echo option, some do not take it
++           out  of  raw  mode,  and  may  take  cbreak  mode into account when
++           deciding whether to handle echoing within <EM>wgetnstr</EM> or to rely on it
++           as a side effect of calling <EM>wgetch</EM>.
++
++       <STRONG>o</STRONG>   Originally,  <EM>ncurses</EM>, like its progenitor <EM>pcurses</EM>, had its <EM>wgetnstr</EM>
++           call <EM>noraw</EM> and <EM>cbreak</EM> before accepting input.  That may  have  been
++           done  to  make  function keys work; it is not necessary with modern
++           <EM>ncurses</EM>.
++
++           Since 1995, <EM>ncurses</EM> has provided handlers for <STRONG>SIGINTR</STRONG>  and  <STRONG>SIGQUIT</STRONG>
++           events,  which  are typically generated at the keyboard with <STRONG>^C</STRONG> and
++           <STRONG>^\</STRONG> respectively.  In cbreak mode, those handlers catch a signal and
++           stop   the  program,  whereas  other  implementations  write  those
++           characters into the buffer.
++
++       <STRONG>o</STRONG>   Starting with <EM>ncurses</EM> 6.3 (2021), <EM>wgetnstr</EM> preserves  raw  mode  if
++           the  screen  was  already  in that state, allowing one to enter the
++           characters the terminal interprets as  interrupt  and  quit  events
++           into the buffer, for better compatibility with SVr4 <EM>curses</EM>.
+ 
+-       <STRONG>o</STRONG>   While they may set the <EM>echo</EM>  mode,  other  implementations  do  not
+-           modify  the  <EM>raw</EM>  mode,  They  may  take the <EM>cbreak</EM> mode set by the
+-           caller into account when deciding whether to handle echoing  within
+-           <STRONG>getnstr</STRONG> or as a side-effect of the <STRONG>getch</STRONG> calls.
+ 
+-       <STRONG>o</STRONG>   The original <EM>ncurses</EM> (as <EM>pcurses</EM> in 1986) set <STRONG>noraw</STRONG> and <STRONG>cbreak</STRONG> when
+-           accepting input for <STRONG>getnstr</STRONG>.  That  may  have  been  done  to  make
+-           function- and cursor-keys work; it is not necessary with <EM>ncurses</EM>.
++</PRE><H2><a name="h2-HISTORY">HISTORY</a></H2><PRE>
++       4BSD (1980) <EM>curses</EM> introduced <EM>wgetstr</EM> along with its variants.
+ 
+-           Since  1995, <EM>ncurses</EM> has provided signal handlers for INTR and QUIT
+-           (e.g., <STRONG>^C</STRONG> or <STRONG>^\</STRONG>).  With the <STRONG>noraw</STRONG> and <STRONG>cbreak</STRONG>  settings,  those  may
+-           catch  a  signal  and stop the program, where other implementations
+-           allow one to enter those characters in the buffer.
++       SVr3.1 (1987) added <EM>wgetnstr</EM>, but none of its variants.
+ 
+-       <STRONG>o</STRONG>   Starting in 2021 (<EM>ncurses</EM> 6.3), <STRONG>getnstr</STRONG> sets <STRONG>raw</STRONG>, rather than <STRONG>noraw</STRONG>
+-           and   <STRONG>cbreak</STRONG>  for  better  compatibility  with  SVr4-curses,  e.g.,
+-           allowing one to enter a <STRONG>^C</STRONG> into the buffer.
++       X/Open  Curses  Issue  4  (1995)  specified  <EM>getnstr</EM>,  <EM>mvwgetnstr</EM>,  and
++       <EM>mvgetnstr</EM>.
+ 
+ 
+ </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
+        <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG> describes comparable functions of the <EM>ncurses</EM> library
+        in its wide-character configuration (<EM>ncursesw</EM>).
+ 
+-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>, <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
++       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,     <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>,     <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,
++       <STRONG><A HREF="curs_termattrs.3x.html">curs_termattrs(3x)</A></STRONG>,
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                   <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                   <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+@@ -248,7 +267,9 @@
+ <li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+ <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
+ <li><a href="#h2-NOTES">NOTES</a></li>
++<li><a href="#h2-EXTENSIONS">EXTENSIONS</a></li>
+ <li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
++<li><a href="#h2-HISTORY">HISTORY</a></li>
+ <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
+ </ul>
+ </div>
+Index: doc/html/man/curs_kernel.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_kernel.3x.html	2024-06-08 23:21:18.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_kernel.3x.html	2024-06-22 22:55:08.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_kernel.3x,v 1.65 2024/06/08 21:00:58 tom Exp @
++  * @Id: curs_kernel.3x,v 1.67 2024/06/22 21:24:26 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_kernel 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_kernel 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_kernel 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_kernel 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>                  Library calls                 <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+ 
+@@ -141,45 +141,46 @@
+        program  to  write  to  the  terminal  screen.  For example, first call
+        <STRONG><A HREF="curs_refresh.3x.html">refresh(3x)</A></STRONG> to ensure that the screen and the library's model of it  is
+        up  to  date;  then call <STRONG>reset_shell_mode</STRONG>; write to the screen with the
+-       external application; call <STRONG>reset_prog_mode</STRONG>; and finally call  <STRONG>mvcur</STRONG>  to
+-       set  the  cursor's  location  to  where  <EM>curses</EM> thinks it is, since the
+-       library has no knowledge of how the external application moved it.
++       external application; call <STRONG>reset_prog_mode</STRONG>; and finally call <STRONG>mvcur(</STRONG>...<STRONG>,</STRONG>
++       ...<STRONG>,</STRONG>  <STRONG>-1,</STRONG> <STRONG>-1)</STRONG> to move the terminal cursor to where <EM>curses</EM> thinks it is,
++       since the library has no knowledge  of  how  the  external  application
++       moved it.
+ 
+ 
+ </PRE><H3><a name="h3-napms">napms</a></H3><PRE>
+-       <STRONG>napms</STRONG> sleeps  for  <EM>ms</EM>  milliseconds.   If  <EM>ms</EM>  exceeds  30,000  (thirty
++       <STRONG>napms</STRONG>  sleeps  for  <EM>ms</EM>  milliseconds.   If  <EM>ms</EM>  exceeds  30,000 (thirty
+        seconds), it is capped at that value.
+ 
+ 
+ </PRE><H3><a name="h3-ripoffline">ripoffline</a></H3><PRE>
+-       <STRONG>ripoffline</STRONG>  provides access to the same facility that <STRONG><A HREF="curs_slk.3x.html">slk_init(3x)</A></STRONG> uses
+-       to reduce the size of the screen.  <STRONG>ripoffline</STRONG>  must  be  called  before
++       <STRONG>ripoffline</STRONG> provides access to the same facility that <STRONG><A HREF="curs_slk.3x.html">slk_init(3x)</A></STRONG>  uses
++       to  reduce  the  size  of the screen.  <STRONG>ripoffline</STRONG> must be called before
+        <STRONG>initscr</STRONG> or <STRONG>newterm</STRONG> is called, to prepare these initial actions:
+ 
+        <STRONG>o</STRONG>   If <EM>line</EM> is positive, a line is removed from the top of <STRONG>stdscr</STRONG>.
+ 
+        <STRONG>o</STRONG>   if <EM>line</EM> is negative, a line is removed from the bottom.
+ 
+-       When  the  resulting initialization is done inside <STRONG>initscr</STRONG>, the routine
++       When the resulting initialization is done inside <STRONG>initscr</STRONG>,  the  routine
+        <STRONG>init</STRONG> (supplied by the user) is called with two arguments:
+ 
+        <STRONG>o</STRONG>   a window pointer to the one-line window that has been allocated and
+ 
+        <STRONG>o</STRONG>   an integer with the number of columns in the window.
+ 
+-       Inside this initialization routine, the  integer  variables  <STRONG>LINES</STRONG>  and
+-       <STRONG>COLS</STRONG>  (defined  in  <STRONG>&lt;curses.h&gt;</STRONG>)  are  not guaranteed to be accurate and
+-       <STRONG>wrefresh</STRONG> or <STRONG>doupdate</STRONG> must not be  called.   It  is  allowable  to  call
++       Inside  this  initialization  routine,  the integer variables <STRONG>LINES</STRONG> and
++       <STRONG>COLS</STRONG> (defined in <STRONG>&lt;curses.h&gt;</STRONG>) are not  guaranteed  to  be  accurate  and
++       <STRONG>wrefresh</STRONG>  or  <STRONG>doupdate</STRONG>  must  not  be  called.  It is allowable to call
+        <STRONG>wnoutrefresh</STRONG> during the initialization routine.
+ 
+-       <STRONG>ripoffline</STRONG>  can  be  called  up to five times before calling <STRONG>initscr</STRONG> or
++       <STRONG>ripoffline</STRONG> can be called up to five times  before  calling  <STRONG>initscr</STRONG>  or
+        <STRONG>newterm</STRONG>.
+ 
+ 
+ </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
+        Except for <STRONG>curs_set</STRONG>, these routines always return <STRONG>OK</STRONG>.
+ 
+-       <STRONG>curs_set</STRONG> returns the previous cursor state, or  <STRONG>ERR</STRONG>  if  the  requested
++       <STRONG>curs_set</STRONG>  returns  the  previous  cursor state, or <STRONG>ERR</STRONG> if the requested
+        <EM>visibility</EM> is not supported.
+ 
+        X/Open defines no error conditions.  In this implementation
+@@ -189,7 +190,7 @@
+             to obtain the terminal settings fails.
+ 
+        <STRONG>ripoffline</STRONG>
+-            returns <STRONG>ERR</STRONG> if the maximum number of ripped-off lines exceeds  the
++            returns  <STRONG>ERR</STRONG> if the maximum number of ripped-off lines exceeds the
+             maximum (5).
+ 
+ 
+@@ -197,21 +198,21 @@
+        Note that <STRONG>getsyx</STRONG> is a macro, so <STRONG>&amp;</STRONG> is not necessary before the variables
+        <EM>y</EM> and <EM>x</EM>.
+ 
+-       Older SVr4 man pages  warn  that  the  return  value  of  <STRONG>curs_set</STRONG>  "is
++       Older  SVr4  man  pages  warn  that  the  return  value of <STRONG>curs_set</STRONG> "is
+        currently incorrect".  This implementation gets it right, but it may be
+        unwise to count on the correctness of the return value anywhere else.
+ 
+        Both <EM>ncurses</EM> and SVr4 will call <STRONG>curs_set</STRONG> in <STRONG>endwin</STRONG> if <STRONG>curs_set</STRONG> has been
+-       called  to make the cursor other than normal, i.e., either invisible or
+-       very visible.  There is no way for <EM>ncurses</EM>  to  determine  the  initial
++       called to make the cursor other than normal, i.e., either invisible  or
++       very  visible.   There  is  no way for <EM>ncurses</EM> to determine the initial
+        cursor state to restore that.
+ 
+ 
+ </PRE><H2><a name="h2-EXTENSIONS">EXTENSIONS</a></H2><PRE>
+-       In  <EM>ncurses</EM>, <STRONG>mvcur</STRONG> accepts <STRONG>-1</STRONG> for either or both old coordinates.  This
+-       value tells <EM>ncurses</EM> that the old location is unknown, and that it  must
+-       use  only absolute motion, as with the <STRONG>cursor_address</STRONG> (<STRONG>cup</STRONG>) capability,
+-       rather than the least  costly  combination  of  absolute  and  relative
++       In <EM>ncurses</EM>, <STRONG>mvcur</STRONG> accepts <STRONG>-1</STRONG> for either or both old coordinates.   This
++       value  tells <EM>ncurses</EM> that the old location is unknown, and that it must
++       use only absolute motion, as with the <STRONG>cursor_address</STRONG> (<STRONG>cup</STRONG>)  capability,
++       rather  than  the  least  costly  combination  of absolute and relative
+        motion.
+ 
+ 
+@@ -219,24 +220,24 @@
+        Applications employing <EM>ncurses</EM> extensions should condition their use on
+        the visibility of the <STRONG>NCURSES_VERSION</STRONG> preprocessor macro.
+ 
+-       The <EM>virtual</EM> <EM>screen</EM> functions <STRONG>setsyx</STRONG> and <STRONG>getsyx</STRONG>  are  not  described  in
++       The  <EM>virtual</EM>  <EM>screen</EM>  functions  <STRONG>setsyx</STRONG> and <STRONG>getsyx</STRONG> are not described in
+        X/Open Curses, Issue 4.  All other functions are as described in X/Open
+        Curses.
+ 
+-       The SVr4 documentation describes <STRONG>setsyx</STRONG> and  <STRONG>getsyx</STRONG>  as  having  return
+-       type  int.   This  is misleading, as they are macros with no documented
++       The  SVr4  documentation  describes  <STRONG>setsyx</STRONG> and <STRONG>getsyx</STRONG> as having return
++       type int.  This is misleading, as they are macros  with  no  documented
+        semantics for the return value.
+ 
+        X/Open Curses notes:
+ 
+-              "After use of <EM>mvcur</EM>(), the model Curses maintains of  the  state
+-              of  the  terminal  might  not  match  the  actual  state  of the
+-              terminal.  An application should touch and  refresh  the  window
++              "After  use  of <EM>mvcur</EM>(), the model Curses maintains of the state
++              of the  terminal  might  not  match  the  actual  state  of  the
++              terminal.   An  application  should touch and refresh the window
+               before resuming conventional use of Curses."
+ 
+-       Both  <EM>ncurses</EM>  and  SVr4  <EM>curses</EM>  implement <STRONG>mvcur</STRONG> using the <EM>SCREEN</EM> data
+-       allocated in either <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG>.  X/Open  Curses  states
+-       that  the old location must be given for <STRONG>mvcur</STRONG> to accommodate terminals
++       Both <EM>ncurses</EM> and SVr4 <EM>curses</EM> implement  <STRONG>mvcur</STRONG>  using  the  <EM>SCREEN</EM>  data
++       allocated  in  either <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG>.  X/Open Curses states
++       that the old location must be given for <STRONG>mvcur</STRONG> to accommodate  terminals
+        that lack absolute cursor positioning.
+ 
+        If interrupted, <EM>ncurses</EM> restarts <STRONG>napms</STRONG>.  That, and the limitation to 30
+@@ -249,7 +250,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                   <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                   <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_pad.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_pad.3x.html	2024-05-25 22:33:42.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_pad.3x.html	2024-06-22 22:55:08.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_pad.3x,v 1.63 2024/05/25 20:10:58 tom Exp @
++  * @Id: curs_pad.3x,v 1.65 2024/06/22 22:20:03 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_pad 3x 2024-05-25 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_pad 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_pad 3x 2024-05-25 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_pad 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>                     Library calls                    <STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>
+ 
+@@ -133,7 +133,7 @@
+        specifies only "an integer  value  other  than  <STRONG>ERR</STRONG>")  upon  successful
+        completion.
+ 
+-       Functions  that  return pointers return <STRONG>NULL</STRONG> on error, and set <STRONG>errno</STRONG> to
++       Functions  that  return pointers return <STRONG>NULL</STRONG> on error, and set <EM>errno</EM> to
+        <STRONG>ENOMEM</STRONG>.
+ 
+        X/Open  Curses  does  not  specify  any  error  conditions.   In   this
+@@ -229,7 +229,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-05-25                      <STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                      <STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_slk.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_slk.3x.html	2024-05-25 22:33:42.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_slk.3x.html	2024-06-22 22:55:08.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_slk.3x,v 1.73 2024/05/25 20:10:58 tom Exp @
++  * @Id: curs_slk.3x,v 1.75 2024/06/22 21:25:23 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_slk 3x 2024-05-25 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_slk 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_slk 3x 2024-05-25 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_slk 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>                     Library calls                    <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+ 
+@@ -312,7 +312,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-05-25                      <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                      <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_termcap.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_termcap.3x.html	2024-04-27 18:38:47.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_termcap.3x.html	2024-06-22 22:55:08.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_termcap.3x,v 1.85 2024/04/20 19:13:12 tom Exp @
++  * @Id: curs_termcap.3x,v 1.87 2024/06/22 21:28:07 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_termcap 3x 2024-04-20 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_termcap 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_termcap 3x 2024-04-20 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_termcap 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_termcap.3x.html">curs_termcap(3x)</A></STRONG>                 Library calls                <STRONG><A HREF="curs_termcap.3x.html">curs_termcap(3x)</A></STRONG>
+ 
+@@ -369,7 +369,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-04-20                  <STRONG><A HREF="curs_termcap.3x.html">curs_termcap(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                  <STRONG><A HREF="curs_termcap.3x.html">curs_termcap(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_util.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_util.3x.html	2024-06-15 20:39:29.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_util.3x.html	2024-06-22 22:55:09.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_util.3x,v 1.110 2024/06/15 20:20:12 tom Exp @
++  * @Id: curs_util.3x,v 1.112 2024/06/22 21:25:23 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_util 3x 2024-06-15 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_util 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_util 3x 2024-06-15 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_util 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>                    Library calls                   <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
+ 
+@@ -406,7 +406,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-15                     <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                     <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/curs_variables.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/curs_variables.3x.html	2024-04-27 18:38:47.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/curs_variables.3x.html	2024-06-22 22:55:09.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: curs_variables.3x,v 1.47 2024/04/13 22:37:35 tom Exp @
++  * @Id: curs_variables.3x,v 1.49 2024/06/22 21:25:23 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>curs_variables 3x 2024-04-13 ncurses 6.5 Library calls</TITLE>
++<TITLE>curs_variables 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">curs_variables 3x 2024-04-13 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">curs_variables 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>               Library calls              <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+ 
+@@ -266,7 +266,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-04-13                <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/ncurses.3x.html
+--- ncurses-6.5-20240615+/doc/html/man/ncurses.3x.html	2024-06-15 20:39:31.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/ncurses.3x.html	2024-06-22 23:04:46.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: ncurses.3x,v 1.223 2024/06/08 20:45:43 tom Exp @
++  * @Id: ncurses.3x,v 1.225 2024/06/22 22:14:58 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>ncurses 3x 2024-06-08 ncurses 6.5 Library calls</TITLE>
++<TITLE>ncurses 3x 2024-06-22 ncurses 6.5 Library calls</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">ncurses 3x 2024-06-08 ncurses 6.5 Library calls</H1>
++<H1 class="no-header">ncurses 3x 2024-06-22 ncurses 6.5 Library calls</H1>
+ <PRE>
+ <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>                      Library calls                     <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>
+ 
+@@ -61,7 +61,7 @@
+        terminals  with  output  optimized to minimize screen updates.  <EM>ncurses</EM>
+        replaces the <EM>curses</EM> libraries from System V Release 4 Unix ("SVr4") and
+        4.4BSD  Unix,  the  development  of  which  ceased  in the 1990s.  This
+-       document describes <EM>ncurses</EM> version 6.5 (patch 20240615).
++       document describes <EM>ncurses</EM> version 6.5 (patch 20240622).
+ 
+        <EM>ncurses</EM> permits control of the terminal screen's contents;  abstraction
+        and  subdivision thereof with <EM>windows</EM> and <EM>pads</EM>; acquisition of keyboard
+@@ -84,8 +84,8 @@
+            underlying integral type or  the  availability  of  a  preprocessor
+            macro  exclusive  of  a  function  definition  (which  prevents its
+            address  from  being   taken).    This   section   also   describes
+-           implementation  details  that will be significant to the programmer
+-           but which are not standardized.
++           implementation  details of significance to the programmer but which
++           are not standardized.
+ 
+        <STRONG>o</STRONG>   "EXTENSIONS" presents <EM>ncurses</EM> innovations beyond the X/Open  Curses
+            standard  and/or  the  SVr4 <EM>curses</EM> implementation.  They are termed
+@@ -107,26 +107,25 @@
+        may  be available; if so, link with it using <STRONG>-lncurses_g</STRONG>.  (Your system
+        integrator may have installed these libraries such that you can use the
+        options  <STRONG>-lcurses</STRONG> and <STRONG>-lcurses_g</STRONG>, respectively.)  The <EM>ncurses</EM><STRONG>_</STRONG><EM>g</EM> library
+-       generates trace logs (in a file called <EM>trace</EM> in the current  directory)
+-       that  describe <EM>ncurses</EM> actions.  See section "ALTERNATE CONFIGURATIONS"
+-       below.
++       logs events describing <EM>ncurses</EM> actions to a file called  <EM>trace</EM>  in  the
++       current directory.  See section "ALTERNATE CONFIGURATIONS" below.
+ 
+ 
+ </PRE><H3><a name="h3-Application-Structure">Application Structure</a></H3><PRE>
+-       A  <EM>curses</EM>  application  uses  information  from  the   system   locale;
++       A   <EM>curses</EM>   application  uses  information  from  the  system  locale;
+        <STRONG>setlocale(3)</STRONG> prepares it for <EM>curses</EM> library calls.
+ 
+            setlocale(LC_ALL, "");
+ 
+-       If  the  locale  is  not  thus  initialized,  the  library assumes that
+-       characters are printable as in ISO 8859-1, to work with certain  legacy
+-       programs.   You  should initialize the locale; do not expect consistent
++       If the locale  is  not  thus  initialized,  the  library  assumes  that
++       characters  are printable as in ISO 8859-1, to work with certain legacy
++       programs.  You should initialize the locale; do not  expect  consistent
+        behavior from the library when the locale has not been set up.
+ 
+-       <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG> or <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG> must be called to initialize  <EM>curses</EM>  before
++       <STRONG><A HREF="curs_initscr.3x.html">initscr(3x)</A></STRONG>  or  <STRONG><A HREF="curs_initscr.3x.html">newterm(3x)</A></STRONG> must be called to initialize <EM>curses</EM> before
+        use of any functions that deal with windows and screens.
+ 
+-       To  get  character-at-a-time  input  without echoing--most interactive,
++       To get character-at-a-time  input  without  echoing--most  interactive,
+        screen-oriented programs want this--use the following sequence.
+ 
+            initscr(); cbreak(); noecho();
+@@ -136,17 +135,22 @@
+            noqiflush();
+            keypad(stdscr, TRUE);
+ 
+-       A <EM>curses</EM> program then often enters an event loop of  some  sort.   Call
++       A  <EM>curses</EM>  program  then often enters an event loop of some sort.  Call
+        <STRONG><A HREF="curs_initscr.3x.html">endwin(3x)</A></STRONG> before exiting.
+ 
+ 
+ </PRE><H3><a name="h3-Overview">Overview</a></H3><PRE>
+-       A  <EM>curses</EM>  library abstracts the terminal screen by representing all or
+-       part of it as a <EM>WINDOW</EM> data structure.  A <EM>window</EM> is a rectangular  grid
+-       of  character  cells,  addressed by line and column coordinates (<EM>y</EM>, <EM>x</EM>),
+-       with the upper left corner as (0, 0).  A window called <STRONG>stdscr</STRONG>, the same
+-       size  as  the terminal screen, is always available.  Create others with
+-       <STRONG><A HREF="curs_window.3x.html">newwin(3x)</A></STRONG>.
++       A <EM>curses</EM> library abstracts the terminal with a <EM>SCREEN</EM>  data  structure,
++       and  represents  all  or  part  of  its display with <EM>WINDOW</EM> structures.
++       Distinct properties apply to each; for example, the <EM>line</EM> <EM>discipline</EM>  of
++       a  typical  Unix terminal driver is in one of three modes: raw, cbreak,
++       or normal ("cooked").  In <EM>curses</EM>, the line discipline is a property  of
++       the screen, applying identically to all windows associated with it.
++
++       A  <EM>window</EM>  is  a rectangular grid of character cells, addressed by line
++       and column coordinates (<EM>y</EM>, <EM>x</EM>), with the upper left corner as (0, 0).  A
++       window  called  <STRONG>stdscr</STRONG>, the same size as the terminal screen, is always
++       available.  Create others with <STRONG><A HREF="curs_window.3x.html">newwin(3x)</A></STRONG>.
+ 
+        A <EM>curses</EM> library does not manage overlapping windows (but  see  below).
+        You  can either use <STRONG>stdscr</STRONG> to manage one screen-filling window, or tile
+@@ -380,13 +384,13 @@
+                     def_shell_mode           <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+                     define_key               <STRONG><A HREF="define_key.3x.html">define_key(3x)</A></STRONG>*
+                     del_curterm              <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>
+-
+                     delay_output             <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
+                     delch                    <STRONG><A HREF="curs_delch.3x.html">curs_delch(3x)</A></STRONG>
+                     deleteln                 <STRONG><A HREF="curs_deleteln.3x.html">curs_deleteln(3x)</A></STRONG>
+                     delscreen                <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
+                     delwin                   <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
+                     derwin                   <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
++
+                     doupdate                 <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>
+                     dupwin                   <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
+                     echo                     <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
+@@ -446,7 +450,6 @@
+                     in_wch                   <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>
+                     in_wchnstr               <STRONG><A HREF="curs_in_wchstr.3x.html">curs_in_wchstr(3x)</A></STRONG>
+                     in_wchstr                <STRONG><A HREF="curs_in_wchstr.3x.html">curs_in_wchstr(3x)</A></STRONG>
+-
+                     inch                     <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>
+                     inchnstr                 <STRONG><A HREF="curs_inchstr.3x.html">curs_inchstr(3x)</A></STRONG>
+                     inchstr                  <STRONG><A HREF="curs_inchstr.3x.html">curs_inchstr(3x)</A></STRONG>
+@@ -455,6 +458,7 @@
+                     init_extended_pair       <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>*
+                     init_pair                <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>
+                     initscr                  <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
++
+                     innstr                   <STRONG><A HREF="curs_instr.3x.html">curs_instr(3x)</A></STRONG>
+                     innwstr                  <STRONG><A HREF="curs_inwstr.3x.html">curs_inwstr(3x)</A></STRONG>
+                     ins_nwstr                <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
+@@ -512,7 +516,6 @@
+                     mvaddchstr               <STRONG><A HREF="curs_addchstr.3x.html">curs_addchstr(3x)</A></STRONG>
+                     mvaddnstr                <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
+                     mvaddnwstr               <STRONG><A HREF="curs_addwstr.3x.html">curs_addwstr(3x)</A></STRONG>
+-
+                     mvaddstr                 <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>
+                     mvaddwstr                <STRONG><A HREF="curs_addwstr.3x.html">curs_addwstr(3x)</A></STRONG>
+                     mvchgat                  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
+@@ -523,6 +526,7 @@
+                     mvget_wstr               <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
+                     mvgetch                  <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>
+                     mvgetn_wstr              <STRONG><A HREF="curs_get_wstr.3x.html">curs_get_wstr(3x)</A></STRONG>
++
+                     mvgetnstr                <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
+                     mvgetstr                 <STRONG><A HREF="curs_getstr.3x.html">curs_getstr(3x)</A></STRONG>
+                     mvhline                  <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
+@@ -578,7 +582,6 @@
+                     mvwinnwstr               <STRONG><A HREF="curs_inwstr.3x.html">curs_inwstr(3x)</A></STRONG>
+                     mvwins_nwstr             <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
+                     mvwins_wch               <STRONG><A HREF="curs_ins_wch.3x.html">curs_ins_wch(3x)</A></STRONG>
+-
+                     mvwins_wstr              <STRONG><A HREF="curs_ins_wstr.3x.html">curs_ins_wstr(3x)</A></STRONG>
+                     mvwinsch                 <STRONG><A HREF="curs_insch.3x.html">curs_insch(3x)</A></STRONG>
+                     mvwinsnstr               <STRONG><A HREF="curs_insstr.3x.html">curs_insstr(3x)</A></STRONG>
+@@ -591,6 +594,7 @@
+                     mvwvline_set             <STRONG><A HREF="curs_border_set.3x.html">curs_border_set(3x)</A></STRONG>
+                     napms                    <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+                     newpad                   <STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>
++
+                     newterm                  <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
+                     newwin                   <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
+                     nl                       <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>
+@@ -644,7 +648,6 @@
+                     slk_attr                 <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>*
+                     slk_attr_off             <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+                     slk_attr_on              <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+-
+                     slk_attr_set             <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+                     slk_attroff              <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+                     slk_attron               <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+@@ -659,6 +662,7 @@
+                     slk_set                  <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+                     slk_touch                <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
+                     slk_wset                 <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>
++
+                     standend                 <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
+                     standout                 <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
+                     start_color              <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>
+@@ -710,7 +714,6 @@
+                     vwprintw                 <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>
+                     vwscanw                  <STRONG><A HREF="curs_scanw.3x.html">curs_scanw(3x)</A></STRONG>
+                     wadd_wch                 <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
+-
+                     wadd_wchnstr             <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>
+                     wadd_wchstr              <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>
+                     waddch                   <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+@@ -727,6 +730,7 @@
+                     wattroff                 <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
+                     wattron                  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
+                     wattrset                 <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
++
+                     wbkgd                    <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>
+                     wbkgdset                 <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>
+                     wbkgrnd                  <STRONG><A HREF="curs_bkgrnd.3x.html">curs_bkgrnd(3x)</A></STRONG>
+@@ -776,7 +780,6 @@
+                     winstr                   <STRONG><A HREF="curs_instr.3x.html">curs_instr(3x)</A></STRONG>
+                     winwstr                  <STRONG><A HREF="curs_inwstr.3x.html">curs_inwstr(3x)</A></STRONG>
+                     wmouse_trafo             <STRONG><A HREF="curs_mouse.3x.html">curs_mouse(3x)</A></STRONG>*
+-
+                     wmove                    <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>
+                     wnoutrefresh             <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>
+                     wprintw                  <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>
+@@ -1316,168 +1319,169 @@
+        to draw colored text on a background whose color is set  independently,
+        providing better control over color contrasts.  See <STRONG><A HREF="default_colors.3x.html">default_colors(3x)</A></STRONG>.
+ 
+-       An  <EM>ncurses</EM>  application  can  eschew  knowledge  of  <EM>WINDOW</EM>  structure
+-       internals, instead using accessor functions such as <STRONG><A HREF="curs_opaque.3x.html">is_scrollok(3x)</A></STRONG>.
++       An  <EM>ncurses</EM>  application  can  eschew  knowledge  of  <EM>SCREEN</EM> and <EM>WINDOW</EM>
++       structure  internals,  instead  using  accessor   functions   such   as
++       <STRONG><A HREF="curs_inopts.3x.html">is_cbreak(3x)</A></STRONG> and <STRONG><A HREF="curs_opaque.3x.html">is_scrollok(3x)</A></STRONG>.
+ 
+-       <EM>ncurses</EM> enables an application  to  direct  its  output  to  a  printer
++       <EM>ncurses</EM>  enables  an  application  to  direct  its  output to a printer
+        attached to the terminal device; see <STRONG><A HREF="curs_print.3x.html">curs_print(3x)</A></STRONG>.
+ 
+-       <EM>ncurses</EM>  offers <STRONG><A HREF="curs_slk.3x.html">slk_attr(3x)</A></STRONG> as a counterpart of <STRONG><A HREF="curs_attr.3x.html">attr_get(3x)</A></STRONG> for soft-
+-       label key lines, and <STRONG><A HREF="curs_slk.3x.html">extended_slk_color(3x)</A></STRONG> as a form of  <STRONG><A HREF="curs_slk.3x.html">slk_color(3x)</A></STRONG>
+-       that  can  gather  color  information  from  them  when many colors are
++       <EM>ncurses</EM> offers <STRONG><A HREF="curs_slk.3x.html">slk_attr(3x)</A></STRONG> as a counterpart of <STRONG><A HREF="curs_attr.3x.html">attr_get(3x)</A></STRONG> for  soft-
++       label  key lines, and <STRONG><A HREF="curs_slk.3x.html">extended_slk_color(3x)</A></STRONG> as a form of <STRONG><A HREF="curs_slk.3x.html">slk_color(3x)</A></STRONG>
++       that can gather color  information  from  them  when  many  colors  are
+        supported.
+ 
+-       <EM>ncurses</EM>   permits   modification   of   <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>'s   behavior;    see
++       <EM>ncurses</EM>    permits   modification   of   <STRONG><A HREF="unctrl.3x.html">unctrl(3x)</A></STRONG>'s   behavior;   see
+        <STRONG><A HREF="legacy_coding.3x.html">use_legacy_coding(3x)</A></STRONG>.
+ 
+-       Rudimentary  support  for multi-threaded applications may be available;
++       Rudimentary support for multi-threaded applications may  be  available;
+        see <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>.
+ 
+-       Functions that ease the management of multiple screens can be  exposed;
++       Functions  that ease the management of multiple screens can be exposed;
+        see <STRONG><A HREF="curs_sp_funcs.3x.html">curs_sp_funcs(3x)</A></STRONG>.
+ 
+-       To  aid  applications  to  debug their memory usage, <EM>ncurses</EM> optionally
+-       offers functions  to  more  aggressively  free  memory  it  dynamically
++       To aid applications to debug their  memory  usage,  <EM>ncurses</EM>  optionally
++       offers  functions  to  more  aggressively  free  memory  it dynamically
+        allocates itself; see <STRONG><A HREF="curs_memleaks.3x.html">curs_memleaks(3x)</A></STRONG>.
+ 
+-       The  library  facilitates auditing and troubleshooting of its behavior;
++       The library facilitates auditing and troubleshooting of  its  behavior;
+        see <STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>.
+ 
+-       Compiling <EM>ncurses</EM> with the option <STRONG>-DUSE_GETCAP</STRONG> causes it to  fall  back
+-       to  reading <EM>/etc/termcap</EM> if the terminal setup code cannot find a <EM>term-</EM>
++       Compiling  <EM>ncurses</EM>  with the option <STRONG>-DUSE_GETCAP</STRONG> causes it to fall back
++       to reading <EM>/etc/termcap</EM> if the terminal setup code cannot find a  <EM>term-</EM>
+        <EM>info</EM>  entry  corresponding  to  <EM>TERM</EM>.   Use  of  this  feature  is  not
+-       recommended,  as  it essentially includes an entire <EM>termcap</EM> compiler in
+-       the <EM>ncurses</EM> startup code, at a cost in  memory  usage  and  application
++       recommended, as it essentially includes an entire <EM>termcap</EM>  compiler  in
++       the  <EM>ncurses</EM>  startup  code,  at a cost in memory usage and application
+        launch latency.
+ 
+-       <EM>PDCurses</EM>   and  NetBSD  <EM>curses</EM>  incorporate  some  <EM>ncurses</EM>  extensions.
++       <EM>PDCurses</EM>  and  NetBSD  <EM>curses</EM>  incorporate  some  <EM>ncurses</EM>   extensions.
+        Individual man pages indicate where this is the case.
+ 
+ 
+ </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+        X/Open Curses defines two levels of conformance, "base" and "enhanced".
+        The latter includes several additional features, such as wide-character
+-       and color support.  <EM>ncurses</EM> intends base-level conformance with  X/Open
+-       Curses,  and  supports  all  features  of its enhanced level except the
+-       <STRONG>untic</STRONG> utility.
++       and  color support.  <EM>ncurses</EM> intends base-level conformance with X/Open
++       Curses, and supports all features of  its  enhanced  level  except  the
++       <EM>untic</EM> utility.
+ 
+-       Differences between X/Open Curses and <EM>ncurses</EM>  are  documented  in  the
++       Differences  between  X/Open  Curses  and <EM>ncurses</EM> are documented in the
+        "PORTABILITY" sections of applicable man pages.
+ 
+ 
+ </PRE><H3><a name="h3-Error-Checking">Error Checking</a></H3><PRE>
+-       In  many cases, X/Open Curses is vague about error conditions, omitting
++       In many cases, X/Open Curses is vague about error conditions,  omitting
+        some of the SVr4 documentation.
+ 
+-       Unlike other implementations, <EM>ncurses</EM> checks pointer  parameters,  such
+-       as  those to <EM>WINDOW</EM> structures, to ensure that they are not null.  This
+-       is done primarily to guard  against  programmer  error.   The  standard
++       Unlike  other  implementations, <EM>ncurses</EM> checks pointer parameters, such
++       as those to <EM>WINDOW</EM> structures, to ensure that they are not null.   This
++       is  done  primarily  to  guard  against programmer error.  The standard
+        interface does not provide a way for the library to tell an application
+-       which of several possible errors occurred.  An application that  relies
+-       on  <EM>ncurses</EM>  to  check  its function parameters for validity limits its
++       which  of several possible errors occurred.  An application that relies
++       on <EM>ncurses</EM> to check its function parameters  for  validity  limits  its
+        portability and robustness.
+ 
+ 
+ </PRE><H3><a name="h3-Padding-Differences">Padding Differences</a></H3><PRE>
+-       In historical <EM>curses</EM> implementations, delays embedded in  the  <EM>terminfo</EM>
+-       capabilities  <STRONG>carriage_return</STRONG>  (<STRONG>cr</STRONG>),  <STRONG>scroll_forward</STRONG> (<STRONG>ind</STRONG>), <STRONG>cursor_left</STRONG>
++       In  historical  <EM>curses</EM> implementations, delays embedded in the <EM>terminfo</EM>
++       capabilities <STRONG>carriage_return</STRONG> (<STRONG>cr</STRONG>),  <STRONG>scroll_forward</STRONG>  (<STRONG>ind</STRONG>),  <STRONG>cursor_left</STRONG>
+        (<STRONG>cub1</STRONG>), <STRONG>form_feed</STRONG> (<STRONG>ff</STRONG>), and <STRONG>tab</STRONG> (<STRONG>ht</STRONG>) activated corresponding delay bits
+-       in  the  Unix terminal driver.  <EM>ncurses</EM> performs all padding by sending
+-       NUL bytes to the device.  This method is slightly more  expensive,  but
+-       narrows   the   interface   to   the   Unix  kernel  significantly  and
++       in the Unix terminal driver.  <EM>ncurses</EM> performs all padding  by  sending
++       NUL  bytes  to the device.  This method is slightly more expensive, but
++       narrows  the  interface  to   the   Unix   kernel   significantly   and
+        correspondingly increases the package's portability.
+ 
+ 
+ </PRE><H3><a name="h3-Header-Files">Header Files</a></H3><PRE>
+-       The header file <EM>curses.h</EM> itself includes the header files  <EM>stdio.h</EM>  and
++       The  header  file <EM>curses.h</EM> itself includes the header files <EM>stdio.h</EM> and
+        <EM>unctrl.h</EM>.
+ 
+        X/Open Curses has more to say,
+ 
+-           The  inclusion  of  <EM>curses.h</EM>  may make visible all symbols from the
++           The inclusion of <EM>curses.h</EM> may make visible  all  symbols  from  the
+            headers <EM>stdio.h</EM>, <EM>term.h</EM>, <EM>termios.h</EM>, and <EM>wchar.h</EM>.
+ 
+        but does not finish the story.  A more complete account follows.
+ 
+        <STRONG>o</STRONG>   The first <EM>curses</EM>, in 4BSD, provided a <EM>curses.h</EM> file.
+ 
+-           BSD <EM>curses</EM> code included <EM>curses.h</EM> and  <EM>unctrl.h</EM>  from  an  internal
++           BSD  <EM>curses</EM>  code  included  <EM>curses.h</EM> and <EM>unctrl.h</EM> from an internal
+            header file <EM>curses.ext</EM>, where "ext" abbreviated "externs".
+ 
+-           The  implementations of <EM>printw</EM> and <EM>scanw</EM> used undocumented internal
+-           functions of the standard I/O library (<STRONG>_</STRONG><EM>doprnt</EM>  and  <STRONG>_</STRONG><EM>doscan</EM>),  but
++           The implementations of <EM>printw</EM> and <EM>scanw</EM> used undocumented  internal
++           functions  of  the  standard I/O library (<STRONG>_</STRONG><EM>doprnt</EM> and <STRONG>_</STRONG><EM>doscan</EM>), but
+            nothing in <EM>curses.h</EM> itself relied upon <EM>stdio.h</EM>.
+ 
+-       <STRONG>o</STRONG>   SVr2  <EM>curses</EM>  added  <EM>newterm</EM>, which relies upon <EM>stdio.h</EM> because its
++       <STRONG>o</STRONG>   SVr2 <EM>curses</EM> added <EM>newterm</EM>, which relies upon  <EM>stdio.h</EM>  because  its
+            function prototype employs the <EM>FILE</EM> type.
+ 
+            SVr4 <EM>curses</EM> added <EM>putwin</EM> and <EM>getwin</EM>, which also use <EM>stdio.h</EM>.
+ 
+            X/Open Curses specifies all three of these functions.
+ 
+-           SVr4 <EM>curses</EM> and X/Open Curses  do  not  require  the  developer  to
+-           include  <EM>stdio.h</EM>  before  <EM>curses.h</EM>.  Both document use of <EM>curses</EM> as
++           SVr4  <EM>curses</EM>  and  X/Open  Curses  do  not require the developer to
++           include <EM>stdio.h</EM> before <EM>curses.h</EM>.  Both document use  of  <EM>curses</EM>  as
+            requiring only <EM>curses.h</EM>.
+ 
+            As a result, standard <EM>curses.h</EM> always includes <EM>stdio.h</EM>.
+ 
+-       <STRONG>o</STRONG>   X/Open Curses and SVr4 <EM>curses</EM>  are  inconsistent  with  respect  to
++       <STRONG>o</STRONG>   X/Open  Curses  and  SVr4  <EM>curses</EM>  are inconsistent with respect to
+            <EM>unctrl.h</EM>.
+ 
+-           As  noted in <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, <EM>ncurses</EM> includes <EM>unctrl.h</EM> from <EM>curses.h</EM>
++           As noted in <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, <EM>ncurses</EM> includes <EM>unctrl.h</EM> from  <EM>curses.h</EM>
+            (as SVr4 does).
+ 
+-       <STRONG>o</STRONG>   X/Open Curses's comments about <EM>term.h</EM> and <EM>termios.h</EM>  may  refer  to
++       <STRONG>o</STRONG>   X/Open  Curses's  comments  about <EM>term.h</EM> and <EM>termios.h</EM> may refer to
+            HP-UX and AIX.
+ 
+-           HP-UX  <EM>curses</EM> includes <EM>term.h</EM> from <EM>curses.h</EM> to declare <EM>setupterm</EM> in
++           HP-UX <EM>curses</EM> includes <EM>term.h</EM> from <EM>curses.h</EM> to declare <EM>setupterm</EM>  in
+            <EM>curses.h</EM>, but <EM>ncurses</EM> and Solaris <EM>curses</EM> do not.
+ 
+-           AIX <EM>curses</EM> includes  <EM>term.h</EM>  and  <EM>termios.h</EM>.   Again,  <EM>ncurses</EM>  and
++           AIX  <EM>curses</EM>  includes  <EM>term.h</EM>  and  <EM>termios.h</EM>.   Again, <EM>ncurses</EM> and
+            Solaris <EM>curses</EM> do not.
+ 
+-       <STRONG>o</STRONG>   X/Open  Curses  says that <EM>curses.h</EM> <STRONG>may</STRONG> include <EM>term.h</EM>, but does not
++       <STRONG>o</STRONG>   X/Open Curses says that <EM>curses.h</EM> <STRONG>may</STRONG> include <EM>term.h</EM>, but  does  not
+            require it to do so.
+ 
+-           Some programs use functions declared in both <EM>curses.h</EM>  and  <EM>term.h</EM>,
+-           and  must  include  both header files in the same module.  Very old
+-           versions of  AIX  <EM>curses</EM>  required  inclusion  of  <EM>curses.h</EM>  before
++           Some  programs  use functions declared in both <EM>curses.h</EM> and <EM>term.h</EM>,
++           and must include both header files in the same  module.   Very  old
++           versions  of  AIX  <EM>curses</EM>  required  inclusion  of  <EM>curses.h</EM> before
+            <EM>term.h</EM>.
+ 
+-           The  header  files supplied by <EM>ncurses</EM> include the standard library
+-           headers required for its  declarations,  so  <EM>ncurses</EM>'s  own  header
+-           files  can  be  included  in  any  order.  But for portability, you
++           The header files supplied by <EM>ncurses</EM> include the  standard  library
++           headers  required  for  its  declarations,  so <EM>ncurses</EM>'s own header
++           files can be included in  any  order.   But  for  portability,  you
+            should include <EM>curses.h</EM> before <EM>term.h</EM>.
+ 
+-       <STRONG>o</STRONG>   X/Open Curses says "may make visible" because  including  a  header
+-           file  does  not  necessarily  make visible all of the symbols in it
++       <STRONG>o</STRONG>   X/Open  Curses  says  "may make visible" because including a header
++           file does not necessarily make visible all of  the  symbols  in  it
+            (consider <STRONG>#ifdef</STRONG> and similar).
+ 
+-           For instance, <EM>ncurses</EM>'s <EM>curses.h</EM> <STRONG>may</STRONG> include <EM>wchar.h</EM> if the  proper
+-           symbol  is defined, and if <EM>ncurses</EM> is configured for wide-character
+-           support.  If <EM>wchar.h</EM> is included, its symbols <STRONG>may</STRONG> be  made  visible
++           For  instance, <EM>ncurses</EM>'s <EM>curses.h</EM> <STRONG>may</STRONG> include <EM>wchar.h</EM> if the proper
++           symbol is defined, and if <EM>ncurses</EM> is configured for  wide-character
++           support.   If  <EM>wchar.h</EM> is included, its symbols <STRONG>may</STRONG> be made visible
+            depending on the value of the <STRONG>_XOPEN_SOURCE</STRONG> feature test macro.
+ 
+        <STRONG>o</STRONG>   X/Open Curses mandates an application's inclusion of one standard C
+-           library header in a  special  case:  <EM>stdarg.h</EM>  before  <EM>curses.h</EM>  to
+-           prototype  the  functions  <EM>vw</EM><STRONG>_</STRONG><EM>printw</EM>  and  <EM>vw</EM><STRONG>_</STRONG><EM>scanw</EM> (as well as the
+-           obsolete <EM>vwprintw</EM> and <EM>vwscanw</EM>).  Each of  these  takes  a  variadic
++           library  header  in  a  special  case:  <EM>stdarg.h</EM> before <EM>curses.h</EM> to
++           prototype the functions <EM>vw</EM><STRONG>_</STRONG><EM>printw</EM> and  <EM>vw</EM><STRONG>_</STRONG><EM>scanw</EM>  (as  well  as  the
++           obsolete  <EM>vwprintw</EM>  and  <EM>vwscanw</EM>).   Each of these takes a variadic
+            argument list, a <EM>va</EM><STRONG>_</STRONG><EM>list</EM> parameter, like that of <STRONG>printf(3)</STRONG>.
+ 
+-           SVr3  <EM>curses</EM>  introduced  the  two  obsolete  functions, and X/Open
+-           Curses the others.   In  between,  SVr4  <EM>curses</EM>  provided  for  the
+-           possibility  that  an application might include either <EM>varargs.h</EM> or
+-           <EM>stdarg.h</EM>.  These represented  contrasting  approaches  to  handling
+-           variadic  argument  lists.   The older interface, <EM>varargs.h</EM>, used a
+-           pointer to <EM>char</EM> for variadic functions' <EM>va</EM><STRONG>_</STRONG><EM>list</EM> parameter.   Later,
+-           the  list  acquired its own standard data type, <EM>va</EM><STRONG>_</STRONG><EM>list</EM>, defined in
+-           <EM>stdarg.h</EM>, empowering the compiler to check the types of a  function
+-           call's  actual  parameters  against the formal ones declared in its
++           SVr3 <EM>curses</EM> introduced  the  two  obsolete  functions,  and  X/Open
++           Curses  the  others.   In  between,  SVr4  <EM>curses</EM>  provided for the
++           possibility that an application might include either  <EM>varargs.h</EM>  or
++           <EM>stdarg.h</EM>.   These  represented  contrasting  approaches to handling
++           variadic argument lists.  The older interface,  <EM>varargs.h</EM>,  used  a
++           pointer  to <EM>char</EM> for variadic functions' <EM>va</EM><STRONG>_</STRONG><EM>list</EM> parameter.  Later,
++           the list acquired its own standard data type, <EM>va</EM><STRONG>_</STRONG><EM>list</EM>,  defined  in
++           <EM>stdarg.h</EM>,  empowering the compiler to check the types of a function
++           call's actual parameters against the formal ones  declared  in  its
+            prototype.
+ 
+-           No  conforming  implementations  of  X/Open   Curses   require   an
++           No   conforming   implementations   of  X/Open  Curses  require  an
+            application to include <EM>stdarg.h</EM> before <EM>curses.h</EM> because they either
+-           have allowed for a special type, or,  like  <EM>ncurses</EM>,  they  include
++           have  allowed  for  a  special type, or, like <EM>ncurses</EM>, they include
+            <EM>stdarg.h</EM> themselves to provide a portable interface.
+ 
+ 
+@@ -1491,7 +1495,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>
++ncurses 6.5                       2024-06-22                       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/tabs.1.html
+--- ncurses-6.5-20240615+/doc/html/man/tabs.1.html	2024-04-27 18:38:49.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/tabs.1.html	2024-06-22 22:55:11.000000000 +0000
+@@ -27,19 +27,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: tabs.1,v 1.59 2024/04/20 19:08:15 tom Exp @
++  * @Id: tabs.1,v 1.61 2024/06/22 22:15:32 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>tabs 1 2024-04-20 ncurses 6.5 User commands</TITLE>
++<TITLE>tabs 1 2024-06-22 ncurses 6.5 User commands</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">tabs 1 2024-04-20 ncurses 6.5 User commands</H1>
++<H1 class="no-header">tabs 1 2024-06-22 ncurses 6.5 User commands</H1>
+ <PRE>
+ <STRONG><A HREF="tabs.1.html">tabs(1)</A></STRONG>                          User commands                         <STRONG><A HREF="tabs.1.html">tabs(1)</A></STRONG>
+ 
+@@ -245,8 +245,8 @@
+        the  committee  considered  redesigning  the  <STRONG>tabs</STRONG>  and <STRONG>tput</STRONG> utilities,
+        without settling on an improved solution.  It claims that
+ 
+-           "no known historical version of <EM>tabs</EM>  supports  the  capability  of
+-           setting arbitrary tab stops."
++           no known historical version of  <EM>tabs</EM>  supports  the  capability  of
++           setting arbitrary tab stops.
+ 
+        The   feature  described  in  subsection  "Explicit  Lists"  above  was
+        implemented in PWB/Unix, and permitted  the  setting  of  abitrary  tab
+@@ -258,7 +258,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-04-20                           <STRONG><A HREF="tabs.1.html">tabs(1)</A></STRONG>
++ncurses 6.5                       2024-06-22                           <STRONG><A HREF="tabs.1.html">tabs(1)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: doc/html/man/terminfo.5.html
+--- ncurses-6.5-20240615+/doc/html/man/terminfo.5.html	2024-06-15 20:39:31.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/terminfo.5.html	2024-06-22 22:55:11.000000000 +0000
+@@ -71,7 +71,7 @@
+        have, by specifying how to perform screen operations, and by specifying
+        padding requirements and initialization sequences.
+ 
+-       This document describes <EM>ncurses</EM> version 6.5 (patch 20240615).
++       This document describes <EM>ncurses</EM> version 6.5 (patch 20240622).
+ 
+ 
+ </PRE><H3><a name="h3-terminfo-Entry-Syntax"><EM>terminfo</EM> Entry Syntax</a></H3><PRE>
+Index: doc/html/man/tput.1.html
+--- ncurses-6.5-20240615+/doc/html/man/tput.1.html	2024-06-08 23:12:52.000000000 +0000
++++ ncurses-6.5-20240622/doc/html/man/tput.1.html	2024-06-22 22:55:11.000000000 +0000
+@@ -28,19 +28,19 @@
+   * sale, use or other dealings in this Software without prior written       *
+   * authorization.                                                           *
+   ****************************************************************************
+-  * @Id: tput.1,v 1.116 2024/06/08 20:50:34 tom Exp @
++  * @Id: tput.1,v 1.118 2024/06/22 21:28:35 tom Exp @
+ -->
+ <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+ <HTML>
+ <HEAD>
+ <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+ <meta name="generator" content="Manpage converted by man2html - see https://invisible-island.net/scripts/readme.html#others_scripts">
+-<TITLE>tput 1 2024-06-08 ncurses 6.5 User commands</TITLE>
++<TITLE>tput 1 2024-06-22 ncurses 6.5 User commands</TITLE>
+ <link rel="author" href="mailto:bug-ncurses@gnu.org">
+ 
+ </HEAD>
+ <BODY>
+-<H1 class="no-header">tput 1 2024-06-08 ncurses 6.5 User commands</H1>
++<H1 class="no-header">tput 1 2024-06-22 ncurses 6.5 User commands</H1>
+ <PRE>
+ <STRONG><A HREF="tput.1.html">tput(1)</A></STRONG>                          User commands                         <STRONG><A HREF="tput.1.html">tput(1)</A></STRONG>
+ 
+@@ -477,8 +477,10 @@
+        As of <EM>ncurses</EM> 6.1,  the  "reset"  features  of  the  two  programs  are
+        (mostly) the same.  Two minor differences remain.
+ 
+-       <STRONG>o</STRONG>   The  <STRONG>tset</STRONG>  program  waits  one  second  when resetting, in case the
+-           terminal happens to be a hardware device.
++       <STRONG>o</STRONG>   When  issuing  a  reset, the <STRONG>tset</STRONG> program checks whether the device
++           appears to be a pseudoterminal (as might  be  used  by  a  terminal
++           emulator program), and, if it does not, waits one second in case it
++           is communicating with a hardware terminal.
+ 
+        <STRONG>o</STRONG>   The two programs  write  the  terminal  initialization  strings  to
+            different  streams;  that  is, standard error for <STRONG>tset</STRONG> and standard
+@@ -557,7 +559,7 @@
+ 
+ 
+ 
+-ncurses 6.5                       2024-06-08                           <STRONG><A HREF="tput.1.html">tput(1)</A></STRONG>
++ncurses 6.5                       2024-06-22                           <STRONG><A HREF="tput.1.html">tput(1)</A></STRONG>
+ </PRE>
+ <div class="nav">
+ <ul>
+Index: man/curs_add_wchstr.3x
+Prereq:  1.40 
+--- ncurses-6.5-20240615+/man/curs_add_wchstr.3x	2024-05-11 20:39:53.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_add_wchstr.3x	2024-06-22 21:26:27.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_add_wchstr.3x,v 1.40 2024/05/11 20:39:53 tom Exp $
+-.TH curs_add_wchstr 3X 2024-05-11 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_add_wchstr.3x,v 1.42 2024/06/22 21:26:27 tom Exp $
++.TH curs_add_wchstr 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -139,6 +139,27 @@
+ .SH PORTABILITY
+ X/Open Curses,
+ Issue 4 describes these functions.
++.SH HISTORY
++These functions were initially specified by X/Open Curses,
++Issue 4.
++The System\ V Interface Definition,
++Version 4 (1995),
++specified functions named
++.I \%waddwchstr
++and
++.I \%waddwchnstr
++(and the usual variants).
++These were later additions to
++.RI SVr4. x ,
++not appearing in the first SVr4 (1989).
++They differed from X/Open's
++.I \%wadd_wchstr
++and
++.I \%wadd_wchnstr
++in that they each took an argument of type
++.I \%wchar_t
++instead of
++.IR \%cchar_t "."
+ .SH SEE ALSO
+ \fB\%curs_addchstr\fP(3X) describes comparable functions of the
+ .I \%ncurses
+Index: man/curs_addch.3x
+Prereq:  1.92 
+--- ncurses-6.5-20240615+/man/curs_addch.3x	2024-06-08 20:51:41.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_addch.3x	2024-06-22 21:34:49.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_addch.3x,v 1.92 2024/06/08 20:51:41 tom Exp $
+-.TH curs_addch 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_addch.3x,v 1.94 2024/06/22 21:34:49 tom Exp $
++.TH curs_addch 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -284,6 +284,12 @@
+ but X/Open Curses does not specify it;
+ see \fB\%curs_variables\fP(3X).
+ .SH PORTABILITY
++Applications employing
++.I \%ncurses
++extensions should condition their use on the visibility of the
++.B \%NCURSES_VERSION
++preprocessor macro.
++.PP
+ X/Open Curses,
+ Issue 4 describes these functions.
+ It specifies no error conditions for them.
+@@ -471,9 +477,9 @@
+ use only
+ \fB\%wadd_wch\fP(3X).
+ .SH HISTORY
+-The original
++4BSD (1980)
+ .I curses
+-in 4BSD (1980) introduced
++introduced
+ .IR \%waddch "."
+ .PP
+ SVr3 (1987)
+Index: man/curs_addstr.3x
+Prereq:  1.49 
+--- ncurses-6.5-20240615+/man/curs_addstr.3x	2024-06-01 22:29:08.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_addstr.3x	2024-06-22 21:26:53.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_addstr.3x,v 1.49 2024/06/01 22:29:08 tom Exp $
+-.TH curs_addstr 3X 2024-06-01 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_addstr.3x,v 1.51 2024/06/22 21:26:53 tom Exp $
++.TH curs_addstr 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -130,6 +130,21 @@
+ X/Open Curses,
+ Issue 4 describes these functions.
+ It specifies no error conditions for them.
++.SH HISTORY
++4BSD (1980)
++.I curses
++introduced
++.I \%waddstr
++along with its variants,
++the latter defined as macros.
++.PP
++SVr3.1 (1987)
++added
++.I \%waddnstr
++(and its variants)
++redefining
++.I \%waddstr
++as a macro wrapping it.
+ .SH SEE ALSO
+ \fB\%curs_addwstr\fP(3X) describes comparable functions of the
+ .I \%ncurses
+Index: man/curs_beep.3x
+Prereq:  1.31 
+--- ncurses-6.5-20240615+/man/curs_beep.3x	2024-05-18 20:06:33.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_beep.3x	2024-06-22 21:27:35.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_beep.3x,v 1.31 2024/05/18 20:06:33 tom Exp $
+-.TH curs_beep 3X 2024-05-18 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_beep.3x,v 1.33 2024/06/22 21:27:35 tom Exp $
++.TH curs_beep 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .SH NAME
+ \fB\%beep\fP,
+ \fB\%flash\fP \-
+@@ -101,9 +101,9 @@
+ .BR OK ","
+ and X/Open Curses specifies them as doing so.
+ .SH HISTORY
+-.B beep
++.I beep
+ and
+-.B flash
++.I flash
+ appeared in SVr2 (1984).
+ .SH SEE ALSO
+ \fB\%curses\fP(3X),
+Index: man/curs_get_wstr.3x
+Prereq:  1.52 
+--- ncurses-6.5-20240615+/man/curs_get_wstr.3x	2024-06-08 21:01:53.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_get_wstr.3x	2024-06-22 21:34:19.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_get_wstr.3x,v 1.52 2024/06/08 21:01:53 tom Exp $
+-.TH curs_get_wstr 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_get_wstr.3x,v 1.54 2024/06/22 21:34:19 tom Exp $
++.TH curs_get_wstr 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -58,15 +58,15 @@
+ .nf
+ \fB#include <curses.h>
+ .PP
+-\fBint get_wstr(wint_t *\fIwstr\fP);
+-\fBint getn_wstr(wint_t *\fIwstr\fP, int \fIn\fP);
+-\fBint wget_wstr(WINDOW *\fIwin\fP, wint_t *\fIwstr\fP);
+-\fBint wgetn_wstr(WINDOW *\fIwin\fP, wint_t *\fIwstr\fP, int \fIn\fP);
++\fBint get_wstr(wint_t * \fIwstr\fP);
++\fBint wget_wstr(WINDOW * \fIwin\fP, wint_t * \fIwstr\fP);
++\fBint mvget_wstr(int \fIy\fP, int \fIx\fP, wint_t * \fIwstr\fP);
++\fBint mvwget_wstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, wint_t * \fIwstr\fP);
+ .PP
+-\fBint mvget_wstr(int \fIy\fP, int \fIx\fP, wint_t *\fIwstr\fP);
+-\fBint mvgetn_wstr(int \fIy\fP, int \fIx\fP, wint_t *\fIwstr\fP, int \fIn\fP);
+-\fBint mvwget_wstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, wint_t *\fIwstr\fP);
+-\fBint mvwgetn_wstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, wint_t *\fIwstr\fP, int \fIn\fP);
++\fBint getn_wstr(wint_t * \fIwstr\fP, int \fIn\fP);
++\fBint wgetn_wstr(WINDOW * \fIwin\fP, wint_t * \fIwstr\fP, int \fIn\fP);
++\fBint mvgetn_wstr(int \fIy\fP, int \fIx\fP, wint_t * \fIwstr\fP, int \fIn\fP);
++\fBint mvwgetn_wstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, wint_t * \fIwstr\fP, int \fIn\fP);
+ .fi
+ .SH DESCRIPTION
+ The function
+Index: man/curs_getstr.3x
+Prereq:  1.65 
+--- ncurses-6.5-20240615+/man/curs_getstr.3x	2024-06-08 21:04:32.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_getstr.3x	2024-06-22 22:20:56.000000000 +0000
+@@ -27,17 +27,19 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_getstr.3x,v 1.65 2024/06/08 21:04:32 tom Exp $
+-.TH curs_getstr 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_getstr.3x,v 1.67 2024/06/22 22:20:56 tom Exp $
++.TH curs_getstr 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
++.ds ^  \(ha
+ .\}
+ .el \{\
+ .ie t .ds `` ``
+ .el   .ds `` ""
+ .ie t .ds '' ''
+ .el   .ds '' ""
++.ds       ^  ^
+ .\}
+ .
+ .de bP
+@@ -58,97 +60,119 @@
+ .nf
+ \fB#include <curses.h>
+ .PP
+-\fBint getstr(char *\fIstr\fP);
+-\fBint getnstr(char *\fIstr\fP, int \fIn\fP);
+-\fBint wgetstr(WINDOW *\fIwin\fP, char *\fIstr\fP);
+-\fBint wgetnstr(WINDOW *\fIwin\fP, char *\fIstr\fP, int \fIn\fP);
+-.PP
+-\fBint mvgetstr(int \fIy\fP, int \fIx\fP, char *\fIstr\fP);
+-\fBint mvwgetstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, char *\fIstr\fP);
+-\fBint mvgetnstr(int \fIy\fP, int \fIx\fP, char *\fIstr\fP, int \fIn\fP);
+-\fBint mvwgetnstr(WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, char *\fIstr\fP, int \fIn\fP);
++\fBint getstr(char * \fIstr\fP);
++\fBint wgetstr(WINDOW * \fIwin\fP, char * \fIstr\fP);
++\fBint mvgetstr(int \fIy\fP, int \fIx\fP, char * \fIstr\fP);
++\fBint mvwgetstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, char * \fIstr\fP);
++.PP
++\fBint getnstr(char * \fIstr\fP, int \fIn\fP);
++\fBint wgetnstr(WINDOW * \fIwin\fP, char * \fIstr\fP, int \fIn\fP);
++\fBint mvgetnstr(int \fIy\fP, int \fIx\fP, char * \fIstr\fP, int \fIn\fP);
++\fBint mvwgetnstr(WINDOW * \fIwin\fP, int \fIy\fP, int \fIx\fP, char * \fIstr\fP, int \fIn\fP);
+ .fi
+ .SH DESCRIPTION
++.B \%wgetstr
++populates a user-supplied string buffer
++.I str
++by repeatedly calling \fBwgetch\fP(3X)
++with the
++.I win
++argument
++until a line feed or carriage return character is input.
++.\" Of the two, because wgetnstr() calls nl(), only a line feed (\n)
++.\" will ever be returned by wgetch().
+ The function
+-\fBwgetnstr\fP
+-is equivalent to a series of calls to
+-\fBwgetch\fP(3X),
+-until a newline or carriage return terminates the series:
+ .bP
+-The terminating character is not included in the returned string.
++does not copy the terminating character to
++.IR str ";"
+ .bP
+-In all instances, the end of the string is terminated
+-by a NUL.
+-.bP
+-The function stores the result in the area pointed to
+-by the \fIstr\fP parameter.
+-.bP
+-The function reads at most \fIn\fP characters,
+-thus preventing a possible overflow of the input buffer.
+-.IP
+-Any attempt to enter more characters
+-(other than the terminating newline or carriage return)
+-causes a beep.
+-.IP
+-Function keys also cause a beep and are ignored.
++always terminates
++.I str
++with a null character;
++.bP
++interprets the screen's erase and kill characters
++(see \fB\%erasechar\fP(3X) and \fB\%killchar\fP(3X));
++.bP
++recognizes function keys only if the screen's keypad option is enabled
++(see \fB\%keypad\fP(3X));
++.bP
++treats the function keys
++.B \%KEY_LEFT
++and
++.B \%KEY_BACKSPACE
++the same as the erase character;
++and
++.bP
++discards function key inputs other than those treated as the erase
++character,
++calling \fBbeep\fP(3X).
++.PP
++The erase character replaces the character at the end of the buffer with
++a null character,
++while the kill character does the same for the entire buffer.
++.PP
++If the screen's echo option is enabled
++(see \fBecho\fP(3X)),
++.B \%wgetstr
++updates
++.I win
++with \fB\%wechochar\fP(3X).
++Further,
++.bP
++the erase character
++and its function key synonyms
++move the cursor to the left,
++and
++.bP
++the kill character returns the cursor to where it was located when
++.B \%wgetstr
++was called.
++.PP
++.B \%wgetnstr
++is similar,
++but reads at most
++.I n
++characters,
++aiding the application to avoid overrunning the buffer to which
++.I str
++points.
++An attempt to input more than
++.I n
++characters
++(other than the terminating line feed or carriage return)
++is ignored with a beep.
+ .PP
+-The user's \fIerase\fP and \fIkill\fP characters are interpreted:
+-.bP
+-The \fIerase\fP character (e.g., \fB^H\fP) erases the character
+-at the end of the buffer, moving the cursor to the left.
+-.IP
+-If \fIkeypad\fP mode is on for the window,
+-\fBKEY_LEFT\fP and \fBKEY_BACKSPACE\fP
+-are both considered equivalent to the user's \fIerase\fP character.
+-.bP
+-The \fIkill\fP character (e.g., \fB^U\fP) erases the entire buffer,
+-leaving the cursor at the beginning of the buffer.
+-.PP
+-Characters input are echoed only if \fBecho\fP is currently on.
+-In that case,
+-backspace is echoed as deletion of the previous character
+-(typically a left motion).
+-.PP
+-The
+-\fBgetnstr\fP,
+-\fBmvgetnstr\fP,
+-\fBmvwgetnstr\fP, and
+-\fBwgetnstr\fP
+-functions are identical
+-to the
+-\fBgetstr\fP,
+-\fBmvgetstr\fP,
+-\fBmvwgetstr\fP, and
+-\fBwgetstr\fP
+-functions, respectively,
+-except that the
+-\fB*n*\fP
+-versions read at most
+-\fIn\fP
+-characters, letting the application prevent overflow of the
+-input buffer.
++\fB\%ncurses\fP(3X) describes the variants of these functions.
+ .SH RETURN VALUE
+-All of these functions return the integer \fBOK\fP upon successful completion.
+-(SVr4 specifies only \*(``an integer value other than \fBERR\fP\*('')
+-If unsuccessful, they return \fBERR\fP.
+-.PP
+-X/Open defines no error conditions.
++These functions return
++.B OK
++on success and
++.B ERR
++on failure.
+ .PP
+-In this implementation,
+-these functions return
++In
++.IR \%ncurses ","
++they return
+ .B ERR
++if
+ .bP
+-if the window pointer is null,
+-.bP
+-if its timeout expires without having any data, or
+-.bP
+-if the associated call to
+-\fBwgetch\fP
+-failed.
+-.PP
+-This implementation provides an extension as well.
+-If a \fBSIGWINCH\fP interrupts the function, it will return \fBKEY_RESIZE\fP
+-rather than \fBOK\fP or \fBERR\fP.
++.I win
++is
++.BR NULL ","
++or
++.bP
++if an internal
++.B \%wgetch
++call fails.
++.PP
++Further,
++in
++.IR \%ncurses ","
++these functions return
++.B \%KEY_RESIZE
++if a
++.B \%SIGWINCH
++event interrupts the function.
+ .PP
+ Functions prefixed with \*(``mv\*('' first perform cursor movement and
+ fail if the position
+@@ -156,138 +180,307 @@
+ .IR x )
+ is outside the window boundaries.
+ .SH NOTES
+-Any of these functions other than
+-\fBwgetnstr\fP
+-may be macros.
+-.PP
+-Using
+-\fBgetstr\fP,
+-\fBmvgetstr\fP,
+-\fBmvwgetstr\fP, or
+-\fBwgetstr\fP
+-to read a line that
+-overflows the array pointed to by
+-\fBstr\fP
+-causes undefined
+-results.
+-The use of
+-\fBgetnstr\fP,
+-\fBmvgetnstr\fP,
+-\fBmvwgetnstr\fP, or
+-\fBwgetnstr\fP,
+-respectively, is recommended.
++All of these functions except
++.B \%wgetnstr
++may be implemented as macros.
++.PP
++Use of
++.BR \%getstr ","
++.BR \%mvgetstr ","
++.BR \%mvwgetstr ","
++or
++.B \%wgetstr
++to read input that
++overruns the buffer pointed to by
++.I str
++causes undefined results.
++Use their
++.BR n -infixed
++counterpart functions instead.
++.PP
++While
++.B \%wgetnstr
++is conceptually a series of calls to
++.BR \%wgetch ","
++it also temporarily changes properties of the
++.I curses
++screen to permit simple editing of the input buffer.
++It saves the screen's state and then calls \fBnl\fP(3X) and,
++if the screen was in normal (\*(``cooked\*('') mode,
++\fB\%cbreak\fP(3X).
++Before returning,
++it restores the saved screen state.
++Other implementations differ in detail,
++affecting which control characters they can accept in the buffer;
++see section \*(``PORTABILITY\*('' below.
++.SH EXTENSIONS
++The return value
++.B \%KEY_RESIZE
++is an
++.I \%ncurses
++extension.
+ .SH PORTABILITY
+-X/Open Curses,
+-Issue 4 describes these functions.
+-It specifies no error conditions for them.
+-.PP
+-SVr3 and early SVr4 curses implementations did not reject function keys;
+-the SVr4.0 documentation claimed that \*(``special keys\*(''
++Applications employing
++.I \%ncurses
++extensions should condition their use on the visibility of the
++.B \%NCURSES_VERSION
++preprocessor macro.
++.PP
++X/Open Curses Issue 4 describes these functions.
++It specifies no error conditions for them,
++but indicates that
++.I \%wgetnstr
++and its variants read
++\*(``the entire multi-byte sequence associated with a character\*(''
++and \*(``fail\*('' if
++.I n
++and
++.I str
++together do not describe a buffer
++\*(``large enough to contain any complete characters\*(''.
++In
++.IR \%ncurses ","
++however,
++.I \%wgetch
++reads only single-byte characters,
++so this scenario does not arise.
++.\" You can pass ncurses wgetnstr n=0 and it will beep at you with each
++.\" key stroke.
++.PP
++SVr4
++.I curses
++describes a successful return value only as
++\*(``an integer value other than
++.BR ERR \*(''.
++.PP
++SVr3 and early SVr4
++.I curses
++implementations did not reject function keys;
++the SVr4 documentation asserted that,
++like the screen's erase and kill characters,
++they were
++.PP
++.RS
++interpreted,
++as well as any special keys
+ (such as function keys,
+ \*(``home\*('' key,
+ \*(``clear\*('' key,
+-\fIetc\fP.) are \*(``interpreted\*('',
+-without giving details.
++.IR etc. )
++.\" SVID 4, Volume 3, p. 495
++.RE
++.PP
++without further detail.
+ It lied.
+-In fact, the \*(``character\*('' value appended to the
+-string by those implementations was predictable but not useful
+-(being, in fact, the low-order eight bits of the key's KEY_ value).
+-.PP
+-The functions \fBgetnstr\fP, \fBmvgetnstr\fP, and \fBmvwgetnstr\fP were
+-present but not documented in SVr4.
+-.PP
+-X/Open Curses, Issue 5 (2007) stated that these functions
+-\*(``read at most \fIn\fP bytes\*(''
+-but did not state whether the terminating NUL counted toward that limit.
+-X/Open Curses, Issue 7 (2009) changed that to say they
+-\*(``read at most \fIn\fP\-1 bytes\*(''
+-to allow for the terminating NUL.
+-As of 2018, some implementations count it, some do not:
+-.bP
+-\fI\%ncurses\fP 6.1 and PDCurses do not count the NUL in the given limit, while
+-.bP
+-Solaris SVr4 and NetBSD curses count the NUL as part of the limit.
+-.bP
+-Solaris xcurses provides both:
+-its wide-character \fBwget_nstr\fP reserves a NUL,
+-but its \fBwgetnstr\fP does not count the NUL consistently.
+-.PP
+-In SVr4 curses,
+-a negative value of \fIn\fP tells \fBwgetnstr\fP to assume that the
+-caller's buffer is large enough to hold the result,
+-i.e., to act like \fBwgetstr\fP.
+-X/Open Curses does not mention this
+-(or anything related to negative or zero values of \fIn\fP),
+-however most implementations
+-use the feature, with different limits:
+-.bP
+-Solaris SVr4 curses and PDCurses limit the result to 255 bytes.
+-Other Unix systems than Solaris are likely to use the same limit.
+-.bP
+-Solaris xcurses limits the result to \fBLINE_MAX\fP bytes.
+-.bP
+-NetBSD 7 assumes no particular limit for the result from \fBwgetstr\fP.
+-However, it limits the \fBwgetnstr\fP parameter \fIn\fP to ensure
+-that it is greater than zero.
+-.IP
+-A comment in NetBSD's source code states that this is specified in SUSv2.
+-.bP
+-\fI\%ncurses\fP (before 6.2) assumes no particular limit for the result
+-from \fBwgetstr\fP, and treats the \fIn\fP parameter of \fBwgetnstr\fP
+-like SVr4 curses.
++In fact,
++the \*(``character\*('' value
++appended to the string
++by those implementations
++was predictable but not useful \(em
++being,
++in fact,
++the low-order eight bits of the key code's
++.B KEY_
++constant value.
++(The same language,
++unchanged except for styling,
++survived into X/Open Curses Issue 4, \" p. 94 (PDF 114)
++but disappeared from Issue 7.) \" p. 105 (PDF 119)
++.PP
++X/Open Curses Issue 5 (2007) stated that these functions
++\*(``read at most
++.I n
++bytes\*(''
++but did not state whether the terminating null character
++counted toward that limit.
++X/Open Curses Issue 7 (2009) changed that to say they
++\*(``read at most
++.IR n \-1
++bytes\*(''
++to allow for the terminating null character.
++As of 2018,
++some implementations count it,
++some do not.
+ .bP
+-\fI\%ncurses\fP 6.2 uses \fBLINE_MAX\fP,
+-or a larger (system-dependent) value
+-which the \fBsysconf\fP function may provide.
+-If neither \fBLINE_MAX\fP or \fBsysconf\fP is available,
+-\fI\%ncurses\fP uses the POSIX value for \fBLINE_MAX\fP (a 2048 byte limit).
+-In either case, it reserves a byte for the terminating NUL.
+-.PP
+-Although \fBgetnstr\fP is equivalent to a series of calls to \fBgetch\fP,
+-it also makes changes to the curses modes to allow simple editing of
+-the input buffer:
+-.bP
+-\fBgetnstr\fP saves the current value of the \fBnl\fP, \fBecho\fP,
+-\fBraw\fP and \fBcbreak\fP modes, and sets
+-\fBnl\fP,
+-\fBnoecho\fP,
+-\fBnoraw\fP, and
+-\fBcbreak\fP.
+-.IP
+-\fBgetnstr\fP handles the echoing of characters,
+-rather than relying on the caller to set an appropriate mode.
++.I \%ncurses
++6.1 and
++.I PDCurses
++do not count the null character toward the limit,
++while Solaris and NetBSD
++.I curses
++do.
++.bP
++Solaris
++.I xcurses
++offers both behaviors:
++its wide-character
++.I \%wgetn_wstr
++reserves room for a wide null character,
++but its non-wide
++.I \%wgetnstr
++does not consistently count a null character toward the limit.
++.PP
++In SVr4
++.IR curses ","
++a negative
++.I n
++tells
++.I \%wgetnstr
++to assume that the caller's buffer
++is large enough to hold the result;
++that is,
++the function then acts like
++.IR \%wgetstr "."
++X/Open Curses does not mention this behavior
++(or anything related to nonpositive
++.I n
++values),
++however most
++.I curses
++libraries implement it.
++Most implementations nevertheless enforce an upper limit
++on the count of bytes they write to the destination buffer
++.IR str "."
++.bP
++BSD
++.I curses
++lacked
++.IR \%wgetnstr ","
++and its
++.I \%wgetstr
++wrote to
++.I str
++unboundedly,
++.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4BSD/usr/src/lib/\
++.\"   libcurses/getstr.c
++.\" https://minnie.tuhs.org/cgi-bin/utree.pl?file=4.4BSD/usr/src/lib/\
++.\"   libcurses/getstr.c
++as did that in SVr2.
++.\" https://github.com/ryanwoodsmall/oldsysv/blob/master/sysvr2-vax/\
++.\"   src/lib/libcurses/screen/getstr.c
++.bP
++.IR PDCurses ","
++and
++SVr3.1,
++SVr4,
++and
++Solaris
++.I curses
++limit both functions to writing 256 bytes.
++Other System\ V-based platforms likely use the same limit.
++.\" https://github.com/ryanwoodsmall/oldsysv/blob/master/\
++.\"   sysvr3/31/usr/src/lib/libcurses/screen/wgetstr.c#L10
++.\"   sysvr4/svr4/lib/xlibcurses/screen/wgetstr.c#L12
++.bP
++Solaris
++.I xcurses
++limits the write to
++.B LINE_MAX
++bytes.
++.bP
++NetBSD 7
++.I curses
++imposes no particular limit on the length of the write,
++but does validate
++.I n
++to ensure that it is greater than zero.
++A comment in NetBSD's source code asserts that SUSv2 specifies this.
+ .bP
+-It also obtains the \fIerase\fP and \fIkill\fP characters
+-from \fBerasechar\fP and \fBkillchar\fP, respectively.
++.I \%ncurses
++prior to 6.2 (2020)
++imposes no limit on the length of the write,
++and treats
++.IR wgetnstr 's
++.I n
++parameter as SVr4
++.I curses
++does.
+ .bP
+-On return, \fBgetnstr\fP restores the modes to their previous values.
+-.PP
+-Other implementations differ in their treatment of special characters:
+-.bP
+-While they may set the \fIecho\fP mode,
+-other implementations do not modify the \fIraw\fP mode,
+-They may take the \fIcbreak\fP
+-mode set by the caller into account when deciding whether to handle
+-echoing within \fBgetnstr\fP or as a side-effect of the \fBgetch\fP calls.
+-.bP
+-The original \fI\%ncurses\fP
+-(as \fIpcurses\fP in 1986)
+-set \fBnoraw\fP and \fBcbreak\fP when accepting input for \fBgetnstr\fP.
+-That may have been done to make function- and cursor-keys work;
+-it is not necessary with \fI\%ncurses\fP.
++.I \%ncurses
++6.2 uses
++.B LINE_MAX
++or a larger (system-dependent) value
++provided by \fI\%sysconf\fP(3).
++If neither
++.B LINE_MAX
++nor
++.I \%sysconf
++is available,
++.I \%ncurses
++uses the POSIX minimum value for
++.B LINE_MAX
++(2048). \" _POSIX2_LINE_MAX
++In either case,
++it reserves a byte for the terminating null character.
++.PP
++Implementations vary in their handling of input control characters.
++.bP
++While they may enable the screen's echo option,
++some do not take it out of raw mode,
++and may take cbreak mode into account
++when deciding whether to handle echoing within
++.I \%wgetnstr
++or to rely on it as a side effect of calling
++.IR \%wgetch "."
++.bP
++Originally,
++.IR \%ncurses ","
++like its progenitor
++.IR \%pcurses ","
++had its
++.I \%wgetnstr
++call
++.I \%noraw
++and
++.I \%cbreak
++before accepting input.
++That may have been done to make function keys work;
++it is not necessary with modern
++.IR \%ncurses "."
+ .IP
+ Since 1995,
+-\fI\%ncurses\fP has provided signal handlers for INTR and QUIT
+-(e.g., \fB^C\fP or \fB^\e\fP).
+-With the \fBnoraw\fP and \fBcbreak\fP settings,
+-those may catch a signal and stop the program,
+-where other implementations allow one to enter those characters in the buffer.
+-.bP
+-Starting in 2021
+-(\fI\%ncurses\fP 6.3),
+-\fBgetnstr\fP sets \fBraw\fP,
+-rather than \fBnoraw\fP and \fBcbreak\fP for better compatibility with
+-SVr4-curses, e.g., allowing one to enter a \fB^C\fP into the buffer.
++.I \%ncurses
++has provided handlers for
++.B SIGINTR
++and
++.B SIGQUIT
++events,
++which are typically generated at the keyboard with
++.B \*^C
++and
++.B \*^\e
++respectively.
++In cbreak mode,
++those handlers catch a signal and stop the program,
++whereas other implementations write those characters into the buffer.
++.bP
++Starting with
++.I \%ncurses
++6.3 (2021),
++.I \%wgetnstr
++preserves raw mode if the screen was already in that state,
++allowing one to enter the characters the terminal interprets
++as interrupt and quit events
++into the buffer,
++for better compatibility with SVr4
++.IR curses "."
++.SH HISTORY
++4BSD (1980)
++.I curses
++introduced
++.I \%wgetstr
++along with its variants.
++.PP
++SVr3.1 (1987)
++added
++.IR \%wgetnstr ","
++but none of its variants.
++.PP
++X/Open Curses Issue 4 (1995) specified
++.IR \%getnstr ","
++.IR \%mvwgetnstr ","
++and
++.IR \%mvgetnstr "."
+ .SH SEE ALSO
+ \fB\%curs_get_wstr\fP(3X) describes comparable functions of the
+ .I \%ncurses
+@@ -295,6 +488,7 @@
+ .RI \%( ncursesw ).
+ .PP
+ \fB\%curses\fP(3X),
++\fB\%curs_addch\fP(3X),
+ \fB\%curs_getch\fP(3X),
+-\fB\%curs_termattrs\fP(3X),
+-\fB\%curs_variables\fP(3X)
++\fB\%curs_inopts\fP(3X), \" echo(), keypad()
++\fB\%curs_termattrs\fP(3X), \" erasechar(), killchar()
+Index: man/curs_kernel.3x
+Prereq:  1.65 
+--- ncurses-6.5-20240615+/man/curs_kernel.3x	2024-06-08 21:00:58.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_kernel.3x	2024-06-22 21:24:26.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_kernel.3x,v 1.65 2024/06/08 21:00:58 tom Exp $
+-.TH curs_kernel 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_kernel.3x,v 1.67 2024/06/22 21:24:26 tom Exp $
++.TH curs_kernel 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -198,8 +198,10 @@
+ call
+ .BR \%reset_prog_mode ";"
+ and finally call
+-.B \%mvcur
+-to set the cursor's location to where
++.BR \%mvcur( ".\|.\|." ,
++.RB .\|.\|. ,
++.B \-1, \-1)
++to move the terminal cursor to where
+ .I \%curses
+ thinks it is,
+ since the library has no knowledge of how the external application
+Index: man/curs_pad.3x
+Prereq:  1.63 
+--- ncurses-6.5-20240615+/man/curs_pad.3x	2024-05-25 20:10:58.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_pad.3x	2024-06-22 22:20:03.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_pad.3x,v 1.63 2024/05/25 20:10:58 tom Exp $
+-.TH curs_pad 3X 2024-05-25 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_pad.3x,v 1.65 2024/06/22 22:20:03 tom Exp $
++.TH curs_pad 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -87,7 +87,8 @@
+ .B \%pnoutrefresh
+ instead.
+ .SS newpad
+-\fB\%newpad\fP creates and returns a pointer to a new pad data structure
++.B \%newpad
++creates and returns a pointer to a new pad data structure
+ with the given number of lines,
+ .IR nlines ,
+ and columns,
+@@ -114,7 +115,7 @@
+ before calling
+ .BR \%prefresh .
+ .SS "prefresh, pnoutrefresh"
+-.B \%prefresh\fP
++.B \%prefresh
+ and
+ .B \%pnoutrefresh
+ are analogous to \fB\%wrefresh\fP(3X) and \fB\%wnoutrefresh\fP(3X)
+@@ -156,7 +157,7 @@
+ written to the pad is used to populate the arguments to
+ .BR \%prefresh .
+ .SS pecho_wchar
+-.B \%pecho_wchar\fP
++.B \%pecho_wchar
+ is functionally equivalent to calling \fB\%wadd_wch\fP(3X) followed by
+ .BR \%prefresh .
+ It suggests to the
+@@ -168,20 +169,28 @@
+ written to the pad is used to populate the arguments to
+ .BR \%prefresh .
+ .SH RETURN VALUE
+-Functions that return an integer return \fBERR\fP upon failure and
+-\fBOK\fP
++Functions that return an integer return
++.B ERR
++upon failure and
++.B OK
+ (SVr4 specifies only
+-\*(``an integer value other than \fBERR\fP\*('')
++\*(``an integer value other than
++.BR ERR \*('')
+ upon successful completion.
+ .PP
+-Functions that return pointers return \fBNULL\fP on error,
+-and set \fB\%errno\fP to \fB\%ENOMEM\fP.
++Functions that return pointers return
++.B NULL
++on error,
++and set
++.I \%errno
++to
++.BR \%ENOMEM "."
+ .PP
+ X/Open Curses does not specify any error conditions.
+ In this implementation
+ .RS 3
+ .TP 5
+-\fB\%prefresh\fP and \fB\%pnoutrefresh\fP
++.BR prefresh\  and\  pnoutrefresh
+ return
+ .B ERR
+ if the window pointer is null, or
+@@ -189,24 +198,33 @@
+ if the area to refresh extends off-screen or
+ if the minimum coordinates are greater than the maximum.
+ .TP 5
+-\fBpechochar\fP
++.B pechochar
+ returns
+ .B ERR
+-if the window is not really a pad, and the associated call
+-to \fB\%wechochar\fP returns
++if the window is not really a pad,
++and the associated call to
++.B \%wechochar
++returns
+ .BR ERR "."
+ .TP 5
+-\fBpecho_wchar\fP
++.B pecho_wchar
+ returns
+ .B ERR
+-if the window is not really a pad, and the associated call
+-to \fB\%wecho_wchar\fP returns
++if the window is not really a pad,
++and the associated call to
++.B \%wecho_wchar
++returns
+ .BR ERR "."
+ .RE
+ .SH NOTES
+-\fB\%pechochar\fP may be a macro.
++.B \%pechochar
++may be a macro.
+ .SH PORTABILITY
+-BSD \fIcurses\fP has no \fIpad\fP feature.
++BSD
++.I curses
++has no
++.I pad
++feature.
+ .PP
+ SVr2 \fIcurses\fP (1986) provided the \fB\%newpad\fP and related functions,
+ documenting them in a single line each.
+Index: man/curs_slk.3x
+Prereq:  1.73 
+--- ncurses-6.5-20240615+/man/curs_slk.3x	2024-05-25 20:10:58.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_slk.3x	2024-06-22 21:25:23.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_slk.3x,v 1.73 2024/05/25 20:10:58 tom Exp $
+-.TH curs_slk 3X 2024-05-25 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_slk.3x,v 1.75 2024/06/22 21:25:23 tom Exp $
++.TH curs_slk 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -135,9 +135,9 @@
+ \fBLINES\fP and the vertical size of \fB\%stdscr\fP are further reduced.
+ .SS Labels
+ Populate the labels with normal strings
+-(\fB\%slk_set\fP)
++\%(\fBslk_set\fP)
+ or wide-character strings
+-(\fB\%slk_wset\fP).
++\%(\fBslk_wset\fP).
+ Each function takes three parameters.
+ .TP 8 \" "labnum" + 2n
+ .I labnum
+Index: man/curs_termcap.3x
+Prereq:  1.85 
+--- ncurses-6.5-20240615+/man/curs_termcap.3x	2024-04-20 19:13:12.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_termcap.3x	2024-06-22 21:28:07.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_termcap.3x,v 1.85 2024/04/20 19:13:12 tom Exp $
+-.TH curs_termcap 3X 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_termcap.3x,v 1.87 2024/06/22 21:28:07 tom Exp $
++.TH curs_termcap 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -275,7 +275,7 @@
+ Error conditions include:
+ .bP
+ uninitialized state
+-(\fB\%tgetent\fP was not called successfully),
++\%(\fBtgetent\fP was not called successfully),
+ .bP
+ .I cap
+ being a null pointer,
+@@ -421,7 +421,7 @@
+ the BSD sources included two different \fI\%termcap.h\fP header files
+ over time.
+ .bP
+-One was used internally by \fBjove\fP(1) from 4.3BSD onward.
++One was used internally by \fIjove\fP(1) from 4.3BSD onward.
+ .\" 2BSD became a branch retaining support for non-virtual memory
+ .\" systems (such as the PDP-11) whereas most BSD development focused on
+ .\" the VAX and other VM-enabled systems starting with 3BSD.
+@@ -466,11 +466,11 @@
+ \fI\%ncurses\fP 1.8.1
+ (November 1993)
+ provided a \fI\%termcap.h\fP file.
+-It reflected influence from GNU \fItermcap\fP and \fBemacs\fP(1)
+-(rather than \fBjove\fP(1)),
++It reflected influence from GNU \fItermcap\fP and \fI\%emacs\fP(1)
++(rather than \fIjove\fP(1)),
+ providing the following interface:
+ .bP
+-global symbols used by \fIemacs\fP,
++global symbols used by \fI\%emacs\fP,
+ .bP
+ \fIconst\fP-qualified function prototypes,
+ and
+Index: man/curs_util.3x
+Prereq:  1.110 
+--- ncurses-6.5-20240615+/man/curs_util.3x	2024-06-15 20:20:12.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_util.3x	2024-06-22 21:25:23.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_util.3x,v 1.110 2024/06/15 20:20:12 tom Exp $
+-.TH curs_util 3X 2024-06-15 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_util.3x,v 1.112 2024/06/22 21:25:23 tom Exp $
++.TH curs_util 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -264,8 +264,8 @@
+ .bP
+ the data written is a copy of the \fI\%WINDOW\fP structure,
+ and its associated character cells.
+-The format differs between the wide-character (\fI\%ncursesw\fP) and
+-non-wide (\fI\%ncurses\fP) libraries.
++The format differs between the wide-character \%(\fIncursesw\fP) and
++non-wide \%(\fIncurses\fP) libraries.
+ You can transfer data between the two,
+ however.
+ .bP
+Index: man/curs_variables.3x
+Prereq:  1.47 
+--- ncurses-6.5-20240615+/man/curs_variables.3x	2024-04-13 22:37:35.000000000 +0000
++++ ncurses-6.5-20240622/man/curs_variables.3x	2024-06-22 21:25:23.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: curs_variables.3x,v 1.47 2024/04/13 22:37:35 tom Exp $
+-.TH curs_variables 3X 2024-04-13 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: curs_variables.3x,v 1.49 2024/06/22 21:25:23 tom Exp $
++.TH curs_variables 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -285,7 +285,7 @@
+ \fI\%ncurses\fP uses the value of \fB\%TABSIZE\fP only to update the
+ virtual screen.
+ It uses the terminal description's \*(``\fBit\fP\*(''
+-(\fB\%init_tabs\fP) capability for computing hardware tabs
++\%(\fBinit_tabs\fP) capability for computing hardware tabs
+ (that is,
+ tab stops on the physical screen).
+ .bP
+Index: man/man_db.renames.in
+Prereq:  1.76 
+--- ncurses-6.5-20240615+/man/man_db.renames.in	2024-06-08 20:52:35.000000000 +0000
++++ ncurses-6.5-20240622/man/man_db.renames.in	2024-06-22 22:20:56.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: man_db.renames.in,v 1.76 2024/06/08 20:52:35 Branden.Robinson Exp $
++# $Id: man_db.renames.in,v 1.77 2024/06/22 22:20:56 tom Exp $
+ # Manual-page renamings for the man_db program
+ #
+ # Files:
+@@ -178,6 +178,7 @@
+ attr_on.3x			attr_on.3ncurses
+ attron.3x			attron.3ncurses
+ baudrate.3x			baudrate.3ncurses
++beep.3x				beep.3ncurses
+ bkgd.3x				bkgd.3ncurses
+ bkgrnd.3x			bkgrnd.3ncurses
+ cbreak.3x			cbreak.3ncurses
+@@ -217,6 +218,7 @@
+ is_scrollok.3x			is_scrollok.3ncurses
+ keyname.3x			keyname.3ncurses
+ keypad.3x			keypad.3ncurses
++killchar.3x			killchar.3ncurses
+ leaveok.3x			leaveok.3ncurses
+ longname.3x			longname.3ncurses
+ meta.3x				meta.3ncurses
+Index: man/manhtml.aliases
+Prereq:  1.39 
+--- ncurses-6.5-20240615+/man/manhtml.aliases	2024-06-08 23:34:02.000000000 +0000
++++ ncurses-6.5-20240622/man/manhtml.aliases	2024-06-22 23:03:10.000000000 +0000
+@@ -1,4 +1,4 @@
+-# $Id: manhtml.aliases,v 1.39 2024/06/08 23:34:02 tom Exp $
++# $Id: manhtml.aliases,v 1.41 2024/06/22 23:03:10 tom Exp $
+ #***************************************************************************
+ # Copyright 2019-2023,2024 Thomas E. Dickey                                *
+ # Copyright 2013,2017 Free Software Foundation, Inc.                       *
+@@ -35,6 +35,7 @@
+ attr_on(3X)		curs_attr(3X)
+ attron(3X)		curs_attr(3X)
+ baudrate(3X)		curs_termattrs(3X)
++beep(3X)		curs_beep(3X)
+ bkgd(3X)		curs_bkgd(3X)
+ bkgrnd(3X)		curs_bkgrnd(3X)
+ cbreak(3X)		curs_inopts(3X)
+@@ -68,7 +69,9 @@
+ inch(3X)		curs_inch(3X)
+ infocmp(1)		infocmp(1M)
+ initscr(3X)		curs_initscr(3X)
++is_cbreak(3X)		curs_inopts(3X)
+ is_scrollok(3X)		curs_opaque(3X)
++killchar(3X)		curs_termattrs(3X)
+ keyname(3X)		curs_util(3X)
+ keypad(3X)		curs_inopts(3X)
+ longname(3X)		curs_termattrs(3X)
+Index: man/manhtml.externs
+Prereq:  1.27 
+--- ncurses-6.5-20240615+/man/manhtml.externs	2024-06-15 20:24:43.000000000 +0000
++++ ncurses-6.5-20240622/man/manhtml.externs	2024-06-22 22:20:56.000000000 +0000
+@@ -1,4 +1,4 @@
+-# $Id: manhtml.externs,v 1.27 2024/06/15 20:24:43 tom Exp $
++# $Id: manhtml.externs,v 1.28 2024/06/22 22:20:56 tom Exp $
+ # Items in this list will not be linked by man2html
+ #***************************************************************************
+ # Copyright 2019-2023,2024 Thomas E. Dickey                                *
+@@ -72,6 +72,7 @@
+ stdio(3)
+ stty(1)
+ swprintf(3)
++sysconf(3)
+ system(3)
+ termios(3)
+ tmux(1)
+Index: man/ncurses.3x
+Prereq:  1.223 
+--- ncurses-6.5-20240615+/man/ncurses.3x	2024-06-08 20:45:43.000000000 +0000
++++ ncurses-6.5-20240622/man/ncurses.3x	2024-06-22 22:14:58.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: ncurses.3x,v 1.223 2024/06/08 20:45:43 tom Exp $
+-.TH ncurses 3X 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
++.\" $Id: ncurses.3x,v 1.225 2024/06/22 22:14:58 tom Exp $
++.TH ncurses 3X 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "Library calls"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -121,8 +121,8 @@
+ such as limitations on the size of an underlying integral type or the
+ availability of a preprocessor macro exclusive of a function definition
+ (which prevents its address from being taken).
+-This section also describes implementation details that will be
+-significant to the programmer but which are not standardized.
++This section also describes implementation details
++of significance to the programmer but which are not standardized.
+ .bP
+ \*(``EXTENSIONS\*('' presents
+ .I \%ncurses
+@@ -170,13 +170,12 @@
+ respectively.)
+ The
+ .I \%ncurses_g
+-library generates trace logs
+-(in a file called
+-.I \%trace
+-in the current directory)
+-that describe
++library logs events describing
+ .I \%ncurses
+-actions.
++actions
++to a file called
++.I \%trace
++in the current directory.
+ See section \*(``ALTERNATE CONFIGURATIONS\*('' below.
+ .SS "Application Structure"
+ A
+@@ -229,10 +228,27 @@
+ .SS Overview
+ A
+ .I curses
+-library abstracts the terminal screen by representing all or part of it
+-as a
++library abstracts the terminal with a
++.I \%SCREEN
++data structure,
++and represents all or part of its display
++with
+ .I \%WINDOW
+-data structure.
++structures.
++Distinct properties apply to each;
++for example,
++the
++.I "line discipline"
++of a typical Unix terminal driver
++is in one of three modes:
++raw,
++\%cbreak,
++or normal (\*(``cooked\*('').
++In
++.IR curses ","
++the line discipline is a property of the screen,
++applying identically to all windows associated with it.
++.PP
+ A
+ .I window
+ is a rectangular grid of character cells,
+@@ -1933,9 +1949,12 @@
+ An
+ .I \%ncurses
+ application can eschew knowledge of
++.I \%SCREEN
++and
+ .I \%WINDOW
+ structure internals,
+ instead using accessor functions such as
++\fB\%is_cbreak\fP(3X) and
+ \fB\%is_scrollok\fP(3X).
+ .PP
+ .I \%ncurses
+@@ -2002,7 +2021,9 @@
+ .I \%ncurses
+ intends base-level conformance with X/Open Curses,
+ and supports all features of its enhanced level
+-except the \fB\%untic\fP utility.
++except the
++.I \%untic
++utility.
+ .PP
+ Differences between X/Open Curses and
+ .I \%ncurses
+Index: man/tabs.1
+Prereq:  1.59 
+--- ncurses-6.5-20240615+/man/tabs.1	2024-04-20 19:08:15.000000000 +0000
++++ ncurses-6.5-20240622/man/tabs.1	2024-06-22 22:15:32.000000000 +0000
+@@ -27,8 +27,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: tabs.1,v 1.59 2024/04/20 19:08:15 tom Exp $
+-.TH @TABS@ 1 2024-04-20 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
++.\" $Id: tabs.1,v 1.61 2024/06/22 22:15:32 tom Exp $
++.TH @TABS@ 1 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -341,9 +341,9 @@
+ It claims that
+ .PP
+ .RS 4
+-\*(``no known historical version of
++no known historical version of
+ .I tabs
+-supports the capability of setting arbitrary tab stops.\*(''
++supports the capability of setting arbitrary tab stops.
+ .RE
+ .PP
+ The feature described in subsection \*(``Explicit Lists\*('' above was
+Index: man/terminfo.tail
+Prereq:  1.150 
+--- ncurses-6.5-20240615+/man/terminfo.tail	2024-06-08 20:42:50.000000000 +0000
++++ ncurses-6.5-20240622/man/terminfo.tail	2024-06-22 21:25:23.000000000 +0000
+@@ -27,7 +27,7 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: terminfo.tail,v 1.150 2024/06/08 20:42:50 Branden.Robinson Exp $
++.\" $Id: terminfo.tail,v 1.151 2024/06/22 21:25:23 tom Exp $
+ .ps +1
+ .SS "User-Defined Capabilities"
+ .
+@@ -2076,7 +2076,7 @@
+ and \fI\%ncurses\fP support all SVr4 capabilities.
+ .bP
+ IRIX supports the SVr4 set and adds one undocumented extended string
+-capability (\fB\%set_pglen\fP).
++capability \%(\fBset_pglen\fP).
+ .bP
+ SVr1 and Ultrix support a restricted subset of \fI\%terminfo\fP
+ capabilities.
+Index: man/tput.1
+Prereq:  1.116 
+--- ncurses-6.5-20240615+/man/tput.1	2024-06-08 20:50:34.000000000 +0000
++++ ncurses-6.5-20240622/man/tput.1	2024-06-22 21:28:35.000000000 +0000
+@@ -28,8 +28,8 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: tput.1,v 1.116 2024/06/08 20:50:34 tom Exp $
+-.TH @TPUT@ 1 2024-06-08 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
++.\" $Id: tput.1,v 1.118 2024/06/22 21:28:35 tom Exp $
++.TH @TPUT@ 1 2024-06-22 "ncurses @NCURSES_MAJOR@.@NCURSES_MINOR@" "User commands"
+ .ie \n(.g \{\
+ .ds `` \(lq
+ .ds '' \(rq
+@@ -885,8 +885,13 @@
+ the \*(``reset\*('' features of the two programs are (mostly) the same.
+ Two minor differences remain.
+ .bP
+-The \fB\%@TSET@\fP program waits one second when resetting,
+-in case the terminal happens to be a hardware device.
++When issuing a reset,
++the \fB\%@TSET@\fP program
++checks whether the device appears to be a pseudoterminal
++(as might be used by a terminal emulator program),
++and,
++if it does not,
++waits one second in case it is communicating with a hardware terminal.
+ .bP
+ The two programs write the terminal initialization strings
+ to different streams;
+Index: misc/gen-pkgconfig.in
+Prereq:  1.56 
+--- ncurses-6.5-20240615+/misc/gen-pkgconfig.in	2022-10-08 16:45:20.000000000 +0000
++++ ncurses-6.5-20240622/misc/gen-pkgconfig.in	2024-06-22 21:02:53.000000000 +0000
+@@ -1,7 +1,7 @@
+ #!@SHELL@
+-# $Id: gen-pkgconfig.in,v 1.56 2022/10/08 16:45:20 tom Exp $
++# $Id: gen-pkgconfig.in,v 1.57 2024/06/22 21:02:53 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
++# Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+ # Copyright 2009-2015,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -92,7 +92,7 @@
+ 	-specs*) # ignore linker specs-files which were used to build library
+ 		continue
+ 		;;
+-	-Wl,-z,*) # ignore flags used to manipulate shared image
++	-Wl,-z*) # ignore flags used to manipulate shared image
+ 		continue
+ 		;;
+ 	-Wl,--dynamic-linker*) # ignore ELF interpreter
+Index: misc/ncurses-config.in
+Prereq:  1.52 
+--- ncurses-6.5-20240615+/misc/ncurses-config.in	2022-07-26 21:36:28.000000000 +0000
++++ ncurses-6.5-20240622/misc/ncurses-config.in	2024-06-22 20:52:02.000000000 +0000
+@@ -1,7 +1,7 @@
+ #!@SHELL@
+-# $Id: ncurses-config.in,v 1.52 2022/07/26 21:36:28 tom Exp $
++# $Id: ncurses-config.in,v 1.53 2024/06/22 20:52:02 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
++# Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+ # Copyright 2006-2015,2017 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -107,7 +107,7 @@
+ 	-specs*) # ignore linker specs-files which were used to build library
+ 		continue
+ 		;;
+-	-Wl,-z,*) # ignore flags used to manipulate shared image
++	-Wl,-z*) # ignore flags used to manipulate shared image
+ 		continue
+ 		;;
+ 	-Wl,--dynamic-linker*) # ignore ELF interpreter
+@@ -186,16 +186,57 @@
+ 		;;
+ 	# compile/link
+ 	--cflags)
+-		INCS="@PKG_CFLAGS@"
+-		if [ "x@WITH_OVERWRITE@" = xno ]; then
+-			INCS="$INCS -I${includesubdir}"
+-		fi
+-		if [ "${includedir}" != /usr/include ]; then
+-			INCS="$INCS -I${includedir}"
+-		fi
+-		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
+-			$INCS
+-ENDECHO
++		OPTS=
++		for opt in @PKG_CFLAGS@
++		do
++			case "x$opt" in
++			x-[DIU]*)
++				OPTS="$OPTS $opt"
++				;;
++			x-Wl,*)
++				OPTS="$OPTS $opt"
++				;;
++			x-[OW]*)
++				;;
++			*)
++				OPTS="$OPTS $opt"
++				;;
++			esac
++		done
++		printf "%s\n" "$OPTS"
++		;;
++	--cflags-only-I)
++		OPTS=
++		for opt in @PKG_CFLAGS@
++		do
++			case "x$opt" in
++			x-[DIU]*)
++				OPTS="$OPTS $opt"
++				;;
++			*)
++				;;
++			esac
++		done
++		printf "%s\n" "$OPTS"
++		;;
++	--cflags-only-other)
++		OPTS=
++		for opt in @PKG_CFLAGS@
++		do
++			case "x$opt" in
++			x-[DIU]*)
++				;;
++			x-Wl,*)
++				OPTS="$OPTS $opt"
++				;;
++			x-[OW]*)
++				;;
++			*)
++				OPTS="$OPTS $opt"
++				;;
++			esac
++		done
++		printf "%s\n" "$OPTS"
+ 		;;
+ 	--libs)
+ 		OPTS=
+@@ -294,30 +335,32 @@
+ Usage: `basename "$0"` [options]
+ 
+ Options:
+-  --prefix           echos the package-prefix of ${THIS}
+-  --exec-prefix      echos the executable-prefix of ${THIS}
+-
+-  --cflags           echos the C compiler flags needed to compile with ${THIS}
+-  --libs             echos the libraries needed to link with ${THIS}
++  --prefix            echos the package-prefix of ${THIS}
++  --exec-prefix       echos the executable-prefix of ${THIS}
+ 
+-  --libs-only-L      echos -L linker options (search path) for ${THIS}
+-  --libs-only-l      echos -l linker options (libraries) for ${THIS}
+-  --libs-only-other  echos linker options other than -L/-l
+-
+-  --version          echos the release+patchdate version of ${THIS}
+-  --abi-version      echos the ABI version of ${THIS}
+-  --mouse-version    echos the mouse-interface version of ${THIS}
+-
+-  --bindir           echos the directory containing ${THIS} programs
+-  --datadir          echos the directory containing ${THIS} data
+-  --includedir       echos the directory containing ${THIS} header files
+-  --libdir           echos the directory containing ${THIS} libraries
+-  --mandir           echos the directory containing ${THIS} manpages
+-  --terminfo         echos the \$TERMINFO terminfo database path
+-  --terminfo-dirs    echos the \$TERMINFO_DIRS directory list
+-  --termpath         echos the \$TERMPATH termcap list
++  --cflags            echos the C compiler flags needed to compile for ${THIS}
++  --cflags-only-I     echos only -I C compiler flags needed with ${THIS}
++  --cflags-only-other echos only C compiler flags other than -I for ${THIS}
++  --libs              echos the libraries needed to link with ${THIS}
++
++  --libs-only-L       echos -L linker options (search path) for ${THIS}
++  --libs-only-l       echos -l linker options (libraries) for ${THIS}
++  --libs-only-other   echos linker options other than -L/-l
++
++  --version           echos the release+patchdate version of ${THIS}
++  --abi-version       echos the ABI version of ${THIS}
++  --mouse-version     echos the mouse-interface version of ${THIS}
++
++  --bindir            echos the directory containing ${THIS} programs
++  --datadir           echos the directory containing ${THIS} data
++  --includedir        echos the directory containing ${THIS} header files
++  --libdir            echos the directory containing ${THIS} libraries
++  --mandir            echos the directory containing ${THIS} manpages
++  --terminfo          echos the \$TERMINFO terminfo database path
++  --terminfo-dirs     echos the \$TERMINFO_DIRS directory list
++  --termpath          echos the \$TERMPATH termcap list
+ 
+-  --help             prints this message
++  --help              prints this message
+ ENDHELP
+ 		;;
+ 	--error|*)
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20240615+/package/debian-mingw/changelog	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/package/debian-mingw/changelog	2024-06-21 22:24:47.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240615) unstable; urgency=low
++ncurses6td (6.5+20240622) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Jun 2024 05:33:15 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 21 Jun 2024 18:24:47 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw/rules
+--- ncurses-6.5-20240615+/package/debian-mingw/rules	2024-06-08 18:54:55.000000000 +0000
++++ ncurses-6.5-20240622/package/debian-mingw/rules	2024-06-22 21:10:11.000000000 +0000
+@@ -83,6 +83,7 @@
+ 		--target=$(TARGET) \
+ 		--prefix=$(MINGW_TOP) \
+ 		--with-build-cc=$(BUILD_CC) \
++		--with-config-suffix=td \
+ 		--with-pc-suffix=$(MY_ABI)td \
+ 		--with-pkg-config-libdir=/usr/$(TARGET)/lib/pkgconfig \
+ 		$(CONFIG_OPTIONS)
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20240615+/package/debian-mingw64/changelog	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/package/debian-mingw64/changelog	2024-06-21 22:24:47.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240615) unstable; urgency=low
++ncurses6td (6.5+20240622) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Jun 2024 05:33:15 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 21 Jun 2024 18:24:47 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/rules
+--- ncurses-6.5-20240615+/package/debian-mingw64/rules	2024-06-08 18:52:55.000000000 +0000
++++ ncurses-6.5-20240622/package/debian-mingw64/rules	2024-06-22 21:07:54.000000000 +0000
+@@ -83,6 +83,7 @@
+ 		--target=$(TARGET) \
+ 		--prefix=$(MINGW_TOP) \
+ 		--with-build-cc=$(BUILD_CC) \
++		--with-config-suffix=td \
+ 		--with-pc-suffix=$(MY_ABI)td \
+ 		--with-pkg-config-libdir=/usr/$(TARGET)/lib/pkgconfig \
+ 		$(CONFIG_OPTIONS)
+Index: package/debian/changelog
+--- ncurses-6.5-20240615+/package/debian/changelog	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/package/debian/changelog	2024-06-21 22:24:47.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20240615) unstable; urgency=low
++ncurses6td (6.5+20240622) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 15 Jun 2024 05:33:15 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 21 Jun 2024 18:24:47 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.653 
+--- ncurses-6.5-20240615+/package/mingw-ncurses.nsi	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/package/mingw-ncurses.nsi	2024-06-21 22:24:47.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.653 2024/06/15 09:33:15 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.654 2024/06/21 22:24:47 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "0615"
++!define VERSION_MMDD  "0622"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20240615+/package/mingw-ncurses.spec	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/package/mingw-ncurses.spec	2024-06-21 22:24:47.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20240615
++Release: 20240622
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20240615+/package/ncurses.spec	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/package/ncurses.spec	2024-06-21 22:24:47.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20240615
++Release: 20240622
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20240615+/package/ncursest.spec	2024-06-15 09:33:15.000000000 +0000
++++ ncurses-6.5-20240622/package/ncursest.spec	2024-06-21 22:24:47.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20240615
++Release: 20240622
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: test/gdc.6
+Prereq:  1.9 
+--- ncurses-6.5-20240615+/test/gdc.6	2024-06-15 15:16:34.000000000 +0000
++++ ncurses-6.5-20240622/test/gdc.6	2024-06-22 21:31:03.000000000 +0000
+@@ -27,7 +27,7 @@
+ .\" authorization.                                                           *
+ .\"***************************************************************************
+ .\"
+-.\" $Id: gdc.6,v 1.9 2024/06/15 15:16:34 tom Exp $
++.\" $Id: gdc.6,v 1.10 2024/06/22 21:31:03 tom Exp $
+ .TH GDC 6 2024-06-15 ncurses-examples Games
+ .ie \n(.g \{\
+ .ds `` \(lq
+@@ -41,42 +41,66 @@
+ .\}
+ .SH NAME
+ gdc \-
+-grand digital clock (curses)
++grand digital clock using
++.I curses
+ .SH SYNOPSIS
+-.B gdc \fP[\fIoptions\fP] [\fIn\fP]
++.B gdc
++.RB [ \-dns ]
++.RB [ \-t
++.IB hh : mm : ss\c
++]
++.RI [ count ]
+ .SH DESCRIPTION
+-.I Gdc
+-runs a digital clock made of reverse-video blanks on a terminal screen.
+-If the terminal supports color,
+-the clock is drawn in red.
+-You can make the clock stop, pause, or resume by pressing a \*(``q\*('',
+-\*(``s\*('' or space, respectively.
++.I gdc
++uses
++.I curses
++to display a clock on the terminal.
++It constructs the digits from reverse-video blank characters.
++If the terminal type supports color,
++the digits are drawn in red.
++Make the clock stop,
++pause,
++or resume by typing \*(``q\*('',
++\*(``s\*('',
++or space,
++respectively.
++.PP
++Given a numeric operand,
++the clock
++stops after
++.I count
++seconds.
++Normally,
++.I gdc
++runs \*(``forever\*(''
++(at least 2 billion seconds).
+ .SH OPTIONS
+ .TP
+ .B \-d
+-use terminal's default colors for the background.
++uses the terminal's default background color.
+ .TP
+ .B \-n
+-redirects input to /dev/null,
+-making it ignore the stop/pause commands.
+-You can still stop it by pressing the interrupt key.
++reads input from
++.IR \%/dev/null ,
++making
++.I gdc
++ignore the stop and pause commands.
++You can still stop it with a terminal interrupt.
+ .TP
+ .B \-s
+-makes digits scroll as they change.
++scrolls the digits up as they change.
+ When running on a fast display,
+-the program breaks up the scrolling into subsecond repaints,
++the program breaks up the scrolling into sub-second redraws,
+ making the operation appear smooth.
+ .TP
+-.B \-t \fIhh:mm:ss\fP
+-specify starting time (default is \*(``now\*('').
+-.PP
+-With an optional numeric argument
+-.I num
+-it stops after
+-.I num
+-seconds.
+-Normally it runs \*(``forever\*('' (counting down from 2 billion seconds).
++.BR \-t \ \c
++.IB hh : mm : ss
++uses the specified time instead of the current time.
+ .SH AUTHORS
+-Amos Shapir, modified for curses by John Lupien.
+-.br
+-Improvements for ncurses by Thomas Dickey.
++Amos Shapir,
++John Lupien
++(modifications for
++.IR curses ),
++Thomas Dickey
++(improvements for
++.IR \%ncurses )
+Index: test/gdc.c
+Prereq:  1.57 
+--- ncurses-6.5-20240615+/test/gdc.c	2022-12-04 00:40:11.000000000 +0000
++++ ncurses-6.5-20240622/test/gdc.c	2024-06-22 22:27:52.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2019-2020,2022 Thomas E. Dickey                                *
++ * Copyright 2019-2022,2024 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -34,7 +34,7 @@
+  * modified 10-18-89 for curses (jrl)
+  * 10-18-89 added signal handling
+  *
+- * $Id: gdc.c,v 1.57 2022/12/04 00:40:11 tom Exp $
++ * $Id: gdc.c,v 1.58 2024/06/22 22:27:52 tom Exp $
+  */
+ 
+ #include <test.priv.h>
+@@ -60,6 +60,7 @@
+ static int sigtermed = 0;
+ static bool redirected = FALSE;
+ static bool hascolor = FALSE;
++static bool hascustomtime = FALSE;
+ 
+ static void
+ sighndl(int signo)
+@@ -154,18 +155,19 @@
+ {
+     static const char *msg[] =
+     {
+-	"Usage: gdc [options] [count]"
++	"usage: gdc [-dns] -[t HH:MM:SS] [COUNT]"
++	,""
++	,"Display a digital clock, running indefinitely or for COUNT"
++	" seconds."
+ 	,""
+ 	,USAGE_COMMON
+ 	,"Options:"
+ #if HAVE_USE_DEFAULT_COLORS
+-	," -d       invoke use_default_colors"
++	," -d           uses the terminal's default background color"
+ #endif
+-	," -n       redirect input to /dev/null"
+-	," -s       scroll each number into place, rather than flipping"
+-	," -t TIME  specify starting time as hh:mm:ss (default is ``now'')"
+-	,""
+-	,"If you specify a count, gdc runs for that number of seconds"
++	," -n           reads input from /dev/null"
++	," -s           scrolls each digit into place"
++	," -t HH:MM:SS  starts clock at specified time"
+     };
+     unsigned j;
+     for (j = 0; j < SIZEOF(msg); j++)
+@@ -247,6 +249,7 @@
+ 	    smooth = TRUE;
+ 	    break;
+ 	case 't':
++	    hascustomtime = TRUE;
+ 	    starts = parse_time(optarg);
+ 	    break;
+ 	case OPTS_VERSION:
+@@ -399,14 +402,16 @@
+ 	    }
+ 	}
+ 
+-	/* this depends on the detailed format of ctime(3) */
+-	_nc_STRNCPY(buf, ctime(&now), (size_t) 30);
+-	{
+-	    char *d2 = buf + 10;
+-	    char *s2 = buf + 19;
+-	    while ((*d2++ = *s2++) != '\0') ;
++	if (!hascustomtime) {
++	    /* this depends on the detailed format of ctime(3) */
++	    _nc_STRNCPY(buf, ctime(&now), (size_t) 30);
++	    {
++		char *d2 = buf + 10;
++		char *s2 = buf + 19;
++		while ((*d2++ = *s2++) != '\0') ;
++	    }
++	    MvAddStr(16, 30, buf);
+ 	}
+-	MvAddStr(16, 30, buf);
+ 
+ 	move(6, 0);
+ 	drawbox(FALSE);

@@ -1,0 +1,2275 @@
+# ncurses 6.5 - patch 20250104 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250104.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Jan  5 01:21:57 UTC 2025
+# ------------------------------------------------------------------------------
+# Ada95/package/debian/copyright        |    4 
+# COPYING                               |    4 
+# NEWS                                  |   14 
+# VERSION                               |    2 
+# dist.mk                               |    6 
+# include/nc_tparm.h                    |    5 
+# man/manlinks.sed                      |   43 +
+# misc/terminfo.src                     |  832 +++++++++++++-------------------
+# ncurses/base/MKlib_gen.sh             |   10 
+# package/debian-mingw/changelog        |    4 
+# package/debian-mingw/copyright        |    4 
+# package/debian-mingw64/changelog      |    4 
+# package/debian-mingw64/copyright      |    4 
+# package/debian/changelog              |    4 
+# package/debian/copyright              |    4 
+# package/mingw-ncurses.nsi             |    6 
+# package/mingw-ncurses.spec            |    2 
+# package/ncurses.spec                  |    2 
+# package/ncursest.spec                 |    2 
+# progs/tput.c                          |  136 ++---
+# test/package/debian-mingw/copyright   |    4 
+# test/package/debian-mingw64/copyright |    4 
+# test/package/debian/copyright         |    4 
+# 23 files changed, 527 insertions(+), 577 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/package/debian/copyright
+--- ncurses-6.5-20241228+/Ada95/package/debian/copyright	2024-01-05 21:16:17.000000000 +0000
++++ ncurses-6.5-20250104/Ada95/package/debian/copyright	2025-01-04 10:55:52.000000000 +0000
+@@ -4,12 +4,12 @@
+ 
+ -------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2023,2024 by Thomas E. Dickey
++Copyright: 2017-2024,2025 by Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+ License: X11
+ 
+ Files: aclocal.m4 package
+-Copyright: 2010-2023,2024 by Thomas E. Dickey
++Copyright: 2010-2024,2025 by Thomas E. Dickey
+ License: X11
+ 
+     Permission is hereby granted, free of charge, to any person obtaining a
+Index: COPYING
+Prereq:  1.13 
+--- ncurses-6.5-20241228+/COPYING	2024-01-05 21:13:17.000000000 +0000
++++ ncurses-6.5-20250104/COPYING	2025-01-04 10:53:46.000000000 +0000
+@@ -1,4 +1,4 @@
+-Copyright 2018-2023,2024 Thomas E. Dickey
++Copyright 2018-2024,2025 Thomas E. Dickey
+ Copyright 1998-2017,2018 Free Software Foundation, Inc.
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a
+@@ -26,4 +26,4 @@
+ authorization.
+ 
+ -- vile:txtmode fc=72
+--- $Id: COPYING,v 1.13 2024/01/05 21:13:17 tom Exp $
++-- $Id: COPYING,v 1.14 2025/01/04 10:53:46 tom Exp $
+Index: NEWS
+Prereq:  1.4220 
+--- ncurses-6.5-20241228+/NEWS	2024-12-29 00:59:43.000000000 +0000
++++ ncurses-6.5-20250104/NEWS	2025-01-05 00:18:47.000000000 +0000
+@@ -1,5 +1,5 @@
+ -------------------------------------------------------------------------------
+--- Copyright 2018-2023,2024 Thomas E. Dickey                                 --
++-- Copyright 2018-2024,2025 Thomas E. Dickey                                 --
+ -- Copyright 1998-2017,2018 Free Software Foundation, Inc.                   --
+ --                                                                           --
+ -- Permission is hereby granted, free of charge, to any person obtaining a   --
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4220 2024/12/29 00:59:43 tom Exp $
++-- $Id: NEWS,v 1.4226 2025/01/05 00:18:47 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,16 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250104
++	+ modify tput to warn about capabilities which expect parameters where
++	  none are given; also repair the feature where multiple capabilities
++	  can be handled on a single line.
++	+ cleanup use-clauses -TD
++	+ add linux+lockeys, xterm+r5+lockeys, xterm+r5+fkeys -TD
++	+ add vt220+ufkeys, vt220+sfkeys
++	+ revert man/manlinks.sed change, which loses aliases (cf: 20241228).
++	+ modify MKlib_gen.c to allow for Solaris's definition of NULL as 0L
++
+ 20241228
+ 	+ correct conditional-compile for a case when the C compiler does not
+ 	  have a bool type.
+Index: VERSION
+--- ncurses-6.5-20241228+/VERSION	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/VERSION	2025-01-04 09:55:25.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20241228
++5:0:10	6.5	20250104
+Index: dist.mk
+Prereq:  1.1647 
+--- ncurses-6.5-20241228+/dist.mk	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/dist.mk	2025-01-04 09:55:25.000000000 +0000
+@@ -1,5 +1,5 @@
+ ##############################################################################
+-# Copyright 2018-2023,2024 Thomas E. Dickey                                  #
++# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1647 2024/12/28 11:24:50 tom Exp $
++# $Id: dist.mk,v 1.1649 2025/01/04 09:55:25 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20241228
++NCURSES_PATCH = 20250104
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: include/nc_tparm.h
+Prereq:  1.12 
+--- ncurses-6.5-20241228+/include/nc_tparm.h	2023-04-16 17:57:28.000000000 +0000
++++ ncurses-6.5-20250104/include/nc_tparm.h	2025-01-04 23:42:30.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2020,2023 Thomas E. Dickey                                *
++ * Copyright 2018-2023,2025 Thomas E. Dickey                                *
+  * Copyright 2006-2012,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -31,7 +31,7 @@
+  *  Author: Thomas E. Dickey                        2006                    *
+  ****************************************************************************/
+ 
+-/* $Id: nc_tparm.h,v 1.12 2023/04/16 17:57:28 tom Exp $ */
++/* $Id: nc_tparm.h,v 1.13 2025/01/04 23:42:30 tom Exp $ */
+ 
+ #ifndef NC_TPARM_included
+ #define NC_TPARM_included 1
+@@ -88,6 +88,7 @@
+ #define TIPARM_7(s,a,b,c,d,e,f,g) _nc_tiparm(7,s,a,b,c,d,e,f,g)
+ #define TIPARM_8(s,a,b,c,d,e,f,g,h) _nc_tiparm(8,s,a,b,c,d,e,f,g,h)
+ #define TIPARM_9(s,a,b,c,d,e,f,g,h,i) _nc_tiparm(9,s,a,b,c,d,e,f,g,h,i)
++#define TIPARM_N(N,s,a,b,c,d,e,f,g,h,i) _nc_tiparm(N,s,a,b,c,d,e,f,g,h,i)
+ #endif
+ 
+ #endif /* NC_TPARM_included */
+Index: man/manlinks.sed
+Prereq:  1.23 
+--- ncurses-6.5-20241228+/man/manlinks.sed	2024-12-28 21:36:50.000000000 +0000
++++ ncurses-6.5-20250104/man/manlinks.sed	2024-12-29 11:34:59.000000000 +0000
+@@ -1,4 +1,4 @@
+-# $Id: manlinks.sed,v 1.23 2024/12/28 21:36:50 Branden.Robinson Exp $
++# $Id: manlinks.sed,v 1.24 2024/12/29 11:34:59 tom Exp $
+ ##############################################################################
+ # Copyright 2020-2023,2024 Thomas E. Dickey                                  #
+ # Copyright 2000-2003,2008 Free Software Foundation, Inc.                    #
+@@ -31,6 +31,9 @@
+ # listed in the "NAME" section, i.e., the names that we would like to use
+ # as aliases for the manpage -T.Dickey
+ #
++# workaround for manpages without a SYNOPSIS
++s/^\.\\"SH/.SH/
++#
+ # eliminate formatting controls that get in the way
+ /^'\\"/d
+ /\.\\"/d
+@@ -72,8 +75,42 @@
+ /g
+ }
+ #
+-# delete remainder of document
+-/^\.SH_([^N]/,${
++# in ".SH SYNOPSIS"
++# For readability, the NAME section may not contain all function names, but we
++# still want to make aliases for those.  Do this by extracting names from the
++# list of function prototypes in the synopsis.
++#
++# Remove any line that does not contain a '(', since we only want functions. 
++# then strip off return-type of each function.
++#
++# Finally, remove the parameter list, which begins with a '('.
++/^\.SH_(SYNOPSIS/,/^\.SH_(DESCRIPTION/{
++/^\.ti/d
++/^[^(]*$/d
++# reduce
++#	.B "int add_wch( const cchar_t *\fIwch\fB );"
++# to
++#	add_wch( const cchar_t *\fIwch\fB );"
++s/^\([^ (]* [^ (]* [*]*\)//g
++s/^\([^ (]* [*]*\)//g
++# trim blanks in case we have
++#	void (*) (FORM *) field_init(const FORM *form);
++s/) (/)(/g
++# reduce stuff like
++#	void (*)(FORM *) field_init(const FORM *form);
++# to
++#	field_init(const FORM *form);
++s/^\(([^)]*)\)\(([^)]*)\)*[ ]*//g
++# rename marker temporarily
++s/\.SH_(/.SH_/
++# kill lines with ");", and trim off beginning of argument list.
++s/[()].*//
++# rename marker back
++s/\.SH_/.SH_(/
++}
++#
++# delete ".SH DESCRIPTION" and following lines
++/^\.SH_(DESCRIPTION/,${
+ d
+ }
+ #
+Index: misc/terminfo.src
+--- ncurses-6.5-20241228+/misc/terminfo.src	2024-12-28 20:42:05.000000000 +0000
++++ ncurses-6.5-20250104/misc/terminfo.src	2025-01-04 21:02:11.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1160 $
+-#	$Date: 2024/12/28 20:42:05 $
++#	$Revision: 1.1163 $
++#	$Date: 2025/01/04 21:02:11 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -927,8 +927,7 @@
+ 	bel=^G, bold=\E[1m, cr=\r, cub1=^H, cud1=\n,
+ 	cup=\E[%i%p1%d;%p2%dH, ech=\E[%p1%dX, el1=\E[1K,
+ 	home=\E[H, hpa=\E[%i%p1%dG, ht=^I, hts=\EH, ind=\n,
+-	kf1=\E[11~, kf10=\E[20~, kf11=\E[21~, kf12=\E[22~,
+-	kf2=\E[12~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~, kf6=\E[16~,
++	kf10=\E[20~, kf11=\E[21~, kf12=\E[22~, kf6=\E[16~,
+ 	kf7=\E[17~, kf8=\E[18~, kf9=\E[19~, khome=\E[1~, kspd=^Z,
+ 	nel=\r\n, op=\E[m, rev=\E[7m, ri=\EM, rmkx=\E[?4l, rmso=\E[m,
+ 	rmul=\E[24m, rs1=\Ec, setb=\E[%p1%{40}%+%cm,
+@@ -937,6 +936,7 @@
+ 	vpa=\E[%i%p1%dd, use=ansi+arrows, use=ansi+csr,
+ 	use=ansi+erase, use=ansi+idc, use=ansi+idl,
+ 	use=ansi+local, use=klone+color, use=vt220+pcedit,
++	use=xterm+r5+fkeys,
+ 
+ #### Linux consoles
+ #
+@@ -975,25 +975,29 @@
+ 	bel=^G, cr=\r, cub1=^H, cud1=\n, cup=\E[%i%p1%d;%p2%dH,
+ 	dim=\E[2m, ech=\E[%p1%dX, el1=\E[1K,
+ 	flash=\E[?5h$<200/>\E[?5l, home=\E[H, hpa=\E[%i%p1%dG,
+-	ht=^I, hts=\EH, ind=\n, kb2=\E[G, kbs=^?, kcbt=\E[Z, kf1=\E[[A,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf2=\E[[B,
+-	kf3=\E[[C, kf4=\E[[D, kf5=\E[[E, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khome=\E[1~, kmous=\E[M, kspd=^Z,
+-	nel=\r\n, ri=\EM, rmam=\E[?7l, rmso=\E[27m, rmul=\E[24m,
+-	rs1=\Ec\E]R,
++	ht=^I, hts=\EH, ind=\n, kb2=\E[G, kbs=^?, kcbt=\E[Z,
++	khome=\E[1~, kmous=\E[M, kspd=^Z, nel=\r\n, ri=\EM,
++	rmam=\E[?7l, rmso=\E[27m, rmul=\E[24m, rs1=\Ec\E]R,
+ 	sgr=\E[0;10%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5
+ 	    %t;2%;%?%p6%t;1%;%?%p9%t;11%;m,
+ 	smam=\E[?7h, tbc=\E[3g, vpa=\E[%i%p1%dd, use=ansi+arrows,
+ 	use=ansi+csr, use=ansi+erase, use=ansi+idc, use=ansi+idl,
+ 	use=ansi+local, use=vt220+pcedit, use=vt102+enq,
+-	use=klone+sgr, use=ecma+color, use=linux+sfkeys,
++	use=klone+sgr, use=ecma+color, use=linux+lockeys,
++	use=linux+sfkeys, use=vt220+ufkeys,
++
++# VT220 uses F1-F5 for "local" manipulation, normally not sending anything to
++# the host.  Rather than adapt the numbering scheme used by xterm, Linux used
++# this arrangement which doubles the "[", making it inconsistent with most
++# terminals having function-keys in the same format as control sequences -TD
++linux+lockeys|Linux "local" keys in vt220 scheme,
++	kf1=\E[[A, kf2=\E[[B, kf3=\E[[C, kf4=\E[[D, kf5=\E[[E,
+ 
+ linux+decid|ncurses extension for Linux console DECID,
+ 	u8=\E[?6c, use=decid+cpr,
+ 
+ linux+sfkeys|shifted function-keys for Linux console,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf20=\E[34~,
++	use=vt220+sfkeys,
+ 
+ linux-m|Linux console no color,
+ 	colors@, pairs@,
+@@ -1146,26 +1150,23 @@
+ #
+ # Note: The status-line support is buggy (dsl does not work).
+ kon|kon2|Kanji ON Linux console,
+-	am, bce, ccc, eo, eslok, hs, mir, msgr, xenl, xon,
++	am, bce, ccc, eo, mir, msgr, xenl, xon,
+ 	it#8, ncv#18,
+ 	bel=^G, civis=\E[?25l, cnorm=\E[?25h, cr=\r, cub1=^H,
+ 	cud1=\n, dim=\E[2m, dsl=\E[?H\E[?E, el1=\E[1K, fsl=\E[?F,
+-	hpa=\E[%i%p1%dG, ht=^I, hts=\EH, ind=\n,
++	ht=^I, hts=\EH, ind=\n,
+ 	initc=\E]P%p1%x%p2%02x%p3%02x%p4%02x, kb2=\E[G, kbs=^?,
+-	kf1=\E[[A, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\E[[B,
+-	kf20=\E[34~, kf3=\E[[C, kf4=\E[[D, kf5=\E[[E, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[1~, kspd=^Z,
+-	nel=\r\n, op=\E[37;40m, ri=\EM, rmso=\E[27m, rmul=\E[24m,
+-	rs1=\Ec,
++	khome=\E[1~, kspd=^Z, nel=\r\n, ri=\EM, rmso=\E[27m,
++	rmul=\E[24m, rs1=\Ec,
+ 	sgr=\E[0;10%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5
+ 	    %t;2%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;11%;m,
+ 	sgr0=\E[0;10m, tbc=\E[3g, tsl=\E[?T, u8=\E[?6c,
+-	vpa=\E[%i%p1%dd, use=ansi+arrows, use=ansi+csr,
+-	use=ansi+cup, use=ansi+enq, use=ansi+erase, use=ansi+idc,
+-	use=ansi+idl, use=ansi+local, use=ansi+sgrbold,
+-	use=ecma+sgr, use=klone+color, use=vt220+pcedit,
++	use=ansi+arrows, use=ansi+csr, use=ansi+cup,
++	use=ansi+enq, use=ansi+erase, use=ansi+idc, use=ansi+idl,
++	use=ansi+local, use=ansi+sgrbold, use=ansi+rca2,
++	use=dec+sl, use=ecma+sgr, use=klone+color,
++	use=linux+lockeys, use=linux+sfkeys, use=vt220+ufkeys,
++	use=vt220+pcedit,
+ 
+ # release: 0.4.7 2005/05
+ #
+@@ -1237,16 +1238,12 @@
+ 	acsc=aajjkkllmmqqttuuxx, bold=\E[1m, clear=\E[H\E[2J,
+ 	cr=\r, cub1=^H, cud1=\n, cup=\E[%i%p1%d;%p2%dH, ed=\E[J,
+ 	el=\E[K, home=\E[H, ind=\n, kb2=\E[G, kbs=^?, kcbt=\E[Z,
+-	kf1=\E[[A, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\E[[B,
+-	kf20=\E[34~, kf3=\E[[C, kf4=\E[[D, kf5=\E[[E, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[1~,
+-	kmous=\E[M, kspd=^Z, nel=\r\n, op=\E[49m\E[39m, rev=\E[7m,
+-	ri=\EM, rmacs=^O, rmso=\E[27m, rmul=\E[24m,
+-	setab=\E[4%p1%dm, setaf=\E[3%p1%dm, sgr0=\E[0m, smacs=^N,
+-	smso=\E[7m, smul=\E[4m, use=ansi+arrows,
+-	use=vt220+pcedit, use=vt220+cvis,
++	khome=\E[1~, kmous=\E[M, kspd=^Z, nel=\r\n,
++	op=\E[49m\E[39m, rev=\E[7m, ri=\EM, rmacs=^O, rmso=\E[27m,
++	rmul=\E[24m, setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
++	sgr0=\E[0m, smacs=^N, smso=\E[7m, smul=\E[4m,
++	use=ansi+arrows, use=linux+lockeys, use=linux+sfkeys,
++	use=vt220+pcedit, use=vt220+cvis, use=vt220+ufkeys,
+ 
+ #### Mach
+ #
+@@ -1327,14 +1324,10 @@
+ 	bel=^G, cbt=\E[Z, clear=\Ec, cr=\r, cub1=^H, cvvis=\E[34l,
+ 	dch=\E[%p1%dP, dch1=\E[P, dim=\E[2m, ech=\E[%p1%dX,
+ 	el1=\E[1K, flash=\Eg, ht=^I, ich=\E[%p1%d@, ind=\E[S,
+-	kb2=\E[G, kbs=^?, kcbt=\E[Z, kf1=\EOP, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf2=\EOQ, kf20=\E[34~, kf3=\EOR, kf4=\EOS,
+-	kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[1~, kmous=\E[M, kspd=^Z, nel=\r\n, op=\E[39;49m,
+-	ri=\E[T, rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
+-	rs1=\EM\E[?1000l,
++	kb2=\E[G, kbs=^?, kcbt=\E[Z, kf1=\EOP, kf2=\EOQ, kf3=\EOR,
++	kf4=\EOS, khome=\E[1~, kmous=\E[M, kspd=^Z, nel=\r\n,
++	op=\E[39;49m, ri=\E[T, rmir=\E[4l, rmso=\E[27m,
++	rmul=\E[24m, rs1=\EM\E[?1000l,
+ 	sgr=\E[0%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5%t;
+ 	    2%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;11%;m,
+ 	smir=\E[4h, grbom=\E[>1l, gsbom=\E[>1h,
+@@ -1342,7 +1335,8 @@
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local,
+ 	use=ansi+rca2, use=ansi+sgrbold, use=vt220+pcedit,
+ 	use=ecma+index, use=ecma+italics, use=klone+acs,
+-	use=klone+color, use=vt220+cvis,
++	use=klone+color, use=linux+sfkeys, use=xterm+r5+fkeys,
++	use=vt220+cvis,
+ 
+ #### QNX
+ #
+@@ -1674,14 +1668,10 @@
+ #		CSI ? 5 h Reverse Video (DECSCNM).
+ #
+ pccon+keys|OpenBSD PC keyboard keys,
+-	kbs=^?, kend=\E[8~, kent=\r, kf1=\E[11~, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf2=\E[12~, kf20=\E[34~, kf21=\E[35~,
+-	kf22=\E[36~, kf23=\E[37~, kf24=\E[38~, kf3=\E[13~,
+-	kf4=\E[14~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~,
+-	kf9=\E[20~, khome=\E[7~, krfr=^R, use=ansi+arrows,
+-	use=vt220+pcedit,
++	kbs=^?, kend=\E[8~, kent=\r, kf21=\E[35~, kf22=\E[36~,
++	kf23=\E[37~, kf24=\E[38~, khome=\E[7~, krfr=^R,
++	use=ansi+arrows, use=vt220+pcedit, use=vt220+sfkeys,
++	use=xterm+r5+fkeys,
+ pccon+sgr+acs0|sgr and simple ASCII pseudographics for OpenBSD PC console,
+ 	acsc=+>\,<-\^.v0#`+a:f\\h#i#j+k+l+m+n+o~p-q-r-s_t+u+v+w+x|y#
+ 	     z#{*|!}#~o,
+@@ -1806,11 +1796,9 @@
+ pcvt25-color|DEC VT220 emulation with 25 lines and color,
+ 	cols#80, lines#25,
+ 	is2=\E[1;25r\E[25;1H, kf1=\EOP, kf10=\E[29~, kf11=\E[23~,
+-	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
+-	kf16=\E[29~, kf17=\E[31~, kf18=\E[32~, kf19=\E[33~,
+-	kf2=\EOQ, kf20=\E[34~, kf3=\EOR, kf4=\EOS, kf5=\E[17~,
++	kf12=\E[24~, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\E[17~,
+ 	kf6=\E[18~, kf7=\E[19~, kf8=\E[20~, kf9=\E[21~, use=pcvtXX,
+-	use=ecma+color,
++	use=ecma+color, use=vt220+sfkeys,
+ 
+ # Terminfo entries to enable the use of the ncurses library in colour on a
+ # NetBSD-arm32 console (only tested on a RiscPC).
+@@ -1884,10 +1872,9 @@
+ wsvt25|NetBSD wscons in 25 line DEC VT220 mode,
+ 	bce,
+ 	colors#8, lines#25, pairs#64,
+-	is2=\E[r\E[25;1H, kdch1=\E[3~, kend=\E[8~, kf1=\E[11~,
+-	kf2=\E[12~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~,
+-	khome=\E[7~, op=\E[m, rs1=\Ec, setab=\E[4%p1%dm,
+-	setaf=\E[3%p1%dm, use=vt220,
++	is2=\E[r\E[25;1H, kdch1=\E[3~, kend=\E[8~, khome=\E[7~,
++	op=\E[m, rs1=\Ec, setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
++	use=xterm+r5+lockeys, use=vt220,
+ 
+ wsvt25m|NetBSD wscons in 25 line DEC VT220 mode with Meta,
+ 	km, use=wsvt25,
+@@ -2198,10 +2185,8 @@
+ 	use=ansi+tabs, use=klone+color,
+ 
+ teken-vt+fkeys|teken's xterm special keys,
+-	kend=\E[F, kf1=\EOP, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\E[15~, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[H,
+-	use=vt220+pcedit,
++	kend=\E[F, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
++	khome=\E[H, use=vt220+pcedit, use=xterm+r5+fkeys,
+ 
+ teken-sc+fkeys|teken's syscons special keys,
+ 	kdch1=^?, kend=\E[F, kf1=\E[M, kf10=\E[V, kf11=\E[W,
+@@ -2708,20 +2693,19 @@
+ 	enacs=\E)0, flash=\E[?5h$<200/>\E[?5l, ht=^I, hts=\EH,
+ 	ich=\E[%p1%d@, if=/usr/share/tabset/vt100, ind=\ED,
+ 	is2=\E[?7h\E[>\E[?1l\E F\E[?4l, kbs=^H, kcub1=\E[D,
+-	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\EOQ,
+-	kf20=\E[34~, kf3=\EOR, kf4=\EOS, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khlp=\E[28~, krdo=\E[29~, lf1=pf1,
+-	lf2=pf2, lf3=pf3, lf4=pf4, nel=\EE, rev=\E[7m, ri=\EM,
+-	rmacs=\E(B$<4>, rmam=\E[?7l, rmir=\E[4l, rmso=\E[27m,
+-	rmul=\E[24m, rs1=\E[?3l,
++	kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A, kf1=\EOP, kf13=\E[25~,
++	kf14=\E[26~, kf17=\E[31~, kf18=\E[32~, kf19=\E[33~,
++	kf2=\EOQ, kf20=\E[34~, kf3=\EOR, kf4=\EOS, khlp=\E[28~,
++	krdo=\E[29~, lf1=pf1, lf2=pf2, lf3=pf3, lf4=pf4, nel=\EE,
++	rev=\E[7m, ri=\EM, rmacs=\E(B$<4>, rmam=\E[?7l, rmir=\E[4l,
++	rmso=\E[27m, rmul=\E[24m, rs1=\E[?3l,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;m%?
+ 	    %p9%t\E(0%e\E(B%;$<2>,
+ 	sgr0=\E[m\E(B, smacs=\E(0$<2>, smam=\E[?7h, smir=\E[4h,
+ 	smso=\E[7m, smul=\E[4m, tbc=\E[3g, use=ansi+csr,
+ 	use=ansi+cup, use=ansi+pp, use=ansi+enq, use=ansi+erase,
+ 	use=ansi+idl, use=ansi+local, use=vt220+vtedit,
++	use=vt220+ufkeys,
+ 
+ vt220|vt200|DEC VT220,
+ 	use=vt220+cvis, use=vt220-base,
+@@ -2766,10 +2750,17 @@
+ # See vt220 for an alternate mapping.
+ #
+ vt220d|DEC VT220 in VT100 mode with DEC function key labeling,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf17=\E[31~,
+-	kf18=\E[32~, kf19=\E[33~, kf20=\E[34~, kf5@, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, use=vt220-old,
++	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf5@, kf6=\E[17~,
++	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, use=vt220+sfkeys,
++	use=vt220-old,
++
++# These are often mapped to unshifted/shifted keys on PC-keyboards -TD
++vt220+ufkeys|first 8 function-keys for VT220,
++	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf5@, kf6=\E[17~,
++	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++vt220+sfkeys|second 8 function-keys for VT220,
++	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
++	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf20=\E[34~,
+ 
+ vt220-nam|v200-nam|VT220 in VT100 mode with no auto margins,
+ 	am@,
+@@ -2836,27 +2827,23 @@
+ 	cols#80, lines#24, wsl#80,
+ 	acsc=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+ 	bel=^G, blink=\E[5m, bold=\E[1m, clear=\E[H\E[2J, cr=\r,
+-	cub1=^H, cud1=\n, cup=\E[%i%p1%d;%p2%dH, dch=\E[%p1%dP,
+-	dch1=\E[P, ech=\E[%p1%dX, ed=\E[J, el=\E[K, el1=\E[1K,
+-	home=\E[H, ht=^I, hts=\EH, ich=\E[%p1%d@, ind=\ED,
++	cub1=^H, cud1=\n, dch=\E[%p1%dP, dch1=\E[P, ech=\E[%p1%dX,
++	el1=\E[1K, ht=^I, hts=\EH, ich=\E[%p1%d@, ind=\ED,
+ 	is2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r\E[24;1H,
+-	kbs=^?, kdch1=\E[3~, kel=\E[4~, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
+-	kf16=\E[29~, kf17=\E[31~, kf18=\E[32~, kf19=\E[33~,
+-	kf20=\E[34~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~,
+-	kf9=\E[20~, khome=\E[1~, kich1=\E[2~, knp=\E[6~, knxt=^I,
+-	kpp=\E[5~, kprv=\E[Z, kslt=\E[4~, nel=\EE, rev=\E[7m,
++	kbs=^?, kdch1=\E[3~, kel=\E[4~, kf12=\E[24~, khome=\E[1~,
++	kich1=\E[2~, knp=\E[6~, knxt=^I, kpp=\E[5~, kprv=\E[Z,
++	kslt=\E[4~, nel=\EE, rev=\E[7m,
+ 	rf=/usr/share/tabset/vt300, ri=\EM, rmacs=\E(B,
+-	rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[m,
+-	rmul=\E[m,
++	rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>,
+ 	rs2=\E>\E[?3l\E[?4l\E[?5l\E[?7h\E[?8h\E[1;24r\E[24;1H,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;m%?
+ 	    %p9%t\E(0%e\E(B%;$<2>,
+ 	sgr0=\E[m\E(B, smacs=\E(0, smam=\E[?7h, smir=\E[4h,
+-	smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m, tbc=\E[3g,
+-	use=ansi+apparrows, use=ansi+csr, use=ansi+enq,
+-	use=ansi+idl, use=ansi+local, use=dec+pp, use=vt220+cvis,
+-	use=vt220+keypad, use=dec+sl,
++	smkx=\E[?1h\E=, tbc=\E[3g, use=ansi+apparrows,
++	use=ansi+csr, use=ansi+cup, use=ansi+enq, use=ansi+erase,
++	use=ansi+idl, use=ansi+local, use=ansi+sgrso,
++	use=ansi+sgrul, use=dec+pp, use=dec+sl, use=vt220+cvis,
++	use=vt220+keypad, use=vt220+sfkeys, use=vt220+ufkeys,
+ 
+ vt320-nam|vt300-nam|DEC VT320 7 bit terminal with no am to make SAS happy,
+ 	am@,
+@@ -3015,24 +3002,24 @@
+ # application has to know it.
+ #
+ vt420pc|DEC VT420 w/PC keyboard,
+-	kdch1=^?, kend=\E[4~, kf1=\E[11~, kf10=\E[21~, kf11=\E[23~,
++	kdch1=^?, kend=\E[4~, kf10=\E[21~, kf11=\E[23~,
+ 	kf12=\E[24~, kf13=\E[11;2~, kf14=\E[12;2~, kf15=\E[13;2~,
+ 	kf16=\E[14;2~, kf17=\E[15;2~, kf18=\E[17;2~,
+-	kf19=\E[18;2~, kf2=\E[12~, kf20=\E[19;2~, kf21=\E[20;2~,
++	kf19=\E[18;2~, kf20=\E[19;2~, kf21=\E[20;2~,
+ 	kf22=\E[21;2~, kf23=\E[23;2~, kf24=\E[24;2~, kf25=\E[23~,
+ 	kf26=\E[24~, kf27=\E[25~, kf28=\E[26~, kf29=\E[28~,
+-	kf3=\E[13~, kf30=\E[29~, kf31=\E[31~, kf32=\E[32~,
+-	kf33=\E[33~, kf34=\E[34~, kf35=\E[35~, kf36=\E[36~,
+-	kf37=\E[23;2~, kf38=\E[24;2~, kf39=\E[25;2~, kf4=\E[14~,
+-	kf40=\E[26;2~, kf41=\E[28;2~, kf42=\E[29;2~,
+-	kf43=\E[31;2~, kf44=\E[32;2~, kf45=\E[33;2~,
+-	kf46=\E[34;2~, kf47=\E[35;2~, kf48=\E[36;2~, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[H,
++	kf30=\E[29~, kf31=\E[31~, kf32=\E[32~, kf33=\E[33~,
++	kf34=\E[34~, kf35=\E[35~, kf36=\E[36~, kf37=\E[23;2~,
++	kf38=\E[24;2~, kf39=\E[25;2~, kf40=\E[26;2~,
++	kf41=\E[28;2~, kf42=\E[29;2~, kf43=\E[31;2~,
++	kf44=\E[32;2~, kf45=\E[33;2~, kf46=\E[34;2~,
++	kf47=\E[35;2~, kf48=\E[36;2~, kf6=\E[17~, kf7=\E[18~,
++	kf8=\E[19~, kf9=\E[20~, khome=\E[H,
+ 	pctrm=USR_TERM:vt420pcdos:,
+ 	pfx=\EP1;1|%?%{16}%p1%>%t%{0}%e%{21}%p1%>%t%{1}%e%{25}%p1%>
+ 	    %t%{2}%e%{27}%p1%>%t%{3}%e%{30}%p1%>%t%{4}%e%{5}%;%p1%+
+ 	    %d/%p2%s\E\\,
+-	use=vt420,
++	use=xterm+r5+lockeys, use=vt420,
+ 
+ vt420pcdos|DEC VT420 w/PC for DOS Merge,
+ 	lines#25,
+@@ -3043,12 +3030,8 @@
+ 	sgr0=\E[m, smsc=\E[?1;2r\E[34h, use=vt420pc,
+ 
+ vt420f|DEC VT420 with VT kbd; VT400 mode; F1-F5 used as Fkeys,
+-	kdch1=^?, kf1=\E[11~, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
+-	kf16=\E[29~, kf17=\E[31~, kf18=\E[32~, kf19=\E[33~,
+-	kf2=\E[12~, kf20=\E[34~, kf3=\E[13~, kf4=\E[14~,
+-	kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[H, lf1=\EOP, lf2=\EOQ, lf3=\EOR, lf4=\EOS,
++	kdch1=^?, kf10=\E[21~, khome=\E[H, lf1=\EOP, lf2=\EOQ,
++	lf3=\EOR, lf4=\EOS, use=vt220+sfkeys, use=xterm+r5+fkeys,
+ 	use=vt420,
+ 
+ vt510|DEC VT510,
+@@ -3456,13 +3439,11 @@
+ nsterm-16color|AppKit Terminal.app v240.2+ with Mac OS X version 10.5,
+ 	bw@, mir, npc,
+ 	flash=\E[?5h$<200/>\E[?5l, hpa=\E[%i%p1%dG,
+-	kdch1=\E[3~, kend=\E[F, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
+-	kf16=\E[29~, kf17=\E[31~, kf18=\E[22~, kf19=\E[33~,
+-	kf20=\E[34~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khome=\E[H, knp=\E[6~, kpp=\E[5~,
+-	vpa=\E[%i%p1%dd, kLFT5=\E[5D, kRIT5=\E[5C, use=ansi+idc,
+-	use=xterm+alt47, use=nsterm-c-s-acs, use=vt220+cvis,
++	kdch1=\E[3~, kend=\E[F, kf18=\E[22~, kf5=\E[15~,
++	khome=\E[H, knp=\E[6~, kpp=\E[5~, vpa=\E[%i%p1%dd,
++	kLFT5=\E[5D, kRIT5=\E[5C, use=ansi+idc, use=vt220+cvis,
++	use=vt220+sfkeys, use=vt220+ufkeys, use=xterm+alt47,
++	use=nsterm-c-s-acs,
+ 
+ # The versions of Terminal.app in Mac OS X version 10.3.x seem to have
+ # the background color erase feature. The newer version 240.2 in Mac OS X
+@@ -3636,9 +3617,7 @@
+ 	cup=\E[%i%p1%d;%p2%dH, el1=\E[1K,
+ 	flash=\E[?5h$<200/>\E[?5l, hpa=\E[%i%p1%dG,
+ 	kLFT=\E[1;2D, kRIT=\E[1;2C, kbs=^?, kcbt=\E[Z, kdch1=\E[3~,
+-	kend=\EOF, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	knp=\E[6~, kpp=\E[5~, op=\E[0m, rev=\E[7m, ri=\EM,
++	kend=\EOF, knp=\E[6~, kpp=\E[5~, op=\E[0m, rev=\E[7m, ri=\EM,
+ 	rmam=\E[?7l, rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;m%?
+ 	    %p9%t\016%e\017%;,
+@@ -3647,8 +3626,9 @@
+ 	kHOM5=\E[1;5H, use=ansi+apparrows, use=ansi+csr,
+ 	use=ansi+enq, use=ansi+erase, use=ansi+idc, use=ansi+idl,
+ 	use=ansi+local, use=vt100+4bsd, use=vt100+keypad,
+-	use=vt100+pfkeys, use=xterm+alt47, use=xterm+sl-twm,
+-	use=xterm+x11mouse, use=xterm+256setaf, use=vt220+cvis,
++	use=vt100+pfkeys, use=xterm+r5+fkeys, use=xterm+alt47,
++	use=xterm+sl-twm, use=xterm+x11mouse,
++	use=xterm+256setaf, use=vt220+cvis,
+ 
+ # iTerm2
+ #
+@@ -4276,11 +4256,7 @@
+ 	use=putty+fnkeys+esc,
+ 
+ putty+fnkeys+esc|ESC[n~ fn-keys for PuTTY,
+-	kf1=\E[11~, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\E[12~,
+-	kf20=\E[34~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++	use=vt220+sfkeys, use=xterm+r5+fkeys,
+ 
+ putty+fnkeys+linux|Linux fn-keys for PuTTY,
+ 	kf1=\E[[A, kf2=\E[[B, kf3=\E[[C, kf4=\E[[D, kf5=\E[[E,
+@@ -4435,16 +4411,14 @@
+ 	blink=\E[5m, bold=\E[1m, clear=\E[H\E[J, cuf1=\E[C,
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\E[A, dch=\E[%p1%dP,
+ 	dch1=\E[P, ech=\E[%p1%dX, ed=\E[J, el=\E[K, el1=\E[1K,
+-	flash=\E[?5h$<200/>\E[?5l, hpa=\E[%i%p1%dG, kf1=\E[11~,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf17=\E[31~,
+-	kf18=\E[32~, kf19=\E[33~, kf2=\E[12~, kf20=\E[34~,
+-	kf3=\E[13~, kf4=\E[14~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, op=\E[100m, rev=\E[7m, ri=\EM,
+-	rmso=\E[27m, rmul=\E[24m, sgr0=\E[0m\017, smso=\E[7m,
+-	smul=\E[4m, vpa=\E[%i%p1%dd, use=ansi+idl,
+-	use=vt220+vtedit, use=vt100+enq, use=klone+color,
+-	use=vt100, use=vt220+cvis,
++	flash=\E[?5h$<200/>\E[?5l, hpa=\E[%i%p1%dG,
++	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf6=\E[17~,
++	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, op=\E[100m, rev=\E[7m,
++	ri=\EM, rmso=\E[27m, rmul=\E[24m, sgr0=\E[0m\017,
++	smso=\E[7m, smul=\E[4m, vpa=\E[%i%p1%dd,
++	use=xterm+r5+lockeys, use=ansi+idl, use=vt220+vtedit,
++	use=vt100+enq, use=klone+color, use=vt100,
++	use=vt220+cvis, use=vt220+sfkeys,
+ 
+ # Version 4.59 has regular VT100 line-drawing (so it is no longer necessary
+ # to choose a Windows OEM font).
+@@ -4882,18 +4856,23 @@
+ 	bel=^G, bold=\E[1m, clear=\E[H\E[2J, cr=\r, cub1=^H, cud1=\n,
+ 	cup=\E[%i%p1%d;%p2%dH, ed=\E[J, el=\E[K, home=\E[H, ht=^I,
+ 	hts=\EH, ind=\n, kdl1=\E[31~, kel=\E[8~, kf0=\EOq,
+-	kf1=\E[11~, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf2=\E[12~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[1~,
+-	kil1=\E[30~, kmous=\E[M, rev=\E[7m, ri=\EM, rmkx=\E[?1l\E>,
+-	rmso=\E[m, rmul=\E[m,
++	khome=\E[1~, kil1=\E[30~, kmous=\E[M, rev=\E[7m, ri=\EM,
++	rmkx=\E[?1l\E>, rmso=\E[m, rmul=\E[m,
+ 	rs2=\E>\E[?1;3;4;5;6l\E[4l\E[?7h\E[m\E[r\E[2J\E[H,
+ 	sgr=\E[%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1
+ 	    %;m,
+ 	sgr0=\E[m, smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m,
+ 	tbc=\E[3g, use=xterm+kbs, use=ansi+apparrows,
+ 	use=ansi+csr, use=ansi+idc, use=ansi+idl, use=ansi+local,
+-	use=vt220+pcedit, use=vt100+enq,
++	use=vt220+pcedit, use=vt100+enq, use=xterm+r5+fkeys,
++
++# X11R5 used function-keys based on, but different from VT220, assigning keys
++# F1-R5 (unlike VT220), and limiting to F12 (perhaps influenced by other
++# keyboards).
++xterm+r5+fkeys|VT220-like function keys in X11R5 xterm,
++	use=xterm+r5+lockeys, use=vt220+ufkeys,
++xterm+r5+lockeys|XTerm "local" keys in vt220 scheme,
++	kf1=\E[11~, kf2=\E[12~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~,
+ 
+ # Compatible with the R6 xterm
+ # (from XFree86 3.2 distribution, <acsc> and <it> added, <blink@> removed)
+@@ -4907,19 +4886,16 @@
+ 	bel=^G, bold=\E[1m, clear=\E[H\E[2J, cr=\r, cub1=^H, cud1=\n,
+ 	dch=\E[%p1%dP, dch1=\E[P, enacs=\E)0, ht=^I, hts=\EH, ind=\n,
+ 	is2=\E[m\E[?7h\E[4l\E>\E7\E[r\E[?1;3;4;6l\E8,
+-	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kf1=\E[11~,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf17=\E[31~,
+-	kf18=\E[32~, kf19=\E[33~, kf2=\E[12~, kf20=\E[34~,
+-	kf3=\E[13~, kf4=\E[14~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, kmous=\E[M, meml=\El, memu=\Em,
+-	rev=\E[7m, ri=\EM, rmacs=^O, rmir=\E[4l, rmkx=\E[?1l\E>,
++	kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA, kmous=\E[M,
++	meml=\El, memu=\Em, rev=\E[7m, ri=\EM, rmacs=^O, rmir=\E[4l,
++	rmkx=\E[?1l\E>,
+ 	rs2=\E[m\E[?7h\E[4l\E>\E7\E[r\E[?1;3;4;6l\E8,
+ 	sgr0=\E[m, smacs=^N, smir=\E[4h, smkx=\E[?1h\E=, tbc=\E[3g,
+ 	use=xterm+alt47, use=ansi+csr, use=ansi+cup,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local,
+ 	use=ansi+sgrso, use=ansi+sgrul, use=vt220+vtedit,
+-	use=xterm+kbs, use=vt100+enq,
++	use=xterm+kbs, use=vt100+enq, use=vt220+sfkeys,
++	use=xterm+r5+fkeys,
+ 
+ xterm-old|antique xterm version,
+ 	use=xterm-r6,
+@@ -4943,14 +4919,10 @@
+ 	el1=\E[1K, enacs=\E(B\E)0, flash=\E[?5h$<100/>\E[?5l,
+ 	home=\E[H, hpa=\E[%i%p1%dG, ind=\n,
+ 	is2=\E7\E[r\E[m\E[?7h\E[?1;3;4;6l\E[4l\E8\E>,
+-	kbeg=\EOE, kbs=^?, kdch1=^?, kend=\EOF, kf1=\E[11~,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf17=\E[31~,
+-	kf18=\E[32~, kf19=\E[33~, kf2=\E[12~, kf20=\E[34~,
+-	kf3=\E[13~, kf4=\E[14~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, kfnd=\E[1~, kmous=\E[M, kslt=\E[4~,
+-	meml=\El, memu=\Em, rev=\E[7m, ri=\EM, rmacs=^O, rmam=\E[?7l,
+-	rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m, rs1=^O,
++	kbeg=\EOE, kbs=^?, kdch1=^?, kend=\EOF, kfnd=\E[1~,
++	kmous=\E[M, kslt=\E[4~, meml=\El, memu=\Em, rev=\E[7m,
++	ri=\EM, rmacs=^O, rmam=\E[?7l, rmkx=\E[?1l\E>, rmso=\E[27m,
++	rmul=\E[24m, rs1=^O,
+ 	rs2=\E7\E[r\E8\E[m\E[?7h\E[?1;3;4;6l\E[4l\E>,
+ 	setb=\E[4%?%p1%{1}%=%t4%e%p1%{3}%=%t6%e%p1%{4}%=%t1%e%p1%{6}
+ 	     %=%t3%e%p1%d%;m,
+@@ -4963,8 +4935,8 @@
+ 	use=ansi+apparrows, use=ansi+csr, use=ansi+idc,
+ 	use=ansi+idl, use=ansi+inittabs, use=ansi+local,
+ 	use=xterm+alt47, use=xterm+kbs, use=vt100+enq,
+-	use=ecma+color, use=vt220+cvis, use=vt220+keypad,
+-	use=vt220+pcedit,
++	use=xterm+r5+fkeys, use=ecma+color, use=vt220+cvis,
++	use=vt220+keypad, use=vt220+pcedit, use=vt220+sfkeys,
+ 
+ # This is the stock xterm entry supplied with XFree86 3.3, which uses VT100
+ # codes for F1-F4 except while in VT220 mode.
+@@ -5095,17 +5067,13 @@
+ # kf21 control f1       = \E[42~
+ # kf31 shift control f1 = \E[52~
+ xterm+nopcfkeys|fragment without PC-style fkeys,
+-	kf1=\E[11~, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\E[12~,
+-	kf20=\E[34~, kf21=\E[42~, kf22=\E[43~, kf23=\E[44~,
+-	kf24=\E[45~, kf25=\E[46~, kf26=\E[47~, kf27=\E[48~,
+-	kf28=\E[49~, kf29=\E[50~, kf3=\E[13~, kf30=\E[51~,
+-	kf31=\E[52~, kf32=\E[53~, kf33=\E[54~, kf34=\E[55~,
+-	kf35=\E[56~, kf36=\E[57~, kf37=\E[58~, kf38=\E[59~,
+-	kf39=\E[60~, kf4=\E[14~, kf40=\E[61~, kf41=\E[62~,
+-	kf42=\E[63~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~,
++	kf21=\E[42~, kf22=\E[43~, kf23=\E[44~, kf24=\E[45~,
++	kf25=\E[46~, kf26=\E[47~, kf27=\E[48~, kf28=\E[49~,
++	kf29=\E[50~, kf30=\E[51~, kf31=\E[52~, kf32=\E[53~,
++	kf33=\E[54~, kf34=\E[55~, kf35=\E[56~, kf36=\E[57~,
++	kf37=\E[58~, kf38=\E[59~, kf39=\E[60~, kf40=\E[61~,
++	kf41=\E[62~, kf42=\E[63~, use=vt220+sfkeys,
++	use=xterm+r5+fkeys,
+ 
+ vt100+noapp|fragment with cursor keys in normal mode,
+ 	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+@@ -5250,8 +5218,7 @@
+ 	use=xterm+pc+edit, use=vt220+pcedit,
+ 
+ xterm+decedit|fragment for vt220 6-key editing-keypad,
+-	kdch1=\E[3~, kich1=\E[2~, knp=\E[6~, kpp=\E[5~,
+-	use=xterm+vt+edit,
++	use=vt220+vtedit, use=xterm+vt+edit,
+ 
+ xterm+pc+edit|fragment for pc-style editing keypad,
+ 	kend=\E[4~, khome=\E[1~,
+@@ -5699,14 +5666,11 @@
+ #
+ xterm-vt220|xterm emulating VT220,
+ 	npc,
+-	kcbt=\E[Z, kend=\E[4~, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
+-	kf16=\E[29~, kf17=\E[31~, kf18=\E[32~, kf19=\E[33~,
+-	kf20=\E[34~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khome=\E[1~, kmous=\E[M, nel=\EE,
++	kcbt=\E[Z, kend=\E[4~, khome=\E[1~, kmous=\E[M, nel=\EE,
+ 	use=xterm+app, use=xterm+edit, use=vt220+keypad,
+ 	use=ecma+italics, use=ecma+index, use=ansi+rep,
+-	use=ecma+strikeout, use=xterm+focus, use=xterm+sm+1006,
++	use=ecma+strikeout, use=vt220+sfkeys,
++	use=xterm+r5+fkeys, use=xterm+focus, use=xterm+sm+1006,
+ 	use=xterm+tmux, use=xterm+keypad, use=xterm-basic,
+ 
+ xterm-vt52|xterm emulating DEC VT52,
+@@ -6090,20 +6054,18 @@
+ 	cup=\E[%i%p1%d;%p2%dH, dch=\E[%p1%dP, dch1=\E[P, ed=\E[J,
+ 	el=\E[K, el1=\E[1K, enacs=\E(B\E)0, home=\E[H, ht=^I,
+ 	ich=\E[%p1%d@, ind=\n, is1=\E[r\E[m\E[?7h\E[?4;6l\E[4l,
+-	kend=\E[8~, kf1=\E[11~, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf2=\E[12~, kf3=\E[13~, kf4=\E[14~,
+-	kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[7~, kich1=\E[2~, kmous=\E[M, knp=\E[6~, kpp=\E[5~,
+-	rev=\E[7m, ri=\EM, rmacs=^O, rmam=\E[?7l,
+-	rmcup=\E>\E[?41;1r, rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
++	kend=\E[8~, khome=\E[7~, kich1=\E[2~, kmous=\E[M,
++	knp=\E[6~, kpp=\E[5~, rev=\E[7m, ri=\EM, rmacs=^O,
++	rmam=\E[?7l, rmcup=\E>\E[?41;1r, rmir=\E[4l, rmso=\E[27m,
++	rmul=\E[24m,
+ 	rs1=\E(B\017\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l\E<,
+ 	sgr=\E[0%?%p1%p6%|%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5
+ 	    %;m%?%p9%t\016%e\017%;,
+ 	sgr0=\E[0m\017, smacs=^N, smam=\E[?7h,
+ 	smcup=\E[?1;41s\E[?1;41h\E=, smir=\E[4h, smso=\E[7m,
+-	smul=\E[4m, use=ansi+apparrows, use=ansi+csr,
+-	use=ansi+idl, use=ansi+local, use=decid+cpr,
+-	use=ecma+color, use=vt220+keypad,
++	smul=\E[4m, use=xterm+r5+fkeys, use=ansi+apparrows,
++	use=ansi+csr, use=ansi+idl, use=ansi+local,
++	use=decid+cpr, use=ecma+color, use=vt220+keypad,
+ 
+ # The IRAF source has a terminfo using "xterm-r5", but line-drawing does not
+ # work in that case.  This entry uses xterm+acs, to work around that problem.
+@@ -6620,11 +6582,10 @@
+ # it is still useful for deriving the other entries, since the developer
+ # provided function-keys based on xterm.
+ konsole-vt100|KDE console window with VT100 (sic) keyboard,
+-	kend=\E[F, kf1=\E[11~, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf13@, kf14@, kf15@, kf16@, kf17@, kf18@, kf19@,
+-	kf2=\E[12~, kf20@, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[H,
+-	use=konsole-base,
++	kend=\E[F, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13@,
++	kf14@, kf15@, kf16@, kf17@, kf18@, kf19@, kf20@, kf6=\E[17~,
++	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[H,
++	use=xterm+r5+lockeys, use=konsole-base,
+ 
+ # Obsolete: vt420pc.keytab was added in June 2000, dropped from the install in
+ # September 2008 and removed in June 2016.  The developer who removed it stated
+@@ -7271,21 +7232,17 @@
+ 	dim=\E[2m, ech=\E[%p1%dX, enacs=\E(B\E)0, home=\E[H,
+ 	hpa=\E[%i%p1%d`, ht=^I, ich1=, ind=\E[S, is2=\E)0\E[r\017,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf1=\E[11~, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\E[12~,
+-	kf20=\E[34~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, nel=\EE,
+-	op=\E[0m, ri=\E[T, rmacs=^O, rmam=\E[?7l, rmkx=\E[?1l\E>,
+-	rmso=\E[27m, rmul=\E[24m, setab=\E[4%p1%dm,
+-	setaf=\E[3%p1%dm,
++	nel=\EE, op=\E[0m, ri=\E[T, rmacs=^O, rmam=\E[?7l,
++	rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m,
++	setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;%?
+ 	    %p5%t;2%;%?%p7%t;8%;m%?%p9%t\016%e\017%;,
+ 	sgr0=\E[m\017, smacs=^N, smam=\E[?7h, smkx=\E[?1h\E=,
+ 	vpa=\E[%i%p1%dd, use=ansi+cpr, use=ansi+csr,
+ 	use=ansi+erase, use=ansi+idc1, use=ansi+idl,
+ 	use=ansi+local, use=ansi+sgrbold, use=vt220+vtedit,
+-	use=ecma+index, use=vt220+cvis,
++	use=ecma+index, use=vt220+cvis, use=vt220+sfkeys,
++	use=xterm+r5+fkeys,
+ 
+ #### VWM
+ # http://vwm.sourceforge.net/
+@@ -7300,9 +7257,7 @@
+ 	bel=^G, bold=\E[1m, cr=\r, cub1=^H, cup=\E[%i%p1%d;%p2%dH,
+ 	cvvis=\E[?25h, dim=\E[2m, home=\E[H, il1=\E[L, ind=\n,
+ 	kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kdch1=\E[3~, kend=\E[4~, kf1=\E[[A, kf10=\E[21~,
+-	kf11=\E[22~, kf12=\E[23~, kf2=\E[[B, kf3=\E[[C, kf4=\E[[D,
+-	kf5=\E[[E, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++	kdch1=\E[3~, kend=\E[4~, kf11=\E[22~, kf12=\E[23~,
+ 	khome=\E[1~, knp=\E[6~, kpp=\E[5~, rmacs=\E[10m,
+ 	rmam=\E[?7l, rs1=\E[H\E[J\E[m\Ec, setab=\E[4%p1%dm,
+ 	setaf=\E[3%p1%dm,
+@@ -7310,7 +7265,8 @@
+ 	    %t;2%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;11%;m,
+ 	sgr0=\E[0;10m, smacs=\E[11m, smam=\E[?7h, smso=\E[3m,
+ 	smul=\E[4m, use=ansi+erase, use=ansi+local, use=ansi+sgr,
+-	use=vt220+cvis, use=xterm+alt1049,
++	use=linux+lockeys, use=vt220+cvis, use=vt220+ufkeys,
++	use=xterm+alt1049,
+ 
+ #### MGR
+ #
+@@ -7341,10 +7297,8 @@
+ 	kopn=\E[198z, kpp=\E[216z, kund=\E[195z, use=mgr,
+ mgr-linux|Mgr window with Linux keyboard,
+ 	ka1=\E[H, ka3=\E[5~, kb2=\E[G, kc1=\E[Y, kc3=\E[6~,
+-	kdch1=\E[3~, kend=\E[4~, kf0=\E[[J, kf1=\E[[A, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf2=\E[[B, kf3=\E[[C, kf4=\E[[D,
+-	kf5=\E[[E, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[1~, knp=\E[6~, kpp=\E[5~, use=mgr,
++	kdch1=\E[3~, kend=\E[4~, kf0=\E[[J, khome=\E[1~, knp=\E[6~,
++	kpp=\E[5~, use=linux+lockeys, use=vt220+ufkeys, use=mgr,
+ 
+ #### SIMPLETERM
+ # st.suckless.org
+@@ -7479,16 +7433,15 @@
+ 	cup=\E[%i%p1%d;%p2%dH, cuu=\E[%p1%dA, cuu1=\E[A,
+ 	dch1=\E[P, ed=\E[J, el=\E[K, home=\E[H, hpa=\E[%i%p1%dG,
+ 	ht=^I, ich=\E[%p1%d@, ind=\n, kbs=^?, kdch1=\E[3~,
+-	kend=\E[4~, kf1=\EOP, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++	kend=\E[4~, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+ 	khome=\E[1~, knp=\E[6~, kpp=\E[5~, rev=\E[7m, rmso=\E[m,
+ 	rmul=\E[m,
+ 	sgr=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|
+ 	    %t;7%;m,
+ 	sgr0=\E[0m, smso=\E[7m, smul=\E[4m, use=ansi+arrows,
+ 	use=ansi+csr, use=ansi+idl, use=vt220+cvis,
+-	use=ecma+index, use=klone+color, use=xterm+acs,
++	use=ecma+index, use=klone+color, use=xterm+r5+fkeys,
++	use=xterm+acs,
+ 
+ st-16color|stterm-16color|simpleterm with 16-colors,
+ 	use=ibm+16color, use=st,
+@@ -7585,20 +7538,20 @@
+ 	flash=^G, home=\E[H, hpa=\E[%i%p1%dG, ht=^I, hts=\EH, ind=\n,
+ 	is1=\E[?47l\E=\E[?1l,
+ 	is2=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l, kbs=^?,
+-	kf1=\EOP, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\E[15~, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khome=\E[1~, rev=\E[7m,
+-	ri=\EM, rmacs=\E(B, rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
+-	rs1=\Ec, rs2=\E[!p\E[?3;4l\E[4l\E>, s0ds=\E(B, s1ds=\E(0,
++	kf1=\EOP, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
++	kf16=\E[29~, kf2=\EOQ, kf3=\EOR, kf4=\EOS, khome=\E[1~,
++	rev=\E[7m, ri=\EM, rmacs=\E(B, rmir=\E[4l, rmso=\E[27m,
++	rmul=\E[24m, rs1=\Ec, rs2=\E[!p\E[?3;4l\E[4l\E>,
++	s0ds=\E(B, s1ds=\E(0,
+ 	sgr=\E[0%?%p1%p6%|%t;1%;%?%p2%t;4%;%?%p5%t;2%;%?%p1%p3%|%t;7
+ 	    %;m%?%p9%t\E(0%e\E(B%;,
+ 	sgr0=\E[m\E(B, smacs=\E(0, smir=\E[4h, smso=\E[7m,
+ 	smul=\E[4m, tbc=\E[3g, vpa=\E[%i%p1%dd, use=ansi+arrows,
+ 	use=ansi+csr, use=ansi+enq, use=ansi+idl, use=ansi+local,
+-	use=vt220+pcedit, use=ecma+italics, use=ecma+index,
++	use=bracketed+paste, use=ecma+italics, use=ecma+index,
++	use=vt220+cvis, use=vt220+pcedit, use=xterm+r5+fkeys,
+ 	use=xterm+256setaf, use=xterm+sl-twm,
+-	use=xterm+alt1049, use=vt220+cvis, use=bracketed+paste,
++	use=xterm+alt1049,
+ 
+ #### TERMINOLOGY
+ # https://www.enlightenment.org/about-terminology
+@@ -8166,17 +8119,16 @@
+ # + reports window size, none of the other window reports
+ wezterm|Wez's Terminal Emulator,
+ 	am, bce, km, mir, msgr, npc, xenl,
+-	acsc=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+ 	bel=^G, bold=\E[1m, cr=\r, cub1=^H, cud1=\n, ech=\E[%p1%dX,
+ 	el1=\E[1K, flash=\E[?5h$<100/>\E[?5l, ind=\n,
+ 	is2=\E[!p\E[?3;4l\E[4l\E>, kbs=^?, kcbt=\E[Z, kend=\EOF,
+-	op=\E[39;49m, ri=\EM, rmacs=\E(B, rmam=\E[?7l,
+-	rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m,
+-	rs1=\Ec\E]104\007, rs2=\E[!p\E[?3;4l\E[4l\E>,
++	op=\E[39;49m, ri=\EM, rmam=\E[?7l, rmkx=\E[?1l\E>,
++	rmso=\E[27m, rmul=\E[24m, rs1=\Ec\E]104\007,
++	rs2=\E[!p\E[?3;4l\E[4l\E>,
+ 	sgr=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p5%t;2%;%?%p2%t;4%;
+ 	    %?%p1%p3%|%t;7%;%?%p4%t;5%;%?%p7%t;8%;m,
+-	sgr0=\E(B\E[m, smacs=\E(0, smam=\E[?7h, smkx=\E[?1h\E=,
+-	Smol=\E[53m, Smulx=\E[4:%p1%dm,
++	sgr0=\E(B\E[m, smam=\E[?7h, smkx=\E[?1h\E=, Smol=\E[53m,
++	Smulx=\E[4:%p1%dm,
+ 	xr=\EP>\\|WezTerm\\([1-9][0-9-]+\\)\E\\\\,
+ 	use=ansi+apparrows, use=ansi+csr, use=ansi+cup,
+ 	use=ansi+enq, use=ansi+erase, use=ansi+idc, use=ansi+idl,
+@@ -8184,10 +8136,10 @@
+ 	use=ansi+rep, use=ansi+sgrdim, use=bracketed+paste,
+ 	use=ecma+index, use=ecma+italics, use=ecma+strikeout,
+ 	use=report+version, use=vt220+cvis,
+-	use=xterm+256color2, use=xterm+alt+title,
+-	use=xterm+focus, use=xterm+pcc2, use=xterm+pce2,
+-	use=xterm+pcf2, use=xterm+sl-alt, use=xterm+sm+1006,
+-	use=xterm+tmux,
++	use=xterm+256color2, use=xterm+acs,
++	use=xterm+alt+title, use=xterm+focus, use=xterm+pcc2,
++	use=xterm+pce2, use=xterm+pcf2, use=xterm+sl-alt,
++	use=xterm+sm+1006, use=xterm+tmux,
+ 
+ #### Contour
+ # https://github.com/contour-terminal/contour
+@@ -8364,12 +8316,7 @@
+ 	cnorm=\E[?12l\E[?25h, cr=\r, cub1=^H, cud1=\n,
+ 	cvvis=\E[?12;25h, dim=\E[2m, ech=\E[%p1%dX, el1=\E[1K,
+ 	flash=\E[?5h$<100/>\E[?5l, ind=\n, invis=\E[8m, kbs=^?,
+-	kcbt=\E[Z, kend=\EOF, kent=\EOM, kf13=\E[1;2P,
+-	kf14=\E[1;2Q, kf15=\E[1;2R, kf16=\E[1;2S, kf25=\E[1;5P,
+-	kf26=\E[1;5Q, kf27=\E[1;5R, kf28=\E[1;5S, kf37=\E[1;6P,
+-	kf38=\E[1;6Q, kf39=\E[1;6R, kf40=\E[1;6S, kf49=\E[1;3P,
+-	kf50=\E[1;3Q, kf51=\E[1;3R, kf52=\E[1;3S, kf61=\E[1;4P,
+-	kf62=\E[1;4Q, kf63=\E[1;4R, op=\E[39;49m, rev=\E[7m,
++	kcbt=\E[Z, kend=\EOF, kent=\EOM, op=\E[39;49m, rev=\E[7m,
+ 	ri=\EM, rmam=\E[?7l, rmcup=\E[?1049l, rmkx=\E[?1l\E>,
+ 	rmso=\E[27m, rmul=\E[24m, rs1=\E]\E\\\Ec,
+ 	setab=\E[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;
+@@ -8391,7 +8338,7 @@
+ 	use=xterm+256color2, use=xterm+acs,
+ 	use=xterm+alt+title, use=bracketed+paste,
+ 	use=kitty+setal, use=vt420+lrmm, use=xterm+focus,
+-	use=xterm+pce2, use=xterm+pcc2, use=xterm+pcf0,
++	use=xterm+pce2, use=xterm+pcc2, use=xterm+pcf2,
+ 	use=xterm+sm+1006, use=xterm+sl-twm,
+ 
+ ######## UNIX VIRTUAL TERMINALS, VIRTUAL CONSOLES, AND TELNET CLIENTS
+@@ -8547,9 +8494,7 @@
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\EM, cvvis=\E[34l,
+ 	dch=\E[%p1%dP, dch1=\E[P, dim=\E[2m, el1=\E[1K, flash=\Eg,
+ 	hpa=\E[%i%p1%dG, ich=\E[%p1%d@, indn=\E[%p1%dS, is2=\E)0,
+-	kbs=^?, kcbt=\E[Z, kf1=\EOP, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf2=\EOQ, kf3=\EOR, kf4=\EOS, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++	kbs=^?, kcbt=\E[Z, kf1=\EOP, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+ 	khome=\E[1~, kmous=\E[M, nel=\EE, rev=\E[7m, ri=\EM,
+ 	rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[23m, rmul=\E[24m,
+ 	rs2=\Ec\E[?1000l\E[?25h,
+@@ -8561,6 +8506,7 @@
+ 	use=ansi+idl, use=ansi+inittabs, use=ansi+local,
+ 	use=xterm+kbs, use=vt220+pcedit, use=xterm+alt1049,
+ 	use=ecma+color, use=vt100+enq, use=vt100+4bsd,
++	use=xterm+r5+fkeys,
+ 
+ screen|VT 100/ANSI X3.64 virtual terminal,
+ 	use=screen4,
+@@ -8915,14 +8861,9 @@
+ 	kDC=\E[3$, kEND=\E[8$, kHOM=\E[7$, kIC=\E[2$, kLFT=\E[d,
+ 	kNXT=\E[6$, kPRV=\E[5$, kRIT=\E[c, ka1=\EOw, ka3=\EOy,
+ 	kb2=\EOu, kbs=^?, kc1=\EOq, kc3=\EOs, kcbt=\E[Z, kel=\E[8\^,
+-	kend=\E[8~, kent=\EOM, kf0=\E[21~, kf1=\E[11~, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf2=\E[12~, kf20=\E[34~, kf21=\E[23$,
+-	kf22=\E[24$, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[7~, kind=\E[a, kmous=\E[M, kri=\E[b, rev=\E[7m,
+-	ri=\EM, rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
++	kend=\E[8~, kent=\EOM, kf0=\E[21~, kf21=\E[23$,
++	kf22=\E[24$, khome=\E[7~, kind=\E[a, kmous=\E[M, kri=\E[b,
++	rev=\E[7m, ri=\EM, rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
+ 	rs1=\E>\E[1;3;4;5;6l\E[?7h\E[m\E[r\E[2J\E[H,
+ 	rs2=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l\E>\E[?1000l\E[?
+ 	    25h,
+@@ -8933,7 +8874,8 @@
+ 	vpa=\E[%i%p1%dd, use=ansi+arrows, use=ansi+csr,
+ 	use=ansi+idl, use=ansi+local, use=xterm+alt47,
+ 	use=vt220+vtedit, use=vt220+cvis, use=ecma+color,
+-	use=ecma+italics, use=vt100+4bsd,
++	use=ecma+italics, use=vt100+4bsd, use=vt220+sfkeys,
++	use=xterm+r5+fkeys,
+ 
+ dvtm-256color|dynamic virtual terminal manager with 256 colors,
+ 	colors#0x100, pairs#0x10000,
+@@ -9021,10 +8963,9 @@
+ #
+ ncsa-vt220|NCSA Telnet using VT220-compatible function keys,
+ 	kf1=\EOP, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\EOQ,
+-	kf20=\E[34~, kf3=\EOR, kf4=\EOS, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, use=ncsa,
++	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf2=\EOQ, kf3=\EOR,
++	kf4=\EOS, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
++	use=ncsa, use=vt220+sfkeys,
+ 
+ #### Pilot Pro Palm-Top
+ #
+@@ -9174,9 +9115,8 @@
+ sun-12|Sun 12-line window,
+ 	cols#80, lines#12, use=sun,
+ sun-1|Sun 1-line window for sysline,
+-	eslok, hs,
+-	cols#80, lines#1,
+-	dsl=^L, fsl=\E[K, tsl=\r, use=sun,
++	lines#1,
++	dsl=^L, fsl=\E[K, tsl=\r, use=sun, use=dec+sl,
+ sun-e|sun-nic|sune|Sun Microsystems Workstation without insert character,
+ 	ich1@, rmir@, smir@, use=sun,
+ sun-c|sun-cmd|Sun Microsystems Workstation console with scrollable history,
+@@ -9429,12 +9369,11 @@
+ 	tsl=\E[1$}\E[;%df, use=dec+sl, use=vt220-base,
+ # (news517-w: this had :TY=sjis:. --esr)
+ nwp517-w|nwp-517-w|nwp-517 VT200 132 cols 50 rows,
+-	eslok, hs,
+ 	cols#132, lines#50,
+-	OTi2=\E[2$~\n, dsl=\E[1$~, fsl=\E[0$},
++	OTi2=\E[2$~\n, dsl=\E[1$~,
+ 	is2=\E7\E[r\E8\E>\E[?3h\E[?4l\E[?5l\E[?7h\E[?8h,
+ 	rs2=\E>\E[?3h\E[?4l\E[?5l\E[?7h\E[?8h,
+-	tsl=\E[1$}\E[;%df, use=vt220-base,
++	tsl=\E[1$}\E[;%df, use=dec+sl, use=vt220-base,
+ 
+ #### Common Desktop Environment
+ #
+@@ -9451,11 +9390,6 @@
+ 	flash=\E[?5h$<200>\E[?5l, home=\E[H, ht=^I, hts=\EH,
+ 	ich=\E[%p1%d@, ind=\ED, is2=\E F\E>\E[?1l\E[?7h\E[?45l,
+ 	kbs=^H, kcub1=\E[D, kcud1=\E[B, kcuf1=\E[C, kcuu1=\E[A,
+-	kf1=\E[11~, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\E[12~,
+-	kf20=\E[34~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+ 	khlp=\E[28~, nel=\EE, ri=\EM, rmacs=^O, rmam=\E[?7l,
+ 	rmir=\E[4l, rmso=\E[22;27m, rmul=\E[24m,
+ 	sgr=\E[0%?%p1%t;2;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5
+@@ -9463,8 +9397,9 @@
+ 	sgr0=\E[m\017, smacs=^N, smam=\E[?7h, smir=\E[4h,
+ 	smso=\E[2;7m, smul=\E[4m, tbc=\E[3g, use=ansi+csr,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local,
+-	use=ansi+sgr, use=decid+cpr, use=vt220+vtedit,
+-	use=vt220+cvis, use=ecma+color,
++	use=ansi+sgr, use=decid+cpr, use=ecma+color,
++	use=vt220+cvis, use=vt220+sfkeys, use=vt220+vtedit,
++	use=xterm+r5+fkeys,
+ 
+ ######## Non-Unix Consoles
+ #
+@@ -9583,21 +9518,18 @@
+ 	am, hs, mir, msgr, xon,
+ 	colors#8, it#8, pairs#64,
+ 	bel=^G, bold=\E[1m, cr=\r, cub1=^H, el1=\E[1K, fsl=^G, ht=^I,
+-	ind=\n, invis=\E[8m, kb2=\E[G, kf1=\E[[A, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf2=\E[[B, kf20=\E[34~, kf3=\E[[C, kf4=\E[[D,
+-	kf5=\E[[E, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[1~, kspd=^Z, nel=\r\n, op=\E[39;49m, rc=\E8,
+-	rev=\E[7m, ri=\EM, rmpch=\E[10m, rmso=\E[27m, rmul=\E[24m,
+-	rs1=\Ec\E]R, sc=\E7, setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
++	ind=\n, invis=\E[8m, kb2=\E[G, khome=\E[1~, kspd=^Z,
++	nel=\r\n, op=\E[39;49m, rc=\E8, rev=\E[7m, ri=\EM,
++	rmpch=\E[10m, rmso=\E[27m, rmul=\E[24m, rs1=\Ec\E]R,
++	sc=\E7, setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
+ 	sgr=\E[0;10%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p6%t;1%;%?%p7
+ 	    %t;8%;%?%p9%t;11%;m,
+ 	sgr0=\E[0;10m, smpch=\E[11m, smso=\E[7m, smul=\E[4m,
+ 	tsl=\E];, use=ansi+arrows, use=ansi+cup, use=ansi+erase,
+ 	use=ansi+idc, use=ansi+idl, use=ansi+local,
+ 	use=ansi+rca2, use=vt220+pcedit, use=vt102+enq,
+-	use=klone+acs, use=xterm+alt47,
++	use=klone+acs, use=linux+lockeys, use=vt220+sfkeys,
++	use=vt220+ufkeys, use=xterm+alt47,
+ 
+ # I've supplied this so that you can help test new values and add other
+ # features.  Cheers, earnie_boyd@yahoo.com.
+@@ -9610,20 +9542,17 @@
+ 	cols#80, lines#24,
+ 	bel=^G, cr=\r, dim=\E[2m, el1=\E[1K,
+ 	flash=\E[?5h$<200/>\E[?5l, hpa=\E[%i%p1%dG, ind=\n,
+-	kNXT=\E[6$, kPRV=\E[5$, kb2=\E[G, kcbt=\E[Z, kf1=\E[[A,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf17=\E[31~,
+-	kf18=\E[32~, kf19=\E[33~, kf2=\E[[B, kf20=\E[34~,
+-	kf3=\E[[C, kf4=\E[[D, kf5=\E[[E, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khome=\E[1~, kspd=^Z, nel=\r\n,
+-	op=\E[39;49m, rc=\E8, ri=\EM, rs1=\Ec\E]R, sc=\E7,
++	kNXT=\E[6$, kPRV=\E[5$, kb2=\E[G, kcbt=\E[Z, khome=\E[1~,
++	kspd=^Z, nel=\r\n, op=\E[39;49m, rc=\E8, ri=\EM, rs1=\Ec\E]R,
++	sc=\E7,
+ 	sgr=\E[0;10%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p5
+ 	    %t;2%;%?%p6%t;1%;%?%p7%t;8%;%?%p9%t;12%;m,
+ 	sgr0=\E[0;10m, vpa=\E[%i%p1%dd, use=ansi+arrows,
+ 	use=ansi+cup, use=ansi+erase, use=ansi+idc, use=ansi+idl,
+ 	use=ansi+inittabs, use=ansi+local, use=ansi+sgrbold,
+-	use=klone+acs, use=klone+color, use=vt220+pcedit,
+-	use=vt220+cvis, use=vt102+enq,
++	use=klone+acs, use=klone+color, use=linux+lockeys,
++	use=vt102+enq, use=vt220+pcedit, use=vt220+cvis,
++	use=vt220+sfkeys, use=vt220+ufkeys,
+ 
+ #### DJGPP
+ 
+@@ -9757,38 +9686,35 @@
+ 	     \331k\277l\332m\300n\305o~p\304q\304r\304s_t\303u\264v
+ 	     \301w\302x\263y\363z\362{\343|\330}\234~\376,
+ 	bel=^G, bold=\E[1m, cbt=\E[Z, civis=\E[1v, cnorm=\E[v, cr=\r,
+-	cub1=^H, cup=\E[%i%p1%d;%p2%dH, cvvis=\E[2v,
+-	dch=\E[%p1%dP, dch1=\E[P, ech=\E[%p1%dX, el1=\E[1K,
+-	home=\E[H, hpa=\E[%i%p1%dG, ht=^I, ich=\E[%p1%d@,
+-	ich1=\E[@, ind=\E[S, kf1=\E[[A, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[27~,
++	cub1=^H, cvvis=\E[2v, dch=\E[%p1%dP, dch1=\E[P,
++	ech=\E[%p1%dX, el1=\E[1K, ht=^I, ich=\E[%p1%d@, ich1=\E[@,
++	ind=\E[S, kf13=\E[25~, kf14=\E[26~, kf15=\E[27~,
+ 	kf16=\E[28~, kf17=\E[29~, kf18=\E[30~, kf19=\E[31~,
+-	kf2=\E[[B, kf20=\E[32~, kf21=\E[33~, kf22=\E[34~,
+-	kf23=\E[35~, kf24=\E[36~, kf25=\E[47~, kf26=\E[48~,
+-	kf27=\E[49~, kf28=\E[50~, kf29=\E[51~, kf3=\E[[C,
+-	kf30=\E[52~, kf31=\E[53~, kf32=\E[54~, kf33=\E[55~,
+-	kf34=\E[56~, kf35=\E[57~, kf36=\E[58~, kf37=\E[59~,
+-	kf38=\E[60~, kf39=\E[61~, kf4=\E[[D, kf40=\E[62~,
+-	kf41=\E[63~, kf42=\E[64~, kf43=\E[65~, kf44=\E[66~,
+-	kf45=\E[67~, kf46=\E[68~, kf48=\E[80~, kf5=\E[[E,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[1~, nel=\r\n, op=\E[37;40m, ri=\E[T, rmso=\E[m,
++	kf20=\E[32~, kf21=\E[33~, kf22=\E[34~, kf23=\E[35~,
++	kf24=\E[36~, kf25=\E[47~, kf26=\E[48~, kf27=\E[49~,
++	kf28=\E[50~, kf29=\E[51~, kf30=\E[52~, kf31=\E[53~,
++	kf32=\E[54~, kf33=\E[55~, kf34=\E[56~, kf35=\E[57~,
++	kf36=\E[58~, kf37=\E[59~, kf38=\E[60~, kf39=\E[61~,
++	kf40=\E[62~, kf41=\E[63~, kf42=\E[64~, kf43=\E[65~,
++	kf44=\E[66~, kf45=\E[67~, kf46=\E[68~, kf48=\E[80~,
++	kf6=\E[17~, khome=\E[1~, nel=\r\n, op=\E[37;40m, ri=\E[T,
+ 	setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
+ 	sgr=\E[0%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%e;25%;%?
+ 	    %p6%t;1%;%?%p7%t;8%;m,
+-	sgr0=\E[m, smso=\E[7m, smul=\E[4m, vpa=\E[%i%p1%dd,
+-	alt_A=\E[82~, alt_B=\E[82~, alt_C=\E[83~, alt_D=\E[84~,
+-	alt_E=\E[85~, alt_F=\E[86~, alt_G=\E[87~, alt_H=\E[88~,
+-	alt_I=\E[89~, alt_J=\E[90~, alt_K=\E[91~, alt_L=\E[92~,
+-	alt_M=\E[93~, alt_N=\E[94~, alt_O=\E[95~, alt_P=\E[96~,
+-	alt_Q=\E[97~, alt_R=\E[98~, alt_S=\E[99~, alt_T=\E[100~,
+-	alt_U=\E[101~, alt_V=\E[102~, alt_W=\E[103~,
+-	alt_X=\E[104~, alt_Y=\E[105~, alt_Z=\E[106~, kDC5=\E[43~,
+-	kDN5=\E[38~, kEND5=\E[44~, kHOM5=\E[41~, kIC5=\E[42~,
+-	kLFT5=\E[39~, kNXT5=\E[46~, kPRV5=\E[45~, kRIT5=\E[40~,
+-	kUP5=\E[37~, use=ansi+arrows, use=ansi+erase,
+-	use=ansi+idl, use=ansi+local, use=ansi+sgr,
+-	use=vt220+pcedit, use=ecma+index,
++	sgr0=\E[m, smul=\E[4m, alt_A=\E[82~, alt_B=\E[82~,
++	alt_C=\E[83~, alt_D=\E[84~, alt_E=\E[85~, alt_F=\E[86~,
++	alt_G=\E[87~, alt_H=\E[88~, alt_I=\E[89~, alt_J=\E[90~,
++	alt_K=\E[91~, alt_L=\E[92~, alt_M=\E[93~, alt_N=\E[94~,
++	alt_O=\E[95~, alt_P=\E[96~, alt_Q=\E[97~, alt_R=\E[98~,
++	alt_S=\E[99~, alt_T=\E[100~, alt_U=\E[101~,
++	alt_V=\E[102~, alt_W=\E[103~, alt_X=\E[104~,
++	alt_Y=\E[105~, alt_Z=\E[106~, kDC5=\E[43~, kDN5=\E[38~,
++	kEND5=\E[44~, kHOM5=\E[41~, kIC5=\E[42~, kLFT5=\E[39~,
++	kNXT5=\E[46~, kPRV5=\E[45~, kRIT5=\E[40~, kUP5=\E[37~,
++	use=ansi+arrows, use=ansi+cup, use=ansi+erase,
++	use=ansi+idl, use=ansi+local, use=ansi+rca2,
++	use=ansi+sgr, use=ansi+sgrso, use=ecma+index,
++	use=linux+lockeys, use=vt220+pcedit, use=vt220+ufkeys,
+ 
+ djgpp203|entry for DJGPP 2.03,
+ 	OTbs, am,
+@@ -9804,13 +9730,12 @@
+ 	cup=\E[%i%p1%d;%p2%dH, cvvis=\E[2v, dch=\E[%p1%dP,
+ 	dch1=\E[P, ech=\E[%p1%dX, ed=\E[J, el=\E[K, home=\E[H, ht=^I,
+ 	ich=\E[%p1%d@, ich1=\E[@, ind=\E[S, invis=\E[8m,
+-	kf0=\E[21~, kf1=\E[[A, kf10=\E[21~, kf2=\E[[B, kf3=\E[[C,
+-	kf4=\E[[D, kf5=\E[[E, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~,
+-	kf9=\E[20~, khome=\E[1~, kll=\E[4~, nel=\r\n, rev=\E[7m,
+-	ri=\E[T, rmso=\E[m, setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
+-	sgr0=\E[m, smso=\E[7m, smul=\E[4m, use=ansi+arrows,
+-	use=ansi+idl, use=ansi+local, use=vt220+pcedit,
+-	use=ecma+index,
++	kf0=\E[21~, kf10=\E[21~, kf6=\E[17~, kf7=\E[18~,
++	kf8=\E[19~, kf9=\E[20~, khome=\E[1~, kll=\E[4~, nel=\r\n,
++	rev=\E[7m, ri=\E[T, rmso=\E[m, setab=\E[4%p1%dm,
++	setaf=\E[3%p1%dm, sgr0=\E[m, smso=\E[7m, smul=\E[4m,
++	use=ansi+arrows, use=ansi+idl, use=ansi+local,
++	use=linux+lockeys, use=vt220+pcedit, use=ecma+index,
+ 
+ #### U/Win
+ 
+@@ -12962,13 +12887,12 @@
+ 	is2=\E7\E[1r\E8\E[2;3;4;13;20;34;39;36l\E[12;16;34h\E[?1;3;4
+ 	    ;5;10;18l\E[?7;8;25h\E>\E[?5W\E(B\017\E[4i,
+ 	kbs=^H, kcbt=\E[z, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC,
+-	kcuu1=\EOA, kf1=\EOP, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf17=\E[K, kf18=\E[31~, kf19=\E[32~, kf2=\EOQ,
+-	kf20=\E[33~, kf21=\E[34~, kf22=\E[35~, kf23=\E[1~,
+-	kf24=\E[2~, kf3=\EOR, kf4=\EOS, kf5=\E[M, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, ll=\E[24E, mc0=\E[?19h,
+-	nel=\EE, prot=\E[1"q, ri=\EM, rmacs=^O, rmam=\E[?7l,
+-	rmir=\E[4l, rmkx=\E[?1l, rmso=\E[27m, rmul=\E[24m,
++	kcuu1=\EOA, kf1=\EOP, kf17=\E[K, kf18=\E[31~, kf19=\E[32~,
++	kf2=\EOQ, kf20=\E[33~, kf21=\E[34~, kf22=\E[35~,
++	kf23=\E[1~, kf24=\E[2~, kf3=\EOR, kf4=\EOS, kf5=\E[M,
++	ll=\E[24E, mc0=\E[?19h, nel=\EE, prot=\E[1"q, ri=\EM,
++	rmacs=^O, rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l,
++	rmso=\E[27m, rmul=\E[24m,
+ 	rs2=\E[61"p\E[40h\E[?6l\E[1r\E[2;3;4;13;20;34;39;36l\E[12;16
+ 	    ;34h\E[?1;3;4;5;10;18l\E[?7;8;25h\E>\E[?5W\E(B\017\E[24E
+ 	    \E[4i,
+@@ -12976,7 +12900,7 @@
+ 	    %p5%t;2%;%?%p7%t;8%;m\E[%?%p8%t1%;"q%?%p9%t\016%e\017%;,
+ 	sgr0=\E[m\017\E["q, smacs=^N, smam=\E[?7h, smir=\E[4h,
+ 	smkx=\E[?1h, vpa=\E[%i%p1%dd, use=ansi+csr, use=ansi+idl,
+-	use=ansi+pp, use=ansi+sgrbold,
++	use=ansi+pp, use=ansi+sgrbold, use=vt220+ufkeys,
+ 
+ #   This is the american terminal. Here tabs work fine.
+ # From: Francesco Potorti` <F.Potorti@cnuce.cnr.it>, 24 Aug 1998
+@@ -13143,16 +13067,13 @@
+ 	il=\E[%p1%dL$<2*>, il1=\E[L$<2>, ind=\n$<2>, ip=$<1>,
+ 	is1=\E[2;4;20;30l\E[?1;10l\E[12h\E[?7;8;25h,
+ 	is2=\E>\E(B\E)0\017, is3=\E[m, kdl1=\E[M, kel=\E[K,
+-	kf1=\E[?5i, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf2=\E[?3i,
+-	kf20=\E[34~, kf21=\E[35~, kf3=\E[2i, kf4=\E[@, kf5=\E[M,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, kfnd=\E[1~,
+-	khlp=\E[28~, kich1=\E[@, kil1=\E[L, knp=\E[6~, kpp=\E[5~,
+-	kprt=\E[?5i, kslt=\E[4~, mc0=\E[0i, rc=\E8, rev=\E[1t\E[7m,
+-	ri=\EM$<2>, rmacs=^O, rmam=\E[?7l, rmir=\E[4l, rmkx=\E>,
+-	rmso=\E[m, rmul=\E[m, rs1=\E[13l\E[3l\E!p,
+-	rs2=\E[35h\E[?3l$<80>, rs3=\E[?5l, sc=\E7,
++	kf1=\E[?5i, kf2=\E[?3i, kf21=\E[35~, kf3=\E[2i, kf4=\E[@,
++	kf5=\E[M, kfnd=\E[1~, khlp=\E[28~, kich1=\E[@, kil1=\E[L,
++	knp=\E[6~, kpp=\E[5~, kprt=\E[?5i, kslt=\E[4~, mc0=\E[0i,
++	rc=\E8, rev=\E[1t\E[7m, ri=\EM$<2>, rmacs=^O, rmam=\E[?7l,
++	rmir=\E[4l, rmkx=\E>, rmso=\E[m, rmul=\E[m,
++	rs1=\E[13l\E[3l\E!p, rs2=\E[35h\E[?3l$<80>, rs3=\E[?5l,
++	sc=\E7,
+ 	sgr=%?%p5%t\E[0t%;%?%p3%p1%|%t\E[1t%;%?%p2%t\E[2t%;%?%p4%t
+ 	    \E[3t%;%?%p1%p2%p3%p4%p5%|%|%|%|%t\E[7m%e\E[m%;%?%p9%t
+ 	    \016%e\017%;,
+@@ -13160,7 +13081,8 @@
+ 	smkx=\E[?1l\E[?7h\E=, smso=\E[1t\E[7m, smul=\E[2t\E[4m,
+ 	tsl=\E[>\,\001, use=ansi+arrows, use=ansi+local,
+ 	use=ansi+pp, use=ansi+tabs, use=decid+cpr,
+-	use=vt220+cvis, use=vt220+keypad,
++	use=vt220+cvis, use=vt220+keypad, use=vt220+sfkeys,
++	use=vt220+ufkeys,
+ #
+ #	This terminal description uses the non-hidden attribute mode
+ #	(with magic cookie).
+@@ -13209,13 +13131,9 @@
+ 	ht=\011$<1>, ich=\E[%p1%d@$<4*>, il=\E[%p1%dL$<5*>,
+ 	il1=\E[L$<5>, ind=\n$<3>, ip=$<3>, is1=\E[62;1"p\E[?5W,
+ 	is2=\E[2;4;20;30l\E[?1;4;10;16l\E[12h\E[?7;8;25h$<16>,
+-	is3=\E>\E(B\E)0\017\E[m, kf10=\E[21~, kf11=\E[23~,
+-	kf12=\E[24~, kf13=\E[25~, kf14=\E[26~, kf15=\E[28~,
+-	kf16=\E[29~, kf17=\E[31~, kf18=\E[32~, kf19=\E[33~,
+-	kf20=\E[34~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~,
+-	kf9=\E[20~, khlp=\E[28~, khome=\E[26~, lf1=PF1, lf2=PF2,
+-	lf3=PF3, lf4=PF4, mc0=\E[0i, ri=\EM$<3>, rmam=\E[?7l,
+-	rmir=\E[4l, rmkx=\E>, rs1=\E[13l\E[3l\E!p,
++	is3=\E>\E(B\E)0\017\E[m, khlp=\E[28~, khome=\E[26~,
++	lf1=PF1, lf2=PF2, lf3=PF3, lf4=PF4, mc0=\E[0i, ri=\EM$<3>,
++	rmam=\E[?7l, rmir=\E[4l, rmkx=\E>, rs1=\E[13l\E[3l\E!p,
+ 	rs2=\E[35h\E[?3l$<70>, rs3=\E[?5l,
+ 	sgr=\E[0%?%p2%t;4%;%?%p3%p1%|%t;7%;%?%p4%t;5%;%?%p5%t;2%;%?
+ 	    %p6%t;1%;%?%p7%t;8%;m%?%p9%t\016%e\017%;,
+@@ -13224,7 +13142,7 @@
+ 	use=ansi+csr, use=ansi+inittabs, use=ansi+local,
+ 	use=ansi+pp, use=ansi+sgrbold, use=decid+cpr,
+ 	use=vt100+4bsd, use=vt220+vtedit, use=vt220+cvis,
+-	use=vt220+keypad,
++	use=vt220+keypad, use=vt220+sfkeys, use=vt220+ufkeys,
+ #
+ #	Wyse 85 with visual bell.
+ wy85-vb|wyse85-vb|Wyse 85 with visible bell,
+@@ -13304,14 +13222,10 @@
+ 	hpa=\E[%i%p1%d`, ich=\E[%p1%d@$<2>, il=\E[%p1%dL$<3*>,
+ 	il1=\E[L$<3>, ind=\n$<2>, ip=$<4>, is1=\E[?5W,
+ 	is2=\E[2;4;20;30l\E[?1;4;10;16l\E[12h\E[?7;8;25h,
+-	is3=\E>\E(B\E)0\017\E[m, kcbt=\E[Z, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf20=\E[34~, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khlp=\E[28~, khome=\E[26~, lf1=PF1,
+-	lf2=PF2, lf3=PF3, lf4=PF4, mc0=\E[0i, rc=\E8, ri=\EM$<2>,
+-	rmam=\E[?7l, rmcup=\E[ R, rmir=\E[4l, rmkx=\E>,
+-	rmso=\E[27m, rmul=\E[24m,
++	is3=\E>\E(B\E)0\017\E[m, kcbt=\E[Z, khlp=\E[28~,
++	khome=\E[26~, lf1=PF1, lf2=PF2, lf3=PF3, lf4=PF4, mc0=\E[0i,
++	rc=\E8, ri=\EM$<2>, rmam=\E[?7l, rmcup=\E[ R, rmir=\E[4l,
++	rmkx=\E>, rmso=\E[27m, rmul=\E[24m,
+ 	rs1=\E[13l\E[3l\E\\\E[63;1"p\E[!p, rs2=\E[35h\E[?3l,
+ 	rs3=\E[?5l\E[47h\E[40l\E[r, sc=\E7,
+ 	sgr=\E[0%?%p2%t;4%;%?%p3%p1%|%t;7%;%?%p4%t;5%;%?%p5%t;2%;%?
+@@ -13321,6 +13235,7 @@
+ 	use=ansi+arrows, use=ansi+inittabs, use=ansi+local,
+ 	use=ansi+pp, use=ansi+sgrbold, use=decid+cpr,
+ 	use=vt100+4bsd, use=vt220+vtedit, use=vt220+keypad,
++	use=vt220+sfkeys, use=vt220+ufkeys,
+ #
+ #	Wyse 185 with 24 data lines and top status (terminal status)
+ wy185-24|wyse185-24|Wyse 185 with 24 data lines,
+@@ -13509,30 +13424,25 @@
+ #
+ wy370|wyse370|wy370-101k|Wyse 370 with 101 key keyboard,
+ 	kcbt=\E[Z, kdch1=\EOQ, kdl1=\EOQ, kent=\EOM, kf1=\E[?4i,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf2=\E[?3i,
+-	kf3=\E[2i, kf4=\E[@, kf5=\E[M, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, kich1=\EOP, kil1=\EOP, knp=\E[U,
+-	kpp=\E[V, use=ansi+arrows, use=wy370-nk,
++	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
++	kf2=\E[?3i, kf3=\E[2i, kf4=\E[@, kf5=\E[M, kich1=\EOP,
++	kil1=\EOP, knp=\E[U, kpp=\E[V, use=ansi+arrows,
++	use=vt220+ufkeys, use=wy370-nk,
+ #
+ #	Function key set for the VT-320 (and wy85) compatible keyboard
+ #
+ wy370-105k|Wyse 370 with 105 key keyboard,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf17=\E[31~,
+-	kf18=\E[32~, kf19=\E[33~, kf20=\E[34~, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, kfnd=\E[1~,
+-	khlp=\E[28~, khome=\E[26~, lf1=PF1, lf2=PF2, lf3=PF3,
+-	lf4=PF4, use=ansi+arrows, use=vt220+vtedit, use=wy370-nk,
+-	use=vt220+keypad,
++	kfnd=\E[1~, khlp=\E[28~, khome=\E[26~, lf1=PF1, lf2=PF2,
++	lf3=PF3, lf4=PF4, use=ansi+arrows, use=vt220+vtedit,
++	use=wy370-nk, use=vt220+keypad, use=vt220+sfkeys,
++	use=vt220+ufkeys,
+ #
+ #	Function key set for the PC compatible keyboard
+ #
+ wy370-EPC|Wyse 370 with 102 key keyboard,
+-	kcbt=\E[Z, kend=\E[1~, kent=\EOM, kf1=\EOP, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf2=\EOQ, kf3=\EOR, kf4=\EOS,
+-	kf5=\E[M, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	kich1=\E[2~, knp=\E[U, kpp=\E[V, use=ansi+arrows,
++	kcbt=\E[Z, kend=\E[1~, kent=\EOM, kf1=\EOP, kf2=\EOQ,
++	kf3=\EOR, kf4=\EOS, kf5=\E[M, kich1=\E[2~, knp=\E[U,
++	kpp=\E[V, use=ansi+arrows, use=vt220+ufkeys,
+ 	use=wy370-nk,
+ #
+ #	Wyse 370 with visual bell.
+@@ -13639,14 +13549,11 @@
+ 	ind=\n$<2>, ip=$<4>, is1=\E[?5W,
+ 	is2=\E[2;4;20;30l\E[?1;4;10;16l\E[12h\E[?7;8;25;67h,
+ 	is3=\E>\E(B\E)0\017\E[m, kcbt=\E[Z, ked=\E[1~, kel=\E[4~,
+-	kf10=\E[21~, kf11=\E[23~, kf12=\E[24~, kf13=\E[25~,
+-	kf14=\E[26~, kf15=\E[28~, kf16=\E[29~, kf17=\E[31~,
+-	kf18=\E[32~, kf19=\E[33~, kf20=\E[34~, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, khlp=\E[28~,
+-	khome=\E[26~, lf1=PF1, lf2=PF2, lf3=PF3, lf4=PF4, mc0=\E[0i,
+-	ri=\EM$<2>, rmacs=^O, rmam=\E[?7l, rmcup=\E[ R, rmir=\E[4l,
+-	rmul=\E[24m, rs1=\E[13l\E[3l\E\\\E[63;1"p\E[!p,
+-	rs2=\E[35h\E[?3l, rs3=\E[?5l\E[47h\E[40l\E[r,
++	khlp=\E[28~, khome=\E[26~, lf1=PF1, lf2=PF2, lf3=PF3,
++	lf4=PF4, mc0=\E[0i, ri=\EM$<2>, rmacs=^O, rmam=\E[?7l,
++	rmcup=\E[ R, rmir=\E[4l, rmul=\E[24m,
++	rs1=\E[13l\E[3l\E\\\E[63;1"p\E[!p, rs2=\E[35h\E[?3l,
++	rs3=\E[?5l\E[47h\E[40l\E[r,
+ 	sgr=\E[0%?%p2%t;4%;%?%p3%p1%|%t;7%;%?%p4%t;5%;%?%p5%t;2%;%?
+ 	    %p6%t;1%;%?%p7%t;8%;m%?%p9%t\016%e\017%;,
+ 	sgr0=\E[m\017, smacs=^N, smam=\E[?7h,
+@@ -13655,6 +13562,7 @@
+ 	use=ansi+arrows, use=ansi+csr, use=ansi+local,
+ 	use=ansi+pp, use=ansi+sgrbold, use=ansi+tabs,
+ 	use=decid+cpr, use=vt220+vtedit, use=vt220+keypad,
++	use=vt220+sfkeys, use=vt220+ufkeys,
+ #
+ #       Wyse 520 with 24 data lines and status (terminal status)
+ wy520-24|wyse520-24|Wyse 520 with 24 data lines,
+@@ -13687,9 +13595,8 @@
+ #                  to CTRL-C: stty intr '^c') for it to work since the
+ #                  Delete key sends 7FH.
+ wy520-epc|wyse520-epc|Wyse 520 with EPC keyboard,
+-	kdch1=^?, kel=\E[4~, kend=\E[4~, kf0=\E[21~, kf1=\E[11~,
+-	kf2=\E[12~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~, khome=\E[H,
+-	use=wy520,
++	kdch1=^?, kel=\E[4~, kend=\E[4~, kf0=\E[21~, khome=\E[H,
++	use=xterm+r5+fkeys, use=wy520,
+ #
+ #       Wyse 520 with 24 data lines and status (terminal status)
+ #       with EPC keyboard.
+@@ -15596,13 +15503,12 @@
+ 	rmcup=\E[60;0;0;28p\E[28;1H\E[K,
+ 	smcup=\E[H\E[J$<156>\E[28;0;0;28p, use=aaa+unk,
+ aaa-30-s|aaa-s|Ann Arbor Ambassador/30 lines w/status,
+-	eslok, hs,
+ 	lines#29,
+ 	dsl=\E7\E[60;0;0;30p\E[1;1H\E[K\E[H\E8\r\n\E[K,
+-	fsl=\E[>51l, is2=\r\n\E[A\E7\E[60;1;0;30p\E8,
++	is2=\r\n\E[A\E7\E[60;1;0;30p\E8,
+ 	rmcup=\E[60;1;0;30p\E[29;1H\E[K,
+ 	smcup=\E[H\E[J$<156>\E[30;1;0;30p\E[30;1H\E[K,
+-	tsl=\E[>51h\E[1;%p1%dH\E[2K, use=aaa+unk,
++	use=aaa+unk, use=guru+s,
+ aaa-30-s-rv|aaa-s-rv|Ann Arbor Ambassador/30 lines+status+reverse video,
+ 	use=aaa+rv, use=aaa-30-s,
+ aaa-s-ctxt|aaa-30-s-ctxt|Ann Arbor Ambassador/30 lines+status+save context,
+@@ -16843,14 +16749,13 @@
+ 	use=dg+color8,
+ 
+ dgmode+color8|Color info for Data General D220/D230C terminals in DG mode,
+-	bce,
+-	colors#8, ncv#16, pairs#64,
+ 	op=\036Ad\036Bd,
+ 	setab=\036B%p1%{2}%&%?%p1%{1}%&%t%{4}%|%;%?%p1%{4}%&%t%{1}%|
+ 	      %;%{48}%+%c,
+ 	setaf=\036A%p1%{2}%&%?%p1%{1}%&%t%{4}%|%;%?%p1%{4}%&%t%{1}%|
+ 	      %;%{48}%+%c,
+ 	setb=\036B%p1%{48}%+%c, setf=\036A%p1%{48}%+%c,
++	use=dg+color8,
+ 
+ dgmode+color|Color info for Data General D470C terminals in DG mode,
+ 	colors#16, pairs#0x100,
+@@ -16861,8 +16766,6 @@
+ 	use=dgmode+color8,
+ 
+ dgunix+ccc|Configurable color info for DG D430C terminals in DG-UNIX mode,
+-	bce, ccc,
+-	colors#52, ncv#53, pairs#26,
+ 	initp=\036RG0%p1%02X%p2%{255}%*%{1000}%/%02X%p3%{255}%*
+ 	      %{1000}%/%02X%p4%{255}%*%{1000}%/%02X%p5%{255}%*
+ 	      %{1000}%/%02X%p6%{255}%*%{1000}%/%02X%p7%{255}%*
+@@ -16870,7 +16773,7 @@
+ 	oc=\036RG01A00FF00000000\036RG01B00000000FF00
+ 	   \036RG01C007F00000000\036RG01D000000007F00,
+ 	op=\036RF4831A\036RF2E31B\036RF1D31C\036RF3F31D,
+-	scp=\036RG2%p1%02X,
++	scp=\036RG2%p1%02X, use=dg+ccc,
+ 
+ # Colors are in the order:  normal, reverse, dim, dim + reverse.
+ dg+ccc|Configurable color info for DG D430C terminals in DG mode,
+@@ -19128,13 +19031,10 @@
+ 	cud1=\n, cup=\E[%i%p1%d;%p2%dH, dch=\E[%p1%dP, dch1=\E[P,
+ 	dsl=\E[%}\024, ech=\E[%p1%dX, ed=\E[J$<10>, el=\E[K,
+ 	fsl=^T, home=\E[H, hpa=\E[%i%p1%d`, ind=\n,
+-	is2=\E[&p\E[<12l\E F, kclr=^L, kf1=\E[11~, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
++	is2=\E[&p\E[<12l\E F, kclr=^L, kf13=\E[25~, kf14=\E[26~,
+ 	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf2=\E[12~, kf3=\E[13~, kf4=\E[14~, kf5=\E[15~, kf6=\E[17~,
+-	kf7=\E[18~, kf8=\E[19~, kf9=\E[20~, nel=\r\n, prot=\E[32%{,
+-	rc=\E[%z, rep=\E[%p2%db%p1%c, rev=\E[7m, ri=\E[L,
+-	rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
++	nel=\r\n, prot=\E[32%{, rc=\E[%z, rep=\E[%p2%db%p1%c,
++	rev=\E[7m, ri=\E[L, rmir=\E[4l, rmso=\E[27m, rmul=\E[24m,
+ 	rs2=\E[&p\E[<12l\E\sF\E[3g\E[9;17;25;33;41;49;57;65;73
+ 	    \sN,
+ 	sc=\E[%y,
+@@ -19143,7 +19043,7 @@
+ 	sgr0=\E[0m\017, smir=\E[4h, smso=\E[7m, smul=\E[4m,
+ 	tsl=\E[%i%p1%d%%}, vpa=\E[%i%p1%dd, use=ansi+arrows,
+ 	use=ansi+idl, use=ansi+inittabs, use=ansi+local,
+-	use=ansi+pp,
++	use=ansi+pp, use=xterm+r5+fkeys,
+ 
+ # p9-w: Prism-9 in 132 column mode
+ # --------------------------------
+@@ -19561,17 +19461,13 @@
+ 	is2=\E[!p\E[?7;19;67h\E[?1;3;4l\E(B\E)0\017\E[2J\E[1;1H\E>$<
+ 	    200>,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf0=\EOy, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf20=\E[34~,
+-	kf21=\E[31~, kf22=\E[32~, kf23=\E[33~, kf24=\E[34~,
+-	kf25=\E[35~, kf26=\E[1~, kf27=\E[2~, kf28=\E[3~,
+-	kf29=\E[4~, kf30=\E[5~, kf31=\E[6~, kf32=\E[7~, kf33=\E[8~,
+-	kf34=\E[9~, kf35=\E[10~, kf5=\E[M, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khlp=\E[28~, krdo=\E[29~, mc0=\E[i,
+-	mc4=\E[4i, mc5=\E[5i, nel=\EE, rc=\E8, ri=\EM$<5>,
+-	rmacs=\017$<20>, rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>,
+-	rmso=\E[27m, rmul=\E[24m,
++	kf0=\EOy, kf21=\E[31~, kf22=\E[32~, kf23=\E[33~,
++	kf24=\E[34~, kf25=\E[35~, kf26=\E[1~, kf27=\E[2~,
++	kf28=\E[3~, kf29=\E[4~, kf30=\E[5~, kf31=\E[6~, kf32=\E[7~,
++	kf33=\E[8~, kf34=\E[9~, kf35=\E[10~, kf5=\E[M, khlp=\E[28~,
++	krdo=\E[29~, mc0=\E[i, mc4=\E[4i, mc5=\E[5i, nel=\EE, rc=\E8,
++	ri=\EM$<5>, rmacs=\017$<20>, rmam=\E[?7l, rmir=\E[4l,
++	rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m,
+ 	rs2=\E[!p\E[?7;19;67h\E[?1;3;4l\E(B\E)0\017\E[2J\E[1;1H\E>$<
+ 	    200>,
+ 	sc=\E7,
+@@ -19581,7 +19477,7 @@
+ 	smir=\E[4h, smkx=\E[?1h\E=, tbc=\E[3g,
+ 	vpa=\E[%p1%dd$<40>, use=ansi+sgrbold, use=decid+cpr,
+ 	use=vt220+vtedit, use=vt220+cvis, use=vt220+keypad,
+-	use=ncr260vt+sl,
++	use=ncr260vt+sl, use=vt220+sfkeys, use=vt220+ufkeys,
+ 
+ ncr260vt200wan|NCR 2900/260 VT200 wide mode ANSI keyboard,
+ 	cols#132,
+@@ -19619,17 +19515,13 @@
+ 	is2=\E[!p\E[?7;19;67h\E[?1;3;4l\E[1;0%w\E(B\E)0\017\E[2J\E[1
+ 	    ;1H\E>$<200>,
+ 	kbs=^H, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+-	kf0=\EOy, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
+-	kf13=\E[25~, kf14=\E[26~, kf15=\E[28~, kf16=\E[29~,
+-	kf17=\E[31~, kf18=\E[32~, kf19=\E[33~, kf20=\E[34~,
+-	kf21=\E[31~, kf22=\E[32~, kf23=\E[33~, kf24=\E[34~,
+-	kf25=\E[35~, kf26=\E[1~, kf27=\E[2~, kf28=\E[3~,
+-	kf29=\E[4~, kf30=\E[5~, kf31=\E[6~, kf32=\E[7~, kf33=\E[8~,
+-	kf34=\E[9~, kf35=\E[10~, kf5=\E[M, kf6=\E[17~, kf7=\E[18~,
+-	kf8=\E[19~, kf9=\E[20~, khlp=\E[28~, krdo=\E[29~, mc0=\E[i,
+-	mc4=\E[4i, mc5=\E[5i, nel=\EE, rc=\E8, ri=\EM$<5>,
+-	rmacs=\017$<20>, rmam=\E[?7l, rmir=\E[4l, rmkx=\E[?1l\E>,
+-	rmso=\E[27m, rmul=\E[24m,
++	kf0=\EOy, kf21=\E[31~, kf22=\E[32~, kf23=\E[33~,
++	kf24=\E[34~, kf25=\E[35~, kf26=\E[1~, kf27=\E[2~,
++	kf28=\E[3~, kf29=\E[4~, kf30=\E[5~, kf31=\E[6~, kf32=\E[7~,
++	kf33=\E[8~, kf34=\E[9~, kf35=\E[10~, kf5=\E[M, khlp=\E[28~,
++	krdo=\E[29~, mc0=\E[i, mc4=\E[4i, mc5=\E[5i, nel=\EE, rc=\E8,
++	ri=\EM$<5>, rmacs=\017$<20>, rmam=\E[?7l, rmir=\E[4l,
++	rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m,
+ 	rs2=\E[!p\E[?7;19;67h\E[?1;3;4l\E[1;0%w\E(B\E)0\017\E[2J\E[1
+ 	    ;1H\E>$<200>,
+ 	sc=\E7,
+@@ -19639,7 +19531,7 @@
+ 	smir=\E[4h, smkx=\E[?1h\E=, tbc=\E[3g,
+ 	vpa=\E[%p1%dd$<40>, use=ansi+sgrbold, use=decid+cpr,
+ 	use=vt220+vtedit, use=vt220+cvis, use=vt220+keypad,
+-	use=ncr260vt+sl,
++	use=ncr260vt+sl, use=vt220+sfkeys, use=vt220+ufkeys,
+ 
+ ncr260vt300wan|NCR 2900/260 VT300 wide mode ANSI keyboard,
+ 	cols#132,
+@@ -21374,24 +21266,22 @@
+ # See
+ #	https://web.archive.org/web/20120703021949/http://www.minix3.org/manpages/html4/console.html
+ minix|minix console (v3),
+-	NQ,
+ 	acsc=+\020\,\021-\030.^Y0\333`\004a\261f\370g\361h\260j
+ 	     \331k\277l\332m\300n\305o~p\304q\304r\304s_t\303u\264v
+ 	     \301w\302x\263y\363z\362{\343|\330}\234~\376,
+-	kdch1=^?, kend=\E[Y, kf0=\E[21~, kf1=\E[11~, kf10=\E[21~,
++	kdch1=^?, kend=\E[Y, kf0=\E[21~, kf10=\E[21~,
+ 	kf11=\E[11;2~, kf12=\E[12;2~, kf13=\E[13;2~,
+ 	kf14=\E[14;2~, kf15=\E[15;2~, kf16=\E[17;2~,
+-	kf17=\E[18;2~, kf18=\E[19;2~, kf19=\E[20;2~, kf2=\E[12~,
++	kf17=\E[18;2~, kf18=\E[19;2~, kf19=\E[20;2~,
+ 	kf20=\E[21;2~, kf21=\E[11;5~, kf22=\E[12;5~,
+ 	kf23=\E[13;5~, kf24=\E[14;5~, kf25=\E[15;5~,
+ 	kf26=\E[17;5~, kf27=\E[18;5~, kf28=\E[19;5~,
+-	kf29=\E[20;5~, kf3=\E[13~, kf30=\E[21;5~, kf31=\E[11;6~,
++	kf29=\E[20;5~, kf30=\E[21;5~, kf31=\E[11;6~,
+ 	kf32=\E[12;6~, kf33=\E[13;6~, kf34=\E[14;6~,
+ 	kf35=\E[15;6~, kf36=\E[17;6~, kf37=\E[18;6~,
+-	kf38=\E[19;6~, kf39=\E[20;6~, kf4=\E[14~, kf40=\E[21;6~,
+-	kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	kich1=\E[@, knp=\E[U, kpp=\E[V, lf0@, lf1@, lf2@, lf3@, lf4@, lf5@,
+-	use=minix-3.0,
++	kf38=\E[19;6~, kf39=\E[20;6~, kf40=\E[21;6~, kich1=\E[@,
++	knp=\E[U, kpp=\E[V, lf0@, lf1@, lf2@, lf3@, lf4@, lf5@,
++	use=xterm+r5+fkeys, use=minix-3.0,
+ 
+ minix-3.0|minix console (v3.0),
+ 	use=ecma+color, use=minix-1.7,
+@@ -21778,7 +21668,7 @@
+ # From: Alexandre Montaron, 29 Sep 2016
+ 
+ linux-m1|Linux Minitel 1 "like" Couleurs,
+-	am, bw@, ccc, mir, msgr, xenl,
++	am, ccc, mir, msgr, xenl,
+ 	it#8, ncv#16,
+ 	acsc=a\261f\370g\361h\260j\274k\273l\311m\310n\316q\315t
+ 	     \314u\271v\312w\313x\272y\363z\362{\343|\252~\372,
+@@ -21790,19 +21680,15 @@
+ 	      %{255}%&%02X,
+ 	is2=\E]R\E]P3FFFF80\E[?8c, ka1=\EOw, ka3=\EOy, kb2=\E[G,
+ 	kbs=^?, kc1=\EOq, kc3=\EOs, kcbt=\E^I, kclr=\E\r,
+-	kdl1=\E\E[A, kent=\EOM, kf1=\E[[A, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf2=\E[[B, kf20=\E[34~, kf3=\E[[C, kf4=\E[[D,
+-	kf5=\E[[E, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khome=\E[1~, kil1=\E\E[B, kmous=\E[M, nel=\EE,
+-	oc=\E]R\E]P3FFFF80, op=\E[39;49m, rev=\E[7m, ri=\EM,
+-	rmacs=^O, rmam=\E[?7l, rmir=\E[4l, rmpch=\E[10m,
+-	rmso=\E[27m, rs1=\Ec, rs3=\E[37;40m\E[8], sgr0=\E[m,
+-	smacs=^N, smam=\E[?7h, smir=\E[4h, smpch=\E[11m,
+-	smso=\E[7m, tbc=\E[3g, vpa=\E[%i%p1%dd, .VN=\E[?5l,
+-	.VR=\E[?5h, .am@, .ich=\E[%p1%d@, .ich1=\E[@, .ll=\E[99H,
+-	.rmcup=, .rmul=\E[24m, .smcup=\E]R\E]P3FFFF80\E[?8c,
++	kdl1=\E\E[A, kent=\EOM, kf2=\E[[B, khome=\E[1~,
++	kil1=\E\E[B, kmous=\E[M, nel=\EE, oc=\E]R\E]P3FFFF80,
++	op=\E[39;49m, rev=\E[7m, ri=\EM, rmacs=^O, rmam=\E[?7l,
++	rmir=\E[4l, rmpch=\E[10m, rmso=\E[27m, rs1=\Ec,
++	rs3=\E[37;40m\E[8], sgr0=\E[m, smacs=^N, smam=\E[?7h,
++	smir=\E[4h, smpch=\E[11m, smso=\E[7m, tbc=\E[3g,
++	vpa=\E[%i%p1%dd, .VN=\E[?5l, .VR=\E[?5h, .am@,
++	.ich=\E[%p1%d@, .ich1=\E[@, .ll=\E[99H, .rmcup=,
++	.rmul=\E[24m, .smcup=\E]R\E]P3FFFF80\E[?8c,
+ 	.smul=\E[4m,
+ 	E3=\E[99H\E[2J\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+ 	   \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+@@ -21814,8 +21700,9 @@
+ 	   \n\n\n\n\n\n\n\n\n\n,
+ 	use=ansi+arrows, use=ansi+csr, use=ansi+cup,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local1,
+-	use=klone+color, use=vt220+pcedit, use=vt220+cvis,
+-	use=linux+decid,
++	use=klone+color, use=linux+decid, use=linux+lockeys,
++	use=vt220+pcedit, use=vt220+cvis, use=vt220+sfkeys,
++	use=vt220+ufkeys,
+ 
+ # 1. Using double-shapes for VT100 graphical chars (eg: mc).
+ # 2. Native brown color corrected to good yellow color.
+@@ -21872,9 +21759,7 @@
+ 
+ screen.linux-m1|Linux m1 specific for screen,
+ 	ncv@,
+-	kclr=\E\r, kdl1=\E\E[A, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf20=\E[34~, kil1=\E\E[B, rmul@, smul@,
++	kclr=\E\r, kdl1=\E\E[A, kil1=\E\E[B, rmul@, smul@,
+ 	u8=\E[?1;2c,
+ 	E3=\E[99H\E[2J\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+ 	   \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+@@ -21885,6 +21770,7 @@
+ 	   \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n
+ 	   \n\n\n\n\n\n\n\n\n\n,
+ 	use=decid+cpr, use=xterm+x11mouse, use=screen,
++	use=vt220+sfkeys,
+ 
+ screen.linux-m1b|Linux m1b specific for screen,
+ 	colors@, pairs@,
+@@ -21898,24 +21784,24 @@
+ # Putty :
+ 
+ putty-m1|Putty Minitel 1 "like" Couleurs,
+-	dim@, kf1=\E[11~, kf2=\E[12~, kf3=\E[13~, kf4=\E[14~,
+-	kf5=\E[15~, rmul=\E[24m, smul=\E[4m, .E3=\E[300S,
+-	use=xterm+alt47, use=putty+screen, use=xterm+sl-twm,
+-	use=ecma+index, use=linux-m1,
++	dim@, rmul=\E[24m, smul=\E[4m, .E3=\E[300S,
++	use=xterm+r5+lockeys, use=xterm+alt47,
++	use=putty+screen, use=xterm+sl-twm, use=ecma+index,
++	use=linux-m1,
+ 
+ putty-m1b|Putty Minitel 1B "like" Monochrome (Gris/Blanc/Noir),
+-	dim@, kf1=\E[11~, kf2=\E[12~, kf3=\E[13~, kf4=\E[14~,
+-	kf5=\E[15~, rmul=\E[24m, smul=\E[4m, .E3=\E[300S,
+-	use=xterm+alt47, use=putty+screen, use=xterm+sl-twm,
+-	use=ecma+index, use=linux-m1b,
++	dim@, rmul=\E[24m, smul=\E[4m, .E3=\E[300S,
++	use=xterm+r5+lockeys, use=xterm+alt47,
++	use=putty+screen, use=xterm+sl-twm, use=ecma+index,
++	use=linux-m1b,
+ 
+ putty-m2|Putty Minitel 2 "like" Couleurs (Vert/Blanc/Noir),
+ 	acsc=``aabbccddeeffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{
+ 	     {||}}~~,
+-	dim@, kf1=\E[11~, kf2=\E[12~, kf3=\E[13~, kf4=\E[14~,
+-	kf5=\E[15~, rmul=\E[24m, smul=\E[4m, .E3=\E[300S,
+-	use=xterm+alt47, use=putty+screen, use=xterm+sl-twm,
+-	use=ecma+index, use=linux-m2,
++	dim@, rmul=\E[24m, smul=\E[4m, .E3=\E[300S,
++	use=xterm+r5+lockeys, use=xterm+alt47,
++	use=putty+screen, use=xterm+sl-twm, use=ecma+index,
++	use=linux-m2,
+ 
+ putty+screen|PuTTY with screen resizing extensions (building-block),
+ 	.WS=\E[8;%p1%d;%p2%dt, Z0=\E[?3h, Z1=\E[?3l,
+@@ -22176,7 +22062,7 @@
+ # This entry covers the following terminals:
+ # dku7102, tws2102, and tws models 2105 to 2112
+ tws-generic|dku7102|Bull Questar tws terminals,
+-	am, eslok, hs, mir, msgr, xenl, xhp@, xon,
++	am, mir, msgr, xenl, xhp@, xon,
+ 	cols#80, lines#24, wsl#80,
+ 	acsc=``aaffggj)k\,l&m#n/ooppq*rrsst'u-v+w.x%yyzz{{||}}~~,
+ 	bel=^G, blink=\E[0;5m, civis=\E[1r, clear=\E[2J,
+@@ -22200,7 +22086,7 @@
+ 	smir=\E[4h, smso=\E[0;7m, smul=\E[0;4m,
+ 	tsl=\EPY99:98\E\\\E[0;98v\E[2;7m, use=ansi+arrows,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+inittabs,
+-	use=ansi+local, use=ansi+sgrdim,
++	use=ansi+local, use=ansi+sgrdim, use=dec+sl,
+ 
+ tws2102-sna|dku7102-sna|Bull Questar tws2102 for SNA,
+ 	dsl=\E[0;98v\E[2J\E[v, fsl=\E[v, is3=\Eb, tsl=\E[0;98v,
+@@ -22306,15 +22192,12 @@
+ 	is2=\E[?2h\E[?3l\E[?5l\E[?7h\E[?8h\E>\E[?1l\E\sF\E[?42l\E[?4
+ 	    l,
+ 	is3=\E[0$}\E[?25h\E[2l\E[H\E[J, ka1=\EOw, ka3=\EOy,
+-	kb2=\EOu, kc1=\EOq, kc3=\EOs, kf1=\EOP, kf10=\E[21~,
+-	kf11=\E[23~, kf12=\E[24~, kf13=\E[25~, kf14=\E[26~,
+-	kf15=\E[28~, kf16=\E[29~, kf17=\E[31~, kf18=\E[32~,
+-	kf19=\E[33~, kf2=\EOQ, kf20=\E[34~, kf3=\EOR, kf4=\EOS,
+-	kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+-	khlp=\E[28~, krdo=\E[29~, lf1=pf1, lf2=pf2, lf3=pf3, lf4=pf4,
+-	nel=\EE, rev=\E[7m, ri=\EM, rmacs=\E(B, rmam=\E[?7l,
+-	rmcup=\E[?7h, rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[27m,
+-	rmul=\E[24m, rs1=\E[!p, rs2=\E[?3l, s0ds=\E(B, s1ds=\E(0,
++	kb2=\EOu, kc1=\EOq, kc3=\EOs, kf1=\EOP, kf2=\EOQ, kf3=\EOR,
++	kf4=\EOS, khlp=\E[28~, krdo=\E[29~, lf1=pf1, lf2=pf2,
++	lf3=pf3, lf4=pf4, nel=\EE, rev=\E[7m, ri=\EM, rmacs=\E(B,
++	rmam=\E[?7l, rmcup=\E[?7h, rmir=\E[4l, rmkx=\E[?1l\E>,
++	rmso=\E[27m, rmul=\E[24m, rs1=\E[!p, rs2=\E[?3l, s0ds=\E(B,
++	s1ds=\E(0,
+ 	sgr=\E[%?%p1%t;7%;%?%p2%t;4%;%?%p3%t;7%;%?%p4%t;5%;%?%p6%t;1
+ 	    %;m%?%p9%t\E(0%e\E(B%;,
+ 	sgr0=\E[0m\E(B, smacs=\E(0, smam=\E[?7h,
+@@ -22322,7 +22205,7 @@
+ 	smul=\E[4m, tsl=\E[1$}\E[2$~, use=ansi+enq, use=ansi+csr,
+ 	use=ansi+erase, use=ansi+idl, use=ansi+local,
+ 	use=ansi+pp, use=dec+sl, use=vt100+4bsd, use=vt220+cvis,
+-	use=vt220+vtedit,
++	use=vt220+vtedit, use=vt220+sfkeys, use=vt220+ufkeys,
+ 
+ bq300-rv|Bull VT320 reverse 80 columns,
+ 	flash=\E[?5l$<50>\E[?5h,
+@@ -27842,4 +27725,9 @@
+ # 2024-12-28
+ #	+ add ghostty -TD
+ #
++# 2025-01-04
++#	+ cleanup use-clauses -TD
++#	+ add linux+lockeys, xterm+r5+lockeys, xterm+r5+fkeys -TD
++#	+ add vt220+ufkeys, vt220+sfkeys
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: ncurses/base/MKlib_gen.sh
+Prereq:  1.76 
+--- ncurses-6.5-20241228+/ncurses/base/MKlib_gen.sh	2024-12-21 16:51:25.000000000 +0000
++++ ncurses-6.5-20250104/ncurses/base/MKlib_gen.sh	2024-12-29 10:49:59.000000000 +0000
+@@ -2,7 +2,7 @@
+ #
+ # MKlib_gen.sh -- generate sources from curses.h macro definitions
+ #
+-# ($Id: MKlib_gen.sh,v 1.76 2024/12/21 16:51:25 tom Exp $)
++# ($Id: MKlib_gen.sh,v 1.77 2024/12/29 10:49:59 tom Exp $)
+ #
+ ##############################################################################
+ # Copyright 2018-2022,2024 Thomas E. Dickey                                  #
+@@ -188,10 +188,10 @@
+ cat >$ED4 <<EOF
+ 	s/^\(.*\) \(.*\) (\(.*\))\$/NCURSES_EXPORT(\1) \2 (\3)/
+ 	/attr_[sg]et.* z)/s,z),z GCC_UNUSED),
+-	s/\(((\)0\([ ]*!=[ ]*(const void\)/\1NULL\2/g
+-	/returnCode(wborder_set/s,0,NULL,g
+-	/returnWin/s,0,NULL,
+-	/_parent/s,0,NULL,
++	s/\(((\)0[L]*\([ ]*!=[ ]*(const void\)/\1NULL\2/g
++	/returnCode(wborder_set/s,0[L]*,NULL,g
++	/returnWin/s,0[L]*,NULL,
++	/_parent/s,0[L]*,NULL,
+ EOF
+ else
+ cat >$ED4 <<EOF
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20241228+/package/debian-mingw/changelog	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/package/debian-mingw/changelog	2025-01-04 09:55:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241228) unstable; urgency=low
++ncurses6td (6.5+20250104) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Dec 2024 06:24:50 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 29 Dec 2024 04:55:25 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw/copyright
+--- ncurses-6.5-20241228+/package/debian-mingw/copyright	2024-01-05 21:15:12.000000000 +0000
++++ ncurses-6.5-20250104/package/debian-mingw/copyright	2025-01-04 10:55:16.000000000 +0000
+@@ -5,12 +5,12 @@
+ 
+ -------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2023,2024 by Thomas E. Dickey
++Copyright: 2017-2024,2025 by Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+ License: X11
+ 
+ Files: aclocal.m4 package
+-Copyright: 1996-2023,2024 by Thomas E. Dickey
++Copyright: 1996-2024,2025 by Thomas E. Dickey
+ License: X11
+ 
+ Files: doc/html/NCURSES-Programming-HOWTO.html
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20241228+/package/debian-mingw64/changelog	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/package/debian-mingw64/changelog	2025-01-04 09:55:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241228) unstable; urgency=low
++ncurses6td (6.5+20250104) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Dec 2024 06:24:50 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 29 Dec 2024 04:55:25 -0500
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/copyright
+--- ncurses-6.5-20241228+/package/debian-mingw64/copyright	2024-01-05 21:15:37.000000000 +0000
++++ ncurses-6.5-20250104/package/debian-mingw64/copyright	2025-01-04 10:55:34.000000000 +0000
+@@ -5,12 +5,12 @@
+ 
+ -------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2023,2024 by Thomas E. Dickey
++Copyright: 2017-2024,2025 by Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+ License: X11
+ 
+ Files: aclocal.m4 package
+-Copyright: 1996-2023,2024 by Thomas E. Dickey
++Copyright: 1996-2024,2025 by Thomas E. Dickey
+ License: X11
+ 
+ Files: doc/html/NCURSES-Programming-HOWTO.html
+Index: package/debian/changelog
+--- ncurses-6.5-20241228+/package/debian/changelog	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/package/debian/changelog	2025-01-04 09:55:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20241228) unstable; urgency=low
++ncurses6td (6.5+20250104) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 28 Dec 2024 06:24:50 -0500
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 29 Dec 2024 04:55:25 -0500
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/debian/copyright
+--- ncurses-6.5-20241228+/package/debian/copyright	2024-01-05 21:14:42.000000000 +0000
++++ ncurses-6.5-20250104/package/debian/copyright	2025-01-04 10:54:57.000000000 +0000
+@@ -5,12 +5,12 @@
+ 
+ -------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2023,2024 by Thomas E. Dickey
++Copyright: 2017-2024,2025 by Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+ License: X11
+ 
+ Files: aclocal.m4 package
+-Copyright: 1996-2023,2024 by Thomas E. Dickey
++Copyright: 1996-2024,2025 by Thomas E. Dickey
+ License: X11
+ 
+ Files: doc/html/NCURSES-Programming-HOWTO.html
+Index: package/mingw-ncurses.nsi
+Prereq:  1.682 
+--- ncurses-6.5-20241228+/package/mingw-ncurses.nsi	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/package/mingw-ncurses.nsi	2025-01-04 09:55:25.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.682 2024/12/28 11:24:50 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.683 2025/01/04 09:55:25 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -9,8 +9,8 @@
+ 
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+-!define VERSION_YYYY  "2024"
+-!define VERSION_MMDD  "1228"
++!define VERSION_YYYY  "2025"
++!define VERSION_MMDD  "0104"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20241228+/package/mingw-ncurses.spec	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/package/mingw-ncurses.spec	2025-01-04 09:55:25.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20241228
++Release: 20250104
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20241228+/package/ncurses.spec	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/package/ncurses.spec	2025-01-04 09:55:25.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20241228
++Release: 20250104
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20241228+/package/ncursest.spec	2024-12-28 11:24:50.000000000 +0000
++++ ncurses-6.5-20250104/package/ncursest.spec	2025-01-04 09:55:25.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20241228
++Release: 20250104
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+Index: progs/tput.c
+Prereq:  1.107 
+--- ncurses-6.5-20241228+/progs/tput.c	2024-12-07 22:12:53.000000000 +0000
++++ ncurses-6.5-20250104/progs/tput.c	2025-01-05 00:10:46.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -47,7 +47,7 @@
+ #include <transform.h>
+ #include <tty_settings.h>
+ 
+-MODULE_ID("$Id: tput.c,v 1.107 2024/12/07 22:12:53 tom Exp $")
++MODULE_ID("$Id: tput.c,v 1.109 2025/01/05 00:10:46 tom Exp $")
+ 
+ #define PUTS(s)		fputs(s, stdout)
+ 
+@@ -239,54 +239,71 @@
+ #endif
+ 	quit(ErrCapName, "unknown terminfo capability '%s'", name);
+     } else if (VALID_STRING(s)) {
+-	if (argc > 1) {
+-	    int k;
+-	    int narg;
+-	    int analyzed;
+-	    int provided;
+-	    int popcount;
+-	    long numbers[1 + NUM_PARM];
+-	    char *strings[1 + NUM_PARM];
+-	    char *p_is_s[NUM_PARM];
+-	    TParams paramType;
+-
+-	    /* Nasty hack time. The tparm function needs to see numeric
+-	     * parameters as numbers, not as pointers to their string
+-	     * representations
+-	     */
+-
+-	    for (k = 1; (k < argc) && (k <= NUM_PARM); k++) {
+-		char *tmp = NULL;
+-		strings[k] = argv[k];
+-		numbers[k] = strtol(argv[k], &tmp, 0);
+-		if (tmp == NULL || *tmp != 0)
+-		    numbers[k] = 0;
+-	    }
+-	    for (k = argc; k <= NUM_PARM; k++) {
+-		numbers[k] = 0;
+-		strings[k] = NULL;
+-	    }
++	TParams paramType;
++	long numbers[1 + NUM_PARM];
++	char *strings[1 + NUM_PARM];
++	char *p_is_s[NUM_PARM];
++	int k;
++	int narg;
++	int analyzed = 0;
++	int provided = 0;
++	int popcount = 0;
+ 
+-	    paramType = tparm_type(name);
++	paramType = tparm_type(name);
+ #if NCURSES_XNAMES
+-	    /*
+-	     * If the capability is an extended one, analyze the string.
+-	     */
+-	    if (paramType == Numbers) {
+-		struct name_table_entry const *entry_ptr;
+-		entry_ptr = _nc_find_type_entry(name, STRING, FALSE);
+-		if (entry_ptr == NULL) {
+-		    paramType = Other;
+-		}
++	/*
++	 * If the capability is an extended one, analyze the string.
++	 */
++	if (paramType == Numbers) {
++	    struct name_table_entry const *entry_ptr;
++	    entry_ptr = _nc_find_type_entry(name, STRING, FALSE);
++	    if (entry_ptr == NULL) {
++		paramType = Other;
+ 	    }
++	}
+ #endif
++	/* Nasty hack time.  The tparm function needs to see numeric parameters
++	 * as numbers, not as pointers to their string representations
++	 */
++	for (k = 1; (k < argc) && (k <= NUM_PARM); k++) {
++	    char *tmp = NULL;
++	    strings[k] = argv[k];
++	    numbers[k] = strtol(argv[k], &tmp, 0);
++	    if (tmp == NULL || *tmp != 0)
++		numbers[k] = 0;
++	}
++	for (k = argc; k <= NUM_PARM; k++) {
++	    numbers[k] = 0;
++	    strings[k] = NULL;
++	}
++
++	switch (paramType) {
++	case Str:
++	    analyzed = 1;
++	    break;
++	case Str_Str:
++	    analyzed = 2;
++	    break;
++	case Num_Str:
++	    analyzed = 2;
++	    break;
++	case Num_Str_Str:
++	    analyzed = 3;
++	    break;
++	case Numbers:
++	case Other:
++	    analyzed = _nc_tparm_analyze(NULL, s, p_is_s, &popcount);
++	    break;
++	}
++	if (analyzed < popcount) {
++	    analyzed = popcount;
++	}
+ 
+-	    popcount = 0;
++	if (argc > 1) {
+ 	    _nc_reset_tparm(NULL);
+ 	    /*
+ 	     * Count the number of numeric parameters which are provided.
+ 	     */
+-	    provided = 0;
+ 	    for (narg = 1; narg < argc; ++narg) {
+ 		char *ending = NULL;
+ 		long check = strtol(argv[narg], &ending, 0);
+@@ -297,13 +314,11 @@
+ 	    switch (paramType) {
+ 	    case Str:
+ 		s = TPARM_1(s, strings[1]);
+-		analyzed = 1;
+ 		if (provided == 0 && argc >= 1)
+ 		    provided++;
+ 		break;
+ 	    case Str_Str:
+ 		s = TPARM_2(s, strings[1], strings[2]);
+-		analyzed = 2;
+ 		if (provided == 0 && argc >= 1)
+ 		    provided++;
+ 		if (provided == 1 && argc >= 2)
+@@ -311,22 +326,19 @@
+ 		break;
+ 	    case Num_Str:
+ 		s = TPARM_2(s, numbers[1], strings[2]);
+-		analyzed = 2;
+ 		if (provided == 1 && argc >= 2)
+ 		    provided++;
+ 		break;
+ 	    case Num_Str_Str:
+ 		s = TPARM_3(s, numbers[1], strings[2], strings[3]);
+-		analyzed = 3;
+ 		if (provided == 1 && argc >= 2)
+ 		    provided++;
+ 		if (provided == 2 && argc >= 3)
+ 		    provided++;
+ 		break;
+ 	    case Numbers:
+-		analyzed = _nc_tparm_analyze(NULL, s, p_is_s, &popcount);
+ #define myParam(n) numbers[n]
+-		s = TIPARM_9(s,
++		s = TIPARM_N(analyzed, s,
+ 			     myParam(1),
+ 			     myParam(2),
+ 			     myParam(3),
+@@ -341,24 +353,20 @@
+ 	    case Other:
+ 		/* FALLTHRU */
+ 	    default:
+-		analyzed = _nc_tparm_analyze(NULL, s, p_is_s, &popcount);
+ #define myParam(n) (p_is_s[n - 1] != NULL ? ((TPARM_ARG) strings[n]) : numbers[n])
+-		s = TPARM_9(s,
+-			    myParam(1),
+-			    myParam(2),
+-			    myParam(3),
+-			    myParam(4),
+-			    myParam(5),
+-			    myParam(6),
+-			    myParam(7),
+-			    myParam(8),
+-			    myParam(9));
++		s = TIPARM_N(analyzed, s,
++			     myParam(1),
++			     myParam(2),
++			     myParam(3),
++			     myParam(4),
++			     myParam(5),
++			     myParam(6),
++			     myParam(7),
++			     myParam(8),
++			     myParam(9));
+ #undef myParam
+ 		break;
+ 	    }
+-	    if (analyzed < popcount) {
+-		analyzed = popcount;
+-	    }
+ 	    if (opt_v && (analyzed != provided)) {
+ 		fprintf(stderr, "%s: %s parameters for \"%s\"\n",
+ 			_nc_progname,
+@@ -366,6 +374,12 @@
+ 			argv[0]);
+ 	    }
+ 	    *used += provided;
++	} else {
++	    if (opt_v) {
++		fprintf(stderr, "%s: missing parameters for \"%s\"\n",
++			_nc_progname,
++			argv[0]);
++	    }
+ 	}
+ 
+ 	/* use putp() in order to perform padding */
+Index: test/package/debian-mingw/copyright
+--- ncurses-6.5-20241228+/test/package/debian-mingw/copyright	2024-01-05 21:17:19.000000000 +0000
++++ ncurses-6.5-20250104/test/package/debian-mingw/copyright	2025-01-04 10:56:36.000000000 +0000
+@@ -4,12 +4,12 @@
+ 
+ -------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2023,2024 Thomas E. Dickey
++Copyright: 2017-2024,2025 Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+ License: X11
+ 
+ Files: aclocal.m4 package
+-Copyright: 2003-2023,2024 by Thomas E. Dickey
++Copyright: 2003-2024,2025 by Thomas E. Dickey
+ License: X11
+ 
+     Permission is hereby granted, free of charge, to any person obtaining a
+Index: test/package/debian-mingw64/copyright
+--- ncurses-6.5-20241228+/test/package/debian-mingw64/copyright	2024-01-05 21:17:53.000000000 +0000
++++ ncurses-6.5-20250104/test/package/debian-mingw64/copyright	2025-01-04 10:56:53.000000000 +0000
+@@ -4,12 +4,12 @@
+ 
+ -------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2023,2024 Thomas E. Dickey
++Copyright: 2017-2024,2025 Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+ License: X11
+ 
+ Files: aclocal.m4 package
+-Copyright: 2003-2023,2024 by Thomas E. Dickey
++Copyright: 2003-2024,2025 by Thomas E. Dickey
+ License: X11
+ 
+     Permission is hereby granted, free of charge, to any person obtaining a
+Index: test/package/debian/copyright
+--- ncurses-6.5-20241228+/test/package/debian/copyright	2024-01-05 21:16:50.000000000 +0000
++++ ncurses-6.5-20250104/test/package/debian/copyright	2025-01-04 10:56:09.000000000 +0000
+@@ -4,12 +4,12 @@
+ 
+ -------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2023,2024 Thomas E. Dickey
++Copyright: 2017-2024,2025 Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+ License: X11
+ 
+ Files: aclocal.m4 package
+-Copyright: 2003-2023,2024 by Thomas E. Dickey
++Copyright: 2003-2024,2025 by Thomas E. Dickey
+ License: X11
+ 
+     Permission is hereby granted, free of charge, to any person obtaining a
