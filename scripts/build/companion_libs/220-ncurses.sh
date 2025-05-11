@@ -152,6 +152,8 @@ do_ncurses_backend() {
         ncurses_opts+=("--with-shared")
     fi
 
+    cflags+=" ${CT_NCURSES_EXTRA_CFLAGS}"
+
     CT_DoLog EXTRA "Configuring ncurses"
     CT_DoExecLog CFG                                                    \
     CFLAGS="${cflags}"                                                  \
