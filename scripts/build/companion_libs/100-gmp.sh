@@ -122,6 +122,10 @@ do_gmp_backend() {
         extra_config+=("--with-pic")
     fi
 
+    if [ "${CT_GCC_15_or_later}" = "y" ]; then
+        cflags="${cflags} -std=c17"
+    fi
+
     # GMP's configure script doesn't respect the host parameter
     # when not cross-compiling, ie when build == host so set
     # CC_FOR_BUILD and CPP_FOR_BUILD.
