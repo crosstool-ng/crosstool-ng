@@ -1176,6 +1176,10 @@ do_gcc_backend() {
         fi
     fi
 
+    if [ "${CT_CC_GCC_ENABLE_DEFAULT_PIE}" = "y" ]; then
+        extra_config+=("--enable-default-pie")
+    fi
+
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
        [ "${enable_optspace}" = "yes" ]; then
         extra_config+=("--enable-target-optspace")
