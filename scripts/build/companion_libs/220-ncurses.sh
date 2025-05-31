@@ -152,6 +152,10 @@ do_ncurses_backend() {
         ncurses_opts+=("--with-shared")
     fi
 
+    if [ "${CT_GCC_15_or_later}" = "y" ]; then
+        cflags="${cflags} -std=c17"
+    fi
+
     CT_DoLog EXTRA "Configuring ncurses"
     CT_DoExecLog CFG                                                    \
     CFLAGS="${cflags}"                                                  \
