@@ -204,7 +204,21 @@ do_cc_core() {
     core_opts+=( "lang_list=c" )
     core_opts+=( "build_step=core" )
     core_opts+=( "mode=static" )
-    core_opts+=( "build_libgcc=yes" )
+
+    # Picolibc headers may be installed properly only with GCC.
+    # Meson requires gcc binary for configuring features and
+    # generating picolibc.h header. Also, some headers are missing
+    # in "include" directory (like stdio.h) and they may be installed
+    # correctly only after building and installing Picolibc itself.
+    #
+    # Thus, Picolibc headers installed before CC core stage may be
+    # incomplete. In turn, libgcc may be configure incorrectly. We
+    # can skip it now since it will be built on the final stage anyway.
+    if [ "${CT_BARE_METAL}" = "y" -a "${CT_LIBC_PICOLIBC}" = "y" ]; then
+        core_opts+=( "build_libgcc=no" )
+    else
+        core_opts+=( "build_libgcc=yes" )
+    fi
 
     CT_DoStep INFO "Installing core C gcc compiler"
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-core"
