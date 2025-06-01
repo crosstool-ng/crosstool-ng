@@ -182,6 +182,10 @@ glibc_backend_once()
     # or even after they get installed...
     echo "ac_cv_path_BASH_SHELL=/bin/bash" >>config.cache
 
+    if [ "${CT_GLIBC_MAKEINFO_WORKAROUND}" = "y" ]; then
+        echo "ac_cv_prog_MAKEINFO=" >>config.cache
+    fi
+
     CT_SymlinkToolsMultilib
 
     # Configure with --prefix the way we want it on the target...
