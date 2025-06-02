@@ -1,0 +1,51 @@
+From eb8a76522689a010a595071ce753ed489cbad7ff Mon Sep 17 00:00:00 2001
+From: Bruno Haible <bruno@clisp.org>
+Date: Thu, 9 Feb 2023 16:58:20 +0100
+Subject: [PATCH] Fix compilation errors with ISO C 23 compilers.
+
+* gettext-runtime/intl/dcigettext.c (getwd, getcwd): Assume a declaration in the
+system header files.
+* gettext-runtime/intl/gettextP.h (SWAP): Drop K&C compatibility.
+---
+ gettext-runtime/intl/dcigettext.c | 3 ---
+ gettext-runtime/intl/gettextP.h   | 5 -----
+ 2 files changed, 8 deletions(-)
+
+diff --git a/gettext-runtime/intl/dcigettext.c b/gettext-runtime/intl/dcigettext.c
+index ba333303f..85e0d6aad 100644
+--- a/gettext-runtime/intl/dcigettext.c
++++ b/gettext-runtime/intl/dcigettext.c
+@@ -138,13 +138,10 @@ extern int errno;
+ # define tfind __tfind
+ #else
+ # if !defined HAVE_GETCWD
+-char *getwd ();
+ #  define getcwd(buf, max) getwd (buf)
+ # else
+ #  if VMS
+ #   define getcwd(buf, max) (getcwd) (buf, max, 0)
+-#  else
+-char *getcwd ();
+ #  endif
+ # endif
+ # ifndef HAVE_STPCPY
+diff --git a/gettext-runtime/intl/gettextP.h b/gettext-runtime/intl/gettextP.h
+index 0d7dbd6d4..1b7186552 100644
+--- a/gettext-runtime/intl/gettextP.h
++++ b/gettext-runtime/intl/gettextP.h
+@@ -113,12 +113,7 @@ extern char *libintl_dcigettext (const char *__domainname,
+ # define SWAP(i) bswap_32 (i)
+ #else
+ static inline nls_uint32
+-# ifdef __cplusplus
+ SWAP (nls_uint32 i)
+-# else
+-SWAP (i)
+-     nls_uint32 i;
+-# endif
+ {
+   return (i << 24) | ((i & 0xff00) << 8) | ((i >> 8) & 0xff00) | (i >> 24);
+ }
+-- 
+2.49.0
+
