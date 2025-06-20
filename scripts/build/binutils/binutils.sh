@@ -167,6 +167,9 @@ do_binutils_backend() {
         extra_config+=("--disable-multilib")
     fi
 
+    # Disable gprofng, it contains unportable code
+    extra_config+=("--disable-gprofng")
+
     # Disable gdb when building from the binutils-gdb repository.
     extra_config+=("--disable-sim")
     extra_config+=("--disable-gdb")
