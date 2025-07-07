@@ -1,0 +1,47 @@
+From 872a73abe6ccb45c617b30f30ded8d6c7ca5b21e Mon Sep 17 00:00:00 2001
+From: Igor Kostenko <work.kerogi@gmail.com>
+Date: Thu, 3 Jul 2025 19:02:20 +0200
+Subject: [PATCH] crt/ssp: fix stack smashing protection bootstrapping
+
+Fix stack protection bootstrapping issue where the guard initialization
+function itself triggers false positive stack overflow detection.
+
+This issue occurs when the mingw-w64 CRT library is built with GCC's
+-fstack-protector-strong flag, which effectively renders any resulting
+binary (whether statically or dynamically linked) corrupted. The final
+binary crashes during startup, before it even reaches the main function.
+
+The problem is that the init() function starts with __stack_chk_guard = 0
+but initializes it to a random value, causing the stack protection check
+to always fail (0 != random) at function exit.
+
+By introducing attribute __no_stack_protector__ we prevent early testing
+of the uninitialized guard value.
+
+Signed-off-by: Igor Kostenko <work.kerogi@gmail.com>
+(cherry picked from commit a0e69f7bc83a29b40e68355aac3e0c39b113b20f)
+Signed-off-by: LIU Hao <lh_mouse@126.com>
+---
+ mingw-w64-crt/ssp/stack_chk_guard.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mingw-w64-crt/ssp/stack_chk_guard.c b/mingw-w64-crt/ssp/stack_chk_guard.c
+index 3ff22e020..be43d8c7e 100644
+--- a/mingw-w64-crt/ssp/stack_chk_guard.c
++++ b/mingw-w64-crt/ssp/stack_chk_guard.c
+@@ -10,7 +10,11 @@
+ 
+ void *__stack_chk_guard;
+ 
+-static void __cdecl __attribute__((__constructor__)) init(void)
++// This function requires `no_stack_protector` because it changes the
++// value of `__stack_chk_guard`, causing stack checks to fail before
++// returning from this function.
++__attribute__((__constructor__, __no_stack_protector__))
++static void __cdecl init(void)
+ {
+   unsigned int ui;
+   if (__stack_chk_guard != 0)
+-- 
+2.24.0.windows.2
+
