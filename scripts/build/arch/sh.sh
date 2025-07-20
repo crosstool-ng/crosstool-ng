@@ -18,7 +18,8 @@ CT_DoArchTupleValues () {
     # Instead of -m{soft,hard}-float, uses CPU type
     CT_ARCH_FLOAT_CFLAG=
     if [ "${CT_ARCH_SH_VARIANT}" != "sh" ]; then
-        CT_ARCH_ARCH_CFLAG=-m${CT_ARCH_SH_VARIANT#sh}-${CT_ARCH_SH_FLOAT_SUFFIX#_}
+        CT_ARCH_ARCH_CFLAG=-m${CT_ARCH_SH_VARIANT#sh}${CT_ARCH_SH_FLOAT_SUFFIX/_/-}
+        CT_ARCH_ARCH_CFLAG=${CT_ARCH_ARCH_CFLAG/_/-}
     fi
 }
 
