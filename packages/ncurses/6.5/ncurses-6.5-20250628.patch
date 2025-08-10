@@ -1,0 +1,406 @@
+# ncurses 6.5 - patch 20250628 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250628.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Jun 29 00:04:15 UTC 2025
+# ------------------------------------------------------------------------------
+# Ada95/configure                  |   14 +++++++-------
+# NEWS                             |    8 +++++++-
+# VERSION                          |    2 +-
+# dist.mk                          |    4 ++--
+# ncurses/curses.priv.h            |    9 ++++-----
+# ncurses/tinfo/lib_baudrate.c     |    5 +++--
+# ncurses/tinfo/lib_win32util.c    |    3 ++-
+# package/debian-mingw/changelog   |    4 ++--
+# package/debian-mingw64/changelog |    4 ++--
+# package/debian/changelog         |    4 ++--
+# package/mingw-ncurses.nsi        |    4 ++--
+# package/mingw-ncurses.spec       |    6 +++---
+# package/ncurses.spec             |    6 +++---
+# package/ncursest.spec            |    6 +++---
+# test/picsmap.c                   |   10 ++++++----
+# test/test.priv.h                 |    6 +++---
+# 16 files changed, 52 insertions(+), 43 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/configure
+--- ncurses-6.5-20250621+/Ada95/configure	2025-06-14 13:44:50.000000000 +0000
++++ ncurses-6.5-20250628/Ada95/configure	2025-06-22 08:49:14.000000000 +0000
+@@ -13542,7 +13542,7 @@
+ 				-L*)
+ 					ldopts+=("\`echo \"\$1\" | sed \"s/^-L/-LIBPATH:/\"\`")
+ 					;;
+-				*.obj | *.o)
++				*.obj | *.$OBJEXT)
+ 					ldopts+=("\$1")
+ 					;;
+ 				-Wl,*)
+@@ -18823,10 +18823,10 @@
+   ac_status=$?
+   echo "$as_me:18824: \$? = $ac_status" >&5
+   (exit "$ac_status"); } ; then
+-		mv conftest.o data.o && \
+-		( $AR $ARFLAGS conftest.a data.o ) 2>&5 1>/dev/null
++		mv conftest.$OBJEXT data.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a data.$OBJEXT ) 2>&5 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext data.o
++	rm -f conftest.$ac_ext data.$OBJEXT
+ 	cat >conftest.$ac_ext <<EOF
+ #line 18831 "configure"
+ extern int testfunc(void);
+@@ -18850,10 +18850,10 @@
+   ac_status=$?
+   echo "$as_me:18851: \$? = $ac_status" >&5
+   (exit "$ac_status"); }; then
+-		mv conftest.o func.o && \
+-		( $AR $ARFLAGS conftest.a func.o ) 2>&5 1>/dev/null
++		mv conftest.$OBJEXT func.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a func.$OBJEXT ) 2>&5 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext func.o
++	rm -f conftest.$ac_ext func.$OBJEXT
+ 	( eval $RANLIB conftest.a ) 2>&5 >/dev/null
+ 	cf_saveLIBS="$LIBS"
+ 	LIBS="conftest.a $LIBS"
+Index: NEWS
+Prereq:  1.4301 
+--- ncurses-6.5-20250621+/NEWS	2025-06-21 23:43:58.000000000 +0000
++++ ncurses-6.5-20250628/NEWS	2025-06-28 22:47:22.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4301 2025/06/21 23:43:58 tom Exp $
++-- $Id: NEWS,v 1.4305 2025/06/28 22:47:22 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250628
++	+ fix a few compiler-warnings.
++	+ simplify include for wchar.h in Windows port by removing the platform
++	  ifdef's (report by Karl Knechtel).
++	+ regen Ada95/configure (report by Sven Joachim).
++
+ 20250621
+ 	+ revise loop in wins_nwstr, to ensure that non-spacing characters are
+ 	  combined with the base spacing character (report by Karl Knechtel).
+Index: VERSION
+--- ncurses-6.5-20250621+/VERSION	2025-06-21 07:53:07.000000000 +0000
++++ ncurses-6.5-20250628/VERSION	2025-06-28 08:49:47.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250621
++5:0:10	6.5	20250628
+Index: dist.mk
+Prereq:  1.1674 
+--- ncurses-6.5-20250621+/dist.mk	2025-06-21 07:53:07.000000000 +0000
++++ ncurses-6.5-20250628/dist.mk	2025-06-28 08:49:47.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1674 2025/06/21 07:53:07 tom Exp $
++# $Id: dist.mk,v 1.1675 2025/06/28 08:49:47 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250621
++NCURSES_PATCH = 20250628
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: ncurses/curses.priv.h
+Prereq:  1.704 
+--- ncurses-6.5-20250621+/ncurses/curses.priv.h	2025-06-21 20:42:05.000000000 +0000
++++ ncurses-6.5-20250628/ncurses/curses.priv.h	2025-06-28 17:42:24.000000000 +0000
+@@ -35,7 +35,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: curses.priv.h,v 1.704 2025/06/21 20:42:05 tom Exp $
++ * $Id: curses.priv.h,v 1.705 2025/06/28 17:42:24 tom Exp $
+  *
+  *	curses.priv.h
+  *
+@@ -2519,15 +2519,14 @@
+ #endif
+ 
+ #ifdef _NC_WINDOWS
+-#if (defined(_NC_MINGW) || defined(__MINGW32__) || defined(__MINGW64__))
++#if USE_WIDEC_SUPPORT
+ #include <wchar.h>
+-#else
+-#include <tchar.h>
+ #endif
++#include <tchar.h>
+ #include <io.h>
+ #elif defined(_NC_WINDOWS_NATIVE)
+-#include <io.h>
+ #include <tchar.h>
++#include <io.h>
+ #elif defined(__EMX__)
+ #include <io.h>
+ #endif
+Index: ncurses/tinfo/lib_baudrate.c
+Prereq:  1.46 
+--- ncurses-6.5-20250621+/ncurses/tinfo/lib_baudrate.c	2024-12-07 20:05:08.000000000 +0000
++++ ncurses-6.5-20250628/ncurses/tinfo/lib_baudrate.c	2025-06-28 17:23:28.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020,2024 Thomas E. Dickey                                     *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -84,7 +84,7 @@
+ #undef USE_OLD_TTY
+ #endif /* USE_OLD_TTY */
+ 
+-MODULE_ID("$Id: lib_baudrate.c,v 1.46 2024/12/07 20:05:08 tom Exp $")
++MODULE_ID("$Id: lib_baudrate.c,v 1.47 2025/06/28 17:23:28 tom Exp $")
+ 
+ /*
+  *	int
+@@ -269,6 +269,7 @@
+     T((T_CALLED("baudrate(%p)"), (void *) SP_PARM));
+ 
+ #if defined(EXP_WIN32_DRIVER)
++    (void) SP_PARM;
+     result = OK;
+ #else
+     /*
+Index: ncurses/tinfo/lib_win32util.c
+Prereq:  1.6 
+--- ncurses-6.5-20250621+/ncurses/tinfo/lib_win32util.c	2025-06-21 14:27:43.000000000 +0000
++++ ncurses-6.5-20250628/ncurses/tinfo/lib_win32util.c	2025-06-28 16:58:13.000000000 +0000
+@@ -33,8 +33,9 @@
+  ****************************************************************************/
+ 
+ #include <curses.priv.h>
++#include <tchar.h>
+ 
+-MODULE_ID("$Id: lib_win32util.c,v 1.6 2025/06/21 14:27:43 tom Exp $")
++MODULE_ID("$Id: lib_win32util.c,v 1.7 2025/06/28 16:58:13 tom Exp $")
+ 
+ #ifdef _NC_WINDOWS_NATIVE
+ 
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250621+/package/debian-mingw/changelog	2025-06-20 07:53:07.000000000 +0000
++++ ncurses-6.5-20250628/package/debian-mingw/changelog	2025-06-22 08:49:47.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250621) unstable; urgency=low
++ncurses6td (6.5+20250628) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 20 Jun 2025 03:53:07 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 22 Jun 2025 04:49:47 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250621+/package/debian-mingw64/changelog	2025-06-20 07:53:07.000000000 +0000
++++ ncurses-6.5-20250628/package/debian-mingw64/changelog	2025-06-22 08:49:47.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250621) unstable; urgency=low
++ncurses6td (6.5+20250628) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 20 Jun 2025 03:53:07 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 22 Jun 2025 04:49:47 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250621+/package/debian/changelog	2025-06-20 07:53:07.000000000 +0000
++++ ncurses-6.5-20250628/package/debian/changelog	2025-06-22 08:49:47.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250621) unstable; urgency=low
++ncurses6td (6.5+20250628) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 20 Jun 2025 03:53:07 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 22 Jun 2025 04:49:47 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.708 
+--- ncurses-6.5-20250621+/package/mingw-ncurses.nsi	2025-06-20 07:53:07.000000000 +0000
++++ ncurses-6.5-20250628/package/mingw-ncurses.nsi	2025-06-22 08:49:47.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.708 2025/06/20 07:53:07 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.709 2025/06/22 08:49:47 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0621"
++!define VERSION_MMDD  "0628"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250621+/package/mingw-ncurses.spec	2025-06-21 18:33:41.000000000 +0000
++++ ncurses-6.5-20250628/package/mingw-ncurses.spec	2025-06-22 08:49:47.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250621
++Release: 20250628
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+@@ -144,8 +144,8 @@
+ 
+ %changelog
+ 
+-* Fri Jun 20 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250621
++* Sun Jun 22 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250628
+ 
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+Index: package/ncurses.spec
+--- ncurses-6.5-20250621+/package/ncurses.spec	2025-06-21 18:32:55.000000000 +0000
++++ ncurses-6.5-20250628/package/ncurses.spec	2025-06-22 08:49:47.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250621
++Release: 20250628
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+@@ -134,8 +134,8 @@
+ 
+ %changelog
+ 
+-* Fri Jun 20 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250621
++* Sun Jun 22 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250628
+ 
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+Index: package/ncursest.spec
+--- ncurses-6.5-20250621+/package/ncursest.spec	2025-06-21 18:33:41.000000000 +0000
++++ ncurses-6.5-20250628/package/ncursest.spec	2025-06-22 08:49:47.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250621
++Release: 20250628
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+@@ -142,8 +142,8 @@
+ 
+ %changelog
+ 
+-* Fri Jun 20 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250621
++* Sun Jun 22 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250628
+ 
+ * Tue Dec 24 2019 Thomas Dickey
+ - drop custom CC_NORMAL warning flags because setting CFLAGS interferes with
+Index: test/picsmap.c
+Prereq:  1.153 
+--- ncurses-6.5-20250621+/test/picsmap.c	2024-12-07 22:48:03.000000000 +0000
++++ ncurses-6.5-20250628/test/picsmap.c	2025-06-28 22:48:52.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2018-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2018-2024,2025 Thomas E. Dickey                                *
+  * Copyright 2017,2018 Free Software Foundation, Inc.                       *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -27,7 +27,7 @@
+  * authorization.                                                           *
+  ****************************************************************************/
+ /*
+- * $Id: picsmap.c,v 1.153 2024/12/07 22:48:03 tom Exp $
++ * $Id: picsmap.c,v 1.154 2025/06/28 22:48:52 tom Exp $
+  *
+  * Author: Thomas E. Dickey
+  *
+@@ -948,7 +948,8 @@
+     for (n = 0; data[n] != NULL; ++n) {
+ 	if (strlen(t = data[n]) >= sizeof(buf) - 1)
+ 	    continue;
+-	t = strcpy(buf, t);
++	_nc_STRCPY(buf, t, sizeof(buf));
++	t = buf;
+ 	if (*(s = skip_s(t)) == '!')
+ 	    continue;
+ 
+@@ -1157,7 +1158,8 @@
+     for (n = 0; data[n] != NULL; ++n) {
+ 	if (strlen(s = data[n]) >= sizeof(buf) - 1)
+ 	    continue;
+-	s = strcpy(buf, s);
++	_nc_STRCPY(buf, s, sizeof(buf));
++	s = buf;
+ 	switch (state) {
+ 	case 0:
+ 	    if (match_c(s, " /* XPM */ ")) {
+Index: test/test.priv.h
+Prereq:  1.221 
+--- ncurses-6.5-20250621+/test/test.priv.h	2025-01-18 15:07:25.000000000 +0000
++++ ncurses-6.5-20250628/test/test.priv.h	2025-06-28 22:43:32.000000000 +0000
+@@ -30,7 +30,7 @@
+ /****************************************************************************
+  *  Author: Thomas E. Dickey                    1996-on                     *
+  ****************************************************************************/
+-/* $Id: test.priv.h,v 1.221 2025/01/18 15:07:25 tom Exp $ */
++/* $Id: test.priv.h,v 1.222 2025/06/28 22:43:32 tom Exp $ */
+ 
+ #ifndef __TEST_PRIV_H
+ #define __TEST_PRIV_H 1
+@@ -752,7 +752,7 @@
+ ," -V       show version of curses"
+ 
+ #if HAVE_CURSES_VERSION
+-#define format_version(buffer, size) strcpy(buffer, curses_version())
++#define format_version(buffer, size) _nc_STRCPY(buffer, curses_version(), size)
+ #elif defined(NCURSES_VERSION_MAJOR) && defined(NCURSES_VERSION_MINOR) && defined(NCURSES_VERSION_PATCH)
+ #define format_version(buffer, size) \
+ 	_nc_SPRINTF(buffer, _nc_SLIMIT(size) "ncurses %d.%d.%d", \
+@@ -760,7 +760,7 @@
+ 		    NCURSES_VERSION_MINOR, \
+ 		    NCURSES_VERSION_PATCH)
+ #else
+-#define format_version(buffer, size) strcpy(buffer, "ncurses-examples")
++#define format_version(buffer, size) _nc_STRCPY(buffer, "ncurses-examples", size)
+ #endif
+ 
+ #define VERSION_COMMON() \
