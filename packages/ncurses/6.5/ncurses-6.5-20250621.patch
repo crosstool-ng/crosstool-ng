@@ -1,0 +1,2186 @@
+# ncurses 6.5 - patch 20250621 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250621.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Jun 22 00:16:20 UTC 2025
+# ------------------------------------------------------------------------------
+# Ada95/aclocal.m4                         |   20 +--
+# Ada95/make-tar.sh                        |   19 +-
+# Ada95/package/AdaCurses-doc.spec         |    7 -
+# Ada95/package/AdaCurses.spec             |    7 -
+# Ada95/package/debian/copyright           |  131 ++++++++------------
+# NEWS                                     |   11 +
+# VERSION                                  |    2 
+# aclocal.m4                               |   28 ++--
+# configure                                |   18 +-
+# dist.mk                                  |    4 
+# ncurses/base/lib_mouse.c                 |    3 
+# ncurses/base/lib_nl.c                    |    8 -
+# ncurses/curses.priv.h                    |   16 ++
+# ncurses/tinfo/lib_raw.c                  |    5 
+# ncurses/tinfo/lib_win32con.c             |   10 -
+# ncurses/tinfo/lib_win32util.c            |    6 
+# ncurses/trace/lib_tracebits.c            |    6 
+# ncurses/widechar/lib_ins_wch.c           |   42 ++++--
+# ncurses/win32con/win32_driver.c          |    9 -
+# ncurses/win32con/win_driver.c            |   11 -
+# package/debian-mingw/changelog           |    4 
+# package/debian-mingw/copyright           |  185 ++++++++++++++---------------
+# package/debian-mingw64/changelog         |    4 
+# package/debian-mingw64/copyright         |  185 ++++++++++++++---------------
+# package/debian/changelog                 |    4 
+# package/debian/copyright                 |  185 ++++++++++++++---------------
+# package/mingw-ncurses.nsi                |    4 
+# package/mingw-ncurses.spec               |    7 -
+# package/ncurses.spec                     |    7 -
+# package/ncursest.spec                    |    7 -
+# test/make-tar.sh                         |    8 -
+# test/package/debian-mingw/copyright      |  137 +++++++++------------
+# test/package/debian-mingw64/copyright    |  137 +++++++++------------
+# test/package/debian/copyright            |  137 +++++++++------------
+# test/package/mingw-ncurses-examples.spec |    7 -
+# test/package/ncurses-examples.spec       |    7 -
+# 36 files changed, 692 insertions(+), 696 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/aclocal.m4
+Prereq:  1.228 
+--- ncurses-6.5-20250614+/Ada95/aclocal.m4	2025-02-23 01:57:36.000000000 +0000
++++ ncurses-6.5-20250621/Ada95/aclocal.m4	2025-06-21 10:49:01.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey
+ dnl
+-dnl $Id: aclocal.m4,v 1.228 2025/02/23 01:57:36 tom Exp $
++dnl $Id: aclocal.m4,v 1.229 2025/06/21 10:49:01 tom Exp $
+ dnl Macros used in NCURSES Ada95 auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -2786,7 +2786,7 @@
+ 	test -n "$LIB_SUFFIX" && $2="${LIB_SUFFIX}[$]{$2}"
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_LINK_DATAONLY version: 15 updated: 2023/12/03 10:03:10
++dnl CF_LINK_DATAONLY version: 16 updated: 2025/06/21 06:49:01
+ dnl ----------------
+ dnl Some systems have a non-ANSI linker that doesn't pull in modules that have
+ dnl only data (i.e., no functions), for example NeXT.  On those systems we'll
+@@ -2802,10 +2802,10 @@
+ int	testdata[[3]] = { 123, 456, 789 };
+ EOF
+ 	if AC_TRY_EVAL(ac_compile) ; then
+-		mv conftest.o data.o && \
+-		( $AR $ARFLAGS conftest.a data.o ) 2>&AC_FD_CC 1>/dev/null
++		mv conftest.$OBJEXT data.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a data.$OBJEXT ) 2>&AC_FD_CC 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext data.o
++	rm -f conftest.$ac_ext data.$OBJEXT
+ 	cat >conftest.$ac_ext <<EOF
+ #line __oline__ "configure"
+ extern int testfunc(void);
+@@ -2825,10 +2825,10 @@
+ #endif
+ EOF
+ 	if AC_TRY_EVAL(ac_compile); then
+-		mv conftest.o func.o && \
+-		( $AR $ARFLAGS conftest.a func.o ) 2>&AC_FD_CC 1>/dev/null
++		mv conftest.$OBJEXT func.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a func.$OBJEXT ) 2>&AC_FD_CC 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext func.o
++	rm -f conftest.$ac_ext func.$OBJEXT
+ 	( eval $RANLIB conftest.a ) 2>&AC_FD_CC >/dev/null
+ 	cf_saveLIBS="$LIBS"
+ 	LIBS="conftest.a $LIBS"
+@@ -4209,7 +4209,7 @@
+ done
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_SHARED_OPTS version: 112 updated: 2024/12/14 16:09:34
++dnl CF_SHARED_OPTS version: 113 updated: 2025/06/21 06:49:01
+ dnl --------------
+ dnl --------------
+ dnl Attempt to determine the appropriate CC/LD options for creating a shared
+@@ -4504,7 +4504,7 @@
+ 				-L*)
+ 					ldopts+=("\`echo \"\[$]1\" | sed \"s/^-L/-LIBPATH:/\"\`")
+ 					;;
+-				*.obj | *.o)
++				*.obj | *.$OBJEXT)
+ 					ldopts+=("\[$]1")
+ 					;;
+ 				-Wl,*)
+Index: Ada95/make-tar.sh
+Prereq:  1.24 
+--- ncurses-6.5-20250614+/Ada95/make-tar.sh	2025-06-14 15:09:23.000000000 +0000
++++ ncurses-6.5-20250621/Ada95/make-tar.sh	2025-06-20 19:42:53.000000000 +0000
+@@ -1,5 +1,5 @@
+ #!/bin/sh
+-# $Id: make-tar.sh,v 1.24 2025/06/14 15:09:23 tom Exp $
++# $Id: make-tar.sh,v 1.26 2025/06/20 19:42:53 tom Exp $
+ ##############################################################################
+ # Copyright 2019-2022,2025 Thomas E. Dickey                                  #
+ # Copyright 2010-2015,2017 Free Software Foundation, Inc.                    #
+@@ -44,6 +44,7 @@
+ 
+ # make timestamps of generated files predictable
+ same_timestamp() {
++	[ -f ../NEWS ] || echo "OOPS $1"
+ 	touch -r ../NEWS "$1"
+ }
+ 
+@@ -61,10 +62,12 @@
+ # The rpm spec-file in the ncurses tree is a template.  Fill in the version
+ # information from dist.mk
+ edit_specfile() {
++	RPM_DATE=`date +'%a %b %d %Y' -d "$NCURSES_PATCH"`
+ 	sed \
+ 		-e "s/\\<MAJOR\\>/$NCURSES_MAJOR/g" \
+ 		-e "s/\\<MINOR\\>/$NCURSES_MINOR/g" \
+-		-e "s/\\<YYYYMMDD\\>/$NCURSES_PATCH/g" "$1" >"$1.new"
++		-e "s/\\<YYYYMMDD\\>/$NCURSES_PATCH/g" \
++		-e "s/\\<RPM_DATE\\>/$RPM_DATE/g" "$1" >"$1.new"
+ 	chmod u+w "$1"
+ 	mv "$1.new" "$1"
+ 	same_timestamp "$1"
+@@ -92,7 +95,7 @@
+ 
+ BUILD=$TMPDIR/make-tar$$
+ trap "cd /; rm -rf $BUILD; exit 1" 1 2 3 15
+-trap "cd /; rm -rf $BUILD" 0
++trap "cd /; rm -rf $BUILD; exit 0" 0
+ 
+ umask 077
+ if ! ( mkdir "$BUILD" )
+@@ -110,7 +113,7 @@
+ do
+ 	for j in COPYING config.guess config.sub install-sh tar-copy.sh
+ 	do
+-		[ -f $i/$j ] && cp -p "$i/$j" "$BUILD/$ROOTNAME/"
++		[ -f "$i/$j" ] && cp -p "$i/$j" "$BUILD/$ROOTNAME"/
+ 	done
+ done
+ 
+@@ -141,9 +144,9 @@
+ 
+ # cleanup empty directories (an artifact of ncurses source archives)
+ 
+-touch "$BUILD/$ROOTNAME/MANIFEST"
++touch "$BUILD/$ROOTNAME"/MANIFEST
+ ( cd "$BUILD/$ROOTNAME" && find . -type f -print | "$SOURCE/misc/csort" >MANIFEST )
+-same_timestamp "$BUILD/$ROOTNAME/MANIFEST"
++same_timestamp "$BUILD/$ROOTNAME"/MANIFEST
+ 
+ cd "$BUILD" || exit
+ 
+@@ -154,7 +157,7 @@
+ find "$BUILD/$ROOTNAME" -type d -exec rmdir {} \; 2>/dev/null
+ 
+ # There is no need for this script in the tar file.
+-rm -f "$ROOTNAME/make-tar.sh"
++rm -f "$ROOTNAME"/make-tar.sh
+ 
+ # Remove build-artifacts.
+ find . -name "*.gz" -exec rm -rf {} \;
+@@ -169,6 +172,6 @@
+ cd "$DESTDIR" || exit
+ 
+ pwd
+-ls -l "$ROOTNAME.tar.gz"
++ls -l "$ROOTNAME".tar.gz
+ 
+ # vi:ts=4 sw=4
+Index: Ada95/package/AdaCurses-doc.spec
+Prereq:  1.8 
+--- ncurses-6.5-20250614+/Ada95/package/AdaCurses-doc.spec	2024-06-08 13:54:31.000000000 +0000
++++ ncurses-6.5-20250621/Ada95/package/AdaCurses-doc.spec	2025-06-21 18:34:55.000000000 +0000
+@@ -3,11 +3,11 @@
+ %define AppVersion MAJOR.MINOR
+ %define AppRelease YYYYMMDD
+ %define AppPackage %{AppProgram}-doc
+-# $Id: AdaCurses-doc.spec,v 1.8 2024/06/08 13:54:31 tom Exp $
++# $Id: AdaCurses-doc.spec,v 1.10 2025/06/21 18:34:55 tom Exp $
+ Name: %{AppPackage}
+ Version: %{AppVersion}
+ Release: %{AppRelease}
+-License: MIT
++License: X11 License Distribution Modification Variant
+ Group: Applications/Development
+ URL: https://invisible-island.net/%{AppProgram}
+ Source0: %{AppProgram}-%{AppRelease}.tgz
+@@ -51,6 +51,9 @@
+ %changelog
+ # each patch should add its ChangeLog entries here
+ 
++* RPM_DATE Thomas Dickey
++- testing ncurses MAJOR.MINOR.YYYYMMDD
++
+ * Sat Nov 16 2019 Thomas Dickey
+ - modify clean-rule to work around Fedora NFS bugs.
+ 
+Index: Ada95/package/AdaCurses.spec
+Prereq:  1.34 
+--- ncurses-6.5-20250614+/Ada95/package/AdaCurses.spec	2024-06-08 13:53:14.000000000 +0000
++++ ncurses-6.5-20250621/Ada95/package/AdaCurses.spec	2025-06-21 18:34:55.000000000 +0000
+@@ -2,11 +2,11 @@
+ %define AppProgram AdaCurses
+ %define AppVersion MAJOR.MINOR
+ %define AppRelease YYYYMMDD
+-# $Id: AdaCurses.spec,v 1.34 2024/06/08 13:53:14 tom Exp $
++# $Id: AdaCurses.spec,v 1.36 2025/06/21 18:34:55 tom Exp $
+ Name: %{AppProgram}
+ Version: %{AppVersion}
+ Release: %{AppRelease}
+-License: MIT
++License: X11 License Distribution Modification Variant
+ Group: Applications/Development
+ URL: https://invisible-island.net/%{AppProgram}
+ Source0: %{AppProgram}-%{AppRelease}.tgz
+@@ -107,6 +107,9 @@
+ %changelog
+ # each patch should add its ChangeLog entries here
+ 
++* RPM_DATE Thomas Dickey
++- testing ncurses MAJOR.MINOR.YYYYMMDD
++
+ * Sat Dec 17 2022 Thomas Dickey
+ - install sample programs in libexec
+ 
+Index: Ada95/package/debian/copyright
+--- ncurses-6.5-20250614+/Ada95/package/debian/copyright	2025-01-04 10:55:52.000000000 +0000
++++ ncurses-6.5-20250621/Ada95/package/debian/copyright	2025-06-21 17:09:36.000000000 +0000
+@@ -1,79 +1,60 @@
+-Upstream source https://invisible-island.net/ncurses/Ada95.html
++Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: AdaCurses
++Upstream-Contact: Thomas E. Dickey <dickey@invisible-island.net>
++Source: https://invisible-island.net/ncurses/Ada95.html
+ 
+-Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
+-
+--------------------------------------------------------------------------------
+ Files: *
+ Copyright: 2017-2024,2025 by Thomas E. Dickey
+ Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+-License: X11
+-
+-Files: aclocal.m4 package
+-Copyright: 2010-2024,2025 by Thomas E. Dickey
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a
+-    copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, distribute with modifications, sublicense, and/or sell
+-    copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included
+-    in all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+-    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+-    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+-    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name(s) of the above copyright
+-    holders shall not be used in advertising or otherwise to promote the
+-    sale, use or other dealings in this Software without prior written
+-    authorization.
+-
+--------------------------------------------------------------------------------
+-Files: install-sh
+-Copyright:  1994 X Consortium
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a copy
+-    of this software and associated documentation files (the "Software"), to
+-    deal in the Software without restriction, including without limitation the
+-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+-    sell copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included in
+-    all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+-    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+-    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name of the X Consortium shall not
+-    be used in advertising or otherwise to promote the sale, use or other deal-
+-    ings in this Software without prior written authorization from the X Consor-
+-    tium.
+-
+-    FSF changes to this file are in the public domain.
+-
+-    Calling this script install-sh is preferred over install.sh, to prevent
+-    `make' implicit rules from creating a file called install from it
+-    when there is no Makefile.
+-
+-    This script is compatible with the BSD install script, but was written
+-    from scratch.  It can only install one file at a time, a restriction
+-    shared with many OS's install programs.
+-
+-On Debian systems, the complete text of the GNU General
+-Public License can be found in '/usr/share/common-licenses/GPL-2'
+-
+--- vile: txtmode file-encoding=utf-8
++License:   X11 License Distribution Modification Variant
++ Permission is hereby granted, free of charge, to any person obtaining a
++ copy of this software and associated documentation files (the
++ "Software"), to deal in the Software without restriction, including
++ without limitation the rights to use, copy, modify, merge, publish,
++ distribute, distribute with modifications, sublicense, and/or sell
++ copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included
++ in all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the
++ sale, use or other dealings in this Software without prior written
++ authorization.
++Comment:
++ https://invisible-island.net/ncurses/ncurses-license.html
++
++Files:     install-sh
++Copyright: 1994 X Consortium
++License:   X11
++ Permission is hereby granted, free of charge, to any person obtaining a copy
++ of this software and associated documentation files (the "Software"), to
++ deal in the Software without restriction, including without limitation the
++ rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ sell copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included in
++ all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++ ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the sale,
++ use or other dealings in this Software without prior written authorization.
++Comment: vile: txtmode file-encoding=utf-8
+Index: NEWS
+Prereq:  1.4292 
+--- ncurses-6.5-20250614+/NEWS	2025-06-14 20:49:26.000000000 +0000
++++ ncurses-6.5-20250621/NEWS	2025-06-21 23:43:58.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4292 2025/06/14 20:49:26 tom Exp $
++-- $Id: NEWS,v 1.4301 2025/06/21 23:43:58 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,15 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250621
++	+ revise loop in wins_nwstr, to ensure that non-spacing characters are
++	  combined with the base spacing character (report by Karl Knechtel).
++	+ fixes for port using clang-cl or cl MSVC (report by Kirill Makurin).
++	+ improve test-packages:
++	  + convert debian*/copyright to DEP-5 format.
++	  + modify ".spec" test-files to work around timestamp-clamping in
++	    recent Fedora releases.
++
+ 20250614
+ 	+ reduce lintian warnings for test-packages.
+ 	+ clean up some shellcheck warnings
+Index: VERSION
+--- ncurses-6.5-20250614+/VERSION	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/VERSION	2025-06-21 07:53:07.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250614
++5:0:10	6.5	20250621
+Index: aclocal.m4
+Prereq:  1.1106 
+--- ncurses-6.5-20250614+/aclocal.m4	2025-05-17 18:54:28.000000000 +0000
++++ ncurses-6.5-20250621/aclocal.m4	2025-06-21 10:50:24.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey 1995-on
+ dnl
+-dnl $Id: aclocal.m4,v 1.1106 2025/05/17 18:54:28 tom Exp $
++dnl $Id: aclocal.m4,v 1.1107 2025/06/21 10:50:24 tom Exp $
+ dnl Macros used in NCURSES auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -4372,7 +4372,7 @@
+ ])
+ ])
+ dnl ---------------------------------------------------------------------------
+-dnl CF_LDFLAGS_STATIC version: 14 updated: 2021/01/02 17:09:14
++dnl CF_LDFLAGS_STATIC version: 15 updated: 2025/06/21 06:49:01
+ dnl -----------------
+ dnl Check for compiler/linker flags used to temporarily force usage of static
+ dnl libraries.  This depends on the compiler and platform.  Use this to help
+@@ -4429,7 +4429,7 @@
+ int cf_ldflags_static(FILE *fp) { return fflush(fp); }
+ EOF
+ 	if AC_TRY_EVAL(ac_compile) ; then
+-		( $AR $ARFLAGS libconftest.a conftest.o ) 2>&AC_FD_CC 1>/dev/null
++		( $AR $ARFLAGS libconftest.a conftest.$OBJEXT ) 2>&AC_FD_CC 1>/dev/null
+ 		( eval $RANLIB libconftest.a ) 2>&AC_FD_CC >/dev/null
+ 	fi
+ 	rm -f conftest.*
+@@ -5475,7 +5475,7 @@
+ 	test -n "$LIB_SUFFIX" && $2="${LIB_SUFFIX}[$]{$2}"
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_LINK_DATAONLY version: 15 updated: 2023/12/03 10:03:10
++dnl CF_LINK_DATAONLY version: 16 updated: 2025/06/21 06:49:01
+ dnl ----------------
+ dnl Some systems have a non-ANSI linker that doesn't pull in modules that have
+ dnl only data (i.e., no functions), for example NeXT.  On those systems we'll
+@@ -5491,10 +5491,10 @@
+ int	testdata[[3]] = { 123, 456, 789 };
+ EOF
+ 	if AC_TRY_EVAL(ac_compile) ; then
+-		mv conftest.o data.o && \
+-		( $AR $ARFLAGS conftest.a data.o ) 2>&AC_FD_CC 1>/dev/null
++		mv conftest.$OBJEXT data.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a data.$OBJEXT ) 2>&AC_FD_CC 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext data.o
++	rm -f conftest.$ac_ext data.$OBJEXT
+ 	cat >conftest.$ac_ext <<EOF
+ #line __oline__ "configure"
+ extern int testfunc(void);
+@@ -5514,10 +5514,10 @@
+ #endif
+ EOF
+ 	if AC_TRY_EVAL(ac_compile); then
+-		mv conftest.o func.o && \
+-		( $AR $ARFLAGS conftest.a func.o ) 2>&AC_FD_CC 1>/dev/null
++		mv conftest.$OBJEXT func.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a func.$OBJEXT ) 2>&AC_FD_CC 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext func.o
++	rm -f conftest.$ac_ext func.$OBJEXT
+ 	( eval $RANLIB conftest.a ) 2>&AC_FD_CC >/dev/null
+ 	cf_saveLIBS="$LIBS"
+ 	LIBS="conftest.a $LIBS"
+@@ -7547,7 +7547,7 @@
+ done
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_SHARED_OPTS version: 112 updated: 2024/12/14 16:09:34
++dnl CF_SHARED_OPTS version: 113 updated: 2025/06/21 06:49:01
+ dnl --------------
+ dnl --------------
+ dnl Attempt to determine the appropriate CC/LD options for creating a shared
+@@ -7842,7 +7842,7 @@
+ 				-L*)
+ 					ldopts+=("\`echo \"\[$]1\" | sed \"s/^-L/-LIBPATH:/\"\`")
+ 					;;
+-				*.obj | *.o)
++				*.obj | *.$OBJEXT)
+ 					ldopts+=("\[$]1")
+ 					;;
+ 				-Wl,*)
+@@ -9378,7 +9378,7 @@
+ fi
+ ])
+ dnl ---------------------------------------------------------------------------
+-dnl CF_WITH_LIBTOOL version: 36 updated: 2021/01/01 13:31:04
++dnl CF_WITH_LIBTOOL version: 37 updated: 2025/06/21 06:49:01
+ dnl ---------------
+ dnl Provide a configure option to incorporate libtool.  Define several useful
+ dnl symbols for the makefile rules.
+@@ -9462,7 +9462,7 @@
+ 	fi
+ ])dnl
+ 	LIB_CREATE='${LIBTOOL} --mode=link ${CC} -rpath ${libdir} ${LIBTOOL_VERSION} `cut -f1 ${top_srcdir}/VERSION` ${LIBTOOL_OPTS} ${LT_UNDEF} $(LIBS) -o'
+-	LIB_OBJECT='${OBJECTS:.o=.lo}'
++	LIB_OBJECT='${OBJECTS:.$OBJEXT=.lo}'
+ 	LIB_SUFFIX=.la
+ 	LIB_CLEAN='${LIBTOOL} --mode=clean'
+ 	LIB_COMPILE='${LIBTOOL} --mode=compile'
+Index: configure
+--- ncurses-6.5-20250614+/configure	2025-05-24 18:52:44.000000000 +0000
++++ ncurses-6.5-20250621/configure	2025-06-21 11:22:57.000000000 +0000
+@@ -6067,7 +6067,7 @@
+    { (exit 1); exit 1; }; }
+ 	fi
+ 	LIB_CREATE='${LIBTOOL} --mode=link ${CC} -rpath ${libdir} ${LIBTOOL_VERSION} `cut -f1 ${top_srcdir}/VERSION` ${LIBTOOL_OPTS} ${LT_UNDEF} $(LIBS) -o'
+-	LIB_OBJECT='${OBJECTS:.o=.lo}'
++	LIB_OBJECT='${OBJECTS:.$OBJEXT=.lo}'
+ 	LIB_SUFFIX=.la
+ 	LIB_CLEAN='${LIBTOOL} --mode=clean'
+ 	LIB_COMPILE='${LIBTOOL} --mode=compile'
+@@ -7234,7 +7234,7 @@
+ 				-L*)
+ 					ldopts+=("\`echo \"\$1\" | sed \"s/^-L/-LIBPATH:/\"\`")
+ 					;;
+-				*.obj | *.o)
++				*.obj | *.$OBJEXT)
+ 					ldopts+=("\$1")
+ 					;;
+ 				-Wl,*)
+@@ -21843,10 +21843,10 @@
+   ac_status=$?
+   echo "$as_me:21844: \$? = $ac_status" >&5
+   (exit "$ac_status"); } ; then
+-		mv conftest.o data.o && \
+-		( $AR $ARFLAGS conftest.a data.o ) 2>&5 1>/dev/null
++		mv conftest.$OBJEXT data.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a data.$OBJEXT ) 2>&5 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext data.o
++	rm -f conftest.$ac_ext data.$OBJEXT
+ 	cat >conftest.$ac_ext <<EOF
+ #line 21851 "configure"
+ extern int testfunc(void);
+@@ -21870,10 +21870,10 @@
+   ac_status=$?
+   echo "$as_me:21871: \$? = $ac_status" >&5
+   (exit "$ac_status"); }; then
+-		mv conftest.o func.o && \
+-		( $AR $ARFLAGS conftest.a func.o ) 2>&5 1>/dev/null
++		mv conftest.$OBJEXT func.$OBJEXT && \
++		( $AR $ARFLAGS conftest.a func.$OBJEXT ) 2>&5 1>/dev/null
+ 	fi
+-	rm -f conftest.$ac_ext func.o
++	rm -f conftest.$ac_ext func.$OBJEXT
+ 	( eval $RANLIB conftest.a ) 2>&5 >/dev/null
+ 	cf_saveLIBS="$LIBS"
+ 	LIBS="conftest.a $LIBS"
+@@ -29167,7 +29167,7 @@
+   ac_status=$?
+   echo "$as_me:29168: \$? = $ac_status" >&5
+   (exit "$ac_status"); } ; then
+-		( $AR $ARFLAGS libconftest.a conftest.o ) 2>&5 1>/dev/null
++		( $AR $ARFLAGS libconftest.a conftest.$OBJEXT ) 2>&5 1>/dev/null
+ 		( eval $RANLIB libconftest.a ) 2>&5 >/dev/null
+ 	fi
+ 	rm -f conftest.*
+Index: dist.mk
+Prereq:  1.1673 
+--- ncurses-6.5-20250614+/dist.mk	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/dist.mk	2025-06-21 07:53:07.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1673 2025/06/14 09:46:03 tom Exp $
++# $Id: dist.mk,v 1.1674 2025/06/21 07:53:07 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250614
++NCURSES_PATCH = 20250621
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: ncurses/base/lib_mouse.c
+Prereq:  1.209 
+--- ncurses-6.5-20250614+/ncurses/base/lib_mouse.c	2025-03-22 23:14:11.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/base/lib_mouse.c	2025-06-21 14:24:38.000000000 +0000
+@@ -70,7 +70,6 @@
+  */
+ 
+ #ifdef __EMX__
+-#  include <io.h>
+ #  define  INCL_DOS
+ #  define  INCL_VIO
+ #  define  INCL_KBD
+@@ -85,7 +84,7 @@
+ #define CUR SP_TERMTYPE
+ #endif
+ 
+-MODULE_ID("$Id: lib_mouse.c,v 1.209 2025/03/22 23:14:11 Daniel.Starke Exp $")
++MODULE_ID("$Id: lib_mouse.c,v 1.210 2025/06/21 14:24:38 tom Exp $")
+ 
+ #include <tic.h>
+ 
+Index: ncurses/base/lib_nl.c
+Prereq:  1.15 
+--- ncurses-6.5-20250614+/ncurses/base/lib_nl.c	2024-12-07 20:00:48.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/base/lib_nl.c	2025-06-21 14:27:02.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2000,2009 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -45,11 +45,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_nl.c,v 1.15 2024/12/07 20:00:48 tom Exp $")
+-
+-#ifdef __EMX__
+-#include <io.h>
+-#endif
++MODULE_ID("$Id: lib_nl.c,v 1.16 2025/06/21 14:27:02 tom Exp $")
+ 
+ NCURSES_EXPORT(int)
+ NCURSES_SP_NAME(nl) (NCURSES_SP_DCL0)
+Index: ncurses/curses.priv.h
+Prereq:  1.702 
+--- ncurses-6.5-20250614+/ncurses/curses.priv.h	2025-05-17 20:43:18.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/curses.priv.h	2025-06-21 20:42:05.000000000 +0000
+@@ -35,7 +35,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: curses.priv.h,v 1.702 2025/05/17 20:43:18 tom Exp $
++ * $Id: curses.priv.h,v 1.704 2025/06/21 20:42:05 tom Exp $
+  *
+  *	curses.priv.h
+  *
+@@ -2518,6 +2518,20 @@
+ #include <nc_win32.h>
+ #endif
+ 
++#ifdef _NC_WINDOWS
++#if (defined(_NC_MINGW) || defined(__MINGW32__) || defined(__MINGW64__))
++#include <wchar.h>
++#else
++#include <tchar.h>
++#endif
++#include <io.h>
++#elif defined(_NC_WINDOWS_NATIVE)
++#include <io.h>
++#include <tchar.h>
++#elif defined(__EMX__)
++#include <io.h>
++#endif
++
+ /*
+  * Entrypoints using an extra parameter with the terminal driver.
+  */
+Index: ncurses/tinfo/lib_raw.c
+Prereq:  1.32 
+--- ncurses-6.5-20250614+/ncurses/tinfo/lib_raw.c	2024-12-07 18:24:47.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/tinfo/lib_raw.c	2025-06-21 14:27:09.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -50,14 +50,13 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_raw.c,v 1.32 2024/12/07 18:24:47 tom Exp $")
++MODULE_ID("$Id: lib_raw.c,v 1.33 2025/06/21 14:27:09 tom Exp $")
+ 
+ #if HAVE_SYS_TERMIO_H
+ #include <sys/termio.h>		/* needed for ISC */
+ #endif
+ 
+ #ifdef __EMX__
+-#include <io.h>
+ #define _nc_setmode(mode) setmode(SP_PARM->_ifd, mode)
+ #else
+ #define _nc_setmode(mode)	/* nothing */
+Index: ncurses/tinfo/lib_win32con.c
+Prereq:  1.21 
+--- ncurses-6.5-20250614+/ncurses/tinfo/lib_win32con.c	2025-03-29 19:36:13.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/tinfo/lib_win32con.c	2025-06-21 14:23:15.000000000 +0000
+@@ -38,18 +38,10 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_win32con.c,v 1.21 2025/03/29 19:36:13 tom Exp $")
++MODULE_ID("$Id: lib_win32con.c,v 1.22 2025/06/21 14:23:15 tom Exp $")
+ 
+ #if defined(_NC_WINDOWS)
+ 
+-#ifdef _NC_MINGW
+-#include <wchar.h>
+-#else
+-#include <tchar.h>
+-#endif
+-
+-#include <io.h>
+-
+ #if USE_WIDEC_SUPPORT
+ #define write_screen WriteConsoleOutputW
+ #define read_screen  ReadConsoleOutputW
+Index: ncurses/tinfo/lib_win32util.c
+Prereq:  1.5 
+--- ncurses-6.5-20250614+/ncurses/tinfo/lib_win32util.c	2024-08-31 15:55:16.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/tinfo/lib_win32util.c	2025-06-21 14:27:43.000000000 +0000
+@@ -1,5 +1,5 @@
+ /****************************************************************************
+- * Copyright 2020-2023,2024 Thomas E. Dickey                                *
++ * Copyright 2020-2024,2025 Thomas E. Dickey                                *
+  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+@@ -34,15 +34,13 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_win32util.c,v 1.5 2024/08/31 15:55:16 tom Exp $")
++MODULE_ID("$Id: lib_win32util.c,v 1.6 2025/06/21 14:27:43 tom Exp $")
+ 
+ #ifdef _NC_WINDOWS_NATIVE
+-#include <io.h>
+ 
+ #ifdef _NC_CHECK_MINTTY
+ #define PSAPI_VERSION 2
+ #include <psapi.h>
+-#include <tchar.h>
+ 
+ #define array_length(a) (sizeof(a)/sizeof(a[0]))
+ 
+Index: ncurses/trace/lib_tracebits.c
+Prereq:  1.34 
+--- ncurses-6.5-20250614+/ncurses/trace/lib_tracebits.c	2025-02-20 01:02:09.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/trace/lib_tracebits.c	2025-06-21 14:24:25.000000000 +0000
+@@ -35,16 +35,12 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_tracebits.c,v 1.34 2025/02/20 01:02:09 tom Exp $")
++MODULE_ID("$Id: lib_tracebits.c,v 1.35 2025/06/21 14:24:25 tom Exp $")
+ 
+ #if HAVE_SYS_TERMIO_H
+ #include <sys/termio.h>		/* needed for ISC */
+ #endif
+ 
+-#ifdef __EMX__
+-#include <io.h>
+-#endif
+-
+ /* may be undefined if we're using termio.h */
+ #ifndef TOSTOP
+ #define TOSTOP 0
+Index: ncurses/widechar/lib_ins_wch.c
+Prereq:  1.32 
+--- ncurses-6.5-20250614+/ncurses/widechar/lib_ins_wch.c	2025-02-20 01:02:09.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/widechar/lib_ins_wch.c	2025-06-21 22:26:21.000000000 +0000
+@@ -40,7 +40,7 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_ins_wch.c,v 1.32 2025/02/20 01:02:09 tom Exp $")
++MODULE_ID("$Id: lib_ins_wch.c,v 1.34 2025/06/21 22:26:21 tom Exp $")
+ 
+ /*
+  * Insert the given character, updating the current location to simplify
+@@ -100,6 +100,14 @@
+     returnCode(code);
+ }
+ 
++static int
++flush_wchars(WINDOW *win, wchar_t *wchars)
++{
++    cchar_t tmp_cchar;
++    (void) setcchar(&tmp_cchar, wchars, WA_NORMAL, (short) 0, (void *) 0);
++    return _nc_insert_wch(win, &tmp_cchar);
++}
++
+ NCURSES_EXPORT(int)
+ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
+ {
+@@ -121,27 +129,37 @@
+ 	    SCREEN *sp = _nc_screen_of(win);
+ 	    NCURSES_SIZE_T oy = win->_cury;
+ 	    NCURSES_SIZE_T ox = win->_curx;
++	    wchar_t tmp_wchars[1 + CCHARW_MAX];
++	    int num_wchars = 0;
+ 
+ 	    for (cp = wstr; ((cp - wstr) < n) && (*cp != L'\0'); cp++) {
+ 		int len = _nc_wacs_width(*cp);
+ 
+-		if ((len >= 0 && len != 1) || !is7bits(*cp)) {
+-		    cchar_t tmp_cchar;
+-		    wchar_t tmp_wchar = *cp;
+-		    memset(&tmp_cchar, 0, sizeof(tmp_cchar));
+-		    (void) setcchar(&tmp_cchar,
+-				    &tmp_wchar,
+-				    WA_NORMAL,
+-				    (short) 0,
+-				    (void *) 0);
+-		    code = _nc_insert_wch(win, &tmp_cchar);
+-		} else {
++		if (is7bits(*cp) && len <= 0) {
++		    if (num_wchars) {
++			if ((code = flush_wchars(win, tmp_wchars)) != OK)
++			    break;
++			num_wchars = 0;
++		    }
+ 		    /* tabs, other ASCII stuff */
+ 		    code = _nc_insert_ch(sp, win, (chtype) (*cp));
++		} else {
++		    if (num_wchars > 0 && len > 0) {
++			if ((code = flush_wchars(win, tmp_wchars)) != OK)
++			    break;
++			num_wchars = 0;
++		    }
++		    if (num_wchars < CCHARW_MAX) {
++			tmp_wchars[num_wchars++] = *cp;
++			tmp_wchars[num_wchars] = L'\0';
++		    }
+ 		}
+ 		if (code != OK)
+ 		    break;
+ 	    }
++	    if (code == OK && num_wchars) {
++		code = flush_wchars(win, tmp_wchars);
++	    }
+ 
+ 	    win->_curx = ox;
+ 	    win->_cury = oy;
+Index: ncurses/win32con/win32_driver.c
+Prereq:  1.8 
+--- ncurses-6.5-20250614+/ncurses/win32con/win32_driver.c	2025-03-29 19:31:07.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/win32con/win32_driver.c	2025-06-21 14:19:28.000000000 +0000
+@@ -38,17 +38,12 @@
+  */
+ 
+ #include <curses.priv.h>
++
+ #ifdef _NC_WINDOWS
+-#if (defined(__MINGW32__) || defined(__MINGW64__))
+-#include <wchar.h>
+-#else
+-#include <tchar.h>
+-#endif
+-#include <io.h>
+ 
+ #define CUR TerminalType(my_term).
+ 
+-MODULE_ID("$Id: win32_driver.c,v 1.8 2025/03/29 19:31:07 tom Exp $")
++MODULE_ID("$Id: win32_driver.c,v 1.9 2025/06/21 14:19:28 tom Exp $")
+ 
+ #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
+ #define EXP_OPTIMIZE 0
+Index: ncurses/win32con/win_driver.c
+Prereq:  1.82 
+--- ncurses-6.5-20250614+/ncurses/win32con/win_driver.c	2025-03-29 19:31:24.000000000 +0000
++++ ncurses-6.5-20250621/ncurses/win32con/win_driver.c	2025-06-21 14:25:02.000000000 +0000
+@@ -41,15 +41,6 @@
+ 
+ #include <curses.priv.h>
+ 
+-#ifdef _WIN32
+-#include <tchar.h>
+-#else
+-#include <windows.h>
+-#include <wchar.h>
+-#endif
+-
+-#include <io.h>
+-
+ #define PSAPI_VERSION 2
+ #include <psapi.h>
+ 
+@@ -57,7 +48,7 @@
+ 
+ #define CONTROL_PRESSED (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)
+ 
+-MODULE_ID("$Id: win_driver.c,v 1.82 2025/03/29 19:31:24 tom Exp $")
++MODULE_ID("$Id: win_driver.c,v 1.83 2025/06/21 14:25:02 tom Exp $")
+ 
+ #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
+ 
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250614+/package/debian-mingw/changelog	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/package/debian-mingw/changelog	2025-06-20 07:53:07.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250614) unstable; urgency=low
++ncurses6td (6.5+20250621) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 14 Jun 2025 05:46:03 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 20 Jun 2025 03:53:07 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw/copyright
+--- ncurses-6.5-20250614+/package/debian-mingw/copyright	2025-01-04 10:55:16.000000000 +0000
++++ ncurses-6.5-20250621/package/debian-mingw/copyright	2025-06-21 16:55:28.000000000 +0000
+@@ -1,100 +1,105 @@
+-Upstream source https://invisible-island.net/ncurses/ncurses.html
+-This package is used for testing builds of ncurses.
++Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: ncurses
++Upstream-Contact: Thomas E. Dickey <dickey@invisible-island.net>
++Source: https://invisible-island.net/ncurses/ncurses.html
+ 
+-Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
+-
+--------------------------------------------------------------------------------
+ Files: *
+ Copyright: 2017-2024,2025 by Thomas E. Dickey
+-Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+-License: X11
++           1998-2016,2017 Free Software Foundation, Inc.
++License:   X11 License Distribution Modification Variant
++ Permission is hereby granted, free of charge, to any person obtaining a
++ copy of this software and associated documentation files (the
++ "Software"), to deal in the Software without restriction, including
++ without limitation the rights to use, copy, modify, merge, publish,
++ distribute, distribute with modifications, sublicense, and/or sell
++ copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included
++ in all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the
++ sale, use or other dealings in this Software without prior written
++ authorization.
++Comment:
++ https://invisible-island.net/ncurses/ncurses-license.html
+ 
+-Files: aclocal.m4 package
++Files:     aclocal.m4 package
+ Copyright: 1996-2024,2025 by Thomas E. Dickey
+-License: X11
++License:   X11 License Distribution Modification Variant
+ 
+-Files: doc/html/NCURSES-Programming-HOWTO.html
++Files:     doc/html/NCURSES-Programming-HOWTO.html
+ Copyright: 2001 by Pradeep Padala
+-License: X11
++License:   X11 License Distribution Modification Variant
+ 
+-    Permission is hereby granted, free of charge, to any person obtaining a
+-    copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, distribute with modifications, sublicense, and/or sell
+-    copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included
+-    in all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+-    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+-    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+-    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name(s) of the above copyright
+-    holders shall not be used in advertising or otherwise to promote the
+-    sale, use or other dealings in this Software without prior written
+-    authorization.
+-
+--------------------------------------------------------------------------------
+-Files: install-sh
+-Copyright:  1994 X Consortium
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a copy
+-    of this software and associated documentation files (the "Software"), to
+-    deal in the Software without restriction, including without limitation the
+-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+-    sell copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included in
+-    all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+-    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+-    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name of the X Consortium shall not
+-    be used in advertising or otherwise to promote the sale, use or other deal-
+-    ings in this Software without prior written authorization from the X Consor-
+-    tium.
++Files:     misc/ncu2openbsd
++           ncurses/wcwidth.h
++Copyright: 2002-2024 by Thomas E. Dickey
++License:   X11
++
++Files:     install-sh
++Copyright: 1994 X Consortium
++License:   X11
++ Permission is hereby granted, free of charge, to any person obtaining a copy
++ of this software and associated documentation files (the "Software"), to
++ deal in the Software without restriction, including without limitation the
++ rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ sell copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included in
++ all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++ ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the sale,
++ use or other dealings in this Software without prior written authorization.
+ 
+--------------------------------------------------------------------------------
+-Files: progs/tset.c ncurses/tinfo/read_termcap.c
++Files:     ncurses/tinfo/read_termcap.c
++           progs/tset.c 
+ Copyright: 1980,1991,1992,1993 The Regents of the University of California.
+-License: BSD
+-
+-    Redistribution and use in source and binary forms, with or without
+-    modification, are permitted provided that the following conditions
+-    are met:
+-    1. Redistributions of source code must retain the above copyright
+-       notice, this list of conditions and the following disclaimer.
+-    2. Redistributions in binary form must reproduce the above copyright
+-       notice, this list of conditions and the following disclaimer in the
+-       documentation and/or other materials provided with the distribution.
+-    3. Neither the name of the University nor the names of its contributors
+-       may be used to endorse or promote products derived from this software
+-       without specific prior written permission.
+-
+-    THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-    ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+-    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-    OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-    LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-    OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-    SUCH DAMAGE.
+-
+--- vile: txtmode file-encoding=utf-8
++License:   BSD-3-Clause
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions
++ are met:
++ 1. Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++ 2. Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++ 3. Neither the name of the University nor the names of its contributors
++    may be used to endorse or promote products derived from this software
++    without specific prior written permission.
++ .
++ THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
++ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
++ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ SUCH DAMAGE.
++
++Files:     test/terminal.xbm
++Copyright: 1988 Evans & Sutherland Computer Corporation, Salt Lake City, Utah
++License:   StandardML-NJ
++Comment: vile: txtmode file-encoding=utf-8
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250614+/package/debian-mingw64/changelog	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/package/debian-mingw64/changelog	2025-06-20 07:53:07.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250614) unstable; urgency=low
++ncurses6td (6.5+20250621) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 14 Jun 2025 05:46:03 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 20 Jun 2025 03:53:07 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/copyright
+--- ncurses-6.5-20250614+/package/debian-mingw64/copyright	2025-01-04 10:55:34.000000000 +0000
++++ ncurses-6.5-20250621/package/debian-mingw64/copyright	2025-06-21 16:55:28.000000000 +0000
+@@ -1,100 +1,105 @@
+-Upstream source https://invisible-island.net/ncurses/ncurses.html
+-This package is used for testing builds of ncurses.
++Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: ncurses
++Upstream-Contact: Thomas E. Dickey <dickey@invisible-island.net>
++Source: https://invisible-island.net/ncurses/ncurses.html
+ 
+-Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
+-
+--------------------------------------------------------------------------------
+ Files: *
+ Copyright: 2017-2024,2025 by Thomas E. Dickey
+-Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+-License: X11
++           1998-2016,2017 Free Software Foundation, Inc.
++License:   X11 License Distribution Modification Variant
++ Permission is hereby granted, free of charge, to any person obtaining a
++ copy of this software and associated documentation files (the
++ "Software"), to deal in the Software without restriction, including
++ without limitation the rights to use, copy, modify, merge, publish,
++ distribute, distribute with modifications, sublicense, and/or sell
++ copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included
++ in all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the
++ sale, use or other dealings in this Software without prior written
++ authorization.
++Comment:
++ https://invisible-island.net/ncurses/ncurses-license.html
+ 
+-Files: aclocal.m4 package
++Files:     aclocal.m4 package
+ Copyright: 1996-2024,2025 by Thomas E. Dickey
+-License: X11
++License:   X11 License Distribution Modification Variant
+ 
+-Files: doc/html/NCURSES-Programming-HOWTO.html
++Files:     doc/html/NCURSES-Programming-HOWTO.html
+ Copyright: 2001 by Pradeep Padala
+-License: X11
++License:   X11 License Distribution Modification Variant
+ 
+-    Permission is hereby granted, free of charge, to any person obtaining a
+-    copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, distribute with modifications, sublicense, and/or sell
+-    copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included
+-    in all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+-    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+-    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+-    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name(s) of the above copyright
+-    holders shall not be used in advertising or otherwise to promote the
+-    sale, use or other dealings in this Software without prior written
+-    authorization.
+-
+--------------------------------------------------------------------------------
+-Files: install-sh
+-Copyright:  1994 X Consortium
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a copy
+-    of this software and associated documentation files (the "Software"), to
+-    deal in the Software without restriction, including without limitation the
+-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+-    sell copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included in
+-    all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+-    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+-    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name of the X Consortium shall not
+-    be used in advertising or otherwise to promote the sale, use or other deal-
+-    ings in this Software without prior written authorization from the X Consor-
+-    tium.
++Files:     misc/ncu2openbsd
++           ncurses/wcwidth.h
++Copyright: 2002-2024 by Thomas E. Dickey
++License:   X11
++
++Files:     install-sh
++Copyright: 1994 X Consortium
++License:   X11
++ Permission is hereby granted, free of charge, to any person obtaining a copy
++ of this software and associated documentation files (the "Software"), to
++ deal in the Software without restriction, including without limitation the
++ rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ sell copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included in
++ all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++ ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the sale,
++ use or other dealings in this Software without prior written authorization.
+ 
+--------------------------------------------------------------------------------
+-Files: progs/tset.c ncurses/tinfo/read_termcap.c
++Files:     ncurses/tinfo/read_termcap.c
++           progs/tset.c 
+ Copyright: 1980,1991,1992,1993 The Regents of the University of California.
+-License: BSD
+-
+-    Redistribution and use in source and binary forms, with or without
+-    modification, are permitted provided that the following conditions
+-    are met:
+-    1. Redistributions of source code must retain the above copyright
+-       notice, this list of conditions and the following disclaimer.
+-    2. Redistributions in binary form must reproduce the above copyright
+-       notice, this list of conditions and the following disclaimer in the
+-       documentation and/or other materials provided with the distribution.
+-    3. Neither the name of the University nor the names of its contributors
+-       may be used to endorse or promote products derived from this software
+-       without specific prior written permission.
+-
+-    THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-    ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+-    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-    OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-    LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-    OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-    SUCH DAMAGE.
+-
+--- vile: txtmode file-encoding=utf-8
++License:   BSD-3-Clause
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions
++ are met:
++ 1. Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++ 2. Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++ 3. Neither the name of the University nor the names of its contributors
++    may be used to endorse or promote products derived from this software
++    without specific prior written permission.
++ .
++ THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
++ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
++ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ SUCH DAMAGE.
++
++Files:     test/terminal.xbm
++Copyright: 1988 Evans & Sutherland Computer Corporation, Salt Lake City, Utah
++License:   StandardML-NJ
++Comment: vile: txtmode file-encoding=utf-8
+Index: package/debian/changelog
+--- ncurses-6.5-20250614+/package/debian/changelog	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/package/debian/changelog	2025-06-20 07:53:07.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250614) unstable; urgency=low
++ncurses6td (6.5+20250621) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 14 Jun 2025 05:46:03 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Fri, 20 Jun 2025 03:53:07 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/debian/copyright
+--- ncurses-6.5-20250614+/package/debian/copyright	2025-01-04 10:54:57.000000000 +0000
++++ ncurses-6.5-20250621/package/debian/copyright	2025-06-21 16:55:28.000000000 +0000
+@@ -1,100 +1,105 @@
+-Upstream source https://invisible-island.net/ncurses/ncurses.html
+-This package is used for testing builds of ncurses.
++Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: ncurses
++Upstream-Contact: Thomas E. Dickey <dickey@invisible-island.net>
++Source: https://invisible-island.net/ncurses/ncurses.html
+ 
+-Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
+-
+--------------------------------------------------------------------------------
+ Files: *
+ Copyright: 2017-2024,2025 by Thomas E. Dickey
+-Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+-License: X11
++           1998-2016,2017 Free Software Foundation, Inc.
++License:   X11 License Distribution Modification Variant
++ Permission is hereby granted, free of charge, to any person obtaining a
++ copy of this software and associated documentation files (the
++ "Software"), to deal in the Software without restriction, including
++ without limitation the rights to use, copy, modify, merge, publish,
++ distribute, distribute with modifications, sublicense, and/or sell
++ copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included
++ in all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the
++ sale, use or other dealings in this Software without prior written
++ authorization.
++Comment:
++ https://invisible-island.net/ncurses/ncurses-license.html
+ 
+-Files: aclocal.m4 package
++Files:     aclocal.m4 package
+ Copyright: 1996-2024,2025 by Thomas E. Dickey
+-License: X11
++License:   X11 License Distribution Modification Variant
+ 
+-Files: doc/html/NCURSES-Programming-HOWTO.html
++Files:     doc/html/NCURSES-Programming-HOWTO.html
+ Copyright: 2001 by Pradeep Padala
+-License: X11
++License:   X11 License Distribution Modification Variant
+ 
+-    Permission is hereby granted, free of charge, to any person obtaining a
+-    copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, distribute with modifications, sublicense, and/or sell
+-    copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included
+-    in all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+-    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+-    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+-    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name(s) of the above copyright
+-    holders shall not be used in advertising or otherwise to promote the
+-    sale, use or other dealings in this Software without prior written
+-    authorization.
+-
+--------------------------------------------------------------------------------
+-Files: install-sh
+-Copyright:  1994 X Consortium
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a copy
+-    of this software and associated documentation files (the "Software"), to
+-    deal in the Software without restriction, including without limitation the
+-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+-    sell copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included in
+-    all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+-    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+-    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name of the X Consortium shall not
+-    be used in advertising or otherwise to promote the sale, use or other deal-
+-    ings in this Software without prior written authorization from the X Consor-
+-    tium.
++Files:     misc/ncu2openbsd
++           ncurses/wcwidth.h
++Copyright: 2002-2024 by Thomas E. Dickey
++License:   X11
++
++Files:     install-sh
++Copyright: 1994 X Consortium
++License:   X11
++ Permission is hereby granted, free of charge, to any person obtaining a copy
++ of this software and associated documentation files (the "Software"), to
++ deal in the Software without restriction, including without limitation the
++ rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ sell copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included in
++ all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++ ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the sale,
++ use or other dealings in this Software without prior written authorization.
+ 
+--------------------------------------------------------------------------------
+-Files: progs/tset.c ncurses/tinfo/read_termcap.c
++Files:     ncurses/tinfo/read_termcap.c
++           progs/tset.c 
+ Copyright: 1980,1991,1992,1993 The Regents of the University of California.
+-License: BSD
+-
+-    Redistribution and use in source and binary forms, with or without
+-    modification, are permitted provided that the following conditions
+-    are met:
+-    1. Redistributions of source code must retain the above copyright
+-       notice, this list of conditions and the following disclaimer.
+-    2. Redistributions in binary form must reproduce the above copyright
+-       notice, this list of conditions and the following disclaimer in the
+-       documentation and/or other materials provided with the distribution.
+-    3. Neither the name of the University nor the names of its contributors
+-       may be used to endorse or promote products derived from this software
+-       without specific prior written permission.
+-
+-    THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-    ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+-    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-    OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-    LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-    OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-    SUCH DAMAGE.
+-
+--- vile: txtmode file-encoding=utf-8
++License:   BSD-3-Clause
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions
++ are met:
++ 1. Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++ 2. Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++ 3. Neither the name of the University nor the names of its contributors
++    may be used to endorse or promote products derived from this software
++    without specific prior written permission.
++ .
++ THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
++ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
++ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ SUCH DAMAGE.
++
++Files:     test/terminal.xbm
++Copyright: 1988 Evans & Sutherland Computer Corporation, Salt Lake City, Utah
++License:   StandardML-NJ
++Comment: vile: txtmode file-encoding=utf-8
+Index: package/mingw-ncurses.nsi
+Prereq:  1.707 
+--- ncurses-6.5-20250614+/package/mingw-ncurses.nsi	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/package/mingw-ncurses.nsi	2025-06-20 07:53:07.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.707 2025/06/14 09:46:03 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.708 2025/06/20 07:53:07 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0614"
++!define VERSION_MMDD  "0621"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250614+/package/mingw-ncurses.spec	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/package/mingw-ncurses.spec	2025-06-21 18:33:41.000000000 +0000
+@@ -3,8 +3,8 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250614
+-License: X11
++Release: 20250621
++License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+ Source: https://invisible-island.net/archives/ncurses/ncurses-%{version}-%{release}.tgz
+@@ -144,6 +144,9 @@
+ 
+ %changelog
+ 
++* Fri Jun 20 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250621
++
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+ 
+Index: package/ncurses.spec
+--- ncurses-6.5-20250614+/package/ncurses.spec	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/package/ncurses.spec	2025-06-21 18:32:55.000000000 +0000
+@@ -1,8 +1,8 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250614
+-License: X11
++Release: 20250621
++License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+ Source: https://invisible-island.net/archives/ncurses/ncurses-%{version}-%{release}.tgz
+@@ -134,6 +134,9 @@
+ 
+ %changelog
+ 
++* Fri Jun 20 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250621
++
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+ 
+Index: package/ncursest.spec
+--- ncurses-6.5-20250614+/package/ncursest.spec	2025-06-14 09:46:03.000000000 +0000
++++ ncurses-6.5-20250621/package/ncursest.spec	2025-06-21 18:33:41.000000000 +0000
+@@ -1,8 +1,8 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250614
+-License: X11
++Release: 20250621
++License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+ # URL: https://invisible-island.net/ncurses/
+@@ -142,6 +142,9 @@
+ 
+ %changelog
+ 
++* Fri Jun 20 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250621
++
+ * Tue Dec 24 2019 Thomas Dickey
+ - drop custom CC_NORMAL warning flags because setting CFLAGS interferes with
+   matching Fedora's PIE/PIC configuration.  Also, generate debug/debug-source
+Index: test/make-tar.sh
+Prereq:  1.22 
+--- ncurses-6.5-20250614+/test/make-tar.sh	2025-06-14 15:07:50.000000000 +0000
++++ ncurses-6.5-20250621/test/make-tar.sh	2025-06-20 19:38:25.000000000 +0000
+@@ -1,5 +1,5 @@
+ #!/bin/sh
+-# $Id: make-tar.sh,v 1.22 2025/06/14 15:07:50 tom Exp $
++# $Id: make-tar.sh,v 1.23 2025/06/20 19:38:25 tom Exp $
+ ##############################################################################
+ # Copyright 2019-2022,2025 Thomas E. Dickey                                  #
+ # Copyright 2010-2015,2017 Free Software Foundation, Inc.                    #
+@@ -62,10 +62,12 @@
+ # The rpm spec-file in the ncurses tree is a template.  Fill in the version
+ # information from dist.mk
+ edit_specfile() {
++	RPM_DATE=`date +'%a %b %d %Y' -d "$NCURSES_PATCH"`
+ 	sed \
+ 		-e "s/\\<MAJOR\\>/$NCURSES_MAJOR/g" \
+ 		-e "s/\\<MINOR\\>/$NCURSES_MINOR/g" \
+-		-e "s/\\<YYYYMMDD\\>/$NCURSES_PATCH/g" "$1" >"$1.new"
++		-e "s/\\<YYYYMMDD\\>/$NCURSES_PATCH/g" \
++		-e "s/\\<RPM_DATE\\>/$RPM_DATE/g" "$1" >"$1.new"
+ 	chmod u+w "$1"
+ 	mv "$1.new" "$1"
+ 	same_timestamp "$1"
+@@ -104,7 +106,7 @@
+ umask 022
+ mkdir "$BUILD/$ROOTNAME"
+ 
+-cp -p -r ./* "$BUILD/$ROOTNAME"/ || exit
++cp -p -r ./* "$BUILD/$ROOTNAME/" || exit
+ 
+ # Add the config.* utility scripts from the top-level directory.
+ for i in . ..
+Index: test/package/debian-mingw/copyright
+--- ncurses-6.5-20250614+/test/package/debian-mingw/copyright	2025-01-04 10:56:36.000000000 +0000
++++ ncurses-6.5-20250621/test/package/debian-mingw/copyright	2025-06-21 17:55:04.000000000 +0000
+@@ -1,79 +1,68 @@
+-Upstream source https://invisible-island.net/ncurses/ncurses-examples.html
++Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: ncurses-examples
++Upstream-Contact: Thomas E. Dickey <dickey@invisible-island.net>
++Source: https://invisible-island.net/ncurses/ncurses-examples.html
+ 
+-Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
+-
+--------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2024,2025 Thomas E. Dickey
+-Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+-License: X11
++Copyright: 2017-2024,2025 by Thomas E. Dickey
++           1998-2016,2017 Free Software Foundation, Inc.
++License:   X11 License Distribution Modification Variant
++ Permission is hereby granted, free of charge, to any person obtaining a
++ copy of this software and associated documentation files (the
++ "Software"), to deal in the Software without restriction, including
++ without limitation the rights to use, copy, modify, merge, publish,
++ distribute, distribute with modifications, sublicense, and/or sell
++ copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included
++ in all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the
++ sale, use or other dealings in this Software without prior written
++ authorization.
++Comment:
++ https://invisible-island.net/ncurses/ncurses-license.html
+ 
+-Files: aclocal.m4 package
++Files:     aclocal.m4 package
+ Copyright: 2003-2024,2025 by Thomas E. Dickey
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a
+-    copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, distribute with modifications, sublicense, and/or sell
+-    copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included
+-    in all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+-    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+-    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+-    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name(s) of the above copyright
+-    holders shall not be used in advertising or otherwise to promote the
+-    sale, use or other dealings in this Software without prior written
+-    authorization.
+-
+--------------------------------------------------------------------------------
+-Files: install-sh
+-Copyright:  1994 X Consortium
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a copy
+-    of this software and associated documentation files (the "Software"), to
+-    deal in the Software without restriction, including without limitation the
+-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+-    sell copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included in
+-    all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+-    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+-    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name of the X Consortium shall not
+-    be used in advertising or otherwise to promote the sale, use or other deal-
+-    ings in this Software without prior written authorization from the X Consor-
+-    tium.
+-
+-    FSF changes to this file are in the public domain.
+-
+-    Calling this script install-sh is preferred over install.sh, to prevent
+-    `make' implicit rules from creating a file called install from it
+-    when there is no Makefile.
+-
+-    This script is compatible with the BSD install script, but was written
+-    from scratch.  It can only install one file at a time, a restriction
+-    shared with many OS's install programs.
+-
+-On Debian systems, the complete text of the GNU General
+-Public License can be found in '/usr/share/common-licenses/GPL-2'
++License:   X11 License Distribution Modification Variant
+ 
+--- vile: txtmode file-encoding=utf-8
++Files:     install-sh
++Copyright: 1994 X Consortium
++License:   X11
++ Permission is hereby granted, free of charge, to any person obtaining a copy
++ of this software and associated documentation files (the "Software"), to
++ deal in the Software without restriction, including without limitation the
++ rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ sell copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included in
++ all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++ ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the sale,
++ use or other dealings in this Software without prior written authorization.
++
++Files:     terminal.xbm
++Copyright: 1988 Evans & Sutherland Computer Corporation, Salt Lake City, Utah
++License:   StandardML-NJ
++Comment: vile: txtmode file-encoding=utf-8
+Index: test/package/debian-mingw64/copyright
+--- ncurses-6.5-20250614+/test/package/debian-mingw64/copyright	2025-01-04 10:56:53.000000000 +0000
++++ ncurses-6.5-20250621/test/package/debian-mingw64/copyright	2025-06-21 17:55:04.000000000 +0000
+@@ -1,79 +1,68 @@
+-Upstream source https://invisible-island.net/ncurses/ncurses-examples.html
++Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: ncurses-examples
++Upstream-Contact: Thomas E. Dickey <dickey@invisible-island.net>
++Source: https://invisible-island.net/ncurses/ncurses-examples.html
+ 
+-Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
+-
+--------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2024,2025 Thomas E. Dickey
+-Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+-License: X11
++Copyright: 2017-2024,2025 by Thomas E. Dickey
++           1998-2016,2017 Free Software Foundation, Inc.
++License:   X11 License Distribution Modification Variant
++ Permission is hereby granted, free of charge, to any person obtaining a
++ copy of this software and associated documentation files (the
++ "Software"), to deal in the Software without restriction, including
++ without limitation the rights to use, copy, modify, merge, publish,
++ distribute, distribute with modifications, sublicense, and/or sell
++ copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included
++ in all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the
++ sale, use or other dealings in this Software without prior written
++ authorization.
++Comment:
++ https://invisible-island.net/ncurses/ncurses-license.html
+ 
+-Files: aclocal.m4 package
++Files:     aclocal.m4 package
+ Copyright: 2003-2024,2025 by Thomas E. Dickey
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a
+-    copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, distribute with modifications, sublicense, and/or sell
+-    copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included
+-    in all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+-    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+-    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+-    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name(s) of the above copyright
+-    holders shall not be used in advertising or otherwise to promote the
+-    sale, use or other dealings in this Software without prior written
+-    authorization.
+-
+--------------------------------------------------------------------------------
+-Files: install-sh
+-Copyright:  1994 X Consortium
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a copy
+-    of this software and associated documentation files (the "Software"), to
+-    deal in the Software without restriction, including without limitation the
+-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+-    sell copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included in
+-    all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+-    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+-    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name of the X Consortium shall not
+-    be used in advertising or otherwise to promote the sale, use or other deal-
+-    ings in this Software without prior written authorization from the X Consor-
+-    tium.
+-
+-    FSF changes to this file are in the public domain.
+-
+-    Calling this script install-sh is preferred over install.sh, to prevent
+-    `make' implicit rules from creating a file called install from it
+-    when there is no Makefile.
+-
+-    This script is compatible with the BSD install script, but was written
+-    from scratch.  It can only install one file at a time, a restriction
+-    shared with many OS's install programs.
+-
+-On Debian systems, the complete text of the GNU General
+-Public License can be found in '/usr/share/common-licenses/GPL-2'
++License:   X11 License Distribution Modification Variant
+ 
+--- vile: txtmode file-encoding=utf-8
++Files:     install-sh
++Copyright: 1994 X Consortium
++License:   X11
++ Permission is hereby granted, free of charge, to any person obtaining a copy
++ of this software and associated documentation files (the "Software"), to
++ deal in the Software without restriction, including without limitation the
++ rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ sell copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included in
++ all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++ ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the sale,
++ use or other dealings in this Software without prior written authorization.
++
++Files:     terminal.xbm
++Copyright: 1988 Evans & Sutherland Computer Corporation, Salt Lake City, Utah
++License:   StandardML-NJ
++Comment: vile: txtmode file-encoding=utf-8
+Index: test/package/debian/copyright
+--- ncurses-6.5-20250614+/test/package/debian/copyright	2025-01-04 10:56:09.000000000 +0000
++++ ncurses-6.5-20250621/test/package/debian/copyright	2025-06-21 17:55:04.000000000 +0000
+@@ -1,79 +1,68 @@
+-Upstream source https://invisible-island.net/ncurses/ncurses-examples.html
++Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
++Upstream-Name: ncurses-examples
++Upstream-Contact: Thomas E. Dickey <dickey@invisible-island.net>
++Source: https://invisible-island.net/ncurses/ncurses-examples.html
+ 
+-Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
+-
+--------------------------------------------------------------------------------
+ Files: *
+-Copyright: 2017-2024,2025 Thomas E. Dickey
+-Copyright: 1998-2016,2017 Free Software Foundation, Inc.
+-License: X11
++Copyright: 2017-2024,2025 by Thomas E. Dickey
++           1998-2016,2017 Free Software Foundation, Inc.
++License:   X11 License Distribution Modification Variant
++ Permission is hereby granted, free of charge, to any person obtaining a
++ copy of this software and associated documentation files (the
++ "Software"), to deal in the Software without restriction, including
++ without limitation the rights to use, copy, modify, merge, publish,
++ distribute, distribute with modifications, sublicense, and/or sell
++ copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included
++ in all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
++ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
++ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the
++ sale, use or other dealings in this Software without prior written
++ authorization.
++Comment:
++ https://invisible-island.net/ncurses/ncurses-license.html
+ 
+-Files: aclocal.m4 package
++Files:     aclocal.m4 package
+ Copyright: 2003-2024,2025 by Thomas E. Dickey
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a
+-    copy of this software and associated documentation files (the
+-    "Software"), to deal in the Software without restriction, including
+-    without limitation the rights to use, copy, modify, merge, publish,
+-    distribute, distribute with modifications, sublicense, and/or sell
+-    copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included
+-    in all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+-    IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+-    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+-    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+-    THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name(s) of the above copyright
+-    holders shall not be used in advertising or otherwise to promote the
+-    sale, use or other dealings in this Software without prior written
+-    authorization.
+-
+--------------------------------------------------------------------------------
+-Files: install-sh
+-Copyright:  1994 X Consortium
+-License: X11
+-
+-    Permission is hereby granted, free of charge, to any person obtaining a copy
+-    of this software and associated documentation files (the "Software"), to
+-    deal in the Software without restriction, including without limitation the
+-    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+-    sell copies of the Software, and to permit persons to whom the Software is
+-    furnished to do so, subject to the following conditions:
+-
+-    The above copyright notice and this permission notice shall be included in
+-    all copies or substantial portions of the Software.
+-
+-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-    X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+-    AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNEC-
+-    TION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-
+-    Except as contained in this notice, the name of the X Consortium shall not
+-    be used in advertising or otherwise to promote the sale, use or other deal-
+-    ings in this Software without prior written authorization from the X Consor-
+-    tium.
+-
+-    FSF changes to this file are in the public domain.
+-
+-    Calling this script install-sh is preferred over install.sh, to prevent
+-    `make' implicit rules from creating a file called install from it
+-    when there is no Makefile.
+-
+-    This script is compatible with the BSD install script, but was written
+-    from scratch.  It can only install one file at a time, a restriction
+-    shared with many OS's install programs.
+-
+-On Debian systems, the complete text of the GNU General
+-Public License can be found in '/usr/share/common-licenses/GPL-2'
++License:   X11 License Distribution Modification Variant
+ 
+--- vile: txtmode file-encoding=utf-8
++Files:     install-sh
++Copyright: 1994 X Consortium
++License:   X11
++ Permission is hereby granted, free of charge, to any person obtaining a copy
++ of this software and associated documentation files (the "Software"), to
++ deal in the Software without restriction, including without limitation the
++ rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ sell copies of the Software, and to permit persons to whom the Software is
++ furnished to do so, subject to the following conditions:
++ .
++ The above copyright notice and this permission notice shall be included in
++ all copies or substantial portions of the Software.
++ .
++ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++ ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ IN THE SOFTWARE.
++ .
++ Except as contained in this notice, the name(s) of the above copyright
++ holders shall not be used in advertising or otherwise to promote the sale,
++ use or other dealings in this Software without prior written authorization.
++
++Files:     terminal.xbm
++Copyright: 1988 Evans & Sutherland Computer Corporation, Salt Lake City, Utah
++License:   StandardML-NJ
++Comment: vile: txtmode file-encoding=utf-8
+Index: test/package/mingw-ncurses-examples.spec
+Prereq:  1.11 
+--- ncurses-6.5-20250614+/test/package/mingw-ncurses-examples.spec	2023-02-25 23:10:34.000000000 +0000
++++ ncurses-6.5-20250621/test/package/mingw-ncurses-examples.spec	2025-06-21 18:35:49.000000000 +0000
+@@ -4,11 +4,11 @@
+ %global AppProgram ncurses-examples
+ %global AppVersion MAJOR.MINOR
+ %global AppRelease YYYYMMDD
+-# $Id: mingw-ncurses-examples.spec,v 1.11 2023/02/25 23:10:34 tom Exp $
++# $Id: mingw-ncurses-examples.spec,v 1.13 2025/06/21 18:35:49 tom Exp $
+ Name: mingw32-ncurses6-examples
+ Version: %{AppVersion}
+ Release: %{AppRelease}
+-License: X11
++License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/%{AppProgram}.html
+ Source: https://invisible-island.net/archives/%{AppProgram}/%{AppProgram}-%{release}.tgz
+@@ -113,6 +113,9 @@
+ 
+ %changelog
+ 
++* RPM_DATE Thomas Dickey
++- testing ncurses MAJOR.MINOR.YYYYMMDD
++
+ * Sat Feb 25 2023 Thomas Dickey
+ - use libexecdir for programs rather than subdir of bindir
+ - amend URLs per rpmlint
+Index: test/package/ncurses-examples.spec
+Prereq:  1.22 
+--- ncurses-6.5-20250614+/test/package/ncurses-examples.spec	2023-02-25 23:10:49.000000000 +0000
++++ ncurses-6.5-20250621/test/package/ncurses-examples.spec	2025-06-21 18:35:49.000000000 +0000
+@@ -3,11 +3,11 @@
+ %global AltProgram ncursest-examples
+ %global AppVersion MAJOR.MINOR
+ %global AppRelease YYYYMMDD
+-# $Id: ncurses-examples.spec,v 1.22 2023/02/25 23:10:49 tom Exp $
++# $Id: ncurses-examples.spec,v 1.24 2025/06/21 18:35:49 tom Exp $
+ Name: %{AppProgram}
+ Version: %{AppVersion}
+ Release: %{AppRelease}
+-License: MIT
++License: X11 License Distribution Modification Variant
+ Group: Applications/Development
+ URL: https://invisible-island.net/ncurses/%{AppProgram}.html
+ Source: https://invisible-island.net/archives/%{AppProgram}/%{AppProgram}-%{release}.tgz
+@@ -97,6 +97,9 @@
+ %changelog
+ # each patch should add its ChangeLog entries here
+ 
++* RPM_DATE Thomas Dickey
++- testing ncurses MAJOR.MINOR.YYYYMMDD
++
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+ 

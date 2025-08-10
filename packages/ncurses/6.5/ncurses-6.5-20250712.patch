@@ -1,0 +1,991 @@
+# ncurses 6.5 - patch 20250712 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250712.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Jul 12 23:39:02 UTC 2025
+# ------------------------------------------------------------------------------
+# Ada95/Makefile.in                |    8 ++---
+# Ada95/src/Makefile.in            |    4 +-
+# Makefile.in                      |   10 +++---
+# Makefile.os2                     |    6 +--
+# NEWS                             |    9 ++++-
+# VERSION                          |    2 -
+# aclocal.m4                       |    4 +-
+# c++/Makefile.in                  |    5 +--
+# configure                        |   57 ++++++++++++++++++++-----------------
+# configure.in                     |   11 +++----
+# dist.mk                          |    4 +-
+# form/Makefile.in                 |   13 +++++++-
+# include/MKterm.h.awk.in          |   37 ++++++++++--------------
+# menu/Makefile.in                 |   13 +++++++-
+# misc/Makefile.in                 |    5 +--
+# ncurses/Makefile.in              |    8 +++--
+# package/debian-mingw/changelog   |    4 +-
+# package/debian-mingw64/changelog |    4 +-
+# package/debian/changelog         |    4 +-
+# package/mingw-ncurses.nsi        |    4 +-
+# package/mingw-ncurses.spec       |    6 +--
+# package/ncurses.spec             |    6 +--
+# package/ncursest.spec            |    6 +--
+# panel/Makefile.in                |   13 +++++++-
+# progs/Makefile.in                |    8 +++--
+# test/Makefile.in                 |   11 +++++--
+# 26 files changed, 153 insertions(+), 109 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/Makefile.in
+Prereq:  1.31 
+--- ncurses-6.5-20250705+/Ada95/Makefile.in	2024-08-11 00:24:28.000000000 +0000
++++ ncurses-6.5-20250712/Ada95/Makefile.in	2025-07-12 10:48:01.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.31 2024/08/11 00:24:28 tom Exp $
++# $Id: Makefile.in,v 1.33 2025/07/12 10:48:01 tom Exp $
+ ##############################################################################
+-# Copyright 2020-2022,2024 Thomas E. Dickey                                  #
++# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2010,2015 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -31,7 +31,7 @@
+ #  Author:  Juergen Pfeifer, 1996
+ #
+ #  Version Control
+-#  $Revision: 1.31 $
++#  $Revision: 1.33 $
+ #
+ SHELL		= @SHELL@
+ VPATH		= @srcdir@
+@@ -57,7 +57,7 @@
+ INSTALL		= @INSTALL@ @INSTALL_OPT_O@
+ INSTALL_SCRIPT	= @INSTALL@
+ 
+-TOP_MFLAGS	= @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
+ @SET_MAKE@
+ 
+ ################################################################################
+Index: Ada95/src/Makefile.in
+Prereq:  1.99 
+--- ncurses-6.5-20250705+/Ada95/src/Makefile.in	2025-03-22 21:39:31.000000000 +0000
++++ ncurses-6.5-20250712/Ada95/src/Makefile.in	2025-07-12 10:40:39.000000000 +0000
+@@ -29,7 +29,7 @@
+ #
+ #  Author:  Juergen Pfeifer, 1996
+ #
+-#  $Id: Makefile.in,v 1.99 2025/03/22 21:39:31 tom Exp $
++#  $Id: Makefile.in,v 1.100 2025/07/12 10:40:39 tom Exp $
+ #
+ .SUFFIXES:
+ 
+@@ -37,7 +37,7 @@
+ VPATH		= @srcdir@
+ THIS		= Makefile
+ 
+-ADA_MFLAGS 	= @cf_cv_makeflags@
++ADA_MFLAGS 	= 
+ @SET_MAKE@
+ 
+ MODEL		= ../../@DFT_OBJ_SUBDIR@
+Index: Makefile.in
+Prereq:  1.46 
+--- ncurses-6.5-20250705+/Makefile.in	2022-10-01 22:53:36.000000000 +0000
++++ ncurses-6.5-20250712/Makefile.in	2025-07-12 10:48:01.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.46 2022/10/01 22:53:36 tom Exp $
++# $Id: Makefile.in,v 1.48 2025/07/12 10:48:01 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2021,2022 Thomas E. Dickey                                  #
++# Copyright 2018-2022,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2014,2015 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -35,9 +35,9 @@
+ SHELL 		= @SHELL@
+ VPATH		= @srcdir@
+ 
+-DESTDIR=@DESTDIR@
+-RPATH_LIST=@RPATH_LIST@
+-TOP_MFLAGS = @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
++DESTDIR		= @DESTDIR@
++RPATH_LIST	= @RPATH_LIST@
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
+ 
+ @SET_MAKE@
+ 
+Index: Makefile.os2
+Prereq:  1.13 
+--- ncurses-6.5-20250705+/Makefile.os2	2021-06-17 21:20:30.000000000 +0000
++++ ncurses-6.5-20250712/Makefile.os2	2025-07-12 10:48:01.000000000 +0000
+@@ -1,5 +1,5 @@
+ ##############################################################################
+-# Copyright 2020,2021 Thomas E. Dickey                                       #
++# Copyright 2020-2021,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2000,2006 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ################################################################################
+-# $Id: Makefile.os2,v 1.13 2021/06/17 21:20:30 tom Exp $
++# $Id: Makefile.os2,v 1.15 2025/07/12 10:48:01 tom Exp $
+ #
+ # Wrapper Makefile for ncurses library under OS/2.
+ # Author:  Juan Jose Garcia Ripoll <worm@arrakis.es>.
+@@ -247,7 +247,7 @@
+ os2dist :
+ 	$(MAKE) -f Makefile.os2 os2clean
+ 	./configure --without-debug --with-install-prefix=`pwd|sed -e 's@^.:@@'`/$(OS2NAME)
+-	$(MAKE) -f Makefile.os2 $(CF_MFLAGS) install.os2
++	$(MAKE) -f Makefile.os2 install.os2
+ 	-rm -f $(OS2NAME).zip
+ 	echo NCurses-$(NCURSES_MAJOR).$(NCURSES_MINOR)-$(NCURSES_PATCH) for emx > $(OS2NAME)/FILE_ID.DIZ
+ 	echo Binary release. >> $(OS2NAME)/FILE_ID.DIZ
+Index: NEWS
+Prereq:  1.4310 
+--- ncurses-6.5-20250705+/NEWS	2025-07-05 20:44:20.000000000 +0000
++++ ncurses-6.5-20250712/NEWS	2025-07-12 22:55:35.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4310 2025/07/05 20:44:20 tom Exp $
++-- $Id: NEWS,v 1.4314 2025/07/12 22:55:35 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,11 +46,16 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250712
++	+ improve readability of term.h
++	+ modify recursive make rules to avoid interference with GNU make's
++	  "-j" option (report by Stas Sergeev).
++
+ 20250705
+ 	+ when installing the terminfo database, check if symbolic links are
+ 	  supported before attemping to link lib/terminfo from share/terminfo
+ 	  (report by Kirill Makurin).
+-	+ modify configure check for MAKEFILES/MFLAGS to ignore existing value
++	+ modify configure check for MAKEFLAGS/MFLAGS to ignore existing value
+ 	  of these environment variables (report by Stas Sergeev).
+ 	+ reserve -c/-l options in test/*.c for command/logging like vttest.
+ 	+ add options to test/worm.c for benchmarking (Nibby Nebbulous)
+Index: VERSION
+--- ncurses-6.5-20250705+/VERSION	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/VERSION	2025-07-12 09:16:32.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250705
++5:0:10	6.5	20250712
+Index: aclocal.m4
+Prereq:  1.1108 
+--- ncurses-6.5-20250705+/aclocal.m4	2025-07-05 20:19:35.000000000 +0000
++++ ncurses-6.5-20250712/aclocal.m4	2025-07-12 16:15:49.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey 1995-on
+ dnl
+-dnl $Id: aclocal.m4,v 1.1108 2025/07/05 20:19:35 tom Exp $
++dnl $Id: aclocal.m4,v 1.1110 2025/07/12 16:15:49 tom Exp $
+ dnl Macros used in NCURSES auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -8513,7 +8513,7 @@
+ AC_DEFUN([CF_STRUCT_TERMIOS],[
+ AC_REQUIRE([CF_XOPEN_SOURCE])
+ 
+-AC_CHECK_HEADERS( \
++AC_CHECK_HEADERS( sgtty.h \
+ termio.h \
+ termios.h \
+ unistd.h \
+Index: c++/Makefile.in
+Prereq:  1.135 
+--- ncurses-6.5-20250705+/c++/Makefile.in	2024-08-11 15:48:44.000000000 +0000
++++ ncurses-6.5-20250712/c++/Makefile.in	2025-07-12 10:48:01.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.135 2024/08/11 15:48:44 tom Exp $
++# $Id: Makefile.in,v 1.137 2025/07/12 10:48:01 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2015,2016 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -38,7 +38,6 @@
+ SHELL		= @SHELL@
+ VPATH		= @srcdir@
+ 
+-CF_MFLAGS 	= @cf_cv_makeflags@
+ @SET_MAKE@
+ x		= @EXEEXT@
+ o		= .@OBJEXT@
+Index: configure
+--- ncurses-6.5-20250705+/configure	2025-07-05 20:20:09.000000000 +0000
++++ ncurses-6.5-20250712/configure	2025-07-12 16:44:54.000000000 +0000
+@@ -1,5 +1,5 @@
+ #! /bin/sh
+-# From configure.in Revision: 1.798 .
++# From configure.in Revision: 1.799 .
+ # Guess values for system-dependent variables and create Makefiles.
+ # Generated by Autoconf 2.52.20250126.
+ #
+@@ -22849,7 +22849,7 @@
+ #define HAVE_NANOSLEEP 1
+ EOF
+ 
+-for ac_header in \
++for ac_header in sgtty.h \
+ termio.h \
+ termios.h \
+ unistd.h \
+@@ -29556,6 +29556,12 @@
+ 	HAVE_STDINT_H=0
+ fi
+ 
++if test "x$ac_cv_header_sgtty_h" = xyes ; then
++	HAVE_SGTTY_H=1
++else
++	HAVE_SGTTY_H=0
++fi
++
+ if test "x$ac_cv_header_termio_h" = xyes ; then
+ 	HAVE_TERMIO_H=1
+ else
+@@ -29604,7 +29610,7 @@
+ 	(*-D_XOPEN_SOURCE_EXTENDED*)
+ 		test -n "$verbose" && echo "	moving _XOPEN_SOURCE_EXTENDED to work around g++ problem" 1>&6
+ 
+-echo "${as_me:-configure}:29607: testing moving _XOPEN_SOURCE_EXTENDED to work around g++ problem ..." 1>&5
++echo "${as_me:-configure}:29613: testing moving _XOPEN_SOURCE_EXTENDED to work around g++ problem ..." 1>&5
+ 
+ 		CFLAGS="$CFLAGS -D_XOPEN_SOURCE_EXTENDED"
+ 		CPPFLAGS=`echo "x$CPPFLAGS" | sed -e  's/^.//' -e 's/-D_XOPEN_SOURCE_EXTENDED//'`
+@@ -29615,7 +29621,7 @@
+ 
+ # Help to automatically enable the extended curses features when using either
+ # the *-config or the ".pc" files by adding defines.
+-echo "$as_me:29618: checking for defines to add to ncurses${USE_CFG_SUFFIX}${cf_config_suffix}-config script" >&5
++echo "$as_me:29624: checking for defines to add to ncurses${USE_CFG_SUFFIX}${cf_config_suffix}-config script" >&5
+ echo $ECHO_N "checking for defines to add to ncurses${USE_CFG_SUFFIX}${cf_config_suffix}-config script... $ECHO_C" >&6
+ PKG_CFLAGS=
+ for cf_loop1 in $CPPFLAGS_after_XOPEN
+@@ -29631,7 +29637,7 @@
+ 	done
+ 	test "$cf_found" = no && PKG_CFLAGS="$PKG_CFLAGS $cf_loop1"
+ done
+-echo "$as_me:29634: result: $PKG_CFLAGS" >&5
++echo "$as_me:29640: result: $PKG_CFLAGS" >&5
+ echo "${ECHO_T}$PKG_CFLAGS" >&6
+ 
+ case "$cf_cv_system_name" in
+@@ -29703,7 +29709,7 @@
+ 	cf_filter_syms=$cf_dft_filter_syms
+ 	test -n "$verbose" && echo "	will map symbols to ABI=$cf_cv_abi_default" 1>&6
+ 
+-echo "${as_me:-configure}:29706: testing will map symbols to ABI=$cf_cv_abi_default ..." 1>&5
++echo "${as_me:-configure}:29712: testing will map symbols to ABI=$cf_cv_abi_default ..." 1>&5
+ 
+ fi
+ 
+@@ -29730,7 +29736,7 @@
+ 
+ # This is used for the *-config script and *.pc data files.
+ 
+-echo "$as_me:29733: checking for linker search path" >&5
++echo "$as_me:29739: checking for linker search path" >&5
+ echo $ECHO_N "checking for linker search path... $ECHO_C" >&6
+ if test "${cf_cv_ld_searchpath+set}" = set; then
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+@@ -29778,7 +29784,7 @@
+ 			cf_pathlist="$cf_pathlist /lib /usr/lib"
+ 			;;
+ 		(*)
+-			{ echo "$as_me:29781: WARNING: problem with Solaris architecture" >&5
++			{ echo "$as_me:29787: WARNING: problem with Solaris architecture" >&5
+ echo "$as_me: WARNING: problem with Solaris architecture" >&2;}
+ 			;;
+ 		esac
+@@ -29819,7 +29825,7 @@
+ test -z "$cf_cv_ld_searchpath" && cf_cv_ld_searchpath=/usr/lib
+ 
+ fi
+-echo "$as_me:29822: result: $cf_cv_ld_searchpath" >&5
++echo "$as_me:29828: result: $cf_cv_ld_searchpath" >&5
+ echo "${ECHO_T}$cf_cv_ld_searchpath" >&6
+ 
+ LD_SEARCHPATH=`echo "$cf_cv_ld_searchpath"|sed -e 's/ /|/g'`
+@@ -29905,7 +29911,7 @@
+ : "${CONFIG_STATUS=./config.status}"
+ ac_clean_files_save=$ac_clean_files
+ ac_clean_files="$ac_clean_files $CONFIG_STATUS"
+-{ echo "$as_me:29908: creating $CONFIG_STATUS" >&5
++{ echo "$as_me:29914: creating $CONFIG_STATUS" >&5
+ echo "$as_me: creating $CONFIG_STATUS" >&6;}
+ cat >"$CONFIG_STATUS" <<_ACEOF
+ #! $SHELL
+@@ -30086,7 +30092,7 @@
+     echo "$ac_cs_version"; exit 0 ;;
+   --he | --h)
+     # Conflict between --help and --header
+-    { { echo "$as_me:30089: error: ambiguous option: $1
++    { { echo "$as_me:30095: error: ambiguous option: $1
+ Try \`$0 --help' for more information." >&5
+ echo "$as_me: error: ambiguous option: $1
+ Try \`$0 --help' for more information." >&2;}
+@@ -30105,7 +30111,7 @@
+     ac_need_defaults=false;;
+ 
+   # This is an error.
+-  -*) { { echo "$as_me:30108: error: unrecognized option: $1
++  -*) { { echo "$as_me:30114: error: unrecognized option: $1
+ Try \`$0 --help' for more information." >&5
+ echo "$as_me: error: unrecognized option: $1
+ Try \`$0 --help' for more information." >&2;}
+@@ -30237,7 +30243,7 @@
+   "Makefile" ) CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+   "default" ) CONFIG_COMMANDS="$CONFIG_COMMANDS default" ;;
+   "include/ncurses_cfg.h" ) CONFIG_HEADERS="$CONFIG_HEADERS include/ncurses_cfg.h:include/ncurses_cfg.hin" ;;
+-  *) { { echo "$as_me:30240: error: invalid argument: $ac_config_target" >&5
++  *) { { echo "$as_me:30246: error: invalid argument: $ac_config_target" >&5
+ echo "$as_me: error: invalid argument: $ac_config_target" >&2;}
+    { (exit 1); exit 1; }; };;
+   esac
+@@ -30620,6 +30626,7 @@
+ s,@NCURSES_SHLIB2@,$NCURSES_SHLIB2,;t t
+ s,@HAVE_TCGETATTR@,$HAVE_TCGETATTR,;t t
+ s,@HAVE_STDINT_H@,$HAVE_STDINT_H,;t t
++s,@HAVE_SGTTY_H@,$HAVE_SGTTY_H,;t t
+ s,@HAVE_TERMIO_H@,$HAVE_TERMIO_H,;t t
+ s,@HAVE_TERMIOS_H@,$HAVE_TERMIOS_H,;t t
+ s,@cross_compiling@,$cross_compiling,;t t
+@@ -30767,7 +30774,7 @@
+   esac
+ 
+   if test x"$ac_file" != x-; then
+-    { echo "$as_me:30770: creating $ac_file" >&5
++    { echo "$as_me:30777: creating $ac_file" >&5
+ echo "$as_me: creating $ac_file" >&6;}
+     rm -f "$ac_file"
+   fi
+@@ -30785,7 +30792,7 @@
+       -) echo "$tmp"/stdin ;;
+       [\\/$]*)
+          # Absolute (can't be DOS-style, as IFS=:)
+-         test -f "$f" || { { echo "$as_me:30788: error: cannot find input file: $f" >&5
++         test -f "$f" || { { echo "$as_me:30795: error: cannot find input file: $f" >&5
+ echo "$as_me: error: cannot find input file: $f" >&2;}
+    { (exit 1); exit 1; }; }
+          echo "$f";;
+@@ -30798,7 +30805,7 @@
+            echo "$srcdir/$f"
+          else
+            # /dev/null tree
+-           { { echo "$as_me:30801: error: cannot find input file: $f" >&5
++           { { echo "$as_me:30808: error: cannot find input file: $f" >&5
+ echo "$as_me: error: cannot find input file: $f" >&2;}
+    { (exit 1); exit 1; }; }
+          fi;;
+@@ -30814,7 +30821,7 @@
+       if test -n "$ac_seen"; then
+         ac_used=`grep '@datarootdir@' "$ac_item"`
+         if test -z "$ac_used"; then
+-          { echo "$as_me:30817: WARNING: datarootdir was used implicitly but not set:
++          { echo "$as_me:30824: WARNING: datarootdir was used implicitly but not set:
+ $ac_seen" >&5
+ echo "$as_me: WARNING: datarootdir was used implicitly but not set:
+ $ac_seen" >&2;}
+@@ -30823,7 +30830,7 @@
+       fi
+       ac_seen=`grep '${datarootdir}' "$ac_item"`
+       if test -n "$ac_seen"; then
+-        { echo "$as_me:30826: WARNING: datarootdir was used explicitly but not set:
++        { echo "$as_me:30833: WARNING: datarootdir was used explicitly but not set:
+ $ac_seen" >&5
+ echo "$as_me: WARNING: datarootdir was used explicitly but not set:
+ $ac_seen" >&2;}
+@@ -30868,7 +30875,7 @@
+             ac_init=`$EGREP '[ 	]*'$ac_name'[ 	]*=' "$ac_file"`
+             if test -z "$ac_init"; then
+               ac_seen=`echo "$ac_seen" |sed -e 's,^,'"$ac_file"':,'`
+-              { echo "$as_me:30871: WARNING: Variable $ac_name is used but was not set:
++              { echo "$as_me:30878: WARNING: Variable $ac_name is used but was not set:
+ $ac_seen" >&5
+ echo "$as_me: WARNING: Variable $ac_name is used but was not set:
+ $ac_seen" >&2;}
+@@ -30879,7 +30886,7 @@
+     $EGREP -n '@[A-Z_][A-Z_0-9]+@' "$ac_file" >>"$tmp"/out
+     if test -s "$tmp"/out; then
+       ac_seen=`sed -e 's,^,'"$ac_file"':,' < "$tmp"/out`
+-      { echo "$as_me:30882: WARNING: Some variables may not be substituted:
++      { echo "$as_me:30889: WARNING: Some variables may not be substituted:
+ $ac_seen" >&5
+ echo "$as_me: WARNING: Some variables may not be substituted:
+ $ac_seen" >&2;}
+@@ -30928,7 +30935,7 @@
+   * )   ac_file_in=$ac_file.in ;;
+   esac
+ 
+-  test x"$ac_file" != x- && { echo "$as_me:30931: creating $ac_file" >&5
++  test x"$ac_file" != x- && { echo "$as_me:30938: creating $ac_file" >&5
+ echo "$as_me: creating $ac_file" >&6;}
+ 
+   # First look for the input files in the build tree, otherwise in the
+@@ -30939,7 +30946,7 @@
+       -) echo "$tmp"/stdin ;;
+       [\\/$]*)
+          # Absolute (can't be DOS-style, as IFS=:)
+-         test -f "$f" || { { echo "$as_me:30942: error: cannot find input file: $f" >&5
++         test -f "$f" || { { echo "$as_me:30949: error: cannot find input file: $f" >&5
+ echo "$as_me: error: cannot find input file: $f" >&2;}
+    { (exit 1); exit 1; }; }
+          echo $f;;
+@@ -30952,7 +30959,7 @@
+            echo "$srcdir/$f"
+          else
+            # /dev/null tree
+-           { { echo "$as_me:30955: error: cannot find input file: $f" >&5
++           { { echo "$as_me:30962: error: cannot find input file: $f" >&5
+ echo "$as_me: error: cannot find input file: $f" >&2;}
+    { (exit 1); exit 1; }; }
+          fi;;
+@@ -31010,7 +31017,7 @@
+   rm -f "$tmp"/in
+   if test x"$ac_file" != x-; then
+     if cmp -s "$ac_file" "$tmp/config.h" 2>/dev/null; then
+-      { echo "$as_me:31013: $ac_file is unchanged" >&5
++      { echo "$as_me:31020: $ac_file is unchanged" >&5
+ echo "$as_me: $ac_file is unchanged" >&6;}
+     else
+       ac_dir=`$as_expr X"$ac_file" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
+@@ -31397,7 +31404,7 @@
+ 				(cygdll|msysdll|mingw|msvcdll)
+ 					test "x$with_shared_cxx" = xno && test -n "$verbose" && echo "	overriding CXX_MODEL to SHARED" 1>&6
+ 
+-echo "${as_me:-configure}:31400: testing overriding CXX_MODEL to SHARED ..." 1>&5
++echo "${as_me:-configure}:31407: testing overriding CXX_MODEL to SHARED ..." 1>&5
+ 
+ 					with_shared_cxx=yes
+ 					;;
+Index: configure.in
+Prereq:  1.798 
+--- ncurses-6.5-20250705+/configure.in	2025-05-24 18:50:21.000000000 +0000
++++ ncurses-6.5-20250712/configure.in	2025-07-12 16:43:47.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey 1995-on
+ dnl
+-dnl $Id: configure.in,v 1.798 2025/05/24 18:50:21 tom Exp $
++dnl $Id: configure.in,v 1.799 2025/07/12 16:43:47 tom Exp $
+ dnl Process this file with autoconf to produce a configure script.
+ dnl
+ dnl For additional information, see
+@@ -38,7 +38,7 @@
+ dnl
+ dnl ---------------------------------------------------------------------------
+ AC_PREREQ(2.52.20210101)
+-AC_REVISION($Revision: 1.798 $)
++AC_REVISION($Revision: 1.799 $)
+ AC_INIT(ncurses/base/lib_initscr.c)
+ AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
+ 
+@@ -2372,9 +2372,10 @@
+ AC_DEFINE_UNQUOTED(NCURSES_VERSION_STRING, "${NCURSES_MAJOR}.${NCURSES_MINOR}.${NCURSES_PATCH}",[Define to 1 if machine has ample memory for tic])
+ 
+ ### Define substitutions for header files to avoid name-pollution
+-CF_SUBST_IF(["x$cf_cv_have_tcgetattr" = xyes], HAVE_TCGETATTR, 1, 0)
+-CF_SUBST_IF(["x$ac_cv_header_stdint_h" = xyes], HAVE_STDINT_H, 1, 0)
+-CF_SUBST_IF(["x$ac_cv_header_termio_h" = xyes], HAVE_TERMIO_H, 1, 0)
++CF_SUBST_IF(["x$cf_cv_have_tcgetattr" = xyes],   HAVE_TCGETATTR, 1, 0)
++CF_SUBST_IF(["x$ac_cv_header_stdint_h" = xyes],  HAVE_STDINT_H,  1, 0)
++CF_SUBST_IF(["x$ac_cv_header_sgtty_h" = xyes],   HAVE_SGTTY_H,   1, 0)
++CF_SUBST_IF(["x$ac_cv_header_termio_h" = xyes],  HAVE_TERMIO_H,  1, 0)
+ CF_SUBST_IF(["x$ac_cv_header_termios_h" = xyes], HAVE_TERMIOS_H, 1, 0)
+ 
+ ################################################################################
+Index: dist.mk
+Prereq:  1.1676 
+--- ncurses-6.5-20250705+/dist.mk	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/dist.mk	2025-07-12 09:16:32.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1676 2025/07/05 09:49:36 tom Exp $
++# $Id: dist.mk,v 1.1677 2025/07/12 09:16:32 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250705
++NCURSES_PATCH = 20250712
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: form/Makefile.in
+Prereq:  1.74 
+--- ncurses-6.5-20250705+/form/Makefile.in	2024-08-11 00:51:41.000000000 +0000
++++ ncurses-6.5-20250712/form/Makefile.in	2025-07-12 14:59:19.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.74 2024/08/11 00:51:41 tom Exp $
++# $Id: Makefile.in,v 1.75 2025/07/12 14:59:19 tom Exp $
+ ##############################################################################
+-# Copyright 2020-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -47,6 +47,9 @@
+ VPATH		= @srcdir@
+ THIS		= Makefile
+ 
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
++@SET_MAKE@
++
+ x		= @EXEEXT@
+ o		= .@OBJEXT@
+ 
+@@ -203,6 +206,12 @@
+ 
+ realclean :: distclean
+ 
++# These rules are used to allow "make -n" to work on a clean directory-tree
++../include/curses.h \
++../include/ncurses_def.h \
++../include/term.h :
++	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
++
+ ../include/mf_common.h \
+ ../include/eti.h :
+ 	( cd ../menu && $(MAKE) $@ )
+Index: include/MKterm.h.awk.in
+Prereq:  1.87 
+--- ncurses-6.5-20250705+/include/MKterm.h.awk.in	2024-12-28 21:42:15.000000000 +0000
++++ ncurses-6.5-20250712/include/MKterm.h.awk.in	2025-07-12 22:57:22.000000000 +0000
+@@ -26,7 +26,7 @@
+ 	lcurl = "{";
+ 	rcurl = "}";
+ 	print  "/****************************************************************************"
+-	print  " * Copyright 2018-2023,2024 Thomas E. Dickey                                *"
++	print  " * Copyright 2018-2024,2025 Thomas E. Dickey                                *"
+ 	print  " * Copyright 1998-2013,2017 Free Software Foundation, Inc.                  *"
+ 	print  " *                                                                          *"
+ 	print  " * Permission is hereby granted, free of charge, to any person obtaining a  *"
+@@ -60,7 +60,7 @@
+ 	print  "/*    and: Thomas E. Dickey                        1995-on                  */"
+ 	print  "/****************************************************************************/"
+ 	print  ""
+-	print  "/* $Id: MKterm.h.awk.in,v 1.87 2024/12/28 21:42:15 tom Exp $ */"
++	print  "/* $Id: MKterm.h.awk.in,v 1.88 2025/07/12 22:57:22 tom Exp $ */"
+ 	print  ""
+ 	print  "/*"
+ 	print  "**	term.h -- Definition of struct term"
+@@ -116,52 +116,47 @@
+ 	print  "#undef  NCURSES_XNAMES"
+ 	print  "#define NCURSES_XNAMES @NCURSES_XNAMES@"
+ 	print  ""
+-	print  "/* We will use these symbols to hide differences between"
++	print  "/* We use these symbols to hide differences between"
+ 	print  " * termios/termio/sgttyb interfaces."
+ 	print  " */"
+ 	print  "#undef  TTY"
+ 	print  "#undef  SET_TTY"
+ 	print  "#undef  GET_TTY"
+ 	print  ""
+-	print  "/* Assume POSIX termio if we have the header and function */"
+-	print  "/* #if HAVE_TERMIOS_H && HAVE_TCGETATTR */"
+-	print  "#if @HAVE_TERMIOS_H@ && @HAVE_TCGETATTR@"
++	print  "#if @HAVE_TERMIOS_H@ && @HAVE_TCGETATTR@	/* #if HAVE_TERMIOS_H && HAVE_TCGETATTR */"
+ 	print  ""
+ 	print  "#undef  TERMIOS"
+ 	print  "#define TERMIOS 1"
+-	print  ""
+ 	print  "#include <termios.h>"
+ 	print  "#define TTY struct termios"
+ 	print  ""
+-	print  "#else /* !HAVE_TERMIOS_H */"
+-	print  ""
+-	print  "/* #if HAVE_TERMIO_H */"
+-	print  "#if @HAVE_TERMIO_H@"
++	print  "#elif @HAVE_TERMIO_H@	/* HAVE_TERMIO_H */"
+ 	print  ""
+ 	print  "#undef  TERMIOS"
+ 	print  "#define TERMIOS 1"
+-	print  ""
+ 	print  "#include <termio.h>"
+ 	print  "#define TTY struct termio"
+ 	print  ""
+-	print  "#else /* !HAVE_TERMIO_H */"
++	print  "#elif (defined(_WIN32) || defined(_WIN64))"
+ 	print  ""
+-	print  "#if (defined(_WIN32) || defined(_WIN64))"
+-	print  "/* configured with --enable-exp-win32? */"
+-	print  "#if @EXP_WIN32_DRIVER@"
++	print  "#if @EXP_WIN32_DRIVER@	/* EXP_WIN32_DRIVER */"
+ 	print  "#include <win32_curses.h>"
+ 	print  "#define TTY struct winconmode"
+-	print  "#else"
++	print  "#else	/* MINGW32 */"
+ 	print  "#include <ncurses_mingw.h>"
+ 	print  "#define TTY struct termios"
+ 	print  "#endif"
+-	print  "#else"
++	print  ""
++	print  "#elif @HAVE_SGTTY_H@	/* HAVE_SGTTY_H */"
++	print  ""
+ 	print  "#undef TERMIOS"
+ 	print  "#include <sgtty.h>"
+ 	print  "#include <sys/ioctl.h>"
+ 	print  "#define TTY struct sgttyb"
+-	print  "#endif /* MINGW32 */"
+-	print  "#endif /* HAVE_TERMIO_H */"
++	print  ""
++	print  "#else"
++	print  ""
++	print  "#error no termio/termios/sgtty found"
+ 	print  ""
+ 	print  "#endif /* HAVE_TERMIOS_H */"
+ 	print  ""
+@@ -172,7 +167,7 @@
+ 	print  "#elif @EXP_WIN32_DRIVER@ && (defined(_WIN32) || defined(_WIN64))"
+ 	print  "#define GET_TTY(fd, buf) _nc_console_getmode(_nc_console_fd2handle(fd),buf)"
+ 	print  "#define SET_TTY(fd, buf) _nc_console_setmode(_nc_console_fd2handle(fd),buf)"
+-	print  "#else"
++	print  "#elif @HAVE_SGTTY_H@	/* HAVE_SGTTY_H */"
+ 	print  "#define GET_TTY(fd, buf) gtty(fd, buf)"
+ 	print  "#define SET_TTY(fd, buf) stty(fd, buf)"
+ 	print  "#endif"
+Index: menu/Makefile.in
+Prereq:  1.72 
+--- ncurses-6.5-20250705+/menu/Makefile.in	2024-08-11 00:51:30.000000000 +0000
++++ ncurses-6.5-20250712/menu/Makefile.in	2025-07-12 14:59:29.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.72 2024/08/11 00:51:30 tom Exp $
++# $Id: Makefile.in,v 1.73 2025/07/12 14:59:29 tom Exp $
+ ##############################################################################
+-# Copyright 2020-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -47,6 +47,9 @@
+ VPATH		= @srcdir@
+ THIS		= Makefile
+ 
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
++@SET_MAKE@
++
+ x		= @EXEEXT@
+ o		= .@OBJEXT@
+ 
+@@ -209,6 +212,12 @@
+ 
+ realclean :: distclean
+ 
++# These rules are used to allow "make -n" to work on a clean directory-tree
++../include/curses.h \
++../include/ncurses_def.h \
++../include/term.h :
++	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
++
+ ###############################################################################
+ # The remainder of this file is automatically generated during configuration
+ ###############################################################################
+Index: misc/Makefile.in
+Prereq:  1.83 
+--- ncurses-6.5-20250705+/misc/Makefile.in	2024-08-10 18:06:18.000000000 +0000
++++ ncurses-6.5-20250712/misc/Makefile.in	2025-07-12 10:48:01.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.83 2024/08/10 18:06:18 tom Exp $
++# $Id: Makefile.in,v 1.85 2025/07/12 10:48:01 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2016,2017 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -47,7 +47,6 @@
+ VPATH		= @srcdir@
+ THIS		= Makefile
+ 
+-CF_MFLAGS 	= @cf_cv_makeflags@
+ @SET_MAKE@
+ 
+ DESTDIR		= @DESTDIR@
+Index: ncurses/Makefile.in
+Prereq:  1.185 
+--- ncurses-6.5-20250705+/ncurses/Makefile.in	2024-08-10 18:07:57.000000000 +0000
++++ ncurses-6.5-20250712/ncurses/Makefile.in	2025-07-12 14:41:48.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.185 2024/08/10 18:07:57 tom Exp $
++# $Id: Makefile.in,v 1.189 2025/07/12 14:41:48 tom Exp $
+ ##############################################################################
+-# Copyright 2018-2022,2024 Thomas E. Dickey                                  #
++# Copyright 2018-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -50,7 +50,7 @@
+ VPATH		= @srcdir@
+ THIS		= Makefile
+ 
+-TOP_MFLAGS	= @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
+ @SET_MAKE@
+ 
+ x		= @EXEEXT@
+@@ -325,7 +325,9 @@
+ realclean :: distclean
+ 
+ # These rules are used to allow "make -n" to work on a clean directory-tree
++../include/curses.h \
+ ../include/hashsize.h \
++../include/ncurses_def.h \
+ ../include/parametrized.h \
+ ../include/term.h :
+ 	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250705+/package/debian-mingw/changelog	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/package/debian-mingw/changelog	2025-07-12 09:16:32.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250705) unstable; urgency=low
++ncurses6td (6.5+20250712) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 05 Jul 2025 05:49:36 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 08 Jul 2025 10:00:51 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250705+/package/debian-mingw64/changelog	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/package/debian-mingw64/changelog	2025-07-12 09:16:32.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250705) unstable; urgency=low
++ncurses6td (6.5+20250712) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 05 Jul 2025 05:49:36 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 08 Jul 2025 10:00:51 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250705+/package/debian/changelog	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/package/debian/changelog	2025-07-12 09:16:32.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250705) unstable; urgency=low
++ncurses6td (6.5+20250712) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 05 Jul 2025 05:49:36 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 08 Jul 2025 10:00:51 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.710 
+--- ncurses-6.5-20250705+/package/mingw-ncurses.nsi	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/package/mingw-ncurses.nsi	2025-07-12 09:16:32.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.710 2025/07/05 09:49:36 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.711 2025/07/12 09:16:32 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0705"
++!define VERSION_MMDD  "0712"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250705+/package/mingw-ncurses.spec	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/package/mingw-ncurses.spec	2025-07-12 09:16:32.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250705
++Release: 20250712
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+@@ -144,8 +144,8 @@
+ 
+ %changelog
+ 
+-* Sat Jul 05 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250705
++* Sat Jul 12 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250712
+ 
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+Index: package/ncurses.spec
+--- ncurses-6.5-20250705+/package/ncurses.spec	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/package/ncurses.spec	2025-07-12 09:16:32.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250705
++Release: 20250712
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+@@ -134,8 +134,8 @@
+ 
+ %changelog
+ 
+-* Sat Jul 05 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250705
++* Sat Jul 12 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250712
+ 
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+Index: package/ncursest.spec
+--- ncurses-6.5-20250705+/package/ncursest.spec	2025-07-05 09:49:36.000000000 +0000
++++ ncurses-6.5-20250712/package/ncursest.spec	2025-07-12 09:16:32.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250705
++Release: 20250712
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+@@ -142,8 +142,8 @@
+ 
+ %changelog
+ 
+-* Sat Jul 05 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250705
++* Sat Jul 12 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250712
+ 
+ * Tue Dec 24 2019 Thomas Dickey
+ - drop custom CC_NORMAL warning flags because setting CFLAGS interferes with
+Index: panel/Makefile.in
+Prereq:  1.77 
+--- ncurses-6.5-20250705+/panel/Makefile.in	2024-08-10 18:19:45.000000000 +0000
++++ ncurses-6.5-20250712/panel/Makefile.in	2025-07-12 14:59:39.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.77 2024/08/10 18:19:45 tom Exp $
++# $Id: Makefile.in,v 1.78 2025/07/12 14:59:39 tom Exp $
+ ##############################################################################
+-# Copyright 2020-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -47,6 +47,9 @@
+ VPATH		= @srcdir@
+ THIS		= Makefile
+ 
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
++@SET_MAKE@
++
+ x		= @EXEEXT@
+ o		= .@OBJEXT@
+ 
+@@ -203,6 +206,12 @@
+ 
+ realclean :: distclean
+ 
++# These rules are used to allow "make -n" to work on a clean directory-tree
++../include/curses.h \
++../include/ncurses_def.h \
++../include/term.h :
++	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
++
+ ###############################################################################
+ # The remainder of this file is automatically generated during configuration
+ ###############################################################################
+Index: progs/Makefile.in
+Prereq:  1.117 
+--- ncurses-6.5-20250705+/progs/Makefile.in	2024-08-24 22:51:58.000000000 +0000
++++ ncurses-6.5-20250712/progs/Makefile.in	2025-07-12 14:45:33.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.117 2024/08/24 22:51:58 tom Exp $
++# $Id: Makefile.in,v 1.120 2025/07/12 14:45:33 tom Exp $
+ ##############################################################################
+-# Copyright 2020-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2016,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -47,7 +47,7 @@
+ VPATH		= @srcdir@
+ THIS		= Makefile
+ 
+-TOP_MFLAGS	= @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
+ @SET_MAKE@
+ 
+ x		= @EXEEXT@
+@@ -353,7 +353,9 @@
+ realclean :: distclean
+ 
+ # These rules are used to allow "make -n" to work on a clean directory-tree
++../include/curses.h \
+ ../include/hashsize.h \
++../include/ncurses_def.h \
+ ../include/parametrized.h \
+ ../include/term.h :
+ 	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
+Index: test/Makefile.in
+Prereq:  1.131 
+--- ncurses-6.5-20250705+/test/Makefile.in	2024-08-10 18:19:56.000000000 +0000
++++ ncurses-6.5-20250712/test/Makefile.in	2025-07-12 14:59:48.000000000 +0000
+@@ -1,6 +1,6 @@
+-# $Id: Makefile.in,v 1.131 2024/08/10 18:19:56 tom Exp $
++# $Id: Makefile.in,v 1.132 2025/07/12 14:59:48 tom Exp $
+ ##############################################################################
+-# Copyright 2020-2021,2024 Thomas E. Dickey                                  #
++# Copyright 2020-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -38,6 +38,7 @@
+ SHELL		= @SHELL@
+ VPATH		= @srcdir@
+ 
++TOP_MFLAGS	= DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
+ @SET_MAKE@
+ 
+ destdir		=
+@@ -174,4 +175,10 @@
+ 		done"
+ 	-@rm -f headers.*
+ 
++# These rules are used to allow "make -n" to work on a clean directory-tree
++../include/curses.h \
++../include/ncurses_def.h \
++../include/term.h :
++	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
++
+ # The rest is generated from the "programs" and "modules" files...
