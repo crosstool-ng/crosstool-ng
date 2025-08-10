@@ -1,0 +1,304 @@
+# ncurses 6.5 - patch 20250531 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250531.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sun Jun  1 00:02:18 UTC 2025
+# ------------------------------------------------------------------------------
+# Ada95/aclocal.m4                 |    4 ++--
+# NEWS                             |    6 +++++-
+# VERSION                          |    2 +-
+# aclocal.m4                       |    4 ++--
+# dist.mk                          |    4 ++--
+# misc/run_tic.in                  |   31 ++++++++++++++++++-------------
+# package/debian-mingw/changelog   |    4 ++--
+# package/debian-mingw64/changelog |    4 ++--
+# package/debian/changelog         |    4 ++--
+# package/mingw-ncurses.nsi        |    4 ++--
+# package/mingw-ncurses.spec       |    2 +-
+# package/ncurses.spec             |    2 +-
+# package/ncursest.spec            |    2 +-
+# 13 files changed, 41 insertions(+), 32 deletions(-)
+# ------------------------------------------------------------------------------
+Index: Ada95/aclocal.m4
+Prereq:  1.227 
+--- ncurses-6.5-20250524+/Ada95/aclocal.m4	2025-02-23 01:57:36.000000000 +0000
++++ ncurses-6.5-20250531/Ada95/aclocal.m4	2025-02-23 01:57:36.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey
+ dnl
+-dnl $Id: aclocal.m4,v 1.227 2025/02/23 01:57:36 tom Exp $
++dnl $Id: aclocal.m4,v 1.228 2025/02/23 01:57:36 tom Exp $
+ dnl Macros used in NCURSES Ada95 auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -3107,7 +3107,7 @@
+ echo "${as_me:-configure}:__oline__: testing $* ..." 1>&AC_FD_CC
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_NCURSES_ADDON version: 7 updated: 2024/06/01 17:37:13
++dnl CF_NCURSES_ADDON version: 8 updated: 2025/02/22 20:57:36
+ dnl ----------------
+ dnl Configure an ncurses add-on, built outside the ncurses tree.
+ AC_DEFUN([CF_NCURSES_ADDON],[
+Index: NEWS
+Prereq:  1.4286 
+--- ncurses-6.5-20250524+/NEWS	2025-05-24 18:58:06.000000000 +0000
++++ ncurses-6.5-20250531/NEWS	2025-05-31 22:33:49.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4286 2025/05/24 18:58:06 tom Exp $
++-- $Id: NEWS,v 1.4288 2025/05/31 22:33:49 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,10 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250531
++	+ improve logic in misc/run_tic.in for constructing symbolic link
++	  when $DESTDIR is set.
++
+ 20250524
+ 	+ correct option-name used in configure script, which resulted in size
+ 	  change for cchar_t (cf: 20250517).
+Index: VERSION
+--- ncurses-6.5-20250524+/VERSION	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/VERSION	2025-05-31 10:03:25.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250524
++5:0:10	6.5	20250531
+Index: aclocal.m4
+Prereq:  1.1105 
+--- ncurses-6.5-20250524+/aclocal.m4	2025-05-17 18:54:28.000000000 +0000
++++ ncurses-6.5-20250531/aclocal.m4	2025-05-17 18:54:28.000000000 +0000
+@@ -29,7 +29,7 @@
+ dnl
+ dnl Author: Thomas E. Dickey 1995-on
+ dnl
+-dnl $Id: aclocal.m4,v 1.1105 2025/05/17 18:54:28 tom Exp $
++dnl $Id: aclocal.m4,v 1.1106 2025/05/17 18:54:28 tom Exp $
+ dnl Macros used in NCURSES auto-configuration script.
+ dnl
+ dnl These macros are maintained separately from NCURSES.  The copyright on
+@@ -67,7 +67,7 @@
+ 	fi
+ ])dnl
+ dnl ---------------------------------------------------------------------------
+-dnl CF_ABI_DEFAULTS version: 5 updated: 2023/10/21 08:54:23
++dnl CF_ABI_DEFAULTS version: 6 updated: 2025/05/17 14:54:28
+ dnl ---------------
+ dnl Provide configure-script defaults for different ncurses ABIs.
+ AC_DEFUN([CF_ABI_DEFAULTS],[
+Index: dist.mk
+Prereq:  1.1670 
+--- ncurses-6.5-20250524+/dist.mk	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/dist.mk	2025-05-31 10:03:25.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1670 2025/05/24 09:59:15 tom Exp $
++# $Id: dist.mk,v 1.1671 2025/05/31 10:03:25 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250524
++NCURSES_PATCH = 20250531
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/run_tic.in
+Prereq:  1.41 
+--- ncurses-6.5-20250524+/misc/run_tic.in	2024-08-04 14:50:26.000000000 +0000
++++ ncurses-6.5-20250531/misc/run_tic.in	2025-05-31 22:31:56.000000000 +0000
+@@ -1,7 +1,7 @@
+ #!@SHELL@
+-# $Id: run_tic.in,v 1.41 2024/08/04 14:50:26 tom Exp $
++# $Id: run_tic.in,v 1.42 2025/05/31 22:31:56 tom Exp $
+ ##############################################################################
+-# Copyright 2019-2022,2024 Thomas E. Dickey                                  #
++# Copyright 2019-2024,2025 Thomas E. Dickey                                  #
+ # Copyright 2000-2012,2017 Free Software Foundation, Inc.                    #
+ #                                                                            #
+ # Permission is hereby granted, free of charge, to any person obtaining a    #
+@@ -62,12 +62,14 @@
+ : "${BINDIR:=@bindir@}"
+ : "${TICDIR:=$ticdir}"
+ 
++unset CDPATH
++
+ # Allow tic to run either from the install-path, or from the build-directory.
+ # Do not do this if we appear to be cross-compiling.  In that case, we rely
+ # on the host's copy of tic to compile the terminfo database.
+-if test "x$cross_compiling" = "xno"
++if test "$cross_compiling" = "no"
+ then
+-	if test -f ../progs/tic$suffix
++	if test -f ../progs/tic"$suffix"
+ 	then
+ 		case "$PATH" in
+ 		\@PATH_SEPARATOR@*)
+@@ -148,7 +150,7 @@
+ 
+ EOF
+ $tic_path -V
+-if ( $tic_path -x -s -o "$TERMINFO" $tic_source )
++if ( $tic_path -x -s -o "$TERMINFO" "$tic_source" )
+ then
+ 	echo "** built new $TERMINFO"
+ else
+@@ -168,7 +170,7 @@
+ 
+ EOF
+ $tic_path -V
+-if ( $tic_path -s -o "$TERMINFO" $tic_source )
++if ( $tic_path -s -o "$TERMINFO" "$tic_source" )
+ then
+ 	echo "** built new $TERMINFO"
+ else
+@@ -195,18 +197,21 @@
+ 			echo "Otherwise, remove $TICDIR and link it to $TERMINFO."
+ 		fi
+ 	else
+-		cd ${INSTALL_PREFIX} || exit
++		cd "${INSTALL_PREFIX}" || exit
+ 		# Construct a symbolic link that only assumes $ticdir has the
+ 		# same $prefix as the other installed directories.
+-		RELATIVE=`echo $ticdir|sed -e 's%^'$prefix'/%%'`
+-		if test "$RELATIVE" != "$ticdir" ; then
+-			RELATIVE=../`echo $ticdir|sed -e 's%^'$prefix'/%%' -e 's%^/%%'`
++		SOURCE=`echo "$ticdir"|sed -e 's%^'"$prefix"'/%%'`
++		if test "$SOURCE" != "$ticdir" ; then
++			SOURCE=../`echo "$ticdir"|sed -e 's%^'"$prefix"'/%%' -e 's%^/%%'`
+ 		fi
+-		if ( @LN_S@ "$RELATIVE" "$TICDIR" )
++		test -d lib || mkdir lib
++		cd lib || exit
++		TARGET=`pwd`/terminfo
++		if ( @LN_S@ "$SOURCE" terminfo )
+ 		then
+-			echo "** sym-linked $TICDIR for compatibility"
++			echo "** sym-linked $TARGET for compatibility"
+ 		else
+-			echo "** could not sym-link $TICDIR for compatibility"
++			echo "** could not sym-link $TARGET for compatibility"
+ 		fi
+ 	fi
+ fi
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250524+/package/debian-mingw/changelog	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/package/debian-mingw/changelog	2025-05-31 10:03:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250524) unstable; urgency=low
++ncurses6td (6.5+20250531) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 24 May 2025 05:59:15 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 31 May 2025 06:03:25 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250524+/package/debian-mingw64/changelog	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/package/debian-mingw64/changelog	2025-05-31 10:03:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250524) unstable; urgency=low
++ncurses6td (6.5+20250531) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 24 May 2025 05:59:15 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 31 May 2025 06:03:25 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250524+/package/debian/changelog	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/package/debian/changelog	2025-05-31 10:03:25.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250524) unstable; urgency=low
++ncurses6td (6.5+20250531) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 24 May 2025 05:59:15 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 31 May 2025 06:03:25 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.704 
+--- ncurses-6.5-20250524+/package/mingw-ncurses.nsi	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/package/mingw-ncurses.nsi	2025-05-31 10:03:25.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.704 2025/05/24 09:59:15 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.705 2025/05/31 10:03:25 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0524"
++!define VERSION_MMDD  "0531"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250524+/package/mingw-ncurses.spec	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/package/mingw-ncurses.spec	2025-05-31 10:03:25.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250524
++Release: 20250531
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250524+/package/ncurses.spec	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/package/ncurses.spec	2025-05-31 10:03:25.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250524
++Release: 20250531
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250524+/package/ncursest.spec	2025-05-24 09:59:15.000000000 +0000
++++ ncurses-6.5-20250531/package/ncursest.spec	2025-05-31 10:03:25.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250524
++Release: 20250531
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz

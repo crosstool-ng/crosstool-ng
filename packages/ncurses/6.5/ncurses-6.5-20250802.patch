@@ -1,0 +1,482 @@
+# ncurses 6.5 - patch 20250802 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250802.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat Aug  2 23:20:31 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    6 +++++-
+# VERSION                          |    2 +-
+# dist.mk                          |    4 ++--
+# ncurses/curses.priv.h            |   18 +++++++++++++++++-
+# ncurses/tinfo/lib_win32con.c     |   22 ++++++----------------
+# ncurses/win32con/win32_driver.c  |   14 +++++++-------
+# ncurses/win32con/win_driver.c    |   29 +++++++++++------------------
+# package/debian-mingw/changelog   |    4 ++--
+# package/debian-mingw64/changelog |    4 ++--
+# package/debian/changelog         |    4 ++--
+# package/mingw-ncurses.nsi        |    4 ++--
+# package/mingw-ncurses.spec       |    6 +++---
+# package/ncurses.spec             |    6 +++---
+# package/ncursest.spec            |    6 +++---
+# 14 files changed, 66 insertions(+), 63 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4319 
+--- ncurses-6.5-20250726+/NEWS	2025-07-26 18:09:35.000000000 +0000
++++ ncurses-6.5-20250802/NEWS	2025-08-02 20:43:03.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4319 2025/07/26 18:09:35 tom Exp $
++-- $Id: NEWS,v 1.4321 2025/08/02 20:43:03 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,10 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250802
++	+ fixes for reading Unicode characters in MinGW/Windows port (report by
++	  Axel Reinhold).
++
+ 20250726
+ 	+ modify configure script cases for $host_os, to accommodate 64-bit
+ 	  big-endian POWER linux with glibc (patch by Cosima Neidahl).
+Index: VERSION
+--- ncurses-6.5-20250726+/VERSION	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/VERSION	2025-08-02 09:11:36.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250726
++5:0:10	6.5	20250802
+Index: dist.mk
+Prereq:  1.1680 
+--- ncurses-6.5-20250726+/dist.mk	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/dist.mk	2025-08-02 09:11:36.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1680 2025/07/26 09:36:49 tom Exp $
++# $Id: dist.mk,v 1.1681 2025/08/02 09:11:36 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250726
++NCURSES_PATCH = 20250802
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: ncurses/curses.priv.h
+Prereq:  1.707 
+--- ncurses-6.5-20250726+/ncurses/curses.priv.h	2025-07-05 12:38:04.000000000 +0000
++++ ncurses-6.5-20250802/ncurses/curses.priv.h	2025-08-02 19:23:58.000000000 +0000
+@@ -35,7 +35,7 @@
+  ****************************************************************************/
+ 
+ /*
+- * $Id: curses.priv.h,v 1.707 2025/07/05 12:38:04 Branden.Robinson Exp $
++ * $Id: curses.priv.h,v 1.708 2025/08/02 19:23:58 tom Exp $
+  *
+  *	curses.priv.h
+  *
+@@ -2700,6 +2700,22 @@
+ extern NCURSES_EXPORT(int) _nc_conv_to_utf32(unsigned *, const char *, unsigned);
+ #endif
+ 
++#ifdef _NC_WINDOWS
++#if USE_WIDEC_SUPPORT
++#define write_screen WriteConsoleOutputW
++#define read_screen  ReadConsoleOutputW
++#define read_keycode ReadConsoleInputW
++#define KeyEventChar KeyEvent.uChar.UnicodeChar
++#define CharInfoChar Char.UnicodeChar
++#else
++#define write_screen WriteConsoleOutput
++#define read_screen  ReadConsoleOutput
++#define read_keycode ReadConsoleInput
++#define KeyEventChar KeyEvent.uChar.AsciiChar
++#define CharInfoChar Char.AsciiChar
++#endif
++#endif /* _NC_WINDOWS */
++
+ #ifdef __cplusplus
+ }
+ #endif
+Index: ncurses/tinfo/lib_win32con.c
+Prereq:  1.23 
+--- ncurses-6.5-20250726+/ncurses/tinfo/lib_win32con.c	2025-07-05 12:36:24.000000000 +0000
++++ ncurses-6.5-20250802/ncurses/tinfo/lib_win32con.c	2025-08-02 22:22:24.000000000 +0000
+@@ -38,18 +38,10 @@
+ 
+ #include <curses.priv.h>
+ 
+-MODULE_ID("$Id: lib_win32con.c,v 1.23 2025/07/05 12:36:24 Branden.Robinson Exp $")
++MODULE_ID("$Id: lib_win32con.c,v 1.27 2025/08/02 22:22:24 tom Exp $")
+ 
+ #if defined(_NC_WINDOWS)
+ 
+-#if USE_WIDEC_SUPPORT
+-#define write_screen WriteConsoleOutputW
+-#define read_screen  ReadConsoleOutputW
+-#else
+-#define write_screen WriteConsoleOutput
+-#define read_screen  ReadConsoleOutput
+-#endif
+-
+ static bool read_screen_data(void);
+ 
+ #define GenMap(vKey,key) MAKELONG(key, vKey)
+@@ -824,7 +816,7 @@
+ 
+ #define IGNORE_CTRL_KEYS (SHIFT_PRESSED|LEFT_ALT_PRESSED|RIGHT_ALT_PRESSED| \
+                           LEFT_CTRL_PRESSED|RIGHT_CTRL_PRESSED)
+-#define CONSUME() ReadConsoleInput(hdl, &inp_rec, 1, &nRead)
++#define CONSUME() read_keycode(hdl, &inp_rec, 1, &nRead)
+ 
+     assert(sp);
+ 
+@@ -900,10 +892,8 @@
+ 			switch (inp_rec.EventType) {
+ 			case KEY_EVENT:
+ 			    if (mode & TW_INPUT) {
+-				WORD vk =
+-				inp_rec.Event.KeyEvent.wVirtualKeyCode;
+-				char ch =
+-				inp_rec.Event.KeyEvent.uChar.AsciiChar;
++				WORD vk = inp_rec.Event.KeyEvent.wVirtualKeyCode;
++				WORD ch = inp_rec.Event.KeyEventChar;
+ 				T(("twait:event KEY_EVENT"));
+ 				T(("twait vk=%d, ch=%d, keydown=%d",
+ 				   vk, ch, inp_rec.Event.KeyEvent.bKeyDown));
+@@ -1010,7 +1000,7 @@
+ 
+     T((T_CALLED("lib_win32con::_nc_console_read(%p)"), sp));
+ 
+-    while ((b = ReadConsoleInput(hdl, &inp_rec, 1, &nRead))) {
++    while ((b = read_keycode(hdl, &inp_rec, 1, &nRead))) {
+ 	if (b && nRead > 0) {
+ 	    if (rc < 0)
+ 		rc = 0;
+@@ -1018,7 +1008,7 @@
+ 	    if (inp_rec.EventType == KEY_EVENT) {
+ 		if (!inp_rec.Event.KeyEvent.bKeyDown)
+ 		    continue;
+-		*buf = (int) inp_rec.Event.KeyEvent.uChar.AsciiChar;
++		*buf = (int) inp_rec.Event.KeyEventChar;
+ 		vk = inp_rec.Event.KeyEvent.wVirtualKeyCode;
+ 		/*
+ 		 * There are 24 virtual function-keys, and typically
+Index: ncurses/win32con/win32_driver.c
+Prereq:  1.9 
+--- ncurses-6.5-20250726+/ncurses/win32con/win32_driver.c	2025-06-21 14:19:28.000000000 +0000
++++ ncurses-6.5-20250802/ncurses/win32con/win32_driver.c	2025-08-02 19:25:44.000000000 +0000
+@@ -43,7 +43,7 @@
+ 
+ #define CUR TerminalType(my_term).
+ 
+-MODULE_ID("$Id: win32_driver.c,v 1.9 2025/06/21 14:19:28 tom Exp $")
++MODULE_ID("$Id: win32_driver.c,v 1.10 2025/08/02 19:25:44 tom Exp $")
+ 
+ #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
+ #define EXP_OPTIMIZE 0
+@@ -135,7 +135,7 @@
+ 
+ 	for (i = save_region.Top; i <= save_region.Bottom; ++i) {
+ 	    for (j = save_region.Left; j <= save_region.Right; ++j) {
+-		output[k++] = save_screen[ij++].Char.AsciiChar;
++		output[k++] = save_screen[ij++].CharInfoChar;
+ 	    }
+ 	    output[k++] = '\n';
+ 	}
+@@ -180,7 +180,7 @@
+ 	ch = str[i];
+ 	if (isWidecExt(ch))
+ 	    continue;
+-	ci[actual].Char.UnicodeChar = CharOf(ch);
++	ci[actual].CharInfoChar = CharOf(ch);
+ 	ci[actual].Attributes = MapAttr(WINCONSOLE.SBI.wAttributes,
+ 					AttrOf(ch));
+ 	if (AttrOf(ch) & A_ALTCHARSET) {
+@@ -189,9 +189,9 @@
+ 		if (which > 0
+ 		    && which < ACS_LEN
+ 		    && CharOf(_nc_wacs[which]) != 0) {
+-		    ci[actual].Char.UnicodeChar = CharOf(_nc_wacs[which]);
++		    ci[actual].CharInfoChar = CharOf(_nc_wacs[which]);
+ 		} else {
+-		    ci[actual].Char.UnicodeChar = ' ';
++		    ci[actual].CharInfoChar = ' ';
+ 		}
+ 	    }
+ 	}
+@@ -227,12 +227,12 @@
+ 
+     for (i = 0; i < n; i++) {
+ 	ch = str[i];
+-	ci[i].Char.AsciiChar = ChCharOf(ch);
++	ci[i].CharInfoChar = ChCharOf(ch);
+ 	ci[i].Attributes = MapAttr(WINCONSOLE.SBI.wAttributes,
+ 				   ChAttrOf(ch));
+ 	if (ChAttrOf(ch) & A_ALTCHARSET) {
+ 	    if (sp->_acs_map)
+-		ci[i].Char.AsciiChar =
++		ci[i].CharInfoChar =
+ 		ChCharOf(NCURSES_SP_NAME(_nc_acs_char) (sp, ChCharOf(ch)));
+ 	}
+     }
+Index: ncurses/win32con/win_driver.c
+Prereq:  1.84 
+--- ncurses-6.5-20250726+/ncurses/win32con/win_driver.c	2025-07-05 12:36:24.000000000 +0000
++++ ncurses-6.5-20250802/ncurses/win32con/win_driver.c	2025-08-02 22:18:36.000000000 +0000
+@@ -48,7 +48,7 @@
+ 
+ #define CONTROL_PRESSED (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)
+ 
+-MODULE_ID("$Id: win_driver.c,v 1.84 2025/07/05 12:36:24 Branden.Robinson Exp $")
++MODULE_ID("$Id: win_driver.c,v 1.88 2025/08/02 22:18:36 tom Exp $")
+ 
+ #define WINMAGIC NCDRV_MAGIC(NCDRV_WINCONSOLE)
+ 
+@@ -66,13 +66,6 @@
+ 
+ #define AdjustY() (CON.buffered ? 0 : (int) CON.SBI.srWindow.Top)
+ 
+-#if USE_WIDEC_SUPPORT
+-#define write_screen WriteConsoleOutputW
+-#define read_screen  ReadConsoleOutputW
+-#else
+-#define write_screen WriteConsoleOutput
+-#define read_screen  ReadConsoleOutput
+-#endif
+ /* *INDENT-OFF* */
+ static const LONG keylist[] =
+ {
+@@ -223,7 +216,7 @@
+ 
+ 	for (i = save_region.Top; i <= save_region.Bottom; ++i) {
+ 	    for (j = save_region.Left; j <= save_region.Right; ++j) {
+-		output[k++] = save_screen[ij++].Char.AsciiChar;
++		output[k++] = save_screen[ij++].CharInfoChar;
+ 	    }
+ 	    output[k++] = '\n';
+ 	}
+@@ -267,7 +260,7 @@
+ 	ch = str[i];
+ 	if (isWidecExt(ch))
+ 	    continue;
+-	ci[actual].Char.UnicodeChar = CharOf(ch);
++	ci[actual].CharInfoChar = CharOf(ch);
+ 	ci[actual].Attributes = MapAttr(CON.SBI.wAttributes,
+ 					AttrOf(ch));
+ 	if (AttrOf(ch) & A_ALTCHARSET) {
+@@ -276,9 +269,9 @@
+ 		if (which > 0
+ 		    && which < ACS_LEN
+ 		    && CharOf(_nc_wacs[which]) != 0) {
+-		    ci[actual].Char.UnicodeChar = CharOf(_nc_wacs[which]);
++		    ci[actual].CharInfoChar = CharOf(_nc_wacs[which]);
+ 		} else {
+-		    ci[actual].Char.UnicodeChar = ' ';
++		    ci[actual].CharInfoChar = ' ';
+ 		}
+ 	    }
+ 	}
+@@ -314,12 +307,12 @@
+ 
+     for (i = 0; i < n; i++) {
+ 	ch = str[i];
+-	ci[i].Char.AsciiChar = ChCharOf(ch);
++	ci[i].CharInfoChar = ChCharOf(ch);
+ 	ci[i].Attributes = MapAttr(CON.SBI.wAttributes,
+ 				   ChAttrOf(ch));
+ 	if (ChAttrOf(ch) & A_ALTCHARSET) {
+ 	    if (sp->_acs_map)
+-		ci[i].Char.AsciiChar =
++		ci[i].CharInfoChar =
+ 		ChCharOf(NCURSES_SP_NAME(_nc_acs_char) (sp, ChCharOf(ch)));
+ 	}
+     }
+@@ -1536,7 +1529,7 @@
+     (void) evl;			/* TODO: implement wgetch-events */
+ #endif
+ 
+-#define CONSUME() ReadConsoleInput(fd,&inp_rec,1,&nRead)
++#define CONSUME() read_keycode(fd,&inp_rec,1,&nRead)
+ 
+     assert(sp);
+ 
+@@ -1568,7 +1561,7 @@
+ 			case KEY_EVENT:
+ 			    if (mode & TW_INPUT) {
+ 				WORD vk = inp_rec.Event.KeyEvent.wVirtualKeyCode;
+-				char ch = inp_rec.Event.KeyEvent.uChar.AsciiChar;
++				WORD ch = inp_rec.Event.KeyEventChar;
+ 
+ 				if (inp_rec.Event.KeyEvent.bKeyDown) {
+ 				    if (0 == ch) {
+@@ -2110,7 +2103,7 @@
+ 
+     T((T_CALLED("_nc_mingw_console_read(%p)"), sp));
+ 
+-    while ((b = ReadConsoleInput(fd, &inp_rec, 1, &nRead))) {
++    while ((b = read_keycode(fd, &inp_rec, 1, &nRead))) {
+ 	if (b && nRead > 0) {
+ 	    if (rc < 0)
+ 		rc = 0;
+@@ -2118,7 +2111,7 @@
+ 	    if (inp_rec.EventType == KEY_EVENT) {
+ 		if (!inp_rec.Event.KeyEvent.bKeyDown)
+ 		    continue;
+-		*buf = (int) inp_rec.Event.KeyEvent.uChar.AsciiChar;
++		*buf = (int) inp_rec.Event.KeyEventChar;
+ 		vk = inp_rec.Event.KeyEvent.wVirtualKeyCode;
+ 		/*
+ 		 * There are 24 virtual function-keys (defined in winuser.h),
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250726+/package/debian-mingw/changelog	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/package/debian-mingw/changelog	2025-08-02 09:11:36.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250726) unstable; urgency=low
++ncurses6td (6.5+20250802) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Jul 2025 05:36:49 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 02 Aug 2025 05:11:36 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250726+/package/debian-mingw64/changelog	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/package/debian-mingw64/changelog	2025-08-02 09:11:36.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250726) unstable; urgency=low
++ncurses6td (6.5+20250802) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Jul 2025 05:36:49 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 02 Aug 2025 05:11:36 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250726+/package/debian/changelog	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/package/debian/changelog	2025-08-02 09:11:36.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250726) unstable; urgency=low
++ncurses6td (6.5+20250802) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 26 Jul 2025 05:36:49 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 02 Aug 2025 05:11:36 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.714 
+--- ncurses-6.5-20250726+/package/mingw-ncurses.nsi	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/package/mingw-ncurses.nsi	2025-08-02 09:11:36.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.714 2025/07/26 09:36:49 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.715 2025/08/02 09:11:36 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0726"
++!define VERSION_MMDD  "0802"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250726+/package/mingw-ncurses.spec	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/package/mingw-ncurses.spec	2025-08-02 09:11:36.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250726
++Release: 20250802
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+@@ -144,8 +144,8 @@
+ 
+ %changelog
+ 
+-* Sat Jul 26 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250726
++* Sat Aug 02 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250802
+ 
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+Index: package/ncurses.spec
+--- ncurses-6.5-20250726+/package/ncurses.spec	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/package/ncurses.spec	2025-08-02 09:11:36.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250726
++Release: 20250802
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+@@ -134,8 +134,8 @@
+ 
+ %changelog
+ 
+-* Sat Jul 26 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250726
++* Sat Aug 02 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250802
+ 
+ * Sat Feb 25 2023 Thomas Dickey
+ - amend URLs per rpmlint
+Index: package/ncursest.spec
+--- ncurses-6.5-20250726+/package/ncursest.spec	2025-07-26 09:36:49.000000000 +0000
++++ ncurses-6.5-20250802/package/ncursest.spec	2025-08-02 09:11:36.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250726
++Release: 20250802
+ License: X11 License Distribution Modification Variant
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
+@@ -142,8 +142,8 @@
+ 
+ %changelog
+ 
+-* Sat Jul 26 2025 Thomas E. Dickey
+-- testing ncurses 6.5-20250726
++* Sat Aug 02 2025 Thomas E. Dickey
++- testing ncurses 6.5-20250802
+ 
+ * Tue Dec 24 2019 Thomas Dickey
+ - drop custom CC_NORMAL warning flags because setting CFLAGS interferes with
