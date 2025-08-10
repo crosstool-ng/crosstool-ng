@@ -1,0 +1,432 @@
+# ncurses 6.5 - patch 20250510 - Thomas E. Dickey
+#
+# ------------------------------------------------------------------------------
+#
+# Ncurses 6.5 is at
+#   https://invisible-island.net/archives/ncurses/
+#   https://invisible-mirror.net/archives/ncurses/
+#   https://ftp.gnu.org/gnu/ncurses/
+#
+# Patches for ncurses 6.5 can be found at
+#   https://invisible-island.net/archives/ncurses/6.5
+#   https://invisible-mirror.net/archives/ncurses/6.5
+#
+# ------------------------------------------------------------------------------
+# https://invisible-island.net/archives/ncurses/6.5/ncurses-6.5-20250510.patch.gz
+# patch by Thomas E. Dickey <dickey@invisible-island.net>
+# created  Sat May 10 23:36:33 UTC 2025
+# ------------------------------------------------------------------------------
+# NEWS                             |    8 +-
+# VERSION                          |    2 
+# dist.mk                          |    4 -
+# misc/terminfo.src                |  135 +++++++++++++++++++++++++------------
+# package/debian-mingw/changelog   |    4 -
+# package/debian-mingw64/changelog |    4 -
+# package/debian/changelog         |    4 -
+# package/mingw-ncurses.nsi        |    4 -
+# package/mingw-ncurses.spec       |    2 
+# package/ncurses.spec             |    2 
+# package/ncursest.spec            |    2 
+# 11 files changed, 114 insertions(+), 57 deletions(-)
+# ------------------------------------------------------------------------------
+Index: NEWS
+Prereq:  1.4279 
+--- ncurses-6.5-20250503+/NEWS	2025-05-03 22:02:34.000000000 +0000
++++ ncurses-6.5-20250510/NEWS	2025-05-10 23:07:14.000000000 +0000
+@@ -26,7 +26,7 @@
+ -- sale, use or other dealings in this Software without prior written        --
+ -- authorization.                                                            --
+ -------------------------------------------------------------------------------
+--- $Id: NEWS,v 1.4279 2025/05/03 22:02:34 tom Exp $
++-- $Id: NEWS,v 1.4281 2025/05/10 23:07:14 tom Exp $
+ -------------------------------------------------------------------------------
+ 
+ This is a log of changes that ncurses has gone through since Zeyd started
+@@ -46,6 +46,12 @@
+ Changes through 1.9.9e did not credit all contributions;
+ it is not possible to add this information.
+ 
++20250510
++	+ add rv/xr codes for domterm, mintty, mlterm -TD
++	+ add xr code for putty -TD
++	+ update teraterm to 5.0 -TD
++	+ add rlogin-color -TD
++
+ 20250503
+ 	+ update/correct some of the rv/xr strings, checked with tack -TD
+ 	+ use ansi+rca in sclp -TD
+Index: VERSION
+--- ncurses-6.5-20250503+/VERSION	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/VERSION	2025-05-10 09:45:42.000000000 +0000
+@@ -1 +1 @@
+-5:0:10	6.5	20250503
++5:0:10	6.5	20250510
+Index: dist.mk
+Prereq:  1.1667 
+--- ncurses-6.5-20250503+/dist.mk	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/dist.mk	2025-05-10 09:45:42.000000000 +0000
+@@ -26,7 +26,7 @@
+ # use or other dealings in this Software without prior written               #
+ # authorization.                                                             #
+ ##############################################################################
+-# $Id: dist.mk,v 1.1667 2025/05/03 09:39:03 tom Exp $
++# $Id: dist.mk,v 1.1668 2025/05/10 09:45:42 tom Exp $
+ # Makefile for creating ncurses distributions.
+ #
+ # This only needs to be used directly as a makefile by developers, but
+@@ -38,7 +38,7 @@
+ # These define the major/minor/patch versions of ncurses.
+ NCURSES_MAJOR = 6
+ NCURSES_MINOR = 5
+-NCURSES_PATCH = 20250503
++NCURSES_PATCH = 20250510
+ 
+ # We don't append the patch to the version, since this only applies to releases
+ VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
+Index: misc/terminfo.src
+--- ncurses-6.5-20250503+/misc/terminfo.src	2025-05-03 21:56:32.000000000 +0000
++++ ncurses-6.5-20250510/misc/terminfo.src	2025-05-10 21:24:30.000000000 +0000
+@@ -6,8 +6,8 @@
+ # Report bugs and new terminal descriptions to
+ #	bug-ncurses@gnu.org
+ #
+-#	$Revision: 1.1188 $
+-#	$Date: 2025/05/03 21:56:32 $
++#	$Revision: 1.1193 $
++#	$Date: 2025/05/10 21:24:30 $
+ #
+ # The original header is preserved below for reference.  It is noted that there
+ # is a "newer" version which differs in some cosmetic details (but actually
+@@ -4227,13 +4227,14 @@
+ 	sgr=\E[0%?%p1%p6%|%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5
+ 	    %;m%?%p9%t\016%e\017%;,
+ 	sgr0=\E[m\017, smacs=^N, smam=\E[?7h, smir=\E[4h,
+-	smkx=\E[?1h\E=, E3=\E[3J, use=ecma+underline,
+-	use=ecma+standout, use=ansi+apparrows, use=ansi+csr,
+-	use=ansi+cup, use=ansi+erase, use=ansi+idl,
+-	use=ansi+local, use=ansi+tabs, use=ansi+rep,
+-	use=bracketed+paste, use=ecma+index, use=ansi+rca2,
+-	use=ecma+strikeout, use=klone+color, use=klone+sgr,
+-	use=putty+cursor, use=putty+fnkeys, use=vt220+pcedit,
++	smkx=\E[?1h\E=, E3=\E[3J, rv=\E\\[>0;136;0c,
++	use=ecma+underline, use=ecma+standout,
++	use=ansi+apparrows, use=ansi+csr, use=ansi+cup,
++	use=ansi+erase, use=ansi+idl, use=ansi+local,
++	use=ansi+tabs, use=ansi+rep, use=bracketed+paste,
++	use=ecma+index, use=ansi+rca2, use=ecma+strikeout,
++	use=klone+color, use=klone+sgr, use=putty+cursor,
++	use=putty+fnkeys, use=report+da2, use=vt220+pcedit,
+ 	use=xterm+alt1049, use=vt102+enq, use=xterm+sm+1006,
+ 	use=xterm+sl, use=vt100+fnkeys, use=putty+keypad,
+ 	use=vt220+cvis,
+@@ -4360,11 +4361,16 @@
+ 	rsupm=\E[75m, smm@, smpch=\E[11m, sshm=\E[1:2m,
+ 	ssubm=\E[74m, ssupm=\E[73m, Rmol=\E[55m, Smol=\E[53m,
+ 	Smulx=\E[4:%p1%dm, blink2=\E[6m, norm=\E[22m,
+-	opaq=\E[28m, smul2=\E[21m, use=linux+kbs, use=ansi+rep,
+-	use=ecma+strikeout, use=ecma+index, use=vt420+lrmm,
+-	use=xterm+focus, use=xterm+sm+1006, use=xterm+pcfkeys,
+-	use=xterm+tmux, use=ecma+italics, use=xterm-basic,
+-	use=bracketed+paste, use=report+version,
++	opaq=\E[28m, rv=\E\\[>77;[0-9];0c, smul2=\E[21m,
++	xr=\EP>\\|mintty ([1-9][.0-9]+)\E\\\\, use=linux+kbs,
++	use=ansi+rep, use=ecma+strikeout, use=ecma+index,
++	use=mintty+keypad, use=vt420+lrmm, use=xterm+focus,
++	use=xterm+sm+1006, use=xterm+pcfkeys, use=xterm+tmux,
++	use=ecma+italics, use=xterm-basic, use=bracketed+paste,
++	use=report+version,
++mintty+keypad|mintty special numeric keypad,
++	kbeg=\EOE, kpADD=\EOk, kpDIV=\EOo, kpMUL=\EOj, kpSUB=\EOm,
++
+ # 2019-06-09: These capabilities are commented-out for compatibility with
+ # existing releases 5.9-6.1, and may be considered for inclusion after the
+ # release of ncurses 6.2:
+@@ -4425,7 +4431,7 @@
+ # "resize -s"), though it does not pass SIGWINCH to the application if the
+ # user resizes the window with the mouse.
+ teraterm2.3|Tera Term Pro 2.3,
+-	km,
++	km, npc,
+ 	ncv#43, vt@,
+ 	acsc=+\020\,\021-\030.^Y0\333`\004a\261f\370g\361h\260i
+ 	     \316j\331k\277l\332m\300n\305o~p\304q\304r\304s_t\303u
+@@ -4433,7 +4439,7 @@
+ 	blink=\E[5m, bold=\E[1m, clear=\E[H\E[J, cuf1=\E[C,
+ 	cup=\E[%i%p1%d;%p2%dH, cuu1=\E[A, dch=\E[%p1%dP,
+ 	dch1=\E[P, ech=\E[%p1%dX, ed=\E[J, el=\E[K, el1=\E[1K,
+-	flash=\E[?5h$<200/>\E[?5l, kf10=\E[21~, kf11=\E[23~,
++	flash=\E[?5h$<100/>\E[?5l, kf10=\E[21~, kf11=\E[23~,
+ 	kf12=\E[24~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~,
+ 	kf9=\E[20~, op=\E[100m, rev=\E[7m, ri=\EM, sgr0=\E[0m\017,
+ 	smul=\E[4m, use=ecma+underline, use=ecma+standout,
+@@ -4454,7 +4460,7 @@
+ #	- it recognizes the dtterm window controls for reporting size in
+ #	  characters and pixels.
+ #	- it passes SIGWINCH.
+-teraterm4.59|Tera Term Pro 4.59,
++teraterm4.59|Tera Term 4.59,
+ 	bce, xenl@,
+ 	ncv#41,
+ 	acsc=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~,
+@@ -4484,13 +4490,47 @@
+ #	+ recognizes xterm's original direct-colors sequences, but result is
+ #	  poor.
+ #	+ no UTF-8 apparent when UTF-8 is set, with font Lucida Control
+-teraterm4.97|Tera Term Pro 4.97,
++teraterm4.97|Tera Term 4.97,
+ 	XT, use=ecma+color, use=xterm+sm+1006, use=teraterm4.59,
+ teraterm-256color|TeraTerm with xterm 256-colors,
+ 	use=xterm+256setaf, use=teraterm,
++teraterm5.0|Tera Term 5.0,
++	xenl,
++	rv=\E\\[>32;331;0c, use=bracketed+paste, use=dec+sl,
++	use=xterm+keypad, use=report+da2, use=teraterm4.97,
+ 
+ teraterm|Tera Term,
+-	use=teraterm4.97,
++	use=teraterm5.0,
++
++#### RLogin
++# RLogin 2.30.4
++# https://github.com/kmiya-culti/RLogin
++rlogin-color,
++	OTbs, OTpt, am, bce, km, mir, msgr, npc, xenl,
++	OTkn#12, colors#0x100, cols#80, lines#24, pairs#0x10000,
++	OTrs=\E[!p\E[?3;4l\E[4l\E>\E]104\007, bel=^G,
++	bold=\E[1m, civis=\E[?25l, clear=\E[H\E[2J,
++	cnorm=\E[?25h, cr=\r, csr=\E[%i%p1%d;%p2%dr, cub1=^H,
++	cud1=\n, dch=\E[%p1%dP, dch1=\E[P, ech=\E[%p1%dX, ed=\E[J,
++	el=\E[K, el1=\E[1K, flash=\E[?5h$<100/>\E[?5l,
++	ich=\E[%p1%d@, ind=\n,
++	is2=\E[!p\E[?3;4l\E[4l\E>\E]104\007, kbeg=\EOE,
++	kcbt=\E[Z, kend=\EOF, kf5=\E[15~, kll=\EOF, kmous=\E[M,
++	kslt=\EOF, meml=\El, memu=\Em, op=\E[39;49m, rc=\E8, ri=\EM,
++	rmam=\E[?7l, rmcup=\E[?1049l, rmir=\E[4l, rmkx=\E[?1l\E>,
++	rmso=\E[27m, rmul=\E[24m, rs1=\Ec, sc=\E7,
++	setab=\E[48;5;%p1%dm, setaf=\E[38;5;%p1%dm,
++	sgr=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p5%t;2%;%?%p2%t;4%;
++	    %?%p1%p3%|%t;7%;%?%p4%t;5%;%?%p7%t;8%;m,
++	sgr0=\E[m, smam=\E[?7h, smcup=\E[?1049h, smir=\E[4h,
++	smkx=\E[?1h\E=, rv=\E\\[>65;331;0c,
++	xr=\EP>\\|RLogin\\(([1-9][.0-9]+)\\)\E\\\\,
++	use=ansi+apparrows, use=ansi+cup, use=ansi+idl,
++	use=ansi+inittabs, use=ansi+local, use=ansi+rca2,
++	use=ansi+sgrdim, use=ecma+index, use=ecma+italics,
++	use=ecma+strikeout, use=vt420+lrmm, use=decid+cpr,
++	use=report+da2, use=report+version, use=vt100+pf1-pf4,
++	use=vt220+pcedit, use=vt220+ufkeys, use=xterm+acs,
+ 
+ #### Command prompt
+ 
+@@ -4769,12 +4809,13 @@
+ 	use=xterm+direct, use=ms+terminal,
+ ms+terminal|building block for Windows terminal,
+ 	npc,
+-	cud1=\E[B, kcbt=\E[Z, oc@, rmkx=\E[?1l, rmm@, smkx=\E[?1h,
+-	smm@, rv=\E\\[>0;10;1c, use=linux+kbs,
++	cud1=\E[B, kbeg=\EOE, kcbt=\E[Z, oc@, rmkx=\E[?1l, rmm@,
++	smkx=\E[?1h, smm@, rv=\E\\[>0;10;1c, use=linux+kbs,
+ 	use=bracketed+paste, use=xterm+pcfkeys, use=ansi+rep,
+ 	use=xterm+sm+1006, use=ecma+index, use=ecma+italics,
+-	use=ecma+strikeout, use=vt420+lrmm, use=xterm-basic,
+-	use=xterm+focus, use=xterm+tmux, use=xterm+sm+1003,
++	use=ecma+strikeout, use=report+da2, use=vt420+lrmm,
++	use=xterm-basic, use=xterm+focus, use=xterm+tmux,
++	use=xterm+sm+1003,
+ 
+ #### Visual Studio
+ # Visual Studio Code 1.45.0 uses xterm.js 12.8.1 (see https://xtermjs.org/).
+@@ -6512,10 +6553,10 @@
+ konsole-base|KDE console window (common),
+ 	bce, km@, npc, XT,
+ 	ncv@,
+-	ech=\E[%p1%dX, flash=\E[?5h$<100/>\E[?5l, kend=\E[4~,
+-	kf1@, kf10@, kf11@, kf12@, kf13@, kf14@, kf15@, kf16@, kf17@, kf18@,
+-	kf19@, kf2@, kf20@, kf3@, kf4@, kf5@, kf6@, kf7@, kf8@, kf9@, kfnd@,
+-	khome=\E[1~, kslt@, rmam=\E[?7l, rs1=\Ec,
++	ech=\E[%p1%dX, flash=\E[?5h$<100/>\E[?5l, kf1@, kf10@,
++	kf11@, kf12@, kf13@, kf14@, kf15@, kf16@, kf17@, kf18@, kf19@, kf2@,
++	kf20@, kf3@, kf4@, kf5@, kf6@, kf7@, kf8@, kf9@, kfnd@, kslt@,
++	rmam=\E[?7l, rs1=\Ec,
+ 	rs2=\E7\E[r\E8\E[m\E[?7h\E[?1;3;4;6l\E[4l\E>\E[?1000l\E[?25h,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;%?%p4%t;5%;%?
+ 	    %p5%t;2%;%?%p7%t;8%;m%?%p9%t\016%e\017%;,
+@@ -6526,7 +6567,7 @@
+ 	use=xterm+sm+1006, use=ecma+strikeout,
+ 	use=ecma+italics, use=ecma+color, use=xterm-r6,
+ 	use=vt220+cvis, use=bracketed+paste,
+-	use=report+version,
++	use=report+version, use=xterm+pc+edit,
+ 
+ # The keytab feature was introduced in 0.9.12 (February 2000) with "linux" and
+ # "vt100" key-table files along with a compiled-in default key-table.
+@@ -6680,6 +6721,8 @@
+ 	is2=\E[!p\E[?3;4l\E>, rs2=\E[!p\E[?3;4l\E>,
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p4%t;5%;%?%p1%p3%|%t;7%;%?
+ 	    %p7%t;8%;m%?%p9%t\E(0%e\E(B%;,
++	rv=\E\\[>24;279;0c,
++	xr=\EP>\\|mlterm\\([0-9][.0-9](-.*)?\\)?\E\\\\,
+ 	use=ansi+enq, use=ansi+rep, use=ecma+italics,
+ 	use=ecma+strikeout, use=xterm+app, use=xterm+pcf2,
+ 	use=xterm+pcc2, use=xterm+pce2, use=xterm+meta,
+@@ -6723,13 +6766,12 @@
+ 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;m%?%p9%t\E(0%e
+ 	    \E(B%;,
+ 	sgr0=\E[m\E(B, smacs=\E(0, smam=\E[?7h, smir=\E[4h,
+-	smkx=\E[?1h\E=, smul=\E[4m, u8=\E[?1;2c,
+-	use=ecma+underline, use=ecma+standout,
+-	use=ansi+apparrows, use=ansi+csr, use=ansi+cup,
+-	use=ansi+enq, use=ansi+idl, use=ansi+inittabs,
+-	use=ansi+local, use=ansi+rca2, use=vt220+vtedit,
+-	use=xterm+alt1049, use=ecma+index, use=mlterm+pcfkeys,
+-	use=vt220+cvis, use=xterm+r6f2,
++	smkx=\E[?1h\E=, u8=\E[?1;2c, use=ecma+underline,
++	use=ecma+standout, use=ansi+apparrows, use=ansi+csr,
++	use=ansi+cup, use=ansi+enq, use=ansi+idl,
++	use=ansi+inittabs, use=ansi+local, use=ansi+rca2,
++	use=vt220+vtedit, use=xterm+alt1049, use=ecma+index,
++	use=mlterm+pcfkeys, use=vt220+cvis, use=xterm+r6f2,
+ 
+ # The insert/delete/home/end keys do not respond to modifiers because mlterm
+ # looks in its termcap to decide which string to send.  If it used terminfo
+@@ -7323,8 +7365,9 @@
+ 	kopn=\E[198z, kpp=\E[216z, kund=\E[195z, use=mgr,
+ mgr-linux|Mgr window with Linux keyboard,
+ 	ka1=\E[H, ka3=\E[5~, kb2=\E[G, kc1=\E[Y, kc3=\E[6~,
+-	kdch1=\E[3~, kend=\E[4~, kf0=\E[[J, khome=\E[1~, knp=\E[6~,
+-	kpp=\E[5~, use=linux+lockeys, use=vt220+ufkeys, use=mgr,
++	kdch1=\E[3~, kf0=\E[[J, knp=\E[6~, kpp=\E[5~,
++	use=linux+lockeys, use=vt220+ufkeys, use=xterm+pc+edit,
++	use=mgr,
+ 
+ #### SIMPLETERM
+ # st.suckless.org
+@@ -8080,10 +8123,12 @@
+ 	bel@, blink@, dim@, invis@, kcbt=\E[Z, ritm@, rmkx=\E[?1l,
+ 	sgr=%?%p9%t\E(0%e\E(B%;\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|
+ 	    %t;7%;m,
+-	sitm@, smkx=\E[?1h, use=linux+kbs, use=xterm+256setaf,
+-	use=ecma+index, use=xterm+focus, use=xterm+sm+1006,
+-	use=xterm+pcfkeys, use=xterm-basic,
+-	use=bracketed+paste,
++	sitm@, smkx=\E[?1h, rv=\E\\[>990;[0-9];0c,
++	xr=\EP>\\|DomTerm\\([0-9][.0-9]\\)?\E\\\\,
++	use=bracketed+paste, use=linux+kbs, use=xterm+256setaf,
++	use=ecma+index, use=report+da2, use=report+version,
++	use=xterm+focus, use=xterm+sm+1006, use=xterm+pcfkeys,
++	use=xterm-basic,
+ 
+ ######## Miscellaneous
+ 
+@@ -27936,7 +27981,13 @@
+ #	  ansi+sgrso, ansi+sgrul -TD
+ #	+ add ecma+standout, ecma+underline -TD
+ #	+ add rv code for alacritty -TD
+-#	+ add rv/xr codes for contour, ghostty, iterm2, kitty, konsole,
++#	+ add rv/xr codes for contour, foot, ghostty, iterm2, kitty, konsole,
+ #	  vscode, vte, wezterm -TD
+ #
++# 2025-05-10
++#	+ add rv/xr codes for domterm, mintty, mlterm -TD
++#	+ add xr code for putty -TD
++#	+ update teraterm to 5.0 -TD
++#	+ add rlogin-color -TD
++#
+ ######## SHANTIH!  SHANTIH!  SHANTIH!
+Index: package/debian-mingw/changelog
+--- ncurses-6.5-20250503+/package/debian-mingw/changelog	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/package/debian-mingw/changelog	2025-05-10 09:45:42.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250503) unstable; urgency=low
++ncurses6td (6.5+20250510) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 03 May 2025 05:39:03 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 10 May 2025 05:45:42 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian-mingw64/changelog
+--- ncurses-6.5-20250503+/package/debian-mingw64/changelog	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/package/debian-mingw64/changelog	2025-05-10 09:45:42.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250503) unstable; urgency=low
++ncurses6td (6.5+20250510) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 03 May 2025 05:39:03 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 10 May 2025 05:45:42 -0400
+ 
+ ncurses6 (5.9+20131005) unstable; urgency=low
+ 
+Index: package/debian/changelog
+--- ncurses-6.5-20250503+/package/debian/changelog	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/package/debian/changelog	2025-05-10 09:45:42.000000000 +0000
+@@ -1,8 +1,8 @@
+-ncurses6td (6.5+20250503) unstable; urgency=low
++ncurses6td (6.5+20250510) unstable; urgency=low
+ 
+   * latest weekly patch
+ 
+- -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 03 May 2025 05:39:03 -0400
++ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 10 May 2025 05:45:42 -0400
+ 
+ ncurses6 (5.9+20120608) unstable; urgency=low
+ 
+Index: package/mingw-ncurses.nsi
+Prereq:  1.701 
+--- ncurses-6.5-20250503+/package/mingw-ncurses.nsi	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/package/mingw-ncurses.nsi	2025-05-10 09:45:42.000000000 +0000
+@@ -1,4 +1,4 @@
+-; $Id: mingw-ncurses.nsi,v 1.701 2025/05/03 09:39:03 tom Exp $
++; $Id: mingw-ncurses.nsi,v 1.702 2025/05/10 09:45:42 tom Exp $
+ 
+ ; TODO add examples
+ ; TODO bump ABI to 6
+@@ -10,7 +10,7 @@
+ !define VERSION_MAJOR "6"
+ !define VERSION_MINOR "5"
+ !define VERSION_YYYY  "2025"
+-!define VERSION_MMDD  "0503"
++!define VERSION_MMDD  "0510"
+ !define VERSION_PATCH ${VERSION_YYYY}${VERSION_MMDD}
+ 
+ !define MY_ABI   "5"
+Index: package/mingw-ncurses.spec
+--- ncurses-6.5-20250503+/package/mingw-ncurses.spec	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/package/mingw-ncurses.spec	2025-05-10 09:45:42.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: shared libraries for terminal handling
+ Name: mingw32-ncurses6
+ Version: 6.5
+-Release: 20250503
++Release: 20250510
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncurses.spec
+--- ncurses-6.5-20250503+/package/ncurses.spec	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/package/ncurses.spec	2025-05-10 09:45:42.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: shared libraries for terminal handling
+ Name: ncurses6
+ Version: 6.5
+-Release: 20250503
++Release: 20250510
+ License: X11
+ Group: Development/Libraries
+ URL: https://invisible-island.net/ncurses/
+Index: package/ncursest.spec
+--- ncurses-6.5-20250503+/package/ncursest.spec	2025-05-03 09:39:03.000000000 +0000
++++ ncurses-6.5-20250510/package/ncursest.spec	2025-05-10 09:45:42.000000000 +0000
+@@ -1,7 +1,7 @@
+ Summary: Curses library with POSIX thread support.
+ Name: ncursest6
+ Version: 6.5
+-Release: 20250503
++Release: 20250510
+ License: X11
+ Group: Development/Libraries
+ Source: ncurses-%{version}-%{release}.tgz
