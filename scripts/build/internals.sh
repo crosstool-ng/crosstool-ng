@@ -22,6 +22,37 @@ create_ldso_conf()
     done
 }
 
+create_cmake_toolchain()
+{
+    local system
+
+    if [ "${CT_KERNEL_LINUX}" = "y" ]; then
+        system=Linux
+    elif [ "${CT_KERNEL_WINDOWS}" = "y" ]; then
+        system=Windows
+    else
+        # Assume bare metal
+        system=Generic
+    fi
+
+    echo "\
+set(CMAKE_SYSTEM_NAME @@SYSTEM@@)
+set(CMAKE_SYSTEM_PROCESSOR @@CT_TARGET_ARCH@@)
+
+set(CMAKE_C_COMPILER \${CMAKE_CURRENT_LIST_DIR}/bin/@@CT_TARGET@@-gcc)
+set(CMAKE_CXX_COMPILER \${CMAKE_CURRENT_LIST_DIR}/bin/@@CT_TARGET@@-g++)
+
+set(CMAKE_FIND_ROOT_PATH \${CMAKE_CURRENT_LIST_DIR}/@@CT_TARGET@@/sysroot)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)" \
+    | sed -r -e 's|@@SYSTEM@@|'"${system}"'|g;'       \
+             -e 's|@@CT_TARGET@@|'"${CT_TARGET}"'|g;' \
+             -e 's|@@CT_TARGET_ARCH@@|'"${CT_TARGET_ARCH}"'|g;'     \
+             > "${CT_PREFIX_DIR}/toolchain.cmake"
+}
+
 # This step is called once all components were built, to remove
 # un-wanted files, to add tuple aliases, and to add the final
 # crosstool-NG-provided files.
@@ -120,6 +151,11 @@ do_finish() {
                "${CT_LIB_DIR}/scripts/xldd.in"               \
                >"${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
         CT_DoExecLog ALL chmod 755 "${CT_PREFIX_DIR}/bin/${CT_TARGET}-ldd"
+    fi
+
+    if [ "${CT_TOOLCHAIN_CMAKE_TOOLCHAIN_FILE}" = "y" ]; then
+        CT_DoLog EXTRA "Installing a cmake toolchain file"
+        create_cmake_toolchain
     fi
 
     # Create the aliases to the target tools
