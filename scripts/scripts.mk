@@ -32,7 +32,7 @@ ifneq ($(strip $(V)),2)
 endif
 
 ifneq ($(CT_WGET),)
-download_cmd = $(CT_WGET) --passive-ftp $(wget_silent_opt) -O $@
+download_cmd = $(CT_WGET) $(wget_silent_opt) -O $@
 else
 ifneq ($(CT_CURL),)
 download_cmd = $(CT_CURL) --ftp-pasv $(curl_silent_opt) -o $@
