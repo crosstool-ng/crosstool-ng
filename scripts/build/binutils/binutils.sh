@@ -167,6 +167,11 @@ do_binutils_backend() {
         extra_config+=("--disable-multilib")
     fi
 
+    # gprofng is unavailable for non-glibc build/hosts
+    if [ "${CT_BINUTILS_GPROFNG}" != "y" ]; then
+        extra_config+=("--disable-gprofng")
+    fi
+
     # Disable gdb when building from the binutils-gdb repository.
     extra_config+=("--disable-sim")
     extra_config+=("--disable-gdb")
