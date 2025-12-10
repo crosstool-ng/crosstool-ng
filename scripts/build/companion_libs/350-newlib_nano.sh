@@ -88,8 +88,10 @@ do_cc_libstdcxx_newlib_nano()
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-newlib-nano"
         "${final_backend}" "${final_opts[@]}"
 
-        # Create "nano" symlinks for libstdc++.a & libsup++.a
-        CT_IterateMultilibs do_nano_libstdcxx_symlinks libstdcxx_symlinks
+        if [ "${CT_NEWLIB_NANO_INSTALL_IN_TARGET}" = "y" ]; then
+            # Create "nano" symlinks for libstdc++.a & libsup++.a
+            CT_IterateMultilibs do_nano_libstdcxx_symlinks libstdcxx_symlinks
+        fi
 
         CT_Popd
 
@@ -197,6 +199,9 @@ ENABLE_TARGET_OPTSPACE:target-optspace
     CT_DoExecLog ALL make install
 
     if [ "${CT_NEWLIB_NANO_INSTALL_IN_TARGET}" = "y" ]; then
+        # Create "nano" symlinks for libc.a, libg.a & libm.a
+        CT_IterateMultilibs do_nano_libc_symlinks libc_symlinks
+
         cat > "${CT_SYSROOT_DIR}/lib/nano.specs" <<EOF
 %rename link                nano_link
 %rename link_gcc_c_sequence nano_link_gcc_c_sequence
@@ -238,9 +243,6 @@ EOF
 
 EOF
     fi
-
-    # Create "nano" symlinks for libc.a, libg.a & libm.a
-    CT_IterateMultilibs do_nano_libc_symlinks libc_symlinks
 
     CT_Popd
     CT_EndStep
