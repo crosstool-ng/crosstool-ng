@@ -69,6 +69,12 @@ do_debug_gdb_build()
         cross_extra_config+=("--with-expat")
         cross_extra_config+=("--without-libexpat-prefix")
 
+        if [ "${CT_COMP_LIBS_ZSTD}" = "y" ]; then
+            cross_extra_config+=("--with-zstd")
+        else
+            cross_extra_config+=("--without-zstd")
+        fi
+
         # ct-ng always builds ncurses in cross mode as a static library.
         # Starting from the patchset 20200718 ncurses defines a special macro
         # NCURSES_STATIC for a static library. This is critical for mingw host
@@ -84,6 +90,7 @@ do_debug_gdb_build()
             prefix="${CT_PREFIX_DIR}" \
             static="${CT_GDB_CROSS_STATIC}" \
             static_libstdcxx="${CT_GDB_CROSS_STATIC}" \
+            complibs="${CT_HOST_COMPLIBS_DIR}"          \
             --with-sysroot="${CT_SYSROOT_DIR}"          \
             "${cross_extra_config[@]}"
 
@@ -147,12 +154,6 @@ do_debug_gdb_build()
             native_extra_config+=("--disable-inprocess-agent")
         fi
 
-        if [ "${CT_COMP_LIBS_ZSTD}}" = "y" ]; then
-            native_extra_config+=("--with-zstd=${complibs}")
-        else
-            native_extra_config+=("--without-zstd")
-        fi
-
         export ac_cv_func_strncmp_works=yes
 
         # TBD do we need all these?
@@ -165,6 +166,7 @@ do_debug_gdb_build()
             --without-develop
             --sysconfdir=/etc
             --localstatedir=/var
+            --without-zstd
         )
 
         # Target libexpat resides in sysroot and does not have
@@ -259,6 +261,7 @@ do_debug_gdb_build()
 do_gdb_backend()
 {
     local host prefix destdir cflags ldflags static buildtype subdir includedir
+    local complibs
     local -a extra_config
     local -a extra_make_flags
 
@@ -334,6 +337,7 @@ do_gdb_backend()
 
     # TBD: is passing CPP/CC/CXX/LD needed? GCC should be determining this automatically from the triplets
     CT_DoExecLog CFG                                \
+    PKG_CONFIG_PATH="${complibs}/lib/pkgconfig"     \
     CPP="${host}-cpp"                               \
     CC="${host}-gcc"                                \
     CXX="${host}-g++"                               \
