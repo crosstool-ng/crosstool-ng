@@ -147,8 +147,8 @@ do_debug_gdb_build()
             native_extra_config+=("--disable-inprocess-agent")
         fi
 
-        if [ "${CT_COMP_LIBS_ZSTD}}" = "y" ]; then
-            native_extra_config+=("--with-zstd=${complibs}")
+        if [ "${CT_COMP_LIBS_ZSTD}" = "y" ]; then
+            native_extra_config+=("--with-zstd")
         else
             native_extra_config+=("--without-zstd")
         fi
@@ -334,6 +334,7 @@ do_gdb_backend()
 
     # TBD: is passing CPP/CC/CXX/LD needed? GCC should be determining this automatically from the triplets
     CT_DoExecLog CFG                                \
+    PKG_CONFIG_PATH="${CT_HOST_COMPLIBS_DIR}/lib/pkgconfig" \
     CPP="${host}-cpp"                               \
     CC="${host}-gcc"                                \
     CXX="${host}-g++"                               \
