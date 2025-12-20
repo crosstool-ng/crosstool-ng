@@ -71,6 +71,7 @@ fi
 #   host          : machine to run on         : tuple     : (none)
 #   prefix        : prefix to install into    : dir       : (none)
 #   destdir       : install destination       : dir       : (none)
+#   shared        : build shared lib          : bool      : n
 do_expat_backend() {
     local host
     local prefix
