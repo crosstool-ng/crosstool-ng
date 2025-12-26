@@ -60,7 +60,7 @@ AC_DEFUN([CTNG_PYTHON],
 [
   AC_MSG_CHECKING(for python build information)
   AC_MSG_RESULT([])
-  for python in python3.13 python3.12 python3.11 python3.10 python3.9 python3.8 python3.7 dnl
+  for python in python3.14 python3.13 python3.12 python3.11 python3.10 python3.9 python3.8 python3.7 dnl
 python3.6 python3.5 python3.4 python3.3 python3.2 python3.1 python3.0 python2.7 dnl
 python2.6 python2.5 python2.4 python2.3 python2.2 python2.1 python; do
     AC_PATH_PROGS(PYTHON_BIN, [$python])
