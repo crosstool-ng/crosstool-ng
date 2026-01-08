@@ -77,7 +77,7 @@ do_gmp_for_target() {
             prefix="/usr"
             ;;
     esac
-    gmp_opts+=( "cflags=${CT_ALL_TARGET_CFLAGS}" )
+    gmp_opts+=( "cflags=${CT_ALL_TARGET_CFLAGS} ${CT_GMP_EXTRA_CFLAGS}" )
     gmp_opts+=( "prefix=${prefix}" )
     gmp_opts+=( "destdir=${CT_SYSROOT_DIR}" )
     gmp_opts+=( "shared=${CT_SHARED_LIBS}" )
@@ -121,8 +121,6 @@ do_gmp_backend() {
     if [ "${CT_CC_LANG_JIT}" = "y" ]; then
         extra_config+=("--with-pic")
     fi
-
-    cflags+=" ${CT_GMP_EXTRA_CFLAGS}"
 
     # GMP's configure script doesn't respect the host parameter
     # when not cross-compiling, ie when build == host so set
