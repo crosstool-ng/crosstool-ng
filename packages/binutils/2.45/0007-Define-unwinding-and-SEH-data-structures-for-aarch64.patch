@@ -1,0 +1,245 @@
+From 1111111111111111111111111111111111111111 Mon Sep 17 00:00:00 2001
+From: Evgeny Karpov <evgeny.karpov@microsoft.com>
+Date: Fri, 9 May 2025 12:57:00 +0200
+Subject: [PATCH v2 2/7] Define unwinding and SEH data structures for aarch64
+
+This patch adds unwinding codes and records that are needed to emit
+SEH data to pdata and xdata sections, and an arm64 context to store
+data required for emitting.
+
+gas/ChangeLog:
+
+	* config/obj-coff-seh.h (ARM64_MAX_UNWIND_CODES): New.
+	(ARM64_MAX_EPILOGUE_SCOPES): New.
+	(ARM64_UNOP_ALLOCS): New.
+	(ARM64_UNOP_SAVER19R20X): New.
+	(ARM64_UNOP_SAVEFPLR): New.
+	(ARM64_UNOP_SAVEFPLRX): New.
+	(ARM64_UNOP_ALLOCM): New.
+	(ARM64_UNOP_SAVEREGP): New.
+	(ARM64_UNOP_SAVEREGPX): New.
+	(ARM64_UNOP_SAVEREG): New.
+	(ARM64_UNOP_SAVEREGX): New.
+	(ARM64_UNOP_SAVELRPAIR): New.
+	(ARM64_UNOP_SAVEFREGP): New.
+	(ARM64_UNOP_SAVEFREGPX): New.
+	(ARM64_UNOP_SAVEFREG): New.
+	(ARM64_UNOP_SAVEFREGX): New.
+	(ARM64_UNOP_ALLOCL): New.
+	(ARM64_UNOP_SETFP): New.
+	(ARM64_UNOP_ADDFP): New.
+	(ARM64_UNOP_NOP): New.
+	(ARM64_UNOP_END): New.
+	(ARM64_UNOP_ENDC): New.
+	(ARM64_UNOP_SAVENEXT): New.
+	(ARM64_UNOP_PACSIGNLR): New.
+---
+ gas/config/obj-coff-seh.h | 154 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 152 insertions(+), 2 deletions(-)
+
+diff --git a/gas/config/obj-coff-seh.h b/gas/config/obj-coff-seh.h
+index 598870ae4e0..f926fc8622c 100644
+--- a/gas/config/obj-coff-seh.h
++++ b/gas/config/obj-coff-seh.h
+@@ -19,12 +19,13 @@
+    02110-1301, USA.  */
+ 
+ /* Short overview:
+-  There are at the moment three different function entry formats preset.
++  There are at the moment four different function entry formats preset.
+   The first is the MIPS one. The second version
+   is for ARM, PPC, SH3, and SH4 mainly for Windows CE.
+   The third is the IA64 and x64 version. Note, the IA64 isn't implemented yet,
+   but to find information about it, please see specification about IA64 on
+   http://download.intel.com/design/Itanium/Downloads/245358.pdf file.
++  The fourth is the Arm64 version.
+ 
+   The first version has just entries in the pdata section: BeginAddress,
+   EndAddress, ExceptionHandler, HandlerData, and PrologueEndAddress. Each
+@@ -57,8 +58,43 @@
+   .seh_savexmm
+   .seh_pushframe
+   .seh_code
++
++  The fourth version for Arm64 partially intersects with the x64
++  version, however it has a different extension to the unwind codes.
++  It emits SEH data to pdata and xdata sections.  In some cases SEH
++  data could be emitted to a packed record in the pdata section
++  without the need for data in the xdata section.  However, the packed
++  pdata record is not implemented yet.
++
+ */
+ 
++typedef enum seh_arm64_unwind_types
++{
++  alloc_s,
++  alloc_m,
++  alloc_l,
++  save_reg,
++  save_reg_x,
++  save_regp,
++  save_regp_x,
++  save_fregp,
++  save_fregp_x,
++  save_freg,
++  save_freg_x,
++  save_lrpair,
++  save_fplr,
++  save_fplr_x,
++  save_r19r20_x,
++  add_fp,
++  set_fp,
++  save_next,
++  nop,
++  pac_sign_lr,
++  end,
++  end_c,
++  unwind_last_type = end_c
++} seh_arm64_unwind_types;
++
+ /* architecture specific pdata/xdata handling.  */
+ #define SEH_CMDS \
+         {"seh_proc", obj_coff_seh_proc, 0}, \
+@@ -87,6 +123,91 @@ typedef struct seh_prologue_element
+   symbolS *pc_addr;
+ } seh_prologue_element;
+ 
++typedef struct seh_arm64_unwind_code
++{
++  uint32_t value;
++  seh_arm64_unwind_types type;
++} seh_arm64_unwind_code;
++
++typedef struct seh_arm64_packed_unwind_data
++{
++  uint32_t flag : 2;
++  uint32_t func_length : 11;
++  uint32_t frame_size : 9;
++  uint32_t cr : 2;
++  uint32_t h : 1;
++  uint32_t regI : 4;
++  uint32_t regF : 3;
++} seh_arm64_packed_unwind_data;
++
++typedef struct seh_arm64_except_info
++{
++  uint32_t flag : 2;
++  uint32_t except_info_rva : 30;
++} seh_arm64_except_info;
++
++typedef union seh_arm64_unwind_info
++{
++  seh_arm64_except_info except_info;
++  seh_arm64_packed_unwind_data packed_unwind_data;
++} seh_arm64_unwind_info;
++
++typedef struct seh_arm64_pdata
++{
++  unsigned int func_start_rva;
++  seh_arm64_unwind_info except_info_unwind;
++} seh_arm64_pdata;
++
++typedef struct seh_arm64_xdata_header
++{
++  uint32_t func_length : 18;
++  uint32_t vers : 2;
++  uint32_t x : 1;
++  uint32_t e : 1;
++  uint32_t epilogue_count : 5;
++  uint32_t code_words : 5;
++  uint32_t ext_epilogue_count : 16;
++  uint32_t ext_code_words : 8;
++  uint32_t reserved : 8;
++} seh_arm64_xdata_header;
++
++typedef struct seh_arm64_epilogue_scope
++{
++  uint32_t epilogue_start_offset_reduced : 18;
++  uint32_t reserved : 4;
++  uint32_t epilogue_start_index : 10;
++  uintptr_t epilogue_start_offset;
++  uintptr_t epilogue_end_offset;
++} seh_arm64_epilogue_scope;
++
++typedef struct seh_arm64_func_fragment
++{
++  uintptr_t offset;
++  symbolS *xdata_addr;
++  struct seh_arm64_func_fragment *next;
++} seh_arm64_func_fragment;
++
++#define ARM64_MAX_UNWIND_CODES 286
++#define ARM64_MAX_EPILOGUE_SCOPES 32
++
++typedef struct seh_arm64_context
++{
++  seh_arm64_pdata pdata;
++  union {
++    seh_arm64_xdata_header xdata_header;
++    valueT xdata_header_value;
++  };
++  unsigned int unwind_codes_count;
++  unsigned int unwind_codes_byte_count;
++  seh_arm64_unwind_code unwind_codes[ARM64_MAX_UNWIND_CODES];
++  unsigned int epilogue_scopes_count;
++  seh_arm64_epilogue_scope epilogue_scopes[ARM64_MAX_EPILOGUE_SCOPES];
++  expressionS except_handler;
++  expressionS except_handler_data;
++  /* The function fragments.  */
++  seh_arm64_func_fragment func_fragment;
++} seh_arm64_context;
++
+ typedef struct seh_context
+ {
+   /* Initial code-segment.  */
+@@ -126,13 +247,17 @@ typedef struct seh_context
+   int elems_count;
+   int elems_max;
+   seh_prologue_element *elems;
++
++  /* arm64-specific context.  */
++  seh_arm64_context arm64_ctx;
+ } seh_context;
+ 
+ typedef enum seh_kind {
+   seh_kind_unknown = 0,
+   seh_kind_mips = 1,  /* Used for MIPS and x86 pdata generation.  */
+   seh_kind_arm = 2,   /* Used for ARM, PPC, SH3, and SH4 pdata (PDATA_EH) generation.  */
+-  seh_kind_x64 = 3    /* Used for IA64 and x64 pdata/xdata generation.  */
++  seh_kind_x64 = 3,   /* Used for IA64 and x64 pdata/xdata generation.  */
++  seh_kind_arm64 = 4  /* Used for ARM64 pdata/xdata generation.  */
+ } seh_kind;
+ 
+ /* Forward declarations.  */
+@@ -201,4 +326,29 @@ static void obj_coff_seh_code (int);
+   (PEX64_OFFSET_TO_SCOPE_COUNT(COUNTOFUNWINDCODES) + \
+    PEX64_SCOPE_ENTRY_SIZE * (IDX))
+ 
++/* arm64 unwind code structs.  */
++
++#define ARM64_UNOP_ALLOCS	0b000U
++#define ARM64_UNOP_SAVER19R20X	0b001U
++#define ARM64_UNOP_SAVEFPLR	0b01U
++#define ARM64_UNOP_SAVEFPLRX	0b10U
++#define ARM64_UNOP_ALLOCM	0b11000U
++#define ARM64_UNOP_SAVEREGP	0b110010U
++#define ARM64_UNOP_SAVEREGPX	0b110011U
++#define ARM64_UNOP_SAVEREG	0b110100U
++#define ARM64_UNOP_SAVEREGX	0b1101010U
++#define ARM64_UNOP_SAVELRPAIR	0b1101011U
++#define ARM64_UNOP_SAVEFREGP	0b1101100U
++#define ARM64_UNOP_SAVEFREGPX	0b1101101U
++#define ARM64_UNOP_SAVEFREG	0b1101110U
++#define ARM64_UNOP_SAVEFREGX	0b11011110U
++#define ARM64_UNOP_ALLOCL	0b11100000U
++#define ARM64_UNOP_SETFP	0b11100001U
++#define ARM64_UNOP_ADDFP	0b11100010U
++#define ARM64_UNOP_NOP		0b11100011U
++#define ARM64_UNOP_END		0b11100100U
++#define ARM64_UNOP_ENDC	0b11100101U
++#define ARM64_UNOP_SAVENEXT	0b11100110U
++#define ARM64_UNOP_PACSIGNLR	0b11111100U
++
+ #endif
+-- 
+2.34.1

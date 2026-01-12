@@ -1,0 +1,100 @@
+From 69d1f430f0000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Thu, 20 Feb 2025 00:00:00 +0000
+Subject: [PATCH] mingw-w64: add frexpl support for AArch64 long double
+
+Provide an implementation of `frexpl` for Windows on Arm64 where `long
+ double` follows the IEEE-754 binary128 format.  This mirrors the
+ existing x87 version by normalising the mantissa into the [0.5, 1)
+ interval while returning the adjusted exponent.
+
+---
+ mingw-w64-crt/math/frexpl.c | 75 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 75 insertions(+)
+
+diff --git a/mingw-w64-crt/math/frexpl.c b/mingw-w64-crt/math/frexpl.c
+index 8c96d6ce0..659d8b6c8 100644
+--- a/mingw-w64-crt/math/frexpl.c
++++ b/mingw-w64-crt/math/frexpl.c
+@@ -15,6 +15,81 @@ long double frexpl(long double value, int* exp)
+   return frexp(value, exp);
+ }
+ 
++#elif defined(__aarch64__)
++
++#include <stdint.h>
++
++typedef union ieee_quad_
++{
++  struct
++  {
++    uint64_t lo;
++    uint64_t hi;
++  } u;
++  long double f;
++} ieee_quad;
++
++long double frexpl (long double value, int *exp)
++{
++  ieee_quad reg;
++  uint64_t hi, lo;
++  uint64_t sign;
++  uint16_t exponent;
++
++  reg.f = value;
++  hi = reg.u.hi;
++  lo = reg.u.lo;
++
++  sign = hi & 0x8000000000000000ULL;
++  exponent = (uint16_t) ((hi >> 48) & 0x7FFF);
++
++  if (exponent == 0x7FFF)
++    {
++      *exp = 0;
++      return reg.f;
++    }
++
++  if (exponent != 0)
++    {
++      *exp = (int) exponent - 0x3FFE;
++      hi = sign | ((uint64_t) 0x3FFE << 48) | (hi & 0x0000FFFFFFFFFFFFULL);
++      reg.u.hi = hi;
++      return reg.f;
++    }
++
++  if ((hi & 0x0000FFFFFFFFFFFFULL) == 0 && lo == 0)
++    {
++      *exp = 0;
++      return reg.f;
++    }
++
++  {
++    unsigned __int128 mant;
++    int leading;
++    int shift;
++
++    mant = ((unsigned __int128) (hi & 0x0000FFFFFFFFFFFFULL) << 64) | lo;
++
++    if ((uint64_t) (mant >> 64) != 0)
++      leading = __builtin_clzll ((uint64_t) (mant >> 64));
++    else
++      leading = 64 + __builtin_clzll ((uint64_t) mant);
++
++    shift = leading - 16;
++    mant <<= shift;
++
++    hi = (uint64_t) (mant >> 64);
++    lo = (uint64_t) mant;
++
++    *exp = 1 - 0x3FFE - shift;
++
++    reg.u.hi = sign | ((uint64_t) 0x3FFE << 48)
++      | (hi & 0x0000FFFFFFFFFFFFULL);
++    reg.u.lo = lo;
++    return reg.f;
++  }
++}
++
+ #elif defined(_AMD64_) || defined(__x86_64__) || defined(_X86_) || defined(__i386__)
+ 
+ #include <stdint.h>
