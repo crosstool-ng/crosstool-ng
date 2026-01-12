@@ -1,0 +1,29 @@
+From 3fd6f6f8e0a8a6e0b62b0e3a1a9aa04a6b7c9a3a Mon Sep 17 00:00:00 2001
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Sat, 20 Dec 2025 20:05:00 +0100
+Subject: [PATCH] zlib: do not redefine fdopen on Darwin
+
+Apple clang predefines TARGET_OS_MAC, which triggers the classic-Mac
+fallback in zutil.h that defines fdopen() to NULL. When stdio.h is later
+included, the fdopen prototype gets macro-expanded and the build fails.
+
+Skip the classic-Mac block on Darwin (where fdopen is available).
+---
+ zlib/zutil.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/zlib/zutil.h b/zlib/zutil.h
+index 0b5b8ad..4e5f4f3 100644
+--- a/zlib/zutil.h
++++ b/zlib/zutil.h
+@@ -137,7 +137,7 @@
+ #endif
+ 
+-#if defined(MACOS) || defined(TARGET_OS_MAC)
++#if (defined(MACOS) || defined(TARGET_OS_MAC)) && !(defined(__APPLE__) && defined(__MACH__))
+ #  define OS_CODE  7
+ #  ifndef Z_SOLO
+ #    if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
+ #      include <unix.h> /* for fdopen */
+-- 
+2.50.1
