@@ -1,0 +1,448 @@
+From 2222222222222222222222222222222222222222 Mon Sep 17 00:00:00 2001
+From: Evgeny Karpov <evgeny.karpov@microsoft.com>
+Date: Fri, 9 May 2025 13:03:00 +0200
+Subject: [PATCH v2 3/7] Adjust x64 SEH implementation for AArch64
+
+This patch defines the required unwind codes for AArch64 and updates handlers
+for SEH commands that are used by both x64 and AArch64.
+It implements encoding for unwind elements that will be emitted
+to pdata/xdata sections.
+
+gas/ChangeLog:
+
+	* config/obj-coff-seh.c (struct unwind_code_pack_info): New.
+	(defined): Add COFFAARCH64 guard.
+	(obj_coff_seh_code): Update.
+	(seh_get_target_kind): Update.
+	(verify_context_and_targets): New.
+	(obj_coff_seh_eh): Add COFFAARCH64 guard.
+	(obj_coff_seh_handler): Update.
+	(obj_coff_seh_handlerdata): Update.
+	(seh_arm64_add_unwind_element): New.
+	(obj_coff_seh_proc): Update.
+	(obj_coff_seh_endprologue): Update.
+	(obj_coff_seh_save): Add COFFAARCH64 guard.
+	(obj_coff_seh_setframe): Likewise.
+	* config/obj-coff-seh.h (obj_coff_seh_setframe): Add COFFAARCH64 guard.
+	(obj_coff_seh_endproc): Likewise.
+	(obj_coff_seh_proc): Likewise.
+	(obj_coff_seh_handler): Likewise.
+	(obj_coff_seh_handlerdata): Likewise.
+	(defined): Likewise.
+	(obj_coff_seh_code): Likewise.
+---
+ gas/config/obj-coff-seh.c | 260 +++++++++++++++++++++++++++++++++++---
+ gas/config/obj-coff-seh.h |  12 +-
+ 2 files changed, 246 insertions(+), 26 deletions(-)
+
+diff --git a/gas/config/obj-coff-seh.c b/gas/config/obj-coff-seh.c
+index 70cb4e4aa64..d861be4418e 100644
+--- a/gas/config/obj-coff-seh.c
++++ b/gas/config/obj-coff-seh.c
+@@ -28,6 +28,20 @@ struct seh_seg_list {
+   char *seg_name;
+ };
+ 
++struct unwind_code_pack_info {
++  const char *directive;
++  int offset_bits;
++  int reg_bits;
++  int code_bits;
++  int code;
++  int offset_right_shift;
++  int offset;
++  int reg_right_shift;
++  int reg_offset;
++  int type;
++  int size;
++};
++
+ /* Local data.  */
+ static seh_context *seh_ctx_cur = NULL;
+ 
+@@ -36,6 +50,51 @@ static htab_t seh_hash;
+ static struct seh_seg_list *x_segcur = NULL;
+ static struct seh_seg_list *p_segcur = NULL;
+ 
++const struct unwind_code_pack_info unwind_code_pack_infos[] = {
++  {NULL,		  5, 0, 3, ARM64_UNOP_ALLOCS,	   4, 0, 0,  0,
++   alloc_s, 1},
++  {NULL,		 11, 0, 5, ARM64_UNOP_ALLOCM,	   4, 0, 0,  0,
++   alloc_m, 2},
++  {NULL,		 24, 0, 8, ARM64_UNOP_ALLOCL,	   4, 0, 0,  0,
++   alloc_l, 4},
++  {".seh_save_reg",	  6, 4, 6, ARM64_UNOP_SAVEREG,	   3, 0, 0, 19,
++   save_reg, 2},
++  {".seh_save_reg_x",	  5, 4, 7, ARM64_UNOP_SAVEREGX,	   3, 1, 0, 19,
++   save_reg_x, 2},
++  {".seh_save_regp",	  6, 4, 6, ARM64_UNOP_SAVEREGP,	   3, 0, 0, 19,
++   save_regp, 2},
++  {".seh_save_regp_x",	  6, 4, 6, ARM64_UNOP_SAVEREGPX,   3, 1, 0, 19,
++   save_regp_x, 2},
++  {".seh_save_lrpair",	  6, 3, 7, ARM64_UNOP_SAVELRPAIR,  3, 0, 1, 19,
++   save_lrpair, 2},
++  {".seh_save_fregp",	  6, 3, 7, ARM64_UNOP_SAVEFREGP,   3, 0, 0,  8,
++   save_fregp, 2},
++  {".seh_save_fregp_x",  6, 3, 7, ARM64_UNOP_SAVEFREGPX,  3, 1, 0,  8,
++   save_fregp_x, 2},
++  {".seh_save_freg",	  6, 3, 7, ARM64_UNOP_SAVEFREG,	   3, 0, 0,  8,
++   save_freg, 2},
++  {".seh_save_freg_x",	  5, 3, 8, ARM64_UNOP_SAVEFREGX,   3, 1, 0,  8,
++   save_freg_x, 2},
++  {".seh_save_fplr",	  6, 0, 2, ARM64_UNOP_SAVEFPLR,	   3, 0, 0,  0,
++   save_fplr, 1},
++  {".seh_save_fplr_x",	  6, 0, 6, ARM64_UNOP_SAVEFPLRX,   3, 1, 0,  0,
++   save_fplr_x, 1},
++  {".seh_save_r19r20_x", 5, 0, 3, ARM64_UNOP_SAVER19R20X, 3, 0, 0,  0,
++   save_r19r20_x, 1},
++  {".seh_add_fp",	  8, 0, 8, ARM64_UNOP_ADDFP,	   0, 0, 0,  0,
++   add_fp, 2},
++  {".seh_set_fp",	  0, 0, 8, ARM64_UNOP_SETFP,	   0, 0, 0,  0,
++   set_fp, 1},
++  {".seh_save_next",	  0, 0, 8, ARM64_UNOP_SAVENEXT,	   0, 0, 0,  0,
++   save_next, 1},
++  {".seh_nop",		  0, 0, 8, ARM64_UNOP_NOP,	   0, 0, 0,  0,
++   nop, 1},
++  {".seh_pac_sign_lr",  0, 0, 8, ARM64_UNOP_PACSIGNLR,   0, 0, 0,  0,
++   pac_sign_lr, 1},
++  {NULL,		  0, 0, 8, ARM64_UNOP_END,	   0, 0, 0,  0,
++   end, 1},
++};
++
+ static void write_function_xdata (seh_context *);
+ static void write_function_pdata (seh_context *);
+ 
+@@ -164,12 +223,14 @@ seh_validate_seg (const char *directive)
+   return 0;
+ }
+ 
++#if !defined (COFFAARCH64)
+ /* Switch back to the code section, whatever that may be.  */
+ static void
+ obj_coff_seh_code (int ignored ATTRIBUTE_UNUSED)
+ {
+   subseg_set (seh_ctx_cur->code_seg, 0);
+ }
++#endif
+ 
+ static void
+ switch_xdata (int subseg, segT code_seg)
+@@ -200,6 +261,8 @@ seh_get_target_kind (void)
+   switch (bfd_get_arch (stdoutput))
+     {
+     case bfd_arch_aarch64:
++      return seh_kind_arm64;
++
+     case bfd_arch_arm:
+     case bfd_arch_powerpc:
+     case bfd_arch_sh:
+@@ -270,6 +333,32 @@ verify_context_and_target (const char *directive, seh_kind target)
+   return verify_context (directive);
+ }
+ 
++/* Verify mulitple targets.  */
++
++static int
++verify_context_and_targets (const char *directive, const seh_kind targets[],
++		    int count_targets)
++{
++  bool match = false;
++  for (int i = 0; i < count_targets; ++i)
++    {
++      if (seh_get_target_kind () == targets[i])
++	{
++	  match = true;
++	  break;
++	}
++    }
++
++  if (!match)
++    {
++      as_warn (_("%s ignored for this target"), directive);
++      ignore_rest_of_line ();
++      return 0;
++    }
++
++  return verify_context (directive);
++}
++
+ /* Skip whitespace and a comma.  Error if the comma is not seen.  */
+ 
+ static int
+@@ -292,6 +381,7 @@ skip_whitespace_and_comma (int required)
+   return 0;
+ }
+ 
++#if !defined (COFFAARCH64)
+ /* Mark current context to use 32-bit instruction (arm).  */
+ 
+ static void
+@@ -320,6 +410,7 @@ obj_coff_seh_eh (int what ATTRIBUTE_UNUSED)
+ 
+   demand_empty_rest_of_line ();
+ }
++#endif
+ 
+ /* Set for current context the default handler (x64).  */
+ 
+@@ -362,6 +453,10 @@ obj_coff_seh_handler (int what ATTRIBUTE_UNUSED)
+   else
+     expression (&seh_ctx_cur->handler);
+ 
++  const seh_kind target_kind = seh_get_target_kind ();
++  if (target_kind == seh_kind_arm64)
++    seh_ctx_cur->arm64_ctx.xdata_header.x = 1;
++
+   seh_ctx_cur->handler_data.X_op = O_constant;
+   seh_ctx_cur->handler_data.X_add_number = 0;
+   seh_ctx_cur->handler_flags = 0;
+@@ -369,7 +464,7 @@ obj_coff_seh_handler (int what ATTRIBUTE_UNUSED)
+   if (!skip_whitespace_and_comma (0))
+     return;
+ 
+-  if (seh_get_target_kind () == seh_kind_x64)
++  if (target_kind == seh_kind_x64 || target_kind == seh_kind_arm64)
+     {
+       do
+ 	{
+@@ -401,13 +496,65 @@ obj_coff_seh_handler (int what ATTRIBUTE_UNUSED)
+ static void
+ obj_coff_seh_handlerdata (int what ATTRIBUTE_UNUSED)
+ {
+-  if (!verify_context_and_target (".seh_handlerdata", seh_kind_x64))
++  const seh_kind targets[] = { seh_kind_x64, seh_kind_arm64 };
++  if (!verify_context_and_targets (".seh_handlerdata", targets,
++      sizeof (targets) / sizeof (seh_kind)))
+     return;
+   demand_empty_rest_of_line ();
+ 
+   switch_xdata (seh_ctx_cur->subsection + 1, seh_ctx_cur->code_seg);
+ }
+ 
++/* Obtain available unwind element.  */
++
++static void
++seh_arm64_add_unwind_element (seh_arm64_unwind_types unwind_type, int offset,
++		      int reg)
++{
++  if (seh_ctx_cur == NULL
++      || seh_ctx_cur->arm64_ctx.unwind_codes_count >= ARM64_MAX_UNWIND_CODES)
++    {
++      as_warn (_("no unwind element available."));
++      return;
++    }
++
++  seh_arm64_unwind_code *arm64_element = seh_ctx_cur->arm64_ctx.unwind_codes
++    + seh_ctx_cur->arm64_ctx.unwind_codes_count++;
++  const struct unwind_code_pack_info *unwind_code_pack_info;
++  unwind_code_pack_info = unwind_code_pack_infos + unwind_type;
++  arm64_element->value = 0;
++  int value_offset_bits = 0;
++
++  if (unwind_code_pack_info->offset_bits)
++    {
++      offset = (offset >> unwind_code_pack_info->offset_right_shift)
++	       - unwind_code_pack_info->offset;
++      offset &= (1 << unwind_code_pack_info->offset_bits) - 1;
++      arm64_element->value |= offset << value_offset_bits;
++      value_offset_bits += unwind_code_pack_info->offset_bits;
++    }
++
++  if (unwind_code_pack_info->reg_bits)
++    {
++      reg = (reg >> unwind_code_pack_info->reg_right_shift)
++	    - unwind_code_pack_info->reg_offset;
++      reg &= (1 << unwind_code_pack_info->reg_bits) - 1;
++      arm64_element->value |= reg << value_offset_bits;
++      value_offset_bits += unwind_code_pack_info->reg_bits;
++    }
++
++  if (unwind_code_pack_info->code_bits)
++    {
++      int code = unwind_code_pack_info->code;
++      code &= (1 << unwind_code_pack_info->code_bits) - 1;
++      arm64_element->value |= code << value_offset_bits;
++    }
++
++  arm64_element->type = unwind_code_pack_info->type;
++  seh_ctx_cur->arm64_ctx.unwind_codes_byte_count += unwind_code_pack_info->size;
++}
++
++
+ /* Mark end of current context.  */
+ 
+ static void
+@@ -419,6 +566,16 @@ do_seh_endproc (void)
+   write_function_pdata (seh_ctx_cur);
+   free (seh_ctx_cur->elems);
+   free (seh_ctx_cur->func_name);
++#if defined (COFFAARCH64)
++  seh_arm64_func_fragment *fragment;
++  fragment = seh_ctx_cur->arm64_ctx.func_fragment.next;
++  while (fragment)
++    {
++      seh_arm64_func_fragment *next = fragment->next;
++      XDELETE (fragment);
++      fragment = next;
++    }
++#endif
+   free (seh_ctx_cur);
+   seh_ctx_cur = NULL;
+ }
+@@ -465,11 +622,18 @@ obj_coff_seh_proc (int what ATTRIBUTE_UNUSED)
+ 
+   seh_ctx_cur->code_seg = now_seg;
+ 
+-  if (seh_get_target_kind () == seh_kind_x64)
++  seh_kind kind = seh_get_target_kind ();
++  if (kind == seh_kind_x64 || kind == seh_kind_arm64)
+     {
+       x_segcur = seh_hash_find_or_make (seh_ctx_cur->code_seg, ".xdata");
+       seh_ctx_cur->subsection = x_segcur->subseg;
+       x_segcur->subseg += 2;
++
++      if (kind == seh_kind_arm64)
++	{
++	  seh_ctx_cur->arm64_ctx.unwind_codes_count = 0;
++	  seh_ctx_cur->arm64_ctx.epilogue_scopes_count = 0;
++	}
+     }
+ 
+   SKIP_WHITESPACE ();
+@@ -498,6 +662,23 @@ obj_coff_seh_endprologue (int what ATTRIBUTE_UNUSED)
+     as_warn (_("duplicate .seh_endprologue in .seh_proc block"));
+   else
+     seh_ctx_cur->endprologue_addr = symbol_temp_new_now ();
++
++  if (seh_get_target_kind () == seh_kind_arm64)
++    {
++      const int n = seh_ctx_cur->arm64_ctx.unwind_codes_count;
++
++      /* Unwind codes need to be reversed.  */
++      for (int i = 0; i < n / 2; ++i)
++	{
++	  seh_arm64_unwind_code *unwind_codes;
++	  unwind_codes = seh_ctx_cur->arm64_ctx.unwind_codes;
++	  seh_arm64_unwind_code temp = unwind_codes[i];
++	  unwind_codes[i] = unwind_codes[n-i-1];
++	  unwind_codes[n-i-1] = temp;
++	}
++
++      seh_arm64_add_unwind_element (end, 0, 0);
++    }
+ }
+ 
+ /* End-of-file hook.  */
+@@ -533,6 +714,7 @@ seh_x64_make_prologue_element (int code, int info, offsetT off)
+   n->pc_addr = symbol_temp_new_now ();
+ }
+ 
++#if !defined (COFFAARCH64)
+ /* Helper to read a register name from input stream (x64).  */
+ 
+ static int
+@@ -682,6 +864,7 @@ obj_coff_seh_save (int what)
+ 
+   seh_x64_make_prologue_element (code, reg, off);
+ }
++#endif
+ 
+ /* Add a stack-allocation token to current context.  */
+ 
+@@ -691,36 +874,69 @@ obj_coff_seh_stackalloc (int what ATTRIBUTE_UNUSED)
+   offsetT off;
+   int code, info;
+ 
+-  if (!verify_context_and_target (".seh_stackalloc", seh_kind_x64)
++  const seh_kind targets[] = { seh_kind_x64, seh_kind_arm64 };
++  if (!verify_context_and_targets (".seh_stackalloc", targets,
++      sizeof (targets) / sizeof (seh_kind))
+       || !seh_validate_seg (".seh_stackalloc"))
+     return;
+ 
+   off = get_absolute_expression ();
+   demand_empty_rest_of_line ();
+ 
+-  if (off == 0)
+-    return;
+-  if (off < 0)
++  switch (seh_get_target_kind ())
+     {
+-      as_bad (_(".seh_stackalloc offset is negative"));
+-      return;
+-    }
++    case seh_kind_x64:
++      if (off == 0)
++	return;
++      if (off < 0)
++	{
++	  as_bad (_(".seh_stackalloc offset is negative"));
++	  return;
++	}
+ 
+-  if ((off & 7) == 0 && off <= 128)
+-    code = UWOP_ALLOC_SMALL, info = (off - 8) >> 3, off = 0;
+-  else if ((off & 7) == 0 && off <= (offsetT) (0xffff * 8))
+-    code = UWOP_ALLOC_LARGE, info = 0, off >>= 3;
+-  else if (off <= (offsetT) 0xffffffff)
+-    code = UWOP_ALLOC_LARGE, info = 1;
+-  else
+-    {
+-      as_bad (_(".seh_stackalloc offset out of range"));
++      if ((off & 7) == 0 && off <= 128)
++	code = UWOP_ALLOC_SMALL, info = (off - 8) >> 3, off = 0;
++      else if ((off & 7) == 0 && off <= (offsetT) (0xffff * 8))
++	code = UWOP_ALLOC_LARGE, info = 0, off >>= 3;
++      else if (off <= (offsetT) 0xffffffff)
++	code = UWOP_ALLOC_LARGE, info = 1;
++      else
++	{
++	  as_bad (_(".seh_stackalloc offset out of range"));
++	  return;
++	}
++
++      seh_x64_make_prologue_element (code, info, off);
++      break;
++
++    case seh_kind_arm64:
++      /* arm64 offset should be encoded in multiples of sixteen.  */
++      if ((off & 0xf) != 0)
++	{
++	  as_bad (_(".seh_stackalloc offset < 16-byte stack alignment"));
++	  return;
++	}
++
++      if (off < 0x200)
++	seh_arm64_add_unwind_element (alloc_s, off, 0);
++      else if (off < 0x8000)
++	seh_arm64_add_unwind_element (alloc_m, off, 0);
++      else if (off < 0x10000000)
++	seh_arm64_add_unwind_element (alloc_l, off, 0);
++      else
++	{
++	  as_bad (_(".seh_stackalloc offset out of range"));
++	  return;
++	}
++      break;
++
++    default:
++      as_bad (_(".seh_stackalloc invalid target"));
+       return;
+     }
+-
+-  seh_x64_make_prologue_element (code, info, off);
+ }
+ 
++#if !defined (COFFAARCH64)
+ /* Add a frame-pointer token to current context.  */
+ 
+ static void
+@@ -758,7 +974,7 @@ obj_coff_seh_setframe (int what ATTRIBUTE_UNUSED)
+       seh_x64_make_prologue_element (UWOP_SET_FPREG, 0, 0);
+     }
+ }
+-
++#endif
+ /* Data writing routines.  */
+ 
+ /* Output raw integers in 1, 2, or 4 bytes.  */
