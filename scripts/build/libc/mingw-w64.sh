@@ -133,6 +133,10 @@ do_mingw_pthreads()
             rcflags="-F pe-x86-64"
             dlltoolflags="-m i386:x86_64"
             ;;
+        aarch64-*)
+            rcflags="-F pe-aarch64-little"
+            dlltoolflags="-m arm64"
+            ;;
         *)
             CT_Abort "Tuple ${multi_target} is not supported by mingw-w64"
             ;;
