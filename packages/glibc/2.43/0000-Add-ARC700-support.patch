@@ -1,0 +1,87 @@
+From bb4b07668bb852f755e40e979c2325dbfba91e77 Mon Sep 17 00:00:00 2001
+From: Rosen Penev <rosenp@gmail.com>
+Date: Sat, 13 Feb 2021 17:08:21 +0300
+Subject: [PATCH] Add ARC700 support
+
+glibc does not officially support ARC700 so this adds the missing
+pieces. I looked at uClibc-ng and a patch by Synopsis for glibc.
+
+[Alexey] Taken from https://github.com/openwrt/openwrt/commit/33646a51abcf15ff5c5363848287e1ed778b7467
+
+Signed-off-by: Rosen Penev <rosenp@gmail.com>
+Signed-off-by: Alexey Brodkin <abrodkin@synopsys.com>
+---
+ sysdeps/unix/sysv/linux/arc/syscall.S        | 5 +++++
+ sysdeps/unix/sysv/linux/arc/syscall_cancel.S | 6 ++++++
+ sysdeps/unix/sysv/linux/arc/sysdep.h         | 8 ++++++++
+ 3 files changed, 19 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/arc/syscall.S b/sysdeps/unix/sysv/linux/arc/syscall.S
+index 335b9692..14f3adc9 100644
+--- a/sysdeps/unix/sysv/linux/arc/syscall.S
++++ b/sysdeps/unix/sysv/linux/arc/syscall.S
+@@ -24,8 +24,13 @@ ENTRY (syscall)
+ 	mov_s	r1, r2
+ 	mov_s	r2, r3
+ 	mov_s	r3, r4
++#ifdef __ARC700__
++	mov	r4, r5
++	mov	r5, r6
++#else
+ 	mov_s	r4, r5
+ 	mov_s	r5, r6
++#endif
+ 
+ 	ARC_TRAP_INSN
+ 	brhi	r0, -4096, L (call_syscall_err)
+diff --git a/sysdeps/unix/sysv/linux/arc/syscall_cancel.S b/sysdeps/unix/sysv/linux/arc/syscall_cancel.S
+index 842132a4..a7d61e67 100644
+--- a/sysdeps/unix/sysv/linux/arc/syscall_cancel.S
++++ b/sysdeps/unix/sysv/linux/arc/syscall_cancel.S
+@@ -38,9 +38,15 @@ __syscall_cancel_arch_start:
+ 	mov_s	r0, r2
+ 	mov_s	r1, r3
+ 	mov_s	r2, r4
++#ifdef __ARC700__
++	mov	r3, r5
++	mov	r4, r6
++	mov	r5, r7
++#else
+ 	mov_s	r3, r5
+ 	mov_s	r4, r6
+ 	mov_s	r5, r7
++#endif
+ 	trap_s	0
+ 
+ 	.globl __syscall_cancel_arch_end
+diff --git a/sysdeps/unix/sysv/linux/arc/sysdep.h b/sysdeps/unix/sysv/linux/arc/sysdep.h
+index 90cea3f8..e9167f06 100644
+--- a/sysdeps/unix/sysv/linux/arc/sysdep.h
++++ b/sysdeps/unix/sysv/linux/arc/sysdep.h
+@@ -130,7 +130,11 @@ L (call_syscall_err):			ASM_LINE_SEP	\
+     mov    r8, __NR_##syscall_name	ASM_LINE_SEP	\
+     ARC_TRAP_INSN			ASM_LINE_SEP
+ 
++# ifdef __ARC700__
++# define ARC_TRAP_INSN	trap0
++# else
+ # define ARC_TRAP_INSN	trap_s 0
++# endif
+ 
+ #else  /* !__ASSEMBLER__ */
+ 
+@@ -139,7 +143,11 @@ extern long int __syscall_error (long int);
+ hidden_proto (__syscall_error)
+ # endif
+ 
++# ifdef __ARC700__
++# define ARC_TRAP_INSN	"trap0		\n\t"
++# else
+ # define ARC_TRAP_INSN	"trap_s 0	\n\t"
++#endif
+ 
+ # define HAVE_CLONE3_WRAPPER	1
+ 
+-- 
+2.52.0
+
