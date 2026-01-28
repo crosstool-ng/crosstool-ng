@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Mon, 12 Jan 2026 00:00:00 +0000
+Subject: [PATCH] winpthreads: fix aarch64 support
+
+Fix constructor priority and linker directives for ARM64 support
+in winpthreads.
+
+--- a/mingw-w64-libraries/winpthreads/src/misc.c	2025-06-04 07:00:28.000000000 +0200
++++ b/mingw-w64-libraries/winpthreads/src/misc.c	2025-09-16 17:11:44.273898239 +0200
+@@ -39,7 +39,7 @@
+ #if defined(__GNUC__) || defined(__clang__)
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wprio-ctor-dtor"
+-__attribute__((constructor(0)))
++__attribute__((constructor))
+ #endif
+ static void winpthreads_init(void)
+ {
+@@ -74,8 +74,10 @@
+  * from discarding the variable. */
+
+ /* On x86, symbols are prefixed with an underscore. */
+-# if defined(_M_IX86)
++# if defined(_M_IX86) || defined(_M_ARM)
+ #   pragma comment(linker, "/include:___xc_t")
++# elif defined(_M_X64) || defined(_M_AMD64) || defined(_M_ARM64) || defined(_M_ARM64EC)
++#   pragma comment(linker, "/include:__xc_t")
+ # else
+ #   pragma comment(linker, "/include:__xc_t")
+ # endif

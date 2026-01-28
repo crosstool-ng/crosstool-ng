@@ -1,0 +1,24 @@
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Thu, 18 Sep 2025 12:00:00 +0000
+Subject: [PATCH] aarch64-mingw: Fix exception handling to respect configure options
+
+The aarch64-mingw configuration was hardcoding DWARF2_UNWIND_INFO to 0,
+forcing SJLJ exceptions regardless of configure options. This patch makes
+it respect --disable-sjlj-exceptions like i386-mingw does.
+
+--- a/gcc/config/aarch64/cygming.h
++++ b/gcc/config/aarch64/cygming.h
+@@ -26,8 +26,13 @@ along with GCC; see the file COPYING3.  If not see
+ #undef PREFERRED_DEBUGGING_TYPE
+ #define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
+ 
+-#undef DWARF2_UNWIND_INFO
++#ifndef DWARF2_UNWIND_INFO
++#if  (defined (CONFIG_SJLJ_EXCEPTIONS) && !CONFIG_SJLJ_EXCEPTIONS)
++#define DWARF2_UNWIND_INFO 1
++#else
+ #define DWARF2_UNWIND_INFO 0
++#endif
++#endif
+ 
+ #define FASTCALL_PREFIX '@'
