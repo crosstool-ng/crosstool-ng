@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Mon, 12 Jan 2026 00:00:00 +0000
+Subject: [PATCH] mingw-w64: export missing __mingw_strtold
+
+Rename internal strtold to __mingw_strtold and provide aliases
+to fix linker issues on non-x86 architectures.
+
+--- a/mingw-w64-crt/gdtoa/strtopx.c
++++ b/mingw-w64-crt/gdtoa/strtopx.c
+@@ -59,11 +59,19 @@
+  * functions, to avoid linker conflicts if object files import both 'strtold'
+  * from libucrt*.a and the object file providing '__strtod'. */
+ long double __cdecl
+-strtold (const char * __restrict__ src, char ** __restrict__ endptr)
++__mingw_strtold (const char * __restrict__ src, char ** __restrict__ endptr)
+ {
+   return __mingw_strtod(src, endptr);
+ }
+
++long double __cdecl
++__strtold (const char * __restrict__ src, char ** __restrict__ endptr)
++  __attribute__((alias("__mingw_strtold")));
++
++long double __cdecl
++strtold (const char * __restrict__ src, char ** __restrict__ endptr)
++  __attribute__((alias("__mingw_strtold")));
++
+ /* This is specific to the x86 80 bit long doubles. */
+ #elif defined(_AMD64_) || defined(__x86_64__) || \
+   defined(_X86_) || defined(__i386__)
+@@ -144,4 +148,19 @@
+ strtold (const char * __restrict__ src, char ** __restrict__ endptr)
+   __attribute__((alias("__strtold")));
+
++#else
++long double __cdecl
++__mingw_strtold (const char * __restrict__ src, char ** __restrict__ endptr)
++{
++  return (long double)__mingw_strtod(src, endptr);
++}
++
++long double __cdecl
++__strtold (const char * __restrict__ src, char ** __restrict__ endptr)
++  __attribute__((alias("__mingw_strtold")));
++
++long double __cdecl
++strtold (const char * __restrict__ src, char ** __restrict__ endptr)
++  __attribute__((alias("__mingw_strtold")));
++
+ #endif

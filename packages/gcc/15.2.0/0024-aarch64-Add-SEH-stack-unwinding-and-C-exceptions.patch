@@ -1,0 +1,609 @@
+From 777e0c512b1159c501023a91d458f7610461dcad Mon Sep 17 00:00:00 2001
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Sun, 21 Sep 2025 17:03:21 +0200
+Subject: [PATCH] Apply 0024-aarch64-Add-SEH-stack-unwinding-and-C++ exceptions
+
+---
+ gcc/common/config/aarch64/aarch64-common.cc |  30 +++
+ gcc/config/aarch64/aarch64.cc               |  15 ++
+ gcc/config/aarch64/cygming.h                |  51 +++-
+ gcc/config/mingw/winnt.cc                   | 258 +++++++++++++++++++-
+ libgcc/config.host                          |   2 +-
+ libgcc/unwind-seh.c                         |  37 ++-
+ 6 files changed, 380 insertions(+), 13 deletions(-)
+
+diff --git a/gcc/common/config/aarch64/aarch64-common.cc b/gcc/common/config/aarch64/aarch64-common.cc
+index b9ed83642..431e9b858 100644
+--- a/gcc/common/config/aarch64/aarch64-common.cc
++++ b/gcc/common/config/aarch64/aarch64-common.cc
+@@ -811,6 +811,36 @@ is_host_cpu_not_armv8_base (int argc, const char **argv)
+   return "";
+ }
+ 
++#if TARGET_AARCH64_MS_ABI
++
++/* Implement TARGET_EXCEPT_UNWIND_INFO.  */
++
++static enum unwind_info_type
++aarch64_except_unwind_info (struct gcc_options *opts)
++{
++  /* Honor the --enable-sjlj-exceptions configure switch.  */
++#ifdef CONFIG_SJLJ_EXCEPTIONS
++  if (CONFIG_SJLJ_EXCEPTIONS)
++    return UI_SJLJ;
++#endif
++
++  /* On windows 64, prefer SEH exceptions over anything else.  */
++#if defined (TARGET_AARCH64_MS_ABI)
++  if (opts->x_flag_unwind_tables)
++    return UI_SEH;
++#endif
++
++  if (DWARF2_UNWIND_INFO)
++    return UI_DWARF2;
++
++  return UI_SJLJ;
++}
++
++#undef  TARGET_EXCEPT_UNWIND_INFO
++#define TARGET_EXCEPT_UNWIND_INFO  aarch64_except_unwind_info
++
++#endif // TARGET_AARCH64_MS_ABI
++
+ struct gcc_targetm_common targetm_common = TARGETM_COMMON_INITIALIZER;
+ 
+ #undef AARCH64_CPU_NAME_LENGTH
+diff --git a/gcc/config/aarch64/aarch64.cc b/gcc/config/aarch64/aarch64.cc
+index 767a8bec6..c9a103de5 100644
+--- a/gcc/config/aarch64/aarch64.cc
++++ b/gcc/config/aarch64/aarch64.cc
+@@ -12963,6 +12963,12 @@ aarch64_label_mentioned_p (rtx x)
+   return 0;
+ }
+ 
++void
++aarch64_print_reg (rtx x, int code, FILE *file)
++{
++  aarch64_print_operand (file, x, code);
++}
++
+ /* Implement REGNO_REG_CLASS.  */
+ 
+ enum reg_class
+@@ -18698,6 +18704,12 @@ aarch64_override_options_after_change_1 (struct gcc_options *opts)
+      intermediary step for the former.  */
+   if (flag_mlow_precision_sqrt)
+     flag_mrecip_low_precision_sqrt = true;
++
++  /* Enable unwind tables for MS.  */
++#if defined (TARGET_AARCH64_MS_ABI)
++  if (opts->x_flag_unwind_tables == 0)
++    opts->x_flag_unwind_tables = 1;
++#endif // TARGET_AARCH64_MS_ABI
+ }
+ 
+ /* 'Unpack' up the internal tuning structs and update the options
+@@ -25153,6 +25165,9 @@ aarch64_declare_function_name (FILE *stream, const char* name,
+ 
+   /* Don't forget the type directive for ELF.  */
+   ASM_OUTPUT_TYPE_DIRECTIVE (stream, name, "function");
++#ifdef SUBTARGET_ASM_UNWIND_INIT
++  SUBTARGET_ASM_UNWIND_INIT (stream);
++#endif
+   ASM_OUTPUT_FUNCTION_LABEL (stream, name, fndecl);
+ 
+   cfun->machine->label_is_assembled = true;
+diff --git a/gcc/config/aarch64/cygming.h b/gcc/config/aarch64/cygming.h
+index 47c231395..5ba8a574d 100644
+--- a/gcc/config/aarch64/cygming.h
++++ b/gcc/config/aarch64/cygming.h
+@@ -50,14 +50,39 @@ along with GCC; see the file COPYING3.  If not see
+ #define SYMBOL_REF_STUBVAR_P(X) \
+ 	((SYMBOL_REF_FLAGS (X) & SYMBOL_FLAG_STUBVAR) != 0)
+ 
+-/* Disable SEH and declare the required SEH-related macros that are
++/* Declare the required SEH-related macros that are
+ still needed for compilation.  */
+ #undef TARGET_SEH
+-#define TARGET_SEH 0
++#define TARGET_SEH 1
+ 
+ #define SSE_REGNO_P(N) (gcc_unreachable (), 0)
+ #define GENERAL_REGNO_P(N) (gcc_unreachable (), 0)
+-#define SEH_MAX_FRAME_SIZE (gcc_unreachable (), 0)
++
++/* Support hooks for SEH.  */
++#undef  TARGET_ASM_UNWIND_EMIT
++#define TARGET_ASM_UNWIND_EMIT  aarch64_pe_seh_unwind_emit
++#undef  TARGET_ASM_UNWIND_EMIT_BEFORE_INSN
++#define TARGET_ASM_UNWIND_EMIT_BEFORE_INSN  false
++#undef  TARGET_ASM_FUNCTION_END_PROLOGUE
++#define TARGET_ASM_FUNCTION_END_PROLOGUE  mingw_pe_seh_end_prologue
++#undef  TARGET_ASM_EMIT_EXCEPT_PERSONALITY
++#define TARGET_ASM_EMIT_EXCEPT_PERSONALITY mingw_pe_seh_emit_except_personality
++#undef  TARGET_ASM_INIT_SECTIONS
++#define TARGET_ASM_INIT_SECTIONS  mingw_pe_seh_init_sections
++#undef  SUBTARGET_ASM_UNWIND_INIT
++#define SUBTARGET_ASM_UNWIND_INIT  mingw_pe_seh_init
++
++/* According to Windows x64 software convention, the maximum stack allocatable
++   in the prologue is 4G - 8 bytes.  Furthermore, there is a limited set of
++   instructions allowed to adjust the stack pointer in the epilog, forcing the
++   use of frame pointer for frames larger than 2 GB.  This theorical limit
++   is reduced by 256, an over-estimated upper bound for the stack use by the
++   prologue.
++   We define only one threshold for both the prolog and the epilog.  When the
++   frame size is larger than this threshold, we allocate the area to save SSE
++   regs, then save them, and then allocate the remaining.  There is no SEH
++   unwind info for this later allocation.  */
++#define SEH_MAX_FRAME_SIZE ((2U << 30) - 256)
+ 
+ #undef TARGET_PECOFF
+ #define TARGET_PECOFF 1
+@@ -75,6 +100,9 @@ still needed for compilation.  */
+ #define TARGET_ASM_UNIQUE_SECTION mingw_pe_unique_section
+ #define TARGET_ENCODE_SECTION_INFO  mingw_pe_encode_section_info
+ 
++extern void aarch64_pe_seh_unwind_emit (FILE *, rtx_insn *);
++extern void aarch64_print_reg (rtx, int, FILE*);
++
+ #define TARGET_VALID_DLLIMPORT_ATTRIBUTE_P mingw_pe_valid_dllimport_attribute_p
+ 
+ /* Output function declarations at the end of the file.  */
+@@ -123,6 +151,7 @@ still needed for compilation.  */
+       builtin_define ("__MSVCRT__");					\
+       builtin_define ("__MINGW32__");					\
+       builtin_define ("_WIN32");					\
++      builtin_define ("__SEH__");					\
+       builtin_define_std ("WIN32");					\
+       builtin_define_std ("WINNT");					\
+       builtin_define_with_int_value ("_INTEGRAL_MAX_BITS",		\
+@@ -208,6 +237,14 @@ still needed for compilation.  */
+     flag_stack_check = STATIC_BUILTIN_STACK_CHECK;	\
+   } while (0)
+ 
++#undef ASM_DECLARE_FUNCTION_SIZE
++#define ASM_DECLARE_FUNCTION_SIZE(FILE,NAME,DECL) \
++  mingw_pe_end_function (FILE, NAME, DECL)
++
++#undef ASM_DECLARE_COLD_FUNCTION_SIZE
++#define ASM_DECLARE_COLD_FUNCTION_SIZE(FILE,NAME,DECL) \
++  mingw_pe_end_cold_function (FILE, NAME, DECL)
++
+ #define SUBTARGET_ATTRIBUTE_TABLE \
+   { "selectany", 0, 0, true, false, false, false, \
+     mingw_handle_selectany_attribute, NULL }
+@@ -233,6 +270,14 @@ still needed for compilation.  */
+     aarch64_declare_function_name (STREAM, NAME, DECL);			\
+   } while (0)
+ 
++#define ASM_DECLARE_COLD_FUNCTION_NAME(FILE, NAME, DECL)	\
++  do					\
++    {					\
++      mingw_pe_declare_type (FILE, NAME, 0, 1);		\
++      mingw_pe_seh_cold_init (FILE, NAME);		\
++      ASM_OUTPUT_LABEL (FILE, NAME);			\
++    }					\
++  while (0)
+ 
+ /* Define this to be nonzero if static stack checking is supported.  */
+ #define STACK_CHECK_STATIC_BUILTIN 1
+diff --git a/gcc/config/mingw/winnt.cc b/gcc/config/mingw/winnt.cc
+index 79c0471d7..8b3ef36a9 100644
+--- a/gcc/config/mingw/winnt.cc
++++ b/gcc/config/mingw/winnt.cc
+@@ -169,6 +169,8 @@ mingw_pe_valid_dllimport_attribute_p (const_tree decl)
+    return true;
+ }
+ 
++#if !defined (TARGET_AARCH64_MS_ABI)
++
+ /* Return string which is the function name, identified by ID, modified
+    with a suffix consisting of an atsign (@) followed by the number of
+    bytes of arguments.  If ID is NULL use the DECL_NAME as base. If
+@@ -224,8 +226,6 @@ gen_stdcall_or_fastcall_suffix (tree decl, tree id, bool fastcall)
+   return get_identifier (new_str);
+ }
+ 
+-#if !defined (TARGET_AARCH64_MS_ABI)
+-
+ /* Maybe decorate and get a new identifier for the DECL of a stdcall or
+    fastcall function. The original identifier is supplied in ID. */
+ 
+@@ -925,6 +925,11 @@ mingw_pe_seh_end_prologue (FILE *f)
+ void
+ mingw_pe_seh_cold_init (FILE *f, const char *name)
+ {
++#if defined (TARGET_AARCH64_MS_ABI)
++  mingw_pe_seh_init (f);
++  return;
++#endif
++
+   struct seh_frame_state *seh;
+   HOST_WIDE_INT alloc_offset, offset;
+ 
+@@ -1048,6 +1053,14 @@ seh_emit_save (FILE *f, struct seh_frame_state *seh,
+ 	       rtx reg, HOST_WIDE_INT cfa_offset)
+ {
+   const unsigned int regno = REGNO (reg);
++#if defined (TARGET_AARCH64_MS_ABI)
++  fputs ((FP_REGNUM_P (regno) ? " \t.seh_save_freg\t"
++	 : GP_REGNUM_P (regno) ?  " \t.seh_save_reg\t"
++	 : (gcc_unreachable (), "")), f);
++  aarch64_print_reg (reg, 0, f);
++  fprintf (f, ", " HOST_WIDE_INT_PRINT_DEC " \n", abs (cfa_offset));
++  return;
++#endif
+   HOST_WIDE_INT offset;
+ 
+   seh->reg_offset[regno] = cfa_offset;
+@@ -1072,8 +1085,12 @@ seh_emit_stackalloc (FILE *f, struct seh_frame_state *seh,
+ {
+   /* We're only concerned with prologue stack allocations, which all
+      are subtractions from the stack pointer.  */
++#if defined (TARGET_AARCH64_MS_ABI)
++  offset = abs (offset);
++#else
+   gcc_assert (offset < 0);
+   offset = -offset;
++#endif
+ 
+   if (seh->cfa_reg == stack_pointer_rtx)
+     seh->cfa_offset += offset;
+@@ -1329,6 +1346,243 @@ i386_pe_seh_unwind_emit (FILE *out_file, rtx_insn *insn)
+   seh_frame_related_expr (out_file, seh, pat);
+ }
+ 
++#if defined (TARGET_AARCH64_MS_ABI)
++#define CALLEE_SAVED_REG_NUMBER(r)                    \
++  (((r) >= R19_REGNUM && (r) <= R30_REGNUM)          \
++   || ((r) >= V8_REGNUM && (r) <= V15_REGNUM))
++
++static HOST_WIDE_INT
++seh_parallel_offset (rtx pat, HOST_WIDE_INT wanted_regnum)
++{
++  rtx dest, src;
++  HOST_WIDE_INT result = 0;
++
++  if (GET_CODE (pat) == PARALLEL)
++    {
++      int i, n = XVECLEN (pat, 0);
++
++      for (i = 0; i < n; ++i)
++	{
++	  rtx ele = XVECEXP (pat, 0, i);
++
++	  if (GET_CODE (ele) != SET)
++	    continue;
++
++	  dest = SET_DEST (ele);
++	  src = SET_SRC (ele);
++
++	  if (GET_CODE (dest) == REG
++	      && REGNO (dest) == wanted_regnum
++	      && GET_CODE (src) == MEM
++	      && GET_CODE (XEXP (src, 0)) == PLUS
++	      && XEXP (XEXP (src, 0), 0) == stack_pointer_rtx)
++	    {
++	      result = INTVAL (XEXP (XEXP (src, 0), 1));
++	    }
++
++	  if (GET_CODE (src) == REG
++	      && REGNO (src) == wanted_regnum
++	      && GET_CODE (dest) == MEM
++	      && GET_CODE (XEXP (dest, 0)) == PLUS
++	      && XEXP (XEXP (dest, 0), 0) == stack_pointer_rtx)
++	    {
++	      result = INTVAL (XEXP (XEXP (dest, 0), 1));
++	    }
++	}
++    }
++
++  return result;
++}
++
++static void
++seh_pattern_emit (FILE *f, struct seh_frame_state *seh, rtx pat)
++{
++  rtx dest, src;
++
++  if (GET_CODE (pat) == PARALLEL)
++    {
++      int i, n = XVECLEN (pat, 0);
++      HOST_WIDE_INT regno, min_regno = 32;
++      int reg_count = 0;
++      HOST_WIDE_INT increment = 0;
++
++      for (i = 0; i < n; ++i)
++	{
++	  rtx ele = XVECEXP (pat, 0, i);
++
++	  if (GET_CODE (ele) != SET)
++	    continue;
++
++	  dest = SET_DEST (ele);
++	  src = SET_SRC (ele);
++
++	  if (GET_CODE (dest) == REG
++	      && GET_CODE (src) == PLUS
++	      && XEXP (src, 0) == stack_pointer_rtx)
++	    increment = INTVAL (XEXP (src, 1));
++
++	  if (!seh->after_prologue && GET_CODE (src) == REG)
++	    {
++	      regno = REGNO (src);
++
++	      if (CALLEE_SAVED_REG_NUMBER (regno))
++		{
++		  reg_count += 1;
++		  min_regno = MIN (regno, min_regno);
++		}
++	    }
++
++	  if (seh->after_prologue && GET_CODE (dest) == REG)
++	    {
++	      regno = REGNO (dest);
++
++	      if (CALLEE_SAVED_REG_NUMBER (regno))
++		{
++		  reg_count += 1;
++		  min_regno = MIN (regno, min_regno);
++		}
++	    }
++	}
++
++      if (reg_count == 2)
++	{
++	  fprintf (f, "\t.seh_save_%s\tx%ld, %ld\n",
++		   increment != 0 ? "regp_x" : "regp",
++		   min_regno,
++		   increment != 0 ? abs (increment)
++			       : seh_parallel_offset (pat, min_regno));
++	}
++    }
++  else
++    {
++      src = SET_SRC (pat);
++
++      if (GET_CODE (pat) == SET)
++	{
++	  HOST_WIDE_INT increment = 0;
++	  dest = SET_DEST (pat);
++
++	  switch (GET_CODE (dest))
++	    {
++	    case REG:
++	      switch (GET_CODE (src))
++		{
++		case REG:
++		  if (dest == hard_frame_pointer_rtx
++		      && src == stack_pointer_rtx)
++		    fputs ("\t.seh_set_fp\n", f);
++		  else if (CALLEE_SAVED_REG_NUMBER (REGNO (dest))
++			   && src == stack_pointer_rtx)
++		    seh_emit_save (f, seh, dest, INTVAL (XEXP (src, 1)));
++		  break;
++
++		case PLUS:
++		  increment = INTVAL (XEXP (src, 1));
++		  src = XEXP (src, 0);
++		  if (dest == stack_pointer_rtx)
++		    seh_emit_stackalloc (f, seh, increment);
++		  break;
++
++		case MEM:
++		  src = XEXP (src, 0);
++		  if (GET_CODE (src) == PLUS
++		      && GET_CODE (XEXP (src, 0)) == REG
++		      && CALLEE_SAVED_REG_NUMBER (REGNO (dest))
++		      && XEXP (src, 0) == stack_pointer_rtx)
++		    seh_emit_save (f, seh, dest, INTVAL (XEXP (src, 1)));
++		  break;
++
++		default:
++		  break;
++		}
++	      break;
++
++	    case MEM:
++	      dest = XEXP (dest, 0);
++	      if (GET_CODE (dest) == PRE_DEC
++		  && CALLEE_SAVED_REG_NUMBER (REGNO (src))
++		  && XEXP (dest, 0) == stack_pointer_rtx)
++		seh_emit_save (f, seh, src, INTVAL (XEXP (dest, 1)));
++	      else if (GET_CODE (dest) == PLUS
++		       && CALLEE_SAVED_REG_NUMBER (REGNO (src))
++		       && XEXP (dest, 0) == stack_pointer_rtx)
++		seh_emit_save (f, seh, src, INTVAL (XEXP (dest, 1)));
++	      break;
++
++	    default:
++	      break;
++	    }
++	}
++      else if (seh->after_prologue
++	       && (GET_CODE (pat) == RETURN || GET_CODE (pat) == JUMP_INSN))
++	fputs ("\t.seh_endepilogue\n", f);
++    }
++}
++
++/* This function looks at a single insn and emits any SEH directives
++   required for unwind of this insn.  */
++
++void
++aarch64_pe_seh_unwind_emit (FILE *out_file, rtx_insn *insn)
++{
++  rtx note, pat;
++  struct seh_frame_state *seh;
++
++  if (!TARGET_SEH)
++    return;
++
++  if (NOTE_P (insn))
++    return;
++
++  seh = cfun->machine->seh;
++
++  if (!seh || seh->after_prologue)
++    return;
++
++  pat = PATTERN (insn);
++
++  if (GET_CODE (pat) == SET)
++    {
++	 rtx dest = SET_DEST (pat);
++	 if (GET_CODE (dest) == MEM && GET_CODE (XEXP (dest, 0)) == SCRATCH)
++	   return;
++    }
++
++  bool related_exp_needed = true;
++
++  for (note = REG_NOTES (insn); note ; note = XEXP (note, 1))
++    {
++      switch (REG_NOTE_KIND (note))
++	{
++	case REG_FRAME_RELATED_EXPR:
++	  pat = XEXP (note, 0);
++	  seh_pattern_emit (out_file, seh, pat);
++	  related_exp_needed = false;
++	  break;
++
++	case REG_CFA_EXPRESSION:
++	case REG_CFA_REGISTER:
++	case REG_CFA_ADJUST_CFA:
++	case REG_CFA_OFFSET:
++	  related_exp_needed = false;
++	  break;
++
++	default:
++	  break;
++	}
++    }
++
++  if (related_exp_needed)
++    {
++      pat = PATTERN (insn);
++      seh_pattern_emit (out_file, seh, pat);
++    }
++}
++
++#else
++#define CALLEE_SAVED_REG_NUMBER(r) 0
++#endif
++
+ void
+ mingw_pe_seh_emit_except_personality (rtx personality)
+ {
+diff --git a/libgcc/config.host b/libgcc/config.host
+index d59d06c49..1bc2b56eb 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -473,7 +473,7 @@ aarch64-*-mingw*)
+ 	    tmake_thr_file="mingw/t-mingw-pthread"
+ 	    ;;
+ 	esac
+-	tmake_file="${tmake_file} ${cpu_type}/t-no-eh ${tmake_thr_file}"
++	tmake_file="${tmake_file} ${tmake_thr_file} mingw/t-seh-eh"
+ 	tmake_file="${tmake_file} t-dfprules"
+ 	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
+ 	tmake_file="${tmake_file} ${cpu_type}/t-mingw"
+diff --git a/libgcc/unwind-seh.c b/libgcc/unwind-seh.c
+index b1ea3262a..ad85a0f29 100644
+--- a/libgcc/unwind-seh.c
++++ b/libgcc/unwind-seh.c
+@@ -32,7 +32,7 @@
+ 
+ /* At the moment everything is written for x64, but in theory this could
+    also be used for i386, arm, mips and other extant embedded Windows.  */
+-#ifndef __x86_64__
++#if !defined (__x86_64__) && !defined (__aarch64__)
+ #error "Unsupported architecture."
+ #endif
+ 
+@@ -209,7 +209,11 @@ _GCC_specific_handler (PEXCEPTION_RECORD ms_exc, void *this_frame,
+          "installed" the target_ip and RAX value via the arguments
+          to RtlUnwindEx.  All that's left is to set the RDX value
+          and "continue" to have the context installed.  */
++#ifdef __x86_64__
+       ms_disp->ContextRecord->Rdx = ms_exc->ExceptionInformation[3];
++#elif defined (__aarch64__)
++      ms_disp->ContextRecord->X1 = ms_exc->ExceptionInformation[3];
++#endif
+       return ExceptionContinueSearch;
+     }
+ 
+@@ -229,7 +233,11 @@ _GCC_specific_handler (PEXCEPTION_RECORD ms_exc, void *this_frame,
+       return ExceptionContinueSearch;
+     }
+ 
++#ifdef __x86_64__
+   gcc_context.cfa = ms_disp->ContextRecord->Rsp;
++#elif defined (__aarch64__)
++  gcc_context.cfa = ms_disp->ContextRecord->Sp;
++#endif
+   gcc_context.ra = ms_disp->ControlPc;
+   gcc_context.reg[0] = 0xdeadbeef;	/* These are write-only.  */
+   gcc_context.reg[1] = 0xdeadbeef;
+@@ -438,6 +446,8 @@ _Unwind_Backtrace(_Unwind_Trace_Fn trace,
+   CONTEXT ms_context;
+   struct _Unwind_Context gcc_context;
+   DISPATCHER_CONTEXT disp_context;
++  ULONG64 ip;
++  ULONG64 sp;
+ 
+   memset (&ms_history, 0, sizeof(ms_history));
+   memset (&gcc_context, 0, sizeof(gcc_context));
+@@ -452,31 +462,44 @@ _Unwind_Backtrace(_Unwind_Trace_Fn trace,
+ 
+   while (1)
+     {
+-      gcc_context.disp->ControlPc = ms_context.Rip;
++      ip =
++#ifdef __x86_64__
++          ms_context.Rip;
++#elif defined (__aarch64__)
++          ms_context.Pc;
++#endif
++      gcc_context.disp->ControlPc = ip;
+       gcc_context.disp->FunctionEntry
+-	= RtlLookupFunctionEntry (ms_context.Rip, &gcc_context.disp->ImageBase,
++	= RtlLookupFunctionEntry (ip, &gcc_context.disp->ImageBase,
+ 				  &ms_history);
+ 
+       if (!gcc_context.disp->FunctionEntry)
+ 	return _URC_END_OF_STACK;
+ 
+       gcc_context.disp->LanguageHandler
+-	= RtlVirtualUnwind (0, gcc_context.disp->ImageBase, ms_context.Rip,
++	= RtlVirtualUnwind (0, gcc_context.disp->ImageBase, ip,
+ 			    gcc_context.disp->FunctionEntry, &ms_context,
+ 			    &gcc_context.disp->HandlerData,
+ 			    &gcc_context.disp->EstablisherFrame, NULL);
+ 
+       /* Set values that the callback can inspect via _Unwind_GetIP
+        * and _Unwind_GetCFA. */
+-      gcc_context.ra = ms_context.Rip;
+-      gcc_context.cfa = ms_context.Rsp;
++#ifdef __x86_64__
++      ip = ms_context.Rip;
++      sp = ms_context.Rsp;
++#elif defined (__aarch64__)
++      ip = ms_context.Pc;
++      sp = ms_context.Sp;
++#endif
++      gcc_context.ra = ip;
++      gcc_context.cfa = sp;
+ 
+       /* Call trace function.  */
+       if (trace (&gcc_context, trace_argument) != _URC_NO_REASON)
+ 	return _URC_FATAL_PHASE1_ERROR;
+ 
+       /* ??? Check for invalid stack pointer.  */
+-      if (ms_context.Rip == 0)
++      if (ip == 0)
+ 	return _URC_END_OF_STACK;
+     }
+ }
+-- 
+2.48.1
+
