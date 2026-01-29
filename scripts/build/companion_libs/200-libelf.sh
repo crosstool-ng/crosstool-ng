@@ -125,7 +125,7 @@ do_libelf_backend() {
     CT_DoExecLog CFG                                        \
     CC="${host}-gcc"                                        \
     RANLIB="${host}-ranlib"                                 \
-    CFLAGS="${cflags} -fPIC"                                \
+    CFLAGS="${cflags}"                                \
     LDFLAGS="${ldflags}"                                    \
     ${CONFIG_SHELL}                                         \
     "${CT_SRC_DIR}/libelf/configure"                        \
