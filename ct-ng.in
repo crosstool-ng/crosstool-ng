@@ -328,14 +328,28 @@ version:
 	@echo 'PARTICULAR PURPOSE.'
 	@echo
 
+# Default work dir if not specified in .config
+CT_WORK_DIR_DEFAULT := $(CT_TOP_DIR)/.build
+
+# Try to extract CT_WORK_DIR from .config if it exists
+ifneq ($(wildcard .config),)
+_WORK_DIR_CFG := $(shell grep -E '^CT_WORK_DIR=' .config | sed -e 's/^CT_WORK_DIR=//' -e 's/"//g')
+endif
+
+# Use configured value if present, otherwise default. Replicates logic from crosstool-NG.sh
+CT_WORK_DIR_TO_CLEAN := $(if $(_WORK_DIR_CFG),$(_WORK_DIR_CFG),$(CT_WORK_DIR_DEFAULT))
+
 PHONY += clean
 clean::
 	@$(CT_ECHO) "  CLEAN log"
-	$(SILENT)rm -f build.log
+	$(SILENT)rm -f "$(CT_TOP_DIR)/build.log"
 	@$(CT_ECHO) "  CLEAN build dir"
-	$(SILENT)[ ! -d targets ] || chmod -R u+w targets
-	$(SILENT)[ ! -d .build  ] || chmod -R u+w .build
-	$(SILENT)rm -rf targets .build .build-all
+	$(SILENT)[ ! -d "$(CT_WORK_DIR_TO_CLEAN)" ] || chmod -R u+w "$(CT_WORK_DIR_TO_CLEAN)"
+	$(SILENT)rm -rf "$(CT_WORK_DIR_TO_CLEAN)"
+	$(SILENT)rm -f "$(CT_TOP_DIR)/.build-all"
+	@$(CT_ECHO) "  CLEAN targets"
+	$(SILENT)[ ! -d "$(CT_PREFIX_DIR)" ] || chmod -R u+w "$(CT_PREFIX_DIR)"
+	$(SILENT)rm -rf "$(CT_PREFIX_DIR)"
 
 PHONY += distclean
 distclean:: clean
