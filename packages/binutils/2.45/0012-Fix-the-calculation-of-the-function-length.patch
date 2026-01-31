@@ -1,0 +1,40 @@
+From 6666666666666666666666666666666666666666 Mon Sep 17 00:00:00 2001
+From: Evgeny Karpov <evgeny.karpov@microsoft.com>
+Date: Fri, 9 May 2025 13:13:00 +0200
+Subject: [PATCH v2 7/7] Fix the calculation of the function length
+
+The patch fixes an issue when alignment is applied in the middle of
+executed code, affecting the calculation of the function length.
+It can be resolved by using the MAP_DATA state.
+
+gas/ChangeLog:
+
+	* config/tc-aarch64.h (HANDLE_ALIGN): Update.
+---
+ gas/config/tc-aarch64.h | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/gas/config/tc-aarch64.h b/gas/config/tc-aarch64.h
+index 3cd7be5ba34..32e3aafc545 100644
+--- a/gas/config/tc-aarch64.h
++++ b/gas/config/tc-aarch64.h
+@@ -210,10 +210,16 @@ struct aarch64_frag_type
+    (fr_fix) plus 4 bytes to contain the repeating NOP (fr_var).  */
+ #define MAX_MEM_FOR_RS_ALIGN_CODE(p2align, max) (3 + 4)
+ 
++/* Sections are assumed to start aligned.  In executable section, there is no
++   MAP_DATA symbol pending.  So we only align the address during
++   MAP_DATA --> MAP_INSN transition.
++   For other sections, this is not guaranteed.  */
+ #define md_do_align(N, FILL, LEN, MAX, LABEL)					\
+   if (FILL == NULL && (N) != 0 && ! need_pass_2 && subseg_text_p (now_seg))	\
+     {										\
+-      frag_align_code (N, MAX);							\
++      enum mstate mapstate = seg_info (now_seg)->tc_segment_info_data.mapstate;\
++      if (mapstate == MAP_DATA)						\
++      frag_align_code (N, MAX);					\
+       goto LABEL;								\
+     }
+ 
+-- 
+2.34.1

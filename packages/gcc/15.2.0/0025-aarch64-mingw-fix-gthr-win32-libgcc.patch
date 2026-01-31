@@ -1,0 +1,31 @@
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Mon, 01 Dec 2025 12:00:00 +0000
+Subject: [PATCH] aarch64-mingw: ensure gthr-win32-thread is linked into libgcc
+
+For aarch64-*-mingw*, libgcc currently includes the t-files in the
+order:
+
+  t-gthr-win32, then t-seh-eh
+
+where t-gthr-win32 appends gthr-win32-thread.c to LIB2ADDEH using
+`+=`, but t-seh-eh later *overwrites* LIB2ADDEH with `=`, dropping
+gthr-win32-thread.c from the build. As a result, the Win32 thread
+entry points (__gthr_win32_create, __gthr_win32_join, ...) are
+missing from libgcc, and the final libstdc++ link fails with
+undefined references to these symbols.
+
+Mirror the x86_64-*-mingw* logic by including t-seh-eh first and
+then t-gthr-win32, so that LIB2ADDEH is initialized by t-seh-eh and
+augmented by t-gthr-win32.
+
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -469,7 +469,7 @@ aarch64*-*-vxworks7*)
+ 	    tmake_thr_file="mingw/t-mingw-pthread"
+ 	    ;;
+ 	esac
+-	tmake_file="${tmake_file} ${tmake_thr_file} mingw/t-seh-eh"
++	tmake_file="${tmake_file} mingw/t-seh-eh ${tmake_thr_file}"
+ 	tmake_file="${tmake_file} t-dfprules"
+ 	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
+ 	tmake_file="${tmake_file} ${cpu_type}/t-mingw"
