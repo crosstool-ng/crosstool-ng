@@ -1,0 +1,235 @@
+From b6286a17be0340781180fd3098a840c61c026de7 Mon Sep 17 00:00:00 2001
+From: Ahmed ARIF <arif.ing@outlook.com>
+Date: Sun, 21 Sep 2025 16:39:37 +0200
+Subject: [PATCH] Apply 0023-Rename-SEH-functions-for-reuse-in-AArch64
+
+---
+ gcc/config/i386/cygming.h              | 14 +++++++-------
+ gcc/config/i386/i386-protos.h          |  7 -------
+ gcc/config/mingw/winnt.cc              | 20 ++++++++++----------
+ gcc/config/mingw/winnt.h               |  7 +++++++
+ libgcc/config.host                     |  4 ++--
+ libgcc/config/i386/t-seh-eh  | 6 ------
+ libgcc/config/mingw/t-seh-eh | 6 ++++++
+ 7 files changed, 32 insertions(+), 32 deletions(-)
+ delete mode 100644 libgcc/config/i386/t-seh-eh
+ create mode 100644 libgcc/config/mingw/t-seh-eh
+
+diff --git a/gcc/config/i386/cygming.h b/gcc/config/i386/cygming.h
+index 3ddcbecb2..172c986d6 100644
+--- a/gcc/config/i386/cygming.h
++++ b/gcc/config/i386/cygming.h
+@@ -44,12 +44,12 @@ along with GCC; see the file COPYING3.  If not see
+ #undef  TARGET_ASM_UNWIND_EMIT_BEFORE_INSN
+ #define TARGET_ASM_UNWIND_EMIT_BEFORE_INSN  false
+ #undef  TARGET_ASM_FUNCTION_END_PROLOGUE
+-#define TARGET_ASM_FUNCTION_END_PROLOGUE  i386_pe_seh_end_prologue
++#define TARGET_ASM_FUNCTION_END_PROLOGUE  mingw_pe_seh_end_prologue
+ #undef  TARGET_ASM_EMIT_EXCEPT_PERSONALITY
+-#define TARGET_ASM_EMIT_EXCEPT_PERSONALITY i386_pe_seh_emit_except_personality
++#define TARGET_ASM_EMIT_EXCEPT_PERSONALITY mingw_pe_seh_emit_except_personality
+ #undef  TARGET_ASM_INIT_SECTIONS
+-#define TARGET_ASM_INIT_SECTIONS  i386_pe_seh_init_sections
+-#define SUBTARGET_ASM_UNWIND_INIT  i386_pe_seh_init
++#define TARGET_ASM_INIT_SECTIONS  mingw_pe_seh_init_sections
++#define SUBTARGET_ASM_UNWIND_INIT  mingw_pe_seh_init
+ 
+ #undef DEFAULT_ABI
+ #define DEFAULT_ABI (TARGET_64BIT ? MS_ABI : SYSV_ABI)
+@@ -310,18 +310,18 @@ do {						\
+   do								\
+     {								\
+       mingw_pe_declare_type (FILE, NAME, 0, 1);		\
+-      i386_pe_seh_cold_init (FILE, NAME);			\
++      mingw_pe_seh_cold_init (FILE, NAME);			\
+       ASM_OUTPUT_LABEL (FILE, NAME);				\
+     }								\
+   while (0)
+ 
+ #undef ASM_DECLARE_FUNCTION_SIZE
+ #define ASM_DECLARE_FUNCTION_SIZE(FILE,NAME,DECL) \
+-  i386_pe_end_function (FILE, NAME, DECL)
++  mingw_pe_end_function (FILE, NAME, DECL)
+ 
+ #undef ASM_DECLARE_COLD_FUNCTION_SIZE
+ #define ASM_DECLARE_COLD_FUNCTION_SIZE(FILE,NAME,DECL) \
+-  i386_pe_end_cold_function (FILE, NAME, DECL)
++  mingw_pe_end_cold_function (FILE, NAME, DECL)
+ 
+ /* Add an external function to the list of functions to be declared at
+    the end of the file.  */
+diff --git a/gcc/config/i386/i386-protos.h b/gcc/config/i386/i386-protos.h
+index bea3fd4b2..1b7db0ee8 100644
+--- a/gcc/config/i386/i386-protos.h
++++ b/gcc/config/i386/i386-protos.h
+@@ -321,18 +321,11 @@ extern void i386_pe_asm_output_aligned_decl_common (FILE *, tree,
+ 						    HOST_WIDE_INT,
+ 						    HOST_WIDE_INT);
+ extern void i386_pe_start_function (FILE *, const char *, tree);
+-extern void i386_pe_end_function (FILE *, const char *, tree);
+-extern void i386_pe_end_cold_function (FILE *, const char *, tree);
+ extern void i386_pe_assemble_visibility (tree, int);
+ extern tree i386_pe_mangle_decl_assembler_name (tree, tree);
+ extern tree i386_pe_mangle_assembler_name (const char *);
+ 
+-extern void i386_pe_seh_init (FILE *);
+-extern void i386_pe_seh_end_prologue (FILE *);
+-extern void i386_pe_seh_cold_init (FILE *, const char *);
+ extern void i386_pe_seh_unwind_emit (FILE *, rtx_insn *);
+-extern void i386_pe_seh_emit_except_personality (rtx);
+-extern void i386_pe_seh_init_sections (void);
+ 
+ /* In winnt-cxx.cc and winnt-stubs.cc  */
+ extern void i386_pe_adjust_class_at_definition (tree);
+diff --git a/gcc/config/mingw/winnt.cc b/gcc/config/mingw/winnt.cc
+index 08a761d3a..79c0471d7 100644
+--- a/gcc/config/mingw/winnt.cc
++++ b/gcc/config/mingw/winnt.cc
+@@ -882,7 +882,7 @@ struct seh_frame_state
+ /* Set up data structures beginning output for SEH.  */
+ 
+ void
+-i386_pe_seh_init (FILE *f)
++mingw_pe_seh_init (FILE *f)
+ {
+   struct seh_frame_state *seh;
+ 
+@@ -910,7 +910,7 @@ i386_pe_seh_init (FILE *f)
+ /* Emit an assembler directive for the end of the prologue.  */
+ 
+ void
+-i386_pe_seh_end_prologue (FILE *f)
++mingw_pe_seh_end_prologue (FILE *f)
+ {
+   if (!TARGET_SEH)
+     return;
+@@ -923,7 +923,7 @@ i386_pe_seh_end_prologue (FILE *f)
+ /* Emit assembler directives to reconstruct the SEH state.  */
+ 
+ void
+-i386_pe_seh_cold_init (FILE *f, const char *name)
++mingw_pe_seh_cold_init (FILE *f, const char *name)
+ {
+   struct seh_frame_state *seh;
+   HOST_WIDE_INT alloc_offset, offset;
+@@ -1006,7 +1006,7 @@ i386_pe_seh_cold_init (FILE *f, const char *name)
+ /* Emit an assembler directive for the end of the function.  */
+ 
+ static void
+-i386_pe_seh_fini (FILE *f, bool cold)
++mingw_pe_seh_fini (FILE *f, bool cold)
+ {
+   struct seh_frame_state *seh;
+ 
+@@ -1330,7 +1330,7 @@ i386_pe_seh_unwind_emit (FILE *out_file, rtx_insn *insn)
+ }
+ 
+ void
+-i386_pe_seh_emit_except_personality (rtx personality)
++mingw_pe_seh_emit_except_personality (rtx personality)
+ {
+   int flags = 0;
+ 
+@@ -1364,7 +1364,7 @@ i386_pe_seh_emit_except_personality (rtx personality)
+ }
+ 
+ void
+-i386_pe_seh_init_sections (void)
++mingw_pe_seh_init_sections (void)
+ {
+   if (TARGET_SEH)
+     exception_section = get_unnamed_section (0, output_section_asm_op,
+@@ -1383,15 +1383,15 @@ i386_pe_start_function (FILE *f, const char *name, tree decl)
+ }
+ 
+ void
+-i386_pe_end_function (FILE *f, const char *, tree)
++mingw_pe_end_function (FILE *f, const char *, tree)
+ {
+-  i386_pe_seh_fini (f, false);
++  mingw_pe_seh_fini (f, false);
+ }
+ 
+ void
+-i386_pe_end_cold_function (FILE *f, const char *, tree)
++mingw_pe_end_cold_function (FILE *f, const char *, tree)
+ {
+-  i386_pe_seh_fini (f, true);
++  mingw_pe_seh_fini (f, true);
+ }
+ 
+ #include "gt-winnt.h"
+diff --git a/gcc/config/mingw/winnt.h b/gcc/config/mingw/winnt.h
+index fa2d6c09a..c95ee429d 100644
+--- a/gcc/config/mingw/winnt.h
++++ b/gcc/config/mingw/winnt.h
+@@ -27,6 +27,8 @@ extern void mingw_pe_asm_lto_start (void);
+ extern void mingw_pe_asm_lto_end (void);
+ extern void mingw_pe_declare_type (FILE *, const char *, bool, bool);
+ extern void mingw_pe_encode_section_info (tree, rtx, int);
++extern void mingw_pe_end_cold_function (FILE *, const char *, tree);
++extern void mingw_pe_end_function (FILE *, const char *, tree);
+ extern void mingw_pe_file_end (void);
+ extern void mingw_pe_maybe_record_exported_symbol (tree, const char *, int);
+ extern void mingw_pe_record_stub (const char *, bool);
+@@ -34,6 +36,11 @@ extern unsigned int mingw_pe_section_type_flags (tree, const char *, int);
+ extern void mingw_pe_unique_section (tree, int);
+ extern bool mingw_pe_valid_dllimport_attribute_p (const_tree);
+ 
++extern void mingw_pe_seh_init (FILE *);
++extern void mingw_pe_seh_init_sections (void);
++extern void mingw_pe_seh_cold_init (FILE *, const char *);
++extern void mingw_pe_seh_emit_except_personality (rtx);
++extern void mingw_pe_seh_end_prologue (FILE *);
+ #endif /* not USED_FOR_TARGET.  */
+ 
+ #endif /* GCC_MINGW_WINNT_H.  */
+diff --git a/libgcc/config.host b/libgcc/config.host
+index 6a88ee5a2..d59d06c49 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -880,7 +880,7 @@ x86_64-*-cygwin*)
+ 	        # biarch -m32 with --disable-sjlj-exceptions
+ 	     	tmake_eh_file="i386/t-dw2-eh"
+ 	else
+-		tmake_eh_file="i386/t-seh-eh"
++		tmake_eh_file="mingw/t-seh-eh"
+ 	fi
+ 	# Shared libgcc DLL install dir depends on cross/native build.
+ 	if test x${build} = x${host} ; then
+@@ -942,7 +942,7 @@ x86_64-*-mingw*)
+ 	     	tmake_eh_file="i386/t-dw2-eh"
+ 		md_unwind_header=i386/w32-unwind.h
+ 	else
+-		tmake_eh_file="i386/t-seh-eh"
++		tmake_eh_file="mingw/t-seh-eh"
+ 	fi
+ 	# Shared libgcc DLL install dir depends on cross/native build.
+ 	if test x${build} = x${host} ; then
+diff --git a/libgcc/config/i386/t-seh-eh b/libgcc/config/i386/t-seh-eh
+deleted file mode 100644
+index 28b2411..0000000
+--- a/libgcc/config/i386/t-seh-eh
++++ /dev/null
+@@ -1,6 +0,0 @@
+-
+-# We are using SEH EH.
+-EH_MODEL = seh
+-
+-# Use SEH exception handling.
+-LIB2ADDEH = $(srcdir)/unwind-seh.c $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c
+diff --git a/libgcc/config/mingw/t-seh-eh b/libgcc/config/mingw/t-seh-eh
+new file mode 100644
+index 0000000..28b2411
+--- /dev/null
++++ b/libgcc/config/mingw/t-seh-eh
+@@ -0,0 +1,6 @@
++
++# We are using SEH EH.
++EH_MODEL = seh
++
++# Use SEH exception handling.
++LIB2ADDEH = $(srcdir)/unwind-seh.c $(srcdir)/unwind-sjlj.c $(srcdir)/unwind-c.c
+--
+2.48.1
+
