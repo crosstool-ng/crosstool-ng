@@ -14,8 +14,15 @@ picolibc_extract()
 
 picolibc_headers()
 {
+    local headers_dir="${CT_SRC_DIR}/picolibc/newlib/libc/include/."
+
+    # In Picolibc 1.8.11 intermediate "newlib" directory was removed
+    if [ ! -d "${headers_dir}" ]; then
+        headers_dir="${CT_SRC_DIR}/picolibc/libc/include/."
+    fi
+
     CT_DoStep INFO "Installing C library headers"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/include/." "${CT_HEADERS_DIR}"
+    CT_DoExecLog ALL cp -a "${headers_dir}" "${CT_HEADERS_DIR}"
     CT_EndStep
 }
 
