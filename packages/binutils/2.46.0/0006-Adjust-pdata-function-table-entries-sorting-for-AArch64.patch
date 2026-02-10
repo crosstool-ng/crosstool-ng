@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Evgeny Karpov <evgeny.karpov@microsoft.com>
+Date: Fri, 9 May 2025 12:51:00 +0200
+Subject: [PATCH v2 1/7] Adjust pdata function table entries sorting for AArch64
+
+The .pdata section contains an array of function table entries that
+are used for exception handling. The entries should be sorted by
+begin address, which is usually the first 4 bytes RVA in the entry.
+Entry sizes are different for x64 and AArch64.
+This difference is addressed in this patch.
+
+bfd/ChangeLog:
+
+	* peXXigen.c (defined): New.
+	(_bfd_XXi_final_link_postscript): Use
+	FUNCTION_TABLE_ENTRY_SIZE.
+---
+ bfd/peXXigen.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/bfd/peXXigen.c b/bfd/peXXigen.c
+index 9938108ce6b..3230f465d63 100644
+--- a/bfd/peXXigen.c
++++ b/bfd/peXXigen.c
+@@ -4655,6 +4655,13 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
+ #if !defined(COFF_WITH_pep) && (defined(COFF_WITH_pex64) || defined(COFF_WITH_peAArch64) || defined(COFF_WITH_peLoongArch64) || defined (COFF_WITH_peRiscV64))
+   {
+     asection *sec = bfd_get_section_by_name (abfd, ".pdata");
++#if defined (COFF_WITH_peAArch64)
++/* https://learn.microsoft.com/en-us/cpp/build/arm64-exception-handling#pdata-records.  */
++  #define FUNCTION_TABLE_ENTRY_SIZE 8
++#else
++/* https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#the-pdata-section.  */
++  #define FUNCTION_TABLE_ENTRY_SIZE 12
++#endif
+ 
+     if (sec)
+       {
+@@ -4664,8 +4671,8 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
+ 	if (bfd_malloc_and_get_section (abfd, sec, &tmp_data))
+ 	  {
+ 	    qsort (tmp_data,
+-		   (size_t) (x / 12),
+-		   12, sort_x64_pdata);
++		   (size_t) (x / FUNCTION_TABLE_ENTRY_SIZE),
++		   FUNCTION_TABLE_ENTRY_SIZE, sort_x64_pdata);
+ 	    bfd_set_section_contents (pfinfo->output_bfd, sec,
+ 				      tmp_data, 0, x);
+ 	    free (tmp_data);
+-- 
+2.34.1
