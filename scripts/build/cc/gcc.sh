@@ -664,6 +664,7 @@ do_gcc_core_backend() {
         --exec_prefix="${exec_prefix}"                 \
         --with-local-prefix="${CT_SYSROOT_DIR}"        \
         "${extra_config[@]}"                           \
+        --disable-libatomic                            \
         --enable-languages="${lang_list}"              \
         "${extra_user_config[@]}"
 
