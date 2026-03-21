@@ -77,6 +77,11 @@ NANO_MALLOC:newlib-nano-malloc
         for cflag in ${cflags_for_target}; do
             meson_cflags="${meson_cflags} '${cflag}',"
         done
+
+        local -l target_arch="${CT_TARGET_ARCH}"
+        if [ "${CT_ARCH}" = "sh" ]; then
+            target_arch="sh"
+        fi
         cat << EOF > picolibc-cross.txt
 [binaries]
 c = '${CT_TARGET}-${CT_CC}'
@@ -86,8 +91,8 @@ strip = '${CT_TARGET}-strip'
 
 [host_machine]
 system = '${CT_TARGET_VENDOR}'
-cpu_family = '${CT_TARGET_ARCH}'
-cpu = '${CT_TARGET_ARCH}'
+cpu_family = '${target_arch}'
+cpu = '${target_arch}'
 endian = '${CT_ARCH_ENDIAN}'
 
 [properties]
