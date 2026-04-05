@@ -1299,6 +1299,28 @@ CT_TrapEnvExport()
     }
 }
 
+# Resolve 'auto' compression to an actual algorithm.
+# Called once from CT_DoSaveState; the resolved value is then saved in env.sh.
+CT_SaveStateResolveCompress() {
+    case "${CT_DEBUG_CT_SAVE_STEPS_COMPRESS}" in
+        auto)
+            if command -v zstd >/dev/null 2>&1; then
+                CT_DEBUG_CT_SAVE_STEPS_COMPRESS="zstd"
+            elif command -v gzip >/dev/null 2>&1; then
+                CT_DEBUG_CT_SAVE_STEPS_COMPRESS="gzip"
+            else
+                CT_DEBUG_CT_SAVE_STEPS_COMPRESS=""
+            fi
+            CT_DoLog STATE "  Auto-detected compression: ${CT_DEBUG_CT_SAVE_STEPS_COMPRESS:-none}"
+            ;;
+    esac
+    # Clamp level for gzip (1-9)
+    if [ "${CT_DEBUG_CT_SAVE_STEPS_COMPRESS}" = "gzip" ] && \
+       [ "${CT_DEBUG_CT_SAVE_STEPS_COMPRESS_LEVEL}" -gt 9 ]; then
+        CT_DEBUG_CT_SAVE_STEPS_COMPRESS_LEVEL=9
+    fi
+}
+
 # This function creates a tarball of the specified directory, but
 # only if it exists
 # Usage: CT_DoTarballIfExists <dir> <tarball_basename> [extra_tar_options [...]]
@@ -1309,9 +1331,10 @@ CT_DoTarballIfExists() {
     local -a extra_tar_opts=( "$@" )
     local -a compress
 
-    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  compress=( gzip -c -3 - ); tar_ext=.gz;;
-        *)  compress=( cat - );        tar_ext=;;
+    case "${CT_DEBUG_CT_SAVE_STEPS_COMPRESS}" in
+        gzip)  compress=( gzip -c -"${CT_DEBUG_CT_SAVE_STEPS_COMPRESS_LEVEL}" - ); tar_ext=.gz;;
+        zstd)  compress=( zstd -q -T0 -"${CT_DEBUG_CT_SAVE_STEPS_COMPRESS_LEVEL}" - ); tar_ext=.zst;;
+        *)     compress=( cat - ); tar_ext=;;
     esac
 
     if [ -d "${dir}" ]; then
@@ -1334,21 +1357,23 @@ CT_DoExtractTarballIfExists() {
     local -a extra_tar_opts=( "$@" )
     local -a uncompress
 
-    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  uncompress=( gzip -c -d ); tar_ext=.gz;;
-        *)  uncompress=( cat );        tar_ext=;;
-    esac
-
-    if [ -f "${tarball}.tar${tar_ext}" ]; then
-        CT_DoLog DEBUG "  Restoring '${dir}'"
-        CT_DoForceRmdir "${dir}"
-        CT_DoExecLog DEBUG mkdir -p "${dir}"
-        { "${uncompress[@]}" "${tarball}.tar${tar_ext}"     \
-          |tar x -C "${dir}" -v -f - "${extra_tar_opts[@]}" ;
-        } 2>&1 |${sed} -r -e 's/^/    /;' |CT_DoLog STATE
+    if [ -f "${tarball}.tar.zst" ]; then
+        uncompress=( zstd -q -dc ); tar_ext=.zst
+    elif [ -f "${tarball}.tar.gz" ]; then
+        uncompress=( gzip -c -d ); tar_ext=.gz
+    elif [ -f "${tarball}.tar" ]; then
+        uncompress=( cat ); tar_ext=
     else
         CT_DoLog STATE "  Not restoring '${dir}': does not exist"
+        return 0
     fi
+
+    CT_DoLog DEBUG "  Restoring '${dir}'"
+    CT_DoForceRmdir "${dir}"
+    CT_DoExecLog DEBUG mkdir -p "${dir}"
+    { "${uncompress[@]}" "${tarball}.tar${tar_ext}"     \
+      |tar x -C "${dir}" -v -f - "${extra_tar_opts[@]}" ;
+    } 2>&1 |${sed} -r -e 's/^/    /;' |CT_DoLog STATE
 }
 
 # This function saves the state of the toolchain to be able to restart
@@ -1361,6 +1386,8 @@ CT_DoSaveState() {
     local v
 
     CT_DoLog INFO "Saving state to restart at step '${state_name}'..."
+
+    CT_SaveStateResolveCompress
 
     rm -rf "${state_dir}"
     mkdir -p "${state_dir}"
@@ -1391,9 +1418,10 @@ CT_DoSaveState() {
 
     CT_DoLog STATE "  Saving log file"
     CT_LogDisable
-    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  gzip -3 -c "${CT_BUILD_LOG}"  >"${state_dir}/log.gz";;
-        *)  cat "${CT_BUILD_LOG}" >"${state_dir}/log";;
+    case "${CT_DEBUG_CT_SAVE_STEPS_COMPRESS}" in
+        gzip)  gzip -"${CT_DEBUG_CT_SAVE_STEPS_COMPRESS_LEVEL}" -c "${CT_BUILD_LOG}" >"${state_dir}/log.gz";;
+        zstd)  zstd -q -T0 -"${CT_DEBUG_CT_SAVE_STEPS_COMPRESS_LEVEL}" -c "${CT_BUILD_LOG}" >"${state_dir}/log.zst";;
+        *)     cat "${CT_BUILD_LOG}" >"${state_dir}/log";;
     esac
     CT_LogEnable
 }
@@ -1429,10 +1457,13 @@ CT_DoLoadState(){
     CT_DoLog STATE "  Restoring log file"
     CT_LogDisable
     mv "${CT_BUILD_LOG}" "${CT_BUILD_LOG}.tail"
-    case "${CT_DEBUG_CT_SAVE_STEPS_GZIP}" in
-        y)  gzip -dc "${state_dir}/log.gz" >"${CT_BUILD_LOG}";;
-        *)  cat "${state_dir}/log" >"${CT_BUILD_LOG}";;
-    esac
+    if [ -f "${state_dir}/log.zst" ]; then
+        zstd -q -dc "${state_dir}/log.zst" >"${CT_BUILD_LOG}"
+    elif [ -f "${state_dir}/log.gz" ]; then
+        gzip -dc "${state_dir}/log.gz" >"${CT_BUILD_LOG}"
+    else
+        cat "${state_dir}/log" >"${CT_BUILD_LOG}"
+    fi
     cat "${CT_BUILD_LOG}.tail" >>"${CT_BUILD_LOG}"
     CT_LogEnable
     rm -f "${CT_BUILD_LOG}.tail"

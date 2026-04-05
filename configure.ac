@@ -143,6 +143,11 @@ AC_CHECK_PROGS([lzip], [lzip])
 CTNG_SET_KCONFIG_OPTION([lzip])
 AC_SUBST([lzip])
 
+# Zstandard is optional; used for state snapshot compression if selected.
+AC_CHECK_PROGS([zstd], [zstd])
+CTNG_SET_KCONFIG_OPTION([zstd])
+AC_SUBST([zstd])
+
 # Not a fatal failure even if we have neither - the tarballs may
 # be provided in a local directory.
 AC_CHECK_PROGS([wget], [wget])
