@@ -7,11 +7,11 @@ config OBSOLETE
     prompt "Use obsolete features"
     help
       If you set this to Y, you will be able to select obsolete features.
-      
+
       Such obsolete features are the use of old kernel headers, old gcc
       versions, etc... for which maintaining support in crosstool-NG
       would be very costly.
-      
+
       It does not however mean that the specific feature or version has been
       marked obsolete by the upstream team.
 
@@ -21,7 +21,7 @@ config EXPERIMENTAL
     help
       If you set this to Y, then you will be able to try very experimental
       features.
-      
+
       Experimental features can be one of:
         - working, in which case you should tell me it is!
         - buggy, in which case you could try patching and send me the result
@@ -39,19 +39,19 @@ config ALLOW_BUILD_AS_ROOT
       crosstool-NG will, as part of the build process, remove a few
       directories. If anything goes wrong, running as root can ruin
       your host distribution.
-      
+
       I can't stress it enough:  DO  NOT  RUN  AS  ROOT  !!
-      
+
       Do not run as root, you've been warned.
       Do not come whining, if it nukes your host system.
       Do not come whining, if you lose any data.
       Do not run as root.
-      
+
       Do not run as root, you've been warned.
       Do not come whining, if the Earth stops rotating.
       Do not come whining, if kittens are smashed.
       Do not run as root.
-      
+
       Do not run as root, do not run as root!
       (ad libitum)
 
@@ -92,25 +92,62 @@ config DEBUG_CT_SAVE_STEPS
     help
       If you say 'y' here, then you will be able to restart crosstool-NG at
       any step.
-      
+
       It is not currently possible to restart at any of the debug facilities.
       They are treated as a whole.
-      
+
       To get the full list os steps, run: ct-ng list-steps
 
-config DEBUG_CT_SAVE_STEPS_GZIP
+choice
+    prompt "Compression algorithm for saved states"
+    default DEBUG_CT_SAVE_STEPS_COMPRESS_AUTO
+    depends on DEBUG_CT_SAVE_STEPS
+
+config DEBUG_CT_SAVE_STEPS_COMPRESS_AUTO
     bool
-    prompt "gzip saved states"
-    default y
+    prompt "auto"
+    help
+      Automatically select the best available compressor.
+      Checks in order: zstd, gzip. Falls back to no compression
+      if neither is available (unlikely since gzip is required).
+
+config DEBUG_CT_SAVE_STEPS_COMPRESS_ZSTD
+    bool
+    prompt "zstd"
+    depends on CONFIGURE_has_zstd
+
+config DEBUG_CT_SAVE_STEPS_COMPRESS_GZIP
+    bool
+    prompt "gzip"
+
+config DEBUG_CT_SAVE_STEPS_COMPRESS_NONE
+    bool
+    prompt "none"
+
+endchoice
+
+config DEBUG_CT_SAVE_STEPS_COMPRESS_LEVEL
+    int
+    prompt "Compression level"
+    range 1 9  if DEBUG_CT_SAVE_STEPS_COMPRESS_GZIP
+    range 1 19 if DEBUG_CT_SAVE_STEPS_COMPRESS_ZSTD
+    range 1 19 if DEBUG_CT_SAVE_STEPS_COMPRESS_AUTO
+    default 3
     depends on DEBUG_CT_SAVE_STEPS
     help
-      If you are tight on space, then you can ask to gzip the saved states
-      tarballs. On the other hand, this takes some longer time...
-      
-      To lose as less time as possible, the gzip process is done with a low
-      compression ratio (-3), which gives roughly 70% gain in size. Going
-      further doesn't gain much, and takes far more time (believe me, I've
-      got figures here! :-) ).
+      Compression level for saved state snapshots.
+      gzip: 1-9 (1=fastest, 9=best compression, default 3)
+      zstd: 1-19 (1=fastest, 19=best compression, default 3)
+
+      If 'auto' selects gzip and level > 9, it will be clamped to 9 at runtime.
+
+config DEBUG_CT_SAVE_STEPS_COMPRESS
+    string
+    depends on DEBUG_CT_SAVE_STEPS
+    default "auto"  if DEBUG_CT_SAVE_STEPS_COMPRESS_AUTO
+    default "gzip"  if DEBUG_CT_SAVE_STEPS_COMPRESS_GZIP
+    default "zstd"  if DEBUG_CT_SAVE_STEPS_COMPRESS_ZSTD
+    default ""      if DEBUG_CT_SAVE_STEPS_COMPRESS_NONE
 
 config NO_OVERRIDE_LC_MESSAGES
     bool
@@ -122,10 +159,10 @@ config NO_OVERRIDE_LC_MESSAGES
       people most likely to help interpret the logs. If you say N here,
       and your locale is not an english language, then dissecting your
       log file will be difficult for most people but you.
-      
+
       If you say Y here, then your current locale settings will be used
       to print messages, instead of plain english.
-      
+
       Say N, please.
 
 config DEBUG_INTERACTIVE
@@ -134,17 +171,17 @@ config DEBUG_INTERACTIVE
     help
       If you say 'y' here, then an interactive shell will be spawned for
       each failed command.
-      
+
       This shell will have the same environment that the failed command
       was run with, and the working directory will be set to the directory
       the failed command was run in.
-      
+
       After you fix the issue, you can exit the interactive shell with any
       of these exit codes:
         1  the issue was fixed, continue the build with the next command
         2  the issue was fixed, re-run the failed command
         3  abort the build
-      
+
       Note: '2' is only possible for commands run via CT_DoExecLog, though.
 
 endif
