@@ -1,0 +1,127 @@
+From b0f9ac365f91952f6f920c8e6aa4ddb819f47cc8 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Tue, 23 Aug 2022 22:13:08 -0700
+Subject: [PATCH] picolibc: Add custom spec file fragments for using
+ picolibc
+
+The '--oslib=' option allows targets to insert an OS library after the
+C library in the LIB_PATH spec file fragment. This library maps a few
+POSIX APIs used by picolibc to underlying system capabilities.
+
+The '--crt0=' option allows targets to use an alternate crt0 in place
+of the usual one as provided by Picolibc.
+
+For example, picolibc provides 'libsemihost' and 'crt0-semihost.o' on
+various targets which maps some POSIX APIs to semihosting capabilities
+and signals the semihosting environment when 'main' returns. These
+would be used by specifying --oslib=semihost --crt0=semihost.
+
+This patch also takes advantage of the IN_GPP conditional when
+building g++ to elide exception handling contents from the executable
+when not linking with the g++ driver.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config.gcc          |    7 +++++++
+ gcc/config/picolibc.h   |   44 ++++++++++++++++++++++++++++++++++++++++++++
+ gcc/config/picolibc.opt |   33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 84 insertions(+)
+ create mode 100644 gcc/config/picolibc.h
+ create mode 100644 gcc/config/picolibc.opt
+
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -6213,3 +6213,10 @@
+ 	tm_defines="$tm_defines DEFAULT_LIBC=$default_libc"
+ 	;;
+ esac
++
++case "$default_libc" in
++    LIBC_PICOLIBC)
++	extra_options="${extra_options} picolibc.opt"
++	tm_file="${tm_file} picolibc.h"
++	;;
++esac
+--- /dev/null
++++ b/gcc/config/picolibc.h
+@@ -0,0 +1,44 @@
++/* Configuration common to all targets running Picolibc.
++   Copyright (C) 2023 Free Software Foundation, Inc.
++
++   This file is part of GCC.
++
++   GCC is free software; you can redistribute it and/or modify it
++   under the terms of the GNU General Public License as published
++   by the Free Software Foundation; either version 3, or (at your
++   option) any later version.
++
++   GCC is distributed in the hope that it will be useful, but WITHOUT
++   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
++   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
++   License for more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#ifdef IN_GPP
++#define PICOLIBC_LD "picolibcpp.ld"
++#define PICOLIBC_BEGIN " crtbegin%O%s"
++#define PICOLIBC_END   "crtend%O%s"
++#else
++#define PICOLIBC_LD "picolibc.ld"
++#define PICOLIBC_BEGIN ""
++#define PICOLIBC_END   ""
++#endif
++
++#undef  LIB_SPEC
++#define LIB_SPEC "%{!T:-T" PICOLIBC_LD "} --start-group -lc %{-oslib=*:-l%*} %(libgcc) --end-group"
++
++#undef  STARTFILE_SPEC
++#define STARTFILE_SPEC "%{-crt0=*:crt0-%*%O%s; :crt0%O%s}" PICOLIBC_BEGIN
++
++#undef  ENDFILE_SPEC
++#define ENDFILE_SPEC PICOLIBC_END
++
++#define EH_TABLES_CAN_BE_READ_ONLY 1
+--- /dev/null
++++ b/gcc/config/picolibc.opt
+@@ -0,0 +1,33 @@
++; Processor-independent options for picolibc.
++;
++; Copyright (C) 2022 Free Software Foundation, Inc.
++;
++; This file is part of GCC.
++;
++; GCC is free software; you can redistribute it and/or modify it under
++; the terms of the GNU General Public License as published by the Free
++; Software Foundation; either version 3, or (at your option) any later
++; version.
++;
++; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
++; WARRANTY; without even the implied warranty of MERCHANTABILITY or
++; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++; for more details.
++;
++; You should have received a copy of the GNU General Public License
++; along with GCC; see the file COPYING3.  If not see
++; <http://www.gnu.org/licenses/>.
++
++-oslib
++Driver Separate Alias(-oslib=)
++
++-oslib=
++Driver Joined
++Specify an OS support library to load after libc.
++
++-crt0
++Driver Separate Alias(-crt0=)
++
++-crt0=
++Driver Joined
++Specify an alternate startup file.
