@@ -1,0 +1,85 @@
+Subject: [PATCH] libstdc++: guard cstdlib module exports
+
+The C++23 std module appends std-clib.cc.in and exports the C library
+names from namespace std. Some targets, including aarch64-w64-mingw32,
+do not enable _GLIBCXX_USE_C99_STDLIB, so <cstdlib> does not provide the
+C99 long long functions, _Exit, or strtold in namespace std.
+
+Use the same feature guards as <cstdlib> before exporting those names
+from the module. This lets the module source match the declarations
+that were actually provided by the configured library headers.
+
+--- a/libstdc++-v3/src/c++23/std-clib.cc.in
++++ b/libstdc++-v3/src/c++23/std-clib.cc.in
+@@ -487,57 +487,71 @@ export C_LIB_NAMESPACE
+ // 17.2.2 <cstdlib> [cstdlib.syn]
+ export C_LIB_NAMESPACE
+ {
++#if _GLIBCXX_USE_C99_STDLIB
+   using std::_Exit;
++#endif
+   using std::abort;
+   using std::abs;
+ #ifdef _GLIBCXX_HAVE_ALIGNED_ALLOC
+   using std::aligned_alloc;
+ #endif
+ #ifdef _GLIBCXX_HAVE_AT_QUICK_EXIT
+   using std::at_quick_exit;
+ #endif
+   using std::atexit;
+   using std::atof;
+   using std::atoi;
+   using std::atol;
++#if _GLIBCXX_USE_C99_STDLIB
+   using std::atoll;
++#endif
+   using std::bsearch;
+   using std::calloc;
+   using std::div;
+   using std::div_t;
+   using std::exit;
+   using std::free;
+   using std::getenv;
+   using std::labs;
+   using std::ldiv;
+   using std::ldiv_t;
++#if _GLIBCXX_USE_C99_STDLIB
+   using std::llabs;
+   using std::lldiv;
+   using std::lldiv_t;
++#endif
+   using std::malloc;
+ #ifdef _GLIBCXX_HAVE_MBSTATE_T
+   using std::mblen;
+   using std::mbstowcs;
+   using std::mbtowc;
+ #endif
+   using std::qsort;
+ #ifdef _GLIBCXX_HAVE_QUICK_EXIT
+   using std::quick_exit;
+ #endif
+   using std::rand;
+   using std::realloc;
+   using std::size_t;
+   using std::srand;
+   using std::strtod;
++#if _GLIBCXX_USE_C99_STDLIB || _GLIBCXX_HAVE_STRTOF
+   using std::strtof;
++#endif
+   using std::strtol;
++#if _GLIBCXX_USE_C99_STDLIB || _GLIBCXX_HAVE_STRTOLD
+   using std::strtold;
++#endif
++#if _GLIBCXX_USE_C99_STDLIB
+   using std::strtoll;
++#endif
+   using std::strtoul;
++#if _GLIBCXX_USE_C99_STDLIB
+   using std::strtoull;
++#endif
+   using std::system;
+ #ifdef _GLIBCXX_USE_WCHAR_T
+   using std::wcstombs;
+   using std::wctomb;
+ #endif
+ }
