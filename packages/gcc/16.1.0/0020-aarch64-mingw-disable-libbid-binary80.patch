@@ -1,0 +1,18 @@
+Subject: [PATCH] aarch64-mingw: disable libbid binary80 helpers
+
+For aarch64-w64-mingw32, long double is 64 bits and libgcc does not
+provide XFmode or TFmode support. libbid still enables its binary80
+conversion helpers by default, then treats long double as an 80-bit
+layout. When building with -Werror this trips an uninitialized read
+in bid_binarydecimal.c, and the generated helpers would not describe
+the target ABI anyway.
+
+Keep this target-specific to the libgcc build by defining the existing
+libbid guard from the aarch64 MinGW tmake fragment.
+
+--- a/libgcc/config/aarch64/t-mingw
++++ b/libgcc/config/aarch64/t-mingw
+@@ -1,2 +1,3 @@
+ # Bypass hidden attribute warnings in MinGW until it is implemented
+ LIBGCC2_CFLAGS += -Wno-error=attributes
++LIBGCC2_CFLAGS += -D__NO_BINARY80__

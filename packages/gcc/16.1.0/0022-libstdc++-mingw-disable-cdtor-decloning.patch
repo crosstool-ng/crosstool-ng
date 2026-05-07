@@ -1,0 +1,27 @@
+Subject: [PATCH] libstdc++: disable cdtor decloning for MinGW
+
+When libstdc++ is built with -Os, GCC enables constructor/destructor
+decloning by default. On MinGW this can make explicit instantiation
+objects refer to the old unified constructor/destructor manglings, such
+as C4, even though the exported library instantiation only provides the
+ABI constructor variants C1 and C2.
+
+For aarch64-w64-mingw32 this shows up while linking libstdc++-6.dll:
+the C++20 sources call std::basic_string's move constructor as C4, but
+src/c++11/string-inst.o only defines C1 and C2. Build the MinGW
+libstdc++ runtime without cdtor decloning so those calls use the public
+constructor variants that are actually emitted.
+
+--- a/libstdc++-v3/configure.host
++++ b/libstdc++-v3/configure.host
+@@ -292,6 +292,10 @@ case "${host_os}" in
+         ;;
+     esac
+     OPT_LDFLAGS="${OPT_LDFLAGS} \$(lt_host_flags)"
++    # Avoid external references to unified C4/D4 constructor/destructor
++    # symbols from libstdc++ explicit instantiation objects. MinGW exports
++    # the ABI C1/C2 and D1/D2 variants instead.
++    OPTIMIZE_CXXFLAGS="${OPTIMIZE_CXXFLAGS} -fno-declone-ctor-dtor"
+     ;;
+   netbsd*)
+     os_include_dir="os/bsd/netbsd"
