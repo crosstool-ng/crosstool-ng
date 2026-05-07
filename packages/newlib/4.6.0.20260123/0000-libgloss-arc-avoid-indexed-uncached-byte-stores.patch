@@ -1,0 +1,55 @@
+Subject: [PATCH] libgloss: arc: avoid indexed uncached byte stores
+
+GCC 16 can compile the hostlink buffer copy in _hl_pack_ptr into an ARC
+uncached byte store with a register-indexed address:
+
+    stb.di r2,[r13,r1]
+
+binutils rejects that instruction for ARC EM/HS targets, breaking the
+arc-multilib-elf32 build while compiling libgloss/arc/hl/hl_api.c.
+
+Walk the source and destination pointers explicitly instead of indexing
+from a fixed uncached base pointer.  This keeps the same volatile
+uncached byte accesses, but makes GCC emit an accepted auto-increment
+store form.
+
+---
+ libgloss/arc/hl/hl_api.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/libgloss/arc/hl/hl_api.c b/libgloss/arc/hl/hl_api.c
+index 35c4e5d739dc..fb93a63e0bb1 100644
+--- a/libgloss/arc/hl/hl_api.c
++++ b/libgloss/arc/hl/hl_api.c
+@@ -214,8 +214,14 @@ _hl_pack_ptr (volatile __uncached char *p, const void *s, uint16_t len)
+   *size = len;
+ 
+   /* _vdmemcpy(buf, s, len); */
+-  for (uint16_t i = 0; i < len; i++)
+-    buf[i] = ((const char *) s)[i];
++  {
++    volatile __uncached char *dst = buf;
++    const char *src = (const char *) s;
++
++    for (uint16_t i = 0; i < len; i++)
++      *dst++ = *src++;
++  }
+ 
+   return p + payload_used;
+ }
+@@ -278,8 +284,10 @@ _hl_unpack_ptr (volatile __uncached char *p, void *s, uint32_t *plen)
+   /* _vsmemcpy(s, buf, len); */
+   if (s)
+     {
++      char *dst = (char *) s;
++      volatile __uncached char *src = buf;
++
+       for (uint32_t i = 0; i < len; i++)
+-	((char *) s)[i] = buf[i];
++	*dst++ = *src++;
+     }
+ 
+   return p + payload_used;
+-- 
+2.43.0
+
