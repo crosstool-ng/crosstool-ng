@@ -4,6 +4,10 @@ CT_DoArchTupleValues() {
     # That's the only thing to override
     if [ "${CT_ARCH_64}" = "y" ]; then
         CT_TARGET_ARCH="s390x${CT_ARCH_SUFFIX}"
+    elif [ "${CT_GCC_16_or_later}" = "y" ]; then
+        # GCC 16 deprecated 31-bit s390 configurations.
+        CT_ARCH_CC_CORE_EXTRA_CONFIG="--enable-obsolete"
+        CT_ARCH_CC_EXTRA_CONFIG="--enable-obsolete"
     fi
 }
 
