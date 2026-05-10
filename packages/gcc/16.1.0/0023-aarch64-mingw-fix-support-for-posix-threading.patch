@@ -1,0 +1,69 @@
+From e14806bee99c1d6405d41d2092d20f2adbea75ab Mon Sep 17 00:00:00 2001
+From: Timo Rothenpieler <timo@rothenpieler.org>
+Date: Fri, 15 May 2026 21:55:38 +0200
+Subject: [PATCH] aarch64: mingw: fix support for posix threading
+
+Currently without this --with-threads=pthread fails.
+
+gcc/ChangeLog:
+
+	* config/i386/mingw-pthread.h:
+	rename to generic config/mingw/mingw-pthread.h
+	* config.gcc [aarch64-*-mingw*]:
+	Fix support for posix threading on aarch64 mingw targets.
+
+Signed-off-by: Timo Rothenpieler <timo@rothenpieler.org>
+---
+ gcc/config.gcc                             | 19 ++++++++++---------
+ gcc/config/{i386 => mingw}/mingw-pthread.h |  0
+ 2 files changed, 10 insertions(+), 9 deletions(-)
+ rename gcc/config/{i386 => mingw}/mingw-pthread.h (100%)
+
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index b1a1e955bda09..fabd5f75f9655 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -1319,6 +1319,15 @@ aarch64*-*-gnu*)
+ aarch64-*-mingw*)
+ 	tm_file="${tm_file} aarch64/aarch64-abi-ms.h"
+ 	tm_file="${tm_file} aarch64/aarch64-coff.h"
++	case ${enable_threads} in
++	  "" | yes | win32)
++	    thread_file='win32'
++	    ;;
++	  posix)
++	    thread_file='posix'
++	    tm_file="${tm_file} mingw/mingw-pthread.h"
++	    ;;
++	esac
+ 	tm_file="${tm_file} aarch64/cygming.h"
+ 	tm_file="${tm_file} mingw/mingw32.h"
+ 	tm_file="${tm_file} mingw/mingw-stdint.h"
+@@ -1335,14 +1344,6 @@ aarch64-*-mingw*)
+ 	cxx_target_objs="${cxx_target_objs} msformat-c.o"
+ 	d_target_objs="${d_target_objs} winnt-d.o"
+ 	tmake_file="${tmake_file} mingw/t-cygming"
+-	case ${enable_threads} in
+-	  "" | yes | win32)
+-	    thread_file='win32'
+-	    ;;
+-	  posix)
+-	    thread_file='posix'
+-	    ;;
+-	esac
+ 	default_use_cxa_atexit=yes
+ 	use_gcc_stdint=wrap
+ 	user_headers_inc_next_post="${user_headers_inc_next_post} float.h"
+@@ -2288,7 +2289,7 @@ i[34567]86-*-mingw* | x86_64-*-mingw*)
+ 			;;
+ 	esac
+ 	if test x$enable_threads = xposix ; then
+-		tm_file="${tm_file} i386/mingw-pthread.h"
++		tm_file="${tm_file} mingw/mingw-pthread.h"
+ 	fi
+ 	if test x$enable_threads = xmcf ; then
+ 		tm_file="${tm_file} i386/mingw-mcfgthread.h"
+diff --git a/gcc/config/i386/mingw-pthread.h b/gcc/config/mingw/mingw-pthread.h
+similarity index 100%
+rename from gcc/config/i386/mingw-pthread.h
+rename to gcc/config/mingw/mingw-pthread.h
