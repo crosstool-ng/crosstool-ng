@@ -647,6 +647,7 @@ do_gcc_core_backend() {
     # miscompile or outright fail.
     CT_DoExecLog CFG                                   \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
+    CXX_FOR_BUILD="${CT_BUILD}-g++"                    \
     CFLAGS="${cflags}"                                 \
     CFLAGS_FOR_BUILD="${cflags_for_build}"             \
     CXXFLAGS="${cflags} ${cxxflags_for_build}"         \
@@ -1312,6 +1313,7 @@ do_gcc_backend() {
     # See do_gcc_core_backend for explanation.
     CT_DoExecLog CFG                                   \
     CC_FOR_BUILD="${CT_BUILD}-gcc"                     \
+    CXX_FOR_BUILD="${CT_BUILD}-g++"                    \
     CFLAGS="${cflags}"                                 \
     CFLAGS_FOR_BUILD="${cflags_for_build}"             \
     CXXFLAGS="${cflags} ${cxxflags_for_build}"         \
