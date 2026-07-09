@@ -1424,6 +1424,18 @@ CT_DoSaveState() {
         *)     cat "${CT_BUILD_LOG}" >"${state_dir}/log";;
     esac
     CT_LogEnable
+
+    # Optionally prune earlier states, keeping only the one just saved. We
+    # prune after the new state is complete, so an interrupted save never
+    # leaves us without a valid state to restart from.
+    if [ "${CT_DEBUG_CT_SAVE_STEPS_LAST_ONLY}" = "y" ]; then
+        CT_DoLog STATE "  Removing previously-saved states"
+        for v in "${CT_STATE_DIR}"/*; do
+            [ -d "${v}" ] || continue
+            [ "${v}" = "${state_dir}" ] && continue
+            CT_DoForceRmdir "${v}"
+        done
+    fi
 }
 
 # This function restores a previously saved state
