@@ -26,8 +26,13 @@ do_picolibc_common_install() {
 
     yn_args="IO_C99FMT:io-c99-formats
 IO_LL:io-long-long
-NANO_MALLOC:newlib-nano-malloc
     "
+
+    # Only add this option if the installed Picolibc supports it
+    if grep -q "option('newlib-nano-malloc'" "${CT_SRC_DIR}/picolibc/meson_options.txt"; then
+       yn_args="${yn_args}
+    NANO_MALLOC:newlib-nano-malloc"
+    fi
 
     for ynarg in $yn_args; do
         var="CT_LIBC_PICOLIBC_${ynarg%:*}"
