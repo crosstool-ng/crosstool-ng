@@ -15,7 +15,15 @@ picolibc_extract()
 picolibc_headers()
 {
     CT_DoStep INFO "Installing C library headers"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/include/." "${CT_HEADERS_DIR}"
+    local picolibc_headers_dir
+
+    if [ "${CT_PICOLIBC_VERSION}" = "1.8.10" ] || [ "${CT_PICOLIBC_VERSION}" = "old" ]; then
+        picolibc_headers_dir="${CT_SRC_DIR}/picolibc/newlib/libc/include"
+    else
+        picolibc_headers_dir="${CT_SRC_DIR}/picolibc/libc/include"
+    fi
+
+    CT_DoExecLog ALL cp -a "${picolibc_headers_dir}/." "${CT_HEADERS_DIR}"
     CT_EndStep
 }
 
