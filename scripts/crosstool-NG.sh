@@ -605,7 +605,7 @@ if [ -z "${CT_RESTART}" ]; then
     AUTO_JOBS=$[ BUILD_NCPUS + 1 ]
     [ ${CT_PARALLEL_JOBS} -eq 0 ] && CT_JOBSFLAGS="${CT_JOBSFLAGS} -j${AUTO_JOBS}"
     [ ${CT_PARALLEL_JOBS} -gt 0 ] && CT_JOBSFLAGS="${CT_JOBSFLAGS} -j${CT_PARALLEL_JOBS}"
-    CT_JOBSFLAGS="${CT_JOBSFLAGS} -l${CT_LOAD}"
+    [ -n "${CT_LOAD}" ] && CT_JOBSFLAGS="${CT_JOBSFLAGS} -l${CT_LOAD}"
 
     # Override 'download only' option
     [ -n "${CT_SOURCE}" ] && CT_ONLY_DOWNLOAD=y
