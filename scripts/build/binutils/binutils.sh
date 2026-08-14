@@ -184,11 +184,11 @@ do_binutils_backend() {
 
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
-    if [ "${CT_COMP_LIBS_ZSTD}" = "y" ]; then
-        extra_config+=("--with-zstd")
-    else
-        extra_config+=("--without-zstd")
-    fi
+    case "${CT_BINUTILS_GZ_ZSTD}" in
+        y) extra_config+=("--with-zstd") ;;
+        m) ;;
+        *) extra_config+=("--without-zstd") ;;
+    esac
 
     # gold links with CXXLINK/g++, not libtool, and does not understand
     # -all-static

@@ -69,11 +69,11 @@ do_debug_gdb_build()
         cross_extra_config+=("--with-expat")
         cross_extra_config+=("--without-libexpat-prefix")
 
-        if [ "${CT_COMP_LIBS_ZSTD}" = "y" ]; then
-            cross_extra_config+=("--with-zstd")
-        else
-            cross_extra_config+=("--without-zstd")
-        fi
+        case "${CT_GDB_ZSTD}" in
+            y) cross_extra_config+=("--with-zstd") ;;
+            m) ;;
+            *) cross_extra_config+=("--without-zstd") ;;
+        esac
 
         # ct-ng always builds ncurses in cross mode as a static library.
         # Starting from the patchset 20200718 ncurses defines a special macro
