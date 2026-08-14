@@ -185,7 +185,7 @@ do_binutils_backend() {
     [ "${CT_TOOLCHAIN_ENABLE_NLS}" != "y" ] && extra_config+=("--disable-nls")
 
     if [ "${CT_COMP_LIBS_ZSTD}" = "y" ]; then
-        extra_config+=("--with-zstd")
+        extra_config+=("--with-zstd=auto")
     else
         extra_config+=("--without-zstd")
     fi

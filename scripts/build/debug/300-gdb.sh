@@ -70,7 +70,7 @@ do_debug_gdb_build()
         cross_extra_config+=("--without-libexpat-prefix")
 
         if [ "${CT_COMP_LIBS_ZSTD}" = "y" ]; then
-            cross_extra_config+=("--with-zstd")
+            cross_extra_config+=("--with-zstd=auto")
         else
             cross_extra_config+=("--without-zstd")
         fi
