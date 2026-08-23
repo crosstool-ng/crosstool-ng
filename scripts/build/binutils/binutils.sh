@@ -237,7 +237,9 @@ do_binutils_backend() {
                 ;;
         esac
     fi
-    CT_DoExecLog ALL make "${extra_make_flags[@]}" ${CT_JOBSFLAGS}
+    CT_DoExecLog ALL                                            \
+    PKG_CONFIG_PATH="${complibs}/lib/pkgconfig"                 \
+    make "${extra_make_flags[@]}" ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing binutils"
     CT_DoExecLog ALL make install
