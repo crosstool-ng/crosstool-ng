@@ -135,10 +135,10 @@ EOF
         "${CT_LIBC_PICOLIBC_EXTRA_CONFIG_ARRAY[@]}"
 
     CT_DoLog EXTRA "Building C library"
-    CT_DoExecLog ALL ninja
+    CT_DoExecLog ALL ninja ${CT_JOBSFLAGS}
 
     CT_DoLog EXTRA "Installing C library"
-    CT_DoExecLog ALL ninja install
+    CT_DoExecLog ALL ninja ${CT_JOBSFLAGS} install
 }
 
 fi # CT_LIBC_PICOLIBC -o CT_COMP_LIBS_PICOLIBC
