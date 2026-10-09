@@ -1,0 +1,159 @@
+From e3720cfb88984e4cc3ed32b2c0c592b4e317e769 Mon Sep 17 00:00:00 2001
+From: Orgad Shaneh <orgads@gmail.com>
+Date: Mon, 31 Aug 2026 17:33:09 +0300
+Subject: [PATCH] mips: Disallow eliminable registers in the indexed-load
+ patterns [PR127161]
+
+combine can form the L{B,H,W,D}{,U}X and LWXS patterns with the soft
+frame pointer as the address base (an indexed load from a stack
+object).  The reg+reg address embedded in those patterns is not
+legitimate in the mips_legitimate_address_p sense, and after frame
+pointer elimination it becomes $sp plus an offset plus the index,
+which cannot be fixed up in place.  LRA then never converges: on
+every iteration it spills the index pseudo, reloads it from a stack
+slot, thereby grows the frame, and the changed elimination offsets
+force yet another pass (cc1 hangs, with 30000+ pseudos generated for
+a 14-line function).
+
+Reject the eliminable registers in the address operands of those
+patterns via a new predicate.  Indexed loads from pointer bases are
+unaffected, and the stack-based ones are still formed by late combine
+after RA, where the base is the real, non-eliminable $sp.
+
+gcc/ChangeLog:
+
+	PR target/127161
+	* config/mips/predicates.md (mips_index_reg_operand): New
+	predicate.
+	* config/mips/mips-dsp.md
+	(mips_l<SHORT:size><u>x_ext<GPR:mode>_<P:mode>): Use it.
+	(mips_l<GPR:size>x_<P:mode>): Likewise.
+	(*mips_lw<u>x_<P:mode>_ext): Likewise.
+	* config/mips/mips.md (*lwxs): Likewise.
+
+gcc/testsuite/ChangeLog:
+
+	PR target/127161
+	* gcc.target/mips/octeon2-lx-4.c: New test.
+
+Assisted-by: Claude Fable 5 <noreply@anthropic.com>
+Signed-off-by: Orgad Shaneh <orgads@gmail.com>
+---
+ gcc/config/mips/mips-dsp.md                  | 12 +++++-----
+ gcc/config/mips/mips.md                      |  4 ++--
+ gcc/config/mips/predicates.md                | 15 +++++++++++++
+ gcc/testsuite/gcc.target/mips/octeon2-lx-4.c | 23 ++++++++++++++++++++
+ 4 files changed, 46 insertions(+), 8 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/mips/octeon2-lx-4.c
+
+diff --git a/gcc/config/mips/mips-dsp.md b/gcc/config/mips/mips-dsp.md
+index 511a1f64d..2be4bae5b 100644
+--- a/gcc/config/mips/mips-dsp.md
++++ b/gcc/config/mips/mips-dsp.md
+@@ -1093,8 +1093,8 @@
+ (define_insn "mips_l<SHORT:size><u>x_ext<GPR:mode>_<P:mode>"
+   [(set (match_operand:GPR 0 "register_operand" "=d")
+    	(any_extend:GPR
+-	  (mem:SHORT (plus:P (match_operand:P 1 "register_operand" "d")
+-			     (match_operand:P 2 "register_operand" "d")))))]
++	  (mem:SHORT (plus:P (match_operand:P 1 "mips_index_reg_operand" "d")
++			     (match_operand:P 2 "mips_index_reg_operand" "d")))))]
+   "ISA_HAS_L<SHORT:SIZE><U>X"
+   "l<SHORT:size><u>x\t%0,%2(%1)"
+   [(set_attr "type"	"load")
+@@ -1126,8 +1126,8 @@
+ 
+ (define_insn "mips_l<GPR:size>x_<P:mode>"
+   [(set (match_operand:GPR 0 "register_operand" "=d")
+-	(mem:GPR (plus:P (match_operand:P 1 "register_operand" "d")
+-			 (match_operand:P 2 "register_operand" "d"))))]
++	(mem:GPR (plus:P (match_operand:P 1 "mips_index_reg_operand" "d")
++			 (match_operand:P 2 "mips_index_reg_operand" "d"))))]
+   "ISA_HAS_L<GPR:SIZE>X"
+   "l<GPR:size>x\t%0,%2(%1)"
+   [(set_attr "type"	"load")
+@@ -1136,8 +1136,8 @@
+ (define_insn "*mips_lw<u>x_<P:mode>_ext"
+   [(set (match_operand:DI 0 "register_operand" "=d")
+    	(any_extend:DI
+-	  (mem:SI (plus:P (match_operand:P 1 "register_operand" "d")
+-			     (match_operand:P 2 "register_operand" "d")))))]
++	  (mem:SI (plus:P (match_operand:P 1 "mips_index_reg_operand" "d")
++			     (match_operand:P 2 "mips_index_reg_operand" "d")))))]
+   "ISA_HAS_LW<U>X && TARGET_64BIT"
+   "lw<u>x\t%0,%2(%1)"
+   [(set_attr "type"	"load")
+diff --git a/gcc/config/mips/mips.md b/gcc/config/mips/mips.md
+index 18244e4ab..ed61e2195 100644
+--- a/gcc/config/mips/mips.md
++++ b/gcc/config/mips/mips.md
+@@ -5127,9 +5127,9 @@
+ (define_insn "*lwxs"
+   [(set (match_operand:IMOVE32 0 "register_operand" "=d")
+ 	(mem:IMOVE32
+-	  (plus:P (mult:P (match_operand:P 1 "register_operand" "d")
++	  (plus:P (mult:P (match_operand:P 1 "mips_index_reg_operand" "d")
+ 			  (const_int 4))
+-		  (match_operand:P 2 "register_operand" "d"))))]
++		  (match_operand:P 2 "mips_index_reg_operand" "d"))))]
+   "ISA_HAS_LWXS"
+   "lwxs\t%0,%1(%2)"
+   [(set_attr "type"	"load")
+diff --git a/gcc/config/mips/predicates.md b/gcc/config/mips/predicates.md
+index b0e2219e3..a07669883 100644
+--- a/gcc/config/mips/predicates.md
++++ b/gcc/config/mips/predicates.md
+@@ -208,6 +208,21 @@
+ 		    ? M16_REG_P (REGNO (op))
+ 		    : GP_REG_P (REGNO (op))")))
+ 
++;; A register that may be used as the base or the index of an indexed
++;; load (LWXS, L{B,H,W,D}{,U}X).  The eliminable registers are excluded:
++;; elimination turns them into $sp/$fp plus an offset, which no longer
++;; fits the reg+reg address embedded in those patterns, and LRA does
++;; not converge on such insns (it reloads the address anew on every
++;; iteration, growing the frame each time).
++(define_predicate "mips_index_reg_operand"
++  (match_operand 0 "register_operand")
++{
++  if (SUBREG_P (op))
++    op = SUBREG_REG (op);
++  return !(REGNO (op) == FRAME_POINTER_REGNUM
++	   || REGNO (op) == ARG_POINTER_REGNUM);
++})
++
+ (define_predicate "lwsp_swsp_operand"
+   (and (match_code "mem")
+        (match_test "lwsp_swsp_address_p (XEXP (op, 0), mode)")))
+diff --git a/gcc/testsuite/gcc.target/mips/octeon2-lx-4.c b/gcc/testsuite/gcc.target/mips/octeon2-lx-4.c
+new file mode 100644
+index 000000000..d8e8c8abe
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/mips/octeon2-lx-4.c
+@@ -0,0 +1,23 @@
++/* PR target/127161: LRA looped forever on an indexed load whose base
++   is the (eliminable) frame pointer.  */
++/* { dg-do compile } */
++/* { dg-options "-march=octeon2 -mgp64 -O2 -w" } */
++
++int a, b;
++char c;
++char *d;
++void e (int, int, int, int, int, int);
++
++void
++h (void)
++{
++  int f;
++  unsigned *g = &f;
++  for (int j;; ++j)
++    {
++      char *i = d - g[j];
++      if (i)
++	b = 0;
++      e (0, a, 1, 1, c, a);
++    }
++}
+-- 
+2.53.0
+
