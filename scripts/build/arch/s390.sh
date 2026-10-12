@@ -14,6 +14,9 @@ CT_DoArchTupleValues() {
 #------------------------------------------------------------------------------
 # Get multilib architecture-specific target
 # Usage: CT_DoArchMultilibTarget "target variable" "multilib flags"
+#
+# GCC 16 deprecated -m31 and GCC 17 removed it, along with s390 multilib
+# support, so this conversion only matters for GCC 16 and older.
 CT_DoArchMultilibTarget ()
 {
     local target_var="${1}"; shift
@@ -24,7 +27,7 @@ CT_DoArchMultilibTarget ()
     local m64=false
 
     for m in "${multi_flags[@]}"; do
-        case "${multi_flags}" in
+        case "${m}" in
             -m64) m64=true ;;
             -m31) m31=true ;;
         esac
