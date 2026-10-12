@@ -69,7 +69,7 @@ do_debug_gdb_build()
         cross_extra_config+=("--with-expat")
         cross_extra_config+=("--without-libexpat-prefix")
 
-        case "${CT_GDB_ZSTD}" in
+        case "${CT_GDB_GZ_ZSTD}" in
             y) cross_extra_config+=("--with-zstd") ;;
             m) ;;
             *) cross_extra_config+=("--without-zstd") ;;
