@@ -186,11 +186,6 @@ manage_uClibc_config()
     else
         CT_KconfigDisableOption "UCLIBC_HAS_FENV" "${dst}"
     fi
-    if [ "${CT_LIBC_UCLIBC_RPC}" = "y" ]; then
-        CT_KconfigEnableOption "UCLIBC_HAS_RPC" "${dst}"
-    else
-        CT_KconfigDisableOption "UCLIBC_HAS_RPC" "${dst}"
-    fi
 
     # We always want ctor/dtor
     CT_KconfigEnableOption "UCLIBC_CTOR_DTOR" "${dst}"
