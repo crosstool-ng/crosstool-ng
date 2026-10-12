@@ -144,7 +144,7 @@ do_debug_gdb_build()
         fi
 
         # GDB on Mingw depends on PDcurses, not ncurses
-        if [ "${CT_MINGW32}" != "y" ]; then
+        if [ "${CT_WINDOWS}" != "y" ]; then
             native_extra_config+=("--with-curses")
         fi
 
