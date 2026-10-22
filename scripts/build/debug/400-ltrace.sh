@@ -18,6 +18,11 @@ do_debug_ltrace_build() {
                             "${CT_BUILD_DIR}/build-ltrace"
     CT_Pushd "${CT_BUILD_DIR}/build-ltrace"
 
+    if [ ! -f configure ]; then
+        CT_DoLog EXTRA "Bootstrapping ltrace"
+        CT_DoExecLog CFG ./autogen.sh
+    fi
+
     CT_DoLog EXTRA "Configuring ltrace"
     CT_DoExecLog CFG        \
     ${CONFIG_SHELL}         \
