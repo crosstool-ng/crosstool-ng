@@ -50,6 +50,25 @@ jobs:
           name: config.log.${{ matrix.host }}
           path: config.log
         if: ${{ always() }}
+      - name: "check sample configs"
+        run: |
+          set -o pipefail
+          ./ct-ng check-samples 2>&1 | tee check-samples.log
+      # The v0 upgrade fixtures still expect versions that have since been
+      # removed. Keep this advisory until those expectations are refreshed.
+      - name: "test config upgrades (advisory)"
+        continue-on-error: true
+        run: |
+          cd testing/upgrade
+          ./run.sh
+      - name: "upload config check logs"
+        uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: config-checks.${{ matrix.host }}
+          path: |
+            check-samples.log
+            testing/upgrade/logs/
 
   tarballs:
     needs: crosstool
