@@ -1987,6 +1987,10 @@ CT_Download_hg()
 # Get the most recent version from Git.
 CT_GetVersion_git()
 {
+    if [ -z "${git}" ]; then
+        CT_Abort "${pkg_name}: git is needed to determine the development version, but was not found by ./configure"
+    fi
+
     if [ -n "${devel_branch}" -a -n "${devel_revision}" ]; then
         CT_Abort "${pkg_name}: cannot specify both branch and changeset for Git"
     fi
@@ -1997,11 +2001,11 @@ CT_GetVersion_git()
 
     if [ -z "${devel_revision}" ]; then
         # First try to dereference an annotated tag.
-        local matches=`git ls-remote --exit-code "${devel_url}" --refs "${branch}^{}" \
+        local matches=`${git} ls-remote --exit-code "${devel_url}" --refs "${branch}^{}" \
             || echo "not found"`
         # If we don't have an annotated tag, let's take the reference as is.
         if [ "${matches}" = "not found" ]; then
-            matches=`git ls-remote --exit-code "${devel_url}" --refs "${branch}" \
+            matches=`${git} ls-remote --exit-code "${devel_url}" --refs "${branch}" \
                 || echo "not found"`
         fi
         local best using ref
@@ -2044,8 +2048,8 @@ CT_Download_git()
     # Some of these operations are part of a `git clone`, but fetching a specific commit
     # (if it is supported by the server) is not expressable as a `git clone`.
     CT_mkdir_pushd "${pkg_name}"
-    CT_DoExecLog ALL git init
-    CT_DoExecLog ALL git remote add origin "${devel_url}"
+    CT_DoExecLog ALL ${git} init
+    CT_DoExecLog ALL ${git} remote add origin "${devel_url}"
 
     if [ -z "${devel_revision}" ]; then
         # Configuration didn't care about a specific commit; we'll use the most recent
@@ -2063,8 +2067,8 @@ CT_Download_git()
     fi
 
     if [ -n "${shallow_id}" ]; then
-        if CT_DoExecLog ALL git fetch --quiet --depth 1 origin "${shallow_id}"; then
-            CT_DoExecLog ALL git checkout --quiet FETCH_HEAD --
+        if CT_DoExecLog ALL ${git} fetch --quiet --depth 1 origin "${shallow_id}"; then
+            CT_DoExecLog ALL ${git} checkout --quiet FETCH_HEAD --
         else
             # Git 2.15 and newer (which must be the case on both the client and the server)
             # allows fetching a single commit so long as the server is configured
@@ -2078,11 +2082,11 @@ CT_Download_git()
     if [ -z "${shallow_id}" ]; then
         # In this case, we already determined the changeset we need
         CT_DoLog WARN "Falling back to full clone; may take some time..."
-        CT_DoExecLog ALL git fetch --quiet origin
-        CT_DoExecLog ALL git checkout --quiet "${unique_id}" --
+        CT_DoExecLog ALL ${git} fetch --quiet origin
+        CT_DoExecLog ALL ${git} checkout --quiet "${unique_id}" --
     fi
 
-    new_unique_id=`git rev-parse HEAD | cut -c1-8`
+    new_unique_id=`${git} rev-parse HEAD | cut -c1-8`
     if [ "${new_unique_id}" != "${unique_id}" ]; then
         CT_DoLog EXTRA "Revision being fetched changed to ${new_unique_id}; source repository had more revisions pushed?"
         unique_id="${new_unique_id}"
