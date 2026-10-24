@@ -1,0 +1,22 @@
+Subject: [PATCH] cp: disable cdtor decloning by default for PE/COFF
+
+GCC 16 turns on ctor/dtor decloning by default at -Os. On PE/COFF this
+emits references to the unified C4/D4 aliases, but the libstdc++ import
+library only exports C1/C2 and D1/D2, so -Os builds fail to link.
+
+Default the flag off for PE/COFF. It still works when set explicitly.
+
+--- a/gcc/c-family/c-opts.cc
++++ b/gcc/c-family/c-opts.cc
+@@ -1096,7 +1096,9 @@ c_common_post_options (const char **pfilename)
+
+-  /* Declone C++ 'structors if -Os.  */
++  /* On PE/COFF the libstdc++ import library only exports the C1/C2
++     and D1/D2 ctor/dtor variants, not the C4/D4 aliases produced by
++     decloning, so don't enable -fdeclone-ctor-dtor by default.  */
+   if (flag_declone_ctor_dtor == -1)
+-    flag_declone_ctor_dtor = optimize_size;
++    flag_declone_ctor_dtor = optimize_size && !TARGET_PECOFF;
+
+   if (flag_abi_compat_version == 1)
+     {
