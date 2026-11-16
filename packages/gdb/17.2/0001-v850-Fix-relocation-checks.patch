@@ -1,0 +1,67 @@
+From 5da2e57b2e952e2d1d702923e5116209634af08a Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 01:58:14 +0530
+Subject: [PATCH] v850: Fix relocation checks
+
+Report relocations without an ELF type and reloc prefix errors in data
+directives instead of aborting. Check the 16 bit, split and 16 S1
+relocations as signed 32 bit values and make zdaoff an offset from 0.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ bfd/elf32-v850.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/bfd/elf32-v850.c b/bfd/elf32-v850.c
+index 27744814691..0f6dc9af4f3 100644
+--- a/bfd/elf32-v850.c
++++ b/bfd/elf32-v850.c
+@@ -37,6 +37,9 @@
+ /* Sign-extend a 22-bit number.  */
+ #define SEXT22(x)	((((x) & 0x3fffff) ^ 0x200000) - 0x200000)
+ 
++/* Sign-extend a 32-bit address.  */
++#define SEXT32(x)	((((x) & 0xffffffff) ^ 0x80000000) - 0x80000000)
++
+ static reloc_howto_type v850_elf_howto_table[];
+ 
+ /* Look through the relocs for a section during the first phase, and
+@@ -655,7 +658,7 @@ v850_elf_perform_relocation (bfd *abfd,
+     case R_V850_TDA_16_16_OFFSET:
+       addend += bfd_get_16 (abfd, address);
+ 
+-      saddend = (bfd_signed_vma) addend;
++      saddend = (bfd_signed_vma) SEXT32 (addend);
+ 
+       if (saddend > 0x7fff || saddend < -0x8000)
+ 	return bfd_reloc_overflow;
+@@ -670,7 +673,7 @@ v850_elf_perform_relocation (bfd *abfd,
+       insn = bfd_get_16 (abfd, address);
+       addend += (insn & 0xfffe);
+ 
+-      saddend = (bfd_signed_vma) addend;
++      saddend = (bfd_signed_vma) SEXT32 (addend);
+ 
+       if (saddend > 0x7ffe || saddend < -0x8000)
+ 	return bfd_reloc_overflow;
+@@ -788,7 +791,7 @@ v850_elf_perform_relocation (bfd *abfd,
+       insn = bfd_get_32 (abfd, address);
+       addend += ((insn & 0xfffe0000) >> 16) + ((insn & 0x20) >> 5);
+ 
+-      saddend = (bfd_signed_vma) addend;
++      saddend = (bfd_signed_vma) SEXT32 (addend);
+ 
+       if (saddend > 0x7fff || saddend < -0x8000)
+ 	return bfd_reloc_overflow;
+@@ -2051,8 +2054,6 @@ v850_elf_final_link_relocate (reloc_howto_type *howto,
+     case R_V850_ZDA_16_16_SPLIT_OFFSET:
+       if (sym_sec == NULL)
+ 	return bfd_reloc_undefined;
+-
+-      value -= sym_sec->output_section->vma;
+       break;
+ 
+     case R_V850_SDA_15_16_OFFSET:
+-- 
+Parthiban N
+
