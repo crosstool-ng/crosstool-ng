@@ -1,0 +1,1205 @@
+From c5faab55752aa6a9f0bc28446e943f0ab022a1b2 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:07:47 +0530
+Subject: [PATCH] v850: Add mg4mh2 and the RH850 G4MH2 instructions
+
+Add the option for the RH850 G4MH2 core with its MPU and guest register
+transfer instructions and its additional system register names.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ binutils/doc/binutils.texi              |   7 +-
+ gas/config/tc-v850.c                    | 160 +++++++++++++++++++++-
+ gas/doc/c-v850.texi                     |  14 ++
+ gas/testsuite/gas/v850/basic.exp        |   8 ++
+ gas/testsuite/gas/v850/g4mh2-bad.d      |   4 +
+ gas/testsuite/gas/v850/g4mh2-bad.l      |   9 ++
+ gas/testsuite/gas/v850/g4mh2-dir-bad.d  |   3 +
+ gas/testsuite/gas/v850/g4mh2-dir-bad.l  |   2 +
+ gas/testsuite/gas/v850/g4mh2-dir-bad.s  |   5 +
+ gas/testsuite/gas/v850/g4mh2-dir.d      |  10 ++
+ gas/testsuite/gas/v850/g4mh2-dir.s      |   6 +
+ gas/testsuite/gas/v850/g4mh2-gmfewr.d   |   9 ++
+ gas/testsuite/gas/v850/g4mh2-gmfewr.s   |   4 +
+ gas/testsuite/gas/v850/g4mh2-sreg-bad.d |   3 +
+ gas/testsuite/gas/v850/g4mh2-sreg-bad.l |   6 +
+ gas/testsuite/gas/v850/g4mh2-sreg-bad.s |   7 +
+ gas/testsuite/gas/v850/g4mh2-sreg-dis.d | 138 +++++++++++++++++++
+ gas/testsuite/gas/v850/g4mh2-sreg.d     | 137 +++++++++++++++++++
+ gas/testsuite/gas/v850/g4mh2-sreg.s     | 132 ++++++++++++++++++
+ gas/testsuite/gas/v850/g4mh2.d          |  15 ++
+ gas/testsuite/gas/v850/g4mh2.s          |  10 ++
+ include/opcode/v850.h                   |   2 +
+ opcodes/v850-dis.c                      | 173 +++++++++++++++++++++++-
+ opcodes/v850-opc.c                      |   6 +
+ 24 files changed, 861 insertions(+), 9 deletions(-)
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-bad.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-bad.l
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-dir-bad.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-dir-bad.l
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-dir-bad.s
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-dir.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-dir.s
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-gmfewr.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-gmfewr.s
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-sreg-bad.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-sreg-bad.l
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-sreg-bad.s
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-sreg-dis.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-sreg.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2-sreg.s
+ create mode 100644 gas/testsuite/gas/v850/g4mh2.d
+ create mode 100644 gas/testsuite/gas/v850/g4mh2.s
+
+diff --git a/binutils/doc/binutils.texi b/binutils/doc/binutils.texi
+index eb7bb776d83..31e898d3df7 100644
+--- a/binutils/doc/binutils.texi
++++ b/binutils/doc/binutils.texi
+@@ -2866,9 +2866,10 @@ of the function being wrongly disassembled.
+ 
+ For V850, @option{-M g4} prints the system register operands of
+ @code{ldsr} and @code{stsr} with their RH850 G4 names, using both the
+-register number and the selection ID.  A register number and selection
+-ID pair without a name is printed as a number.  Without this option the
+-names are those of the older V850 cores.
++register number and the selection ID.  @option{-M g4mh2} does the same
++with the RH850 G4MH2 names.  A register number and selection ID pair
++without a name is printed as a number.  Without these options the names
++are those of the older V850 cores.
+ 
+ @item -p
+ @itemx --private-headers
+diff --git a/gas/config/tc-v850.c b/gas/config/tc-v850.c
+index 563c9fc27b4..93df021de9e 100644
+--- a/gas/config/tc-v850.c
++++ b/gas/config/tc-v850.c
+@@ -531,6 +531,12 @@ set_g4 (int ignore ATTRIBUTE_UNUSED)
+   processor_mask |= PROCESSOR_OPTION_G4;
+ }
+ 
++static void
++set_g4mh2 (int ignore ATTRIBUTE_UNUSED)
++{
++  processor_mask |= PROCESSOR_OPTION_G4 | PROCESSOR_OPTION_G4MH2;
++}
++
+ static void
+ v850_longcode (int type)
+ {
+@@ -590,6 +596,7 @@ const pseudo_typeS md_pseudo_table[] =
+   { "v850e2v4",		set_machine,		bfd_mach_v850e3v5 	},
+   { "v850e3v5",		set_machine,		bfd_mach_v850e3v5 	},
+   { "g4",		set_g4,		0			},
++  { "g4mh2",		set_g4mh2,	0			},
+   { "longcall",		v850_longcode,		1			},
+   { "longjump",		v850_longcode,		2			},
+   { NULL,		NULL,			0			}
+@@ -881,6 +888,145 @@ static const struct reg_name g4_system_registers[] =
+ #define G4_SYSREG_NAME_CNT					\
+   (sizeof (g4_system_registers) / sizeof (struct reg_name))
+ 
++/* This table is sorted.  Suitable for searching by a binary search.  */
++static const struct reg_name g4mh2_system_registers[] =
++{
++  { "bmid",         65, PROCESSOR_V850E3V5_UP },
++  { "brpctrl0",    392, PROCESSOR_V850E3V5_UP },
++  { "ctbp",         20, PROCESSOR_V850E3V5_UP },
++  { "ctpc",         16, PROCESSOR_V850E3V5_UP },
++  { "ctpsw",        17, PROCESSOR_V850E3V5_UP },
++  { "dbgen",        96, PROCESSOR_V850E3V5_UP },
++  { "ebase",        35, PROCESSOR_V850E3V5_UP },
++  { "eiic",         13, PROCESSOR_V850E3V5_UP },
++  { "eipc",          0, PROCESSOR_V850E3V5_UP },
++  { "eipsw",         1, PROCESSOR_V850E3V5_UP },
++  { "eipswh",       18, PROCESSOR_V850E3V5_UP },
++  { "eiwr",         28, PROCESSOR_V850E3V5_UP },
++  { "feic",         14, PROCESSOR_V850E3V5_UP },
++  { "fepc",          2, PROCESSOR_V850E3V5_UP },
++  { "fepsw",         3, PROCESSOR_V850E3V5_UP },
++  { "fepswh",       19, PROCESSOR_V850E3V5_UP },
++  { "fewr",         29, PROCESSOR_V850E3V5_UP },
++  { "fpcc",          9, PROCESSOR_V850E3V5_UP },
++  { "fpcfg",        10, PROCESSOR_V850E3V5_UP },
++  { "fpepc",         7, PROCESSOR_V850E3V5_UP },
++  { "fpsr",          6, PROCESSOR_V850E3V5_UP },
++  { "fpst",          8, PROCESSOR_V850E3V5_UP },
++  { "gmcfg",        49, PROCESSOR_V850E3V5_UP },
++  { "gmebase",     307, PROCESSOR_V850E3V5_UP },
++  { "gmeiic",      301, PROCESSOR_V850E3V5_UP },
++  { "gmeipc",      288, PROCESSOR_V850E3V5_UP },
++  { "gmeipsw",     289, PROCESSOR_V850E3V5_UP },
++  { "gmeiwr",      316, PROCESSOR_V850E3V5_UP },
++  { "gmfeic",      302, PROCESSOR_V850E3V5_UP },
++  { "gmfepc",      290, PROCESSOR_V850E3V5_UP },
++  { "gmfepsw",     291, PROCESSOR_V850E3V5_UP },
++  { "gmfewr",      317, PROCESSOR_V850E3V5_UP },
++  { "gmintbp",     308, PROCESSOR_V850E3V5_UP },
++  { "gmintcfg",    309, PROCESSOR_V850E3V5_UP },
++  { "gmmea",       294, PROCESSOR_V850E3V5_UP },
++  { "gmmei",       296, PROCESSOR_V850E3V5_UP },
++  { "gmmpm",       313, PROCESSOR_V850E3V5_UP },
++  { "gmpeid",      318, PROCESSOR_V850E3V5_UP },
++  { "gmplmr",      310, PROCESSOR_V850E3V5_UP },
++  { "gmpsw",       293, PROCESSOR_V850E3V5_UP },
++  { "gmspid",      304, PROCESSOR_V850E3V5_UP },
++  { "gmspidlist",  305, PROCESSOR_V850E3V5_UP },
++  { "gmsvlock",    312, PROCESSOR_V850E3V5_UP },
++  { "hvcfg",        48, PROCESSOR_V850E3V5_UP },
++  { "hvsb",         52, PROCESSOR_V850E3V5_UP },
++  { "iccfg",       154, PROCESSOR_V850E3V5_UP },
++  { "icctrl",      152, PROCESSOR_V850E3V5_UP },
++  { "icdath",      147, PROCESSOR_V850E3V5_UP },
++  { "icdatl",      146, PROCESSOR_V850E3V5_UP },
++  { "icerr",       156, PROCESSOR_V850E3V5_UP },
++  { "icsr",         76, PROCESSOR_V850E3V5_UP },
++  { "ictagh",      145, PROCESSOR_V850E3V5_UP },
++  { "ictagl",      144, PROCESSOR_V850E3V5_UP },
++  { "ifcr",        389, PROCESSOR_V850E3V5_UP },
++  { "imsr",         75, PROCESSOR_V850E3V5_UP },
++  { "intbp",        36, PROCESSOR_V850E3V5_UP },
++  { "intcfg",       77, PROCESSOR_V850E3V5_UP },
++  { "ispr",         74, PROCESSOR_V850E3V5_UP },
++  { "l1rcfg",      428, PROCESSOR_V850E3V5_UP },
++  { "lscfg",       386, PROCESSOR_V850E3V5_UP },
++  { "lstest0",     384, PROCESSOR_V850E3V5_UP },
++  { "lstest1",     385, PROCESSOR_V850E3V5_UP },
++  { "mca",         168, PROCESSOR_V850E3V5_UP },
++  { "mcc",         170, PROCESSOR_V850E3V5_UP },
++  { "mci",         172, PROCESSOR_V850E3V5_UP },
++  { "mcr",         171, PROCESSOR_V850E3V5_UP },
++  { "mcs",         169, PROCESSOR_V850E3V5_UP },
++  { "mctl",         37, PROCESSOR_V850E3V5_UP },
++  { "mea",          70, PROCESSOR_V850E3V5_UP },
++  { "mei",          72, PROCESSOR_V850E3V5_UP },
++  { "mpat",        182, PROCESSOR_V850E3V5_UP },
++  { "mpbk",        177, PROCESSOR_V850E3V5_UP },
++  { "mpcfg",       162, PROCESSOR_V850E3V5_UP },
++  { "mpid0",       184, PROCESSOR_V850E3V5_UP },
++  { "mpid1",       185, PROCESSOR_V850E3V5_UP },
++  { "mpid2",       186, PROCESSOR_V850E3V5_UP },
++  { "mpid3",       187, PROCESSOR_V850E3V5_UP },
++  { "mpid4",       188, PROCESSOR_V850E3V5_UP },
++  { "mpid5",       189, PROCESSOR_V850E3V5_UP },
++  { "mpid6",       190, PROCESSOR_V850E3V5_UP },
++  { "mpid7",       191, PROCESSOR_V850E3V5_UP },
++  { "mpidx",       176, PROCESSOR_V850E3V5_UP },
++  { "mpla",        180, PROCESSOR_V850E3V5_UP },
++  { "mpm",         160, PROCESSOR_V850E3V5_UP },
++  { "mpua",        181, PROCESSOR_V850E3V5_UP },
++  { "peid",         64, PROCESSOR_V850E3V5_UP },
++  { "pid",          38, PROCESSOR_V850E3V5_UP },
++  { "plmr",         78, PROCESSOR_V850E3V5_UP },
++  { "pmcount0",    464, PROCESSOR_V850E3V5_UP },
++  { "pmcount1",    465, PROCESSOR_V850E3V5_UP },
++  { "pmcount2",    466, PROCESSOR_V850E3V5_UP },
++  { "pmcount3",    467, PROCESSOR_V850E3V5_UP },
++  { "pmcount4",    468, PROCESSOR_V850E3V5_UP },
++  { "pmcount5",    469, PROCESSOR_V850E3V5_UP },
++  { "pmcount6",    470, PROCESSOR_V850E3V5_UP },
++  { "pmcount7",    471, PROCESSOR_V850E3V5_UP },
++  { "pmctrl0",     448, PROCESSOR_V850E3V5_UP },
++  { "pmctrl1",     449, PROCESSOR_V850E3V5_UP },
++  { "pmctrl2",     450, PROCESSOR_V850E3V5_UP },
++  { "pmctrl3",     451, PROCESSOR_V850E3V5_UP },
++  { "pmctrl4",     452, PROCESSOR_V850E3V5_UP },
++  { "pmctrl5",     453, PROCESSOR_V850E3V5_UP },
++  { "pmctrl6",     454, PROCESSOR_V850E3V5_UP },
++  { "pmctrl7",     455, PROCESSOR_V850E3V5_UP },
++  { "pmgmctrl",    361, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd0",   480, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd1",   481, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd2",   482, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd3",   483, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd4",   484, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd5",   485, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd6",   486, PROCESSOR_V850E3V5_UP },
++  { "pmsubcnd7",   487, PROCESSOR_V850E3V5_UP },
++  { "pmumctrl",    360, PROCESSOR_V850E3V5_UP },
++  { "psw",           5, PROCESSOR_V850E3V5_UP },
++  { "pswh",         15, PROCESSOR_V850E3V5_UP },
++  { "rbase",        34, PROCESSOR_V850E3V5_UP },
++  { "rbcr0",        79, PROCESSOR_V850E3V5_UP },
++  { "rbcr1",        80, PROCESSOR_V850E3V5_UP },
++  { "rbip",         82, PROCESSOR_V850E3V5_UP },
++  { "rbnr",         81, PROCESSOR_V850E3V5_UP },
++  { "rdbcr",       440, PROCESSOR_V850E3V5_UP },
++  { "scbp",         44, PROCESSOR_V850E3V5_UP },
++  { "sccfg",        43, PROCESSOR_V850E3V5_UP },
++  { "snzcfg",       21, PROCESSOR_V850E3V5_UP },
++  { "spid",         32, PROCESSOR_V850E3V5_UP },
++  { "spidlist",     33, PROCESSOR_V850E3V5_UP },
++  { "svlock",       40, PROCESSOR_V850E3V5_UP },
++  { "tscounth",    353, PROCESSOR_V850E3V5_UP },
++  { "tscountl",    352, PROCESSOR_V850E3V5_UP },
++  { "tsctrl",      354, PROCESSOR_V850E3V5_UP },
++};
++
++#define G4MH2_SYSREG_NAME_CNT					\
++  (sizeof (g4mh2_system_registers) / sizeof (struct reg_name))
++
+ 
+ static const struct reg_name cc_names[] =
+ {
+@@ -1150,7 +1296,10 @@ system_register_name (expressionS *expressionP,
+   start = input_line_pointer;
+   c = get_symbol_name (&name);
+   reg_number = -1;
+-  if (processor_mask & PROCESSOR_OPTION_G4)
++  if (processor_mask & PROCESSOR_OPTION_G4MH2)
++    reg_number = reg_name_search (g4mh2_system_registers,
++				  G4MH2_SYSREG_NAME_CNT, name, accept_numbers);
++  else if (processor_mask & PROCESSOR_OPTION_G4)
+     reg_number = reg_name_search (g4_system_registers, G4_SYSREG_NAME_CNT,
+ 				  name, accept_numbers);
+   if (reg_number < 0)
+@@ -1648,6 +1797,7 @@ md_show_usage (FILE *stream)
+   fprintf (stream, _("  --disp-size-default-32    branch displacement with unknown size is 32 bits\n"));
+   fprintf (stream, _("  -mextension               enable extension opcode support\n"));
+   fprintf (stream, _("  -mg4                      enable RH850 G4 opcode support\n"));
++  fprintf (stream, _("  -mg4mh2                   enable RH850 G4MH2 opcode support\n"));
+   fprintf (stream, _("  -mno-bcond17		  disable b<cond> disp17 instruction\n"));
+   fprintf (stream, _("  -mno-stld23		  disable st/ld offset23 instruction\n"));
+   fprintf (stream, _("  -mgcc-abi                 Mark the binary as using the old GCC ABI\n"));
+@@ -1725,6 +1875,10 @@ md_parse_option (int c, const char *arg)
+     {
+       processor_mask |= PROCESSOR_OPTION_G4;
+     }
++  else if (strcmp (arg, "g4mh2") == 0)
++    {
++      processor_mask |= PROCESSOR_OPTION_G4 | PROCESSOR_OPTION_G4MH2;
++    }
+   else if (strcmp (arg, "no-bcond17") == 0)
+     {
+       no_bcond17 = 1;
+@@ -2543,7 +2697,9 @@ md_assemble (char *str)
+ 
+ 	  if (   (strcmp (opcode->name, "pushsp") == 0
+ 	       || strcmp (opcode->name, "popsp") == 0
+-	       || strcmp (opcode->name, "dbpush") == 0)
++	       || strcmp (opcode->name, "dbpush") == 0
++	       || strcmp (opcode->name, "ldm.mp") == 0
++	       || strcmp (opcode->name, "stm.mp") == 0)
+ 	      && (*str == '-'))
+ 	    ++str;
+ 
+diff --git a/gas/doc/c-v850.texi b/gas/doc/c-v850.texi
+index e8b87d50b44..f64e8f45e71 100644
+--- a/gas/doc/c-v850.texi
++++ b/gas/doc/c-v850.texi
+@@ -100,6 +100,15 @@ a name such as @code{pid} or @code{rbnr} selects both the register
+ number and the selection ID, so @samp{stsr pid, r10} is
+ @samp{stsr 6, r10, 1}.  Use it together with @option{-mv850e3v5}.
+ 
++@cindex @code{-mg4mh2} command-line option, V850
++@item -mg4mh2
++Enables everything that @option{-mg4} enables and the RH850 G4MH2
++instructions @code{ldm.mp}, @code{stm.mp}, @code{ldm.gsr} and
++@code{stm.gsr}, and the G4MH2 system register names, including the
++virtualization and guest context registers.  The G4MH2 names replace
++the G4 names where the two differ, for example the performance counter
++registers.
++
+ @cindex @code{-mrelax} command-line option, V850
+ @item -mrelax
+ Enables relaxation.  This allows the .longcall and .longjump pseudo
+@@ -354,6 +363,11 @@ such code with code assembled for other processors.
+ Enables the RH850 G4 instructions and system register names from this
+ point on, as @option{-mg4} does.
+ 
++@cindex @code{.g4mh2} directive, V850
++@item .g4mh2
++Enables the RH850 G4MH2 instructions and system register names from
++this point on, as @option{-mg4mh2} does.
++
+ @end table
+ 
+ @node V850 Opcodes
+diff --git a/gas/testsuite/gas/v850/basic.exp b/gas/testsuite/gas/v850/basic.exp
+index bd5ba4251a3..a404f9f707d 100644
+--- a/gas/testsuite/gas/v850/basic.exp
++++ b/gas/testsuite/gas/v850/basic.exp
+@@ -458,4 +458,12 @@ if [istarget v850*-*-*] then {
+     run_dump_test "g4-sreg-num"
+     run_dump_test "g4-dir"
+     run_dump_test "g4-dir-bad"
++    run_dump_test "g4mh2"
++    run_dump_test "g4mh2-bad"
++    run_dump_test "g4mh2-sreg"
++    run_dump_test "g4mh2-sreg-dis"
++    run_dump_test "g4mh2-sreg-bad"
++    run_dump_test "g4mh2-gmfewr"
++    run_dump_test "g4mh2-dir"
++    run_dump_test "g4mh2-dir-bad"
+ }
+diff --git a/gas/testsuite/gas/v850/g4mh2-bad.d b/gas/testsuite/gas/v850/g4mh2-bad.d
+new file mode 100644
+index 00000000000..c12f9a1de24
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-bad.d
+@@ -0,0 +1,4 @@
++#source: g4mh2.s
++#as: -mv850e3v5 -mg4
++#name: v850 RH850 G4MH2 instructions need -mg4mh2
++#error_output: g4mh2-bad.l
+diff --git a/gas/testsuite/gas/v850/g4mh2-bad.l b/gas/testsuite/gas/v850/g4mh2-bad.l
+new file mode 100644
+index 00000000000..7a2a8f78fb5
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-bad.l
+@@ -0,0 +1,9 @@
++.*: Assembler messages:
++.*:3: Error: .*Target processor does not support this instruction\.
++.*:4: Error: .*Target processor does not support this instruction\.
++.*:5: Error: .*Target processor does not support this instruction\.
++.*:6: Error: .*Target processor does not support this instruction\.
++.*:7: Error: .*Target processor does not support this instruction\.
++.*:8: Error: .*Target processor does not support this instruction\.
++.*:9: Error: .*Target processor does not support this instruction\.
++.*:10: Error: .*Target processor does not support this instruction\.
+diff --git a/gas/testsuite/gas/v850/g4mh2-dir-bad.d b/gas/testsuite/gas/v850/g4mh2-dir-bad.d
+new file mode 100644
+index 00000000000..a549ed138a4
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-dir-bad.d
+@@ -0,0 +1,3 @@
++#as: -mv850e3v5 -mg4
++#name: v850 G4MH2 instructions before .g4mh2
++#error_output: g4mh2-dir-bad.l
+diff --git a/gas/testsuite/gas/v850/g4mh2-dir-bad.l b/gas/testsuite/gas/v850/g4mh2-dir-bad.l
+new file mode 100644
+index 00000000000..1f6161a6a83
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-dir-bad.l
+@@ -0,0 +1,2 @@
++.*: Assembler messages:
++.*:3: Error: .*Target processor does not support this instruction\.
+diff --git a/gas/testsuite/gas/v850/g4mh2-dir-bad.s b/gas/testsuite/gas/v850/g4mh2-dir-bad.s
+new file mode 100644
+index 00000000000..4bfaca6efa5
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-dir-bad.s
+@@ -0,0 +1,5 @@
++# G4MH2 instruction before .g4mh2
++	.text
++	ldm.mp	[r1], r2-r5
++	.g4mh2
++	ldm.mp	[r1], r2-r5
+diff --git a/gas/testsuite/gas/v850/g4mh2-dir.d b/gas/testsuite/gas/v850/g4mh2-dir.d
+new file mode 100644
+index 00000000000..1cbb1f5e91f
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-dir.d
+@@ -0,0 +1,10 @@
++#objdump: -d -M g4mh2 --prefix-addresses --show-raw-insn
++#name: v850 .g4mh2 directive
++#as: -mv850e3v5
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e1 17 66 29[ 	]+ldm\.mp[ 	]+\[r1\], r2-r5
++0x00000004 e0 57 40 70[ 	]+stsr[ 	]+pmctrl0, r10, 14
++0x00000008 e1 17 08 00[ 	]+clip\.b[ 	]+r1, r2
+diff --git a/gas/testsuite/gas/v850/g4mh2-dir.s b/gas/testsuite/gas/v850/g4mh2-dir.s
+new file mode 100644
+index 00000000000..89fcdf15abd
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-dir.s
+@@ -0,0 +1,6 @@
++# .g4mh2 directive
++	.text
++	.g4mh2
++	ldm.mp	[r1], r2-r5
++	stsr	pmctrl0, r10
++	clip.b	r1, r2
+diff --git a/gas/testsuite/gas/v850/g4mh2-gmfewr.d b/gas/testsuite/gas/v850/g4mh2-gmfewr.d
+new file mode 100644
+index 00000000000..2c3cb3ae751
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-gmfewr.d
+@@ -0,0 +1,9 @@
++#objdump: -d -M g4mh2 --prefix-addresses --show-raw-insn
++#name: v850 RH850 G4MH2 GMFEWR
++#as: -mv850e3v5 -mg4mh2
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 fd 0f 40 48[ 	]+stsr[ 	]+gmfewr, r1, 9
++0x00000004 e2 ef 20 48[ 	]+ldsr[ 	]+r2, gmfewr, 9
+diff --git a/gas/testsuite/gas/v850/g4mh2-gmfewr.s b/gas/testsuite/gas/v850/g4mh2-gmfewr.s
+new file mode 100644
+index 00000000000..78b41c4bcfc
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-gmfewr.s
+@@ -0,0 +1,4 @@
++# RH850 G4MH2 GMFEWR
++	.text
++	stsr	gmfewr, r1
++	ldsr	r2, gmfewr
+diff --git a/gas/testsuite/gas/v850/g4mh2-sreg-bad.d b/gas/testsuite/gas/v850/g4mh2-sreg-bad.d
+new file mode 100644
+index 00000000000..9a47ddc13c2
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-sreg-bad.d
+@@ -0,0 +1,3 @@
++#as: -mv850e3v5 -mg4
++#name: v850 RH850 G4MH2 system register names need -mg4mh2
++#error_output: g4mh2-sreg-bad.l
+diff --git a/gas/testsuite/gas/v850/g4mh2-sreg-bad.l b/gas/testsuite/gas/v850/g4mh2-sreg-bad.l
+new file mode 100644
+index 00000000000..35cca5f5f55
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-sreg-bad.l
+@@ -0,0 +1,6 @@
++.*: Assembler messages:
++.*:3: Error: .*invalid system register name
++.*:4: Error: .*invalid system register name
++.*:5: Error: .*invalid system register name
++.*:6: Error: .*invalid system register name
++.*:7: Error: .*invalid system register name
+diff --git a/gas/testsuite/gas/v850/g4mh2-sreg-bad.s b/gas/testsuite/gas/v850/g4mh2-sreg-bad.s
+new file mode 100644
+index 00000000000..e090fc3ca76
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-sreg-bad.s
+@@ -0,0 +1,7 @@
++# RH850 G4MH2 system register names without -mg4mh2
++	.text
++	stsr	hvcfg, r1
++	stsr	gmpsw, r1
++	stsr	pmsubcnd0, r1
++	stsr	imsr, r1
++	stsr	dbgen, r1
+diff --git a/gas/testsuite/gas/v850/g4mh2-sreg-dis.d b/gas/testsuite/gas/v850/g4mh2-sreg-dis.d
+new file mode 100644
+index 00000000000..4b954518a22
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-sreg-dis.d
+@@ -0,0 +1,138 @@
++#objdump: -d -M g4mh2 --prefix-addresses --show-raw-insn
++#name: v850 RH850 G4MH2 system register names in objdump
++#source: g4mh2-sreg.s
++#as: -mv850e3v5 -mg4mh2
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 [0-9a-f ]+[ 	]+stsr[ 	]+bmid, r1, 2
++0x00000004 [0-9a-f ]+[ 	]+stsr[ 	]+brpctrl0, r1, 12
++0x00000008 [0-9a-f ]+[ 	]+stsr[ 	]+ctbp, r1, 0
++0x0000000c [0-9a-f ]+[ 	]+stsr[ 	]+ctpc, r1, 0
++0x00000010 [0-9a-f ]+[ 	]+stsr[ 	]+ctpsw, r1, 0
++0x00000014 [0-9a-f ]+[ 	]+stsr[ 	]+dbgen, r1, 3
++0x00000018 [0-9a-f ]+[ 	]+stsr[ 	]+ebase, r1, 1
++0x0000001c [0-9a-f ]+[ 	]+stsr[ 	]+eiic, r1, 0
++0x00000020 [0-9a-f ]+[ 	]+stsr[ 	]+eipc, r1, 0
++0x00000024 [0-9a-f ]+[ 	]+stsr[ 	]+eipsw, r1, 0
++0x00000028 [0-9a-f ]+[ 	]+stsr[ 	]+eipswh, r1, 0
++0x0000002c [0-9a-f ]+[ 	]+stsr[ 	]+eiwr, r1, 0
++0x00000030 [0-9a-f ]+[ 	]+stsr[ 	]+feic, r1, 0
++0x00000034 [0-9a-f ]+[ 	]+stsr[ 	]+fepc, r1, 0
++0x00000038 [0-9a-f ]+[ 	]+stsr[ 	]+fepsw, r1, 0
++0x0000003c [0-9a-f ]+[ 	]+stsr[ 	]+fepswh, r1, 0
++0x00000040 [0-9a-f ]+[ 	]+stsr[ 	]+fewr, r1, 0
++0x00000044 [0-9a-f ]+[ 	]+stsr[ 	]+fpcc, r1, 0
++0x00000048 [0-9a-f ]+[ 	]+stsr[ 	]+fpcfg, r1, 0
++0x0000004c [0-9a-f ]+[ 	]+stsr[ 	]+fpepc, r1, 0
++0x00000050 [0-9a-f ]+[ 	]+stsr[ 	]+fpsr, r1, 0
++0x00000054 [0-9a-f ]+[ 	]+stsr[ 	]+fpst, r1, 0
++0x00000058 [0-9a-f ]+[ 	]+stsr[ 	]+gmcfg, r1, 1
++0x0000005c [0-9a-f ]+[ 	]+stsr[ 	]+gmebase, r1, 9
++0x00000060 [0-9a-f ]+[ 	]+stsr[ 	]+gmeiic, r1, 9
++0x00000064 [0-9a-f ]+[ 	]+stsr[ 	]+gmeipc, r1, 9
++0x00000068 [0-9a-f ]+[ 	]+stsr[ 	]+gmeipsw, r1, 9
++0x0000006c [0-9a-f ]+[ 	]+stsr[ 	]+gmeiwr, r1, 9
++0x00000070 [0-9a-f ]+[ 	]+stsr[ 	]+gmfeic, r1, 9
++0x00000074 [0-9a-f ]+[ 	]+stsr[ 	]+gmfepc, r1, 9
++0x00000078 [0-9a-f ]+[ 	]+stsr[ 	]+gmfepsw, r1, 9
++0x0000007c [0-9a-f ]+[ 	]+stsr[ 	]+gmintbp, r1, 9
++0x00000080 [0-9a-f ]+[ 	]+stsr[ 	]+gmintcfg, r1, 9
++0x00000084 [0-9a-f ]+[ 	]+stsr[ 	]+gmmea, r1, 9
++0x00000088 [0-9a-f ]+[ 	]+stsr[ 	]+gmmei, r1, 9
++0x0000008c [0-9a-f ]+[ 	]+stsr[ 	]+gmmpm, r1, 9
++0x00000090 [0-9a-f ]+[ 	]+stsr[ 	]+gmpeid, r1, 9
++0x00000094 [0-9a-f ]+[ 	]+stsr[ 	]+gmplmr, r1, 9
++0x00000098 [0-9a-f ]+[ 	]+stsr[ 	]+gmpsw, r1, 9
++0x0000009c [0-9a-f ]+[ 	]+stsr[ 	]+gmspid, r1, 9
++0x000000a0 [0-9a-f ]+[ 	]+stsr[ 	]+gmspidlist, r1, 9
++0x000000a4 [0-9a-f ]+[ 	]+stsr[ 	]+gmsvlock, r1, 9
++0x000000a8 [0-9a-f ]+[ 	]+stsr[ 	]+hvcfg, r1, 1
++0x000000ac [0-9a-f ]+[ 	]+stsr[ 	]+hvsb, r1, 1
++0x000000b0 [0-9a-f ]+[ 	]+stsr[ 	]+iccfg, r1, 4
++0x000000b4 [0-9a-f ]+[ 	]+stsr[ 	]+icctrl, r1, 4
++0x000000b8 [0-9a-f ]+[ 	]+stsr[ 	]+icdath, r1, 4
++0x000000bc [0-9a-f ]+[ 	]+stsr[ 	]+icdatl, r1, 4
++0x000000c0 [0-9a-f ]+[ 	]+stsr[ 	]+icerr, r1, 4
++0x000000c4 [0-9a-f ]+[ 	]+stsr[ 	]+icsr, r1, 2
++0x000000c8 [0-9a-f ]+[ 	]+stsr[ 	]+ictagh, r1, 4
++0x000000cc [0-9a-f ]+[ 	]+stsr[ 	]+ictagl, r1, 4
++0x000000d0 [0-9a-f ]+[ 	]+stsr[ 	]+ifcr, r1, 12
++0x000000d4 [0-9a-f ]+[ 	]+stsr[ 	]+imsr, r1, 2
++0x000000d8 [0-9a-f ]+[ 	]+stsr[ 	]+intbp, r1, 1
++0x000000dc [0-9a-f ]+[ 	]+stsr[ 	]+intcfg, r1, 2
++0x000000e0 [0-9a-f ]+[ 	]+stsr[ 	]+ispr, r1, 2
++0x000000e4 [0-9a-f ]+[ 	]+stsr[ 	]+l1rcfg, r1, 13
++0x000000e8 [0-9a-f ]+[ 	]+stsr[ 	]+lscfg, r1, 12
++0x000000ec [0-9a-f ]+[ 	]+stsr[ 	]+lstest0, r1, 12
++0x000000f0 [0-9a-f ]+[ 	]+stsr[ 	]+lstest1, r1, 12
++0x000000f4 [0-9a-f ]+[ 	]+stsr[ 	]+mca, r1, 5
++0x000000f8 [0-9a-f ]+[ 	]+stsr[ 	]+mcc, r1, 5
++0x000000fc [0-9a-f ]+[ 	]+stsr[ 	]+mci, r1, 5
++0x00000100 [0-9a-f ]+[ 	]+stsr[ 	]+mcr, r1, 5
++0x00000104 [0-9a-f ]+[ 	]+stsr[ 	]+mcs, r1, 5
++0x00000108 [0-9a-f ]+[ 	]+stsr[ 	]+mctl, r1, 1
++0x0000010c [0-9a-f ]+[ 	]+stsr[ 	]+mea, r1, 2
++0x00000110 [0-9a-f ]+[ 	]+stsr[ 	]+mei, r1, 2
++0x00000114 [0-9a-f ]+[ 	]+stsr[ 	]+mpat, r1, 5
++0x00000118 [0-9a-f ]+[ 	]+stsr[ 	]+mpbk, r1, 5
++0x0000011c [0-9a-f ]+[ 	]+stsr[ 	]+mpcfg, r1, 5
++0x00000120 [0-9a-f ]+[ 	]+stsr[ 	]+mpid0, r1, 5
++0x00000124 [0-9a-f ]+[ 	]+stsr[ 	]+mpid1, r1, 5
++0x00000128 [0-9a-f ]+[ 	]+stsr[ 	]+mpid2, r1, 5
++0x0000012c [0-9a-f ]+[ 	]+stsr[ 	]+mpid3, r1, 5
++0x00000130 [0-9a-f ]+[ 	]+stsr[ 	]+mpid4, r1, 5
++0x00000134 [0-9a-f ]+[ 	]+stsr[ 	]+mpid5, r1, 5
++0x00000138 [0-9a-f ]+[ 	]+stsr[ 	]+mpid6, r1, 5
++0x0000013c [0-9a-f ]+[ 	]+stsr[ 	]+mpid7, r1, 5
++0x00000140 [0-9a-f ]+[ 	]+stsr[ 	]+mpidx, r1, 5
++0x00000144 [0-9a-f ]+[ 	]+stsr[ 	]+mpla, r1, 5
++0x00000148 [0-9a-f ]+[ 	]+stsr[ 	]+mpm, r1, 5
++0x0000014c [0-9a-f ]+[ 	]+stsr[ 	]+mpua, r1, 5
++0x00000150 [0-9a-f ]+[ 	]+stsr[ 	]+peid, r1, 2
++0x00000154 [0-9a-f ]+[ 	]+stsr[ 	]+pid, r1, 1
++0x00000158 [0-9a-f ]+[ 	]+stsr[ 	]+plmr, r1, 2
++0x0000015c [0-9a-f ]+[ 	]+stsr[ 	]+pmcount0, r1, 14
++0x00000160 [0-9a-f ]+[ 	]+stsr[ 	]+pmcount1, r1, 14
++0x00000164 [0-9a-f ]+[ 	]+stsr[ 	]+pmcount2, r1, 14
++0x00000168 [0-9a-f ]+[ 	]+stsr[ 	]+pmcount3, r1, 14
++0x0000016c [0-9a-f ]+[ 	]+stsr[ 	]+pmcount4, r1, 14
++0x00000170 [0-9a-f ]+[ 	]+stsr[ 	]+pmcount5, r1, 14
++0x00000174 [0-9a-f ]+[ 	]+stsr[ 	]+pmcount6, r1, 14
++0x00000178 [0-9a-f ]+[ 	]+stsr[ 	]+pmcount7, r1, 14
++0x0000017c [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl0, r1, 14
++0x00000180 [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl1, r1, 14
++0x00000184 [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl2, r1, 14
++0x00000188 [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl3, r1, 14
++0x0000018c [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl4, r1, 14
++0x00000190 [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl5, r1, 14
++0x00000194 [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl6, r1, 14
++0x00000198 [0-9a-f ]+[ 	]+stsr[ 	]+pmctrl7, r1, 14
++0x0000019c [0-9a-f ]+[ 	]+stsr[ 	]+pmgmctrl, r1, 11
++0x000001a0 [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd0, r1, 15
++0x000001a4 [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd1, r1, 15
++0x000001a8 [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd2, r1, 15
++0x000001ac [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd3, r1, 15
++0x000001b0 [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd4, r1, 15
++0x000001b4 [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd5, r1, 15
++0x000001b8 [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd6, r1, 15
++0x000001bc [0-9a-f ]+[ 	]+stsr[ 	]+pmsubcnd7, r1, 15
++0x000001c0 [0-9a-f ]+[ 	]+stsr[ 	]+pmumctrl, r1, 11
++0x000001c4 [0-9a-f ]+[ 	]+stsr[ 	]+psw, r1, 0
++0x000001c8 [0-9a-f ]+[ 	]+stsr[ 	]+pswh, r1, 0
++0x000001cc [0-9a-f ]+[ 	]+stsr[ 	]+rbase, r1, 1
++0x000001d0 [0-9a-f ]+[ 	]+stsr[ 	]+rbcr0, r1, 2
++0x000001d4 [0-9a-f ]+[ 	]+stsr[ 	]+rbcr1, r1, 2
++0x000001d8 [0-9a-f ]+[ 	]+stsr[ 	]+rbip, r1, 2
++0x000001dc [0-9a-f ]+[ 	]+stsr[ 	]+rbnr, r1, 2
++0x000001e0 [0-9a-f ]+[ 	]+stsr[ 	]+rdbcr, r1, 13
++0x000001e4 [0-9a-f ]+[ 	]+stsr[ 	]+scbp, r1, 1
++0x000001e8 [0-9a-f ]+[ 	]+stsr[ 	]+sccfg, r1, 1
++0x000001ec [0-9a-f ]+[ 	]+stsr[ 	]+snzcfg, r1, 0
++0x000001f0 [0-9a-f ]+[ 	]+stsr[ 	]+spid, r1, 1
++0x000001f4 [0-9a-f ]+[ 	]+stsr[ 	]+spidlist, r1, 1
++0x000001f8 [0-9a-f ]+[ 	]+stsr[ 	]+svlock, r1, 1
++0x000001fc [0-9a-f ]+[ 	]+stsr[ 	]+tscounth, r1, 11
++0x00000200 [0-9a-f ]+[ 	]+stsr[ 	]+tscountl, r1, 11
++0x00000204 [0-9a-f ]+[ 	]+stsr[ 	]+tsctrl, r1, 11
+diff --git a/gas/testsuite/gas/v850/g4mh2-sreg.d b/gas/testsuite/gas/v850/g4mh2-sreg.d
+new file mode 100644
+index 00000000000..92714c8e4c2
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-sreg.d
+@@ -0,0 +1,137 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 G4MH2 system register names
++#as: -mv850e3v5 -mg4mh2
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e1 0f 40 10[ 	]+stsr[ 	]+.*
++0x00000004 e8 0f 40 60[ 	]+stsr[ 	]+.*
++0x00000008 f4 0f 40 00[ 	]+stsr[ 	]+.*
++0x0000000c f0 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000010 f1 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000014 e0 0f 40 18[ 	]+stsr[ 	]+.*
++0x00000018 e3 0f 40 08[ 	]+stsr[ 	]+.*
++0x0000001c ed 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000020 e0 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000024 e1 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000028 f2 0f 40 00[ 	]+stsr[ 	]+.*
++0x0000002c fc 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000030 ee 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000034 e2 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000038 e3 0f 40 00[ 	]+stsr[ 	]+.*
++0x0000003c f3 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000040 fd 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000044 e9 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000048 ea 0f 40 00[ 	]+stsr[ 	]+.*
++0x0000004c e7 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000050 e6 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000054 e8 0f 40 00[ 	]+stsr[ 	]+.*
++0x00000058 f1 0f 40 08[ 	]+stsr[ 	]+.*
++0x0000005c f3 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000060 ed 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000064 e0 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000068 e1 0f 40 48[ 	]+stsr[ 	]+.*
++0x0000006c fc 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000070 ee 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000074 e2 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000078 e3 0f 40 48[ 	]+stsr[ 	]+.*
++0x0000007c f4 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000080 f5 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000084 e6 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000088 e8 0f 40 48[ 	]+stsr[ 	]+.*
++0x0000008c f9 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000090 fe 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000094 f6 0f 40 48[ 	]+stsr[ 	]+.*
++0x00000098 e5 0f 40 48[ 	]+stsr[ 	]+.*
++0x0000009c f0 0f 40 48[ 	]+stsr[ 	]+.*
++0x000000a0 f1 0f 40 48[ 	]+stsr[ 	]+.*
++0x000000a4 f8 0f 40 48[ 	]+stsr[ 	]+.*
++0x000000a8 f0 0f 40 08[ 	]+stsr[ 	]+.*
++0x000000ac f4 0f 40 08[ 	]+stsr[ 	]+.*
++0x000000b0 fa 0f 40 20[ 	]+stsr[ 	]+.*
++0x000000b4 f8 0f 40 20[ 	]+stsr[ 	]+.*
++0x000000b8 f3 0f 40 20[ 	]+stsr[ 	]+.*
++0x000000bc f2 0f 40 20[ 	]+stsr[ 	]+.*
++0x000000c0 fc 0f 40 20[ 	]+stsr[ 	]+.*
++0x000000c4 ec 0f 40 10[ 	]+stsr[ 	]+.*
++0x000000c8 f1 0f 40 20[ 	]+stsr[ 	]+.*
++0x000000cc f0 0f 40 20[ 	]+stsr[ 	]+.*
++0x000000d0 e5 0f 40 60[ 	]+stsr[ 	]+.*
++0x000000d4 eb 0f 40 10[ 	]+stsr[ 	]+.*
++0x000000d8 e4 0f 40 08[ 	]+stsr[ 	]+.*
++0x000000dc ed 0f 40 10[ 	]+stsr[ 	]+.*
++0x000000e0 ea 0f 40 10[ 	]+stsr[ 	]+.*
++0x000000e4 ec 0f 40 68[ 	]+stsr[ 	]+.*
++0x000000e8 e2 0f 40 60[ 	]+stsr[ 	]+.*
++0x000000ec e0 0f 40 60[ 	]+stsr[ 	]+.*
++0x000000f0 e1 0f 40 60[ 	]+stsr[ 	]+.*
++0x000000f4 e8 0f 40 28[ 	]+stsr[ 	]+.*
++0x000000f8 ea 0f 40 28[ 	]+stsr[ 	]+.*
++0x000000fc ec 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000100 eb 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000104 e9 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000108 e5 0f 40 08[ 	]+stsr[ 	]+.*
++0x0000010c e6 0f 40 10[ 	]+stsr[ 	]+.*
++0x00000110 e8 0f 40 10[ 	]+stsr[ 	]+.*
++0x00000114 f6 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000118 f1 0f 40 28[ 	]+stsr[ 	]+.*
++0x0000011c e2 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000120 f8 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000124 f9 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000128 fa 0f 40 28[ 	]+stsr[ 	]+.*
++0x0000012c fb 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000130 fc 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000134 fd 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000138 fe 0f 40 28[ 	]+stsr[ 	]+.*
++0x0000013c ff 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000140 f0 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000144 f4 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000148 e0 0f 40 28[ 	]+stsr[ 	]+.*
++0x0000014c f5 0f 40 28[ 	]+stsr[ 	]+.*
++0x00000150 e0 0f 40 10[ 	]+stsr[ 	]+.*
++0x00000154 e6 0f 40 08[ 	]+stsr[ 	]+.*
++0x00000158 ee 0f 40 10[ 	]+stsr[ 	]+.*
++0x0000015c f0 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000160 f1 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000164 f2 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000168 f3 0f 40 70[ 	]+stsr[ 	]+.*
++0x0000016c f4 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000170 f5 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000174 f6 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000178 f7 0f 40 70[ 	]+stsr[ 	]+.*
++0x0000017c e0 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000180 e1 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000184 e2 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000188 e3 0f 40 70[ 	]+stsr[ 	]+.*
++0x0000018c e4 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000190 e5 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000194 e6 0f 40 70[ 	]+stsr[ 	]+.*
++0x00000198 e7 0f 40 70[ 	]+stsr[ 	]+.*
++0x0000019c e9 0f 40 58[ 	]+stsr[ 	]+.*
++0x000001a0 e0 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001a4 e1 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001a8 e2 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001ac e3 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001b0 e4 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001b4 e5 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001b8 e6 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001bc e7 0f 40 78[ 	]+stsr[ 	]+.*
++0x000001c0 e8 0f 40 58[ 	]+stsr[ 	]+.*
++0x000001c4 e5 0f 40 00[ 	]+stsr[ 	]+.*
++0x000001c8 ef 0f 40 00[ 	]+stsr[ 	]+.*
++0x000001cc e2 0f 40 08[ 	]+stsr[ 	]+.*
++0x000001d0 ef 0f 40 10[ 	]+stsr[ 	]+.*
++0x000001d4 f0 0f 40 10[ 	]+stsr[ 	]+.*
++0x000001d8 f2 0f 40 10[ 	]+stsr[ 	]+.*
++0x000001dc f1 0f 40 10[ 	]+stsr[ 	]+.*
++0x000001e0 f8 0f 40 68[ 	]+stsr[ 	]+.*
++0x000001e4 ec 0f 40 08[ 	]+stsr[ 	]+.*
++0x000001e8 eb 0f 40 08[ 	]+stsr[ 	]+.*
++0x000001ec f5 0f 40 00[ 	]+stsr[ 	]+.*
++0x000001f0 e0 0f 40 08[ 	]+stsr[ 	]+.*
++0x000001f4 e1 0f 40 08[ 	]+stsr[ 	]+.*
++0x000001f8 e8 0f 40 08[ 	]+stsr[ 	]+.*
++0x000001fc e1 0f 40 58[ 	]+stsr[ 	]+.*
++0x00000200 e0 0f 40 58[ 	]+stsr[ 	]+.*
++0x00000204 e2 0f 40 58[ 	]+stsr[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/g4mh2-sreg.s b/gas/testsuite/gas/v850/g4mh2-sreg.s
+new file mode 100644
+index 00000000000..7b9fc2c7e8a
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2-sreg.s
+@@ -0,0 +1,132 @@
++# RH850 G4MH2 system register names
++	.text
++	stsr	bmid, r1
++	stsr	brpctrl0, r1
++	stsr	ctbp, r1
++	stsr	ctpc, r1
++	stsr	ctpsw, r1
++	stsr	dbgen, r1
++	stsr	ebase, r1
++	stsr	eiic, r1
++	stsr	eipc, r1
++	stsr	eipsw, r1
++	stsr	eipswh, r1
++	stsr	eiwr, r1
++	stsr	feic, r1
++	stsr	fepc, r1
++	stsr	fepsw, r1
++	stsr	fepswh, r1
++	stsr	fewr, r1
++	stsr	fpcc, r1
++	stsr	fpcfg, r1
++	stsr	fpepc, r1
++	stsr	fpsr, r1
++	stsr	fpst, r1
++	stsr	gmcfg, r1
++	stsr	gmebase, r1
++	stsr	gmeiic, r1
++	stsr	gmeipc, r1
++	stsr	gmeipsw, r1
++	stsr	gmeiwr, r1
++	stsr	gmfeic, r1
++	stsr	gmfepc, r1
++	stsr	gmfepsw, r1
++	stsr	gmintbp, r1
++	stsr	gmintcfg, r1
++	stsr	gmmea, r1
++	stsr	gmmei, r1
++	stsr	gmmpm, r1
++	stsr	gmpeid, r1
++	stsr	gmplmr, r1
++	stsr	gmpsw, r1
++	stsr	gmspid, r1
++	stsr	gmspidlist, r1
++	stsr	gmsvlock, r1
++	stsr	hvcfg, r1
++	stsr	hvsb, r1
++	stsr	iccfg, r1
++	stsr	icctrl, r1
++	stsr	icdath, r1
++	stsr	icdatl, r1
++	stsr	icerr, r1
++	stsr	icsr, r1
++	stsr	ictagh, r1
++	stsr	ictagl, r1
++	stsr	ifcr, r1
++	stsr	imsr, r1
++	stsr	intbp, r1
++	stsr	intcfg, r1
++	stsr	ispr, r1
++	stsr	l1rcfg, r1
++	stsr	lscfg, r1
++	stsr	lstest0, r1
++	stsr	lstest1, r1
++	stsr	mca, r1
++	stsr	mcc, r1
++	stsr	mci, r1
++	stsr	mcr, r1
++	stsr	mcs, r1
++	stsr	mctl, r1
++	stsr	mea, r1
++	stsr	mei, r1
++	stsr	mpat, r1
++	stsr	mpbk, r1
++	stsr	mpcfg, r1
++	stsr	mpid0, r1
++	stsr	mpid1, r1
++	stsr	mpid2, r1
++	stsr	mpid3, r1
++	stsr	mpid4, r1
++	stsr	mpid5, r1
++	stsr	mpid6, r1
++	stsr	mpid7, r1
++	stsr	mpidx, r1
++	stsr	mpla, r1
++	stsr	mpm, r1
++	stsr	mpua, r1
++	stsr	peid, r1
++	stsr	pid, r1
++	stsr	plmr, r1
++	stsr	pmcount0, r1
++	stsr	pmcount1, r1
++	stsr	pmcount2, r1
++	stsr	pmcount3, r1
++	stsr	pmcount4, r1
++	stsr	pmcount5, r1
++	stsr	pmcount6, r1
++	stsr	pmcount7, r1
++	stsr	pmctrl0, r1
++	stsr	pmctrl1, r1
++	stsr	pmctrl2, r1
++	stsr	pmctrl3, r1
++	stsr	pmctrl4, r1
++	stsr	pmctrl5, r1
++	stsr	pmctrl6, r1
++	stsr	pmctrl7, r1
++	stsr	pmgmctrl, r1
++	stsr	pmsubcnd0, r1
++	stsr	pmsubcnd1, r1
++	stsr	pmsubcnd2, r1
++	stsr	pmsubcnd3, r1
++	stsr	pmsubcnd4, r1
++	stsr	pmsubcnd5, r1
++	stsr	pmsubcnd6, r1
++	stsr	pmsubcnd7, r1
++	stsr	pmumctrl, r1
++	stsr	psw, r1
++	stsr	pswh, r1
++	stsr	rbase, r1
++	stsr	rbcr0, r1
++	stsr	rbcr1, r1
++	stsr	rbip, r1
++	stsr	rbnr, r1
++	stsr	rdbcr, r1
++	stsr	scbp, r1
++	stsr	sccfg, r1
++	stsr	snzcfg, r1
++	stsr	spid, r1
++	stsr	spidlist, r1
++	stsr	svlock, r1
++	stsr	tscounth, r1
++	stsr	tscountl, r1
++	stsr	tsctrl, r1
+diff --git a/gas/testsuite/gas/v850/g4mh2.d b/gas/testsuite/gas/v850/g4mh2.d
+new file mode 100644
+index 00000000000..d2313f16839
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2.d
+@@ -0,0 +1,15 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 G4MH2 instructions
++#as: -mv850e3v5 -mg4mh2
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e1 17 66 29[ 	]+ldm\.mp[ 	]+\[r1\], r2-r5
++0x00000004 f4 07 66 f9[ 	]+ldm\.mp[ 	]+\[r20\], r0-lp
++0x00000008 e1 17 64 29[ 	]+stm\.mp[ 	]+r2-r5, \[r1\]
++0x0000000c f4 07 64 f9[ 	]+stm\.mp[ 	]+r0-lp, \[r20\]
++0x00000010 e7 07 60 99[ 	]+ldm\.gsr[ 	]+\[r7\]
++0x00000014 ff 07 60 99[ 	]+ldm\.gsr[ 	]+\[lp\]
++0x00000018 e7 07 60 91[ 	]+stm\.gsr[ 	]+\[r7\]
++0x0000001c ff 07 60 91[ 	]+stm\.gsr[ 	]+\[lp\]
+diff --git a/gas/testsuite/gas/v850/g4mh2.s b/gas/testsuite/gas/v850/g4mh2.s
+new file mode 100644
+index 00000000000..9394902df75
+--- /dev/null
++++ b/gas/testsuite/gas/v850/g4mh2.s
+@@ -0,0 +1,10 @@
++# RH850 G4MH2 instructions
++	.text
++	ldm.mp	[r1], r2-r5
++	ldm.mp	[r20], r0-r31
++	stm.mp	r2-r5, [r1]
++	stm.mp	r0-r31, [r20]
++	ldm.gsr	[r7]
++	ldm.gsr	[r31]
++	stm.gsr	[r7]
++	stm.gsr	[r31]
+diff --git a/include/opcode/v850.h b/include/opcode/v850.h
+index f26f0b3b8dc..05840b883ff 100644
+--- a/include/opcode/v850.h
++++ b/include/opcode/v850.h
+@@ -70,6 +70,7 @@ struct v850_opcode
+ #define opt_EXTENSION  (arch_separator)
+ #define opt_ALIAS      (opt_EXTENSION + 1)
+ #define opt_G4         (opt_ALIAS + 1)
++#define opt_G4MH2      (opt_G4 + 1)
+ 
+ /* Values for the processors field in the v850_opcode structure.  */
+ #define PROCESSOR_V850       (1 << (arch_V850))     /* Just the V850.  */
+@@ -95,6 +96,7 @@ struct v850_opcode
+ #define PROCESSOR_OPTION_EXTENSION (1 << (opt_EXTENSION))                  /* Enable extension opcodes.  */
+ #define PROCESSOR_OPTION_ALIAS     (1 << (opt_ALIAS))                      /* Enable alias opcodes.  */
+ #define PROCESSOR_OPTION_G4        (1 << (opt_G4))                         /* Enable RH850 G4 opcodes.  */
++#define PROCESSOR_OPTION_G4MH2     (1 << (opt_G4MH2))                      /* Enable RH850 G4MH2 opcodes.  */
+ 
+ #define SET_PROCESSOR_MASK(mask,set)	((mask) = ((mask) & ~PROCESSOR_MASK) | (set))
+ 
+diff --git a/opcodes/v850-dis.c b/opcodes/v850-dis.c
+index a66a17c355c..2e8558cfe6c 100644
+--- a/opcodes/v850-dis.c
++++ b/opcodes/v850-dis.c
+@@ -272,6 +272,157 @@ get_v850_g4_sreg_name (unsigned int reg)
+   return NULL;
+ }
+ 
++static bool v850_g4mh2_sregs;
++
++static const char *
++get_v850_g4mh2_sreg_name (unsigned int reg)
++{
++  static const struct
++  {
++    unsigned int value;
++    const char *name;
++  } v850_g4mh2_sreg_names[] =
++  {
++    {   0, "eipc" },
++    {   1, "eipsw" },
++    {   2, "fepc" },
++    {   3, "fepsw" },
++    {   5, "psw" },
++    {   6, "fpsr" },
++    {   7, "fpepc" },
++    {   8, "fpst" },
++    {   9, "fpcc" },
++    {  10, "fpcfg" },
++    {  13, "eiic" },
++    {  14, "feic" },
++    {  15, "pswh" },
++    {  16, "ctpc" },
++    {  17, "ctpsw" },
++    {  18, "eipswh" },
++    {  19, "fepswh" },
++    {  20, "ctbp" },
++    {  21, "snzcfg" },
++    {  28, "eiwr" },
++    {  29, "fewr" },
++    {  32, "spid" },
++    {  33, "spidlist" },
++    {  34, "rbase" },
++    {  35, "ebase" },
++    {  36, "intbp" },
++    {  37, "mctl" },
++    {  38, "pid" },
++    {  40, "svlock" },
++    {  43, "sccfg" },
++    {  44, "scbp" },
++    {  48, "hvcfg" },
++    {  49, "gmcfg" },
++    {  52, "hvsb" },
++    {  64, "peid" },
++    {  65, "bmid" },
++    {  70, "mea" },
++    {  72, "mei" },
++    {  74, "ispr" },
++    {  75, "imsr" },
++    {  76, "icsr" },
++    {  77, "intcfg" },
++    {  78, "plmr" },
++    {  79, "rbcr0" },
++    {  80, "rbcr1" },
++    {  81, "rbnr" },
++    {  82, "rbip" },
++    {  96, "dbgen" },
++    { 144, "ictagl" },
++    { 145, "ictagh" },
++    { 146, "icdatl" },
++    { 147, "icdath" },
++    { 152, "icctrl" },
++    { 154, "iccfg" },
++    { 156, "icerr" },
++    { 160, "mpm" },
++    { 162, "mpcfg" },
++    { 168, "mca" },
++    { 169, "mcs" },
++    { 170, "mcc" },
++    { 171, "mcr" },
++    { 172, "mci" },
++    { 176, "mpidx" },
++    { 177, "mpbk" },
++    { 180, "mpla" },
++    { 181, "mpua" },
++    { 182, "mpat" },
++    { 184, "mpid0" },
++    { 185, "mpid1" },
++    { 186, "mpid2" },
++    { 187, "mpid3" },
++    { 188, "mpid4" },
++    { 189, "mpid5" },
++    { 190, "mpid6" },
++    { 191, "mpid7" },
++    { 288, "gmeipc" },
++    { 289, "gmeipsw" },
++    { 290, "gmfepc" },
++    { 291, "gmfepsw" },
++    { 293, "gmpsw" },
++    { 294, "gmmea" },
++    { 296, "gmmei" },
++    { 301, "gmeiic" },
++    { 302, "gmfeic" },
++    { 304, "gmspid" },
++    { 305, "gmspidlist" },
++    { 307, "gmebase" },
++    { 308, "gmintbp" },
++    { 309, "gmintcfg" },
++    { 310, "gmplmr" },
++    { 312, "gmsvlock" },
++    { 313, "gmmpm" },
++    { 316, "gmeiwr" },
++    { 317, "gmfewr" },
++    { 318, "gmpeid" },
++    { 352, "tscountl" },
++    { 353, "tscounth" },
++    { 354, "tsctrl" },
++    { 360, "pmumctrl" },
++    { 361, "pmgmctrl" },
++    { 384, "lstest0" },
++    { 385, "lstest1" },
++    { 386, "lscfg" },
++    { 389, "ifcr" },
++    { 392, "brpctrl0" },
++    { 428, "l1rcfg" },
++    { 440, "rdbcr" },
++    { 448, "pmctrl0" },
++    { 449, "pmctrl1" },
++    { 450, "pmctrl2" },
++    { 451, "pmctrl3" },
++    { 452, "pmctrl4" },
++    { 453, "pmctrl5" },
++    { 454, "pmctrl6" },
++    { 455, "pmctrl7" },
++    { 464, "pmcount0" },
++    { 465, "pmcount1" },
++    { 466, "pmcount2" },
++    { 467, "pmcount3" },
++    { 468, "pmcount4" },
++    { 469, "pmcount5" },
++    { 470, "pmcount6" },
++    { 471, "pmcount7" },
++    { 480, "pmsubcnd0" },
++    { 481, "pmsubcnd1" },
++    { 482, "pmsubcnd2" },
++    { 483, "pmsubcnd3" },
++    { 484, "pmsubcnd4" },
++    { 485, "pmsubcnd5" },
++    { 486, "pmsubcnd6" },
++    { 487, "pmsubcnd7" },
++  };
++  unsigned int i;
++
++  for (i = 0; i < ARRAY_SIZE (v850_g4mh2_sreg_names); i++)
++    if (v850_g4mh2_sreg_names[i].value == reg)
++      return v850_g4mh2_sreg_names[i].name;
++  return NULL;
++}
++
+ static const char *
+ get_v850_sreg_name (unsigned int reg)
+ {
+@@ -542,13 +693,20 @@ disassemble (bfd_vma memaddr,
+ 		  info->fprintf_func (info->stream, ", [");
+ 		  square = true;
+ 		}
+-	      else if (   (strcmp (op->name, "pushsp") == 0
++	      else if ((   (strcmp (op->name, "pushsp") == 0
+ 			|| strcmp (op->name, "popsp") == 0
+-			|| strcmp (op->name, "dbpush" ) == 0)
++			|| strcmp (op->name, "dbpush" ) == 0
++			|| strcmp (op->name, "stm.mp") == 0)
+ 		       && opnum == 2)
++		       || (strcmp (op->name, "ldm.mp") == 0 && opnum == 3))
+ 		{
+ 		  info->fprintf_func (info->stream, "-");
+ 		}
++	      else if (strcmp (op->name, "stm.mp") == 0 && opnum == 3)
++		{
++		  info->fprintf_func (info->stream, ", %s[", prefix);
++		  square = true;
++		}
+ 	      else if (opnum > 1
+ 		       && (v850_operands[*(opindex_ptr - 1)].flags
+ 			   & V850_OPERAND_DISP) != 0
+@@ -595,9 +753,12 @@ disassemble (bfd_vma memaddr,
+ 		  info->fprintf_func (info->stream, "ep");
+ 		  break;
+ 		case V850_OPERAND_SRG:
+-		  if (v850_g4_sregs && info->mach == bfd_mach_v850e3v5)
++		  if ((v850_g4_sregs || v850_g4mh2_sregs)
++		      && info->mach == bfd_mach_v850e3v5)
+ 		    {
+-		      const char *name = get_v850_g4_sreg_name (value);
++		      const char *name = (v850_g4mh2_sregs
++					  ? get_v850_g4mh2_sreg_name (value)
++					  : get_v850_g4_sreg_name (value));
+ 
+ 		      if (name != NULL)
+ 			info->fprintf_func (info->stream, "%s", name);
+@@ -765,6 +926,8 @@ v850_parse_option (const char *opt, void *data ATTRIBUTE_UNUSED)
+ {
+   if (strcmp (opt, "g4") == 0)
+     v850_g4_sregs = true;
++  else if (strcmp (opt, "g4mh2") == 0)
++    v850_g4mh2_sregs = true;
+   else
+     /* xgettext:c-format */
+     opcodes_error_handler (_("unrecognised disassembler option: %s"), opt);
+@@ -781,6 +944,7 @@ print_insn_v850 (bfd_vma memaddr, struct disassemble_info * info)
+   int target_processor;
+ 
+   v850_g4_sregs = false;
++  v850_g4mh2_sregs = false;
+   for_each_disassembler_option (info, v850_parse_option, NULL);
+ 
+   switch (info->mach)
+@@ -990,4 +1154,5 @@ print_v850_disassembler_options (FILE *stream)
+ The following V850 specific disassembler options are supported for use\n\
+ with the -M switch:\n"));
+   fprintf (stream, _("  g4  Print RH850 G4 system register names.\n"));
++  fprintf (stream, _("  g4mh2  Print RH850 G4MH2 system register names.\n"));
+ }
+diff --git a/opcodes/v850-opc.c b/opcodes/v850-opc.c
+index df509eaa522..1025d331195 100644
+--- a/opcodes/v850-opc.c
++++ b/opcodes/v850-opc.c
+@@ -1601,6 +1601,9 @@ const struct v850_opcode v850_opcodes[] =
+ { "ldl.hu",	two (0x0fe0, 0x0374),	two (0xffe0, 0x07ff),	{R1, R3},		1, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
+ { "ldl.w",	two (0x07e0, 0x0378),	two (0xffe0, 0x07ff),	{R1, R3}, 		1, PROCESSOR_V850E3V5_UP },
+ 
++{ "ldm.gsr",	two (0x07e0, 0x9960),	two (0xffe0, 0xffff),	{R1},			1, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4MH2 },
++{ "ldm.mp",	two (0x07e0, 0x0166),	two (0x07e0, 0x07ff),	{R1, R2, R3},		1, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4MH2 },
++
+ { "ldsr",	two (0x07e0, 0x0020),	two (0x07e0, 0x07ff),	{R1, SR2, SELID}, 	0, PROCESSOR_V850E3V5_UP },
+ { "ldsr",	two (0x07e0, 0x0020),	two (0x07e0, 0x07ff),	{R1, SR2}, 		0, PROCESSOR_V850E3V5_UP },
+ { "ldsr",	two (0x07e0, 0x0020),	two (0x07e0, 0x07ff),	{R1, OLDSR2}, 		0, (PROCESSOR_ALL & (~ PROCESSOR_V850E3V5_UP)) },
+@@ -1761,6 +1764,9 @@ const struct v850_opcode v850_opcodes[] =
+ { "stc.h",	two (0x07e0, 0x0376),	two (0xffe0, 0x07ff),	{R3, R1},		2, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
+ { "stc.w",	two (0x07e0, 0x037a),	two (0xffe0, 0x07ff),	{R3, R1},		2, PROCESSOR_V850E3V5_UP },
+ 
++{ "stm.gsr",	two (0x07e0, 0x9160),	two (0xffe0, 0xffff),	{R1},			1, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4MH2 },
++{ "stm.mp",	two (0x07e0, 0x0164),	two (0x07e0, 0x07ff),	{R2, R3, R1},		3, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4MH2 },
++
+ { "stsr",	two (0x07e0, 0x0040),	two (0x07e0, 0x07ff),	{SR1, R2, SELID}, 	0, PROCESSOR_V850E3V5_UP },
+ { "stsr",	two (0x07e0, 0x0040),	two (0x07e0, 0x07ff),	{SR1, R2}, 		0, PROCESSOR_V850E3V5_UP },
+ { "stsr",	two (0x07e0, 0x0040),	two (0x07e0, 0x07ff),	{OLDSR1, R2}, 		0, (PROCESSOR_ALL & (~ PROCESSOR_V850E3V5_UP)) },
+-- 
+Parthiban N
+

@@ -1,0 +1,294 @@
+From 47282a9510d3e823b6806a615dd8debb59ef9d82 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:05:04 +0530
+Subject: [PATCH] v850: Add mg4 and the RH850 G4 instructions
+
+Add the option and the G4 directive for the RH850 G4 cores with CLIP,
+byte and halfword LDL and STC and RESBANK, and the G4 system register
+names in the assembler and the disassembler.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ include/dis-asm.h     |   1 +
+ include/opcode/v850.h |   2 +
+ opcodes/disassemble.c |   3 +
+ opcodes/v850-dis.c    | 141 +++++++++++++++++++++++++++++++++++++++++-
+ opcodes/v850-opc.c    |  11 ++++
+ 5 files changed, 157 insertions(+), 1 deletion(-)
+
+diff --git a/include/dis-asm.h b/include/dis-asm.h
+index c3e01996ad3..e2028249816 100644
+--- a/include/dis-asm.h
++++ b/include/dis-asm.h
+@@ -387,6 +387,7 @@ extern void print_arm_disassembler_options (FILE *);
+ extern void print_arc_disassembler_options (FILE *);
+ extern void print_kvx_disassembler_options(FILE *);
+ extern void print_s390_disassembler_options (FILE *);
++extern void print_v850_disassembler_options (FILE *);
+ extern void print_wasm32_disassembler_options (FILE *);
+ extern void print_loongarch_disassembler_options (FILE *);
+ extern void print_bpf_disassembler_options (FILE *);
+diff --git a/include/opcode/v850.h b/include/opcode/v850.h
+index 42425a4c2f3..be3bf70625b 100644
+--- a/include/opcode/v850.h
++++ b/include/opcode/v850.h
+@@ -69,6 +69,7 @@ struct v850_opcode
+ 
+ #define opt_EXTENSION  (arch_separator)
+ #define opt_ALIAS      (opt_EXTENSION + 1)
++#define opt_G4         (opt_ALIAS + 1)
+ 
+ /* Values for the processors field in the v850_opcode structure.  */
+ #define PROCESSOR_V850       (1 << (arch_V850))     /* Just the V850.  */
+@@ -93,6 +94,7 @@ struct v850_opcode
+ /* OPTIONS */
+ #define PROCESSOR_OPTION_EXTENSION (1 << (opt_EXTENSION))                  /* Enable extension opcodes.  */
+ #define PROCESSOR_OPTION_ALIAS     (1 << (opt_ALIAS))                      /* Enable alias opcodes.  */
++#define PROCESSOR_OPTION_G4        (1 << (opt_G4))                         /* Enable RH850 G4 opcodes.  */
+ 
+ #define SET_PROCESSOR_MASK(mask,set)	((mask) = ((mask) & ~PROCESSOR_MASK) | (set))
+ 
+diff --git a/opcodes/disassemble.c b/opcodes/disassemble.c
+index 53ee1ecf38b..6b97a27f28f 100644
+--- a/opcodes/disassemble.c
++++ b/opcodes/disassemble.c
+@@ -571,6 +571,9 @@ disassembler_usage (FILE *stream ATTRIBUTE_UNUSED)
+ #ifdef ARCH_s390
+   print_s390_disassembler_options (stream);
+ #endif
++#ifdef ARCH_v850
++  print_v850_disassembler_options (stream);
++#endif
+ #ifdef ARCH_wasm32
+   print_wasm32_disassembler_options (stream);
+ #endif
+diff --git a/opcodes/v850-dis.c b/opcodes/v850-dis.c
+index 1fee631bd37..20e46887521 100644
+--- a/opcodes/v850-dis.c
++++ b/opcodes/v850-dis.c
+@@ -170,6 +170,108 @@ get_operand_value (const struct v850_operand *operand,
+   return value;
+ }
+ 
++static bool v850_g4_sregs;
++
++static const char *
++get_v850_g4_sreg_name (unsigned int reg)
++{
++  static const struct
++  {
++    unsigned int value;
++    const char *name;
++  } v850_g4_sreg_names[] =
++  {
++    {   0, "eipc" },
++    {   1, "eipsw" },
++    {   2, "fepc" },
++    {   3, "fepsw" },
++    {   5, "psw" },
++    {   6, "fpsr" },
++    {   7, "fpepc" },
++    {   8, "fpst" },
++    {   9, "fpcc" },
++    {  10, "fpcfg" },
++    {  11, "fpec" },
++    {  13, "eiic" },
++    {  14, "feic" },
++    {  16, "ctpc" },
++    {  17, "ctpsw" },
++    {  20, "ctbp" },
++    {  21, "snzcfg" },
++    {  28, "eiwr" },
++    {  29, "fewr" },
++    {  32, "spid" },
++    {  33, "spidlist" },
++    {  34, "rbase" },
++    {  35, "ebase" },
++    {  36, "intbp" },
++    {  37, "mctl" },
++    {  38, "pid" },
++    {  40, "svlock" },
++    {  43, "sccfg" },
++    {  44, "scbp" },
++    {  64, "peid" },
++    {  65, "bmid" },
++    {  70, "mea" },
++    {  72, "mei" },
++    {  74, "ispr" },
++    {  76, "icsr" },
++    {  77, "intcfg" },
++    {  78, "plmr" },
++    {  79, "rbcr0" },
++    {  80, "rbcr1" },
++    {  81, "rbnr" },
++    {  82, "rbip" },
++    { 144, "ictagl" },
++    { 145, "ictagh" },
++    { 146, "icdatl" },
++    { 147, "icdath" },
++    { 152, "icctrl" },
++    { 154, "iccfg" },
++    { 156, "icerr" },
++    { 160, "mpm" },
++    { 162, "mpcfg" },
++    { 168, "mca" },
++    { 169, "mcs" },
++    { 170, "mcc" },
++    { 171, "mcr" },
++    { 172, "mci" },
++    { 176, "mpidx" },
++    { 177, "mpbk" },
++    { 180, "mpla" },
++    { 181, "mpua" },
++    { 182, "mpat" },
++    { 184, "mpid0" },
++    { 185, "mpid1" },
++    { 186, "mpid2" },
++    { 187, "mpid3" },
++    { 188, "mpid4" },
++    { 189, "mpid5" },
++    { 190, "mpid6" },
++    { 191, "mpid7" },
++    { 352, "tscountl" },
++    { 353, "tscounth" },
++    { 354, "tsctrl" },
++    { 360, "pmumctrl" },
++    { 368, "pmcount0" },
++    { 369, "pmctrl0" },
++    { 370, "pmcount1" },
++    { 371, "pmctrl1" },
++    { 372, "pmcount2" },
++    { 373, "pmctrl2" },
++    { 374, "pmcount3" },
++    { 375, "pmctrl3" },
++    { 384, "lstest0" },
++    { 385, "lstest1" },
++  };
++  unsigned int i;
++
++  for (i = 0; i < ARRAY_SIZE (v850_g4_sreg_names); i++)
++    if (v850_g4_sreg_names[i].value == reg)
++      return v850_g4_sreg_names[i].name;
++  return NULL;
++}
++
+ static const char *
+ get_v850_sreg_name (unsigned int reg)
+ {
+@@ -431,6 +533,8 @@ disassemble (bfd_vma memaddr,
+ 		  square = true;
+ 		}
+ 	      else if (   (strcmp ("stc.w", op->name) == 0
++			|| strcmp ("stc.b", op->name) == 0
++			|| strcmp ("stc.h", op->name) == 0
+ 			|| strcmp ("cache", op->name) == 0
+ 			|| strcmp ("pref",  op->name) == 0)
+ 		       && opnum == 2 && opnum == memop)
+@@ -491,7 +595,18 @@ disassemble (bfd_vma memaddr,
+ 		  info->fprintf_func (info->stream, "ep");
+ 		  break;
+ 		case V850_OPERAND_SRG:
+-		  info->fprintf_func (info->stream, "%s", get_v850_sreg_name (value));
++		  if (v850_g4_sregs && info->mach == bfd_mach_v850e3v5)
++		    {
++		      const char *name = get_v850_g4_sreg_name (value);
++
++		      if (name != NULL)
++			info->fprintf_func (info->stream, "%s", name);
++		      else
++			info->fprintf_func (info->stream, "%ld", value & 0x1f);
++		    }
++		  else
++		    info->fprintf_func (info->stream, "%s",
++					get_v850_sreg_name (value));
+ 		  break;
+ 		case V850E_OPERAND_REG_LIST:
+ 		  {
+@@ -643,6 +758,8 @@ disassemble (bfd_vma memaddr,
+   return match;
+ }
+ 
++/* Parse a v850 disassembler option.  */
++
+ int
+ print_insn_v850 (bfd_vma memaddr, struct disassemble_info * info)
+ {
+@@ -651,6 +768,19 @@ print_insn_v850 (bfd_vma memaddr, struct disassemble_info * info)
+   int length = 0, code_length = 0;
+   unsigned long insn = 0, insn2 = 0;
+   int target_processor;
++  const char *opt;
++
++  v850_g4_sregs = false;
++  if (info->disassembler_options != NULL)
++    FOR_EACH_DISASSEMBLER_OPTION (opt, info->disassembler_options)
++      {
++	if (disassembler_options_cmp (opt, "g4") == 0)
++	  v850_g4_sregs = true;
++	else
++	  /* xgettext:c-format */
++	  opcodes_error_handler (_("unrecognised disassembler option: %s"),
++				 opt);
++      }
+ 
+   switch (info->mach)
+     {
+@@ -851,3 +981,12 @@ print_insn_v850 (bfd_vma memaddr, struct disassemble_info * info)
+ 
+   return code_length;
+ }
++
++void
++print_v850_disassembler_options (FILE *stream)
++{
++  fprintf (stream, _("\n\
++The following V850 specific disassembler options are supported for use\n\
++with the -M switch:\n"));
++  fprintf (stream, _("  g4  Print RH850 G4 system register names.\n"));
++}
+diff --git a/opcodes/v850-opc.c b/opcodes/v850-opc.c
+index fcc37ecb1af..82c266f9bb1 100644
+--- a/opcodes/v850-opc.c
++++ b/opcodes/v850-opc.c
+@@ -1446,6 +1446,11 @@ const struct v850_opcode v850_opcodes[] =
+ 
+ { "caxi",	two (0x07e0, 0x00ee),	two (0x07e0, 0x07ff),	{R1, R2, R3},		1, PROCESSOR_V850E2_UP },
+ 
++{ "clip.b",	two (0x07e0, 0x0008),	two (0x07e0, 0xffff),	{R1, R2},		0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
++{ "clip.bu",	two (0x07e0, 0x000a),	two (0x07e0, 0xffff),	{R1, R2},		0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
++{ "clip.h",	two (0x07e0, 0x000c),	two (0x07e0, 0xffff),	{R1, R2},		0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
++{ "clip.hu",	two (0x07e0, 0x000e),	two (0x07e0, 0xffff),	{R1, R2},		0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
++
+ { "clr1",	two (0x87c0, 0x0000),	two (0xc7e0, 0x0000),	{B3, D16, R1}, 		3, PROCESSOR_ALL },
+ { "clr1",	two (0x07e0, 0x00e4),	two (0x07e0, 0xffff),   {R2, R1},    		3, PROCESSOR_NOT_V850 },
+ 
+@@ -1592,6 +1597,8 @@ const struct v850_opcode v850_opcodes[] =
+ { "ld.w",	two (0x0780, 0x0009),	two (0xffe0, 0x001f), 	{D23_ALIGN1, R1, R3}, 	2, PROCESSOR_V850E2_UP },
+ { "ld.w23",	two (0x0780, 0x0009),	two (0x07e0, 0x001f), 	{D23_ALIGN1, R1, R3}, 	2, PROCESSOR_V850E2_UP | PROCESSOR_OPTION_ALIAS },
+ 
++{ "ldl.bu",	two (0x0fe0, 0x0370),	two (0xffe0, 0x07ff),	{R1, R3},		1, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
++{ "ldl.hu",	two (0x0fe0, 0x0374),	two (0xffe0, 0x07ff),	{R1, R3},		1, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
+ { "ldl.w",	two (0x07e0, 0x0378),	two (0xffe0, 0x07ff),	{R1, R3}, 		1, PROCESSOR_V850E3V5_UP },
+ 
+ { "ldsr",	two (0x07e0, 0x0020),	two (0x07e0, 0x07ff),	{R1, SR2, SELID}, 	0, PROCESSOR_V850E3V5_UP },
+@@ -1665,6 +1672,8 @@ const struct v850_opcode v850_opcodes[] =
+ { "rotl",	two (0x07e0, 0x00c6),	two (0x07e0, 0x07ff), 	{R1, R2, R3}, 		0, PROCESSOR_V850E3V5_UP },
+ { "rotl",	two (0x07e0, 0x00c4),	two (0x07e0, 0x07ff), 	{I5U, R2, R3}, 		0, PROCESSOR_V850E3V5_UP },
+ 
++{ "resbank",	two (0x07e0, 0x8160),	two (0xffff, 0xffff),	{0},			0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
++
+ { "reti",	two (0x07e0, 0x0140),	two (0xffff, 0xffff),	{0}, 			0, PROCESSOR_ALL },
+ 
+ { "sar",	two (0x07e0, 0x00a2),	two (0x07e0, 0x07ff), 	{R1, R2, R3}, 		0, PROCESSOR_V850E2_UP },
+@@ -1748,6 +1757,8 @@ const struct v850_opcode v850_opcodes[] =
+ { "st.w",	two (0x0780, 0x000f),	two (0x07e0, 0x000f), 	{R3, D23_ALIGN1, R1}, 	3, PROCESSOR_V850E2_UP },
+ { "st.w23",	two (0x0780, 0x000f),	two (0x07e0, 0x000f), 	{R3, D23_ALIGN1, R1}, 	3, PROCESSOR_V850E2_UP | PROCESSOR_OPTION_ALIAS },
+ 
++{ "stc.b",	two (0x07e0, 0x0372),	two (0xffe0, 0x07ff),	{R3, R1},		2, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
++{ "stc.h",	two (0x07e0, 0x0376),	two (0xffe0, 0x07ff),	{R3, R1},		2, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_G4 },
+ { "stc.w",	two (0x07e0, 0x037a),	two (0xffe0, 0x07ff),	{R3, R1},		2, PROCESSOR_V850E3V5_UP },
+ 
+ { "stsr",	two (0x07e0, 0x0040),	two (0x07e0, 0x07ff),	{SR1, R2, SELID}, 	0, PROCESSOR_V850E3V5_UP },
+-- 
+Parthiban N
+

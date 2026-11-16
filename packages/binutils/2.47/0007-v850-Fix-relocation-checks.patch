@@ -1,0 +1,360 @@
+From 3ea936b98d682eb03046c852d11ac1042b8bd869 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 01:58:14 +0530
+Subject: [PATCH] v850: Fix relocation checks
+
+Report relocations without an ELF type and reloc prefix errors in data
+directives instead of aborting. Check the 16 bit, split and 16 S1
+relocations as signed 32 bit values and make zdaoff an offset from 0.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ bfd/elf32-v850.c                           | 11 ++++++-----
+ gas/config/tc-v850.c                       | 13 ++++++++++++-
+ gas/testsuite/gas/v850/basic.exp           |  2 ++
+ gas/testsuite/gas/v850/data-prefix-err.d   |  3 +++
+ gas/testsuite/gas/v850/data-prefix-err.l   |  2 ++
+ gas/testsuite/gas/v850/data-prefix-err.s   |  3 +++
+ gas/testsuite/gas/v850/reloc-no-type.d     |  3 +++
+ gas/testsuite/gas/v850/reloc-no-type.l     |  3 +++
+ gas/testsuite/gas/v850/reloc-no-type.s     |  4 ++++
+ ld/testsuite/ld-v850/rh850-zda-overflow.d  |  3 +++
+ ld/testsuite/ld-v850/rh850-zda-overflow.ld |  7 +++++++
+ ld/testsuite/ld-v850/rh850-zda-overflow.s  |  2 ++
+ ld/testsuite/ld-v850/rh850-zda.d           |  8 ++++++++
+ ld/testsuite/ld-v850/rh850-zda.ld          |  8 ++++++++
+ ld/testsuite/ld-v850/rh850-zda.s           |  3 +++
+ ld/testsuite/ld-v850/v850.exp              |  4 ++++
+ ld/testsuite/ld-v850/zda-gcc-abi-neg.d     |  8 ++++++++
+ ld/testsuite/ld-v850/zda-gcc-abi-neg.ld    |  7 +++++++
+ ld/testsuite/ld-v850/zda-gcc-abi-neg.s     |  3 +++
+ ld/testsuite/ld-v850/zda-gcc-abi.d         |  9 +++++++++
+ ld/testsuite/ld-v850/zda-gcc-abi.ld        |  7 +++++++
+ ld/testsuite/ld-v850/zda-gcc-abi.s         |  8 ++++++++
+ 22 files changed, 115 insertions(+), 6 deletions(-)
+ create mode 100644 gas/testsuite/gas/v850/data-prefix-err.d
+ create mode 100644 gas/testsuite/gas/v850/data-prefix-err.l
+ create mode 100644 gas/testsuite/gas/v850/data-prefix-err.s
+ create mode 100644 gas/testsuite/gas/v850/reloc-no-type.d
+ create mode 100644 gas/testsuite/gas/v850/reloc-no-type.l
+ create mode 100644 gas/testsuite/gas/v850/reloc-no-type.s
+ create mode 100644 ld/testsuite/ld-v850/rh850-zda-overflow.d
+ create mode 100644 ld/testsuite/ld-v850/rh850-zda-overflow.ld
+ create mode 100644 ld/testsuite/ld-v850/rh850-zda-overflow.s
+ create mode 100644 ld/testsuite/ld-v850/rh850-zda.d
+ create mode 100644 ld/testsuite/ld-v850/rh850-zda.ld
+ create mode 100644 ld/testsuite/ld-v850/rh850-zda.s
+ create mode 100644 ld/testsuite/ld-v850/zda-gcc-abi-neg.d
+ create mode 100644 ld/testsuite/ld-v850/zda-gcc-abi-neg.ld
+ create mode 100644 ld/testsuite/ld-v850/zda-gcc-abi-neg.s
+ create mode 100644 ld/testsuite/ld-v850/zda-gcc-abi.d
+ create mode 100644 ld/testsuite/ld-v850/zda-gcc-abi.ld
+ create mode 100644 ld/testsuite/ld-v850/zda-gcc-abi.s
+
+diff --git a/bfd/elf32-v850.c b/bfd/elf32-v850.c
+index 8ffbc024156..be84df1b3a1 100644
+--- a/bfd/elf32-v850.c
++++ b/bfd/elf32-v850.c
+@@ -37,6 +37,9 @@
+ /* Sign-extend a 22-bit number.  */
+ #define SEXT22(x)	((((x) & 0x3fffff) ^ 0x200000) - 0x200000)
+ 
++/* Sign-extend a 32-bit address.  */
++#define SEXT32(x)	((((x) & 0xffffffff) ^ 0x80000000) - 0x80000000)
++
+ static reloc_howto_type v850_elf_howto_table[];
+ 
+ /* Look through the relocs for a section during the first phase, and
+@@ -655,7 +658,7 @@ v850_elf_perform_relocation (bfd *abfd,
+     case R_V850_TDA_16_16_OFFSET:
+       addend += bfd_get_16 (abfd, address);
+ 
+-      saddend = (bfd_signed_vma) addend;
++      saddend = (bfd_signed_vma) SEXT32 (addend);
+ 
+       if (saddend > 0x7fff || saddend < -0x8000)
+ 	return bfd_reloc_overflow;
+@@ -670,7 +673,7 @@ v850_elf_perform_relocation (bfd *abfd,
+       insn = bfd_get_16 (abfd, address);
+       addend += (insn & 0xfffe);
+ 
+-      saddend = (bfd_signed_vma) addend;
++      saddend = (bfd_signed_vma) SEXT32 (addend);
+ 
+       if (saddend > 0x7ffe || saddend < -0x8000)
+ 	return bfd_reloc_overflow;
+@@ -788,7 +791,7 @@ v850_elf_perform_relocation (bfd *abfd,
+       insn = bfd_get_32 (abfd, address);
+       addend += ((insn & 0xfffe0000) >> 16) + ((insn & 0x20) >> 5);
+ 
+-      saddend = (bfd_signed_vma) addend;
++      saddend = (bfd_signed_vma) SEXT32 (addend);
+ 
+       if (saddend > 0x7fff || saddend < -0x8000)
+ 	return bfd_reloc_overflow;
+@@ -2051,8 +2054,6 @@ v850_elf_final_link_relocate (reloc_howto_type *howto,
+     case R_V850_ZDA_16_16_SPLIT_OFFSET:
+       if (sym_sec == NULL)
+ 	return bfd_reloc_undefined;
+-
+-      value -= sym_sec->output_section->vma;
+       break;
+ 
+     case R_V850_SDA_15_16_OFFSET:
+diff --git a/gas/config/tc-v850.c b/gas/config/tc-v850.c
+index 216fea7b9c6..b63f61409e3 100644
+--- a/gas/config/tc-v850.c
++++ b/gas/config/tc-v850.c
+@@ -3262,7 +3262,13 @@ md_assemble (char *str)
+ 	  fixS *fixP;
+ 
+ 	  if (!reloc_howto)
+-	    abort ();
++	    {
++	      as_bad (_("%s: relocation %s is not supported by the %s ABI"),
++		      copy_of_instruction, bfd_get_reloc_code_name (reloc),
++		      v850_target_arch == bfd_arch_v850_rh850
++		      ? "rh850" : "gcc");
++	      continue;
++	    }
+ 
+ 	  size = bfd_get_reloc_size (reloc_howto);
+ 
+@@ -3677,6 +3683,11 @@ parse_cons_expression_v850 (expressionS *exp)
+ 
+   /* See if there's a reloc prefix like hi() we have to handle.  */
+   r = v850_reloc_prefix (NULL, &errmsg);
++  if (r == BFD_RELOC_64)
++    {
++      as_bad ("%s", errmsg);
++      r = BFD_RELOC_NONE;
++    }
+ 
+   /* Do normal expression parsing.  */
+   expression (exp);
+diff --git a/gas/testsuite/gas/v850/basic.exp b/gas/testsuite/gas/v850/basic.exp
+index 567f79d235a..e8ca10cd631 100644
+--- a/gas/testsuite/gas/v850/basic.exp
++++ b/gas/testsuite/gas/v850/basic.exp
+@@ -442,4 +442,6 @@ if [istarget v850*-*-*] then {
+     run_dump_test "disp-range-bad"
+     run_dump_test "loop-relax"
+     run_dump_test "loop-relax-bad"
++    run_dump_test "reloc-no-type"
++    run_dump_test "data-prefix-err"
+ }
+diff --git a/gas/testsuite/gas/v850/data-prefix-err.d b/gas/testsuite/gas/v850/data-prefix-err.d
+new file mode 100644
+index 00000000000..e39ff16caa8
+--- /dev/null
++++ b/gas/testsuite/gas/v850/data-prefix-err.d
+@@ -0,0 +1,3 @@
++#as:
++#name: v850 reloc prefix errors in data directives
++#error_output: data-prefix-err.l
+diff --git a/gas/testsuite/gas/v850/data-prefix-err.l b/gas/testsuite/gas/v850/data-prefix-err.l
+new file mode 100644
+index 00000000000..b9f3424683f
+--- /dev/null
++++ b/gas/testsuite/gas/v850/data-prefix-err.l
+@@ -0,0 +1,2 @@
++.*: Assembler messages:
++.*:3: Error: ctoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
+diff --git a/gas/testsuite/gas/v850/data-prefix-err.s b/gas/testsuite/gas/v850/data-prefix-err.s
+new file mode 100644
+index 00000000000..8f0fe0adf61
+--- /dev/null
++++ b/gas/testsuite/gas/v850/data-prefix-err.s
+@@ -0,0 +1,3 @@
++# A reloc prefix that the rh850 ABI cannot express in a data directive.
++	.data
++	.hword	ctoff(_c)
+diff --git a/gas/testsuite/gas/v850/reloc-no-type.d b/gas/testsuite/gas/v850/reloc-no-type.d
+new file mode 100644
+index 00000000000..97713af039a
+--- /dev/null
++++ b/gas/testsuite/gas/v850/reloc-no-type.d
+@@ -0,0 +1,3 @@
++#as:
++#name: v850 relocations without an ELF type
++#error_output: reloc-no-type.l
+diff --git a/gas/testsuite/gas/v850/reloc-no-type.l b/gas/testsuite/gas/v850/reloc-no-type.l
+new file mode 100644
+index 00000000000..635c60edd0e
+--- /dev/null
++++ b/gas/testsuite/gas/v850/reloc-no-type.l
+@@ -0,0 +1,3 @@
++.*: Assembler messages:
++.*:3: Error: ld.w zdaoff\(_z\)\[r0\],r10: relocation BFD_RELOC_V850_ZDA_15_16_OFFSET is not supported by the rh850 ABI
++.*:4: Error: sld.w tdaoff\(_t\)\[ep\],r10: relocation BFD_RELOC_V850_TDA_6_8_OFFSET is not supported by the rh850 ABI
+diff --git a/gas/testsuite/gas/v850/reloc-no-type.s b/gas/testsuite/gas/v850/reloc-no-type.s
+new file mode 100644
+index 00000000000..dde2ec8ad28
+--- /dev/null
++++ b/gas/testsuite/gas/v850/reloc-no-type.s
+@@ -0,0 +1,4 @@
++# Relocations that the rh850 ABI has no ELF type for.
++	.text
++	ld.w	zdaoff(_z)[r0], r10
++	sld.w	tdaoff(_t)[ep], r10
+diff --git a/ld/testsuite/ld-v850/rh850-zda-overflow.d b/ld/testsuite/ld-v850/rh850-zda-overflow.d
+new file mode 100644
+index 00000000000..22e8842f21f
+--- /dev/null
++++ b/ld/testsuite/ld-v850/rh850-zda-overflow.d
+@@ -0,0 +1,3 @@
++#source: rh850-zda-overflow.s -mv850e3v5
++#ld: -Trh850-zda-overflow.ld
++#error: .*relocation truncated to fit: R_V810_HWORD against .*zfar.*
+diff --git a/ld/testsuite/ld-v850/rh850-zda-overflow.ld b/ld/testsuite/ld-v850/rh850-zda-overflow.ld
+new file mode 100644
+index 00000000000..09df91e2b56
+--- /dev/null
++++ b/ld/testsuite/ld-v850/rh850-zda-overflow.ld
+@@ -0,0 +1,7 @@
++SECTIONS
++{
++  zfar = 0x8000;
++  . = 0x10000;
++  .text : { *(.text); }
++  /DISCARD/ : { *(*); }
++}
+diff --git a/ld/testsuite/ld-v850/rh850-zda-overflow.s b/ld/testsuite/ld-v850/rh850-zda-overflow.s
+new file mode 100644
+index 00000000000..9036a2d4526
+--- /dev/null
++++ b/ld/testsuite/ld-v850/rh850-zda-overflow.s
+@@ -0,0 +1,2 @@
++	.text
++	movea	zdaoff(zfar), r0, r10
+diff --git a/ld/testsuite/ld-v850/rh850-zda.d b/ld/testsuite/ld-v850/rh850-zda.d
+new file mode 100644
+index 00000000000..ec27745840c
+--- /dev/null
++++ b/ld/testsuite/ld-v850/rh850-zda.d
+@@ -0,0 +1,8 @@
++#source: rh850-zda.s -mv850e3v5
++#ld: -Trh850-zda.ld
++#objdump: -d
++#...
++00010000 <.*>:
++   10000:	20 56 fe 7f 	movea	32766, r0, r10
++   10004:	20 5e 00 80 	movea	-32768, r0, r11
++#pass
+diff --git a/ld/testsuite/ld-v850/rh850-zda.ld b/ld/testsuite/ld-v850/rh850-zda.ld
+new file mode 100644
+index 00000000000..b610a3e810e
+--- /dev/null
++++ b/ld/testsuite/ld-v850/rh850-zda.ld
+@@ -0,0 +1,8 @@
++SECTIONS
++{
++  zpos = 0x7ffe;
++  zneg = 0xffff8000;
++  . = 0x10000;
++  .text : { *(.text); }
++  /DISCARD/ : { *(*); }
++}
+diff --git a/ld/testsuite/ld-v850/rh850-zda.s b/ld/testsuite/ld-v850/rh850-zda.s
+new file mode 100644
+index 00000000000..6c58e3473eb
+--- /dev/null
++++ b/ld/testsuite/ld-v850/rh850-zda.s
+@@ -0,0 +1,3 @@
++	.text
++	movea	zdaoff(zpos), r0, r10
++	movea	zdaoff(zneg), r0, r11
+diff --git a/ld/testsuite/ld-v850/v850.exp b/ld/testsuite/ld-v850/v850.exp
+index e9cbd5003e6..fddd9e74be3 100644
+--- a/ld/testsuite/ld-v850/v850.exp
++++ b/ld/testsuite/ld-v850/v850.exp
+@@ -18,4 +18,8 @@
+ 
+ if [istarget v850*-*-*] {
+     run_dump_test "split-lo16"
++    run_dump_test "rh850-zda"
++    run_dump_test "rh850-zda-overflow"
++    run_dump_test "zda-gcc-abi"
++    run_dump_test "zda-gcc-abi-neg"
+ }
+diff --git a/ld/testsuite/ld-v850/zda-gcc-abi-neg.d b/ld/testsuite/ld-v850/zda-gcc-abi-neg.d
+new file mode 100644
+index 00000000000..63787069da0
+--- /dev/null
++++ b/ld/testsuite/ld-v850/zda-gcc-abi-neg.d
+@@ -0,0 +1,8 @@
++#source: zda-gcc-abi-neg.s -mv850e3v5 -mgcc-abi
++#ld: -m v850 -Tzda-gcc-abi-neg.ld
++#objdump: -d -j .text
++#...
++00010000 <.*>:
++   10000:	20 7f 01 80 	ld.w	-32768\[r0\], r15
++   10004:	80 87 01 80 	ld.bu	-32768\[r0\], r16
++#pass
+diff --git a/ld/testsuite/ld-v850/zda-gcc-abi-neg.ld b/ld/testsuite/ld-v850/zda-gcc-abi-neg.ld
+new file mode 100644
+index 00000000000..b932e9e1e75
+--- /dev/null
++++ b/ld/testsuite/ld-v850/zda-gcc-abi-neg.ld
+@@ -0,0 +1,7 @@
++SECTIONS
++{
++  zneg = 0xffff8000;
++  . = 0x10000;
++  .text : { *(.text) }
++  /DISCARD/ : { *(*) }
++}
+diff --git a/ld/testsuite/ld-v850/zda-gcc-abi-neg.s b/ld/testsuite/ld-v850/zda-gcc-abi-neg.s
+new file mode 100644
+index 00000000000..548e9666b0e
+--- /dev/null
++++ b/ld/testsuite/ld-v850/zda-gcc-abi-neg.s
+@@ -0,0 +1,3 @@
++	.text
++	ld.w	zdaoff(zneg)[r0], r15
++	ld.bu	zdaoff(zneg)[r0], r16
+diff --git a/ld/testsuite/ld-v850/zda-gcc-abi.d b/ld/testsuite/ld-v850/zda-gcc-abi.d
+new file mode 100644
+index 00000000000..22758664500
+--- /dev/null
++++ b/ld/testsuite/ld-v850/zda-gcc-abi.d
+@@ -0,0 +1,9 @@
++#source: zda-gcc-abi.s -mv850e3v5 -mgcc-abi
++#ld: -m v850 -Tzda-gcc-abi.ld
++#objdump: -d -j .text
++#...
++00010000 <.*>:
++   10000:	20 67 65 01 	ld.w	356\[r0\], r12
++   10004:	20 6e 64 01 	movea	356, r0, r13
++   10008:	80 77 69 01 	ld.bu	360\[r0\], r14
++#pass
+diff --git a/ld/testsuite/ld-v850/zda-gcc-abi.ld b/ld/testsuite/ld-v850/zda-gcc-abi.ld
+new file mode 100644
+index 00000000000..adbf91faf56
+--- /dev/null
++++ b/ld/testsuite/ld-v850/zda-gcc-abi.ld
+@@ -0,0 +1,7 @@
++SECTIONS
++{
++  .zdata 0x160 : { *(.zdata) }
++  . = 0x10000;
++  .text : { *(.text) }
++  /DISCARD/ : { *(*) }
++}
+diff --git a/ld/testsuite/ld-v850/zda-gcc-abi.s b/ld/testsuite/ld-v850/zda-gcc-abi.s
+new file mode 100644
+index 00000000000..967f240ac69
+--- /dev/null
++++ b/ld/testsuite/ld-v850/zda-gcc-abi.s
+@@ -0,0 +1,8 @@
++	.text
++	ld.w	zdaoff(zw)[r0], r12
++	movea	zdaoff(zw), r0, r13
++	ld.bu	zdaoff(zb)[r0], r14
++	.section .zdata, "aw"
++	.word	0
++zw:	.word	3
++zb:	.byte	1
+-- 
+Parthiban N
+

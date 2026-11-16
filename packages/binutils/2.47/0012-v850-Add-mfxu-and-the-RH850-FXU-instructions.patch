@@ -1,0 +1,1464 @@
+From 44c2c44e9cae38b286676b0bba682c0dffd45bfd Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:08:37 +0530
+Subject: [PATCH] v850: Add mfxu and the RH850 FXU instructions
+
+Add the option for the FXU of the RH850 G4MH2 core with the 32 vector
+registers, its SIMD instructions and its system register names.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ binutils/doc/binutils.texi            |   4 +-
+ gas/config/tc-v850.c                  | 218 ++++++++++++++++++++++++--
+ gas/doc/c-v850.texi                   |  20 ++-
+ gas/testsuite/gas/v850/basic.exp      |  12 ++
+ gas/testsuite/gas/v850/fxu-arith.d    |  37 +++++
+ gas/testsuite/gas/v850/fxu-arith.s    |  32 ++++
+ gas/testsuite/gas/v850/fxu-bad.d      |   3 +
+ gas/testsuite/gas/v850/fxu-bad.l      |   6 +
+ gas/testsuite/gas/v850/fxu-bad.s      |   7 +
+ gas/testsuite/gas/v850/fxu-cmpf.d     |  23 +++
+ gas/testsuite/gas/v850/fxu-cmpf.s     |  18 +++
+ gas/testsuite/gas/v850/fxu-compound.d |  39 +++++
+ gas/testsuite/gas/v850/fxu-compound.s |  34 ++++
+ gas/testsuite/gas/v850/fxu-cvt.d      |  39 +++++
+ gas/testsuite/gas/v850/fxu-cvt.s      |  34 ++++
+ gas/testsuite/gas/v850/fxu-dir.d      |  10 ++
+ gas/testsuite/gas/v850/fxu-dir.s      |   6 +
+ gas/testsuite/gas/v850/fxu-mem.d      |  23 +++
+ gas/testsuite/gas/v850/fxu-mem.s      |  18 +++
+ gas/testsuite/gas/v850/fxu-move.d     |  15 ++
+ gas/testsuite/gas/v850/fxu-move.s     |  10 ++
+ gas/testsuite/gas/v850/fxu-op-bad.d   |   3 +
+ gas/testsuite/gas/v850/fxu-op-bad.l   |  19 +++
+ gas/testsuite/gas/v850/fxu-op-bad.s   |  20 +++
+ gas/testsuite/gas/v850/fxu-sreg-bad.d |   3 +
+ gas/testsuite/gas/v850/fxu-sreg-bad.l |   3 +
+ gas/testsuite/gas/v850/fxu-sreg-bad.s |   4 +
+ gas/testsuite/gas/v850/fxu-sreg-dis.d |  16 ++
+ gas/testsuite/gas/v850/fxu-sreg.d     |  15 ++
+ gas/testsuite/gas/v850/fxu-sreg.s     |  10 ++
+ include/opcode/v850.h                 |  14 ++
+ opcodes/v850-dis.c                    |  81 ++++++++++
+ opcodes/v850-opc.c                    | 179 +++++++++++++++++++++
+ 33 files changed, 964 insertions(+), 11 deletions(-)
+ create mode 100644 gas/testsuite/gas/v850/fxu-arith.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-arith.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-bad.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-bad.l
+ create mode 100644 gas/testsuite/gas/v850/fxu-bad.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-cmpf.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-cmpf.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-compound.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-compound.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-cvt.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-cvt.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-dir.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-dir.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-mem.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-mem.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-move.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-move.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-op-bad.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-op-bad.l
+ create mode 100644 gas/testsuite/gas/v850/fxu-op-bad.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-sreg-bad.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-sreg-bad.l
+ create mode 100644 gas/testsuite/gas/v850/fxu-sreg-bad.s
+ create mode 100644 gas/testsuite/gas/v850/fxu-sreg-dis.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-sreg.d
+ create mode 100644 gas/testsuite/gas/v850/fxu-sreg.s
+
+diff --git a/binutils/doc/binutils.texi b/binutils/doc/binutils.texi
+index 31e898d3df7..2d15f730362 100644
+--- a/binutils/doc/binutils.texi
++++ b/binutils/doc/binutils.texi
+@@ -2869,7 +2869,9 @@ For V850, @option{-M g4} prints the system register operands of
+ register number and the selection ID.  @option{-M g4mh2} does the same
+ with the RH850 G4MH2 names.  A register number and selection ID pair
+ without a name is printed as a number.  Without these options the names
+-are those of the older V850 cores.
++are those of the older V850 cores.  The RH850 G4, G4MH2 and FXU
++instructions are decoded for V850E3V5 objects without an option;
++@option{-M g4mh2} also names the FXU system registers.
+ 
+ @item -p
+ @itemx --private-headers
+diff --git a/gas/config/tc-v850.c b/gas/config/tc-v850.c
+index 93df021de9e..4ebc854461f 100644
+--- a/gas/config/tc-v850.c
++++ b/gas/config/tc-v850.c
+@@ -537,6 +537,13 @@ set_g4mh2 (int ignore ATTRIBUTE_UNUSED)
+   processor_mask |= PROCESSOR_OPTION_G4 | PROCESSOR_OPTION_G4MH2;
+ }
+ 
++static void
++set_fxu (int ignore ATTRIBUTE_UNUSED)
++{
++  processor_mask |= (PROCESSOR_OPTION_G4 | PROCESSOR_OPTION_G4MH2
++		     | PROCESSOR_OPTION_FXU);
++}
++
+ static void
+ v850_longcode (int type)
+ {
+@@ -597,6 +604,7 @@ const pseudo_typeS md_pseudo_table[] =
+   { "v850e3v5",		set_machine,		bfd_mach_v850e3v5 	},
+   { "g4",		set_g4,		0			},
+   { "g4mh2",		set_g4mh2,	0			},
++  { "fxu",		set_fxu,	0			},
+   { "longcall",		v850_longcode,		1			},
+   { "longjump",		v850_longcode,		2			},
+   { NULL,		NULL,			0			}
+@@ -913,6 +921,12 @@ static const struct reg_name g4mh2_system_registers[] =
+   { "fpepc",         7, PROCESSOR_V850E3V5_UP },
+   { "fpsr",          6, PROCESSOR_V850E3V5_UP },
+   { "fpst",          8, PROCESSOR_V850E3V5_UP },
++  { "fxcfg",       330, PROCESSOR_V850E3V5_UP },
++  { "fxinfo",      329, PROCESSOR_V850E3V5_UP },
++  { "fxsr",        326, PROCESSOR_V850E3V5_UP },
++  { "fxst",        328, PROCESSOR_V850E3V5_UP },
++  { "fxxc",        332, PROCESSOR_V850E3V5_UP },
++  { "fxxp",        333, PROCESSOR_V850E3V5_UP },
+   { "gmcfg",        49, PROCESSOR_V850E3V5_UP },
+   { "gmebase",     307, PROCESSOR_V850E3V5_UP },
+   { "gmeiic",      301, PROCESSOR_V850E3V5_UP },
+@@ -1097,6 +1111,29 @@ static const struct reg_name float_cc_names[] =
+ #define FLOAT_CC_NAME_CNT					\
+   (sizeof (float_cc_names) / sizeof (struct reg_name))
+ 
++static const struct reg_name fxu_cc_names[] =
++{
++  { "eq",   0x2, PROCESSOR_V850E3V5_UP },
++  { "f",    0x0, PROCESSOR_V850E3V5_UP },
++  { "le",   0xe, PROCESSOR_V850E3V5_UP },
++  { "lt",   0xc, PROCESSOR_V850E3V5_UP },
++  { "nge",  0xd, PROCESSOR_V850E3V5_UP },
++  { "ngl",  0xb, PROCESSOR_V850E3V5_UP },
++  { "ngle", 0x9, PROCESSOR_V850E3V5_UP },
++  { "ngt",  0xf, PROCESSOR_V850E3V5_UP },
++  { "ole",  0x6, PROCESSOR_V850E3V5_UP },
++  { "olt",  0x4, PROCESSOR_V850E3V5_UP },
++  { "seq",  0xa, PROCESSOR_V850E3V5_UP },
++  { "sf",   0x8, PROCESSOR_V850E3V5_UP },
++  { "ueq",  0x3, PROCESSOR_V850E3V5_UP },
++  { "ule",  0x7, PROCESSOR_V850E3V5_UP },
++  { "ult",  0x5, PROCESSOR_V850E3V5_UP },
++  { "un",   0x1, PROCESSOR_V850E3V5_UP },
++};
++
++#define FXU_CC_NAME_CNT						\
++  (sizeof (fxu_cc_names) / sizeof (struct reg_name))
++
+ 
+ static const struct reg_name cacheop_names[] =
+ {
+@@ -1167,6 +1204,45 @@ static const struct reg_name vector_registers[] =
+ #define VREG_NAME_CNT						\
+   (sizeof (vector_registers) / sizeof (struct reg_name))
+ 
++static const struct reg_name fxu_registers[] =
++{
++  { "wr0",   0, PROCESSOR_V850E3V5_UP },
++  { "wr1",   1, PROCESSOR_V850E3V5_UP },
++  { "wr10",  10, PROCESSOR_V850E3V5_UP },
++  { "wr11",  11, PROCESSOR_V850E3V5_UP },
++  { "wr12",  12, PROCESSOR_V850E3V5_UP },
++  { "wr13",  13, PROCESSOR_V850E3V5_UP },
++  { "wr14",  14, PROCESSOR_V850E3V5_UP },
++  { "wr15",  15, PROCESSOR_V850E3V5_UP },
++  { "wr16",  16, PROCESSOR_V850E3V5_UP },
++  { "wr17",  17, PROCESSOR_V850E3V5_UP },
++  { "wr18",  18, PROCESSOR_V850E3V5_UP },
++  { "wr19",  19, PROCESSOR_V850E3V5_UP },
++  { "wr2",   2, PROCESSOR_V850E3V5_UP },
++  { "wr20",  20, PROCESSOR_V850E3V5_UP },
++  { "wr21",  21, PROCESSOR_V850E3V5_UP },
++  { "wr22",  22, PROCESSOR_V850E3V5_UP },
++  { "wr23",  23, PROCESSOR_V850E3V5_UP },
++  { "wr24",  24, PROCESSOR_V850E3V5_UP },
++  { "wr25",  25, PROCESSOR_V850E3V5_UP },
++  { "wr26",  26, PROCESSOR_V850E3V5_UP },
++  { "wr27",  27, PROCESSOR_V850E3V5_UP },
++  { "wr28",  28, PROCESSOR_V850E3V5_UP },
++  { "wr29",  29, PROCESSOR_V850E3V5_UP },
++  { "wr3",   3, PROCESSOR_V850E3V5_UP },
++  { "wr30",  30, PROCESSOR_V850E3V5_UP },
++  { "wr31",  31, PROCESSOR_V850E3V5_UP },
++  { "wr4",   4, PROCESSOR_V850E3V5_UP },
++  { "wr5",   5, PROCESSOR_V850E3V5_UP },
++  { "wr6",   6, PROCESSOR_V850E3V5_UP },
++  { "wr7",   7, PROCESSOR_V850E3V5_UP },
++  { "wr8",   8, PROCESSOR_V850E3V5_UP },
++  { "wr9",   9, PROCESSOR_V850E3V5_UP },
++};
++
++#define WREG_NAME_CNT						\
++  (sizeof (fxu_registers) / sizeof (struct reg_name))
++
+ /* Do a binary search of the given register table to see if NAME is a
+    valid register name.  Return the register number from the array on
+    success, or -1 on failure.  */
+@@ -1451,6 +1527,52 @@ float_cc_name (expressionS *expressionP,
+   return false;
+ }
+ 
++static bool
++fxu_cc_name (expressionS *expressionP,
++	     bool accept_numbers)
++{
++  int reg_number;
++  char *name;
++  char *start;
++  char c;
++
++  start = input_line_pointer;
++  c = get_symbol_name (&name);
++  reg_number = reg_name_search (fxu_cc_names, FXU_CC_NAME_CNT, name,
++				accept_numbers);
++
++  (void) restore_line_pointer (c);
++
++  if (reg_number < 0
++      && accept_numbers)
++    {
++      input_line_pointer = start;
++
++      if (ISDIGIT (*input_line_pointer))
++	{
++	  reg_number = strtol (input_line_pointer, &input_line_pointer, 0);
++	}
++    }
++
++  expressionP->X_add_symbol = NULL;
++  expressionP->X_op_symbol  = NULL;
++
++  if (reg_number >= 0)
++    {
++      expressionP->X_op		= O_constant;
++      expressionP->X_add_number = reg_number;
++
++      return true;
++    }
++
++  input_line_pointer = start;
++
++  expressionP->X_op = O_illegal;
++  expressionP->X_add_number = 0;
++
++  return false;
++}
++
+ static bool
+ cacheop_name (expressionS * expressionP,
+ 	      bool accept_numbers)
+@@ -1585,6 +1707,40 @@ vector_register_name (expressionS *expressionP)
+   return false;
+ }
+ 
++static bool
++fxu_register_name (expressionS *expressionP)
++{
++  int reg_number;
++  char *name;
++  char *start;
++  char c;
++
++  start = input_line_pointer;
++  c = get_symbol_name (&name);
++
++  reg_number = reg_name_search (fxu_registers, WREG_NAME_CNT,
++				name, false);
++
++  (void) restore_line_pointer (c);
++
++  expressionP->X_add_symbol = NULL;
++  expressionP->X_op_symbol  = NULL;
++
++  if (reg_number >= 0)
++    {
++      expressionP->X_op		= O_register;
++      expressionP->X_add_number = reg_number;
++
++      return true;
++    }
++
++  input_line_pointer = start;
++
++  expressionP->X_op = O_illegal;
++
++  return false;
++}
++
+ static void
+ skip_white_space (void)
+ {
+@@ -1798,6 +1954,7 @@ md_show_usage (FILE *stream)
+   fprintf (stream, _("  -mextension               enable extension opcode support\n"));
+   fprintf (stream, _("  -mg4                      enable RH850 G4 opcode support\n"));
+   fprintf (stream, _("  -mg4mh2                   enable RH850 G4MH2 opcode support\n"));
++  fprintf (stream, _("  -mfxu                     enable RH850 FXU opcode support\n"));
+   fprintf (stream, _("  -mno-bcond17		  disable b<cond> disp17 instruction\n"));
+   fprintf (stream, _("  -mno-stld23		  disable st/ld offset23 instruction\n"));
+   fprintf (stream, _("  -mgcc-abi                 Mark the binary as using the old GCC ABI\n"));
+@@ -1879,6 +2036,11 @@ md_parse_option (int c, const char *arg)
+     {
+       processor_mask |= PROCESSOR_OPTION_G4 | PROCESSOR_OPTION_G4MH2;
+     }
++  else if (strcmp (arg, "fxu") == 0)
++    {
++      processor_mask |= (PROCESSOR_OPTION_G4 | PROCESSOR_OPTION_G4MH2
++			 | PROCESSOR_OPTION_FXU);
++    }
+   else if (strcmp (arg, "no-bcond17") == 0)
+     {
+       no_bcond17 = 1;
+@@ -2659,6 +2821,7 @@ md_assemble (char *str)
+       insn = opcode->opcode;
+       extra_data_len = 0;
+       extra_data_after_insn = false;
++      extra_data = 0;
+ 
+       input_line_pointer = str = start_of_operands;
+ 
+@@ -3114,6 +3277,11 @@ md_assemble (char *str)
+ 		      errmsg = _("invalid condition code name");
+ 		    }
+ 		}
++	      else if ((operand->flags & V850_OPERAND_FXCC) != 0)
++		{
++		  if (!fxu_cc_name (&ex, true))
++		    errmsg = _("invalid condition code name");
++		}
+ 	      else if ((operand->flags & V850_OPERAND_CACHEOP) != 0)
+ 		{
+ 		  if (!cacheop_name (&ex, true))
+@@ -3129,6 +3297,11 @@ md_assemble (char *str)
+ 		  if (!vector_register_name (&ex))
+ 		    errmsg = _("invalid vector register name");
+ 		}
++	      else if ((operand->flags & V850_OPERAND_WREG) != 0)
++		{
++		  if (!fxu_register_name (&ex))
++		    errmsg = _("invalid FXU register name");
++		}
+ 	      else if ((register_name (&ex)
+ 			&& (operand->flags & V850_OPERAND_REG) == 0))
+ 		{
+@@ -3198,6 +3371,11 @@ md_assemble (char *str)
+ 		{
+ 		  errmsg = _("syntax error: vector register not expected");
+ 		}
++	      else if (fxu_register_name (&ex)
++		       && (operand->flags & V850_OPERAND_WREG) == 0)
++		{
++		  errmsg = _("syntax error: FXU register not expected");
++		}
+ 	      else
+ 		{
+ 		  expression (&ex);
+@@ -3260,24 +3438,46 @@ md_assemble (char *str)
+ 		  goto error;
+ 		case O_register:
+ 		  if ((operand->flags
+-		       & (V850_OPERAND_REG | V850_OPERAND_SRG | V850_OPERAND_VREG)) == 0)
++		       & (V850_OPERAND_REG | V850_OPERAND_SRG
++			  | V850_OPERAND_VREG | V850_OPERAND_WREG)) == 0)
+ 		    {
+ 		      errmsg = _("invalid operand");
+ 		      goto error;
+ 		    }
+-
+-		  insn = v850_insert_operand (insn, operand,
+-					      ex.X_add_number,
+-					      &warningmsg);
+-
+-		  break;
++		  /* Fall through.  */
+ 
+ 		case O_constant:
+-		  insn = v850_insert_operand (insn, operand, ex.X_add_number,
+-					      &warningmsg);
++		  if (operand->flags & V850_OPERAND_EXT16)
++		    {
++		      if (operand->insert)
++			extra_data = operand->insert (extra_data,
++						      ex.X_add_number,
++						      &errmsg);
++		      else
++			extra_data = v850_insert_operand (extra_data, operand,
++							  ex.X_add_number,
++							  &errmsg);
++		      if (operand->flags & V850_OPERAND_IMM12)
++			insn |= ((ex.X_add_number >> 11) & 1) << 21;
++		      extra_data_after_insn = true;
++		      extra_data_len = 2;
++		    }
++		  else if (opcode->processors & PROCESSOR_OPTION_FXU)
++		    insn = v850_insert_operand (insn, operand, ex.X_add_number,
++						&errmsg);
++		  else
++		    insn = v850_insert_operand (insn, operand, ex.X_add_number,
++						&warningmsg);
++		  if (errmsg)
++		    goto error;
+ 		  break;
+ 
+ 		default:
++		  if (operand->flags & V850_OPERAND_EXT16)
++		    {
++		      errmsg = _("constant expected");
++		      goto error;
++		    }
+ 		  /* We need to generate a fixup for this expression.  */
+ 		  if (fc >= MAX_INSN_FIXUPS)
+ 		    as_fatal (_("too many fixups"));
+diff --git a/gas/doc/c-v850.texi b/gas/doc/c-v850.texi
+index f64e8f45e71..e7347313576 100644
+--- a/gas/doc/c-v850.texi
++++ b/gas/doc/c-v850.texi
+@@ -107,7 +107,20 @@ instructions @code{ldm.mp}, @code{stm.mp}, @code{ldm.gsr} and
+ @code{stm.gsr}, and the G4MH2 system register names, including the
+ virtualization and guest context registers.  The G4MH2 names replace
+ the G4 names where the two differ, for example the performance counter
+-registers.
++registers.  The names include the FXU system registers @code{fxsr},
++@code{fxst}, @code{fxinfo}, @code{fxcfg}, @code{fxxc} and @code{fxxp}.
++
++@cindex @code{-mfxu} command-line option, V850
++@item -mfxu
++Enables everything that @option{-mg4mh2} enables and the instructions of
++the RH850 FXU, the extended floating-point unit of the G4MH2 core, with
++the vector registers @code{wr0} to @code{wr31}.  The comparison condition
++of @code{cmpf.s4} is a number from 0 to 15 or one of @code{f}, @code{un},
++@code{eq}, @code{ueq}, @code{olt}, @code{ult}, @code{ole}, @code{ule},
++@code{sf}, @code{ngle}, @code{seq}, @code{ngl}, @code{lt}, @code{nge},
++@code{le} and @code{ngt}.  The displacement of @code{ldv} and @code{stv}
++must be a constant that is a multiple of the access size: 4 for
++@code{.w}, 8 for @code{.dw} and @code{.h4}, 16 for @code{.qw}.
+ 
+ @cindex @code{-mrelax} command-line option, V850
+ @item -mrelax
+@@ -368,6 +381,11 @@ point on, as @option{-mg4} does.
+ Enables the RH850 G4MH2 instructions and system register names from
+ this point on, as @option{-mg4mh2} does.
+ 
++@cindex @code{.fxu} directive, V850
++@item .fxu
++Enables the RH850 FXU instructions from this point on, as @option{-mfxu}
++does.
++
+ @end table
+ 
+ @node V850 Opcodes
+diff --git a/gas/testsuite/gas/v850/basic.exp b/gas/testsuite/gas/v850/basic.exp
+index a404f9f707d..129f6500359 100644
+--- a/gas/testsuite/gas/v850/basic.exp
++++ b/gas/testsuite/gas/v850/basic.exp
+@@ -466,4 +466,16 @@ if [istarget v850*-*-*] then {
+     run_dump_test "g4mh2-gmfewr"
+     run_dump_test "g4mh2-dir"
+     run_dump_test "g4mh2-dir-bad"
++    run_dump_test "fxu-sreg"
++    run_dump_test "fxu-sreg-dis"
++    run_dump_test "fxu-sreg-bad"
++    run_dump_test "fxu-arith"
++    run_dump_test "fxu-compound"
++    run_dump_test "fxu-cvt"
++    run_dump_test "fxu-move"
++    run_dump_test "fxu-mem"
++    run_dump_test "fxu-cmpf"
++    run_dump_test "fxu-dir"
++    run_dump_test "fxu-bad"
++    run_dump_test "fxu-op-bad"
+ }
+diff --git a/gas/testsuite/gas/v850/fxu-arith.d b/gas/testsuite/gas/v850/fxu-arith.d
+new file mode 100644
+index 00000000000..dcc8a3eb189
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-arith.d
+@@ -0,0 +1,37 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU arith instructions
++#as: -mv850e3v5 -mfxu
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 f0 17 a0 1d[ 	]+absf\.s4[ 	]+.*
++0x00000004 f0 8f a0 f5[ 	]+absf\.s4[ 	]+.*
++0x00000008 e1 17 a4 1d[ 	]+addf\.s4[ 	]+.*
++0x0000000c ff 8f a4 f5[ 	]+addf\.s4[ 	]+.*
++0x00000010 e1 17 ae 1d[ 	]+divf\.s4[ 	]+.*
++0x00000014 ff 8f ae f5[ 	]+divf\.s4[ 	]+.*
++0x00000018 e1 17 aa 1d[ 	]+maxf\.s4[ 	]+.*
++0x0000001c ff 8f aa f5[ 	]+maxf\.s4[ 	]+.*
++0x00000020 e1 17 ac 1d[ 	]+minf\.s4[ 	]+.*
++0x00000024 ff 8f ac f5[ 	]+minf\.s4[ 	]+.*
++0x00000028 e1 17 a8 1d[ 	]+mulf\.s4[ 	]+.*
++0x0000002c ff 8f a8 f5[ 	]+mulf\.s4[ 	]+.*
++0x00000030 f1 17 a0 1d[ 	]+negf\.s4[ 	]+.*
++0x00000034 f1 8f a0 f5[ 	]+negf\.s4[ 	]+.*
++0x00000038 f3 17 a0 1d[ 	]+recipf\.s4[ 	]+.*
++0x0000003c f3 8f a0 f5[ 	]+recipf\.s4[ 	]+.*
++0x00000040 f4 17 a0 1d[ 	]+rsqrtf\.s4[ 	]+.*
++0x00000044 f4 8f a0 f5[ 	]+rsqrtf\.s4[ 	]+.*
++0x00000048 f2 17 a0 1d[ 	]+sqrtf\.s4[ 	]+.*
++0x0000004c f2 8f a0 f5[ 	]+sqrtf\.s4[ 	]+.*
++0x00000050 e1 17 a6 1d[ 	]+subf\.s4[ 	]+.*
++0x00000054 ff 8f a6 f5[ 	]+subf\.s4[ 	]+.*
++0x00000058 e1 17 c0 1c[ 	]+fmaf\.s4[ 	]+.*
++0x0000005c ff 8f c0 f4[ 	]+fmaf\.s4[ 	]+.*
++0x00000060 e1 17 c2 1c[ 	]+fmsf\.s4[ 	]+.*
++0x00000064 ff 8f c2 f4[ 	]+fmsf\.s4[ 	]+.*
++0x00000068 e1 17 c4 1c[ 	]+fnmaf\.s4[ 	]+.*
++0x0000006c ff 8f c4 f4[ 	]+fnmaf\.s4[ 	]+.*
++0x00000070 e1 17 c6 1c[ 	]+fnmsf\.s4[ 	]+.*
++0x00000074 ff 8f c6 f4[ 	]+fnmsf\.s4[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/fxu-arith.s b/gas/testsuite/gas/v850/fxu-arith.s
+new file mode 100644
+index 00000000000..096328921fd
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-arith.s
+@@ -0,0 +1,32 @@
++# RH850 FXU instructions: arith
++	.text
++	absf.s4	wr2, wr3
++	absf.s4	wr17, wr30
++	addf.s4	wr1, wr2, wr3
++	addf.s4	wr31, wr17, wr30
++	divf.s4	wr1, wr2, wr3
++	divf.s4	wr31, wr17, wr30
++	maxf.s4	wr1, wr2, wr3
++	maxf.s4	wr31, wr17, wr30
++	minf.s4	wr1, wr2, wr3
++	minf.s4	wr31, wr17, wr30
++	mulf.s4	wr1, wr2, wr3
++	mulf.s4	wr31, wr17, wr30
++	negf.s4	wr2, wr3
++	negf.s4	wr17, wr30
++	recipf.s4	wr2, wr3
++	recipf.s4	wr17, wr30
++	rsqrtf.s4	wr2, wr3
++	rsqrtf.s4	wr17, wr30
++	sqrtf.s4	wr2, wr3
++	sqrtf.s4	wr17, wr30
++	subf.s4	wr1, wr2, wr3
++	subf.s4	wr31, wr17, wr30
++	fmaf.s4	wr1, wr2, wr3
++	fmaf.s4	wr31, wr17, wr30
++	fmsf.s4	wr1, wr2, wr3
++	fmsf.s4	wr31, wr17, wr30
++	fnmaf.s4	wr1, wr2, wr3
++	fnmaf.s4	wr31, wr17, wr30
++	fnmsf.s4	wr1, wr2, wr3
++	fnmsf.s4	wr31, wr17, wr30
+diff --git a/gas/testsuite/gas/v850/fxu-bad.d b/gas/testsuite/gas/v850/fxu-bad.d
+new file mode 100644
+index 00000000000..1335065ef65
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-bad.d
+@@ -0,0 +1,3 @@
++#as: -mv850e3v5 -mg4mh2
++#name: v850 RH850 FXU instructions need -mfxu
++#error_output: fxu-bad.l
+diff --git a/gas/testsuite/gas/v850/fxu-bad.l b/gas/testsuite/gas/v850/fxu-bad.l
+new file mode 100644
+index 00000000000..94228aa21ac
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-bad.l
+@@ -0,0 +1,6 @@
++.*: Assembler messages:
++.*:3: Error: .*Target processor does not support this instruction\.
++.*:4: Error: .*Target processor does not support this instruction\.
++.*:5: Error: .*Target processor does not support this instruction\.
++.*:6: Error: .*Target processor does not support this instruction\.
++.*:7: Error: .*Target processor does not support this instruction\.
+diff --git a/gas/testsuite/gas/v850/fxu-bad.s b/gas/testsuite/gas/v850/fxu-bad.s
+new file mode 100644
+index 00000000000..f5825367321
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-bad.s
+@@ -0,0 +1,7 @@
++# RH850 FXU instructions without -mfxu
++	.text
++	addf.s4	wr1, wr2, wr3
++	cmovf.w4	wr4, wr1, wr2, wr3
++	shflv.w4	1, wr1, wr2, wr3
++	ldv.qw	0[r1], wr2
++	stv.w	1, wr2, 4[r1]
+diff --git a/gas/testsuite/gas/v850/fxu-cmpf.d b/gas/testsuite/gas/v850/fxu-cmpf.d
+new file mode 100644
+index 00000000000..7c49abd4a15
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-cmpf.d
+@@ -0,0 +1,23 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU comparison conditions
++#as: -mv850e3v5 -mfxu
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e1 17 80 1d[ 	]+cmpf\.s4[ 	]+f, wr1, wr2, wr3
++0x00000004 e1 17 82 1d[ 	]+cmpf\.s4[ 	]+un, wr1, wr2, wr3
++0x00000008 e1 17 84 1d[ 	]+cmpf\.s4[ 	]+eq, wr1, wr2, wr3
++0x0000000c e1 17 86 1d[ 	]+cmpf\.s4[ 	]+ueq, wr1, wr2, wr3
++0x00000010 e1 17 88 1d[ 	]+cmpf\.s4[ 	]+olt, wr1, wr2, wr3
++0x00000014 e1 17 8a 1d[ 	]+cmpf\.s4[ 	]+ult, wr1, wr2, wr3
++0x00000018 e1 17 8c 1d[ 	]+cmpf\.s4[ 	]+ole, wr1, wr2, wr3
++0x0000001c e1 17 8e 1d[ 	]+cmpf\.s4[ 	]+ule, wr1, wr2, wr3
++0x00000020 e1 17 90 1d[ 	]+cmpf\.s4[ 	]+sf, wr1, wr2, wr3
++0x00000024 e1 17 92 1d[ 	]+cmpf\.s4[ 	]+ngle, wr1, wr2, wr3
++0x00000028 e1 17 94 1d[ 	]+cmpf\.s4[ 	]+seq, wr1, wr2, wr3
++0x0000002c e1 17 96 1d[ 	]+cmpf\.s4[ 	]+ngl, wr1, wr2, wr3
++0x00000030 e1 17 98 1d[ 	]+cmpf\.s4[ 	]+lt, wr1, wr2, wr3
++0x00000034 e1 17 9a 1d[ 	]+cmpf\.s4[ 	]+nge, wr1, wr2, wr3
++0x00000038 e1 17 9c 1d[ 	]+cmpf\.s4[ 	]+le, wr1, wr2, wr3
++0x0000003c e1 17 9e 1d[ 	]+cmpf\.s4[ 	]+ngt, wr1, wr2, wr3
+diff --git a/gas/testsuite/gas/v850/fxu-cmpf.s b/gas/testsuite/gas/v850/fxu-cmpf.s
+new file mode 100644
+index 00000000000..d0135fd7144
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-cmpf.s
+@@ -0,0 +1,18 @@
++# RH850 FXU comparison condition names
++	.text
++	cmpf.s4	f, wr1, wr2, wr3
++	cmpf.s4	1, wr1, wr2, wr3
++	cmpf.s4	eq, wr1, wr2, wr3
++	cmpf.s4	3, wr1, wr2, wr3
++	cmpf.s4	olt, wr1, wr2, wr3
++	cmpf.s4	5, wr1, wr2, wr3
++	cmpf.s4	ole, wr1, wr2, wr3
++	cmpf.s4	7, wr1, wr2, wr3
++	cmpf.s4	sf, wr1, wr2, wr3
++	cmpf.s4	9, wr1, wr2, wr3
++	cmpf.s4	seq, wr1, wr2, wr3
++	cmpf.s4	11, wr1, wr2, wr3
++	cmpf.s4	lt, wr1, wr2, wr3
++	cmpf.s4	13, wr1, wr2, wr3
++	cmpf.s4	le, wr1, wr2, wr3
++	cmpf.s4	15, wr1, wr2, wr3
+diff --git a/gas/testsuite/gas/v850/fxu-compound.d b/gas/testsuite/gas/v850/fxu-compound.d
+new file mode 100644
+index 00000000000..acd2a9ca309
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-compound.d
+@@ -0,0 +1,39 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU compound instructions
++#as: -mv850e3v5 -mfxu
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e1 17 d0 1d[ 	]+addsubf\.s4[ 	]+.*
++0x00000004 ff 8f d0 f5[ 	]+addsubf\.s4[ 	]+.*
++0x00000008 e1 17 d8 1d[ 	]+addsubnf\.s4[ 	]+.*
++0x0000000c ff 8f d8 f5[ 	]+addsubnf\.s4[ 	]+.*
++0x00000010 e1 17 d2 1d[ 	]+subaddf\.s4[ 	]+.*
++0x00000014 ff 8f d2 f5[ 	]+subaddf\.s4[ 	]+.*
++0x00000018 e1 17 da 1d[ 	]+subaddnf\.s4[ 	]+.*
++0x0000001c ff 8f da f5[ 	]+subaddnf\.s4[ 	]+.*
++0x00000020 e1 17 c4 1d[ 	]+addxf\.s4[ 	]+.*
++0x00000024 ff 8f c4 f5[ 	]+addxf\.s4[ 	]+.*
++0x00000028 e1 17 c8 1d[ 	]+mulxf\.s4[ 	]+.*
++0x0000002c ff 8f c8 f5[ 	]+mulxf\.s4[ 	]+.*
++0x00000030 e1 17 c6 1d[ 	]+subxf\.s4[ 	]+.*
++0x00000034 ff 8f c6 f5[ 	]+subxf\.s4[ 	]+.*
++0x00000038 e1 17 dc 1d[ 	]+addsubnxf\.s4[ 	]+.*
++0x0000003c ff 8f dc f5[ 	]+addsubnxf\.s4[ 	]+.*
++0x00000040 e1 17 d4 1d[ 	]+addsubxf\.s4[ 	]+.*
++0x00000044 ff 8f d4 f5[ 	]+addsubxf\.s4[ 	]+.*
++0x00000048 e1 17 de 1d[ 	]+subaddnxf\.s4[ 	]+.*
++0x0000004c ff 8f de f5[ 	]+subaddnxf\.s4[ 	]+.*
++0x00000050 e1 17 d6 1d[ 	]+subaddxf\.s4[ 	]+.*
++0x00000054 ff 8f d6 f5[ 	]+subaddxf\.s4[ 	]+.*
++0x00000058 e1 17 b4 1d[ 	]+addrf\.s4[ 	]+.*
++0x0000005c ff 8f b4 f5[ 	]+addrf\.s4[ 	]+.*
++0x00000060 e1 17 ba 1d[ 	]+maxrf\.s4[ 	]+.*
++0x00000064 ff 8f ba f5[ 	]+maxrf\.s4[ 	]+.*
++0x00000068 e1 17 bc 1d[ 	]+minrf\.s4[ 	]+.*
++0x0000006c ff 8f bc f5[ 	]+minrf\.s4[ 	]+.*
++0x00000070 e1 17 b8 1d[ 	]+mulrf\.s4[ 	]+.*
++0x00000074 ff 8f b8 f5[ 	]+mulrf\.s4[ 	]+.*
++0x00000078 e1 17 b6 1d[ 	]+subrf\.s4[ 	]+.*
++0x0000007c ff 8f b6 f5[ 	]+subrf\.s4[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/fxu-compound.s b/gas/testsuite/gas/v850/fxu-compound.s
+new file mode 100644
+index 00000000000..ea9cd585474
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-compound.s
+@@ -0,0 +1,34 @@
++# RH850 FXU instructions: compound
++	.text
++	addsubf.s4	wr1, wr2, wr3
++	addsubf.s4	wr31, wr17, wr30
++	addsubnf.s4	wr1, wr2, wr3
++	addsubnf.s4	wr31, wr17, wr30
++	subaddf.s4	wr1, wr2, wr3
++	subaddf.s4	wr31, wr17, wr30
++	subaddnf.s4	wr1, wr2, wr3
++	subaddnf.s4	wr31, wr17, wr30
++	addxf.s4	wr1, wr2, wr3
++	addxf.s4	wr31, wr17, wr30
++	mulxf.s4	wr1, wr2, wr3
++	mulxf.s4	wr31, wr17, wr30
++	subxf.s4	wr1, wr2, wr3
++	subxf.s4	wr31, wr17, wr30
++	addsubnxf.s4	wr1, wr2, wr3
++	addsubnxf.s4	wr31, wr17, wr30
++	addsubxf.s4	wr1, wr2, wr3
++	addsubxf.s4	wr31, wr17, wr30
++	subaddnxf.s4	wr1, wr2, wr3
++	subaddnxf.s4	wr31, wr17, wr30
++	subaddxf.s4	wr1, wr2, wr3
++	subaddxf.s4	wr31, wr17, wr30
++	addrf.s4	wr1, wr2, wr3
++	addrf.s4	wr31, wr17, wr30
++	maxrf.s4	wr1, wr2, wr3
++	maxrf.s4	wr31, wr17, wr30
++	minrf.s4	wr1, wr2, wr3
++	minrf.s4	wr31, wr17, wr30
++	mulrf.s4	wr1, wr2, wr3
++	mulrf.s4	wr31, wr17, wr30
++	subrf.s4	wr1, wr2, wr3
++	subrf.s4	wr31, wr17, wr30
+diff --git a/gas/testsuite/gas/v850/fxu-cvt.d b/gas/testsuite/gas/v850/fxu-cvt.d
+new file mode 100644
+index 00000000000..6c429aa098e
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-cvt.d
+@@ -0,0 +1,39 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU cvt instructions
++#as: -mv850e3v5 -mfxu
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e5 17 a0 1d[ 	]+ceilf\.suw4[ 	]+.*
++0x00000004 e5 8f a0 f5[ 	]+ceilf\.suw4[ 	]+.*
++0x00000008 e4 17 a0 1d[ 	]+ceilf\.sw4[ 	]+.*
++0x0000000c e4 8f a0 f5[ 	]+ceilf\.sw4[ 	]+.*
++0x00000010 ec 17 a0 1d[ 	]+cvtf\.hs4[ 	]+.*
++0x00000014 ec 8f a0 f5[ 	]+cvtf\.hs4[ 	]+.*
++0x00000018 ed 17 a0 1d[ 	]+cvtf\.sh4[ 	]+.*
++0x0000001c ed 8f a0 f5[ 	]+cvtf\.sh4[ 	]+.*
++0x00000020 e9 17 a0 1d[ 	]+cvtf\.suw4[ 	]+.*
++0x00000024 e9 8f a0 f5[ 	]+cvtf\.suw4[ 	]+.*
++0x00000028 e8 17 a0 1d[ 	]+cvtf\.sw4[ 	]+.*
++0x0000002c e8 8f a0 f5[ 	]+cvtf\.sw4[ 	]+.*
++0x00000030 eb 17 a0 1d[ 	]+cvtf\.uws4[ 	]+.*
++0x00000034 eb 8f a0 f5[ 	]+cvtf\.uws4[ 	]+.*
++0x00000038 ea 17 a0 1d[ 	]+cvtf\.ws4[ 	]+.*
++0x0000003c ea 8f a0 f5[ 	]+cvtf\.ws4[ 	]+.*
++0x00000040 e7 17 a0 1d[ 	]+floorf\.suw4[ 	]+.*
++0x00000044 e7 8f a0 f5[ 	]+floorf\.suw4[ 	]+.*
++0x00000048 e6 17 a0 1d[ 	]+floorf\.sw4[ 	]+.*
++0x0000004c e6 8f a0 f5[ 	]+floorf\.sw4[ 	]+.*
++0x00000050 e1 17 a0 1d[ 	]+roundf\.suw4[ 	]+.*
++0x00000054 e1 8f a0 f5[ 	]+roundf\.suw4[ 	]+.*
++0x00000058 e0 17 a0 1d[ 	]+roundf\.sw4[ 	]+.*
++0x0000005c e0 8f a0 f5[ 	]+roundf\.sw4[ 	]+.*
++0x00000060 e3 17 a0 1d[ 	]+trncf\.suw4[ 	]+.*
++0x00000064 e3 8f a0 f5[ 	]+trncf\.suw4[ 	]+.*
++0x00000068 e2 17 a0 1d[ 	]+trncf\.sw4[ 	]+.*
++0x0000006c e2 8f a0 f5[ 	]+trncf\.sw4[ 	]+.*
++0x00000070 e1 17 8c 1d[ 	]+cmpf\.s4[ 	]+.*
++0x00000074 ff 8f 9e f5[ 	]+cmpf\.s4[ 	]+.*
++0x00000078 a1 07 1d 1e 04 10[ 	]+cmovf\.w4[ 	]+.*
++0x0000007e bf 07 1d f6 1d 88[ 	]+cmovf\.w4[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/fxu-cvt.s b/gas/testsuite/gas/v850/fxu-cvt.s
+new file mode 100644
+index 00000000000..fdc00020aa1
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-cvt.s
+@@ -0,0 +1,34 @@
++# RH850 FXU instructions: cvt
++	.text
++	ceilf.suw4	wr2, wr3
++	ceilf.suw4	wr17, wr30
++	ceilf.sw4	wr2, wr3
++	ceilf.sw4	wr17, wr30
++	cvtf.hs4	wr2, wr3
++	cvtf.hs4	wr17, wr30
++	cvtf.sh4	wr2, wr3
++	cvtf.sh4	wr17, wr30
++	cvtf.suw4	wr2, wr3
++	cvtf.suw4	wr17, wr30
++	cvtf.sw4	wr2, wr3
++	cvtf.sw4	wr17, wr30
++	cvtf.uws4	wr2, wr3
++	cvtf.uws4	wr17, wr30
++	cvtf.ws4	wr2, wr3
++	cvtf.ws4	wr17, wr30
++	floorf.suw4	wr2, wr3
++	floorf.suw4	wr17, wr30
++	floorf.sw4	wr2, wr3
++	floorf.sw4	wr17, wr30
++	roundf.suw4	wr2, wr3
++	roundf.suw4	wr17, wr30
++	roundf.sw4	wr2, wr3
++	roundf.sw4	wr17, wr30
++	trncf.suw4	wr2, wr3
++	trncf.suw4	wr17, wr30
++	trncf.sw4	wr2, wr3
++	trncf.sw4	wr17, wr30
++	cmpf.s4	6, wr1, wr2, wr3
++	cmpf.s4	15, wr31, wr17, wr30
++	cmovf.w4	wr4, wr1, wr2, wr3
++	cmovf.w4	wr29, wr31, wr17, wr30
+diff --git a/gas/testsuite/gas/v850/fxu-dir.d b/gas/testsuite/gas/v850/fxu-dir.d
+new file mode 100644
+index 00000000000..9ce92379461
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-dir.d
+@@ -0,0 +1,10 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 .fxu directive
++#as: -mv850e3v5
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e1 17 a4 1d[ 	]+addf\.s4[ 	]+wr1, wr2, wr3
++0x00000004 a1 07 9d 12 10 00[ 	]+ldv\.qw[ 	]+16\[r1\], wr2
++0x0000000a e6 0f 40 50[ 	]+stsr[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/fxu-dir.s b/gas/testsuite/gas/v850/fxu-dir.s
+new file mode 100644
+index 00000000000..828c8c90546
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-dir.s
+@@ -0,0 +1,6 @@
++# .fxu directive
++	.text
++	.fxu
++	addf.s4	wr1, wr2, wr3
++	ldv.qw	16[r1], wr2
++	stsr	fxsr, r1
+diff --git a/gas/testsuite/gas/v850/fxu-mem.d b/gas/testsuite/gas/v850/fxu-mem.d
+new file mode 100644
+index 00000000000..77f813a7c33
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-mem.d
+@@ -0,0 +1,23 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU mem instructions
++#as: -mv850e3v5 -mfxu
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 a5 07 5d 1b 00 00[ 	]+ldv\.dw[ 	]+.*
++0x00000006 b4 07 7d f3 f0 ff[ 	]+ldv\.dw[ 	]+.*
++0x0000000c a5 07 9d 1a 00 00[ 	]+ldv\.qw[ 	]+.*
++0x00000012 b4 07 9d f2 f0 ff[ 	]+ldv\.qw[ 	]+.*
++0x00000018 a5 07 3d 19 00 00[ 	]+ldv\.w[ 	]+.*
++0x0000001e b4 07 fd f1 f0 ff[ 	]+ldv\.w[ 	]+.*
++0x00000024 a5 07 dd 1b 00 00[ 	]+ldvz\.h4[ 	]+.*
++0x0000002a b4 07 dd f3 f0 ff[ 	]+ldvz\.h4[ 	]+.*
++0x00000030 a5 07 bd 1b 00 00[ 	]+stv\.dw[ 	]+.*
++0x00000036 b4 07 9d f3 f0 ff[ 	]+stv\.dw[ 	]+.*
++0x0000003c a5 07 bd 1a 00 00[ 	]+stv\.qw[ 	]+.*
++0x00000042 b4 07 bd f2 f0 ff[ 	]+stv\.qw[ 	]+.*
++0x00000048 a5 07 5d 1a 00 00[ 	]+stv\.w[ 	]+.*
++0x0000004e b4 07 7d f2 f0 ff[ 	]+stv\.w[ 	]+.*
++0x00000054 a5 07 fd 1b 00 00[ 	]+stvz\.h4[ 	]+.*
++0x0000005a b4 07 fd f3 f0 ff[ 	]+stvz\.h4[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/fxu-mem.s b/gas/testsuite/gas/v850/fxu-mem.s
+new file mode 100644
+index 00000000000..252ad221b6e
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-mem.s
+@@ -0,0 +1,18 @@
++# RH850 FXU instructions: mem
++	.text
++	ldv.dw	2, 0[r5], wr3
++	ldv.dw	3, -16[r20], wr30
++	ldv.qw	0[r5], wr3
++	ldv.qw	-16[r20], wr30
++	ldv.w	9, 0[r5], wr3
++	ldv.w	15, -16[r20], wr30
++	ldvz.h4	0[r5], wr3
++	ldvz.h4	-16[r20], wr30
++	stv.dw	1, wr3, 0[r5]
++	stv.dw	0, wr30, -16[r20]
++	stv.qw	wr3, 0[r5]
++	stv.qw	wr30, -16[r20]
++	stv.w	2, wr3, 0[r5]
++	stv.w	3, wr30, -16[r20]
++	stvz.h4	wr3, 0[r5]
++	stvz.h4	wr30, -16[r20]
+diff --git a/gas/testsuite/gas/v850/fxu-move.d b/gas/testsuite/gas/v850/fxu-move.d
+new file mode 100644
+index 00000000000..da7b881d254
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-move.d
+@@ -0,0 +1,15 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU move instructions
++#as: -mv850e3v5 -mfxu
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 fe 17 a0 1d[ 	]+movv\.w4[ 	]+.*
++0x00000004 fe 8f a0 f5[ 	]+movv\.w4[ 	]+.*
++0x00000008 fa 17 a0 1d[ 	]+flpv\.s4[ 	]+.*
++0x0000000c fb 8f a0 f5[ 	]+flpv\.s4[ 	]+.*
++0x00000010 a1 07 bd 1e 53 12[ 	]+shflv\.w4[ 	]+.*
++0x00000016 bf 07 bd f6 ff 8f[ 	]+shflv\.w4[ 	]+.*
++0x0000001c ff 17 a0 2d[ 	]+trfsrv\.w4[ 	]+.*
++0x00000020 ff 8f a0 05[ 	]+trfsrv\.w4[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/fxu-move.s b/gas/testsuite/gas/v850/fxu-move.s
+new file mode 100644
+index 00000000000..fe55832ac10
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-move.s
+@@ -0,0 +1,10 @@
++# RH850 FXU instructions: move
++	.text
++	movv.w4	wr2, wr3
++	movv.w4	wr17, wr30
++	flpv.s4	2, wr2, wr3
++	flpv.s4	3, wr17, wr30
++	shflv.w4	2643, wr1, wr2, wr3
++	shflv.w4	4095, wr31, wr17, wr30
++	trfsrv.w4	5, wr2
++	trfsrv.w4	0, wr17
+diff --git a/gas/testsuite/gas/v850/fxu-op-bad.d b/gas/testsuite/gas/v850/fxu-op-bad.d
+new file mode 100644
+index 00000000000..b88f439c7e3
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-op-bad.d
+@@ -0,0 +1,3 @@
++#as: -mv850e3v5 -mfxu
++#name: v850 RH850 FXU bad operands
++#error_output: fxu-op-bad.l
+diff --git a/gas/testsuite/gas/v850/fxu-op-bad.l b/gas/testsuite/gas/v850/fxu-op-bad.l
+new file mode 100644
+index 00000000000..e542a30d1cb
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-op-bad.l
+@@ -0,0 +1,19 @@
++.*: Assembler messages:
++.*:3: Error: .*invalid FXU register name
++.*:4: Error: .*invalid FXU register name
++.*:5: Error: .*invalid register name
++.*:6: Error: .*invalid FXU register name
++.*:7: Error: .*displacement value is not aligned
++.*:8: Error: .*displacement value is not aligned
++.*:9: Error: .*displacement value is not aligned
++.*:10: Error: .*displacement value is not aligned
++.*:11: Error: .*displacement value is not aligned
++.*:12: Error: .*displacement value is out of range
++.*:13: Error: .*constant expected
++.*:14: Error: .*operand out of range \(4 is not between 0 and 3\)
++.*:15: Error: .*immediate value is out of range
++.*:16: Error: .*operand out of range \(16 is not between 0 and 15\)
++.*:17: Error: .*operand out of range \(2 is not between 0 and 1\)
++.*:18: Error: .*operand out of range \(8 is not between 0 and 7\)
++.*:19: Error: .*operand out of range \(16 is not between 0 and 15\)
++.*:20: Error: .*invalid condition code name
+diff --git a/gas/testsuite/gas/v850/fxu-op-bad.s b/gas/testsuite/gas/v850/fxu-op-bad.s
+new file mode 100644
+index 00000000000..f56688bc3ba
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-op-bad.s
+@@ -0,0 +1,20 @@
++# RH850 FXU bad operands
++	.text
++	addf.s4	r1, wr2, wr3
++	addf.s4	vr1, wr2, wr3
++	ldv.qw	0[wr1], wr3
++	movv.w4	wr32, wr3
++	ldv.qw	8[r1], wr2
++	ldv.w	1, 2[r1], wr2
++	ldv.dw	1, 4[r1], wr2
++	stv.qw	wr1, 4[r1]
++	stvz.h4	wr1, 12[r1]
++	ldv.qw	32768[r1], wr2
++	ldv.qw	sym[r1], wr2
++	flpv.s4	4, wr1, wr2
++	shflv.w4	4096, wr1, wr2, wr3
++	ldv.w	16, 0[r1], wr2
++	stv.dw	2, wr1, 0[r1]
++	trfsrv.w4	8, wr1
++	cmpf.s4	16, wr1, wr2, wr3
++	cmpf.s4	neq, wr1, wr2, wr3
+diff --git a/gas/testsuite/gas/v850/fxu-sreg-bad.d b/gas/testsuite/gas/v850/fxu-sreg-bad.d
+new file mode 100644
+index 00000000000..ad53c215e29
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-sreg-bad.d
+@@ -0,0 +1,3 @@
++#as: -mv850e3v5 -mg4
++#name: v850 RH850 FXU system register names need -mg4mh2
++#error_output: fxu-sreg-bad.l
+diff --git a/gas/testsuite/gas/v850/fxu-sreg-bad.l b/gas/testsuite/gas/v850/fxu-sreg-bad.l
+new file mode 100644
+index 00000000000..f549603ba54
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-sreg-bad.l
+@@ -0,0 +1,3 @@
++.*: Assembler messages:
++.*:3: Error: .*invalid system register name
++.*:4: Error: .*invalid system register name
+diff --git a/gas/testsuite/gas/v850/fxu-sreg-bad.s b/gas/testsuite/gas/v850/fxu-sreg-bad.s
+new file mode 100644
+index 00000000000..176059b542c
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-sreg-bad.s
+@@ -0,0 +1,4 @@
++# RH850 FXU system register names without -mg4mh2
++	.text
++	stsr	fxsr, r1
++	stsr	fxxp, r1
+diff --git a/gas/testsuite/gas/v850/fxu-sreg-dis.d b/gas/testsuite/gas/v850/fxu-sreg-dis.d
+new file mode 100644
+index 00000000000..5c4b57426a3
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-sreg-dis.d
+@@ -0,0 +1,16 @@
++#objdump: -d -M g4mh2 --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU system register names in objdump
++#source: fxu-sreg.s
++#as: -mv850e3v5 -mg4mh2
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 [0-9a-f ]+[ 	]+stsr[ 	]+fxsr, r1, 10
++0x00000004 [0-9a-f ]+[ 	]+ldsr[ 	]+r2, fxsr, 10
++0x00000008 [0-9a-f ]+[ 	]+stsr[ 	]+fxst, sp, 10
++0x0000000c [0-9a-f ]+[ 	]+stsr[ 	]+fxinfo, gp, 10
++0x00000010 [0-9a-f ]+[ 	]+stsr[ 	]+fxcfg, r5, 10
++0x00000014 [0-9a-f ]+[ 	]+ldsr[ 	]+r6, fxcfg, 10
++0x00000018 [0-9a-f ]+[ 	]+stsr[ 	]+fxxc, r7, 10
++0x0000001c [0-9a-f ]+[ 	]+stsr[ 	]+fxxp, r8, 10
+diff --git a/gas/testsuite/gas/v850/fxu-sreg.d b/gas/testsuite/gas/v850/fxu-sreg.d
+new file mode 100644
+index 00000000000..4b843487ead
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-sreg.d
+@@ -0,0 +1,15 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 RH850 FXU system register names
++#as: -mv850e3v5 -mg4mh2
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 e6 0f 40 50[ 	]+stsr[ 	]+.*
++0x00000004 e2 37 20 50[ 	]+ldsr[ 	]+.*
++0x00000008 e8 1f 40 50[ 	]+stsr[ 	]+.*
++0x0000000c e9 27 40 50[ 	]+stsr[ 	]+.*
++0x00000010 ea 2f 40 50[ 	]+stsr[ 	]+.*
++0x00000014 e6 57 20 50[ 	]+ldsr[ 	]+.*
++0x00000018 ec 3f 40 50[ 	]+stsr[ 	]+.*
++0x0000001c ed 47 40 50[ 	]+stsr[ 	]+.*
+diff --git a/gas/testsuite/gas/v850/fxu-sreg.s b/gas/testsuite/gas/v850/fxu-sreg.s
+new file mode 100644
+index 00000000000..477ca277d7b
+--- /dev/null
++++ b/gas/testsuite/gas/v850/fxu-sreg.s
+@@ -0,0 +1,10 @@
++# RH850 FXU system register names
++	.text
++	stsr	fxsr, r1
++	ldsr	r2, fxsr
++	stsr	fxst, r3
++	stsr	fxinfo, r4
++	stsr	fxcfg, r5
++	ldsr	r6, fxcfg
++	stsr	fxxc, r7
++	stsr	fxxp, r8
+diff --git a/include/opcode/v850.h b/include/opcode/v850.h
+index 05840b883ff..bd2c4e066f9 100644
+--- a/include/opcode/v850.h
++++ b/include/opcode/v850.h
+@@ -71,6 +71,7 @@ struct v850_opcode
+ #define opt_ALIAS      (opt_EXTENSION + 1)
+ #define opt_G4         (opt_ALIAS + 1)
+ #define opt_G4MH2      (opt_G4 + 1)
++#define opt_FXU        (opt_G4MH2 + 1)
+ 
+ /* Values for the processors field in the v850_opcode structure.  */
+ #define PROCESSOR_V850       (1 << (arch_V850))     /* Just the V850.  */
+@@ -97,6 +98,7 @@ struct v850_opcode
+ #define PROCESSOR_OPTION_ALIAS     (1 << (opt_ALIAS))                      /* Enable alias opcodes.  */
+ #define PROCESSOR_OPTION_G4        (1 << (opt_G4))                         /* Enable RH850 G4 opcodes.  */
+ #define PROCESSOR_OPTION_G4MH2     (1 << (opt_G4MH2))                      /* Enable RH850 G4MH2 opcodes.  */
++#define PROCESSOR_OPTION_FXU       (1 << (opt_FXU))                        /* Enable RH850 FXU opcodes.  */
+ 
+ #define SET_PROCESSOR_MASK(mask,set)	((mask) = ((mask) & ~PROCESSOR_MASK) | (set))
+ 
+@@ -243,6 +245,18 @@ extern const struct v850_operand v850_operands[];
+ /* A PC-relative displacement where a positive value indicates a backwards displacement.  */
+ #define V850_INVERSE_PCREL	0x1000000
+ 
++/* This operand names an FXU vector register.  */
++#define V850_OPERAND_WREG	0x2000000
++
++/* This operand is in the third halfword of a 48-bit instruction.  */
++#define V850_OPERAND_EXT16	0x4000000
++
++/* Bit 11 of this third halfword operand is in bit 21.  */
++#define V850_OPERAND_IMM12	0x8000000
++
++/* This operand names an FXU comparison condition.  */
++#define V850_OPERAND_FXCC	0x10000000
++
+ extern int v850_msg_is_out_of_range (const char *);
+ 
+ #ifdef __cplusplus
+diff --git a/opcodes/v850-dis.c b/opcodes/v850-dis.c
+index 2e8558cfe6c..3ef2163ed91 100644
+--- a/opcodes/v850-dis.c
++++ b/opcodes/v850-dis.c
+@@ -91,6 +91,30 @@ get_operand_value (const struct v850_operand *operand,
+   unsigned long value;
+   bfd_byte buffer[4];
+ 
++  if (operand->flags & V850_OPERAND_EXT16)
++    {
++      int status = info->read_memory_func (memaddr + 4, buffer, 2, info);
++
++      if (status == 0)
++	{
++	  unsigned long ext = bfd_getl16 (buffer);
++
++	  if (operand->extract)
++	    value = (operand->extract) (ext, invalid);
++	  else
++	    value = (ext >> operand->shift) & ((1 << operand->bits) - 1);
++	  if (operand->flags & V850_OPERAND_IMM12)
++	    value |= ((insn >> 21) & 1) << 11;
++
++	  return value;
++	}
++
++      if (!noerror)
++	info->memory_error_func (status, memaddr + 4, info);
++
++      return 0;
++    }
++
+   if ((operand->flags & V850E_IMMEDIATE16)
+       || (operand->flags & V850E_IMMEDIATE16HI))
+     {
+@@ -378,6 +402,12 @@ get_v850_g4mh2_sreg_name (unsigned int reg)
+     { 316, "gmeiwr" },
+     { 317, "gmfewr" },
+     { 318, "gmpeid" },
++    { 326, "fxsr" },
++    { 328, "fxst" },
++    { 329, "fxinfo" },
++    { 330, "fxcfg" },
++    { 332, "fxxc" },
++    { 333, "fxxp" },
+     { 352, "tscountl" },
+     { 353, "tscounth" },
+     { 354, "tsctrl" },
+@@ -475,6 +505,22 @@ get_v850_vreg_name (unsigned int reg)
+   return _("<invalid v-reg number>");
+ }
+ 
++static const char *
++get_v850_wreg_name (unsigned int reg)
++{
++  static const char *const v850_wreg_names[] =
++    {
++     "wr0", "wr1", "wr2", "wr3", "wr4", "wr5", "wr6", "wr7", "wr8", "wr9",
++     "wr10", "wr11", "wr12", "wr13", "wr14", "wr15", "wr16", "wr17", "wr18",
++     "wr19", "wr20", "wr21", "wr22", "wr23", "wr24", "wr25", "wr26", "wr27",
++     "wr28", "wr29", "wr30", "wr31"
++    };
++
++  if (reg < ARRAY_SIZE (v850_wreg_names))
++    return v850_wreg_names[reg];
++  return _("<invalid w-reg number>");
++}
++
+ static const char *
+ get_v850_cc_name (unsigned int reg)
+ {
+@@ -503,6 +549,20 @@ get_v850_float_cc_name (unsigned int reg)
+   return _("<invalid float-CC-reg number>");
+ }
+ 
++static const char *
++get_v850_fxu_cc_name (unsigned int reg)
++{
++  static const char *const v850_fxu_cc_names[] =
++    {
++     "f", "un", "eq", "ueq", "olt", "ult", "ole", "ule",
++     "sf", "ngle", "seq", "ngl", "lt", "nge", "le", "ngt"
++    };
++
++  if (reg < ARRAY_SIZE (v850_fxu_cc_names))
++    return v850_fxu_cc_names[reg];
++  return _("<invalid FXU-CC number>");
++}
++
+ static const char *
+ get_v850_cacheop_name (unsigned int reg)
+ {
+@@ -737,6 +797,8 @@ disassemble (bfd_vma memaddr,
+ 				       | V850E_OPERAND_REG_LIST
+ 				       | V850_OPERAND_CC
+ 				       | V850_OPERAND_VREG
++				       | V850_OPERAND_WREG
++				       | V850_OPERAND_FXCC
+ 				       | V850_OPERAND_CACHEOP
+ 				       | V850_OPERAND_PREFOP
+ 				       | V850_OPERAND_FLOAT_CC);
+@@ -860,6 +922,11 @@ disassemble (bfd_vma memaddr,
+ 		  info->fprintf_func (info->stream, "%s", get_v850_float_cc_name (value));
+ 		  break;
+ 
++		case V850_OPERAND_FXCC:
++		  info->fprintf_func (info->stream, "%s",
++				      get_v850_fxu_cc_name (value));
++		  break;
++
+ 		case V850_OPERAND_CACHEOP:
+ 		  {
+ 		    int idx;
+@@ -900,6 +967,11 @@ disassemble (bfd_vma memaddr,
+ 		  info->fprintf_func (info->stream, "%s", get_v850_vreg_name (value));
+ 		  break;
+ 
++		case V850_OPERAND_WREG:
++		  info->fprintf_func (info->stream, "%s",
++				      get_v850_wreg_name (value));
++		  break;
++
+ 		default:
+ 		  print_value (operand->flags, memaddr, info, value);
+ 		  break;
+@@ -1017,6 +1089,15 @@ print_insn_v850 (bfd_vma memaddr, struct disassemble_info * info)
+ 	}
+     }
+ 
++  if (length == 0
++      && ((target_processor & PROCESSOR_V850E3V5_UP) != 0)
++      && (insn & 0xffe0) == 0x07a0
++      && !status2 && (insn2 & 0x001f) == 0x001d)
++    {
++      length = 4;
++      code_length = 6;
++    }
++
+   if (length == 0
+       && ((target_processor & PROCESSOR_V850E3V5_UP) != 0))
+     {
+diff --git a/opcodes/v850-opc.c b/opcodes/v850-opc.c
+index 1025d331195..1b9cd20d0ef 100644
+--- a/opcodes/v850-opc.c
++++ b/opcodes/v850-opc.c
+@@ -839,6 +839,80 @@ extract_PREFOP (unsigned long insn, int * invalid)
+   return ret;
+ }
+ 
++static unsigned long
++insert_fx_d16 (unsigned long insn, unsigned long value, const char ** errmsg,
++	       unsigned long align)
++{
++  if (value + 0x8000 > 0xffff)
++    * errmsg = (value & (align - 1)) ? _(not_valid) : _(out_of_range);
++  else if (value & (align - 1))
++    * errmsg = _(not_aligned);
++
++  return insn | (value & 0xffff & ~(align - 1));
++}
++
++static unsigned long
++extract_fx_d16 (unsigned long insn, int * invalid, unsigned long align)
++{
++  unsigned long ret = insn & 0xffff;
++
++  if ((ret & (align - 1)) != 0 && invalid != NULL)
++    * invalid = 1;
++
++  return (ret ^ 0x8000) - 0x8000;
++}
++
++static unsigned long
++insert_fx_d16_w (unsigned long insn, unsigned long value, const char ** errmsg)
++{
++  return insert_fx_d16 (insn, value, errmsg, 4);
++}
++
++static unsigned long
++extract_fx_d16_w (unsigned long insn, int * invalid)
++{
++  return extract_fx_d16 (insn, invalid, 4);
++}
++
++static unsigned long
++insert_fx_d16_dw (unsigned long insn, unsigned long value, const char ** errmsg)
++{
++  return insert_fx_d16 (insn, value, errmsg, 8);
++}
++
++static unsigned long
++extract_fx_d16_dw (unsigned long insn, int * invalid)
++{
++  return extract_fx_d16 (insn, invalid, 8);
++}
++
++static unsigned long
++insert_fx_d16_qw (unsigned long insn, unsigned long value, const char ** errmsg)
++{
++  return insert_fx_d16 (insn, value, errmsg, 16);
++}
++
++static unsigned long
++extract_fx_d16_qw (unsigned long insn, int * invalid)
++{
++  return extract_fx_d16 (insn, invalid, 16);
++}
++
++static unsigned long
++insert_fx_imm12 (unsigned long insn, unsigned long value, const char ** errmsg)
++{
++  if (value > 0xfff)
++    * errmsg = _(immediate_out_of_range);
++
++  return insn | (value & 0x7ff);
++}
++
++static unsigned long
++extract_fx_imm12 (unsigned long insn, int * invalid ATTRIBUTE_UNUSED)
++{
++  return insn & 0x7ff;
++}
++
+ static unsigned long
+ insert_IMM10U (unsigned long insn, unsigned long value, const char ** errmsg)
+ {
+@@ -1277,6 +1351,51 @@ const struct v850_operand v850_operands[] =
+ 
+ #define IMM10U	(PREFOP + 1)
+   { 0, 0, insert_IMM10U, extract_IMM10U, 0, BFD_RELOC_NONE },
++
++#define WR1	(IMM10U + 1)
++  { 5, 0, NULL, NULL, V850_OPERAND_WREG, BFD_RELOC_NONE },
++
++#define WR2	(WR1 + 1)
++  { 5, 11, NULL, NULL, V850_OPERAND_WREG, BFD_RELOC_NONE },
++
++#define WR3	(WR2 + 1)
++  { 5, 27, NULL, NULL, V850_OPERAND_WREG, BFD_RELOC_NONE },
++
++#define WR2X	(WR3 + 1)
++  { 5, 11, NULL, NULL, V850_OPERAND_WREG | V850_OPERAND_EXT16, BFD_RELOC_NONE },
++
++#define WR4X	(WR2X + 1)
++  { 5, 0, NULL, NULL, V850_OPERAND_WREG | V850_OPERAND_EXT16, BFD_RELOC_NONE },
++
++#define FXCC	(WR4X + 1)
++  { 4, 17, NULL, NULL, V850_OPERAND_FXCC, BFD_RELOC_NONE },
++
++#define FXIMM1	(FXCC + 1)
++  { 1, 21, NULL, NULL, 0, BFD_RELOC_NONE },
++
++#define FXIMM2	(FXIMM1 + 1)
++  { 2, 21, NULL, NULL, 0, BFD_RELOC_NONE },
++
++#define FXIMM2L	(FXIMM2 + 1)
++  { 2, 0, NULL, NULL, 0, BFD_RELOC_NONE },
++
++#define FXIMM3	(FXIMM2L + 1)
++  { 3, 27, NULL, NULL, 0, BFD_RELOC_NONE },
++
++#define FXIMM4	(FXIMM3 + 1)
++  { 4, 21, NULL, NULL, 0, BFD_RELOC_NONE },
++
++#define FXIMM12	(FXIMM4 + 1)
++  { 12, 0, insert_fx_imm12, extract_fx_imm12, V850_OPERAND_EXT16 | V850_OPERAND_IMM12, BFD_RELOC_NONE },
++
++#define FXD16_W	(FXIMM12 + 1)
++  { 16, 0, insert_fx_d16_w, extract_fx_d16_w, V850_OPERAND_SIGNED | V850_OPERAND_DISP | V850_OPERAND_EXT16, BFD_RELOC_NONE },
++
++#define FXD16_DW	(FXD16_W + 1)
++  { 16, 0, insert_fx_d16_dw, extract_fx_d16_dw, V850_OPERAND_SIGNED | V850_OPERAND_DISP | V850_OPERAND_EXT16, BFD_RELOC_NONE },
++
++#define FXD16_QW	(FXD16_DW + 1)
++  { 16, 0, insert_fx_d16_qw, extract_fx_d16_qw, V850_OPERAND_SIGNED | V850_OPERAND_DISP | V850_OPERAND_EXT16, BFD_RELOC_NONE },
+ };
+ 
+ 
+@@ -1331,6 +1450,66 @@ const struct v850_operand v850_operands[] =
+ 
+ const struct v850_opcode v850_opcodes[] =
+ {
++{ "absf.s4",	two (0x07f0, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "addf.s4",	two (0x07e0, 0x05a4),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "addrf.s4",	two (0x07e0, 0x05b4),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "addsubf.s4",	two (0x07e0, 0x05d0),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "addsubnf.s4",	two (0x07e0, 0x05d8),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "addsubnxf.s4",	two (0x07e0, 0x05dc),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "addsubxf.s4",	two (0x07e0, 0x05d4),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "addxf.s4",	two (0x07e0, 0x05c4),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "ceilf.suw4",	two (0x07e5, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "ceilf.sw4",	two (0x07e4, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cmovf.w4",	two (0x07a0, 0x061d),	two (0xffe0, 0x07ff),	{WR4X, WR1, WR2X, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cmpf.s4",	two (0x07e0, 0x0580),	two (0x07e0, 0x07e1),	{FXCC, WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cvtf.hs4",	two (0x07ec, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cvtf.sh4",	two (0x07ed, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cvtf.suw4",	two (0x07e9, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cvtf.sw4",	two (0x07e8, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cvtf.uws4",	two (0x07eb, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "cvtf.ws4",	two (0x07ea, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "divf.s4",	two (0x07e0, 0x05ae),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "floorf.suw4",	two (0x07e7, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "floorf.sw4",	two (0x07e6, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "flpv.s4",	two (0x07f8, 0x05a0),	two (0x07fc, 0x07ff),	{FXIMM2L, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "fmaf.s4",	two (0x07e0, 0x04c0),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "fmsf.s4",	two (0x07e0, 0x04c2),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "fnmaf.s4",	two (0x07e0, 0x04c4),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "fnmsf.s4",	two (0x07e0, 0x04c6),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "ldv.dw",	two (0x07a0, 0x031d),	two (0xffe0, 0x079f),	{FXIMM2, FXD16_DW, R1, WR3},	3, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "ldv.qw",	two (0x07a0, 0x029d),	two (0xffe0, 0x07ff),	{FXD16_QW, R1, WR3},	2, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "ldv.w",	two (0x07a0, 0x001d),	two (0xffe0, 0x061f),	{FXIMM4, FXD16_W, R1, WR3},	3, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "ldvz.h4",	two (0x07a0, 0x03dd),	two (0xffe0, 0x07ff),	{FXD16_DW, R1, WR3},	2, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "maxf.s4",	two (0x07e0, 0x05aa),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "maxrf.s4",	two (0x07e0, 0x05ba),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "minf.s4",	two (0x07e0, 0x05ac),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "minrf.s4",	two (0x07e0, 0x05bc),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "movv.w4",	two (0x07fe, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "mulf.s4",	two (0x07e0, 0x05a8),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "mulrf.s4",	two (0x07e0, 0x05b8),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "mulxf.s4",	two (0x07e0, 0x05c8),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "negf.s4",	two (0x07f1, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "recipf.s4",	two (0x07f3, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "roundf.suw4",	two (0x07e1, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "roundf.sw4",	two (0x07e0, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "rsqrtf.s4",	two (0x07f4, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "shflv.w4",	two (0x07a0, 0x069d),	two (0xffe0, 0x07df),	{FXIMM12, WR1, WR2X, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "sqrtf.s4",	two (0x07f2, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "stv.dw",	two (0x07a0, 0x039d),	two (0xffe0, 0x07df),	{FXIMM1, WR3, FXD16_DW, R1},	4, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "stv.qw",	two (0x07a0, 0x02bd),	two (0xffe0, 0x07ff),	{WR3, FXD16_QW, R1},	3, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "stv.w",	two (0x07a0, 0x021d),	two (0xffe0, 0x079f),	{FXIMM2, WR3, FXD16_W, R1},	4, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "stvz.h4",	two (0x07a0, 0x03fd),	two (0xffe0, 0x07ff),	{WR3, FXD16_DW, R1},	3, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "subaddf.s4",	two (0x07e0, 0x05d2),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "subaddnf.s4",	two (0x07e0, 0x05da),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "subaddnxf.s4",	two (0x07e0, 0x05de),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "subaddxf.s4",	two (0x07e0, 0x05d6),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "subf.s4",	two (0x07e0, 0x05a6),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "subrf.s4",	two (0x07e0, 0x05b6),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "subxf.s4",	two (0x07e0, 0x05c6),	two (0x07e0, 0x07ff),	{WR1, WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "trfsrv.w4",	two (0x07ff, 0x05a0),	two (0x07ff, 0xc7ff),	{FXIMM3, WR2},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "trncf.suw4",	two (0x07e3, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++{ "trncf.sw4",	two (0x07e2, 0x05a0),	two (0x07ff, 0x07ff),	{WR2, WR3},	0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_FXU },
++
+ /* Standard instructions.  */
+ { "add",	OP  (0x0e),		OP_MASK,		IF1, 			0, PROCESSOR_ALL },
+ { "add",	OP  (0x12),		OP_MASK,		IF2, 			0, PROCESSOR_ALL },
+-- 
+Parthiban N
+

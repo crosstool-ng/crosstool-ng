@@ -1,0 +1,497 @@
+From 1db25e04beb1f62dff1e70466babbfb3cd4b3433 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:23:08 +0530
+Subject: [PATCH] gdb: v850: Add the G4 and FXU registers
+
+Name the RH850 G4 system registers, use the target description that
+QEMU provides, and map the GCC DWARF numbers of the FXU registers.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gdb/doc/gdb.texinfo |  24 ++-
+ gdb/v850-tdep.c     | 370 ++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 311 insertions(+), 83 deletions(-)
+
+diff --git a/gdb/doc/gdb.texinfo b/gdb/doc/gdb.texinfo
+index a6e1f114320..7ad394be980 100644
+--- a/gdb/doc/gdb.texinfo
++++ b/gdb/doc/gdb.texinfo
+@@ -10478,7 +10478,7 @@ The default value is the empty string.
+ If it is necessary to specify more than one disassembler option, then
+ multiple options can be placed together into a comma separated list.
+ Currently this command is only supported on targets ARC, ARM, MIPS,
+-PowerPC and S/390.
++PowerPC, S/390 and V850.
+ 
+ @kindex show disassembler-options
+ @item show disassembler-options
+@@ -49332,6 +49332,7 @@ registers using the capitalization used in the description.
+ * S/390 and System z Features::
+ * Sparc Features::
+ * TIC6x Features::
++* V850 Features::
+ @end menu
+ 
+ 
+@@ -50518,6 +50519,27 @@ through @samp{B31}.
+ The @samp{org.gnu.gdb.tic6x.c6xp} feature is optional.  It should
+ contain registers @samp{TSR}, @samp{ILC} and @samp{RILC}.
+ 
++@node V850 Features
++@subsection V850 Features
++@cindex target descriptions, V850 features
++
++The @samp{org.gnu.gdb.v850.core} feature is optional for v850e3v5
++targets.  It should contain the registers of the fixed v850e3v5
++register layout of @value{GDBN}, in order, with their v850e3v5 names:
++@samp{r0} through @samp{r31}, the system registers, @samp{pc} and
++@samp{vr0} through @samp{vr31}.  A register number that has no name in
++that layout is called @samp{unused@var{n}}, where @var{n} is the
++register number.  When this feature is present and complete,
++@value{GDBN} uses the target description, and registers in other
++features, for example system registers with a selection ID of 8 or
++more, are shown with the names that the target gives them.  Without
++the feature, @value{GDBN} uses the fixed layout.
++
++If the target description has registers named @samp{wr0} through
++@samp{wr31} (the RH850 FXU registers), @value{GDBN} maps the DWARF
++register numbers 36 through 67 that GCC uses for them to these
++registers.
++
+ @node Operating System Information
+ @appendix Operating System Information
+ @cindex operating system information
+diff --git a/gdb/v850-tdep.c b/gdb/v850-tdep.c
+index 4a8fdcd7231..5b5a5be1b3b 100644
+--- a/gdb/v850-tdep.c
++++ b/gdb/v850-tdep.c
+@@ -23,6 +23,7 @@
+ #include "trad-frame.h"
+ #include "frame-unwind.h"
+ #include "dwarf2/frame.h"
++#include "target-descriptions.h"
+ #include "gdbtypes.h"
+ #include "inferior.h"
+ #include "gdbcore.h"
+@@ -33,6 +34,7 @@
+ #include "elf-bfd.h"
+ #include "elf/v850.h"
+ #include "gdbarch.h"
++#include "user-regs.h"
+ 
+ enum
+   {
+@@ -379,103 +381,244 @@ v850e2_register_name (struct gdbarch *gdbarch, int regnum)
+   return v850e2_reg_names[regnum];
+ }
+ 
+-/* Implement the "register_name" gdbarch method for v850e3v5.  */
++static std::string v850_disassembler_options;
+ 
+-static const char *
+-v850e3v5_register_name (struct gdbarch *gdbarch, int regnum)
++typedef const char *const v850_sreg_row[32];
++
++static v850_sreg_row v850_g4_sreg_names[8] =
+ {
+-  static const char *v850e3v5_reg_names[] =
+   {
+-    /* General purpose registers.  */
+-    "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+-    "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+-    "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
+-    "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
+-
+-    /* selID 0, not including FPU registers.  The FPU registers are
+-       listed later on.  */
+-    "eipc", "eipsw", "fepc", "fepsw",
+-    "", "psw", "" /* fpsr */, "" /* fpepc */,
+-    "" /* fpst */, "" /* fpcc */, "" /* fpcfg */, "" /* fpec */,
+-    "sesr", "eiic", "feic", "",
+-    "ctpc", "ctpsw", "", "", "ctbp", "", "", "",
+-    "", "", "", "", "eiwr", "fewr", "", "bsel",
+-
+-
+-    /* PC.  */
+-    "pc", "",
+-
+-    /* v850e2 MPV bank.  */
++    "eipc", "eipsw", "fepc", "fepsw", "", "psw", "", "",
++    "", "", "", "", "", "eiic", "feic", "",
++    "ctpc", "ctpsw", "", "", "ctbp", "snzcfg", "", "",
++    "", "", "", "", "eiwr", "fewr", "", "",
++  },
++  {
++    "spid", "spidlist", "rbase", "ebase", "intbp", "mctl", "pid", "",
++    "svlock", "", "", "sccfg", "scbp", "", "", "",
+     "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
++  },
++  {
++    "peid", "bmid", "", "", "", "", "mea", "",
++    "mei", "", "ispr", "", "icsr", "intcfg", "plmr", "rbcr0",
++    "rbcr1", "rbnr", "rbip", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
+-    "", "", "", "",
+-
+-    /* Skip v850e2 MPU bank.  It's tempting to reuse these, but we need
+-       32 entries for this bank.  */
++  },
++  {
+     "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
+-    "", "", "", "",
+-
+-    /* FPU system registers.  These are actually in selID 0, but
+-       are placed here to preserve register numbering compatibility
+-       with previous architectures.  */
+-    "", "", "", "", "", "", "fpsr", "fpepc",
+-    "fpst", "fpcc", "fpcfg", "fpec", "", "", "", "",
+     "", "", "", "", "", "", "", "",
+-    "", "", "", "",
+-
+-    /* selID 1.  */
+-    "mcfg0", "mcfg1", "rbase", "ebase", "intbp", "mctl", "pid", "fpipr",
+-    "", "", "tcsel", "sccfg", "scbp", "hvccfg", "hvcbp", "vsel",
+-    "vmprt0", "vmprt1", "vmprt2", "", "", "", "", "vmscctl",
+-    "vmsctbl0", "vmsctbl1", "vmsctbl2", "vmsctbl3", "", "", "", "",
+-
+-    /* selID 2.  */
+-    "htcfg0", "", "", "", "", "htctl", "mea", "asid",
+-    "mei", "ispr", "pmr", "icsr", "intcfg", "", "", "",
+-    "tlbsch", "", "", "", "", "", "", "htscctl",
+-    "htsctbl0", "htsctbl1", "htsctbl2", "htsctbl3",
+-    "htsctbl4", "htsctbl5", "htsctbl6", "htsctbl7",
+-
+-    /* selID 3.  */
++  },
++  {
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "ictagl", "ictagh", "icdatl", "icdath", "", "", "", "",
++    "icctrl", "", "iccfg", "", "icerr", "", "", "",
++  },
++  {
++    "mpm", "", "mpcfg", "", "", "", "", "",
++    "mca", "mcs", "mcc", "mcr", "mci", "", "", "",
++    "mpidx", "mpbk", "", "", "mpla", "mpua", "mpat", "",
++    "mpid0", "mpid1", "mpid2", "mpid3", "mpid4", "mpid5", "mpid6", "mpid7",
++  },
++  {
++    "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
++  },
++  {
++    "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++  },
++};
+ 
+-    /* selID 4.  */
+-    "tlbidx", "", "", "", "telo0", "telo1", "tehi0", "tehi1",
+-    "", "", "tlbcfg", "", "bwerrl", "bwerrh", "brerrl", "brerrh",
+-    "ictagl", "ictagh", "icdatl", "icdath",
+-    "dctagl", "dctagh", "dcdatl", "dcdath",
+-    "icctrl", "dcctrl", "iccfg", "dccfg", "icerr", "dcerr", "", "",
+-
+-    /* selID 5.  */
+-    "mpm", "mprc", "", "", "mpbrgn", "mptrgn", "", "",
+-    "mca", "mcs", "mcc", "mcr", "", "", "", "",
+-    "", "", "", "", "mpprt0", "mpprt1", "mpprt2", "",
++static v850_sreg_row v850_g4mh2_sreg_names[8] =
++{
++  {
++    "eipc", "eipsw", "fepc", "fepsw", "", "psw", "", "",
++    "", "", "", "", "", "eiic", "feic", "pswh",
++    "ctpc", "ctpsw", "eipswh", "fepswh", "ctbp", "snzcfg", "", "",
++    "", "", "", "", "eiwr", "fewr", "", "",
++  },
++  {
++    "spid", "spidlist", "rbase", "ebase", "intbp", "mctl", "pid", "",
++    "svlock", "", "", "sccfg", "scbp", "", "", "",
++    "hvcfg", "gmcfg", "", "", "hvsb", "", "", "",
++    "", "", "", "", "", "", "", "",
++  },
++  {
++    "peid", "bmid", "", "", "", "", "mea", "",
++    "mei", "", "ispr", "imsr", "icsr", "intcfg", "plmr", "rbcr0",
++    "rbcr1", "rbnr", "rbip", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++  },
++  {
++    "dbgen", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++  },
++  {
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "ictagl", "ictagh", "icdatl", "icdath", "", "", "", "",
++    "icctrl", "", "iccfg", "", "icerr", "", "", "",
++  },
++  {
++    "mpm", "", "mpcfg", "", "", "", "", "",
++    "mca", "mcs", "mcc", "mcr", "mci", "", "", "",
++    "mpidx", "mpbk", "", "", "mpla", "mpua", "mpat", "",
++    "mpid0", "mpid1", "mpid2", "mpid3", "mpid4", "mpid5", "mpid6", "mpid7",
++  },
++  {
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++  },
++  {
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
++    "", "", "", "", "", "", "", "",
+     "", "", "", "", "", "", "", "",
++  },
++};
+ 
+-    /* selID 6.  */
+-    "mpla0", "mpua0", "mpat0", "", "mpla1", "mpua1", "mpat1", "",
+-    "mpla2", "mpua2", "mpat2", "", "mpla3", "mpua3", "mpat3", "",
+-    "mpla4", "mpua4", "mpat4", "", "mpla5", "mpua5", "mpat5", "",
+-    "mpla6", "mpua6", "mpat6", "", "mpla7", "mpua7", "mpat7", "",
+-
+-    /* selID 7.  */
+-    "mpla8", "mpua8", "mpat8", "", "mpla9", "mpua9", "mpat9", "",
+-    "mpla10", "mpua10", "mpat10", "", "mpla11", "mpua11", "mpat11", "",
+-    "mpla12", "mpua12", "mpat12", "", "mpla13", "mpua13", "mpat13", "",
+-    "mpla14", "mpua14", "mpat14", "", "mpla15", "mpua15", "mpat15", "",
+-
+-    /* Vector Registers */
+-    "vr0", "vr1", "vr2", "vr3", "vr4", "vr5", "vr6", "vr7",
+-    "vr8", "vr9", "vr10", "vr11", "vr12", "vr13", "vr14", "vr15",
+-    "vr16", "vr17", "vr18", "vr19", "vr20", "vr21", "vr22", "vr23",
+-    "vr24", "vr25", "vr26", "vr27", "vr28", "vr29", "vr30", "vr31",
+-  };
++/* Return the RH850 G4 name table selected with "set disassembler-options".  */
++
++static const v850_sreg_row *
++v850_g4_sreg_names_table ()
++{
++  const char *opt = v850_disassembler_options.c_str ();
++  const v850_sreg_row *names = NULL;
++
++  while (*opt != '\0')
++    {
++      size_t len = strcspn (opt, ",");
++
++      if (len == 5 && strncmp (opt, "g4mh2", 5) == 0)
++	names = v850_g4mh2_sreg_names;
++      else if (len == 2 && strncmp (opt, "g4", 2) == 0 && names == NULL)
++	names = v850_g4_sreg_names;
++      opt += len;
++      if (*opt == ',')
++	opt++;
++    }
++  return names;
++}
++
++static const char *const v850e3v5_reg_names[] =
++{
++  /* General purpose registers.  */
++  "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
++  "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
++  "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
++  "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
++
++  /* selID 0, not including FPU registers.  The FPU registers are
++     listed later on.  */
++  "eipc", "eipsw", "fepc", "fepsw",
++  "", "psw", "" /* fpsr */, "" /* fpepc */,
++  "" /* fpst */, "" /* fpcc */, "" /* fpcfg */, "" /* fpec */,
++  "sesr", "eiic", "feic", "",
++  "ctpc", "ctpsw", "", "", "ctbp", "", "", "",
++  "", "", "", "", "eiwr", "fewr", "", "bsel",
++
++
++  /* PC.  */
++  "pc", "",
++
++  /* v850e2 MPV bank.  */
++  "", "", "", "", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++  "", "", "", "",
++
++  /* Skip v850e2 MPU bank.  It's tempting to reuse these, but we need
++     32 entries for this bank.  */
++  "", "", "", "", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++  "", "", "", "",
++
++  /* FPU system registers.  These are actually in selID 0, but
++     are placed here to preserve register numbering compatibility
++     with previous architectures.  */
++  "", "", "", "", "", "", "fpsr", "fpepc",
++  "fpst", "fpcc", "fpcfg", "fpec", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++  "", "", "", "",
++
++  /* selID 1.  */
++  "mcfg0", "mcfg1", "rbase", "ebase", "intbp", "mctl", "pid", "fpipr",
++  "", "", "tcsel", "sccfg", "scbp", "hvccfg", "hvcbp", "vsel",
++  "vmprt0", "vmprt1", "vmprt2", "", "", "", "", "vmscctl",
++  "vmsctbl0", "vmsctbl1", "vmsctbl2", "vmsctbl3", "", "", "", "",
++
++  /* selID 2.  */
++  "htcfg0", "", "", "", "", "htctl", "mea", "asid",
++  "mei", "ispr", "pmr", "icsr", "intcfg", "", "", "",
++  "tlbsch", "", "", "", "", "", "", "htscctl",
++  "htsctbl0", "htsctbl1", "htsctbl2", "htsctbl3",
++  "htsctbl4", "htsctbl5", "htsctbl6", "htsctbl7",
++
++  /* selID 3.  */
++  "", "", "", "", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++  "", "", "", "", "", "", "", "",
++
++  /* selID 4.  */
++  "tlbidx", "", "", "", "telo0", "telo1", "tehi0", "tehi1",
++  "", "", "tlbcfg", "", "bwerrl", "bwerrh", "brerrl", "brerrh",
++  "ictagl", "ictagh", "icdatl", "icdath",
++  "dctagl", "dctagh", "dcdatl", "dcdath",
++  "icctrl", "dcctrl", "iccfg", "dccfg", "icerr", "dcerr", "", "",
++
++  /* selID 5.  */
++  "mpm", "mprc", "", "", "mpbrgn", "mptrgn", "", "",
++  "mca", "mcs", "mcc", "mcr", "", "", "", "",
++  "", "", "", "", "mpprt0", "mpprt1", "mpprt2", "",
++  "", "", "", "", "", "", "", "",
++
++  /* selID 6.  */
++  "mpla0", "mpua0", "mpat0", "", "mpla1", "mpua1", "mpat1", "",
++  "mpla2", "mpua2", "mpat2", "", "mpla3", "mpua3", "mpat3", "",
++  "mpla4", "mpua4", "mpat4", "", "mpla5", "mpua5", "mpat5", "",
++  "mpla6", "mpua6", "mpat6", "", "mpla7", "mpua7", "mpat7", "",
++
++  /* selID 7.  */
++  "mpla8", "mpua8", "mpat8", "", "mpla9", "mpua9", "mpat9", "",
++  "mpla10", "mpua10", "mpat10", "", "mpla11", "mpua11", "mpat11", "",
++  "mpla12", "mpua12", "mpat12", "", "mpla13", "mpua13", "mpat13", "",
++  "mpla14", "mpua14", "mpat14", "", "mpla15", "mpua15", "mpat15", "",
++
++  /* Vector Registers */
++  "vr0", "vr1", "vr2", "vr3", "vr4", "vr5", "vr6", "vr7",
++  "vr8", "vr9", "vr10", "vr11", "vr12", "vr13", "vr14", "vr15",
++  "vr16", "vr17", "vr18", "vr19", "vr20", "vr21", "vr22", "vr23",
++  "vr24", "vr25", "vr26", "vr27", "vr28", "vr29", "vr30", "vr31",
++};
++
++/* Implement the "register_name" gdbarch method for v850e3v5.  */
++
++static const char *
++v850e3v5_register_name (struct gdbarch *gdbarch, int regnum)
++{
++  const v850_sreg_row *g4_names = v850_g4_sreg_names_table ();
++
++  if (g4_names != NULL
++      && regnum >= E_SR0_REGNUM && regnum < E_PC_REGNUM)
++    return g4_names[0][regnum - E_SR0_REGNUM];
++  if (g4_names != NULL
++      && regnum >= E_SELID_1_R0_REGNUM && regnum <= E_SELID_7_R31_REGNUM)
++    return g4_names[1 + (regnum - E_SELID_1_R0_REGNUM) / 32]
++		   [(regnum - E_SELID_1_R0_REGNUM) % 32];
+ 
+   static_assert (E_NUM_OF_V850E3V5_REGS
+ 		     == ARRAY_SIZE (v850e3v5_reg_names));
+@@ -494,6 +637,62 @@ v850_register_type (struct gdbarch *gdbarch, int regnum)
+   return builtin_type (gdbarch)->builtin_int32;
+ }
+ 
++static const char *
++v850_tdesc_register_name (struct gdbarch *gdbarch, int regnum)
++{
++  if (regnum < E_NUM_OF_V850E3V5_REGS)
++    return v850e3v5_register_name (gdbarch, regnum);
++  return tdesc_register_name (gdbarch, regnum);
++}
++
++static struct type *
++v850_tdesc_register_type (struct gdbarch *gdbarch, int regnum)
++{
++  if (regnum < E_NUM_OF_V850E3V5_REGS)
++    return v850_register_type (gdbarch, regnum);
++  return tdesc_register_type (gdbarch, regnum);
++}
++
++/* GCC numbers wr0-wr31 as DWARF registers 36-67.  */
++
++static int
++v850_dwarf2_reg_to_regnum (struct gdbarch *gdbarch, int reg)
++{
++  if (reg >= 36 && reg <= 67)
++    {
++      std::string name = string_printf ("wr%d", reg - 36);
++      return user_reg_map_name_to_regnum (gdbarch, name.c_str (), -1);
++    }
++  return reg;
++}
++
++static void
++v850_use_tdesc (struct gdbarch *gdbarch, const struct target_desc *tdesc)
++{
++  const struct tdesc_feature *feature
++    = tdesc_find_feature (tdesc, "org.gnu.gdb.v850.core");
++  if (feature == NULL)
++    return;
++
++  tdesc_arch_data_up tdesc_data = tdesc_data_alloc ();
++  int valid = 1;
++  for (int i = 0; i < E_NUM_OF_V850E3V5_REGS; i++)
++    {
++      std::string name = (v850e3v5_reg_names[i][0] != '\0'
++			  ? std::string (v850e3v5_reg_names[i])
++			  : string_printf ("unused%d", i));
++      valid &= tdesc_numbered_register (feature, tdesc_data.get (), i,
++					name.c_str ());
++    }
++  if (!valid)
++    return;
++
++  tdesc_use_registers (gdbarch, tdesc, std::move (tdesc_data));
++  set_gdbarch_register_name (gdbarch, v850_tdesc_register_name);
++  set_gdbarch_register_type (gdbarch, v850_tdesc_register_type);
++  set_gdbarch_dwarf2_reg_to_regnum (gdbarch, v850_dwarf2_reg_to_regnum);
++}
++
+ static int
+ v850_type_is_scalar (struct type *t)
+ {
+@@ -1418,13 +1617,20 @@ v850_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
+       break;
+     }
+ 
++  set_gdbarch_register_type (gdbarch, v850_register_type);
++  if (info.bfd_arch_info->mach == bfd_mach_v850e3v5
++      && tdesc_has_registers (info.target_desc))
++    v850_use_tdesc (gdbarch, info.target_desc);
++
++  set_gdbarch_disassembler_options (gdbarch, &v850_disassembler_options);
++  set_gdbarch_valid_disassembler_options (gdbarch,
++					  disassembler_options_v850 ());
++
+   set_gdbarch_num_pseudo_regs (gdbarch, 0);
+   set_gdbarch_sp_regnum (gdbarch, E_SP_REGNUM);
+   set_gdbarch_pc_regnum (gdbarch, E_PC_REGNUM);
+   set_gdbarch_fp0_regnum (gdbarch, -1);
+ 
+-  set_gdbarch_register_type (gdbarch, v850_register_type);
+-
+   set_gdbarch_char_signed (gdbarch, 1);
+   set_gdbarch_short_bit (gdbarch, 2 * TARGET_CHAR_BIT);
+   set_gdbarch_int_bit (gdbarch, 4 * TARGET_CHAR_BIT);
+-- 
+Parthiban N
+

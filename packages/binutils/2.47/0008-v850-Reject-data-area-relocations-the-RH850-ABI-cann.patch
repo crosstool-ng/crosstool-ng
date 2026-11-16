@@ -1,0 +1,253 @@
+From 7ff7f58ad56213a5248dbef84095a40317967caa Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:02:16 +0530
+Subject: [PATCH] v850: Reject data area relocations the RH850 ABI cannot
+ express
+
+Under the RH850 ABI sdaoff and tdaoff on 16 bit fields linked to the
+absolute address. Report them in the assembler instead.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gas/config/tc-v850.c                      | 50 ++++++++++++++++++++++-
+ gas/testsuite/gas/v850/basic.exp          |  3 ++
+ gas/testsuite/gas/v850/reloc-no-type.l    |  4 +-
+ gas/testsuite/gas/v850/rh850-da-bad.d     |  3 ++
+ gas/testsuite/gas/v850/rh850-da-bad.l     | 17 ++++++++
+ gas/testsuite/gas/v850/rh850-da-bad.s     | 19 +++++++++
+ gas/testsuite/gas/v850/rh850-da-gcc-abi.d | 27 ++++++++++++
+ gas/testsuite/gas/v850/rh850-da.d         | 12 ++++++
+ gas/testsuite/gas/v850/rh850-da.s         |  7 ++++
+ 9 files changed, 138 insertions(+), 4 deletions(-)
+ create mode 100644 gas/testsuite/gas/v850/rh850-da-bad.d
+ create mode 100644 gas/testsuite/gas/v850/rh850-da-bad.l
+ create mode 100644 gas/testsuite/gas/v850/rh850-da-bad.s
+ create mode 100644 gas/testsuite/gas/v850/rh850-da-gcc-abi.d
+ create mode 100644 gas/testsuite/gas/v850/rh850-da.d
+ create mode 100644 gas/testsuite/gas/v850/rh850-da.s
+
+diff --git a/gas/config/tc-v850.c b/gas/config/tc-v850.c
+index b63f61409e3..c90ce2a5ab9 100644
+--- a/gas/config/tc-v850.c
++++ b/gas/config/tc-v850.c
+@@ -2035,6 +2035,35 @@ handle_lo16 (const struct v850_operand *operand, const char **errmsg)
+     }
+ }
+ 
++/* Return the name of the reloc prefix of RELOC if the rh850 ABI has no
++   relocation that computes it, else NULL.  */
++
++static const char *
++v850_rh850_unsupported (bfd_reloc_code_real_type reloc)
++{
++  if (v850_target_arch != bfd_arch_v850_rh850)
++    return NULL;
++
++  switch (reloc)
++    {
++    case BFD_RELOC_V850_SDA_16_16_OFFSET:
++    case BFD_RELOC_V850_SDA_16_16_SPLIT_OFFSET:
++      return "sdaoff()";
++    case BFD_RELOC_V850_ZDA_15_16_OFFSET:
++    case BFD_RELOC_V850_ZDA_16_16_SPLIT_OFFSET:
++      return "zdaoff()";
++    case BFD_RELOC_V850_TDA_16_16_OFFSET:
++    case BFD_RELOC_V850_TDA_4_4_OFFSET:
++    case BFD_RELOC_V850_TDA_4_5_OFFSET:
++    case BFD_RELOC_V850_TDA_6_8_OFFSET:
++    case BFD_RELOC_V850_TDA_7_7_OFFSET:
++    case BFD_RELOC_V850_TDA_7_8_OFFSET:
++      return "tdaoff()";
++    default:
++      return NULL;
++    }
++}
++
+ static bfd_reloc_code_real_type
+ handle_ctoff (const struct v850_operand *operand, const char **errmsg)
+ {
+@@ -3255,12 +3284,20 @@ md_assemble (char *str)
+ 
+       if (reloc != BFD_RELOC_NONE)
+ 	{
+-	  reloc_howto_type *reloc_howto =
+-	    bfd_reloc_type_lookup (stdoutput, reloc);
++	  reloc_howto_type *reloc_howto;
++	  const char *prefix = v850_rh850_unsupported (reloc);
+ 	  int size;
+ 	  int address;
+ 	  fixS *fixP;
+ 
++	  if (prefix != NULL)
++	    {
++	      as_bad (_("%s: %s is not supported by the rh850 ABI. "
++			"Use -mgcc-abi instead"), copy_of_instruction, prefix);
++	      continue;
++	    }
++
++	  reloc_howto = bfd_reloc_type_lookup (stdoutput, reloc);
+ 	  if (!reloc_howto)
+ 	    {
+ 	      as_bad (_("%s: relocation %s is not supported by the %s ABI"),
+@@ -3705,6 +3742,15 @@ cons_fix_new_v850 (fragS *frag,
+ 		   expressionS *exp,
+ 		   bfd_reloc_code_real_type r)
+ {
++  const char *prefix = v850_rh850_unsupported (r);
++
++  if (prefix != NULL)
++    {
++      as_bad (_("%s is not supported by the rh850 ABI. Use -mgcc-abi instead"),
++	      prefix);
++      return;
++    }
++
+   if (r == BFD_RELOC_NONE)
+     {
+       if (size == 4)
+diff --git a/gas/testsuite/gas/v850/basic.exp b/gas/testsuite/gas/v850/basic.exp
+index e8ca10cd631..e85ef7f7aea 100644
+--- a/gas/testsuite/gas/v850/basic.exp
++++ b/gas/testsuite/gas/v850/basic.exp
+@@ -444,4 +444,7 @@ if [istarget v850*-*-*] then {
+     run_dump_test "loop-relax-bad"
+     run_dump_test "reloc-no-type"
+     run_dump_test "data-prefix-err"
++    run_dump_test "rh850-da"
++    run_dump_test "rh850-da-bad"
++    run_dump_test "rh850-da-gcc-abi"
+ }
+diff --git a/gas/testsuite/gas/v850/reloc-no-type.l b/gas/testsuite/gas/v850/reloc-no-type.l
+index 635c60edd0e..3a531d68790 100644
+--- a/gas/testsuite/gas/v850/reloc-no-type.l
++++ b/gas/testsuite/gas/v850/reloc-no-type.l
+@@ -1,3 +1,3 @@
+ .*: Assembler messages:
+-.*:3: Error: ld.w zdaoff\(_z\)\[r0\],r10: relocation BFD_RELOC_V850_ZDA_15_16_OFFSET is not supported by the rh850 ABI
+-.*:4: Error: sld.w tdaoff\(_t\)\[ep\],r10: relocation BFD_RELOC_V850_TDA_6_8_OFFSET is not supported by the rh850 ABI
++.*:3: Error: ld.w zdaoff\(_z\)\[r0\],r10: zdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:4: Error: sld.w tdaoff\(_t\)\[ep\],r10: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
+diff --git a/gas/testsuite/gas/v850/rh850-da-bad.d b/gas/testsuite/gas/v850/rh850-da-bad.d
+new file mode 100644
+index 00000000000..f930cea1bb4
+--- /dev/null
++++ b/gas/testsuite/gas/v850/rh850-da-bad.d
+@@ -0,0 +1,3 @@
++#as: -mv850e3v5
++#name: v850 rh850 ABI data area relocations without an rh850 relocation
++#error_output: rh850-da-bad.l
+diff --git a/gas/testsuite/gas/v850/rh850-da-bad.l b/gas/testsuite/gas/v850/rh850-da-bad.l
+new file mode 100644
+index 00000000000..5f12dad0ded
+--- /dev/null
++++ b/gas/testsuite/gas/v850/rh850-da-bad.l
+@@ -0,0 +1,17 @@
++.*: Assembler messages:
++.*:3: Error: ld.w zdaoff\(_z\)\[r0\],r10: zdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:4: Error: st.w r10,zdaoff\(_z\)\[r0\]: zdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:5: Error: ld.h zdaoff\(_z\)\[r0\],r10: zdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:6: Error: ld.bu zdaoff\(_z\)\[r0\],r10: zdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:7: Error: movea sdaoff\(_s\),gp,r10: sdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:8: Error: ld.bu sdaoff\(_s\)\[gp\],r10: sdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:9: Error: movea tdaoff\(_t\),ep,r10: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:10: Error: sld.w tdaoff\(_t\)\[ep\],r10: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:11: Error: sst.w r10,tdaoff\(_t\)\[ep\]: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:12: Error: sld.h tdaoff\(_t\)\[ep\],r10: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:13: Error: sld.b tdaoff\(_t\)\[ep\],r10: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:14: Error: sld.hu tdaoff\(_t\)\[ep\],r10: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:15: Error: sld.bu tdaoff\(_t\)\[ep\],r10: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:17: Error: sdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:18: Error: tdaoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
++.*:19: Error: ctoff\(\) is not supported by the rh850 ABI. Use -mgcc-abi instead
+diff --git a/gas/testsuite/gas/v850/rh850-da-bad.s b/gas/testsuite/gas/v850/rh850-da-bad.s
+new file mode 100644
+index 00000000000..fa4e8431c88
+--- /dev/null
++++ b/gas/testsuite/gas/v850/rh850-da-bad.s
+@@ -0,0 +1,19 @@
++# Data area relocations that the rh850 ABI has no relocation for.
++	.text
++	ld.w	zdaoff(_z)[r0], r10
++	st.w	r10, zdaoff(_z)[r0]
++	ld.h	zdaoff(_z)[r0], r10
++	ld.bu	zdaoff(_z)[r0], r10
++	movea	sdaoff(_s), gp, r10
++	ld.bu	sdaoff(_s)[gp], r10
++	movea	tdaoff(_t), ep, r10
++	sld.w	tdaoff(_t)[ep], r10
++	sst.w	r10, tdaoff(_t)[ep]
++	sld.h	tdaoff(_t)[ep], r10
++	sld.b	tdaoff(_t)[ep], r10
++	sld.hu	tdaoff(_t)[ep], r10
++	sld.bu	tdaoff(_t)[ep], r10
++	.data
++	.hword	sdaoff(_s)
++	.hword	tdaoff(_t)
++	.hword	ctoff(_c)
+diff --git a/gas/testsuite/gas/v850/rh850-da-gcc-abi.d b/gas/testsuite/gas/v850/rh850-da-gcc-abi.d
+new file mode 100644
+index 00000000000..5c27427b6fe
+--- /dev/null
++++ b/gas/testsuite/gas/v850/rh850-da-gcc-abi.d
+@@ -0,0 +1,27 @@
++#as: -mv850e3v5 -mgcc-abi
++#source: rh850-da-bad.s
++#objdump: -r
++#name: v850 gcc ABI data area relocations
++#...
++RELOCATION RECORDS FOR \[.text\]:
++OFFSET +TYPE +VALUE
++00000002 R_V850_ZDA_15_16_OFFSET  _z
++00000006 R_V850_ZDA_15_16_OFFSET  _z
++0000000a R_V850_ZDA_15_16_OFFSET  _z
++0000000c R_V850_ZDA_16_16_SPLIT_OFFSET  _z
++00000012 R_V850_SDA_16_16_OFFSET  _s
++00000014 R_V850_SDA_16_16_SPLIT_OFFSET  _s
++0000001a R_V850_TDA_16_16_OFFSET  _t
++0000001c R_V850_TDA_6_8_OFFSET  _t
++0000001e R_V850_TDA_6_8_OFFSET  _t
++00000020 R_V850_TDA_7_8_OFFSET  _t
++00000022 R_V850_TDA_7_7_OFFSET  _t
++00000024 R_V850_TDA_4_5_OFFSET  _t
++00000026 R_V850_TDA_4_4_OFFSET  _t
++#...
++RELOCATION RECORDS FOR \[.data\]:
++OFFSET +TYPE +VALUE
++00000000 R_V850_SDA_16_16_OFFSET  _s
++00000002 R_V850_TDA_16_16_OFFSET  _t
++00000004 R_V850_CALLT_16_16_OFFSET  _c
++#pass
+diff --git a/gas/testsuite/gas/v850/rh850-da.d b/gas/testsuite/gas/v850/rh850-da.d
+new file mode 100644
+index 00000000000..3f0260b8f6e
+--- /dev/null
++++ b/gas/testsuite/gas/v850/rh850-da.d
+@@ -0,0 +1,12 @@
++#as: -mv850e3v5
++#objdump: -dr
++#name: v850 rh850 ABI data area relocations
++#...
++00000000 <.text>:
++   0:	20 56 00 00 	movea	0, r0, r10
++			2: R_V810_HWORD	_z
++   4:	24 5f 01 00 	ld.w	0\[gp\], r11
++			6: R_V810_GPWLO_1	_s
++   8:	64 5f 01 00 	st.w	r11, 0\[gp\]
++			a: R_V810_GPWLO_1	_s
++#pass
+diff --git a/gas/testsuite/gas/v850/rh850-da.s b/gas/testsuite/gas/v850/rh850-da.s
+new file mode 100644
+index 00000000000..fb4ae893143
+--- /dev/null
++++ b/gas/testsuite/gas/v850/rh850-da.s
+@@ -0,0 +1,7 @@
++# Data area relocations that the rh850 ABI supports.
++	.text
++	movea	zdaoff(_z), r0, r10
++	ld.w	sdaoff(_s)[gp], r11
++	st.w	r11, sdaoff(_s)[gp]
++	.data
++	.hword	zdaoff(_z)
+-- 
+Parthiban N
+

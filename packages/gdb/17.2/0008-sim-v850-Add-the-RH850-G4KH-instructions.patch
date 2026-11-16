@@ -1,0 +1,952 @@
+From 3c33030959e3f1858b58ab9abdd0f65a784367a2 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:22:41 +0530
+Subject: [PATCH] sim: v850: Add the RH850 G4KH instructions
+
+The simulator stopped on instructions that GCC and RH850 startup code
+now use. Add LDL and STC, the sync instructions, CLIP and the other G4KH
+instructions.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ sim/testsuite/v850/clip.cgs   |  95 ++++++++++++++
+ sim/testsuite/v850/ldlstc.cgs | 159 ++++++++++++++++++++++
+ sim/testsuite/v850/pushsp.cgs |  51 +++++++
+ sim/testsuite/v850/sreg.cgs   |  49 +++++++
+ sim/testsuite/v850/sync.cgs   |  22 ++++
+ sim/v850/interp.c             |   3 +
+ sim/v850/simops.c             |  82 ++++++++++++
+ sim/v850/simops.h             |   4 +
+ sim/v850/v850-sim.h           |  10 +-
+ sim/v850/v850.igen            | 241 +++++++++++++++++++++++++++++++++-
+ 10 files changed, 709 insertions(+), 7 deletions(-)
+ create mode 100644 sim/testsuite/v850/clip.cgs
+ create mode 100644 sim/testsuite/v850/ldlstc.cgs
+ create mode 100644 sim/testsuite/v850/pushsp.cgs
+ create mode 100644 sim/testsuite/v850/sreg.cgs
+ create mode 100644 sim/testsuite/v850/sync.cgs
+
+diff --git a/sim/testsuite/v850/clip.cgs b/sim/testsuite/v850/clip.cgs
+new file mode 100644
+index 00000000000..b7742cad645
+--- /dev/null
++++ b/sim/testsuite/v850/clip.cgs
+@@ -0,0 +1,95 @@
++# v850 clip.b, clip.bu, clip.h, clip.hu
++# mach: v850e3v5
++
++	.include "testutils.inc"
++
++	.macro	clip op r1 r2
++	.hword	(\r2 << 11) | 0x07e0 | \r1, \op
++	.endm
++
++# clip.b
++	noflags
++	seti	0x12345678, r1
++	clip	0x0008, 1, 2
++	flags	sat + nc + v + ns + nz
++	reg	r2, 0x7f
++
++	noflags
++	seti	0x80000000, r1
++	clip	0x0008, 1, 2
++	flags	sat + nc + v + s + nz
++	reg	r2, 0xffffff80
++
++	noflags
++	seti	0xfffffffd, r1
++	clip	0x0008, 1, 2
++	flags	nsat + nc + nv + s + nz
++	reg	r2, 0xfffffffd
++
++	noflags
++	mov	0, r1
++	clip	0x0008, 1, 2
++	flags	nsat + nc + nv + ns + z
++	reg	r2, 0
++
++# CY is cleared and SAT is not cleared
++	stsr	psw, r10
++	ori	0x18, r10, r10
++	ldsr	r10, psw
++	mov	5, r1
++	clip	0x0008, 1, 2
++	flags	sat + nc + nv + ns + nz
++	reg	r2, 5
++
++# clip.bu
++	noflags
++	seti	0x80000000, r1
++	clip	0x000a, 1, 2
++	flags	sat + nc + v + ns + nz
++	reg	r2, 0xff
++
++	noflags
++	seti	0x80, r1
++	clip	0x000a, 1, 2
++	flags	nsat + nc + nv + ns + nz
++	reg	r2, 0x80
++
++	noflags
++	mov	0, r1
++	clip	0x000a, 1, 2
++	flags	nsat + nc + nv + ns + z
++	reg	r2, 0
++
++# clip.h
++	noflags
++	seti	0xffff7fff, r1
++	clip	0x000c, 1, 2
++	flags	sat + nc + v + s + nz
++	reg	r2, 0xffff8000
++
++	noflags
++	seti	0x8000, r1
++	clip	0x000c, 1, 2
++	flags	sat + nc + v + ns + nz
++	reg	r2, 0x7fff
++
++	noflags
++	seti	0xffff8000, r1
++	clip	0x000c, 1, 2
++	flags	nsat + nc + nv + s + nz
++	reg	r2, 0xffff8000
++
++# clip.hu
++	noflags
++	seti	0xffffffff, r1
++	clip	0x000e, 1, 2
++	flags	sat + nc + v + ns + nz
++	reg	r2, 0xffff
++
++	noflags
++	seti	0x8000, r1
++	clip	0x000e, 1, 2
++	flags	nsat + nc + nv + ns + nz
++	reg	r2, 0x8000
++
++	pass
+diff --git a/sim/testsuite/v850/ldlstc.cgs b/sim/testsuite/v850/ldlstc.cgs
+new file mode 100644
+index 00000000000..1aa09ca1175
+--- /dev/null
++++ b/sim/testsuite/v850/ldlstc.cgs
+@@ -0,0 +1,159 @@
++# v850 ldl.w, stc.w, ldl.bu, ldl.hu, stc.b, stc.h, cll and the link
++# mach: v850e3v5
++
++	.include "testutils.inc"
++
++	.macro	ldl_bu r1 r3
++	.hword	0x0fe0 | \r1, (\r3 << 11) | 0x0370
++	.endm
++	.macro	ldl_hu r1 r3
++	.hword	0x0fe0 | \r1, (\r3 << 11) | 0x0374
++	.endm
++	.macro	stc_b r3 r1
++	.hword	0x07e0 | \r1, (\r3 << 11) | 0x0372
++	.endm
++	.macro	stc_h r3 r1
++	.hword	0x07e0 | \r1, (\r3 << 11) | 0x0376
++	.endm
++	.macro	cll
++	.hword	0xffff, 0xf160
++	.endm
++
++	.data
++	.align	5
++blk0:	.long	0x11111111, 0x22222222, 0, 0, 0, 0, 0, 0
++blk1:	.long	0x33333333, 0, 0, 0, 0, 0, 0, 0
++	.text
++
++	seti	blk0, r1
++	seti	blk1, r2
++
++# success: value loaded, stored, result 1
++	ldl.w	[r1], r3
++	reg	r3, 0x11111111
++	seti	0x44444444, r3
++	stc.w	r3, [r1]
++	reg	r3, 1
++	ld.w	0[r1], r4
++	reg	r4, 0x44444444
++
++# the link is consumed by a successful stc
++	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++	ld.w	0[r1], r4
++	reg	r4, 0x44444444
++
++# stc to another address fails
++	ldl.w	[r1], r3
++	mov	7, r3
++	stc.w	r3, [r2]
++	reg	r3, 0
++	ld.w	0[r2], r4
++	reg	r4, 0x33333333
++
++# that failed stc also removed the link
++	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++
++# a second ldl replaces the link
++	ldl.w	[r1], r3
++	ldl.w	[r2], r3
++	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++
++# cll removes the link
++	ldl.w	[r1], r3
++	cll
++	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++
++# a store to the same 32-byte block removes the link
++	ldl.w	[r1], r3
++	st.w	r0, 28[r1]
++	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++
++# a store to another block keeps it
++	ldl.w	[r1], r3
++	st.w	r0, 4[r2]
++	mov	8, r3
++	stc.w	r3, [r1]
++	reg	r3, 1
++	ld.w	0[r1], r4
++	reg	r4, 8
++
++# a trap removes the link
++	ldl.w	[r1], r3
++	mov	SYS_write, r6
++	mov	1, r7
++	mov	r1, r8
++	mov	0, r9
++	trap	31
++	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++
++# eiret removes the link
++	stsr	psw, r5
++	ldsr	r5, eipsw
++	seti	1f, r5
++	ldsr	r5, eipc
++	ldl.w	[r1], r3
++	eiret
++1:	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++
++# feret removes the link
++	stsr	psw, r5
++	ldsr	r5, fepsw
++	seti	1f, r5
++	ldsr	r5, fepc
++	ldl.w	[r1], r3
++	feret
++1:	mov	7, r3
++	stc.w	r3, [r1]
++	reg	r3, 0
++
++# a size mismatch fails
++	ldl.w	[r1], r3
++	mov	7, r3
++	stc_h	3, 1
++	reg	r3, 0
++
++# ldl.bu and stc.b
++	seti	0x000000f0, r4
++	st.w	r4, 0[r1]
++	ldl_bu	1, 3
++	reg	r3, 0xf0
++	mov	0x5a, r3
++	stc_b	3, 1
++	reg	r3, 1
++	ld.w	0[r1], r4
++	reg	r4, 0x5a
++
++# ldl.hu and stc.h
++	seti	0x0000f00f, r4
++	st.w	r4, 0[r1]
++	ldl_hu	1, 3
++	reg	r3, 0xf00f
++	seti	0x1234, r3
++	stc_h	3, 1
++	reg	r3, 1
++	ld.w	0[r1], r4
++	reg	r4, 0x1234
++
++# ldl.hu then stc.b fails
++	ldl_hu	1, 3
++	mov	9, r3
++	stc_b	3, 1
++	reg	r3, 0
++	ld.w	0[r1], r4
++	reg	r4, 0x1234
++
++	pass
+diff --git a/sim/testsuite/v850/pushsp.cgs b/sim/testsuite/v850/pushsp.cgs
+new file mode 100644
+index 00000000000..dac2c54c25b
+--- /dev/null
++++ b/sim/testsuite/v850/pushsp.cgs
+@@ -0,0 +1,51 @@
++# v850 pushsp, popsp
++# mach: v850e3v5
++
++	.include "testutils.inc"
++
++	mov	sp, r5
++	mov	20, r20
++	mov	21, r21
++	mov	22, r22
++	pushsp	r20-r22
++	mov	r5, r6
++	add	-12, r6
++	cmp	r6, sp
++	bne	_fail
++	ld.w	8[sp], r7
++	reg	r7, 20
++	ld.w	4[sp], r7
++	reg	r7, 21
++	ld.w	0[sp], r7
++	reg	r7, 22
++
++	mov	0, r20
++	mov	0, r21
++	mov	0, r22
++	popsp	r20-r22
++	cmp	r5, sp
++	bne	_fail
++	reg	r20, 20
++	reg	r21, 21
++	reg	r22, 22
++
++# sp in the list is not loaded
++	mov	0, r2
++	pushsp	r2-r4
++	mov	r5, r6
++	add	-12, r6
++	cmp	r6, sp
++	bne	_fail
++	popsp	r2-r4
++	cmp	r5, sp
++	bne	_fail
++
++# rh > rt does nothing
++	pushsp	r22-r20
++	cmp	r5, sp
++	bne	_fail
++	popsp	r22-r20
++	cmp	r5, sp
++	bne	_fail
++
++	pass
+diff --git a/sim/testsuite/v850/sreg.cgs b/sim/testsuite/v850/sreg.cgs
+new file mode 100644
+index 00000000000..aa5fd5972fc
+--- /dev/null
++++ b/sim/testsuite/v850/sreg.cgs
+@@ -0,0 +1,49 @@
++# v850 ldsr, stsr with selID and the G4 FPU registers
++# mach: v850e3v5
++
++	.include "testutils.inc"
++
++# selID 1: RBASE, EBASE, INTBP
++	seti	0x00010000, r1
++	ldsr	r1, 2, 1
++	seti	0x00020200, r1
++	ldsr	r1, 3, 1
++	seti	0x00030000, r1
++	ldsr	r1, 4, 1
++	stsr	2, r2, 1
++	reg	r2, 0x00010000
++	stsr	3, r2, 1
++	reg	r2, 0x00020200
++	stsr	4, r2, 1
++	reg	r2, 0x00030000
++
++# selID 0 is a different register
++	stsr	3, r2, 0
++	reg	r2, 0
++
++# selID 7
++	seti	0x12345678, r1
++	ldsr	r1, 31, 7
++	stsr	31, r2, 7
++	reg	r2, 0x12345678
++
++# FPSR is regID 6, selID 0; FPST and FPCFG are views of it
++	seti	0x0002a020, r1
++	ldsr	r1, 6, 0
++	stsr	6, r2, 0
++	reg	r2, 0x0002a020
++	stsr	8, r2, 0
++	andi	0x3f00, r2, r2
++	reg	r2, 0x2800
++	stsr	10, r2, 0
++	reg	r2, 0x01
++
++# rounding mode through FPCFG lands in FPSR.RM
++	seti	0x00000180, r1
++	ldsr	r1, 10, 0
++	stsr	6, r2, 0
++	shr	18, r2
++	andi	3, r2, r2
++	reg	r2, 3
++
++	pass
+diff --git a/sim/testsuite/v850/sync.cgs b/sim/testsuite/v850/sync.cgs
+new file mode 100644
+index 00000000000..2165fb6f341
+--- /dev/null
++++ b/sim/testsuite/v850/sync.cgs
+@@ -0,0 +1,22 @@
++# v850 synce, synci, syncm, syncp, snooze, cache, pref
++# mach: v850e3v5
++
++	.include "testutils.inc"
++
++	mov	1, r1
++	mov	sp, r5
++	noflags
++	synce
++	synci
++	syncm
++	syncp
++	snooze
++	cache	0x00, [r1]
++	cache	0x20, [r1]
++	pref	0, [r1]
++	flags	0
++	reg	r1, 1
++	cmp	r5, sp
++	bne	_fail
++
++	pass
+diff --git a/sim/v850/interp.c b/sim/v850/interp.c
+index 948b7245c3f..6d5018c6329 100644
+--- a/sim/v850/interp.c
++++ b/sim/v850/interp.c
+@@ -87,6 +87,7 @@ do_interrupt (SIM_DESC sd, void *data)
+ 	  /* NMI can be delivered.  Do not deschedule pending_nmi as
+              that, if still in the event queue, is a second NMI that
+              needs to be delivered later. */
++	  v850_link_clear ();
+ 	  FEPC = PC;
+ 	  FEPSW = PSW;
+ 	  /* Set the FECC part of the ECR. */
+@@ -111,6 +112,7 @@ do_interrupt (SIM_DESC sd, void *data)
+ 	}
+       else
+ 	{
++	  v850_link_clear ();
+ 	  /* save context */
+ 	  EIPC = PC;
+ 	  EIPSW = PSW;
+@@ -310,6 +312,7 @@ sim_create_inferior (SIM_DESC      sd,
+ 		     char * const *env)
+ {
+   memset (&State, 0, sizeof (State));
++  v850_link_clear ();
+   if (prog_bfd != NULL)
+     PC = bfd_get_start_address (prog_bfd);
+   return SIM_RC_OK;
+diff --git a/sim/v850/simops.c b/sim/v850/simops.c
+index 1e725ca1226..20cbbff594f 100644
+--- a/sim/v850/simops.c
++++ b/sim/v850/simops.c
+@@ -1597,6 +1597,7 @@ OP_10007E0 (void)
+ {
+   trace_input ("trap", OP_TRAP, 0);
+   trace_output (OP_TRAP);
++  v850_link_clear ();
+ 
+   /* Trap 31 is used for simulating OS I/O functions */
+ 
+@@ -3041,6 +3042,7 @@ SignalExceptionFPE (SIM_DESC sd, unsigned int double_op_p)
+   if (((PSW & (PSW_NP|PSW_ID)) == 0)
+       || !(FPSR & (double_op_p ? FPSR_DEM : FPSR_SEM)))		
+     {								
++      v850_link_clear ();
+       EIPC = PC;							
+       EIPSW = PSW;						
+       EIIC = (FPSR & (double_op_p ? FPSR_DEM : FPSR_SEM)) 	
+@@ -3708,3 +3710,83 @@ mpu_store_mem_test (SIM_DESC sd, unsigned int addr, int size, int base_reg)
+   return result;
+ }
+ 
++
++void
++v850_link_set (uint32_t addr, int len)
++{
++  struct v850_sim_cpu *v850_cpu = V850_SIM_CPU (STATE_CPU (simulator, 0));
++
++  v850_cpu->link_valid = 1;
++  v850_cpu->link_addr = addr;
++  v850_cpu->link_size = len;
++}
++
++void
++v850_link_clear (void)
++{
++  V850_SIM_CPU (STATE_CPU (simulator, 0))->link_valid = 0;
++}
++
++int
++v850_link_check (uint32_t addr, int len)
++{
++  struct v850_sim_cpu *v850_cpu = V850_SIM_CPU (STATE_CPU (simulator, 0));
++
++  return (v850_cpu->link_valid
++	  && v850_cpu->link_addr == addr
++	  && v850_cpu->link_size == len);
++}
++
++void
++v850_link_store (uint32_t addr, int len)
++{
++  struct v850_sim_cpu *v850_cpu = V850_SIM_CPU (STATE_CPU (simulator, 0));
++  uint32_t block = v850_cpu->link_addr & ~(uint32_t) 31;
++
++  if (v850_cpu->link_valid
++      && ((addr & ~(uint32_t) 31) == block
++	  || ((addr + len - 1) & ~(uint32_t) 31) == block))
++    v850_cpu->link_valid = 0;
++}
++
++void
++v850_clip (int reg1, int reg2, int32_t min, int32_t max, int is_unsigned)
++{
++  uint32_t value = State.regs[reg1];
++  int32_t result;
++  int ov = 0;
++
++  if (is_unsigned)
++    {
++      if (value > (uint32_t) max)
++	{
++	  result = max;
++	  ov = 1;
++	}
++      else
++	result = value;
++    }
++  else
++    {
++      result = value;
++      if (result > max)
++	{
++	  result = max;
++	  ov = 1;
++	}
++      else if (result < min)
++	{
++	  result = min;
++	  ov = 1;
++	}
++    }
++
++  State.regs[reg2] = result;
++  PSW &= ~(PSW_Z | PSW_S | PSW_OV | PSW_CY);
++  if (result == 0)
++    PSW |= PSW_Z;
++  if (!is_unsigned && result < 0)
++    PSW |= PSW_S;
++  if (ov)
++    PSW |= PSW_OV | PSW_SAT;
++}
+diff --git a/sim/v850/simops.h b/sim/v850/simops.h
+index cb4ae93da0e..c06dd336997 100644
+--- a/sim/v850/simops.h
++++ b/sim/v850/simops.h
+@@ -84,6 +84,10 @@ int v850_float_compare(SIM_DESC sd, int cmp, sim_fpu wop1, sim_fpu wop2, int dou
+ /* MEMORY ACCESS */
+ uint32_t load_data_mem(SIM_DESC sd, address_word addr, int len);
+ void store_data_mem(SIM_DESC sd, address_word addr, int len, uint32_t data);
++void v850_link_set (uint32_t addr, int len);
++void v850_link_clear (void);
++int v850_link_check (uint32_t addr, int len);
++void v850_clip (int reg1, int reg2, int32_t min, int32_t max, int is_unsigned);
+ 
+ unsigned long Add32 (unsigned long a1, unsigned long a2, int * carry);
+ 
+diff --git a/sim/v850/v850-sim.h b/sim/v850/v850-sim.h
+index f20875aea4f..318b476b65c 100644
+--- a/sim/v850/v850-sim.h
++++ b/sim/v850/v850-sim.h
+@@ -36,6 +36,9 @@ struct v850_sim_cpu {
+   v850_regs reg;
+   reg_t psw_mask;               /* only allow non-reserved bits to be set */
+   sim_event *pending_nmi;
++  int link_valid;
++  int link_size;
++  reg_t link_addr;
+ };
+ 
+ #define V850_SIM_CPU(cpu) ((struct v850_sim_cpu *) CPU_ARCH_DATA (cpu))
+@@ -393,9 +396,12 @@ sim_core_read_aligned_2 (STATE_CPU (SD, 0), \
+ sim_core_read_unaligned_##LEN (STATE_CPU (simulator, 0), \
+ 			       PC, read_map, (ADDR))
+ 
++void v850_link_store (uint32_t addr, int len);
++
+ #define store_mem(ADDR,LEN,DATA) \
+-sim_core_write_unaligned_##LEN (STATE_CPU (simulator, 0), \
+-				PC, write_map, (ADDR), (DATA))
++(v850_link_store ((ADDR), (LEN)), \
++ sim_core_write_unaligned_##LEN (STATE_CPU (simulator, 0), \
++				 PC, write_map, (ADDR), (DATA)))
+ 
+ 
+ /* compare cccc field against PSW */
+diff --git a/sim/v850/v850.igen b/sim/v850/v850.igen
+index 836baf1649f..c9aef8ad9f1 100644
+--- a/sim/v850/v850.igen
++++ b/sim/v850/v850.igen
+@@ -291,6 +291,18 @@ rrrrr,11111100000 + wwwww,01101000000:XII:::bsw
+ 
+ 
+ 
++// CACHE
++111,pp,111111,RRRRR + PPPPP,00101100000:X:::cache
++*v850e3v5
++"cache <pp><PPPPP>, [r<reg1>]"
++{
++  TRACE_ALU_INPUT1 (GR[reg1]);
++  if (((pp << 5) | PPPPP) == 0x7e)
++    v850_link_clear ();
++}
++
++
++
+ // CAXI
+ rrrrr,111111,RRRRR + wwwww,00011101110:IX:::caxi
+ *v850e2
+@@ -340,6 +352,48 @@ rrrrr,111111,RRRRR + wwwww,00011101110:IX:::caxi
+ }
+ 
+ 
++// CLIP.B
++rrrrr,111111,RRRRR + 0000000000001000:IX:::clip.b
++*v850e3v5
++"clip.b r<reg1>, r<reg2>"
++{
++  TRACE_ALU_INPUT1 (GR[reg1]);
++  v850_clip (reg1, reg2, -0x80, 0x7f, 0);
++  TRACE_ALU_RESULT1 (GR[reg2]);
++}
++
++// CLIP.BU
++rrrrr,111111,RRRRR + 0000000000001010:IX:::clip.bu
++*v850e3v5
++"clip.bu r<reg1>, r<reg2>"
++{
++  TRACE_ALU_INPUT1 (GR[reg1]);
++  v850_clip (reg1, reg2, 0, 0xff, 1);
++  TRACE_ALU_RESULT1 (GR[reg2]);
++}
++
++// CLIP.H
++rrrrr,111111,RRRRR + 0000000000001100:IX:::clip.h
++*v850e3v5
++"clip.h r<reg1>, r<reg2>"
++{
++  TRACE_ALU_INPUT1 (GR[reg1]);
++  v850_clip (reg1, reg2, -0x8000, 0x7fff, 0);
++  TRACE_ALU_RESULT1 (GR[reg2]);
++}
++
++// CLIP.HU
++rrrrr,111111,RRRRR + 0000000000001110:IX:::clip.hu
++*v850e3v5
++"clip.hu r<reg1>, r<reg2>"
++{
++  TRACE_ALU_INPUT1 (GR[reg1]);
++  v850_clip (reg1, reg2, 0, 0xffff, 1);
++  TRACE_ALU_RESULT1 (GR[reg2]);
++}
++
++
++
+ // CLR1
+ 10,bbb,111110,RRRRR + dddddddddddddddd:VIII:::clr1
+ "clr1 <bit3>, <disp16>[r<reg1>]"
+@@ -634,6 +688,7 @@ rrrrr,111111,RRRRR + wwwww,01011111110:XI:::divqu
+ {
+   TRACE_ALU_INPUT1 (MPM & MPM_AUE);
+ 
++  v850_link_clear ();
+   nia = EIPC;	/* next PC */
+   if (MPM & MPM_AUE)
+     {
+@@ -660,6 +715,7 @@ rrrrr,111111,RRRRR + wwwww,01011111110:XI:::divqu
+ {
+   TRACE_ALU_INPUT1 (MPM & MPM_AUE);
+ 
++  v850_link_clear ();
+   nia = FEPC;	/* next PC */
+   if (MPM & MPM_AUE)
+     {
+@@ -685,6 +741,7 @@ rrrrr,111111,RRRRR + wwwww,01011111110:XI:::divqu
+ {
+   TRACE_ALU_INPUT0 ();
+ 
++  v850_link_clear ();
+   FEPC = PC + 2;
+   FEPSW = PSW;
+   ECR &= ~ECR_FECC;
+@@ -943,6 +1000,41 @@ rrrrr!0,111111,RRRRR + ddddddddddddddd,1:VII:::ld.hu
+ 
+ 
+ 
++// LDL.BU
++00001,111111,RRRRR + wwwww,01101110000:VII:::ldl.bu
++*v850e3v5
++"ldl.bu [r<reg1>], r<reg3>"
++{
++  uint32_t addr = GR[reg1];
++  GR[reg3] = load_data_mem (SD, addr, 1);
++  v850_link_set (addr, 1);
++  TRACE_LD (addr, GR[reg3]);
++}
++
++// LDL.HU
++00001,111111,RRRRR + wwwww,01101110100:VII:::ldl.hu
++*v850e3v5
++"ldl.hu [r<reg1>], r<reg3>"
++{
++  uint32_t addr = GR[reg1];
++  GR[reg3] = load_data_mem (SD, addr, 2);
++  v850_link_set (addr, 2);
++  TRACE_LD (addr, GR[reg3]);
++}
++
++// LDL.W
++00000,111111,RRRRR + wwwww,01101111000:VII:::ldl.w
++*v850e3v5
++"ldl.w [r<reg1>], r<reg3>"
++{
++  uint32_t addr = GR[reg1];
++  GR[reg3] = load_data_mem (SD, addr, 4);
++  v850_link_set (addr, 4);
++  TRACE_LD (addr, GR[reg3]);
++}
++
++
++
+ // LDSR
+ regID,111111,RRRRR + selID,00000100000:IX:::ldsr
+ "ldsr r<reg1>, s<regID>":(selID == 0)
+@@ -956,10 +1048,9 @@ regID,111111,RRRRR + selID,00000100000:IX:::ldsr
+       && regID >= FPSR_REGNO && regID <= FPEC_REGNO)
+     bank = 0x2000;
+ 
+-  /* FIXME: For now we ignore the selID.  */
+   if (idecode_issue == idecode_v850e3v5_issue && selID != 0)
+     {
+-      V850_SIM_CPU (CPU)->reg.selID_sregs[selID][regID] = sreg;
++      V850_SIM_CPU (CPU)->reg.selID_sregs[selID - 1][regID] = sreg;
+     }
+   else if ((   idecode_issue == idecode_v850e2_issue
+             || idecode_issue == idecode_v850e3v5_issue
+@@ -1417,6 +1508,37 @@ rrrrr,110100,RRRRR + iiiiiiiiiiiiiiii:VI:::ori
+ 
+ 
+ 
++// POPSP
++01100,111111,RRRRR + wwwww,00101100000:XI:::popsp
++*v850e3v5
++"popsp r<reg1>-r<reg3>"
++{
++  uint32_t tmp = SP;
++  int cur;
++
++  if (reg1 <= reg3)
++    {
++      for (cur = reg3; cur >= (int) reg1; cur--)
++	{
++	  uint32_t data = load_data_mem (SD, tmp & ~3, 4);
++	  if (cur != SP_REGNO)
++	    GR[cur] = data;
++	  tmp += 4;
++	}
++      SP = tmp;
++    }
++}
++
++// PREF
++11011,111111,RRRRR + PPPPP,00101100000:X:::pref
++*v850e3v5
++"pref <PPPPP>, [r<reg1>]"
++{
++  TRACE_ALU_INPUT1 (GR[reg1]);
++}
++
++
++
+ // PREPARE
+ 0000011110,iiiii,L + LLLLLLLLLLL,00001:XIII:::prepare
+ *v850e
+@@ -1490,6 +1612,27 @@ rrrrr,110100,RRRRR + iiiiiiiiiiiiiiii:VI:::ori
+   COMPAT_2 (OP_1B0780 ());
+ }
+ 
++// PUSHSP
++01000,111111,RRRRR + wwwww,00101100000:XI:::pushsp
++*v850e3v5
++"pushsp r<reg1>-r<reg3>"
++{
++  uint32_t tmp = SP;
++  int cur;
++
++  if (reg1 <= reg3)
++    {
++      for (cur = reg1; cur <= (int) reg3; cur++)
++	{
++	  tmp -= 4;
++	  store_data_mem (SD, tmp & ~3, 4, GR[cur]);
++	}
++      SP = tmp;
++    }
++}
++
++
++
+ // RETI
+ 0000011111100000 + 0000000101000000:X:::reti
+ "reti"
+@@ -2009,6 +2152,15 @@ rrrrr!0,0000111,dddd:IV:::sld.hu
+ 
+ 
+ 
++// SNOOZE
++0000111111100000 + 0000000100100000:X:::snooze
++*v850e3v5
++"snooze"
++{
++}
++
++
++
+ // SST
+ rrrrr,0111,ddddddd:IV:::sst.b
+ "sst.b r<reg2>, <disp7>[ep]"
+@@ -2089,9 +2241,54 @@ rrrrr,111011,RRRRR + ddddddddddddddd,1:VII:::st.w
+ }
+ 
+ 
++// STC.B
++00000,111111,RRRRR + wwwww,01101110010:VII:::stc.b
++*v850e3v5
++"stc.b r<reg3>, [r<reg1>]"
++{
++  uint32_t addr = GR[reg1];
++  int ok = v850_link_check (addr, 1);
++
++  if (ok)
++    store_data_mem (SD, addr, 1, GR[reg3]);
++  v850_link_clear ();
++  GR[reg3] = ok;
++}
++
++// STC.H
++00000,111111,RRRRR + wwwww,01101110110:VII:::stc.h
++*v850e3v5
++"stc.h r<reg3>, [r<reg1>]"
++{
++  uint32_t addr = GR[reg1];
++  int ok = v850_link_check (addr, 2);
++
++  if (ok)
++    store_data_mem (SD, addr, 2, GR[reg3]);
++  v850_link_clear ();
++  GR[reg3] = ok;
++}
++
++// STC.W
++00000,111111,RRRRR + wwwww,01101111010:VII:::stc.w
++*v850e3v5
++"stc.w r<reg3>, [r<reg1>]"
++{
++  uint32_t addr = GR[reg1];
++  int ok = v850_link_check (addr, 4);
++
++  if (ok)
++    store_data_mem (SD, addr, 4, GR[reg3]);
++  v850_link_clear ();
++  GR[reg3] = ok;
++}
++
++
++
+ // STSR
+-rrrrr,111111,regID + 0000000001000000:IX:::stsr
+-"stsr s<regID>, r<reg2>"
++rrrrr,111111,regID + selID,00001000000:IX:::stsr
++"stsr s<regID>, r<reg2>":(selID == 0)
++"stsr s<regID>, r<reg2>, <selID>"
+ {
+   uint32_t sreg = 0;
+   unsigned int bank = BSEL & 0xffff;
+@@ -2100,7 +2297,11 @@ rrrrr,111111,regID + 0000000001000000:IX:::stsr
+       && regID >= FPSR_REGNO && regID <= FPEC_REGNO)
+     bank = 0x2000;
+ 
+-  if ((idecode_issue == idecode_v850e2_issue
++  if (idecode_issue == idecode_v850e3v5_issue && selID != 0)
++    {
++      sreg = V850_SIM_CPU (CPU)->reg.selID_sregs[selID - 1][regID];
++    }
++  else if ((idecode_issue == idecode_v850e2_issue
+        || idecode_issue == idecode_v850e3v5_issue
+        || idecode_issue == idecode_v850e2v3_issue)
+       && regID < 28)
+@@ -2219,6 +2420,36 @@ rrrrr,001100,RRRRR:I:::subr
+   TRACE_ALU_RESULT (GR[reg1]);
+ }
+ 
++// SYNCE
++0000000000011101:I:::synce
++*v850e3v5
++"synce"
++{
++}
++
++// SYNCI
++0000000000011100:I:::synci
++*v850e3v5
++"synci"
++{
++}
++
++// SYNCM
++0000000000011110:I:::syncm
++*v850e3v5
++"syncm"
++{
++}
++
++// SYNCP
++0000000000011111:I:::syncp
++*v850e3v5
++"syncp"
++{
++}
++
++
++
+ // TRAP
+ 00000111111,iiiii + 0000000100000000:X:::trap
+ "trap <vector>"
+-- 
+Parthiban N
+
