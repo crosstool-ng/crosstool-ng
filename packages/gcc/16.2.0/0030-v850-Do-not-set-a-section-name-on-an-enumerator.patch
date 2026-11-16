@@ -1,0 +1,51 @@
+From f62f6f556aeb5e3357ffc0b6494633dce6558611 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:27:12 +0530
+Subject: [PATCH] v850: Do not set a section name on an enumerator
+
+An attribute on an enumerator made the attribute hook read the section
+name of a constant declaration and crash. Skip enumerators, they are
+not objects.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.cc                   |  4 +---
+ gcc/testsuite/gcc.target/v850/enum-attr.c | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/enum-attr.c
+
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index 86a465950c5..eb1b7b16b5b 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -2556,9 +2556,7 @@ v850_insert_attributes (tree decl, tree * attr_ptr ATTRIBUTE_UNUSED )
+     }
+ 
+   if (current_function_decl == NULL_TREE
+-      && (VAR_P (decl)
+-	  || TREE_CODE (decl) == CONST_DECL
+-	  || TREE_CODE (decl) == FUNCTION_DECL)
++      && (VAR_P (decl) || TREE_CODE (decl) == FUNCTION_DECL)
+       && (!DECL_EXTERNAL (decl) || DECL_INITIAL (decl))
+       && !DECL_SECTION_NAME (decl))
+     {
+diff --git a/gcc/testsuite/gcc.target/v850/enum-attr.c b/gcc/testsuite/gcc.target/v850/enum-attr.c
+new file mode 100644
+index 00000000000..3a4ec3cd6a4
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/enum-attr.c
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++
++enum e { E_OLD __attribute__ ((deprecated)) = 1, E_NEW = 1 };
++
++int
++f (void)
++{
++  return E_NEW;
++}
+-- 
+Parthiban N
+

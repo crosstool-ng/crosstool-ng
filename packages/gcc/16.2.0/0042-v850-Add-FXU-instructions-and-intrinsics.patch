@@ -1,0 +1,1720 @@
+From dc5946fe5af08d1cc07d52b5bd195c50e500e641 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 23:12:48 +0530
+Subject: [PATCH] v850: Add FXU instructions and intrinsics
+
+Add patterns for the FXU arithmetic, conversion, compare, move, shuffle
+and lane instructions, and an intrinsics header that exposes them to C.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config.gcc                                |   1 +
+ gcc/config/v850/constraints.md                |   5 +
+ gcc/config/v850/fxu.md                        | 337 ++++++++++++++
+ gcc/config/v850/v850.cc                       | 339 ++++++++++++++
+ gcc/config/v850/v850_fxu.h                    |  64 +++
+ gcc/doc/extend.texi                           | 262 +++++++++++
+ gcc/doc/invoke.texi                           |   1 +
+ .../gcc.target/v850/fxu-builtins-as.c         |   4 +
+ gcc/testsuite/gcc.target/v850/fxu-builtins.c  | 434 ++++++++++++++++++
+ gcc/testsuite/gcc.target/v850/fxu-compat.c    |  18 +
+ .../gcc.target/v850/fxu-header-nofxu.c        |   5 +
+ gcc/testsuite/gcc.target/v850/fxu-imm.c       |  17 +
+ .../gcc.target/v850/fxu-lane-order-run.c      |  46 ++
+ gcc/testsuite/gcc.target/v850/fxu-nofxu.c     |  12 +
+ 14 files changed, 1545 insertions(+)
+ create mode 100644 gcc/config/v850/v850_fxu.h
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-builtins-as.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-builtins.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-compat.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-header-nofxu.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-imm.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-lane-order-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-nofxu.c
+
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 743421768ea..47c2b0a74ab 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -608,6 +608,7 @@ sh[123456789lbe]*-*-* | sh-*-*)
+ 	;;
+ v850*-*-*)
+ 	cpu_type=v850
++	extra_headers="v850_fxu.h"
+ 	;;
+ tic6x-*-*)
+ 	cpu_type=c6x
+diff --git a/gcc/config/v850/constraints.md b/gcc/config/v850/constraints.md
+index 413238c89c2..f88e2ba0e72 100644
+--- a/gcc/config/v850/constraints.md
++++ b/gcc/config/v850/constraints.md
+@@ -119,3 +119,8 @@
+   "@internal"
+   (and (match_code "mem")
+        (match_test "v850_fxu_mem_p (op, 8, reload_completed)")))
++
++(define_memory_constraint "Yw"
++  "@internal"
++  (and (match_code "mem")
++       (match_test "v850_fxu_mem_p (op, 4, reload_completed)")))
+diff --git a/gcc/config/v850/fxu.md b/gcc/config/v850/fxu.md
+index 3f92187e43d..dd9bfc007e5 100644
+--- a/gcc/config/v850/fxu.md
++++ b/gcc/config/v850/fxu.md
+@@ -21,8 +21,118 @@
+   UNSPEC_FXU_LDV_DW
+   UNSPEC_FXU_LDV_DW_BOTH
+   UNSPEC_FXU_STV_DW
++  UNSPEC_FXU_LDV_W
++  UNSPEC_FXU_STV_W
++  UNSPEC_FXU_LDVZ_H4
++  UNSPEC_FXU_STVZ_H4
++  UNSPEC_FXU_RECIPF
++  UNSPEC_FXU_RSQRTF
++  UNSPEC_FXU_ADDSUBF
++  UNSPEC_FXU_ADDSUBNF
++  UNSPEC_FXU_SUBADDF
++  UNSPEC_FXU_SUBADDNF
++  UNSPEC_FXU_ADDXF
++  UNSPEC_FXU_SUBXF
++  UNSPEC_FXU_MULXF
++  UNSPEC_FXU_ADDSUBXF
++  UNSPEC_FXU_ADDSUBNXF
++  UNSPEC_FXU_SUBADDXF
++  UNSPEC_FXU_SUBADDNXF
++  UNSPEC_FXU_ADDRF
++  UNSPEC_FXU_SUBRF
++  UNSPEC_FXU_MULRF
++  UNSPEC_FXU_MAXRF
++  UNSPEC_FXU_MINRF
++  UNSPEC_FXU_CEILF_SW4
++  UNSPEC_FXU_CEILF_SUW4
++  UNSPEC_FXU_FLOORF_SW4
++  UNSPEC_FXU_FLOORF_SUW4
++  UNSPEC_FXU_ROUNDF_SW4
++  UNSPEC_FXU_ROUNDF_SUW4
++  UNSPEC_FXU_CVTF_SW4
++  UNSPEC_FXU_CVTF_SUW4
++  UNSPEC_FXU_CVTF_HS4
++  UNSPEC_FXU_CVTF_SH4
++  UNSPEC_FXU_CMPF
++  UNSPEC_FXU_CMOVF
++  UNSPEC_FXU_SHFLV
++  UNSPEC_FXU_FLPV
++  UNSPEC_FXU_TRFSRV
+ ])
+ 
++(define_int_iterator FXU_BINOP [UNSPEC_FXU_ADDSUBF UNSPEC_FXU_ADDSUBNF
++				UNSPEC_FXU_SUBADDF UNSPEC_FXU_SUBADDNF
++				UNSPEC_FXU_ADDXF UNSPEC_FXU_SUBXF
++				UNSPEC_FXU_MULXF UNSPEC_FXU_ADDSUBXF
++				UNSPEC_FXU_ADDSUBNXF UNSPEC_FXU_SUBADDXF
++				UNSPEC_FXU_SUBADDNXF UNSPEC_FXU_ADDRF
++				UNSPEC_FXU_SUBRF UNSPEC_FXU_MULRF
++				UNSPEC_FXU_MAXRF UNSPEC_FXU_MINRF])
++
++(define_int_iterator FXU_UNOP [UNSPEC_FXU_RECIPF UNSPEC_FXU_RSQRTF])
++
++(define_int_iterator FXU_F2I [UNSPEC_FXU_CEILF_SW4 UNSPEC_FXU_CEILF_SUW4
++			      UNSPEC_FXU_FLOORF_SW4 UNSPEC_FXU_FLOORF_SUW4
++			      UNSPEC_FXU_ROUNDF_SW4 UNSPEC_FXU_ROUNDF_SUW4
++			      UNSPEC_FXU_CVTF_SW4 UNSPEC_FXU_CVTF_SUW4
++			      UNSPEC_FXU_CVTF_SH4])
++
++(define_int_attr fxu_insn [(UNSPEC_FXU_ADDSUBF "addsubf.s4")
++			   (UNSPEC_FXU_ADDSUBNF "addsubnf.s4")
++			   (UNSPEC_FXU_SUBADDF "subaddf.s4")
++			   (UNSPEC_FXU_SUBADDNF "subaddnf.s4")
++			   (UNSPEC_FXU_ADDXF "addxf.s4")
++			   (UNSPEC_FXU_SUBXF "subxf.s4")
++			   (UNSPEC_FXU_MULXF "mulxf.s4")
++			   (UNSPEC_FXU_ADDSUBXF "addsubxf.s4")
++			   (UNSPEC_FXU_ADDSUBNXF "addsubnxf.s4")
++			   (UNSPEC_FXU_SUBADDXF "subaddxf.s4")
++			   (UNSPEC_FXU_SUBADDNXF "subaddnxf.s4")
++			   (UNSPEC_FXU_ADDRF "addrf.s4")
++			   (UNSPEC_FXU_SUBRF "subrf.s4")
++			   (UNSPEC_FXU_MULRF "mulrf.s4")
++			   (UNSPEC_FXU_MAXRF "maxrf.s4")
++			   (UNSPEC_FXU_MINRF "minrf.s4")
++			   (UNSPEC_FXU_RECIPF "recipf.s4")
++			   (UNSPEC_FXU_RSQRTF "rsqrtf.s4")
++			   (UNSPEC_FXU_CEILF_SW4 "ceilf.sw4")
++			   (UNSPEC_FXU_CEILF_SUW4 "ceilf.suw4")
++			   (UNSPEC_FXU_FLOORF_SW4 "floorf.sw4")
++			   (UNSPEC_FXU_FLOORF_SUW4 "floorf.suw4")
++			   (UNSPEC_FXU_ROUNDF_SW4 "roundf.sw4")
++			   (UNSPEC_FXU_ROUNDF_SUW4 "roundf.suw4")
++			   (UNSPEC_FXU_CVTF_SW4 "cvtf.sw4")
++			   (UNSPEC_FXU_CVTF_SUW4 "cvtf.suw4")
++			   (UNSPEC_FXU_CVTF_SH4 "cvtf.sh4")])
++
++(define_int_attr fxu_name [(UNSPEC_FXU_ADDSUBF "addsubf")
++			   (UNSPEC_FXU_ADDSUBNF "addsubnf")
++			   (UNSPEC_FXU_SUBADDF "subaddf")
++			   (UNSPEC_FXU_SUBADDNF "subaddnf")
++			   (UNSPEC_FXU_ADDXF "addxf")
++			   (UNSPEC_FXU_SUBXF "subxf")
++			   (UNSPEC_FXU_MULXF "mulxf")
++			   (UNSPEC_FXU_ADDSUBXF "addsubxf")
++			   (UNSPEC_FXU_ADDSUBNXF "addsubnxf")
++			   (UNSPEC_FXU_SUBADDXF "subaddxf")
++			   (UNSPEC_FXU_SUBADDNXF "subaddnxf")
++			   (UNSPEC_FXU_ADDRF "addrf")
++			   (UNSPEC_FXU_SUBRF "subrf")
++			   (UNSPEC_FXU_MULRF "mulrf")
++			   (UNSPEC_FXU_MAXRF "maxrf")
++			   (UNSPEC_FXU_MINRF "minrf")
++			   (UNSPEC_FXU_RECIPF "recipf")
++			   (UNSPEC_FXU_RSQRTF "rsqrtf")
++			   (UNSPEC_FXU_CEILF_SW4 "ceilf_sw4")
++			   (UNSPEC_FXU_CEILF_SUW4 "ceilf_suw4")
++			   (UNSPEC_FXU_FLOORF_SW4 "floorf_sw4")
++			   (UNSPEC_FXU_FLOORF_SUW4 "floorf_suw4")
++			   (UNSPEC_FXU_ROUNDF_SW4 "roundf_sw4")
++			   (UNSPEC_FXU_ROUNDF_SUW4 "roundf_suw4")
++			   (UNSPEC_FXU_CVTF_SW4 "cvtf_sw4")
++			   (UNSPEC_FXU_CVTF_SUW4 "cvtf_suw4")
++			   (UNSPEC_FXU_CVTF_SH4 "cvtf_sh4")])
++
+ (define_mode_iterator VFXU [V4SF V4SI])
+ 
+ (define_expand "mov<mode>"
+@@ -114,3 +224,230 @@
+   "stv.dw %2, %1, %0"
+   [(set_attr "length" "6")
+    (set_attr "type" "store")])
++
++(define_code_iterator FXU_ARITH [plus minus mult div smax smin])
++
++(define_code_attr fxu_arith_name [(plus "add") (minus "sub") (mult "mul")
++				  (div "div") (smax "smax") (smin "smin")])
++
++(define_code_attr fxu_arith_insn [(plus "addf.s4") (minus "subf.s4")
++				  (mult "mulf.s4") (div "divf.s4")
++				  (smax "maxf.s4") (smin "minf.s4")])
++
++(define_insn "<fxu_arith_name>v4sf3"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(FXU_ARITH:V4SF (match_operand:V4SF 1 "register_operand" "w")
++			(match_operand:V4SF 2 "register_operand" "w")))]
++  "TARGET_FXU"
++  "<fxu_arith_insn> %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "sqrtv4sf2"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(sqrt:V4SF (match_operand:V4SF 1 "register_operand" "w")))]
++  "TARGET_FXU"
++  "sqrtf.s4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "absv4sf2"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(abs:V4SF (match_operand:V4SF 1 "register_operand" "w")))]
++  "TARGET_FXU"
++  "absf.s4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "negv4sf2"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(neg:V4SF (match_operand:V4SF 1 "register_operand" "w")))]
++  "TARGET_FXU"
++  "negf.s4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fmav4sf4"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(fma:V4SF (match_operand:V4SF 1 "register_operand" "w")
++		  (match_operand:V4SF 2 "register_operand" "w")
++		  (match_operand:V4SF 3 "register_operand" "0")))]
++  "TARGET_FXU"
++  "fmaf.s4 %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fmsv4sf4"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(fma:V4SF (match_operand:V4SF 1 "register_operand" "w")
++		  (match_operand:V4SF 2 "register_operand" "w")
++		  (neg:V4SF (match_operand:V4SF 3 "register_operand" "0"))))]
++  "TARGET_FXU"
++  "fmsf.s4 %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_fnmaf"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(neg:V4SF
++	  (fma:V4SF (match_operand:V4SF 1 "register_operand" "w")
++		    (match_operand:V4SF 2 "register_operand" "w")
++		    (match_operand:V4SF 3 "register_operand" "0"))))]
++  "TARGET_FXU"
++  "fnmaf.s4 %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_fnmsf"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(neg:V4SF
++	  (fma:V4SF (match_operand:V4SF 1 "register_operand" "w")
++		    (match_operand:V4SF 2 "register_operand" "w")
++		    (neg:V4SF (match_operand:V4SF 3 "register_operand" "0")))))]
++  "TARGET_FXU"
++  "fnmsf.s4 %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_<fxu_name>"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(unspec:V4SF [(match_operand:V4SF 1 "register_operand" "w")
++		      (match_operand:V4SF 2 "register_operand" "w")]
++		     FXU_BINOP))]
++  "TARGET_FXU"
++  "<fxu_insn> %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_<fxu_name>"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(unspec:V4SF [(match_operand:V4SF 1 "register_operand" "w")]
++		     FXU_UNOP))]
++  "TARGET_FXU"
++  "<fxu_insn> %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fix_truncv4sfv4si2"
++  [(set (match_operand:V4SI 0 "register_operand" "=w")
++	(fix:V4SI (match_operand:V4SF 1 "register_operand" "w")))]
++  "TARGET_FXU"
++  "trncf.sw4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fixuns_truncv4sfv4si2"
++  [(set (match_operand:V4SI 0 "register_operand" "=w")
++	(unsigned_fix:V4SI (match_operand:V4SF 1 "register_operand" "w")))]
++  "TARGET_FXU"
++  "trncf.suw4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "floatv4siv4sf2"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(float:V4SF (match_operand:V4SI 1 "register_operand" "w")))]
++  "TARGET_FXU"
++  "cvtf.ws4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "floatunsv4siv4sf2"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(unsigned_float:V4SF (match_operand:V4SI 1 "register_operand" "w")))]
++  "TARGET_FXU"
++  "cvtf.uws4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_<fxu_name>"
++  [(set (match_operand:V4SI 0 "register_operand" "=w")
++	(unspec:V4SI [(match_operand:V4SF 1 "register_operand" "w")]
++		     FXU_F2I))]
++  "TARGET_FXU"
++  "<fxu_insn> %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_cvtf_hs4"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(unspec:V4SF [(match_operand:V4SI 1 "register_operand" "w")]
++		     UNSPEC_FXU_CVTF_HS4))]
++  "TARGET_FXU"
++  "cvtf.hs4 %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_cmpf"
++  [(set (match_operand:V4SI 0 "register_operand" "=w")
++	(unspec:V4SI [(match_operand:V4SF 1 "register_operand" "w")
++		      (match_operand:V4SF 2 "register_operand" "w")
++		      (match_operand:SI 3 "const_int_operand" "n")]
++		     UNSPEC_FXU_CMPF))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[3]), 0, 15)"
++  "cmpf.s4 %3, %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "@fxu_cmovf<mode>"
++  [(set (match_operand:VFXU 0 "register_operand" "=w")
++	(unspec:VFXU [(match_operand:V4SI 1 "register_operand" "w")
++		      (match_operand:VFXU 2 "register_operand" "w")
++		      (match_operand:VFXU 3 "register_operand" "w")]
++		     UNSPEC_FXU_CMOVF))]
++  "TARGET_FXU"
++  "cmovf.w4 %1, %2, %3, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "fpu")])
++
++(define_insn "@fxu_shflv<mode>"
++  [(set (match_operand:VFXU 0 "register_operand" "=w")
++	(unspec:VFXU [(match_operand:VFXU 1 "register_operand" "w")
++		      (match_operand:VFXU 2 "register_operand" "w")
++		      (match_operand:SI 3 "const_int_operand" "n")]
++		     UNSPEC_FXU_SHFLV))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[3]), 0, 4095)"
++  "shflv.w4 %3, %1, %2, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "fpu")])
++
++(define_insn "fxu_flpv"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(unspec:V4SF [(match_operand:V4SF 1 "register_operand" "w")
++		      (match_operand:SI 2 "const_int_operand" "n")]
++		     UNSPEC_FXU_FLPV))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[2]), 0, 3)"
++  "flpv.s4 %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_insn "fxu_trfsrv"
++  [(set (match_operand:SI 0 "register_operand" "=r")
++	(unspec:SI [(match_operand:V4SI 1 "register_operand" "w")
++		    (match_operand:SI 2 "const_int_operand" "n")]
++		   UNSPEC_FXU_TRFSRV))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[2]), 0, 5)"
++  "trfsrv.w4 %2, %1 ; setf z, %0"
++  [(set_attr "length" "8")])
++
++(define_insn "@fxu_ldv_w<mode>"
++  [(set (match_operand:VFXU 0 "register_operand" "=w")
++	(unspec:VFXU [(match_operand:VFXU 1 "register_operand" "0")
++		      (match_operand:SI 2 "memory_operand" "Yw")
++		      (match_operand:SI 3 "const_int_operand" "n")]
++		     UNSPEC_FXU_LDV_W))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[3]), 0, 15)"
++  "ldv.w %3, %2, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "load")])
++
++(define_insn "@fxu_stv_w<mode>"
++  [(set (match_operand:SI 0 "memory_operand" "=Yw")
++	(unspec:SI [(match_operand:VFXU 1 "register_operand" "w")
++		    (match_operand:SI 2 "const_int_operand" "n")]
++		   UNSPEC_FXU_STV_W))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[2]), 0, 3)"
++  "stv.w %2, %1, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "store")])
++
++(define_insn "fxu_ldvz_h4"
++  [(set (match_operand:V4SI 0 "register_operand" "=w")
++	(unspec:V4SI [(match_operand:DI 1 "memory_operand" "Yd")]
++		     UNSPEC_FXU_LDVZ_H4))]
++  "TARGET_FXU"
++  "ldvz.h4 %1, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "load")])
++
++(define_insn "fxu_stvz_h4"
++  [(set (match_operand:DI 0 "memory_operand" "=Yd")
++	(unspec:DI [(match_operand:V4SI 1 "register_operand" "w")]
++		   UNSPEC_FXU_STVZ_H4))]
++  "TARGET_FXU"
++  "stvz.h4 %1, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "store")])
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index bc438eae0bf..f7e10099b55 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -46,6 +46,7 @@
+ #include "expr.h"
+ #include "explow.h"
+ #include "optabs.h"
++#include "langhooks.h"
+ #include "cfgrtl.h"
+ #include "builtins.h"
+ 
+@@ -3918,6 +3919,335 @@ v850_can_inline_p (tree caller, tree callee)
+ }
+ 
+ 
++/* FXU builtins.  */
++
++enum v850_fxu_ftype
++{
++  FXU_V4SF_V4SF,
++  FXU_V4SF_V4SF_V4SF,
++  FXU_V4SF_V4SF_V4SF_V4SF,
++  FXU_V4SI_V4SF,
++  FXU_V4SF_V4SI,
++  FXU_V4SI_V4SF_V4SF_INT,
++  FXU_V4SF_V4SI_V4SF_V4SF,
++  FXU_V4SI_V4SI_V4SI_V4SI,
++  FXU_V4SF_V4SF_V4SF_INT,
++  FXU_V4SI_V4SI_V4SI_INT,
++  FXU_V4SF_V4SF_INT,
++  FXU_INT_V4SI_INT,
++  FXU_V4SF_V4SF_PCVOID_INT,
++  FXU_V4SF_PCVOID,
++  FXU_V4SI_PCVOID,
++  FXU_VOID_PVOID_V4SF_INT,
++  FXU_VOID_PVOID_V4SF,
++  FXU_VOID_PVOID_V4SI
++};
++
++enum v850_fxu_kind { FXU_OP, FXU_LOAD, FXU_STORE };
++
++struct v850_fxu_builtin
++{
++  const char *name;
++  enum insn_code icode;
++  enum v850_fxu_ftype ftype;
++  enum v850_fxu_kind kind;
++  machine_mode mem_mode;
++  int imm_max;
++};
++
++static const struct v850_fxu_builtin v850_fxu_builtins[] =
++{
++  { "addf_s4", CODE_FOR_addv4sf3, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "subf_s4", CODE_FOR_subv4sf3, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "mulf_s4", CODE_FOR_mulv4sf3, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "divf_s4", CODE_FOR_divv4sf3, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "maxf_s4", CODE_FOR_smaxv4sf3, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "minf_s4", CODE_FOR_sminv4sf3, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "absf_s4", CODE_FOR_absv4sf2, FXU_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "negf_s4", CODE_FOR_negv4sf2, FXU_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "sqrtf_s4", CODE_FOR_sqrtv4sf2, FXU_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "recipf_s4", CODE_FOR_fxu_recipf, FXU_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "rsqrtf_s4", CODE_FOR_fxu_rsqrtf, FXU_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "fmaf_s4", CODE_FOR_fmav4sf4, FXU_V4SF_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "fmsf_s4", CODE_FOR_fmsv4sf4, FXU_V4SF_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "fnmaf_s4", CODE_FOR_fxu_fnmaf, FXU_V4SF_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "fnmsf_s4", CODE_FOR_fxu_fnmsf, FXU_V4SF_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "addsubf_s4", CODE_FOR_fxu_addsubf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "addsubnf_s4", CODE_FOR_fxu_addsubnf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "subaddf_s4", CODE_FOR_fxu_subaddf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "subaddnf_s4", CODE_FOR_fxu_subaddnf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "addxf_s4", CODE_FOR_fxu_addxf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "subxf_s4", CODE_FOR_fxu_subxf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "mulxf_s4", CODE_FOR_fxu_mulxf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "addsubxf_s4", CODE_FOR_fxu_addsubxf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "addsubnxf_s4", CODE_FOR_fxu_addsubnxf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "subaddxf_s4", CODE_FOR_fxu_subaddxf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "subaddnxf_s4", CODE_FOR_fxu_subaddnxf, FXU_V4SF_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "addrf_s4", CODE_FOR_fxu_addrf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "subrf_s4", CODE_FOR_fxu_subrf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "mulrf_s4", CODE_FOR_fxu_mulrf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "maxrf_s4", CODE_FOR_fxu_maxrf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "minrf_s4", CODE_FOR_fxu_minrf, FXU_V4SF_V4SF_V4SF, FXU_OP, VOIDmode, -1 },
++  { "ceilf_sw4", CODE_FOR_fxu_ceilf_sw4, FXU_V4SI_V4SF, FXU_OP, VOIDmode, -1 },
++  { "ceilf_suw4", CODE_FOR_fxu_ceilf_suw4, FXU_V4SI_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "floorf_sw4", CODE_FOR_fxu_floorf_sw4, FXU_V4SI_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "floorf_suw4", CODE_FOR_fxu_floorf_suw4, FXU_V4SI_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "roundf_sw4", CODE_FOR_fxu_roundf_sw4, FXU_V4SI_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "roundf_suw4", CODE_FOR_fxu_roundf_suw4, FXU_V4SI_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "trncf_sw4", CODE_FOR_fix_truncv4sfv4si2, FXU_V4SI_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "trncf_suw4", CODE_FOR_fixuns_truncv4sfv4si2, FXU_V4SI_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "cvtf_sw4", CODE_FOR_fxu_cvtf_sw4, FXU_V4SI_V4SF, FXU_OP, VOIDmode, -1 },
++  { "cvtf_suw4", CODE_FOR_fxu_cvtf_suw4, FXU_V4SI_V4SF, FXU_OP, VOIDmode, -1 },
++  { "cvtf_ws4", CODE_FOR_floatv4siv4sf2, FXU_V4SF_V4SI, FXU_OP, VOIDmode, -1 },
++  { "cvtf_uws4", CODE_FOR_floatunsv4siv4sf2, FXU_V4SF_V4SI,
++    FXU_OP, VOIDmode, -1 },
++  { "cvtf_sh4", CODE_FOR_fxu_cvtf_sh4, FXU_V4SI_V4SF, FXU_OP, VOIDmode, -1 },
++  { "cvtf_hs4", CODE_FOR_fxu_cvtf_hs4, FXU_V4SF_V4SI, FXU_OP, VOIDmode, -1 },
++  { "cmpf_s4", CODE_FOR_fxu_cmpf, FXU_V4SI_V4SF_V4SF_INT,
++    FXU_OP, VOIDmode, 15 },
++  { "cmovf_w4", CODE_FOR_fxu_cmovfv4sf, FXU_V4SF_V4SI_V4SF_V4SF,
++    FXU_OP, VOIDmode, -1 },
++  { "cmovf_w4i", CODE_FOR_fxu_cmovfv4si, FXU_V4SI_V4SI_V4SI_V4SI,
++    FXU_OP, VOIDmode, -1 },
++  { "shflv_w4", CODE_FOR_fxu_shflvv4sf, FXU_V4SF_V4SF_V4SF_INT,
++    FXU_OP, VOIDmode, 4095 },
++  { "shflv_w4i", CODE_FOR_fxu_shflvv4si, FXU_V4SI_V4SI_V4SI_INT,
++    FXU_OP, VOIDmode, 4095 },
++  { "flpv_s4", CODE_FOR_fxu_flpv, FXU_V4SF_V4SF_INT, FXU_OP, VOIDmode, 3 },
++  { "trfsrv_w4", CODE_FOR_fxu_trfsrv, FXU_INT_V4SI_INT, FXU_OP, VOIDmode, 5 },
++  { "ldv_w", CODE_FOR_fxu_ldv_wv4sf, FXU_V4SF_V4SF_PCVOID_INT,
++    FXU_LOAD, SImode, 15 },
++  { "ldv_dw", CODE_FOR_fxu_ldv_dwv4sf, FXU_V4SF_V4SF_PCVOID_INT,
++    FXU_LOAD, DImode, 3 },
++  { "ldv_qw", CODE_FOR_nothing, FXU_V4SF_PCVOID, FXU_LOAD, V4SFmode, -1 },
++  { "ldvz_h4", CODE_FOR_fxu_ldvz_h4, FXU_V4SI_PCVOID, FXU_LOAD, DImode, -1 },
++  { "stv_w", CODE_FOR_fxu_stv_wv4sf, FXU_VOID_PVOID_V4SF_INT,
++    FXU_STORE, SImode, 3 },
++  { "stv_dw", CODE_FOR_fxu_stv_dwv4sf, FXU_VOID_PVOID_V4SF_INT,
++    FXU_STORE, DImode, 1 },
++  { "stv_qw", CODE_FOR_nothing, FXU_VOID_PVOID_V4SF, FXU_STORE, V4SFmode, -1 },
++  { "stvz_h4", CODE_FOR_fxu_stvz_h4, FXU_VOID_PVOID_V4SI,
++    FXU_STORE, DImode, -1 },
++};
++
++static GTY(()) tree v850_fxu_builtin_decls[ARRAY_SIZE (v850_fxu_builtins)];
++
++static tree
++v850_fxu_type (enum v850_fxu_ftype ftype)
++{
++  tree v4sf = build_vector_type (float_type_node, 4);
++  tree v4si = build_vector_type (intSI_type_node, 4);
++  tree pcvoid = build_pointer_type (build_qualified_type (void_type_node,
++							  TYPE_QUAL_CONST));
++  tree pvoid = ptr_type_node;
++  tree i = integer_type_node;
++
++  switch (ftype)
++    {
++    case FXU_V4SF_V4SF:
++      return build_function_type_list (v4sf, v4sf, NULL_TREE);
++    case FXU_V4SF_V4SF_V4SF:
++      return build_function_type_list (v4sf, v4sf, v4sf, NULL_TREE);
++    case FXU_V4SF_V4SF_V4SF_V4SF:
++      return build_function_type_list (v4sf, v4sf, v4sf, v4sf, NULL_TREE);
++    case FXU_V4SI_V4SF:
++      return build_function_type_list (v4si, v4sf, NULL_TREE);
++    case FXU_V4SF_V4SI:
++      return build_function_type_list (v4sf, v4si, NULL_TREE);
++    case FXU_V4SI_V4SF_V4SF_INT:
++      return build_function_type_list (v4si, v4sf, v4sf, i, NULL_TREE);
++    case FXU_V4SF_V4SI_V4SF_V4SF:
++      return build_function_type_list (v4sf, v4si, v4sf, v4sf, NULL_TREE);
++    case FXU_V4SI_V4SI_V4SI_V4SI:
++      return build_function_type_list (v4si, v4si, v4si, v4si, NULL_TREE);
++    case FXU_V4SF_V4SF_V4SF_INT:
++      return build_function_type_list (v4sf, v4sf, v4sf, i, NULL_TREE);
++    case FXU_V4SI_V4SI_V4SI_INT:
++      return build_function_type_list (v4si, v4si, v4si, i, NULL_TREE);
++    case FXU_V4SF_V4SF_INT:
++      return build_function_type_list (v4sf, v4sf, i, NULL_TREE);
++    case FXU_INT_V4SI_INT:
++      return build_function_type_list (i, v4si, i, NULL_TREE);
++    case FXU_V4SF_V4SF_PCVOID_INT:
++      return build_function_type_list (v4sf, v4sf, pcvoid, i, NULL_TREE);
++    case FXU_V4SF_PCVOID:
++      return build_function_type_list (v4sf, pcvoid, NULL_TREE);
++    case FXU_V4SI_PCVOID:
++      return build_function_type_list (v4si, pcvoid, NULL_TREE);
++    case FXU_VOID_PVOID_V4SF_INT:
++      return build_function_type_list (void_type_node, pvoid, v4sf, i,
++				       NULL_TREE);
++    case FXU_VOID_PVOID_V4SF:
++      return build_function_type_list (void_type_node, pvoid, v4sf, NULL_TREE);
++    case FXU_VOID_PVOID_V4SI:
++      return build_function_type_list (void_type_node, pvoid, v4si, NULL_TREE);
++    }
++  gcc_unreachable ();
++}
++
++/* Implement TARGET_INIT_BUILTINS.  */
++
++static void
++v850_init_builtins (void)
++{
++  if (! TARGET_FXU)
++    return;
++
++  for (unsigned int i = 0; i < ARRAY_SIZE (v850_fxu_builtins); i++)
++    {
++      char name[64];
++
++      snprintf (name, sizeof (name), "__builtin_v850_%s",
++		v850_fxu_builtins[i].name);
++      tree type = v850_fxu_type (v850_fxu_builtins[i].ftype);
++      v850_fxu_builtin_decls[i]
++	= add_builtin_function (name, type, i, BUILT_IN_MD, NULL, NULL_TREE);
++    }
++}
++
++/* Implement TARGET_BUILTIN_DECL.  */
++
++static tree
++v850_builtin_decl (unsigned int code, bool)
++{
++  if (code >= ARRAY_SIZE (v850_fxu_builtins))
++    return error_mark_node;
++  return v850_fxu_builtin_decls[code];
++}
++
++/* Return operand ARGNO of call EXP as a constant in [0, MAX].  */
++
++static rtx
++v850_fxu_imm (tree exp, int argno, int max)
++{
++  tree arg = CALL_EXPR_ARG (exp, argno);
++
++  if (TREE_CODE (arg) != INTEGER_CST
++      || ! IN_RANGE (TREE_INT_CST_LOW (arg), 0, max)
++      || ! tree_fits_uhwi_p (arg))
++    {
++      error_at (EXPR_LOCATION (exp),
++		"argument %d must be a constant in the range 0 to %d",
++		argno + 1, max);
++      return const0_rtx;
++    }
++  return GEN_INT (TREE_INT_CST_LOW (arg));
++}
++
++static rtx
++v850_fxu_vec (tree exp, int argno, machine_mode mode)
++{
++  rtx x = expand_normal (CALL_EXPR_ARG (exp, argno));
++
++  if (GET_MODE (x) != mode)
++    x = gen_lowpart (mode, force_reg (GET_MODE (x), x));
++  return force_reg (mode, x);
++}
++
++static rtx
++v850_fxu_mem (tree exp, int argno, machine_mode mode)
++{
++  rtx addr = force_reg (Pmode, expand_normal (CALL_EXPR_ARG (exp, argno)));
++  rtx mem = gen_rtx_MEM (mode, addr);
++
++  set_mem_align (mem, GET_MODE_BITSIZE (mode) >= 128 ? 128 : BITS_PER_WORD);
++  return mem;
++}
++
++/* Implement TARGET_EXPAND_BUILTIN.  */
++
++static rtx
++v850_expand_builtin (tree exp, rtx target, rtx, machine_mode, int)
++{
++  tree fndecl = TREE_OPERAND (CALL_EXPR_FN (exp), 0);
++  const struct v850_fxu_builtin *b
++    = &v850_fxu_builtins[DECL_MD_FUNCTION_CODE (fndecl)];
++  int nargs = call_expr_nargs (exp);
++  machine_mode tmode = TYPE_MODE (TREE_TYPE (exp));
++  rtx ops[4];
++
++  if (b->kind == FXU_STORE)
++    {
++      rtx mem = v850_fxu_mem (exp, 0, b->mem_mode);
++      rtx v = v850_fxu_vec (exp, 1, b->ftype == FXU_VOID_PVOID_V4SI
++				    ? V4SImode : V4SFmode);
++      if (b->icode == CODE_FOR_nothing)
++	emit_move_insn (mem, v);
++      else if (nargs == 3)
++	emit_insn (GEN_FCN (b->icode) (mem, v, v850_fxu_imm (exp, 2,
++							   b->imm_max)));
++      else
++	emit_insn (GEN_FCN (b->icode) (mem, v));
++      return const0_rtx;
++    }
++
++  if (target == NULL_RTX || GET_MODE (target) != tmode
++      || ! register_operand (target, tmode))
++    target = gen_reg_rtx (tmode);
++
++  if (b->kind == FXU_LOAD)
++    {
++      if (b->icode == CODE_FOR_nothing)
++	emit_move_insn (target, v850_fxu_mem (exp, 0, b->mem_mode));
++      else if (nargs == 3)
++	{
++	  rtx v = v850_fxu_vec (exp, 0, tmode);
++	  rtx mem = v850_fxu_mem (exp, 1, b->mem_mode);
++	  emit_insn (GEN_FCN (b->icode) (target, v, mem,
++					 v850_fxu_imm (exp, 2, b->imm_max)));
++	}
++      else
++	emit_insn (GEN_FCN (b->icode) (target,
++				       v850_fxu_mem (exp, 0, b->mem_mode)));
++      return target;
++    }
++
++  for (int i = 0; i < nargs; i++)
++    {
++      const insn_operand_data *od = &insn_data[b->icode].operand[i + 1];
++
++      if (i == nargs - 1 && b->imm_max >= 0)
++	ops[i] = v850_fxu_imm (exp, i, b->imm_max);
++      else
++	ops[i] = v850_fxu_vec (exp, i, od->mode);
++    }
++
++  switch (nargs)
++    {
++    case 1:
++      emit_insn (GEN_FCN (b->icode) (target, ops[0]));
++      break;
++    case 2:
++      emit_insn (GEN_FCN (b->icode) (target, ops[0], ops[1]));
++      break;
++    case 3:
++      emit_insn (GEN_FCN (b->icode) (target, ops[0], ops[1], ops[2]));
++      break;
++    default:
++      gcc_unreachable ();
++    }
++  return target;
++}
++
+ /* Initialize the GCC target structure.  */
+ 
+ #undef  TARGET_OPTION_OVERRIDE
+@@ -4049,6 +4379,15 @@ v850_can_inline_p (tree caller, tree callee)
+ #undef  TARGET_UPDATE_STACK_BOUNDARY
+ #define TARGET_UPDATE_STACK_BOUNDARY v850_update_stack_boundary
+ 
++#undef  TARGET_INIT_BUILTINS
++#define TARGET_INIT_BUILTINS v850_init_builtins
++
++#undef  TARGET_BUILTIN_DECL
++#define TARGET_BUILTIN_DECL v850_builtin_decl
++
++#undef  TARGET_EXPAND_BUILTIN
++#define TARGET_EXPAND_BUILTIN v850_expand_builtin
++
+ #undef  TARGET_MODES_TIEABLE_P
+ #define TARGET_MODES_TIEABLE_P v850_modes_tieable_p
+ 
+diff --git a/gcc/config/v850/v850_fxu.h b/gcc/config/v850/v850_fxu.h
+new file mode 100644
+index 00000000000..19b656ed32b
+--- /dev/null
++++ b/gcc/config/v850/v850_fxu.h
+@@ -0,0 +1,64 @@
++/* RH850 FXU intrinsics.
++
++   Copyright The GNU Toolchain Authors.
++
++   This file is part of GCC.
++
++   GCC is free software; you can redistribute it and/or modify it
++   under the terms of the GNU General Public License as published
++   by the Free Software Foundation; either version 3, or (at your
++   option) any later version.
++
++   GCC is distributed in the hope that it will be useful, but WITHOUT
++   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
++   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
++   License for more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#ifndef _GCC_V850_FXU_H
++#define _GCC_V850_FXU_H
++
++#ifndef __V850_FXU__
++#error "v850_fxu.h requires -mfxu"
++#endif
++
++typedef float __v850_v4sf __attribute__ ((__vector_size__ (16)));
++typedef int __v850_v4si __attribute__ ((__vector_size__ (16)));
++typedef unsigned int __v850_v4su __attribute__ ((__vector_size__ (16)));
++
++typedef __v850_v4sf __ev128_f32__;
++
++static __inline__ __attribute__ ((__always_inline__)) __ev128_f32__
++__ev128_create_f32 (float __a, float __b, float __c, float __d)
++{
++  return (__ev128_f32__) { __a, __b, __c, __d };
++}
++
++static __inline__ __attribute__ ((__always_inline__)) __ev128_f32__
++__ev128_set_f32 (__ev128_f32__ __v, float __x, int __i)
++{
++  __v[__i] = __x;
++  return __v;
++}
++
++static __inline__ __attribute__ ((__always_inline__)) float
++__ev128_get_f32 (__ev128_f32__ __v, int __i)
++{
++  return __v[__i];
++}
++
++static __inline__ __attribute__ ((__always_inline__)) __ev128_f32__
++__ev128_addfs (__ev128_f32__ __a, __ev128_f32__ __b)
++{
++  return __builtin_v850_addf_s4 (__a, __b);
++}
++
++#endif
+diff --git a/gcc/doc/extend.texi b/gcc/doc/extend.texi
+index 1d57be08a2b..25ccb45b75b 100644
+--- a/gcc/doc/extend.texi
++++ b/gcc/doc/extend.texi
+@@ -18584,6 +18584,7 @@ instructions, but allow the compiler to schedule those calls.
+ * PowerPC Matrix-Multiply Assist Built-in Functions::
+ * PowerPC Dense Math Facility Built-in Functions::
+ * PRU Built-in Functions::
++* RH850 FXU Built-in Functions::
+ * RISC-V Built-in Functions::
+ * RISC-V Vector Intrinsics::
+ * CORE-V Built-in Functions::
+@@ -27430,6 +27431,267 @@ This inserts LMBD instruction to calculate the left-most bit with value
+ of @var{bitval} is taken into account.
+ @enddefbuiltin
+ 
++@node RH850 FXU Built-in Functions
++@subsection RH850 FXU Built-in Functions
++
++With @option{-mfxu}, GCC provides a built-in function for each RH850
++FXU instruction.  The header @file{v850_fxu.h} defines the vector types
++@code{__v850_v4sf} (four @code{float}), @code{__v850_v4si} (four
++@code{int}) and @code{__v850_v4su} (four @code{unsigned int}), and the
++compatible names @code{__ev128_f32__}, @code{__ev128_create_f32},
++@code{__ev128_set_f32}, @code{__ev128_get_f32} and @code{__ev128_addfs}.
++An @code{int} argument after the vector operands is an immediate operand
++of the instruction and must be a constant in its range.  The functions
++whose names end in @code{i} operate on integer vectors.
++
++@defbuiltin{__v850_v4sf __builtin_v850_addf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{addf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_subf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{subf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_mulf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{mulf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_divf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{divf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_maxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{maxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_minf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{minf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_absf_s4 (__v850_v4sf)}
++Generates the @code{absf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_negf_s4 (__v850_v4sf)}
++Generates the @code{negf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_sqrtf_s4 (__v850_v4sf)}
++Generates the @code{sqrtf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_recipf_s4 (__v850_v4sf)}
++Generates the @code{recipf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_rsqrtf_s4 (__v850_v4sf)}
++Generates the @code{rsqrtf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_fmaf_s4 (__v850_v4sf, __v850_v4sf, __v850_v4sf)}
++Generates the @code{fmaf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_fmsf_s4 (__v850_v4sf, __v850_v4sf, __v850_v4sf)}
++Generates the @code{fmsf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_fnmaf_s4 (__v850_v4sf, __v850_v4sf, __v850_v4sf)}
++Generates the @code{fnmaf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_fnmsf_s4 (__v850_v4sf, __v850_v4sf, __v850_v4sf)}
++Generates the @code{fnmsf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_addsubf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{addsubf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_addsubnf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{addsubnf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_subaddf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{subaddf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_subaddnf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{subaddnf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_addxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{addxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_subxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{subxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_mulxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{mulxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_addsubxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{addsubxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_addsubnxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{addsubnxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_subaddxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{subaddxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_subaddnxf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{subaddnxf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_addrf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{addrf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_subrf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{subrf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_mulrf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{mulrf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_maxrf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{maxrf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_minrf_s4 (__v850_v4sf, __v850_v4sf)}
++Generates the @code{minrf.s4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_ceilf_sw4 (__v850_v4sf)}
++Generates the @code{ceilf.sw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_ceilf_suw4 (__v850_v4sf)}
++Generates the @code{ceilf.suw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_floorf_sw4 (__v850_v4sf)}
++Generates the @code{floorf.sw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_floorf_suw4 (__v850_v4sf)}
++Generates the @code{floorf.suw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_roundf_sw4 (__v850_v4sf)}
++Generates the @code{roundf.sw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_roundf_suw4 (__v850_v4sf)}
++Generates the @code{roundf.suw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_trncf_sw4 (__v850_v4sf)}
++Generates the @code{trncf.sw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_trncf_suw4 (__v850_v4sf)}
++Generates the @code{trncf.suw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_cvtf_sw4 (__v850_v4sf)}
++Generates the @code{cvtf.sw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_cvtf_suw4 (__v850_v4sf)}
++Generates the @code{cvtf.suw4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_cvtf_ws4 (__v850_v4si)}
++Generates the @code{cvtf.ws4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_cvtf_uws4 (__v850_v4si)}
++Generates the @code{cvtf.uws4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_cvtf_sh4 (__v850_v4sf)}
++Generates the @code{cvtf.sh4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_cvtf_hs4 (__v850_v4si)}
++Generates the @code{cvtf.hs4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_cmpf_s4 (__v850_v4sf, __v850_v4sf, int)}
++Generates the @code{cmpf.s4} instruction, with an immediate operand from
++0 to 15.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_cmovf_w4 (__v850_v4si, __v850_v4sf, __v850_v4sf)}
++Generates the @code{cmovf.w4} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_cmovf_w4i (__v850_v4si, __v850_v4si, __v850_v4si)}
++Generates the @code{cmovf.w4} instruction on integer vectors.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_shflv_w4 (__v850_v4sf, __v850_v4sf, int)}
++Generates the @code{shflv.w4} instruction, with an immediate operand
++from 0 to 4095.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_shflv_w4i (__v850_v4si, __v850_v4si, int)}
++Generates the @code{shflv.w4} instruction on integer vectors, with an
++immediate operand from 0 to 4095.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_flpv_s4 (__v850_v4sf, int)}
++Generates the @code{flpv.s4} instruction, with an immediate operand from
++0 to 3.
++@enddefbuiltin
++
++@defbuiltin{int __builtin_v850_trfsrv_w4 (__v850_v4si, int)}
++Generates the @code{trfsrv.w4} instruction, with an immediate operand
++from 0 to 5.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_ldv_w (__v850_v4sf, const void *, int)}
++Loads with the @code{ldv.w} instruction, with an immediate operand from
++0 to 15.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_ldv_dw (__v850_v4sf, const void *, int)}
++Loads with the @code{ldv.dw} instruction, with an immediate operand from
++0 to 3.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4sf __builtin_v850_ldv_qw (const void *)}
++Loads with the @code{ldv.qw} instruction.
++@enddefbuiltin
++
++@defbuiltin{__v850_v4si __builtin_v850_ldvz_h4 (const void *)}
++Loads with the @code{ldvz.h4} instruction.
++@enddefbuiltin
++
++@defbuiltin{void __builtin_v850_stv_w (void *, __v850_v4sf, int)}
++Stores with the @code{stv.w} instruction, with an immediate operand from
++0 to 3.
++@enddefbuiltin
++
++@defbuiltin{void __builtin_v850_stv_dw (void *, __v850_v4sf, int)}
++Stores with the @code{stv.dw} instruction, with an immediate operand
++from 0 to 1.
++@enddefbuiltin
++
++@defbuiltin{void __builtin_v850_stv_qw (void *, __v850_v4sf)}
++Stores with the @code{stv.qw} instruction.
++@enddefbuiltin
++
++@defbuiltin{void __builtin_v850_stvz_h4 (void *, __v850_v4si)}
++Stores with the @code{stvz.h4} instruction.
++@enddefbuiltin
+ @node RISC-V Built-in Functions
+ @subsection RISC-V Built-in Functions
+ 
+diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
+index c6433096964..df3048f45ba 100644
+--- a/gcc/doc/invoke.texi
++++ b/gcc/doc/invoke.texi
+@@ -34541,6 +34541,7 @@ are 16-byte aligned.  The vector registers are preserved across calls.
+ Vector arguments are passed in @code{wr0} to @code{wr31} and then on the
+ stack, and vector return values in memory.  A function that keeps vector
+ values on the stack aligns its frame to 16 bytes at run time.  The
++header @file{v850_fxu.h} declares the FXU types and intrinsics.  The
+ preprocessor constant @code{__V850_FXU__} is defined if this option is
+ used.
+ 
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-builtins-as.c b/gcc/testsuite/gcc.target/v850/fxu-builtins-as.c
+new file mode 100644
+index 00000000000..9bb870e4f8f
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-builtins-as.c
+@@ -0,0 +1,4 @@
++/* { dg-do assemble } */
++/* { dg-options "-mfxu -O2" } */
++
++#include "fxu-builtins.c"
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-builtins.c b/gcc/testsuite/gcc.target/v850/fxu-builtins.c
+new file mode 100644
+index 00000000000..317203554e9
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-builtins.c
+@@ -0,0 +1,434 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++#include <v850_fxu.h>
++
++typedef __v850_v4sf vf;
++typedef __v850_v4si vi;
++
++vf a, b, c, rf;
++vi m, ri;
++int r;
++float fl[4];
++short hs[4];
++
++void
++t_addf_s4 (void)
++{
++  rf = __builtin_v850_addf_s4 (a, b);
++}
++
++void
++t_subf_s4 (void)
++{
++  rf = __builtin_v850_subf_s4 (a, b);
++}
++
++void
++t_mulf_s4 (void)
++{
++  rf = __builtin_v850_mulf_s4 (a, b);
++}
++
++void
++t_divf_s4 (void)
++{
++  rf = __builtin_v850_divf_s4 (a, b);
++}
++
++void
++t_maxf_s4 (void)
++{
++  rf = __builtin_v850_maxf_s4 (a, b);
++}
++
++void
++t_minf_s4 (void)
++{
++  rf = __builtin_v850_minf_s4 (a, b);
++}
++
++void
++t_addsubf_s4 (void)
++{
++  rf = __builtin_v850_addsubf_s4 (a, b);
++}
++
++void
++t_addsubnf_s4 (void)
++{
++  rf = __builtin_v850_addsubnf_s4 (a, b);
++}
++
++void
++t_subaddf_s4 (void)
++{
++  rf = __builtin_v850_subaddf_s4 (a, b);
++}
++
++void
++t_subaddnf_s4 (void)
++{
++  rf = __builtin_v850_subaddnf_s4 (a, b);
++}
++
++void
++t_addxf_s4 (void)
++{
++  rf = __builtin_v850_addxf_s4 (a, b);
++}
++
++void
++t_subxf_s4 (void)
++{
++  rf = __builtin_v850_subxf_s4 (a, b);
++}
++
++void
++t_mulxf_s4 (void)
++{
++  rf = __builtin_v850_mulxf_s4 (a, b);
++}
++
++void
++t_addsubxf_s4 (void)
++{
++  rf = __builtin_v850_addsubxf_s4 (a, b);
++}
++
++void
++t_addsubnxf_s4 (void)
++{
++  rf = __builtin_v850_addsubnxf_s4 (a, b);
++}
++
++void
++t_subaddxf_s4 (void)
++{
++  rf = __builtin_v850_subaddxf_s4 (a, b);
++}
++
++void
++t_subaddnxf_s4 (void)
++{
++  rf = __builtin_v850_subaddnxf_s4 (a, b);
++}
++
++void
++t_addrf_s4 (void)
++{
++  rf = __builtin_v850_addrf_s4 (a, b);
++}
++
++void
++t_subrf_s4 (void)
++{
++  rf = __builtin_v850_subrf_s4 (a, b);
++}
++
++void
++t_mulrf_s4 (void)
++{
++  rf = __builtin_v850_mulrf_s4 (a, b);
++}
++
++void
++t_maxrf_s4 (void)
++{
++  rf = __builtin_v850_maxrf_s4 (a, b);
++}
++
++void
++t_minrf_s4 (void)
++{
++  rf = __builtin_v850_minrf_s4 (a, b);
++}
++
++void
++t_absf_s4 (void)
++{
++  rf = __builtin_v850_absf_s4 (a);
++}
++
++void
++t_negf_s4 (void)
++{
++  rf = __builtin_v850_negf_s4 (a);
++}
++
++void
++t_sqrtf_s4 (void)
++{
++  rf = __builtin_v850_sqrtf_s4 (a);
++}
++
++void
++t_recipf_s4 (void)
++{
++  rf = __builtin_v850_recipf_s4 (a);
++}
++
++void
++t_rsqrtf_s4 (void)
++{
++  rf = __builtin_v850_rsqrtf_s4 (a);
++}
++
++void
++t_fmaf_s4 (void)
++{
++  rf = __builtin_v850_fmaf_s4 (a, b, c);
++}
++
++void
++t_fmsf_s4 (void)
++{
++  rf = __builtin_v850_fmsf_s4 (a, b, c);
++}
++
++void
++t_fnmaf_s4 (void)
++{
++  rf = __builtin_v850_fnmaf_s4 (a, b, c);
++}
++
++void
++t_fnmsf_s4 (void)
++{
++  rf = __builtin_v850_fnmsf_s4 (a, b, c);
++}
++
++void
++t_ceilf_sw4 (void)
++{
++  ri = __builtin_v850_ceilf_sw4 (a);
++}
++
++void
++t_ceilf_suw4 (void)
++{
++  ri = __builtin_v850_ceilf_suw4 (a);
++}
++
++void
++t_floorf_sw4 (void)
++{
++  ri = __builtin_v850_floorf_sw4 (a);
++}
++
++void
++t_floorf_suw4 (void)
++{
++  ri = __builtin_v850_floorf_suw4 (a);
++}
++
++void
++t_roundf_sw4 (void)
++{
++  ri = __builtin_v850_roundf_sw4 (a);
++}
++
++void
++t_roundf_suw4 (void)
++{
++  ri = __builtin_v850_roundf_suw4 (a);
++}
++
++void
++t_trncf_sw4 (void)
++{
++  ri = __builtin_v850_trncf_sw4 (a);
++}
++
++void
++t_trncf_suw4 (void)
++{
++  ri = __builtin_v850_trncf_suw4 (a);
++}
++
++void
++t_cvtf_sw4 (void)
++{
++  ri = __builtin_v850_cvtf_sw4 (a);
++}
++
++void
++t_cvtf_suw4 (void)
++{
++  ri = __builtin_v850_cvtf_suw4 (a);
++}
++
++void
++t_cvtf_sh4 (void)
++{
++  ri = __builtin_v850_cvtf_sh4 (a);
++}
++
++void
++t_cvtf_ws4 (void)
++{
++  rf = __builtin_v850_cvtf_ws4 (m);
++}
++
++void
++t_cvtf_uws4 (void)
++{
++  rf = __builtin_v850_cvtf_uws4 (m);
++}
++
++void
++t_cvtf_hs4 (void)
++{
++  rf = __builtin_v850_cvtf_hs4 (m);
++}
++
++void
++t_cmpf_s4 (void)
++{
++  ri = __builtin_v850_cmpf_s4 (a, b, 6);
++}
++
++void
++t_cmovf_w4 (void)
++{
++  rf = __builtin_v850_cmovf_w4 (m, a, b);
++}
++
++void
++t_cmovf_w4i (void)
++{
++  ri = __builtin_v850_cmovf_w4i (m, m, ri);
++}
++
++void
++t_shflv_w4 (void)
++{
++  rf = __builtin_v850_shflv_w4 (a, b, 2643);
++}
++
++void
++t_shflv_w4i (void)
++{
++  ri = __builtin_v850_shflv_w4i (m, ri, 4095);
++}
++
++void
++t_flpv_s4 (void)
++{
++  rf = __builtin_v850_flpv_s4 (a, 3);
++}
++
++void
++t_trfsrv_w4 (void)
++{
++  r = __builtin_v850_trfsrv_w4 (m, 5);
++}
++
++void
++t_ldv_w (void)
++{
++  rf = __builtin_v850_ldv_w (a, fl, 9);
++}
++
++void
++t_ldv_dw (void)
++{
++  rf = __builtin_v850_ldv_dw (a, fl, 2);
++}
++
++void
++t_ldv_qw (void)
++{
++  rf = __builtin_v850_ldv_qw (fl);
++}
++
++void
++t_ldvz_h4 (void)
++{
++  ri = __builtin_v850_ldvz_h4 (hs);
++}
++
++void
++t_stv_w (void)
++{
++  __builtin_v850_stv_w (fl, a, 3);
++}
++
++void
++t_stv_dw (void)
++{
++  __builtin_v850_stv_dw (fl, a, 1);
++}
++
++void
++t_stv_qw (void)
++{
++  __builtin_v850_stv_qw (fl, a);
++}
++
++void
++t_stvz_h4 (void)
++{
++  __builtin_v850_stvz_h4 (hs, m);
++}
++
++/* { dg-final { scan-assembler {\taddf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsubf\.s4 } } } */
++/* { dg-final { scan-assembler {\tmulf\.s4 } } } */
++/* { dg-final { scan-assembler {\tdivf\.s4 } } } */
++/* { dg-final { scan-assembler {\tmaxf\.s4 } } } */
++/* { dg-final { scan-assembler {\tminf\.s4 } } } */
++/* { dg-final { scan-assembler {\taddsubf\.s4 } } } */
++/* { dg-final { scan-assembler {\taddsubnf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsubaddf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsubaddnf\.s4 } } } */
++/* { dg-final { scan-assembler {\taddxf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsubxf\.s4 } } } */
++/* { dg-final { scan-assembler {\tmulxf\.s4 } } } */
++/* { dg-final { scan-assembler {\taddsubxf\.s4 } } } */
++/* { dg-final { scan-assembler {\taddsubnxf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsubaddxf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsubaddnxf\.s4 } } } */
++/* { dg-final { scan-assembler {\taddrf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsubrf\.s4 } } } */
++/* { dg-final { scan-assembler {\tmulrf\.s4 } } } */
++/* { dg-final { scan-assembler {\tmaxrf\.s4 } } } */
++/* { dg-final { scan-assembler {\tminrf\.s4 } } } */
++/* { dg-final { scan-assembler {\tabsf\.s4 } } } */
++/* { dg-final { scan-assembler {\tnegf\.s4 } } } */
++/* { dg-final { scan-assembler {\tsqrtf\.s4 } } } */
++/* { dg-final { scan-assembler {\trecipf\.s4 } } } */
++/* { dg-final { scan-assembler {\trsqrtf\.s4 } } } */
++/* { dg-final { scan-assembler {\tfmaf\.s4 } } } */
++/* { dg-final { scan-assembler {\tfmsf\.s4 } } } */
++/* { dg-final { scan-assembler {\tfnmaf\.s4 } } } */
++/* { dg-final { scan-assembler {\tfnmsf\.s4 } } } */
++/* { dg-final { scan-assembler {\tceilf\.sw4 } } } */
++/* { dg-final { scan-assembler {\tceilf\.suw4 } } } */
++/* { dg-final { scan-assembler {\tfloorf\.sw4 } } } */
++/* { dg-final { scan-assembler {\tfloorf\.suw4 } } } */
++/* { dg-final { scan-assembler {\troundf\.sw4 } } } */
++/* { dg-final { scan-assembler {\troundf\.suw4 } } } */
++/* { dg-final { scan-assembler {\ttrncf\.sw4 } } } */
++/* { dg-final { scan-assembler {\ttrncf\.suw4 } } } */
++/* { dg-final { scan-assembler {\tcvtf\.sw4 } } } */
++/* { dg-final { scan-assembler {\tcvtf\.suw4 } } } */
++/* { dg-final { scan-assembler {\tcvtf\.sh4 } } } */
++/* { dg-final { scan-assembler {\tcvtf\.ws4 } } } */
++/* { dg-final { scan-assembler {\tcvtf\.uws4 } } } */
++/* { dg-final { scan-assembler {\tcvtf\.hs4 } } } */
++/* { dg-final { scan-assembler {\tcmpf\.s4 6,} } } */
++/* { dg-final { scan-assembler {\tcmovf\.w4} } } */
++/* { dg-final { scan-assembler {\tshflv\.w4 2643,} } } */
++/* { dg-final { scan-assembler {\tshflv\.w4 4095,} } } */
++/* { dg-final { scan-assembler {\tflpv\.s4 3,} } } */
++/* { dg-final { scan-assembler {\ttrfsrv\.w4 5,} } } */
++/* { dg-final { scan-assembler {\tldv\.w 9,} } } */
++/* { dg-final { scan-assembler {\tldv\.dw 2,} } } */
++/* { dg-final { scan-assembler {\tldv\.qw 0\[r} } } */
++/* { dg-final { scan-assembler {\tldvz\.h4} } } */
++/* { dg-final { scan-assembler {\tstv\.w 3,} } } */
++/* { dg-final { scan-assembler {\tstv\.dw 1,} } } */
++/* { dg-final { scan-assembler {\tstvz\.h4} } } */
++/* { dg-final { scan-assembler-times {\tcmovf\.w4 } 2 } } */
++/* { dg-final { scan-assembler {\ttrfsrv\.w4 5, wr[0-9]+ ; setf z, r[0-9]+} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-compat.c b/gcc/testsuite/gcc.target/v850/fxu-compat.c
+new file mode 100644
+index 00000000000..735a06c6177
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-compat.c
+@@ -0,0 +1,18 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++#include <v850_fxu.h>
++
++__ev128_f32__ x;
++float r;
++
++__ev128_f32__
++f (void)
++{
++  __ev128_f32__ vx = __ev128_create_f32 (-1.0f, 2.2f, -3.3f, 4.5f);
++  __ev128_f32__ vy = __ev128_set_f32 (vx, 1.0f, 1);
++  r = __ev128_get_f32 (vy, 1);
++  return __ev128_addfs (x, vy);
++}
++
++/* { dg-final { scan-assembler {\taddf\.s4 } } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-header-nofxu.c b/gcc/testsuite/gcc.target/v850/fxu-header-nofxu.c
+new file mode 100644
+index 00000000000..621cd020be3
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-header-nofxu.c
+@@ -0,0 +1,5 @@
++/* { dg-do preprocess } */
++/* { dg-options "-mg4mh2" } */
++/* { dg-skip-if "tests the code without -mfxu" { *-*-* } { "-mfxu" } { "" } } */
++
++#include <v850_fxu.h>	/* { dg-error "requires -mfxu" "" { target *-*-* } 0 } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-imm.c b/gcc/testsuite/gcc.target/v850/fxu-imm.c
+new file mode 100644
+index 00000000000..ee7d5ec3324
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-imm.c
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu" } */
++
++#include <v850_fxu.h>
++
++__v850_v4sf a, b;
++__v850_v4si m;
++int k;
++
++void
++f (void)
++{
++  m = __builtin_v850_cmpf_s4 (a, b, 16);	/* { dg-error "constant in the range 0 to 15" } */
++  a = __builtin_v850_flpv_s4 (a, k);		/* { dg-error "constant in the range 0 to 3" } */
++  a = __builtin_v850_shflv_w4 (a, b, 4096);	/* { dg-error "constant in the range 0 to 4095" } */
++  k = __builtin_v850_trfsrv_w4 (m, 6);		/* { dg-error "constant in the range 0 to 5" } */
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-lane-order-run.c b/gcc/testsuite/gcc.target/v850/fxu-lane-order-run.c
+new file mode 100644
+index 00000000000..07a01c03b3d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-lane-order-run.c
+@@ -0,0 +1,46 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O2" } */
++
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++static unsigned int in[4] __attribute__ ((aligned (16)))
++  = { 0x11111111, 0x22222222, 0x33333333, 0x44444444 };
++static unsigned int out[4] __attribute__ ((aligned (16)));
++static unsigned int w[4];
++
++#define ONE(i)								\
++  do									\
++    {									\
++      __asm__ volatile ("ldv.w 15, 0[%1], %0" : "=w" (v) : "r" (&in[0])	\
++			: "memory");					\
++      __asm__ volatile ("ldv.w %2, 0[%1], %0" : "+w" (v)			\
++			: "r" (&in[3]), "i" (1 << (i)) : "memory");	\
++      __asm__ volatile ("stv.qw %0, 0[%1]" : : "w" (v), "r" (out)		\
++			: "memory");					\
++      for (int j = 0; j < 4; j++)					\
++	if (out[j] != (j == (i) ? in[3] : in[0]))			\
++	  __builtin_abort ();						\
++    }									\
++  while (0)
++
++int
++main (void)
++{
++  vf v;
++  int i;
++
++  __asm__ volatile ("ldv.qw 0[%1], %0" : "=w" (v) : "r" (in) : "memory");
++  __asm__ volatile ("stv.w 0, %0, 0[%1]\n\tstv.w 1, %0, 4[%1]\n\t"
++		    "stv.w 2, %0, 8[%1]\n\tstv.w 3, %0, 12[%1]"
++		    : : "w" (v), "r" (w) : "memory");
++  for (i = 0; i < 4; i++)
++    if (w[i] != in[i])
++      __builtin_abort ();
++
++  ONE (0);
++  ONE (1);
++  ONE (2);
++  ONE (3);
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-nofxu.c b/gcc/testsuite/gcc.target/v850/fxu-nofxu.c
+new file mode 100644
+index 00000000000..517ff44bfb4
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-nofxu.c
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-options "-mg4mh2" } */
++/* { dg-skip-if "tests the code without -mfxu" { *-*-* } { "-mfxu" } { "" } } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++vf a, b;
++
++void
++f (void)
++{
++  a = __builtin_v850_addf_s4 (a, b);	/* { dg-error "implicit declaration|incompatible types" } */
++}
+-- 
+Parthiban N
+

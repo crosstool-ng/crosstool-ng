@@ -1,0 +1,275 @@
+From 8787c3f60e4f272228226c460a4950c07e5a3487 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:48:24 +0530
+Subject: [PATCH] v850: Add mg4mh2
+
+Add the option for the RH850 G4MH2 core and pass it to the assembler.
+The core has no misaligned access mode, so enforce strict alignment.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.cc                               |  9 +++++++++
+ gcc/config/v850/v850.h                                |  9 +++++++--
+ gcc/config/v850/v850.opt                              |  4 ++++
+ gcc/config/v850/v850.opt.urls                         |  3 +++
+ gcc/doc/invoke.texi                                   | 11 ++++++++++-
+ gcc/testsuite/gcc.dg/torture/pr37868.c                |  1 +
+ gcc/testsuite/gcc.target/v850/atomic-e2v3.c           |  2 +-
+ gcc/testsuite/gcc.target/v850/atomic-lockfree.c       |  2 +-
+ gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c   |  2 +-
+ gcc/testsuite/gcc.target/v850/clip-e3v5.c             |  2 +-
+ gcc/testsuite/gcc.target/v850/g4-none.c               |  2 +-
+ gcc/testsuite/gcc.target/v850/g4mh2-asm.c             |  8 ++++++++
+ gcc/testsuite/gcc.target/v850/g4mh2-no-strict-align.c |  5 +++++
+ gcc/testsuite/gcc.target/v850/g4mh2-none.c            |  7 +++++++
+ gcc/testsuite/gcc.target/v850/g4mh2-opt.c             |  6 ++++++
+ gcc/testsuite/gcc.target/v850/isr-frame.c             |  2 +-
+ 16 files changed, 66 insertions(+), 9 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/g4mh2-asm.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/g4mh2-no-strict-align.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/g4mh2-none.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/g4mh2-opt.c
+
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index 2357302ef97..af9c81fa466 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -3236,6 +3236,15 @@ v850_option_override (void)
+   if (! TARGET_GCC_ABI && small_memory_max[(int) SMALL_MEMORY_TDA] > 0)
+     error ("%<-mtda%> is not supported with the RH850 ABI; use %<-mgcc-abi%>");
+ 
++  if (TARGET_G4MH2)
++    {
++      target_flags |= MASK_G4;
++      if (global_options_set.x_target_flags & MASK_NO_STRICT_ALIGN
++	  && TARGET_NO_STRICT_ALIGN)
++	error ("%<-mno-strict-align%> is not supported with %<-mg4mh2%>");
++      target_flags &= ~MASK_NO_STRICT_ALIGN;
++    }
++
+   if (TARGET_G4 && ! TARGET_V850E3V5)
+     {
+       if (target_flags & MASK_CPU)
+diff --git a/gcc/config/v850/v850.h b/gcc/config/v850/v850.h
+index be074b41fb2..77afa4f75a1 100644
+--- a/gcc/config/v850/v850.h
++++ b/gcc/config/v850/v850.h
+@@ -111,9 +111,12 @@
+ %{msoft-float:-msoft-float} \
+ %{mhard-float:-mhard-float} \
+ %{mgcc-abi:-mgcc-abi} \
+-%{mg4:-mg4}"
++%{mg4:-mg4} \
++%{mg4mh2:-mg4mh2}"
+ 
+-#define DRIVER_SELF_SPECS "%{mg4:%{!mv*:-mv850e3v5}}"
++#define DRIVER_SELF_SPECS \
++  "%{mg4mh2:%{!mg4:-mg4}}", \
++  "%{mg4:%{!mv*:-mv850e3v5}}"
+ 
+ #define LINK_SPEC "%{mgcc-abi:-m v850}"
+ 
+@@ -156,6 +159,8 @@
+ 	builtin_define ("__V850_8BYTE_ALIGN__");\
+       if (TARGET_G4)				\
+ 	builtin_define ("__V850_G4__");		\
++      if (TARGET_G4MH2)				\
++	builtin_define ("__V850_G4MH2__");	\
+       builtin_define (TARGET_USE_FPU ?		\
+ 		      "__FPU_OK__" : "__NO_FPU__");\
+     }						\
+diff --git a/gcc/config/v850/v850.opt b/gcc/config/v850/v850.opt
+index b0d91bcf93d..f28652c92fe 100644
+--- a/gcc/config/v850/v850.opt
++++ b/gcc/config/v850/v850.opt
+@@ -129,6 +129,10 @@ mg4
+ Target Mask(G4)
+ Enable the RH850 G4 instructions.
+ 
++mg4mh2
++Target Mask(G4MH2)
++Enable the RH850 G4MH2 instructions.
++
+ mzda=
+ Target RejectNegative Joined UInteger
+ Set the max size of data eligible for the ZDA area.
+diff --git a/gcc/config/v850/v850.opt.urls b/gcc/config/v850/v850.opt.urls
+index 3c9738deee2..9357457888e 100644
+--- a/gcc/config/v850/v850.opt.urls
++++ b/gcc/config/v850/v850.opt.urls
+@@ -71,6 +71,9 @@ UrlSuffix(gcc/V850-Options.html#index-mloop-1)
+ mg4
+ UrlSuffix(gcc/V850-Options.html#index-mg4)
+ 
++mg4mh2
++UrlSuffix(gcc/V850-Options.html#index-mg4mh2)
++
+ mzda=
+ UrlSuffix(gcc/V850-Options.html#index-mzda)
+ 
+diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
+index ad25f50066b..2f86e57f680 100644
+--- a/gcc/doc/invoke.texi
++++ b/gcc/doc/invoke.texi
+@@ -1495,7 +1495,7 @@ See RS/6000 and PowerPC Options.
+ -mv850  -mv850e3v5  -m850e2v4  -mv850e2v3
+ -mv850e2  -mv850e1  -mv850es  -mv850e
+ -mdisable-callt  -mrelax  -mlong-jumps
+--msoft-float  -mhard-float  -mloop  -mg4
++-msoft-float  -mhard-float  -mloop  -mg4  -mg4mh2
+ -mrh850-abi  -mghs  -mgcc-abi
+ -m8byte-align  -mbig-switch  -mapp-regs  -msmall-sld
+ -mno-strict-align  -mjump-tables-in-data-section}
+@@ -34522,6 +34522,15 @@ the v850e3v5 architecture, and passes @option{-mg4} to the assembler.
+ It implies @option{-mv850e3v5}.  The preprocessor constant
+ @code{__V850_G4__} is defined if this option is used.
+ 
++@opindex mg4mh2
++@item -mg4mh2
++Enables the instructions of the RH850 G4MH2 core on top of
++@option{-mg4}, and passes @option{-mg4mh2} to the assembler.  It implies
++@option{-mg4}.  The preprocessor constant @code{__V850_G4MH2__} is
++defined if this option is used.  The G4MH2 core raises an exception on a
++misaligned access, so this option also enforces strict alignment and
++rejects @option{-mno-strict-align}.
++
+ @opindex mrh850-abi
+ @opindex mghs
+ @item -mrh850-abi
+diff --git a/gcc/testsuite/gcc.dg/torture/pr37868.c b/gcc/testsuite/gcc.dg/torture/pr37868.c
+index 51c38f81491..6e1d2f0dcdc 100644
+--- a/gcc/testsuite/gcc.dg/torture/pr37868.c
++++ b/gcc/testsuite/gcc.dg/torture/pr37868.c
+@@ -1,6 +1,7 @@
+ /* { dg-do run } */
+ /* { dg-options "-fno-strict-aliasing" } */
+ /* { dg-skip-if "unaligned access" { arc*-*-* epiphany-*-* nds32*-*-* sparc*-*-* sh*-*-* tic6x-*-* } } */
++/* { dg-skip-if "unaligned access" { v850*-*-* } { "-mg4mh2" } { "" } } */
+ 
+ extern void abort (void);
+ #if (__SIZEOF_INT__ <= 2)
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-e2v3.c b/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
+index a62c73c9dc4..72e2b3e8da9 100644
+--- a/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
++++ b/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -mv850e2v3" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
+ 
+ int v;
+ 
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-lockfree.c b/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
+index abd58645300..142ce40da58 100644
+--- a/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
++++ b/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
+@@ -1,6 +1,6 @@
+ /* { dg-do preprocess } */
+ /* { dg-options "-mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
+ 
+ #if __GCC_ATOMIC_INT_LOCK_FREE != 2 || __GCC_ATOMIC_LONG_LOCK_FREE != 2 \
+     || __GCC_ATOMIC_POINTER_LOCK_FREE != 2
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c b/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
+index 1d3f68c7c98..7d6253c1b39 100644
+--- a/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
++++ b/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
+ 
+ unsigned char c;
+ short s;
+diff --git a/gcc/testsuite/gcc.target/v850/clip-e3v5.c b/gcc/testsuite/gcc.target/v850/clip-e3v5.c
+index 0a5a4e573be..5656bdd2730 100644
+--- a/gcc/testsuite/gcc.target/v850/clip-e3v5.c
++++ b/gcc/testsuite/gcc.target/v850/clip-e3v5.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
+ 
+ int sb (int x) { return x > 127 ? 127 : x < -128 ? -128 : x; }
+ unsigned ub (unsigned x) { return x > 255 ? 255 : x; }
+diff --git a/gcc/testsuite/gcc.target/v850/g4-none.c b/gcc/testsuite/gcc.target/v850/g4-none.c
+index e063d1f53ac..b556aca2345 100644
+--- a/gcc/testsuite/gcc.target/v850/g4-none.c
++++ b/gcc/testsuite/gcc.target/v850/g4-none.c
+@@ -1,6 +1,6 @@
+ /* { dg-do preprocess } */
+ /* { dg-options "-mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
+ 
+ #ifdef __V850_G4__
+ #error __V850_G4__ without -mg4
+diff --git a/gcc/testsuite/gcc.target/v850/g4mh2-asm.c b/gcc/testsuite/gcc.target/v850/g4mh2-asm.c
+new file mode 100644
+index 00000000000..236c9475b18
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/g4mh2-asm.c
+@@ -0,0 +1,8 @@
++/* { dg-do assemble } */
++/* { dg-options "-mg4mh2" } */
++
++void
++f (void)
++{
++  __asm__ volatile ("ldm.mp [r1], r2-r5\n\tstm.gsr [r6]\n\tclip.b r1, r2");
++}
+diff --git a/gcc/testsuite/gcc.target/v850/g4mh2-no-strict-align.c b/gcc/testsuite/gcc.target/v850/g4mh2-no-strict-align.c
+new file mode 100644
+index 00000000000..cad1ed86adc
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/g4mh2-no-strict-align.c
+@@ -0,0 +1,5 @@
++/* { dg-do compile } */
++/* { dg-options "-mg4mh2 -mno-strict-align" } */
++/* { dg-error "'-mno-strict-align' is not supported with '-mg4mh2'" "" { target *-*-* } 0 } */
++
++int i;
+diff --git a/gcc/testsuite/gcc.target/v850/g4mh2-none.c b/gcc/testsuite/gcc.target/v850/g4mh2-none.c
+new file mode 100644
+index 00000000000..5e7a379c1e2
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/g4mh2-none.c
+@@ -0,0 +1,7 @@
++/* { dg-do preprocess } */
++/* { dg-options "-mg4" } */
++/* { dg-skip-if "tests the code without -mg4mh2" { *-*-* } { "-mg4mh2" } { "" } } */
++
++#ifdef __V850_G4MH2__
++#error __V850_G4MH2__ without -mg4mh2
++#endif
+diff --git a/gcc/testsuite/gcc.target/v850/g4mh2-opt.c b/gcc/testsuite/gcc.target/v850/g4mh2-opt.c
+new file mode 100644
+index 00000000000..8a4af548f88
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/g4mh2-opt.c
+@@ -0,0 +1,6 @@
++/* { dg-do preprocess } */
++/* { dg-options "-mg4mh2" } */
++
++#if !defined __V850_G4MH2__ || !defined __V850_G4__ || !defined __v850e3v5__
++#error -mg4mh2 does not imply -mg4 and v850e3v5
++#endif
+diff --git a/gcc/testsuite/gcc.target/v850/isr-frame.c b/gcc/testsuite/gcc.target/v850/isr-frame.c
+index 584f2e23242..67ac54b86bb 100644
+--- a/gcc/testsuite/gcc.target/v850/isr-frame.c
++++ b/gcc/testsuite/gcc.target/v850/isr-frame.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2" } */
+-/* { dg-skip-if "tests the base targets" { *-*-* } { "-mg4" "-mv850e3v5" } { "" } } */
++/* { dg-skip-if "tests the base targets" { *-*-* } { "-mg4" "-mg4mh2" "-mv850e3v5" } { "" } } */
+ 
+ volatile int v;
+ 
+-- 
+Parthiban N
+

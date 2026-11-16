@@ -1,0 +1,1594 @@
+From 395532829e063a1172817bcd6963168c9c65985f Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:52:07 +0530
+Subject: [PATCH] v850: Add FXU registers and multilib
+
+Add the 128 bit wr vector registers, the V4SF and V4SI modes and their
+calling convention for the FXU. Vectors and saved wr registers change
+the alignment of library structures, so add an FXU multilib.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/constraints.md                |  13 +
+ gcc/config/v850/fxu.md                        |  87 ++++
+ gcc/config/v850/t-v850                        |   9 +
+ gcc/config/v850/v850-modes.def                |  16 +
+ gcc/config/v850/v850-protos.h                 |   4 +
+ gcc/config/v850/v850.cc                       | 481 +++++++++++++++++-
+ gcc/config/v850/v850.h                        |  74 ++-
+ gcc/config/v850/v850.md                       |   3 +
+ gcc/config/v850/v850.opt                      |   4 +
+ gcc/config/v850/v850.opt.urls                 |   3 +
+ gcc/doc/invoke.texi                           |  15 +-
+ gcc/doc/sourcebuild.texi                      |   9 +
+ gcc/testsuite/gcc.dg/torture/pr37868.c        |   2 +-
+ gcc/testsuite/gcc.target/v850/atomic-e2v3.c   |   2 +-
+ .../gcc.target/v850/atomic-lockfree.c         |   2 +-
+ .../gcc.target/v850/atomic-subword-e3v5.c     |   2 +-
+ gcc/testsuite/gcc.target/v850/clip-e3v5.c     |   2 +-
+ gcc/testsuite/gcc.target/v850/fxu-alloca.c    |  15 +
+ .../gcc.target/v850/fxu-args-stack.c          |  21 +
+ gcc/testsuite/gcc.target/v850/fxu-args.c      |  34 ++
+ gcc/testsuite/gcc.target/v850/fxu-asm.c       |   8 +
+ gcc/testsuite/gcc.target/v850/fxu-cpu.c       |   3 +
+ gcc/testsuite/gcc.target/v850/fxu-isr.c       |  14 +
+ gcc/testsuite/gcc.target/v850/fxu-layout.c    |  13 +
+ gcc/testsuite/gcc.target/v850/fxu-move.c      |  29 ++
+ gcc/testsuite/gcc.target/v850/fxu-noalign.c   |  14 +
+ gcc/testsuite/gcc.target/v850/fxu-none.c      |   7 +
+ gcc/testsuite/gcc.target/v850/fxu-opt.c       |   6 +
+ gcc/testsuite/gcc.target/v850/fxu-regalloc.c  |  20 +
+ gcc/testsuite/gcc.target/v850/fxu-save.c      |  15 +
+ .../gcc.target/v850/fxu-varargs-call.c        |  16 +
+ gcc/testsuite/gcc.target/v850/fxu-varargs.c   |  20 +
+ gcc/testsuite/gcc.target/v850/g4-none.c       |   2 +-
+ gcc/testsuite/gcc.target/v850/g4mh2-none.c    |   2 +-
+ gcc/testsuite/gcc.target/v850/isr-frame.c     |   2 +-
+ gcc/testsuite/lib/target-supports.exp         |   9 +
+ 36 files changed, 940 insertions(+), 38 deletions(-)
+ create mode 100644 gcc/config/v850/fxu.md
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-alloca.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-args-stack.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-args.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-asm.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cpu.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-isr.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-layout.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-move.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-noalign.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-none.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-opt.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-regalloc.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-save.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-varargs-call.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-varargs.c
+
+diff --git a/gcc/config/v850/constraints.md b/gcc/config/v850/constraints.md
+index 2dc59fc9a95..413238c89c2 100644
+--- a/gcc/config/v850/constraints.md
++++ b/gcc/config/v850/constraints.md
+@@ -17,6 +17,9 @@
+ ;; along with GCC; see the file COPYING3.  If not see
+ ;; <http://www.gnu.org/licenses/>.
+ 
++(define_register_constraint "w" "TARGET_FXU ? FXU_REGS : NO_REGS"
++  "@internal")
++
+ (define_register_constraint "e" "EVEN_REGS"
+   "@internal")
+ 
+@@ -106,3 +109,13 @@
+ (define_constraint "W"
+   "@internal"
+   (match_test "disp23_operand (op, VOIDmode)"))
++
++(define_memory_constraint "Yq"
++  "@internal"
++  (and (match_code "mem")
++       (match_test "v850_fxu_mem_p (op, 16, reload_completed)")))
++
++(define_memory_constraint "Yd"
++  "@internal"
++  (and (match_code "mem")
++       (match_test "v850_fxu_mem_p (op, 8, reload_completed)")))
+diff --git a/gcc/config/v850/fxu.md b/gcc/config/v850/fxu.md
+new file mode 100644
+index 00000000000..f46094f2004
+--- /dev/null
++++ b/gcc/config/v850/fxu.md
+@@ -0,0 +1,87 @@
++;; Machine description for the RH850 FXU vector unit.
++;; Copyright The GNU Toolchain Authors.
++;;
++;; This file is part of GCC.
++;;
++;; GCC is free software; you can redistribute it and/or modify
++;; it under the terms of the GNU General Public License as published by
++;; the Free Software Foundation; either version 3, or (at your option)
++;; any later version.
++;;
++;; GCC is distributed in the hope that it will be useful,
++;; but WITHOUT ANY WARRANTY; without even the implied warranty of
++;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++;; GNU General Public License for more details.
++;;
++;; You should have received a copy of the GNU General Public License
++;; along with GCC; see the file COPYING3.  If not see
++;; <http://www.gnu.org/licenses/>.
++
++(define_c_enum "unspec" [
++  UNSPEC_FXU_LDV_DW
++  UNSPEC_FXU_LDV_DW_BOTH
++  UNSPEC_FXU_STV_DW
++])
++
++(define_mode_iterator VFXU [V4SF V4SI])
++
++(define_expand "mov<mode>"
++  [(set (match_operand:VFXU 0 "nonimmediate_operand")
++	(match_operand:VFXU 1 "general_operand"))]
++  "TARGET_FXU"
++{
++  if (v850_expand_fxu_move (operands[0], operands[1]))
++    DONE;
++})
++
++(define_expand "movmisalign<mode>"
++  [(set (match_operand:VFXU 0 "nonimmediate_operand")
++	(match_operand:VFXU 1 "general_operand"))]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_misaligned_move (operands[0], operands[1]);
++  DONE;
++})
++
++(define_insn "*mov<mode>_fxu"
++  [(set (match_operand:VFXU 0 "nonimmediate_operand" "=w,w,Yq")
++	(match_operand:VFXU 1 "nonimmediate_operand" "w,Yq,w"))]
++  "TARGET_FXU
++   && (register_operand (operands[0], <MODE>mode)
++       || register_operand (operands[1], <MODE>mode))"
++  "@
++   movv.w4 %1, %0
++   ldv.qw %1, %0
++   stv.qw %1, %0"
++  [(set_attr "length" "4,6,6")
++   (set_attr "type" "fpu,load,store")])
++
++(define_insn "@fxu_ldv_dw_both<mode>"
++  [(set (match_operand:VFXU 0 "register_operand" "=w")
++	(unspec:VFXU [(match_operand:DI 1 "memory_operand" "Yd")]
++		     UNSPEC_FXU_LDV_DW_BOTH))]
++  "TARGET_FXU"
++  "ldv.dw 3, %1, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "load")])
++
++(define_insn "@fxu_ldv_dw<mode>"
++  [(set (match_operand:VFXU 0 "register_operand" "=w")
++	(unspec:VFXU [(match_operand:VFXU 1 "register_operand" "0")
++		      (match_operand:DI 2 "memory_operand" "Yd")
++		      (match_operand:SI 3 "const_int_operand" "n")]
++		     UNSPEC_FXU_LDV_DW))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[3]), 1, 3)"
++  "ldv.dw %3, %2, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "load")])
++
++(define_insn "@fxu_stv_dw<mode>"
++  [(set (match_operand:DI 0 "memory_operand" "=Yd")
++	(unspec:DI [(match_operand:VFXU 1 "register_operand" "w")
++		    (match_operand:SI 2 "const_int_operand" "n")]
++		   UNSPEC_FXU_STV_DW))]
++  "TARGET_FXU && IN_RANGE (INTVAL (operands[2]), 0, 1)"
++  "stv.dw %2, %1, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "store")])
+diff --git a/gcc/config/v850/t-v850 b/gcc/config/v850/t-v850
+index 1391183307b..853fe064386 100644
+--- a/gcc/config/v850/t-v850
++++ b/gcc/config/v850/t-v850
+@@ -27,6 +27,15 @@ MULTILIB_OPTIONS  += mg4
+ MULTILIB_DIRNAMES +=  g4
+ MULTILIB_EXCEPTIONS = mg4 mgcc-abi/mg4 msoft-float/mg4 mgcc-abi/msoft-float/mg4
+ 
++MULTILIB_OPTIONS  += mfxu
++MULTILIB_DIRNAMES +=  fxu
++MULTILIB_EXCEPTIONS += mfxu mv850e3v5/mfxu mg4/mfxu mgcc-abi/mfxu
++MULTILIB_EXCEPTIONS += mgcc-abi/mv850e3v5/mfxu mgcc-abi/mg4/mfxu
++MULTILIB_EXCEPTIONS += msoft-float/mfxu msoft-float/mv850e3v5/mfxu
++MULTILIB_EXCEPTIONS += msoft-float/mg4/mfxu mgcc-abi/msoft-float/mfxu
++MULTILIB_EXCEPTIONS += mgcc-abi/msoft-float/mv850e3v5/mfxu
++MULTILIB_EXCEPTIONS += mgcc-abi/msoft-float/mg4/mfxu
++
+ TCFLAGS = -mno-app-regs -msmall-sld -Wa,-mwarn-signed-overflow -Wa,-mwarn-unsigned-overflow
+ 
+ v850-c.o: $(srcdir)/config/v850/v850-c.cc $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+diff --git a/gcc/config/v850/v850-modes.def b/gcc/config/v850/v850-modes.def
+index c3a43f3946d..c09b95e0fc0 100644
+--- a/gcc/config/v850/v850-modes.def
++++ b/gcc/config/v850/v850-modes.def
+@@ -27,3 +27,19 @@ CC_MODE (CC_FPU_GE);
+ CC_MODE (CC_FPU_EQ);
+ CC_MODE (CC_FPU_NE);
+ 
++VECTOR_MODE (FLOAT, SF, 4);
++VECTOR_MODE (INT, SI, 4);
++ADJUST_ALIGNMENT (V4SF, 16);
++ADJUST_ALIGNMENT (V4SI, 16);
++
++ADJUST_ALIGNMENT (DI, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (TI, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (DQ, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (TQ, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (UDQ, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (UTQ, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (DA, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (TA, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (UDA, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (UTA, TARGET_8BYTE_ALIGN ? 8 : 4);
++ADJUST_ALIGNMENT (DF, TARGET_8BYTE_ALIGN ? 8 : 4);
+diff --git a/gcc/config/v850/v850-protos.h b/gcc/config/v850/v850-protos.h
+index 934d41f098f..8359e69074f 100644
+--- a/gcc/config/v850/v850-protos.h
++++ b/gcc/config/v850/v850-protos.h
+@@ -27,10 +27,14 @@ extern void   expand_epilogue               (void);
+ extern int    v850_handle_pragma            (int (*)(void), void (*)(int), char *);
+ extern int    compute_register_save_size    (long *);
+ extern int    compute_frame_size            (poly_int64, long *);
++extern HOST_WIDE_INT v850_initial_elimination_offset (int, int);
+ extern void   v850_init_expanders           (void);
+ 
+ #ifdef RTX_CODE
+ extern rtx    v850_return_addr              (int);
++extern bool v850_fxu_mem_p (rtx, int, bool);
++extern bool v850_expand_fxu_move (rtx, rtx);
++extern void v850_expand_fxu_misaligned_move (rtx, rtx);
+ extern const char *output_move_single       (rtx *);
+ extern char * construct_save_jarl           (rtx);
+ extern char * construct_restore_jr          (rtx);
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index af9c81fa466..8fdd171d533 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -44,6 +44,8 @@
+ #include "output.h"
+ #include "insn-attr.h"
+ #include "expr.h"
++#include "explow.h"
++#include "optabs.h"
+ #include "cfgrtl.h"
+ #include "builtins.h"
+ 
+@@ -119,6 +121,14 @@ v850_pass_by_reference (cumulative_args_t, const function_arg_info &arg)
+   return size > 8;
+ }
+ 
++/* Return true if ARG is an FXU vector, which goes in a wr register.  */
++
++static bool
++v850_fxu_arg_p (const function_arg_info &arg)
++{
++  return TARGET_FXU && (arg.mode == V4SFmode || arg.mode == V4SImode);
++}
++
+ /* Return an RTX to represent where argument ARG will be passed to a function.
+    If the result is NULL_RTX, the argument will be pushed.  */
+ 
+@@ -132,6 +142,10 @@ v850_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
+   if (!arg.named)
+     return NULL_RTX;
+ 
++  if (v850_fxu_arg_p (arg))
++    return (cum->nwr <= WR31_REGNUM - WR0_REGNUM
++	    ? gen_rtx_REG (arg.mode, WR0_REGNUM + cum->nwr) : NULL_RTX);
++
+   size = arg.promoted_size_in_bytes ();
+   size = (size + UNITS_PER_WORD -1) & ~(UNITS_PER_WORD -1);
+ 
+@@ -187,7 +201,7 @@ v850_arg_partial_bytes (cumulative_args_t cum_v, const function_arg_info &arg)
+   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
+   int size, align;
+ 
+-  if (!arg.named)
++  if (!arg.named || v850_fxu_arg_p (arg))
+     return 0;
+ 
+   size = arg.promoted_size_in_bytes ();
+@@ -224,6 +238,13 @@ v850_function_arg_advance (cumulative_args_t cum_v,
+ {
+   CUMULATIVE_ARGS *cum = get_cumulative_args (cum_v);
+ 
++  if (v850_fxu_arg_p (arg))
++    {
++      if (arg.named)
++	cum->nwr++;
++      return;
++    }
++
+   if (!TARGET_GCC_ABI)
+     cum->nbytes += ((arg.promoted_size_in_bytes () + UNITS_PER_WORD - 1)
+ 		    & -UNITS_PER_WORD);
+@@ -1574,6 +1595,15 @@ compute_register_save_size (long * p_reg_saved)
+        and stack pointer -> |    | /             _|_   |
+   -------------------------- ---- ------------------   V */
+ 
++/* Size of the locals and outgoing arguments in a realigned frame.  */
++
++static HOST_WIDE_INT
++v850_realign_locals_size (void)
++{
++  return ROUND_UP (get_frame_size () + crtl->outgoing_args_size,
++		   MAX_STACK_ALIGNMENT / BITS_PER_UNIT);
++}
++
+ int
+ compute_frame_size (poly_int64 size, long * p_reg_saved)
+ {
+@@ -1664,6 +1694,157 @@ v850_epilogue_restore (rtx_insn *insn, rtx reg)
+   add_reg_note (insn, REG_CFA_RESTORE, reg);
+ }
+ 
++/* Return the number of wr registers to save, with their mask in *SAVED.  */
++
++static int
++v850_fxu_saved_regs (unsigned int *saved)
++{
++  int n = 0;
++
++  *saved = 0;
++  for (int i = WR0_REGNUM; i <= WR31_REGNUM; i++)
++    if (df_regs_ever_live_p (i) && ! call_used_or_fixed_reg_p (i))
++      {
++	*saved |= 1u << (i - WR0_REGNUM);
++	n++;
++      }
++  return n;
++}
++
++/* Save or restore the wr registers in SAVED at sp + OFFSET.  */
++
++static void
++v850_fxu_save_restore (unsigned int saved, HOST_WIDE_INT offset, bool save)
++{
++  for (int i = WR0_REGNUM; i <= WR31_REGNUM; i++)
++    if (saved & (1u << (i - WR0_REGNUM)))
++      {
++	rtx addr;
++	rtx reg = gen_rtx_REG (V4SFmode, i);
++	rtx mem;
++
++	if (offset <= 32752)
++	  addr = plus_constant (Pmode, stack_pointer_rtx, offset);
++	else
++	  {
++	    addr = gen_rtx_REG (Pmode, 12);
++	    emit_move_insn (addr, GEN_INT (offset));
++	    emit_insn (gen_addsi3_clobber_flags (addr, addr,
++						 stack_pointer_rtx));
++	  }
++	mem = gen_frame_mem (V4SFmode, addr);
++	set_mem_align (mem, 128);
++	emit_insn (save ? gen_rtx_SET (mem, reg) : gen_rtx_SET (reg, mem));
++	offset += 16;
++      }
++}
++
++/* Prologue of a frame realigned at run time; r29 keeps the unaligned sp.  */
++
++static void
++v850_expand_realign_prologue (void)
++{
++  long reg_saved = 0;
++  int regsave = compute_register_save_size (&reg_saved);
++  unsigned int fxu_saved;
++  int nfxu = v850_fxu_saved_regs (&fxu_saved);
++  HOST_WIDE_INT locals = v850_realign_locals_size ();
++  rtx save_regs[32];
++  int num_save = 0;
++  int offset;
++
++  if (v850_interrupt_function_p (current_function_decl))
++    sorry ("FXU vectors on the stack of an interrupt function");
++
++  if (flag_stack_usage_info)
++    current_function_static_stack_size
++      = regsave + 16 * nfxu + locals + MAX_STACK_ALIGNMENT / BITS_PER_UNIT;
++
++  for (int i = 1; i < 32; i++)
++    if (((1L << i) & reg_saved) != 0)
++      save_regs[num_save++] = gen_rtx_REG (Pmode, i);
++
++  if (crtl->args.pretend_args_size)
++    increment_stack (- crtl->args.pretend_args_size, true);
++
++  increment_stack (- regsave, true);
++  offset = regsave - 4;
++  if (num_save > 0 && REGNO (save_regs[num_save - 1]) == LINK_POINTER_REGNUM)
++    {
++      F (emit_move_insn (gen_rtx_MEM (SImode,
++				      plus_constant (Pmode, stack_pointer_rtx,
++						     offset)),
++			 save_regs[--num_save]));
++      offset -= 4;
++    }
++  for (int i = 0; i < num_save; i++)
++    {
++      F (emit_move_insn (gen_rtx_MEM (SImode,
++				      plus_constant (Pmode, stack_pointer_rtx,
++						     offset)),
++			 save_regs[i]));
++      offset -= 4;
++    }
++
++  F (emit_move_insn (hard_frame_pointer_rtx, stack_pointer_rtx));
++
++  increment_stack (- (16 * nfxu + locals), false);
++  if (nfxu > 0 || crtl->stack_alignment_needed > STACK_BOUNDARY)
++    {
++      rtx mask = gen_rtx_REG (Pmode, 12);
++      emit_move_insn (mask, GEN_INT (-(MAX_STACK_ALIGNMENT / BITS_PER_UNIT)));
++      emit_insn (gen_andsi3_clobber_flags (stack_pointer_rtx,
++					   stack_pointer_rtx, mask));
++    }
++
++  v850_fxu_save_restore (fxu_saved, locals, true);
++}
++
++/* Epilogue of a frame realigned at run time.  */
++
++static void
++v850_expand_realign_epilogue (void)
++{
++  long reg_saved = 0;
++  int regsave = compute_register_save_size (&reg_saved);
++  unsigned int fxu_saved;
++  rtx restore_regs[32];
++  int num_restore = 0;
++  int offset;
++
++  v850_fxu_saved_regs (&fxu_saved);
++  v850_fxu_save_restore (fxu_saved, v850_realign_locals_size (), false);
++
++  emit_move_insn (stack_pointer_rtx, hard_frame_pointer_rtx);
++
++  for (int i = 1; i < 32; i++)
++    if (((1L << i) & reg_saved) != 0)
++      restore_regs[num_restore++] = gen_rtx_REG (Pmode, i);
++
++  offset = regsave - 4;
++  if (num_restore > 0
++      && REGNO (restore_regs[num_restore - 1]) == LINK_POINTER_REGNUM)
++    {
++      emit_move_insn (restore_regs[--num_restore],
++		      gen_rtx_MEM (SImode,
++				   plus_constant (Pmode, stack_pointer_rtx,
++						  offset)));
++      offset -= 4;
++    }
++  for (int i = 0; i < num_restore; i++)
++    {
++      emit_move_insn (restore_regs[i],
++		      gen_rtx_MEM (SImode,
++				   plus_constant (Pmode, stack_pointer_rtx,
++						  offset)));
++      emit_use (restore_regs[i]);
++      offset -= 4;
++    }
++
++  increment_stack (regsave + crtl->args.pretend_args_size, false);
++  emit_jump_insn (gen_return_internal ());
++}
++
+ void
+ expand_prologue (void)
+ {
+@@ -1678,6 +1859,19 @@ expand_prologue (void)
+   int interrupt_handler = v850_interrupt_function_p (current_function_decl);
+   long reg_saved = 0;
+ 
++  if (stack_realign_fp)
++    {
++      v850_expand_realign_prologue ();
++      return;
++    }
++
++  if (TARGET_FXU)
++    {
++      unsigned int fxu_saved;
++      if (v850_fxu_saved_regs (&fxu_saved) > 0)
++	sorry ("saving FXU registers in a frame that is not realigned");
++    }
++
+   actual_fsize = compute_frame_size (size, &reg_saved);
+ 
+   if (flag_stack_usage_info)
+@@ -1863,6 +2057,14 @@ expand_epilogue (void)
+   HOST_WIDE_INT cfa = actual_fsize + crtl->args.pretend_args_size;
+   rtx_insn *insn;
+ 
++  if (stack_realign_fp)
++    {
++      v850_expand_realign_epilogue ();
++      v850_interrupt_cache_p = FALSE;
++      v850_interrupt_p = FALSE;
++      return;
++    }
++
+   /* Eliminate the initial stack stored by interrupt functions.  */
+   if (interrupt_handler)
+     {
+@@ -3014,11 +3216,71 @@ v850_libcall_value (machine_mode mode,
+ /* Worker function for TARGET_CAN_ELIMINATE.  */
+ 
+ static bool
+-v850_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
++v850_can_eliminate (const int from, const int to)
+ {
++  if (stack_realign_fp)
++    return ((from == ARG_POINTER_REGNUM && to == HARD_FRAME_POINTER_REGNUM)
++	    || (from == FRAME_POINTER_REGNUM && to == STACK_POINTER_REGNUM));
++
+   return (to == STACK_POINTER_REGNUM ? ! frame_pointer_needed : true);
+ }
+ 
++HOST_WIDE_INT
++v850_initial_elimination_offset (int from, int to)
++{
++  if (stack_realign_fp)
++    {
++      if (from == FRAME_POINTER_REGNUM && to == STACK_POINTER_REGNUM)
++	return v850_realign_locals_size ();
++      if (from == ARG_POINTER_REGNUM && to == HARD_FRAME_POINTER_REGNUM)
++	return compute_register_save_size (NULL);
++      return 0;
++    }
++
++  if (from == FRAME_POINTER_REGNUM)
++    return get_frame_size () + crtl->outgoing_args_size;
++  if (from == ARG_POINTER_REGNUM)
++    return compute_frame_size (get_frame_size (), (long *) 0);
++  gcc_unreachable ();
++}
++
++/* Implement TARGET_MD_ASM_ADJUST: an asm using wr needs a realigned frame.  */
++
++static rtx_insn *
++v850_md_asm_adjust (vec<rtx> &, vec<rtx> &, vec<machine_mode> &,
++		    vec<const char *> &constraints, vec<rtx> &, vec<rtx> &,
++		    HARD_REG_SET &clobbered_regs, location_t)
++{
++  bool fxu = false;
++
++  if (! TARGET_FXU)
++    return NULL;
++  for (int i = WR0_REGNUM; i <= WR31_REGNUM; i++)
++    if (TEST_HARD_REG_BIT (clobbered_regs, i))
++      fxu = true;
++  for (unsigned int i = 0; i < constraints.length (); i++)
++    if (strchr (constraints[i], 'w'))
++      fxu = true;
++  if (fxu && ! crtl->stack_realign_processed
++      && crtl->stack_alignment_estimated < MAX_STACK_ALIGNMENT)
++    crtl->stack_alignment_estimated = MAX_STACK_ALIGNMENT;
++  return NULL;
++}
++
++/* Implement TARGET_GET_DRAP_RTX.  */
++
++static rtx
++v850_get_drap_rtx (void)
++{
++  if (crtl->stack_realign_needed && crtl->need_drap)
++    {
++      sorry ("dynamic stack allocation in a function that keeps FXU vectors "
++	     "on the stack");
++      crtl->need_drap = false;
++    }
++  return NULL_RTX;
++}
++
+ /* Worker function for TARGET_CONDITIONAL_REGISTER_USAGE.
+ 
+    If TARGET_APP_REGS is not defined then add r2 and r5 to
+@@ -3032,6 +3294,10 @@ v850_conditional_register_usage (void)
+      fixed_regs[2] = 0;  call_used_regs[2] = 0;
+      fixed_regs[5] = 0;  call_used_regs[5] = 1;
+     }
++
++  if (! TARGET_FXU)
++    for (int i = WR0_REGNUM; i <= WR31_REGNUM; i++)
++      fixed_regs[i] = call_used_regs[i] = 1;
+ }
+ 
+ /* Worker function for TARGET_ASM_TRAMPOLINE_TEMPLATE.  */
+@@ -3236,6 +3502,9 @@ v850_option_override (void)
+   if (! TARGET_GCC_ABI && small_memory_max[(int) SMALL_MEMORY_TDA] > 0)
+     error ("%<-mtda%> is not supported with the RH850 ABI; use %<-mgcc-abi%>");
+ 
++  if (TARGET_FXU)
++    target_flags |= MASK_G4MH2;
++
+   if (TARGET_G4MH2)
+     {
+       target_flags |= MASK_G4;
+@@ -3297,16 +3566,198 @@ v850_gen_movdi (rtx * operands)
+ static bool
+ v850_hard_regno_mode_ok (unsigned int regno, machine_mode mode)
+ {
++  if (FXU_REGNO_P (regno))
++    return mode == V4SFmode || mode == V4SImode;
++  if (mode == V4SFmode || mode == V4SImode)
++    return false;
+   return GET_MODE_SIZE (mode) <= 4 || ((regno & 1) == 0 && regno != 0);
+ }
+ 
++/* Implement TARGET_HARD_REGNO_NREGS.  */
++
++static unsigned int
++v850_hard_regno_nregs (unsigned int regno, machine_mode mode)
++{
++  if (FXU_REGNO_P (regno))
++    return 1;
++  return CEIL (GET_MODE_SIZE (mode), UNITS_PER_WORD);
++}
++
++/* Implement TARGET_CLASS_MAX_NREGS.  */
++
++static unsigned char
++v850_class_max_nregs (reg_class_t rclass, machine_mode mode)
++{
++  if (rclass == FXU_REGS)
++    return 1;
++  return CEIL (GET_MODE_SIZE (mode), UNITS_PER_WORD);
++}
++
++/* Implement TARGET_CAN_CHANGE_MODE_CLASS.  */
++
++static bool
++v850_can_change_mode_class (machine_mode from, machine_mode to,
++			    reg_class_t rclass)
++{
++  if (reg_classes_intersect_p (rclass, FXU_REGS))
++    return GET_MODE_SIZE (from) == GET_MODE_SIZE (to);
++  return true;
++}
++
++/* Implement TARGET_VECTOR_MODE_SUPPORTED_P.  */
++
++static bool
++v850_vector_mode_supported_p (machine_mode mode)
++{
++  return TARGET_FXU && (mode == V4SFmode || mode == V4SImode);
++}
++
++/* Implement TARGET_SECONDARY_MEMORY_NEEDED.  */
++
++static bool
++v850_secondary_memory_needed (machine_mode, reg_class_t class1,
++			      reg_class_t class2)
++{
++  return (reg_classes_intersect_p (class1, FXU_REGS)
++	  != reg_classes_intersect_p (class2, FXU_REGS));
++}
++
++/* Implement TARGET_REGISTER_MOVE_COST.  */
++
++static int
++v850_register_move_cost (machine_mode, reg_class_t from, reg_class_t to)
++{
++  if (reg_classes_intersect_p (from, FXU_REGS)
++      != reg_classes_intersect_p (to, FXU_REGS))
++    return 20;
++  return 2;
++}
++
++/* Return true if X is a base register plus a disp16 multiple of SIZE.  */
++
++bool
++v850_fxu_mem_p (rtx x, int size, bool strict)
++{
++  rtx addr;
++  HOST_WIDE_INT disp = 0;
++
++  if (! MEM_P (x))
++    return false;
++  addr = XEXP (x, 0);
++  if (GET_CODE (addr) == PLUS && CONST_INT_P (XEXP (addr, 1)))
++    {
++      disp = INTVAL (XEXP (addr, 1));
++      addr = XEXP (addr, 0);
++    }
++  if (! v850_rtx_ok_for_base_p (addr, strict))
++    return false;
++  return (disp % size == 0 && disp >= -32768 && disp <= 32767);
++}
++
++/* Return MEM with an address that the FXU instructions accept.  */
++
++static rtx
++v850_fxu_legitimize_mem (rtx mem, int size)
++{
++  if (v850_fxu_mem_p (mem, size, false))
++    return mem;
++  return replace_equiv_address (mem, force_reg (Pmode, XEXP (mem, 0)));
++}
++
++/* Expand an FXU move with memory below 16-byte alignment.  */
++
++void
++v850_expand_fxu_misaligned_move (rtx dst, rtx src)
++{
++  machine_mode mode = GET_MODE (dst);
++  rtx mem = MEM_P (src) ? src : dst;
++
++  if (! MEM_P (mem) || (MEM_P (src) && MEM_P (dst)))
++    {
++      emit_move_insn (dst, force_reg (mode, src));
++      return;
++    }
++
++  if (MEM_ALIGN (mem) < BITS_PER_WORD)
++    {
++      rtx tmp = assign_stack_temp (mode, GET_MODE_SIZE (mode));
++
++      if (MEM_P (src))
++	{
++	  emit_block_move (tmp, src, GEN_INT (GET_MODE_SIZE (mode)),
++			   BLOCK_OP_NORMAL);
++	  emit_move_insn (dst, tmp);
++	}
++      else
++	{
++	  emit_move_insn (tmp, src);
++	  emit_block_move (dst, tmp, GEN_INT (GET_MODE_SIZE (mode)),
++			   BLOCK_OP_NORMAL);
++	}
++      return;
++    }
++
++  rtx base = force_reg (Pmode, XEXP (mem, 0));
++  rtx lo = gen_rtx_MEM (DImode, base);
++  rtx hi = gen_rtx_MEM (DImode, plus_constant (Pmode, base, 8));
++
++  if (MEM_P (src))
++    {
++      rtx reg = REG_P (dst) ? dst : gen_reg_rtx (mode);
++      emit_insn (gen_fxu_ldv_dw_both (mode, reg, lo));
++      emit_insn (gen_fxu_ldv_dw (mode, reg, reg, hi, GEN_INT (2)));
++      if (reg != dst)
++	emit_move_insn (dst, reg);
++    }
++  else
++    {
++      if (! REG_P (src))
++	src = force_reg (mode, src);
++      emit_insn (gen_fxu_stv_dw (mode, lo, src, GEN_INT (0)));
++      emit_insn (gen_fxu_stv_dw (mode, hi, src, GEN_INT (1)));
++    }
++}
++
++/* Expand a move of an FXU vector.  Return true if it was done here.  */
++
++bool
++v850_expand_fxu_move (rtx dst, rtx src)
++{
++  machine_mode mode = GET_MODE (dst);
++
++  if (! can_create_pseudo_p ())
++    return false;
++
++  if (MEM_P (dst) && ! register_operand (src, mode))
++    src = force_reg (mode, src);
++
++  if (CONSTANT_P (src))
++    src = force_const_mem (mode, src);
++
++  if ((MEM_P (src) && MEM_ALIGN (src) < 128)
++      || (MEM_P (dst) && MEM_ALIGN (dst) < 128))
++    {
++      v850_expand_fxu_misaligned_move (dst, src);
++      return true;
++    }
++
++  if (MEM_P (src))
++    src = v850_fxu_legitimize_mem (src, 16);
++  if (MEM_P (dst))
++    dst = v850_fxu_legitimize_mem (dst, 16);
++  emit_insn (gen_rtx_SET (dst, src));
++  return true;
++}
++
+ /* Implement TARGET_MODES_TIEABLE_P.  */
+ 
+ static bool
+ v850_modes_tieable_p (machine_mode mode1, machine_mode mode2)
+ {
+   return (mode1 == mode2
+-	  || (GET_MODE_SIZE (mode1) <= 4 && GET_MODE_SIZE (mode2) <= 4));
++	  || (GET_MODE_SIZE (mode1) <= 4 && GET_MODE_SIZE (mode2) <= 4)
++	  || ((mode1 == V4SFmode || mode1 == V4SImode)
++	      && (mode2 == V4SFmode || mode2 == V4SImode)));
+ }
+ 
+ static bool
+@@ -3436,6 +3887,30 @@ v850_can_inline_p (tree caller, tree callee)
+ #undef  TARGET_HARD_REGNO_MODE_OK
+ #define TARGET_HARD_REGNO_MODE_OK v850_hard_regno_mode_ok
+ 
++#undef  TARGET_HARD_REGNO_NREGS
++#define TARGET_HARD_REGNO_NREGS v850_hard_regno_nregs
++
++#undef  TARGET_CLASS_MAX_NREGS
++#define TARGET_CLASS_MAX_NREGS v850_class_max_nregs
++
++#undef  TARGET_CAN_CHANGE_MODE_CLASS
++#define TARGET_CAN_CHANGE_MODE_CLASS v850_can_change_mode_class
++
++#undef  TARGET_VECTOR_MODE_SUPPORTED_P
++#define TARGET_VECTOR_MODE_SUPPORTED_P v850_vector_mode_supported_p
++
++#undef  TARGET_SECONDARY_MEMORY_NEEDED
++#define TARGET_SECONDARY_MEMORY_NEEDED v850_secondary_memory_needed
++
++#undef  TARGET_REGISTER_MOVE_COST
++#define TARGET_REGISTER_MOVE_COST v850_register_move_cost
++
++#undef  TARGET_MD_ASM_ADJUST
++#define TARGET_MD_ASM_ADJUST v850_md_asm_adjust
++
++#undef  TARGET_GET_DRAP_RTX
++#define TARGET_GET_DRAP_RTX v850_get_drap_rtx
++
+ #undef  TARGET_MODES_TIEABLE_P
+ #define TARGET_MODES_TIEABLE_P v850_modes_tieable_p
+ 
+diff --git a/gcc/config/v850/v850.h b/gcc/config/v850/v850.h
+index 77afa4f75a1..7409b2d14fe 100644
+--- a/gcc/config/v850/v850.h
++++ b/gcc/config/v850/v850.h
+@@ -112,9 +112,11 @@
+ %{mhard-float:-mhard-float} \
+ %{mgcc-abi:-mgcc-abi} \
+ %{mg4:-mg4} \
+-%{mg4mh2:-mg4mh2}"
++%{mg4mh2:-mg4mh2} \
++%{mfxu:-mfxu}"
+ 
+ #define DRIVER_SELF_SPECS \
++  "%{mfxu:%{!mg4mh2:-mg4mh2}}", \
+   "%{mg4mh2:%{!mg4:-mg4}}", \
+   "%{mg4:%{!mv*:-mv850e3v5}}"
+ 
+@@ -161,6 +163,8 @@
+ 	builtin_define ("__V850_G4__");		\
+       if (TARGET_G4MH2)				\
+ 	builtin_define ("__V850_G4MH2__");	\
++      if (TARGET_FXU)				\
++	builtin_define ("__V850_FXU__");	\
+       builtin_define (TARGET_USE_FPU ?		\
+ 		      "__FPU_OK__" : "__NO_FPU__");\
+     }						\
+@@ -205,14 +209,18 @@
+ #define PARM_BOUNDARY		32
+ 
+ /* The stack goes in 32-bit lumps.  */
+-#define STACK_BOUNDARY 		BIGGEST_ALIGNMENT
++#define STACK_BOUNDARY		(TARGET_8BYTE_ALIGN ? 64 : 32)
+ 
+ /* Allocation boundary (in *bits*) for the code of a function.
+    16 is the minimum boundary; 32 would give better performance.  */
+ #define FUNCTION_BOUNDARY 	(((! TARGET_GCC_ABI) || optimize_size) ? 16 : 32)
+ 
+ /* No data type wants to be aligned rounder than this.  */
+-#define BIGGEST_ALIGNMENT	(TARGET_8BYTE_ALIGN ? 64 : 32)
++#define BIGGEST_ALIGNMENT	(TARGET_FXU ? 128 : STACK_BOUNDARY)
++
++#define MAX_STACK_ALIGNMENT	(TARGET_FXU ? 128 : STACK_BOUNDARY)
++
++#define ATTRIBUTE_ALIGNED_VALUE	STACK_BOUNDARY
+ 
+ /* Alignment of field after `int : 0' in a structure.  */
+ #define EMPTY_FIELD_BOUNDARY 32
+@@ -250,7 +258,9 @@
+    All registers that the compiler knows about must be given numbers,
+    even those that are not normally considered general registers.  */
+ 
+-#define FIRST_PSEUDO_REGISTER 36
++#define FIRST_PSEUDO_REGISTER 68
++
++#define FXU_REGNO_P(REGNO) ((REGNO) >= WR0_REGNUM && (REGNO) <= WR31_REGNUM)
+ 
+ /* 1 for registers that have pervasive standard uses
+    and are not available for the register allocator.  */
+@@ -261,7 +271,11 @@
+     0, 0, 0, 0, 0, 0, 0, 0, \
+     0, 0, 0, 0, 0, 0, 1, 0, \
+     1, 1,	\
+-    1, 1}
++    1, 1,	\
++    0, 0, 0, 0, 0, 0, 0, 0, \
++    0, 0, 0, 0, 0, 0, 0, 0, \
++    0, 0, 0, 0, 0, 0, 0, 0, \
++    0, 0, 0, 0, 0, 0, 0, 0}
+ 
+ /* 1 for registers not available across function calls.
+    These must include the FIXED_REGISTERS and also any
+@@ -277,7 +291,11 @@
+     1, 1, 1, 1, 0, 0, 0, 0, \
+     0, 0, 0, 0, 0, 0, 1, 1, \
+     1, 1,	\
+-    1, 1}
++    1, 1,	\
++    0, 0, 0, 0, 0, 0, 0, 0, \
++    0, 0, 0, 0, 0, 0, 0, 0, \
++    0, 0, 0, 0, 0, 0, 0, 0, \
++    0, 0, 0, 0, 0, 0, 0, 0}
+ 
+ /* List the order in which to allocate registers.  Each register must be
+    listed once, even those in FIXED_REGISTERS.
+@@ -294,6 +312,8 @@
+    6,  7,  8,  9, 31,			/* argument registers */	\
+   29, 28, 27, 26, 25, 24, 23, 22,	/* saved registers */		\
+   21, 20,  2,								\
++  36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,	\
++  52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,	\
+    0,  1,  3,  4,  5, 30, 32, 33,      /* fixed registers */           \
+   34, 35								\
+ }
+@@ -321,7 +341,7 @@
+ 
+ enum reg_class
+ {
+-  NO_REGS, EVEN_REGS, GENERAL_REGS, ALL_REGS, LIM_REG_CLASSES
++  NO_REGS, EVEN_REGS, GENERAL_REGS, FXU_REGS, ALL_REGS, LIM_REG_CLASSES
+ };
+ 
+ #define N_REG_CLASSES (int) LIM_REG_CLASSES
+@@ -329,7 +349,7 @@ enum reg_class
+ /* Give names of register classes as strings for dump file.  */
+ 
+ #define REG_CLASS_NAMES \
+-{ "NO_REGS", "EVEN_REGS", "GENERAL_REGS", "ALL_REGS", "LIM_REGS" }
++{ "NO_REGS", "EVEN_REGS", "GENERAL_REGS", "FXU_REGS", "ALL_REGS", "LIM_REGS" }
+ 
+ /* Define which registers fit in which classes.
+    This is an initializer for a vector of HARD_REG_SET
+@@ -337,10 +357,11 @@ enum reg_class
+ 
+ #define REG_CLASS_CONTENTS                     \
+ {                                              \
+-  { 0x00000000,0x0 }, /* NO_REGS      */       \
+-  { 0x55555554,0x0 }, /* EVEN_REGS */          \
+-  { 0xfffffffe,0x0 }, /* GENERAL_REGS */       \
+-  { 0xffffffff,0x0 }, /* ALL_REGS      */      \
++  { 0x00000000,0x0,0x0 }, /* NO_REGS      */   \
++  { 0x55555554,0x0,0x0 }, /* EVEN_REGS */      \
++  { 0xfffffffe,0x0,0x0 }, /* GENERAL_REGS */   \
++  { 0x00000000,0xfffffff0,0xf }, /* FXU_REGS */ \
++  { 0xffffffff,0xfffffff0,0xf }, /* ALL_REGS */ \
+ }
+ 
+ /* The same information, inverted:
+@@ -348,7 +369,9 @@ enum reg_class
+    reg number REGNO.  This could be a conditional expression
+    or could index an array.  */
+ 
+-#define REGNO_REG_CLASS(REGNO)  ((REGNO == CC_REGNUM || REGNO == FCC_REGNUM) ? NO_REGS : GENERAL_REGS)
++#define REGNO_REG_CLASS(REGNO) \
++  ((REGNO) == CC_REGNUM || (REGNO) == FCC_REGNUM ? NO_REGS \
++   : FXU_REGNO_P (REGNO) ? FXU_REGS : GENERAL_REGS)
+ 
+ /* The class value for index registers, and the one for base regs.  */
+ 
+@@ -367,7 +390,8 @@ enum reg_class
+ #define REGNO_OK_FOR_BASE_P(regno)             \
+   (((regno) < FIRST_PSEUDO_REGISTER            \
+     && (regno) != CC_REGNUM                    \
+-    && (regno) != FCC_REGNUM)                  \
++    && (regno) != FCC_REGNUM		       \
++    && ! FXU_REGNO_P (regno))		       \
+    || reg_renumber[regno] >= 0)
+ 
+ #define REGNO_OK_FOR_INDEX_P(regno) 0
+@@ -488,14 +512,7 @@ enum reg_class
+    of registers.  */
+ 
+ #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)			\
+-{									\
+-  if ((FROM) == FRAME_POINTER_REGNUM)					\
+-    (OFFSET) = get_frame_size () + crtl->outgoing_args_size;	\
+-  else if ((FROM) == ARG_POINTER_REGNUM)				\
+-   (OFFSET) = compute_frame_size (get_frame_size (), (long *)0);	\
+-  else									\
+-    gcc_unreachable ();							\
+-}
++  ((OFFSET) = v850_initial_elimination_offset ((FROM), (TO)))
+ 
+ /* Keep the stack pointer constant throughout the function.  */
+ #define ACCUMULATE_OUTGOING_ARGS 1
+@@ -509,14 +526,14 @@ enum reg_class
+    such as FUNCTION_ARG to determine where the next arg should go.  */
+ 
+ #define CUMULATIVE_ARGS struct cum_arg
+-struct cum_arg { int nbytes; };
++struct cum_arg { int nbytes; int nwr; };
+ 
+ /* Initialize a variable CUM of type CUMULATIVE_ARGS
+    for a call to a function whose data type is FNTYPE.
+    For a library call, FNTYPE is 0.  */
+ 
+ #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
+-  do { (CUM).nbytes = 0; } while (0)
++  do { (CUM).nbytes = 0; (CUM).nwr = 0; } while (0)
+ 
+ /* When a parameter is passed in a register, stack space is still
+    allocated for it.  */
+@@ -524,7 +541,8 @@ struct cum_arg { int nbytes; };
+ 
+ /* 1 if N is a possible register number for function argument passing.  */
+ 
+-#define FUNCTION_ARG_REGNO_P(N) (N >= 6 && N <= 9)
++#define FUNCTION_ARG_REGNO_P(N) \
++  ((N >= 6 && N <= 9) || (TARGET_FXU && FXU_REGNO_P (N)))
+ 
+ #define DEFAULT_PCC_STRUCT_RETURN 0
+ 
+@@ -670,7 +688,11 @@ typedef enum
+   "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",      \
+   "r24", "r25", "r26", "r27", "r28", "r29",  "ep", "r31",      \
+   "psw", "fcc",      \
+-  ".fp", ".ap"}
++  ".fp", ".ap",      \
++  "wr0", "wr1", "wr2", "wr3", "wr4", "wr5", "wr6", "wr7",      \
++  "wr8", "wr9", "wr10", "wr11", "wr12", "wr13", "wr14", "wr15",      \
++  "wr16", "wr17", "wr18", "wr19", "wr20", "wr21", "wr22", "wr23",      \
++  "wr24", "wr25", "wr26", "wr27", "wr28", "wr29", "wr30", "wr31"}
+ 
+ /* Register numbers */
+ 
+diff --git a/gcc/config/v850/v850.md b/gcc/config/v850/v850.md
+index d4528c37e65..17aec1d70f8 100644
+--- a/gcc/config/v850/v850.md
++++ b/gcc/config/v850/v850.md
+@@ -80,6 +80,8 @@
+    (LP_REGNUM       		31)         ; Return address register
+    (CC_REGNUM       		32)         ; Condition code pseudo register
+    (FCC_REGNUM      		33)         ; Floating Condition code pseudo register
++   (WR0_REGNUM			36)	    ; First FXU vector register
++   (WR31_REGNUM			67)	    ; Last FXU vector register
+   ]
+ )
+ 
+@@ -3258,3 +3260,4 @@
+   [(set_attr "length" "4")])
+ 
+ (include "sync.md")
++(include "fxu.md")
+diff --git a/gcc/config/v850/v850.opt b/gcc/config/v850/v850.opt
+index f28652c92fe..e78ca4b3830 100644
+--- a/gcc/config/v850/v850.opt
++++ b/gcc/config/v850/v850.opt
+@@ -133,6 +133,10 @@ mg4mh2
+ Target Mask(G4MH2)
+ Enable the RH850 G4MH2 instructions.
+ 
++mfxu
++Target Mask(FXU)
++Enable the RH850 FXU vector instructions.
++
+ mzda=
+ Target RejectNegative Joined UInteger
+ Set the max size of data eligible for the ZDA area.
+diff --git a/gcc/config/v850/v850.opt.urls b/gcc/config/v850/v850.opt.urls
+index 9357457888e..b0577cef736 100644
+--- a/gcc/config/v850/v850.opt.urls
++++ b/gcc/config/v850/v850.opt.urls
+@@ -74,6 +74,9 @@ UrlSuffix(gcc/V850-Options.html#index-mg4)
+ mg4mh2
+ UrlSuffix(gcc/V850-Options.html#index-mg4mh2)
+ 
++mfxu
++UrlSuffix(gcc/V850-Options.html#index-mfxu)
++
+ mzda=
+ UrlSuffix(gcc/V850-Options.html#index-mzda)
+ 
+diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
+index 2f86e57f680..c6433096964 100644
+--- a/gcc/doc/invoke.texi
++++ b/gcc/doc/invoke.texi
+@@ -1495,7 +1495,7 @@ See RS/6000 and PowerPC Options.
+ -mv850  -mv850e3v5  -m850e2v4  -mv850e2v3
+ -mv850e2  -mv850e1  -mv850es  -mv850e
+ -mdisable-callt  -mrelax  -mlong-jumps
+--msoft-float  -mhard-float  -mloop  -mg4  -mg4mh2
++-msoft-float  -mhard-float  -mloop  -mg4  -mg4mh2  -mfxu
+ -mrh850-abi  -mghs  -mgcc-abi
+ -m8byte-align  -mbig-switch  -mapp-regs  -msmall-sld
+ -mno-strict-align  -mjump-tables-in-data-section}
+@@ -34531,6 +34531,19 @@ defined if this option is used.  The G4MH2 core raises an exception on a
+ misaligned access, so this option also enforces strict alignment and
+ rejects @option{-mno-strict-align}.
+ 
++@opindex mfxu
++@item -mfxu
++Enables the FXU vector instructions of the RH850 G4MH2 core and passes
++@option{-mfxu} to the assembler.  It implies @option{-mg4mh2}.  The
++128-bit vector registers @code{wr0} to @code{wr31} hold the
++@code{vector_size (16)} types of @code{float} and 32-bit integers, which
++are 16-byte aligned.  The vector registers are preserved across calls.
++Vector arguments are passed in @code{wr0} to @code{wr31} and then on the
++stack, and vector return values in memory.  A function that keeps vector
++values on the stack aligns its frame to 16 bytes at run time.  The
++preprocessor constant @code{__V850_FXU__} is defined if this option is
++used.
++
+ @opindex mrh850-abi
+ @opindex mghs
+ @item -mrh850-abi
+diff --git a/gcc/doc/sourcebuild.texi b/gcc/doc/sourcebuild.texi
+index f3c737126f8..f09530fc3ee 100644
+--- a/gcc/doc/sourcebuild.texi
++++ b/gcc/doc/sourcebuild.texi
+@@ -2671,6 +2671,15 @@ Test system has support for the CORE-V BI extension.
+ 
+ @end table
+ 
++@subsubsection V850-specific attributes
++
++@table @code
++
++@item v850_fxu
++Test system compiles for the RH850 FXU vector unit (@option{-mfxu}).
++
++@end table
++
+ @subsubsection Other hardware attributes
+ 
+ @c Please keep this table sorted alphabetically.
+diff --git a/gcc/testsuite/gcc.dg/torture/pr37868.c b/gcc/testsuite/gcc.dg/torture/pr37868.c
+index 6e1d2f0dcdc..985afd097dc 100644
+--- a/gcc/testsuite/gcc.dg/torture/pr37868.c
++++ b/gcc/testsuite/gcc.dg/torture/pr37868.c
+@@ -1,7 +1,7 @@
+ /* { dg-do run } */
+ /* { dg-options "-fno-strict-aliasing" } */
+ /* { dg-skip-if "unaligned access" { arc*-*-* epiphany-*-* nds32*-*-* sparc*-*-* sh*-*-* tic6x-*-* } } */
+-/* { dg-skip-if "unaligned access" { v850*-*-* } { "-mg4mh2" } { "" } } */
++/* { dg-skip-if "unaligned access" { v850*-*-* } { "-mg4mh2" "-mfxu" } { "" } } */
+ 
+ extern void abort (void);
+ #if (__SIZEOF_INT__ <= 2)
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-e2v3.c b/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
+index 72e2b3e8da9..b31ccf9eb2f 100644
+--- a/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
++++ b/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -mv850e2v3" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" "-mfxu" } { "" } } */
+ 
+ int v;
+ 
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-lockfree.c b/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
+index 142ce40da58..a364cc1f9bf 100644
+--- a/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
++++ b/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
+@@ -1,6 +1,6 @@
+ /* { dg-do preprocess } */
+ /* { dg-options "-mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" "-mfxu" } { "" } } */
+ 
+ #if __GCC_ATOMIC_INT_LOCK_FREE != 2 || __GCC_ATOMIC_LONG_LOCK_FREE != 2 \
+     || __GCC_ATOMIC_POINTER_LOCK_FREE != 2
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c b/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
+index 7d6253c1b39..38f14c082e1 100644
+--- a/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
++++ b/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" "-mfxu" } { "" } } */
+ 
+ unsigned char c;
+ short s;
+diff --git a/gcc/testsuite/gcc.target/v850/clip-e3v5.c b/gcc/testsuite/gcc.target/v850/clip-e3v5.c
+index 5656bdd2730..3a20e1578c0 100644
+--- a/gcc/testsuite/gcc.target/v850/clip-e3v5.c
++++ b/gcc/testsuite/gcc.target/v850/clip-e3v5.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" "-mfxu" } { "" } } */
+ 
+ int sb (int x) { return x > 127 ? 127 : x < -128 ? -128 : x; }
+ unsigned ub (unsigned x) { return x > 255 ? 255 : x; }
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-alloca.c b/gcc/testsuite/gcc.target/v850/fxu-alloca.c
+new file mode 100644
+index 00000000000..bce76fafc4e
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-alloca.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++vf g;
++
++void
++f (int n)
++{
++  vf t[n];
++  t[0] = g;
++  t[n - 1] = t[0];
++  g = t[n / 2];
++}				/* { dg-message "sorry, unimplemented" } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-args-stack.c b/gcc/testsuite/gcc.target/v850/fxu-args-stack.c
+new file mode 100644
+index 00000000000..b628b38aa36
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-args-stack.c
+@@ -0,0 +1,21 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++vf g1, g2;
++
++#define A(n) vf a##n
++void
++f (A(0), A(1), A(2), A(3), A(4), A(5), A(6), A(7), A(8), A(9), A(10), A(11),
++   A(12), A(13), A(14), A(15), A(16), A(17), A(18), A(19), A(20), A(21),
++   A(22), A(23), A(24), A(25), A(26), A(27), A(28), A(29), A(30), A(31),
++   A(32), int k)
++{
++  g1 = a31;
++  g2 = a32;
++}
++
++/* { dg-final { scan-assembler {\tstv\.qw wr31, 0\[r[0-9]+\]} } } */
++/* { dg-final { scan-assembler {\tldv\.dw 3, 0\[r[0-9]+\], wr[0-9]+} } } */
++/* { dg-final { scan-assembler {\tldv\.dw 2, 0\[r[0-9]+\], wr[0-9]+} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-args.c b/gcc/testsuite/gcc.target/v850/fxu-args.c
+new file mode 100644
+index 00000000000..47468162ffd
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-args.c
+@@ -0,0 +1,34 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++vf g;
++int gi;
++
++void
++callee (vf a, int i, vf b)
++{
++  gi = i;
++  g = b;
++}
++
++vf
++ret (vf a, vf b)
++{
++  return b;
++}
++
++extern void ext (vf, int, vf);
++
++void
++caller (void)
++{
++  ext (g, 5, g);
++}
++
++/* { dg-final { scan-assembler {\tst\.w r6,0\[r[0-9]+\]} } } */
++/* { dg-final { scan-assembler {\tstv\.qw wr1, 0\[r[0-9]+\]} } } */
++/* { dg-final { scan-assembler {\tmov r6,r10\n(.*\n)*\tstv\.qw wr1, 0\[r6\]} } } */
++/* { dg-final { scan-assembler {\tmov 5,r6} } } */
++/* { dg-final { scan-assembler {\tmovv\.w4 wr[0-9]+, wr0|\tmovv\.w4 wr[0-9]+, wr1} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-asm.c b/gcc/testsuite/gcc.target/v850/fxu-asm.c
+new file mode 100644
+index 00000000000..ab2ef6c737a
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-asm.c
+@@ -0,0 +1,8 @@
++/* { dg-do assemble } */
++/* { dg-options "-mfxu" } */
++
++void
++f (void)
++{
++  __asm__ volatile ("addf.s4 wr1, wr2, wr3\n\tldv.qw 16[r6], wr4\n\tstsr fxsr, r10");
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cpu.c b/gcc/testsuite/gcc.target/v850/fxu-cpu.c
+new file mode 100644
+index 00000000000..1bc1770eace
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cpu.c
+@@ -0,0 +1,3 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e2v3 -mfxu" } */
++/* { dg-error "requires" "" { target *-*-* } 0 } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-isr.c b/gcc/testsuite/gcc.target/v850/fxu-isr.c
+new file mode 100644
+index 00000000000..6be3da96217
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-isr.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++vf g, h;
++
++void __attribute__ ((interrupt))
++isr (void)
++{
++  vf t = g;
++  __asm__ ("" : "+w" (t));
++  h = t;
++}				/* { dg-message "sorry, unimplemented" } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-layout.c b/gcc/testsuite/gcc.target/v850/fxu-layout.c
+new file mode 100644
+index 00000000000..a6efa90d293
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-layout.c
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++struct s { int i; vf v; };
++struct d { char c; double x; long long l; };
++
++_Static_assert (__alignof__ (vf) == 16, "vector alignment");
++_Static_assert (__builtin_offsetof (struct s, v) == 16, "vector field");
++_Static_assert (__alignof__ (double) == 4, "double alignment");
++_Static_assert (__alignof__ (long long) == 4, "long long alignment");
++_Static_assert (__builtin_offsetof (struct d, x) == 4, "double field");
++_Static_assert (sizeof (struct d) == 20, "struct size");
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-move.c b/gcc/testsuite/gcc.target/v850/fxu-move.c
+new file mode 100644
+index 00000000000..f3cf9e9e3bd
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-move.c
+@@ -0,0 +1,29 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++typedef int vi __attribute__ ((vector_size (16)));
++
++vf g, h;
++vi gi;
++typedef vf vf4 __attribute__ ((aligned (4)));
++struct __attribute__ ((packed)) pb { char c; vf v; } pb;
++
++void copy (void) { g = h; }
++void icopy (vi *p) { gi = *p; }
++void cst (void) { g = (vf) { 1.0f, 2.0f, 3.0f, 4.0f }; }
++vf ld_w (vf4 *p) { return *p; }
++void st_w (vf4 *p, vf v) { *p = v; }
++void reg (vf a, vf b) { h = b; g = a; }
++extern void e2 (vf, vf);
++void swap (vf a, vf b) { e2 (b, a); }
++vf ld_byte (void) { return pb.v; }
++
++/* { dg-final { scan-assembler {\tmov hilo\(_h\),(r[0-9]+)\n(.*\n)*\tldv\.qw 0\[\1\], wr[0-9]+} } } */
++/* { dg-final { scan-assembler {\tstv\.qw wr[0-9]+, 0\[r[0-9]+\]} } } */
++/* { dg-final { scan-assembler {\.align 4\n\.LC0:} } } */
++/* { dg-final { scan-assembler {\tldv\.dw 3, 0\[r[0-9]+\], wr[0-9]+\n\tldv\.dw 2, 8\[r[0-9]+\], wr[0-9]+} } } */
++/* { dg-final { scan-assembler {\tstv\.dw 0, wr[0-9]+, 0\[r[0-9]+\]\n\tstv\.dw 1, wr[0-9]+, 8\[r[0-9]+\]} } } */
++/* { dg-final { scan-assembler {\tmovv\.w4 wr[0-9]+, wr[0-9]+} } } */
++/* { dg-final { scan-assembler-not {ldv\.qw [^0-9]} } } */
++/* { dg-final { scan-assembler-not {stv\.qw wr[0-9]+, [^0-9-]} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-noalign.c b/gcc/testsuite/gcc.target/v850/fxu-noalign.c
+new file mode 100644
+index 00000000000..1b978307c0a
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-noalign.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++extern int g (int);
++
++int
++f (int x)
++{
++  return g (x) + 1;
++}
++
++/* { dg-final { scan-assembler-not {and r12,sp} } } */
++/* { dg-final { scan-assembler-not {wr[0-9]} } } */
++/* { dg-final { scan-assembler-not {mov sp,r29} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-none.c b/gcc/testsuite/gcc.target/v850/fxu-none.c
+new file mode 100644
+index 00000000000..5289b39eeb0
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-none.c
+@@ -0,0 +1,7 @@
++/* { dg-do preprocess } */
++/* { dg-options "-mg4mh2" } */
++/* { dg-skip-if "tests the code without -mfxu" { *-*-* } { "-mfxu" } { "" } } */
++
++#ifdef __V850_FXU__
++#error __V850_FXU__ without -mfxu
++#endif
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-opt.c b/gcc/testsuite/gcc.target/v850/fxu-opt.c
+new file mode 100644
+index 00000000000..dfb1d38a924
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-opt.c
+@@ -0,0 +1,6 @@
++/* { dg-do preprocess } */
++/* { dg-options "-mfxu" } */
++
++#if !defined __V850_FXU__ || !defined __V850_G4MH2__ || !defined __V850_G4__ || !defined __v850e3v5__
++#error -mfxu does not imply -mg4mh2, -mg4 and v850e3v5
++#endif
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-regalloc.c b/gcc/testsuite/gcc.target/v850/fxu-regalloc.c
+new file mode 100644
+index 00000000000..746f933f3e7
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-regalloc.c
+@@ -0,0 +1,20 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++vf a[8], b[8];
++
++void
++f (void)
++{
++  vf t0 = a[0], t1 = a[1], t2 = a[2], t3 = a[3];
++  vf t4 = a[4], t5 = a[5], t6 = a[6], t7 = a[7];
++  __asm__ volatile ("" : "+w" (t0), "+w" (t1), "+w" (t2), "+w" (t3),
++			 "+w" (t4), "+w" (t5), "+w" (t6), "+w" (t7));
++  b[0] = t7; b[1] = t6; b[2] = t5; b[3] = t4;
++  b[4] = t3; b[5] = t2; b[6] = t1; b[7] = t0;
++}
++
++/* { dg-final { scan-assembler {\twr7\M|wr7, } } } */
++/* { dg-final { scan-assembler-not {wr8\M} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-save.c b/gcc/testsuite/gcc.target/v850/fxu-save.c
+new file mode 100644
+index 00000000000..bb93f463288
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-save.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++void
++f (void)
++{
++  __asm__ volatile ("" ::: "wr5", "wr20");
++}
++
++/* { dg-final { scan-assembler {\tmov sp,r29\n} } } */
++/* { dg-final { scan-assembler {\tmov -16,r12\n} } } */
++/* { dg-final { scan-assembler {\tand r12,sp\n} } } */
++/* { dg-final { scan-assembler {\tstv\.qw wr5, 0\[sp\]\n\tstv\.qw wr20, 16\[sp\]} } } */
++/* { dg-final { scan-assembler {\tldv\.qw 0\[sp\], wr5\n\tldv\.qw 16\[sp\], wr20} } } */
++/* { dg-final { scan-assembler {\tmov r29,sp\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-varargs-call.c b/gcc/testsuite/gcc.target/v850/fxu-varargs-call.c
+new file mode 100644
+index 00000000000..dd5947f9c2d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-varargs-call.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++vf g;
++extern void vext (int, ...);
++
++void
++call (void)
++{
++  vext (1, g);
++}
++
++/* { dg-final { scan-assembler-not {wr[0-9]} } } */
++/* { dg-final { scan-assembler {\tst\.w r[0-9]+,(4|8|12|16)\[sp\]} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-varargs.c b/gcc/testsuite/gcc.target/v850/fxu-varargs.c
+new file mode 100644
+index 00000000000..20af05cbbf3
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-varargs.c
+@@ -0,0 +1,20 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++#include <stdarg.h>
++
++typedef float vf __attribute__ ((vector_size (16)));
++
++vf
++get (int n, ...)
++{
++  va_list ap;
++  vf r;
++  va_start (ap, n);
++  r = va_arg (ap, vf);
++  va_end (ap);
++  return r;
++}
++
++/* { dg-final { scan-assembler {\tldv\.dw 3, [0-9]+\[r29\], wr[0-9]+\n\tldv\.dw 2, [0-9]+\[r29\], wr[0-9]+} } } */
++/* { dg-final { scan-assembler {\tstv\.qw wr[0-9]+, 0\[r6\]} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/g4-none.c b/gcc/testsuite/gcc.target/v850/g4-none.c
+index b556aca2345..e16c248e857 100644
+--- a/gcc/testsuite/gcc.target/v850/g4-none.c
++++ b/gcc/testsuite/gcc.target/v850/g4-none.c
+@@ -1,6 +1,6 @@
+ /* { dg-do preprocess } */
+ /* { dg-options "-mv850e3v5" } */
+-/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" "-mg4mh2" "-mfxu" } { "" } } */
+ 
+ #ifdef __V850_G4__
+ #error __V850_G4__ without -mg4
+diff --git a/gcc/testsuite/gcc.target/v850/g4mh2-none.c b/gcc/testsuite/gcc.target/v850/g4mh2-none.c
+index 5e7a379c1e2..9969b73d987 100644
+--- a/gcc/testsuite/gcc.target/v850/g4mh2-none.c
++++ b/gcc/testsuite/gcc.target/v850/g4mh2-none.c
+@@ -1,6 +1,6 @@
+ /* { dg-do preprocess } */
+ /* { dg-options "-mg4" } */
+-/* { dg-skip-if "tests the code without -mg4mh2" { *-*-* } { "-mg4mh2" } { "" } } */
++/* { dg-skip-if "tests the code without -mg4mh2" { *-*-* } { "-mg4mh2" "-mfxu" } { "" } } */
+ 
+ #ifdef __V850_G4MH2__
+ #error __V850_G4MH2__ without -mg4mh2
+diff --git a/gcc/testsuite/gcc.target/v850/isr-frame.c b/gcc/testsuite/gcc.target/v850/isr-frame.c
+index 67ac54b86bb..c5c2c1353ae 100644
+--- a/gcc/testsuite/gcc.target/v850/isr-frame.c
++++ b/gcc/testsuite/gcc.target/v850/isr-frame.c
+@@ -1,6 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-O2" } */
+-/* { dg-skip-if "tests the base targets" { *-*-* } { "-mg4" "-mg4mh2" "-mv850e3v5" } { "" } } */
++/* { dg-skip-if "tests the base targets" { *-*-* } { "-mfxu" "-mg4" "-mg4mh2" "-mv850e3v5" } { "" } } */
+ 
+ volatile int v;
+ 
+diff --git a/gcc/testsuite/lib/target-supports.exp b/gcc/testsuite/lib/target-supports.exp
+index 72ad67bc996..84773f2fe8c 100644
+--- a/gcc/testsuite/lib/target-supports.exp
++++ b/gcc/testsuite/lib/target-supports.exp
+@@ -13527,6 +13527,15 @@ proc check_effective_target_s390_vx { } {
+     } "-march=z13 -mzarch" ]
+ }
+ 
++
++proc check_effective_target_v850_fxu { } {
++    if { ![istarget v850*-*-*] } {
++	return 0
++    }
++    return [check_no_compiler_messages v850_fxu assembly {
++    }]
++}
++
+ # Same as above but for the z14 vector enhancement facility. Test
+ # is performed with the vector nand instruction.
+ proc check_effective_target_s390_vxe { } {
+-- 
+Parthiban N
+

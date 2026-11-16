@@ -1,0 +1,70 @@
+From 06160747948545fe8856c0e85b6e6554bf1bdcb8 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:28:11 +0530
+Subject: [PATCH] v850: Align trampolines to a word
+
+The trampoline is written with word stores, so align it to a word even
+when the frame places it after a char array.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.h                        |  2 ++
+ .../gcc.target/v850/trampoline-align.c        | 33 +++++++++++++++++++
+ 2 files changed, 35 insertions(+)
+ create mode 100644 gcc/testsuite/gcc.target/v850/trampoline-align.c
+
+diff --git a/gcc/config/v850/v850.h b/gcc/config/v850/v850.h
+index 2cbfb639bde..86bee21b6a8 100644
+--- a/gcc/config/v850/v850.h
++++ b/gcc/config/v850/v850.h
+@@ -540,6 +540,8 @@ struct cum_arg { int nbytes; };
+ 
+ #define TRAMPOLINE_SIZE 24
+ 
++#define TRAMPOLINE_ALIGNMENT 32
++
+ /* Addressing modes, and classification of registers for them.  */
+ 
+ 
+diff --git a/gcc/testsuite/gcc.target/v850/trampoline-align.c b/gcc/testsuite/gcc.target/v850/trampoline-align.c
+new file mode 100644
+index 00000000000..09305afc1e4
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/trampoline-align.c
+@@ -0,0 +1,33 @@
++/* { dg-do run } */
++/* { dg-require-effective-target trampolines } */
++/* { dg-options "-O2" } */
++
++
++extern void abort (void);
++
++__attribute__ ((noipa)) int
++call (int (*g) (int), int x)
++{
++  return g (x);
++}
++
++__attribute__ ((noipa)) void
++use (volatile char *p)
++{
++  p[0] = 1;
++}
++
++int
++main (void)
++{
++  char pad[2];
++  int k = 5;
++  int nested (int x) { return x + k + pad[0]; }
++
++  use (pad);
++  if ((unsigned long) nested & 3)
++    abort ();
++  if (call (nested, 1) != 7)
++    abort ();
++  return 0;
++}
+-- 
+Parthiban N
+

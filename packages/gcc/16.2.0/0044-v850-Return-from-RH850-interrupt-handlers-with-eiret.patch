@@ -1,0 +1,783 @@
+From fcf5578f91b6d8226a6f793c90f2dca1f2ea1d8a Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 23:31:55 +0530
+Subject: [PATCH] v850: Return from RH850 interrupt handlers with eiret
+
+RETI does not exist on RH850. Return with EIRET, or FERET for FE level
+handlers, in libgcc and in generated handlers, save the interrupt state
+they need and describe their frames in the call frame information.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850-protos.h                 |   5 +
+ gcc/config/v850/v850.cc                       | 274 ++++++++++++++++--
+ gcc/config/v850/v850.md                       |  51 +++-
+ gcc/doc/extend.texi                           |  15 +
+ gcc/testsuite/gcc.target/v850/isr-arg-base.c  |   5 +
+ gcc/testsuite/gcc.target/v850/isr-arg-err.c   |   6 +
+ gcc/testsuite/gcc.target/v850/isr-base.c      |  10 +
+ gcc/testsuite/gcc.target/v850/isr-cfi.c       |  10 +
+ gcc/testsuite/gcc.target/v850/isr-ei-inline.c |   9 +
+ gcc/testsuite/gcc.target/v850/isr-ei.c        |  12 +
+ gcc/testsuite/gcc.target/v850/isr-fe-callt.c  |  11 +
+ gcc/testsuite/gcc.target/v850/isr-fe.c        |  11 +
+ gcc/testsuite/gcc.target/v850/isr-fpu.c       |  16 +
+ gcc/testsuite/gcc.target/v850/isr-fxu.c       |  11 +
+ .../gcc.target/v850/isr-soft-float.c          |  10 +
+ libgcc/config/v850/lib1funcs.S                |   8 +
+ 16 files changed, 438 insertions(+), 26 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-arg-base.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-arg-err.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-base.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-cfi.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-ei-inline.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-ei.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-fe-callt.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-fe.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-fpu.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-fxu.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-soft-float.c
+
+diff --git a/gcc/config/v850/v850-protos.h b/gcc/config/v850/v850-protos.h
+index e0ed69460be..ac4cc6497d5 100644
+--- a/gcc/config/v850/v850-protos.h
++++ b/gcc/config/v850/v850-protos.h
+@@ -62,6 +62,11 @@ extern void v850_atomic_fence (rtx, bool);
+ 
+ #ifdef TREE_CODE
+ extern int    v850_interrupt_function_p     (tree);
++extern bool v850_interrupt_fe_p (tree);
++extern int v850_interrupt_state (void);
++extern int v850_interrupt_state_size (int);
++extern const char *v850_interrupt_return_insn (void);
++extern const char *v850_output_interrupt_state (int, bool);
+ extern void   v850_output_aligned_bss       (FILE *, tree, const char *, unsigned HOST_WIDE_INT, int);
+ extern void   v850_output_common            (FILE *, tree, const char *, int, int);
+ extern void   v850_output_local             (FILE *, tree, const char *, int, int);
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index b082c263d56..24155c51f93 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -49,6 +49,7 @@
+ #include "langhooks.h"
+ #include "cfgrtl.h"
+ #include "builtins.h"
++#include "rtl-iter.h"
+ #include "fold-const.h"
+ #include "gimple.h"
+ #include "gimple-iterator.h"
+@@ -1512,6 +1513,7 @@ compute_register_save_size (long * p_reg_saved)
+       size += INTERRUPT_FIXED_SAVE_SIZE - 4 * INTERRUPT_FIXED_NUM;
+       if (call_p)
+ 	size += INTERRUPT_ALL_SAVE_SIZE - 4 * 25;
++      size += v850_interrupt_state_size (v850_interrupt_state ());
+     }
+   else
+     {
+@@ -1688,6 +1690,60 @@ increment_stack (signed int amount, bool in_prologue)
+   return insn;
+ }
+ 
++/* Describe interrupt prologue INSN: sp moved by DELTA, then the registers
++   in REGS saved at the offsets in OFFS from the new sp.  */
++
++static void
++v850_interrupt_frame_note (rtx_insn *insn, HOST_WIDE_INT delta, int n,
++			   const int *regs, const int *offs)
++{
++  RTX_FRAME_RELATED_P (insn) = 1;
++  for (int i = 0; i < n; i++)
++    add_reg_note (insn, REG_CFA_OFFSET,
++		  gen_rtx_SET (gen_frame_mem (SImode,
++					      plus_constant (Pmode,
++							     stack_pointer_rtx,
++							     offs[i])),
++			       gen_rtx_REG (SImode, regs[i])));
++  add_reg_note (insn, REG_CFA_ADJUST_CFA,
++		gen_rtx_SET (stack_pointer_rtx,
++			     plus_constant (Pmode, stack_pointer_rtx, delta)));
++}
++
++/* Registers saved by save_all_interrupt and their offsets; gp and r11 are
++   left to the copies saved by save_interrupt.  */
++
++static void
++v850_interrupt_save_all_layout (int *regs, int *offs, int *n)
++{
++  int i, k = 0;
++
++  if (! TARGET_DISABLE_CALLT && TARGET_V850E_UP)
++    {
++      static const int lo[] = { 2, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17,
++				18, 19 };
++      static const int lo_off[] = { 100, 96, 92, 88, 84, 80, 72, 68, 64, 60,
++				    56, 52, 48, 44 };
++      for (i = 0; i < 14; i++, k++)
++	regs[k] = lo[i], offs[k] = lo_off[i];
++      for (i = 20; i <= 29; i++, k++)
++	regs[k] = i, offs[k] = 40 - 4 * (i - 20);
++      regs[k] = LINK_POINTER_REGNUM, offs[k++] = 0;
++    }
++  else
++    {
++      static const int lo[] = { 31, 2, 6, 7, 8, 9 };
++      static const int lo_off[] = { 100, 96, 88, 84, 80, 76 };
++      for (i = 0; i < 6; i++, k++)
++	regs[k] = lo[i], offs[k] = lo_off[i];
++      for (i = 12; i <= 29; i++, k++)
++	regs[k] = i, offs[k] = 68 - 4 * (i - 12);
++      for (i = 0; i < k; i++)
++	offs[i] += INTERRUPT_ALL_SAVE_SIZE - 104;
++    }
++  *n = k;
++}
++
+ /* Mark epilogue INSN as defining the CFA as REG + OFFSET.  */
+ 
+ static void
+@@ -1957,12 +2013,25 @@ expand_prologue (void)
+   /* Save/setup global registers for interrupt functions right now.  */
+   if (interrupt_handler)
+     {
++      static const int isr_regs[] = { EP_REGNUM, 4, 1, 10, 11 };
++      static const int isr_offs[] = { 0, 4, 8, 12, 16 };
++      rtx_insn *insn;
++
+       if (! TARGET_DISABLE_CALLT && (TARGET_V850E_UP))
+-	emit_insn (gen_callt_save_interrupt ());
++	insn = emit_insn (gen_callt_save_interrupt ());
+       else
+-	emit_insn (gen_save_interrupt ());
++	insn = emit_insn (gen_save_interrupt ());
++      v850_interrupt_frame_note (insn, - INTERRUPT_FIXED_SAVE_SIZE, 5,
++				 isr_regs, isr_offs);
+ 
+       actual_fsize -= INTERRUPT_FIXED_SAVE_SIZE;
++      if (v850_interrupt_state ())
++	{
++	  int state = v850_interrupt_state ();
++	  increment_stack (- v850_interrupt_state_size (state), true);
++	  emit_insn (gen_save_interrupt_state (GEN_INT (state)));
++	  actual_fsize -= v850_interrupt_state_size (state);
++	}
+ 
+       if (((1L << LINK_POINTER_REGNUM) & reg_saved) != 0)
+ 	actual_fsize -= INTERRUPT_ALL_SAVE_SIZE;
+@@ -2062,10 +2131,16 @@ expand_prologue (void)
+       /* Special case interrupt functions that save all registers for a call.  */
+       if (interrupt_handler && ((1L << LINK_POINTER_REGNUM) & reg_saved) != 0)
+ 	{
++	  int regs[32], offs[32], n;
++	  rtx_insn *insn;
++
+ 	  if (! TARGET_DISABLE_CALLT && (TARGET_V850E_UP))
+-	    emit_insn (gen_callt_save_all_interrupt ());
++	    insn = emit_insn (gen_callt_save_all_interrupt ());
+ 	  else
+-	    emit_insn (gen_save_all_interrupt ());
++	    insn = emit_insn (gen_save_all_interrupt ());
++	  v850_interrupt_save_all_layout (regs, offs, &n);
++	  v850_interrupt_frame_note (insn, - INTERRUPT_ALL_SAVE_SIZE, n, regs,
++				     offs);
+ 	}
+       else
+ 	{
+@@ -2146,6 +2221,7 @@ expand_epilogue (void)
+   if (interrupt_handler)
+     {
+       actual_fsize -= INTERRUPT_FIXED_SAVE_SIZE;
++      actual_fsize -= v850_interrupt_state_size (v850_interrupt_state ());
+       if (((1L << LINK_POINTER_REGNUM) & reg_saved) != 0)
+ 	actual_fsize -= INTERRUPT_ALL_SAVE_SIZE;
+     }
+@@ -2154,8 +2230,7 @@ expand_epilogue (void)
+   if (frame_pointer_needed)
+     {
+       insn = emit_move_insn (stack_pointer_rtx, hard_frame_pointer_rtx);
+-      if (! interrupt_handler)
+-	v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
++      v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
+     }
+ 
+   /* Identify all of the saved registers.  */
+@@ -2238,18 +2313,24 @@ expand_epilogue (void)
+ 	{
+ 	  insn = increment_stack (actual_fsize - init_stack_free, false);
+ 	  cfa -= actual_fsize - init_stack_free;
+-	  if (! interrupt_handler)
+-	    v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
++	  v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
+ 	}
+ 
+       /* Special case interrupt functions that save all registers
+ 	 for a call.  */
+       if (interrupt_handler && ((1L << LINK_POINTER_REGNUM) & reg_saved) != 0)
+ 	{
++	  int regs[32], offs[32], n;
++
+ 	  if (! TARGET_DISABLE_CALLT)
+-	    emit_insn (gen_callt_restore_all_interrupt ());
++	    insn = emit_insn (gen_callt_restore_all_interrupt ());
+ 	  else
+-	    emit_insn (gen_restore_all_interrupt ());
++	    insn = emit_insn (gen_restore_all_interrupt ());
++	  cfa -= INTERRUPT_ALL_SAVE_SIZE;
++	  v850_interrupt_save_all_layout (regs, offs, &n);
++	  for (i = 0; i < (unsigned int) n; i++)
++	    v850_epilogue_restore (insn, gen_rtx_REG (SImode, regs[i]));
++	  v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
+ 	}
+       else
+ 	{
+@@ -2264,8 +2345,7 @@ expand_epilogue (void)
+ 							    stack_pointer_rtx,
+ 							    offset));
+ 	      insn = emit_move_insn (restore_regs[--num_restore], mem);
+-	      if (! interrupt_handler)
+-		v850_epilogue_restore (insn, restore_regs[num_restore]);
++	      v850_epilogue_restore (insn, restore_regs[num_restore]);
+ 	      offset -= 4;
+ 	    }
+ 
+@@ -2275,8 +2355,7 @@ expand_epilogue (void)
+ 							    stack_pointer_rtx,
+ 							    offset));
+ 	      insn = emit_move_insn (restore_regs[i], mem);
+-	      if (! interrupt_handler)
+-		v850_epilogue_restore (insn, restore_regs[i]);
++	      v850_epilogue_restore (insn, restore_regs[i]);
+ 
+ 	      emit_use (restore_regs[i]);
+ 	      offset -= 4;
+@@ -2286,15 +2365,26 @@ expand_epilogue (void)
+ 	  insn = increment_stack (init_stack_free
+ 				  + crtl->args.pretend_args_size, false);
+ 	  cfa -= init_stack_free + crtl->args.pretend_args_size;
+-	  if (! interrupt_handler)
+-	    v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
++	  v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
+ 	}
+ 
+       /* And return or use reti for interrupt handlers.  */
+       if (interrupt_handler)
+         {
+-          if (! TARGET_DISABLE_CALLT && (TARGET_V850E_UP))
+-            emit_insn (gen_callt_return_interrupt ());
++	  int state = v850_interrupt_state ();
++	  if (state)
++	    {
++	      emit_insn (gen_restore_interrupt_state (GEN_INT (state)));
++	      insn = increment_stack (v850_interrupt_state_size (state), false);
++	      cfa -= v850_interrupt_state_size (state);
++	      v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
++	    }
++	  if (! TARGET_DISABLE_CALLT && (TARGET_V850E_UP)
++	      && TARGET_V850E3V5_UP
++	      && v850_interrupt_fe_p (current_function_decl))
++	    emit_insn (gen_callt_return_interrupt_fe ());
++	  else if (! TARGET_DISABLE_CALLT && (TARGET_V850E_UP))
++	    emit_insn (gen_callt_return_interrupt ());
+           else
+             emit_jump_insn (gen_return_interrupt ());
+ 	 }
+@@ -2348,8 +2438,7 @@ v850_set_data_area (tree decl, v850_data_area data_area)
+ /* Handle an "interrupt" attribute; arguments as in
+    struct attribute_spec.handler.  */
+ static tree
+-v850_handle_interrupt_attribute (tree *node, tree name,
+-                                 tree args ATTRIBUTE_UNUSED,
++v850_handle_interrupt_attribute (tree *node, tree name, tree args,
+                                  int flags ATTRIBUTE_UNUSED,
+                                  bool * no_add_attrs)
+ {
+@@ -2358,6 +2447,27 @@ v850_handle_interrupt_attribute (tree *node, tree name,
+       warning (OPT_Wattributes, "%qE attribute only applies to functions",
+ 	       name);
+       *no_add_attrs = true;
++      return NULL_TREE;
++    }
++
++  if (args)
++    {
++      tree arg = TREE_VALUE (args);
++
++      if (! TARGET_V850E3V5_UP)
++	{
++	  error ("the argument of the %qE attribute needs %<-mv850e3v5%> "
++		 "or later", name);
++	  *no_add_attrs = true;
++	}
++      else if (TREE_CODE (arg) != STRING_CST
++	       || (strcmp (TREE_STRING_POINTER (arg), "EI") != 0
++		   && strcmp (TREE_STRING_POINTER (arg), "FE") != 0))
++	{
++	  error ("argument of the %qE attribute is not %qs or %qs", name,
++		 "EI", "FE");
++	  *no_add_attrs = true;
++	}
+     }
+ 
+   return NULL_TREE;
+@@ -2459,6 +2569,126 @@ v850_interrupt_function_p (tree func)
+ }
+ 
+ 
++/* Return true if FUNC is an FE level interrupt function.  */
++
++bool
++v850_interrupt_fe_p (tree func)
++{
++  tree a = lookup_attribute ("interrupt_handler", DECL_ATTRIBUTES (func));
++
++  if (a == NULL_TREE)
++    a = lookup_attribute ("interrupt", DECL_ATTRIBUTES (func));
++  return (a != NULL_TREE && TREE_VALUE (a)
++	  && strcmp (TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (a))),
++		     "FE") == 0);
++}
++
++/* Return true if the current function uses the FPU.  */
++
++static bool
++v850_function_uses_fpu_p (void)
++{
++  subrtx_iterator::array_type array;
++  bool ret = false;
++
++  push_topmost_sequence ();
++  for (rtx_insn *insn = get_insns (); insn && ! ret; insn = NEXT_INSN (insn))
++    if (NONDEBUG_INSN_P (insn))
++      FOR_EACH_SUBRTX (iter, array, PATTERN (insn), ALL)
++	if (FLOAT_MODE_P (GET_MODE (*iter)))
++	  {
++	    ret = true;
++	    break;
++	  }
++  pop_topmost_sequence ();
++  return ret;
++}
++
++/* RH850 interrupt state to save: 1 EIPC/EIPSW, 2 FPSR/FPEPC, 4 FXSR.  */
++
++int
++v850_interrupt_state (void)
++{
++  int state = 0;
++  bool call_p = df_regs_ever_live_p (LINK_POINTER_REGNUM);
++
++  if (! TARGET_V850E3V5_UP
++      || ! v850_interrupt_function_p (current_function_decl))
++    return 0;
++  if (! v850_interrupt_fe_p (current_function_decl))
++    state |= 1;
++  if (TARGET_USE_FPU && (call_p || v850_function_uses_fpu_p ()))
++    state |= 2;
++  if (TARGET_FXU && call_p)
++    state |= 4;
++  return state;
++}
++
++/* Return the instruction that ends the current interrupt function.  */
++
++const char *
++v850_interrupt_return_insn (void)
++{
++  if (! TARGET_V850E3V5_UP)
++    return "reti";
++  return v850_interrupt_fe_p (current_function_decl) ? "feret" : "eiret";
++}
++
++/* Output the save (SAVE_P) or the restore of the interrupt STATE block.  */
++
++const char *
++v850_output_interrupt_state (int state, bool save_p)
++{
++  static const char *const name[] = { "eipc", "eipsw", "fpsr", "fpepc",
++				      "fxsr" };
++  int reg[5], n = 0, i;
++  char buf[64];
++
++  if (state & 1)
++    {
++      reg[n++] = 0;
++      reg[n++] = 1;
++    }
++  if (state & 2)
++    {
++      reg[n++] = 2;
++      reg[n++] = 3;
++    }
++  if (state & 4)
++    reg[n++] = 4;
++  if (save_p)
++    {
++      for (i = 0; i < n; i++)
++	{
++	  sprintf (buf, "stsr %s, r10", name[reg[i]]);
++	  output_asm_insn (buf, NULL);
++	  sprintf (buf, "st.w r10, %d[sp]", 4 * i);
++	  output_asm_insn (buf, NULL);
++	}
++      return "";
++    }
++  if (state & 2)
++    output_asm_insn ("synce", NULL);
++  if (state & 1)
++    output_asm_insn ("di", NULL);
++  for (i = n - 1; i >= 0; i--)
++    {
++      sprintf (buf, "ld.w %d[sp], r10", 4 * i);
++      output_asm_insn (buf, NULL);
++      sprintf (buf, "ldsr r10, %s", name[reg[i]]);
++      output_asm_insn (buf, NULL);
++    }
++  return "";
++}
++
++/* Return the size of the interrupt state block for STATE.  */
++
++int
++v850_interrupt_state_size (int state)
++{
++  return ((state & 1) ? 8 : 0) + ((state & 2) ? 8 : 0) + ((state & 4) ? 4 : 0);
++}
++
+ static void
+ v850_encode_data_area (tree decl, rtx symbol)
+ {
+@@ -3604,9 +3834,9 @@ TARGET_GNU_ATTRIBUTES (v850_attribute_table,
+ {
+   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,
+        affects_type_identity, handler, exclude } */
+-  { "interrupt_handler", 0, 0, true,  false, false, false,
++  { "interrupt_handler", 0, 1, true,  false, false, false,
+     v850_handle_interrupt_attribute, NULL },
+-  { "interrupt",         0, 0, true,  false, false, false,
++  { "interrupt",	 0, 1, true,  false, false, false,
+     v850_handle_interrupt_attribute, NULL },
+   { "sda",               0, 0, true,  false, false, false,
+     v850_handle_data_area_attribute, NULL },
+diff --git a/gcc/config/v850/v850.md b/gcc/config/v850/v850.md
+index 17aec1d70f8..c899dcd9aa7 100644
+--- a/gcc/config/v850/v850.md
++++ b/gcc/config/v850/v850.md
+@@ -82,6 +82,9 @@
+    (FCC_REGNUM      		33)         ; Floating Condition code pseudo register
+    (WR0_REGNUM			36)	    ; First FXU vector register
+    (WR31_REGNUM			67)	    ; Last FXU vector register
++   (UNSPECV_SAVE_ISTATE		4)
++   (UNSPECV_RESTORE_ISTATE	5)
++   (UNSPECV_CALLT_RET_FE		6)
+   ]
+ )
+ 
+@@ -3036,7 +3039,8 @@
+    (clobber (reg:CC CC_REGNUM))]
+   ""
+ {
+-  if (TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS)
++  if (TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS
++      && ! v850_interrupt_fe_p (current_function_decl))
+     return "jr __return_interrupt";
+   else 
+     {
+@@ -3046,16 +3050,55 @@
+       output_asm_insn ("ld.w 12[sp], r10", operands);
+       output_asm_insn ("ld.w 16[sp], r11", operands);
+       output_asm_insn ("addi 20, sp, sp",   operands);
+-      output_asm_insn ("reti",            operands);
+-      return "";
++      return v850_interrupt_return_insn ();
+     }
+ }
+   [(set (attr "length")
+ 	(if_then_else (match_test
+-		       "TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS")
++		       "TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS
++			&& ! v850_interrupt_fe_p (current_function_decl)")
+ 		      (const_int 4)
+ 		      (const_int 28)))])
+ 
++(define_insn "callt_return_interrupt_fe"
++  [(unspec_volatile [(const_int 0)] UNSPECV_CALLT_RET_FE)
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_V850E3V5_UP && !TARGET_DISABLE_CALLT"
++{
++  output_asm_insn ("ld.w 24[sp], r1", operands);
++  output_asm_insn ("ldsr r1, ctpsw", operands);
++  output_asm_insn ("ld.w 20[sp], r1", operands);
++  output_asm_insn ("ldsr r1, ctpc", operands);
++  output_asm_insn ("ld.w 16[sp], r11", operands);
++  output_asm_insn ("ld.w 12[sp], r10", operands);
++  output_asm_insn ("ld.w 8[sp], r1", operands);
++  output_asm_insn ("ld.w 4[sp], gp", operands);
++  output_asm_insn ("ld.w 0[sp], ep", operands);
++  output_asm_insn ("addi 28, sp, sp", operands);
++  return "feret";
++}
++  [(set_attr "length" "44")])
++
++(define_insn "save_interrupt_state"
++  [(unspec_volatile [(match_operand:SI 0 "const_int_operand" "n")]
++		    UNSPECV_SAVE_ISTATE)
++   (clobber (reg:SI 10))]
++  "TARGET_V850E3V5_UP"
++{
++  return v850_output_interrupt_state (INTVAL (operands[0]), true);
++}
++  [(set_attr "length" "40")])
++
++(define_insn "restore_interrupt_state"
++  [(unspec_volatile [(match_operand:SI 0 "const_int_operand" "n")]
++		    UNSPECV_RESTORE_ISTATE)
++   (clobber (reg:SI 10))]
++  "TARGET_V850E3V5_UP"
++{
++  return v850_output_interrupt_state (INTVAL (operands[0]), false);
++}
++  [(set_attr "length" "46")])
++
+ ;; Save all registers except for the registers saved in save_interrupt when
+ ;; an interrupt function makes a call.
+ ;; UNSPEC_VOLATILE is considered to use and clobber all hard registers and
+diff --git a/gcc/doc/extend.texi b/gcc/doc/extend.texi
+index 25ccb45b75b..48ad1dd204a 100644
+--- a/gcc/doc/extend.texi
++++ b/gcc/doc/extend.texi
+@@ -8725,6 +8725,8 @@ The V850 back end supports these attributes:
+ @atindex @code{interrupt_handler}, V850
+ @item interrupt
+ @itemx interrupt_handler
++@itemx interrupt ("@var{level}")
++@itemx interrupt_handler ("@var{level}")
+ This attribute applies to functions.
+ 
+ Use these attributes to indicate
+@@ -8732,6 +8734,19 @@ that the specified function is an interrupt handler.  The compiler generates
+ function entry and exit sequences suitable for use in an interrupt handler
+ when either attribute is present.
+ 
++For @option{-mv850e3v5} and later, the optional argument @var{level}
++selects the exception level of the handler.  With no argument or
++@code{"EI"}, the handler returns with @code{eiret}; with @code{"FE"}, it
++returns with @code{feret}.  The argument is not accepted for earlier
++targets, which return with @code{reti}.
++
++An EI level handler saves and restores EIPC and EIPSW, so that it can
++enable interrupts with @code{ei} and be nested; interrupts are disabled
++again before EIPC and EIPSW are restored.  An FE level handler does not
++save FEPC and FEPSW@.  A handler saves FPSR and FPEPC when it uses the
++FPU or calls a function, and with @option{-mfxu} it saves FXSR when it
++calls a function.
++
+ @atindex @code{sda}, V850
+ @item sda
+ This attribute applies to variables.
+diff --git a/gcc/testsuite/gcc.target/v850/isr-arg-base.c b/gcc/testsuite/gcc.target/v850/isr-arg-base.c
+new file mode 100644
+index 00000000000..d2e218146e1
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-arg-base.c
+@@ -0,0 +1,5 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e2v3" } */
++/* { dg-skip-if "tests the base targets" { *-*-* } { "-mfxu" "-mg4" "-mg4mh2" "-mv850e3v5" } { "" } } */
++
++void __attribute__ ((interrupt ("EI"))) a (void) { }	/* { dg-error "argument of the 'interrupt' attribute needs '-mv850e3v5' or later" } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-arg-err.c b/gcc/testsuite/gcc.target/v850/isr-arg-err.c
+new file mode 100644
+index 00000000000..37b26775515
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-arg-err.c
+@@ -0,0 +1,6 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5" } */
++
++void __attribute__ ((interrupt ("NMI"))) a (void) { }	/* { dg-error "argument of the 'interrupt' attribute is not 'EI' or 'FE'" } */
++void __attribute__ ((interrupt_handler (1))) b (void) { }	/* { dg-error "argument of the 'interrupt_handler' attribute is not 'EI' or 'FE'" } */
++void __attribute__ ((interrupt ("EI", "FE"))) c (void) { }	/* { dg-error "wrong number of arguments" } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-base.c b/gcc/testsuite/gcc.target/v850/isr-base.c
+new file mode 100644
+index 00000000000..df4cafbb3fa
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-base.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e2v3 -O2 -mno-prolog-function" } */
++/* { dg-skip-if "tests the base targets" { *-*-* } { "-mfxu" "-mg4" "-mg4mh2" "-mv850e3v5" } { "" } } */
++
++volatile int cnt;
++
++void __attribute__ ((interrupt)) h (void) { cnt++; }
++
++/* { dg-final { scan-assembler {\treti\n} } } */
++/* { dg-final { scan-assembler-not {eiret|feret|eipc|fpsr} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-cfi.c b/gcc/testsuite/gcc.target/v850/isr-cfi.c
+new file mode 100644
+index 00000000000..732bd186a04
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-cfi.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2 -g -dA" } */
++
++volatile int cnt;
++
++void __attribute__ ((interrupt)) h (void) { cnt++; }
++
++/* { dg-final { scan-assembler {DW_CFA_def_cfa_offset\n\t\.uleb128 0x14\n} } } */
++/* { dg-final { scan-assembler {DW_CFA_def_cfa_offset\n\t\.uleb128 0x1c\n} } } */
++/* { dg-final { scan-assembler {DW_CFA_offset, column 0x1e\n\t\.uleb128 0x5\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-ei-inline.c b/gcc/testsuite/gcc.target/v850/isr-ei-inline.c
+new file mode 100644
+index 00000000000..36bdf47eb51
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-ei-inline.c
+@@ -0,0 +1,9 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2 -mno-prolog-function" } */
++
++volatile int cnt;
++
++void __attribute__ ((interrupt)) ei0 (void) { cnt++; }
++
++/* { dg-final { scan-assembler {\teiret\n} } } */
++/* { dg-final { scan-assembler-not {\treti|__return_interrupt} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-ei.c b/gcc/testsuite/gcc.target/v850/isr-ei.c
+new file mode 100644
+index 00000000000..4501eeb06e5
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-ei.c
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2" } */
++
++volatile int cnt;
++
++void __attribute__ ((interrupt)) ei0 (void) { cnt++; }
++void __attribute__ ((interrupt_handler ("EI"))) ei1 (void) { cnt++; }
++
++/* { dg-final { scan-assembler-times {stsr eipc, r10} 2 } } */
++/* { dg-final { scan-assembler-times {stsr eipsw, r10} 2 } } */
++/* { dg-final { scan-assembler-times {\tdi\n\tld\.w 4\[sp\], r10\n\tldsr r10, eipsw\n\tld\.w 0\[sp\], r10\n\tldsr r10, eipc\n} 2 } } */
++/* { dg-final { scan-assembler-not {fpsr|fxsr|\treti} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-fe-callt.c b/gcc/testsuite/gcc.target/v850/isr-fe-callt.c
+new file mode 100644
+index 00000000000..46f107f4b03
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-fe-callt.c
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -mgcc-abi -O2" } */
++
++volatile int cnt;
++
++void __attribute__ ((interrupt ("FE"))) fe0 (void) { cnt++; }
++
++/* { dg-final { scan-assembler {callt ctoff\(__callt_save_interrupt\)} } } */
++/* { dg-final { scan-assembler {ldsr r1, ctpsw\n.*\n\tldsr r1, ctpc\n} } } */
++/* { dg-final { scan-assembler {\tferet\n} } } */
++/* { dg-final { scan-assembler-not {__callt_return_interrupt|eiret|\treti} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-fe.c b/gcc/testsuite/gcc.target/v850/isr-fe.c
+new file mode 100644
+index 00000000000..d6d574c4e98
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-fe.c
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2" } */
++
++volatile int cnt;
++extern void f (void);
++
++void __attribute__ ((interrupt ("FE"))) fe0 (void) { cnt++; }
++void __attribute__ ((interrupt_handler ("FE"))) fe1 (void) { f (); }
++
++/* { dg-final { scan-assembler-times {\tferet\n} 2 } } */
++/* { dg-final { scan-assembler-not {eipc|eipsw|fepc|fepsw|eiret|\treti|__return_interrupt} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-fpu.c b/gcc/testsuite/gcc.target/v850/isr-fpu.c
+new file mode 100644
+index 00000000000..01d3143e2bf
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-fpu.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2" } */
++/* { dg-skip-if "tests the code without -mfxu" { *-*-* } { "-mfxu" } { "" } } */
++
++volatile float fv;
++volatile int cnt;
++extern void f (void);
++
++void __attribute__ ((interrupt)) uses_fpu (void) { fv = fv * 2.0f; }
++void __attribute__ ((interrupt)) calls (void) { f (); }
++void __attribute__ ((interrupt)) plain (void) { cnt++; }
++
++/* { dg-final { scan-assembler-times {stsr fpsr, r10} 2 } } */
++/* { dg-final { scan-assembler-times {stsr fpepc, r10} 2 } } */
++/* { dg-final { scan-assembler-times {\tsynce\n\tdi\n} 2 } } */
++/* { dg-final { scan-assembler-not {fxsr} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-fxu.c b/gcc/testsuite/gcc.target/v850/isr-fxu.c
+new file mode 100644
+index 00000000000..a4ef4ff0793
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-fxu.c
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++volatile int cnt;
++extern void f (void);
++
++void __attribute__ ((interrupt)) calls (void) { f (); }
++void __attribute__ ((interrupt)) plain (void) { cnt++; }
++
++/* { dg-final { scan-assembler-times {stsr fxsr, r10} 1 } } */
++/* { dg-final { scan-assembler-times {ldsr r10, fxsr} 1 } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-soft-float.c b/gcc/testsuite/gcc.target/v850/isr-soft-float.c
+new file mode 100644
+index 00000000000..12d5686efd0
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-soft-float.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -msoft-float -O2" } */
++
++volatile float fv;
++extern void f (void);
++
++void __attribute__ ((interrupt)) uses_float (void) { fv = fv * 2.0f; }
++void __attribute__ ((interrupt)) calls (void) { f (); }
++
++/* { dg-final { scan-assembler-not {fpsr|fpepc|synce} } } */
+diff --git a/libgcc/config/v850/lib1funcs.S b/libgcc/config/v850/lib1funcs.S
+index 4ac54ae8f55..629d4e703e7 100644
+--- a/libgcc/config/v850/lib1funcs.S
++++ b/libgcc/config/v850/lib1funcs.S
+@@ -1619,7 +1619,11 @@ __return_interrupt:
+ 	ld.w	12[sp],r10
+ 	ld.w    16[sp],r11
+ 	addi    20,sp,sp
++#ifdef __v850e3v5__
++	eiret
++#else
+ 	reti
++#endif
+ 	.size	__return_interrupt,.-__return_interrupt
+ #endif /* L_save_interrupt */
+ 
+@@ -1878,7 +1882,11 @@ __callt_return_r2_r31:	.short ctoff(.L_return_r2_r31)
+         ld.w     4[sp], gp
+         ld.w     0[sp], ep
+         addi    28, sp, sp
++#ifdef __v850e3v5__
++	eiret
++#else
+         reti
++#endif
+ 
+ 	/* Place the offsets of the start of these routines into the call table.  */
+ 	.call_table_data
+-- 
+Parthiban N
+

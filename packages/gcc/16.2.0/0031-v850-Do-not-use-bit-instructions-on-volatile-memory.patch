@@ -1,0 +1,97 @@
+From 5f79980f57d66dea28ce4bfc48c3b739ae8af778 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:27:19 +0530
+Subject: [PATCH] v850: Do not use bit instructions on volatile memory
+
+set1, clr1 and not1 access a single byte, so a volatile halfword or
+word read modify write must keep its own access size.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.md                         | 12 ++++++------
+ gcc/testsuite/gcc.target/v850/volatile-bitops.c | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+), 6 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/volatile-bitops.c
+
+diff --git a/gcc/config/v850/v850.md b/gcc/config/v850/v850.md
+index 304477629db..f7a3540219a 100644
+--- a/gcc/config/v850/v850.md
++++ b/gcc/config/v850/v850.md
+@@ -743,7 +743,7 @@
+ 	  (and:SI (subreg:SI (match_dup 0) 0)
+ 		  (match_operand:HI 1 "not_power_of_two_operand" "")) 0))
+    (clobber (reg:CC CC_REGNUM))]
+-  ""
++  "!MEM_VOLATILE_P (operands[0])"
+ {
+   int log2 = exact_log2 (~INTVAL (operands[1]) & 0xffff);
+ 
+@@ -763,7 +763,7 @@
+ 	(and:SI (match_dup 0)
+ 		(match_operand:SI 1 "not_power_of_two_operand" "")))
+    (clobber (reg:CC CC_REGNUM))]
+-  ""
++  "!MEM_VOLATILE_P (operands[0])"
+ {
+   int log2 = exact_log2 (~INTVAL (operands[1]) & 0xffffffff);
+ 
+@@ -832,7 +832,7 @@
+   [(set (match_operand:HI 0 "indirect_operand" "=m")
+ 	(subreg:HI (ior:SI (subreg:SI (match_dup 0) 0)
+ 			   (match_operand 1 "power_of_two_operand" "")) 0))]
+-  ""
++  "!MEM_VOLATILE_P (operands[0])"
+ {
+   int log2 = exact_log2 (INTVAL (operands[1]));
+ 
+@@ -857,7 +857,7 @@
+ 	(ior:SI (match_dup 0)
+ 		(match_operand 1 "power_of_two_operand" "")))
+    (clobber (reg:CC CC_REGNUM))]
+-  ""
++  "!MEM_VOLATILE_P (operands[0])"
+ {
+   int log2 = exact_log2 (INTVAL (operands[1]));
+ 
+@@ -931,7 +931,7 @@
+   [(set (match_operand:HI 0 "indirect_operand" "=m")
+ 	(subreg:HI (xor:SI (subreg:SI (match_dup 0) 0)
+ 			   (match_operand 1 "power_of_two_operand" "")) 0))]
+-  ""
++  "!MEM_VOLATILE_P (operands[0])"
+ {
+   int log2 = exact_log2 (INTVAL (operands[1]));
+ 
+@@ -956,7 +956,7 @@
+ 	(xor:SI (match_dup 0)
+ 		(match_operand 1 "power_of_two_operand" "")))
+    (clobber (reg:CC CC_REGNUM))]
+-  ""
++  "!MEM_VOLATILE_P (operands[0])"
+ {
+   int log2 = exact_log2 (INTVAL (operands[1]));
+ 
+diff --git a/gcc/testsuite/gcc.target/v850/volatile-bitops.c b/gcc/testsuite/gcc.target/v850/volatile-bitops.c
+new file mode 100644
+index 00000000000..28ccad092e6
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/volatile-bitops.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++
++
++#define R32(a) (*(volatile unsigned int *) (a))
++#define R16(a) (*(volatile unsigned short *) (a))
++
++void and_si (void) { R32 (0xff981180) &= ~1u; }
++void ior_si (void) { R32 (0xff981180) |= 1u << 9; }
++void xor_si (void) { R32 (0xff981180) ^= 1u << 17; }
++void and_hi (void) { R16 (0xff981184) &= (unsigned short) ~2u; }
++void ior_hi (void) { R16 (0xff981184) |= 1u << 9; }
++void xor_hi (void) { R16 (0xff981184) ^= 1u << 3; }
++
++/* { dg-final { scan-assembler-not {\m(set1|clr1|not1)\M} } } */
+-- 
+Parthiban N
+

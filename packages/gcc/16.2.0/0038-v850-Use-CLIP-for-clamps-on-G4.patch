@@ -1,0 +1,207 @@
+From 22c9f0373f62822e02ec37067065d03499da90aa Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:45:46 +0530
+Subject: [PATCH] v850: Use CLIP for clamps on G4
+
+Provide integer min and max patterns for G4 so that combine forms CLIP
+for byte and halfword saturation.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.md                   | 72 +++++++++++++++++++++++
+ gcc/testsuite/gcc.target/v850/clip-e3v5.c |  8 +++
+ gcc/testsuite/gcc.target/v850/clip-run.c  | 63 ++++++++++++++++++++
+ gcc/testsuite/gcc.target/v850/clip.c      | 13 ++++
+ 4 files changed, 156 insertions(+)
+ create mode 100644 gcc/testsuite/gcc.target/v850/clip-e3v5.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/clip-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/clip.c
+
+diff --git a/gcc/config/v850/v850.md b/gcc/config/v850/v850.md
+index cd20347f40a..d4528c37e65 100644
+--- a/gcc/config/v850/v850.md
++++ b/gcc/config/v850/v850.md
+@@ -1272,6 +1272,78 @@
+   "tst1 %3,%2 ; cmov %C1,%5,%z4,%0"
+   [(set_attr "length" "8")])
+ 
++
++(define_code_iterator any_minmax [smin smax umin umax])
++(define_code_attr minmax_cond [(smin "ge") (smax "le")
++			       (umin "geu") (umax "leu")])
++
++(define_expand "<code>si3"
++  [(set (match_operand:SI 0 "register_operand")
++	(any_minmax:SI (match_operand:SI 1 "register_operand")
++		       (match_operand:SI 2 "reg_or_const_operand")))]
++  "TARGET_G4"
++{
++  if (<CODE> == UMIN && CONST_INT_P (operands[2])
++      && (INTVAL (operands[2]) == 0xff || INTVAL (operands[2]) == 0xffff))
++    {
++      emit_insn (gen_v850_clip_u (operands[0], operands[1], operands[2]));
++      DONE;
++    }
++})
++
++(define_insn_and_split "*<code>si3_insn"
++  [(set (match_operand:SI 0 "register_operand" "=r")
++	(any_minmax:SI (match_operand:SI 1 "register_operand" "r")
++		       (match_operand:SI 2 "reg_or_const_operand" "rJ")))]
++  "TARGET_G4"
++  "#"
++  "reload_completed"
++  [(set (reg:CC CC_REGNUM)
++	(compare:CC (match_dup 1) (match_dup 2)))
++   (set (match_dup 0)
++	(if_then_else:SI (<minmax_cond> (reg:CC CC_REGNUM) (const_int 0))
++			 (match_dup 2) (match_dup 1)))])
++
++(define_insn "v850_clip_u"
++  [(set (match_operand:SI 0 "register_operand" "=r")
++	(umin:SI (match_operand:SI 1 "register_operand" "r")
++		 (match_operand:SI 2 "const_int_operand" "")))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4
++   && (INTVAL (operands[2]) == 0xff || INTVAL (operands[2]) == 0xffff)"
++{
++  return INTVAL (operands[2]) == 0xff ? "clip.bu %1,%0" : "clip.hu %1,%0";
++}
++  [(set_attr "length" "4")])
++
++(define_insn "*v850_clip_s"
++  [(set (match_operand:SI 0 "register_operand" "=r")
++	(smin:SI (smax:SI (match_operand:SI 1 "register_operand" "r")
++			  (match_operand:SI 2 "const_int_operand" ""))
++		 (match_operand:SI 3 "const_int_operand" "")))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4
++   && ((INTVAL (operands[2]) == -0x80 && INTVAL (operands[3]) == 0x7f)
++       || (INTVAL (operands[2]) == -0x8000 && INTVAL (operands[3]) == 0x7fff))"
++{
++  return INTVAL (operands[3]) == 0x7f ? "clip.b %1,%0" : "clip.h %1,%0";
++}
++  [(set_attr "length" "4")])
++
++(define_insn "*v850_clip_s_rev"
++  [(set (match_operand:SI 0 "register_operand" "=r")
++	(smax:SI (smin:SI (match_operand:SI 1 "register_operand" "r")
++			  (match_operand:SI 3 "const_int_operand" ""))
++		 (match_operand:SI 2 "const_int_operand" "")))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4
++   && ((INTVAL (operands[2]) == -0x80 && INTVAL (operands[3]) == 0x7f)
++       || (INTVAL (operands[2]) == -0x8000 && INTVAL (operands[3]) == 0x7fff))"
++{
++  return INTVAL (operands[3]) == 0x7f ? "clip.b %1,%0" : "clip.h %1,%0";
++}
++  [(set_attr "length" "4")])
++
+ ;; Matching for sasf requires combining 4 instructions, so we provide a
+ ;; dummy pattern to match the first 3, which will always be turned into the
+ ;; second pattern by subsequent combining.  As above, we must include the
+diff --git a/gcc/testsuite/gcc.target/v850/clip-e3v5.c b/gcc/testsuite/gcc.target/v850/clip-e3v5.c
+new file mode 100644
+index 00000000000..0a5a4e573be
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/clip-e3v5.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" } { "" } } */
++
++int sb (int x) { return x > 127 ? 127 : x < -128 ? -128 : x; }
++unsigned ub (unsigned x) { return x > 255 ? 255 : x; }
++
++/* { dg-final { scan-assembler-not "\tclip\\." } } */
+diff --git a/gcc/testsuite/gcc.target/v850/clip-run.c b/gcc/testsuite/gcc.target/v850/clip-run.c
+new file mode 100644
+index 00000000000..16ae4c4f836
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/clip-run.c
+@@ -0,0 +1,63 @@
++/* { dg-do run } */
++/* { dg-options "-O2 -mg4" } */
++
++extern void abort (void);
++
++#define NOIPA __attribute__ ((noipa))
++
++NOIPA int sb (int x) { return x > 127 ? 127 : x < -128 ? -128 : x; }
++NOIPA int sh (int x) { return x < -32768 ? -32768 : x > 32767 ? 32767 : x; }
++NOIPA unsigned ub (unsigned x) { return x > 255 ? 255 : x; }
++NOIPA unsigned uh (unsigned x) { return x > 65535 ? 65535 : x; }
++NOIPA int su (int x) { return x > 255 ? 255 : x < 0 ? 0 : x; }
++NOIPA int smin (int x, int y) { return x < y ? x : y; }
++NOIPA int smax (int x, int y) { return x > y ? x : y; }
++NOIPA unsigned umin (unsigned x, unsigned y) { return x < y ? x : y; }
++NOIPA unsigned umax (unsigned x, unsigned y) { return x > y ? x : y; }
++NOIPA int smin5 (int x) { return x < 7 ? x : 7; }
++NOIPA unsigned umax5 (unsigned x) { return x > 9 ? x : 9; }
++
++static const int vals[] = {
++  0, 1, -1, 7, 9, 126, 127, 128, 129, -127, -128, -129, 254, 255, 256,
++  32766, 32767, 32768, -32767, -32768, -32769, 65534, 65535, 65536,
++  0x7fffffff, -0x7fffffff - 1, 0x12345678, -0x12345678
++};
++
++int
++main (void)
++{
++  unsigned i, j;
++
++  for (i = 0; i < sizeof vals / sizeof vals[0]; i++)
++    {
++      int x = vals[i];
++      unsigned u = x;
++      int r;
++
++      r = x > 127 ? 127 : x < -128 ? -128 : x;
++      if (sb (x) != r)
++	abort ();
++      r = x > 32767 ? 32767 : x < -32768 ? -32768 : x;
++      if (sh (x) != r)
++	abort ();
++      if (ub (u) != (u > 255 ? 255 : u))
++	abort ();
++      if (uh (u) != (u > 65535 ? 65535 : u))
++	abort ();
++      if (su (x) != (x > 255 ? 255 : x < 0 ? 0 : x))
++	abort ();
++      if (smin5 (x) != (x < 7 ? x : 7) || umax5 (u) != (u > 9 ? u : 9))
++	abort ();
++      for (j = 0; j < sizeof vals / sizeof vals[0]; j++)
++	{
++	  int y = vals[j];
++	  unsigned v = y;
++
++	  if (smin (x, y) != (x < y ? x : y) || smax (x, y) != (x > y ? x : y))
++	    abort ();
++	  if (umin (u, v) != (u < v ? u : v) || umax (u, v) != (u > v ? u : v))
++	    abort ();
++	}
++    }
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/clip.c b/gcc/testsuite/gcc.target/v850/clip.c
+new file mode 100644
+index 00000000000..8a06f73fc6e
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/clip.c
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mg4" } */
++
++int sb (int x) { return x > 127 ? 127 : x < -128 ? -128 : x; }
++int sh (int x) { if (x > 32767) x = 32767; if (x < -32768) x = -32768; return x; }
++unsigned ub (unsigned x) { return x > 255 ? 255 : x; }
++unsigned uh (unsigned x) { return x > 65535 ? 65535 : x; }
++int su (int x) { return x > 255 ? 255 : x < 0 ? 0 : x; }
++
++/* { dg-final { scan-assembler-times "clip\\.b " 1 } } */
++/* { dg-final { scan-assembler-times "clip\\.h " 1 } } */
++/* { dg-final { scan-assembler-times "clip\\.bu " 1 } } */
++/* { dg-final { scan-assembler-times "clip\\.hu " 1 } } */
+-- 
+Parthiban N
+

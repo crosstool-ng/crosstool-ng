@@ -1,0 +1,2308 @@
+From f4f3afb093b20cbba22fe430799cd5de38a6e9ce Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 23:17:11 +0530
+Subject: [PATCH] v850: Vectorize float code with the FXU
+
+Use V4SF for float with the FXU and add the min, max, compare, select,
+permute, lane, reduction and rounding patterns the vectorizer needs,
+with costs. Keep float code scalar when the rounding mode can change.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/fxu.md                        | 188 ++++++++++
+ gcc/config/v850/predicates.md                 |   8 +
+ gcc/config/v850/v850-protos.h                 |   7 +
+ gcc/config/v850/v850.cc                       | 345 ++++++++++++++++++
+ gcc/testsuite/gcc.dg/pr88598-1.c              |   2 +-
+ gcc/testsuite/gcc.dg/tree-ssa/forwprop-40.c   |   4 +-
+ gcc/testsuite/gcc.dg/tree-ssa/forwprop-41.c   |   4 +-
+ gcc/testsuite/gcc.dg/vect/vect-121.c          |   2 +-
+ gcc/testsuite/gcc.target/v850/fxu-arith-run.c | 118 ++++++
+ gcc/testsuite/gcc.target/v850/fxu-arith.c     |  63 ++++
+ .../gcc.target/v850/fxu-cmp-notrap-run.c      | 109 ++++++
+ .../gcc.target/v850/fxu-cmp-notrap.c          |  51 +++
+ gcc/testsuite/gcc.target/v850/fxu-cmp-run.c   | 207 +++++++++++
+ gcc/testsuite/gcc.target/v850/fxu-cmp-snan.c  |  29 ++
+ gcc/testsuite/gcc.target/v850/fxu-cmp-trap.c  |  50 +++
+ gcc/testsuite/gcc.target/v850/fxu-cmp.c       | 101 +++++
+ gcc/testsuite/gcc.target/v850/fxu-cost-long.c |  14 +
+ .../gcc.target/v850/fxu-cost-short.c          |  18 +
+ gcc/testsuite/gcc.target/v850/fxu-cvt-run.c   |  67 ++++
+ gcc/testsuite/gcc.target/v850/fxu-cvt.c       |  46 +++
+ gcc/testsuite/gcc.target/v850/fxu-lane-run.c  |  73 ++++
+ gcc/testsuite/gcc.target/v850/fxu-lane.c      |  17 +
+ gcc/testsuite/gcc.target/v850/fxu-perm-run.c  | 146 ++++++++
+ gcc/testsuite/gcc.target/v850/fxu-perm.c      |  52 +++
+ .../gcc.target/v850/fxu-reduc-fminmax-run.c   |  39 ++
+ gcc/testsuite/gcc.target/v850/fxu-reduc-run.c |  44 +++
+ gcc/testsuite/gcc.target/v850/fxu-reduc.c     |  15 +
+ .../gcc.target/v850/fxu-rounding-math.c       |  15 +
+ .../gcc.target/v850/fxu-vect-add-run.c        |  53 +++
+ gcc/testsuite/gcc.target/v850/fxu-vect-add.c  |  23 ++
+ gcc/testsuite/lib/target-supports.exp         |  17 +-
+ 31 files changed, 1916 insertions(+), 11 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-arith-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-arith.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cmp-notrap-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cmp-notrap.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cmp-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cmp-snan.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cmp-trap.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cmp.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cost-long.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cost-short.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cvt-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-cvt.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-lane-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-lane.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-perm-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-perm.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-reduc-fminmax-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-reduc-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-reduc.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-rounding-math.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-vect-add-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/fxu-vect-add.c
+
+diff --git a/gcc/config/v850/fxu.md b/gcc/config/v850/fxu.md
+index dd9bfc007e5..7936afee820 100644
+--- a/gcc/config/v850/fxu.md
++++ b/gcc/config/v850/fxu.md
+@@ -58,6 +58,8 @@
+   UNSPEC_FXU_SHFLV
+   UNSPEC_FXU_FLPV
+   UNSPEC_FXU_TRFSRV
++  UNSPEC_FXU_FMAX
++  UNSPEC_FXU_FMIN
+ ])
+ 
+ (define_int_iterator FXU_BINOP [UNSPEC_FXU_ADDSUBF UNSPEC_FXU_ADDSUBNF
+@@ -135,6 +137,10 @@
+ 
+ (define_mode_iterator VFXU [V4SF V4SI])
+ 
++(define_mode_attr fxu_unit [(V4SF "SF") (V4SI "SI")])
++
++(define_mode_attr fxu_unit_l [(V4SF "sf") (V4SI "si")])
++
+ (define_expand "mov<mode>"
+   [(set (match_operand:VFXU 0 "nonimmediate_operand")
+ 	(match_operand:VFXU 1 "general_operand"))]
+@@ -301,6 +307,53 @@
+   "fnmsf.s4 %2, %1, %0"
+   [(set_attr "type" "fpu")])
+ 
++(define_int_iterator FXU_FMINMAX [UNSPEC_FXU_FMAX UNSPEC_FXU_FMIN])
++
++(define_int_attr fxu_fminmax_name [(UNSPEC_FXU_FMAX "fmax")
++				   (UNSPEC_FXU_FMIN "fmin")])
++
++(define_int_attr fxu_fminmax_insn [(UNSPEC_FXU_FMAX "maxf.s4")
++				   (UNSPEC_FXU_FMIN "minf.s4")])
++
++(define_insn "<fxu_fminmax_name>v4sf3"
++  [(set (match_operand:V4SF 0 "register_operand" "=w")
++	(unspec:V4SF [(match_operand:V4SF 1 "register_operand" "w")
++		      (match_operand:V4SF 2 "register_operand" "w")]
++		     FXU_FMINMAX))]
++  "TARGET_FXU"
++  "<fxu_fminmax_insn> %2, %1, %0"
++  [(set_attr "type" "fpu")])
++
++(define_expand "vec_addsubv4sf3"
++  [(match_operand:V4SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")
++   (match_operand:V4SF 2 "register_operand")]
++  "TARGET_FXU"
++{
++  emit_insn (gen_fxu_addsubf (operands[0], operands[1], operands[2]));
++  DONE;
++})
++
++(define_expand "cadd90v4sf3"
++  [(match_operand:V4SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")
++   (match_operand:V4SF 2 "register_operand")]
++  "TARGET_FXU"
++{
++  emit_insn (gen_fxu_addsubxf (operands[0], operands[1], operands[2]));
++  DONE;
++})
++
++(define_expand "cadd270v4sf3"
++  [(match_operand:V4SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")
++   (match_operand:V4SF 2 "register_operand")]
++  "TARGET_FXU"
++{
++  emit_insn (gen_fxu_subaddxf (operands[0], operands[1], operands[2]));
++  DONE;
++})
++
+ (define_insn "fxu_<fxu_name>"
+   [(set (match_operand:V4SF 0 "register_operand" "=w")
+ 	(unspec:V4SF [(match_operand:V4SF 1 "register_operand" "w")
+@@ -354,6 +407,24 @@
+   "<fxu_insn> %1, %0"
+   [(set_attr "type" "fpu")])
+ 
++(define_expand "lfloorv4sfv4si2"
++  [(match_operand:V4SI 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")]
++  "TARGET_FXU"
++{
++  emit_insn (gen_fxu_floorf_sw4 (operands[0], operands[1]));
++  DONE;
++})
++
++(define_expand "lceilv4sfv4si2"
++  [(match_operand:V4SI 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")]
++  "TARGET_FXU"
++{
++  emit_insn (gen_fxu_ceilf_sw4 (operands[0], operands[1]));
++  DONE;
++})
++
+ (define_insn "fxu_cvtf_hs4"
+   [(set (match_operand:V4SF 0 "register_operand" "=w")
+ 	(unspec:V4SF [(match_operand:V4SI 1 "register_operand" "w")]
+@@ -383,6 +454,31 @@
+   [(set_attr "length" "6")
+    (set_attr "type" "fpu")])
+ 
++(define_expand "vec_cmpv4sfv4si"
++  [(set (match_operand:V4SI 0 "register_operand")
++	(match_operator:V4SI 1 "v850_fxu_comparison_operator"
++	  [(match_operand:V4SF 2 "register_operand")
++	   (match_operand:V4SF 3 "register_operand")]))]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_vec_cmp (operands[0], GET_CODE (operands[1]),
++			   operands[2], operands[3]);
++  DONE;
++})
++
++(define_expand "vcond_mask_<mode>v4si"
++  [(set (match_operand:VFXU 0 "register_operand")
++	(if_then_else:VFXU
++	  (match_operand:V4SI 3 "register_operand")
++	  (match_operand:VFXU 1 "register_operand")
++	  (match_operand:VFXU 2 "register_operand")))]
++  "TARGET_FXU"
++{
++  emit_insn (gen_fxu_cmovf (<MODE>mode, operands[0], operands[3],
++			    operands[1], operands[2]));
++  DONE;
++})
++
+ (define_insn "@fxu_shflv<mode>"
+   [(set (match_operand:VFXU 0 "register_operand" "=w")
+ 	(unspec:VFXU [(match_operand:VFXU 1 "register_operand" "w")
+@@ -424,6 +520,53 @@
+   [(set_attr "length" "6")
+    (set_attr "type" "load")])
+ 
++(define_insn "@fxu_ldv_w_dup<mode>"
++  [(set (match_operand:VFXU 0 "register_operand" "=w")
++	(vec_duplicate:VFXU
++	  (match_operand:<fxu_unit> 1 "memory_operand" "Yw")))]
++  "TARGET_FXU"
++  "ldv.w 15, %1, %0"
++  [(set_attr "length" "6")
++   (set_attr "type" "load")])
++
++(define_expand "vec_duplicate<mode>"
++  [(set (match_operand:VFXU 0 "register_operand")
++	(vec_duplicate:VFXU (match_operand:<fxu_unit> 1 "general_operand")))]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_dup (operands[0], operands[1]);
++  DONE;
++})
++
++(define_expand "vec_extract<mode><fxu_unit_l>"
++  [(match_operand:<fxu_unit> 0 "nonimmediate_operand")
++   (match_operand:VFXU 1 "register_operand")
++   (match_operand:SI 2 "const_int_operand")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_extract (operands[0], operands[1], INTVAL (operands[2]));
++  DONE;
++})
++
++(define_expand "vec_set<mode>"
++  [(match_operand:VFXU 0 "register_operand")
++   (match_operand:<fxu_unit> 1 "general_operand")
++   (match_operand:SI 2 "const_int_operand")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_set (operands[0], operands[1], INTVAL (operands[2]));
++  DONE;
++})
++
++(define_expand "vec_init<mode><fxu_unit_l>"
++  [(match_operand:VFXU 0 "register_operand")
++   (match_operand 1 "")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_init (operands[0], operands[1]);
++  DONE;
++})
++
+ (define_insn "@fxu_stv_w<mode>"
+   [(set (match_operand:SI 0 "memory_operand" "=Yw")
+ 	(unspec:SI [(match_operand:VFXU 1 "register_operand" "w")
+@@ -451,3 +594,48 @@
+   "stvz.h4 %1, %0"
+   [(set_attr "length" "6")
+    (set_attr "type" "store")])
++
++(define_expand "reduc_plus_scal_v4sf"
++  [(match_operand:SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_reduc (operands[0], operands[1], UNSPEC_FXU_ADDRF);
++  DONE;
++})
++
++(define_expand "reduc_smax_scal_v4sf"
++  [(match_operand:SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_reduc (operands[0], operands[1], SMAX);
++  DONE;
++})
++
++(define_expand "reduc_smin_scal_v4sf"
++  [(match_operand:SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_reduc (operands[0], operands[1], SMIN);
++  DONE;
++})
++
++(define_expand "reduc_fmax_scal_v4sf"
++  [(match_operand:SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_reduc (operands[0], operands[1], UNSPEC_FXU_FMAX);
++  DONE;
++})
++
++(define_expand "reduc_fmin_scal_v4sf"
++  [(match_operand:SF 0 "register_operand")
++   (match_operand:V4SF 1 "register_operand")]
++  "TARGET_FXU"
++{
++  v850_expand_fxu_reduc (operands[0], operands[1], UNSPEC_FXU_FMIN);
++  DONE;
++})
+diff --git a/gcc/config/v850/predicates.md b/gcc/config/v850/predicates.md
+index e27b584302b..414f41cbf82 100644
+--- a/gcc/config/v850/predicates.md
++++ b/gcc/config/v850/predicates.md
+@@ -569,3 +569,11 @@
+ 
+   return 0;
+ })
++
++
++(define_predicate "v850_fxu_comparison_operator"
++  (match_code "eq,ne,lt,le,gt,ge,unordered,ordered,uneq,unlt,unle,ungt,unge,
++	       ltgt")
++{
++  return v850_fxu_fcond (GET_CODE (op), NULL, NULL) >= 0;
++})
+diff --git a/gcc/config/v850/v850-protos.h b/gcc/config/v850/v850-protos.h
+index 8359e69074f..e0ed69460be 100644
+--- a/gcc/config/v850/v850-protos.h
++++ b/gcc/config/v850/v850-protos.h
+@@ -35,6 +35,13 @@ extern rtx    v850_return_addr              (int);
+ extern bool v850_fxu_mem_p (rtx, int, bool);
+ extern bool v850_expand_fxu_move (rtx, rtx);
+ extern void v850_expand_fxu_misaligned_move (rtx, rtx);
++extern int v850_fxu_fcond (enum rtx_code, bool *, bool *);
++extern void v850_expand_fxu_vec_cmp (rtx, enum rtx_code, rtx, rtx);
++extern void v850_expand_fxu_dup (rtx, rtx);
++extern void v850_expand_fxu_extract (rtx, rtx, int);
++extern void v850_expand_fxu_set (rtx, rtx, int);
++extern void v850_expand_fxu_init (rtx, rtx);
++extern void v850_expand_fxu_reduc (rtx, rtx, int);
+ extern const char *output_move_single       (rtx *);
+ extern char * construct_save_jarl           (rtx);
+ extern char * construct_restore_jr          (rtx);
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index f7e10099b55..b082c263d56 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -49,6 +49,11 @@
+ #include "langhooks.h"
+ #include "cfgrtl.h"
+ #include "builtins.h"
++#include "fold-const.h"
++#include "gimple.h"
++#include "gimple-iterator.h"
++#include "cfgloop.h"
++#include "tree-vectorizer.h"
+ 
+ /* This file should be included last.  */
+ #include "target-def.h"
+@@ -3736,6 +3741,15 @@ v850_vector_mode_supported_p (machine_mode mode)
+   return TARGET_FXU && (mode == V4SFmode || mode == V4SImode);
+ }
+ 
++/* Implement TARGET_VECTORIZE_PREFERRED_SIMD_MODE.  */
++
++static machine_mode
++v850_preferred_simd_mode (scalar_mode mode)
++{
++  return (TARGET_FXU && mode == SFmode && ! flag_rounding_math
++	  ? V4SFmode : word_mode);
++}
++
+ /* Implement TARGET_SECONDARY_MEMORY_NEEDED.  */
+ 
+ static bool
+@@ -3885,6 +3899,324 @@ v850_expand_fxu_move (rtx dst, rtx src)
+   return true;
+ }
+ 
++/* Return the exact CMPF.S4 fcond for CODE (swap, invert), or -1.  */
++
++int
++v850_fxu_fcond (enum rtx_code code, bool *swap, bool *invert)
++{
++  bool s = false, i = false;
++  int fc;
++
++  if (HONOR_SNANS (SFmode))
++    return -1;
++  switch (code)
++    {
++    case EQ: fc = 2; break;
++    case NE: fc = 2; i = true; break;
++    case UNORDERED: fc = 1; break;
++    case ORDERED: fc = 1; i = true; break;
++    case UNEQ: fc = 3; break;
++    case UNLT: fc = 5; break;
++    case UNLE: fc = 7; break;
++    case UNGT: fc = 5; s = true; break;
++    case UNGE: fc = 7; s = true; break;
++    case LT: fc = 4; break;
++    case LE: fc = 6; break;
++    case GT: fc = 4; s = true; break;
++    case GE: fc = 6; s = true; break;
++    case LTGT: fc = 3; i = true; break;
++    default: return -1;
++    }
++  if (flag_trapping_math
++      && (code == LT || code == LE || code == GT || code == GE
++	  || code == LTGT))
++    return -1;
++  if (swap)
++    *swap = s;
++  if (invert)
++    *invert = i;
++  return fc;
++}
++
++/* Emit CMPF.S4 for A CODE B; *INVERT is set if it holds the inverse.  */
++
++static rtx
++v850_emit_fxu_cmpf (enum rtx_code code, rtx a, rtx b, bool *invert)
++{
++  bool swap;
++  int fc = v850_fxu_fcond (code, &swap, invert);
++  rtx dst = gen_reg_rtx (V4SImode);
++
++  gcc_assert (fc >= 0);
++  a = force_reg (V4SFmode, a);
++  b = force_reg (V4SFmode, b);
++  if (swap)
++    std::swap (a, b);
++  emit_insn (gen_fxu_cmpf (dst, a, b, GEN_INT (fc)));
++  return dst;
++}
++
++/* Expand vec_cmp: DST = A CODE B.  */
++
++void
++v850_expand_fxu_vec_cmp (rtx dst, enum rtx_code code, rtx a, rtx b)
++{
++  bool invert;
++  rtx m = v850_emit_fxu_cmpf (code, a, b, &invert);
++
++  if (invert)
++    emit_insn (gen_fxu_cmovf (V4SImode, dst, m,
++			      force_reg (V4SImode, CONST0_RTX (V4SImode)),
++			      force_reg (V4SImode, CONSTM1_RTX (V4SImode))));
++  else
++    emit_move_insn (dst, m);
++}
++
++/* Return a 4-aligned SImode MEM that holds the scalar X.  */
++
++static rtx
++v850_fxu_scalar_mem (rtx x)
++{
++  machine_mode mode = GET_MODE (x) == VOIDmode ? SImode : GET_MODE (x);
++
++  if (! MEM_P (x) || MEM_ALIGN (x) < 32 || MEM_VOLATILE_P (x))
++    {
++      rtx tmp = assign_stack_temp (mode, 4);
++      emit_move_insn (tmp, MEM_P (x) ? force_reg (mode, x) : x);
++      x = tmp;
++    }
++  return adjust_address (v850_fxu_legitimize_mem (x, 4), SImode, 0);
++}
++
++/* Expand vec_duplicate: all lanes of DST = X.  */
++
++void
++v850_expand_fxu_dup (rtx dst, rtx x)
++{
++  machine_mode mode = GET_MODE (dst);
++  rtx mem = v850_fxu_scalar_mem (x);
++
++  mem = adjust_address (mem, GET_MODE_INNER (mode), 0);
++  emit_insn (gen_fxu_ldv_w_dup (mode, dst, mem));
++}
++
++/* Expand vec_set: lane LANE of VEC = X.  */
++
++void
++v850_expand_fxu_set (rtx vec, rtx x, int lane)
++{
++  rtx mem = v850_fxu_scalar_mem (x);
++
++  emit_insn (gen_fxu_ldv_w (GET_MODE (vec), vec, vec, mem,
++			    GEN_INT (1 << lane)));
++}
++
++/* Expand vec_extract: DST = lane LANE of VEC.  */
++
++void
++v850_expand_fxu_extract (rtx dst, rtx vec, int lane)
++{
++  machine_mode mode = GET_MODE (dst);
++  bool direct = MEM_P (dst) && MEM_ALIGN (dst) >= 32 && ! MEM_VOLATILE_P (dst);
++  rtx mem = direct ? dst : assign_stack_temp (mode, 4);
++
++  mem = adjust_address (v850_fxu_legitimize_mem (mem, 4), SImode, 0);
++  emit_insn (gen_fxu_stv_w (GET_MODE (vec), mem, vec, GEN_INT (lane)));
++  if (! direct)
++    emit_move_insn (dst, adjust_address (mem, mode, 0));
++}
++
++/* Expand vec_init: DST = the elements of the PARALLEL VALS.  */
++
++void
++v850_expand_fxu_init (rtx dst, rtx vals)
++{
++  machine_mode mode = GET_MODE (dst);
++  int i, n = XVECLEN (vals, 0);
++  bool same = true, cst = true;
++
++  for (i = 0; i < n; i++)
++    {
++      rtx x = XVECEXP (vals, 0, i);
++      same &= rtx_equal_p (x, XVECEXP (vals, 0, 0));
++      cst &= CONST_INT_P (x) || CONST_DOUBLE_P (x);
++    }
++  if (cst)
++    {
++      emit_move_insn (dst, gen_rtx_CONST_VECTOR (mode, XVEC (vals, 0)));
++      return;
++    }
++  if (same)
++    {
++      v850_expand_fxu_dup (dst, XVECEXP (vals, 0, 0));
++      return;
++    }
++  rtx mem = assign_stack_temp (mode, GET_MODE_SIZE (mode));
++  for (i = 0; i < n; i++)
++    emit_move_insn (adjust_address (mem, GET_MODE_INNER (mode),
++				    i * GET_MODE_UNIT_SIZE (mode)),
++		    XVECEXP (vals, 0, i));
++  emit_move_insn (dst, mem);
++}
++
++/* Expand reduc_<CODE>_scal_v4sf: DST = CODE over the lanes of V.  */
++
++void
++v850_expand_fxu_reduc (rtx dst, rtx v, int code)
++{
++  rtx t = gen_reg_rtx (V4SFmode);
++  rtx s = gen_reg_rtx (V4SFmode);
++  rtx u = gen_reg_rtx (V4SFmode);
++
++  v = force_reg (V4SFmode, v);
++  switch (code)
++    {
++    case UNSPEC_FXU_ADDRF:
++      emit_insn (gen_fxu_addrf (t, v, v));
++      emit_insn (gen_fxu_shflv (V4SFmode, s, t, t, GEN_INT (2)));
++      emit_insn (gen_addv4sf3 (u, t, s));
++      break;
++    case SMAX:
++    case UNSPEC_FXU_FMAX:
++      emit_insn (gen_fxu_maxrf (t, v, v));
++      emit_insn (gen_fxu_shflv (V4SFmode, s, t, t, GEN_INT (2)));
++      emit_insn (code == SMAX ? gen_smaxv4sf3 (u, t, s)
++				: gen_fmaxv4sf3 (u, t, s));
++      break;
++    case SMIN:
++    case UNSPEC_FXU_FMIN:
++      emit_insn (gen_fxu_minrf (t, v, v));
++      emit_insn (gen_fxu_shflv (V4SFmode, s, t, t, GEN_INT (2)));
++      emit_insn (code == SMIN ? gen_sminv4sf3 (u, t, s)
++				: gen_fminv4sf3 (u, t, s));
++      break;
++    default:
++      gcc_unreachable ();
++    }
++  v850_expand_fxu_extract (dst, u, 0);
++}
++
++/* Implement TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST.  */
++
++static int
++v850_builtin_vectorization_cost (enum vect_cost_for_stmt kind, tree vectype,
++				 int misalign)
++{
++  if (vectype && TYPE_MODE (vectype) != V4SFmode
++      && TYPE_MODE (vectype) != V4SImode)
++    return default_builtin_vectorization_cost (kind, vectype, misalign);
++  switch (kind)
++    {
++    case vector_stmt:
++    case vec_promote_demote:
++    case unaligned_load:
++    case unaligned_store:
++    case vec_to_scalar:
++    case scalar_to_vec:
++      return 2;
++    case vec_construct:
++      return TYPE_VECTOR_SUBPARTS (vectype).to_constant () + 1;
++    case cond_branch_taken:
++      return 3;
++    default:
++      return 1;
++    }
++}
++
++class v850_vector_costs : public vector_costs
++{
++public:
++  using vector_costs::vector_costs;
++
++  unsigned int add_stmt_cost (int count, vect_cost_for_stmt kind,
++			      stmt_vec_info stmt_info, slp_tree node,
++			      tree vectype, int misalign,
++			      vect_cost_model_location where) override;
++  void finish_cost (const vector_costs *scalar_costs) override;
++
++private:
++  unsigned int m_wr = 0;
++};
++
++unsigned int
++v850_vector_costs::add_stmt_cost (int count, vect_cost_for_stmt kind,
++				  stmt_vec_info stmt_info, slp_tree node,
++				  tree vectype, int misalign,
++				  vect_cost_model_location where)
++{
++  unsigned int cost;
++
++  if (m_vinfo->vector_mode != V4SFmode && m_vinfo->vector_mode != V4SImode)
++    return vector_costs::add_stmt_cost (count, kind, stmt_info, node, vectype,
++					misalign, where);
++  cost = v850_builtin_vectorization_cost (kind, vectype, misalign) * count;
++
++  if (! m_costing_for_scalar && where == vect_body
++      && (kind == vector_load || kind == unaligned_load
++	  || kind == vec_construct || kind == scalar_to_vec))
++    m_wr += count;
++  return record_stmt_cost (stmt_info, where, cost);
++}
++
++/* Add the loop control of a loop that is not unrolled completely, and
++   the save, restore and realignment for the callee-saved wr registers.  */
++
++void
++v850_vector_costs::finish_cost (const vector_costs *scalar_costs)
++{
++  loop_vec_info loop_vinfo = dyn_cast<loop_vec_info> (m_vinfo);
++
++  if (m_vinfo->vector_mode != V4SFmode && m_vinfo->vector_mode != V4SImode)
++    {
++      vector_costs::finish_cost (scalar_costs);
++      return;
++    }
++  if (loop_vinfo
++      && ! (LOOP_VINFO_NITERS_KNOWN_P (loop_vinfo)
++	    && LOOP_VINFO_INT_NITERS (loop_vinfo) <= 16))
++    m_costs[vect_body] += 3;
++  if (! m_costing_for_scalar)
++    {
++      unsigned int n = MIN (MAX (m_wr, 2U), 32U);
++      m_costs[vect_prologue] += n + 6;
++      m_costs[vect_epilogue] += n + 3;
++    }
++  vector_costs::finish_cost (scalar_costs);
++}
++
++/* Implement TARGET_VECTORIZE_CREATE_COSTS.  */
++
++static vector_costs *
++v850_vectorize_create_costs (vec_info *vinfo, bool costing_for_scalar)
++{
++  return new v850_vector_costs (vinfo, costing_for_scalar);
++}
++
++/* Implement TARGET_VECTORIZE_VEC_PERM_CONST with SHFLV.W4.  */
++
++static bool
++v850_vectorize_vec_perm_const (machine_mode mode, machine_mode op_mode,
++			       rtx target, rtx op0, rtx op1,
++			       const vec_perm_indices &sel)
++{
++  unsigned int i, imm = 0;
++
++  if (! TARGET_FXU || mode != op_mode
++      || (mode != V4SFmode && mode != V4SImode))
++    return false;
++  if (! target)
++    return true;
++  for (i = 0; i < 4; i++)
++    imm |= (sel[i].to_constant () & 7) << (3 * i);
++  op0 = force_reg (mode, op0);
++  op1 = op1 == NULL_RTX ? op0 : force_reg (mode, op1);
++  rtx dst = register_operand (target, mode) ? target : gen_reg_rtx (mode);
++  emit_insn (gen_fxu_shflv (mode, dst, op0, op1, GEN_INT (imm)));
++  if (dst != target)
++    emit_move_insn (target, dst);
++  return true;
++}
++
+ /* Implement TARGET_MODES_TIEABLE_P.  */
+ 
+ static bool
+@@ -4361,6 +4693,19 @@ v850_expand_builtin (tree exp, rtx target, rtx, machine_mode, int)
+ #undef  TARGET_CAN_CHANGE_MODE_CLASS
+ #define TARGET_CAN_CHANGE_MODE_CLASS v850_can_change_mode_class
+ 
++#undef  TARGET_VECTORIZE_PREFERRED_SIMD_MODE
++#define TARGET_VECTORIZE_PREFERRED_SIMD_MODE v850_preferred_simd_mode
++
++#undef  TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST
++#define TARGET_VECTORIZE_BUILTIN_VECTORIZATION_COST \
++  v850_builtin_vectorization_cost
++
++#undef  TARGET_VECTORIZE_CREATE_COSTS
++#define TARGET_VECTORIZE_CREATE_COSTS v850_vectorize_create_costs
++
++#undef  TARGET_VECTORIZE_VEC_PERM_CONST
++#define TARGET_VECTORIZE_VEC_PERM_CONST v850_vectorize_vec_perm_const
++
+ #undef  TARGET_VECTOR_MODE_SUPPORTED_P
+ #define TARGET_VECTOR_MODE_SUPPORTED_P v850_vector_mode_supported_p
+ 
+diff --git a/gcc/testsuite/gcc.dg/pr88598-1.c b/gcc/testsuite/gcc.dg/pr88598-1.c
+index 2b62dd9b250..875fa0d746d 100644
+--- a/gcc/testsuite/gcc.dg/pr88598-1.c
++++ b/gcc/testsuite/gcc.dg/pr88598-1.c
+@@ -24,4 +24,4 @@ main ()
+   return 0;
+ }
+ 
+-/* { dg-final { scan-tree-dump-not { \* } "ccp1" } } */
++/* { dg-final { scan-tree-dump-not { \* } "ccp1" { xfail v850_fxu } } } Xfail: PR114802 */
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/forwprop-40.c b/gcc/testsuite/gcc.dg/tree-ssa/forwprop-40.c
+index 152d06c7107..5343f1ad5e8 100644
+--- a/gcc/testsuite/gcc.dg/tree-ssa/forwprop-40.c
++++ b/gcc/testsuite/gcc.dg/tree-ssa/forwprop-40.c
+@@ -10,5 +10,5 @@ vector int g(vector int a)
+   return a;
+ }
+ 
+-/* { dg-final { scan-tree-dump-times "BIT_INSERT_EXPR" 0 "optimized" { xfail { arm_mve || s390_mvx } } } } Xfail: PR114802 */
+-/* { dg-final { scan-tree-dump-times "BIT_FIELD_REF" 0 "optimized" { xfail { arm_mve || s390_mvx } } } } Xfail: PR114802 */
++/* { dg-final { scan-tree-dump-times "BIT_INSERT_EXPR" 0 "optimized" { xfail { arm_mve || { s390_mvx || v850_fxu } } } } } Xfail: PR114802 */
++/* { dg-final { scan-tree-dump-times "BIT_FIELD_REF" 0 "optimized" { xfail { arm_mve || { s390_mvx || v850_fxu } } } } } Xfail: PR114802 */
+diff --git a/gcc/testsuite/gcc.dg/tree-ssa/forwprop-41.c b/gcc/testsuite/gcc.dg/tree-ssa/forwprop-41.c
+index 6079f506c2a..cd7035fc034 100644
+--- a/gcc/testsuite/gcc.dg/tree-ssa/forwprop-41.c
++++ b/gcc/testsuite/gcc.dg/tree-ssa/forwprop-41.c
+@@ -12,6 +12,6 @@ vector int g(vector int a, int c)
+   return a;
+ }
+ 
+-/* { dg-final { scan-tree-dump-times "BIT_INSERT_EXPR" 1 "optimized" { xfail { arm_mve || s390_mvx } } } } Xfail PR114802 */
+-/* { dg-final { scan-tree-dump-times "BIT_FIELD_REF" 0 "optimized" { xfail { arm_mve || s390_mvx } } } } Xfail PR114802 */
++/* { dg-final { scan-tree-dump-times "BIT_INSERT_EXPR" 1 "optimized" { xfail { arm_mve || { s390_mvx || v850_fxu } } } } } Xfail PR114802 */
++/* { dg-final { scan-tree-dump-times "BIT_FIELD_REF" 0 "optimized" { xfail { arm_mve || { s390_mvx || v850_fxu } } } } } Xfail PR114802 */
+ /* { dg-final { scan-tree-dump-times "VEC_PERM_EXPR" 0 "optimized" } } */
+diff --git a/gcc/testsuite/gcc.dg/vect/vect-121.c b/gcc/testsuite/gcc.dg/vect/vect-121.c
+index 1b9357d82a2..254cbfa55f7 100644
+--- a/gcc/testsuite/gcc.dg/vect/vect-121.c
++++ b/gcc/testsuite/gcc.dg/vect/vect-121.c
+@@ -16,4 +16,4 @@ test (int start, int end)
+ }
+ 
+ /* { dg-final { scan-tree-dump "vectorized 1 loops" "vect" } } */
+-/* { dg-final { scan-tree-dump-not "Invalid sum" "optimized" { xfail ia32 } } } */
++/* { dg-final { scan-tree-dump-not "Invalid sum" "optimized" { xfail { ia32 || v850_fxu } } } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-arith-run.c b/gcc/testsuite/gcc.target/v850/fxu-arith-run.c
+new file mode 100644
+index 00000000000..942481435a9
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-arith-run.c
+@@ -0,0 +1,118 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3 -fno-math-errno" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++static void
++fill (const u32 *pa, const u32 *pb)
++{
++  for (int i = 0; i < N; i++)
++    {
++      a.u[i] = pa[i];
++      b.u[i] = pb[i];
++      x.u[i] = 0x11110000 + i;
++      y.u[i] = 0x22220000 + i;
++      r.u[i] = 0xdeadbeef;
++    }
++}
++
++static void
++check (const u32 *e)
++{
++  for (int i = 0; i < N; i++)
++    if (r.u[i] != e[i])
++      __builtin_abort ();
++}
++
++static const u32 a_vfmax[N] = { 0x80000000, 0x4640e6b6, 0x477fe000, 0xff800000, 0x4640e6b6, 0xbe000000, 0x00000000, 0x3f000000, 0x40c00000, 0x7fc00000, 0x42c80000, 0x0df36390, 0xff800000, 0x50df8476, 0xc0700000, 0x7fc00000 };
++static const u32 b_vfmax[N] = { 0x3f800000, 0x40c00000, 0x3f800000, 0xffc01234, 0x3f000000, 0x50df8476, 0xc4800000, 0xc0000000, 0xc4800000, 0x0df36390, 0x50df8476, 0x3f000000, 0x00000000, 0x7e967699, 0x477fe000, 0x7e967699 };
++static const u32 e_vfmax[N] = { 0x3f800000, 0x4640e6b6, 0x477fe000, 0xff800000, 0x4640e6b6, 0x50df8476, 0x00000000, 0x3f000000, 0x40c00000, 0x0df36390, 0x50df8476, 0x3f000000, 0x00000000, 0x7e967699, 0x477fe000, 0x7e967699 };
++
++__attribute__ ((noipa)) void
++vfmax (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_fmaxf (a.f[i], b.f[i]);
++}
++
++static const u32 a_vfmin[N] = { 0x80000000, 0x4640e6b6, 0x477fe000, 0xff800000, 0x4640e6b6, 0xbe000000, 0x00000000, 0x3f000000, 0x40c00000, 0x7fc00000, 0x42c80000, 0x0df36390, 0xff800000, 0x50df8476, 0xc0700000, 0x7fc00000 };
++static const u32 b_vfmin[N] = { 0x3f800000, 0x40c00000, 0x3f800000, 0xffc01234, 0x3f000000, 0x50df8476, 0xc4800000, 0xc0000000, 0xc4800000, 0x0df36390, 0x50df8476, 0x3f000000, 0x00000000, 0x7e967699, 0x477fe000, 0x7e967699 };
++static const u32 e_vfmin[N] = { 0x80000000, 0x40c00000, 0x3f800000, 0xff800000, 0x3f000000, 0xbe000000, 0xc4800000, 0xc0000000, 0xc4800000, 0x0df36390, 0x42c80000, 0x0df36390, 0xff800000, 0x50df8476, 0xc0700000, 0x7e967699 };
++
++__attribute__ ((noipa)) void
++vfmin (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_fminf (a.f[i], b.f[i]);
++}
++
++static const u32 a_vaddsub[N] = { 0x42c80000, 0x42c80000, 0xbe000000, 0x477fe000, 0x0df36390, 0x42c80000, 0xbf800000, 0xc0700000, 0xc4800000, 0x40200000, 0x50df8476, 0xbf800000, 0xc0700000, 0xc0700000, 0xc0700000, 0xc0000000 };
++static const u32 b_vaddsub[N] = { 0xc0000000, 0xbe000000, 0xb892ccf7, 0xc4800000, 0x3f000000, 0x477fe000, 0x42c80000, 0x0df36390, 0x40200000, 0x40200000, 0xc0000000, 0x40200000, 0x0df36390, 0x3f800000, 0xc0700000, 0x42c80000 };
++static const u32 e_vaddsub[N] = { 0x42cc0000, 0x42c7c000, 0xbdffdb4d, 0x477be000, 0xbf000000, 0x47802200, 0xc2ca0000, 0xc0700000, 0xc4805000, 0x40a00000, 0x50df8476, 0x3fc00000, 0xc0700000, 0xc0300000, 0x00000000, 0x42c40000 };
++
++__attribute__ ((noipa)) void
++vaddsub (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i] - b.f[i];
++      r.f[i + 1] = a.f[i + 1] + b.f[i + 1];
++    }
++}
++
++static const u32 a_vcadd90[N] = { 0x42c80000, 0x42c80000, 0xbe000000, 0x477fe000, 0x0df36390, 0x42c80000, 0xbf800000, 0xc0700000, 0xc4800000, 0x40200000, 0x50df8476, 0xbf800000, 0xc0700000, 0xc0700000, 0xc0700000, 0xc0000000 };
++static const u32 b_vcadd90[N] = { 0xc0000000, 0xbe000000, 0xb892ccf7, 0xc4800000, 0x3f000000, 0x477fe000, 0x42c80000, 0x0df36390, 0x40200000, 0x40200000, 0xc0000000, 0x40200000, 0x0df36390, 0x3f800000, 0xc0700000, 0x42c80000 };
++static const u32 e_vcadd90[N] = { 0x42c84000, 0x42c40000, 0x447ff800, 0x477fe000, 0xc77fe000, 0x42c90000, 0xbf800000, 0x42c08000, 0xc4805000, 0x40a00000, 0x50df8476, 0xc0400000, 0xc0980000, 0xc0700000, 0xc2cf8000, 0xc0b80000 };
++
++__attribute__ ((noipa)) void
++vcadd90 (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i] - b.f[i + 1];
++      r.f[i + 1] = a.f[i + 1] + b.f[i];
++    }
++}
++
++static const u32 a_vcadd270[N] = { 0x42c80000, 0x42c80000, 0xbe000000, 0x477fe000, 0x0df36390, 0x42c80000, 0xbf800000, 0xc0700000, 0xc4800000, 0x40200000, 0x50df8476, 0xbf800000, 0xc0700000, 0xc0700000, 0xc0700000, 0xc0000000 };
++static const u32 b_vcadd270[N] = { 0xc0000000, 0xbe000000, 0xb892ccf7, 0xc4800000, 0x3f000000, 0x477fe000, 0x42c80000, 0x0df36390, 0x40200000, 0x40200000, 0xc0000000, 0x40200000, 0x0df36390, 0x3f800000, 0xc0700000, 0x42c80000 };
++static const u32 e_vcadd270[N] = { 0x42c7c000, 0x42cc0000, 0xc4800400, 0x477fe000, 0x477fe000, 0x42c70000, 0xbf800000, 0xc2cf8000, 0xc47f6000, 0x00000000, 0x50df8476, 0x3f800000, 0xc0300000, 0xc0700000, 0x42c08000, 0x3fe00000 };
++
++__attribute__ ((noipa)) void
++vcadd270 (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i] + b.f[i + 1];
++      r.f[i + 1] = a.f[i + 1] - b.f[i];
++    }
++}
++
++int
++main (void)
++{
++  fill (a_vfmax, b_vfmax);
++  vfmax ();
++  check (e_vfmax);
++  fill (a_vfmin, b_vfmin);
++  vfmin ();
++  check (e_vfmin);
++  fill (a_vaddsub, b_vaddsub);
++  vaddsub ();
++  check (e_vaddsub);
++  fill (a_vcadd90, b_vcadd90);
++  vcadd90 ();
++  check (e_vcadd90);
++  fill (a_vcadd270, b_vcadd270);
++  vcadd270 ();
++  check (e_vcadd270);
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-arith.c b/gcc/testsuite/gcc.target/v850/fxu-arith.c
+new file mode 100644
+index 00000000000..bcbe12765d0
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-arith.c
+@@ -0,0 +1,63 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3 -fno-math-errno" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++vfmax (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_fmaxf (a.f[i], b.f[i]);
++}
++
++void
++vfmin (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_fminf (a.f[i], b.f[i]);
++}
++
++void
++vaddsub (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i] - b.f[i];
++      r.f[i + 1] = a.f[i + 1] + b.f[i + 1];
++    }
++}
++
++void
++vcadd90 (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i] - b.f[i + 1];
++      r.f[i + 1] = a.f[i + 1] + b.f[i];
++    }
++}
++
++void
++vcadd270 (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i] + b.f[i + 1];
++      r.f[i + 1] = a.f[i + 1] - b.f[i];
++    }
++}
++
++/* { dg-final { scan-assembler-times "\\tmaxf\\.s4 " 4 } } */
++/* { dg-final { scan-assembler-times "\\tminf\\.s4 " 4 } } */
++/* { dg-final { scan-assembler-times "\\taddsubf\\.s4 " 4 } } */
++/* { dg-final { scan-assembler-times "\\taddsubxf\\.s4 " 4 } } */
++/* { dg-final { scan-assembler-times "\\tsubaddxf\\.s4 " 4 } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cmp-notrap-run.c b/gcc/testsuite/gcc.target/v850/fxu-cmp-notrap-run.c
+new file mode 100644
+index 00000000000..d4d37222466
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cmp-notrap-run.c
+@@ -0,0 +1,109 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3 -fno-trapping-math" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++static void
++fill (const u32 *pa, const u32 *pb)
++{
++  for (int i = 0; i < N; i++)
++    {
++      a.u[i] = pa[i];
++      b.u[i] = pb[i];
++      x.u[i] = 0x11110000 + i;
++      y.u[i] = 0x22220000 + i;
++      r.u[i] = 0xdeadbeef;
++    }
++}
++
++static void
++check (const u32 *e)
++{
++  for (int i = 0; i < N; i++)
++    if (r.u[i] != e[i])
++      __builtin_abort ();
++}
++
++static const u32 a_vlt[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vlt[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vlt[N] = { 0x22220000, 0x22220001, 0x22220002, 0x22220003, 0x22220004, 0x22220005, 0x22220006, 0x22220007, 0x11110008, 0x22220009, 0x1111000a, 0x2222000b, 0x2222000c, 0x2222000d, 0x1111000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vlt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] < b.f[i] ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vle[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vle[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vle[N] = { 0x22220000, 0x11110001, 0x22220002, 0x11110003, 0x22220004, 0x11110005, 0x22220006, 0x11110007, 0x11110008, 0x22220009, 0x1111000a, 0x1111000b, 0x2222000c, 0x1111000d, 0x1111000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++vle (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] <= b.f[i] ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vgt[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vgt[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vgt[N] = { 0x22220000, 0x22220001, 0x11110002, 0x22220003, 0x11110004, 0x22220005, 0x11110006, 0x22220007, 0x22220008, 0x22220009, 0x2222000a, 0x2222000b, 0x2222000c, 0x2222000d, 0x2222000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vgt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] > b.f[i] ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vge[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vge[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vge[N] = { 0x22220000, 0x11110001, 0x11110002, 0x11110003, 0x11110004, 0x11110005, 0x11110006, 0x11110007, 0x22220008, 0x22220009, 0x2222000a, 0x1111000b, 0x2222000c, 0x1111000d, 0x2222000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++vge (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] >= b.f[i] ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vltgt[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vltgt[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vltgt[N] = { 0x22220000, 0x22220001, 0x11110002, 0x22220003, 0x11110004, 0x22220005, 0x11110006, 0x22220007, 0x11110008, 0x22220009, 0x1111000a, 0x2222000b, 0x2222000c, 0x2222000d, 0x1111000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vltgt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = (a.f[i] < b.f[i] || a.f[i] > b.f[i]) ? x.f[i] : y.f[i];
++}
++
++int
++main (void)
++{
++  fill (a_vlt, b_vlt);
++  vlt ();
++  check (e_vlt);
++  fill (a_vle, b_vle);
++  vle ();
++  check (e_vle);
++  fill (a_vgt, b_vgt);
++  vgt ();
++  check (e_vgt);
++  fill (a_vge, b_vge);
++  vge ();
++  check (e_vge);
++  fill (a_vltgt, b_vltgt);
++  vltgt ();
++  check (e_vltgt);
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cmp-notrap.c b/gcc/testsuite/gcc.target/v850/fxu-cmp-notrap.c
+new file mode 100644
+index 00000000000..8e3748edca2
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cmp-notrap.c
+@@ -0,0 +1,51 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3 -fno-trapping-math" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++vlt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] < b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vle (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] <= b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vgt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] > b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vge (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] >= b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vltgt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = (a.f[i] < b.f[i] || a.f[i] > b.f[i]) ? x.f[i] : y.f[i];
++}
++
++/* { dg-final { scan-assembler-times "\\tcmpf\\.s4 " 20 } } */
++/* { dg-final { scan-assembler-not "\\tcmpf\\.s4 (8|9|1\[0-5\])," } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cmp-run.c b/gcc/testsuite/gcc.target/v850/fxu-cmp-run.c
+new file mode 100644
+index 00000000000..3a46505493b
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cmp-run.c
+@@ -0,0 +1,207 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++static void
++fill (const u32 *pa, const u32 *pb)
++{
++  for (int i = 0; i < N; i++)
++    {
++      a.u[i] = pa[i];
++      b.u[i] = pb[i];
++      x.u[i] = 0x11110000 + i;
++      y.u[i] = 0x22220000 + i;
++      r.u[i] = 0xdeadbeef;
++    }
++}
++
++static void
++check (const u32 *e)
++{
++  for (int i = 0; i < N; i++)
++    if (r.u[i] != e[i])
++      __builtin_abort ();
++}
++
++static const u32 a_veq[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_veq[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_veq[N] = { 0x22220000, 0x11110001, 0x22220002, 0x11110003, 0x22220004, 0x11110005, 0x22220006, 0x11110007, 0x22220008, 0x22220009, 0x2222000a, 0x1111000b, 0x2222000c, 0x1111000d, 0x2222000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++veq (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] == b.f[i] ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vne[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vne[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vne[N] = { 0x11110000, 0x22220001, 0x11110002, 0x22220003, 0x11110004, 0x22220005, 0x11110006, 0x22220007, 0x11110008, 0x11110009, 0x1111000a, 0x2222000b, 0x1111000c, 0x2222000d, 0x1111000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vne (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] != b.f[i] ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vun[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vun[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vun[N] = { 0x11110000, 0x22220001, 0x22220002, 0x22220003, 0x22220004, 0x22220005, 0x22220006, 0x22220007, 0x22220008, 0x11110009, 0x2222000a, 0x2222000b, 0x1111000c, 0x2222000d, 0x2222000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vun (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_isunordered (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vord[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vord[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vord[N] = { 0x22220000, 0x11110001, 0x11110002, 0x11110003, 0x11110004, 0x11110005, 0x11110006, 0x11110007, 0x11110008, 0x22220009, 0x1111000a, 0x1111000b, 0x2222000c, 0x1111000d, 0x1111000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++vord (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isunordered (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vunlt[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vunlt[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vunlt[N] = { 0x11110000, 0x22220001, 0x22220002, 0x22220003, 0x22220004, 0x22220005, 0x22220006, 0x22220007, 0x11110008, 0x11110009, 0x1111000a, 0x2222000b, 0x1111000c, 0x2222000d, 0x1111000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vunlt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isgreaterequal (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vunle[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vunle[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vunle[N] = { 0x11110000, 0x11110001, 0x22220002, 0x11110003, 0x22220004, 0x11110005, 0x22220006, 0x11110007, 0x11110008, 0x11110009, 0x1111000a, 0x1111000b, 0x1111000c, 0x1111000d, 0x1111000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++vunle (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isgreater (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vungt[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vungt[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vungt[N] = { 0x11110000, 0x22220001, 0x11110002, 0x22220003, 0x11110004, 0x22220005, 0x11110006, 0x22220007, 0x22220008, 0x11110009, 0x2222000a, 0x2222000b, 0x1111000c, 0x2222000d, 0x2222000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vungt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_islessequal (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vunge[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vunge[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vunge[N] = { 0x11110000, 0x11110001, 0x11110002, 0x11110003, 0x11110004, 0x11110005, 0x11110006, 0x11110007, 0x22220008, 0x11110009, 0x2222000a, 0x1111000b, 0x1111000c, 0x1111000d, 0x2222000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++vunge (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isless (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vuneq[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vuneq[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vuneq[N] = { 0x11110000, 0x11110001, 0x22220002, 0x11110003, 0x22220004, 0x11110005, 0x22220006, 0x11110007, 0x22220008, 0x11110009, 0x2222000a, 0x1111000b, 0x1111000c, 0x1111000d, 0x2222000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++vuneq (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_islessgreater (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_vlg[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vlg[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vlg[N] = { 0x22220000, 0x22220001, 0x11110002, 0x22220003, 0x11110004, 0x22220005, 0x11110006, 0x22220007, 0x11110008, 0x22220009, 0x1111000a, 0x2222000b, 0x2222000c, 0x2222000d, 0x1111000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vlg (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_islessgreater (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++static const u32 a_veqi[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_veqi[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_veqi[N] = { 0x22220000, 0x11110001, 0x22220002, 0x11110003, 0x22220004, 0x11110005, 0x22220006, 0x11110007, 0x22220008, 0x22220009, 0x2222000a, 0x1111000b, 0x2222000c, 0x1111000d, 0x2222000e, 0x1111000f };
++
++__attribute__ ((noipa)) void
++veqi (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = a.f[i] == b.f[i] ? x.i[i] : y.i[i];
++}
++
++static const u32 a_vnei[N] = { 0xffc01234, 0x4640e6b6, 0x3f000000, 0xff800000, 0x3f000000, 0x477fe000, 0x7f800000, 0xc4800000, 0xc0000000, 0x7fc00000, 0x477fe000, 0x477fe000, 0x00000000, 0xbe000000, 0xbf800000, 0xff800000 };
++static const u32 b_vnei[N] = { 0x00000000, 0x4640e6b6, 0xc4800000, 0xff800000, 0xbe000000, 0x477fe000, 0xff800000, 0xc4800000, 0x50df8476, 0x7fc00000, 0x7e967699, 0x477fe000, 0x7fc00000, 0xbe000000, 0xb892ccf7, 0xff800000 };
++static const u32 e_vnei[N] = { 0x11110000, 0x22220001, 0x11110002, 0x22220003, 0x11110004, 0x22220005, 0x11110006, 0x22220007, 0x11110008, 0x11110009, 0x1111000a, 0x2222000b, 0x1111000c, 0x2222000d, 0x1111000e, 0x2222000f };
++
++__attribute__ ((noipa)) void
++vnei (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = a.f[i] != b.f[i] ? x.i[i] : y.i[i];
++}
++
++int
++main (void)
++{
++  fill (a_veq, b_veq);
++  veq ();
++  check (e_veq);
++  fill (a_vne, b_vne);
++  vne ();
++  check (e_vne);
++  fill (a_vun, b_vun);
++  vun ();
++  check (e_vun);
++  fill (a_vord, b_vord);
++  vord ();
++  check (e_vord);
++  fill (a_vunlt, b_vunlt);
++  vunlt ();
++  check (e_vunlt);
++  fill (a_vunle, b_vunle);
++  vunle ();
++  check (e_vunle);
++  fill (a_vungt, b_vungt);
++  vungt ();
++  check (e_vungt);
++  fill (a_vunge, b_vunge);
++  vunge ();
++  check (e_vunge);
++  fill (a_vuneq, b_vuneq);
++  vuneq ();
++  check (e_vuneq);
++  fill (a_vlg, b_vlg);
++  vlg ();
++  check (e_vlg);
++  fill (a_veqi, b_veqi);
++  veqi ();
++  check (e_veqi);
++  fill (a_vnei, b_vnei);
++  vnei ();
++  check (e_vnei);
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cmp-snan.c b/gcc/testsuite/gcc.target/v850/fxu-cmp-snan.c
+new file mode 100644
+index 00000000000..6359f0969fd
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cmp-snan.c
+@@ -0,0 +1,29 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3 -fsignaling-nans" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++veq (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] == b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vne (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] != b.f[i] ? x.f[i] : y.f[i];
++}
++
++/* { dg-final { scan-assembler-not "\\tcmpf\\.s4 " } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cmp-trap.c b/gcc/testsuite/gcc.target/v850/fxu-cmp-trap.c
+new file mode 100644
+index 00000000000..c90a9b31a7b
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cmp-trap.c
+@@ -0,0 +1,50 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++vlt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] < b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vle (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] <= b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vgt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] > b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vge (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] >= b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vltgt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = (a.f[i] < b.f[i] || a.f[i] > b.f[i]) ? x.f[i] : y.f[i];
++}
++
++/* { dg-final { scan-assembler-not "\\tcmpf\\.s4 " } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cmp.c b/gcc/testsuite/gcc.target/v850/fxu-cmp.c
+new file mode 100644
+index 00000000000..659a78c6ef4
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cmp.c
+@@ -0,0 +1,101 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++veq (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] == b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vne (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] != b.f[i] ? x.f[i] : y.f[i];
++}
++
++void
++vun (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_isunordered (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++vord (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isunordered (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++vunlt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isgreaterequal (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++vunle (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isgreater (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++vungt (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_islessequal (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++vunge (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_isless (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++vuneq (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = !__builtin_islessgreater (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++vlg (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = __builtin_islessgreater (a.f[i], b.f[i]) ? x.f[i] : y.f[i];
++}
++
++void
++veqi (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = a.f[i] == b.f[i] ? x.i[i] : y.i[i];
++}
++
++void
++vnei (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = a.f[i] != b.f[i] ? x.i[i] : y.i[i];
++}
++
++/* { dg-final { scan-assembler-times "\\tcmpf\\.s4 " 48 } } */
++/* { dg-final { scan-assembler-not "\\tcmpf\\.s " } } */
++/* { dg-final { scan-assembler "\\tcmovf\\.w4 " } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cost-long.c b/gcc/testsuite/gcc.target/v850/fxu-cost-long.c
+new file mode 100644
+index 00000000000..44b9d4edf6f
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cost-long.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3" } */
++
++/* A long loop with a runtime trip count is still vectorized.  */
++
++void
++f (float *__restrict r, const float *__restrict a, const float *__restrict b,
++   int n)
++{
++  for (int i = 0; i < n; i++)
++    r[i] = a[i] * b[i] + r[i];
++}
++
++/* { dg-final { scan-assembler "\\tfmaf\\.s4 " } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cost-short.c b/gcc/testsuite/gcc.target/v850/fxu-cost-short.c
+new file mode 100644
+index 00000000000..f3493d8a8ad
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cost-short.c
+@@ -0,0 +1,18 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3" } */
++
++
++float a[4] __attribute__ ((aligned (16)));
++float b[4] __attribute__ ((aligned (16)));
++float r[4] __attribute__ ((aligned (16)));
++
++void
++f (void)
++{
++  for (int i = 0; i < 4; i++)
++    r[i] = a[i] + b[i];
++}
++
++/* { dg-final { scan-assembler-not "\\taddf\\.s4 " } } */
++/* { dg-final { scan-assembler-not "\\tstv\\.qw wr" } } */
++/* { dg-final { scan-assembler-times "\\taddf\\.s " 4 } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cvt-run.c b/gcc/testsuite/gcc.target/v850/fxu-cvt-run.c
+new file mode 100644
+index 00000000000..fbbe30aa5ae
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cvt-run.c
+@@ -0,0 +1,67 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3 -fno-math-errno" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++static void
++fill (const u32 *pa, const u32 *pb)
++{
++  for (int i = 0; i < N; i++)
++    {
++      a.u[i] = pa[i];
++      b.u[i] = pb[i];
++      x.u[i] = 0x11110000 + i;
++      y.u[i] = 0x22220000 + i;
++      r.u[i] = 0xdeadbeef;
++    }
++}
++
++static void
++check (const u32 *e)
++{
++  for (int i = 0; i < N; i++)
++    if (r.u[i] != e[i])
++      __builtin_abort ();
++}
++
++static const u32 a_vfloor[N] = { 0x3fc00000, 0xbfc00000, 0x40000000, 0xc0000000, 0x3efae148, 0xbefae148, 0x4e6e6b28, 0xce6e6b28, 0x7f800000, 0xcf32d05e, 0x40200000, 0xc0200000, 0x42f78000, 0x7fc00000, 0x00000000, 0x40fff7cf };
++static const u32 b_vfloor[N] = { 0x3fc00000, 0xbfc00000, 0x40000000, 0xc0000000, 0x3efae148, 0xbefae148, 0x4e6e6b28, 0xce6e6b28, 0x7f800000, 0xcf32d05e, 0x40200000, 0xc0200000, 0x42f78000, 0x7fc00000, 0x00000000, 0x40fff7cf };
++static const u32 e_vfloor[N] = { 0x00000001, 0xfffffffe, 0x00000002, 0xfffffffe, 0x00000000, 0xffffffff, 0x3b9aca00, 0xc4653600, 0x7fffffff, 0x80000000, 0x00000002, 0xfffffffd, 0x0000007b, 0x80000000, 0x00000000, 0x00000007 };
++
++__attribute__ ((noipa)) void
++vfloor (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = __builtin_lfloorf (a.f[i]);
++}
++
++static const u32 a_vceil[N] = { 0x3fc00000, 0xbfc00000, 0x40000000, 0xc0000000, 0x3efae148, 0xbefae148, 0x4e6e6b28, 0xce6e6b28, 0x7f800000, 0xcf32d05e, 0x40200000, 0xc0200000, 0x42f78000, 0x7fc00000, 0x00000000, 0x40fff7cf };
++static const u32 b_vceil[N] = { 0x3fc00000, 0xbfc00000, 0x40000000, 0xc0000000, 0x3efae148, 0xbefae148, 0x4e6e6b28, 0xce6e6b28, 0x7f800000, 0xcf32d05e, 0x40200000, 0xc0200000, 0x42f78000, 0x7fc00000, 0x00000000, 0x40fff7cf };
++static const u32 e_vceil[N] = { 0x00000002, 0xffffffff, 0x00000002, 0xfffffffe, 0x00000001, 0x00000000, 0x3b9aca00, 0xc4653600, 0x7fffffff, 0x80000000, 0x00000003, 0xfffffffe, 0x0000007c, 0x80000000, 0x00000000, 0x00000008 };
++
++__attribute__ ((noipa)) void
++vceil (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = __builtin_lceilf (a.f[i]);
++}
++
++int
++main (void)
++{
++  fill (a_vfloor, b_vfloor);
++  vfloor ();
++  check (e_vfloor);
++  fill (a_vceil, b_vceil);
++  vceil ();
++  check (e_vceil);
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-cvt.c b/gcc/testsuite/gcc.target/v850/fxu-cvt.c
+new file mode 100644
+index 00000000000..a9628408909
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-cvt.c
+@@ -0,0 +1,46 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3 -fno-math-errno" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++vfloor (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = __builtin_lfloorf (a.f[i]);
++}
++
++void
++vceil (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = __builtin_lceilf (a.f[i]);
++}
++
++void
++vround (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = __builtin_lroundf (a.f[i]);
++}
++
++void
++vrint (void)
++{
++  for (int i = 0; i < N; i++)
++    r.i[i] = __builtin_lrintf (a.f[i]);
++}
++
++/* { dg-final { scan-assembler-times "\\tfloorf\\.sw4 " 4 } } */
++/* { dg-final { scan-assembler-times "\\tceilf\\.sw4 " 4 } } */
++/* { dg-final { scan-assembler-not "\\troundf\\.sw4 " } } */
++/* { dg-final { scan-assembler-not "\\tcvtf\\.sw4 " } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-lane-run.c b/gcc/testsuite/gcc.target/v850/fxu-lane-run.c
+new file mode 100644
+index 00000000000..8a6347f028d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-lane-run.c
+@@ -0,0 +1,73 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O2" } */
++
++
++typedef float vf __attribute__ ((vector_size (16)));
++typedef int vi __attribute__ ((vector_size (16)));
++typedef unsigned int u32;
++union uf { vf v; float f[4]; u32 u[4]; };
++union ui { vi v; int i[4]; };
++
++#define EX(n) __attribute__ ((noipa)) float ex##n (vf v) { return v[n]; }
++#define EXI(n) __attribute__ ((noipa)) int exi##n (vi v) { return v[n]; }
++#define ST(n) __attribute__ ((noipa)) vf st##n (vf v, float s) { v[n] = s; return v; }
++#define STI(n) __attribute__ ((noipa)) vi sti##n (vi v, int s) { v[n] = s; return v; }
++EX (0) EX (1) EX (2) EX (3)
++EXI (0) EXI (1) EXI (2) EXI (3)
++ST (0) ST (1) ST (2) ST (3)
++STI (0) STI (1) STI (2) STI (3)
++
++__attribute__ ((noipa)) vf dup (float s) { return (vf) { s, s, s, s }; }
++__attribute__ ((noipa)) vi dupi (int s) { return (vi) { s, s, s, s }; }
++__attribute__ ((noipa)) vf ini (float p, float q, float s, float t)
++{ return (vf) { p, q, s, t }; }
++__attribute__ ((noipa)) vi inii (int p, int q, int s, int t)
++{ return (vi) { p, q, s, t }; }
++__attribute__ ((noipa)) vf inc (void) { return (vf) { 1.0f, -2.0f, 3.5f, 0.0f }; }
++
++float m[4] __attribute__ ((aligned (16)));
++__attribute__ ((noipa)) void scal (float s)
++{
++  for (int i = 0; i < 4; i++)
++    m[i] = m[i] * s;
++}
++
++int
++main (void)
++{
++  union uf u = { .f = { 1.5f, -2.25f, 3.0f, 4.75f } };
++  union ui w = { .i = { 10, -20, 30, -40 } };
++  float (*ex[4]) (vf) = { ex0, ex1, ex2, ex3 };
++  int (*exi[4]) (vi) = { exi0, exi1, exi2, exi3 };
++  vf (*st[4]) (vf, float) = { st0, st1, st2, st3 };
++  vi (*sti[4]) (vi, int) = { sti0, sti1, sti2, sti3 };
++
++  for (int n = 0; n < 4; n++)
++    {
++      if (ex[n] (u.v) != u.f[n] || exi[n] (w.v) != w.i[n])
++	__builtin_abort ();
++      union uf s = { .v = st[n] (u.v, 9.0f) };
++      union ui si = { .v = sti[n] (w.v, 99) };
++      for (int k = 0; k < 4; k++)
++	if (s.f[k] != (k == n ? 9.0f : u.f[k])
++	    || si.i[k] != (k == n ? 99 : w.i[k]))
++	  __builtin_abort ();
++    }
++  union uf d = { .v = dup (-6.5f) };
++  union ui di = { .v = dupi (7) };
++  union uf in = { .v = ini (1.0f, 2.0f, 3.0f, 4.0f) };
++  union ui ii = { .v = inii (5, 6, 7, 8) };
++  union uf c = { .v = inc () };
++  for (int k = 0; k < 4; k++)
++    if (d.f[k] != -6.5f || di.i[k] != 7 || in.f[k] != k + 1
++	|| ii.i[k] != k + 5)
++      __builtin_abort ();
++  if (c.f[0] != 1.0f || c.f[1] != -2.0f || c.f[2] != 3.5f || c.f[3] != 0.0f)
++    __builtin_abort ();
++  m[0] = 1; m[1] = 2; m[2] = 3; m[3] = 4;
++  scal (0.5f);
++  for (int k = 0; k < 4; k++)
++    if (m[k] != (k + 1) * 0.5f)
++      __builtin_abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-lane.c b/gcc/testsuite/gcc.target/v850/fxu-lane.c
+new file mode 100644
+index 00000000000..fbaaebc972a
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-lane.c
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O2" } */
++
++
++typedef float vf __attribute__ ((vector_size (16)));
++typedef int vi __attribute__ ((vector_size (16)));
++
++float ex2 (vf v) { return v[2]; }
++int exi3 (vi v) { return v[3]; }
++vf st1 (vf v, float s) { v[1] = s; return v; }
++vf dup (float s) { return (vf) { s, s, s, s }; }
++vi ini (int p, int q, int s, int t) { return (vi) { p, q, s, t }; }
++
++/* { dg-final { scan-assembler "\\tstv\\.w 2, " } } */
++/* { dg-final { scan-assembler "\\tstv\\.w 3, " } } */
++/* { dg-final { scan-assembler "\\tldv\\.w 2, " } } */
++/* { dg-final { scan-assembler-times "\\tldv\\.w 15, " 1 } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-perm-run.c b/gcc/testsuite/gcc.target/v850/fxu-perm-run.c
+new file mode 100644
+index 00000000000..186236b175b
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-perm-run.c
+@@ -0,0 +1,146 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++static void
++fill (const u32 *pa, const u32 *pb)
++{
++  for (int i = 0; i < N; i++)
++    {
++      a.u[i] = pa[i];
++      b.u[i] = pb[i];
++      x.u[i] = 0x11110000 + i;
++      y.u[i] = 0x22220000 + i;
++      r.u[i] = 0xdeadbeef;
++    }
++}
++
++static void
++check (const u32 *e)
++{
++  for (int i = 0; i < N; i++)
++    if (r.u[i] != e[i])
++      __builtin_abort ();
++}
++
++typedef float vf __attribute__ ((vector_size (16)));
++typedef int vi __attribute__ ((vector_size (16)));
++union { vf v[N]; u32 u[4 * N]; } rs __attribute__ ((aligned (16)));
++union { vi v[1]; u32 u[4]; } ri __attribute__ ((aligned (16)));
++
++static const u32 a_vrev[N] = { 0x10000000, 0x10000001, 0x10000002, 0x10000003, 0x10000004, 0x10000005, 0x10000006, 0x10000007, 0x10000008, 0x10000009, 0x1000000a, 0x1000000b, 0x1000000c, 0x1000000d, 0x1000000e, 0x1000000f };
++static const u32 b_vrev[N] = { 0x20000000, 0x20000001, 0x20000002, 0x20000003, 0x20000004, 0x20000005, 0x20000006, 0x20000007, 0x20000008, 0x20000009, 0x2000000a, 0x2000000b, 0x2000000c, 0x2000000d, 0x2000000e, 0x2000000f };
++static const u32 e_vrev[N] = { 0x1000000f, 0x1000000e, 0x1000000d, 0x1000000c, 0x1000000b, 0x1000000a, 0x10000009, 0x10000008, 0x10000007, 0x10000006, 0x10000005, 0x10000004, 0x10000003, 0x10000002, 0x10000001, 0x10000000 };
++
++__attribute__ ((noipa)) void
++vrev (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[N - 1 - i];
++}
++
++static const u32 a_vswap[N] = { 0x10000000, 0x10000001, 0x10000002, 0x10000003, 0x10000004, 0x10000005, 0x10000006, 0x10000007, 0x10000008, 0x10000009, 0x1000000a, 0x1000000b, 0x1000000c, 0x1000000d, 0x1000000e, 0x1000000f };
++static const u32 b_vswap[N] = { 0x20000000, 0x20000001, 0x20000002, 0x20000003, 0x20000004, 0x20000005, 0x20000006, 0x20000007, 0x20000008, 0x20000009, 0x2000000a, 0x2000000b, 0x2000000c, 0x2000000d, 0x2000000e, 0x2000000f };
++static const u32 e_vswap[N] = { 0x10000001, 0x10000000, 0x10000003, 0x10000002, 0x10000005, 0x10000004, 0x10000007, 0x10000006, 0x10000009, 0x10000008, 0x1000000b, 0x1000000a, 0x1000000d, 0x1000000c, 0x1000000f, 0x1000000e };
++
++__attribute__ ((noipa)) void
++vswap (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i + 1];
++      r.f[i + 1] = a.f[i];
++    }
++}
++
++static const u32 a_vileave[N] = { 0x10000000, 0x10000001, 0x10000002, 0x10000003, 0x10000004, 0x10000005, 0x10000006, 0x10000007, 0x10000008, 0x10000009, 0x1000000a, 0x1000000b, 0x1000000c, 0x1000000d, 0x1000000e, 0x1000000f };
++static const u32 b_vileave[N] = { 0x20000000, 0x20000001, 0x20000002, 0x20000003, 0x20000004, 0x20000005, 0x20000006, 0x20000007, 0x20000008, 0x20000009, 0x2000000a, 0x2000000b, 0x2000000c, 0x2000000d, 0x2000000e, 0x2000000f };
++static const u32 e_vileave[N] = { 0x10000000, 0x20000000, 0x10000001, 0x20000001, 0x10000002, 0x20000002, 0x10000003, 0x20000003, 0x10000004, 0x20000004, 0x10000005, 0x20000005, 0x10000006, 0x20000006, 0x10000007, 0x20000007 };
++
++__attribute__ ((noipa)) void
++vileave (void)
++{
++  for (int i = 0; i < N / 2; i++)
++    {
++      r.f[2 * i] = a.f[i];
++      r.f[2 * i + 1] = b.f[i];
++    }
++}
++
++static const u32 a_veven[N] = { 0x10000000, 0x10000001, 0x10000002, 0x10000003, 0x10000004, 0x10000005, 0x10000006, 0x10000007, 0x10000008, 0x10000009, 0x1000000a, 0x1000000b, 0x1000000c, 0x1000000d, 0x1000000e, 0x1000000f };
++static const u32 b_veven[N] = { 0x20000000, 0x20000001, 0x20000002, 0x20000003, 0x20000004, 0x20000005, 0x20000006, 0x20000007, 0x20000008, 0x20000009, 0x2000000a, 0x2000000b, 0x2000000c, 0x2000000d, 0x2000000e, 0x2000000f };
++static const u32 e_veven[N] = { 0x10000000, 0x10000002, 0x10000004, 0x10000006, 0x10000008, 0x1000000a, 0x1000000c, 0x1000000e, 0x10000001, 0x10000003, 0x10000005, 0x10000007, 0x10000009, 0x1000000b, 0x1000000d, 0x1000000f };
++
++__attribute__ ((noipa)) void
++veven (void)
++{
++  for (int i = 0; i < N / 2; i++)
++    {
++      r.f[i] = a.f[2 * i];
++      r.f[i + N / 2] = a.f[2 * i + 1];
++    }
++}
++
++static const u32 e_sh[4 * N] = { 0x20000003, 0x10000000, 0x20000001, 0x10000002, 0x10000000, 0x10000000, 0x10000000, 0x10000000, 0x10000003, 0x10000002, 0x10000001, 0x10000000, 0x20000000, 0x20000001, 0x20000002, 0x20000003, 0x10000001, 0x20000002, 0x10000003, 0x20000000, 0x10000001, 0x10000002, 0x20000001, 0x10000003, 0x20000000, 0x20000001, 0x10000001, 0x20000000, 0x20000000, 0x20000003, 0x10000001, 0x10000002, 0x10000000, 0x10000001, 0x20000001, 0x10000003, 0x10000003, 0x10000002, 0x20000000, 0x20000002, 0x10000000, 0x10000000, 0x10000000, 0x20000000, 0x20000003, 0x10000003, 0x20000001, 0x10000002, 0x20000003, 0x10000002, 0x20000001, 0x20000001, 0x10000003, 0x20000003, 0x20000001, 0x20000001, 0x10000001, 0x20000003, 0x20000000, 0x10000000, 0x10000000, 0x20000002, 0x20000003, 0x20000001 };
++
++__attribute__ ((noipa)) void
++shuf (vf p, vf q)
++{
++  rs.v[0] = __builtin_shuffle (p, q, (vi) { 7, 0, 5, 2 });
++  rs.v[1] = __builtin_shuffle (p, q, (vi) { 0, 0, 0, 0 });
++  rs.v[2] = __builtin_shuffle (p, q, (vi) { 3, 2, 1, 0 });
++  rs.v[3] = __builtin_shuffle (p, q, (vi) { 4, 5, 6, 7 });
++  rs.v[4] = __builtin_shuffle (p, q, (vi) { 1, 6, 3, 4 });
++  rs.v[5] = __builtin_shuffle (p, q, (vi) { 1, 2, 5, 3 });
++  rs.v[6] = __builtin_shuffle (p, q, (vi) { 4, 5, 1, 4 });
++  rs.v[7] = __builtin_shuffle (p, q, (vi) { 4, 7, 1, 2 });
++  rs.v[8] = __builtin_shuffle (p, q, (vi) { 0, 1, 5, 3 });
++  rs.v[9] = __builtin_shuffle (p, q, (vi) { 3, 2, 4, 6 });
++  rs.v[10] = __builtin_shuffle (p, q, (vi) { 0, 0, 0, 4 });
++  rs.v[11] = __builtin_shuffle (p, q, (vi) { 7, 3, 5, 2 });
++  rs.v[12] = __builtin_shuffle (p, q, (vi) { 7, 2, 5, 5 });
++  rs.v[13] = __builtin_shuffle (p, q, (vi) { 3, 7, 5, 5 });
++  rs.v[14] = __builtin_shuffle (p, q, (vi) { 1, 7, 4, 0 });
++  rs.v[15] = __builtin_shuffle (p, q, (vi) { 0, 6, 7, 5 });
++}
++
++__attribute__ ((noipa)) void
++shufi (vi p)
++{
++  ri.v[0] = __builtin_shuffle (p, (vi) { 3, 3, 0, 1 });
++}
++
++int
++main (void)
++{
++  fill (a_vrev, b_vrev);
++  vrev ();
++  check (e_vrev);
++  fill (a_vswap, b_vswap);
++  vswap ();
++  check (e_vswap);
++  fill (a_vileave, b_vileave);
++  vileave ();
++  check (e_vileave);
++  fill (a_veven, b_veven);
++  veven ();
++  check (e_veven);
++  fill (a_vrev, b_vrev);
++  shuf (*(vf *) a.u, *(vf *) b.u);
++  for (int i = 0; i < 4 * N; i++)
++    if (rs.u[i] != e_sh[i])
++      __builtin_abort ();
++  shufi (*(vi *) a.u);
++  if (ri.u[0] != a.u[3] || ri.u[1] != a.u[3] || ri.u[2] != a.u[0] || ri.u[3] != a.u[1])
++    __builtin_abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-perm.c b/gcc/testsuite/gcc.target/v850/fxu-perm.c
+new file mode 100644
+index 00000000000..887d0b970a2
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-perm.c
+@@ -0,0 +1,52 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++vrev (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[N - 1 - i];
++}
++
++void
++vswap (void)
++{
++  for (int i = 0; i < N; i += 2)
++    {
++      r.f[i] = a.f[i + 1];
++      r.f[i + 1] = a.f[i];
++    }
++}
++
++void
++vileave (void)
++{
++  for (int i = 0; i < N / 2; i++)
++    {
++      r.f[2 * i] = a.f[i];
++      r.f[2 * i + 1] = b.f[i];
++    }
++}
++
++void
++veven (void)
++{
++  for (int i = 0; i < N / 2; i++)
++    {
++      r.f[i] = a.f[2 * i];
++      r.f[i + N / 2] = a.f[2 * i + 1];
++    }
++}
++
++/* { dg-final { scan-assembler-times "\\tshflv\\.w4 " 16 } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-reduc-fminmax-run.c b/gcc/testsuite/gcc.target/v850/fxu-reduc-fminmax-run.c
+new file mode 100644
+index 00000000000..adad196a7c4
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-reduc-fminmax-run.c
+@@ -0,0 +1,39 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3 -fno-math-errno" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union { float f[N]; u32 u[N]; } a __attribute__ ((aligned (16)));
++static const u32 in[N] = { 0x40a00000, 0x447a0000, 0xc47a0000, 0x41000000, 0xc1c00000, 0x7fc00000, 0x41c00000, 0x40800000, 0xc2480000, 0xc2000000, 0x42080000, 0x41880000, 0x41a80000, 0xc0c00000, 0x41600000, 0x420c0000 };
++
++__attribute__ ((noipa)) float
++fmx (void)
++{
++  float s = a.f[0];
++  for (int i = 0; i < N; i++)
++    s = __builtin_fmaxf (s, a.f[i]);
++  return s;
++}
++
++__attribute__ ((noipa)) float
++fmn (void)
++{
++  float s = a.f[0];
++  for (int i = 0; i < N; i++)
++    s = __builtin_fminf (s, a.f[i]);
++  return s;
++}
++
++int
++main (void)
++{
++  union { float f; u32 u; } p, q;
++  for (int i = 0; i < N; i++)
++    a.u[i] = in[i];
++  p.f = fmx ();
++  q.f = fmn ();
++  if (p.u != 0x447a0000 || q.u != 0xc47a0000)
++    __builtin_abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-reduc-run.c b/gcc/testsuite/gcc.target/v850/fxu-reduc-run.c
+new file mode 100644
+index 00000000000..d4c2ed83323
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-reduc-run.c
+@@ -0,0 +1,44 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3 -ffast-math" } */
++
++
++#define N 16
++float a[N] __attribute__ ((aligned (16)));
++static const float in[N] = { 5.0f, -47.0f, 11.0f, 8.0f, -24.0f, 12.0f, 24.0f, 4.0f, -50.0f, -32.0f, 34.0f, 17.0f, 21.0f, -6.0f, 14.0f, 35.0f };
++
++__attribute__ ((noipa)) float
++sum (void)
++{
++  float s = 0.0f;
++  for (int i = 0; i < N; i++)
++    s += a[i];
++  return s;
++}
++
++__attribute__ ((noipa)) float
++smax (void)
++{
++  float s = a[0];
++  for (int i = 0; i < N; i++)
++    s = s > a[i] ? s : a[i];
++  return s;
++}
++
++__attribute__ ((noipa)) float
++smin (void)
++{
++  float s = a[0];
++  for (int i = 0; i < N; i++)
++    s = s < a[i] ? s : a[i];
++  return s;
++}
++
++int
++main (void)
++{
++  for (int i = 0; i < N; i++)
++    a[i] = in[i];
++  if (sum () != 26.0f || smax () != 35.0f || smin () != -50.0f)
++    __builtin_abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-reduc.c b/gcc/testsuite/gcc.target/v850/fxu-reduc.c
+new file mode 100644
+index 00000000000..96ed0de4734
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-reduc.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3 -ffast-math" } */
++
++
++#define N 16
++float a[N] __attribute__ ((aligned (16)));
++
++float sum (void) { float s = 0.0f; for (int i = 0; i < N; i++) s += a[i]; return s; }
++float smax (void) { float s = a[0]; for (int i = 0; i < N; i++) s = s > a[i] ? s : a[i]; return s; }
++float smin (void) { float s = a[0]; for (int i = 0; i < N; i++) s = s < a[i] ? s : a[i]; return s; }
++
++/* { dg-final { scan-assembler-times "\\taddrf\\.s4 " 1 } } */
++/* { dg-final { scan-assembler-times "\\tmaxrf\\.s4 " 1 } } */
++/* { dg-final { scan-assembler-times "\\tminrf\\.s4 " 1 } } */
++/* { dg-final { scan-assembler-times "\\tstv\\.w 0, " 3 } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-rounding-math.c b/gcc/testsuite/gcc.target/v850/fxu-rounding-math.c
+new file mode 100644
+index 00000000000..d2905798fc5
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-rounding-math.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3 -frounding-math" } */
++
++
++float a[64], b[64], r[64];
++
++void
++f (void)
++{
++  for (int i = 0; i < 64; i++)
++    r[i] = a[i] + b[i];
++}
++
++/* { dg-final { scan-assembler-not "\\.s4 " } } */
++/* { dg-final { scan-assembler "\\taddf\\.s " } } */
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-vect-add-run.c b/gcc/testsuite/gcc.target/v850/fxu-vect-add-run.c
+new file mode 100644
+index 00000000000..0907b8a6b39
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-vect-add-run.c
+@@ -0,0 +1,53 @@
++/* { dg-do run { target v850_fxu_hw } } */
++/* { dg-options "-mfxu -O3" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++static void
++fill (const u32 *pa, const u32 *pb)
++{
++  for (int i = 0; i < N; i++)
++    {
++      a.u[i] = pa[i];
++      b.u[i] = pb[i];
++      x.u[i] = 0x11110000 + i;
++      y.u[i] = 0x22220000 + i;
++      r.u[i] = 0xdeadbeef;
++    }
++}
++
++static void
++check (const u32 *e)
++{
++  for (int i = 0; i < N; i++)
++    if (r.u[i] != e[i])
++      __builtin_abort ();
++}
++
++static const u32 a_vadd[N] = { 0xc4800000, 0xb892ccf7, 0x4640e6b6, 0x3f800000, 0xc4800000, 0x50df8476, 0x4640e6b6, 0x3f800000, 0xb892ccf7, 0xbe000000, 0x42c80000, 0x3f800000, 0x0df36390, 0x40200000, 0xbe000000, 0x3f800000 };
++static const u32 b_vadd[N] = { 0xc0700000, 0x40c00000, 0xbe000000, 0x40c00000, 0xc0700000, 0x4640e6b6, 0x0df36390, 0xb892ccf7, 0x40200000, 0xc0000000, 0x40c00000, 0xb892ccf7, 0x477fe000, 0x3f800000, 0xbf800000, 0xc4800000 };
++static const u32 e_vadd[N] = { 0xc4807800, 0x40bfff6d, 0x4640e636, 0x40e00000, 0xc4807800, 0x50df847c, 0x4640e6b6, 0x3f7ffb6a, 0x401ffeda, 0xc0080000, 0x42d40000, 0x3f7ffb6a, 0x477fe000, 0x40600000, 0xbf900000, 0xc47fc000 };
++
++__attribute__ ((noipa)) void
++vadd (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] + b.f[i];
++}
++
++int
++main (void)
++{
++  fill (a_vadd, b_vadd);
++  vadd ();
++  check (e_vadd);
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/fxu-vect-add.c b/gcc/testsuite/gcc.target/v850/fxu-vect-add.c
+new file mode 100644
+index 00000000000..679488aafda
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/fxu-vect-add.c
+@@ -0,0 +1,23 @@
++/* { dg-do compile } */
++/* { dg-options "-mfxu -O3" } */
++
++
++typedef unsigned int u32;
++#define N 16
++union fu { float f[N]; u32 u[N]; int i[N]; };
++union fu a __attribute__ ((aligned (16)));
++union fu b __attribute__ ((aligned (16)));
++union fu x __attribute__ ((aligned (16)));
++union fu y __attribute__ ((aligned (16)));
++union fu r __attribute__ ((aligned (16)));
++
++
++void
++vadd (void)
++{
++  for (int i = 0; i < N; i++)
++    r.f[i] = a.f[i] + b.f[i];
++}
++
++/* { dg-final { scan-assembler-times "\\taddf\\.s4 " 4 } } */
++/* { dg-final { scan-assembler-not "\\taddf\\.s " } } */
+diff --git a/gcc/testsuite/lib/target-supports.exp b/gcc/testsuite/lib/target-supports.exp
+index 3009b1bbf8d..8d67e16a698 100644
+--- a/gcc/testsuite/lib/target-supports.exp
++++ b/gcc/testsuite/lib/target-supports.exp
+@@ -8581,7 +8581,8 @@ proc check_effective_target_vect_float { } {
+ 	     || ([istarget riscv*-*-*]
+ 		 && [check_effective_target_riscv_v])
+ 	     || ([istarget loongarch*-*-*]
+-		 && [check_effective_target_loongarch_sx]) }}]
++		 && [check_effective_target_loongarch_sx])
++	     || [check_effective_target_v850_fxu] }}]
+ }
+ 
+ # Return 1 if the target supports hardware vectors of float without
+@@ -8701,7 +8702,8 @@ proc check_effective_target_vect_perm { } {
+ 	     || ([istarget riscv*-*-*]
+ 		 && [check_effective_target_riscv_v])
+ 	     || ([istarget loongarch*-*-*]
+-		 && [check_effective_target_loongarch_sx]) }}]
++		 && [check_effective_target_loongarch_sx])
++	     || [check_effective_target_v850_fxu] }}]
+ }
+ 
+ # Return 1 if, for some VF:
+@@ -9825,7 +9827,8 @@ proc check_effective_target_vect_element_align { } {
+     return [check_cached_effective_target vect_element_align {
+       expr { ([istarget arm*-*-*]
+ 	      && ![check_effective_target_arm_vect_no_misalign])
+-	     || [check_effective_target_vect_hw_misalign] }}]
++	     || [check_effective_target_vect_hw_misalign]
++	     || [check_effective_target_v850_fxu] }}]
+ }
+ 
+ # Return 1 if we expect to see unaligned accesses in at least some
+@@ -10033,7 +10036,8 @@ proc check_effective_target_vect_extract_even_odd { } {
+ 	     || ([istarget riscv*-*-*]
+ 		 && [check_effective_target_riscv_v])
+ 	     || ([istarget loongarch*-*-*]
+-		 && [check_effective_target_loongarch_sx]) }}]
++		 && [check_effective_target_loongarch_sx])
++	     || [check_effective_target_v850_fxu] }}]
+ }
+ 
+ # Return 1 if the target supports vector interleaving, 0 otherwise.
+@@ -10053,7 +10057,8 @@ proc check_effective_target_vect_interleave { } {
+ 	     || ([istarget riscv*-*-*]
+ 		 && [check_effective_target_riscv_v])
+ 	     || ([istarget loongarch*-*-*]
+-		 && [check_effective_target_loongarch_sx]) }}]
++		 && [check_effective_target_loongarch_sx])
++	     || [check_effective_target_v850_fxu] }}]
+ }
+ 
+ foreach N {2 3 4 5 6 7 8} {
+@@ -12781,6 +12786,8 @@ proc check_vect_support_and_set_flags { } {
+       } else {
+ 	return 0
+       }
++    } elseif { [istarget v850*-*-*] && [check_effective_target_v850_fxu] } {
++	set dg-do-what-default run
+     } else {
+ 	return 0
+     }
+-- 
+Parthiban N
+
