@@ -57,9 +57,15 @@ do_m4_backend()
             ldflags="${ldflags} -lrt"
             ;;
         *-mingw32)
-            # m4 is built with stack smashing protection enabled which
-            # is not part of mingw-w64 c library in v7.0.0 and later.
-            libs="${libs} -lssp"
+            case "${CT_CC_GCC_LIBSSP}" in
+                "" | "n") ;;
+                *)
+                    # m4 is built with stack smashing protection enabled which
+                    # is not part of mingw-w64 c library in v7.0.0 and later.
+                    libs="${libs} -lssp"
+                    ;;
+
+            esac
             ;;
     esac
 
