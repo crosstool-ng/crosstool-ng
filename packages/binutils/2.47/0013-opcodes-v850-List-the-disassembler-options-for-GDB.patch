@@ -1,0 +1,64 @@
+From 152eb7d5978819527b47fee622ba2222fe68cf81 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:09:55 +0530
+Subject: [PATCH] opcodes: v850: List the disassembler options for GDB
+
+Provide the v850 disassembler options so that GDB can offer the g4 and
+g4mh2 register name options, as other targets do.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ include/dis-asm.h  |  1 +
+ opcodes/v850-dis.c | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)
+
+diff --git a/include/dis-asm.h b/include/dis-asm.h
+index de03bab1d6c..85b3ab1d2e2 100644
+--- a/include/dis-asm.h
++++ b/include/dis-asm.h
+@@ -411,6 +411,7 @@ extern const disasm_options_and_args_t *disassembler_options_mips (void);
+ extern const disasm_options_and_args_t *disassembler_options_powerpc (void);
+ extern const disasm_options_and_args_t *disassembler_options_riscv (void);
+ extern const disasm_options_and_args_t *disassembler_options_s390 (void);
++extern const disasm_options_and_args_t *disassembler_options_v850 (void);
+ 
+ /* Fetch the disassembler for a given architecture ARC, endianess (big
+    endian if BIG is true), bfd_mach value MACH, and ABFD, if that support
+diff --git a/opcodes/v850-dis.c b/opcodes/v850-dis.c
+index 3ef2163ed91..c2624ad4246 100644
+--- a/opcodes/v850-dis.c
++++ b/opcodes/v850-dis.c
+@@ -1237,3 +1237,30 @@ with the -M switch:\n"));
+   fprintf (stream, _("  g4  Print RH850 G4 system register names.\n"));
+   fprintf (stream, _("  g4mh2  Print RH850 G4MH2 system register names.\n"));
+ }
++
++const disasm_options_and_args_t *
++disassembler_options_v850 (void)
++{
++  static disasm_options_and_args_t *opts_and_args;
++
++  if (opts_and_args == NULL)
++    {
++      disasm_options_t *opts;
++
++      opts_and_args = XNEW (disasm_options_and_args_t);
++      opts_and_args->args = NULL;
++
++      opts = &opts_and_args->options;
++      opts->name = XNEWVEC (const char *, 3);
++      opts->description = XNEWVEC (const char *, 3);
++      opts->arg = NULL;
++      opts->name[0] = "g4";
++      opts->description[0] = _("Print RH850 G4 system register names.");
++      opts->name[1] = "g4mh2";
++      opts->description[1] = _("Print RH850 G4MH2 system register names.");
++      opts->name[2] = NULL;
++      opts->description[2] = NULL;
++    }
++
++  return opts_and_args;
++}
+-- 
+Parthiban N
+

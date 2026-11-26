@@ -1,0 +1,90 @@
+From ace1c49f46dedfd25a8cae87565adfa8bb60d8a4 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:03:50 +0530
+Subject: [PATCH] v850: Add the cll instruction
+
+CLL clears the link that LDL.W sets and is part of the V850E3V5
+instruction set, so assemble and disassemble it.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gas/testsuite/gas/v850/basic.exp | 2 ++
+ gas/testsuite/gas/v850/cll-bad.d | 4 ++++
+ gas/testsuite/gas/v850/cll-bad.l | 2 ++
+ gas/testsuite/gas/v850/cll.d     | 8 ++++++++
+ gas/testsuite/gas/v850/cll.s     | 3 +++
+ opcodes/v850-opc.c               | 2 ++
+ 6 files changed, 21 insertions(+)
+ create mode 100644 gas/testsuite/gas/v850/cll-bad.d
+ create mode 100644 gas/testsuite/gas/v850/cll-bad.l
+ create mode 100644 gas/testsuite/gas/v850/cll.d
+ create mode 100644 gas/testsuite/gas/v850/cll.s
+
+diff --git a/gas/testsuite/gas/v850/basic.exp b/gas/testsuite/gas/v850/basic.exp
+index e85ef7f7aea..f2893ab30f1 100644
+--- a/gas/testsuite/gas/v850/basic.exp
++++ b/gas/testsuite/gas/v850/basic.exp
+@@ -447,4 +447,6 @@ if [istarget v850*-*-*] then {
+     run_dump_test "rh850-da"
+     run_dump_test "rh850-da-bad"
+     run_dump_test "rh850-da-gcc-abi"
++    run_dump_test "cll"
++    run_dump_test "cll-bad"
+ }
+diff --git a/gas/testsuite/gas/v850/cll-bad.d b/gas/testsuite/gas/v850/cll-bad.d
+new file mode 100644
+index 00000000000..90838b5c977
+--- /dev/null
++++ b/gas/testsuite/gas/v850/cll-bad.d
+@@ -0,0 +1,4 @@
++#as: -mv850e2v3
++#source: cll.s
++#name: v850 cll needs v850e3v5
++#error_output: cll-bad.l
+diff --git a/gas/testsuite/gas/v850/cll-bad.l b/gas/testsuite/gas/v850/cll-bad.l
+new file mode 100644
+index 00000000000..1f6161a6a83
+--- /dev/null
++++ b/gas/testsuite/gas/v850/cll-bad.l
+@@ -0,0 +1,2 @@
++.*: Assembler messages:
++.*:3: Error: .*Target processor does not support this instruction\.
+diff --git a/gas/testsuite/gas/v850/cll.d b/gas/testsuite/gas/v850/cll.d
+new file mode 100644
+index 00000000000..591d1c2b321
+--- /dev/null
++++ b/gas/testsuite/gas/v850/cll.d
+@@ -0,0 +1,8 @@
++#objdump: -d --prefix-addresses --show-raw-insn
++#name: v850 cll
++#as: -mv850e3v5
++
++.*: +file format .*v850.*
++
++Disassembly of section .text:
++0x00000000 ff ff 60 f1[ 	]+cll[ 	]*$
+diff --git a/gas/testsuite/gas/v850/cll.s b/gas/testsuite/gas/v850/cll.s
+new file mode 100644
+index 00000000000..1b861d868b2
+--- /dev/null
++++ b/gas/testsuite/gas/v850/cll.s
+@@ -0,0 +1,3 @@
++# CLL at the v850e3v5 level
++	.text
++	cll
+diff --git a/opcodes/v850-opc.c b/opcodes/v850-opc.c
+index 42a33599bf3..fe3a6c4ab82 100644
+--- a/opcodes/v850-opc.c
++++ b/opcodes/v850-opc.c
+@@ -1438,6 +1438,8 @@ const struct v850_opcode v850_opcodes[] =
+ { "binsm",two (0x07e0, 0x00b0),	two (0x07e0, 0x07f1), {R1, POS_M, WIDTH_M, R2}, 		0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_ALIAS },
+ { "binsl",two (0x07e0, 0x00d0),	two (0x07e0, 0x07f1), {R1, POS_L, WIDTH_L, R2}, 		0, PROCESSOR_V850E3V5_UP | PROCESSOR_OPTION_ALIAS },
+ 
++{ "cll",	two (0xffff, 0xf160),	two (0xffff, 0xffff),	{0},			0, PROCESSOR_V850E3V5_UP },
++
+ { "cache",	two (0xe7e0, 0x0160),	two (0xe7e0, 0x07ff),	{CACHEOP, R1}, 		2, PROCESSOR_V850E3V5_UP },
+ 
+ { "callt",	one (0x0200),		one (0xffc0), 	      	{IMM6},			0, PROCESSOR_NOT_V850 },
+-- 
+Parthiban N
+

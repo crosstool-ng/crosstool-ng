@@ -1,0 +1,235 @@
+From 7e0d2250ff74644d2864b8a2c0a259bbb2f814b0 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:38:51 +0530
+Subject: [PATCH] v850: Fix ep, TDA and ZDA for the RH850 ABI
+
+The RH850 ABI has no relocation for ep based offsets or for ZDA offsets
+in a load or store, so the assembler failed. Report ep and TDA at
+compile time and load ZDA addresses with MOVEA.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.cc                       | 29 ++++++++++++++++--
+ gcc/doc/extend.texi                           |  3 +-
+ gcc/doc/invoke.texi                           |  5 ++++
+ gcc/testsuite/gcc.target/v850/gcc-abi-tda.c   |  7 +++++
+ gcc/testsuite/gcc.target/v850/isr-ep-cfi.c    |  2 +-
+ gcc/testsuite/gcc.target/v850/rh850-abi-ep.c  |  6 ++++
+ .../gcc.target/v850/rh850-abi-tda-attr.c      |  6 ++++
+ gcc/testsuite/gcc.target/v850/rh850-abi-tda.c |  6 ++++
+ gcc/testsuite/gcc.target/v850/zda-gcc-abi.c   | 10 +++++++
+ gcc/testsuite/gcc.target/v850/zda-rh850.c     | 30 +++++++++++++++++++
+ 10 files changed, 100 insertions(+), 4 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/gcc-abi-tda.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/rh850-abi-ep.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/rh850-abi-tda-attr.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/rh850-abi-tda.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/zda-gcc-abi.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/zda-rh850.c
+
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index 37cb7fddd66..41fa499ab25 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -2081,7 +2081,16 @@ v850_handle_data_area_attribute (tree *node, tree name,
+   if (is_attribute_p ("sda", name))
+     data_area = DATA_AREA_SDA;
+   else if (is_attribute_p ("tda", name))
+-    data_area = DATA_AREA_TDA;
++    {
++      if (! TARGET_GCC_ABI)
++	{
++	  error ("the %qE attribute is not supported with the RH850 ABI; "
++		 "use %<-mgcc-abi%>", name);
++	  *no_add_attrs = true;
++	  return NULL_TREE;
++	}
++      data_area = DATA_AREA_TDA;
++    }
+   else if (is_attribute_p ("zda", name))
+     data_area = DATA_AREA_ZDA;
+   else
+@@ -3055,6 +3064,16 @@ v850_legitimate_constant_p (machine_mode mode ATTRIBUTE_UNUSED, rtx x)
+ 	       && !CONST_OK_FOR_K (INTVAL (XEXP (XEXP (x, 0), 1)))));
+ }
+ 
++/* Return true if X is a ZDA symbol, possibly plus an offset.  */
++
++static bool
++v850_zda_symbol_p (rtx x)
++{
++  if (GET_CODE (x) == CONST && GET_CODE (XEXP (x, 0)) == PLUS)
++    x = XEXP (XEXP (x, 0), 0);
++  return GET_CODE (x) == SYMBOL_REF && SYMBOL_REF_ZDA_P (x);
++}
++
+ /* Helper function for `v850_legitimate_address_p'.  */
+ 
+ static bool
+@@ -3103,7 +3122,8 @@ v850_legitimate_address_p (machine_mode mode, rtx x, bool strict_p,
+       && GET_MODE_SIZE (mode) <= GET_MODE_SIZE (word_mode))
+     return true;
+   if (special_symbolref_operand (x, mode)
+-      && (GET_MODE_SIZE (mode) <= GET_MODE_SIZE (word_mode)))
++      && (GET_MODE_SIZE (mode) <= GET_MODE_SIZE (word_mode))
++      && (TARGET_GCC_ABI || ! v850_zda_symbol_p (x)))
+     return true;
+   if (GET_CODE (x) == PLUS
+       && v850_rtx_ok_for_base_p (XEXP (x, 0), strict_p)
+@@ -3192,6 +3212,11 @@ v850_option_override (void)
+   if (! TARGET_GCC_ABI)
+     target_flags |= MASK_DISABLE_CALLT;
+ 
++  if (! TARGET_GCC_ABI && TARGET_EP)
++    error ("%<-mep%> is not supported with the RH850 ABI; use %<-mgcc-abi%>");
++  if (! TARGET_GCC_ABI && small_memory_max[(int) SMALL_MEMORY_TDA] > 0)
++    error ("%<-mtda%> is not supported with the RH850 ABI; use %<-mgcc-abi%>");
++
+   /* Save the initial options in case the user does function specific
+      options.  */
+   target_option_default_node = target_option_current_node
+diff --git a/gcc/doc/extend.texi b/gcc/doc/extend.texi
+index 88159822fa1..1d57be08a2b 100644
+--- a/gcc/doc/extend.texi
++++ b/gcc/doc/extend.texi
+@@ -8744,7 +8744,8 @@ which can hold up to 64 kilobytes.
+ This attribute applies to variables.
+ 
+ Use it to explicitly place a variable in the tiny data area,
+-which can hold up to 256 bytes in total.
++which can hold up to 256 bytes in total.  It is not supported with
++@option{-mrh850-abi}.
+ 
+ @atindex @code{zda}, V850
+ @item zda
+diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
+index 81213fca96f..620e689faf8 100644
+--- a/gcc/doc/invoke.texi
++++ b/gcc/doc/invoke.texi
+@@ -34541,6 +34541,11 @@ The @option{-m8byte-align} command-line option is supported.
+ The @option{-mdisable-callt} command-line option is enabled by
+ default.  The @option{-mno-disable-callt} command-line option is not
+ supported.
++
++@item
++The @option{-mep} and @option{-mtda} command-line options and the
++@code{tda} variable attribute are not supported, because the ABI has no
++relocation for an offset from @code{ep}.
+ @end itemize
+ 
+ When this version of the ABI is enabled the C preprocessor symbol
+diff --git a/gcc/testsuite/gcc.target/v850/gcc-abi-tda.c b/gcc/testsuite/gcc.target/v850/gcc-abi-tda.c
+new file mode 100644
+index 00000000000..fb7b8a1c127
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/gcc-abi-tda.c
+@@ -0,0 +1,7 @@
++/* { dg-do compile } */
++/* { dg-options "-mgcc-abi -mep -mtda=4" } */
++
++int t __attribute__ ((tda));
++int f (void) { return t; }
++
++/* { dg-final { scan-assembler {tdaoff\(_t\)} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-ep-cfi.c b/gcc/testsuite/gcc.target/v850/isr-ep-cfi.c
+index 0b1758731ab..79fc2287da6 100644
+--- a/gcc/testsuite/gcc.target/v850/isr-ep-cfi.c
++++ b/gcc/testsuite/gcc.target/v850/isr-ep-cfi.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-mv850e3v5 -O2 -mep -mno-prolog-function -g" } */
++/* { dg-options "-mv850e3v5 -mgcc-abi -O2 -mep -mno-prolog-function -g" } */
+ 
+ volatile float fv;
+ volatile int n;
+diff --git a/gcc/testsuite/gcc.target/v850/rh850-abi-ep.c b/gcc/testsuite/gcc.target/v850/rh850-abi-ep.c
+new file mode 100644
+index 00000000000..5f761139d04
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/rh850-abi-ep.c
+@@ -0,0 +1,6 @@
++/* { dg-do compile } */
++/* { dg-options "-mep" } */
++/* { dg-skip-if "tests the RH850 ABI" { *-*-* } { "-mgcc-abi" } { "" } } */
++/* { dg-error "'-mep' is not supported with the RH850 ABI; use '-mgcc-abi'" "" { target *-*-* } 0 } */
++
++int x;
+diff --git a/gcc/testsuite/gcc.target/v850/rh850-abi-tda-attr.c b/gcc/testsuite/gcc.target/v850/rh850-abi-tda-attr.c
+new file mode 100644
+index 00000000000..d6ad85237a7
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/rh850-abi-tda-attr.c
+@@ -0,0 +1,6 @@
++/* { dg-do compile } */
++/* { dg-skip-if "tests the RH850 ABI" { *-*-* } { "-mgcc-abi" } { "" } } */
++
++int t __attribute__ ((tda));	/* { dg-error "the 'tda' attribute is not supported with the RH850 ABI; use '-mgcc-abi'" } */
++int z __attribute__ ((zda));
++int s __attribute__ ((sda));
+diff --git a/gcc/testsuite/gcc.target/v850/rh850-abi-tda.c b/gcc/testsuite/gcc.target/v850/rh850-abi-tda.c
+new file mode 100644
+index 00000000000..55f98bbe91e
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/rh850-abi-tda.c
+@@ -0,0 +1,6 @@
++/* { dg-do compile } */
++/* { dg-options "-mtda=4" } */
++/* { dg-skip-if "tests the RH850 ABI" { *-*-* } { "-mgcc-abi" } { "" } } */
++/* { dg-error "'-mtda' is not supported with the RH850 ABI; use '-mgcc-abi'" "" { target *-*-* } 0 } */
++
++int x;
+diff --git a/gcc/testsuite/gcc.target/v850/zda-gcc-abi.c b/gcc/testsuite/gcc.target/v850/zda-gcc-abi.c
+new file mode 100644
+index 00000000000..a355276f6ec
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/zda-gcc-abi.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++/* { dg-options "-mgcc-abi -O2" } */
++
++extern int i __attribute__ ((zda));
++
++int li (void) { return i; }
++void si (int v) { i = v; }
++
++/* { dg-final { scan-assembler {ld\.w zdaoff\(_i\)\[r0\]} } } */
++/* { dg-final { scan-assembler {st\.w r[0-9]+,zdaoff\(_i\)\[r0\]} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/zda-rh850.c b/gcc/testsuite/gcc.target/v850/zda-rh850.c
+new file mode 100644
+index 00000000000..0485c496f50
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/zda-rh850.c
+@@ -0,0 +1,30 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++/* { dg-skip-if "tests the RH850 ABI" { *-*-* } { "-mgcc-abi" } { "" } } */
++
++#define Z __attribute__ ((zda))
++extern char c Z;
++extern short s Z;
++extern int i Z;
++extern float f Z;
++extern int a[8] Z;
++
++int lc (void) { return c; }
++int ls (void) { return s; }
++int li (void) { return i; }
++float lf (void) { return f; }
++int la (void) { return a[3]; }
++int lax (int k) { return a[k]; }
++void sc (char v) { c = v; }
++void ss (short v) { s = v; }
++void si (int v) { i = v; }
++void sf (float v) { f = v; }
++void sa (int v) { a[5] = v; }
++void bit (void) { i |= 4; }
++
++/* { dg-final { scan-assembler-times {movea zdaoff\(_c\),r0,} 2 } } */
++/* { dg-final { scan-assembler-times {movea zdaoff\(_s\),r0,} 2 } } */
++/* { dg-final { scan-assembler-times {movea zdaoff\(_i\),r0,} 3 } } */
++/* { dg-final { scan-assembler-times {movea zdaoff\(_f\),r0,} 2 } } */
++/* { dg-final { scan-assembler {movea zdaoff\(_a\),r0,} } } */
++/* { dg-final { scan-assembler-not {zdaoff\([^)]*\)\[r0\]} } } */
+-- 
+Parthiban N
+

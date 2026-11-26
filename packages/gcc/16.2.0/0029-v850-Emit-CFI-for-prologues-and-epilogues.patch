@@ -1,0 +1,260 @@
+From d0002393a339feb87648f2abbcd167e951efbf02 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:27:00 +0530
+Subject: [PATCH] v850: Emit CFI for prologues and epilogues
+
+Describe the prepare register save and every stack pointer change in
+the epilogues in the call frame information. Keep the frame notes of
+saves that ep substitution rewrites, so a debugger can unwind anywhere.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.cc                      | 92 +++++++++++++++-----
+ gcc/testsuite/gcc.target/v850/cfi-epilogue.c | 16 ++++
+ gcc/testsuite/gcc.target/v850/isr-ep-cfi.c   |  9 ++
+ gcc/testsuite/gcc.target/v850/prepare-cfi.c  | 17 ++++
+ 4 files changed, 112 insertions(+), 22 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/cfi-epilogue.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-ep-cfi.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/prepare-cfi.c
+
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index 8c233cf1e0f..86a465950c5 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -1122,6 +1122,14 @@ Saved %d bytes (%d uses of register %s) in function %s, starting as insn %d, end
+ 	{
+ 	  rtx pattern = single_set (insn);
+ 
++	  if (pattern && RTX_FRAME_RELATED_P (insn)
++	      && ! find_reg_note (insn, REG_FRAME_RELATED_EXPR, NULL_RTX)
++	      && ! find_reg_note (insn, REG_CFA_OFFSET, NULL_RTX)
++	      && ! find_reg_note (insn, REG_CFA_RESTORE, NULL_RTX)
++	      && ! find_reg_note (insn, REG_CFA_DEF_CFA, NULL_RTX)
++	      && ! find_reg_note (insn, REG_CFA_ADJUST_CFA, NULL_RTX))
++	    add_reg_note (insn, REG_FRAME_RELATED_EXPR, copy_rtx (pattern));
++
+ 	  /* Replace the memory references.  */
+ 	  if (pattern)
+ 	    {
+@@ -1587,13 +1595,14 @@ use_prolog_function (int num_save, int frame_size)
+   return ((save_func_len + restore_func_len) < (save_normal_len + restore_normal_len));
+ }
+ 
+-static void
++static rtx_insn *
+ increment_stack (signed int amount, bool in_prologue)
+ {
+   rtx inc;
++  rtx_insn *insn;
+ 
+   if (amount == 0)
+-    return;
++    return NULL;
+ 
+   inc = GEN_INT (amount);
+ 
+@@ -1607,9 +1616,31 @@ increment_stack (signed int amount, bool in_prologue)
+       inc = reg;
+     }
+ 
+-  inc = emit_insn (gen_addsi3_clobber_flags (stack_pointer_rtx, stack_pointer_rtx, inc));
++  insn = emit_insn (gen_addsi3_clobber_flags (stack_pointer_rtx,
++					     stack_pointer_rtx, inc));
+   if (in_prologue)
+-    F (inc);
++    F (insn);
++  return insn;
++}
++
++/* Mark epilogue INSN as defining the CFA as REG + OFFSET.  */
++
++static void
++v850_epilogue_def_cfa (rtx_insn *insn, rtx reg, HOST_WIDE_INT offset)
++{
++  if (insn == NULL)
++    return;
++  RTX_FRAME_RELATED_P (insn) = 1;
++  add_reg_note (insn, REG_CFA_DEF_CFA, plus_constant (Pmode, reg, offset));
++}
++
++/* Mark epilogue INSN as restoring REG.  */
++
++static void
++v850_epilogue_restore (rtx_insn *insn, rtx reg)
++{
++  RTX_FRAME_RELATED_P (insn) = 1;
++  add_reg_note (insn, REG_CFA_RESTORE, reg);
+ }
+ 
+ void
+@@ -1721,7 +1752,8 @@ expand_prologue (void)
+ 	  code = recog (save_all, NULL, NULL);
+ 	  if (code >= 0)
+ 	    {
+-	      rtx insn = emit_insn (save_all);
++	      rtx_insn *insn = emit_insn (save_all);
++	      F (insn);
+ 	      INSN_CODE (insn) = code;
+ 	      actual_fsize -= alloc_stack;
+ 
+@@ -1807,6 +1839,8 @@ expand_epilogue (void)
+   unsigned int num_restore;
+   int code;
+   int interrupt_handler = v850_interrupt_function_p (current_function_decl);
++  HOST_WIDE_INT cfa = actual_fsize + crtl->args.pretend_args_size;
++  rtx_insn *insn;
+ 
+   /* Eliminate the initial stack stored by interrupt functions.  */
+   if (interrupt_handler)
+@@ -1818,7 +1852,11 @@ expand_epilogue (void)
+ 
+   /* Cut off any dynamic stack created.  */
+   if (frame_pointer_needed)
+-    emit_move_insn (stack_pointer_rtx, hard_frame_pointer_rtx);
++    {
++      insn = emit_move_insn (stack_pointer_rtx, hard_frame_pointer_rtx);
++      if (! interrupt_handler)
++	v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
++    }
+ 
+   /* Identify all of the saved registers.  */
+   num_restore = 0;
+@@ -1868,10 +1906,10 @@ expand_epilogue (void)
+ 
+ 	  if (code >= 0)
+ 	    {
+-	      rtx insn;
+-
+ 	      actual_fsize -= alloc_stack;
+-	      increment_stack (actual_fsize, false);
++	      insn = increment_stack (actual_fsize, false);
++	      v850_epilogue_def_cfa (insn, stack_pointer_rtx,
++				     cfa - actual_fsize);
+ 
+ 	      insn = emit_jump_insn (restore_all);
+ 	      INSN_CODE (insn) = code;
+@@ -1897,7 +1935,12 @@ expand_epilogue (void)
+ 
+       /* Deallocate the rest of the stack if it is > 32K.  */
+       if ((unsigned int) actual_fsize > init_stack_free)
+-	increment_stack (actual_fsize - init_stack_free, false);
++	{
++	  insn = increment_stack (actual_fsize - init_stack_free, false);
++	  cfa -= actual_fsize - init_stack_free;
++	  if (! interrupt_handler)
++	    v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
++	}
+ 
+       /* Special case interrupt functions that save all registers
+ 	 for a call.  */
+@@ -1917,29 +1960,34 @@ expand_epilogue (void)
+ 	  if (num_restore > 0
+ 	      && REGNO (restore_regs [num_restore - 1]) == LINK_POINTER_REGNUM)
+ 	    {
+-	      emit_move_insn (restore_regs[--num_restore],
+-			      gen_rtx_MEM (SImode,
+-					   plus_constant (Pmode,
+-							  stack_pointer_rtx,
+-							  offset)));
++	      rtx mem = gen_rtx_MEM (SImode, plus_constant (Pmode,
++							    stack_pointer_rtx,
++							    offset));
++	      insn = emit_move_insn (restore_regs[--num_restore], mem);
++	      if (! interrupt_handler)
++		v850_epilogue_restore (insn, restore_regs[num_restore]);
+ 	      offset -= 4;
+ 	    }
+ 
+ 	  for (i = 0; i < num_restore; i++)
+ 	    {
+-	      emit_move_insn (restore_regs[i],
+-			      gen_rtx_MEM (SImode,
+-					   plus_constant (Pmode,
+-							  stack_pointer_rtx,
+-							  offset)));
++	      rtx mem = gen_rtx_MEM (SImode, plus_constant (Pmode,
++							    stack_pointer_rtx,
++							    offset));
++	      insn = emit_move_insn (restore_regs[i], mem);
++	      if (! interrupt_handler)
++		v850_epilogue_restore (insn, restore_regs[i]);
+ 
+ 	      emit_use (restore_regs[i]);
+ 	      offset -= 4;
+ 	    }
+ 
+ 	  /* Cut back the remainder of the stack.  */
+-	  increment_stack (init_stack_free + crtl->args.pretend_args_size,
+-			   false);
++	  insn = increment_stack (init_stack_free
++				  + crtl->args.pretend_args_size, false);
++	  cfa -= init_stack_free + crtl->args.pretend_args_size;
++	  if (! interrupt_handler)
++	    v850_epilogue_def_cfa (insn, stack_pointer_rtx, cfa);
+ 	}
+ 
+       /* And return or use reti for interrupt handlers.  */
+diff --git a/gcc/testsuite/gcc.target/v850/cfi-epilogue.c b/gcc/testsuite/gcc.target/v850/cfi-epilogue.c
+new file mode 100644
+index 00000000000..8b97aa74f15
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/cfi-epilogue.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O0 -g -dA" } */
++
++void g (char *);
++
++void
++f (int n)
++{
++  char *p = __builtin_alloca (n);
++  g (p);
++}
++
++/* { dg-final { scan-assembler {DW_CFA_def_cfa_register\n\t\.uleb128 0x3\n} } } */
++/* { dg-final { scan-assembler {DW_CFA_restore, column 0x1d\n} } } */
++/* { dg-final { scan-assembler {DW_CFA_restore, column 0x1f\n} } } */
++/* { dg-final { scan-assembler {DW_CFA_def_cfa_offset\n\t\.uleb128 0\n\t\.align 2\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-ep-cfi.c b/gcc/testsuite/gcc.target/v850/isr-ep-cfi.c
+new file mode 100644
+index 00000000000..0b1758731ab
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-ep-cfi.c
+@@ -0,0 +1,9 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2 -mep -mno-prolog-function -g" } */
++
++volatile float fv;
++volatile int n;
++
++void __attribute__ ((interrupt)) h (void) { fv = fv * 1.1f; n++; }
++
++/* { dg-final { scan-assembler {\tsst\.w r1[23],[04]\[ep\]\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/prepare-cfi.c b/gcc/testsuite/gcc.target/v850/prepare-cfi.c
+new file mode 100644
+index 00000000000..f93fdf8d504
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/prepare-cfi.c
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -g -dA -mv850e3v5 -mrh850-abi" } */
++
++
++extern void g (int *);
++
++int
++f (int a)
++{
++  int x = a;
++
++  g (&x);
++  return x + a;
++}
++
++/* { dg-final { scan-assembler "prepare" } } */
++/* { dg-final { scan-assembler "DW_CFA_offset, column 0x1f" } } */
+-- 
+Parthiban N
+

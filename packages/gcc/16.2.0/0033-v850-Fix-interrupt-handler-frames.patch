@@ -1,0 +1,371 @@
+From a2655454fa8005e3a141f4e298699434e75ee78b Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:31:09 +0530
+Subject: [PATCH] v850: Fix interrupt handler frames
+
+Allocate only the register save area first, restore the saved registers
+before freeing the frame, count the real size of the interrupt save
+blocks and use the CALLT save helpers only for their whole range. Also
+correct the insn lengths and drop a dead store.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/v850.cc                       | 34 ++++++++++-------
+ gcc/config/v850/v850.md                       | 37 +++++++++++--------
+ .../gcc.target/v850/callt-save-r31.c          |  9 +++++
+ .../gcc.target/v850/isr-callt-prepare.c       | 15 ++++++++
+ .../gcc.target/v850/isr-frame-alloc.c         | 22 +++++++++++
+ gcc/testsuite/gcc.target/v850/isr-frame.c     | 16 ++++++++
+ .../gcc.target/v850/isr-length-callt.c        | 13 +++++++
+ .../gcc.target/v850/isr-length-long-calls.c   | 16 ++++++++
+ gcc/testsuite/gcc.target/v850/isr-length.c    | 16 ++++++++
+ .../gcc.target/v850/isr-long-calls.c          |  9 +++++
+ 10 files changed, 157 insertions(+), 30 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/v850/callt-save-r31.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-callt-prepare.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-frame-alloc.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-frame.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-length-callt.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-length-long-calls.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-length.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/isr-long-calls.c
+
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index eb1b7b16b5b..37cb7fddd66 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -1415,14 +1415,13 @@ v850_reorg (void)
+ /* # of registers saved by the interrupt handler.  */
+ #define INTERRUPT_FIXED_NUM 5
+ 
+-/* # of bytes for registers saved by the interrupt handler.  */
+-#define INTERRUPT_FIXED_SAVE_SIZE (4 * INTERRUPT_FIXED_NUM)
++#define INTERRUPT_FIXED_SAVE_SIZE \
++  (4 * INTERRUPT_FIXED_NUM \
++   + (! TARGET_DISABLE_CALLT && TARGET_V850E_UP ? 8 : 0))
+ 
+-/* # of words saved for other registers.  */
+-#define INTERRUPT_ALL_SAVE_NUM \
+-  (30 - INTERRUPT_FIXED_NUM)
+-
+-#define INTERRUPT_ALL_SAVE_SIZE (4 * INTERRUPT_ALL_SAVE_NUM)
++#define INTERRUPT_ALL_SAVE_SIZE \
++  ((! TARGET_DISABLE_CALLT && TARGET_V850E_UP) \
++   || (TARGET_PROLOG_FUNCTION && ! TARGET_LONG_CALLS) ? 104 : 120)
+ 
+ int
+ compute_register_save_size (long * p_reg_saved)
+@@ -1464,6 +1463,9 @@ compute_register_save_size (long * p_reg_saved)
+ 	    size += 4;
+ 	    break;
+ 	  }
++      size += INTERRUPT_FIXED_SAVE_SIZE - 4 * INTERRUPT_FIXED_NUM;
++      if (call_p)
++	size += INTERRUPT_ALL_SAVE_SIZE - 4 * 25;
+     }
+   else
+     {
+@@ -1782,7 +1784,7 @@ expand_prologue (void)
+ 	     register saves.  We use the register save size so we use the ep
+ 	     register.  */
+ 	  if (actual_fsize && !CONST_OK_FOR_K (-actual_fsize))
+-	    init_stack_alloc = compute_register_save_size (NULL);
++	    init_stack_alloc = 4 * num_save;
+ 	  else
+ 	    init_stack_alloc = actual_fsize;
+ 
+@@ -1926,7 +1928,7 @@ expand_epilogue (void)
+       unsigned int init_stack_free;
+ 
+       /* If the stack is large, we need to cut it down in 2 pieces.  */
+-      if (interrupt_handler)
++      if (interrupt_handler && ((1L << LINK_POINTER_REGNUM) & reg_saved) != 0)
+        init_stack_free = 0;
+       else if (actual_fsize && !CONST_OK_FOR_K (-actual_fsize))
+ 	init_stack_free = 4 * num_restore;
+@@ -2752,6 +2754,7 @@ construct_prepare_instruction (rtx op)
+   int		     i;
+   static char        buff[ 120 ]; /* XXX */
+   int		     use_callt = 0;
++  unsigned long int  full;
+ 
+   if (XVECLEN (op, 0) <= 1)
+     {
+@@ -2800,8 +2803,15 @@ construct_prepare_instruction (rtx op)
+ 
+   stack_bytes += count * 4;
+ 
++  for (i = 20; i < 32; i++)
++    if (mask & (1 << i))
++      break;
++  full = i < 30 ? (1UL << 30) - (1UL << i) : 0;
++
+   if ((! TARGET_DISABLE_CALLT)
+-      && (use_callt || stack_bytes == 0))
++      && (use_callt
++	  || (stack_bytes == 0 && (mask & (1UL << 30)) == 0
++	      && (mask & 0x3fffffff) == full)))
+     {
+       if (use_callt)
+ 	{
+@@ -2809,10 +2819,6 @@ construct_prepare_instruction (rtx op)
+ 	  return buff;
+ 	}
+ 
+-      for (i = 20; i < 32; i++)
+-	if (mask & (1 << i))
+-	  break;
+-
+       if (i == 31)
+ 	sprintf (buff, "callt ctoff(__callt_save_r31c)");
+       else
+diff --git a/gcc/config/v850/v850.md b/gcc/config/v850/v850.md
+index f7a3540219a..cc062b809c3 100644
+--- a/gcc/config/v850/v850.md
++++ b/gcc/config/v850/v850.md
+@@ -2898,7 +2898,6 @@
+     ;; MUST NOT be called via CALLT.
+ {
+   output_asm_insn ("addi -28,   sp, sp", operands);
+-  output_asm_insn ("st.w r1,    24[sp]", operands);
+   output_asm_insn ("st.w r10,   12[sp]", operands);
+   output_asm_insn ("st.w r11,   16[sp]", operands);
+   output_asm_insn ("stsr ctpc,  r10",    operands);
+@@ -2908,7 +2907,7 @@
+   output_asm_insn ("callt ctoff(__callt_save_interrupt)", operands);
+   return "";
+ }
+-   [(set_attr "length" "26")])
++   [(set_attr "length" "30")])
+ 
+ (define_insn "callt_return_interrupt"
+   [(unspec_volatile [(const_int 0)] 3)
+@@ -2945,9 +2944,10 @@
+     }
+ }
+   [(set (attr "length")
+-        (if_then_else (match_test "TARGET_LONG_CALLS")
+-                       (const_int 10)
+-                       (const_int 34)))])
++	(if_then_else (match_test
++		       "TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS")
++		      (const_int 16)
++		      (const_int 40)))])
+   
+ ;; Restore r1, r4, r10, and return from the interrupt
+ (define_insn "return_interrupt"
+@@ -2976,9 +2976,10 @@
+     }
+ }
+   [(set (attr "length")
+-        (if_then_else (match_test "TARGET_LONG_CALLS")
+-                       (const_int 4)
+-                       (const_int 24)))])
++	(if_then_else (match_test
++		       "TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS")
++		      (const_int 4)
++		      (const_int 28)))])
+ 
+ ;; Save all registers except for the registers saved in save_interrupt when
+ ;; an interrupt function makes a call.
+@@ -3069,10 +3070,12 @@
+   return "";
+ }
+   [(set (attr "length")
+-        (if_then_else (match_test "TARGET_LONG_CALLS")
+-                       (const_int 4)
+-                       (const_int 62)
+-	))])
++	(if_then_else (match_test
++		       "TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS")
++		      (const_int 4)
++		      (if_then_else (match_test "TARGET_EP")
++				    (const_int 62)
++				    (const_int 108))))])
+ 
+ (define_insn "_save_all_interrupt"
+   [(unspec_volatile [(const_int 0)] 0)
+@@ -3167,10 +3170,12 @@
+   return "";
+ }
+   [(set (attr "length")
+-        (if_then_else (match_test "TARGET_LONG_CALLS")
+-                       (const_int 4)
+-                       (const_int 62)
+-	))])
++	(if_then_else (match_test
++		       "TARGET_PROLOG_FUNCTION && !TARGET_LONG_CALLS")
++		      (const_int 4)
++		      (if_then_else (match_test "TARGET_EP")
++				    (const_int 62)
++				    (const_int 108))))])
+ 
+ (define_insn "_restore_all_interrupt"
+   [(unspec_volatile [(const_int 0)] 1)
+diff --git a/gcc/testsuite/gcc.target/v850/callt-save-r31.c b/gcc/testsuite/gcc.target/v850/callt-save-r31.c
+new file mode 100644
+index 00000000000..235d3d3a195
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/callt-save-r31.c
+@@ -0,0 +1,9 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -mgcc-abi -O2" } */
++
++extern void g (void);
++int f (int x) { g (); return x; }
++void h (void) { g (); g (); }
++
++/* { dg-final { scan-assembler {callt ctoff\(__callt_save_r[0-9]+_r31c\)} } } */
++/* { dg-final { scan-assembler-not {\tprepare } } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-callt-prepare.c b/gcc/testsuite/gcc.target/v850/isr-callt-prepare.c
+new file mode 100644
+index 00000000000..1f14cc8a1e1
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-callt-prepare.c
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -mgcc-abi -O2" } */
++
++volatile int v;
++
++void __attribute__ ((interrupt))
++h (void)
++{
++  __asm__ volatile ("mov 5, r20" ::: "r20");
++  v++;
++}
++
++/* { dg-final { scan-assembler {\tprepare \{r20\}, 0\n} } } */
++/* { dg-final { scan-assembler-not {__callt_save_r20_r29} } } */
++/* { dg-final { scan-assembler-not {st\.w r1, *24\[sp\]} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-frame-alloc.c b/gcc/testsuite/gcc.target/v850/isr-frame-alloc.c
+new file mode 100644
+index 00000000000..1775a480431
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-frame-alloc.c
+@@ -0,0 +1,22 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++
++
++volatile int buf[16];
++
++void __attribute__ ((interrupt_handler))
++h (void)
++{
++  volatile int a[4];
++  int x0 = buf[0], x1 = buf[1], x2 = buf[2], x3 = buf[3], x4 = buf[4];
++  int x5 = buf[5], x6 = buf[6], x7 = buf[7], x8 = buf[8], x9 = buf[9];
++  a[0] = x0 * x5;
++  a[1] = x1 * x6;
++  a[2] = x2 * x7;
++  a[3] = x3 * x8;
++  buf[10] = a[0] + a[1] + a[2] + a[3] + x4 * x9 + x0 + x9;
++}
++
++/* { dg-final { scan-assembler "addi -32,sp,sp" } } */
++/* { dg-final { scan-assembler "add -16,sp" } } */
++/* { dg-final { scan-assembler "addi 48,sp,sp" } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-frame.c b/gcc/testsuite/gcc.target/v850/isr-frame.c
+new file mode 100644
+index 00000000000..3c65ab85fb9
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-frame.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++/* { dg-skip-if "tests the base targets" { *-*-* } { "-mv850e3v5" } { "" } } */
++
++volatile int v;
++
++void __attribute__ ((interrupt))
++h (void)
++{
++  __asm__ volatile ("mov 5, r20" ::: "r20");
++  v++;
++}
++
++/* { dg-final { scan-assembler {\tadd -4,sp\n(\.LCFI[0-9]+:\n)?\tst\.w r20,0\[sp\]\n} } } */
++/* { dg-final { scan-assembler {\tld\.w 0\[sp\],r20\n} } } */
++/* { dg-final { scan-assembler {\tld\.w 0\[sp\],r20\n(.*\n)*\tadd 4,sp\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-length-callt.c b/gcc/testsuite/gcc.target/v850/isr-length-callt.c
+new file mode 100644
+index 00000000000..f2f75066ff1
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-length-callt.c
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -mgcc-abi -mno-disable-callt -O2 -dp" } */
++
++
++extern void f (void);
++
++void __attribute__ ((interrupt))
++h (void)
++{
++  f ();
++}
++
++/* { dg-final { scan-assembler {l=30\]  callt_save_interrupt\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-length-long-calls.c b/gcc/testsuite/gcc.target/v850/isr-length-long-calls.c
+new file mode 100644
+index 00000000000..b6b9401fecd
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-length-long-calls.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -mlong-calls -O2 -dp" } */
++
++
++extern void f (void);
++
++void __attribute__ ((interrupt))
++h (void)
++{
++  f ();
++}
++
++/* { dg-final { scan-assembler {l=40\]  save_interrupt\n} } } */
++/* { dg-final { scan-assembler {l=108\]  save_all_interrupt\n} } } */
++/* { dg-final { scan-assembler {l=108\]  restore_all_interrupt\n} } } */
++/* { dg-final { scan-assembler {l=28\]  return_interrupt\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-length.c b/gcc/testsuite/gcc.target/v850/isr-length.c
+new file mode 100644
+index 00000000000..c85dc11daaa
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-length.c
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2 -dp" } */
++
++
++extern void f (void);
++
++void __attribute__ ((interrupt))
++h (void)
++{
++  f ();
++}
++
++/* { dg-final { scan-assembler {l=16\]  save_interrupt\n} } } */
++/* { dg-final { scan-assembler {l=4\]  save_all_interrupt\n} } } */
++/* { dg-final { scan-assembler {l=4\]  restore_all_interrupt\n} } } */
++/* { dg-final { scan-assembler {l=4\]  return_interrupt\n} } } */
+diff --git a/gcc/testsuite/gcc.target/v850/isr-long-calls.c b/gcc/testsuite/gcc.target/v850/isr-long-calls.c
+new file mode 100644
+index 00000000000..c3d3dd64e5d
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/isr-long-calls.c
+@@ -0,0 +1,9 @@
++/* { dg-do compile } */
++/* { dg-options "-mv850e3v5 -O2 -mlong-calls -mno-ep" } */
++
++extern void f (void);
++
++void __attribute__ ((interrupt)) h (void) { f (); }
++
++/* { dg-final { scan-assembler {\taddi -120, sp, sp\n\tst\.w r31, 116\[sp\]\n} } } */
++/* { dg-final { scan-assembler {\tld\.w 16\[sp\],  r29\n\taddi  120, sp, sp\n} } } */
+-- 
+Parthiban N
+

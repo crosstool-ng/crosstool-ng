@@ -1,0 +1,476 @@
+From a4e033074e4dc464e180548d836ffcc4da3f2789 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:39:36 +0530
+Subject: [PATCH] v850: Add inline atomics for V850E3V5
+
+The 32 bit atomic builtins were library calls that nothing provides.
+Expand them inline with LDL and STC loops, which also work across cores.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/sync.md                       | 218 ++++++++++++++++++
+ gcc/config/v850/v850-protos.h                 |   1 +
+ gcc/config/v850/v850.cc                       |  19 ++
+ gcc/config/v850/v850.md                       |   3 +
+ gcc/testsuite/gcc.target/v850/atomic-cas.c    |  26 +++
+ gcc/testsuite/gcc.target/v850/atomic-e2v3.c   |  20 ++
+ gcc/testsuite/gcc.target/v850/atomic-fence.c  |  17 ++
+ gcc/testsuite/gcc.target/v850/atomic-ldst.c   |  18 ++
+ .../gcc.target/v850/atomic-lockfree.c         |  19 ++
+ gcc/testsuite/gcc.target/v850/atomic-op.c     |  24 ++
+ 10 files changed, 365 insertions(+)
+ create mode 100644 gcc/config/v850/sync.md
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-cas.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-e2v3.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-fence.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-ldst.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-lockfree.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-op.c
+
+diff --git a/gcc/config/v850/sync.md b/gcc/config/v850/sync.md
+new file mode 100644
+index 00000000000..2496d3e2d90
+--- /dev/null
++++ b/gcc/config/v850/sync.md
+@@ -0,0 +1,218 @@
++;; Machine description for the V850 atomic operations.
++;; Copyright The GNU Toolchain Authors.
++
++;; This file is part of GCC.
++
++;; GCC is free software; you can redistribute it and/or modify
++;; it under the terms of the GNU General Public License as published by
++;; the Free Software Foundation; either version 3, or (at your option)
++;; any later version.
++
++;; GCC is distributed in the hope that it will be useful,
++;; but WITHOUT ANY WARRANTY; without even the implied warranty of
++;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++;; GNU General Public License for more details.
++
++;; You should have received a copy of the GNU General Public License
++;; along with GCC; see the file COPYING3.  If not see
++;; <http://www.gnu.org/licenses/>.
++
++(define_c_enum "unspecv" [
++  UNSPECV_ATOMIC_CAS
++  UNSPECV_ATOMIC_EXCHANGE
++  UNSPECV_ATOMIC_OP
++  UNSPECV_ATOMIC_STORE
++])
++
++(define_code_iterator any_atomic [plus minus and ior xor])
++(define_code_attr atomic_optab
++  [(plus "add") (minus "sub") (and "and") (ior "or") (xor "xor")])
++
++(define_expand "mem_thread_fence"
++  [(match_operand:SI 0 "const_int_operand")]
++  "TARGET_V850E3V5_UP"
++{
++  if (!is_mm_relaxed (memmodel_base (INTVAL (operands[0]))))
++    {
++      rtx mem = gen_rtx_MEM (BLKmode, gen_rtx_SCRATCH (Pmode));
++      MEM_VOLATILE_P (mem) = 1;
++      emit_insn (gen_v850_syncm (mem));
++    }
++  DONE;
++})
++
++(define_insn "v850_syncm"
++  [(set (match_operand:BLK 0 "" "")
++	(unspec:BLK [(match_dup 0)] UNSPEC_SYNCM))]
++  "TARGET_V850E3V5_UP"
++  "syncm"
++  [(set_attr "length" "2")])
++
++(define_expand "atomic_compare_and_swapsi"
++  [(match_operand:SI 0 "register_operand")
++   (match_operand:SI 1 "register_operand")
++   (match_operand:SI 2 "memory_operand")
++   (match_operand:SI 3 "register_operand")
++   (match_operand:SI 4 "register_operand")
++   (match_operand:SI 5 "const_int_operand")
++   (match_operand:SI 6 "const_int_operand")
++   (match_operand:SI 7 "const_int_operand")]
++  "TARGET_V850E3V5_UP"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[2], 0));
++  v850_atomic_fence (operands[6], true);
++  emit_insn (gen_atomic_cas_value_strongsi (operands[1], addr,
++					     operands[3], operands[4]));
++  v850_atomic_fence (operands[6], false);
++  emit_insn (gen_cstoresi4 (operands[0],
++			    gen_rtx_EQ (SImode, operands[1], operands[3]),
++			    operands[1], operands[3]));
++  DONE;
++})
++
++(define_insn "atomic_cas_value_strongsi"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(mem:SI (match_operand:SI 1 "register_operand" "r")))
++   (set (mem:SI (match_dup 1))
++	(unspec_volatile:SI [(match_operand:SI 2 "register_operand" "r")
++			     (match_operand:SI 3 "register_operand" "r")]
++	 UNSPECV_ATOMIC_CAS))
++   (clobber (match_scratch:SI 4 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_V850E3V5_UP"
++{
++  return "1:\;"
++	 "ldl.w [%1],%0\;"
++	 "cmp %2,%0\;"
++	 "bne 2f\;"
++	 "mov %3,%4\;"
++	 "stc.w %4,[%1]\;"
++	 "cmp r0,%4\;"
++	 "be 1b\;"
++	 "2:";
++}
++  [(set_attr "length" "18")])
++
++(define_expand "atomic_exchangesi"
++  [(match_operand:SI 0 "register_operand")
++   (match_operand:SI 1 "memory_operand")
++   (match_operand:SI 2 "register_operand")
++   (match_operand:SI 3 "const_int_operand")]
++  "TARGET_V850E3V5_UP"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[1], 0));
++  v850_atomic_fence (operands[3], true);
++  emit_insn (gen_atomic_exchangesi_insn (operands[0], addr, operands[2]));
++  v850_atomic_fence (operands[3], false);
++  DONE;
++})
++
++(define_insn "atomic_exchangesi_insn"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(mem:SI (match_operand:SI 1 "register_operand" "r")))
++   (set (mem:SI (match_dup 1))
++	(unspec_volatile:SI [(match_operand:SI 2 "register_operand" "r")]
++	 UNSPECV_ATOMIC_EXCHANGE))
++   (clobber (match_scratch:SI 3 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_V850E3V5_UP"
++  "1:\;ldl.w [%1],%0\;mov %2,%3\;stc.w %3,[%1]\;cmp r0,%3\;be 1b"
++  [(set_attr "length" "14")])
++
++(define_expand "atomic_fetch_<atomic_optab>si"
++  [(match_operand:SI 0 "register_operand")
++   (any_atomic:SI (match_operand:SI 1 "memory_operand")
++		  (match_operand:SI 2 "register_operand"))
++   (match_operand:SI 3 "const_int_operand")]
++  "TARGET_V850E3V5_UP"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[1], 0));
++  v850_atomic_fence (operands[3], true);
++  emit_insn (gen_atomic_fetch_<atomic_optab>si_insn (operands[0], addr,
++						     operands[2]));
++  v850_atomic_fence (operands[3], false);
++  DONE;
++})
++
++(define_insn "atomic_fetch_<atomic_optab>si_insn"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(mem:SI (match_operand:SI 1 "register_operand" "r")))
++   (set (mem:SI (match_dup 1))
++	(unspec_volatile:SI
++	  [(any_atomic:SI (mem:SI (match_dup 1))
++			  (match_operand:SI 2 "register_operand" "r"))]
++	 UNSPECV_ATOMIC_OP))
++   (clobber (match_scratch:SI 3 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_V850E3V5_UP"
++{
++  return "1:\;"
++	 "ldl.w [%1],%0\;"
++	 "mov %0,%3\;"
++	 "<atomic_optab> %2,%3\;"
++	 "stc.w %3,[%1]\;"
++	 "cmp r0,%3\;"
++	 "be 1b";
++}
++  [(set_attr "length" "16")])
++
++(define_expand "atomic_fetch_nandsi"
++  [(match_operand:SI 0 "register_operand")
++   (match_operand:SI 1 "memory_operand")
++   (match_operand:SI 2 "register_operand")
++   (match_operand:SI 3 "const_int_operand")]
++  "TARGET_V850E3V5_UP"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[1], 0));
++  v850_atomic_fence (operands[3], true);
++  emit_insn (gen_atomic_fetch_nandsi_insn (operands[0], addr, operands[2]));
++  v850_atomic_fence (operands[3], false);
++  DONE;
++})
++
++(define_insn "atomic_fetch_nandsi_insn"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(mem:SI (match_operand:SI 1 "register_operand" "r")))
++   (set (mem:SI (match_dup 1))
++	(unspec_volatile:SI
++	  [(not:SI (and:SI (mem:SI (match_dup 1))
++			   (match_operand:SI 2 "register_operand" "r")))]
++	 UNSPECV_ATOMIC_OP))
++   (clobber (match_scratch:SI 3 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_V850E3V5_UP"
++{
++  return "1:\;"
++	 "ldl.w [%1],%0\;"
++	 "mov %0,%3\;"
++	 "and %2,%3\;"
++	 "not %3,%3\;"
++	 "stc.w %3,[%1]\;"
++	 "cmp r0,%3\;"
++	 "be 1b";
++}
++  [(set_attr "length" "18")])
++
++(define_expand "atomic_storesi"
++  [(match_operand:SI 0 "memory_operand")
++   (match_operand:SI 1 "register_operand")
++   (match_operand:SI 2 "const_int_operand")]
++  "TARGET_V850E3V5_UP"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[0], 0));
++  v850_atomic_fence (operands[2], true);
++  emit_insn (gen_atomic_storesi_insn (addr, operands[1]));
++  if (is_mm_seq_cst (memmodel_base (INTVAL (operands[2]))))
++    v850_atomic_fence (operands[2], false);
++  DONE;
++})
++
++(define_insn "atomic_storesi_insn"
++  [(set (mem:SI (match_operand:SI 0 "register_operand" "r"))
++	(unspec_volatile:SI [(match_operand:SI 1 "register_operand" "r")]
++	 UNSPECV_ATOMIC_STORE))
++   (clobber (match_scratch:SI 2 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_V850E3V5_UP"
++  "1:\;ldl.w [%0],%2\;mov %1,%2\;stc.w %2,[%0]\;cmp r0,%2\;be 1b"
++  [(set_attr "length" "14")])
+diff --git a/gcc/config/v850/v850-protos.h b/gcc/config/v850/v850-protos.h
+index 5e57f56fb8e..934d41f098f 100644
+--- a/gcc/config/v850/v850-protos.h
++++ b/gcc/config/v850/v850-protos.h
+@@ -45,6 +45,7 @@ extern rtx    v850_gen_compare              (enum rtx_code, machine_mode,
+ extern machine_mode  v850_gen_float_compare (enum rtx_code,
+ 						  machine_mode, rtx, rtx);
+ extern machine_mode  v850_select_cc_mode (RTX_CODE, rtx, rtx);
++extern void v850_atomic_fence (rtx, bool);
+ #endif
+ #endif /* RTX_CODE */
+ 
+diff --git a/gcc/config/v850/v850.cc b/gcc/config/v850/v850.cc
+index 41fa499ab25..41ac70fb8a4 100644
+--- a/gcc/config/v850/v850.cc
++++ b/gcc/config/v850/v850.cc
+@@ -921,6 +921,25 @@ v850_select_cc_mode (enum rtx_code cond, rtx op0, rtx op1)
+   return CCmode;
+ }
+ 
++/* Emit a SYNCM before or after an atomic access, as MODEL_RTX needs.  */
++
++void
++v850_atomic_fence (rtx model_rtx, bool before)
++{
++  enum memmodel model = memmodel_base (INTVAL (model_rtx));
++  bool need;
++
++  if (before)
++    need = (is_mm_release (model) || is_mm_acq_rel (model)
++	    || is_mm_seq_cst (model));
++  else
++    need = (is_mm_consume (model) || is_mm_acquire (model)
++	    || is_mm_acq_rel (model) || is_mm_seq_cst (model));
++
++  if (need)
++    emit_insn (gen_mem_thread_fence (GEN_INT (MEMMODEL_SEQ_CST)));
++}
++
+ machine_mode
+ v850_gen_float_compare (enum rtx_code cond, machine_mode mode, rtx op0, rtx op1)
+ {
+diff --git a/gcc/config/v850/v850.md b/gcc/config/v850/v850.md
+index cc062b809c3..cd20347f40a 100644
+--- a/gcc/config/v850/v850.md
++++ b/gcc/config/v850/v850.md
+@@ -87,6 +87,7 @@
+   UNSPEC_LOOP
+   UNSPEC_RCP
+   UNSPEC_RSQRT
++  UNSPEC_SYNCM
+ ])
+ 
+ (define_attr "length" ""
+@@ -3183,3 +3184,5 @@
+   "TARGET_V850 && ! TARGET_LONG_CALLS"
+   "jarl __restore_all_interrupt,r10"
+   [(set_attr "length" "4")])
++
++(include "sync.md")
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-cas.c b/gcc/testsuite/gcc.target/v850/atomic-cas.c
+new file mode 100644
+index 00000000000..0cdef195baf
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-cas.c
+@@ -0,0 +1,26 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++
++int v;
++
++int cas_strong (int *e, int x)
++{
++  return __atomic_compare_exchange_n (&v, e, x, 0, __ATOMIC_RELAXED,
++				      __ATOMIC_RELAXED);
++}
++
++int cas_weak (int *e, int x)
++{
++  return __atomic_compare_exchange_n (&v, e, x, 1, __ATOMIC_RELAXED,
++				      __ATOMIC_RELAXED);
++}
++
++int s_bool (int o, int n) { return __sync_bool_compare_and_swap (&v, o, n); }
++int s_val (int o, int n) { return __sync_val_compare_and_swap (&v, o, n); }
++int xchg (int x) { return __atomic_exchange_n (&v, x, __ATOMIC_RELAXED); }
++int s_tas (int x) { return __sync_lock_test_and_set (&v, x); }
++
++/* { dg-final { scan-assembler-times "ldl\\.w" 6 } } */
++/* { dg-final { scan-assembler-times "stc\\.w" 6 } } */
++/* { dg-final { scan-assembler-not "caxi" } } */
++/* { dg-final { scan-assembler-not "__atomic_|__sync_" } } */
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-e2v3.c b/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
+new file mode 100644
+index 00000000000..a619808aa7f
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-e2v3.c
+@@ -0,0 +1,20 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e2v3" } */
++
++int v;
++
++int f_add (int x) { return __atomic_fetch_add (&v, x, __ATOMIC_SEQ_CST); }
++int cas (int *e, int x)
++{
++  return __atomic_compare_exchange_n (&v, e, x, 0, __ATOMIC_SEQ_CST,
++				      __ATOMIC_SEQ_CST);
++}
++void st (int x) { __atomic_store_n (&v, x, __ATOMIC_SEQ_CST); }
++
++#if __GCC_ATOMIC_INT_LOCK_FREE != 1 || defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
++#error lock-free macros changed for v850e2v3
++#endif
++
++/* { dg-final { scan-assembler "__atomic_fetch_add_4" } } */
++/* { dg-final { scan-assembler "__atomic_compare_exchange_4" } } */
++/* { dg-final { scan-assembler-not "ldl\\.w|stc\\.w|syncm" } } */
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-fence.c b/gcc/testsuite/gcc.target/v850/atomic-fence.c
+new file mode 100644
+index 00000000000..2a8726773d7
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-fence.c
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++
++int v;
++
++int m_relaxed (int x) { return __atomic_fetch_add (&v, x, __ATOMIC_RELAXED); }
++int m_acquire (int x) { return __atomic_fetch_add (&v, x, __ATOMIC_ACQUIRE); }
++int m_release (int x) { return __atomic_fetch_add (&v, x, __ATOMIC_RELEASE); }
++int m_acq_rel (int x) { return __atomic_fetch_add (&v, x, __ATOMIC_ACQ_REL); }
++int m_seq_cst (int x) { return __atomic_fetch_add (&v, x, __ATOMIC_SEQ_CST); }
++void t_seq_cst (void) { __atomic_thread_fence (__ATOMIC_SEQ_CST); }
++void t_relaxed (void) { __atomic_thread_fence (__ATOMIC_RELAXED); }
++void t_signal (void) { __atomic_signal_fence (__ATOMIC_SEQ_CST); }
++void s_sync (void) { __sync_synchronize (); }
++
++/* { dg-final { scan-assembler-times "syncm" 8 } } */
++/* { dg-final { scan-assembler-not "__atomic_|__sync_" } } */
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-ldst.c b/gcc/testsuite/gcc.target/v850/atomic-ldst.c
+new file mode 100644
+index 00000000000..f9781cae194
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-ldst.c
+@@ -0,0 +1,18 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++
++int v;
++
++int l_relaxed (void) { return __atomic_load_n (&v, __ATOMIC_RELAXED); }
++int l_acquire (void) { return __atomic_load_n (&v, __ATOMIC_ACQUIRE); }
++int l_seq_cst (void) { return __atomic_load_n (&v, __ATOMIC_SEQ_CST); }
++void s_relaxed (int x) { __atomic_store_n (&v, x, __ATOMIC_RELAXED); }
++void s_release (int x) { __atomic_store_n (&v, x, __ATOMIC_RELEASE); }
++void s_seq_cst (int x) { __atomic_store_n (&v, x, __ATOMIC_SEQ_CST); }
++void s_unlock (void) { __sync_lock_release (&v); }
++
++/* { dg-final { scan-assembler-times "ld\\.w" 3 } } */
++/* { dg-final { scan-assembler-times "ldl\\.w" 4 } } */
++/* { dg-final { scan-assembler-times "stc\\.w" 4 } } */
++/* { dg-final { scan-assembler-times "syncm" 7 } } */
++/* { dg-final { scan-assembler-not "__atomic_|__sync_" } } */
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-lockfree.c b/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
+new file mode 100644
+index 00000000000..5e74b3ae9a3
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-lockfree.c
+@@ -0,0 +1,19 @@
++/* { dg-do preprocess } */
++/* { dg-options "-mv850e3v5" } */
++
++#if __GCC_ATOMIC_INT_LOCK_FREE != 2 || __GCC_ATOMIC_LONG_LOCK_FREE != 2 \
++    || __GCC_ATOMIC_POINTER_LOCK_FREE != 2
++#error 32-bit atomics not lock free
++#endif
++#ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
++#error no 32-bit compare and swap
++#endif
++#if __GCC_ATOMIC_CHAR_LOCK_FREE != 1 || __GCC_ATOMIC_SHORT_LOCK_FREE != 1 \
++    || __GCC_ATOMIC_LLONG_LOCK_FREE != 1
++#error sub-word or 64-bit atomics changed
++#endif
++#if defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 \
++    || defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 \
++    || defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
++#error sub-word or 64-bit compare and swap changed
++#endif
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-op.c b/gcc/testsuite/gcc.target/v850/atomic-op.c
+new file mode 100644
+index 00000000000..0356de99670
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-op.c
+@@ -0,0 +1,24 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++
++int v;
++
++int f_add (int x) { return __atomic_fetch_add (&v, x, __ATOMIC_RELAXED); }
++int f_sub (int x) { return __atomic_fetch_sub (&v, x, __ATOMIC_RELAXED); }
++int f_and (int x) { return __atomic_fetch_and (&v, x, __ATOMIC_RELAXED); }
++int f_or (int x) { return __atomic_fetch_or (&v, x, __ATOMIC_RELAXED); }
++int f_xor (int x) { return __atomic_fetch_xor (&v, x, __ATOMIC_RELAXED); }
++int f_nand (int x) { return __atomic_fetch_nand (&v, x, __ATOMIC_RELAXED); }
++int add_f (int x) { return __atomic_add_fetch (&v, x, __ATOMIC_RELAXED); }
++int sub_f (int x) { return __atomic_sub_fetch (&v, x, __ATOMIC_RELAXED); }
++int and_f (int x) { return __atomic_and_fetch (&v, x, __ATOMIC_RELAXED); }
++int or_f (int x) { return __atomic_or_fetch (&v, x, __ATOMIC_RELAXED); }
++int xor_f (int x) { return __atomic_xor_fetch (&v, x, __ATOMIC_RELAXED); }
++int nand_f (int x) { return __atomic_nand_fetch (&v, x, __ATOMIC_RELAXED); }
++int s_add (int x) { return __sync_fetch_and_add (&v, x); }
++int s_nand (int x) { return __sync_fetch_and_nand (&v, x); }
++
++/* { dg-final { scan-assembler-times "ldl\\.w" 14 } } */
++/* { dg-final { scan-assembler-times "stc\\.w" 14 } } */
++/* { dg-final { scan-assembler-times "\tnot " 4 } } */
++/* { dg-final { scan-assembler-not "__atomic_|__sync_" } } */
+-- 
+Parthiban N
+

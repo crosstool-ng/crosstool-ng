@@ -1,0 +1,442 @@
+From 93ac4f648f8f99cfed531c0a9b5d8cfa6b3abdea Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Thu, 12 Nov 2026 22:44:21 +0530
+Subject: [PATCH] v850: Add 8 and 16 bit atomics for G4
+
+The G4 cores have byte and halfword LDL and STC, so expand the 8 and 16
+bit atomic builtins inline for G4 as well.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gcc/config/v850/sync.md                       | 204 ++++++++++++++++++
+ .../gcc.target/v850/atomic-g4-lockfree.c      |  15 ++
+ gcc/testsuite/gcc.target/v850/atomic-g4-run.c |  69 ++++++
+ .../gcc.target/v850/atomic-g4-subword.c       |  27 +++
+ gcc/testsuite/gcc.target/v850/atomic-run.c    |  50 +++++
+ .../gcc.target/v850/atomic-subword-e3v5.c     |  13 ++
+ 6 files changed, 378 insertions(+)
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-g4-lockfree.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-g4-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-g4-subword.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-run.c
+ create mode 100644 gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
+
+diff --git a/gcc/config/v850/sync.md b/gcc/config/v850/sync.md
+index 2496d3e2d90..712a37828c3 100644
+--- a/gcc/config/v850/sync.md
++++ b/gcc/config/v850/sync.md
+@@ -216,3 +216,207 @@
+   "TARGET_V850E3V5_UP"
+   "1:\;ldl.w [%0],%2\;mov %1,%2\;stc.w %2,[%0]\;cmp r0,%2\;be 1b"
+   [(set_attr "length" "14")])
++
++(define_mode_iterator SUBW [QI HI])
++(define_mode_attr ldl_sfx [(QI "bu") (HI "hu")])
++(define_mode_attr stc_sfx [(QI "b") (HI "h")])
++
++(define_expand "atomic_compare_and_swap<mode>"
++  [(match_operand:SI 0 "register_operand")
++   (match_operand:SUBW 1 "register_operand")
++   (match_operand:SUBW 2 "memory_operand")
++   (match_operand:SUBW 3 "register_operand")
++   (match_operand:SUBW 4 "register_operand")
++   (match_operand:SI 5 "const_int_operand")
++   (match_operand:SI 6 "const_int_operand")
++   (match_operand:SI 7 "const_int_operand")]
++  "TARGET_G4"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[2], 0));
++  rtx expected = force_reg (SImode, convert_to_mode (SImode, operands[3], 1));
++  rtx desired = force_reg (SImode, convert_to_mode (SImode, operands[4], 1));
++  rtx old = gen_reg_rtx (SImode);
++
++  v850_atomic_fence (operands[6], true);
++  emit_insn (gen_atomic_cas_value_strong<mode> (old, addr, expected, desired));
++  v850_atomic_fence (operands[6], false);
++  emit_move_insn (operands[1], gen_lowpart (<MODE>mode, old));
++  emit_insn (gen_cstoresi4 (operands[0],
++			    gen_rtx_EQ (SImode, old, expected),
++			    old, expected));
++  DONE;
++})
++
++(define_insn "atomic_cas_value_strong<mode>"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(zero_extend:SI (mem:SUBW (match_operand:SI 1 "register_operand" "r"))))
++   (set (mem:SUBW (match_dup 1))
++	(unspec_volatile:SUBW [(match_operand:SI 2 "register_operand" "r")
++			       (match_operand:SI 3 "register_operand" "r")]
++	 UNSPECV_ATOMIC_CAS))
++   (clobber (match_scratch:SI 4 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4"
++{
++  return "1:\;"
++	 "ldl.<ldl_sfx> [%1],%0\;"
++	 "cmp %2,%0\;"
++	 "bne 2f\;"
++	 "mov %3,%4\;"
++	 "stc.<stc_sfx> %4,[%1]\;"
++	 "cmp r0,%4\;"
++	 "be 1b\;"
++	 "2:";
++}
++  [(set_attr "length" "18")])
++
++(define_expand "atomic_exchange<mode>"
++  [(match_operand:SUBW 0 "register_operand")
++   (match_operand:SUBW 1 "memory_operand")
++   (match_operand:SUBW 2 "register_operand")
++   (match_operand:SI 3 "const_int_operand")]
++  "TARGET_G4"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[1], 0));
++  rtx value = force_reg (SImode, convert_to_mode (SImode, operands[2], 1));
++  rtx old = gen_reg_rtx (SImode);
++
++  v850_atomic_fence (operands[3], true);
++  emit_insn (gen_atomic_exchange<mode>_insn (old, addr, value));
++  v850_atomic_fence (operands[3], false);
++  emit_move_insn (operands[0], gen_lowpart (<MODE>mode, old));
++  DONE;
++})
++
++(define_insn "atomic_exchange<mode>_insn"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(zero_extend:SI (mem:SUBW (match_operand:SI 1 "register_operand" "r"))))
++   (set (mem:SUBW (match_dup 1))
++	(unspec_volatile:SUBW [(match_operand:SI 2 "register_operand" "r")]
++	 UNSPECV_ATOMIC_EXCHANGE))
++   (clobber (match_scratch:SI 3 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4"
++{
++  return "1:\;"
++	 "ldl.<ldl_sfx> [%1],%0\;"
++	 "mov %2,%3\;"
++	 "stc.<stc_sfx> %3,[%1]\;"
++	 "cmp r0,%3\;"
++	 "be 1b";
++}
++  [(set_attr "length" "14")])
++
++(define_expand "atomic_fetch_<atomic_optab><mode>"
++  [(match_operand:SUBW 0 "register_operand")
++   (any_atomic:SUBW (match_operand:SUBW 1 "memory_operand")
++		    (match_operand:SUBW 2 "register_operand"))
++   (match_operand:SI 3 "const_int_operand")]
++  "TARGET_G4"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[1], 0));
++  rtx value = force_reg (SImode, convert_to_mode (SImode, operands[2], 1));
++  rtx old = gen_reg_rtx (SImode);
++
++  v850_atomic_fence (operands[3], true);
++  emit_insn (gen_atomic_fetch_<atomic_optab><mode>_insn (old, addr, value));
++  v850_atomic_fence (operands[3], false);
++  emit_move_insn (operands[0], gen_lowpart (<MODE>mode, old));
++  DONE;
++})
++
++(define_insn "atomic_fetch_<atomic_optab><mode>_insn"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(zero_extend:SI (mem:SUBW (match_operand:SI 1 "register_operand" "r"))))
++   (set (mem:SUBW (match_dup 1))
++	(unspec_volatile:SUBW
++	  [(any_atomic:SI (zero_extend:SI (mem:SUBW (match_dup 1)))
++			  (match_operand:SI 2 "register_operand" "r"))]
++	 UNSPECV_ATOMIC_OP))
++   (clobber (match_scratch:SI 3 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4"
++{
++  return "1:\;"
++	 "ldl.<ldl_sfx> [%1],%0\;"
++	 "mov %0,%3\;"
++	 "<atomic_optab> %2,%3\;"
++	 "stc.<stc_sfx> %3,[%1]\;"
++	 "cmp r0,%3\;"
++	 "be 1b";
++}
++  [(set_attr "length" "16")])
++
++(define_expand "atomic_fetch_nand<mode>"
++  [(match_operand:SUBW 0 "register_operand")
++   (match_operand:SUBW 1 "memory_operand")
++   (match_operand:SUBW 2 "register_operand")
++   (match_operand:SI 3 "const_int_operand")]
++  "TARGET_G4"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[1], 0));
++  rtx value = force_reg (SImode, convert_to_mode (SImode, operands[2], 1));
++  rtx old = gen_reg_rtx (SImode);
++
++  v850_atomic_fence (operands[3], true);
++  emit_insn (gen_atomic_fetch_nand<mode>_insn (old, addr, value));
++  v850_atomic_fence (operands[3], false);
++  emit_move_insn (operands[0], gen_lowpart (<MODE>mode, old));
++  DONE;
++})
++
++(define_insn "atomic_fetch_nand<mode>_insn"
++  [(set (match_operand:SI 0 "register_operand" "=&r")
++	(zero_extend:SI (mem:SUBW (match_operand:SI 1 "register_operand" "r"))))
++   (set (mem:SUBW (match_dup 1))
++	(unspec_volatile:SUBW
++	  [(not:SI (and:SI (zero_extend:SI (mem:SUBW (match_dup 1)))
++			   (match_operand:SI 2 "register_operand" "r")))]
++	 UNSPECV_ATOMIC_OP))
++   (clobber (match_scratch:SI 3 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4"
++{
++  return "1:\;"
++	 "ldl.<ldl_sfx> [%1],%0\;"
++	 "mov %0,%3\;"
++	 "and %2,%3\;"
++	 "not %3,%3\;"
++	 "stc.<stc_sfx> %3,[%1]\;"
++	 "cmp r0,%3\;"
++	 "be 1b";
++}
++  [(set_attr "length" "18")])
++
++(define_expand "atomic_store<mode>"
++  [(match_operand:SUBW 0 "memory_operand")
++   (match_operand:SUBW 1 "register_operand")
++   (match_operand:SI 2 "const_int_operand")]
++  "TARGET_G4"
++{
++  rtx addr = force_reg (Pmode, XEXP (operands[0], 0));
++  rtx value = force_reg (SImode, convert_to_mode (SImode, operands[1], 1));
++
++  v850_atomic_fence (operands[2], true);
++  emit_insn (gen_atomic_store<mode>_insn (addr, value));
++  if (is_mm_seq_cst (memmodel_base (INTVAL (operands[2]))))
++    v850_atomic_fence (operands[2], false);
++  DONE;
++})
++
++(define_insn "atomic_store<mode>_insn"
++  [(set (mem:SUBW (match_operand:SI 0 "register_operand" "r"))
++	(unspec_volatile:SUBW [(match_operand:SI 1 "register_operand" "r")]
++	 UNSPECV_ATOMIC_STORE))
++   (clobber (match_scratch:SI 2 "=&r"))
++   (clobber (reg:CC CC_REGNUM))]
++  "TARGET_G4"
++{
++  return "1:\;"
++	 "ldl.<ldl_sfx> [%0],%2\;"
++	 "mov %1,%2\;"
++	 "stc.<stc_sfx> %2,[%0]\;"
++	 "cmp r0,%2\;"
++	 "be 1b";
++}
++  [(set_attr "length" "14")])
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-g4-lockfree.c b/gcc/testsuite/gcc.target/v850/atomic-g4-lockfree.c
+new file mode 100644
+index 00000000000..a09df197699
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-g4-lockfree.c
+@@ -0,0 +1,15 @@
++/* { dg-do preprocess } */
++/* { dg-options "-mg4" } */
++
++#if __GCC_ATOMIC_CHAR_LOCK_FREE != 2 || __GCC_ATOMIC_SHORT_LOCK_FREE != 2 \
++    || __GCC_ATOMIC_BOOL_LOCK_FREE != 2 || __GCC_ATOMIC_INT_LOCK_FREE != 2
++#error 8, 16 or 32-bit atomics not lock free
++#endif
++#if !defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 \
++    || !defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 \
++    || !defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
++#error compare and swap missing
++#endif
++#if __GCC_ATOMIC_LLONG_LOCK_FREE != 1 || defined __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
++#error 64-bit atomics changed
++#endif
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-g4-run.c b/gcc/testsuite/gcc.target/v850/atomic-g4-run.c
+new file mode 100644
+index 00000000000..18ec20166fc
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-g4-run.c
+@@ -0,0 +1,69 @@
++/* { dg-do run } */
++/* { dg-options "-O2 -mg4" } */
++
++extern void abort (void);
++
++#define TEST(T, N, M)							\
++  static volatile T N;							\
++  static void								\
++  test_##N (void)							\
++  {									\
++    T e;								\
++    N = 0x5a;								\
++    if (__atomic_fetch_add (&N, 0x10, __ATOMIC_SEQ_CST) != 0x5a || N != 0x6a) \
++      abort ();								\
++    if (__atomic_fetch_sub (&N, 0x6b, __ATOMIC_SEQ_CST) != 0x6a || N != (T) -1) \
++      abort ();								\
++    N = 0x0f;								\
++    if (__atomic_fetch_and (&N, 0x3c, __ATOMIC_SEQ_CST) != 0x0f || N != 0x0c) \
++      abort ();								\
++    if (__atomic_fetch_or (&N, 0x30, __ATOMIC_SEQ_CST) != 0x0c || N != 0x3c) \
++      abort ();								\
++    if (__atomic_fetch_xor (&N, 0x0f, __ATOMIC_SEQ_CST) != 0x3c || N != 0x33) \
++      abort ();								\
++    if (__atomic_fetch_nand (&N, 0x0f, __ATOMIC_SEQ_CST) != 0x33	\
++	|| N != (T) ~0x03)						\
++      abort ();								\
++    if (__atomic_add_fetch (&N, 4, __ATOMIC_SEQ_CST) != (T) (~0x03 + 4)) \
++      abort ();								\
++    N = M;								\
++    if (__atomic_exchange_n (&N, 7, __ATOMIC_SEQ_CST) != M || N != 7) \
++      abort ();								\
++    e = 7;								\
++    if (!__atomic_compare_exchange_n (&N, &e, M, 0, __ATOMIC_SEQ_CST,	\
++				      __ATOMIC_SEQ_CST) || N != M)	\
++      abort ();								\
++    e = 7;								\
++    if (__atomic_compare_exchange_n (&N, &e, 9, 0, __ATOMIC_SEQ_CST,	\
++				     __ATOMIC_SEQ_CST) || e != M || N != M) \
++      abort ();								\
++    __atomic_store_n (&N, 3, __ATOMIC_SEQ_CST);				\
++    if (__atomic_load_n (&N, __ATOMIC_SEQ_CST) != 3)			\
++      abort ();								\
++    if (!__sync_bool_compare_and_swap (&N, 3, (T) -2) || N != (T) -2)	\
++      abort ();								\
++  }
++
++TEST (signed char, sc, (signed char) -100)
++TEST (unsigned char, uc, 200)
++TEST (short, ss, (short) -30000)
++TEST (unsigned short, us, 60000)
++
++static volatile _Bool flag;
++
++int
++main (void)
++{
++  test_sc ();
++  test_uc ();
++  test_ss ();
++  test_us ();
++  if (__atomic_test_and_set (&flag, __ATOMIC_SEQ_CST))
++    abort ();
++  if (!__atomic_test_and_set (&flag, __ATOMIC_SEQ_CST))
++    abort ();
++  __atomic_clear (&flag, __ATOMIC_SEQ_CST);
++  if (flag)
++    abort ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-g4-subword.c b/gcc/testsuite/gcc.target/v850/atomic-g4-subword.c
+new file mode 100644
+index 00000000000..8d0b09d2840
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-g4-subword.c
+@@ -0,0 +1,27 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mg4" } */
++
++#define OPS(T, N)							\
++  T N##_v;								\
++  int N##_cas (T *e, T x)						\
++  {									\
++    return __atomic_compare_exchange_n (&N##_v, e, x, 0,		\
++					__ATOMIC_RELAXED, __ATOMIC_RELAXED); \
++  }									\
++  T N##_xchg (T x) { return __atomic_exchange_n (&N##_v, x, __ATOMIC_RELAXED); } \
++  T N##_add (T x) { return __atomic_fetch_add (&N##_v, x, __ATOMIC_RELAXED); } \
++  T N##_sub (T x) { return __atomic_fetch_sub (&N##_v, x, __ATOMIC_RELAXED); } \
++  T N##_and (T x) { return __atomic_fetch_and (&N##_v, x, __ATOMIC_RELAXED); } \
++  T N##_or (T x) { return __atomic_fetch_or (&N##_v, x, __ATOMIC_RELAXED); } \
++  T N##_xor (T x) { return __atomic_fetch_xor (&N##_v, x, __ATOMIC_RELAXED); } \
++  T N##_nand (T x) { return __atomic_fetch_nand (&N##_v, x, __ATOMIC_RELAXED); } \
++  void N##_st (T x) { __atomic_store_n (&N##_v, x, __ATOMIC_RELAXED); }
++
++OPS (unsigned char, c)
++OPS (short, s)
++
++/* { dg-final { scan-assembler-times "ldl\\.bu" 9 } } */
++/* { dg-final { scan-assembler-times "stc\\.b" 9 } } */
++/* { dg-final { scan-assembler-times "ldl\\.hu" 9 } } */
++/* { dg-final { scan-assembler-times "stc\\.h" 9 } } */
++/* { dg-final { scan-assembler-not "__atomic_|__sync_" } } */
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-run.c b/gcc/testsuite/gcc.target/v850/atomic-run.c
+new file mode 100644
+index 00000000000..d58249b3b72
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-run.c
+@@ -0,0 +1,50 @@
++/* { dg-do run } */
++/* { dg-options "-O2 -mv850e3v5" } */
++
++extern void abort (void);
++
++static volatile int v;
++
++int
++main (void)
++{
++  int e;
++
++  v = 10;
++  if (__atomic_fetch_add (&v, 5, __ATOMIC_SEQ_CST) != 10 || v != 15)
++    abort ();
++  if (__atomic_fetch_sub (&v, 3, __ATOMIC_ACQUIRE) != 15 || v != 12)
++    abort ();
++  v = 0x0f;
++  if (__atomic_fetch_and (&v, 0x3c, __ATOMIC_RELEASE) != 0x0f || v != 0x0c)
++    abort ();
++  if (__atomic_fetch_or (&v, 0x30, __ATOMIC_ACQ_REL) != 0x0c || v != 0x3c)
++    abort ();
++  if (__atomic_fetch_xor (&v, 0x0f, __ATOMIC_RELAXED) != 0x3c || v != 0x33)
++    abort ();
++  if (__atomic_fetch_nand (&v, 0x0f, __ATOMIC_SEQ_CST) != 0x33 || v != ~0x03)
++    abort ();
++  if (__atomic_nand_fetch (&v, 0x0f, __ATOMIC_SEQ_CST) != ~0x0c)
++    abort ();
++  if (__atomic_exchange_n (&v, 7, __ATOMIC_SEQ_CST) != ~0x0c || v != 7)
++    abort ();
++  e = 7;
++  if (!__atomic_compare_exchange_n (&v, &e, 8, 0, __ATOMIC_SEQ_CST,
++				    __ATOMIC_SEQ_CST) || v != 8)
++    abort ();
++  if (__atomic_compare_exchange_n (&v, &e, 9, 0, __ATOMIC_SEQ_CST,
++				   __ATOMIC_RELAXED) || e != 8 || v != 8)
++    abort ();
++  __atomic_store_n (&v, 3, __ATOMIC_RELEASE);
++  if (__atomic_load_n (&v, __ATOMIC_ACQUIRE) != 3)
++    abort ();
++  if (__sync_val_compare_and_swap (&v, 3, 4) != 3 || v != 4)
++    abort ();
++  if (__sync_lock_test_and_set (&v, 1) != 4)
++    abort ();
++  __sync_lock_release (&v);
++  if (v != 0)
++    abort ();
++  __sync_synchronize ();
++  return 0;
++}
+diff --git a/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c b/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
+new file mode 100644
+index 00000000000..1d3f68c7c98
+--- /dev/null
++++ b/gcc/testsuite/gcc.target/v850/atomic-subword-e3v5.c
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -mv850e3v5" } */
++/* { dg-skip-if "tests the code without -mg4" { *-*-* } { "-mg4" } { "" } } */
++
++unsigned char c;
++short s;
++
++int fc (unsigned char x) { return __atomic_fetch_add (&c, x, __ATOMIC_SEQ_CST); }
++int fs (short x) { return __atomic_exchange_n (&s, x, __ATOMIC_SEQ_CST); }
++
++/* { dg-final { scan-assembler "__atomic_fetch_add_1" } } */
++/* { dg-final { scan-assembler "__atomic_exchange_2" } } */
++/* { dg-final { scan-assembler-not "ldl\\.bu|ldl\\.hu|stc\\.b|stc\\.h" } } */
+-- 
+Parthiban N
+

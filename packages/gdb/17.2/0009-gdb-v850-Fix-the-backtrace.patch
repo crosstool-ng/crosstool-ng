@@ -1,0 +1,221 @@
+From 9023a6a90b3b47eec12739b4c373ff0ca1b8fbf2 Mon Sep 17 00:00:00 2001
+From: Parthiban Nallathambi <parthiban@linumiz.com>
+Date: Fri, 13 Nov 2026 02:23:07 +0530
+Subject: [PATCH] gdb: v850: Fix the backtrace
+
+Use the stack pointer value in the frame id, and do not end the
+backtrace when r29 is zero in a function without a frame pointer.
+
+Signed-off-by: Parthiban Nallathambi <parthiban@linumiz.com>
+---
+ gdb/testsuite/gdb.arch/v850-frame.S   | 46 ++++++++++++++++++++++++
+ gdb/testsuite/gdb.arch/v850-frame.c   | 25 +++++++++++++
+ gdb/testsuite/gdb.arch/v850-frame.exp | 51 +++++++++++++++++++++++++++
+ gdb/v850-tdep.c                       | 33 ++++++++---------
+ 4 files changed, 137 insertions(+), 18 deletions(-)
+ create mode 100644 gdb/testsuite/gdb.arch/v850-frame.S
+ create mode 100644 gdb/testsuite/gdb.arch/v850-frame.c
+ create mode 100644 gdb/testsuite/gdb.arch/v850-frame.exp
+
+diff --git a/gdb/testsuite/gdb.arch/v850-frame.S b/gdb/testsuite/gdb.arch/v850-frame.S
+new file mode 100644
+index 00000000000..80a569162e5
+--- /dev/null
++++ b/gdb/testsuite/gdb.arch/v850-frame.S
+@@ -0,0 +1,46 @@
++/* This testcase is part of GDB, the GNU debugger.
++
++   Copyright 2026 Free Software Foundation, Inc.
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3 of the License, or
++   (at your option) any later version.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
++
++/* Two functions without a frame pointer and without CFI, so that GDB
++   unwinds them with the prologue analyzer.  OUTER sets r29 to zero
++   before it calls INNER.  */
++
++	.text
++	.globl	_outer
++	.type	_outer, @function
++_outer:
++	addi	-8, sp, sp
++	st.w	lp, 4[sp]
++	st.w	r29, 0[sp]
++	mov	r0, r29
++	jarl	_inner, lp
++	ld.w	0[sp], r29
++	ld.w	4[sp], lp
++	addi	8, sp, sp
++	jmp	[lp]
++	.size	_outer, . - _outer
++
++	.globl	_inner
++	.type	_inner, @function
++_inner:
++	addi	-8, sp, sp
++	st.w	lp, 4[sp]
++	nop
++	ld.w	4[sp], lp
++	addi	8, sp, sp
++	jmp	[lp]
++	.size	_inner, . - _inner
+diff --git a/gdb/testsuite/gdb.arch/v850-frame.c b/gdb/testsuite/gdb.arch/v850-frame.c
+new file mode 100644
+index 00000000000..07bc8c6d41f
+--- /dev/null
++++ b/gdb/testsuite/gdb.arch/v850-frame.c
+@@ -0,0 +1,25 @@
++/* This testcase is part of GDB, the GNU debugger.
++
++   Copyright 2026 Free Software Foundation, Inc.
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 3 of the License, or
++   (at your option) any later version.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
++
++extern void outer (void);
++
++int
++main (void)
++{
++  outer ();
++  return 0;
++}
+diff --git a/gdb/testsuite/gdb.arch/v850-frame.exp b/gdb/testsuite/gdb.arch/v850-frame.exp
+new file mode 100644
+index 00000000000..be951073cf3
+--- /dev/null
++++ b/gdb/testsuite/gdb.arch/v850-frame.exp
+@@ -0,0 +1,51 @@
++# Copyright 2026 Free Software Foundation, Inc.
++#
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3 of the License, or
++# (at your option) any later version.
++#
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++# Test the v850 prologue unwinder on functions without a frame
++# pointer and without CFI.
++
++require {istarget "v850*-*-*"}
++
++standard_testfile .c .S
++
++if {[prepare_for_testing "failed to prepare" $testfile \
++	 [list $srcfile $srcfile2] debug]} {
++    return
++}
++
++if {![runto_main]} {
++    return
++}
++
++gdb_breakpoint "inner"
++gdb_continue_to_breakpoint "inner"
++
++# OUTER cleared r29, which it does not use as a frame pointer.  The
++# backtrace must still reach main.
++gdb_test "bt" \
++    [multi_line \
++	 "#0\[ \t\]*$hex in inner \\\(\\\)" \
++	 "#1\[ \t\]*$hex in outer \\\(\\\)" \
++	 "#2\[ \t\]*$hex in main \\\(\\\) at .*$srcfile:${decimal}"] \
++    "backtrace with r29 zero"
++
++# Computing the frame id with a non-zero r29 must not fail.
++gdb_test_no_output "set var \$r29 = 0x1000"
++gdb_test "bt" \
++    [multi_line \
++	 "#0\[ \t\]*$hex in inner \\\(\\\)" \
++	 "#1\[ \t\]*$hex in outer \\\(\\\)" \
++	 "#2\[ \t\]*$hex in main \\\(\\\) at .*$srcfile:${decimal}"] \
++    "backtrace with r29 set"
+diff --git a/gdb/v850-tdep.c b/gdb/v850-tdep.c
+index d592344e2e3..4a8fdcd7231 100644
+--- a/gdb/v850-tdep.c
++++ b/gdb/v850-tdep.c
+@@ -1244,15 +1244,6 @@ v850_frame_cache (const frame_info_ptr &this_frame, void **this_cache)
+   cache = v850_alloc_frame_cache (this_frame);
+   *this_cache = cache;
+ 
+-  /* In principle, for normal frames, fp holds the frame pointer,
+-     which holds the base address for the current stack frame.
+-     However, for functions that don't need it, the frame pointer is
+-     optional.  For these "frameless" functions the frame pointer is
+-     actually the frame pointer of the calling frame.  */
+-  cache->base = get_frame_register_unsigned (this_frame, E_FP_REGNUM);
+-  if (cache->base == 0)
+-    return cache;
+-
+   cache->pc = get_frame_func (this_frame);
+   current_pc = get_frame_pc (this_frame);
+   if (cache->pc != 0)
+@@ -1262,15 +1253,20 @@ v850_frame_cache (const frame_info_ptr &this_frame, void **this_cache)
+       v850_analyze_prologue (gdbarch, cache->pc, current_pc, cache, ctbp);
+     }
+ 
+-  if (!cache->uses_fp)
++  if (cache->uses_fp)
++    {
++      cache->base = get_frame_register_unsigned (this_frame, E_FP_REGNUM);
++      if (cache->base == 0)
++	return cache;
++    }
++  else
+     {
+-      /* We didn't find a valid frame, which means that CACHE->base
+-	 currently holds the frame pointer for our calling frame.  If
+-	 we're at the start of a function, or somewhere half-way its
+-	 prologue, the function's frame probably hasn't been fully
+-	 setup yet.  Try to reconstruct the base address for the stack
+-	 frame by looking at the stack pointer.  For truly "frameless"
+-	 functions this might work too.  */
++      /* Without a frame pointer, fp (r29) is an ordinary register
++	 and may hold any value, zero included.  If we're at the start
++	 of a function, or somewhere half-way its prologue, the
++	 function's frame probably hasn't been fully setup yet either.
++	 Reconstruct the base address for the stack frame by looking at
++	 the stack pointer.  */
+       cache->base = get_frame_register_unsigned (this_frame, E_SP_REGNUM);
+     }
+ 
+@@ -1317,7 +1313,8 @@ v850_frame_this_id (const frame_info_ptr &this_frame, void **this_cache,
+   if (cache->base == 0)
+     return;
+ 
+-  *this_id = frame_id_build (cache->saved_regs[E_SP_REGNUM].addr (), cache->pc);
++  *this_id = frame_id_build (cache->saved_regs[E_SP_REGNUM].value (),
++			     cache->pc);
+ }
+ 
+ static const struct frame_unwind_legacy v850_frame_unwind (
+-- 
+Parthiban N
+
