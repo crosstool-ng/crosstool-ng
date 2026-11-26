@@ -5,7 +5,11 @@ CT_DoArchTupleValues () {
     # like 'sheb-unknown-elf' even though GCC does. So keep the tuple just sh-*-elf
     # unless user wants something specific (either CPU or explicit suffix).
     if [ "${CT_ARCH_SH_VARIANT}" != "sh" -o -n "${CT_ARCH_SUFFIX}" ]; then
-        CT_TARGET_ARCH="${CT_ARCH_SH_VARIANT}${CT_ARCH_SUFFIX:-${CT_ARCH_SH_FLOAT_SUFFIX}${CT_ARCH_SH_HIDE_ENDIAN_SUFFIX:-${target_endian_eb}${target_endian_el}}}"
+        local endian_suffix
+        if [ "${CT_ARCH_SH_HIDE_ENDIAN_SUFFIX}" != "y" ]; then
+            endian_suffix="${target_endian_eb}${target_endian_el}"
+        fi
+        CT_TARGET_ARCH="${CT_ARCH_SH_VARIANT}${CT_ARCH_SUFFIX:-${CT_ARCH_SH_FLOAT_SUFFIX}${endian_suffix}}"
     fi
 
     # Endianness stuff (uses non-standard CFLAGS). If both are compiled, let the
